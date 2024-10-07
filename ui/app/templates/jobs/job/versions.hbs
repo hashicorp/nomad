@@ -4,6 +4,7 @@
 ~}}
 
 {{page-title "Job " this.job.name " versions"}}
+{{did-update this.versionsDidUpdate this.job.versions}}
 <JobSubnav @job={{this.job}} />
 <section class="section">
 
@@ -56,5 +57,5 @@
     </div>
   {{/if}}
 
-  <JobVersionsStream @versions={{this.model.versions}} @verbose={{true}} @handleError={{action this.handleError}} @diffsExpanded={{this.diffsExpanded}} />
+  <JobVersionsStream @versions={{this.model.versions}} @diffs={{this.diffs}} @verbose={{true}} @handleError={{action this.handleError}} @diffsExpanded={{this.diffsExpanded}} />
 </section>

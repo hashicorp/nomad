@@ -431,7 +431,7 @@ export default class Job extends Model {
 
   @attr('number') version;
 
-  @hasMany('job-versions', { async: true }) versions;
+  @hasMany('job-versions', { async: false }) versions;
   @hasMany('allocations') allocations;
   @hasMany('deployments') deployments;
   @hasMany('evaluations') evaluations;

@@ -3,6 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
+{{did-update this.versionsDidUpdate this.diff}}
 <section class="job-version">
   <div class="boxed-section {{if this.version.versionTag "tagged"}}" data-test-tagged-version={{if this.version.versionTag "true" "false"}}>
     <header class="boxed-section-head is-light inline-definitions">
@@ -16,7 +17,7 @@
         <span data-test-version-submit-time class="submit-date">{{format-ts this.version.submitTime}}</span>
       </span>
       <div class="pull-right">
-        {{#if this.version.diff}}
+        {{#if this.diff}}
           <Hds::Button
             class="is-light is-small"
             @size="small"
@@ -33,7 +34,7 @@
     </header>
     {{#if this.isOpen}}
       <div class="boxed-section-body is-dark">
-        <JobDiff @diff={{this.version.diff}} @verbose={{this.verbose}} />
+        <JobDiff @diff={{this.diff}} @verbose={{this.verbose}} />
       </div>
     {{/if}}
     <footer class="boxed-section-foot {{if this.isEditing "editing"}}">

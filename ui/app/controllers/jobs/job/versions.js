@@ -58,6 +58,17 @@ export default class VersionsController extends Controller.extend(
     });
   }
 
+  @tracked diffs = [];
+
+  @action async versionsDidUpdate() {
+    try {
+      const diffs = await this.job.getVersions(this.diffVersion);
+      this.diffs = diffs.Diffs;
+    } catch (error) {
+      console.error('error fetching diffs', error);
+    }
+  }
+
   get diffsExpanded() {
     return this.diffVersion !== '';
   }

@@ -19,6 +19,7 @@ export default class JobVersion extends Component {
   @service router;
 
   @alias('args.version') version;
+  @alias('args.diff') diff;
   @tracked isOpen = false;
   @tracked isEditing = false;
   @tracked editableTag;
@@ -29,7 +30,11 @@ export default class JobVersion extends Component {
   constructor() {
     super(...arguments);
     this.initializeEditableTag();
-    if (this.args.diffsExpanded && this.version.diff) {
+    this.versionsDidUpdate();
+  }
+
+  @action versionsDidUpdate() {
+    if (this.args.diffsExpanded && this.diff) {
       this.isOpen = true;
     }
   }
@@ -47,9 +52,9 @@ export default class JobVersion extends Component {
     this.editableTag.jobName = this.version.get('job.plainId');
   }
 
-  @computed('version.diff')
+  @computed('diff')
   get changeCount() {
-    const diff = this.version.diff;
+    const diff = this.diff;
     const taskGroups = diff.TaskGroups || [];
 
     if (!diff) {
