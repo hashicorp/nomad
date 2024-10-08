@@ -63,7 +63,11 @@ export default class VersionsController extends Controller.extend(
   @action async versionsDidUpdate() {
     try {
       const diffs = await this.job.getVersions(this.diffVersion);
-      this.diffs = diffs.Diffs;
+      if (diffs.Diffs) {
+        this.diffs = diffs.Diffs;
+      } else {
+        this.diffs = [];
+      }
     } catch (error) {
       console.error('error fetching diffs', error);
     }
