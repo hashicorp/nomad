@@ -31,7 +31,14 @@ func newArtifactHook(e ti.EventEmitter, getter ci.ArtifactGetter, logger log.Log
 	return h
 }
 
-func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse, jobs chan *structs.TaskArtifact, errorChannel chan error, wg *sync.WaitGroup, responseStateMutex *sync.Mutex) {
+func (h *artifactHook) doWork(
+	req *interfaces.TaskPrestartRequest,
+	resp *interfaces.TaskPrestartResponse,
+	jobs chan *structs.TaskArtifact,
+	errorChannel chan error,
+	wg *sync.WaitGroup,
+	responseStateMutex *sync.Mutex,
+) {
 	defer wg.Done()
 	for artifact := range jobs {
 		aid := artifact.Hash()
@@ -45,7 +52,7 @@ func (h *artifactHook) doWork(req *interfaces.TaskPrestartRequest, resp *interfa
 
 		h.logger.Debug("downloading artifact", "artifact", artifact.GetterSource, "aid", aid)
 
-		if err := h.getter.Get(req.TaskEnv, artifact); err != nil {
+		if err := h.getter.Get(req.TaskEnv, artifact, req.Task.User); err != nil {
 			wrapped := structs.NewRecoverableError(
 				fmt.Errorf("failed to download artifact %q: %v", artifact.GetterSource, err),
 				true,
