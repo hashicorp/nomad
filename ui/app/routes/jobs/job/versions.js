@@ -15,21 +15,8 @@ import { inject as service } from '@ember/service';
 export default class VersionsRoute extends Route.extend(WithWatchers) {
   @service store;
 
-  queryParams = {
-    diffVersion: {
-      refreshModel: true,
-    },
-  };
-
-  async model(params) {
+  async model() {
     const job = this.modelFor('jobs.job');
-    const versions = await job.getVersions(params.diffVersion);
-
-    job.versions = job.versions.map((v, i) => {
-      const diff = versions.Diffs[i];
-      v.set('diff', diff);
-      return v;
-    });
     return job;
   }
 
