@@ -206,10 +206,6 @@ func (c *JobStartCommand) Run(args []string) int {
 				statusCh <- 1
 				return
 			}
-			if *job.Name == "bridge2" {
-				c.Ui.Output(fmt.Sprintf("HERE"))
-
-			}
 
 			// Nothing to do
 			evalCreated := resp.EvalID != ""
