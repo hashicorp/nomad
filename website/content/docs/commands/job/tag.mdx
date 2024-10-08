@@ -28,8 +28,7 @@ Use these optional general options with the subcommands.
 
 ## Apply
 
-Use `job tag apply` to save a job version. Nomad does not garbage collect saved
-job versions. You can [diff] and [revert] saved versions.
+Use `job tag apply` to create or modify a version tag.
 
 ### Apply usage
 
@@ -45,25 +44,25 @@ nomad job tag apply [options] <job_id>
 
 ### Apply examples
 
-This example tags the latest version of the job "ecommerce-site".
+This example tags the latest version of the job `hello-world`.
 
 ```shell-session
-nomad job tag apply -name "golden-version" \
+$ nomad job tag apply -name "golden-version" \
 		-description "The version we can roll back to." \
-    ecommerce-site
+    hello-world
 ```
 
-This example tags version 3 of the job "ecommerce-site".
+This example tags version zero of the job `hello-world`.
 
 ```shell-session
-nomad job tag apply -version 3 \
+$ nomad job tag apply -version 0 \
       -name "golden-version" \
-      ecommerce-site
+      hello-world
 ```
 
 ## Unset
 
-Use `nomad job tag unset` to remove a tag from a job version. This command requires a job name and a tag name.
+Use `nomad job tag unset` to delete a tag from a version. This command requires a job name and a tag name.
 
 ### Unset usage
 
@@ -77,10 +76,10 @@ nomad job tag unset [options] <job_id> -name <tag>
 
 ### Examples
 
-This example removes the "golden-version" tag from the "ecommerce-site" job.
+This example removes the `golden-version` tag from the `hello-world` job.
 
 ```shell-session
-nomad job tag unset ecommerce-site -name "golden-version"
+$ nomad job tag unset hello-world -name "golden-version"
 ```
 
 [diff]: /nomad/docs/commands/job/history/

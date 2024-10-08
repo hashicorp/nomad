@@ -1831,7 +1831,11 @@ The table below shows this endpoint's support for
 - `JobID` `(string: <required>)` - Specifies the ID of the job. This is
   specified as part of the path.
 
-- `JobVersion` `(integer: 0)` - Specifies the job version to revert to.
+- `JobVersion` `(integer: 0)` - Specifies the job version to revert to. Use this
+  or `TaggedVersion`.
+
+- `TaggedVersion` `(string: "")` - Specifies the tag name of the job version you
+  want to revert to. Use this or `JobVersion`.
 
 - `EnforcePriorVersion` `(integer: nil)` - Optional value specifying the current
   job's version. This is checked and acts as a check-and-set value before
@@ -1849,10 +1853,21 @@ access. This is specified as a query string parameter.
 
 ### Sample Payload
 
+This example specifies the version.
+
 ```json
 {
   "JobID": "my-job",
   "JobVersion": 2
+}
+```
+
+This example specifies the tagged version.
+
+```json
+{
+  "JobID": "my-job",
+  "TaggedVersion": "golden-version"
 }
 ```
 
@@ -2705,21 +2720,21 @@ This endpoint creates a tag for a job version.
 
 ```json
 {
-  "Version": 2,
+  "Version": 0,
   "Description": "The version we can roll back to."
 }
 ```
 
 ### Sample Request
 
-This example creates a tag named "golden-version" for version two of the
-"ecommerce-site" job.
+This example creates a tag named `golden-version` for version zero of the
+`hello-world` job.
 
 ```shell-session
-curl -X POST \
- localhost:4646/v1/job/ecommerce-site/versions/golden-version/tag \
+$ curl -X POST \
+ localhost:4646/v1/job/hello-world/versions/golden-version/tag \
  -H "Content-Type: application/json" -d \
- '{"Version": 2, "Description": "The version we can roll back to."}'
+ '{"Version": 0, "Description": "The version we can roll back to."}'
 ```
 
 ### Sample Response
@@ -2750,10 +2765,10 @@ This endpoint deletes a job version tag.
 
 ### Sample Request
 
-This example deletes the tag named "golden-version" from the job "ecommerce-site".
+This example deletes the `golden-version` tag from the `hello-world` job.
 
 ```shell-session
-curl -X DELETE localhost:4646/v1/job/ecommerce-site/versions/golden-version/tag -H "Content-Type: application/json"
+$ curl -X DELETE localhost:4646/v1/job/hello-world/versions/golden-version/tag -H "Content-Type: application/json"
 ```
 
 ### Sample Response
