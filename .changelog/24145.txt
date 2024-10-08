@@ -1,3 +1,0 @@
-```release-note:bug
-ui: Fix an issue where new job versions would not see their diffs updated on the job versions page
-```
