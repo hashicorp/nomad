@@ -1916,6 +1916,10 @@
         "path": "other-specifications/node-pool"
       },
       {
+        "title": "Quota",
+        "path": "other-specifications/quota"
+      },
+      {
         "title": "Variables",
         "path": "other-specifications/variables"
       },

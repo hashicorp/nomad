@@ -1,0 +1,88 @@
+---
+layout: docs
+page_title: Nomad Quota Specification
+description: Learn about Nomad's Resource Quota specification.
+---
+
+# Nomad Quota Specification
+
+<EnterpriseAlert>
+Resource Quotas are only available with Nomad Enterprise.
+</EnterpriseAlert>
+
+[Resource Quotas](/nomad/docs/enterprise#resource-quotas)
+enable an operator to limit resource consumption across teams
+or projects to reduce waste and align budgets.
+
+Quotas can be managed using the Nomad CLI via the
+[`quota`](/nomad/docs/commands/quota)
+subcommands, or with Nomad's
+[HTTP API](/nomad/api-docs/quotas)
+directly.
+
+You may also follow a
+[Quotas tutorial](/nomad/tutorials/governance-and-policy/quotas)
+for more example usage.
+
+## Example Quota Specification
+
+The CLI command `nomad quota init` generates an example `spec.hcl` file:
+
+```hcl
+name        = "default-quota"
+description = "Limit the shared default namespace"
+
+# Create a limit for the global region. Additional limits may
+# be specified in-order to limit other regions.
+limit {
+  region = "global"
+  region_limit {
+    cores      = 0
+    cpu        = 2500
+    memory     = 1000
+    memory_max = 1000
+    device "nvidia/gpu/1080ti" {
+      count = 1
+    }
+  }
+  variables_limit = 1000
+}
+```
+
+## Quota Specification Parameters
+
+- `name` `(string)` - The name of the Quota. This will be used to connect it to a
+[`Namespace`](/nomad/docs/other-specifications/namespace).
+- `description` `(string: <optional>)` - A human-readable description.
+- `limit` <code>([QuotaLimit](#limit-parameters))</code> - The resource limit in a Nomad region.
+
+### `limit` Parameters
+
+- `region` `(string)` - The Nomad `region` that the limit applies to.
+- `region_limit` <code>([RegionLimit](#region_limit-parameters))</code> - Resources to limit.
+- `variables_limit` `(int: 0)` - Maximum total size of all Nomad
+[`variables`](/nomad/docs/concepts/variables)
+in MiB. The default `0` means unlimited, and `-1` means variables are fully disabled.
+
+### `region_limit` Parameters
+
+These are associated with the parameters on a task
+[`resources`](/nomad/docs/job-specification/resources)
+block in a job specification, and the
+[CPU concepts](/nomad/docs/concepts/cpu)
+page has more information regarding CPU resources as well.
+
+- `cores` `(int: <optional>)` - Number of CPU cores
+- `cpu` `(int: <optional>)` - Amount of CPU in MHz
+- `memory` `(int: <optional>)` - Amount of memory in MB
+- `memory_max` `(int: <optional>)` - Max amount of memory in MB
+- `device` <code>([Device](#device-parameters): nil)</code>
+
+### `device` Parameters
+
+The `device` label specifies which device(s) the quota applies to,
+equivalent to the
+[`device`](/nomad/docs/job-specification/device#device-parameters)
+in a job specification.
+
+- `count` `(int)` - How many of this device may be used.
