@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -328,8 +329,9 @@ WAIT:
 
 			break WAIT
 		case <-tm.runner.RenderEventCh():
+			// Some render event occurred, chec to see if deps are still missing
 			events := tm.runner.RenderEvents()
-			joinedSet := make(map[string]struct{})
+			newMissingDeps := make(map[string]struct{})
 			for _, event := range events {
 				missing := event.MissingDeps
 				if missing == nil {
@@ -337,28 +339,17 @@ WAIT:
 				}
 
 				for _, dep := range missing.List() {
-					joinedSet[dep.String()] = struct{}{}
+					newMissingDeps[dep.String()] = struct{}{}
 				}
 			}
 
-			// Check to see if the new joined set is the same as the old
-			different := len(joinedSet) != len(missingDependencies)
-			if !different {
-				for k := range joinedSet {
-					if _, ok := missingDependencies[k]; !ok {
-						different = true
-						break
-					}
-				}
-			}
-
-			// Nothing to do
-			if !different {
+			// No changes in missing deps since last check; nothing to do
+			if maps.Equal(newMissingDeps, missingDependencies) {
 				continue
 			}
 
 			// Update the missing set
-			missingDependencies = joinedSet
+			missingDependencies = newMissingDeps
 
 			// Update the event timer channel
 			if !outstandingEvent {
@@ -422,6 +413,9 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 	}
 }
 
+// onTemplateRendered handles change_mode when templates have been rendered.
+// The previous render times, if any, are passed in to avoid invoking
+// change_mode multiple times for the same event.
 func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time) {
 
 	var handling []string

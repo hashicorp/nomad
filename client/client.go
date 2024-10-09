@@ -1250,6 +1250,9 @@ func (c *Client) restoreState() error {
 		c.logger.Error("error restoring alloc", "error", err, "alloc_id", allocID)
 	}
 
+	// Track failures
+	failedRestores := len(allocErrs)
+
 	// Load each alloc back
 	for _, alloc := range allocs {
 
@@ -1262,6 +1265,7 @@ func (c *Client) restoreState() error {
 				"found an alloc without any local state, deleting from client state db",
 				"alloc_id", alloc.ID)
 			c.stateDB.DeleteAllocationBucket(alloc.ID, state.WithBatchMode())
+			failedRestores++
 			continue
 		}
 
@@ -1280,6 +1284,7 @@ func (c *Client) restoreState() error {
 		if err != nil {
 			c.logger.Error("error running alloc", "error", err, "alloc_id", alloc.ID)
 			c.handleInvalidAllocs(alloc, err)
+			failedRestores++
 			continue
 		}
 
@@ -1290,6 +1295,7 @@ func (c *Client) restoreState() error {
 			ar.SetClientStatus(structs.AllocClientStatusFailed)
 			// Destroy the alloc runner since this is a failed restore
 			ar.Destroy()
+			failedRestores++
 			continue
 		}
 
@@ -1324,6 +1330,11 @@ func (c *Client) restoreState() error {
 		go ar.Run()
 	}
 	c.allocLock.Unlock()
+
+	if n := len(allocs); n > 0 {
+		c.logger.Info("restored existing allocations",
+			"total_allocs", len(allocErrs)+n, "failed_allocs", failedRestores)
+	}
 	return nil
 }
 
