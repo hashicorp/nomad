@@ -98,31 +98,40 @@ Nomad's garbage collector has not yet removed or purged the job.
 
 ## Job versions
 
-@TODO - still working on this section!!
+Nomad creates a new version for your job each time you run your job. A job can
+have an unlimited number of versions, and version history is stored in state.
+Over time, Nomad garbage collects dead versions that do not have a version tag.
 
-Describe, pin, prevent garbage collection
+### Tag a version
 
-Nomad does not garbage collect saved
-job versions. You can [diff] and [revert] saved versions.
+When you want to save or pin a specific version, you need to create a version
+tag with a unique name and optional description. Nomad does not garbage collect
+tagged versions even when the tagged version is dead. This lets you revert to
+a previous version regardless of how old the tagged version is.
 
-version name is unique per job
+You can create, modify, and remove tags using the CLI, API, and web UI. Refer to
+the [Job versions guide][job-versions-guide] for examples.
 
-Nomad jobs have a version history that is stored in state. Over time, Nomad
-garbage collects terminal versions. You can run commands like `nomad job
-history` to see differences between past versions of jobs and their immediate
-predecessors. Additionally, you can run `nomad job plan` to see the hypothetical
-difference of an update against the current job version.
+### Compare versions
 
-These “diff” views are useful tools in the “measure twice, cut once” vein of configuration management, as they help users get a granular view of not just what’s about to change in the job spec they’ve modified, but also the rendered differences after environment variables, etc. are applied. These tools help users make better decisions about updating jobs and are critical parts of several Nomad workflows (for example: running a job through the Web UI requires going through a plan phase so the user sees a job diff before they’re able to submit the update).
+You can compare the current job version to all previous versions or to a
+specific version. Additionally, you can compare two specific versions.
 
-Jobs can have an unlimited number of versions. Sometimes these versions are slow-moving (for example, an operator changes the image tag of their docker-run application when there is a major version update), and other times they are very fast (for example, a user writes their own auto-scaler that makes template configuration changes based on external factors).
+Run commands like `nomad job history` to see differences between past versions
+of jobs and their immediate predecessors. Additionally, you can run `nomad job
+plan` to see the hypothetical difference of an update against the current job
+version.
 
+Refer to the [Compare versions section][compare-versions-section] of the Job
+versions guide for examples.
 
-When you update and resubmit a job, Nomad increases the version number.
+### Revert to a previous version
 
-Jobs can have an unlimited number of versions.
+You can revert the current running job to a previous version. Nomad stops the
+running job and deploys the chosen version.
 
-Tag names must be unique per job.
+Refer to the [Revert to a version section][revert-version-section] of
+the Job versions guide for examples using the CLI, API, and web UI.
 
 ## Related resources
 
@@ -152,3 +161,6 @@ configure them:
 [Schedulers]: /nomad/docs/schedulers
 [task-groups]: /nomad/docs/glossary#task-group
 [tasks]: /nomad/docs/glossary#task
+[job-versions-guide]: /nomad/tutorials/manage-jobs/jobs-version
+[compare-versions-section]: /nomad/tutorials/manage-jobs/jobs-version.mdx#compare-versions
+[revert-version-section]: /nomad/tutorials/manage-jobs/jobs-version.mdx#revert-to-a-version
