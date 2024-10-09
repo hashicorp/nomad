@@ -8,6 +8,8 @@ description: |
 
 # Command: job tag
 
+@include 'version/tag-reason.mdx'
+
 Use the `job tag` command to manage tags for job versions. `job tag` has the
 following subcommands:
 
@@ -38,7 +40,7 @@ nomad job tag apply [options] <job_id>
 
 ### Apply options
 
-- `name`: Specifies the name of the tag.
+- `name`: Specifies the name of the tag. Must be unique per job.
 - `description`: If set, specifies a description for the tag.
 - `version`: If set, specifies the version of the job to tag. If not provided, Nomad tags the latest version of the job.
 

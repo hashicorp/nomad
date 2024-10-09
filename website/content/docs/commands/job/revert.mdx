@@ -31,10 +31,10 @@ authentication.
 nomad job revert [options] <job> <version|tag>
 ```
 
-The `job revert` command requires two inputs, the job ID and the version or tag
-of that job to revert to.  When you specify a version number, Nomad reverts the
-job to the exact version number. Alternately, when you specify a version tag,
-Nomad reverts to the version with that tag.
+The `job revert` command requires two inputs, the job ID and the version number
+or tag of that job to revert to.  When you specify a version number, Nomad
+reverts the job to the exact version number. Alternately, when you specify a
+version tag, Nomad reverts to the version with that tag.
 
 When ACLs are enabled, this command requires a token with the `submit-job`
 capability for the job's namespace. The `list-jobs` capability is required to

@@ -2702,6 +2702,8 @@ WebSocket Request: /v1/job/actions-demo/action?action=weather&allocID=8614ed07-4
 
 This endpoint creates a tag for a job version.
 
+@include 'version/tag-reason.mdx'
+
 | Method | Path              | Produces           |
 | ------ | ----------------- | ------------------ |
 | `POST`  | `/v1/job/:job_id/versions/:tag_name/tag` | `application/json` |
@@ -2711,7 +2713,7 @@ This endpoint creates a tag for a job version.
 - `:job_id` `(string: <required>)` - The ID of the job. Specify `job_id` as part
   of the path.
 - `:tag_name` `(string: <required>)` - The new tag name for the
-  version specified in the payload. Specify `tag_name` as part of the path.
+  version specified in the payload. Must be unique per job. Specify `tag_name` as part of the path.
 - `Version`: `(int: <optional>)` - The job version number. If not
   specified, Nomad tags the latest version. Specify `Version` in the payload.
 - `Description`: `(string: <optional>)` - The tag description. Specify `Description` in the payload.
