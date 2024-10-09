@@ -73,7 +73,26 @@ explore integrations with Consul service mesh.
 
 ## What's deprecated
 
-N/A
+The following are deprecated and will be removed in 1.10.
+
+- Support for the legacy token workflow for Consul. Workloads
+  that need Consul support will require the cluster be configured to use
+  Workload Identity with Consul. Refer to [the Consul integration
+  guide][consul-integration] for details.
+- Support for the legacy token workflow for Vault. Workloads
+  that need Vault support will require the cluster be configured to use Workload
+  Identity with Vault. Refer to [the Vault integration guide][vault-integration] for
+  details.
+- Nomad will no longer create an implicit `consul` block for workloads that
+  don't register services with Consul. Jobs that require Consul tokens for
+  `template` rendering will be required to provide a `consul` block.
+- Nomad clients will no longer execute all binaries in the plugin directory on
+  startup for fingerprinting. Only plugins with an associated `plugin` block in
+  the Nomad agent configuration will be fingerprinted. Refer to [GH-18529][] for
+  more details.
+- Nomad will ignore the deprecated `stop_after_client_disconnect`,
+  `max_client_disconnect`, and `prevent_reschedule_on_lost` fields and only
+  support the [`disconnect`][] block, which covers the same functionality.
 
 ## What's removed
 
@@ -107,3 +126,9 @@ listed below.
 <Note> These links take you to the changelogs on the GitHub website. </Note>
 
 - [1.9.0](https://github.com/hashicorp/nomad/releases/tag/v1.9.0)
+
+
+[consul-integration]: /nomad/docs/integrations/consul/acl
+[vault-integration]: /nomad/docs/integrations/vault/acl
+[GH-18529]: https://github.com/hashicorp/nomad/issues/18529
+[`disconnect`]: /nomad/docs/job-specification/disconnect
