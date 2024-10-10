@@ -635,8 +635,7 @@ The table below shows this endpoint's support for
   containing the structured diff between the current and last job version. This
   is specified as a query string parameter.
 
-- `diff_version` `(int: <optional>)`: When `diffs=true`, this is the version
-  to compare the other versions to. This is specified as a query string parameter.
+- `diff_version` `(int: <optional>)`: Specifies the version to to compare against the current version when you create the structured diff for a job with `diffs=true`. This is specified as a query string parameter.
 
 - `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
   specified as part of the path.
@@ -1835,11 +1834,11 @@ The table below shows this endpoint's support for
 - `JobID` `(string: <required>)` - Specifies the ID of the job. This is
   specified as part of the path.
 
-- `JobVersion` `(integer: 0)` - Specifies the job version to revert to. Use this
-  or `TaggedVersion`.
+- `JobVersion` `(integer: 0)` - Specifies the job version to revert to. Use either 
+  this parameter or `TaggedVersion`, but do not use both.
 
 - `TaggedVersion` `(string: "")` - Specifies the tag name of the job version you
-  want to revert to. Use this or `JobVersion`.
+  want to revert to. Use either this parameter or `JobVersion`, but do not use both.
 
 - `EnforcePriorVersion` `(integer: nil)` - Optional value specifying the current
   job's version. This is checked and acts as a check-and-set value before
