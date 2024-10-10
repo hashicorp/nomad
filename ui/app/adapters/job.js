@@ -25,11 +25,11 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     return this.ajax(url, 'GET');
   }
 
-  fetchRawSpecification(job) {
+  fetchRawSpecification(job, version) {
     const url = addToPath(
       this.urlForFindRecord(job.get('id'), 'job', null, 'submission'),
       '',
-      'version=' + job.get('version')
+      'version=' + (version || job.get('version'))
     );
     return this.ajax(url, 'GET');
   }

@@ -5,29 +5,58 @@
 
 // @ts-check
 import Route from '@ember/routing/route';
-
+import { inject as service } from '@ember/service';
 /**
  * Route for fetching and displaying a job's definition and specification.
  */
 export default class DefinitionRoute extends Route {
+  @service notifications;
+
+  queryParams = {
+    version: {
+      refreshModel: true,
+    },
+  };
+
   /**
    * Fetch the job's definition, specification, and variables from the API.
    *
    * @returns {Promise<Object>} A promise that resolves to an object containing the job, definition, format,
    *                            specification, variableFlags, and variableLiteral.
    */
-  async model() {
+  async model({ version }) {
+    version = +version; // query parameter is a string; convert to number
     const job = this.modelFor('jobs.job');
     if (!job) return;
 
-    const definition = await job.fetchRawDefinition();
+    let definition;
+
+    if (version) {
+      try {
+        const versionResponse = await job.getVersions();
+        const versions = versionResponse.Versions;
+        definition = versions.findBy('Version', version);
+        if (!definition) {
+          throw new Error('Version not found');
+        }
+      } catch (e) {
+        console.error('error fetching job version definition', e);
+        this.notifications.add({
+          title: 'Error Fetching Job Version Definition',
+          message: `There was an error fetching the versions for this job: ${e.message}`,
+          color: 'critical',
+        });
+      }
+    } else {
+      definition = await job.fetchRawDefinition();
+    }
 
     let format = 'json'; // default to json in network request errors
     let specification;
     let variableFlags;
     let variableLiteral;
     try {
-      const specificationResponse = await job.fetchRawSpecification();
+      const specificationResponse = await job.fetchRawSpecification(version);
       specification = specificationResponse?.Source ?? null;
       variableFlags = specificationResponse?.VariableFlags ?? null;
       variableLiteral = specificationResponse?.Variables ?? null;

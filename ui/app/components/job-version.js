@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
+
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -80,6 +82,11 @@ export default class JobVersion extends Component {
     this.isOpen = !this.isOpen;
   }
 
+  /**
+   * @type {'idle' | 'confirming'}
+   */
+  @tracked revertButtonStatus = 'idle';
+
   @task(function* () {
     try {
       const versionBeforeReversion = this.version.get('job.version');
@@ -107,6 +114,26 @@ export default class JobVersion extends Component {
     }
   })
   revertTo;
+
+  @action async editFromVersion() {
+    try {
+      this.router.transitionTo(
+        'jobs.job.definition',
+        this.version.get('job.idWithNamespace'),
+        {
+          queryParams: {
+            isEditing: true,
+            version: this.version.number,
+          },
+        }
+      );
+    } catch (e) {
+      this.args.handleError({
+        level: 'danger',
+        title: 'Could Not Edit from Version',
+      });
+    }
+  }
 
   @action
   handleKeydown(event) {
