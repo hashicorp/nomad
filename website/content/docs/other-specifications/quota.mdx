@@ -62,14 +62,18 @@ variables are fully disabled.
 
 ### `region_limit` parameters
 
-These are associated with the parameters on a task [`resources`][]
-block in a job specification, and the [CPU concepts][] page has more information
-regarding CPU resources as well.
+Region limits define the limits on cumulative task [`resources`][] blocks for
+allocations in the namespace and region the quota is applied to.
 
-- `cores` `(int: <optional>)` - Number of CPU cores
-- `cpu` `(int: <optional>)` - Amount of CPU in MHz
-- `memory` `(int: <optional>)` - Amount of memory in MB
-- `memory_max` `(int: <optional>)` - Max amount of memory in MB
+- `cores` `(int: <optional>)` - The limit on total number of CPU cores from all
+`resources.cores` in the namespace. The [CPU concepts][] documentation
+has more details on CPU resources.
+- `cpu` `(int: <optional>)` - The limit on total amount of CPU from all
+`resources.cpu` in the namespace.
+- `memory` `(int: <optional>)` - The limit on total mount of memory in MB from
+all `resources.memory` in the namespace.
+- `memory_max` `(int: <optional>)` - The limit on total mount of hard memory
+limits in MB from all `resources.memory_max` in the namespace.
 - `device` <code>([Device](#device-parameters): nil)</code>
 
 ### `device` parameters
