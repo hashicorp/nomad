@@ -1,20 +1,20 @@
 ---
 layout: docs
-page_title: Nomad Quota Specification
+page_title: Resource Quota Specification
 description: Learn about Nomad's Resource Quota specification.
 ---
 
-# Nomad Quota Specification
+# Resource Quota Specification
 
 <EnterpriseAlert>
 Resource Quotas are only available with Nomad Enterprise.
 </EnterpriseAlert>
 
 [Resource Quotas](/nomad/docs/enterprise#resource-quotas)
-enable an operator to limit resource consumption across teams
+enable you to limit resource consumption across teams
 or projects to reduce waste and align budgets.
 
-Quotas can be managed using the Nomad CLI via the
+You can manage quotas using the Nomad CLI via the
 [`quota`](/nomad/docs/commands/quota)
 subcommands, or with Nomad's
 [HTTP API](/nomad/api-docs/quotas)
@@ -24,9 +24,9 @@ You may also follow a
 [Quotas tutorial](/nomad/tutorials/governance-and-policy/quotas)
 for more example usage.
 
-## Example Quota Specification
+## Example quota specification
 
-The CLI command `nomad quota init` generates an example `spec.hcl` file:
+The CLI command `nomad quota init` generates an example `spec.hcl` file.
 
 ```hcl
 name        = "default-quota"
@@ -49,14 +49,14 @@ limit {
 }
 ```
 
-## Quota Specification Parameters
+## Quota specification parameters
 
-- `name` `(string)` - The name of the Quota. This will be used to connect it to a
+- `name` `(string)` - The name of the quota. Nomad uses `name` to connect the quota to a
 [`Namespace`](/nomad/docs/other-specifications/namespace).
 - `description` `(string: <optional>)` - A human-readable description.
 - `limit` <code>([QuotaLimit](#limit-parameters))</code> - The resource limit in a Nomad region.
 
-### `limit` Parameters
+### `limit` parameters
 
 - `region` `(string)` - The Nomad `region` that the limit applies to.
 - `region_limit` <code>([RegionLimit](#region_limit-parameters))</code> - Resources to limit.
@@ -64,7 +64,7 @@ limit {
 [`variables`](/nomad/docs/concepts/variables)
 in MiB. The default `0` means unlimited, and `-1` means variables are fully disabled.
 
-### `region_limit` Parameters
+### `region_limit` parameters
 
 These are associated with the parameters on a task
 [`resources`](/nomad/docs/job-specification/resources)
@@ -78,7 +78,7 @@ page has more information regarding CPU resources as well.
 - `memory_max` `(int: <optional>)` - Max amount of memory in MB
 - `device` <code>([Device](#device-parameters): nil)</code>
 
-### `device` Parameters
+### `device` parameters
 
 The `device` label specifies which device(s) the quota applies to,
 equivalent to the

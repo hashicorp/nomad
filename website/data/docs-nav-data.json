@@ -1916,7 +1916,7 @@
         "path": "other-specifications/node-pool"
       },
       {
-        "title": "Quota",
+        "title": "Resource Quota",
         "path": "other-specifications/quota"
       },
       {
