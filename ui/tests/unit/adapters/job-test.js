@@ -498,6 +498,8 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(request.method, 'GET');
   });
 
+  // TODO: test that version requests work for fetchRawDefinition
+
   test('forcePeriodic requests include the activeRegion', async function (assert) {
     const region = 'region-2';
     const job = await this.initializeWithJob({ region });
