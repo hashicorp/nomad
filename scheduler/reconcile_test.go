@@ -5339,6 +5339,7 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 		disconnectReplacement        bool
 		replaceFailedReplacement     bool
 		shouldStopOnDisconnectedNode bool
+		shouldStopOnReconnect        bool
 		maxDisconnect                *time.Duration
 		expected                     *resultExpectation
 		pickResult                   string
@@ -5455,12 +5456,34 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			disconnectedAllocStates:      disconnectAllocState,
 			shouldStopOnDisconnectedNode: false,
 			expected: &resultExpectation{
-				stop:             2,
-				reconnectUpdates: 2,
+				stop: 2,
 				desiredTGUpdates: map[string]*structs.DesiredUpdates{
 					"web": {
 						Stop:   2,
 						Ignore: 7,
+					},
+				},
+			},
+			reconcileStrategy: structs.ReconcileOptionBestScore,
+			callPicker:        true,
+		},
+		{
+			name:                         "stop-original-alloc-desired-status-stop",
+			allocCount:                   1,
+			replace:                      true,
+			failReplacement:              true,
+			replaceFailedReplacement:     true,
+			disconnectedAllocCount:       1,
+			disconnectedAllocStatus:      structs.AllocClientStatusRunning,
+			disconnectedAllocStates:      disconnectAllocState,
+			shouldStopOnDisconnectedNode: false,
+			shouldStopOnReconnect:        true,
+			expected: &resultExpectation{
+				stop: 1,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					"web": {
+						Stop:   1,
+						Ignore: 2,
 					},
 				},
 			},
@@ -5569,7 +5592,11 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 			// Set alloc state
 			disconnectedAllocCount := tc.disconnectedAllocCount
 			for _, alloc := range allocs {
-				alloc.DesiredStatus = structs.AllocDesiredStatusRun
+				if tc.shouldStopOnReconnect {
+					alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				} else {
+					alloc.DesiredStatus = structs.AllocDesiredStatusRun
+				}
 
 				if tc.maxDisconnect != nil {
 					alloc.Job.TaskGroups[0].MaxClientDisconnect = tc.maxDisconnect
@@ -5664,8 +5691,6 @@ func TestReconciler_Disconnected_Client(t *testing.T) {
 
 				if tc.shouldStopOnDisconnectedNode {
 					must.Eq(t, testNode.ID, stopResult.alloc.NodeID)
-				} else {
-					must.NotEq(t, testNode.ID, stopResult.alloc.NodeID)
 				}
 
 				must.Eq(t, job.Version, stopResult.alloc.Job.Version)
