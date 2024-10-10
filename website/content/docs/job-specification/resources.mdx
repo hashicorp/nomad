@@ -133,7 +133,7 @@ oversubscription support.
 
 Memory oversubscription is opt-in. Nomad operators can enable [Memory
 Oversubscription in the scheduler configuration][api_sched_config]. Enterprise
-customers can use [Resource Quotas][tutorial_quota] to limit the memory
+customers can use [Resource Quotas][quota_spec] to limit the memory
 oversubscription and enable or disable memory oversubscription per [node
 pool][np_sched_config].
 
@@ -157,6 +157,6 @@ resource utilization and considering the following suggestions:
 [docker_cpu]: /nomad/docs/drivers/docker#cpu
 [exec_cpu]: /nomad/docs/drivers/exec#cpu
 [np_sched_config]: /nomad/docs/other-specifications/node-pool#memory_oversubscription_enabled
-[tutorial_quota]: /nomad/tutorials/governance-and-policy/quotas
+[quota_spec]: /nomad/docs/other-specifications/quota
 [numa]: /nomad/docs/job-specification/numa 'Nomad NUMA Job Specification'
 [`secrets/`]: /nomad/docs/runtime/environment#secrets
