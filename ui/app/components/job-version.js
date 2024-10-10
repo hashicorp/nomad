@@ -85,7 +85,7 @@ export default class JobVersion extends Component {
   /**
    * @type {'idle' | 'confirming'}
    */
-  @tracked revertButtonStatus = 'idle';
+  @tracked cloneButtonStatus = 'idle';
 
   @task(function* () {
     try {
@@ -95,6 +95,7 @@ export default class JobVersion extends Component {
 
       const versionAfterReversion = this.version.get('job.version');
       if (versionBeforeReversion === versionAfterReversion) {
+        // TODO: I don't think this is ever hit, we have template checks against it.
         this.args.handleError({
           level: 'warn',
           title: 'Reversion Had No Effect',
@@ -115,7 +116,7 @@ export default class JobVersion extends Component {
   })
   revertTo;
 
-  @action async editFromVersion() {
+  @action async cloneAsNewVersion() {
     try {
       this.router.transitionTo(
         'jobs.job.definition',
@@ -131,6 +132,28 @@ export default class JobVersion extends Component {
       this.args.handleError({
         level: 'danger',
         title: 'Could Not Edit from Version',
+      });
+    }
+  }
+
+  @action async cloneAsNewJob() {
+    console.log('cloneAsNewJob');
+    try {
+      // TODO: copy the job definition over there.
+      console.log('Do I have submission info???', this.version);
+      let job = await this.version.get('job');
+      let specification = await job.fetchRawSpecification(this.version.number);
+      console.log('Do I have specification???', specification);
+      let specificationSourceString = specification.Source; // TODO: should do some Format checking here, at the very least.
+      this.router.transitionTo('jobs.run', {
+        queryParams: {
+          sourceString: specificationSourceString,
+        },
+      });
+    } catch (e) {
+      this.args.handleError({
+        level: 'danger',
+        title: 'Could Not Clone as New Job',
       });
     }
   }

@@ -81,53 +81,60 @@
         <div class="version-options">
           {{#unless this.isCurrent}}
             {{#if (can "run job" namespace=this.version.job.namespace)}}
-              {{#if (eq this.revertButtonStatus 'idle')}}
+              {{#if (eq this.cloneButtonStatus 'idle')}}
                 <Hds::Button
-                  data-test-revert-to
-                  @text="Revert Version"
-                  @color="critical"
+                  data-test-clone-and-edit
+                  @text="Clone and Edit"
+                  @color="secondary"
                   @size="small"
                   @isInline={{true}}
-                  @disabled={{this.revertTo.isRunning}}
-                  {{on "click" (action (mut this.revertButtonStatus) "confirming")}}
+                  {{!-- @disabled={{this.revertTo.isRunning}} --}}
+                  {{on "click" (action (mut this.cloneButtonStatus) "confirming")}}
                 />
-              {{else if (eq this.revertButtonStatus 'confirming')}}
-                <span data-test-confirmation-message class="confirmation-text is-right-aligned has-text-inline">
+
+              <TwoStepButton
+                data-test-revert-to
+                @classes={{hash
+                  idleButton="is-warning is-outlined"
+                  confirmButton="is-warning"}}
+                @fadingBackground={{true}}
+                @idleText="Revert Version"
+                @cancelText="Cancel"
+                @confirmText="Yes, Revert Version"
+                @confirmationMessage="Are you sure you want to revert to this version?"
+                @inlineText={{true}}
+                @size="small"
+                @awaitingConfirmation={{this.revertTo.isRunning}}
+                @onConfirm={{perform this.revertTo}} />
+
+
+              {{else if (eq this.cloneButtonStatus 'confirming')}}
+                {{!-- <span data-test-confirmation-message class="confirmation-text is-right-aligned has-text-inline">
                   Are you sure you want to revert to this version?
-                </span>
+                </span> --}}
                 <Hds::Button
-                  data-test-revert-to
+                  data-test-cancel-clone
                   @text="Cancel"
                   @color="secondary"
                   @size="small"
                   @isInline={{true}}
-                  {{on "click" (action (mut this.revertButtonStatus) "idle")}}
+                  {{on "click" (action (mut this.cloneButtonStatus) "idle")}}
                 />
                 <Hds::Button
-                  data-test-revert-to
-                  @text="Edit from Version"
+                  data-test-clone-as-new-version
+                  @text="Clone as New Version of {{this.version.job.name}}"
                   @color="secondary"
                   @size="small"
                   @isInline={{true}}
-                  {{on "click" (action this.editFromVersion)}}
+                  {{on "click" (action this.cloneAsNewVersion)}}
                 />
                 <Hds::Button
-                  data-test-revert-to
-                  @text="Yes, Revert Now"
-                  @color="critical"
+                  data-test-clone-as-new-job
+                  @text="Clone as New Job"
+                  @color="secondary"
                   @size="small"
                   @isInline={{true}}
-                  @disabled={{this.revertTo.isRunning}}
-                  {{on "click" (perform this.revertTo)}}
-                />
-              {{else if (eq this.revertButtonStatus 'running')}}
-                <Hds::Button
-                  data-test-revert-to
-                  @text="Reverting..."
-                  @color="critical"
-                  @size="small"
-                  @isInline={{true}}
-                  @disabled={{true}}
+                  {{on "click" (action this.cloneAsNewJob)}}
                 />
               {{/if}}
             {{else}}
