@@ -81,20 +81,55 @@
         <div class="version-options">
           {{#unless this.isCurrent}}
             {{#if (can "run job" namespace=this.version.job.namespace)}}
-              <TwoStepButton
-                data-test-revert-to
-                @classes={{hash
-                  idleButton="is-warning is-outlined"
-                  confirmButton="is-warning"}}
-                @fadingBackground={{true}}
-                @idleText="Revert Version"
-                @cancelText="Cancel"
-                @confirmText="Yes, Revert Version"
-                @confirmationMessage="Are you sure you want to revert to this version?"
-                @inlineText={{true}}
-                @size="small"
-                @awaitingConfirmation={{this.revertTo.isRunning}}
-                @onConfirm={{perform this.revertTo}} />
+              {{#if (eq this.revertButtonStatus 'idle')}}
+                <Hds::Button
+                  data-test-revert-to
+                  @text="Revert Version"
+                  @color="critical"
+                  @size="small"
+                  @isInline={{true}}
+                  @disabled={{this.revertTo.isRunning}}
+                  {{on "click" (action (mut this.revertButtonStatus) "confirming")}}
+                />
+              {{else if (eq this.revertButtonStatus 'confirming')}}
+                <span data-test-confirmation-message class="confirmation-text is-right-aligned has-text-inline">
+                  Are you sure you want to revert to this version?
+                </span>
+                <Hds::Button
+                  data-test-revert-to
+                  @text="Cancel"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action (mut this.revertButtonStatus) "idle")}}
+                />
+                <Hds::Button
+                  data-test-revert-to
+                  @text="Edit from Version"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action this.editFromVersion)}}
+                />
+                <Hds::Button
+                  data-test-revert-to
+                  @text="Yes, Revert Now"
+                  @color="critical"
+                  @size="small"
+                  @isInline={{true}}
+                  @disabled={{this.revertTo.isRunning}}
+                  {{on "click" (perform this.revertTo)}}
+                />
+              {{else if (eq this.revertButtonStatus 'running')}}
+                <Hds::Button
+                  data-test-revert-to
+                  @text="Reverting..."
+                  @color="critical"
+                  @size="small"
+                  @isInline={{true}}
+                  @disabled={{true}}
+                />
+              {{/if}}
             {{else}}
               <Hds::Button
                 data-test-revert-to
