@@ -154,9 +154,10 @@ thorough overview.
 
 Resource Quotas enable an operator to limit resource consumption across teams
 or projects to reduce waste and align budgets. In Nomad Enterprise, operators
-can define quota specifications and apply them to namespaces. When a quota is
-attached to a namespace, the jobs within the namespace may not consume more
-resources than the quota specification allows.
+can define [quota specifications](/nomad/docs/other-specifications/quota)
+and apply them to namespaces. When a quota is attached to a namespace,
+the jobs within the namespace may not consume more resources than the quota
+specification allows.
 
 This allows operators to partition a shared cluster and ensure that no single
 actor can consume the whole resources of the cluster.
