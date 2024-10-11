@@ -148,6 +148,7 @@ func testFingerprint_GCE(t *testing.T, withExternalIp bool) {
 
 	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.scheduling.automatic-restart", "TRUE")
 	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.scheduling.on-host-maintenance", "MIGRATE")
+	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.scheduling.preemptible", "FALSE")
 	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.cpu-platform", "Intel Ivy Bridge")
 	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.tag.abc", "true")
 	assertNodeAttributeEquals(t, response.Attributes, "platform.gce.tag.def", "true")
@@ -199,6 +200,11 @@ const GCE_routes = `
       "uri": "/computeMetadata/v1/instance/scheduling/on-host-maintenance",
       "content-type": "text/plain",
       "body": "MIGRATE"
+    },
+    {
+      "uri": "/computeMetadata/v1/instance/scheduling/preemptible",
+      "content-type": "text/plain",
+      "body": "FALSE"
     },
     {
       "uri": "/computeMetadata/v1/instance/cpu-platform",
