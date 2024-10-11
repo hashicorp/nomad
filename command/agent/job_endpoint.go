@@ -1426,6 +1426,7 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 					GetterMode:     *ta.GetterMode,
 					GetterInsecure: *ta.GetterInsecure,
 					RelativeDest:   *ta.RelativeDest,
+					Chown:          ta.Chown,
 				})
 		}
 	}

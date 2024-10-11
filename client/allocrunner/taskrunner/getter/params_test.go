@@ -39,7 +39,9 @@ const paramsAsJSON = `
     "X-Nomad-Artifact": ["hi"]
   },
   "alloc_dir": "/path/to/alloc",
-  "task_dir": "/path/to/alloc/task"
+  "task_dir": "/path/to/alloc/task",
+  "chown": true,
+  "user":"nobody"
 }`
 
 var paramsAsStruct = &parameters{
@@ -65,6 +67,8 @@ var paramsAsStruct = &parameters{
 	Headers: map[string][]string{
 		"X-Nomad-Artifact": {"hi"},
 	},
+	User:  "nobody",
+	Chown: true,
 }
 
 func TestParameters_reader(t *testing.T) {

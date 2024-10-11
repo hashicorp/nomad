@@ -45,6 +45,8 @@ type parameters struct {
 	// Task Filesystem
 	AllocDir string `json:"alloc_dir"`
 	TaskDir  string `json:"task_dir"`
+	User     string `json:"user"`
+	Chown    bool   `json:"chown"`
 }
 
 func (p *parameters) reader() io.Reader {
