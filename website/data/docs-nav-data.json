@@ -1974,7 +1974,7 @@
         "path": "drivers/raw_exec"
       },
       {
-        "title": "Virt",
+        "title": "Virt <sup>Beta</sup>",
         "routes": [
           {
             "title": "Overview",

@@ -15,7 +15,7 @@
         "path": "drivers/podman"
       },
       {
-        "title": "Virt",
+        "title": "Virt <sup>Beta</sup>",
         "routes": [
           {
             "title": "Overview",

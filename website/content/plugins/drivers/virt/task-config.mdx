@@ -1,40 +1,38 @@
 ---
 layout: docs
 page_title: Task Config
-description: The virt task driver job specification parameters.
+description: Configure the virt task driver job specification parameters.
 ---
 
-# Task Configuration
+# Task configuration
 
 Task configuration for an virt task includes setting an `image` to provide the base VM image as
 well as other parameters required for bootstrapping a VM instance.
 
-- `image` - (string: required) - Path to an `.img` cloud image to base the VM disk on that should
-  be located in an allowed path. The cloud image need to include cloud-init, otherwise certain
-  features will not be available for the task. This can be downloaded via the [artifact block][].
+- `image` - (string: required) - Path to an `.img` cloud image to base the VM disk on. The image should
+  be located in an allowed path. The cloud image needs to include cloud-init, otherwise certain
+  task features are not available. You may also downloaded via the [artifact block][].
 
 - `use_thin_copy` - (bool: `false`) - Make a thin copy of the image using QEMU, and use it as the
   backing cloud image for the VM.
 
 - `hostname` - (string: `"nomad-<task-name>"`) - The hostname to assign to the VM. As this value is
-  used as a network host name, it must be a valid DNS label according to RFC 1123. The default
-  value is generated using the Nomad task name.
+  used as a network host name, it must be a valid DNS label according to RFC 1123. Nomad generates the default
+  value using the Nomad task name.
 
 - `cmds` - (list(string): optional) - List of commands to execute on the VM once it is running.
-  They can provide the operator with a quick and easy way to start a process on the newly created
-  VM, used in conjunction with the template, it can be a simple yet powerful start up tool.
+  These commands can provide you with a quick way to start a process on the newly created
+  VM. When used in conjunction with the template, this command list can be a powerful start up tool.
 
-- `default_user_password` - (string: `""`) - Initial password to be configured for the default user
-  on the newly created VM. When set, it has to be updated on first connect.
+- `default_user_password` - (string: `""`) - Initial password for the default user
+  on the newly created VM. When set, the user must update the password on first connect.
 
-- `default_user_authorized_ssh_key` - (string: `""`) - SSH public key that will be added to the SSH
+- `default_user_authorized_ssh_key` - (string: `""`) - SSH public key  added to the SSH
   configuration for the default user of the cloud image distribution.
 
-- `user_data ` - (string: `""`) - Path to a cloud-init compliant user data file to be used as the
-  user-data for the cloud-init configuration.
+- `user_data ` - (string: `""`) - Path to a cloud-init compliant user data file used as the user-data for the cloud-init configuration.
 
-- `primary_disk_size` - (int: required) - Disk space to assign to the VM which will need to be
-  able to fit the VM's OS.
+- `primary_disk_size` - (int: required) - Disk space to assign to the VM. Must fit the VM's OS.
 
 Example:
 ```hcl
@@ -52,13 +50,13 @@ config {
 
 ##### os
 
-The VM architecture and machine can be different from the client host. When this is the case, the
-`os` block must be set. By default, this information matches the client host where the driver
+The VM architecture and machine can be different from the client host. When this is the case, you must set the
+`os` block. By default, this information matches the client host where the driver
 plugin is running.
 
-- `arch` - (string: `""`) - The architecture that the VM will be.
+- `arch` - (string: `""`) - The VM architecture.
 
-- `machine` - (string: `""`) - The machine type that the VM will be.
+- `machine` - (string: `""`) - The machine type.
 
 Example:
 ```hcl
@@ -72,17 +70,17 @@ config {
 
 ##### network_interface
 
-Tasks needs to be attached to a libvirt network in order to access the internet and be routed to
+You need to attach tasks to a libvirt network in order to access the internet and route
 from the local network. The `network_interface` block enables this as a list of network interfaces
-that should be attached to the VM. This currently only supports a single entry.
+that the driver should attach to the VM. This feature only supports a single entry.
 
-- `bridge` - (block) - Attach the VM to a network of bridged type. `virbr0`, the default libvirt
-  network is a bridged network.
+- `bridge` - (block) - Attach the VM to a bridge network. `virbr0`, the default libvirt
+  network, is a bridge network.
 
-  - `name` - The name of the bridge interface to use. This relates to the output seen from commands
+  - `name` - The name of the bridge interface to use. This relates to the output from commands
   such as `virsh net-info`.
 
-  - `ports` - A list of port labels which will be exposed on the host via mapping to the network
+  - `ports` - A list of port labels to expose on the host via mapping to the network
   interface. These labels must exist within the job specification [network block][].
 
 Example:
@@ -97,11 +95,11 @@ config {
 }
 ```
 
-### Full Example
+### Full example
 
 The following job specification displays use of all the configuration options, as well as other
-blocks that are useful when deploy tasks via the virt driver. Parameters, such as the
-`default_user_authorized_ssh_key` will need to be modified before use depending on your
+blocks that are useful when deploying tasks via the virt driver. You need to modify parameters, such as the
+`default_user_authorized_ssh_key`, before use depending on your
 requirements and Nomad setup.
 
 ```hcl

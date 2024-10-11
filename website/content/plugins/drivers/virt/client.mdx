@@ -1,14 +1,15 @@
 ---
 layout: docs
 page_title: Client
-description: Nomad client requirements, capabilities, and configuration options.
+description: Nomad client requirements, capabilities, and configuration options for the Virt task driver.
 ---
 
 # Client
 
-The `virt` task driver is not built into Nomad. It must be [downloaded][releases] onto the client
+The `virt` task driver is not built into Nomad. You must [downloaded][releases] onto the client
 host in the configured plugin directory. The client host must also be capable of running hardware
-accelerated KVM virtual machines. This can be checked via the [kvm-ok][] command.
+accelerated KVM virtual machines, which you can check by using [kvm-ok][] command.
+Additional requirements:
 
 - Linux
 - Commands `bridge-utils`, `cloudinit`, `dnsmasq`, and `iptables`
@@ -16,7 +17,7 @@ accelerated KVM virtual machines. This can be checked via the [kvm-ok][] command
 - QEMU system packages installed
 - Nomad client running as root
 
-The following command can be used to install the package requirements:
+Use the following command to install the package requirements:
 
 ```console
 $ sudo apt-get update && \
@@ -31,7 +32,7 @@ $ sudo apt-get update && \
   qemu-utils
 ```
 
-## Client Capabilities
+## Client capabilities
 
 The `virt` task driver implements the following driver [capabilities][capabilities].
 
@@ -43,9 +44,9 @@ The `virt` task driver implements the following driver [capabilities][capabiliti
 | network isolation    | host           |
 | volume mounting      | false          |
 
-## Plugin Configuration
+## Plugin configuration
 
-The default plugin configuration is shown below with a description of each option.
+This example shows the default plugin configuration.
 
 ```hcl
 plugin "nomad-driver-driver" {
@@ -62,8 +63,8 @@ plugin "nomad-driver-driver" {
 }
 ```
 
-- `data_dir` - (default: `"/var/lib/virt"`) - a directory where VM configuration files and
-  intermediate files are stored.
+- `data_dir` - (default: `"/var/lib/virt"`) - the directory for storing VM configuration files and
+  intermediate files.
 
 - `image_paths` - (default: `["/var/lib/virt", "${ALLOC_DIR}"]`) - an allow-list of paths the driver
   is allowed to load an image from.
@@ -73,9 +74,9 @@ plugin "nomad-driver-driver" {
   - `user` - (default: `""`) - the username to use for authentication.
   - `password` - (default: `""`) - the password to use for authentication.
 
-## Client Attributes
+## Client attributes
 
-When installed, the `virt` plugin provides the following node attributes which can be used as
+When installed, the `virt` plugin provides the following node attributes that you can use as
 constraints when authoring jobs.
 
 ```
