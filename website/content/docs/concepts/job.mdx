@@ -96,6 +96,34 @@ zero. Nomad's garbage collector has not yet removed or purged the job.
 The `Stopped` status indicates that a user has manually stopped the job.
 Nomad's garbage collector has not yet removed or purged the job.
 
+## Job versions
+
+Nomad creates a new version for your job each time you run your job. A job can
+have an unlimited number of versions, and version history is stored in state.
+Over time, Nomad garbage collects dead versions that do not have a version tag.
+
+### Tag a version
+
+When you want to save or pin a specific version, you need to create a version
+tag with a unique name and optional description. Nomad does not garbage collect
+tagged versions even when the tagged version is dead. This lets you revert to
+a previous version regardless of how old the tagged version is.
+
+### Compare versions
+
+You can compare the current job version to all previous versions or to a
+specific version. Additionally, you can compare two specific versions.
+
+Run commands like `nomad job history` to review differences between past versions
+of jobs and their immediate predecessors. Additionally, you can run `nomad job
+plan` to review the hypothetical difference of an update against the current job
+version.
+
+### Revert to a previous version
+
+You can revert the current running job to a previous version. Nomad stops the
+running job and deploys the chosen version.
+
 ## Related resources
 
 Refer to the following Nomad documentation pages for more information about
