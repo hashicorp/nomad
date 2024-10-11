@@ -116,9 +116,10 @@ agents.
 
 - `token` `(string: "")` - Specifies the token used to provide a per-request ACL
   token. This option overrides the Consul Agent's default token. If the token is
-  not set here or on the Consul agent, it will default to Consul's anonymous policy,
-  which may or may not allow writes. Will default to the `CONSUL_HTTP_TOKEN`
-  environment variable if set.
+  not set here or on the Consul agent, it defaults to Consul's anonymous policy,
+  which may or may not allow writes. Defaults to the `CONSUL_HTTP_TOKEN`
+  environment variable if set. Nomad cannot refresh this token; if the token is
+  deleted, Nomad is not able to communicate with Consul.
 
 - `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
   when communicating to the Consul API client over HTTPS. Will default to the
@@ -334,6 +335,58 @@ consul {
 }
 ```
 
+### Consul ACL policy for Nomad
+
+Nomad agents need access to Consul in order to register themselves in the
+service catalog and discover other Nomad agents via service discovery for
+automatic clustering. Nomad clients use Consul tokens from Workload Identity to
+register services and checks but need permissions on their own token to
+deregister. Nomad servers also create [configuration
+entries][consul_config_entry] for Consul Service Mesh, so the specific
+permissions vary slightly between Nomad servers and clients. The following
+Consul ACL policies represent the minimal permissions Nomad servers and clients
+need.
+
+<Tabs>
+<Tab heading="Nomad Servers">
+
+```hcl
+agent_prefix "" {
+  policy = "read"
+}
+
+node_prefix "" {
+  policy = "write"
+}
+
+service_prefix "" {
+  policy = "write"
+}
+
+acl  = "write"
+mesh = "write"
+```
+
+</Tab>
+<Tab heading="Nomad Clients">
+
+```hcl
+agent_prefix "" {
+  policy = "read"
+}
+
+node_prefix "" {
+  policy = "write"
+}
+
+service_prefix "" {
+  policy = "write"
+}
+```
+
+</Tab>
+</Tabs>
+
 ### Consul Namespace <EnterpriseAlert inline/>
 
 Consul does not allow ACL policies associated with namespaces to use agent
@@ -383,3 +436,4 @@ namespace "nomad-ns" {
 [taskuser]: /nomad/docs/job-specification/task#user "Nomad task Block"
 [consul_bound_aud]: /consul/docs/security/acl/auth-methods/jwt#boundaudiences
 [`consul.namespace`]: /nomad/docs/job-specification/consul#namespace
+[consul_config_entry]: /consul/docs/connect/config-entries
