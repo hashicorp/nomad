@@ -2924,7 +2924,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 								GetterMode:   pointer.Of("dir"),
 								RelativeDest: pointer.Of("dest"),
-								Chown:        pointer.Of(true),
+								Chown:        true,
 							},
 						},
 						Vault: &api.Vault{

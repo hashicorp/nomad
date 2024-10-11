@@ -864,7 +864,7 @@ type TaskArtifact struct {
 	GetterMode     *string           `mapstructure:"mode" hcl:"mode,optional"`
 	GetterInsecure *bool             `mapstructure:"insecure" hcl:"insecure,optional"`
 	RelativeDest   *string           `mapstructure:"destination" hcl:"destination,optional"`
-	Chown          *bool             `mapstructure:"chown" hcl:"chown"`
+	Chown          bool              `mapstructure:"chown" hcl:"chown,optional"`
 }
 
 func (a *TaskArtifact) Canonicalize() {
@@ -883,9 +883,6 @@ func (a *TaskArtifact) Canonicalize() {
 	}
 	if len(a.GetterHeaders) == 0 {
 		a.GetterHeaders = nil
-	}
-	if a.Chown == nil {
-		a.Chown = pointerOf(false)
 	}
 	if a.RelativeDest == nil {
 		switch *a.GetterMode {
