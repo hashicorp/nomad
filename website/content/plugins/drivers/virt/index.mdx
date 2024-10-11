@@ -8,7 +8,7 @@ description: >-
 
 # Virt task driver
 
-~> Beta Feature: The Virt task driver is in beta. Do not use this driver in production environments.
+@include 'virt-beta-callout.mdx'
 
 Name: `virt`
 
@@ -16,7 +16,6 @@ The `virt` driver utilises the [libvirt][] API to run and manage virtual machine
 hypervisors such as [QEMU][]. It supports a wide variety of Nomad features including
 [workload identity][], [task templates][], and [service discovery][].
 
-The source is available on [GitHub][github]
 
 [libvirt]: https://libvirt.org/
 [QEMU]: https://www.qemu.org/

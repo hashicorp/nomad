@@ -6,6 +6,8 @@ description: Nomad client requirements, capabilities, and configuration options 
 
 # Client
 
+@include 'virt-beta-callout.mdx'
+
 The `virt` task driver is not built into Nomad. You must [downloaded][releases] onto the client
 host in the configured plugin directory. The client host must also be capable of running hardware
 accelerated KVM virtual machines, which you can check by using [kvm-ok][] command.
