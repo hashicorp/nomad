@@ -5065,6 +5065,17 @@ func TestTaskArtifact_Hash(t *testing.T) {
 			GetterInsecure: true,
 			RelativeDest:   "i",
 		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:     "g",
+			GetterInsecure: true,
+			RelativeDest:   "i",
+			Chown:          true,
+		},
 	}
 
 	// Map of hash to source
@@ -7860,7 +7871,7 @@ func TestTaskArtifact_Equal(t *testing.T) {
 	ci.Parallel(t)
 
 	must.Equal[*TaskArtifact](t, nil, nil)
-	must.NotEqual[*TaskArtifact](t, nil, new(TaskArtifact))
+	must.NotEqual(t, nil, new(TaskArtifact))
 
 	must.StructEqual(t, &TaskArtifact{
 		GetterSource:  "source",
@@ -7883,7 +7894,11 @@ func TestTaskArtifact_Equal(t *testing.T) {
 	}, {
 		Field: "RelativeDest",
 		Apply: func(ta *TaskArtifact) { ta.RelativeDest = "./alloc" },
-	}})
+	}, {
+		Field: "Chown",
+		Apply: func(ta *TaskArtifact) { ta.Chown = true },
+	},
+	})
 }
 
 func TestVault_Equal(t *testing.T) {

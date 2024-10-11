@@ -864,6 +864,7 @@ type TaskArtifact struct {
 	GetterMode     *string           `mapstructure:"mode" hcl:"mode,optional"`
 	GetterInsecure *bool             `mapstructure:"insecure" hcl:"insecure,optional"`
 	RelativeDest   *string           `mapstructure:"destination" hcl:"destination,optional"`
+	Chown          bool              `mapstructure:"chown" hcl:"chown,optional"`
 }
 
 func (a *TaskArtifact) Canonicalize() {

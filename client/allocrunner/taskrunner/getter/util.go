@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"unicode"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/helper/subproc"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -82,6 +84,32 @@ func getMode(artifact *structs.TaskArtifact) getter.ClientMode {
 	default:
 		return getter.ClientModeAny
 	}
+}
+
+func chownDestination(destination, username string) error {
+	if destination == "" || username == "" {
+		return nil
+	}
+
+	if os.Geteuid() != 0 {
+		return nil
+	}
+
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
+	uid, gid, _, err := users.LookupUnix(username)
+	if err != nil {
+		return err
+	}
+
+	return filepath.Walk(destination, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		return os.Chown(path, uid, gid)
+	})
 }
 
 func isInsecure(artifact *structs.TaskArtifact) bool {

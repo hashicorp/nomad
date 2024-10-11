@@ -24,8 +24,8 @@ type Sandbox struct {
 	ac     *config.ArtifactConfig
 }
 
-func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact) error {
-	s.logger.Debug("get", "source", artifact.GetterSource, "destination", artifact.RelativeDest)
+func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact, user string) error {
+	s.logger.Debug("get", "source", artifact.GetterSource, "destination", artifact.RelativeDest, "user", user)
 
 	source, err := getURL(env, artifact)
 	if err != nil {
@@ -66,10 +66,13 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 		// task filesystem
 		AllocDir: allocDir,
 		TaskDir:  taskDir,
+		User:     user,
+		Chown:    artifact.Chown,
 	}
 
 	if err = s.runCmd(params); err != nil {
 		return err
 	}
+
 	return nil
 }

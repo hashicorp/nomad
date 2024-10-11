@@ -321,6 +321,7 @@ func TestTask_Artifact(t *testing.T) {
 	must.Eq(t, "local/foo.txt", filepath.ToSlash(*a.RelativeDest))
 	must.Nil(t, a.GetterOptions)
 	must.Nil(t, a.GetterHeaders)
+	must.Eq(t, false, a.Chown)
 }
 
 func TestTask_VolumeMount(t *testing.T) {
