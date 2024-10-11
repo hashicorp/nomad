@@ -18,7 +18,9 @@ running in Nomad.
 
 Nomad agents need access to Consul in order to register themselves in the
 service catalog and discover other Nomad agents via service discovery for
-automatic clustering. Nomad servers also create [configuration
+automatic clustering. Nomad clients use Consul tokens from Workload Identity to
+register services and checks but need permissions on their own token to
+deregister. Nomad servers also create [configuration
 entries][consul_config_entry] for Consul Service Mesh, so the specific
 permissions vary slightly between Nomad servers and clients. The following
 Consul ACL policies represent the minimal permissions Nomad servers and clients
@@ -105,6 +107,9 @@ The auth method configuration points to Nomad's [JSON Web Key Set (JWKS)
 URL][nomad_jwks_url]. Consul servers call this URL to retrieve the public keys
 Nomad uses to sign workload identities. With these keys, Consul is able to
 validate their origin and confirm that they were actually created by Nomad.
+
+Nomad cannot recreate Consul tokens that have been deleted. The auth method
+configuration should never set the `MaxTokenTTL` field.
 
 <CodeBlockConfig highlight="2" filename="auth-method.json">
 
