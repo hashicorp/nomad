@@ -106,7 +106,7 @@ require (
 	github.com/mitchellh/pointerstructure v1.2.1
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/moby/sys/mount v0.3.3
-	github.com/moby/sys/mountinfo v0.7.1
+	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/term v0.5.0
 	github.com/muesli/reflow v0.3.0
 	github.com/opencontainers/image-spec v1.1.0
