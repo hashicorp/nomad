@@ -1252,6 +1252,26 @@ type WorkloadIdentity struct {
 	TTL          time.Duration `mapstructure:"ttl" hcl:"ttl,optional"`
 }
 
+// ServiceWeights is the jobspec block which configures how a service instance
+// is weighted in a DNS SRV request based on the service's health status.
+type ServiceWeights struct {
+	Passing int `hcl:"passing,optional"`
+	Warning int `hcl:"warning,optional"`
+}
+
+func (weights *ServiceWeights) Canonicalize() {
+	if weights == nil {
+		return
+	}
+
+	if weights.Passing <= 0 {
+		weights.Passing = 1
+	}
+	if weights.Warning <= 0 {
+		weights.Warning = 1
+	}
+}
+
 type Action struct {
 	Name    string   `hcl:"name,label"`
 	Command string   `mapstructure:"command" hcl:"command"`

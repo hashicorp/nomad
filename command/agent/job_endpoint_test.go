@@ -2708,6 +2708,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						TaggedAddresses: map[string]string{
 							"wan": "1.2.3.4",
 						},
+						Weights: &api.ServiceWeights{
+							Passing: 5,
+							Warning: 1,
+						},
 						CheckRestart: &api.CheckRestart{
 							Limit: 4,
 							Grace: pointer.Of(11 * time.Second),
@@ -2819,6 +2823,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Address:           "task.example.com",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
+								},
+								Weights: &api.ServiceWeights{
+									Passing: 7,
+									Warning: 2,
 								},
 								CheckRestart: &api.CheckRestart{
 									Limit: 4,
@@ -3148,6 +3156,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						TaggedAddresses: map[string]string{
 							"wan": "1.2.3.4",
 						},
+						Weights: &structs.ConsulWeights{
+							Passing: 5,
+							Warning: 1,
+						},
 						OnUpdate: structs.OnUpdateRequireHealthy,
 						Checks: []*structs.ServiceCheck{
 							{
@@ -3263,6 +3275,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Address:           "task.example.com",
 								Meta: map[string]string{
 									"servicemeta": "foobar",
+								},
+								Weights: &structs.ConsulWeights{
+									Passing: 7,
+									Warning: 2,
 								},
 								OnUpdate: structs.OnUpdateRequireHealthy,
 								Checks: []*structs.ServiceCheck{

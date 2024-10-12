@@ -246,6 +246,7 @@ type Service struct {
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
 	Identity          *WorkloadIdentity `hcl:"identity,block"`
+	Weights           *ServiceWeights   `mapstructure:"weights" hcl:"weights,block"`
 
 	// Provider defines which backend system provides the service registration,
 	// either "consul" (default) or "nomad".
@@ -307,6 +308,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	}
 
 	s.Connect.Canonicalize()
+	s.Weights.Canonicalize()
 
 	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.

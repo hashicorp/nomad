@@ -95,6 +95,18 @@ func newConnectGateway(connect *structs.ConsulConnect) *api.AgentServiceConnectP
 	return &api.AgentServiceConnectProxyConfig{Config: envoyConfig}
 }
 
+// newWeights creates a new Consul AgentWeights struct based on a Nomad ConsulWeights struct.
+func newWeights(weights *structs.ConsulWeights) *api.AgentWeights {
+	if weights == nil {
+		return nil
+	}
+
+	return &api.AgentWeights{
+		Passing: weights.Passing,
+		Warning: weights.Warning,
+	}
+}
+
 func connectSidecarRegistration(serviceID string, info structs.AllocInfo, css *structs.ConsulSidecarService, networks structs.Networks, ports structs.AllocatedPorts) (*api.AgentServiceRegistration, error) {
 	if css == nil {
 		// no sidecar block means there is no sidecar service to register
