@@ -1,0 +1,135 @@
+---
+layout: docs
+page_title: 1.9.x
+description: >-
+  Nomad release notes for Nomad version 1.9.x
+---
+
+# Nomad 1.9.0
+
+We are pleased to announce the following Nomad updates.
+
+## Release highlights
+
+- **Multi-Instance GPU (MIG) support added to the NVIDIA device driver**: This
+enhances Nomad’s ability to schedule workloads across your NVIDIA hardware and
+make full use of your GPU investment. The device driver automatically detects
+MIGs. Refer to the [NVIDIA driver docs](/nomad/plugins/devices/nvidia) for
+details.
+
+- **Quotas for device resources (Enterprise)**: This release extends quotas to
+allow limiting [device resources](/nomad/docs/job-specification/device). Refer
+to [Resource quotas]() for configuration details.
+
+- **NUMA awareness for device resources (Enterprise)**: Nomad is able to
+  correlate CPU cores with memory nodes and assign tasks to run on specific CPU
+  cores so as to minimize any cross-memory node access patterns. With Nomad 1.9,
+  we are expanding this functionality to also correlate
+  [devices](/nomad/docs/concepts/plugins/devices) to memory nodes and enable
+  NUMA-aware scheduling to take device associativity into account when making
+  scheduling decisions. Refer to [numa
+  Block](/nomad/docs/job-specification/numa) for configuration details.
+
+- **Golden job versions**: This feature introduces a way to preserve and compare
+  historical versions of a job. Prior to this, any change to a job would push
+  older versions into garbage collection. Now, you can tag a version to save it
+  from garbage collection. Additionally, you can compare job versions by tag
+  name and revert by tag name. Refer to [Job
+  versions](/nomad/docs/concepts/job.mdx#job-versions) for details and links to
+  how to use job version tagging.
+
+- **Virt task driver (beta)**: The new Virt task driver uses
+  [libvirt](https://libvirt.org/) to manage virtual machines created by KVM,
+  Xen, VMware ESXi, QEMU, and other virtualization technologies. Using this
+  driver, you can perform the following:
+
+  - Start and stop a virtual machine and run a process on it.
+  - Assign a workload identity to the running task inside the virtual machine.
+  - Pass configuration values from Vault or other services using consul-template.
+  - Mount host directories into virtual machines to procure the allocation and task directories inside them.
+  - Configure port forwarding from the Nomad node to the virtual machine.
+  - Access the running task through the task API.
+
+  Refer to the [Virt driver docs](https://github.com/hashicorp/nomad-driver-virt)
+  for installation and usage guides.
+
+- **Exec2 Task Driver (GA):** The `exec2` driver is used to execute a command
+for a task. It offers a security model optimized for running 'ordinary'
+processes with very low startup times and minimal overhead in terms of CPU,
+disk, and memory utilization. The `exec2` driver leverages kernel features such
+as the Landlock LSM, cgroups v2, and the unshare system utility. Due these
+enhancements, tasks no longer require leveraging filesystem isolation based on
+chroot, which provide an enhanced security profile and improved performance for
+the Nomad operator. Refer to [Exec2 Task Driver](/nomad/plugins/drivers/exec2)
+for more details.
+
+- **Improved IPv6 support**: Nomad has improved support for Nomad's IPv6
+capabilities. We have tested and resolved some known issues with
+server-to-server and server-to-client communications. Additionally we have
+tested the Nomad CLI and UI service integrations with Consul and Vault, workload
+identity, service registration, host networking, bridge networking, and the
+Docker driver. More work will likely need to be done with IPv6 support as we
+explore integrations with Consul service mesh.
+
+
+## What's deprecated
+
+The following are deprecated and will be removed in 1.10.
+
+- Support for the legacy token workflow for Consul. Workloads
+  that need Consul support will require the cluster be configured to use
+  Workload Identity with Consul. Refer to [the Consul integration
+  guide][consul-integration] for details.
+- Support for the legacy token workflow for Vault. Workloads
+  that need Vault support will require the cluster be configured to use Workload
+  Identity with Vault. Refer to [the Vault integration guide][vault-integration] for
+  details.
+- Nomad will no longer create an implicit `consul` block for workloads that
+  don't register services with Consul. Jobs that require Consul tokens for
+  `template` rendering will be required to provide a `consul` block.
+- Nomad clients will no longer execute all binaries in the plugin directory on
+  startup for fingerprinting. Only plugins with an associated `plugin` block in
+  the Nomad agent configuration will be fingerprinted. Refer to [GH-18529][] for
+  more details.
+- Nomad will ignore the deprecated `stop_after_client_disconnect`,
+  `max_client_disconnect`, and `prevent_reschedule_on_lost` fields and only
+  support the [`disconnect`][] block, which covers the same functionality.
+
+## What's removed
+
+- Support for HCLv1 job specifications and the `-hcl1` flag on `nomad job run` and other commands. Refer to [GH-20195](https://github.com/hashicorp/nomad/issues/20195) for more details.
+
+- Support for Nomad client agents older than v1.6.0. Older nodes will fail heartbeats. Nomad servers will mark the workloads on Nomad client agents older than 1.6.0 as lost and reschedule them normally according to the job's [reschedule](/nomad/docs/job-specification/reschedule) block.
+
+- The [LXC task driver](https://github.com/hashicorp/nomad-driver-lxc) and [ECS
+  task driver](https://github.com/hashicorp/nomad-driver-ecs) projects have been
+  archived with the release of Nomad 1.9 and are no longer supported.  Both
+  plug-ins are maintained separately from the Nomad core project and are not
+  subject to the LTS program.
+
+- Nomad has removed the `tls_prefer_server_cipher_suites` agent configuration from the [`tls` block](/nomad/docs/configuration/tls).
+
+
+## Upgrading
+
+For more detailed information, please refer to the [upgrade details
+page](/nomad/docs/upgrade/upgrade-specific#nomad-1-9-0) and the changelogs.
+
+## Known issues
+
+None.
+
+## Changelogs
+
+The changelogs for this major release version and any maintenance versions are
+listed below.
+
+<Note> These links take you to the changelogs on the GitHub website. </Note>
+
+- [1.9.0](https://github.com/hashicorp/nomad/releases/tag/v1.9.0)
+
+
+[consul-integration]: /nomad/docs/integrations/consul/acl
+[vault-integration]: /nomad/docs/integrations/vault/acl
+[GH-18529]: https://github.com/hashicorp/nomad/issues/18529
+[`disconnect`]: /nomad/docs/job-specification/disconnect
