@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/mitchellh/go-ps"
 )
 
 var (
@@ -79,4 +80,53 @@ func Aggregate(systemStats *cpustats.Tracker, procStats ProcUsages) *drivers.Tas
 		Timestamp:     ts,
 		Pids:          procStats,
 	}
+}
+
+func list(executorPID int, processes func() ([]ps.Process, error)) (set.Collection[ProcessID], int) {
+	family := set.From([]int{executorPID})
+
+	all, err := processes()
+	if err != nil {
+		return family, 0
+	}
+
+	parents, examined := mapping(all)
+	examined += gather(family, parents, executorPID)
+
+	return family, examined
+}
+
+func gather(family set.Collection[int], parents map[int]set.Collection[int], parent int) int {
+	examined := 0
+	candidates, ok := parents[parent]
+	if !ok {
+		return examined
+	}
+	for _, candidate := range candidates.Slice() {
+		examined++
+		family.Insert(candidate)
+		examined += gather(family, parents, candidate)
+	}
+
+	return examined
+}
+
+// mapping builds a reverse map of parent to children
+func mapping(all []ps.Process) (map[int]set.Collection[int], int) {
+
+	parents := map[int]set.Collection[int]{}
+	examined := 0
+
+	for _, candidate := range all {
+		if candidate != nil {
+			examined++
+			if children, ok := parents[candidate.PPid()]; ok {
+				children.Insert(candidate.Pid())
+			} else {
+				parents[candidate.PPid()] = set.From([]int{candidate.Pid()})
+			}
+		}
+	}
+
+	return parents, examined
 }
