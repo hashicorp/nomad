@@ -5,7 +5,6 @@ package procstats
 
 import (
 	"math/rand"
-	"runtime"
 	"testing"
 
 	"github.com/mitchellh/go-ps"
@@ -101,40 +100,11 @@ func Test_list(t *testing.T) {
 				return procs, nil
 			}
 
-			runtime.GC()
-			mstats := &runtime.MemStats{}
-			runtime.ReadMemStats(mstats)
-			heap := mstats.HeapAlloc
-			stackInUse := mstats.StackInuse
-
 			result, examined := list(executorPID, lister)
 			must.SliceContainsAll(t, expect, result.Slice(),
-				must.Sprintf("NEW exp: %v; got: %v", expect, result),
+				must.Sprintf("exp: %v; got: %v", expect, result),
 			)
 			must.Eq(t, tc.expect, examined)
-
-			mstats = &runtime.MemStats{}
-			runtime.ReadMemStats(mstats)
-			heap = mstats.HeapAlloc - heap
-			stackInUse = mstats.StackInuse - stackInUse
-			t.Logf("NEW total: %d -> examined: %d (heap: %d stack: %d)\n", len(procs), examined, heap, stackInUse)
-
-			runtime.GC()
-			runtime.ReadMemStats(mstats)
-			heap = mstats.HeapAlloc
-			stackInUse = mstats.StackInuse
-
-			result, examined = list_old(executorPID, lister)
-			must.SliceContainsAll(t, expect, result.Slice(),
-				must.Sprintf("OLD exp: %v; got: %v", expect, result),
-			)
-
-			mstats = &runtime.MemStats{}
-			runtime.ReadMemStats(mstats)
-			heap = mstats.HeapAlloc - heap
-			stackInUse = mstats.StackInuse - stackInUse
-			t.Logf("OLD total: %d -> examined: %d (heap: %d stack: %d)\n", len(procs), examined, heap, stackInUse)
-
 		})
 	}
 }
