@@ -3037,6 +3037,11 @@ func (n *NetworkResource) PortLabels() map[string]int {
 	return labelValues
 }
 
+func (n *NetworkResource) IsIPv6() bool {
+	ip := net.ParseIP(n.IP)
+	return ip != nil && ip.To4() == nil
+}
+
 // Networks defined for a task on the Resources struct.
 type Networks []*NetworkResource
 
