@@ -413,7 +413,7 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 			"bind_address":     "0.0.0.0",
 			"bind_port":        42,
 			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc1"},
-		}, connectProxyConfig(nil, 42, structs.AllocInfo{AllocID: "test_alloc1"}))
+		}, connectProxyConfig(nil, 42, structs.AllocInfo{AllocID: "test_alloc1"}, nil))
 	})
 
 	t.Run("pre-existing map", func(t *testing.T) {
@@ -424,17 +424,29 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc2"},
 		}, connectProxyConfig(map[string]interface{}{
 			"foo": "bar",
-		}, 42, structs.AllocInfo{AllocID: "test_alloc2"}))
+		}, 42, structs.AllocInfo{AllocID: "test_alloc2"}, nil))
 	})
 
 	t.Run("bind_address override", func(t *testing.T) {
+		require.Equal(t, map[string]interface{}{
+			"bind_address":     "anything",
+			"bind_port":        42,
+			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc1b"},
+		}, connectProxyConfig(map[string]interface{}{
+			"bind_address": "anything",
+		}, 42, structs.AllocInfo{AllocID: "test_alloc1b"}, nil))
+	})
+
+	t.Run("bind_address ipv6", func(t *testing.T) {
 		require.Equal(t, map[string]interface{}{
 			"bind_address":     "::",
 			"bind_port":        42,
 			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc1b"},
 		}, connectProxyConfig(map[string]interface{}{
 			"bind_address": "::",
-		}, 42, structs.AllocInfo{AllocID: "test_alloc1b"}))
+		}, 42, structs.AllocInfo{AllocID: "test_alloc1b"}, []*structs.NetworkResource{
+			{Mode: "bridge", IP: "fd00:a110:c8::1"},
+		}))
 	})
 }
 
