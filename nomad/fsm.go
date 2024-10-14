@@ -23,16 +23,6 @@ import (
 	"github.com/hashicorp/raft"
 )
 
-const (
-	// timeTableGranularity is the granularity of index to time tracking
-	timeTableGranularity = 5 * time.Minute
-)
-
-var (
-	// timeTableDefaultLimit is the default maximum limit of our tracking
-	timeTableDefaultLimit = 72 * time.Hour
-)
-
 // SnapshotType is prefixed to a record in the FSM snapshot
 // so that we can determine the type for restore
 type SnapshotType byte
@@ -133,7 +123,6 @@ type nomadFSM struct {
 	encrypter          *Encrypter
 	logger             hclog.Logger
 	state              *state.StateStore
-	timetable          *TimeTable
 
 	// config is the FSM config
 	config *FSMConfig
@@ -155,8 +144,7 @@ type nomadFSM struct {
 // state in a way that can be accessed concurrently with operations
 // that may modify the live state.
 type nomadSnapshot struct {
-	snap      *state.StateSnapshot
-	timetable *TimeTable
+	snap *state.StateSnapshot
 }
 
 // SnapshotHeader is the first entry in our snapshot
@@ -194,11 +182,6 @@ type FSMConfig struct {
 
 	// JobTrackedVersions is the number of historic job versions that are kept.
 	JobTrackedVersions int
-
-	// LongestThreshold is the longest GC threshold that has been set in the server
-	// config. We use it to adjust timeTableDefaultLimit, which defaults to 72h, if
-	// necessary (users can have longer GC thresholds).
-	LongestThreshold time.Duration
 }
 
 // NewFSM is used to construct a new FSM with a blank state.
@@ -216,13 +199,6 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		return nil, err
 	}
 
-	// adjust the timeTableLimit if there's any configured GC threshold longer than
-	// the default 72h
-	timeTableLimit := timeTableDefaultLimit
-	if config.LongestThreshold > timeTableDefaultLimit {
-		timeTableLimit = config.LongestThreshold * 2
-	}
-
 	fsm := &nomadFSM{
 		evalBroker:          config.EvalBroker,
 		periodicDispatcher:  config.Periodic,
@@ -231,7 +207,6 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		logger:              config.Logger.Named("fsm"),
 		config:              config,
 		state:               state,
-		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
 		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
 		enterpriseRestorers: make(map[SnapshotType]SnapshotRestorer, 8),
 	}
