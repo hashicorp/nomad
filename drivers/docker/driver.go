@@ -1852,6 +1852,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 		fmt.Println("SH start copy stdin")
 		_, _ = io.Copy(resp.Conn, opts.Stdin)
 		fmt.Println("SH exit copy stdin")
+		_ = resp.Conn.Close()
 	}()
 
 	exitCode := 999
