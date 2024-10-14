@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package podman
+package docker
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ const (
 	registryService = "registry"
 )
 
-func TestPodman(t *testing.T) {
+func TestDocker(t *testing.T) {
 	cluster3.Establish(t,
 		cluster3.Leader(),
 		cluster3.LinuxClients(1),
@@ -42,7 +42,7 @@ func findService(t *testing.T, name string) (string, int) {
 
 func runRegistry(t *testing.T) {
 	_, regCleanup := jobs3.Submit(t,
-		"../docker-registry/registry.hcl",
+		"../docker_registry/registry.hcl",
 		jobs3.Timeout(40*time.Second), // pulls an image
 	)
 	t.Cleanup(regCleanup)
@@ -53,7 +53,7 @@ func runRegistry(t *testing.T) {
 
 	// run the sed job to fixup the auth.json file with correct address
 	_, sedCleanup := jobs3.Submit(t,
-		"../docker-registry/registry-auths.hcl",
+		"../docker_registry/registry-auths.hcl",
 		jobs3.Var("registry_address", address),
 		jobs3.Var("user", "root"),
 		jobs3.Var("helper_dir", "/usr/local/bin"),
