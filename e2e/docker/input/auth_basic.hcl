@@ -61,9 +61,8 @@ job "auth_basic" {
         auth_soft_fail = true
 
         auth {
-          username   = "${var.registry_username}"
-          password   = "${var.registry_password}"
-          tls_verify = false
+          username = "${var.registry_username}"
+          password = "${var.registry_password}"
         }
       }
 

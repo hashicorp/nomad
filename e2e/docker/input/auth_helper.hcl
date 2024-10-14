@@ -42,11 +42,8 @@ job "auth_static" {
         image = "${var.registry_address}:${var.registry_port}/docker.io/library/bash_auth_helper:private"
         args  = ["echo", "The credentials helper auth test is OK!"]
 
-        auth {
-          # usename and password come from [docker-credential-]test.sh found on
-          # $PATH as specified by "helper=test.sh" in plugin config
-          tls_verify = false
-        }
+        # usename and password come from [docker-credential-]test.sh found on
+        # $PATH as specified by "helper=test.sh" in plugin config
       }
 
       resources {

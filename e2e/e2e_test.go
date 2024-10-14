@@ -35,6 +35,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/connect"
 	_ "github.com/hashicorp/nomad/e2e/consultemplate"
 	_ "github.com/hashicorp/nomad/e2e/disconnectedclients"
+	_ "github.com/hashicorp/nomad/e2e/docker"
 	_ "github.com/hashicorp/nomad/e2e/isolation"
 	_ "github.com/hashicorp/nomad/e2e/metrics"
 	_ "github.com/hashicorp/nomad/e2e/namespaces"

@@ -42,10 +42,7 @@ job "auth_static" {
         image = "${var.registry_address}:${var.registry_port}/docker.io/library/bash_auth_static:private"
         args  = ["echo", "The static auth test is OK!"]
 
-        auth {
-          # usename and password come from auth.json in plugin config
-          tls_verify = false
-        }
+        # usename and password come from auth.json in plugin config
       }
 
       resources {
