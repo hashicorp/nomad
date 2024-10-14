@@ -247,7 +247,9 @@ func connectProxyConfig(cfg map[string]interface{}, port int, info structs.Alloc
 	if cfg == nil {
 		cfg = make(map[string]interface{})
 	}
-	cfg["bind_address"] = "0.0.0.0"
+	if _, ok := cfg["bind_address"]; !ok {
+		cfg["bind_address"] = "0.0.0.0"
+	}
 	cfg["bind_port"] = port
 
 	tags := map[string]string{

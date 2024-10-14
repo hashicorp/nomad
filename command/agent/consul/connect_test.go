@@ -426,6 +426,16 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 			"foo": "bar",
 		}, 42, structs.AllocInfo{AllocID: "test_alloc2"}))
 	})
+
+	t.Run("bind_address override", func(t *testing.T) {
+		require.Equal(t, map[string]interface{}{
+			"bind_address":     "::",
+			"bind_port":        42,
+			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc1b"},
+		}, connectProxyConfig(map[string]interface{}{
+			"bind_address": "::",
+		}, 42, structs.AllocInfo{AllocID: "test_alloc1b"}))
+	})
 }
 
 func TestConnect_getConnectPort(t *testing.T) {
