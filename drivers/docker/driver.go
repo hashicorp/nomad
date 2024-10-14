@@ -1839,27 +1839,34 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	defer resp.Close()
 
 	go func() {
+		fmt.Println("SH start copy stdout/stderr")
 		if !opts.Tty {
 			_, _ = stdcopy.StdCopy(opts.Stdout, opts.Stderr, resp.Reader)
 		} else {
 			_, _ = io.Copy(opts.Stdout, resp.Reader)
 		}
+		fmt.Println("SH exit copy stdout/stderr")
 	}()
 
 	go func() {
+		fmt.Println("SH start copy stdin")
 		_, _ = io.Copy(resp.Conn, opts.Stdin)
+		fmt.Println("SH exit copy stdin")
 	}()
 
 	exitCode := 999
 	for {
 		inspect, err := dockerClient.ContainerExecInspect(ctx, exec.ID)
 		if err != nil {
+			fmt.Println("failed to inspect:", err)
 			return nil, fmt.Errorf("failed to inspect exec: %v", err)
 		}
 
 		running := inspect.Running
+		fmt.Println("inspect value is", inspect.Running)
+
 		if running {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(1000 * time.Millisecond)
 			continue
 		}
 

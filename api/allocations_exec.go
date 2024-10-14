@@ -45,11 +45,15 @@ func (s *execSession) run(ctx context.Context) (exitCode int, err error) {
 	ctx, cancelFn := context.WithCancel(ctx)
 	defer cancelFn()
 
+	fmt.Println("es.run enter")
+
 	conn, err := s.startConnection()
 	if err != nil {
 		return -2, err
 	}
 	defer conn.Close()
+
+	fmt.Println("es.run got connection")
 
 	sendErrCh := s.startTransmit(ctx, conn)
 	exitCh, recvErrCh := s.startReceiving(ctx, conn)
@@ -124,6 +128,8 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 
 func (s *execSession) startTransmit(ctx context.Context, conn *websocket.Conn) <-chan error {
 
+	fmt.Println("es.startTX enter")
+
 	// FIXME: Handle websocket send errors.
 	// Currently, websocket write failures are dropped. As sending and
 	// receiving are running concurrently, it's expected that some send
@@ -152,21 +158,30 @@ func (s *execSession) startTransmit(ctx context.Context, conn *websocket.Conn) <
 			input := ExecStreamingInput{Stdin: &ExecStreamingIOOperation{}}
 
 			n, err := s.stdin.Read(bytes)
+			fmt.Println("tx read bytes", n)
 
 			// always send data if we read some
 			if n != 0 {
 				input.Stdin.Data = bytes[:n]
+				fmt.Println("tx send bytes", len(input.Stdin.Data))
 				send(&input)
 			}
 
+			fmt.Println("tx read/send read err:", err)
+
 			// then handle error
 			if err == io.EOF {
+				fmt.Println("tx send io.EOF")
 				// if n != 0, send data and we'll get n = 0 on next read
 				if n == 0 {
+					fmt.Println("one last send")
 					input.Stdin.Close = true
 					send(&input)
+
 					return
 				}
+				// hmmm should we send anyway?
+				fmt.Println("no last send")
 			} else if err != nil {
 				errCh <- err
 				return
@@ -210,6 +225,8 @@ func (s *execSession) startTransmit(ctx context.Context, conn *websocket.Conn) <
 			}
 		}
 	}()
+
+	fmt.Println("es.startTX exit")
 
 	return errCh
 }
