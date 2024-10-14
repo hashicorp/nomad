@@ -1920,6 +1920,10 @@
         "path": "other-specifications/node-pool"
       },
       {
+        "title": "Resource Quota",
+        "path": "other-specifications/quota"
+      },
+      {
         "title": "Variables",
         "path": "other-specifications/variables"
       },
