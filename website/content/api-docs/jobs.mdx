@@ -632,7 +632,10 @@ The table below shows this endpoint's support for
 ### Parameters
 
 - `diffs` `(bool: false)` - Specifies if the Diffs field should be populated,
-  containing the structured diff between the current and last job version.
+  containing the structured diff between the current and last job version. This
+  is specified as a query string parameter.
+
+- `diff_version` `(int: <optional>)`: Specifies the version to to compare against the current version when you create the structured diff for a job with `diffs=true`. This is specified as a query string parameter.
 
 - `:job_id` `(string: <required>)` - Specifies the ID of the job. This is
   specified as part of the path.
@@ -1831,7 +1834,11 @@ The table below shows this endpoint's support for
 - `JobID` `(string: <required>)` - Specifies the ID of the job. This is
   specified as part of the path.
 
-- `JobVersion` `(integer: 0)` - Specifies the job version to revert to.
+- `JobVersion` `(integer: 0)` - Specifies the job version to revert to. Use either 
+  this parameter or `TaggedVersion`, but do not use both.
+
+- `TaggedVersion` `(string: "")` - Specifies the tag name of the job version you
+  want to revert to. Use either this parameter or `JobVersion`, but do not use both.
 
 - `EnforcePriorVersion` `(integer: nil)` - Optional value specifying the current
   job's version. This is checked and acts as a check-and-set value before
@@ -1849,10 +1856,21 @@ access. This is specified as a query string parameter.
 
 ### Sample Payload
 
+This example specifies the version.
+
 ```json
 {
   "JobID": "my-job",
   "JobVersion": 2
+}
+```
+
+This example specifies the tagged version.
+
+```json
+{
+  "JobID": "my-job",
+  "TaggedVersion": "golden-version"
 }
 ```
 
@@ -2682,3 +2700,95 @@ WebSocket Request: /v1/job/actions-demo/action?action=weather&allocID=8614ed07-4
 # Toronto: ⛅️  -1°C
 {"stdout":{"data":"VG9yb250bzog4puF77iPICAtMcKwQw0K"}}
 ```
+
+## Create Job Version Tag
+
+This endpoint creates a tag for a job version.
+
+@include 'version/tag-reason.mdx'
+
+| Method | Path              | Produces           |
+| ------ | ----------------- | ------------------ |
+| `POST`  | `/v1/job/:job_id/versions/:tag_name/tag` | `application/json` |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - The ID of the job. Specify `job_id` as part
+  of the path.
+- `:tag_name` `(string: <required>)` - The new tag name for the
+  version specified in the payload. Must be unique per job. Specify `tag_name` as part of the path.
+- `Version`: `(int: <optional>)` - The job version number. If not
+  specified, Nomad tags the latest version. Specify `Version` in the payload.
+- `Description`: `(string: <optional>)` - The tag description. Specify `Description` in the payload.
+
+### Sample Payload
+
+```json
+{
+  "Version": 0,
+  "Description": "The version we can roll back to."
+}
+```
+
+### Sample Request
+
+This example creates a tag named `golden-version` for version zero of the
+`hello-world` job.
+
+```shell-session
+$ curl -X POST \
+ localhost:4646/v1/job/hello-world/versions/golden-version/tag \
+ -H "Content-Type: application/json" -d \
+ '{"Version": 0, "Description": "The version we can roll back to."}'
+```
+
+### Sample Response
+
+```json
+{
+  "Name":"golden-version",
+  "Description":"The version we can roll back to.",
+  "TaggedTime":1728325495829793000,
+  "Index":361,
+  "LastContact":0,
+  "KnownLeader":false,
+  "NextToken":""}
+```
+
+## Delete Job Version Tag
+
+This endpoint deletes a job version tag.
+
+| Method | Path              | Produces           |
+| ------ | ----------------- | ------------------ |
+| `DELETE`  | `/v1/job/:job_id/versions/:tag_name/tag` | `application/json` |
+
+### Parameters
+
+- `:job_id` `(string: <required>)` - The ID of the job. Specify `job_id` as part of the path.
+- `:tag_name` `(string: <required>)` - The tag name. Specify `tag_name` as part of the path.
+
+### Sample Request
+
+This example deletes the `golden-version` tag from the `hello-world` job.
+
+```shell-session
+$ curl -X DELETE localhost:4646/v1/job/hello-world/versions/golden-version/tag -H "Content-Type: application/json"
+```
+
+### Sample Response
+
+```json
+{
+  "EvalID":"",
+  "EvalCreateIndex":0,
+  "JobModifyIndex":0,
+  "VolumeEvalID":"",
+  "VolumeEvalIndex":0,
+  "Index":0,
+  "LastContact":0,
+  "KnownLeader":false,
+  "NextToken":""
+}
+```
+
