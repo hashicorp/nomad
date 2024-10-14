@@ -409,7 +409,7 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("nil map", func(t *testing.T) {
-		require.Equal(t, map[string]interface{}{
+		must.Eq(t, map[string]any{
 			"bind_address":     "0.0.0.0",
 			"bind_port":        42,
 			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc1"},
@@ -417,34 +417,34 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 	})
 
 	t.Run("pre-existing map", func(t *testing.T) {
-		require.Equal(t, map[string]interface{}{
+		must.Eq(t, map[string]any{
 			"bind_address":     "0.0.0.0",
 			"bind_port":        42,
 			"foo":              "bar",
 			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc2"},
-		}, connectProxyConfig(map[string]interface{}{
+		}, connectProxyConfig(map[string]any{
 			"foo": "bar",
 		}, 42, structs.AllocInfo{AllocID: "test_alloc2"}, nil))
 	})
 
 	t.Run("bind_address override", func(t *testing.T) {
-		require.Equal(t, map[string]interface{}{
+		must.Eq(t, map[string]any{
 			"bind_address":     "anything",
 			"bind_port":        42,
-			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc1b"},
-		}, connectProxyConfig(map[string]interface{}{
+			"envoy_stats_tags": []string{"nomad.alloc_id=custom_bind_alloc"},
+		}, connectProxyConfig(map[string]any{
 			"bind_address": "anything",
-		}, 42, structs.AllocInfo{AllocID: "test_alloc1b"}, nil))
+		}, 42, structs.AllocInfo{AllocID: "custom_bind_alloc"}, nil))
 	})
 
 	t.Run("bind_address ipv6", func(t *testing.T) {
-		require.Equal(t, map[string]interface{}{
+		must.Eq(t, map[string]any{
 			"bind_address":     "::",
 			"bind_port":        42,
-			"envoy_stats_tags": []string{"nomad.alloc_id=test_alloc1b"},
-		}, connectProxyConfig(map[string]interface{}{
+			"envoy_stats_tags": []string{"nomad.alloc_id=ipv6_alloc"},
+		}, connectProxyConfig(map[string]any{
 			"bind_address": "::",
-		}, 42, structs.AllocInfo{AllocID: "test_alloc1b"}, []*structs.NetworkResource{
+		}, 42, structs.AllocInfo{AllocID: "ipv6_alloc"}, []*structs.NetworkResource{
 			{Mode: "bridge", IP: "fd00:a110:c8::1"},
 		}))
 	})
