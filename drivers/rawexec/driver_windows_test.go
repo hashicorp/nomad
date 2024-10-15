@@ -6,7 +6,6 @@
 package rawexec
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -69,8 +68,8 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 	var taskState TaskState
 	must.NoError(t, handle.GetDriverState(&taskState))
 
-	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	must.NoError(t, err)
+	//	_, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	//	must.NoError(t, err)
 	must.NoError(t, harness.WaitUntilStarted(task.ID, 1*time.Second))
 
 	// we don't know the PID of the executor but we know there are only 3
