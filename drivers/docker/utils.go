@@ -111,7 +111,7 @@ func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 			ServerAddress: driverConfig.Auth.ServerAddr,
 		}
 
-		if err := encodeAuth(authConfig, driverConfig.Auth.Username, driverConfig.Auth.Password); err != nil {
+		if err := encodeAuth(authConfig); err != nil {
 			return nil, err
 		}
 
@@ -149,7 +149,7 @@ func authFromDockerConfig(file string) authBackend {
 					RegistryToken: dockerAuthConfig.RegistryToken,
 				}
 
-				if err := encodeAuth(auth, dockerAuthConfig.Username, dockerAuthConfig.Password); err != nil {
+				if err := encodeAuth(auth); err != nil {
 					return nil, err
 				}
 
@@ -196,8 +196,11 @@ func authFromHelper(helperName string) authBackend {
 			return nil, err
 		}
 
-		auth := &registrytypes.AuthConfig{}
-		if err := encodeAuth(auth, response["Username"], response["Secret"]); err != nil {
+		auth := &registrytypes.AuthConfig{
+			Username: response["Username"],
+			Password: response["Secret"],
+		}
+		if err := encodeAuth(auth); err != nil {
 			return nil, err
 		}
 
@@ -209,10 +212,10 @@ func authFromHelper(helperName string) authBackend {
 }
 
 // some docker api calls require a base64 encoded basic auth string
-func encodeAuth(cfg *registrytypes.AuthConfig, username, password string) error {
+func encodeAuth(cfg *registrytypes.AuthConfig) error {
 	auth := &registrytypes.AuthConfig{
-		Username: username,
-		Password: password,
+		Username: cfg.Username,
+		Password: cfg.Password,
 	}
 	encodedJSON, err := json.Marshal(auth)
 	if err != nil {
