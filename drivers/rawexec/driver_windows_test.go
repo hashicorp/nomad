@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -74,6 +75,7 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 	// we don't know the PID of the executor but we know there are only 2
 	// children, so forcibly kill the one that isn't the workload
 	children := procstats.List(os.Getpid())
+	spew.Dump(children)
 	for _, childPid := range children.Slice() {
 		if childPid != taskState.Pid {
 			proc, err := os.FindProcess(childPid)
