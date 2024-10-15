@@ -2481,6 +2481,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 		{
 			Repo: "redis:7",
 			AuthConfig: &registry.AuthConfig{
+				Auth:          "eyJ1c2VybmFtZSI6InRlc3QiLCJwYXNzd29yZCI6IjEyMzQifQ==",
 				Username:      "test",
 				Password:      "1234",
 				Email:         "",
@@ -2490,6 +2491,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 		{
 			Repo: "quay.io/redis:7",
 			AuthConfig: &registry.AuthConfig{
+				Auth:          "eyJ1c2VybmFtZSI6InRlc3QiLCJwYXNzd29yZCI6IjU2NzgifQ==",
 				Username:      "test",
 				Password:      "5678",
 				Email:         "",
@@ -2499,6 +2501,7 @@ func TestDockerDriver_AuthConfiguration(t *testing.T) {
 		{
 			Repo: "other.io/redis:7",
 			AuthConfig: &registry.AuthConfig{
+				Auth:          "eyJ1c2VybmFtZSI6InRlc3QiLCJwYXNzd29yZCI6ImFiY2QifQ==",
 				Username:      "test",
 				Password:      "abcd",
 				Email:         "",
