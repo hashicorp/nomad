@@ -40,8 +40,15 @@ func downloadConsulBuild(t *testing.T, b build, baseDir string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, "hc-install", "install", "-version", b.Version, "-path", path, "consul")
+	cmd := exec.CommandContext(ctx, "hc-install", "install",
+		"-version", b.Version, "-path", path, "consul")
 	bs, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Logf("download: failed to download %s, retrying once: %v", b.Version, err)
+		cmd = exec.CommandContext(ctx, "hc-install", "install",
+			"-version", b.Version, "-path", path, "consul")
+		bs, err = cmd.CombinedOutput()
+	}
 	must.NoError(t, err, must.Sprintf("failed to download consul %s: %s", b.Version, string(bs)))
 }
 
