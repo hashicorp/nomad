@@ -118,4 +118,50 @@ EOH
       }
     }
   }
+
+  group "insecure" {
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
+
+    # mark registry as insecure so that docker can pull from it
+    task "mark-insecure" {
+      driver = "pledge"
+      user   = "${var.user}"
+
+      config {
+        command  = "cp"
+        args     = ["${NOMAD_TASK_DIR}/daemon.json", "/etc/docker/damon.json"]
+        promises = "stdio rpath wpath cpath"
+        unveil   = ["r:${NOMAD_TASK_DIR}/daemon.json", "rwc:/etc/docker"]
+      }
+
+      template {
+        destination = "damon.json"
+        perms       = "644"
+        data        = <<EOH
+{ "insecure-registries":["${var.registry_address}"] }
+EOH
+      }
+      resources {
+        cpu    = 100
+        memory = 32
+      }
+    }
+
+    task "restart-dockerd" {
+      driver = "pledge"
+      user   = "${var.user}"
+
+      config {
+        command  = "systemctl restart docker"
+        promises = "stdio exec"
+      }
+      resources {
+        cpu    = 100
+        memory = 32
+      }
+    }
+  }
 }
