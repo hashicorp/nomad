@@ -56,9 +56,7 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 
 	must.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 
-	cleanup := harness.MkAllocDir(task, false)
-	t.Cleanup(cleanup)
-
+	harness.MkAllocDir(task, false)
 	handle, _, err := harness.StartTask(task)
 	must.NoError(t, err)
 
