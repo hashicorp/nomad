@@ -2538,6 +2538,7 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 				ServerAddr: "www.foobar.com",
 			},
 			AuthConfig: &registry.AuthConfig{
+				Auth:          "eyJ1c2VybmFtZSI6ImZvbyIsInBhc3N3b3JkIjoiYmFyIn0=",
 				Username:      "foo",
 				Password:      "bar",
 				Email:         "foo@bar.com",
@@ -2552,6 +2553,7 @@ func TestDockerDriver_AuthFromTaskConfig(t *testing.T) {
 				ServerAddr: "www.foobar.com",
 			},
 			AuthConfig: &registry.AuthConfig{
+				Auth:          "eyJ1c2VybmFtZSI6ImZvbyIsInBhc3N3b3JkIjoiYmFyIn0=",
 				Username:      "foo",
 				Password:      "bar",
 				ServerAddress: "www.foobar.com",

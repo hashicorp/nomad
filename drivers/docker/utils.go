@@ -103,7 +103,16 @@ func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 		if len(driverConfig.Auth.Username) == 0 && len(driverConfig.Auth.Password) == 0 && len(driverConfig.Auth.Email) == 0 && len(driverConfig.Auth.ServerAddr) == 0 {
 			return nil, nil
 		}
+		authConfig := registrytypes.AuthConfig{
+			Username: driverConfig.Auth.Username,
+			Password: driverConfig.Auth.Password,
+		}
+
+		encodedJSON, _ := json.Marshal(authConfig)
+		authStr := base64.URLEncoding.EncodeToString(encodedJSON)
+
 		return &registrytypes.AuthConfig{
+			Auth:          authStr,
 			Username:      driverConfig.Auth.Username,
 			Password:      driverConfig.Auth.Password,
 			Email:         driverConfig.Auth.Email,
