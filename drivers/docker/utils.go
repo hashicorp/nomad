@@ -142,8 +142,7 @@ func authFromDockerConfig(file string) authBackend {
 					RegistryToken: dockerAuthConfig.RegistryToken,
 				}
 
-				// some docker API calls require base64 encoded auth string; make sure we have
-				// it
+				// docker API calls require base64 encoded auth string
 				if auth.Username != "" && auth.Password != "" {
 					authConfig := registrytypes.AuthConfig{
 						Username: auth.Username,
