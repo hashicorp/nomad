@@ -11,9 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -74,17 +72,19 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 
 	// we don't know the PID of the executor but we know there are only 3
 	// children, so forcibly kill the one that isn't the workload
-	children := procstats.List(os.Getpid())
-	spew.Dump(children)
-	for _, childPid := range children.Slice() {
-		if childPid != taskState.Pid {
-			proc, err := os.FindProcess(childPid)
-			must.NoError(t, err)
-			must.NoError(t, proc.Kill())
-			t.Logf("killed %d", childPid)
-			break
-		}
-	}
+	// children := procstats.List(os.Getpid())
+	// spew.Dump(children)
+	// for _, childPid := range children.Slice() {
+	// 	if childPid != taskState.Pid {
+	// 		break
+	// 	}
+	// }
+	proc, err := os.FindProcess(taskState.ReattachConfig.Pid)
+	must.NoError(t, err)
+	must.NoError(t, proc.Kill())
+	t.Logf("killed %d", taskState.ReattachConfig.Pid)
+
+	must.NotEq(t, taskState.ReattachConfig.Pid, taskState.Pid)
 
 	select {
 	case result := <-ch:
@@ -92,8 +92,6 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for task to shutdown")
 	}
-
-	var proc *os.Process
 
 	t.Cleanup(func() {
 		if proc != nil {
