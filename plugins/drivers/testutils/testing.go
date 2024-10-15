@@ -71,7 +71,8 @@ func NewDriverHarness(t testing.T, d drivers.DriverPlugin) *DriverHarness {
 
 func (h *DriverHarness) Kill() {
 	_ = h.client.Close()
-	h.server.Stop()
+	//	h.server.Stop()
+	h.server.GracefulStop()
 }
 
 // MkAllocDir creates a temporary directory and allocdir structure.

@@ -72,7 +72,7 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 	must.NoError(t, err)
 	must.NoError(t, harness.WaitUntilStarted(task.ID, 1*time.Second))
 
-	// we don't know the PID of the executor but we know there are only 2
+	// we don't know the PID of the executor but we know there are only 3
 	// children, so forcibly kill the one that isn't the workload
 	children := procstats.List(os.Getpid())
 	spew.Dump(children)
