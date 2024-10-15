@@ -1848,6 +1848,7 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 
 	go func() {
 		_, _ = io.Copy(resp.Conn, opts.Stdin)
+		_ = resp.CloseWrite()
 	}()
 
 	exitCode := 999
