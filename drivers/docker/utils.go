@@ -103,21 +103,19 @@ func authFromTaskConfig(driverConfig *TaskConfig) authBackend {
 		if len(driverConfig.Auth.Username) == 0 && len(driverConfig.Auth.Password) == 0 && len(driverConfig.Auth.Email) == 0 && len(driverConfig.Auth.ServerAddr) == 0 {
 			return nil, nil
 		}
-		authConfig := registrytypes.AuthConfig{
-			Username: driverConfig.Auth.Username,
-			Password: driverConfig.Auth.Password,
-		}
 
-		encodedJSON, _ := json.Marshal(authConfig)
-		authStr := base64.URLEncoding.EncodeToString(encodedJSON)
-
-		return &registrytypes.AuthConfig{
-			Auth:          authStr,
+		authConfig := &registrytypes.AuthConfig{
 			Username:      driverConfig.Auth.Username,
 			Password:      driverConfig.Auth.Password,
 			Email:         driverConfig.Auth.Email,
 			ServerAddress: driverConfig.Auth.ServerAddr,
-		}, nil
+		}
+
+		if err := encodeAuth(authConfig, driverConfig.Auth.Username, driverConfig.Auth.Password); err != nil {
+			return nil, err
+		}
+
+		return authConfig, nil
 	}
 }
 
@@ -151,14 +149,8 @@ func authFromDockerConfig(file string) authBackend {
 					RegistryToken: dockerAuthConfig.RegistryToken,
 				}
 
-				// docker API calls require base64 encoded auth string
-				if auth.Username != "" && auth.Password != "" {
-					authConfig := registrytypes.AuthConfig{
-						Username: auth.Username,
-						Password: auth.Password,
-					}
-					encodedJSON, _ := json.Marshal(authConfig)
-					auth.Auth = base64.URLEncoding.EncodeToString(encodedJSON)
+				if err := encodeAuth(auth, dockerAuthConfig.Username, dockerAuthConfig.Password); err != nil {
+					return nil, err
 				}
 
 				if authIsEmpty(auth) {
@@ -204,21 +196,31 @@ func authFromHelper(helperName string) authBackend {
 			return nil, err
 		}
 
-		auth := &registrytypes.AuthConfig{
-			Username: response["Username"],
-			Password: response["Secret"],
+		auth := &registrytypes.AuthConfig{}
+		if err := encodeAuth(auth, response["Username"], response["Secret"]); err != nil {
+			return nil, err
 		}
-
-		// some docker api calls require a base64 encoded basic auth string; make sure
-		// we have it
-		encodedJSON, _ := json.Marshal(auth)
-		auth.Auth = base64.URLEncoding.EncodeToString(encodedJSON)
 
 		if authIsEmpty(auth) {
 			return nil, nil
 		}
 		return auth, nil
 	}
+}
+
+// some docker api calls require a base64 encoded basic auth string
+func encodeAuth(cfg *registrytypes.AuthConfig, username, password string) error {
+	auth := &registrytypes.AuthConfig{
+		Username: username,
+		Password: password,
+	}
+	encodedJSON, err := json.Marshal(auth)
+	if err != nil {
+		return fmt.Errorf("error encoding basic auth: %v", err)
+	}
+
+	cfg.Auth = base64.URLEncoding.EncodeToString(encodedJSON)
+	return nil
 }
 
 // authIsEmpty returns if auth is nil or an empty structure
