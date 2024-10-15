@@ -85,7 +85,7 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 
 	select {
 	case result := <-ch:
-		must.EqError(t, result.Err, "rpc error: code = Unavailable desc = error reading from server: EOF")
+		must.ErrorContains(t, result.Err, "executor: error waiting on process")
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for task to shutdown")
 	}
