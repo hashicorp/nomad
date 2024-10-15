@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 // TestRawExecDriver_ExecutorKill verifies that killing the executor will stop
@@ -90,12 +91,22 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 		t.Fatal("timeout waiting for task to shutdown")
 	}
 
-	// the child process should be gone as well
-	proc, err := os.FindProcess(taskState.Pid)
+	var proc *os.Process
+
 	t.Cleanup(func() {
 		if proc != nil {
 			proc.Kill()
 		}
 	})
+
+	// the child process should be gone as well
+	must.Wait(t, wait.InitialSuccess(wait.BoolFunc(func() bool {
+		proc, err = os.FindProcess(taskState.Pid)
+		return err != nil
+	}),
+		wait.Timeout(3*time.Second),
+		wait.Gap(100*time.Millisecond),
+	))
+
 	must.EqError(t, err, "OpenProcess: The parameter is incorrect.")
 }
