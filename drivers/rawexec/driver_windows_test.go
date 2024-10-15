@@ -71,7 +71,7 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 	proc, err := os.FindProcess(taskState.ReattachConfig.Pid)
 	must.NoError(t, err)
 	must.NoError(t, proc.Kill())
-	t.Logf("killed %d", taskState.ReattachConfig.Pid)
+	t.Logf("killed %d, waiting on %d to stop", taskState.ReattachConfig.Pid, taskState.Pid)
 
 	t.Cleanup(func() {
 		if proc != nil {
