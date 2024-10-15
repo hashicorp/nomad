@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
@@ -117,6 +119,50 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail("timeout receiving fingerprint")
 	}
+}
+
+func TestExecDriver_WorkDir(t *testing.T) {
+	t.Parallel()
+	require := require.New(t)
+	ctestutils.ExecCompatible(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	harness := dtestutil.NewDriverHarness(t, d)
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources,
+	}
+
+	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
+	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 660))
+
+	workDir := filepath.Join("/", allocdir.TaskLocal)
+	tc := &TaskConfig{
+		Command: "/bin/pwd",
+		WorkDir: workDir,
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+
+	result := <-ch
+	require.Zero(result.ExitCode)
+	require.NoError(harness.DestroyTask(task.ID, true))
+
+	stdout, err := ioutil.ReadFile(task.StdoutPath)
+	require.NoError(err)
+	require.Equal(workDir, strings.TrimSpace(string(stdout)))
 }
 
 func TestExecDriver_StartWait(t *testing.T) {
@@ -727,11 +773,13 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 config {
   command = "/bin/bash"
   args = ["-c", "echo hello"]
+  work_dir = "/root"
 }`
 
 	expected := &TaskConfig{
 		Command: "/bin/bash",
 		Args:    []string{"-c", "echo hello"},
+		WorkDir: "/root",
 	}
 
 	var tc *TaskConfig
@@ -926,6 +974,20 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 		} {
 			require.Equal(t, tc.exp, (&TaskConfig{
 				CapDrop: tc.drops,
+			}).validate())
+		}
+	})
+
+	t.Run("work_dir", func(t *testing.T) {
+		for _, tc := range []struct {
+			workDir string
+			exp     error
+		}{
+			{workDir: "/foo", exp: nil},
+			{workDir: "foo", exp: errors.New(`work_dir must be absolute but got relative path "foo"`)},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{
+				WorkDir: tc.workDir,
 			}).validate())
 		}
 	})
