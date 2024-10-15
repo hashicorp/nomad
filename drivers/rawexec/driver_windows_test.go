@@ -78,6 +78,7 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 			proc, err := os.FindProcess(childPid)
 			must.NoError(t, err)
 			must.NoError(t, proc.Kill())
+			t.Logf("killed %d", childPid)
 			break
 		}
 	}
