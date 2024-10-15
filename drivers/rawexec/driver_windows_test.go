@@ -7,6 +7,7 @@ package rawexec
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -81,7 +82,7 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 	// 		break
 	// 	}
 	// }
-
+	fmt.Println("--------------")
 	time.Sleep(10 * time.Second)
 
 	proc, err := os.FindProcess(taskState.ReattachConfig.Pid)
