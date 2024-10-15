@@ -4,6 +4,7 @@
 package docker
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -140,6 +141,18 @@ func authFromDockerConfig(file string) authBackend {
 					IdentityToken: dockerAuthConfig.IdentityToken,
 					RegistryToken: dockerAuthConfig.RegistryToken,
 				}
+
+				// some docker API calls require base64 encoded auth string; make sure we have
+				// it
+				if auth.Username != "" && auth.Password != "" {
+					authConfig := registrytypes.AuthConfig{
+						Username: auth.Username,
+						Password: auth.Password,
+					}
+					encodedJSON, _ := json.Marshal(authConfig)
+					auth.Auth = base64.URLEncoding.EncodeToString(encodedJSON)
+				}
+
 				if authIsEmpty(auth) {
 					return nil, nil
 				}
@@ -187,6 +200,11 @@ func authFromHelper(helperName string) authBackend {
 			Username: response["Username"],
 			Password: response["Secret"],
 		}
+
+		// some docker api calls require a base64 encoded basic auth string; make sure
+		// we have it
+		encodedJSON, _ := json.Marshal(auth)
+		auth.Auth = base64.URLEncoding.EncodeToString(encodedJSON)
 
 		if authIsEmpty(auth) {
 			return nil, nil

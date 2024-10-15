@@ -5,6 +5,8 @@ package docker
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -195,7 +197,11 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 		auth = *authOptions
 	}
 
-	pullOptions := image.PullOptions{RegistryAuth: auth.Auth}
+	authConfig := registry.AuthConfig{Username: auth.Username, Password: auth.Password}
+	encodedJSON, _ := json.Marshal(authConfig)
+	basicAuthEncoded := base64.URLEncoding.EncodeToString(encodedJSON)
+
+	pullOptions := image.PullOptions{RegistryAuth: basicAuthEncoded}
 	reader, err := d.client.ImagePull(d.ctx, dockerImageRef(repo, tag), pullOptions)
 
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
