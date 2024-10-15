@@ -81,6 +81,9 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 	// 		break
 	// 	}
 	// }
+
+	time.Sleep(10 * time.Second)
+
 	proc, err := os.FindProcess(taskState.ReattachConfig.Pid)
 	must.NoError(t, err)
 	must.NoError(t, proc.Kill())
