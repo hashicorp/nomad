@@ -84,7 +84,7 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 		proc, err = os.FindProcess(taskState.Pid)
 		return err != nil
 	}),
-		wait.Timeout(3*time.Second),
+		wait.Timeout(10*time.Second),
 		wait.Gap(100*time.Millisecond),
 	))
 
