@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -21,7 +22,7 @@ import (
 // TestRawExecDriver_ExecutorKill verifies that killing the executor will stop
 // its child processes
 func TestRawExecDriver_ExecutorKill(t *testing.T) {
-	//	ci.Parallel(t)
+	ci.Parallel(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -86,4 +87,5 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 		}
 	})
 	must.EqError(t, err, "OpenProcess: The parameter is incorrect.")
+	time.Sleep(5 * time.Second)
 }
