@@ -87,6 +87,8 @@ jobs:
           gotestsum --format=short-verbose \
             --junitfile results.xml \
             github.com/hashicorp/nomad/drivers/docker \
+            github.com/hashicorp/nomad/drivers/rawexec \
+            github.com/hashicorp/nomad/drivers/shared/executor \
             github.com/hashicorp/nomad/client/lib/fifo \
             github.com/hashicorp/nomad/client/logmon \
             github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
