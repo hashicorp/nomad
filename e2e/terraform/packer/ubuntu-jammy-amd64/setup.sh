@@ -33,7 +33,7 @@ sudo apt-get install -y \
      apt-transport-https ca-certificates gnupg2 stress
 
 # Install hc-install
-curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.5.2/hc-install_0.5.2_linux_amd64.zip
+curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.9.0/hc-install_0.9.0_linux_amd64.zip
 sudo unzip -d /usr/local/bin /tmp/hc-install.zip
 
 # Install sockaddr
