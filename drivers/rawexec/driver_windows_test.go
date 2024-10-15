@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 )
 
 // TestRawExecDriver_ExecutorKill verifies that killing the executor will stop
@@ -70,23 +69,28 @@ func TestRawExecDriver_ExecutorKill(t *testing.T) {
 	must.NotEq(t, taskState.ReattachConfig.Pid, taskState.Pid)
 	proc, err := os.FindProcess(taskState.ReattachConfig.Pid)
 	must.NoError(t, err)
+
+	taskProc, err := os.FindProcess(taskState.Pid)
+	must.NoError(t, err)
+
 	must.NoError(t, proc.Kill())
 	t.Logf("killed %d, waiting on %d to stop", taskState.ReattachConfig.Pid, taskState.Pid)
 
 	t.Cleanup(func() {
-		if proc != nil {
-			proc.Kill()
+		if taskProc != nil {
+			taskProc.Kill()
 		}
 	})
 
-	// the child process should be gone as well
-	must.Wait(t, wait.InitialSuccess(wait.BoolFunc(func() bool {
-		proc, err = os.FindProcess(taskState.Pid)
-		return err != nil
-	}),
-		wait.Timeout(10*time.Second),
-		wait.Gap(100*time.Millisecond),
-	))
+	done := make(chan struct{})
+	go func() {
+		taskProc.Wait()
+		close(done)
+	}()
 
-	must.EqError(t, err, "OpenProcess: The parameter is incorrect.")
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("expected child process to exit")
+	case <-done:
+	}
 }
