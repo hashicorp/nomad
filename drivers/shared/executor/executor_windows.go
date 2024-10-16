@@ -9,17 +9,48 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-// configure new process group for child process
+// configure new process group for child process and creates a JobObject for the
+// executor. Children of the executor will be created in the same JobObject
+// Ref: https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects
 func (e *UniversalExecutor) setNewProcessGroup() error {
 	// We need to check that as build flags includes windows for this file
 	if e.childCmd.SysProcAttr == nil {
 		e.childCmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	e.childCmd.SysProcAttr.CreationFlags = syscall.CREATE_NEW_PROCESS_GROUP
+
+	// note: we don't call CloseHandle on this job handle because we need to
+	// hold onto it until the executor exits
+	job, err := windows.CreateJobObject(nil, nil)
+	if err != nil {
+		return fmt.Errorf("could not create Windows job object for executor: %w", err)
+	}
+
+	info := windows.JOBOBJECT_EXTENDED_LIMIT_INFORMATION{
+		BasicLimitInformation: windows.JOBOBJECT_BASIC_LIMIT_INFORMATION{
+			LimitFlags: windows.JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+		},
+	}
+	_, err = windows.SetInformationJobObject(
+		job,
+		windows.JobObjectExtendedLimitInformation,
+		uintptr(unsafe.Pointer(&info)),
+		uint32(unsafe.Sizeof(info)))
+	if err != nil {
+		return fmt.Errorf("could not configure Windows job object for executor: %w", err)
+	}
+
+	handle := windows.CurrentProcess()
+	err = windows.AssignProcessToJobObject(job, handle)
+	if err != nil {
+		return fmt.Errorf("could not assign executor to Windows job object: %w", err)
+	}
+
 	return nil
 }
 
