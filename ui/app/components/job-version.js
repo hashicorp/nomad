@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
+
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -80,6 +82,11 @@ export default class JobVersion extends Component {
     this.isOpen = !this.isOpen;
   }
 
+  /**
+   * @type {'idle' | 'confirming'}
+   */
+  @tracked cloneButtonStatus = 'idle';
+
   @task(function* () {
     try {
       const versionBeforeReversion = this.version.get('job.version');
@@ -88,6 +95,7 @@ export default class JobVersion extends Component {
 
       const versionAfterReversion = this.version.get('job.version');
       if (versionBeforeReversion === versionAfterReversion) {
+        // TODO: I don't think this is ever hit, we have template checks against it.
         this.args.handleError({
           level: 'warn',
           title: 'Reversion Had No Effect',
@@ -107,6 +115,48 @@ export default class JobVersion extends Component {
     }
   })
   revertTo;
+
+  @action async cloneAsNewVersion() {
+    try {
+      this.router.transitionTo(
+        'jobs.job.definition',
+        this.version.get('job.idWithNamespace'),
+        {
+          queryParams: {
+            isEditing: true,
+            version: this.version.number,
+          },
+        }
+      );
+    } catch (e) {
+      this.args.handleError({
+        level: 'danger',
+        title: 'Could Not Edit from Version',
+      });
+    }
+  }
+
+  @action async cloneAsNewJob() {
+    console.log('cloneAsNewJob');
+    try {
+      // TODO: copy the job definition over there.
+      console.log('Do I have submission info???', this.version);
+      let job = await this.version.get('job');
+      let specification = await job.fetchRawSpecification(this.version.number);
+      console.log('Do I have specification???', specification);
+      let specificationSourceString = specification.Source; // TODO: should do some Format checking here, at the very least.
+      this.router.transitionTo('jobs.run', {
+        queryParams: {
+          sourceString: specificationSourceString,
+        },
+      });
+    } catch (e) {
+      this.args.handleError({
+        level: 'danger',
+        title: 'Could Not Clone as New Job',
+      });
+    }
+  }
 
   @action
   handleKeydown(event) {
