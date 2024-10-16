@@ -53,7 +53,7 @@ func runRegistry(t *testing.T) {
 
 	// run the sed job to fixup the auth.json file with correct address
 	_, sedCleanup := jobs3.Submit(t,
-		"../docker_registry/registry-auths.hcl",
+		"./input/registry-auths.hcl",
 		jobs3.Var("registry_address", address),
 		jobs3.Var("user", "root"),
 		jobs3.Var("helper_dir", "/usr/local/bin"),
