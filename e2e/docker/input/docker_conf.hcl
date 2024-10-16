@@ -33,11 +33,6 @@ job "docker-conf" {
   }
 
   group "create-conf" {
-    reschedule {
-      attempts  = 0
-      unlimited = false
-    }
-
     task "create-daemon-file" {
       driver = "pledge"
       user   = "${var.user}"
@@ -67,11 +62,11 @@ EOH
     }
 
     task "restart-docker" {
-      driver = "raw_exec" # FIXME: make it a pledge task in the future
+      driver = "raw_exec" # TODO: see if this could be done with pledge?
 
       config {
-        command = "systemctl"
-        args    = ["restart", "docker"]
+        command = "service"
+        args    = ["docker", "restart"]
       }
       resources {
         cpu    = 100

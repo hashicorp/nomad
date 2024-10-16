@@ -51,6 +51,8 @@ func runRegistry(t *testing.T) {
 	addr, port := findService(t, registryService)
 	address := fmt.Sprintf("%s:%d", addr, port)
 
+	t.Logf("Setting up insecure private registry at %v", address)
+
 	// run the sed job to fixup the auth.json file with correct address
 	_, sedCleanup := jobs3.Submit(t,
 		"../docker_registry/registry-auths.hcl",
@@ -72,7 +74,6 @@ func runRegistry(t *testing.T) {
 		jobs3.WaitComplete("create-conf"),
 		jobs3.Timeout(20*time.Second),
 	)
-
 	t.Cleanup(dockerInsecure)
 }
 
