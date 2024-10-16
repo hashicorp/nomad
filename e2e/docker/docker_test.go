@@ -62,6 +62,18 @@ func runRegistry(t *testing.T) {
 		jobs3.Timeout(20*time.Second),
 	)
 	t.Cleanup(sedCleanup)
+
+	// make sure the registry is marked as insecure for docker, otherwise pulls will fail
+	_, dockerInsecure := jobs3.Submit(t,
+		"./input/docker_conf.hcl",
+		jobs3.Var("registry_address", address),
+		jobs3.Var("user", "root"),
+		jobs3.Var("docker_conf_dir", "/etc/docker"),
+		jobs3.WaitComplete("create-conf"),
+		jobs3.Timeout(20*time.Second),
+	)
+
+	t.Cleanup(dockerInsecure)
 }
 
 func testRedis(t *testing.T) {
