@@ -30,6 +30,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -3222,4 +3223,67 @@ func TestDockerDriver_GroupAdd(t *testing.T) {
 	must.NoError(t, err)
 
 	must.Eq(t, cfg.GroupAdd, container.HostConfig.GroupAdd)
+}
+
+// TestDockerDriver_CollectStats verifies that the TaskStats API collects stats
+// periodically and that these values are non-zero as expected
+func TestDockerDriver_CollectStats(t *testing.T) {
+	ci.Parallel(t)
+	testutil.RequireLinux(t) // stats outputs are different on Windows
+	testutil.DockerCompatible(t)
+
+	// we want to generate at least some CPU usage
+	args := []string{"/bin/sh", "-c", "cat /dev/urandom | base64 > /dev/null"}
+	taskCfg := newTaskConfig("", args)
+	task := &drivers.TaskConfig{
+		ID:        uuid.Generate(),
+		Name:      "nc-demo",
+		AllocID:   uuid.Generate(),
+		Resources: basicResources,
+	}
+	must.NoError(t, task.EncodeConcreteDriverConfig(&taskCfg))
+
+	d := dockerDriverHarness(t, nil)
+	plugin, ok := d.Impl().(*Driver)
+	must.True(t, ok)
+	plugin.compute.TotalCompute = 1000
+	plugin.compute.NumCores = 1
+
+	cleanup := d.MkAllocDir(task, true)
+	defer cleanup()
+	copyImage(t, task.TaskDir(), "busybox.tar")
+
+	_, _, err := d.StartTask(task)
+	must.NoError(t, err)
+
+	defer d.DestroyTask(task.ID, true)
+
+	// this test has to run for a while because the minimum stats interval we
+	// can get from Docker is 1s
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(cancel)
+	recv, err := d.TaskStats(ctx, task.ID, time.Second)
+	must.NoError(t, err)
+
+	statsReceived := 0
+	tickValues := set.From([]float64{})
+
+DONE:
+	for {
+		select {
+		case stats := <-recv:
+			statsReceived++
+			ticks := stats.ResourceUsage.CpuStats.TotalTicks
+			must.Greater(t, 0, ticks)
+			tickValues.Insert(ticks)
+			if statsReceived >= 3 {
+				cancel() // 3 is plenty
+			}
+		case <-ctx.Done():
+			break DONE
+		}
+	}
+
+	// CPU stats should be changed with every interval
+	must.Len(t, statsReceived, tickValues.Slice())
 }
