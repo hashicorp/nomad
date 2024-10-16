@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package podman
+package docker
 
 import (
 	"fmt"
@@ -19,7 +19,7 @@ const (
 	registryService = "registry"
 )
 
-func TestPodman(t *testing.T) {
+func TestDocker(t *testing.T) {
 	cluster3.Establish(t,
 		cluster3.Leader(),
 		cluster3.LinuxClients(1),
@@ -51,13 +51,18 @@ func runRegistry(t *testing.T) {
 	addr, port := findService(t, registryService)
 	address := fmt.Sprintf("%s:%d", addr, port)
 
-	// run the sed job to fixup the auth.json file with correct address
+	t.Logf("Setting up insecure private registry at %v", address)
+
+	// run the sed job to fixup the auth.json file with correct address and make
+	// sure the registry is marked as insecure for docker, otherwise pulls will
+	// fail
 	_, sedCleanup := jobs3.Submit(t,
 		"./input/registry-auths.hcl",
 		jobs3.Var("registry_address", address),
 		jobs3.Var("user", "root"),
 		jobs3.Var("helper_dir", "/usr/local/bin"),
 		jobs3.Var("auth_dir", "/etc"),
+		jobs3.Var("docker_conf_dir", "/etc/docker"),
 		jobs3.WaitComplete("create-files"),
 		jobs3.Timeout(20*time.Second),
 	)
