@@ -1,10 +1,11 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+//go:build !windows
+
 package executor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -12,7 +13,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -58,15 +58,6 @@ var (
 	topology = numalib.Scan(numalib.PlatformScanners())
 	compute  = topology.Compute()
 )
-
-type testExecCmd struct {
-	command  *ExecCommand
-	allocDir *allocdir.AllocDir
-
-	stdout         *bytes.Buffer
-	stderr         *bytes.Buffer
-	outputCopyDone *sync.WaitGroup
-}
 
 // testExecutorContext returns an ExecutorContext and AllocDir.
 //
@@ -121,38 +112,6 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 	}
 	configureTLogging(t, testCmd)
 	return testCmd
-}
-
-// configureTLogging configures a test command executor with buffer as Std{out|err}
-// but using os.Pipe so it mimics non-test case where cmd is set with files as Std{out|err}
-// the buffers can be used to read command output
-func configureTLogging(t *testing.T, testcmd *testExecCmd) {
-	var stdout, stderr bytes.Buffer
-	var copyDone sync.WaitGroup
-
-	stdoutPr, stdoutPw, err := os.Pipe()
-	require.NoError(t, err)
-
-	stderrPr, stderrPw, err := os.Pipe()
-	require.NoError(t, err)
-
-	copyDone.Add(2)
-	go func() {
-		defer copyDone.Done()
-		io.Copy(&stdout, stdoutPr)
-	}()
-	go func() {
-		defer copyDone.Done()
-		io.Copy(&stderr, stderrPr)
-	}()
-
-	testcmd.stdout = &stdout
-	testcmd.stderr = &stderr
-	testcmd.outputCopyDone = &copyDone
-
-	testcmd.command.stdout = stdoutPw
-	testcmd.command.stderr = stderrPw
-	return
 }
 
 func TestExecutor_Start_Invalid(t *testing.T) {
