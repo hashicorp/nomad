@@ -13,6 +13,8 @@ import (
 func TestUIConfig_Merge(t *testing.T) {
 	ci.Parallel(t)
 
+	// TODO: TEST DEFAULTS
+
 	fullConfig := &UIConfig{
 		Enabled: true,
 		Consul: &ConsulUIConfig{
