@@ -442,11 +442,9 @@ func TestConnect_connectProxyConfig(t *testing.T) {
 			"bind_address":     "::",
 			"bind_port":        42,
 			"envoy_stats_tags": []string{"nomad.alloc_id=ipv6_alloc"},
-		}, connectProxyConfig(map[string]any{
-			"bind_address": "::",
-		}, 42, structs.AllocInfo{AllocID: "ipv6_alloc"}, []*structs.NetworkResource{
-			{Mode: "bridge", IP: "fd00:a110:c8::1"},
-		}))
+		}, connectProxyConfig(nil, 42, structs.AllocInfo{AllocID: "ipv6_alloc"},
+			[]*structs.NetworkResource{{Mode: "bridge", IP: "fd00:a110:c8::1"}},
+		))
 	})
 }
 
