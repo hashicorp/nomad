@@ -43,10 +43,6 @@ plugin "docker" {
     volumes {
       enabled = true
     }
-    auth {
-      helper = "test.sh"
-      config = "/etc/auth.json"
-    }
   }
 }
 
