@@ -1927,13 +1927,17 @@ func (d *Driver) newDockerClient(timeout time.Duration) (*client.Client, error) 
 			newClient, err = client.NewClientWithOpts(
 				client.WithHost(dockerEndpoint),
 				client.WithTLSClientConfig(ca, cert, key),
+				client.WithAPIVersionNegotiation(),
 			)
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
 		} else {
 			d.logger.Debug("using standard client connection", "endpoint", dockerEndpoint)
-			newClient, err = client.NewClientWithOpts(client.WithHost(dockerEndpoint))
+			newClient, err = client.NewClientWithOpts(
+				client.WithHost(dockerEndpoint),
+				client.WithAPIVersionNegotiation(),
+			)
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
