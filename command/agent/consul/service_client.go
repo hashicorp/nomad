@@ -283,6 +283,9 @@ func (s *ServiceClient) different(wanted *api.AgentServiceRegistration, existing
 	case connectSidecarDifferent(wanted, sidecar):
 		trace("connect_sidecar", wanted.Name, existing.Service)
 		return true
+	case weightsDifferent(wanted.Weights, existing.Weights):
+		trace("weights", wanted.Weights, existing.Weights)
+		return true
 	}
 	return false
 }
@@ -397,6 +400,21 @@ func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.
 
 	// Either Nomad does not expect there to be a sidecar_service, or there is
 	// no actionable difference from the Consul sidecar_service definition.
+	return false
+}
+
+func weightsDifferent(wanted *api.AgentWeights, existing api.AgentWeights) bool {
+	if wanted == nil {
+		// When we are either missing or unsetting the weights on Nomad side, check
+		// whether the existing values differ from the Consul defaults.
+		return existing.Passing != 1 || existing.Warning != 1
+	}
+	if wanted.Passing != existing.Passing {
+		return true
+	}
+	if wanted.Warning != existing.Warning {
+		return true
+	}
 	return false
 }
 
@@ -1312,6 +1330,9 @@ func (c *ServiceClient) serviceRegs(
 	// newConnectGateway returns nil if there's no Connect gateway.
 	gateway := newConnectGateway(service.Connect)
 
+	// newWeights returns nil if there's no Weights.
+	weights := newWeights(service.Weights)
+
 	// Determine whether to use meta or canary_meta
 	var meta map[string]string
 	if workload.Canary && len(service.CanaryMeta) > 0 {
@@ -1383,6 +1404,7 @@ func (c *ServiceClient) serviceRegs(
 		Address:           ip,
 		Port:              port,
 		Meta:              meta,
+		Weights:           weights,
 		TaggedAddresses:   taggedAddresses,
 		Connect:           connect, // will be nil if no Connect block
 		Proxy:             gateway, // will be nil if no Connect Gateway block
