@@ -66,7 +66,6 @@ func (u *usageSender) send(tru *cstructs.TaskResourceUsage) {
 func (u *usageSender) close() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-
 	if u.closed {
 		// already closed
 		return
@@ -97,22 +96,29 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 	timer, cancel := helper.NewSafeTimer(interval)
 	defer cancel()
 
+	// we need to use the streaming stats API here because our calculation for
+	// CPU usage depends on having the values from the previous read, which are
+	// not available in one-shot
+	statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, true)
+	if err != nil && err != io.EOF {
+		h.logger.Debug("error collecting stats from container", "error", err)
+		return
+	}
+	defer statsReader.Body.Close()
+
 	collectOnce := func() {
 		defer timer.Reset(interval)
-		statsReader, err := h.dockerClient.ContainerStatsOneShot(ctx, h.containerID)
+		var stats *containerapi.Stats
+		err := json.NewDecoder(statsReader.Body).Decode(&stats)
 		if err != nil && err != io.EOF {
-			h.logger.Debug("error collecting stats from container", "error", err)
+			h.logger.Debug("error decoding stats data from container", "error", err)
 			return
 		}
-		defer statsReader.Body.Close()
-
-		var stats containerapi.Stats
-		if err := json.NewDecoder(statsReader.Body).Decode(&stats); err != nil {
-			h.logger.Error("error decoding stats data for container", "error", err)
+		if stats == nil {
+			h.logger.Debug("error decoding stats data: stats were nil")
 			return
 		}
-
-		resourceUsage := util.DockerStatsToTaskResourceUsage(&stats, compute)
+		resourceUsage := util.DockerStatsToTaskResourceUsage(stats, compute)
 		destCh.send(resourceUsage)
 	}
 
