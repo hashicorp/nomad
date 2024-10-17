@@ -57,7 +57,7 @@ func runRegistry(t *testing.T) {
 	// sure the registry is marked as insecure for docker, otherwise pulls will
 	// fail
 	_, sedCleanup := jobs3.Submit(t,
-		"./input/registry-auths.hcl",
+		"../docker_registry/registry-auths.hcl",
 		jobs3.Var("registry_address", address),
 		jobs3.Var("user", "root"),
 		jobs3.Var("helper_dir", "/usr/local/bin"),
@@ -67,6 +67,16 @@ func runRegistry(t *testing.T) {
 		jobs3.Timeout(20*time.Second),
 	)
 	t.Cleanup(sedCleanup)
+
+	_, dockerConfCleanup := jobs3.Submit(t,
+		"../docker_registry/registry-auths.hcl",
+		jobs3.Var("registry_address", address),
+		jobs3.Var("user", "root"),
+		jobs3.Var("docker_conf_dir", "/etc/docker"),
+		jobs3.WaitComplete("create-conf"),
+		jobs3.Timeout(20*time.Second),
+	)
+	t.Cleanup(dockerConfCleanup)
 }
 
 func testRedis(t *testing.T) {
@@ -78,6 +88,7 @@ func testRedis(t *testing.T) {
 }
 
 func testAuthBasic(t *testing.T) {
+	t.Skip("test disabled until we have a local docker registry setup with tf")
 	// find the private registry service
 	regAddr, regPort := findService(t, "registry")
 
@@ -93,6 +104,7 @@ func testAuthBasic(t *testing.T) {
 }
 
 func testAuthFileStatic(t *testing.T) {
+	t.Skip("test disabled until we have a local docker registry setup with tf")
 	// find the private registry service
 	regAddr, regPort := findService(t, "registry")
 
@@ -108,6 +120,7 @@ func testAuthFileStatic(t *testing.T) {
 }
 
 func testAuthHelper(t *testing.T) {
+	t.Skip("test disabled until we have a local docker registry setup with tf")
 	// find the private registry service
 	regAddr, regPort := findService(t, "registry")
 
