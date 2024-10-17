@@ -6,7 +6,7 @@
 # should run. Jobs have a globally unique name, one or many task groups, which
 # are themselves collections of one or many tasks.
 #
-# For more information and examples on the "job" block, please see:
+# For more information and examples on the "job" block, refer to
 #
 #     https://developer.hashicorp.com/nomad/docs/job-specification/job
 #
@@ -15,7 +15,7 @@ job "countdash" {
   # The "ui" block provides options to modify the presentation of the Job index
   # page in Nomad's Web UI.
   #
-  # For more information on the "ui" block, please see:
+  # For more information on the "ui" block, refer to:
   #
   #   https://developer.hashicorp.com/nomad/docs/job-specification/ui
   #
@@ -32,9 +32,9 @@ job "countdash" {
   }
 
   # The "group" block defines tasks that should be co-located on the same Nomad
-  # client. Any task within a group will be placed on the same client.
+  # client. Nomad places any task within a group onto the same client.
   #
-  # For more information and examples on the "group" block, please see:
+  # For more information and examples on the "group" block, refer to:
   #
   #     https://developer.hashicorp.com/nomad/docs/job-specification/group
   #
@@ -100,7 +100,7 @@ job "countdash" {
     # The "task" block creates an individual unit of work, such as a Docker
     # container, web application, or batch processing.
     #
-    # For more information and examples on the "task" block, please see:
+    # For more information and examples on the "task" block, refer to:
     #
     #     https://developer.hashicorp.com/nomad/docs/job-specification/task
     #
@@ -123,9 +123,9 @@ job "countdash" {
       }
 
       # The "resources" block describes the requirements a task needs to
-      # execute. Resource requirements include memory, cpu, and more.
+      # execute. Resource requirements include attributes such as memory, cpu, cores, and devices.
       #
-      # For more information and examples on the "resources" block, please see:
+      # For a complete list of supported resources and examples on the "resources" block, refer to:
       #
       #     https://developer.hashicorp.com/nomad/docs/job-specification/resources
       #
