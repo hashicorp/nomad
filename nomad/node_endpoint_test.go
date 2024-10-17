@@ -952,7 +952,7 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			// Setup server with tighter heartbeat so we don't have to wait so long
 			// for nodes to go down.
 			heartbeatTTL := time.Duration(500*testutil.TestMultiplier()) * time.Millisecond
-			s, cleanupS := TestServer(t, func(c *Config) {
+			s, rootToken, cleanupS := TestACLServer(t, func(c *Config) {
 				c.MinHeartbeatTTL = heartbeatTTL
 				c.HeartbeatGrace = 2 * heartbeatTTL
 			})
@@ -1001,7 +1001,8 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			go heartbeat(heartbeatCtx)
 
 			// Wait for node to be ready.
-			testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
+			testutil.WaitForClientStatusWithToken(t, s.RPC, node.ID, "global",
+				structs.NodeStatusReady, rootToken.SecretID)
 
 			// Register job with Disconnect.LostAfter
 			job := version.jobSpec(time.Hour)
@@ -1018,6 +1019,7 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 				WriteRequest: structs.WriteRequest{
 					Region:    "global",
 					Namespace: job.Namespace,
+					AuthToken: rootToken.SecretID,
 				},
 			}
 			var jobResp structs.JobRegisterResponse
@@ -1025,15 +1027,16 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			must.NoError(t, err)
 
 			// Wait for alloc to be pending in the server.
-			testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+			testutil.WaitForJobAllocStatusWithToken(t, s.RPC, job, map[string]int{
 				structs.AllocClientStatusPending: 1,
-			})
+			}, rootToken.SecretID)
 
 			// Get allocs that node should run.
 			allocsReq := &structs.NodeSpecificRequest{
 				NodeID: node.ID,
 				QueryOptions: structs.QueryOptions{
-					Region: "global",
+					Region:    "global",
+					AuthToken: rootToken.SecretID,
 				},
 			}
 			var allocsResp structs.NodeAllocsResponse
@@ -1058,17 +1061,18 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			must.NoError(t, err)
 
 			// Wait for alloc to be running in the server.
-			testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+			testutil.WaitForJobAllocStatusWithToken(t, s.RPC, job, map[string]int{
 				structs.AllocClientStatusRunning: 1,
-			})
+			}, rootToken.SecretID)
 
 			// Stop heartbeat and wait for the client to be disconnected and the alloc
 			// to be unknown.
 			cancelHeartbeat()
-			testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusDisconnected)
-			testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+			testutil.WaitForClientStatusWithToken(t, s.RPC, node.ID, "global",
+				structs.NodeStatusDisconnected, rootToken.SecretID)
+			testutil.WaitForJobAllocStatusWithToken(t, s.RPC, job, map[string]int{
 				structs.AllocClientStatusUnknown: 1,
-			})
+			}, rootToken.SecretID)
 
 			// Restart heartbeat to reconnect node.
 			heartbeatCtx, cancelHeartbeat = context.WithCancel(context.Background())
@@ -1081,7 +1085,8 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			// allocs status with the server so the scheduler have the necessary
 			// information to avoid unnecessary placements.
 			time.Sleep(3 * heartbeatTTL)
-			testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusInit)
+			testutil.WaitForClientStatusWithToken(t, s.RPC, node.ID, "global",
+				structs.NodeStatusInit, rootToken.SecretID)
 
 			// Get allocs that node should run.
 			// The node should only have one alloc assigned until it updates its allocs
@@ -1089,7 +1094,8 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			allocsReq = &structs.NodeSpecificRequest{
 				NodeID: node.ID,
 				QueryOptions: structs.QueryOptions{
-					Region: "global",
+					Region:    "global",
+					AuthToken: rootToken.SecretID,
 				},
 			}
 			err = msgpackrpc.CallWithCodec(codec, "Node.GetAllocs", allocsReq, &allocsResp)
@@ -1104,10 +1110,12 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			// - client status is ready.
 			// - only 1 alloc and the alloc is running.
 			// - all evals are terminal, so cluster is in a stable state.
-			testutil.WaitForClientStatus(t, s.RPC, node.ID, "global", structs.NodeStatusReady)
-			testutil.WaitForJobAllocStatus(t, s.RPC, job, map[string]int{
+			testutil.WaitForClientStatusWithToken(t, s.RPC, node.ID, "global",
+				structs.NodeStatusReady, rootToken.SecretID)
+			testutil.WaitForJobAllocStatusWithToken(t, s.RPC, job, map[string]int{
 				structs.AllocClientStatusRunning: 1,
-			})
+			}, rootToken.SecretID)
+
 			testutil.WaitForResult(func() (bool, error) {
 				state := s.fsm.State()
 				ws := memdb.NewWatchSet()
