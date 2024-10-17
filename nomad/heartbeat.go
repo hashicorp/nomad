@@ -163,7 +163,8 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 		Status:    structs.NodeStatusDown,
 		NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventMissed),
 		WriteRequest: structs.WriteRequest{
-			Region: h.srv.config.Region,
+			Region:    h.srv.config.Region,
+			AuthToken: h.srv.getLeaderAcl(),
 		},
 	}
 
