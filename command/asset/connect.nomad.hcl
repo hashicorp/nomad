@@ -6,239 +6,39 @@
 # should run. Jobs have a globally unique name, one or many task groups, which
 # are themselves collections of one or many tasks.
 #
-# For more information and examples on the "job" block, please see
-# the online documentation at:
+# For more information and examples on the "job" block, refer to
 #
-#     https://developer.hashicorp.com/nomad/docs/job-specification/job.html
+#     https://developer.hashicorp.com/nomad/docs/job-specification/job
 #
 job "countdash" {
-  # The "region" parameter specifies the region in which to execute the job. If
-  # omitted, this inherits the default region name of "global".
-  # region = "global"
-  #
-  # The "datacenters" parameter specifies the list of datacenters which should
-  # be considered when placing this task. This accepts wildcards and defaults
-  # allowing placement on all datacenters.
-  datacenters = ["*"]
 
-  # The "type" parameter controls the type of job, which impacts the scheduler's
-  # decision on placement. This configuration is optional and defaults to
-  # "service". For a full list of job types and their differences, please see
-  # the online documentation.
+  # The "ui" block provides options to modify the presentation of the Job index
+  # page in Nomad's Web UI.
   #
-  # For more information, please see the online documentation at:
+  # For more information on the "ui" block, refer to:
   #
-  #     https://developer.hashicorp.com/nomad/docs/jobspec/schedulers.html
+  #   https://developer.hashicorp.com/nomad/docs/job-specification/ui
   #
-  type = "service"
-
-  # The "constraint" block defines additional constraints for placing this job,
-  # in addition to any resource or driver constraints. This block may be placed
-  # at the "job", "group", or "task" level, and supports variable interpolation.
-  #
-  # For more information and examples on the "constraint" block, please see
-  # the online documentation at:
-  #
-  #     https://developer.hashicorp.com/nomad/docs/job-specification/constraint.html
-  #
-  # constraint {
-  #   attribute = "${attr.kernel.name}"
-  #   value     = "linux"
-  # }
-
-  # The "update" block specifies the update strategy of task groups. The update
-  # strategy is used to control things like rolling upgrades, canaries, and
-  # blue/green deployments. If omitted, no update strategy is enforced. The
-  # "update" block may be placed at the job or task group. When placed at the
-  # job, it applies to all groups within the job. When placed at both the job and
-  # group level, the blocks are merged with the group's taking precedence.
-  #
-  # For more information and examples on the "update" block, please see
-  # the online documentation at:
-  #
-  #     https://developer.hashicorp.com/nomad/docs/job-specification/update.html
-  #
-  update {
-    # The "max_parallel" parameter specifies the maximum number of updates to
-    # perform in parallel. In this case, this specifies to update a single task
-    # at a time.
-    max_parallel = 1
-
-    # The "min_healthy_time" parameter specifies the minimum time the allocation
-    # must be in the healthy state before it is marked as healthy and unblocks
-    # further allocations from being updated.
-    min_healthy_time = "10s"
-
-    # The "healthy_deadline" parameter specifies the deadline in which the
-    # allocation must be marked as healthy after which the allocation is
-    # automatically transitioned to unhealthy. Transitioning to unhealthy will
-    # fail the deployment and potentially roll back the job if "auto_revert" is
-    # set to true.
-    healthy_deadline = "3m"
-
-    # The "progress_deadline" parameter specifies the deadline in which an
-    # allocation must be marked as healthy. The deadline begins when the first
-    # allocation for the deployment is created and is reset whenever an allocation
-    # as part of the deployment transitions to a healthy state. If no allocation
-    # transitions to the healthy state before the progress deadline, the
-    # deployment is marked as failed.
-    progress_deadline = "10m"
-
-    # The "auto_revert" parameter specifies if the job should auto-revert to the
-    # last stable job on deployment failure. A job is marked as stable if all the
-    # allocations as part of its deployment were marked healthy.
-    auto_revert = false
-
-    # The "canary" parameter specifies that changes to the job that would result
-    # in destructive updates should create the specified number of canaries
-    # without stopping any previous allocations. Once the operator determines the
-    # canaries are healthy, they can be promoted which unblocks a rolling update
-    # of the remaining allocations at a rate of "max_parallel".
-    #
-    # Further, setting "canary" equal to the count of the task group allows
-    # blue/green deployments. When the job is updated, a full set of the new
-    # version is deployed and upon promotion the old version is stopped.
-    canary = 0
+  ui {
+    description = "Sample Consul Service Mesh Job"
+    link {
+      label = "Learn more about Nomad"
+      url   = "https://developer.hashicorp.com/nomad"
+    }
+    link {
+      label = "Learn more about Consul"
+      url   = "https://developer.hashicorp.com/consul"
+    }
   }
-  # The migrate block specifies the group's strategy for migrating off of
-  # draining nodes. If omitted, a default migration strategy is applied.
-  #
-  # For more information on the "migrate" block, please see
-  # the online documentation at:
-  #
-  #     https://developer.hashicorp.com/nomad/docs/job-specification/migrate.html
-  #
-  migrate {
-    # Specifies the number of task groups that can be migrated at the same
-    # time. This number must be less than the total count for the group as
-    # (count - max_parallel) will be left running during migrations.
-    max_parallel = 1
 
-    # Specifies the mechanism in which allocations health is determined. The
-    # potential values are "checks" or "task_states".
-    health_check = "checks"
-
-    # Specifies the minimum time the allocation must be in the healthy state
-    # before it is marked as healthy and unblocks further allocations from being
-    # migrated. This is specified using a label suffix like "30s" or "15m".
-    min_healthy_time = "10s"
-
-    # Specifies the deadline in which the allocation must be marked as healthy
-    # after which the allocation is automatically transitioned to unhealthy. This
-    # is specified using a label suffix like "2m" or "1h".
-    healthy_deadline = "5m"
-  }
-  # The "group" block defines a series of tasks that should be co-located on
-  # the same Nomad client. Any task within a group will be placed on the same
-  # client.
+  # The "group" block defines tasks that should be co-located on the same Nomad
+  # client. Nomad places any task within a group onto the same client.
   #
-  # For more information and examples on the "group" block, please see
-  # the online documentation at:
+  # For more information and examples on the "group" block, refer to:
   #
-  #     https://developer.hashicorp.com/nomad/docs/job-specification/group.html
+  #     https://developer.hashicorp.com/nomad/docs/job-specification/group
   #
   group "api" {
-    # The "count" parameter specifies the number of the task groups that should
-    # be running under this group. This value must be non-negative and defaults
-    # to 1.
-    count = 1
-
-    # The "restart" block configures a group's behavior on task failure. If
-    # left unspecified, a default restart policy is used based on the job type.
-    #
-    # For more information and examples on the "restart" block, please see
-    # the online documentation at:
-    #
-    #     https://developer.hashicorp.com/nomad/docs/job-specification/restart.html
-    #
-    restart {
-      # The number of attempts to run the job within the specified interval.
-      attempts = 2
-      interval = "30m"
-
-      # The "delay" parameter specifies the duration to wait before restarting
-      # a task after it has failed.
-      delay = "15s"
-
-      # The "mode" parameter controls what happens when a task has restarted
-      # "attempts" times within the interval. "delay" mode delays the next
-      # restart until the next interval. "fail" mode does not restart the task
-      # if "attempts" has been hit within the interval.
-      mode = "fail"
-    }
-
-    # The "ephemeral_disk" block instructs Nomad to utilize an ephemeral disk
-    # instead of a hard disk requirement. Clients using this block should
-    # not specify disk requirements in the resources block of the task. All
-    # tasks in this group will share the same ephemeral disk.
-    #
-    # For more information and examples on the "ephemeral_disk" block, please
-    # see the online documentation at:
-    #
-    #     https://developer.hashicorp.com/nomad/docs/job-specification/ephemeral_disk.html
-    #
-    ephemeral_disk {
-      # When sticky is true and the task group is updated, the scheduler
-      # will prefer to place the updated allocation on the same node and
-      # will migrate the data. This is useful for tasks that store data
-      # that should persist across allocation updates.
-      # sticky = true
-      #
-      # Setting migrate to true results in the allocation directory of a
-      # sticky allocation directory to be migrated.
-      # migrate = true
-      #
-      # The "size" parameter specifies the size in MB of shared ephemeral disk
-      # between tasks in the group.
-      size = 300
-    }
-
-    # The "affinity" block enables operators to express placement preferences
-    # based on node attributes or metadata.
-    #
-    # For more information and examples on the "affinity" block, please
-    # see the online documentation at:
-    #
-    #     https://developer.hashicorp.com/nomad/docs/job-specification/affinity.html
-    #
-    # affinity {
-    #   # attribute specifies the name of a node attribute or metadata
-    #   attribute = "${node.datacenter}"
-    #
-    #   # value specifies the desired attribute value. In this example Nomad
-    #   # will prefer placement in the "us-west1" datacenter.
-    #   value = "us-west1"
-    #
-    #   # weight can be used to indicate relative preference
-    #   # when the job has more than one affinity. It defaults to 50 if not set.
-    #   weight = 100
-    # }
-
-
-    # The "spread" block allows operators to increase the failure tolerance of
-    # their applications by specifying a node attribute that allocations
-    # should be spread over.
-    #
-    # For more information and examples on the "spread" block, please
-    # see the online documentation at:
-    #
-    #     https://developer.hashicorp.com/nomad/docs/job-specification/spread.html
-    #
-    # spread {
-    #   # attribute specifies the name of a node attribute or metadata
-    #   attribute = "${node.datacenter}"
-    # }
-
-    # targets can be used to define desired percentages of allocations
-    # for each targeted attribute value.
-    #
-    #   target "us-east1" {
-    #     percent = 60
-    #   }
-    #   target "us-west1" {
-    #     percent = 40
-    #   }
-    #  }
 
     # The "network" block for a group creates a network namespace shared
     # by all tasks within the group.
@@ -296,13 +96,13 @@ job "countdash" {
         sidecar_service {}
       }
     }
+
     # The "task" block creates an individual unit of work, such as a Docker
     # container, web application, or batch processing.
     #
-    # For more information and examples on the "task" block, please see
-    # the online documentation at:
+    # For more information and examples on the "task" block, refer to:
     #
-    #     https://developer.hashicorp.com/nomad/docs/job-specification/task.html
+    #     https://developer.hashicorp.com/nomad/docs/job-specification/task
     #
     task "web" {
       # The "driver" parameter specifies the task driver that should be used to
@@ -322,57 +122,14 @@ job "countdash" {
         auth_soft_fail = true
       }
 
-      # The "artifact" block instructs Nomad to download an artifact from a
-      # remote source prior to starting the task. This provides a convenient
-      # mechanism for downloading configuration files or data needed to run the
-      # task. It is possible to specify the "artifact" block multiple times to
-      # download multiple artifacts.
-      #
-      # For more information and examples on the "artifact" block, please see
-      # the online documentation at:
-      #
-      #     https://developer.hashicorp.com/nomad/docs/job-specification/artifact.html
-      #
-      # artifact {
-      #   source = "http://foo.com/artifact.tar.gz"
-      #   options {
-      #     checksum = "md5:c4aa853ad2215426eb7d70a21922e794"
-      #   }
-      # }
-
-
-      # The "logs" block instructs the Nomad client on how many log files and
-      # the maximum size of those logs files to retain. Logging is enabled by
-      # default, but the "logs" block allows for finer-grained control over
-      # the log rotation and storage configuration.
-      #
-      # For more information and examples on the "logs" block, please see
-      # the online documentation at:
-      #
-      #     https://developer.hashicorp.com/nomad/docs/job-specification/logs.html
-      #
-      # logs {
-      #   max_files     = 10
-      #   max_file_size = 15
-      # }
-
-      # The "identity" block instructs Nomad to expose the task's workload
-      # identity token as an environment variable and in the file
-      # secrets/nomad_token.
-      # identity {
-      #   env  = true
-      #   file = true
-      # }
-
       # The "resources" block describes the requirements a task needs to
-      # execute. Resource requirements include memory, network, cpu, and more.
-      # This ensures the task will execute on a machine that contains enough
-      # resource capacity.
+      # execute. Resource requirements include attributes such as memory, cpu,
+      # cores, and devices.
       #
-      # For more information and examples on the "resources" block, please see
-      # the online documentation at:
+      # For a complete list of supported resources and examples on the
+      # "resources" block, refer to:
       #
-      #     https://developer.hashicorp.com/nomad/docs/job-specification/resources.html
+      #     https://developer.hashicorp.com/nomad/docs/job-specification/resources
       #
       resources {
         cpu    = 500 # 500 MHz
@@ -415,10 +172,11 @@ job "countdash" {
     #   }
     # }
   }
+
   # This job has a second "group" block to define tasks that might be placed
   # on a separate Nomad client from the group above.
-  #
   group "dashboard" {
+
     network {
       mode = "bridge"
 
