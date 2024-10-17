@@ -93,6 +93,10 @@ func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
 // an ephemeral ACLToken makes the original of the credential clear to RPC
 // handlers, who may have different behavior for internal vs external origins.
 //
+// Note: when making a server-to-server RPC that authenticates with this method,
+// the RPC *must* include the leader's ACL token. Use AuthenticateServerOnly for
+// requests that don't have access to the leader's ACL token.
+//
 // Note: when called on the follower we'll be making stale queries, so it's
 // possible if the follower is behind that the leader will get a different value
 // if an ACL token or allocation's WI has just been created.

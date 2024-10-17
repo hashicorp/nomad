@@ -193,8 +193,15 @@ func WaitForClient(t testing.TB, rpc rpcFn, nodeID string, region string) {
 	WaitForClientStatus(t, rpc, nodeID, region, structs.NodeStatusReady)
 }
 
-// WaitForClientStatus blocks until the client is in the expected status.
-func WaitForClientStatus(t testing.TB, rpc rpcFn, nodeID string, region string, status string) {
+// WaitForClientStatus blocks until the client is in the expected status
+func WaitForClientStatus(t testing.TB, rpc rpcFn, nodeID, region, status string) {
+	t.Helper()
+	WaitForClientStatusWithToken(t, rpc, nodeID, region, status, "")
+}
+
+// WaitForClientStatusWithToken blocks until the client is in the expected
+// status, for use with ACLs enabled
+func WaitForClientStatusWithToken(t testing.TB, rpc rpcFn, nodeID, region, status, token string) {
 	t.Helper()
 
 	if region == "" {
@@ -202,8 +209,11 @@ func WaitForClientStatus(t testing.TB, rpc rpcFn, nodeID string, region string, 
 	}
 	WaitForResult(func() (bool, error) {
 		req := structs.NodeSpecificRequest{
-			NodeID:       nodeID,
-			QueryOptions: structs.QueryOptions{Region: region},
+			NodeID: nodeID,
+			QueryOptions: structs.QueryOptions{
+				Region:    region,
+				AuthToken: token,
+			},
 		}
 		var out structs.SingleNodeResponse
 
