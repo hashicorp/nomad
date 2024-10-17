@@ -225,13 +225,18 @@ func (d *dockerLogger) getDockerClient(opts *StartOpts) (*client.Client, error) 
 			d.logger.Debug("using TLS client connection to docker", "endpoint", opts.Endpoint)
 			newClient, err = client.NewClientWithOpts(
 				client.WithHost(opts.Endpoint),
-				client.WithTLSClientConfig(opts.TLSCA, opts.TLSCert, opts.TLSKey))
+				client.WithTLSClientConfig(opts.TLSCA, opts.TLSCert, opts.TLSKey),
+				client.WithAPIVersionNegotiation(),
+			)
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
 		} else {
 			d.logger.Debug("using plaintext client connection to docker", "endpoint", opts.Endpoint)
-			newClient, err = client.NewClientWithOpts(client.WithHost(opts.Endpoint))
+			newClient, err = client.NewClientWithOpts(
+				client.WithHost(opts.Endpoint),
+				client.WithAPIVersionNegotiation(),
+			)
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
