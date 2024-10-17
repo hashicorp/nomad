@@ -1836,7 +1836,11 @@ func (d *Driver) ExecTaskStreaming(ctx context.Context, taskID string, opts *dri
 	if err != nil {
 		return nil, fmt.Errorf("failed to attach to exec: %v", err)
 	}
-	defer resp.Close()
+	defer func() {
+		opts.Stdin.Close() // close stdin
+		resp.CloseWrite()  // close hijacked write connection
+		resp.Close()       // close read connection
+	}()
 
 	go func() {
 		if !opts.Tty {
