@@ -24,6 +24,12 @@ variable "helper_dir" {
   default     = "/tmp"
 }
 
+variable "docker_conf_dir" {
+  type        = string
+  description = "The directory in which daemon.json will be written."
+  default     = "/tmp"
+}
+
 variable "user" {
   type        = string
   description = "The user to create files as. Should be root in e2e."
@@ -71,13 +77,13 @@ username="auth_helper_user"
 password="auth_helper_pass"
 
 case "${value}" in
-  docker.io/*)
-    echo "must use local registry"
-    exit 3
-    ;;
-  *)
+  ${var.registry_address}*)
     echo "{\"Username\": \"$username\", \"Secret\": \"$password\"}"
     exit 0
+    ;;
+  *)
+    echo "must use local registry"
+    exit 3
     ;;
 esac
 EOH
