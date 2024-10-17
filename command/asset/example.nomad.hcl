@@ -6,8 +6,7 @@
 # should run. Jobs have a globally unique name, one or many task groups, which
 # are themselves collections of one or many tasks.
 #
-# For more information and examples on the "job" block, please see
-# the online documentation at:
+# For more information and examples on the "job" block, refer to:
 #
 #     https://developer.hashicorp.com/nomad/docs/job-specification/job
 #
@@ -23,21 +22,19 @@ job "example" {
 
   # The "type" parameter controls the type of job, which impacts the scheduler's
   # decision on placement. This configuration is optional and defaults to
-  # "service". For a full list of job types and their differences, please see
-  # the online documentation.
+  # "service".
   #
-  # For more information, please see the online documentation at:
+  # For a full list of job types and their differences, refer to:
   #
   #     https://developer.hashicorp.com/nomad/docs/schedulers
   #
   type = "service"
 
   # The "constraint" block defines additional constraints for placing this job,
-  # in addition to any resource or driver constraints. This block may be placed
-  # at the "job", "group", or "task" level, and supports variable interpolation.
+  # in addition to any resource or driver constraints. You may place this block
+  # at the "job", "group", or "task" level, and it supports variable interpolation.
   #
-  # For more information and examples on the "constraint" block, please see
-  # the online documentation at:
+  # For more information and examples on the "constraint" block, refer to:
   #
   #     https://developer.hashicorp.com/nomad/docs/job-specification/constraint
   #
@@ -51,10 +48,9 @@ job "example" {
   # blue/green deployments. If omitted, no update strategy is enforced. The
   # "update" block may be placed at the job or task group. When placed at the
   # job, it applies to all groups within the job. When placed at both the job and
-  # group level, the blocks are merged with the group's taking precedence.
+  # group level, the blocks are merged with the groups taking precedence.
   #
-  # For more information and examples on the "update" block, please see
-  # the online documentation at:
+  # For more information and examples on the "update" block, refer to:
   #
   #     https://developer.hashicorp.com/nomad/docs/job-specification/update
   #
@@ -100,11 +96,11 @@ job "example" {
     # version is deployed and upon promotion the old version is stopped.
     canary = 0
   }
+
   # The migrate block specifies the group's strategy for migrating off of
-  # draining nodes. If omitted, a default migration strategy is applied.
+  # draining nodes. If omitted, Nomad applies a default migration strategy.
   #
-  # For more information on the "migrate" block, please see
-  # the online documentation at:
+  # For more information on the "migrate" block, refer to:
   #
   #     https://developer.hashicorp.com/nomad/docs/job-specification/migrate
   #
@@ -128,26 +124,38 @@ job "example" {
     # is specified using a label suffix like "2m" or "1h".
     healthy_deadline = "5m"
   }
-  # The "group" block defines a series of tasks that should be co-located on
-  # the same Nomad client. Any task within a group will be placed on the same
-  # client.
+
+  # The "ui" block provides options to modify the presentation of the Job index
+  # page in Nomad's Web UI.
   #
-  # For more information and examples on the "group" block, please see
-  # the online documentation at:
+  # For more information on the "ui" block, refer to:
+  #
+  #   https://developer.hashicorp.com/nomad/docs/job-specification/ui
+  #
+  ui {
+    description = "Nomad **Example** Job"
+    link {
+      label = "Learn more about Nomad"
+      url   = "https://developer.hashicorp.com/nomad"
+    }
+  }
+
+  # The "group" block defines tasks that should be co-located on the same Nomad
+  # client. Nomad places any task within a group onto the same client.
+  #
+  # For more information and examples on the "group" block, refer to:
   #
   #     https://developer.hashicorp.com/nomad/docs/job-specification/group
   #
   group "cache" {
-    # The "count" parameter specifies the number of the task groups that should
-    # be running under this group. This value must be non-negative and defaults
-    # to 1.
+    # The "count" parameter specifies the number of this task group. This value
+    # must be non-negative and defaults to 1.
     count = 1
 
-    # The "network" block specifies the network configuration for the allocation
-    # including requesting port bindings.
+    # The "network" block specifies the network configuration for the task
+    # group including requesting port bindings.
     #
-    # For more information and examples on the "network" block, please see
-    # the online documentation at:
+    # For more information and examples on the "network" block, refer to:
     #
     #     https://developer.hashicorp.com/nomad/docs/job-specification/network
     #
@@ -162,8 +170,7 @@ job "example" {
     # will make the service discoverable after Nomad has placed it on a host and
     # port.
     #
-    # For more information and examples on the "service" block, please see
-    # the online documentation at:
+    # For more information and examples on the "service" block, refer to:
     #
     #     https://developer.hashicorp.com/nomad/docs/job-specification/service
     #
@@ -173,10 +180,12 @@ job "example" {
       port     = "db"
       provider = "nomad"
 
-      # The "check" block instructs Nomad to create a Consul health check for
-      # this service. A sample check is provided here for your convenience;
-      # uncomment it to enable it. The "check" block is documented in the
-      # "service" block documentation.
+      # The "check" block instructs Nomad to create a health check for
+      # this service. Uncomment the sample check below to enable it.
+      #
+      # For more information and examples on the "check" block, refer to:
+      #
+      #   https://developer.hashicorp.com/nomad/docs/job-specification/check
 
       # check {
       #   name     = "alive"
@@ -188,15 +197,14 @@ job "example" {
     }
 
     # The "restart" block configures a group's behavior on task failure. If
-    # left unspecified, a default restart policy is used based on the job type.
+    # left unspecified, Nomad uses a default restart policy based on the job type.
     #
-    # For more information and examples on the "restart" block, please see
-    # the online documentation at:
+    # For more information and examples on the "restart" block, refer to:
     #
     #     https://developer.hashicorp.com/nomad/docs/job-specification/restart
     #
     restart {
-      # The number of attempts to run the job within the specified interval.
+      # The number of attempts to run within the specified interval.
       attempts = 2
       interval = "30m"
 
@@ -211,73 +219,53 @@ job "example" {
       mode = "fail"
     }
 
-    # The "ephemeral_disk" block instructs Nomad to utilize an ephemeral disk
-    # instead of a hard disk requirement. Clients using this block should
-    # not specify disk requirements in the resources block of the task. All
-    # tasks in this group will share the same ephemeral disk.
+    # The "ephemeral_disk" block describes the ephemeral disk requirements of
+    # the group. All tasks in this group share the same ephemeral disk.
     #
-    # For more information and examples on the "ephemeral_disk" block, please
-    # see the online documentation at:
+    # For more information and examples on the "ephemeral_disk" block, refer
+    # to:
     #
     #     https://developer.hashicorp.com/nomad/docs/job-specification/ephemeral_disk
     #
     ephemeral_disk {
       # When sticky is true and the task group is updated, the scheduler
-      # will prefer to place the updated allocation on the same node and
-      # will migrate the data. This is useful for tasks that store data
-      # that should persist across allocation updates.
+      # prefers to place the updated allocation on the same node and migrate the
+      # data. This is useful for tasks that store data that should persist
+      # across updates.
       # sticky = true
-      #
-      # Setting migrate to true results in the allocation directory of a
-      # sticky allocation directory to be migrated.
+
+      # Setting migrate to true results Nomad copying the allocation directory
+      # to the new allocation on update.
       # migrate = true
-      #
+
       # The "size" parameter specifies the size in MB of shared ephemeral disk
       # between tasks in the group.
       size = 300
     }
 
-    # The "affinity" block enables operators to express placement preferences
+    # The "affinity" block lets you express placement preferences
     # based on node attributes or metadata.
     #
-    # For more information and examples on the "affinity" block, please
-    # see the online documentation at:
+    # For more information and examples on the "affinity" block, refer to:
     #
     #     https://developer.hashicorp.com/nomad/docs/job-specification/affinity
     #
     # affinity {
-    # attribute specifies the name of a node attribute or metadata
-    # attribute = "${node.datacenter}"
+    #   attribute = "${node.datacenter}"
+    #   value     = "us-west1"
+    #   weight    = 100
+    # }
 
-
-    # value specifies the desired attribute value. In this example Nomad
-    # will prefer placement in the "us-west1" datacenter.
-    # value  = "us-west1"
-
-
-    # weight can be used to indicate relative preference
-    # when the job has more than one affinity. It defaults to 50 if not set.
-    # weight = 100
-    #  }
-
-
-    # The "spread" block allows operators to increase the failure tolerance of
-    # their applications by specifying a node attribute that allocations
+    # The "spread" block let you increase the failure tolerance of
+    # your applications by specifying a node attribute that allocations
     # should be spread over.
     #
-    # For more information and examples on the "spread" block, please
-    # see the online documentation at:
+    # For more information and examples on the "spread" block, refer to:
     #
     #     https://developer.hashicorp.com/nomad/docs/job-specification/spread
     #
     # spread {
-    # attribute specifies the name of a node attribute or metadata
-    # attribute = "${node.datacenter}"
-
-
-    # targets can be used to define desired percentages of allocations
-    # for each targeted attribute value.
-    #
+    #   attribute = "${node.datacenter}"
     #   target "us-east1" {
     #     percent = 60
     #   }
@@ -287,10 +275,9 @@ job "example" {
     #  }
 
     # The "task" block creates an individual unit of work, such as a Docker
-    # container, web application, or batch processing.
+    # container, virtual machine, or process.
     #
-    # For more information and examples on the "task" block, please see
-    # the online documentation at:
+    # For more information and examples on the "task" block, refer to:
     #
     #     https://developer.hashicorp.com/nomad/docs/job-specification/task
     #
@@ -316,11 +303,10 @@ job "example" {
       # The "artifact" block instructs Nomad to download an artifact from a
       # remote source prior to starting the task. This provides a convenient
       # mechanism for downloading configuration files or data needed to run the
-      # task. It is possible to specify the "artifact" block multiple times to
-      # download multiple artifacts.
+      # task. Specify the "artifact" block multiple times to download
+      # multiple artifacts.
       #
-      # For more information and examples on the "artifact" block, please see
-      # the online documentation at:
+      # For more information and examples on the "artifact" block, refer to:
       #
       #     https://developer.hashicorp.com/nomad/docs/job-specification/artifact
       #
@@ -336,8 +322,7 @@ job "example" {
       # default, but the "logs" block allows for finer-grained control over
       # the log rotation and storage configuration.
       #
-      # For more information and examples on the "logs" block, please see
-      # the online documentation at:
+      # For more information and examples on the "logs" block, refer to:
       #
       #     https://developer.hashicorp.com/nomad/docs/job-specification/logs
       #
@@ -349,18 +334,22 @@ job "example" {
       # The "identity" block instructs Nomad to expose the task's workload
       # identity token as an environment variable and in the file
       # secrets/nomad_token.
+      #
+      # For more information and examples on the "identity" block, refer to:
+      #
+      #     https://developer.hashicorp.com/nomad/docs/job-specification/identity
+      #
       identity {
         env  = true
         file = true
       }
 
       # The "resources" block describes the requirements a task needs to
-      # execute. Resource requirements include memory, cpu, and more.
-      # This ensures the task will execute on a machine that contains enough
-      # resource capacity.
+      # execute. Resource requirements include attributes such as memory, cpu,
+      # cores, and devices.
       #
-      # For more information and examples on the "resources" block, please see
-      # the online documentation at:
+      # For a complete list of attributes and examples on the "resources"
+      # block, refer to:
       #
       #     https://developer.hashicorp.com/nomad/docs/job-specification/resources
       #
@@ -369,13 +358,11 @@ job "example" {
         memory = 256 # 256MB
       }
 
-
-      # The "template" block instructs Nomad to manage a template, such as
-      # a configuration file or script. This template can optionally pull data
-      # from Consul or Vault to populate runtime configuration data.
+      # The "template" block instructs Nomad to manage a template, such as a
+      # configuration file or script. This template can optionally pull data
+      # from Nomad, Consul, or Vault to populate runtime configuration data.
       #
-      # For more information and examples on the "template" block, please see
-      # the online documentation at:
+      # For more information and examples on the "template" block, refer to:
       #
       #     https://developer.hashicorp.com/nomad/docs/job-specification/template
       #
@@ -396,15 +383,14 @@ job "example" {
       #   env         = true
       # }
 
-      # The "vault" block instructs the Nomad client to acquire a token from
-      # a HashiCorp Vault server. The Nomad servers must be configured and
-      # authorized to communicate with Vault. By default, Nomad will inject
-      # The token into the job via an environment variable and make the token
-      # available to the "template" block. The Nomad client handles the renewal
-      # and revocation of the Vault token.
+      # The "vault" block instructs the Nomad client to acquire a token from a
+      # HashiCorp Vault server. Nomad must be configured to communicate with
+      # Vault. By default, Nomad injects the token into the task via an
+      # environment variable and makes the token available to the "template"
+      # block. The Nomad client handles the renewal and revocation of the Vault
+      # token.
       #
-      # For more information and examples on the "vault" block, please see
-      # the online documentation at:
+      # For more information and examples on the "vault" block, refer to:
       #
       #     https://developer.hashicorp.com/nomad/docs/job-specification/vault
       #
