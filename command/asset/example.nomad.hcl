@@ -345,9 +345,11 @@ job "example" {
       }
 
       # The "resources" block describes the requirements a task needs to
-      # execute. Resource requirements include attributes such as memory, cpu, cores, and devices.
+      # execute. Resource requirements include attributes such as memory, cpu,
+      # cores, and devices.
       #
-      # For a complete list of attributes and examples on the "resources" block, refer to:
+      # For a complete list of attributes and examples on the "resources"
+      # block, refer to:
       #
       #     https://developer.hashicorp.com/nomad/docs/job-specification/resources
       #
