@@ -91,6 +91,7 @@ var (
 		"cgroup_v2_override": hclspec.NewAttr("cgroup_v2_override", "string", false),
 		"cgroup_v1_override": hclspec.NewAttr("cgroup_v1_override", "list(map(string))", false),
 		"oom_score_adj":      hclspec.NewAttr("oom_score_adj", "number", false),
+		"work_dir":           hclspec.NewAttr("work_dir", "string", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -160,6 +161,9 @@ type TaskConfig struct {
 
 	// OOMScoreAdj sets the oom_score_adj on Linux systems
 	OOMScoreAdj int `codec:"oom_score_adj"`
+
+	// WorkDir sets the working directory of the task
+	WorkDir string `codec:"work_dir"`
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -355,6 +359,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Env:              cfg.EnvList(),
 		User:             cfg.User,
 		TaskDir:          cfg.TaskDir().Dir,
+		WorkDir:          driverConfig.WorkDir,
 		StdoutPath:       cfg.StdoutPath,
 		StderrPath:       cfg.StderrPath,
 		NetworkIsolation: cfg.NetworkIsolation,

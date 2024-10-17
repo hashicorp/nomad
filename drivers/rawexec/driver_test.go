@@ -598,6 +598,55 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	require.NoError(harness.DestroyTask(task.ID, true))
 }
 
+func TestRawExecDriver_WorkDir(t *testing.T) {
+	ci.Parallel(t)
+	ctestutil.ExecCompatible(t)
+
+	require := require.New(t)
+
+	d := newEnabledRawExecDriver(t)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	allocID := uuid.Generate()
+	taskName := "test"
+	task := &drivers.TaskConfig{
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Env:       defaultEnv(),
+		Resources: testResources(allocID, taskName),
+	}
+
+	workDir := t.TempDir()
+	tc := &TaskConfig{
+		Command: "cat",
+		Args:    []string{"foo.txt"},
+		WorkDir: workDir,
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	testtask.SetTaskConfigEnv(task)
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	harness.MakeTaskCgroup(allocID, taskName)
+
+	require.NoError(os.WriteFile(filepath.Join(workDir, "foo.txt"), []byte("foo"), 660))
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	require.NoError(err)
+
+	// Task will fail if cat cannot find the file, which would only happen
+	// if the task's WorkDir was setup incorrectly
+	result := <-ch
+	require.Zero(result.ExitCode)
+	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
 func TestConfig_ParseAllHCL(t *testing.T) {
 	ci.Parallel(t)
 

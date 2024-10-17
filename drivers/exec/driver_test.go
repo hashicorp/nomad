@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -122,27 +121,28 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 }
 
 func TestExecDriver_WorkDir(t *testing.T) {
-	t.Parallel()
+	ci.Parallel(t)
 	require := require.New(t)
+
 	ctestutils.ExecCompatible(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	d := NewExecDriver(ctx, testlog.HCLogger(t))
+	d := newExecDriverTest(t, ctx)
 	harness := dtestutil.NewDriverHarness(t, d)
+	allocID := uuid.Generate()
 	task := &drivers.TaskConfig{
+		AllocID:   allocID,
 		ID:        uuid.Generate(),
 		Name:      "test",
-		Resources: testResources,
+		Resources: testResources(allocID, "test"),
 	}
-
-	require.NoError(ioutil.WriteFile(task.StdoutPath, []byte{}, 660))
-	require.NoError(ioutil.WriteFile(task.StderrPath, []byte{}, 660))
 
 	workDir := filepath.Join("/", allocdir.TaskLocal)
 	tc := &TaskConfig{
-		Command: "/bin/pwd",
+		Command: "/bin/cat",
+		Args:    []string{"foo.txt"},
 		WorkDir: workDir,
 	}
 	require.NoError(task.EncodeConcreteDriverConfig(&tc))
@@ -150,19 +150,19 @@ func TestExecDriver_WorkDir(t *testing.T) {
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
+	require.NoError(os.WriteFile(filepath.Join(workDir, "foo.txt"), []byte("foo"), 660))
+
 	handle, _, err := harness.StartTask(task)
 	require.NoError(err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
 	require.NoError(err)
 
+	// Task will fail if cat cannot find the file, which would only happen
+	// if the task's WorkDir was setup incorrectly
 	result := <-ch
 	require.Zero(result.ExitCode)
 	require.NoError(harness.DestroyTask(task.ID, true))
-
-	stdout, err := ioutil.ReadFile(task.StdoutPath)
-	require.NoError(err)
-	require.Equal(workDir, strings.TrimSpace(string(stdout)))
 }
 
 func TestExecDriver_StartWait(t *testing.T) {
