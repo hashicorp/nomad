@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where alloc exec could leak a goroutine
+```
