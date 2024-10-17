@@ -547,7 +547,10 @@ type AllocPauseRequest struct {
 }
 
 type AllocGetPauseResponse struct {
-	// ScheduleState will be one of "pause", "run", "scheduled".
+	// ScheduleState will be one of "" (run), "force_run", "scheduled_pause",
+	// "force_pause", or "schedule_resume".
+	//
+	// See nomad/structs/task_sched.go for details.
 	ScheduleState string
 }
 
