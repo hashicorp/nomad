@@ -1300,7 +1300,7 @@ func (c *CoreScheduler) getThreshold(eval *structs.Evaluation, objectName, confi
 		c.logger.Debug(fmt.Sprintf("forced %s GC", objectName))
 	} else {
 		// Compute the old threshold limit for GC using the FSM
-		// time table.  This is a rough mapping of a time to the
+		// time table. This is a rough mapping of a time to the
 		// Raft index it belongs to.
 		tt := c.srv.fsm.TimeTable()
 		cutoff := time.Now().UTC().Add(-1 * configThreshold)

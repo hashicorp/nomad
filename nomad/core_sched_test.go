@@ -3073,7 +3073,7 @@ func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
 	// Overwrite the timetable. The existing timetable has an entry due to the
 	// ACL bootstrapping which makes witnessing a new index at a timestamp in
 	// the past impossible.
-	tt := NewTimeTable(timeTableGranularity, timeTableLimit)
+	tt := NewTimeTable(timeTableGranularity, timeTableDefaultLimit)
 	tt.Witness(20, time.Now().UTC().Add(-1*testServer.config.ACLTokenExpirationGCThreshold))
 	testServer.fsm.timetable = tt
 
