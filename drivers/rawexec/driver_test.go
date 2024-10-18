@@ -536,7 +536,6 @@ func TestRawExecDriver_ParentCgroup(t *testing.T) {
 
 func TestRawExecDriver_Exec(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.ExecCompatible(t)
 
 	require := require.New(t)
 
@@ -600,9 +599,6 @@ func TestRawExecDriver_Exec(t *testing.T) {
 
 func TestRawExecDriver_WorkDir(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.ExecCompatible(t)
-
-	require := require.New(t)
 
 	d := newEnabledRawExecDriver(t)
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -619,12 +615,19 @@ func TestRawExecDriver_WorkDir(t *testing.T) {
 	}
 
 	workDir := t.TempDir()
+
 	tc := &TaskConfig{
-		Command: "cat",
-		Args:    []string{"foo.txt"},
 		WorkDir: workDir,
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	if runtime.GOOS == "windows" {
+		tc.Command = "cmd.exe"
+		tc.Args = []string{"/c", "stat", "foo.txt"}
+	} else {
+		tc.Command = "/usr/bin/stat"
+		tc.Args = []string{"foo.txt"}
+	}
+
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -632,19 +635,19 @@ func TestRawExecDriver_WorkDir(t *testing.T) {
 
 	harness.MakeTaskCgroup(allocID, taskName)
 
-	require.NoError(os.WriteFile(filepath.Join(workDir, "foo.txt"), []byte("foo"), 660))
+	must.NoError(t, os.WriteFile(filepath.Join(workDir, "foo.txt"), []byte("foo"), 770))
 
 	handle, _, err := harness.StartTask(task)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Task will fail if cat cannot find the file, which would only happen
 	// if the task's WorkDir was setup incorrectly
 	result := <-ch
-	require.Zero(result.ExitCode)
-	require.NoError(harness.DestroyTask(task.ID, true))
+	must.Zero(t, result.ExitCode)
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
@@ -690,4 +693,46 @@ func TestRawExecDriver_Disabled(t *testing.T) {
 	require.Error(err)
 	require.Contains(err.Error(), errDisabledDriver.Error())
 	require.Nil(handle)
+}
+
+func TestRawExecDriver_validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		config *TaskConfig
+		exp    error
+	}{
+		{
+			name: "validates CGroup overrides",
+			config: &TaskConfig{
+				OverrideCgroupV2: "custom.slice/app.scope",
+				OverrideCgroupV1: map[string]string{
+					"pids": "custom/path",
+				},
+			},
+			exp: errors.New("only one of cgroups_v1_override and cgroups_v2_override may be set"),
+		},
+		{
+			name: "validates OOM score adj",
+			config: &TaskConfig{
+				OOMScoreAdj: -1,
+			},
+			exp: errors.New("oom_score_adj must not be negative"),
+		},
+		{
+			name: "validates work_dir is abolute path",
+			config: &TaskConfig{
+				WorkDir: "bad/path",
+			},
+			exp: errors.New("work_dir must be an absolute path"),
+		},
+	}
+
+	for _, i := range testCases {
+		t.Run(i.name, func(t *testing.T) {
+			err := i.config.validate()
+			must.Eq(t, i.exp, err)
+		})
+	}
 }

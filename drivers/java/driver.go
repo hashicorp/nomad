@@ -98,6 +98,7 @@ var (
 		"ipc_mode":    hclspec.NewAttr("ipc_mode", "string", false),
 		"cap_add":     hclspec.NewAttr("cap_add", "list(string)", false),
 		"cap_drop":    hclspec.NewAttr("cap_drop", "list(string)", false),
+		"work_dir":    hclspec.NewAttr("work_dir", "string", false),
 	})
 
 	// driverCapabilities is returned by the Capabilities RPC and indicates what
@@ -189,6 +190,9 @@ type TaskConfig struct {
 
 	// CapDrop is a set of linux capabilities to disable.
 	CapDrop []string `codec:"cap_drop"`
+
+	// WorkDir is the working directory for the task
+	WorkDir string `coded:"work_dir"`
 }
 
 func (tc *TaskConfig) validate() error {
@@ -215,6 +219,9 @@ func (tc *TaskConfig) validate() error {
 		return fmt.Errorf("cap_drop configured with capabilities not supported by system: %s", badDrops)
 	}
 
+	if tc.WorkDir != "" && !filepath.IsAbs(tc.WorkDir) {
+		return fmt.Errorf("work_dir must be an absolute path: %s", tc.WorkDir)
+	}
 	return nil
 }
 
@@ -496,6 +503,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		ResourceLimits:   true,
 		Resources:        cfg.Resources,
 		TaskDir:          cfg.TaskDir().Dir,
+		WorkDir:          driverConfig.WorkDir,
 		StdoutPath:       cfg.StdoutPath,
 		StderrPath:       cfg.StderrPath,
 		Mounts:           cfg.Mounts,

@@ -166,6 +166,22 @@ type TaskConfig struct {
 	WorkDir string `codec:"work_dir"`
 }
 
+func (t *TaskConfig) validate() error {
+	// ensure only one of cgroups_v1_override and cgroups_v2_override have been
+	// configured; must check here because task config validation cannot happen
+	// on the server.
+	if len(t.OverrideCgroupV1) > 0 && t.OverrideCgroupV2 != "" {
+		return errors.New("only one of cgroups_v1_override and cgroups_v2_override may be set")
+	}
+	if t.OOMScoreAdj < 0 {
+		return errors.New("oom_score_adj must not be negative")
+	}
+	if t.WorkDir != "" && !filepath.IsAbs(t.WorkDir) {
+		return errors.New("work_dir must be an absolute path")
+	}
+	return nil
+}
+
 // TaskState is the state which is encoded in the handle returned in
 // StartTask. This information is needed to rebuild the task state and handler
 // during recovery.
@@ -332,8 +348,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	if driverConfig.OOMScoreAdj < 0 {
-		return nil, nil, fmt.Errorf("oom_score_adj must not be negative")
+	driverConfig.OverrideCgroupV2 = cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2)
+
+	if err := driverConfig.validate(); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
@@ -364,16 +382,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		StderrPath:       cfg.StderrPath,
 		NetworkIsolation: cfg.NetworkIsolation,
 		Resources:        cfg.Resources.Copy(),
-		OverrideCgroupV2: cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2),
+		OverrideCgroupV2: driverConfig.OverrideCgroupV2,
 		OverrideCgroupV1: driverConfig.OverrideCgroupV1,
 		OOMScoreAdj:      int32(driverConfig.OOMScoreAdj),
-	}
-
-	// ensure only one of cgroups_v1_override and cgroups_v2_override have been
-	// configured; must check here because task config validation cannot happen
-	// on the server.
-	if len(execCmd.OverrideCgroupV1) > 0 && execCmd.OverrideCgroupV2 != "" {
-		return nil, nil, errors.New("only one of cgroups_v1_override and cgroups_v2_override may be set")
 	}
 
 	ps, err := exec.Launch(execCmd)

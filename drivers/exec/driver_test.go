@@ -122,7 +122,6 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 
 func TestExecDriver_WorkDir(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	ctestutils.ExecCompatible(t)
 
@@ -145,24 +144,24 @@ func TestExecDriver_WorkDir(t *testing.T) {
 		Args:    []string{"foo.txt"},
 		WorkDir: workDir,
 	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
 
-	require.NoError(os.WriteFile(filepath.Join(task.TaskDir().Dir, allocdir.TaskLocal, "foo.txt"), []byte("foo"), 660))
+	must.NoError(t, os.WriteFile(filepath.Join(task.TaskDir().Dir, allocdir.TaskLocal, "foo.txt"), []byte("foo"), 660))
 
 	handle, _, err := harness.StartTask(task)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Task will fail if cat cannot find the file, which would only happen
 	// if the task's WorkDir was setup incorrectly
 	result := <-ch
-	require.Zero(result.ExitCode)
-	require.NoError(harness.DestroyTask(task.ID, true))
+	must.Zero(t, result.ExitCode)
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestExecDriver_StartWait(t *testing.T) {
