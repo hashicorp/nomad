@@ -12,6 +12,8 @@ $hdsInputHeight: 35px;
 
 .variable-title {
   margin-bottom: 2rem;
+  z-index: $z-base;
+
   .hds-page-header__main {
     flex-direction: unset;
   }
