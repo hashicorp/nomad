@@ -50,7 +50,7 @@ in the Nomad job specification.
   "nomad_namespace": "default",
   "nomad_job_id": "example",
   "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
-  "nomad_service": "example-cache-redis"
+  "nomad_service": "example-cache-redis",
   "vault_role": "nomad-jwt-login"
 }
 ```
@@ -79,8 +79,8 @@ Similarly, tasks with a [`vault.namespace`][jobspec_vault_ns] value have the add
   "nomad_namespace": "default",
   "nomad_job_id": "example",
   "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
-  "nomad_service": "example-cache-redis"
-  "vault_namespace": "prod",
+  "nomad_service": "example-cache-redis",
+  "vault_namespace": "prod"
 }
 ```
 
