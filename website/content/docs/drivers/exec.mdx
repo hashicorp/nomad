@@ -87,6 +87,11 @@ config {
 }
 ```
 
+- `work_dir` - (Optional) Sets a custom working directory for the task. This path must be
+  absolute and within the task's [chroot](#chroot) or in a [host volume][] mounted
+  with a [`volume_mount`][volume_mount] block. This will also change the working
+  directory when using `nomad alloc exec`.
+
 ## Examples
 
 To run a binary present on the Node:
