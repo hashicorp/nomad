@@ -579,7 +579,7 @@ func TestRawExecDriver_Exec(t *testing.T) {
 		res, err = harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "stat", "notarealfile123abc"}, 1*time.Second)
 		require.NoError(err)
 		require.False(res.ExitResult.Successful())
-		require.Contains(string(res.Stdout), "not recognized")
+		require.Contains(string(res.Stdout), "No such file or directory")
 	} else {
 		// Exec a command that should work
 		res, err := harness.ExecTask(task.ID, []string{"/usr/bin/stat", "/tmp"}, 1*time.Second)
