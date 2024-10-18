@@ -87,9 +87,9 @@ config {
 }
 ```
 
-- `work_dir` - (Optional) The working directory for the task. Like
-  command, this path must be within the task's [chroot](#chroot) or in a [host volume][] mounted with a
-  [`volume_mount`][volume_mount] block.
+- `work_dir` - (Optional) The working directory for the task. This path must be 
+  absolute and within the task's [chroot](#chroot) or in a [host volume][] mounted 
+  with a [`volume_mount`][volume_mount] block.
 
 ## Examples
 
