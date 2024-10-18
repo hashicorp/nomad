@@ -177,6 +177,14 @@ $secondaryNavbarHeight: 4.5rem;
     }
   }
 
+  .profile-dropdown .hds-dropdown-toggle-button__text {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
+  }
+
   .custom-label {
     border-radius: 1rem;
     padding: 0.25rem 1rem;
