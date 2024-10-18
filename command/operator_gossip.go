@@ -15,7 +15,7 @@ func (*OperatorGossipCommand) Help() string {
 Usage: nomad operator gossip <subcommand> [options] [args]
 	
   This command is accessed by using one of the subcommands below.
-	`
+`
 	return strings.TrimSpace(helpText)
 }
 

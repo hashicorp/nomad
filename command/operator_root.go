@@ -15,7 +15,7 @@ func (*OperatorRootCommand) Help() string {
 Usage: nomad operator root <subcommand> [options] [args]
 
   This command is accessed by using one of the subcommands below.
-	`
+`
 
 	return strings.TrimSpace(helpText)
 }
@@ -24,7 +24,7 @@ func (*OperatorRootCommand) Synopsis() string {
 	return "Provides access to root encryption keys"
 }
 
-func (f *OperatorRootCommand) Name() string { return "operator gossip" }
+func (f *OperatorRootCommand) Name() string { return "operator root" }
 
 func (f *OperatorRootCommand) Run(_ []string) int {
 	return cli.RunResultHelp
