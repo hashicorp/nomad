@@ -170,6 +170,7 @@ func TestSetQueryOptions(t *testing.T) {
 		WaitTime:   100 * time.Second,
 		AuthToken:  "foobar",
 		Reverse:    true,
+		Resources:  true,
 	}
 	r.setQueryOptions(q)
 
@@ -188,6 +189,7 @@ func TestSetQueryOptions(t *testing.T) {
 	try("index", "1000")
 	try("wait", "100000ms")
 	try("reverse", "true")
+	try("resources", "true")
 }
 
 func TestQueryOptionsContext(t *testing.T) {
