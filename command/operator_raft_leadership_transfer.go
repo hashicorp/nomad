@@ -35,7 +35,7 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
-Remove Peer Options:
+Transfer Leadership Options:
 
   -peer-address="IP:port"
     Transfer leadership to the Nomad server with given Raft address.
