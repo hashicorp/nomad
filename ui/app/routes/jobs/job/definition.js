@@ -31,8 +31,10 @@ export default class DefinitionRoute extends Route {
     if (!job) return;
 
     let definition;
+    console.log('version', version);
 
-    if (version) {
+    if (version !== undefined) {
+      // version can be 0, can't !version check.
       try {
         const versionResponse = await job.getVersions();
         const versions = versionResponse.Versions;

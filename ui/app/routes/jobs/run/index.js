@@ -49,7 +49,7 @@ export default class JobsRunIndexRoute extends Route {
           _newDefinition: templateRecord.items.template,
         });
       } else if (sourceString) {
-        console.log('elsif', sourceString);
+        // console.log('elsif', sourceString);
         // Add an alert to the page to let the user know that they are submitting a job from a template, and that they should change the name!
         return this.store.createRecord('job', {
           _newDefinition: sourceString,
@@ -81,6 +81,7 @@ export default class JobsRunIndexRoute extends Route {
     if (isExiting) {
       controller.model?.deleteRecord();
       controller.set('template', null);
+      controller.set('sourceString', null);
     }
   }
 }
