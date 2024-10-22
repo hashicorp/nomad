@@ -1,3 +1,107 @@
+## 1.9.1 (October 21, 2024)
+
+BREAKING CHANGES:
+
+* heartbeats: clients older than 1.6.0 will fail heartbeats to 1.9.0+ servers [[GH-23838](https://github.com/hashicorp/nomad/issues/23838)]
+* jobspec: Removed support for HCLv1 [[GH-23912](https://github.com/hashicorp/nomad/issues/23912)]
+* services: Clients older than 1.5.0 will fail to read Nomad native services via template blocks [[GH-23910](https://github.com/hashicorp/nomad/issues/23910)]
+* tls: Removed deprecated `tls.prefer_server_cipher_suites` field from agent configuration [[GH-23712](https://github.com/hashicorp/nomad/issues/23712)]
+
+SECURITY:
+
+* security: Fixed a bug in client FS API where the check to prevent reads from the secrets dir could be bypassed on case-insensitive file systems [[GH-24125](https://github.com/hashicorp/nomad/issues/24125)]
+
+IMPROVEMENTS:
+
+* cli: Added redaction options to operator snapshot commands [[GH-24023](https://github.com/hashicorp/nomad/issues/24023)]
+* cli: Added synopsis for `operator root` and `operator gossip` command [[GH-23671](https://github.com/hashicorp/nomad/issues/23671)]
+* cli: Increase default log level and duration when capturing logs with `operator debug` [[GH-23850](https://github.com/hashicorp/nomad/issues/23850)]
+* cli: Updated example job specifications in nomad job init [[GH-24232](https://github.com/hashicorp/nomad/issues/24232)]
+* deps: Upgraded yamux to v0.1.2 to fix a bug where RPC connections could deadlock [[GH-24058](https://github.com/hashicorp/nomad/issues/24058)]
+* docker: Use official docker SDK instead of a 3rd party client [[GH-23966](https://github.com/hashicorp/nomad/issues/23966)]
+* identity: Added filepath parameter to identity block for persisting workload identities [[GH-24038](https://github.com/hashicorp/nomad/issues/24038)]
+* jobs: Added Version Tags to job versions, to prevent them from being garbage collected and allow for diffs [[GH-24055](https://github.com/hashicorp/nomad/issues/24055)]
+* keyring: Stored wrapped data encryption keys in Raft [[GH-23977](https://github.com/hashicorp/nomad/issues/23977)]
+* metrics: introduce client config to include alloc metadata as part of the base labels [[GH-23964](https://github.com/hashicorp/nomad/issues/23964)]
+* networking: Added an option to ignore static port collisions when scheduling, for programs that use the SO_REUSEPORT unix socket option [[GH-23956](https://github.com/hashicorp/nomad/issues/23956)]
+* networking: IPv6 can now be enabled on the Nomad bridge network mode [[GH-23882](https://github.com/hashicorp/nomad/issues/23882)]
+* quotas (Enterprise): Added the possibility to set device count limits [[GH-23894](https://github.com/hashicorp/nomad/issues/23894)]
+* raft: Bump raft to v1.7.1 which includes pre-vote. This should make servers more stable after network partitions [[GH-24029](https://github.com/hashicorp/nomad/issues/24029)]
+
+BUG FIXES:
+
+* bug: Allow client template config block to be parsed when using json config [[GH-24007](https://github.com/hashicorp/nomad/issues/24007)]
+* cli: Fixed a bug in job status command where -t would act as though -json was also set [[GH-24054](https://github.com/hashicorp/nomad/issues/24054)]
+* consul: Fixed a bug where broken Consul ACL tokens could block registration and deregistration of services and checks [[GH-24166](https://github.com/hashicorp/nomad/issues/24166)]
+* consul: Fixed a bug where service deregistration could fail because Consul ACL tokens were revoked during allocation GC [[GH-24166](https://github.com/hashicorp/nomad/issues/24166)]
+* docker: Always negotiate API version when initializing clients [[GH-24237](https://github.com/hashicorp/nomad/issues/24237)]
+* docker: Fix incorrect auth parsing for private registries [[GH-24215](https://github.com/hashicorp/nomad/issues/24215)]
+* docker: Fixed a bug where alloc exec could leak a goroutine [[GH-24244](https://github.com/hashicorp/nomad/issues/24244)]
+* docker: Fixed a bug where alloc exec with stdin would hang [[GH-24202](https://github.com/hashicorp/nomad/issues/24202)]
+* docker: Fixed a bug where task CPU stats were reported incorrectly [[GH-24229](https://github.com/hashicorp/nomad/issues/24229)]
+* heartbeat: Fixed a bug where failed nodes would not be marked down [[GH-24241](https://github.com/hashicorp/nomad/issues/24241)]
+* scaling: Fixed a bug where scaling policies would not get created during job submission unless namespace field was set in jobspec [[GH-24065](https://github.com/hashicorp/nomad/issues/24065)]
+* scheduler: fixes reconnecting allocations not getting picked correctly when replacements failed [[GH-24165](https://github.com/hashicorp/nomad/issues/24165)]
+* state: Fixed a bug where compatibility updates for node topology for nodes older than 1.7.0 were not being correctly applied [[GH-24127](https://github.com/hashicorp/nomad/issues/24127)]
+* task: adds node.pool attribute to interpretable values in task env [[GH-24052](https://github.com/hashicorp/nomad/issues/24052)]
+* template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
+* ui: Fix an issue where a dropdown on the variables page would appear underneath table headers [[GH-24162](https://github.com/hashicorp/nomad/issues/24162)]
+* ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
+* ui: Put a max-width on token name so it doesn't collide with the search box in the top nav [[GH-24240](https://github.com/hashicorp/nomad/issues/24240)]
+* windows: Fixed a bug where a crashed executor would orphan task processes [[GH-24214](https://github.com/hashicorp/nomad/issues/24214)]
+
+## 1.9.1 (October 21, 2024)
+
+BREAKING CHANGES:
+
+* heartbeats: clients older than 1.6.0 will fail heartbeats to 1.9.0+ servers [[GH-23838](https://github.com/hashicorp/nomad/issues/23838)]
+* jobspec: Removed support for HCLv1 [[GH-23912](https://github.com/hashicorp/nomad/issues/23912)]
+* services: Clients older than 1.5.0 will fail to read Nomad native services via template blocks [[GH-23910](https://github.com/hashicorp/nomad/issues/23910)]
+* tls: Removed deprecated `tls.prefer_server_cipher_suites` field from agent configuration [[GH-23712](https://github.com/hashicorp/nomad/issues/23712)]
+
+SECURITY:
+
+* security: Fixed a bug in client FS API where the check to prevent reads from the secrets dir could be bypassed on case-insensitive file systems [[GH-24125](https://github.com/hashicorp/nomad/issues/24125)]
+
+IMPROVEMENTS:
+
+* cli: Added redaction options to operator snapshot commands [[GH-24023](https://github.com/hashicorp/nomad/issues/24023)]
+* cli: Added synopsis for `operator root` and `operator gossip` command [[GH-23671](https://github.com/hashicorp/nomad/issues/23671)]
+* cli: Increase default log level and duration when capturing logs with `operator debug` [[GH-23850](https://github.com/hashicorp/nomad/issues/23850)]
+* cli: Updated example job specifications in nomad job init [[GH-24232](https://github.com/hashicorp/nomad/issues/24232)]
+* deps: Upgraded yamux to v0.1.2 to fix a bug where RPC connections could deadlock [[GH-24058](https://github.com/hashicorp/nomad/issues/24058)]
+* docker: Use official docker SDK instead of a 3rd party client [[GH-23966](https://github.com/hashicorp/nomad/issues/23966)]
+* identity: Added filepath parameter to identity block for persisting workload identities [[GH-24038](https://github.com/hashicorp/nomad/issues/24038)]
+* jobs: Added Version Tags to job versions, to prevent them from being garbage collected and allow for diffs [[GH-24055](https://github.com/hashicorp/nomad/issues/24055)]
+* keyring: Stored wrapped data encryption keys in Raft [[GH-23977](https://github.com/hashicorp/nomad/issues/23977)]
+* metrics: introduce client config to include alloc metadata as part of the base labels [[GH-23964](https://github.com/hashicorp/nomad/issues/23964)]
+* networking: Added an option to ignore static port collisions when scheduling, for programs that use the SO_REUSEPORT unix socket option [[GH-23956](https://github.com/hashicorp/nomad/issues/23956)]
+* networking: IPv6 can now be enabled on the Nomad bridge network mode [[GH-23882](https://github.com/hashicorp/nomad/issues/23882)]
+* quotas (Enterprise): Added the possibility to set device count limits [[GH-23894](https://github.com/hashicorp/nomad/issues/23894)]
+* raft: Bump raft to v1.7.1 which includes pre-vote. This should make servers more stable after network partitions [[GH-24029](https://github.com/hashicorp/nomad/issues/24029)]
+
+BUG FIXES:
+
+* bug: Allow client template config block to be parsed when using json config [[GH-24007](https://github.com/hashicorp/nomad/issues/24007)]
+* cli: Fixed a bug in job status command where -t would act as though -json was also set [[GH-24054](https://github.com/hashicorp/nomad/issues/24054)]
+* consul: Fixed a bug where broken Consul ACL tokens could block registration and deregistration of services and checks [[GH-24166](https://github.com/hashicorp/nomad/issues/24166)]
+* consul: Fixed a bug where service deregistration could fail because Consul ACL tokens were revoked during allocation GC [[GH-24166](https://github.com/hashicorp/nomad/issues/24166)]
+* docker: Always negotiate API version when initializing clients [[GH-24237](https://github.com/hashicorp/nomad/issues/24237)]
+* docker: Fix incorrect auth parsing for private registries [[GH-24215](https://github.com/hashicorp/nomad/issues/24215)]
+* docker: Fixed a bug where alloc exec could leak a goroutine [[GH-24244](https://github.com/hashicorp/nomad/issues/24244)]
+* docker: Fixed a bug where alloc exec with stdin would hang [[GH-24202](https://github.com/hashicorp/nomad/issues/24202)]
+* docker: Fixed a bug where task CPU stats were reported incorrectly [[GH-24229](https://github.com/hashicorp/nomad/issues/24229)]
+* heartbeat: Fixed a bug where failed nodes would not be marked down [[GH-24241](https://github.com/hashicorp/nomad/issues/24241)]
+* scaling: Fixed a bug where scaling policies would not get created during job submission unless namespace field was set in jobspec [[GH-24065](https://github.com/hashicorp/nomad/issues/24065)]
+* scheduler: fixes reconnecting allocations not getting picked correctly when replacements failed [[GH-24165](https://github.com/hashicorp/nomad/issues/24165)]
+* state: Fixed a bug where compatibility updates for node topology for nodes older than 1.7.0 were not being correctly applied [[GH-24127](https://github.com/hashicorp/nomad/issues/24127)]
+* task: adds node.pool attribute to interpretable values in task env [[GH-24052](https://github.com/hashicorp/nomad/issues/24052)]
+* template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
+* ui: Fix an issue where a dropdown on the variables page would appear underneath table headers [[GH-24162](https://github.com/hashicorp/nomad/issues/24162)]
+* ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
+* ui: Put a max-width on token name so it doesn't collide with the search box in the top nav [[GH-24240](https://github.com/hashicorp/nomad/issues/24240)]
+* windows: Fixed a bug where a crashed executor would orphan task processes [[GH-24214](https://github.com/hashicorp/nomad/issues/24214)]
+
 ## 1.9.0 (October 10, 2024)
 
 BREAKING CHANGES:
