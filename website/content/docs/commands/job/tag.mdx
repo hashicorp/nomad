@@ -22,12 +22,6 @@ following subcommands:
 nomad job tag <subcommand> [options] [args]
 ```
 
-## General options
-
-Use these optional general options with the subcommands.
-
-@include 'general_options.mdx'
-
 ## Apply
 
 Use `job tag apply` to create or modify a version tag.
@@ -37,6 +31,15 @@ Use `job tag apply` to create or modify a version tag.
 ```shell-session
 nomad job tag apply [options] <job_id>
 ```
+
+### General options
+
+<details>
+<summary>Expand to see general options</summary>
+
+@include 'general_options.mdx'
+
+</details>
 
 ### Apply options
 
@@ -69,8 +72,17 @@ Use `nomad job tag unset` to delete a tag from a version. This command requires 
 ### Unset usage
 
 ```shell-session
-nomad job tag unset [options]  -name <tag> <job_id>
+nomad job tag unset [options] <job_id>
 ```
+
+### General options
+
+<details>
+<summary>Expand to see general options</summary>
+
+@include 'general_options.mdx'
+
+</details>
 
 ### Unset options
 
