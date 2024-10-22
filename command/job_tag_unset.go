@@ -16,7 +16,7 @@ type JobTagUnsetCommand struct {
 
 func (c *JobTagUnsetCommand) Help() string {
 	helpText := `
-Usage: nomad job tag unset [options] <job> -name <tag>
+Usage: nomad job tag unset [options] -name <tag> <job>
 
   Remove a tag from a job version. This command requires a job ID and a tag name.
 
