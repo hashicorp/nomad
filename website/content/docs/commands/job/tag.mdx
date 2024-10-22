@@ -69,7 +69,7 @@ Use `nomad job tag unset` to delete a tag from a version. This command requires 
 ### Unset usage
 
 ```shell-session
-nomad job tag unset [options] <job_id> -name <tag>
+nomad job tag unset [options]  -name <tag> <job_id>
 ```
 
 ### Unset options
@@ -81,7 +81,7 @@ nomad job tag unset [options] <job_id> -name <tag>
 This example removes the `golden-version` tag from the `hello-world` job.
 
 ```shell-session
-$ nomad job tag unset hello-world -name "golden-version"
+$ nomad job tag unset -name "golden-version" hello-world
 ```
 
 [diff]: /nomad/docs/commands/job/history/
