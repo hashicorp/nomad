@@ -808,11 +808,12 @@ func TestExecutor_WorkDir(t *testing.T) {
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	defer allocDir.Destroy()
 
+	execCmd.ResourceLimits = true
 	workDir := "/etc"
 	execCmd.WorkDir = workDir
 	execCmd.Cmd = "/bin/pwd"
 
-	executor := NewExecutorWithIsolation(testlog.HCLogger(t))
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
