@@ -160,6 +160,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 		"cpu-platform":                   false,
 		"scheduling/automatic-restart":   false,
 		"scheduling/on-host-maintenance": false,
+		"scheduling/preemptible":         false,
 	}
 
 	for k, unique := range keys {
