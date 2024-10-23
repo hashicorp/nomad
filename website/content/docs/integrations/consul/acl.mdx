@@ -109,10 +109,10 @@ Nomad uses to sign workload identities. With these keys, Consul is able to
 validate their origin and confirm that they were actually created by Nomad.
 
 Nomad cannot recreate Consul tokens that have been deleted. The auth method
-configuration should never set the `MaxTokenTTL` field. Consul tokens will be
+configuration should never set the `MaxTokenTTL` field. Consul tokens are
 local to the Consul datacenter unless you set `TokenLocality: "global"` in the
-auth method. We recommend using local tokens (the default) because global tokens
-require the primary Consul datacenter is available when allocations start.
+auth method. We recommend using local tokens, which is the default. Global tokens
+require that the primary Consul datacenter is available when allocations start.
 
 <CodeBlockConfig highlight="2" filename="auth-method.json">
 
