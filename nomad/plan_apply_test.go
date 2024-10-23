@@ -4,11 +4,15 @@
 package nomad
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
 	"errors"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v3/jwt"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -1229,4 +1233,79 @@ func TestPlanApply_EvalNodePlan_Node_Disconnected(t *testing.T) {
 			require.Equal(t, tc.expectedReason, reason)
 		})
 	}
+}
+
+type noopSigner struct{}
+
+func (noopSigner) SignClaims(claims *structs.IdentityClaims) (string, string, error) {
+	return "x", "x", nil
+}
+
+type simpleSigner struct {
+	rootKey *structs.UnwrappedRootKey
+	rsaKey  *rsa.PrivateKey
+}
+
+func newSimpleSigner(tb testing.TB) *simpleSigner {
+	rootKey, err := structs.NewUnwrappedRootKey("")
+	must.NoError(tb, err)
+
+	rsaKey, err := x509.ParsePKCS1PrivateKey(rootKey.RSAKey)
+	must.NoError(tb, err)
+
+	return &simpleSigner{
+		rootKey: rootKey,
+		rsaKey:  rsaKey,
+	}
+}
+
+func (s *simpleSigner) SignClaims(claims *structs.IdentityClaims) (string, string, error) {
+	opts := (&jose.SignerOptions{}).WithHeader("kid", s.rootKey.Meta.KeyID).WithType("JWT")
+
+	sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: s.rsaKey}, opts)
+	if err != nil {
+		return "", "", err
+	}
+
+	raw, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
+	if err != nil {
+		return "", "", err
+	}
+
+	return raw, s.rootKey.Meta.KeyID, nil
+}
+
+func BenchmarkPlanApply_signAllocIdentities(b *testing.B) {
+
+	// Make a simplified encrypter to avoid having to create a TestServer
+	rsaSigner := newSimpleSigner(b)
+	now := time.Unix(0, 0)
+
+	benchFunc := func(b *testing.B, signer claimSigner) {
+
+		b.StopTimer()
+		//allocs := []*structs.Allocation{}
+		//for i := 0; i < 10; i++ {
+		//	allocs = append(allocs, mock.Alloc())
+		//}
+		allocs := []*structs.Allocation{mock.Alloc()}
+		job := allocs[0].Job
+		b.StartTimer()
+
+		if err := signAllocIdentities(signer, job, allocs, now); err != nil {
+			must.NoError(b, err)
+		}
+	}
+
+	b.Run("Noop", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			benchFunc(b, noopSigner{})
+		}
+	})
+
+	b.Run("RSA", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			benchFunc(b, rsaSigner)
+		}
+	})
 }
