@@ -82,6 +82,7 @@ export default class JobsRunIndexRoute extends Route {
       controller.model?.deleteRecord();
       controller.set('template', null);
       controller.set('sourceString', null);
+      controller.set('disregardNameWarning', null);
     }
   }
 }

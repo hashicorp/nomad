@@ -25,7 +25,7 @@ export default class DefinitionRoute extends Route {
    *                            specification, variableFlags, and variableLiteral.
    */
   async model({ version }) {
-    version = +version; // query parameter is a string; convert to number
+    version = version ? +version : undefined; // query parameter is a string; convert to number
     /** @type {import('../../../models/job').default} */
     const job = this.modelFor('jobs.job');
     if (!job) return;

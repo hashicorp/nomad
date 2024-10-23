@@ -6,7 +6,7 @@
 <Breadcrumb @crumb={{hash label="Run" args=(array "jobs.run")}} />
 {{page-title "Run a job"}}
 <section class="section">
-  {{#if this.sourceString}}
+  {{#if (and this.sourceString (not this.disregardNameWarning))}}
     <Hds::Alert @type="inline" @color="warning" as |A|>
       <A.Title>Don't forget to change the job name!</A.Title>
       <A.Description>Since you're cloning a job version's source as a new job, you'll want to change the job name. Otherwise, this will appear as a new version of the original job, rather than a new job.</A.Description>
