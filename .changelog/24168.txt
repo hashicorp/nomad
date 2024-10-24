@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Add an Edit From Version button as an option when reverting from an older job version
+```

@@ -81,6 +81,17 @@
         <div class="version-options">
           {{#unless this.isCurrent}}
             {{#if (can "run job" namespace=this.version.job.namespace)}}
+              {{#if (eq this.cloneButtonStatus 'idle')}}
+                <Hds::Button
+                  data-test-clone-and-edit
+                  @text="Clone and Edit"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{!-- @disabled={{this.revertTo.isRunning}} --}}
+                  {{on "click" (action (mut this.cloneButtonStatus) "confirming")}}
+                />
+
               <TwoStepButton
                 data-test-revert-to
                 @classes={{hash
@@ -95,6 +106,37 @@
                 @size="small"
                 @awaitingConfirmation={{this.revertTo.isRunning}}
                 @onConfirm={{perform this.revertTo}} />
+
+
+              {{else if (eq this.cloneButtonStatus 'confirming')}}
+                {{!-- <span data-test-confirmation-message class="confirmation-text is-right-aligned has-text-inline">
+                  Are you sure you want to revert to this version?
+                </span> --}}
+                <Hds::Button
+                  data-test-cancel-clone
+                  @text="Cancel"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action (mut this.cloneButtonStatus) "idle")}}
+                />
+                <Hds::Button
+                  data-test-clone-as-new-version
+                  @text="Clone as New Version of {{this.version.job.name}}"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action this.cloneAsNewVersion)}}
+                />
+                <Hds::Button
+                  data-test-clone-as-new-job
+                  @text="Clone as New Job"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action this.cloneAsNewJob)}}
+                />
+              {{/if}}
             {{else}}
               <Hds::Button
                 data-test-revert-to
