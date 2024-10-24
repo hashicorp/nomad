@@ -1389,12 +1389,6 @@ func (s *Server) setupRaft() error {
 		JobTrackedVersions: s.config.JobTrackedVersions,
 	}
 
-	// Check for any GC thresholds that have been set
-	longestThreshold := s.findLongestThreshold()
-	if longestThreshold != 0 {
-		fsmConfig.LongestThreshold = longestThreshold
-	}
-
 	var err error
 	s.fsm, err = NewFSM(fsmConfig)
 	if err != nil {
@@ -1663,20 +1657,6 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 	// node which is rather unexpected.
 	conf.EnableNameConflictResolution = false
 	return serf.Create(conf)
-}
-
-func (s *Server) findLongestThreshold() time.Duration {
-	return max(
-		s.config.ACLTokenExpirationGCThreshold,
-		s.config.BatchEvalGCThreshold,
-		s.config.CSIPluginGCThreshold,
-		s.config.CSIVolumeClaimGCThreshold,
-		s.config.DeploymentGCThreshold,
-		s.config.EvalGCThreshold,
-		s.config.JobGCThreshold,
-		s.config.NodeGCThreshold,
-		s.config.RootKeyGCThreshold,
-	)
 }
 
 // shouldReloadSchedulers checks the new config to determine if the scheduler worker pool

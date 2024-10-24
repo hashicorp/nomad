@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
@@ -116,8 +115,7 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	oldThreshold := c.getThreshold(eval, "job",
-		"job_gc_threshold", c.srv.config.JobGCThreshold)
+	cutoffTime := c.getCutoffTime(c.srv.config.JobGCThreshold)
 
 	// Collect the allocations, evaluations and jobs to GC
 	var gcAlloc, gcEval []string
@@ -128,7 +126,8 @@ OUTER:
 		job := i.(*structs.Job)
 
 		// Ignore new jobs.
-		if job.CreateIndex > oldThreshold {
+		st := time.Unix(job.SubmitTime, 0)
+		if st.After(cutoffTime) {
 			continue
 		}
 
@@ -252,22 +251,20 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	oldThreshold := c.getThreshold(eval, "eval",
-		"eval_gc_threshold", c.srv.config.EvalGCThreshold)
-	batchOldThreshold := c.getThreshold(eval, "eval",
-		"batch_eval_gc_threshold", c.srv.config.BatchEvalGCThreshold)
+	cutoffTime := c.getCutoffTime(c.srv.config.EvalGCThreshold)
+	batchCutoffTime := c.getCutoffTime(c.srv.config.BatchEvalGCThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		eval := raw.(*structs.Evaluation)
 
-		gcThreshold := oldThreshold
+		gcCutoffTime := cutoffTime
 		if eval.Type == structs.JobTypeBatch {
-			gcThreshold = batchOldThreshold
+			gcCutoffTime = batchCutoffTime
 		}
 
-		gc, allocs, err := c.gcEval(eval, gcThreshold, false)
+		gc, allocs, err := c.gcEval(eval, gcCutoffTime, false)
 		if err != nil {
 			return err
 		}
@@ -439,8 +436,7 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	oldThreshold := c.getThreshold(eval, "node",
-		"node_gc_threshold", c.srv.config.NodeGCThreshold)
+	cutoffTime := c.getCutoffTime(c.srv.config.NodeGCThreshold)
 
 	// Collect the nodes to GC
 	var gcNode []string
@@ -453,7 +449,8 @@ OUTER:
 		node := raw.(*structs.Node)
 
 		// Ignore non-terminal and new nodes
-		if !node.TerminalStatus() || node.ModifyIndex > oldThreshold {
+		st := time.Unix(node.StatusUpdatedAt, 0)
+		if !node.TerminalStatus() || st.After(cutoffTime) {
 			continue
 		}
 
@@ -536,8 +533,7 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	oldThreshold := c.getThreshold(eval, "deployment",
-		"deployment_gc_threshold", c.srv.config.DeploymentGCThreshold)
+	cutoffTime := c.getCutoffTime(c.srv.config.DeploymentGCThreshold)
 
 	// Collect the deployments to GC
 	var gcDeployment []string
@@ -551,7 +547,8 @@ OUTER:
 		deploy := raw.(*structs.Deployment)
 
 		// Ignore non-terminal and new deployments
-		if deploy.Active() || deploy.ModifyIndex > oldThreshold {
+		mt := time.Unix(deploy.ModifyTime, 0)
+		if deploy.Active() || mt.After(cutoffTime) {
 			continue
 		}
 
@@ -1289,26 +1286,7 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 	return nil
 }
 
-// getThreshold returns the index threshold for determining whether an
-// object is old enough to GC
-func (c *CoreScheduler) getThreshold(eval *structs.Evaluation, objectName, configName string, configThreshold time.Duration) uint64 {
-	var oldThreshold uint64
-	if eval.JobID == structs.CoreJobForceGC {
-		// The GC was forced, so set the threshold to its maximum so
-		// everything will GC.
-		oldThreshold = math.MaxUint64
-		c.logger.Debug(fmt.Sprintf("forced %s GC", objectName))
-	} else {
-		// Compute the old threshold limit for GC using the FSM
-		// time table. This is a rough mapping of a time to the
-		// Raft index it belongs to.
-		tt := c.srv.fsm.TimeTable()
-		cutoff := time.Now().UTC().Add(-1 * configThreshold)
-		oldThreshold = tt.NearestIndex(cutoff)
-		c.logger.Debug(
-			fmt.Sprintf("%s GC scanning before cutoff index", objectName),
-			"index", oldThreshold,
-			configName, configThreshold)
-	}
-	return oldThreshold
+// getCutoffTime returns a time.Time of the latest object that should be GCd
+func (c *CoreScheduler) getCutoffTime(configThreshold time.Duration) time.Time {
+	return time.Now().UTC().Add(-1 * configThreshold)
 }
