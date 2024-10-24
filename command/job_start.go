@@ -139,7 +139,7 @@ func (c *JobStartCommand) Run(args []string) int {
 				length = fullId
 			}
 
-			// Check if the job exists and has been stopped
+			// Check if the job exists and has been stopped (status is dead)
 			jobId, namespace, err := c.JobIDByPrefix(client, jobID, nil)
 			if err != nil {
 				c.Ui.Error(err.Error())
@@ -153,8 +153,8 @@ func (c *JobStartCommand) Run(args []string) int {
 				return
 			}
 			if *job.Status != "dead" {
-				c.Ui.Error(fmt.Sprintf("Job  %v has not been stopped and has following status: %v", *job.Name, *job.Status))
-				statusCh <- 1
+				c.Ui.Info(fmt.Sprintf("Job  %v has not been stopped and has the following status: %v", *job.Name, *job.Status))
+				statusCh <- 0
 				return
 
 			}
@@ -169,19 +169,18 @@ func (c *JobStartCommand) Run(args []string) int {
 			}
 
 			// Find the most recent running version for this job
-			var chosenVersion *api.Job
 			var chosenIndex uint64
 			versionAvailable := false
 			for i := len(versions) - 1; i >= 0; i-- {
-				if *versions[i].Status == "running" {
-					chosenVersion = versions[i]
+				if *versions[i].Status == "running" && *versions[i].Stop == true {
 					chosenIndex = uint64(i)
 					versionAvailable = true
+					break
 				}
 
 			}
 			if !versionAvailable {
-				c.Ui.Error(fmt.Sprintf("No previous running versions of job %v,  %s", chosenVersion, err))
+				c.Ui.Error(fmt.Sprintf("No previous running versions of job %v,  %s", *job.Name, err))
 				statusCh <- 1
 				return
 			}
@@ -200,9 +199,10 @@ func (c *JobStartCommand) Run(args []string) int {
 
 			// Revert to most recent running version!
 			m := &api.WriteOptions{Namespace: namespace}
+
 			resp, _, err := client.Jobs().Revert(jobID, chosenIndex, nil, m, consulToken, vaultToken)
 			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s, %v", err, chosenIndex))
+				c.Ui.Error(fmt.Sprintf("Error retrieving job version %v for job %s: %s,", chosenIndex, jobID, err))
 				statusCh <- 1
 				return
 			}
