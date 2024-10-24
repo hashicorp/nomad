@@ -40,6 +40,8 @@ Using transparent proxy has some important restrictions:
   [`no_dns`](#no_dns), see below).
 * The node where the allocation is placed must be configured as described in
   the Service Mesh integration documentation for [Transparent Proxy][].
+* The workload's task cannot use the same Unix user ID (UID) as the Envoy
+  sidecar proxy.
 
 ## `transparent_proxy` Parameters
 
@@ -78,7 +80,8 @@ Using transparent proxy has some important restrictions:
 * `uid` `(string "101")` - The Unix user ID (UID) used by the Envoy proxy. You
   should only set this value if you have a custom build of the Envoy container
   image which uses a different UID. You can change the default value for a given
-  node via [client metadata](#client-metadata) (see below).
+  node via [client metadata](#client-metadata) (see below). Note that your
+  workload's task cannot use the same UID as the Envoy sidecar proxy.
 
 ## Client Metadata
 
