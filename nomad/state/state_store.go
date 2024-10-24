@@ -591,13 +591,19 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		return fmt.Errorf("deployment lookup failed: %v", err)
 	}
 
-	// Setup the indexes correctly
+	now := time.Now().UnixNano()
+
+	// Setup the indexes and timestamps correctly
 	if existing != nil {
 		deployment.CreateIndex = existing.(*structs.Deployment).CreateIndex
 		deployment.ModifyIndex = index
+		deployment.CreateTime = existing.(*structs.Deployment).CreateTime
+		deployment.ModifyTime = now
 	} else {
 		deployment.CreateIndex = index
 		deployment.ModifyIndex = index
+		deployment.CreateTime = now
+		deployment.ModifyTime = now
 	}
 
 	// Insert the deployment
@@ -2583,8 +2589,10 @@ func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume)
 			}
 		} else {
 			v.CreateIndex = index
+			v.CreateTime = time.Now().UnixNano()
 		}
 		v.ModifyIndex = index
+		v.ModifyTime = time.Now().UnixNano()
 
 		// Allocations are copy on write, so we want to keep the Allocation ID
 		// but we need to clear the pointer so that we don't store it when we
@@ -2805,9 +2813,6 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 		}
 		if alloc == nil {
 			s.logger.Error("AllocByID failed to find alloc", "alloc_id", claim.AllocationID)
-			if err != nil {
-				return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
-			}
 		}
 	}
 
@@ -2831,6 +2836,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 	}
 
 	volume.ModifyIndex = index
+	volume.ModifyTime = time.Now().UnixNano()
 
 	// Allocations are copy on write, so we want to keep the Allocation ID
 	// but we need to clear the pointer so that we don't store it when we
@@ -3172,8 +3178,10 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 	}
 
 	plug.ModifyIndex = index
+	plug.ModifyTime = time.Now().UnixNano()
 	if existing != nil {
 		plug.CreateIndex = existing.(*structs.CSIPlugin).CreateIndex
+		plug.CreateTime = existing.(*structs.CSIPlugin).CreateTime
 	}
 
 	err = txn.Insert("csi_plugins", plug)
@@ -4866,6 +4874,7 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.Status = u.Status
 	copy.StatusDescription = u.StatusDescription
 	copy.ModifyIndex = index
+	copy.ModifyTime = time.Now().UnixNano()
 
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
@@ -5107,6 +5116,7 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 	// Update deployment
 	copy := deployment.Copy()
 	copy.ModifyIndex = index
+	copy.ModifyTime = time.Now().UnixNano()
 	for tg, status := range copy.TaskGroups {
 		_, ok := groupIndex[tg]
 		if !req.All && !ok {
@@ -5971,6 +5981,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	// Create a copy of the deployment object
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
+	deploymentCopy.ModifyTime = time.Now().UnixNano()
 
 	dstate := deploymentCopy.TaskGroups[alloc.TaskGroup]
 	dstate.PlacedAllocs += placed

@@ -313,6 +313,10 @@ type CSIVolume struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// Creation and modification times stored as UnixNano
+	CreateTime int64
+	ModifyTime int64
 }
 
 // GetID implements the IDGetter interface, required for pagination.
@@ -364,6 +368,8 @@ type CSIVolListStub struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+	CreateTime  int64
+	ModifyTime  int64
 }
 
 // NewCSIVolume creates the volume struct. No side-effects
@@ -372,6 +378,8 @@ func NewCSIVolume(volumeID string, index uint64) *CSIVolume {
 		ID:          volumeID,
 		CreateIndex: index,
 		ModifyIndex: index,
+		CreateTime:  time.Now().UnixNano(),
+		ModifyTime:  time.Now().UnixNano(),
 	}
 
 	out.newStructs()
@@ -421,6 +429,8 @@ func (v *CSIVolume) Stub() *CSIVolListStub {
 		ResourceExhausted:   v.ResourceExhausted,
 		CreateIndex:         v.CreateIndex,
 		ModifyIndex:         v.ModifyIndex,
+		CreateTime:          v.CreateTime,
+		ModifyTime:          v.ModifyTime,
 	}
 }
 
@@ -1097,6 +1107,9 @@ type CSIPlugin struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	CreateTime int64
+	ModifyTime int64
 }
 
 // NewCSIPlugin creates the plugin struct. No side-effects
@@ -1105,6 +1118,8 @@ func NewCSIPlugin(id string, index uint64) *CSIPlugin {
 		ID:          id,
 		CreateIndex: index,
 		ModifyIndex: index,
+		CreateTime:  time.Now().UnixNano(),
+		ModifyTime:  time.Now().UnixNano(),
 	}
 
 	out.newStructs()

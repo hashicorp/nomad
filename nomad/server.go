@@ -1388,6 +1388,7 @@ func (s *Server) setupRaft() error {
 		EventBufferSize:    s.config.EventBufferSize,
 		JobTrackedVersions: s.config.JobTrackedVersions,
 	}
+
 	var err error
 	s.fsm, err = NewFSM(fsmConfig)
 	if err != nil {
