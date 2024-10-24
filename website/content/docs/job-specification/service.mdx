@@ -32,6 +32,11 @@ job "docs" {
 
         provider = "consul"
 
+        weights {
+          passing = 5
+          warning = 1
+        }
+
         meta {
           meta = "for your service"
         }
@@ -92,6 +97,10 @@ Service Mesh][connect] integration.
   define multiple checks for the service. At this time, a check using the Nomad
   provider supports `tcp` and `http` checks. The Consul integration supports
   the `grpc`, `http`, `script`<sup><small>1</small></sup>, and `tcp` checks.
+
+- `weights` <code>([Weights][weights]: nil)</code> - Specifies how a service
+  instance is weighted in a DNS SRV request based on the service's health status.
+  Only available where `provider = "consul"`.
 
 - `connect` - Configures the [Consul Connect][connect] integration. Only
   available on group services and where `provider = "consul"`.
@@ -536,3 +545,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [`consul.name`]: /nomad/docs/configuration/consul#name
 [`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
 [identity_block]: /nomad/docs/job-specification/identity
+[weights]: /consul/docs/services/configuration/services-configuration-reference#weights

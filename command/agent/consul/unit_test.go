@@ -43,6 +43,10 @@ func testWorkload() *serviceregistration.WorkloadServices {
 				PortLabel: "x",
 				Tags:      []string{"tag1", "tag2"},
 				Meta:      map[string]string{"meta1": "foo"},
+				Weights: &structs.ConsulWeights{
+					Passing: 5,
+					Warning: 1,
+				},
 			},
 		},
 		Networks: []*structs.NetworkResource{
