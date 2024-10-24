@@ -3178,8 +3178,10 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 	}
 
 	plug.ModifyIndex = index
+	plug.ModifyTime = time.Now().UnixNano()
 	if existing != nil {
 		plug.CreateIndex = existing.(*structs.CSIPlugin).CreateIndex
+		plug.CreateTime = existing.(*structs.CSIPlugin).CreateTime
 	}
 
 	err = txn.Insert("csi_plugins", plug)
