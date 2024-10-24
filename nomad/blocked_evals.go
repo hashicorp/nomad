@@ -76,10 +76,6 @@ type BlockedEvals struct {
 	// duplicates.
 	duplicateCh chan struct{}
 
-	// timetable is used to correlate indexes with their insertion time. This
-	// allows us to prune based on time.
-	timetable *TimeTable
-
 	// stopCh is used to stop any created goroutines.
 	stopCh chan struct{}
 }
@@ -141,12 +137,6 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 	if !enabled {
 		b.Flush()
 	}
-}
-
-func (b *BlockedEvals) SetTimetable(timetable *TimeTable) {
-	b.l.Lock()
-	b.timetable = timetable
-	b.l.Unlock()
 }
 
 // Block tracks the passed evaluation and enqueues it into the eval broker when
@@ -700,7 +690,6 @@ func (b *BlockedEvals) Flush() {
 	b.escaped = make(map[string]wrappedEval)
 	b.jobs = make(map[structs.NamespacedID]string)
 	b.unblockIndexes = make(map[string]uint64)
-	b.timetable = nil
 	b.duplicates = nil
 	b.capacityChangeCh = make(chan *capacityUpdate, unblockBuffer)
 	b.stopCh = make(chan struct{})
@@ -774,7 +763,7 @@ func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
 			return
 		case t := <-ticker.C:
 			cutoff := t.UTC().Add(-1 * pruneThreshold)
-			b.pruneUnblockIndexes(cutoff)
+			// b.pruneUnblockIndexes(cutoff)
 			b.pruneStats(cutoff)
 		}
 	}
@@ -782,21 +771,17 @@ func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
 
 // pruneUnblockIndexes is used to prune any tracked entry that is excessively
 // old. This protects againsts unbounded growth of the map.
-func (b *BlockedEvals) pruneUnblockIndexes(cutoff time.Time) {
-	b.l.Lock()
-	defer b.l.Unlock()
+// func (b *BlockedEvals) pruneUnblockIndexes(cutoff time.Time) {
+// b.l.Lock()
+// defer b.l.Unlock()
 
-	if b.timetable == nil {
-		return
-	}
-
-	oldThreshold := b.timetable.NearestIndex(cutoff)
-	for key, index := range b.unblockIndexes {
-		if index < oldThreshold {
-			delete(b.unblockIndexes, key)
-		}
-	}
-}
+// oldThreshold := b.timetable.NearestIndex(cutoff)
+// for key, index := range b.unblockIndexes {
+// if index < oldThreshold {
+// delete(b.unblockIndexes, key)
+// }
+// }
+// }
 
 // pruneStats is used to prune any zero value stats that are excessively old.
 func (b *BlockedEvals) pruneStats(cutoff time.Time) {
