@@ -172,7 +172,7 @@ func (c *JobStartCommand) Run(args []string) int {
 			var chosenIndex uint64
 			versionAvailable := false
 			for i := len(versions) - 1; i >= 0; i-- {
-				if *versions[i].Status == "running" && *versions[i].Stop == true {
+				if *versions[i].Status == "running" && *versions[i].Stop {
 					chosenIndex = uint64(i)
 					versionAvailable = true
 					break
