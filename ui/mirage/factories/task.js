@@ -98,6 +98,7 @@ export default Factory.extend({
       services.forEach((fragment) => {
         server.createList('service', 5, {
           serviceName: fragment.name,
+          tags: fragment.tags || [],
         });
       });
       task.update({ services });

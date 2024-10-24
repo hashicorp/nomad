@@ -9,7 +9,7 @@ import { inject as service } from '@ember/service';
 
 export default class JobsJobServicesServiceController extends Controller {
   @service router;
-  queryParams = ['level'];
+  queryParams = ['level', 'tags'];
 
   @action
   gotoAllocation(allocation) {

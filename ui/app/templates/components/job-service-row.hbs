@@ -20,7 +20,7 @@
   >
     {{#if (eq @service.provider "nomad")}}
       <FlightIcon @name="nomad-color" />
-      <LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}} @query={{hash level=@service.level}}>{{@service.name}}</LinkTo>
+      <LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}} @query={{hash level=@service.level tags=@service.tags canary_tags=@service.canary_tags}}>{{@service.name}}</LinkTo>
     {{else}}
       <FlightIcon @name="consul-color" />
       {{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
