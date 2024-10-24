@@ -2872,10 +2872,6 @@ func (s *Server) handleEvalBrokerStateChange(schedConfig *structs.SchedulerConfi
 		s.logger.Info("blocked evals status modified", "paused", !enableBrokers)
 		s.blockedEvals.SetEnabled(enableBrokers)
 		restoreEvals = enableBrokers
-
-		if enableBrokers {
-			s.blockedEvals.SetTimetable(s.fsm.TimeTable())
-		}
 	}
 
 	return restoreEvals

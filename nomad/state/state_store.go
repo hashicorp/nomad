@@ -591,13 +591,19 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		return fmt.Errorf("deployment lookup failed: %v", err)
 	}
 
-	// Setup the indexes correctly
+	now := time.Now().UnixNano()
+
+	// Setup the indexes and timestamps correctly
 	if existing != nil {
 		deployment.CreateIndex = existing.(*structs.Deployment).CreateIndex
 		deployment.ModifyIndex = index
+		deployment.CreateTime = existing.(*structs.Deployment).CreateTime
+		deployment.ModifyTime = now
 	} else {
 		deployment.CreateIndex = index
 		deployment.ModifyIndex = index
+		deployment.CreateTime = now
+		deployment.ModifyTime = now
 	}
 
 	// Insert the deployment
@@ -4866,6 +4872,7 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.Status = u.Status
 	copy.StatusDescription = u.StatusDescription
 	copy.ModifyIndex = index
+	copy.ModifyTime = time.Now().UnixNano()
 
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
@@ -5107,6 +5114,7 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 	// Update deployment
 	copy := deployment.Copy()
 	copy.ModifyIndex = index
+	copy.ModifyTime = time.Now().UnixNano()
 	for tg, status := range copy.TaskGroups {
 		_, ok := groupIndex[tg]
 		if !req.All && !ok {
@@ -5971,6 +5979,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	// Create a copy of the deployment object
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
+	deploymentCopy.ModifyTime = time.Now().UnixNano()
 
 	dstate := deploymentCopy.TaskGroups[alloc.TaskGroup]
 	dstate.PlacedAllocs += placed
