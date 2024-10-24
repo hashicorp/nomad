@@ -2583,8 +2583,10 @@ func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume)
 			}
 		} else {
 			v.CreateIndex = index
+			v.CreateTime = time.Now().UnixNano()
 		}
 		v.ModifyIndex = index
+		v.ModifyTime = time.Now().UnixNano()
 
 		// Allocations are copy on write, so we want to keep the Allocation ID
 		// but we need to clear the pointer so that we don't store it when we
@@ -2805,9 +2807,6 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 		}
 		if alloc == nil {
 			s.logger.Error("AllocByID failed to find alloc", "alloc_id", claim.AllocationID)
-			if err != nil {
-				return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
-			}
 		}
 	}
 
@@ -2831,6 +2830,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 	}
 
 	volume.ModifyIndex = index
+	volume.ModifyTime = time.Now().UnixNano()
 
 	// Allocations are copy on write, so we want to keep the Allocation ID
 	// but we need to clear the pointer so that we don't store it when we
