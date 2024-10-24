@@ -2169,7 +2169,7 @@ type Node struct {
 	StatusDescription string
 
 	// StatusUpdatedAt is the time stamp at which the state of the node was
-	// updated
+	// updated, stored as Unix (no nano seconds!)
 	StatusUpdatedAt int64
 
 	// Events is the most recent set of events generated for the node,
@@ -10639,6 +10639,7 @@ type Deployment struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 
+	// Creation and modification times, stored as UnixNano
 	CreateTime int64
 	ModifyTime int64
 }
@@ -11166,10 +11167,10 @@ type Allocation struct {
 	AllocModifyIndex uint64
 
 	// CreateTime is the time the allocation has finished scheduling and been
-	// verified by the plan applier.
+	// verified by the plan applier, stored as UnixNano.
 	CreateTime int64
 
-	// ModifyTime is the time the allocation was last updated.
+	// ModifyTime is the time the allocation was last updated stored as UnixNano.
 	ModifyTime int64
 }
 
@@ -12555,6 +12556,7 @@ type Evaluation struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 
+	// Creation and modification times stored as UnixNano
 	CreateTime int64
 	ModifyTime int64
 }

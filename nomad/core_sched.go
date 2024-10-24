@@ -126,7 +126,7 @@ OUTER:
 		job := i.(*structs.Job)
 
 		// Ignore new jobs.
-		st := time.Unix(job.SubmitTime, 0)
+		st := time.Unix(0, job.SubmitTime)
 		if st.After(cutoffTime) {
 			continue
 		}
@@ -294,7 +294,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, a
 	bool, []string, error) {
 
 	// Ignore non-terminal and new evaluations
-	mt := time.Unix(eval.ModifyTime, 0)
+	mt := time.Unix(0, eval.ModifyTime)
 	if !eval.TerminalStatus() || mt.After(cutoffTime) {
 		return false, nil, nil
 	}
@@ -362,7 +362,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, a
 func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, cutoffTime time.Time) []string {
 	var ret []string
 	for _, alloc := range allocs {
-		mi := time.Unix(alloc.ModifyTime, 0)
+		mi := time.Unix(0, alloc.ModifyTime)
 		if alloc.CreateIndex < job.JobModifyIndex && mi.Before(cutoffTime) && alloc.TerminalStatus() {
 			ret = append(ret, alloc.ID)
 		}
@@ -550,7 +550,7 @@ OUTER:
 		deploy := raw.(*structs.Deployment)
 
 		// Ignore non-terminal and new deployments
-		mt := time.Unix(deploy.ModifyTime, 0)
+		mt := time.Unix(0, deploy.ModifyTime)
 		if deploy.Active() || mt.After(cutoffTime) {
 			continue
 		}
@@ -630,7 +630,7 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string, batchSize 
 // according to its terminal status and its reschedule trackers
 func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime, cutoffTime time.Time) bool {
 	// Not in a terminal status and old enough
-	mt := time.Unix(a.ModifyTime, 0)
+	mt := time.Unix(0, a.ModifyTime)
 	if !a.TerminalStatus() || mt.After(cutoffTime) {
 		return false
 	}
@@ -735,7 +735,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		vol := i.(*structs.CSIVolume)
 
 		// Ignore new volumes
-		mt := time.Unix(vol.ModifyTime, 0)
+		mt := time.Unix(0, vol.ModifyTime)
 		if mt.After(cutoffTime) {
 			continue
 		}
@@ -775,7 +775,7 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		plugin := i.(*structs.CSIPlugin)
 
 		// Ignore new plugins
-		mt := time.Unix(plugin.ModifyTime, 0)
+		mt := time.Unix(0, plugin.ModifyTime)
 		if mt.After(cutoffTime) {
 			continue
 		}
