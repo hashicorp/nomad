@@ -31,9 +31,6 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
@@ -81,10 +78,6 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	must.NoError(t, store.UpsertServiceRegistrations(
 		structs.MsgTypeTestSetup, 1002, []*structs.ServiceRegistration{service}))
 
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
-
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
@@ -120,9 +113,6 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert "dead" eval
 	store := s1.fsm.State()
@@ -184,10 +174,6 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2})
 	require.Nil(t, err)
 
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
-
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	if err != nil {
@@ -225,9 +211,6 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
@@ -262,10 +245,6 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	}
 	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
 	require.Nil(t, err)
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -304,9 +283,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 2, 10)
 
 	var jobModifyIdx uint64 = 1000
 
@@ -549,11 +525,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		[]*structs.Allocation{},
 	)
 
-	// Update the time tables by half of the BatchEvalGCThreshold which is too
-	// small to GC anything.
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add((-1)*s1.config.BatchEvalGCThreshold/2))
-
 	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
 	err = core.Process(gc)
 	must.NoError(t, err)
@@ -577,11 +548,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		},
 		[]*structs.Allocation{},
 	)
-
-	// Update the time tables so that BatchEvalGCThreshold has elapsed.
-	s1.fsm.timetable.table = make([]TimeTableEntry, 2, 10)
-	tt = s1.fsm.TimeTable()
-	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
 
 	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
 	err = core.Process(gc)
@@ -705,9 +671,6 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
@@ -760,10 +723,6 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	}
 	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
 	require.Nil(t, err)
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -828,9 +787,6 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 			}
 			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
-
-			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-			server.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 			// Insert "dead" eval
 			store := server.fsm.State()
@@ -912,9 +868,6 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 
-			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-			server.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 			// Insert "dead" node
 			store := server.fsm.State()
 			node := mock.Node()
@@ -923,10 +876,6 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
-
-			// Update the time tables to make this work
-			tt := server.fsm.TimeTable()
-			tt.Witness(2000, time.Now().UTC().Add(-1*server.config.NodeGCThreshold))
 
 			// Create a core scheduler
 			snap, err := store.Snapshot()
@@ -962,9 +911,6 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" node
 	store := s1.fsm.State()
 	node := mock.Node()
@@ -981,10 +927,6 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	if err := store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.NodeGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1018,9 +960,6 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" node
 	store := s1.fsm.State()
 	node := mock.Node()
@@ -1039,10 +978,6 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	if err := store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.NodeGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1075,9 +1010,6 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert "dead" node
 	store := s1.fsm.State()
@@ -1120,9 +1052,6 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert job.
 	store := s1.fsm.State()
 	job := mock.Job()
@@ -1145,10 +1074,6 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1244,9 +1169,6 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert job.
 	store := s1.fsm.State()
 	job := mock.Job()
@@ -1289,10 +1211,6 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1390,9 +1308,6 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert job.
 	store := s1.fsm.State()
 	job := mock.Job()
@@ -1434,10 +1349,6 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 
 	// Force the jobs state to dead
 	job.Status = structs.JobStatusDead
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1503,9 +1414,6 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert job.
 	store := s1.fsm.State()
 	job := mock.Job()
@@ -1543,10 +1451,6 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1611,9 +1515,6 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 
-			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-			server.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 			// Insert job.
 			store := server.fsm.State()
 			job := mock.Job()
@@ -1675,9 +1576,6 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert a parameterized job.
 	store := s1.fsm.State()
@@ -1755,9 +1653,6 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert a parameterized job.
 	store := s1.fsm.State()
@@ -1957,9 +1852,6 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	testutil.WaitForLeader(t, s1.RPC)
 	assert := assert.New(t)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert an active, terminal, and terminal with allocations deployment
 	store := s1.fsm.State()
 	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
@@ -1973,10 +1865,6 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	a.JobID = d3.JobID
 	a.DeploymentID = d3.ID
 	assert.Nil(store.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}), "UpsertAllocs")
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.DeploymentGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -2015,9 +1903,6 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 			testutil.WaitForLeader(t, server.RPC)
 			assert := assert.New(t)
 
-			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-			server.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 			// Insert terminal and active deployment
 			store := server.fsm.State()
 			d1, d2 := mock.Deployment(), mock.Deployment()
@@ -2052,9 +1937,6 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Create a core scheduler
 	snap, err := s1.fsm.State().Snapshot()
@@ -2094,9 +1976,6 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Create a core scheduler
 	snap, err := s1.fsm.State().Snapshot()
@@ -2424,16 +2303,12 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	defer cleanupSRV()
 	testutil.WaitForLeader(t, srv.RPC)
 
-	srv.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
 	defer deleteNodes()
 	store := srv.fsm.State()
 
 	// Update the time tables to make this work
-	tt := srv.fsm.TimeTable()
 	index := uint64(2000)
-	tt.Witness(index, time.Now().UTC().Add(-1*srv.config.CSIPluginGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -3069,13 +2944,6 @@ func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
 		expiredGlobal, unexpiredGlobal, expiredLocal, unexpiredLocal,
 	})
 	require.NoError(t, err)
-
-	// Overwrite the timetable. The existing timetable has an entry due to the
-	// ACL bootstrapping which makes witnessing a new index at a timestamp in
-	// the past impossible.
-	tt := NewTimeTable(timeTableGranularity, timeTableDefaultLimit)
-	tt.Witness(20, time.Now().UTC().Add(-1*testServer.config.ACLTokenExpirationGCThreshold))
-	testServer.fsm.timetable = tt
 
 	// Generate the core scheduler.
 	snap, err := testServer.State().Snapshot()

@@ -169,12 +169,6 @@ func TestFSM_UpsertNode(t *testing.T) {
 		t.Fatalf("bad index: %d", node.CreateIndex)
 	}
 
-	tt := fsm.TimeTable()
-	index := tt.NearestIndex(time.Now().UTC())
-	if index != 1 {
-		t.Fatalf("bad: %d", index)
-	}
-
 	// Verify the eval was unblocked.
 	testutil.WaitForResult(func() (bool, error) {
 		bStats := fsm.blockedEvals.Stats()
@@ -1600,12 +1594,6 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 	if out1.CreateIndex != 1 {
 		t.Fatalf("bad index: %d", out2.CreateIndex)
 	}
-
-	tt := fsm.TimeTable()
-	index := tt.NearestIndex(time.Now().UTC())
-	if index != 1 {
-		t.Fatalf("bad: %d", index)
-	}
 }
 
 func TestFSM_DeregisterVaultAccessor(t *testing.T) {
@@ -1643,12 +1631,6 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 	if out1 != nil {
 		t.Fatalf("not deleted!")
 	}
-
-	tt := fsm.TimeTable()
-	index := tt.NearestIndex(time.Now().UTC())
-	if index != 1 {
-		t.Fatalf("bad: %d", index)
-	}
 }
 
 func TestFSM_UpsertSITokenAccessor(t *testing.T) {
@@ -1680,10 +1662,6 @@ func TestFSM_UpsertSITokenAccessor(t *testing.T) {
 	r.NoError(err)
 	r.NotNil(result2)
 	r.Equal(uint64(1), result2.CreateIndex)
-
-	tt := fsm.TimeTable()
-	latestIndex := tt.NearestIndex(time.Now())
-	r.Equal(uint64(1), latestIndex)
 }
 
 func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
@@ -1718,10 +1696,6 @@ func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
 	result2, err := fsm.State().SITokenAccessor(ws, a2.AccessorID)
 	r.NoError(err)
 	r.Nil(result2) // should have been deleted
-
-	tt := fsm.TimeTable()
-	latestIndex := tt.NearestIndex(time.Now())
-	r.Equal(uint64(1), latestIndex)
 }
 
 func TestFSM_ApplyPlanResults(t *testing.T) {
@@ -2564,28 +2538,6 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	}
 	if index != 1000 {
 		t.Fatalf("bad: %d", index)
-	}
-}
-
-func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
-	ci.Parallel(t)
-	// Add some state
-	fsm := testFSM(t)
-
-	tt := fsm.TimeTable()
-	start := time.Now().UTC()
-	tt.Witness(1000, start)
-	tt.Witness(2000, start.Add(10*time.Minute))
-
-	// Verify the contents
-	fsm2 := testSnapshotRestore(t, fsm)
-
-	tt2 := fsm2.TimeTable()
-	if tt2.NearestTime(1500) != start {
-		t.Fatalf("bad")
-	}
-	if tt2.NearestIndex(start.Add(15*time.Minute)) != 2000 {
-		t.Fatalf("bad")
 	}
 }
 

@@ -233,17 +233,9 @@ func (n *nomadFSM) State() *state.StateStore {
 	return n.state
 }
 
-// TimeTable returns the time table of transactions
-func (n *nomadFSM) TimeTable() *TimeTable {
-	return n.timetable
-}
-
 func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	buf := log.Data
 	msgType := structs.MessageType(buf[0])
-
-	// Witness this write
-	n.timetable.Witness(log.Index, time.Now().UTC())
 
 	// Check if this message type should be ignored when unknown. This is
 	// used so that new commands can be added with developer control if older
@@ -1507,8 +1499,7 @@ func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	}
 
 	ns := &nomadSnapshot{
-		snap:      snap,
-		timetable: n.timetable,
+		snap: snap,
 	}
 	return ns, nil
 }
@@ -1572,11 +1563,6 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 		// Decode
 		snapType := SnapshotType(msgType[0])
 		switch snapType {
-		case TimeTableSnapshot:
-			if err := n.timetable.Deserialize(dec); err != nil {
-				return fmt.Errorf("time table deserialize failed: %v", err)
-			}
-
 		case NodeSnapshot:
 			node := new(structs.Node)
 			if err := dec.Decode(node); err != nil {
@@ -2411,13 +2397,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	// Write the header
 	header := SnapshotHeader{}
 	if err := encoder.Encode(&header); err != nil {
-		sink.Cancel()
-		return err
-	}
-
-	// Write the time table
-	sink.Write([]byte{byte(TimeTableSnapshot)})
-	if err := s.timetable.Serialize(encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
