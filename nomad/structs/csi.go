@@ -313,6 +313,9 @@ type CSIVolume struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	CreateTime int64
+	ModifyTime int64
 }
 
 // GetID implements the IDGetter interface, required for pagination.
@@ -1097,6 +1100,9 @@ type CSIPlugin struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	CreateTime int64
+	ModifyTime int64
 }
 
 // NewCSIPlugin creates the plugin struct. No side-effects

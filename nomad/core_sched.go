@@ -141,7 +141,7 @@ OUTER:
 		allEvalsGC := true
 		var jobAlloc, jobEval []string
 		for _, eval := range evals {
-			gc, allocs, err := c.gcEval(eval, oldThreshold, true)
+			gc, allocs, err := c.gcEval(eval, cutoffTime, true)
 			if err != nil {
 				continue OUTER
 			} else if gc {
@@ -290,10 +290,12 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 // allocs are not older than the threshold. If the eval should be garbage
 // collected, the associated alloc ids that should also be removed are also
 // returned
-func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, allowBatch bool) (
+func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, allowBatch bool) (
 	bool, []string, error) {
+
 	// Ignore non-terminal and new evaluations
-	if !eval.TerminalStatus() || eval.ModifyIndex > thresholdIndex {
+	mt := time.Unix(eval.ModifyTime, 0)
+	if !eval.TerminalStatus() || mt.After(cutoffTime) {
 		return false, nil, nil
 	}
 
@@ -332,7 +334,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 		// If we cannot collect outright, check if a partial GC may occur
 		collect := job == nil || job.Status == structs.JobStatusDead && (job.Stop || allowBatch)
 		if !collect {
-			oldAllocs := olderVersionTerminalAllocs(allocs, job, thresholdIndex)
+			oldAllocs := olderVersionTerminalAllocs(allocs, job, cutoffTime)
 			gcEval := (len(oldAllocs) == len(allocs))
 			return gcEval, oldAllocs, nil
 		}
@@ -342,7 +344,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if !allocGCEligible(alloc, job, time.Now(), thresholdIndex) {
+		if !allocGCEligible(alloc, job, time.Now(), cutoffTime) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
@@ -357,10 +359,11 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, thresholdIndex uint64, 
 
 // olderVersionTerminalAllocs returns a list of terminal allocations that belong to the evaluation and may be
 // GCed.
-func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, thresholdIndex uint64) []string {
+func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, cutoffTime time.Time) []string {
 	var ret []string
 	for _, alloc := range allocs {
-		if alloc.CreateIndex < job.JobModifyIndex && alloc.ModifyIndex < thresholdIndex && alloc.TerminalStatus() {
+		mi := time.Unix(alloc.ModifyTime, 0)
+		if alloc.CreateIndex < job.JobModifyIndex && mi.Before(cutoffTime) && alloc.TerminalStatus() {
 			ret = append(ret, alloc.ID)
 		}
 	}
@@ -625,9 +628,10 @@ func (c *CoreScheduler) partitionDeploymentReap(deployments []string, batchSize 
 
 // allocGCEligible returns if the allocation is eligible to be garbage collected
 // according to its terminal status and its reschedule trackers
-func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime time.Time, thresholdIndex uint64) bool {
+func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime, cutoffTime time.Time) bool {
 	// Not in a terminal status and old enough
-	if !a.TerminalStatus() || a.ModifyIndex > thresholdIndex {
+	mt := time.Unix(a.ModifyTime, 0)
+	if !a.TerminalStatus() || mt.After(cutoffTime) {
 		return false
 	}
 
@@ -725,14 +729,14 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	oldThreshold := c.getThreshold(eval, "CSI volume claim",
-		"csi_volume_claim_gc_threshold", c.srv.config.CSIVolumeClaimGCThreshold)
+	cutoffTime := c.getCutoffTime(c.srv.config.CSIVolumeClaimGCThreshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		vol := i.(*structs.CSIVolume)
 
 		// Ignore new volumes
-		if vol.CreateIndex > oldThreshold {
+		mt := time.Unix(vol.ModifyTime, 0)
+		if mt.After(cutoffTime) {
 			continue
 		}
 
@@ -765,14 +769,14 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	oldThreshold := c.getThreshold(eval, "CSI plugin",
-		"csi_plugin_gc_threshold", c.srv.config.CSIPluginGCThreshold)
+	cutoffTime := c.getCutoffTime(c.srv.config.CSIPluginGCThreshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		plugin := i.(*structs.CSIPlugin)
 
 		// Ignore new plugins
-		if plugin.CreateIndex > oldThreshold {
+		mt := time.Unix(plugin.ModifyTime, 0)
+		if mt.After(cutoffTime) {
 			continue
 		}
 
@@ -826,15 +830,7 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 		return nil
 	}
 
-	// The object name is logged within the getThreshold function, therefore we
-	// want to be clear what token type this trigger is for.
-	tokenScope := "local"
-	if global {
-		tokenScope = "global"
-	}
-
-	expiryThresholdIdx := c.getThreshold(eval, tokenScope+" expired ACL tokens",
-		"acl_token_expiration_gc_threshold", c.srv.config.ACLTokenExpirationGCThreshold)
+	cutoffTime := c.getCutoffTime(c.srv.config.ACLTokenExpirationGCThreshold)
 
 	expiredIter, err := c.snap.ACLTokensByExpired(global)
 	if err != nil {
@@ -865,7 +861,7 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 
 		// Check if the token is recent enough to skip, otherwise we'll delete
 		// it.
-		if token.CreateIndex > expiryThresholdIdx {
+		if token.CreateTime.After(cutoffTime) {
 			continue
 		}
 
