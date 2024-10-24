@@ -2,19 +2,18 @@ package command
 
 import (
 	"encoding/json"
-	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/posener/complete"
-	"os"
-	"path/filepath"
-	"testing"
-
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
+	"os"
+	"path/filepath"
+	"testing"
 )
 
 var _ cli.Command = (*JobStartCommand)(nil)
@@ -55,7 +54,7 @@ func TestJobStartCommand_Fails(t *testing.T) {
 	out = ui.ErrorWriter.String()
 	must.StrContains(t, out, "Error querying job prefix")
 
-	// Fails on attempting to start a job that's not been stopped
+	// Info on attempting to start a job that's not been stopped
 	jobID := uuid.Generate()
 	jobFilePath := filepath.Join(os.TempDir(), jobID+".nomad")
 
@@ -85,8 +84,8 @@ func TestJobStartCommand_Fails(t *testing.T) {
 	)
 
 	code = cmd.Run([]string{"-address=" + addr, jobID})
-	must.One(t, code)
-	out = ui.ErrorWriter.String()
+	must.Zero(t, code)
+	out = ui.OutputWriter.String()
 	must.StrContains(t, out, "has not been stopped and has following status:")
 
 }
@@ -98,7 +97,6 @@ func TestStartCommand_ManyJobs(t *testing.T) {
 		c.DevMode = true
 	})
 	defer srv.Shutdown()
-
 	// the number of jobs we want to run
 	numJobs := 10
 
@@ -140,11 +138,13 @@ func TestStartCommand_ManyJobs(t *testing.T) {
 		must.NoError(t, err)
 
 		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
+
 		code := cmd.Run([]string{"-address", addr, "-json", jobFile})
 		must.Zero(t, code,
 			must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
 			must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
 		)
+
 	}
 
 	// helper for stopping a list of jobs
@@ -175,7 +175,9 @@ func TestStartCommand_ManyJobs(t *testing.T) {
 		must.Sprintf("job start stdout: %s", stdout),
 		must.Sprintf("job start stderr: %s", stderr),
 	)
+
 }
+
 func TestStartCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
 
