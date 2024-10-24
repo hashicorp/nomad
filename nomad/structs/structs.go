@@ -10638,6 +10638,9 @@ type Deployment struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	CreateTime int64
+	ModifyTime int64
 }
 
 // NewDeployment creates a new deployment given the job.
