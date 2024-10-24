@@ -38,6 +38,15 @@ ssh into clients with:
     ssh -i keys/${local.random_name}.pem Administrator@${ip}
 %{endfor~}
 
+or, with aws ssm:
+
+    export AWS_REGION=${var.region}
+%{for i in aws_instance.server.*~}
+    aws ssm start-session --target ${i.id}  # server ${i.public_ip} ${replace(i.private_dns, ".ec2.internal", "")}
+%{endfor~}
+%{for i in aws_instance.client_ubuntu_jammy_amd64.*~}
+    aws ssm start-session --target ${i.id}  # linux client ${i.public_ip} ${replace(i.private_dns, ".ec2.internal", "")}
+%{endfor~}
 EOM
 }
 
