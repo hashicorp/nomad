@@ -1750,6 +1750,8 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			out[i].Identity = apiWorkloadIdentityToStructs(s.Identity)
 		}
 
+		out[i].Weights = apiWorkloadWeightsToStructs(s.Weights)
+
 	}
 
 	return out
@@ -1769,6 +1771,16 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 		Filepath:     in.Filepath,
 		ServiceName:  in.ServiceName,
 		TTL:          in.TTL,
+	}
+}
+
+func apiWorkloadWeightsToStructs(in *api.ServiceWeights) *structs.ServiceWeights {
+	if in == nil {
+		return nil
+	}
+	return &structs.ServiceWeights{
+		Passing: in.Passing,
+		Warning: in.Warning,
 	}
 }
 
