@@ -9911,6 +9911,10 @@ func TestServicesDiff(t *testing.T) {
 					EnableTagOverride: true,
 					Tags:              []string{"prod"},
 					CanaryTags:        []string{"canary"},
+					Weights: &ServiceWeights{
+						Passing: 1,
+						Warning: 1,
+					},
 				},
 			},
 			New: []*Service{
@@ -9922,6 +9926,10 @@ func TestServicesDiff(t *testing.T) {
 					EnableTagOverride: false,
 					Tags:              []string{"prod", "dev"},
 					CanaryTags:        []string{"qa"},
+					Weights: &ServiceWeights{
+						Passing: 5,
+						Warning: 1,
+					},
 				},
 			},
 			Expected: []*ObjectDiff{
@@ -10013,6 +10021,24 @@ func TestServicesDiff(t *testing.T) {
 									Name: "Tags",
 									Old:  "prod",
 									New:  "prod",
+								},
+							},
+						},
+						{
+							Type: DiffTypeEdited,
+							Name: "Weights",
+							Fields: []*FieldDiff{
+								{
+									Type: DiffTypeEdited,
+									Name: "Passing",
+									Old:  "1",
+									New:  "5",
+								},
+								{
+									Type: DiffTypeNone,
+									Name: "Warning",
+									Old:  "1",
+									New:  "1",
 								},
 							},
 						},
