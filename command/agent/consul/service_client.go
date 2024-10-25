@@ -283,6 +283,9 @@ func (s *ServiceClient) different(wanted *api.AgentServiceRegistration, existing
 	case connectSidecarDifferent(wanted, sidecar):
 		trace("connect_sidecar", wanted.Name, existing.Service)
 		return true
+	case weightsDifferent(wanted.Weights, existing.Weights):
+		trace("weights", wanted.Weights, existing.Weights)
+		return true
 	}
 	return false
 }
@@ -400,6 +403,21 @@ func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.
 	return false
 }
 
+func weightsDifferent(wanted *api.AgentWeights, existing api.AgentWeights) bool {
+	if wanted == nil {
+		// When we are either missing or unsetting the weights on Nomad side, check
+		// whether the existing values differ from the Consul defaults.
+		return existing.Passing != 1 || existing.Warning != 1
+	}
+	if wanted.Passing != existing.Passing {
+		return true
+	}
+	if wanted.Warning != existing.Warning {
+		return true
+	}
+	return false
+}
+
 // operations are submitted to the main loop via commit() for synchronizing
 // with Consul.
 type operations struct {
@@ -428,6 +446,18 @@ func (o *operations) empty() bool {
 
 func (o *operations) String() string {
 	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
+}
+
+// newWeights creates a new Consul AgentWeights struct based on a Nomad ServiceWeights struct.
+func newWeights(weights *structs.ServiceWeights) *api.AgentWeights {
+	if weights == nil {
+		return nil
+	}
+
+	return &api.AgentWeights{
+		Passing: weights.Passing,
+		Warning: weights.Warning,
+	}
 }
 
 type ServiceClientWrapper struct {
@@ -1312,6 +1342,9 @@ func (c *ServiceClient) serviceRegs(
 	// newConnectGateway returns nil if there's no Connect gateway.
 	gateway := newConnectGateway(service.Connect)
 
+	// newWeights returns nil if there's no Weights.
+	weights := newWeights(service.Weights)
+
 	// Determine whether to use meta or canary_meta
 	var meta map[string]string
 	if workload.Canary && len(service.CanaryMeta) > 0 {
@@ -1383,6 +1416,7 @@ func (c *ServiceClient) serviceRegs(
 		Address:           ip,
 		Port:              port,
 		Meta:              meta,
+		Weights:           weights,
 		TaggedAddresses:   taggedAddresses,
 		Connect:           connect, // will be nil if no Connect block
 		Proxy:             gateway, // will be nil if no Connect Gateway block
