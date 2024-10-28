@@ -802,7 +802,6 @@ func TestExecutor_cmdMounts(t *testing.T) {
 func TestExecutor_WorkDir(t *testing.T) {
 	t.Parallel()
 	testutil.ExecCompatible(t)
-	require := require.New(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
@@ -817,20 +816,15 @@ func TestExecutor_WorkDir(t *testing.T) {
 	defer executor.Shutdown("SIGKILL", 0)
 
 	ps, err := executor.Launch(execCmd)
-	require.NoError(err)
-	require.NotZero(ps.Pid)
+	must.NoError(t, err)
+	must.NonZero(t, ps.Pid)
 
 	state, err := executor.Wait(context.Background())
-	require.NoError(err)
-	require.Zero(state.ExitCode)
+	must.NoError(t, err)
+	must.Zero(t, state.ExitCode)
 
-	tu.WaitForResult(func() (bool, error) {
-		output := strings.TrimSpace(testExecCmd.stdout.String())
-		if output != workDir {
-			return false, fmt.Errorf("working directory not set properly: expected %q but got %q", workDir, output)
-		}
-		return true, nil
-	}, func(err error) { t.Error(err) })
+	output := strings.TrimSpace(testExecCmd.stdout.String())
+	must.Eq(t, output, workDir)
 }
 
 func TestExecCommand_getCgroupOr_off(t *testing.T) {
