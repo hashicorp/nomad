@@ -7,85 +7,117 @@ description: |-
 
 # IPv6 support in Nomad
 
-Nomad supports IPv6 as long as the underlying host machines and networks support IPv6.
+Nomad supports IPv6 as long as the underlying networks, host machines,
+and operating systems running it support IPv6.
 
-- If you use AWS, you need to configure AWS VPC to support IPv6 on EC2. Refer to
-  these AWS docs for more information:
-  - [IPv6 support for your VPC][aws-vpc-ipv6]
-  - [Manage the IPv6 addresses for your EC2 instances][aws-ec2-ipv6]
-- The OS running on the host must support IPv6.
-- For on-prem installations, your network infrastructure must support IPv6.
+You'll need different configuration settings for different connection contexts,
+outlined below.
 
-## Nomad to Nomad
+## Advertise
 
-Connections between one Nomad agent and another (intra-cluster RPC calls).
+[Advertise][advertise] addresses for Nomad servers and clients specify what
+address other servers, clients, or external systems should use to make
+connections back to the agent.
 
-- Server to server
-  - Server agent config: `server{ server_join{ retry_join = [“ip:v6:add:rs”] }}`
-- Server to client
-  - Client agent config: `client{ servers = [“ip:v6:add:rs”] }`
+You can use [go-sockaddr][] templating to dynamically select a public IPv6
+address, for example:
 
-
-[Advertise][advertise-config] addresses determine how server and clients register with the cluster.
-
-```
+```hcl
 advertise {
-  # https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
   http = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" | limit 1 | attr \"address\" }}"
-  rpc  = ^ ditto
-  serf = ^ ditto
+  rpc  = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" | limit 1 | attr \"address\" }}"
+  serf = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" | limit 1 | attr \"address\" }}"
 }
 ```
 
+## Nomad to Nomad
 
-## Nomad to external system
+Nomad agent processes connect to one another to make RPC calls for cluster operations.
 
-The following HTTP connections between Nomad, Consul, and Vault support IPv6:
+The simplest way to use IPv6 on Nomad is with DNS that resolves to IPv6,
+or using cloud auto-join, but here are some examples that use IPv6 addresses
+explicitly.
 
-- Nomad CLI and web UI
-  - `NOMAD_ADDR=’http://[ip:v6:ad:dr]:4646’`
-- Service integration
-  - Nomad can reach Consul to register services.
-  - Nomad can reach Vault to fetch secrets.
-- Workload identity
-  - Consul can reach Nomad at `‘[ip:v6:ad:dr]:4646/.well-known/jwks.json’`.
-    Configure this using the [`nomad setup consul` command][setup-consul].
+### Server to server
 
-      `nomad setup consul -y -jwks-url="$NOMAD_ADDR/.well-known/jwks.json"`.
+Servers join together based on the [`server_join`][server_join] block.
 
-  -  Vault can reach Nomad at `‘[ip:v6:ad:dr]:4646/.well-known/jwks.json’`.
-     Configure this using the [`nomad setup vault` command][setup-vault].
+```hcl
+server {
+  enabled = true
+  server_join {
+    retry_join = ["[2001:db8::1]", "[2001:db8::2]"]
+  }
+}
+```
 
-      `nomad setup vault -y -jwks-url="$NOMAD_ADDR/.well-known/jwks.json"`.
+### Client to server
 
-Other third-party connections should work, as the listener on the Nomad side is identical.
+Clients can join a cluster with `server_join` like servers can, or with the
+[`servers`][client.servers] parameter.
+
+```hcl
+client {
+  enabled = true
+  servers = ["[2001:db8::1]", "[2001:db8::2]", "[2001:db8::3]"]
+}
+```
+
+## Nomad to external systems
+
+Most connections between Nomad and other external systems occurs via HTTP.
+
+Using this `NOMAD_ADDR` environment variable as an example:
+
+```
+export NOMAD_ADDR='http://[2001:db8::1]:4646'
+```
+
+- You can use the Nomad CLI, which makes Nomad API calls.
+- You can open the Nomad web UI in a browser with the command `nomad ui`.
+- You can use [Workload identity][workload-identity]
+  - Nomad can reach Consul and Vault at IPv6 addresses, if they are listening,
+    to register services or fetch secrets.
+  - You can configure Consul with the [`nomad setup consul` command][setup-consul]:
+    ```
+    nomad setup consul -y -jwks-url="$NOMAD_ADDR/.well-known/jwks.json"
+    ```
+  - You can configure Vault with the [`nomad setup vault` command][setup-vault]:
+    ```
+    nomad setup vault -y -jwks-url="$NOMAD_ADDR/.well-known/jwks.json"
+    ```
+  - Various other third-party services that support OIDC connections should
+    also be able to reach Nomad at an IPv6 address, so long as they support it.
 
 ## Workloads
 
-Nomad supports IPv6 in arbitrary network calls to and from tasks. Anything
-running on the host network can use the host network's IPv6 connectivity directly.
+Nomad supports arbitrary IPv6 network calls to and from tasks on client nodes.
 
-
-- Use one of the these options to register services with an IPv6 address:
-  - Nomad service discovery.
-  - Consul `service { provider = “nomad|consul” }`. This is Nomad's default behavior.
-  - The [`preferred_address_family`][preferred_address_family-config]
-    client config.
+- With host networking, tasks use the same network as the host machine.
+- Use these options to register services with an IPv6 address:
+  - Set the [`preferred_address_family`][preferred_address_family-config]
+    client config to `"ipv6"`
+  - Include a [`service`][service-block] block in your job specification with
+    either the "nomad" or "consul" provider as usual.
 - Use [`bridge_network_subnet_ipv6`][bridge-network-subnet-ipv6] to configure
-  Nomad’s [bridge network mode][bridge-network-mode] for IPv6.
-- If you have enabled IPv6 support in the [Docker driver][docker-driver], you
-  can configure IPv6 in your job spec. Refer to [IPv6 Docker
-  containers][ipv6-docker-containers] for details.
+  Nomad's [bridge network mode][bridge-network-mode] for IPv6.
+- [CNI][cni] plugins can work with IPv6 as well (Nomad's bridge network does this).
+- Some task drivers have their own IPv6 configuration options
+  - If you have enabled IPv6 support in the [Docker driver][docker-driver],
+    you can configure IPv6 in your job specification. Refer to
+    [IPv6 Docker containers][ipv6-docker-containers] for details.
 
 
-[aws-vpc-ipv6]:
-    https://docs.aws.amazon.com/vpc/latest/userguide/vpc-migrate-ipv6.html
-[aws-ec2-ipv6]:
-    https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/working-with-ipv6-addresses.html
-[advertise-config]: /nomad/docs/configuration#advertise
+[server_join]: /nomad/docs/configuration/server_join
+[client.servers]: /nomad/docs/configuration/client#servers
+[go-sockaddr]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
+[advertise]: /nomad/docs/configuration#advertise
+[workload-identity]: /nomad/docs/concepts/workload-identity
+[service-block]: /nomad/docs/job-specification/service
 [preferred_address_family-config]: /nomad/docs/configuration/client#preferred_address_family
 [bridge-network-mode]: /nomad/docs/job-specification/network#network-modes
 [bridge-network-subnet-ipv6]: /nomad/docs/configuration/client#bridge_network_subnet_ipv6
+[cni]: /nomad/docs/networking/cni
 [docker-driver]: /nomad/docs/drivers/docker
 [ipv6-docker-containers]: /nomad/docs/job-specification/service#ipv6-docker-containers
 [setup-consul]: /nomad/docs/commands/setup/consul
