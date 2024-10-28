@@ -207,7 +207,7 @@ func TestHTTP_NodeForceEval(t *testing.T) {
 		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
 			t.Fatal(err)
 		}
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -267,7 +267,7 @@ func TestHTTP_NodeAllocations(t *testing.T) {
 		alloc1.TaskStates = make(map[string]*structs.TaskState)
 		alloc1.TaskStates["test"] = taskState
 
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -478,7 +478,7 @@ func TestHTTP_NodePurge(t *testing.T) {
 		if err := state.UpsertJobSummary(999, mock.JobSummary(alloc1.JobID)); err != nil {
 			t.Fatal(err)
 		}
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

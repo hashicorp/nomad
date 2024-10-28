@@ -11,8 +11,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // testDrainingNode creates a *drainingNode with a 1h deadline but no allocs
@@ -27,7 +26,7 @@ func testDrainingNode(t *testing.T) *drainingNode {
 		ForceDeadline: time.Now().Add(time.Hour),
 	}
 
-	require.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+	must.Nil(t, state.UpsertNode(structs.MsgTypeTestSetup, 100, node))
 	return NewDrainingNode(node, state)
 }
 
@@ -35,21 +34,22 @@ func assertDrainingNode(t *testing.T, dn *drainingNode, isDone bool, remaining, 
 	t.Helper()
 
 	done, err := dn.IsDone()
-	require.Nil(t, err)
-	assert.Equal(t, isDone, done, "IsDone mismatch")
+	must.Nil(t, err)
+	must.Eq(t, isDone, done, must.Sprint("IsDone mismatch"))
 
 	allocs, err := dn.RemainingAllocs()
-	require.Nil(t, err)
-	assert.Len(t, allocs, remaining, "RemainingAllocs mismatch")
+	must.Nil(t, err)
+	must.Len(t, remaining, allocs, must.Sprint("RemainingAllocs mismatch"))
 
 	jobs, err := dn.DrainingJobs()
-	require.Nil(t, err)
-	assert.Len(t, jobs, running, "DrainingJobs mismatch")
+	must.Nil(t, err)
+	must.Len(t, running, jobs, must.Sprint("DrainingJobs mismatch"))
 }
 
 func TestDrainingNode_Table(t *testing.T) {
 	ci.Parallel(t)
 
+	now := time.Now().UnixNano()
 	cases := []struct {
 		name      string
 		isDone    bool
@@ -72,8 +72,8 @@ func TestDrainingNode_Table(t *testing.T) {
 			setup: func(t *testing.T, dn *drainingNode) {
 				alloc := mock.BatchAlloc()
 				alloc.NodeID = dn.node.ID
-				require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+				must.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, now, []*structs.Allocation{alloc}))
 			},
 		},
 		{
@@ -84,8 +84,8 @@ func TestDrainingNode_Table(t *testing.T) {
 			setup: func(t *testing.T, dn *drainingNode) {
 				alloc := mock.Alloc()
 				alloc.NodeID = dn.node.ID
-				require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+				must.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, now, []*structs.Allocation{alloc}))
 			},
 		},
 		{
@@ -96,8 +96,8 @@ func TestDrainingNode_Table(t *testing.T) {
 			setup: func(t *testing.T, dn *drainingNode) {
 				alloc := mock.SystemAlloc()
 				alloc.NodeID = dn.node.ID
-				require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+				must.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, alloc.Job))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, now, []*structs.Allocation{alloc}))
 			},
 		},
 		{
@@ -109,9 +109,9 @@ func TestDrainingNode_Table(t *testing.T) {
 				allocs := []*structs.Allocation{mock.Alloc(), mock.BatchAlloc(), mock.SystemAlloc()}
 				for _, a := range allocs {
 					a.NodeID = dn.node.ID
-					require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
+					must.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, now, allocs))
 
 				// StateStore doesn't like inserting new allocs
 				// with a terminal status, so set the status in
@@ -119,7 +119,7 @@ func TestDrainingNode_Table(t *testing.T) {
 				for _, a := range allocs {
 					a.ClientStatus = structs.AllocClientStatusComplete
 				}
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, now, allocs))
 			},
 		},
 		{
@@ -131,13 +131,13 @@ func TestDrainingNode_Table(t *testing.T) {
 				allocs := []*structs.Allocation{mock.Alloc(), mock.BatchAlloc(), mock.SystemAlloc()}
 				for _, a := range allocs {
 					a.NodeID = dn.node.ID
-					require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
+					must.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, now, allocs))
 
 				// Set only the service job as terminal
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, now, allocs))
 			},
 		},
 		{
@@ -149,14 +149,14 @@ func TestDrainingNode_Table(t *testing.T) {
 				allocs := []*structs.Allocation{mock.Alloc(), mock.BatchAlloc(), mock.SystemAlloc()}
 				for _, a := range allocs {
 					a.NodeID = dn.node.ID
-					require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
+					must.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, now, allocs))
 
 				// Set only the service and batch jobs as terminal
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[2].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, now, allocs))
 			},
 		},
 		{
@@ -168,14 +168,14 @@ func TestDrainingNode_Table(t *testing.T) {
 				allocs := []*structs.Allocation{mock.Alloc(), mock.BatchAlloc(), mock.SystemAlloc()}
 				for _, a := range allocs {
 					a.NodeID = dn.node.ID
-					require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
+					must.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, now, allocs))
 
 				// Set only the service and batch jobs as terminal
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[1].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, now, allocs))
 			},
 		},
 		{
@@ -194,15 +194,15 @@ func TestDrainingNode_Table(t *testing.T) {
 				}
 				for _, a := range allocs {
 					a.NodeID = dn.node.ID
-					require.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
+					must.Nil(t, dn.state.UpsertJob(structs.MsgTypeTestSetup, 101, nil, a.Job))
 				}
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 102, now, allocs))
 
 				// Set only the service and batch jobs as terminal
 				allocs[0].ClientStatus = structs.AllocClientStatusComplete
 				allocs[1].ClientStatus = structs.AllocClientStatusComplete
 				allocs[2].ClientStatus = structs.AllocClientStatusComplete
-				require.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+				must.Nil(t, dn.state.UpsertAllocs(structs.MsgTypeTestSetup, 103, now, allocs))
 			},
 		},
 	}

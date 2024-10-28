@@ -6,6 +6,7 @@ package scheduler
 import (
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib"
@@ -786,7 +787,7 @@ func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 	}
 	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}))
 
 	taskGroup := &structs.TaskGroup{
 		EphemeralDisk: &structs.EphemeralDisk{},
@@ -1377,7 +1378,7 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 	}
 	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}))
 
 	taskGroup := &structs.TaskGroup{
 		EphemeralDisk: &structs.EphemeralDisk{},
@@ -1489,7 +1490,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 	}
 	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}))
 
 	taskGroup := &structs.TaskGroup{
 		EphemeralDisk: &structs.EphemeralDisk{},
@@ -1603,7 +1604,7 @@ func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
 	}
 	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}))
 
 	// Add a planned eviction to alloc1
 	plan := ctx.Plan()
@@ -1927,7 +1928,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				for _, alloc := range c.ExistingAllocs {
 					alloc.NodeID = c.Node.ID
 				}
-				must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, c.ExistingAllocs))
+				must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), c.ExistingAllocs))
 			}
 
 			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})

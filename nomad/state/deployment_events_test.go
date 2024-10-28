@@ -31,7 +31,7 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 	d.JobID = j.ID
 
 	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
+	require.NoError(t, s.upsertDeploymentImpl(10, time.Now().UnixNano(), d, setupTx))
 
 	setupTx.Txn.Commit()
 
@@ -47,7 +47,7 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 		// Exlude Job and assert its added
 	}
 
-	require.NoError(t, s.UpdateDeploymentStatus(msgType, 100, req))
+	require.NoError(t, s.UpdateDeploymentStatus(msgType, 100, time.Now().UnixNano(), req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 2)

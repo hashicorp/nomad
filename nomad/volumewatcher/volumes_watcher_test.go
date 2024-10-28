@@ -36,9 +36,10 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 	alloc.ClientStatus = structs.AllocClientStatusComplete
 
 	vol := testVolume(plugin, alloc, node.ID)
+	now := time.Now().UnixNano()
 
 	index++
-	err := srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
+	err := srv.State().UpsertCSIVolume(index, now, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
 
 	// need to have just enough of a volume and claim in place so that
@@ -48,7 +49,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 		State: structs.CSIVolumeClaimStateNodeDetached,
 	}
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, now, vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		watcher.wlock.RLock()
@@ -79,16 +80,17 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.ClientStatus = structs.AllocClientStatusRunning
 	vol := testVolume(plugin, alloc, node.ID)
+	now := time.Now().UnixNano()
 
 	index++
-	err := srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index,
+	err := srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, now,
 		[]*structs.Allocation{alloc})
 	require.NoError(t, err)
 
 	watcher.SetEnabled(true, srv.State(), "")
 
 	index++
-	err = srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
+	err = srv.State().UpsertCSIVolume(index, now, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
 
 	// we should get or start up a watcher when we get an update for
@@ -127,7 +129,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 		State:        structs.CSIVolumeClaimStateUnpublishing,
 	}
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, now, vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 
 	// create a new watcher and enable it to simulate the leadership
@@ -151,6 +153,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 // it receives notifcations and has completed its work
 func TestVolumeWatch_StartStop(t *testing.T) {
 	ci.Parallel(t)
+	now := time.Now().UnixNano()
 
 	srv := &MockStatefulRPCServer{}
 	srv.state = state.TestStateStore(t)
@@ -172,13 +175,13 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	err := srv.State().UpsertJob(structs.MsgTypeTestSetup, index, nil, alloc1.Job)
 	require.NoError(t, err)
 	index++
-	err = srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1, alloc2})
+	err = srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, now, []*structs.Allocation{alloc1, alloc2})
 	require.NoError(t, err)
 
 	// register a volume and an unused volume
 	vol := testVolume(plugin, alloc1, node.ID)
 	index++
-	err = srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
+	err = srv.State().UpsertCSIVolume(index, now, []*structs.CSIVolume{vol})
 	require.NoError(t, err)
 
 	// assert we get a watcher; there are no claims so it should immediately stop
@@ -197,11 +200,11 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	}
 
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, now, vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 	claim.AllocationID = alloc2.ID
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, now, vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 
 	// reap the volume and assert nothing has happened
@@ -210,7 +213,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 		NodeID:       node.ID,
 	}
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, now, vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
@@ -221,11 +224,11 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	alloc1 = alloc1.Copy()
 	alloc1.ClientStatus = structs.AllocClientStatusComplete
 	index++
-	err = srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1})
+	err = srv.State().UpsertAllocs(structs.MsgTypeTestSetup, index, now, []*structs.Allocation{alloc1})
 	require.NoError(t, err)
 	index++
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, now, vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 
 	// watcher stops and 1 claim has been released
@@ -244,6 +247,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 // notifications around a deleted volume
 func TestVolumeWatch_Delete(t *testing.T) {
 	ci.Parallel(t)
+	now := time.Now().UnixNano()
 
 	srv := &MockStatefulRPCServer{}
 	srv.state = state.TestStateStore(t)
@@ -258,7 +262,7 @@ func TestVolumeWatch_Delete(t *testing.T) {
 	plugin := mock.CSIPlugin()
 	vol := mock.CSIVolume(plugin)
 	index++
-	must.NoError(t, srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol}))
+	must.NoError(t, srv.State().UpsertCSIVolume(index, now, []*structs.CSIVolume{vol}))
 
 	// assert we get a watcher; there are no claims so it should immediately stop
 	require.Eventually(t, func() bool {
@@ -270,7 +274,7 @@ func TestVolumeWatch_Delete(t *testing.T) {
 	// write a GC claim to the volume and then immediately delete, to
 	// potentially hit the race condition between updates and deletes
 	index++
-	must.NoError(t, srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID,
+	must.NoError(t, srv.State().CSIVolumeClaim(index, now, vol.Namespace, vol.ID,
 		&structs.CSIVolumeClaim{
 			Mode:  structs.CSIVolumeClaimGC,
 			State: structs.CSIVolumeClaimStateReadyToFree,
@@ -312,7 +316,7 @@ func TestVolumeWatch_RegisterDeregister(t *testing.T) {
 	// register a volume without claims
 	vol := mock.CSIVolume(plugin)
 	index++
-	err := srv.State().UpsertCSIVolume(index, []*structs.CSIVolume{vol})
+	err := srv.State().UpsertCSIVolume(index, time.Now().UnixNano(), []*structs.CSIVolume{vol})
 	require.NoError(t, err)
 
 	// watcher should stop

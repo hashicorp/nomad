@@ -115,7 +115,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	d.JobID = j.ID
 
 	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
+	require.NoError(t, s.upsertDeploymentImpl(10, time.Now().UnixNano(), d, setupTx))
 
 	setupTx.Txn.Commit()
 
@@ -131,7 +131,7 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 		// Exlude Job and assert its added
 	}
 
-	require.NoError(t, s.UpdateDeploymentStatus(msgType, 100, req))
+	require.NoError(t, s.UpdateDeploymentStatus(msgType, 100, time.Now().UnixNano(), req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 2)
@@ -173,7 +173,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
+	require.NoError(t, s.upsertDeploymentImpl(10, time.Now().UnixNano(), d, setupTx))
 
 	// create set of allocs
 	c1 := mock.Alloc()
@@ -192,7 +192,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 		Healthy: pointer.Of(true),
 	}
 
-	require.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
+	require.NoError(t, s.upsertAllocsImpl(10, time.Now().UnixNano(), []*structs.Allocation{c1, c2}, setupTx))
 
 	// commit setup transaction
 	setupTx.Txn.Commit()
@@ -208,7 +208,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 		Eval: e,
 	}
 
-	require.NoError(t, s.UpdateDeploymentPromotion(msgType, 100, req))
+	require.NoError(t, s.UpdateDeploymentPromotion(msgType, 100, time.Now().UnixNano(), req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 4)
@@ -250,7 +250,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
+	require.NoError(t, s.upsertDeploymentImpl(10, time.Now().UnixNano(), d, setupTx))
 
 	// create set of allocs
 	c1 := mock.Alloc()
@@ -269,7 +269,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 		Healthy: pointer.Of(true),
 	}
 
-	require.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
+	require.NoError(t, s.upsertAllocsImpl(10, time.Now().UnixNano(), []*structs.Allocation{c1, c2}, setupTx))
 
 	// Commit setup
 	setupTx.Commit()
@@ -287,7 +287,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, s.UpdateDeploymentAllocHealth(msgType, 100, req))
+	require.NoError(t, s.UpdateDeploymentAllocHealth(msgType, 100, time.Now().UnixNano(), req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 3)
@@ -514,7 +514,7 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 		EvalID:     eval.ID,
 	}
 
-	require.NoError(t, s.UpsertPlanResults(msgType, 100, req))
+	require.NoError(t, s.UpsertPlanResults(msgType, 100, time.Now().UnixNano(), req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
 	require.Len(t, events, 5)
@@ -644,7 +644,7 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 	alloc := mock.Alloc()
 
 	require.Nil(t, s.UpsertJob(structs.MsgTypeTestSetup, 10, nil, alloc.Job))
-	require.Nil(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc}))
+	require.Nil(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 11, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	msgType := structs.AllocUpdateDesiredTransitionRequestType
 
@@ -977,7 +977,7 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 	alloc2.NodeID = node.ID
 
 	require.NoError(t, upsertNodeTxn(setupTx, 10, node))
-	require.NoError(t, s.upsertAllocsImpl(100, []*structs.Allocation{alloc1, alloc2}, setupTx))
+	require.NoError(t, s.upsertAllocsImpl(100, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}, setupTx))
 	setupTx.Txn.Commit()
 
 	// changes

@@ -1543,7 +1543,7 @@ func TestHTTP_JobAllocations(t *testing.T) {
 		alloc1.TaskStates = make(map[string]*structs.TaskState)
 		alloc1.TaskStates["test"] = taskState
 		state := s.Agent.server.State()
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1604,7 +1604,7 @@ func TestHTTP_JobDeployments(t *testing.T) {
 		d.JobID = j.ID
 		d.JobCreateIndex = resp.JobModifyIndex
 
-		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+j.ID+"/deployments", nil)
@@ -1647,7 +1647,7 @@ func TestHTTP_JobDeployment(t *testing.T) {
 		d := mock.Deployment()
 		d.JobID = j.ID
 		d.JobCreateIndex = resp.JobModifyIndex
-		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/job/"+j.ID+"/deployment", nil)

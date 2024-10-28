@@ -67,7 +67,7 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 		},
 	}
 
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -229,7 +229,7 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 		},
 	}
 
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -996,7 +996,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 		}
 		allocs = append(allocs, alloc)
 	}
-	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs)
+	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), time.Now().UnixNano(), allocs)
 	require.NoError(t, err)
 
 	// job version 2

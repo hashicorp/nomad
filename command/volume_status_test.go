@@ -5,6 +5,7 @@ package command
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -50,7 +51,7 @@ func TestCSIVolumeStatusCommand_AutocompleteArgs(t *testing.T) {
 		PluginID:  "glade",
 	}
 
-	must.NoError(t, state.UpsertCSIVolume(1000, []*structs.CSIVolume{vol}))
+	must.NoError(t, state.UpsertCSIVolume(1000, time.Now().UnixNano(), []*structs.CSIVolume{vol}))
 
 	prefix := vol.ID[:len(vol.ID)-5]
 	args := complete.Args{Last: prefix}

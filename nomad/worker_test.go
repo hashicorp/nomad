@@ -533,7 +533,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 
 	stoppedAlloc := mock.Alloc()
 	preemptedAlloc := mock.Alloc()
-	s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{stoppedAlloc, preemptedAlloc})
+	s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 5, time.Now().UnixNano(), []*structs.Allocation{stoppedAlloc, preemptedAlloc})
 
 	// Create an allocation plan
 	plan := &structs.Plan{

@@ -59,7 +59,7 @@ func TestCSIVolumeEndpoint_Get(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		}},
 	}}
-	err := state.UpsertCSIVolume(999, vols)
+	err := state.UpsertCSIVolume(999, time.Now().UnixNano(), vols)
 	require.NoError(t, err)
 
 	// Create the register request
@@ -107,7 +107,7 @@ func TestCSIVolumeEndpoint_Get_ACL(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		}},
 	}}
-	err := state.UpsertCSIVolume(999, vols)
+	err := state.UpsertCSIVolume(999, time.Now().UnixNano(), vols)
 	require.NoError(t, err)
 
 	// Create the register request
@@ -186,7 +186,7 @@ func TestCSIVolume_pluginValidateVolume(t *testing.T) {
 			if tc.updatePlugin != nil {
 				tc.updatePlugin(plug)
 			}
-			must.NoError(t, store.UpsertCSIPlugin(1000, plug))
+			must.NoError(t, store.UpsertCSIPlugin(1000, time.Now().UnixNano(), plug))
 
 			got, err := csiVolume.pluginValidateVolume(vol)
 
@@ -330,7 +330,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 	index++
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
@@ -382,7 +382,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		}},
 	}}
 	index++
-	err = state.UpsertCSIVolume(index, vols)
+	err = state.UpsertCSIVolume(index, time.Now().UnixNano(), vols)
 	require.NoError(t, err)
 
 	// Verify that the volume exists, and is healthy
@@ -419,7 +419,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, time.Now().UnixNano(), []*structs.Allocation{alloc2}))
 	claimReq.AllocationID = alloc2.ID
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	require.EqualError(t, err, structs.ErrCSIVolumeMaxClaims.Error(),
@@ -453,7 +453,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 	index++
 	require.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc3}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index, time.Now().UnixNano(), []*structs.Allocation{alloc3}))
 	claimReq.AllocationID = alloc3.ID
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Claim", claimReq, claimResp)
 	require.NoError(t, err)
@@ -515,14 +515,14 @@ func TestCSIVolumeEndpoint_ClaimWithController(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		}},
 	}}
-	err = state.UpsertCSIVolume(1003, vols)
+	err = state.UpsertCSIVolume(1003, time.Now().UnixNano(), vols)
 	require.NoError(t, err)
 
 	alloc := mock.BatchAlloc()
 	alloc.NodeID = node.ID
 	summary := mock.JobSummary(alloc.JobID)
 	require.NoError(t, state.UpsertJobSummary(1004, summary))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	// Make the volume claim
 	claimReq := &structs.CSIVolumeClaimRequest{
@@ -649,7 +649,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			}
 
 			index++
-			err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
+			err = state.UpsertCSIVolume(index, time.Now().UnixNano(), []*structs.CSIVolume{vol})
 			must.NoError(t, err)
 
 			// setup: create an alloc that will claim our volume
@@ -663,7 +663,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			index++
 			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
-				[]*structs.Allocation{alloc, otherAlloc}))
+				time.Now().UnixNano(), []*structs.Allocation{alloc, otherAlloc}))
 
 			// setup: claim the volume for our to-be-failed alloc
 			claim := &structs.CSIVolumeClaim{
@@ -675,7 +675,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			index++
 			claim.State = structs.CSIVolumeClaimStateTaken
-			err = state.CSIVolumeClaim(index, ns, volID, claim)
+			err = state.CSIVolumeClaim(index, time.Now().UnixNano(), ns, volID, claim)
 			must.NoError(t, err)
 
 			// setup: claim the volume for our other alloc
@@ -688,7 +688,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			index++
 			otherClaim.State = structs.CSIVolumeClaimStateTaken
-			err = state.CSIVolumeClaim(index, ns, volID, otherClaim)
+			err = state.CSIVolumeClaim(index, time.Now().UnixNano(), ns, volID, otherClaim)
 			must.NoError(t, err)
 
 			// test: unpublish and check the results
@@ -707,7 +707,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			alloc.ClientStatus = structs.AllocClientStatusFailed
 			index++
 			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, index,
-				[]*structs.Allocation{alloc}))
+				time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 			err = msgpackrpc.CallWithCodec(codec, "CSIVolume.Unpublish", req,
 				&structs.CSIVolumeUnpublishResponse{})
@@ -787,7 +787,7 @@ func TestCSIVolumeEndpoint_List(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		}},
 	}}
-	err = state.UpsertCSIVolume(1002, vols)
+	err = state.UpsertCSIVolume(1002, time.Now().UnixNano(), vols)
 	require.NoError(t, err)
 
 	// Query everything in the namespace
@@ -866,7 +866,7 @@ func TestCSIVolumeEndpoint_ListAllNamespaces(t *testing.T) {
 		}},
 	},
 	}
-	err = state.UpsertCSIVolume(1001, vols)
+	err = state.UpsertCSIVolume(1001, time.Now().UnixNano(), vols)
 	require.NoError(t, err)
 
 	// Lookup volumes in all namespaces
@@ -945,7 +945,7 @@ func TestCSIVolumeEndpoint_List_PaginationFiltering(t *testing.T) {
 			volume.Namespace = m.namespace
 		}
 		index := 1000 + uint64(i)
-		require.NoError(t, state.UpsertCSIVolume(index, []*structs.CSIVolume{volume}))
+		require.NoError(t, state.UpsertCSIVolume(index, time.Now().UnixNano(), []*structs.CSIVolume{volume}))
 	}
 
 	cases := []struct {
@@ -1328,7 +1328,7 @@ func TestCSIVolumeEndpoint_Delete(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertCSIVolume(index, vols)
+	err = state.UpsertCSIVolume(index, time.Now().UnixNano(), vols)
 	must.NoError(t, err)
 
 	// Delete volumes
@@ -1571,7 +1571,7 @@ func TestCSIVolumeEndpoint_CreateSnapshot(t *testing.T) {
 		ExternalID:     "vol-12345",
 	}}
 	index++
-	require.NoError(t, state.UpsertCSIVolume(index, vols))
+	require.NoError(t, state.UpsertCSIVolume(index, time.Now().UnixNano(), vols))
 
 	// Create the snapshot request
 	req1 := &structs.CSISnapshotCreateRequest{
@@ -2194,7 +2194,7 @@ func TestCSIPluginEndpoint_DeleteViaGC(t *testing.T) {
 
 	index, _ := state.LatestIndex()
 	index++
-	must.NoError(t, state.UpsertCSIPlugin(index, plugin))
+	must.NoError(t, state.UpsertCSIPlugin(index, time.Now().UnixNano(), plugin))
 
 	// Retry now that it's empty
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "CSIPlugin.Delete", reqDel, respDel))
@@ -2251,7 +2251,7 @@ func TestCSI_RPCVolumeAndPluginLookup(t *testing.T) {
 			ControllerRequired: false,
 		},
 	}
-	err = state.UpsertCSIVolume(1002, vols)
+	err = state.UpsertCSIVolume(1002, time.Now().UnixNano(), vols)
 	require.NoError(t, err)
 
 	// has controller
@@ -2453,7 +2453,7 @@ func TestCSIPluginEndpoint_ACLNamespaceFilterAlloc(t *testing.T) {
 	must.Eq(t, 3, len(allocs))
 	allocs[0].Namespace = ns1.Name
 
-	err := s.UpsertAllocs(structs.MsgTypeTestSetup, 1003, allocs)
+	err := s.UpsertAllocs(structs.MsgTypeTestSetup, 1003, time.Now().UnixNano(), allocs)
 	must.NoError(t, err)
 
 	req := &structs.CSIPluginGetRequest{

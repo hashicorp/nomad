@@ -680,6 +680,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		}
 	}
 
+	now := time.Now().UnixNano()
 	if req.Deployment != nil {
 		// Cancel any preivous deployment.
 		lastDeployment, err := n.state.LatestDeploymentByJobID(ws, req.Job.Namespace, req.Job.ID)
@@ -690,7 +691,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 			activeDeployment := lastDeployment.Copy()
 			activeDeployment.Status = structs.DeploymentStatusCancelled
 			activeDeployment.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
-			if err := n.state.UpsertDeployment(index, activeDeployment); err != nil {
+			if err := n.state.UpsertDeployment(index, now, activeDeployment); err != nil {
 				return err
 			}
 		}
@@ -701,7 +702,7 @@ func (n *nomadFSM) applyUpsertJob(msgType structs.MessageType, buf []byte, index
 		req.Deployment.JobSpecModifyIndex = req.Job.JobModifyIndex
 		req.Deployment.JobVersion = req.Job.Version
 
-		if err := n.state.UpsertDeployment(index, req.Deployment); err != nil {
+		if err := n.state.UpsertDeployment(index, now, req.Deployment); err != nil {
 			return err
 		}
 	}
@@ -938,7 +939,7 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 	}
 
 	// Update all the client allocations
-	if err := n.state.UpdateAllocsFromClient(msgType, index, req.Alloc); err != nil {
+	if err := n.state.UpdateAllocsFromClient(msgType, index, time.Now().UnixNano(), req.Alloc); err != nil {
 		n.logger.Error("UpdateAllocFromClient failed", "error", err)
 		return err
 	}
@@ -1092,7 +1093,7 @@ func (n *nomadFSM) applyPlanResults(msgType structs.MessageType, buf []byte, ind
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertPlanResults(msgType, index, &req); err != nil {
+	if err := n.state.UpsertPlanResults(msgType, index, time.Now().UnixNano(), &req); err != nil {
 		n.logger.Error("ApplyPlan failed", "error", err)
 		return err
 	}
@@ -1111,7 +1112,7 @@ func (n *nomadFSM) applyDeploymentStatusUpdate(msgType structs.MessageType, buf 
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentStatus(msgType, index, &req); err != nil {
+	if err := n.state.UpdateDeploymentStatus(msgType, index, time.Now().UnixNano(), &req); err != nil {
 		n.logger.Error("UpsertDeploymentStatusUpdate failed", "error", err)
 		return err
 	}
@@ -1128,7 +1129,7 @@ func (n *nomadFSM) applyDeploymentPromotion(msgType structs.MessageType, buf []b
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentPromotion(msgType, index, &req); err != nil {
+	if err := n.state.UpdateDeploymentPromotion(msgType, index, time.Now().UnixNano(), &req); err != nil {
 		n.logger.Error("UpsertDeploymentPromotion failed", "error", err)
 		return err
 	}
@@ -1146,7 +1147,7 @@ func (n *nomadFSM) applyDeploymentAllocHealth(msgType structs.MessageType, buf [
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateDeploymentAllocHealth(msgType, index, &req); err != nil {
+	if err := n.state.UpdateDeploymentAllocHealth(msgType, index, time.Now().UnixNano(), &req); err != nil {
 		n.logger.Error("UpsertDeploymentAllocHealth failed", "error", err)
 		return err
 	}
@@ -1366,7 +1367,7 @@ func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) interface{} 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_register"}, time.Now())
 
-	if err := n.state.UpsertCSIVolume(index, req.Volumes); err != nil {
+	if err := n.state.UpsertCSIVolume(index, time.Now().UnixNano(), req.Volumes); err != nil {
 		n.logger.Error("CSIVolumeRegister failed", "error", err)
 		return err
 	}
@@ -1397,7 +1398,7 @@ func (n *nomadFSM) applyCSIVolumeBatchClaim(buf []byte, index uint64) interface{
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_batch_claim"}, time.Now())
 
 	for _, req := range batch.Claims {
-		err := n.state.CSIVolumeClaim(index, req.RequestNamespace(),
+		err := n.state.CSIVolumeClaim(index, time.Now().UnixNano(), req.RequestNamespace(),
 			req.VolumeID, req.ToClaim())
 		if err != nil {
 			n.logger.Error("CSIVolumeClaim for batch failed", "error", err)
@@ -1414,7 +1415,7 @@ func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_claim"}, time.Now())
 
-	if err := n.state.CSIVolumeClaim(index, req.RequestNamespace(), req.VolumeID, req.ToClaim()); err != nil {
+	if err := n.state.CSIVolumeClaim(index, time.Now().UnixNano(), req.RequestNamespace(), req.VolumeID, req.ToClaim()); err != nil {
 		n.logger.Error("CSIVolumeClaim failed", "error", err)
 		return err
 	}
@@ -2005,7 +2006,7 @@ func (n *nomadFSM) failLeakedDeployments(store *state.StateStore) error {
 		failed := d.Copy()
 		failed.Status = structs.DeploymentStatusCancelled
 		failed.StatusDescription = structs.DeploymentStatusDescriptionStoppedJob
-		if err := store.UpsertDeployment(dindex, failed); err != nil {
+		if err := store.UpsertDeployment(dindex, time.Now().UnixNano(), failed); err != nil {
 			return fmt.Errorf("failed to mark leaked deployment %q as failed: %v", failed.ID, err)
 		}
 	}

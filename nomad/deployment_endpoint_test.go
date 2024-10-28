@@ -37,7 +37,7 @@ func TestDeploymentEndpoint_GetDeployment(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 	// Lookup the deployments
 	get := &structs.DeploymentSpecificRequest{
@@ -69,7 +69,7 @@ func TestDeploymentEndpoint_GetDeployment_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
@@ -130,12 +130,12 @@ func TestDeploymentEndpoint_GetDeployment_Blocking(t *testing.T) {
 
 	// Upsert a deployment we are not interested in first.
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(100, time.Now().UnixNano(), d1), "UpsertDeployment")
 	})
 
 	// Upsert another deployment later which should trigger the watch.
 	time.AfterFunc(200*time.Millisecond, func() {
-		assert.Nil(state.UpsertDeployment(200, d2), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(200, time.Now().UnixNano(), d2), "UpsertDeployment")
 	})
 
 	// Lookup the deployments
@@ -175,7 +175,7 @@ func TestDeploymentEndpoint_Fail(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 	// Mark the deployment as failed
 	req := &structs.DeploymentFailRequest{
@@ -225,7 +225,7 @@ func TestDeploymentEndpoint_Fail_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
@@ -319,8 +319,8 @@ func TestDeploymentEndpoint_Fail_Rollback(t *testing.T) {
 	a.DeploymentID = d.ID
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j2), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Mark the deployment as failed
 	req := &structs.DeploymentFailRequest{
@@ -379,7 +379,7 @@ func TestDeploymentEndpoint_Pause(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 	// Mark the deployment as failed
 	req := &structs.DeploymentPauseRequest{
@@ -422,7 +422,7 @@ func TestDeploymentEndpoint_Pause_ACL(t *testing.T) {
 	state := s1.fsm.State()
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
@@ -501,8 +501,8 @@ func TestDeploymentEndpoint_Promote(t *testing.T) {
 
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Promote the deployment
 	req := &structs.DeploymentPromoteRequest{
@@ -566,8 +566,8 @@ func TestDeploymentEndpoint_Promote_ACL(t *testing.T) {
 
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
@@ -652,8 +652,8 @@ func TestDeploymentEndpoint_SetAllocHealth(t *testing.T) {
 
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Set the alloc as healthy
 	req := &structs.DeploymentAllocHealthRequest{
@@ -720,8 +720,8 @@ func TestDeploymentEndpoint_SetAllocHealth_ACL(t *testing.T) {
 
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
@@ -826,8 +826,8 @@ func TestDeploymentEndpoint_SetAllocHealth_Rollback(t *testing.T) {
 	a.DeploymentID = d.ID
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j2), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Set the alloc as unhealthy
 	req := &structs.DeploymentAllocHealthRequest{
@@ -915,8 +915,8 @@ func TestDeploymentEndpoint_SetAllocHealth_NoRollback(t *testing.T) {
 	a.DeploymentID = d.ID
 
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j2), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Set the alloc as unhealthy
 	req := &structs.DeploymentAllocHealthRequest{
@@ -983,7 +983,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	state := s1.fsm.State()
 
 	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), must.Sprint("UpsertJob"))
-	must.Nil(t, state.UpsertDeployment(1000, d), must.Sprint("UpsertDeployment"))
+	must.Nil(t, state.UpsertDeployment(1000, time.Now().UnixNano(), d), must.Sprint("UpsertDeployment"))
 
 	// Lookup the deployments
 	get := &structs.DeploymentListRequest{
@@ -1021,7 +1021,7 @@ func TestDeploymentEndpoint_List(t *testing.T) {
 	d2.JobID = j2.ID
 	must.Nil(t, state.UpsertNamespaces(1001, []*structs.Namespace{{Name: "prod"}}))
 	must.Nil(t, state.UpsertJob(structs.MsgTypeTestSetup, 1002, nil, j2), must.Sprint("UpsertJob"))
-	must.Nil(t, state.UpsertDeployment(1003, d2), must.Sprint("UpsertDeployment"))
+	must.Nil(t, state.UpsertDeployment(1003, time.Now().UnixNano(), d2), must.Sprint("UpsertDeployment"))
 
 	// Lookup the deployments with wildcard namespace
 	get = &structs.DeploymentListRequest{
@@ -1087,17 +1087,19 @@ func TestDeploymentEndpoint_List_order(t *testing.T) {
 	dep3 := mock.Deployment()
 	dep3.ID = uuid3
 
-	err := s1.fsm.State().UpsertDeployment(1000, dep1)
+	now := time.Now().UnixNano()
+
+	err := s1.fsm.State().UpsertDeployment(1000, now, dep1)
 	must.NoError(t, err)
 
-	err = s1.fsm.State().UpsertDeployment(1001, dep2)
+	err = s1.fsm.State().UpsertDeployment(1001, now, dep2)
 	must.NoError(t, err)
 
-	err = s1.fsm.State().UpsertDeployment(1002, dep3)
+	err = s1.fsm.State().UpsertDeployment(1002, now, dep3)
 	must.NoError(t, err)
 
 	// update dep2 again so we can later assert create index order did not change
-	err = s1.fsm.State().UpsertDeployment(1003, dep2)
+	err = s1.fsm.State().UpsertDeployment(1003, now, dep2)
 	must.NoError(t, err)
 
 	t.Run("default", func(t *testing.T) {
@@ -1175,8 +1177,9 @@ func TestDeploymentEndpoint_List_ACL(t *testing.T) {
 	d2.Namespace = devNS.Name
 	state := s1.fsm.State()
 
-	must.NoError(t, state.UpsertDeployment(1000, d1), must.Sprint("Upsert Deployment failed"))
-	must.NoError(t, state.UpsertDeployment(1001, d2), must.Sprint("Upsert Deployment failed"))
+	now := time.Now().UnixNano()
+	must.NoError(t, state.UpsertDeployment(1000, now, d1), must.Sprint("Upsert Deployment failed"))
+	must.NoError(t, state.UpsertDeployment(1001, now, d2), must.Sprint("Upsert Deployment failed"))
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1002, "test-valid",
@@ -1280,7 +1283,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		must.Nil(t, state.UpsertDeployment(3, d), must.Sprint("UpsertDeployment"))
+		must.Nil(t, state.UpsertDeployment(3, time.Now().UnixNano(), d), must.Sprint("UpsertDeployment"))
 	})
 
 	req := &structs.DeploymentListRequest{
@@ -1303,7 +1306,7 @@ func TestDeploymentEndpoint_List_Blocking(t *testing.T) {
 	d2 := d.Copy()
 	d2.Status = structs.DeploymentStatusPaused
 	time.AfterFunc(100*time.Millisecond, func() {
-		must.Nil(t, state.UpsertDeployment(5, d2), must.Sprint("UpsertDeployment"))
+		must.Nil(t, state.UpsertDeployment(5, time.Now().UnixNano(), d2), must.Sprint("UpsertDeployment"))
 	})
 
 	req.MinQueryIndex = 3
@@ -1365,7 +1368,7 @@ func TestDeploymentEndpoint_List_Pagination(t *testing.T) {
 		if m.namespace != "" { // defaults to "default"
 			deployment.Namespace = m.namespace
 		}
-		must.NoError(t, state.UpsertDeployment(index, deployment))
+		must.NoError(t, state.UpsertDeployment(index, time.Now().UnixNano(), deployment))
 	}
 
 	aclToken := mock.CreatePolicyAndToken(t, state, 1100, "test-valid-read",
@@ -1568,10 +1571,11 @@ func TestDeploymentEndpoint_Allocations(t *testing.T) {
 	summary := mock.JobSummary(a.JobID)
 	state := s1.fsm.State()
 
+	now := time.Now().UnixNano()
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, now, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, now, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Lookup the allocations
 	get := &structs.DeploymentSpecificRequest{
@@ -1606,10 +1610,11 @@ func TestDeploymentEndpoint_Allocations_ACL(t *testing.T) {
 	summary := mock.JobSummary(a.JobID)
 	state := s1.fsm.State()
 
+	now := time.Now().UnixNano()
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
 	assert.Nil(state.UpsertJobSummary(999, summary), "UpsertJobSummary")
-	assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{a}), "UpsertAllocs")
+	assert.Nil(state.UpsertDeployment(1000, now, d), "UpsertDeployment")
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, now, []*structs.Allocation{a}), "UpsertAllocs")
 
 	// Create the namespace policy and tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1001, "test-valid",
@@ -1681,13 +1686,14 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	a.DeploymentID = d.ID
 	summary := mock.JobSummary(a.JobID)
 
+	now := time.Now().UnixNano()
 	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j), "UpsertJob")
-	assert.Nil(state.UpsertDeployment(2, d), "UpsertDeployment")
+	assert.Nil(state.UpsertDeployment(2, now, d), "UpsertDeployment")
 	assert.Nil(state.UpsertJobSummary(3, summary), "UpsertJobSummary")
 
 	// Upsert alloc triggers watches
 	time.AfterFunc(100*time.Millisecond, func() {
-		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{a}), "UpsertAllocs")
+		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 4, now, []*structs.Allocation{a}), "UpsertAllocs")
 	})
 
 	req := &structs.DeploymentSpecificRequest{
@@ -1715,7 +1721,8 @@ func TestDeploymentEndpoint_Allocations_Blocking(t *testing.T) {
 	a2.ClientStatus = structs.AllocClientStatusRunning
 	time.AfterFunc(100*time.Millisecond, func() {
 		assert.Nil(state.UpsertJobSummary(5, mock.JobSummary(a2.JobID)), "UpsertJobSummary")
-		assert.Nil(state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 6, []*structs.Allocation{a2}), "updateAllocsFromClient")
+		assert.Nil(state.UpdateAllocsFromClient(
+			structs.MsgTypeTestSetup, 6, time.Now().UnixNano(), []*structs.Allocation{a2}), "updateAllocsFromClient")
 	})
 
 	req.MinQueryIndex = 4
@@ -1742,7 +1749,7 @@ func TestDeploymentEndpoint_Reap(t *testing.T) {
 
 	// Create the register request
 	d1 := mock.Deployment()
-	assert.Nil(s1.fsm.State().UpsertDeployment(1000, d1), "UpsertDeployment")
+	assert.Nil(s1.fsm.State().UpsertDeployment(1000,time.Now().UnixNano(), d1), "UpsertDeployment")
 
 	// Reap the eval
 	get := &structs.DeploymentDeleteRequest{

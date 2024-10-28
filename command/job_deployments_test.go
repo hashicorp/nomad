@@ -6,6 +6,7 @@ package command
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
@@ -77,7 +78,7 @@ func TestJobDeploymentsCommand_Run(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = job.ID
 	d.JobCreateIndex = job.CreateIndex
-	must.NoError(t, state.UpsertDeployment(200, d))
+	must.NoError(t, state.UpsertDeployment(200, time.Now().UnixNano(), d))
 
 	// Should now display the deployment
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", job.ID}); code != 0 {
@@ -121,7 +122,7 @@ func TestJobDeploymentsCommand_Run_Latest(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = job.ID
 	d.JobCreateIndex = job.CreateIndex
-	must.NoError(t, state.UpsertDeployment(200, d))
+	must.NoError(t, state.UpsertDeployment(200, time.Now().UnixNano(), d))
 
 	// Should now display the deployment
 	if code := cmd.Run([]string{"-address=" + url, "-verbose", "-latest", job.ID}); code != 0 {
@@ -174,7 +175,7 @@ func TestJobDeploymentsCommand_ACL(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = job.ID
 	d.JobCreateIndex = job.CreateIndex
-	err = state.UpsertDeployment(101, d)
+	err = state.UpsertDeployment(101, time.Now().UnixNano(), d)
 	must.NoError(t, err)
 
 	testCases := []struct {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -17,13 +18,14 @@ import (
 func TestHTTP_DeploymentList(t *testing.T) {
 	ci.Parallel(t)
 	assert := assert.New(t)
+	now := time.Now().UnixNano()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d1 := mock.Deployment()
 		d2 := mock.Deployment()
-		assert.Nil(state.UpsertDeployment(999, d1), "UpsertDeployment")
-		assert.Nil(state.UpsertDeployment(1000, d2), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(999, now, d1), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, now, d2), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/deployments", nil)
@@ -48,6 +50,7 @@ func TestHTTP_DeploymentList(t *testing.T) {
 func TestHTTP_DeploymentPrefixList(t *testing.T) {
 	ci.Parallel(t)
 	assert := assert.New(t)
+	now := time.Now().UnixNano()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -55,8 +58,8 @@ func TestHTTP_DeploymentPrefixList(t *testing.T) {
 		d1.ID = "aaabbbbb-e8f7-fd38-c855-ab94ceb89706"
 		d2 := mock.Deployment()
 		d2.ID = "aaabbbbb-e8f7-fd38-c855-ab94ceb89706"
-		assert.Nil(state.UpsertDeployment(999, d1), "UpsertDeployment")
-		assert.Nil(state.UpsertDeployment(1000, d2), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(999, now, d1), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, now, d2), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/deployments?prefix=aaab", nil)
@@ -82,6 +85,7 @@ func TestHTTP_DeploymentPrefixList(t *testing.T) {
 func TestHTTP_DeploymentAllocations(t *testing.T) {
 	ci.Parallel(t)
 	assert := assert.New(t)
+	now := time.Now().UnixNano()
 	httpTest(t, nil, func(s *TestAgent) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
@@ -112,8 +116,8 @@ func TestHTTP_DeploymentAllocations(t *testing.T) {
 		a2.TaskStates["test"] = taskState2
 
 		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
-		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a1, a2}), "UpsertAllocs")
+		assert.Nil(state.UpsertDeployment(999, now, d), "UpsertDeployment")
+		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, now, []*structs.Allocation{a1, a2}), "UpsertAllocs")
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/deployment/allocations/"+d.ID, nil)
@@ -147,7 +151,7 @@ func TestHTTP_DeploymentQuery(t *testing.T) {
 		// Directly manipulate the state
 		state := s.Agent.server.State()
 		d := mock.Deployment()
-		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/deployment/"+d.ID, nil)
@@ -179,7 +183,7 @@ func TestHTTP_DeploymentPause(t *testing.T) {
 		d := mock.Deployment()
 		d.JobID = j.ID
 		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 		// Create the pause request
 		args := structs.DeploymentPauseRequest{
@@ -220,7 +224,7 @@ func TestHTTP_DeploymentPromote(t *testing.T) {
 		d := mock.Deployment()
 		d.JobID = j.ID
 		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(1000, d), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(1000, time.Now().UnixNano(), d), "UpsertDeployment")
 
 		// Create the pause request
 		args := structs.DeploymentPromoteRequest{
@@ -264,8 +268,8 @@ func TestHTTP_DeploymentAllocHealth(t *testing.T) {
 		a.JobID = j.ID
 		a.DeploymentID = d.ID
 		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
-		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}), "UpsertAllocs")
+		assert.Nil(state.UpsertDeployment(999, time.Now().UnixNano(), d), "UpsertDeployment")
+		assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{a}), "UpsertAllocs")
 
 		// Create the pause request
 		args := structs.DeploymentAllocHealthRequest{
@@ -306,7 +310,7 @@ func TestHTTP_DeploymentFail(t *testing.T) {
 		d := mock.Deployment()
 		d.JobID = j.ID
 		assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, j), "UpsertJob")
-		assert.Nil(state.UpsertDeployment(999, d), "UpsertDeployment")
+		assert.Nil(state.UpsertDeployment(999, time.Now().UnixNano(), d), "UpsertDeployment")
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodPut, "/v1/deployment/fail/"+d.ID, nil)

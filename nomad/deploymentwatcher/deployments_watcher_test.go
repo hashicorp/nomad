@@ -1968,7 +1968,7 @@ func TestDeploymentWatcher_RollbackFailed(t *testing.T) {
 
 	// verify that the job version hasn't changed after upsert
 	m.state.JobByID(nil, structs.DefaultNamespace, j.ID)
-	must.Eq(t, uint64(0), j.Version, must.Sprintf("Expected job version 0 but got ", j.Version))
+	must.Eq(t, uint64(0), j.Version, must.Sprintf("Expected job version 0 but got %v", j.Version))
 }
 
 // Test allocation updates and evaluation creation is batched between watchers

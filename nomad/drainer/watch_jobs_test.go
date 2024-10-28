@@ -117,6 +117,8 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 	var index uint64 = 101
 	count := 8
 
+	now := time.Now().UnixNano()
+
 	newAlloc := func(node *structs.Node, job *structs.Job) *structs.Allocation {
 		a := mock.Alloc()
 		a.JobID = job.ID
@@ -147,7 +149,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 			allocs = append(allocs, a)
 		}
 
-		must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, allocs))
+		must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, allocs))
 		index++
 
 	}
@@ -169,7 +171,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, drainedAllocs))
 	drains.Resp.Respond(index, nil)
 	index++
 
@@ -196,7 +198,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		updates = append(updates, a, replacement)
 		replacements[i] = replacement.Copy()
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, updates))
 	index++
 
 	// The drained allocs stopping cause migrations but no new drains
@@ -210,7 +212,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		a.ClientStatus = structs.AllocClientStatusComplete
 		completeAllocs[i] = a
 	}
-	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, index, completeAllocs))
+	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, index, now, completeAllocs))
 	index++
 
 	// The drained allocs stopping cause migrations but no new drains
@@ -224,7 +226,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 			Healthy: pointer.Of(true),
 		}
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, replacements))
 	index++
 
 	must.MapNotEmpty(t, jobWatcher.drainingJobs())
@@ -240,7 +242,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, drainedAllocs))
 	drains.Resp.Respond(index, nil)
 	index++
 
@@ -257,7 +259,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		updates = append(updates, a, replacement)
 		replacements[i] = replacement.Copy()
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, updates))
 	index++
 
 	assertJobWatcherOps(t, jobWatcher, 0, 6)
@@ -268,7 +270,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 			Healthy: pointer.Of(true),
 		}
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, replacements))
 	index++
 
 	must.MapNotEmpty(t, jobWatcher.drainingJobs())
@@ -284,7 +286,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		// create a copy so we can reuse this slice
 		drainedAllocs[i] = a.Copy()
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, drainedAllocs))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, drainedAllocs))
 	drains.Resp.Respond(index, nil)
 	index++
 
@@ -301,7 +303,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		updates = append(updates, a, replacement)
 		replacements[i] = replacement.Copy()
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, updates))
 	index++
 
 	assertJobWatcherOps(t, jobWatcher, 0, 4)
@@ -312,7 +314,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 			Healthy: pointer.Of(true),
 		}
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, replacements))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, now, replacements))
 
 	// No jobs should be left!
 	must.MapEmpty(t, jobWatcher.drainingJobs())
@@ -622,7 +624,7 @@ func TestDrainingJobWatcher_HandleTaskGroup(t *testing.T) {
 				allocs = append(allocs, a)
 			}
 
-			must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 103, allocs))
+			must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 103, time.Now().UnixNano(), allocs))
 			snap, err := store.Snapshot()
 			must.NoError(t, err)
 
@@ -672,7 +674,7 @@ func TestHandleTaskGroup_Migrations(t *testing.T) {
 		}
 		allocs = append(allocs, a)
 	}
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 102, time.Now().UnixNano(), allocs))
 
 	snap, err := state.Snapshot()
 	require.Nil(err)
@@ -745,7 +747,7 @@ func TestHandleTaskGroup_GarbageCollectedNode(t *testing.T) {
 
 	// Make the first one be on a GC'd node
 	allocs[0].NodeID = uuid.Generate()
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 102, allocs))
+	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 102, time.Now().UnixNano(), allocs))
 
 	snap, err := state.Snapshot()
 	require.Nil(err)
