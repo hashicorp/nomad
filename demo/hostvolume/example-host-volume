@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+
+set -eu
+
+help() {
+    echo <<EOF
+example-host-volume [options] [path]
+
+Accepts a JSON-serialized ClientHostVolumeCreateRequest struct on stdin and
+creates an ext4 loopback drive of the minimum requested size. Creates a
+directory at the provided path argument (required).
+
+Options:
+--version  Print the version and exit
+--help     Print this text and exit
+
+EOF
+}
+
+version() {
+    echo "0.0.1"
+}
+
+make_volume() {
+    local path=${1-}
+    local size=${2-}
+
+    dd if=/dev/zero of="${path}.ext4" bs=1M count="$size"
+    # mkfs is noisy on stdout so we need to supress it to avoid breaking the
+    # JSON parsing on the client
+    mkfs.ext4 "${path}.ext4" > /dev/null
+    mkdir -p "$path"
+    mount "${path}.ext4" "$path"
+}
+
+path=${1-}
+
+while(($#)); do
+    case $1 in
+        -h|-help|--help) help; exit 0 ;;
+        --version) version; exit 0 ;;
+        *) break ;;
+    esac
+done
+
+size=$(cat - | jq '.CapacityMin')
+if [[ "$size" == null || "$size" == 0 ]]; then
+    size=10
+fi
+
+make_volume "$path" "$size"
+
+printf '{"path": "%s", "size": %s}' "$path", "$size"
