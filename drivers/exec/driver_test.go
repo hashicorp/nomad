@@ -985,7 +985,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{workDir: "/foo", exp: nil},
 			{workDir: "foo", exp: errors.New(`work_dir must be absolute but got relative path "foo"`)},
 		} {
-			require.Equal(t, tc.exp, (&TaskConfig{
+			must.Eq(t, tc.exp, (&TaskConfig{
 				WorkDir: tc.workDir,
 			}).validate())
 		}
