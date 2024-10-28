@@ -1332,6 +1332,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewFileSystemEndpoint(s))
 	_ = server.Register(NewAgentEndpoint(s))
 	_ = server.Register(NewOperatorEndpoint(s, ctx))
+	_ = server.Register(NewClientHostVolumeEndpoint(s, ctx))
 
 	// All other endpoints include the connection context and don't need to be
 	// registered as streaming endpoints
@@ -1357,6 +1358,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewStatusEndpoint(s, ctx))
 	_ = server.Register(NewSystemEndpoint(s, ctx))
 	_ = server.Register(NewVariablesEndpoint(s, ctx, s.encrypter))
+	_ = server.Register(NewHostVolumeEndpoint(s, ctx))
 
 	// Register non-streaming
 

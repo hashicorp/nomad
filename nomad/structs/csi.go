@@ -311,6 +311,9 @@ type CSIVolume struct {
 	NodesExpected       int
 	ResourceExhausted   time.Time
 
+	NodeID   string // for host volumes only
+	HostPath string // for host volumes only
+
 	CreateIndex uint64
 	ModifyIndex uint64
 }

@@ -335,3 +335,32 @@ func CopySliceVolumeMount(s []*VolumeMount) []*VolumeMount {
 	}
 	return c
 }
+
+type HostVolumeCreateRequest struct {
+	Volumes []*CSIVolume
+	WriteRequest
+}
+
+type HostVolumeCreateResponse struct {
+	Volumes []*CSIVolume
+	WriteMeta
+}
+
+type HostVolumeGetRequest struct {
+	ID string
+	QueryOptions
+}
+
+type HostVolumeGetResponse struct {
+	Volume *CSIVolume
+	QueryMeta
+}
+
+type HostVolumeRegisterRequest struct {
+	Volumes []*CSIVolume
+	WriteRequest
+}
+
+type HostVolumeRegisterResponse struct {
+	WriteMeta
+}
