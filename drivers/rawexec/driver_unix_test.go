@@ -449,7 +449,7 @@ func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 	require.Contains(t, stdout, "nobody")
 }
 
-func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
+func TestRawExecUnixDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
