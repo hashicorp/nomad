@@ -355,13 +355,13 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-<<<<<<< HEAD
+
 	if driverConfig.OOMScoreAdj < 0 {
 		return nil, nil, fmt.Errorf("oom_score_adj must not be negative")
-=======
+	}
+
 	if err := driverConfig.Validate(*d.config, *cfg); err != nil {
 		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
->>>>>>> e1288623a5 (Adds ability to restrict uid and gids in exec and raw_exec)
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))

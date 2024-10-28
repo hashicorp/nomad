@@ -482,11 +482,9 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	if cfg.User == "" {
-		fmt.Println("User is not empty, setting to nobody")
 		cfg.User = "nobody"
-	} else {
-		fmt.Printf("User is not empty, user is %s\n", cfg.User)
 	}
+	d.logger.Debug("setting up user", "user", cfg.User)
 
 	if err := driverConfig.validateUserIds(cfg, &d.config); err != nil {
 		return nil, nil, fmt.Errorf("failed host user validation: %v", err)
@@ -512,7 +510,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	user := cfg.User
-
 	if cfg.DNS != nil {
 		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)
 		if err != nil {
