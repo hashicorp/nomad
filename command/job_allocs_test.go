@@ -5,6 +5,7 @@ package command
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
@@ -83,7 +84,7 @@ func TestJobAllocsCommand_Run(t *testing.T) {
 	a.Metrics = &structs.AllocMetric{}
 	a.DesiredStatus = structs.AllocDesiredStatusRun
 	a.ClientStatus = structs.AllocClientStatusRunning
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, time.Now().UnixNano(), []*structs.Allocation{a}))
 
 	// Should now display the alloc
 	code = cmd.Run([]string{"-address=" + url, "-verbose", job.ID})
@@ -118,7 +119,7 @@ func TestJobAllocsCommand_Template(t *testing.T) {
 	a.Metrics = &structs.AllocMetric{}
 	a.DesiredStatus = structs.AllocDesiredStatusRun
 	a.ClientStatus = structs.AllocClientStatusRunning
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 200, time.Now().UnixNano(), []*structs.Allocation{a}))
 
 	// Inject a pending allocation
 	b := mock.Alloc()
@@ -128,7 +129,7 @@ func TestJobAllocsCommand_Template(t *testing.T) {
 	b.Metrics = &structs.AllocMetric{}
 	b.DesiredStatus = structs.AllocDesiredStatusRun
 	b.ClientStatus = structs.AllocClientStatusPending
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 300, []*structs.Allocation{b}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 300, time.Now().UnixNano(), []*structs.Allocation{b}))
 
 	// Should display an AllocacitonListStub object
 	code := cmd.Run([]string{"-address=" + url, "-t", "'{{printf \"%#+v\" .}}'", job.ID})
@@ -200,7 +201,7 @@ func TestJobAllocsCommand_ACL(t *testing.T) {
 	a.Metrics = &structs.AllocMetric{}
 	a.DesiredStatus = structs.AllocDesiredStatusRun
 	a.ClientStatus = structs.AllocClientStatusRunning
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{a})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 200, time.Now().UnixNano(), []*structs.Allocation{a})
 	must.NoError(t, err)
 
 	testCases := []struct {

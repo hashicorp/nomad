@@ -8,6 +8,7 @@ import (
 	"maps"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/numalib"
@@ -1396,7 +1397,7 @@ func TestPreemption_Normal(t *testing.T) {
 				alloc.NodeID = node.ID
 			}
 			require := require.New(t)
-			err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, tc.currentAllocations)
+			err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), tc.currentAllocations)
 
 			require.Nil(err)
 			if tc.currentPreemptions != nil {
@@ -1531,7 +1532,7 @@ func TestPreemptionMultiple(t *testing.T) {
 		allocs = append(allocs, alloc)
 		allocIDs[alloc.ID] = struct{}{}
 	}
-	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), time.Now().Unix(), allocs))
 
 	// new high priority job with 2 allocs, each using 2 GPUs
 	highPrioJob := mock.Job()

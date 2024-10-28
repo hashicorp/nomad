@@ -878,7 +878,7 @@ func TestServiceRegistration_List(t *testing.T) {
 				allocs[0].Namespace = "platform"
 				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
 				signAllocIdentities(s.encrypter, job, allocs, time.Now())
-				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
+				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, time.Now().UnixNano(), allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]
 
@@ -1155,7 +1155,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				job := allocs[0].Job
 				require.NoError(t, s.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, job))
 				signAllocIdentities(s.encrypter, job, allocs, time.Now())
-				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, allocs))
+				require.NoError(t, s.State().UpsertAllocs(structs.MsgTypeTestSetup, 15, time.Now().UnixNano(), allocs))
 
 				signedToken := allocs[0].SignedIdentities["web"]
 

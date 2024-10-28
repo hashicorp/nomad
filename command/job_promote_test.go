@@ -6,6 +6,7 @@ package command
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
@@ -154,7 +155,7 @@ namespace "default" {
 			d := mock.Deployment()
 			d.JobID = job.ID
 			d.JobCreateIndex = job.CreateIndex
-			err = state.UpsertDeployment(uint64(301+i), d)
+			err = state.UpsertDeployment(uint64(301+i), time.Now().UnixNano(), d)
 			must.NoError(t, err)
 
 			if tc.aclPolicy != "" {

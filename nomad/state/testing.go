@@ -231,7 +231,7 @@ func TestBadCSIState(t testing.TB, store *StateStore) error {
 	alloc1.DesiredStatus = structs.AllocDesiredStatusRun
 
 	// Insert allocs into the state store
-	err := store.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc1})
+	err := store.UpsertAllocs(structs.MsgTypeTestSetup, index, time.Now().UnixNano(), []*structs.Allocation{alloc1})
 	if err != nil {
 		return err
 	}
@@ -311,7 +311,7 @@ func TestBadCSIState(t testing.TB, store *StateStore) error {
 	}
 	vol = vol.Copy() // canonicalize
 
-	err = store.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
+	err = store.UpsertCSIVolume(index, time.Now().UnixNano(), []*structs.CSIVolume{vol})
 	if err != nil {
 		return err
 	}

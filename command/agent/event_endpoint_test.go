@@ -231,7 +231,7 @@ func TestHTTP_Alloc_Port_Response(t *testing.T) {
 		alloc.NodeID = srv.client.NodeID()
 
 		require.Nil(t, srv.server.State().UpsertJobSummary(101, mock.JobSummary(alloc.JobID)))
-		require.Nil(t, srv.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc}))
+		require.Nil(t, srv.server.State().UpsertAllocs(structs.MsgTypeTestSetup, 102, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 		running := false
 		testutil.WaitForResult(func() (bool, error) {

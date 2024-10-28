@@ -280,7 +280,7 @@ func TestJob_Statuses(t *testing.T) {
 		t.Helper()
 		a := mock.MinAllocForJob(job)
 		must.NoError(t,
-			s.State().UpsertAllocs(structs.AllocUpdateRequestType, incIdx(t), []*structs.Allocation{a}),
+			s.State().UpsertAllocs(structs.AllocUpdateRequestType, incIdx(t), time.Now().UnixNano(), []*structs.Allocation{a}),
 			must.Sprintf("error creating alloc for job %s", job.ID))
 		t.Cleanup(func() {
 			test.NoError(t, s.State().DeleteEval(incIdx(t), []string{}, []string{a.ID}, false))
@@ -290,7 +290,7 @@ func TestJob_Statuses(t *testing.T) {
 		t.Helper()
 		deploy := mock.Deployment()
 		deploy.JobID = job.ID
-		must.NoError(t, s.State().UpsertDeployment(incIdx(t), deploy))
+		must.NoError(t, s.State().UpsertDeployment(incIdx(t), time.Now().UnixNano(), deploy))
 		t.Cleanup(func() {
 			test.NoError(t, s.State().DeleteDeployment(incIdx(t), []string{deploy.ID}))
 		})

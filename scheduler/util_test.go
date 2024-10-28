@@ -829,7 +829,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	// Create a new task group that prevents in-place updates.
 	tg := &structs.TaskGroup{}
@@ -885,7 +885,7 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	// Update TG to add a new service (inplace)
 	tg := job.TaskGroups[0]
@@ -945,7 +945,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	// Create a new task group that requires too much resources.
 	tg := &structs.TaskGroup{}
@@ -998,7 +998,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	// Create a new task group that updates the resources.
 	tg := &structs.TaskGroup{}
@@ -1070,7 +1070,7 @@ func TestInplaceUpdate_WildcardDatacenters(t *testing.T) {
 	alloc.Job = job
 	alloc.JobID = job.ID
 	must.NoError(t, store.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: job.TaskGroups[0]}}
 	stack := NewGenericStack(false, ctx)
@@ -1111,7 +1111,7 @@ func TestInplaceUpdate_NodePools(t *testing.T) {
 
 	t.Logf("alloc1=%s alloc2=%s", alloc1.ID, alloc2.ID)
 
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1004,
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1004, time.Now().UnixNano(),
 		[]*structs.Allocation{alloc1, alloc2}))
 
 	updates := []allocTuple{

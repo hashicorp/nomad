@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) HashiCorp, Inc.e
 // SPDX-License-Identifier: BUSL-1.1
 
 package nomad
@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
@@ -33,7 +34,7 @@ func registerMockJob(s *Server, t *testing.T, prefix string, counter int) *struc
 
 func registerJob(s *Server, t *testing.T, job *structs.Job) {
 	fsmState := s.fsm.State()
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 }
 
 func mockAlloc() *structs.Allocation {
@@ -70,9 +71,9 @@ func TestSearch_PrefixSearch_Job(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	require.Len(t, resp.Matches[structs.Jobs], 1)
-	require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Jobs])
+	must.Eq(t, job.ID, resp.Matches[structs.Jobs][0])
+	must.Eq(t, uint64(jobIndex), resp.Index)
 }
 
 func TestSearch_PrefixSearch_ACL(t *testing.T) {
@@ -102,7 +103,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	must.NoError(t, resp.Error)
 
 	plugin := mock.CSIPlugin()
-	must.NoError(t, store.UpsertCSIPlugin(1002, plugin))
+	must.NoError(t, store.UpsertCSIPlugin(1002, time.Now().UnixNano(), plugin))
 
 	node := mock.Node()
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1003, node))
@@ -282,8 +283,8 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(999, summary))
-	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+	must.NoError(t, fsmState.UpsertJobSummary(999, summary))
+	must.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	req := &structs.SearchRequest{
 		Context: structs.All,
@@ -297,10 +298,10 @@ func TestSearch_PrefixSearch_All_JobWithHyphen(t *testing.T) {
 	for i := 1; i < len(prefix); i++ {
 		req.Prefix = prefix[:i]
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Equal(t, 1, len(resp.Matches[structs.Jobs]))
-		require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
-		require.EqualValues(t, jobIndex, resp.Index)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		must.Eq(t, 1, len(resp.Matches[structs.Jobs]))
+		must.Eq(t, job.ID, resp.Matches[structs.Jobs][0])
+		must.Eq(t, jobIndex, resp.Index)
 	}
 }
 
@@ -323,8 +324,8 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(999, summary))
-	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+	must.NoError(t, fsmState.UpsertJobSummary(999, summary))
+	must.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
@@ -336,11 +337,11 @@ func TestSearch_PrefixSearch_All_LongJob(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Jobs], 1)
-	require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
-	require.EqualValues(t, jobIndex, resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Jobs])
+	must.Eq(t, job.ID, resp.Matches[structs.Jobs][0])
+	must.Eq(t, jobIndex, resp.Index)
 }
 
 // truncate should limit results to 20
@@ -370,11 +371,11 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Jobs], 20)
-	require.True(t, resp.Truncations[structs.Jobs])
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.Len(t, 20, resp.Matches[structs.Jobs])
+	must.True(t, resp.Truncations[structs.Jobs])
+	must.Eq(t, uint64(jobIndex), resp.Index)
 }
 
 func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
@@ -393,7 +394,7 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 	job := registerMockJob(s, t, prefix, 0)
 	eval1 := mock.Eval()
 	eval1.ID = job.ID
-	require.NoError(t, s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1}))
+	must.NoError(t, s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1}))
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
@@ -405,12 +406,12 @@ func TestSearch_PrefixSearch_AllWithJob(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Jobs], 1)
-	require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
-	require.Len(t, resp.Matches[structs.Evals], 1)
-	require.Equal(t, eval1.ID, resp.Matches[structs.Evals][0])
+	must.Len(t, 1, resp.Matches[structs.Jobs])
+	must.Eq(t, job.ID, resp.Matches[structs.Jobs][0])
+	must.Len(t, 1, resp.Matches[structs.Evals])
+	must.Eq(t, eval1.ID, resp.Matches[structs.Evals][0])
 }
 
 func TestSearch_PrefixSearch_Evals(t *testing.T) {
@@ -424,7 +425,7 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	eval1 := mock.Eval()
-	require.NoError(t, s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1}))
+	must.NoError(t, s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1}))
 
 	prefix := eval1.ID[:len(eval1.ID)-2]
 
@@ -438,12 +439,12 @@ func TestSearch_PrefixSearch_Evals(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Evals], 1)
-	require.Equal(t, eval1.ID, resp.Matches[structs.Evals][0])
-	require.False(t, resp.Truncations[structs.Evals])
-	require.Equal(t, uint64(2000), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Evals])
+	must.Eq(t, eval1.ID, resp.Matches[structs.Evals][0])
+	must.False(t, resp.Truncations[structs.Evals])
+	must.Eq(t, uint64(2000), resp.Index)
 }
 
 func TestSearch_PrefixSearch_Allocation(t *testing.T) {
@@ -460,8 +461,8 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(999, summary))
-	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}))
+	must.NoError(t, fsmState.UpsertJobSummary(999, summary))
+	must.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 90, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	prefix := alloc.ID[:len(alloc.ID)-2]
 
@@ -475,12 +476,12 @@ func TestSearch_PrefixSearch_Allocation(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Allocs], 1)
-	require.Equal(t, alloc.ID, resp.Matches[structs.Allocs][0])
-	require.False(t, resp.Truncations[structs.Allocs])
-	require.Equal(t, uint64(90), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Allocs])
+	must.Eq(t, alloc.ID, resp.Matches[structs.Allocs][0])
+	must.False(t, resp.Truncations[structs.Allocs])
+	must.Eq(t, uint64(90), resp.Index)
 }
 
 func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
@@ -497,15 +498,15 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(999, summary))
-	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
+	must.NoError(t, fsmState.UpsertJobSummary(999, summary))
+	must.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	node := mock.Node()
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, node))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, node))
 
 	eval1 := mock.Eval()
 	eval1.ID = node.ID
-	require.NoError(t, fsmState.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval1}))
+	must.NoError(t, fsmState.UpsertEvals(structs.MsgTypeTestSetup, 1002, []*structs.Evaluation{eval1}))
 
 	req := &structs.SearchRequest{
 		Context: structs.All,
@@ -518,11 +519,11 @@ func TestSearch_PrefixSearch_All_UUID(t *testing.T) {
 	for i := 1; i < len(alloc.ID); i++ {
 		req.Prefix = alloc.ID[:i]
 		var resp structs.SearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Allocs], 1)
-		require.Equal(t, alloc.ID, resp.Matches[structs.Allocs][0])
-		require.False(t, resp.Truncations[structs.Allocs])
-		require.EqualValues(t, 1002, resp.Index)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+		must.Len(t, 1, resp.Matches[structs.Allocs])
+		must.Eq(t, alloc.ID, resp.Matches[structs.Allocs][0])
+		must.False(t, resp.Truncations[structs.Allocs])
+		must.Eq(t, 1002, resp.Index)
 	}
 }
 
@@ -539,7 +540,7 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 	fsmState := s.fsm.State()
 	node := mock.Node()
 
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 100, node))
 
 	prefix := node.ID[:len(node.ID)-2]
 
@@ -557,10 +558,10 @@ func TestSearch_PrefixSearch_Node(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	require.Len(t, resp.Matches[structs.Nodes], 1)
-	require.Equal(t, node.ID, resp.Matches[structs.Nodes][0])
-	require.False(t, resp.Truncations[structs.Nodes])
-	require.Equal(t, uint64(100), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Nodes])
+	must.Eq(t, node.ID, resp.Matches[structs.Nodes][0])
+	must.False(t, resp.Truncations[structs.Nodes])
+	must.Eq(t, uint64(100), resp.Index)
 }
 
 func TestSearch_PrefixSearch_NodePool(t *testing.T) {
@@ -775,7 +776,7 @@ func TestSearch_PrefixSearch_Deployment(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	deployment := mock.Deployment()
-	require.NoError(t, s.fsm.State().UpsertDeployment(2000, deployment))
+	must.NoError(t, s.fsm.State().UpsertDeployment(2000, time.Now().UnixNano(), deployment))
 
 	prefix := deployment.ID[:len(deployment.ID)-2]
 
@@ -789,11 +790,11 @@ func TestSearch_PrefixSearch_Deployment(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-	require.Len(t, resp.Matches[structs.Deployments], 1)
-	require.Equal(t, deployment.ID, resp.Matches[structs.Deployments][0])
-	require.False(t, resp.Truncations[structs.Deployments])
-	require.Equal(t, uint64(2000), resp.Index)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.Deployments])
+	must.Eq(t, deployment.ID, resp.Matches[structs.Deployments][0])
+	must.False(t, resp.Truncations[structs.Deployments])
+	must.Eq(t, uint64(2000), resp.Index)
 }
 
 func TestSearch_PrefixSearch_AllContext(t *testing.T) {
@@ -809,11 +810,11 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	fsmState := s.fsm.State()
 	node := mock.Node()
 
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 100, node))
 
 	eval1 := mock.Eval()
 	eval1.ID = node.ID
-	require.NoError(t, fsmState.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}))
+	must.NoError(t, fsmState.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval1}))
 
 	prefix := node.ID[:len(node.ID)-2]
 
@@ -827,13 +828,13 @@ func TestSearch_PrefixSearch_AllContext(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Nodes], 1)
-	require.Len(t, resp.Matches[structs.Evals], 1)
-	require.Equal(t, node.ID, resp.Matches[structs.Nodes][0])
-	require.Equal(t, eval1.ID, resp.Matches[structs.Evals][0])
-	require.Equal(t, uint64(1000), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Nodes])
+	must.Len(t, 1, resp.Matches[structs.Evals])
+	must.Eq(t, node.ID, resp.Matches[structs.Nodes][0])
+	must.Eq(t, eval1.ID, resp.Matches[structs.Evals][0])
+	must.Eq(t, uint64(1000), resp.Index)
 }
 
 // Tests that the top 20 matches are returned when no prefix is set
@@ -861,10 +862,10 @@ func TestSearch_PrefixSearch_NoPrefix(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-	require.Len(t, resp.Matches[structs.Jobs], 1)
-	require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.Jobs])
+	must.Eq(t, job.ID, resp.Matches[structs.Jobs][0])
+	must.Eq(t, uint64(jobIndex), resp.Index)
 }
 
 // Tests that the zero matches are returned when a prefix has no matching
@@ -891,9 +892,9 @@ func TestSearch_PrefixSearch_NoMatches(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 	require.Empty(t, resp.Matches[structs.Jobs])
-	require.Equal(t, uint64(0), resp.Index)
+	must.Eq(t, uint64(0), resp.Index)
 }
 
 // Prefixes can only be looked up if their length is a power of two. For
@@ -925,9 +926,9 @@ func TestSearch_PrefixSearch_RoundDownToEven(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-	require.Len(t, resp.Matches[structs.Jobs], 1)
-	require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.Jobs])
+	must.Eq(t, job.ID, resp.Matches[structs.Jobs][0])
 }
 
 func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
@@ -964,11 +965,11 @@ func TestSearch_PrefixSearch_MultiRegion(t *testing.T) {
 	codec := rpcClient(t, s2)
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Jobs], 1)
-	require.Equal(t, job.ID, resp.Matches[structs.Jobs][0])
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Jobs])
+	must.Eq(t, job.ID, resp.Matches[structs.Jobs][0])
+	must.Eq(t, uint64(jobIndex), resp.Index)
 }
 
 func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
@@ -995,11 +996,11 @@ func TestSearch_PrefixSearch_CSIPlugin(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Plugins], 1)
-	require.Equal(t, id, resp.Matches[structs.Plugins][0])
-	require.False(t, resp.Truncations[structs.Plugins])
+	must.Len(t, 1, resp.Matches[structs.Plugins])
+	must.Eq(t, id, resp.Matches[structs.Plugins][0])
+	must.False(t, resp.Truncations[structs.Plugins])
 }
 
 func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
@@ -1013,12 +1014,12 @@ func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	id := uuid.Generate()
-	err := s.fsm.State().UpsertCSIVolume(1000, []*structs.CSIVolume{{
+	err := s.fsm.State().UpsertCSIVolume(1000, time.Now().UnixNano(), []*structs.CSIVolume{{
 		ID:        id,
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "glade",
 	}})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	prefix := id[:len(id)-2]
 
@@ -1032,11 +1033,11 @@ func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Volumes], 1)
-	require.Equal(t, id, resp.Matches[structs.Volumes][0])
-	require.False(t, resp.Truncations[structs.Volumes])
+	must.Len(t, 1, resp.Matches[structs.Volumes])
+	must.Eq(t, id, resp.Matches[structs.Volumes][0])
+	must.False(t, resp.Truncations[structs.Volumes])
 }
 
 func TestSearch_PrefixSearch_Namespace(t *testing.T) {
@@ -1050,7 +1051,7 @@ func TestSearch_PrefixSearch_Namespace(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	ns := mock.Namespace()
-	require.NoError(t, s.fsm.State().UpsertNamespaces(2000, []*structs.Namespace{ns}))
+	must.NoError(t, s.fsm.State().UpsertNamespaces(2000, []*structs.Namespace{ns}))
 
 	prefix := ns.Name[:len(ns.Name)-2]
 
@@ -1063,12 +1064,12 @@ func TestSearch_PrefixSearch_Namespace(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Namespaces], 1)
-	require.Equal(t, ns.Name, resp.Matches[structs.Namespaces][0])
-	require.False(t, resp.Truncations[structs.Namespaces])
-	require.Equal(t, uint64(2000), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Namespaces])
+	must.Eq(t, ns.Name, resp.Matches[structs.Namespaces][0])
+	must.False(t, resp.Truncations[structs.Namespaces])
+	must.Eq(t, uint64(2000), resp.Index)
 }
 
 func TestSearch_PrefixSearch_Namespace_ACL(t *testing.T) {
@@ -1216,7 +1217,7 @@ func TestSearch_PrefixSearch_ScalingPolicy(t *testing.T) {
 	prefix := policy.ID
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 
 	req := &structs.SearchRequest{
 		Prefix:  prefix,
@@ -1228,16 +1229,16 @@ func TestSearch_PrefixSearch_ScalingPolicy(t *testing.T) {
 	}
 
 	var resp structs.SearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-	require.Len(t, resp.Matches[structs.ScalingPolicies], 1)
-	require.Equal(t, policy.ID, resp.Matches[structs.ScalingPolicies][0])
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.ScalingPolicies])
+	must.Eq(t, policy.ID, resp.Matches[structs.ScalingPolicies][0])
+	must.Eq(t, uint64(jobIndex), resp.Index)
 
 	req.Context = structs.All
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
-	require.Len(t, resp.Matches[structs.ScalingPolicies], 1)
-	require.Equal(t, policy.ID, resp.Matches[structs.ScalingPolicies][0])
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.ScalingPolicies])
+	must.Eq(t, policy.ID, resp.Matches[structs.ScalingPolicies][0])
+	must.Eq(t, uint64(jobIndex), resp.Index)
 }
 
 func TestSearch_FuzzySearch_ACL(t *testing.T) {
@@ -1269,7 +1270,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 
 	plugin := mock.CSIPlugin()
 	plugin.ID = "mock.hashicorp.com"
-	must.NoError(t, store.UpsertCSIPlugin(1002, plugin))
+	must.NoError(t, store.UpsertCSIPlugin(1002, time.Now().UnixNano(), plugin))
 
 	node := mock.Node()
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1003, node))
@@ -1343,7 +1344,7 @@ func TestSearch_FuzzySearch_ACL(t *testing.T) {
 		req.Text = "jo" // mock job Name is my-job
 		var resp structs.FuzzySearchResponse
 		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 1)
+		must.Len(t, 1, resp.Matches[structs.Jobs])
 		must.Eq(t, structs.FuzzyMatch{
 			ID:    "my-job",
 			Scope: []string{"default", job.ID},
@@ -1425,7 +1426,7 @@ func TestSearch_FuzzySearch_NotEnabled(t *testing.T) {
 	job := mock.Job()
 	registerJob(s, t, job)
 
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
 
 	req := &structs.FuzzySearchRequest{
 		Text:         "foo", // min set to 5
@@ -1434,7 +1435,7 @@ func TestSearch_FuzzySearch_NotEnabled(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.EqualError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp),
+	must.EqError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp),
 		"fuzzy search is not enabled")
 }
 
@@ -1453,7 +1454,7 @@ func TestSearch_FuzzySearch_ShortText(t *testing.T) {
 	job := mock.Job()
 	registerJob(s, t, job)
 
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
 
 	req := &structs.FuzzySearchRequest{
 		Text:         "foo", // min set to 5
@@ -1462,7 +1463,7 @@ func TestSearch_FuzzySearch_ShortText(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.EqualError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp),
+	must.EqError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp),
 		"fuzzy search query must be at least 5 characters, got 3")
 }
 
@@ -1477,7 +1478,7 @@ func TestSearch_FuzzySearch_TruncateLimitQuery(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
 
 	req := &structs.FuzzySearchRequest{
 		Text:         "job",
@@ -1492,11 +1493,11 @@ func TestSearch_FuzzySearch_TruncateLimitQuery(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Jobs], 20)
-	require.True(t, resp.Truncations[structs.Jobs])
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.Len(t, 20, resp.Matches[structs.Jobs])
+	must.True(t, resp.Truncations[structs.Jobs])
+	must.Eq(t, uint64(jobIndex), resp.Index)
 }
 
 func TestSearch_FuzzySearch_TruncateLimitResults(t *testing.T) {
@@ -1512,7 +1513,7 @@ func TestSearch_FuzzySearch_TruncateLimitResults(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, mock.Node()))
 
 	req := &structs.FuzzySearchRequest{
 		Text:         "job",
@@ -1527,11 +1528,11 @@ func TestSearch_FuzzySearch_TruncateLimitResults(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Jobs], 5)
-	require.True(t, resp.Truncations[structs.Jobs])
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.Len(t, 5, resp.Matches[structs.Jobs])
+	must.True(t, resp.Truncations[structs.Jobs])
+	must.Eq(t, uint64(jobIndex), resp.Index)
 }
 
 func TestSearch_FuzzySearch_Evals(t *testing.T) {
@@ -1546,7 +1547,7 @@ func TestSearch_FuzzySearch_Evals(t *testing.T) {
 
 	eval1 := mock.Eval()
 	eval1.ID = "f7dee5a1-d2b0-2f6a-2e75-6c8e467a4b99"
-	require.NoError(t, s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1}))
+	must.NoError(t, s.fsm.State().UpsertEvals(structs.MsgTypeTestSetup, 2000, []*structs.Evaluation{eval1}))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    "f7dee", // evals are prefix searched
@@ -1558,12 +1559,12 @@ func TestSearch_FuzzySearch_Evals(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Evals], 1)
-	require.Equal(t, eval1.ID, resp.Matches[structs.Evals][0].ID)
-	require.False(t, resp.Truncations[structs.Evals])
-	require.Equal(t, uint64(2000), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Evals])
+	must.Eq(t, eval1.ID, resp.Matches[structs.Evals][0].ID)
+	must.False(t, resp.Truncations[structs.Evals])
+	must.Eq(t, uint64(2000), resp.Index)
 }
 
 func TestSearch_FuzzySearch_Allocation(t *testing.T) {
@@ -1580,8 +1581,8 @@ func TestSearch_FuzzySearch_Allocation(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJobSummary(999, summary))
-	require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 90, []*structs.Allocation{alloc}))
+	must.NoError(t, fsmState.UpsertJobSummary(999, summary))
+	must.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, 90, time.Now().UnixNano(), []*structs.Allocation{alloc}))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    "web",
@@ -1593,12 +1594,12 @@ func TestSearch_FuzzySearch_Allocation(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Allocs], 1)
-	require.Equal(t, alloc.Name, resp.Matches[structs.Allocs][0].ID)
-	require.False(t, resp.Truncations[structs.Allocs])
-	require.Equal(t, uint64(90), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Allocs])
+	must.Eq(t, alloc.Name, resp.Matches[structs.Allocs][0].ID)
+	must.False(t, resp.Truncations[structs.Allocs])
+	must.Eq(t, uint64(90), resp.Index)
 }
 
 func TestSearch_FuzzySearch_Node(t *testing.T) {
@@ -1614,7 +1615,7 @@ func TestSearch_FuzzySearch_Node(t *testing.T) {
 	fsmState := s.fsm.State()
 	node := mock.Node()
 
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 100, node))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 100, node))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    "oo",
@@ -1626,11 +1627,11 @@ func TestSearch_FuzzySearch_Node(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-	require.Len(t, resp.Matches[structs.Nodes], 1)
-	require.Equal(t, node.Name, resp.Matches[structs.Nodes][0].ID)
-	require.False(t, resp.Truncations[structs.Nodes])
-	require.Equal(t, uint64(100), resp.Index)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.Nodes])
+	must.Eq(t, node.Name, resp.Matches[structs.Nodes][0].ID)
+	must.False(t, resp.Truncations[structs.Nodes])
+	must.Eq(t, uint64(100), resp.Index)
 }
 
 func TestSearch_FuzzySearch_NodePool(t *testing.T) {
@@ -1850,7 +1851,7 @@ func TestSearch_FuzzySearch_Deployment(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	deployment := mock.Deployment()
-	require.NoError(t, s.fsm.State().UpsertDeployment(2000, deployment))
+	must.NoError(t, s.fsm.State().UpsertDeployment(2000, time.Now().UnixNano(), deployment))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    deployment.ID[0:3], // deployments are prefix searched
@@ -1862,11 +1863,11 @@ func TestSearch_FuzzySearch_Deployment(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-	require.Len(t, resp.Matches[structs.Deployments], 1)
-	require.Equal(t, deployment.ID, resp.Matches[structs.Deployments][0].ID)
-	require.False(t, resp.Truncations[structs.Deployments])
-	require.Equal(t, uint64(2000), resp.Index)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.Deployments])
+	must.Eq(t, deployment.ID, resp.Matches[structs.Deployments][0].ID)
+	must.False(t, resp.Truncations[structs.Deployments])
+	must.Eq(t, uint64(2000), resp.Index)
 }
 
 func TestSearch_FuzzySearch_CSIPlugin(t *testing.T) {
@@ -1890,11 +1891,11 @@ func TestSearch_FuzzySearch_CSIPlugin(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Plugins], 1)
-	require.Equal(t, "my-plugin", resp.Matches[structs.Plugins][0].ID)
-	require.False(t, resp.Truncations[structs.Plugins])
+	must.Len(t, 1, resp.Matches[structs.Plugins])
+	must.Eq(t, "my-plugin", resp.Matches[structs.Plugins][0].ID)
+	must.False(t, resp.Truncations[structs.Plugins])
 }
 
 func TestSearch_FuzzySearch_CSIVolume(t *testing.T) {
@@ -1908,12 +1909,12 @@ func TestSearch_FuzzySearch_CSIVolume(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	id := uuid.Generate()
-	err := s.fsm.State().UpsertCSIVolume(1000, []*structs.CSIVolume{{
+	err := s.fsm.State().UpsertCSIVolume(1000, time.Now().UnixNano(), []*structs.CSIVolume{{
 		ID:        id,
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "glade",
 	}})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	req := &structs.FuzzySearchRequest{
 		Text:    id[0:3], // volumes are prefix searched
@@ -1925,11 +1926,11 @@ func TestSearch_FuzzySearch_CSIVolume(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Volumes], 1)
-	require.Equal(t, id, resp.Matches[structs.Volumes][0].ID)
-	require.False(t, resp.Truncations[structs.Volumes])
+	must.Len(t, 1, resp.Matches[structs.Volumes])
+	must.Eq(t, id, resp.Matches[structs.Volumes][0].ID)
+	must.False(t, resp.Truncations[structs.Volumes])
 }
 
 func TestSearch_FuzzySearch_Namespace(t *testing.T) {
@@ -1943,7 +1944,7 @@ func TestSearch_FuzzySearch_Namespace(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	ns := mock.Namespace()
-	require.NoError(t, s.fsm.State().UpsertNamespaces(2000, []*structs.Namespace{ns}))
+	must.NoError(t, s.fsm.State().UpsertNamespaces(2000, []*structs.Namespace{ns}))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    "am", // mock is team-<uuid>
@@ -1954,12 +1955,12 @@ func TestSearch_FuzzySearch_Namespace(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Namespaces], 1)
-	require.Equal(t, ns.Name, resp.Matches[structs.Namespaces][0].ID)
-	require.False(t, resp.Truncations[structs.Namespaces])
-	require.Equal(t, uint64(2000), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Namespaces])
+	must.Eq(t, ns.Name, resp.Matches[structs.Namespaces][0].ID)
+	must.False(t, resp.Truncations[structs.Namespaces])
+	must.Eq(t, uint64(2000), resp.Index)
 }
 
 func TestSearch_FuzzySearch_Namespace_caseInsensitive(t *testing.T) {
@@ -1974,7 +1975,7 @@ func TestSearch_FuzzySearch_Namespace_caseInsensitive(t *testing.T) {
 
 	ns := mock.Namespace()
 	ns.Name = "TheFooNamespace"
-	require.NoError(t, s.fsm.State().UpsertNamespaces(2000, []*structs.Namespace{ns}))
+	must.NoError(t, s.fsm.State().UpsertNamespaces(2000, []*structs.Namespace{ns}))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    "foon",
@@ -1985,12 +1986,12 @@ func TestSearch_FuzzySearch_Namespace_caseInsensitive(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-	require.Len(t, resp.Matches[structs.Namespaces], 1)
-	require.Equal(t, ns.Name, resp.Matches[structs.Namespaces][0].ID)
-	require.False(t, resp.Truncations[structs.Namespaces])
-	require.Equal(t, uint64(2000), resp.Index)
+	must.Len(t, 1, resp.Matches[structs.Namespaces])
+	must.Eq(t, ns.Name, resp.Matches[structs.Namespaces][0].ID)
+	must.False(t, resp.Truncations[structs.Namespaces])
+	must.Eq(t, uint64(2000), resp.Index)
 }
 
 func TestSearch_FuzzySearch_ScalingPolicy(t *testing.T) {
@@ -2006,7 +2007,7 @@ func TestSearch_FuzzySearch_ScalingPolicy(t *testing.T) {
 	job, policy := mock.JobWithScalingPolicy()
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    policy.ID[0:3], // scaling policies are prefix searched
@@ -2018,16 +2019,16 @@ func TestSearch_FuzzySearch_ScalingPolicy(t *testing.T) {
 	}
 
 	var resp structs.FuzzySearchResponse
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-	require.Len(t, resp.Matches[structs.ScalingPolicies], 1)
-	require.Equal(t, policy.ID, resp.Matches[structs.ScalingPolicies][0].ID)
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.ScalingPolicies])
+	must.Eq(t, policy.ID, resp.Matches[structs.ScalingPolicies][0].ID)
+	must.Eq(t, uint64(jobIndex), resp.Index)
 
 	req.Context = structs.All
-	require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-	require.Len(t, resp.Matches[structs.ScalingPolicies], 1)
-	require.Equal(t, policy.ID, resp.Matches[structs.ScalingPolicies][0].ID)
-	require.Equal(t, uint64(jobIndex), resp.Index)
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+	must.Len(t, 1, resp.Matches[structs.ScalingPolicies])
+	must.Eq(t, policy.ID, resp.Matches[structs.ScalingPolicies][0].ID)
+	must.Eq(t, uint64(jobIndex), resp.Index)
 }
 
 func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
@@ -2044,18 +2045,18 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 
 	ns := mock.Namespace()
 	ns.Name = "team-job-app"
-	require.NoError(t, fsmState.UpsertNamespaces(500, []*structs.Namespace{ns}))
+	must.NoError(t, fsmState.UpsertNamespaces(500, []*structs.Namespace{ns}))
 
 	job1 := mock.Job()
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, nil, job1))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 502, nil, job1))
 
 	job2 := mock.Job()
 	job2.Namespace = ns.Name
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, nil, job2))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, 504, nil, job2))
 
 	node := mock.Node()
 	node.Name = "run-jobs"
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, node))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1001, node))
 
 	req := &structs.FuzzySearchRequest{
 		Text:    "set-text-in-test",
@@ -2070,7 +2071,7 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 	{
 		var resp structs.FuzzySearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with an invalid token and expect failure
@@ -2080,7 +2081,7 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 		req.AuthToken = invalidToken.SecretID
 		var resp structs.FuzzySearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a node:read token and expect failure due to Namespaces being the context
@@ -2090,7 +2091,7 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 		req.AuthToken = validToken.SecretID
 		var resp structs.FuzzySearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a node:read token and expect success due to All context
@@ -2100,12 +2101,12 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 		req.Context = structs.All
 		req.AuthToken = validToken.SecretID
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Nodes], 1)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Eq(t, uint64(1001), resp.Index)
+		must.Len(t, 1, resp.Matches[structs.Nodes])
 
 		// Jobs filtered out since token only has access to node:read
-		require.Len(t, resp.Matches[structs.Jobs], 0)
+		must.Len(t, 0, resp.Matches[structs.Jobs])
 	}
 
 	// Try with a valid token for non-default namespace:read-job
@@ -2117,15 +2118,15 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 		req.AuthToken = validToken.SecretID
 		req.Namespace = job2.Namespace
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Len(t, 1, resp.Matches[structs.Jobs])
+		must.Eq(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
 
 		// Index of job - not node - because node context is filtered out
-		require.Equal(t, uint64(504), resp.Index)
+		must.Eq(t, uint64(504), resp.Index)
 
 		// Nodes filtered out since token only has access to namespace:read-job
-		require.Len(t, resp.Matches[structs.Nodes], 0)
+		must.Len(t, 0, resp.Matches[structs.Nodes])
 	}
 
 	// Try with a management token
@@ -2135,12 +2136,12 @@ func TestSearch_FuzzySearch_Namespace_ACL(t *testing.T) {
 		req.AuthToken = root.SecretID
 		req.Namespace = job1.Namespace
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Equal(t, uint64(1001), resp.Index)
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job1.Name, resp.Matches[structs.Jobs][0].ID)
-		require.Len(t, resp.Matches[structs.Nodes], 1)
-		require.Len(t, resp.Matches[structs.Namespaces], 1) // matches "team-job-app"
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Eq(t, uint64(1001), resp.Index)
+		must.Len(t, 1, resp.Matches[structs.Jobs])
+		must.Eq(t, job1.Name, resp.Matches[structs.Jobs][0].ID)
+		must.Len(t, 1, resp.Matches[structs.Nodes])
+		must.Len(t, 1, resp.Matches[structs.Namespaces]) // matches "team-job-app"
 	}
 }
 
@@ -2156,7 +2157,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 	fsmState := s.fsm.State()
 
-	require.NoError(t, fsmState.UpsertNamespaces(500, []*structs.Namespace{{
+	must.NoError(t, fsmState.UpsertNamespaces(500, []*structs.Namespace{{
 		Name:        "teamA",
 		Description: "first namespace",
 		CreateIndex: 100,
@@ -2185,29 +2186,29 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 	job1.Name = "teamA-job1"
 	job1.ID = "job1"
 	job1.Namespace = "teamA"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job1))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job1))
 
 	job2 := mock.Job()
 	job2.Name = "teamB-job2"
 	job2.ID = "job2"
 	job2.Namespace = "teamB"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job2))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job2))
 
 	job3 := mock.Job()
 	job3.Name = "teamC-job3"
 	job3.ID = "job3"
 	job3.Namespace = "teamC"
-	require.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job3))
+	must.NoError(t, fsmState.UpsertJob(structs.MsgTypeTestSetup, inc(), nil, job3))
 
 	// Upsert a node
 	node := mock.Node()
 	node.Name = "node-for-teams"
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, inc(), node))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, inc(), node))
 
 	// Upsert a node that will not be matched
 	node2 := mock.Node()
 	node2.Name = "node-for-ops"
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, inc(), node2))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, inc(), node2))
 
 	// Create parameterized requests
 	request := func(text, namespace, token string, context structs.Context) *structs.FuzzySearchRequest {
@@ -2226,7 +2227,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		var resp structs.FuzzySearchResponse
 		req := request("anything", job1.Namespace, "", structs.Jobs)
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
 
 	t.Run("with an invalid token expect failure", func(t *testing.T) {
@@ -2236,7 +2237,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 
 		var resp structs.FuzzySearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
 
 	t.Run("with node:read token search namespaces expect failure", func(t *testing.T) {
@@ -2245,7 +2246,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 
 		var resp structs.FuzzySearchResponse
 		err := msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp)
-		require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	})
 
 	t.Run("with node:read token search all expect success", func(t *testing.T) {
@@ -2253,13 +2254,13 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		req := request("team", job1.Namespace, validToken.SecretID, structs.All)
 
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
 		// One matching node
-		require.Len(t, resp.Matches[structs.Nodes], 1)
+		must.Len(t, 1, resp.Matches[structs.Nodes])
 
 		// Jobs filtered out since token only has access to node:read
-		require.Len(t, resp.Matches[structs.Jobs], 0)
+		must.Len(t, 0, resp.Matches[structs.Jobs])
 	})
 
 	t.Run("with a teamB/job:read token search all expect 1 job", func(t *testing.T) {
@@ -2268,12 +2269,12 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		req := request("team", job2.Namespace, token.SecretID, structs.All)
 
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 1)
-		require.Equal(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Len(t, 1, resp.Matches[structs.Jobs])
+		must.Eq(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
 
 		// Nodes filtered out since token only has access to namespace:read-job
-		require.Len(t, resp.Matches[structs.Nodes], 0)
+		must.Len(t, 0, resp.Matches[structs.Nodes])
 	})
 
 	// Using a token that can read jobs in 2 namespaces, we should get job results from
@@ -2290,10 +2291,10 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		req := request("team", structs.AllNamespacesSentinel, token.SecretID, structs.Jobs)
 
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 2)
-		require.Equal(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
-		require.Equal(t, job3.Name, resp.Matches[structs.Jobs][1].ID)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Len(t, 2, resp.Matches[structs.Jobs])
+		must.Eq(t, job2.Name, resp.Matches[structs.Jobs][0].ID)
+		must.Eq(t, job3.Name, resp.Matches[structs.Jobs][1].ID)
 	})
 
 	// Using a management token, we should get job results from all three namespaces
@@ -2302,11 +2303,11 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		req := request("team", structs.AllNamespacesSentinel, root.SecretID, structs.Jobs)
 
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Jobs], 3)
-		require.Equal(t, job1.Name, resp.Matches[structs.Jobs][0].ID)
-		require.Equal(t, job2.Name, resp.Matches[structs.Jobs][1].ID)
-		require.Equal(t, job3.Name, resp.Matches[structs.Jobs][2].ID)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Len(t, 3, resp.Matches[structs.Jobs])
+		must.Eq(t, job1.Name, resp.Matches[structs.Jobs][0].ID)
+		must.Eq(t, job2.Name, resp.Matches[structs.Jobs][1].ID)
+		must.Eq(t, job3.Name, resp.Matches[structs.Jobs][2].ID)
 	})
 
 	// Using a token that can read nodes, we should get our 1 matching node when
@@ -2319,9 +2320,9 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		req := request("team", structs.AllNamespacesSentinel, token.SecretID, structs.Nodes)
 
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Nodes], 1)
-		require.Equal(t, "node-for-teams", resp.Matches[structs.Nodes][0].ID)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Len(t, 1, resp.Matches[structs.Nodes])
+		must.Eq(t, "node-for-teams", resp.Matches[structs.Nodes][0].ID)
 	})
 
 	// Using a token that cannot read nodes, we should get no matching nodes when
@@ -2333,7 +2334,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		token := mock.CreateToken(t, fsmState, inc(), []string{"agent-read-policy"})
 		req := request("team", structs.AllNamespacesSentinel, token.SecretID, structs.Nodes)
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		require.Empty(t, resp.Matches[structs.Nodes])
 	})
 
@@ -2349,31 +2350,31 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		alloc1.Name = job1.Name + ".task[0]"
 		alloc1.Namespace = job1.Namespace
 		summary1 := mock.JobSummary(alloc1.JobID)
-		require.NoError(t, fsmState.UpsertJobSummary(inc(), summary1))
+		must.NoError(t, fsmState.UpsertJobSummary(inc(), summary1))
 
 		alloc2 := mockAlloc()
 		alloc2.JobID = job2.ID
 		alloc2.Name = job2.Name + ".task[0]"
 		alloc2.Namespace = job2.Namespace
 		summary2 := mock.JobSummary(alloc2.JobID)
-		require.NoError(t, fsmState.UpsertJobSummary(inc(), summary2))
+		must.NoError(t, fsmState.UpsertJobSummary(inc(), summary2))
 
 		alloc3 := mockAlloc()
 		alloc3.JobID = job3.ID
 		alloc3.Name = job3.Name + ".task[0]"
 		alloc3.Namespace = job3.Namespace
 		summary3 := mock.JobSummary(alloc3.JobID)
-		require.NoError(t, fsmState.UpsertJobSummary(inc(), summary3))
+		must.NoError(t, fsmState.UpsertJobSummary(inc(), summary3))
 
 		// Upsert the allocs
-		require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, inc(), []*structs.Allocation{alloc1, alloc2, alloc3}))
+		must.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, inc(), time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2, alloc3}))
 
 		token := mock.CreateToken(t, fsmState, inc(), []string{"policyD"})
 		req := request("team", structs.AllNamespacesSentinel, token.SecretID, structs.Allocs)
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Allocs], 1)
-		require.Equal(t, "teamB-job2.task[0]", resp.Matches[structs.Allocs][0].ID)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Len(t, 1, resp.Matches[structs.Allocs])
+		must.Eq(t, "teamB-job2.task[0]", resp.Matches[structs.Allocs][0].ID)
 	})
 
 	// Using a management token should return allocs from all the jobs.
@@ -2385,7 +2386,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		alloc1.Name = "test-alloc.one[0]"
 		alloc1.Namespace = job1.Namespace
 		summary1 := mock.JobSummary(alloc1.JobID)
-		require.NoError(t, fsmState.UpsertJobSummary(inc(), summary1))
+		must.NoError(t, fsmState.UpsertJobSummary(inc(), summary1))
 
 		alloc2 := mockAlloc()
 		alloc2.ID = uuid.Generate()
@@ -2393,7 +2394,7 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		alloc2.Name = "test-alloc.two[0]"
 		alloc2.Namespace = job2.Namespace
 		summary2 := mock.JobSummary(alloc2.JobID)
-		require.NoError(t, fsmState.UpsertJobSummary(inc(), summary2))
+		must.NoError(t, fsmState.UpsertJobSummary(inc(), summary2))
 
 		alloc3 := mockAlloc()
 		alloc3.ID = uuid.Generate()
@@ -2401,21 +2402,21 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 		alloc3.Name = "test-alloc.three[0]"
 		alloc3.Namespace = job3.Namespace
 		summary3 := mock.JobSummary(alloc3.JobID)
-		require.NoError(t, fsmState.UpsertJobSummary(inc(), summary3))
+		must.NoError(t, fsmState.UpsertJobSummary(inc(), summary3))
 
 		// Upsert the allocs
-		require.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, inc(), []*structs.Allocation{alloc1, alloc2, alloc3}))
+		must.NoError(t, fsmState.UpsertAllocs(structs.MsgTypeTestSetup, inc(), time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2, alloc3}))
 
 		req := request("alloc", structs.AllNamespacesSentinel, root.SecretID, structs.Allocs)
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
-		require.Len(t, resp.Matches[structs.Allocs], 3)
-		require.Equal(t, alloc1.Name, resp.Matches[structs.Allocs][0].ID)
-		require.Equal(t, []string{"teamA", alloc1.ID}, resp.Matches[structs.Allocs][0].Scope)
-		require.Equal(t, alloc2.Name, resp.Matches[structs.Allocs][1].ID)
-		require.Equal(t, []string{"teamB", alloc2.ID}, resp.Matches[structs.Allocs][1].Scope)
-		require.Equal(t, alloc3.Name, resp.Matches[structs.Allocs][2].ID)
-		require.Equal(t, []string{"teamC", alloc3.ID}, resp.Matches[structs.Allocs][2].Scope)
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.Len(t, 3, resp.Matches[structs.Allocs])
+		must.Eq(t, alloc1.Name, resp.Matches[structs.Allocs][0].ID)
+		must.Eq(t, []string{"teamA", alloc1.ID}, resp.Matches[structs.Allocs][0].Scope)
+		must.Eq(t, alloc2.Name, resp.Matches[structs.Allocs][1].ID)
+		must.Eq(t, []string{"teamB", alloc2.ID}, resp.Matches[structs.Allocs][1].Scope)
+		must.Eq(t, alloc3.Name, resp.Matches[structs.Allocs][2].ID)
+		must.Eq(t, []string{"teamC", alloc3.ID}, resp.Matches[structs.Allocs][2].Scope)
 	})
 
 	// Allow plugin read and wildcard namespace
@@ -2431,9 +2432,9 @@ func TestSearch_FuzzySearch_MultiNamespace_ACL(t *testing.T) {
 
 		req := request("teams", structs.AllNamespacesSentinel, token.SecretID, structs.Plugins)
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 
-		require.Len(t, resp.Matches[structs.Plugins], 1)
+		must.Len(t, 1, resp.Matches[structs.Plugins])
 		require.Empty(t, resp.Matches[structs.Plugins][0].Scope) // no scope
 	})
 }
@@ -2498,9 +2499,9 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 
 	ns := mock.Namespace()
 	ns.Name = job.Namespace
-	require.NoError(t, fsmState.UpsertNamespaces(2000, []*structs.Namespace{ns}))
+	must.NoError(t, fsmState.UpsertNamespaces(2000, []*structs.Namespace{ns}))
 	registerJob(s, t, job)
-	require.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1003, mock.Node()))
+	must.NoError(t, fsmState.UpsertNode(structs.MsgTypeTestSetup, 1003, mock.Node()))
 
 	t.Run("sleep", func(t *testing.T) {
 		req := &structs.FuzzySearchRequest{
@@ -2512,16 +2513,16 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 			},
 		}
 		var resp structs.FuzzySearchResponse
-		require.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
 		m := resp.Matches
-		require.Equal(t, uint64(1000), resp.Index) // job is explicit search context, has id=1000
+		must.Eq(t, uint64(1000), resp.Index) // job is explicit search context, has id=1000
 
 		// just the one job
-		require.Len(t, m[structs.Jobs], 1)
+		must.Len(t, 1, m[structs.Jobs])
 
 		// 3 services (1 group, 2 task)
-		require.Len(t, m[structs.Services], 3)
-		require.Equal(t, []structs.FuzzyMatch{{
+		must.Len(t, 3, m[structs.Services])
+		must.Eq(t, []structs.FuzzyMatch{{
 			ID:    "some-sleepy-task-svc-one",
 			Scope: []string{"team-sleepy", job.ID, "qa-sleeper-group-one", "qa-sleep-task-one"},
 		}, {
@@ -2533,8 +2534,8 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 		}}, m[structs.Services])
 
 		// 3 groups
-		require.Len(t, m[structs.Groups], 3)
-		require.Equal(t, []structs.FuzzyMatch{{
+		must.Len(t, 3, m[structs.Groups])
+		must.Eq(t, []structs.FuzzyMatch{{
 			ID:    "sleep-in-java",
 			Scope: []string{"team-sleepy", job.ID},
 		}, {
@@ -2546,8 +2547,8 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 		}}, m[structs.Groups])
 
 		// 3 tasks (1 does not match)
-		require.Len(t, m[structs.Tasks], 3)
-		require.Equal(t, []structs.FuzzyMatch{{
+		must.Len(t, 3, m[structs.Tasks])
+		must.Eq(t, []structs.FuzzyMatch{{
 			ID:    "qa-sleep-task-one",
 			Scope: []string{"team-sleepy", job.ID, "qa-sleeper-group-one"},
 		}, {
@@ -2559,8 +2560,8 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 		}}, m[structs.Tasks])
 
 		// 2 tasks with command
-		require.Len(t, m[structs.Commands], 2)
-		require.Equal(t, []structs.FuzzyMatch{{
+		must.Len(t, 2, m[structs.Commands])
+		must.Eq(t, []structs.FuzzyMatch{{
 			ID:    "/bin/sleep",
 			Scope: []string{"team-sleepy", job.ID, "prod-sleeper-group-one", "prod-sleep-task-one"},
 		}, {
@@ -2569,15 +2570,15 @@ func TestSearch_FuzzySearch_Job(t *testing.T) {
 		}}, m[structs.Commands])
 
 		// 1 task with image
-		require.Len(t, m[structs.Images], 1)
-		require.Equal(t, []structs.FuzzyMatch{{
+		must.Len(t, 1, m[structs.Images])
+		must.Eq(t, []structs.FuzzyMatch{{
 			ID:    "sleeper:latest",
 			Scope: []string{"team-sleepy", job.ID, "qa-sleeper-group-one", "qa-sleep-task-one"},
 		}}, m[structs.Images])
 
 		// 1 task with class
-		require.Len(t, m[structs.Classes], 1)
-		require.Equal(t, []structs.FuzzyMatch{{
+		must.Len(t, 1, m[structs.Classes])
+		must.Eq(t, []structs.FuzzyMatch{{
 			ID:    "sleep.class",
 			Scope: []string{"team-sleepy", job.ID, "sleep-in-java", "prod-java-sleep"},
 		}}, m[structs.Classes])
@@ -2596,6 +2597,6 @@ func TestSearch_FuzzySearch_fuzzyIndex(t *testing.T) {
 		{name: "foo-bar-baz", text: "zap", exp: -1},
 	} {
 		result := fuzzyIndex(tc.name, tc.text)
-		require.Equal(t, tc.exp, result, "name: %s, text: %s, exp: %d, got: %d", tc.name, tc.text, tc.exp, result)
+		must.Eq(t, tc.exp, result, must.Sprintf("name: %s, text: %s, exp: %d, got: %d", tc.name, tc.text, tc.exp, result))
 	}
 }

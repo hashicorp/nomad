@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -344,7 +345,7 @@ func TestHTTP_PrefixSearch_Allocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mockAlloc()
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, time.Now().UnixNano(), []*structs.Allocation{alloc})
 		require.NoError(t, err)
 
 		prefix := alloc.ID[:len(alloc.ID)-2]
@@ -375,7 +376,7 @@ func TestHTTP_FuzzySearch_Allocations(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		alloc := mockAlloc()
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 7000, time.Now().UnixNano(), []*structs.Allocation{alloc})
 		require.NoError(t, err)
 
 		data := structs.FuzzySearchRequest{Text: "-job", Context: structs.Allocs}
@@ -466,7 +467,7 @@ func TestHTTP_PrefixSearch_Deployments(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		deployment := mock.Deployment()
-		require.NoError(t, state.UpsertDeployment(999, deployment), "UpsertDeployment")
+		require.NoError(t, state.UpsertDeployment(999, time.Now().UnixNano(), deployment), "UpsertDeployment")
 
 		prefix := deployment.ID[:len(deployment.ID)-2]
 		data := structs.SearchRequest{Prefix: prefix, Context: structs.Deployments}
@@ -494,7 +495,7 @@ func TestHTTP_FuzzySearch_Deployments(t *testing.T) {
 	httpTest(t, nil, func(s *TestAgent) {
 		state := s.Agent.server.State()
 		deployment := mock.Deployment()
-		require.NoError(t, state.UpsertDeployment(999, deployment), "UpsertDeployment")
+		require.NoError(t, state.UpsertDeployment(999, time.Now().UnixNano(), deployment), "UpsertDeployment")
 
 		// fuzzy search of deployments are prefix searches
 		prefix := deployment.ID[:len(deployment.ID)-2]
