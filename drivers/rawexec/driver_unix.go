@@ -9,12 +9,11 @@ import (
 	"fmt"
 	"os/user"
 
-	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func (tc *TaskConfig) Validate(driverCofig Config, cfg drivers.TaskConfig) error {
+func (d *Driver) Validate(driverCofig Config, cfg drivers.TaskConfig) error {
 	usernameToLookup := cfg.User
 	var user *user.User
 	var err error
@@ -33,5 +32,5 @@ func (tc *TaskConfig) Validate(driverCofig Config, cfg drivers.TaskConfig) error
 		}
 	}
 
-	return validators.HasValidIds(user, driverCofig.DeniedHostUids, driverCofig.DeniedHostGids)
+	return d.userIDValidator.HasValidIDs(user)
 }

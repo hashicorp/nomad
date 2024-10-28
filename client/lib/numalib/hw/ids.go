@@ -14,9 +14,15 @@ type (
 	// Must be an alias because go-msgpack cannot handle the real type.
 	NodeID = uint8
 
-	// A SocketID represents a physicsl CPU socket.
+	// A SocketID represents a physical CPU socket.
 	SocketID uint8
 
 	// A CoreID represents one logical (vCPU) core.
 	CoreID uint16
+
+	// A GroupID (GID) represents a unique numerical value assigned to each user group.
+	GroupID uint64
+
+	// A UserID represents a unique numerical value assigned to each user account.
+	UserID uint64
 )

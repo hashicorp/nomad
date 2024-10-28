@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -114,38 +115,6 @@ var (
 	}
 )
 
-// Driver fork/execs tasks using many of the underlying OS's isolation
-// features where configured.
-type Driver struct {
-	// eventer is used to handle multiplexing of TaskEvents calls such that an
-	// event can be broadcast to all callers
-	eventer *eventer.Eventer
-
-	// config is the driver configuration set by the SetConfig RPC
-	config Config
-
-	// nomadConfig is the client config from nomad
-	nomadConfig *base.ClientDriverConfig
-
-	// tasks is the in memory datastore mapping taskIDs to driverHandles
-	tasks *taskStore
-
-	// ctx is the context for the driver. It is passed to other subsystems to
-	// coordinate shutdown
-	ctx context.Context
-
-	// logger will log to the Nomad agent
-	logger hclog.Logger
-
-	// A tri-state boolean to know if the fingerprinting has happened and
-	// whether it has been successful
-	fingerprintSuccess *bool
-	fingerprintLock    sync.Mutex
-
-	// compute contains cpu compute information
-	compute cpustats.Compute
-}
-
 // Config is the driver configuration set by the SetConfig RPC call
 type Config struct {
 	// NoPivotRoot disables the use of pivot_root, useful when the root partition
@@ -166,12 +135,6 @@ type Config struct {
 
 	DeniedHostUidsStr string `codec:"denied_host_uids"`
 	DeniedHostGidsStr string `codec:"denied_host_gids"`
-
-	// DeniedHostUids configures which host uids are disallowed
-	DeniedHostUids []validators.IDRange `codec:"-"`
-
-	// DeniedHostGids configures which host gids are disallowed
-	DeniedHostGids []validators.IDRange `codec:"-"`
 }
 
 func (c *Config) validate() error {
@@ -191,23 +154,6 @@ func (c *Config) validate() error {
 	if !badCaps.Empty() {
 		return fmt.Errorf("allow_caps configured with capabilities not supported by system: %s", badCaps)
 	}
-
-	return nil
-}
-
-func (c *Config) setDeniedIds() error {
-	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", c.DeniedHostUidsStr)
-	if err != nil {
-		return err
-	}
-
-	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", c.DeniedHostGidsStr)
-	if err != nil {
-		return err
-	}
-
-	c.DeniedHostUids = deniedUidRanges
-	c.DeniedHostGids = deniedGidRanges
 
 	return nil
 }
@@ -268,7 +214,9 @@ func (tc *TaskConfig) validateUserIds(cfg *drivers.TaskConfig, driverConfig *Con
 		return fmt.Errorf("failed to identify user %q: %w", cfg.User, err)
 	}
 
-	return validators.HasValidIds(user, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids)
+	fmt.Println(user)
+	//return validators.HasValidIds(user, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids)
+	return nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -279,6 +227,44 @@ type TaskState struct {
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
+}
+
+type UserIDValidator interface {
+	HasValidIDs(user *user.User) error
+}
+
+// Driver fork/execs tasks using many of the underlying OS's isolation
+// features where configured.
+type Driver struct {
+	// eventer is used to handle multiplexing of TaskEvents calls such that an
+	// event can be broadcast to all callers
+	eventer *eventer.Eventer
+
+	// config is the driver configuration set by the SetConfig RPC
+	config *Config
+
+	// nomadConfig is the client config from nomad
+	nomadConfig *base.ClientDriverConfig
+
+	// tasks is the in memory datastore mapping taskIDs to driverHandles
+	tasks *taskStore
+
+	// ctx is the context for the driver. It is passed to other subsystems to
+	// coordinate shutdown
+	ctx context.Context
+
+	// logger will log to the Nomad agent
+	logger hclog.Logger
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
+	fingerprintLock    sync.Mutex
+
+	// compute contains cpu compute information
+	compute cpustats.Compute
+
+	userIDValidator UserIDValidator
 }
 
 // NewExecDriver returns a new DrivePlugin implementation
@@ -322,21 +308,42 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
+/* func (d *Driver) setDeniedIds(conf *Config) error {
+	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", conf.DeniedHostUidsStr)
+	if err != nil {
+		return err
+	}
+
+	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", conf.DeniedHostGidsStr)
+	if err != nil {
+		return err
+	}
+
+	d.DeniedHostUids = deniedUidRanges
+	d.DeniedHostGids = deniedGidRanges
+
+	return nil
+} */
+
 func (d *Driver) SetConfig(cfg *base.Config) error {
 	// unpack, validate, and set agent plugin config
-	var config Config
+	var config *Config
 	if len(cfg.PluginConfig) != 0 {
-		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
+		if err := base.MsgPackDecode(cfg.PluginConfig, config); err != nil {
 			return err
 		}
 	}
+
 	if err := config.validate(); err != nil {
 		return err
 	}
 
-	if err := config.setDeniedIds(); err != nil {
-		return err
+	idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUidsStr, config.DeniedHostGidsStr)
+	if err != nil {
+		return fmt.Errorf("unable to start validator: %w", err)
 	}
+
+	d.userIDValidator = idValidator
 	d.config = config
 
 	if cfg != nil && cfg.AgentConfig != nil {
@@ -467,6 +474,15 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func (d *Driver) validateUserIds(cfg *drivers.TaskConfig) error {
+	user, err := users.Lookup(cfg.User)
+	if err != nil {
+		return fmt.Errorf("failed to identify user %q: %w", cfg.User, err)
+	}
+
+	return d.userIDValidator.HasValidIDs(user)
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
@@ -486,7 +502,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 	d.logger.Debug("setting up user", "user", cfg.User)
 
-	if err := driverConfig.validateUserIds(cfg, &d.config); err != nil {
+	if err := d.validateUserIds(cfg); err != nil {
 		return nil, nil, fmt.Errorf("failed host user validation: %v", err)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -110,6 +111,10 @@ var (
 	}
 )
 
+type UserIDValidator interface {
+	HasValidIDs(user *user.User) error
+}
+
 // Driver is a privileged version of the exec driver. It provides no
 // resource isolation and just fork/execs. The Exec driver should be preferred
 // and this should only be used when explicitly needed.
@@ -136,6 +141,8 @@ type Driver struct {
 
 	// compute contains cpu compute information
 	compute cpustats.Compute
+
+	userIDValidator UserIDValidator
 }
 
 // Config is the driver configuration set by the SetConfig RPC call
@@ -213,7 +220,7 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		}
 	}
 
-	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", config.DeniedHostUidsStr)
+	/* deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", config.DeniedHostUidsStr)
 	if err != nil {
 		return err
 	}
@@ -221,12 +228,19 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", config.DeniedHostGidsStr)
 	if err != nil {
 		return err
+	} */
+
+	idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUidsStr, config.DeniedHostGidsStr)
+	if err != nil {
+		return fmt.Errorf("unable to start validator: %w", err)
 	}
 
-	d.config = &config
-	d.config.DeniedHostUids = deniedUidRanges
-	d.config.DeniedHostGids = deniedGidRanges
+	d.userIDValidator = idValidator
 
+	d.config = &config
+	/* d.config.DeniedHostUids = deniedUidRanges
+	d.config.DeniedHostGids = deniedGidRanges
+	*/
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 		d.compute = cfg.AgentConfig.Compute()
@@ -359,7 +373,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("oom_score_adj must not be negative")
 	}
 
-	if err := driverConfig.Validate(*d.config, *cfg); err != nil {
+	if err := d.Validate(*d.config, *cfg); err != nil {
 		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 
