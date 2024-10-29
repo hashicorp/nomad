@@ -1889,7 +1889,8 @@ func TestService_Validate(t *testing.T) {
 		{
 			name: "Native Connect without task name",
 			input: &Service{
-				Name: "testservice",
+				Name:      "testservice",
+				PortLabel: "8080",
 				Connect: &ConsulConnect{
 					Native: true,
 				},
@@ -1899,8 +1900,33 @@ func TestService_Validate(t *testing.T) {
 		{
 			name: "Native Connect with task name",
 			input: &Service{
+				Name:      "testservice",
+				PortLabel: "8080",
+				TaskName:  "testtask",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expErr: false,
+		},
+		{
+			name: "Native Connect without port",
+			input: &Service{
 				Name:     "testservice",
 				TaskName: "testtask",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expErr:    true,
+			expErrStr: "Service testservice is Connect Native and requires setting the port",
+		},
+		{
+			name: "Native Connect with port",
+			input: &Service{
+				Name:      "testservice",
+				TaskName:  "testtask",
+				PortLabel: "8080",
 				Connect: &ConsulConnect{
 					Native: true,
 				},
@@ -1996,8 +2022,8 @@ func TestService_Validate(t *testing.T) {
 		{
 			name: "provider consul with notes too long",
 			input: &Service{
-				Name:     "testservice",
-				Provider: "consul",
+				Name:      "testservice",
+				Provider:  "consul",
 				PortLabel: "port",
 				Checks: []*ServiceCheck{
 					{
@@ -2006,7 +2032,7 @@ func TestService_Validate(t *testing.T) {
 						Path:     "/",
 						Interval: 1 * time.Second,
 						Timeout:  3 * time.Second,
-						Notes: strings.Repeat("A", 256),
+						Notes:    strings.Repeat("A", 256),
 					},
 				},
 			},
