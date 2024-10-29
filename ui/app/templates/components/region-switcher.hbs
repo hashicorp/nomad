@@ -18,4 +18,8 @@
       <span class="ember-power-select-prefix">Region: </span>{{region}}
     </PowerSelect>
   </span>
+{{else}}
+  <div class="navbar-item is-region">
+    <span>Region: </span>{{this.system.activeRegion}}
+  </div>
 {{/if}}
