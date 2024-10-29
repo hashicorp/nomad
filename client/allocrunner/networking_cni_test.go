@@ -137,7 +137,12 @@ func TestSetup(t *testing.T) {
 				Address:       "99.99.99.99",
 			},
 			expectArgs: map[string]string{
-				"IgnoreUnknown": "true",
+				"IgnoreUnknown":    "true",
+				"NOMAD_ALLOC_ID":   "7cd08c6c-86c8-0bfa-f7ca-338466447711",
+				"NOMAD_GROUP_NAME": "web",
+				"NOMAD_JOB_ID":     "mock-service",
+				"NOMAD_NAMESPACE":  "default",
+				"NOMAD_REGION":     "global",
 			},
 		},
 		{
@@ -148,7 +153,12 @@ func TestSetup(t *testing.T) {
 				Address:       "99.99.99.99",
 			},
 			expectArgs: map[string]string{
-				"IgnoreUnknown": "true",
+				"IgnoreUnknown":    "true",
+				"NOMAD_ALLOC_ID":   "7cd08c6c-86c8-0bfa-f7ca-338466447711",
+				"NOMAD_GROUP_NAME": "web",
+				"NOMAD_JOB_ID":     "mock-service",
+				"NOMAD_NAMESPACE":  "default",
+				"NOMAD_REGION":     "global",
 			},
 		},
 		{
@@ -174,9 +184,31 @@ func TestSetup(t *testing.T) {
 				Address:       "99.99.99.99",
 			},
 			expectArgs: map[string]string{
-				"IgnoreUnknown": "true",
-				"first_arg":     "example",
-				"new_arg":       "example_2",
+				"IgnoreUnknown":    "true",
+				"first_arg":        "example",
+				"new_arg":          "example_2",
+				"NOMAD_ALLOC_ID":   "7cd08c6c-86c8-0bfa-f7ca-338466447711",
+				"NOMAD_GROUP_NAME": "web",
+				"NOMAD_JOB_ID":     "mock-service",
+				"NOMAD_NAMESPACE":  "default",
+				"NOMAD_REGION":     "global",
+			},
+		},
+		{
+			name: "cni workload with invalid job id and namespace",
+			modAlloc: func(a *structs.Allocation) {
+				a.Job.ID = "this;does;not;work"
+				a.Namespace = "no;chance"
+			},
+			expectResult: &structs.AllocNetworkStatus{
+				InterfaceName: "eth0",
+				Address:       "99.99.99.99",
+			},
+			expectArgs: map[string]string{
+				"IgnoreUnknown":    "true",
+				"NOMAD_ALLOC_ID":   "7cd08c6c-86c8-0bfa-f7ca-338466447711",
+				"NOMAD_GROUP_NAME": "web",
+				"NOMAD_REGION":     "global",
 			},
 		},
 		{
@@ -215,6 +247,11 @@ func TestSetup(t *testing.T) {
 				"IgnoreUnknown":          "true",
 				"extra_arg":              "example",
 				"CONSUL_IPTABLES_CONFIG": `{"ConsulDNSIP":"192.168.1.117","ConsulDNSPort":8600,"ProxyUserID":"101","ProxyInboundPort":9999,"ProxyOutboundPort":15001,"ExcludeInboundPorts":["9002"],"ExcludeOutboundPorts":null,"ExcludeOutboundCIDRs":null,"ExcludeUIDs":null,"NetNS":"/var/run/docker/netns/nonsense-ns","IptablesProvider":null}`,
+				"NOMAD_ALLOC_ID":         "7cd08c6c-86c8-0bfa-f7ca-338466447711",
+				"NOMAD_GROUP_NAME":       "web",
+				"NOMAD_JOB_ID":           "mock-service",
+				"NOMAD_NAMESPACE":        "default",
+				"NOMAD_REGION":           "global",
 			},
 		},
 	}
@@ -246,6 +283,8 @@ func TestSetup(t *testing.T) {
 			}
 
 			alloc := mock.ConnectAlloc()
+			alloc.ID = "7cd08c6c-86c8-0bfa-f7ca-338466447711" // Fix the ID for easier testing
+			alloc.Job.ID = "mock-service"                     // Fix the ID for easier testing
 			if tc.modAlloc != nil {
 				tc.modAlloc(alloc)
 			}
