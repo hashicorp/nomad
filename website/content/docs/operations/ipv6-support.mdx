@@ -79,30 +79,33 @@ server {
 
 Most connections between Nomad and other external systems occur via HTTP.
 
-For example, when you use this `NOMAD_ADDR` environment variable:
+For example, when you set this `NOMAD_ADDR` environment variable:
 
 ```
 export NOMAD_ADDR='http://[2001:db8::1]:4646'
 ```
 
-- You can use the Nomad CLI, which makes Nomad API calls.
-- You can open the Nomad web UI in a browser with the command `nomad ui`.
-- You can use [Workload identity][workload-identity]
+You can do the following:
+
+- Use the Nomad CLI, which makes Nomad API calls.
+- Open the Nomad web UI in a browser with the command `nomad ui`.
+- Use [Workload identity][workload-identity].
   - Nomad can reach Consul and Vault at IPv6 addresses, if they are listening,
     to register services or fetch secrets.
-  - You can configure Consul with the [`nomad setup consul` command][setup-consul].
+  - Configure Consul with the [`nomad setup consul` command][setup-consul].
 
     ```
     nomad setup consul -y -jwks-url="$NOMAD_ADDR/.well-known/jwks.json"
 
-  - You can configure Vault with the [`nomad setup vault` command][setup-vault].
+  - Configure Vault with the [`nomad setup vault` command][setup-vault].
 
     ```
     nomad setup vault -y -jwks-url="$NOMAD_ADDR/.well-known/jwks.json"
     ```
 
-  - Various other third-party services that support OIDC connections should
-    also be able to reach Nomad at an IPv6 address, so long as the third-party services support IPv6.
+Various other third-party services that support OIDC connections should also be
+able to reach Nomad at an IPv6 address, so long as the third-party services
+support IPv6.
 
 ## Workloads
 
