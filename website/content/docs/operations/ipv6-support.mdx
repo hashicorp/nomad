@@ -10,23 +10,26 @@ description: |-
 Nomad supports IPv6 as long as the underlying networks, host machines,
 and operating systems running it support IPv6.
 
-You'll need different configuration settings for different connection contexts,
-outlined below.
+This guide illustrates the different configuration settings you need for different connection contexts.
 
 ## Advertise
 
-[Advertise][advertise] addresses for Nomad servers and clients specify what
+[Advertise][advertise] Nomad server and client addresses to specify what
 address other servers, clients, or external systems should use to make
 connections back to the agent.
 
 You can use [go-sockaddr][] templating to dynamically select a public IPv6
-address, for example:
+address. In this example, for each protocol, fetch one IPv6 address from public
+interfaces and assign it as the protocol's address.
 
 ```hcl
 advertise {
-  http = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" | limit 1 | attr \"address\" }}"
-  rpc  = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" | limit 1 | attr \"address\" }}"
-  serf = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" | limit 1 | attr \"address\" }}"
+  http = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" \
+         | limit 1 | attr \"address\" }}"
+  rpc  = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" \
+         | limit 1 | attr \"address\" }}"
+  serf = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" \
+         | limit 1 | attr \"address\" }}"
 }
 ```
 
@@ -34,13 +37,13 @@ advertise {
 
 Nomad agent processes connect to one another to make RPC calls for cluster operations.
 
-The simplest way to use IPv6 on Nomad is with DNS that resolves to IPv6,
-or using cloud auto-join, but here are some examples that use IPv6 addresses
-explicitly.
+We recommend using IPv6 on Nomad with DNS that resolves to IPv6 or by
+using cloud auto-join. The following server-to-server and client-to-server
+examples use IPv6 addresses explicitly.
 
 ### Server to server
 
-Servers join together based on the [`server_join`][server_join] block.
+Use the [`server_join`][server_join] block to link servers together.
 
 ```hcl
 server {
@@ -53,8 +56,8 @@ server {
 
 ### Client to server
 
-Clients can join a cluster with `server_join` like servers can, or with the
-[`servers`][client.servers] parameter.
+Use the [`servers`][client.servers] parameter or the `server_join` parameter to
+link clients.
 
 ```hcl
 client {
@@ -63,11 +66,20 @@ client {
 }
 ```
 
+```hcl
+server {
+  enabled = true
+  server_join {
+    retry_join = ["[2001:db8::1]", "[2001:db8::2]", "[2001:db8::3]"]
+  }
+}
+```
+
 ## Nomad to external systems
 
-Most connections between Nomad and other external systems occurs via HTTP.
+Most connections between Nomad and other external systems occur via HTTP.
 
-Using this `NOMAD_ADDR` environment variable as an example:
+For example, when you use this `NOMAD_ADDR` environment variable:
 
 ```
 export NOMAD_ADDR='http://[2001:db8::1]:4646'
@@ -78,34 +90,40 @@ export NOMAD_ADDR='http://[2001:db8::1]:4646'
 - You can use [Workload identity][workload-identity]
   - Nomad can reach Consul and Vault at IPv6 addresses, if they are listening,
     to register services or fetch secrets.
-  - You can configure Consul with the [`nomad setup consul` command][setup-consul]:
+  - You can configure Consul with the [`nomad setup consul` command][setup-consul].
+
     ```
     nomad setup consul -y -jwks-url="$NOMAD_ADDR/.well-known/jwks.json"
-    ```
-  - You can configure Vault with the [`nomad setup vault` command][setup-vault]:
+
+  - You can configure Vault with the [`nomad setup vault` command][setup-vault].
+
     ```
     nomad setup vault -y -jwks-url="$NOMAD_ADDR/.well-known/jwks.json"
     ```
+
   - Various other third-party services that support OIDC connections should
-    also be able to reach Nomad at an IPv6 address, so long as they support it.
+    also be able to reach Nomad at an IPv6 address, so long as the third-party services support IPv6.
 
 ## Workloads
 
 Nomad supports arbitrary IPv6 network calls to and from tasks on client nodes.
 
-- With host networking, tasks use the same network as the host machine.
+With host networking, tasks use the same network as the host machine.
+
 - Use these options to register services with an IPv6 address:
   - Set the [`preferred_address_family`][preferred_address_family-config]
-    client config to `"ipv6"`
+    client config to `"ipv6"`.
   - Include a [`service`][service-block] block in your job specification with
     either the "nomad" or "consul" provider as usual.
 - Use [`bridge_network_subnet_ipv6`][bridge-network-subnet-ipv6] to configure
   Nomad's [bridge network mode][bridge-network-mode] for IPv6.
-- [CNI][cni] plugins can work with IPv6 as well (Nomad's bridge network does this).
-- Some task drivers have their own IPv6 configuration options
-  - If you have enabled IPv6 support in the [Docker driver][docker-driver],
-    you can configure IPv6 in your job specification. Refer to
-    [IPv6 Docker containers][ipv6-docker-containers] for details.
+
+[CNI][cni] plugins can work with IPv6 as well. Nomad's bridge network does this.
+
+Some task drivers have their own IPv6 configuration options. If you have enabled
+IPv6 support in the [Docker driver][docker-driver], you can configure IPv6 in
+your job specification. Refer to [IPv6 Docker
+containers][ipv6-docker-containers] for details.
 
 
 [server_join]: /nomad/docs/configuration/server_join
