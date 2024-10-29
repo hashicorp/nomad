@@ -4,12 +4,21 @@
 package validators
 
 import (
+	"errors"
 	"fmt"
 	"os/user"
+	"strconv"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+)
+
+var (
+	ErrInvalidBound = errors.New("range bound not valid")
+	ErrEmptyRange   = errors.New("range value cannot be empty")
+	ErrInvalidRange = errors.New("lower bound cannot be greater than upper bound")
 )
 
 type validator struct {
@@ -23,20 +32,20 @@ type validator struct {
 	logger hclog.Logger
 }
 
-// IDRange defines a range of uids or gids (to eventually restrict)
-type IDRange struct {
-	Lower uint64 `codec:"from"`
-	Upper uint64 `codec:"to"`
-}
-
 func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*validator, error) {
-	// TODO: Validate set, idset assumes its valid
-	dHostUID := idset.Parse[hw.UserID](deniedHostUIDs)
-	dHostGID := idset.Parse[hw.GroupID](deniedHostGIDs)
+	err := validateIDRange("deniedHostUIDs", deniedHostUIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validateIDRange("deniedHostGIDs", deniedHostGIDs)
+	if err != nil {
+		return nil, err
+	}
 
 	v := &validator{
-		deniedUIDs: dHostUID,
-		deniedGIDs: dHostGID,
+		deniedUIDs: idset.Parse[hw.UserID](deniedHostUIDs),
+		deniedGIDs: idset.Parse[hw.GroupID](deniedHostGIDs),
 		logger:     logger,
 	}
 
@@ -71,67 +80,57 @@ func (v *validator) HasValidIDs(user *user.User) error {
 	return nil
 }
 
-/* // ParseIdRange is used to ensure that the configuration for ID ranges is valid.
-func ParseIdRange(rangeType string, deniedRanges string) ([]IDRange, error) {
-	var idRanges []IDRange
+// ParseIdRange is used to ensure that the configuration for ID ranges is valid.
+func validateIDRange(rangeType string, deniedRanges string) error {
+
 	parts := strings.Split(deniedRanges, ",")
 
 	// exit early if empty string
 	if len(parts) == 1 && parts[0] == "" {
-		return idRanges, nil
+		return nil
 	}
 
 	for _, rangeStr := range parts {
-		idRange, err := parseRangeString(rangeStr)
+		err := validateBounds(rangeStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid %s: %w", rangeType, err)
+			return fmt.Errorf("invalid range %s \"%s\": %w", rangeType, rangeStr, err)
 		}
-
-		idRanges = append(idRanges, *idRange)
 	}
 
-	return idRanges, nil
+	return nil
 }
 
-func parseRangeString(boundsString string) (*IDRange, error) {
+func validateBounds(boundsString string) error {
 	uidDenyRangeParts := strings.Split(boundsString, "-")
-
-	var idRange IDRange
 
 	switch len(uidDenyRangeParts) {
 	case 0:
-		return nil, fmt.Errorf("range value cannot be empty")
+		return ErrEmptyRange
+
 	case 1:
 		disallowedIdStr := uidDenyRangeParts[0]
-		disallowedIdInt, err := strconv.ParseUint(disallowedIdStr, 10, 32)
-		if err != nil {
-			return nil, fmt.Errorf("range bound not valid, invalid bound: %q ", disallowedIdInt)
+		if _, err := strconv.ParseUint(disallowedIdStr, 10, 32); err != nil {
+			return ErrInvalidBound
 		}
 
-		idRange.Lower = disallowedIdInt
-		idRange.Upper = disallowedIdInt
 	case 2:
 		lowerBoundStr := uidDenyRangeParts[0]
 		upperBoundStr := uidDenyRangeParts[1]
 
 		lowerBoundInt, err := strconv.ParseUint(lowerBoundStr, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("invalid bound: %q", lowerBoundStr)
+			return ErrInvalidBound
 		}
 
 		upperBoundInt, err := strconv.ParseUint(upperBoundStr, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("invalid bound: %q", upperBoundStr)
+			return ErrInvalidBound
 		}
 
 		if lowerBoundInt > upperBoundInt {
-			return nil, fmt.Errorf("invalid range %q, lower bound cannot be greater than upper bound", boundsString)
+			return ErrInvalidRange
 		}
-
-		idRange.Lower = lowerBoundInt
-		idRange.Upper = upperBoundInt
 	}
 
-	return &idRange, nil
+	return nil
 }
-*/

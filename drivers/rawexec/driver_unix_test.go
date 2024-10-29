@@ -22,7 +22,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
-	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/testtask"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -544,36 +543,67 @@ func TestRawExecUnixDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	wg.Wait()
 	require.NoError(d.DestroyTask(task.ID, false))
 	require.True(waitDone)
-	
-}
 
+}
 
 func TestRawExec_Validate(t *testing.T) {
 	ci.Parallel(t)
 
 	current, err := users.Current()
 	must.NoError(t, err)
-	currentUid, err := strconv.ParseUint(current.Uid, 10, 32)
-	must.NoError(t, err)
 
-	currentUserErrStr := fmt.Sprintf("running as uid %d is disallowed", currentUid)
+	currentUserErrStr := fmt.Sprintf("running as uid %s is disallowed", current.Uid)
 
-	allowAll := []validators.IDRange{}
-	denyCurrent := []validators.IDRange{{Lower: currentUid, Upper: currentUid}}
-	configAllowCurrent := Config{DeniedHostUids: allowAll}
-	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
+	allowAll := ""
+	denyCurrent := current.Uid
+
+	configAllowCurrent := Config{DeniedHostUidsStr: allowAll}
+	configDenyCurrent := Config{DeniedHostUidsStr: denyCurrent}
+
 	driverConfigNoUserSpecified := drivers.TaskConfig{}
-	driverConfigSpecifyCurrent := drivers.TaskConfig{User: current.Name}
+	driverTaskConfig := drivers.TaskConfig{User: current.Name}
 
 	for _, tc := range []struct {
 		config       Config
 		driverConfig drivers.TaskConfig
 		exp          error
 	}{
-		{config: configAllowCurrent, driverConfig: driverConfigSpecifyCurrent, exp: nil},
-		{config: configDenyCurrent, driverConfig: driverConfigNoUserSpecified, exp: errors.New(currentUserErrStr)},
-		{config: configDenyCurrent, driverConfig: driverConfigSpecifyCurrent, exp: errors.New(currentUserErrStr)},
+		{
+			config:       configAllowCurrent,
+			driverConfig: driverTaskConfig,
+			exp:          nil,
+		},
+		{
+			config:       configDenyCurrent,
+			driverConfig: driverConfigNoUserSpecified,
+			exp:          errors.New(currentUserErrStr),
+		},
+		{
+			config:       configDenyCurrent,
+			driverConfig: driverTaskConfig,
+			exp:          errors.New(currentUserErrStr),
+		},
 	} {
-		must.Eq(t, tc.exp, (&TaskConfig{}).Validate(tc.config, tc.driverConfig))
+
+		d := newEnabledRawExecDriver(t)
+		harness := dtestutil.NewDriverHarness(t, d)
+		defer harness.Kill()
+
+		config := tc.config
+
+		var data []byte
+
+		must.NoError(t, base.MsgPackEncode(&data, config))
+		bconfig := &base.Config{
+			PluginConfig: data,
+			AgentConfig: &base.AgentConfig{
+				Driver: &base.ClientDriverConfig{
+					Topology: d.nomadConfig.Topology,
+				},
+			},
+		}
+
+		must.NoError(t, harness.SetConfig(bconfig))
+		must.Eq(t, tc.exp, d.Validate(tc.driverConfig))
 	}
 }

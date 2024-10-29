@@ -327,9 +327,10 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
 	// unpack, validate, and set agent plugin config
-	var config *Config
+	var config Config
+
 	if len(cfg.PluginConfig) != 0 {
-		if err := base.MsgPackDecode(cfg.PluginConfig, config); err != nil {
+		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
 			return err
 		}
 	}
@@ -338,13 +339,16 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		return err
 	}
 
-	idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUidsStr, config.DeniedHostGidsStr)
-	if err != nil {
-		return fmt.Errorf("unable to start validator: %w", err)
+	if d.userIDValidator == nil {
+		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUidsStr, config.DeniedHostGidsStr)
+		if err != nil {
+			return fmt.Errorf("unable to start validator: %w", err)
+		}
+
+		d.userIDValidator = idValidator
 	}
 
-	d.userIDValidator = idValidator
-	d.config = config
+	d.config = &config
 
 	if cfg != nil && cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver

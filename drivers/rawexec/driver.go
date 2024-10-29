@@ -153,11 +153,13 @@ type Config struct {
 	DeniedHostUidsStr string `codec:"denied_host_uids"`
 	DeniedHostGidsStr string `codec:"denied_host_gids"`
 
-	// DeniedHostUids configures which host uids are disallowed
-	DeniedHostUids []validators.IDRange
+	/*
+		 	// DeniedHostUids configures which host uids are disallowed
+			DeniedHostUids []validators.IDRange
 
-	// DeniedHostGids configures which host gids are disallowed
-	DeniedHostGids []validators.IDRange
+			// DeniedHostGids configures which host gids are disallowed
+			DeniedHostGids []validators.IDRange
+	*/
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -373,7 +375,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("oom_score_adj must not be negative")
 	}
 
-	if err := d.Validate(*d.config, *cfg); err != nil {
+	if err := d.Validate(*cfg); err != nil {
 		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 

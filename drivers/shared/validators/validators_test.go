@@ -6,9 +6,11 @@
 package validators
 
 import (
+	"fmt"
 	"os/user"
 	"testing"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/shoenig/test/must"
 )
 
@@ -36,7 +38,7 @@ func Test_IDRangeValid(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseIdRange("uid", tc.idRange)
+			err := validateIDRange("uid", tc.idRange)
 			if tc.expectedErr == "" {
 				must.NoError(t, err)
 			} else {
@@ -48,23 +50,17 @@ func Test_IDRangeValid(t *testing.T) {
 }
 
 func Test_HasValidIds(t *testing.T) {
-	var validRange = IDRange{
-		Lower: 1,
-		Upper: 100,
-	}
+	var validRange = "1-100"
 
-	var validRangeSingle = IDRange{
-		Lower: 1,
-		Upper: 1,
-	}
+	var validRangeSingle = "1"
 
-	emptyRanges := []IDRange{}
-	validRangesList := []IDRange{validRange, validRangeSingle}
+	emptyRanges := ""
+	validRangesList := fmt.Sprintf("%s,%s", validRange, validRangeSingle)
 
 	testCases := []struct {
 		name        string
-		uidRanges   []IDRange
-		gidRanges   []IDRange
+		uidRanges   string
+		gidRanges   string
 		uid         string
 		gid         string
 		expectedErr string
@@ -91,7 +87,11 @@ func Test_HasValidIds(t *testing.T) {
 				user.Gid = tc.gid
 			}
 
-			err := HasValidIds(user, tc.uidRanges, tc.gidRanges)
+			v, err := NewValidator(hclog.NewNullLogger(), tc.uidRanges, tc.gidRanges)
+			must.NoError(t, err)
+
+			err = v.HasValidIDs(user)
+
 			if tc.expectedErr == "" {
 				must.NoError(t, err)
 			} else {

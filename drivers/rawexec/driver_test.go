@@ -130,7 +130,9 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	bconfig.PluginConfig = data
 	err := harness.SetConfig(bconfig)
 	must.Error(t, err)
-	must.ErrorContains(t, err, "invalid range \"100-1\", lower bound cannot be greater than upper bound")
+
+	fmt.Println("el error ", err)
+	must.ErrorContains(t, err, "invalid range deniedHostUIDs \"100-1\": lower bound cannot be greater than upper bound")
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {

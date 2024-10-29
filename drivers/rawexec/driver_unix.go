@@ -13,12 +13,12 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 )
 
-func (d *Driver) Validate(driverCofig Config, cfg drivers.TaskConfig) error {
+func (d *Driver) Validate(cfg drivers.TaskConfig) error {
 	usernameToLookup := cfg.User
 	var user *user.User
 	var err error
 
-	// Uses the current user of the cleint agent process
+	// Uses the current user of the client agent process
 	// if no override is given (differs from exec)
 	if usernameToLookup == "" {
 		user, err = users.Current()
