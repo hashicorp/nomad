@@ -131,7 +131,6 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	err := harness.SetConfig(bconfig)
 	must.Error(t, err)
 
-	fmt.Println("el error ", err)
 	must.ErrorContains(t, err, "invalid range deniedHostUIDs \"100-1\": lower bound cannot be greater than upper bound")
 }
 
