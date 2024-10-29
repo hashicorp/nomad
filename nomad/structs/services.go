@@ -846,7 +846,7 @@ func (s *Service) validateCheckPort(c *ServiceCheck) error {
 func (s *Service) validateConsulService(mErr *multierror.Error) {
 	// check checks
 	for _, c := range s.Checks {
-		// validat ethe check port
+		// validate the check port
 		if err := s.validateCheckPort(c); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 			continue
@@ -876,6 +876,11 @@ func (s *Service) validateConsulService(mErr *multierror.Error) {
 		// happen implicitly in a job mutation if there is only one task)
 		if s.Connect.IsNative() && len(s.TaskName) == 0 {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is Connect Native and requires setting the task", s.Name))
+		}
+
+		// if service is connect native a port must be set on the service or consul will reject it
+		if s.Connect.IsNative() && s.PortLabel == "" {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s is Connect Native and requires setting the port", s.Name))
 		}
 	}
 }
