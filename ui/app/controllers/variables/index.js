@@ -6,6 +6,8 @@
 import Controller, { inject as controller } from '@ember/controller';
 import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
+// eslint-disable-next-line no-unused-vars
+import VariableModel from '../../models/variable';
 
 const ALL_NAMESPACE_WILDCARD = '*';
 
@@ -15,8 +17,20 @@ export default class VariablesIndexController extends Controller {
 
   isForbidden = false;
 
+  /**
+   * Trigger can either be the pointer event itself, or if the keyboard shorcut was used, the html element corresponding to the variable.
+   * @param {VariableModel} variable
+   * @param {PointerEvent|HTMLElement} trigger
+   */
   @action
-  goToVariable(variable) {
+  goToVariable(variable, trigger) {
+    // Don't navigate if the user clicked on a link; this will happen with modifier keys like cmd/ctrl on the link itself
+    if (
+      trigger instanceof PointerEvent &&
+      /** @type {HTMLElement} */ (trigger.target).tagName === 'A'
+    ) {
+      return;
+    }
     this.router.transitionTo('variables.variable', variable.path);
   }
 
