@@ -222,27 +222,17 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		}
 	}
 
-	/* deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", config.DeniedHostUidsStr)
-	if err != nil {
-		return err
+	if d.userIDValidator == nil {
+		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUidsStr, config.DeniedHostGidsStr)
+		if err != nil {
+			return fmt.Errorf("unable to start validator: %w", err)
+		}
+
+		d.userIDValidator = idValidator
 	}
-
-	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", config.DeniedHostGidsStr)
-	if err != nil {
-		return err
-	} */
-
-	idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUidsStr, config.DeniedHostGidsStr)
-	if err != nil {
-		return fmt.Errorf("unable to start validator: %w", err)
-	}
-
-	d.userIDValidator = idValidator
 
 	d.config = &config
-	/* d.config.DeniedHostUids = deniedUidRanges
-	d.config.DeniedHostGids = deniedGidRanges
-	*/
+
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 		d.compute = cfg.AgentConfig.Compute()
