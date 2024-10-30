@@ -33,20 +33,24 @@ type validator struct {
 }
 
 func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*validator, error) {
+	valLogger := logger.Named("id_validator")
+
 	err := validateIDRange("deniedHostUIDs", deniedHostUIDs)
 	if err != nil {
 		return nil, err
 	}
+	valLogger.Debug("user range configured", "denied range", deniedHostUIDs)
 
 	err = validateIDRange("deniedHostGIDs", deniedHostGIDs)
 	if err != nil {
 		return nil, err
 	}
+	valLogger.Debug("group range configured", "denied range", deniedHostGIDs)
 
 	v := &validator{
 		deniedUIDs: idset.Parse[hw.UserID](deniedHostUIDs),
 		deniedGIDs: idset.Parse[hw.GroupID](deniedHostGIDs),
-		logger:     logger,
+		logger:     valLogger,
 	}
 
 	return v, nil
