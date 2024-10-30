@@ -152,14 +152,6 @@ type Config struct {
 
 	DeniedHostUidsStr string `codec:"denied_host_uids"`
 	DeniedHostGidsStr string `codec:"denied_host_gids"`
-
-	/*
-		 	// DeniedHostUids configures which host uids are disallowed
-			DeniedHostUids []validators.IDRange
-
-			// DeniedHostGids configures which host gids are disallowed
-			DeniedHostGids []validators.IDRange
-	*/
 }
 
 // TaskConfig is the driver configuration of a task within a job
