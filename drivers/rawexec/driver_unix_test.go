@@ -587,6 +587,10 @@ func TestRawExec_Validate(t *testing.T) {
 	} {
 
 		d := newEnabledRawExecDriver(t)
+
+		// Force the creation of the validatior, the mock is used by newEnabledRawExecDriver by default
+		d.userIDValidator = nil
+
 		harness := dtestutil.NewDriverHarness(t, d)
 		defer harness.Kill()
 

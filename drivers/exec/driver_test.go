@@ -150,7 +150,6 @@ func TestExecDriver_StartWait(t *testing.T) {
 		Args:    []string{"/proc/self/cgroup"},
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	//require.NoError(t, harness.SetConfig(&base.Config{}))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -187,7 +186,6 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 		Args:    []string{"-c", "echo hi; sleep 600"},
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	//require.NoError(t, harness.SetConfig(&base.Config{}))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -253,7 +251,6 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 		Args:    []string{"5"},
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	//require.NoError(t, harness.SetConfig(&base.Config{}))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -457,7 +454,6 @@ func TestExecDriver_Stats(t *testing.T) {
 		Args:    []string{"5"},
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	require.NoError(t, harness.SetConfig(&base.Config{}))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -886,6 +882,10 @@ func TestDriver_Config_setDeniedIds(t *testing.T) {
 			defer cancel()
 
 			d := newExecDriverTest(t, ctx)
+
+			// Force the creation of the validatior.
+			d.(*Driver).userIDValidator = nil
+
 			harness := dtestutil.NewDriverHarness(t, d)
 			defer harness.Kill()
 
