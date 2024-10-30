@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 )
 
 func gcConfig() *GCConfig {
@@ -364,6 +364,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 	ci.Parallel(t)
 
 	const maxAllocs = 6
+	require := require.New(t)
 
 	server, serverAddr, cleanupS := testServer(t, nil)
 	defer cleanupS()
@@ -397,8 +398,8 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertJobFn := func(server *nomad.Server, j *structs.Job) {
 		state := server.State()
-		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), nil, j))
-		must.NoError(t, state.UpsertJobSummary(nextIndex(), mock.JobSummary(j.ID)))
+		require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(), nil, j))
+		require.NoError(state.UpsertJobSummary(nextIndex(), mock.JobSummary(j.ID)))
 	}
 
 	// Insert the Job
@@ -406,7 +407,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 
 	upsertAllocFn := func(server *nomad.Server, a *structs.Allocation) {
 		state := server.State()
-		must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(), time.Now().UnixNano(), []*structs.Allocation{a}))
+		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(), []*structs.Allocation{a}))
 	}
 
 	upsertNewAllocFn := func(server *nomad.Server, j *structs.Job) *structs.Allocation {
@@ -503,7 +504,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		must.NoError(t, err)
+		require.NoError(err)
 	})
 }
 

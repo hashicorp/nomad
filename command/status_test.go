@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
@@ -146,7 +145,7 @@ func TestStatusCommand_Run_AllocStatus(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	alloc := mock.Alloc()
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 	code := cmd.Run([]string{"-address=" + url, alloc.ID})
 	must.Zero(t, code)
@@ -169,7 +168,7 @@ func TestStatusCommand_Run_DeploymentStatus(t *testing.T) {
 	// Create a fake deployment
 	state := srv.Agent.Server().State()
 	deployment := mock.Deployment()
-	must.NoError(t, state.UpsertDeployment(1000, time.Now().UnixNano(), deployment))
+	must.NoError(t, state.UpsertDeployment(1000, deployment))
 
 	// Query to check the deployment status
 	code := cmd.Run([]string{"-address=" + url, deployment.ID})

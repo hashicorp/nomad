@@ -603,7 +603,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	if err := state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID)); err != nil {
 		t.Fatal(err)
 	}
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 102, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -628,7 +628,7 @@ func TestClient_WatchAllocs(t *testing.T) {
 	// alloc runner.
 	alloc2_2 := alloc2.Copy()
 	alloc2_2.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 104, time.Now().UnixNano(), []*structs.Allocation{alloc2_2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 104, []*structs.Allocation{alloc2_2}); err != nil {
 		t.Fatalf("err upserting stopped alloc: %v", err)
 	}
 
@@ -992,7 +992,7 @@ func TestClient_AddAllocError(t *testing.T) {
 	err = state.UpsertJobSummary(101, mock.JobSummary(alloc1.JobID))
 	require.Nil(err)
 
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, time.Now().UnixNano(), []*structs.Allocation{alloc1})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1})
 	require.Nil(err)
 
 	// Push this alloc update to the client
@@ -1092,7 +1092,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	}
 
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	state.UpsertAllocs(structs.MsgTypeTestSetup, 100, time.Now().UnixNano(), []*structs.Allocation{alloc})
+	state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 
 	// Wait until the client downloads and starts the allocation
 	testutil.WaitForResult(func() (bool, error) {
@@ -1115,7 +1115,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	alloc2.Job = alloc.Job
 	alloc2.JobID = alloc.JobID
 	alloc2.PreviousAllocation = alloc.ID
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, time.Now().UnixNano(), []*structs.Allocation{alloc2}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -1136,7 +1136,7 @@ func TestClient_BlockedAllocations(t *testing.T) {
 	// Change the desired state of the parent alloc to stop
 	alloc1 := alloc.Copy()
 	alloc1.DesiredStatus = structs.AllocDesiredStatusStop
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 300, time.Now().UnixNano(), []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 300, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -2047,7 +2047,7 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	err = state.UpsertJobSummary(101, mock.JobSummary(runningAlloc.JobID))
 	require.NoError(t, err)
 
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, time.Now().UnixNano(), []*structs.Allocation{runningAlloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 102, []*structs.Allocation{runningAlloc})
 	require.NoError(t, err)
 
 	// Ensure allocation gets upserted with desired status.
@@ -2065,7 +2065,7 @@ func TestClient_ReconnectAllocs(t *testing.T) {
 	require.NoError(t, err)
 	unknownAlloc.ClientStatus = structs.AllocClientStatusUnknown
 	unknownAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, runningAlloc.AllocModifyIndex+1, time.Now().UnixNano(), []*structs.Allocation{unknownAlloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, runningAlloc.AllocModifyIndex+1, []*structs.Allocation{unknownAlloc})
 	require.NoError(t, err)
 
 	updates := &allocUpdates{

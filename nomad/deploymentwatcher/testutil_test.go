@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -99,7 +98,7 @@ func (m *mockBackend) UpsertJob(job *structs.Job) (uint64, error) {
 func (m *mockBackend) UpdateDeploymentStatus(u *structs.DeploymentStatusUpdateRequest) (uint64, error) {
 	m.Called(u)
 	i := m.nextIndex()
-	return i, m.state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, i, time.Now().UnixNano(), u)
+	return i, m.state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, i, u)
 }
 
 // matchDeploymentStatusUpdateConfig is used to configure the matching
@@ -153,7 +152,7 @@ func matchDeploymentStatusUpdateRequest(c *matchDeploymentStatusUpdateConfig) fu
 func (m *mockBackend) UpdateDeploymentPromotion(req *structs.ApplyDeploymentPromoteRequest) (uint64, error) {
 	m.Called(req)
 	i := m.nextIndex()
-	return i, m.state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, i, time.Now().UnixNano(), req)
+	return i, m.state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, i, req)
 }
 
 // matchDeploymentPromoteRequestConfig is used to configure the matching
@@ -183,7 +182,7 @@ func matchDeploymentPromoteRequest(c *matchDeploymentPromoteRequestConfig) func(
 func (m *mockBackend) UpdateDeploymentAllocHealth(req *structs.ApplyDeploymentAllocHealthRequest) (uint64, error) {
 	m.Called(req)
 	i := m.nextIndex()
-	return i, m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, i, time.Now().UnixNano(), req)
+	return i, m.state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, i, req)
 }
 
 // matchDeploymentAllocHealthRequestConfig is used to configure the matching

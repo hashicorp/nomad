@@ -53,7 +53,7 @@ func TestHTTP_AllocsList(t *testing.T) {
 
 		state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 		state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -121,7 +121,7 @@ func TestHTTP_AllocsPrefixList(t *testing.T) {
 		if err := state.UpsertJobSummary(999, summary2); err != nil {
 			t.Fatal(err)
 		}
-		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}); err != nil {
+		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -174,7 +174,7 @@ func TestHTTP_AllocQuery(t *testing.T) {
 		state := s.Agent.server.State()
 		alloc := mock.Alloc()
 		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
-		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 		// Make the HTTP request
 		req, err := http.NewRequest(http.MethodGet, "/v1/allocation/"+alloc.ID, nil)
@@ -222,7 +222,7 @@ func TestHTTP_AllocQuery_Payload(t *testing.T) {
 		compressed := snappy.Encode(nil, expected)
 		alloc.Job.Payload = compressed
 
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -406,7 +406,7 @@ func TestHTTP_AllocStop(t *testing.T) {
 		require := require.New(t)
 		require.NoError(state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
 
-		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+		require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
 		// Test that the happy path works
 		{
@@ -459,7 +459,7 @@ func TestHTTP_allocServiceRegistrations(t *testing.T) {
 				// Generate an alloc and upsert this.
 				alloc := mock.Alloc()
 				require.NoError(t, testState.UpsertAllocs(
-					structs.MsgTypeTestSetup, 10, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+					structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
 
 				// Generate a service registration, assigned the allocID to the
 				// mocked allocation ID, and upsert this.
@@ -494,7 +494,7 @@ func TestHTTP_allocServiceRegistrations(t *testing.T) {
 				// Generate an alloc and upsert this.
 				alloc := mock.Alloc()
 				require.NoError(t, testState.UpsertAllocs(
-					structs.MsgTypeTestSetup, 10, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+					structs.MsgTypeTestSetup, 10, []*structs.Allocation{alloc}))
 
 				// Build the HTTP request.
 				path := fmt.Sprintf("/v1/allocation/%s/services", alloc.ID)
@@ -744,7 +744,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 		}
 		alloc.NodeID = s.client.NodeID()
 		state.UpsertJobSummary(998, mock.JobSummary(alloc.JobID))
-		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc.Copy()}); err != nil {
+		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc.Copy()}); err != nil {
 			t.Fatalf("error upserting alloc: %v", err)
 		}
 

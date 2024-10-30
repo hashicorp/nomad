@@ -123,7 +123,7 @@ func TestAllocStatusCommand_LifecycleInfo(t *testing.T) {
 		"prestart_sidecar": {State: "running"},
 	}
 
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	code := cmd.Run([]string{"-address=" + url, a.ID})
 	must.Zero(t, code)
@@ -226,7 +226,7 @@ func TestAllocStatusCommand_RescheduleInfo(t *testing.T) {
 			},
 		},
 	}
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	if code := cmd.Run([]string{"-address=" + url, a.ID}); code != 0 {
 		t.Fatalf("expected exit 0, got: %d", code)
@@ -269,7 +269,7 @@ func TestAllocStatusCommand_ScoreMetrics(t *testing.T) {
 			},
 		},
 	}
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	code := cmd.Run([]string{"-address=" + url, "-verbose", a.ID})
 	must.Zero(t, code)
@@ -296,7 +296,7 @@ func TestAllocStatusCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake alloc
 	state := srv.Agent.Server().State()
 	a := mock.Alloc()
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{a}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{a}))
 
 	prefix := a.ID[:5]
 	args := complete.Args{Last: prefix}
@@ -359,7 +359,7 @@ func TestAllocStatusCommand_HostVolumes(t *testing.T) {
 	}
 	summary := mock.JobSummary(alloc.JobID)
 	must.NoError(t, state.UpsertJobSummary(1004, summary))
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}
@@ -402,7 +402,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 			Segments: map[string]string{"foo": "bar"},
 		}},
 	}}
-	err = state.UpsertCSIVolume(1002, time.Now().UnixNano(), vols)
+	err = state.UpsertCSIVolume(1002, vols)
 	must.NoError(t, err)
 
 	// Upsert the job and alloc
@@ -435,7 +435,7 @@ func TestAllocStatusCommand_CSIVolumes(t *testing.T) {
 	}
 	summary := mock.JobSummary(alloc.JobID)
 	must.NoError(t, state.UpsertJobSummary(1004, summary))
-	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{alloc}))
 
 	ui := cli.NewMockUi()
 	cmd := &AllocStatusCommand{Meta: Meta{Ui: ui}}

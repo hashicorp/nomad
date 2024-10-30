@@ -50,7 +50,7 @@ func TestNodeDrainWatcher_AddNodes(t *testing.T) {
 	alloc2.NodeID = n2.ID
 
 	must.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, 102, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}))
+		structs.MsgTypeTestSetup, 102, []*structs.Allocation{alloc1, alloc2}))
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 103, n1))
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 104, n2))
 
@@ -228,7 +228,7 @@ func testNodeDrainWatcherSetup(
 	alloc.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
 	index++
 	must.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, index, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+		structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc}))
 
 	index++
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))

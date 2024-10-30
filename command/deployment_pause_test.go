@@ -6,7 +6,6 @@ package command
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -55,7 +54,7 @@ func TestDeploymentPauseCommand_AutocompleteArgs(t *testing.T) {
 	// Create a fake deployment
 	state := srv.Agent.Server().State()
 	d := mock.Deployment()
-	must.NoError(t, state.UpsertDeployment(1000, time.Now().UnixNano(), d))
+	must.NoError(t, state.UpsertDeployment(1000, d))
 
 	prefix := d.ID[:5]
 	args := complete.Args{Last: prefix}
