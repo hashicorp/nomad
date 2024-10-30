@@ -881,11 +881,11 @@ func TestDriver_Config_setDeniedIds(t *testing.T) {
 			defer harness.Kill()
 
 			config := &Config{
-				NoPivotRoot:       false,
-				DefaultModePID:    executor.IsolationModePrivate,
-				DefaultModeIPC:    executor.IsolationModePrivate,
-				DeniedHostUidsStr: tc.uidRanges,
-				DeniedHostGidsStr: tc.gidRanges,
+				NoPivotRoot:    false,
+				DefaultModePID: executor.IsolationModePrivate,
+				DefaultModeIPC: executor.IsolationModePrivate,
+				DeniedHostUids: tc.uidRanges,
+				DeniedHostGids: tc.gidRanges,
 			}
 
 			var data []byte

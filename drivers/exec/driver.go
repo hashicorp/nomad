@@ -167,8 +167,8 @@ type Config struct {
 	// running on this node.
 	AllowCaps []string `codec:"allow_caps"`
 
-	DeniedHostUidsStr string `codec:"denied_host_uids"`
-	DeniedHostGidsStr string `codec:"denied_host_gids"`
+	DeniedHostUids string `codec:"denied_host_uids"`
+	DeniedHostGids string `codec:"denied_host_gids"`
 }
 
 func (c *Config) validate() error {
@@ -312,7 +312,7 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 	}
 
 	if d.userIDValidator == nil {
-		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUidsStr, config.DeniedHostGidsStr)
+		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUids, config.DeniedHostGids)
 		if err != nil {
 			return fmt.Errorf("unable to start validator: %w", err)
 		}

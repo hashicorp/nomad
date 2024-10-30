@@ -150,8 +150,8 @@ type Config struct {
 	// Enabled is set to true to enable the raw_exec driver
 	Enabled bool `codec:"enabled"`
 
-	DeniedHostUidsStr string `codec:"denied_host_uids"`
-	DeniedHostGidsStr string `codec:"denied_host_gids"`
+	DeniedHostUids string `codec:"denied_host_uids"`
+	DeniedHostGids string `codec:"denied_host_gids"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -215,7 +215,7 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 	}
 
 	if d.userIDValidator == nil {
-		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUidsStr, config.DeniedHostGidsStr)
+		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUids, config.DeniedHostGids)
 		if err != nil {
 			return fmt.Errorf("unable to start validator: %w", err)
 		}

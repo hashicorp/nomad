@@ -558,8 +558,8 @@ func TestRawExec_Validate(t *testing.T) {
 	allowAll := ""
 	denyCurrent := current.Uid
 
-	configAllowCurrent := Config{DeniedHostUidsStr: allowAll}
-	configDenyCurrent := Config{DeniedHostUidsStr: denyCurrent}
+	configAllowCurrent := Config{DeniedHostUids: allowAll}
+	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
 
 	driverConfigNoUserSpecified := drivers.TaskConfig{}
 	driverTaskConfig := drivers.TaskConfig{User: current.Name}

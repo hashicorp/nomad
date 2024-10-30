@@ -135,7 +135,7 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	// Turns on uid/gid restrictions, and sets the range to a bad value and
 	// force the recreation of the validator.
 	d.(*Driver).userIDValidator = nil
-	config.DeniedHostUidsStr = "100-1"
+	config.DeniedHostUids = "100-1"
 	data = []byte{}
 
 	must.NoError(t, basePlug.MsgPackEncode(&data, config))
