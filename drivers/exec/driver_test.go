@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -35,6 +36,12 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+type mockIDValidator struct{}
+
+func (mv *mockIDValidator) HasValidIDs(user *user.User) error {
+	return nil
+}
 
 func TestMain(m *testing.M) {
 	if !testtask.Run() {
@@ -70,6 +77,8 @@ func newExecDriverTest(t *testing.T, ctx context.Context) drivers.DriverPlugin {
 	topology := numalib.Scan(numalib.PlatformScanners())
 	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
+	d.(*Driver).userIDValidator = &mockIDValidator{}
+
 	return d
 }
 
@@ -141,7 +150,7 @@ func TestExecDriver_StartWait(t *testing.T) {
 		Args:    []string{"/proc/self/cgroup"},
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	require.NoError(t, harness.SetConfig(&base.Config{}))
+	//require.NoError(t, harness.SetConfig(&base.Config{}))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -178,7 +187,7 @@ func TestExecDriver_StartWaitStopKill(t *testing.T) {
 		Args:    []string{"-c", "echo hi; sleep 600"},
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	require.NoError(t, harness.SetConfig(&base.Config{}))
+	//require.NoError(t, harness.SetConfig(&base.Config{}))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
@@ -244,7 +253,7 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 		Args:    []string{"5"},
 	}
 	require.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	require.NoError(t, harness.SetConfig(&base.Config{}))
+	//require.NoError(t, harness.SetConfig(&base.Config{}))
 
 	cleanup := harness.MkAllocDir(task, false)
 	defer cleanup()
