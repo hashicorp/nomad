@@ -115,6 +115,40 @@ var (
 	}
 )
 
+// Driver fork/execs tasks using many of the underlying OS's isolation
+// features where configured.
+type Driver struct {
+	// eventer is used to handle multiplexing of TaskEvents calls such that an
+	// event can be broadcast to all callers
+	eventer *eventer.Eventer
+
+	// config is the driver configuration set by the SetConfig RPC
+	config Config
+
+	// nomadConfig is the client config from nomad
+	nomadConfig *base.ClientDriverConfig
+
+	// tasks is the in memory datastore mapping taskIDs to driverHandles
+	tasks *taskStore
+
+	// ctx is the context for the driver. It is passed to other subsystems to
+	// coordinate shutdown
+	ctx context.Context
+
+	// logger will log to the Nomad agent
+	logger hclog.Logger
+
+	// A tri-state boolean to know if the fingerprinting has happened and
+	// whether it has been successful
+	fingerprintSuccess *bool
+	fingerprintLock    sync.Mutex
+
+	// compute contains cpu compute information
+	compute cpustats.Compute
+
+	userIDValidator UserIDValidator
+}
+
 // Config is the driver configuration set by the SetConfig RPC call
 type Config struct {
 	// NoPivotRoot disables the use of pivot_root, useful when the root partition
@@ -208,17 +242,6 @@ func (tc *TaskConfig) validate() error {
 	return nil
 }
 
-func (tc *TaskConfig) validateUserIds(cfg *drivers.TaskConfig, driverConfig *Config) error {
-	user, err := users.Lookup(cfg.User)
-	if err != nil {
-		return fmt.Errorf("failed to identify user %q: %w", cfg.User, err)
-	}
-
-	fmt.Println(user)
-	//return validators.HasValidIds(user, driverConfig.DeniedHostUids, driverConfig.DeniedHostGids)
-	return nil
-}
-
 // TaskState is the state which is encoded in the handle returned in
 // StartTask. This information is needed to rebuild the task state and handler
 // during recovery.
@@ -231,40 +254,6 @@ type TaskState struct {
 
 type UserIDValidator interface {
 	HasValidIDs(user *user.User) error
-}
-
-// Driver fork/execs tasks using many of the underlying OS's isolation
-// features where configured.
-type Driver struct {
-	// eventer is used to handle multiplexing of TaskEvents calls such that an
-	// event can be broadcast to all callers
-	eventer *eventer.Eventer
-
-	// config is the driver configuration set by the SetConfig RPC
-	config *Config
-
-	// nomadConfig is the client config from nomad
-	nomadConfig *base.ClientDriverConfig
-
-	// tasks is the in memory datastore mapping taskIDs to driverHandles
-	tasks *taskStore
-
-	// ctx is the context for the driver. It is passed to other subsystems to
-	// coordinate shutdown
-	ctx context.Context
-
-	// logger will log to the Nomad agent
-	logger hclog.Logger
-
-	// A tri-state boolean to know if the fingerprinting has happened and
-	// whether it has been successful
-	fingerprintSuccess *bool
-	fingerprintLock    sync.Mutex
-
-	// compute contains cpu compute information
-	compute cpustats.Compute
-
-	userIDValidator UserIDValidator
 }
 
 // NewExecDriver returns a new DrivePlugin implementation
@@ -308,23 +297,6 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 	return configSpec, nil
 }
 
-/* func (d *Driver) setDeniedIds(conf *Config) error {
-	deniedUidRanges, err := validators.ParseIdRange("denied_host_uids", conf.DeniedHostUidsStr)
-	if err != nil {
-		return err
-	}
-
-	deniedGidRanges, err := validators.ParseIdRange("denied_host_gids", conf.DeniedHostGidsStr)
-	if err != nil {
-		return err
-	}
-
-	d.DeniedHostUids = deniedUidRanges
-	d.DeniedHostGids = deniedGidRanges
-
-	return nil
-} */
-
 func (d *Driver) SetConfig(cfg *base.Config) error {
 	// unpack, validate, and set agent plugin config
 	var config Config
@@ -348,7 +320,7 @@ func (d *Driver) SetConfig(cfg *base.Config) error {
 		d.userIDValidator = idValidator
 	}
 
-	d.config = &config
+	d.config = config
 
 	if cfg != nil && cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
