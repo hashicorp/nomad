@@ -60,17 +60,23 @@
     animation-fill-mode: both;
   }
 
-  & > .hds-flyout__header {
+  & .hds-flyout__header {
     position: relative;
     z-index: $z-base;
-    .hds-flyout__title {
+
+    .hds-flyout__title .hds-text {
       display: flex;
       align-items: center;
       gap: 1rem;
       justify-content: space-between;
+
       h3 {
         flex-grow: 1;
       }
+    }
+
+    .hds-dismiss-button {
+      align-self: center;
     }
   }
 

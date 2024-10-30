@@ -6,7 +6,7 @@
 <td class="is-narrow">
   {{#unless this.task.driverStatus.healthy}}
     <Hds::TooltipButton data-test-icon="unhealthy-driver" @text="{{this.task.driver}} is unhealthy" aria-label="More information">
-      <FlightIcon @name="alert-triangle" />
+      <Hds::Icon @name="alert-triangle" @isInline={{true}} />
     </Hds::TooltipButton>
   {{/unless}}
 </td>

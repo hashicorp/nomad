@@ -125,10 +125,7 @@
               }}
 
             >
-              <FlightIcon
-                @name={{if B.data.isVisible "eye" "eye-off"}}
-                @title={{if B.data.isVisible "Hide Value" "Show Value"}}
-              />
+              <Hds::Icon @name={{if B.data.isVisible "eye" "eye-off"}} @title={{if B.data.isVisible "Hide Value" "Show Value"}} @isInline={{true}} />
             </button>
 
             {{#if B.data.isVisible}}

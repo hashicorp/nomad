@@ -2556,53 +2556,43 @@
   resolved "https://registry.yarnpkg.com/@handlebars/parser/-/parser-2.0.0.tgz#5e8b7298f31ff8f7b260e6b7363c7e9ceed7d9c5"
   integrity sha512-EP9uEDZv/L5Qh9IWuMUGJRfwhXJ4h1dqKTT4/3+tY0eu7sPis7xh23j61SYUnNF4vqCQvvUXpDo9Bh/+q1zASA==
 
-"@hashicorp/design-system-components@^4.3.0":
-  version "4.4.0"
-  resolved "https://registry.yarnpkg.com/@hashicorp/design-system-components/-/design-system-components-4.4.0.tgz#c633ec2df53a9e9a303e63182566c0266e326aa6"
-  integrity sha512-87K3/TQvyVeA68olUh66TjaGL1x9QJM9G0nJW053/+zemFnud2je6/+BdO/uc5iJtDnGNSahWy71TDObYsN3pg==
+"@hashicorp/design-system-components@^4.13.0":
+  version "4.13.1"
+  resolved "https://registry.yarnpkg.com/@hashicorp/design-system-components/-/design-system-components-4.13.1.tgz#18a12eb23e52a7676613f6bf39e4defdfd73182a"
+  integrity sha512-yEiQJxAs0zgt/dxM6ZYPcVJT0a3C2wrO+8iOxUd623jyDXlbyjD/vZSp7qOCvkomQkHvWgD/7clVdl75a5i3rQ==
   dependencies:
     "@ember/render-modifiers" "^2.0.5"
     "@ember/string" "^3.1.1"
     "@ember/test-waiters" "^3.1.0"
     "@embroider/addon-shim" "^1.8.7"
     "@floating-ui/dom" "^1.6.3"
-    "@hashicorp/design-system-tokens" "^2.1.0"
-    "@hashicorp/ember-flight-icons" "^5.0.2"
-    "@oddbird/popover-polyfill" "^0.4.3"
+    "@hashicorp/design-system-tokens" "^2.2.1"
+    "@hashicorp/flight-icons" "^3.7.0"
     decorator-transforms "^1.1.0"
-    ember-a11y-refocus "^3.0.2"
+    ember-a11y-refocus "^4.1.3"
     ember-cli-sass "^11.0.1"
     ember-composable-helpers "^5.0.0"
     ember-element-helper "^0.8.5"
     ember-focus-trap "^1.1.0"
-    ember-keyboard "^8.2.1"
+    ember-get-config "^2.1.1"
     ember-modifier "^4.1.0"
     ember-power-select "^8.2.0"
     ember-stargate "^0.4.3"
-    ember-style-modifier "^3.0.1"
+    ember-style-modifier "^4.4.0"
     ember-truth-helpers "^4.0.3"
     prismjs "^1.29.0"
     sass "^1.69.5"
     tippy.js "^6.3.7"
 
-"@hashicorp/design-system-tokens@^2.1.0":
-  version "2.1.0"
-  resolved "https://registry.yarnpkg.com/@hashicorp/design-system-tokens/-/design-system-tokens-2.1.0.tgz#e72284f375631f624ff2f3198dc6d2ee03e0d422"
-  integrity sha512-8SFUmRsX9v9pCc1Oq+zZGAmZGLxdZ6WnVEvwOzPAswlUTxBPa5zdoKdKEOPw8Xr3j142Mie6WVk2SMTV9EjQIQ==
+"@hashicorp/design-system-tokens@^2.2.1":
+  version "2.2.1"
+  resolved "https://registry.yarnpkg.com/@hashicorp/design-system-tokens/-/design-system-tokens-2.2.1.tgz#9112c4cf9099ef1706a6b4f83be400960b473e91"
+  integrity sha512-Pnbnk5jbOXmW82W0wimP0PdOWYAi7dYsC3TE88JbR+jHzpwUdyVGsqcYF7ClOl/C/KDbK60N0FEJbFdaFj6ZXQ==
 
-"@hashicorp/ember-flight-icons@^5.0.2":
-  version "5.0.2"
-  resolved "https://registry.yarnpkg.com/@hashicorp/ember-flight-icons/-/ember-flight-icons-5.0.2.tgz#e2f4d1d1fadd9364a0db2dd2e2da5b9595e5a159"
-  integrity sha512-jb9h7fe9KNyPq1rPnLN6C/+7ldsFPiRmTe16KWyteJ+1dPmBLOUKl/Fr95L+u3Zh3DzzchZVcSdwia0U03I3EQ==
-  dependencies:
-    "@embroider/addon-shim" "^1.8.7"
-    "@hashicorp/flight-icons" "^3.2.0"
-    ember-get-config "^2.1.1"
-
-"@hashicorp/flight-icons@^3.2.0":
-  version "3.2.0"
-  resolved "https://registry.yarnpkg.com/@hashicorp/flight-icons/-/flight-icons-3.2.0.tgz#048d5d32d99bb5d5f7e2f76298adaadf82598405"
-  integrity sha512-blvRLVlWRldiOZao0CuiGxgZ4rCSPNkK5SrcnSbja+bOoTsPyD2bcLTpwtCHVYa+G9MS4bFtolrMhTLKjMSsCQ==
+"@hashicorp/flight-icons@^3.7.0":
+  version "3.7.0"
+  resolved "https://registry.yarnpkg.com/@hashicorp/flight-icons/-/flight-icons-3.7.0.tgz#cc8e4fb7cc8ac585a4841f6d724217a054cfe959"
+  integrity sha512-oSnIjGqzXciibyQjgc45u4GUHBrIgyFSBCjxP4t0WXbJ578J3/DB6eyvWoMJ4r4GSf0MxUgOg0A/fJV/V4yEdA==
 
 "@hashicorp/structure-icons@^1.3.0":
   version "1.9.2"
@@ -2688,11 +2678,6 @@
   dependencies:
     "@nodelib/fs.scandir" "2.1.5"
     fastq "^1.6.0"
-
-"@oddbird/popover-polyfill@^0.4.3":
-  version "0.4.3"
-  resolved "https://registry.yarnpkg.com/@oddbird/popover-polyfill/-/popover-polyfill-0.4.3.tgz#310d61c8fc7ee12d8dba05cdfa8bd7e5d5a281a3"
-  integrity sha512-kBS0ZAwH8kZqFl0mV89KPK4cLYl2ZoKSfYngK4dz1eLAhKzTK0yu4LrvLdMeM7JhjWK6GxBtiY+cl1s6vR2pUg==
 
 "@percy/cli-app@1.30.0":
   version "1.30.0"
@@ -6051,6 +6036,11 @@ cssstyle@^2.3.0:
   dependencies:
     cssom "~0.3.6"
 
+csstype@^3.1.3:
+  version "3.1.3"
+  resolved "https://registry.yarnpkg.com/csstype/-/csstype-3.1.3.tgz#d80ff294d114fb0e6ac500fbf85b60137d7eff81"
+  integrity sha512-M1uQkMl8rQK/szD0LNhtqxIPLpimGm8sOBwU7lLnCpSbTyY3yeU1Vc7l4KT5zT4s/yOxHH5O7tIuuLOCnLADRw==
+
 curved-arrows@^0.1.0:
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/curved-arrows/-/curved-arrows-0.1.0.tgz#824709316a856e28970c1f577803093a57475bb0"
@@ -6394,6 +6384,14 @@ decorator-transforms@^1.1.0:
     "@babel/plugin-syntax-decorators" "^7.23.3"
     babel-import-util "^2.0.1"
 
+decorator-transforms@^2.0.0:
+  version "2.2.2"
+  resolved "https://registry.yarnpkg.com/decorator-transforms/-/decorator-transforms-2.2.2.tgz#c163e86815c78152528a8c1549e95d8f3403e61b"
+  integrity sha512-NHCSJXOUQ29YFli1QzstXWo72EyASpoVx+s0YdkMwswpovf/iAJP580nD1tB0Ph9exvtbfWdVrSAloXrWVo1Xg==
+  dependencies:
+    "@babel/plugin-syntax-decorators" "^7.23.3"
+    babel-import-util "^3.0.0"
+
 deep-is@^0.1.3:
   version "0.1.4"
   resolved "https://registry.yarnpkg.com/deep-is/-/deep-is-0.1.4.tgz#a6f2dce612fadd2ef1f519b73551f17e85199831"
@@ -6620,10 +6618,10 @@ electron-to-chromium@^1.5.4:
   resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.26.tgz#449b4fa90e83ab98abbe3b6a96c8ee395de94452"
   integrity sha512-Z+OMe9M/V6Ep9n/52+b7lkvYEps26z4Yz3vjWL1V61W0q+VLF1pOHhMY17sa4roz4AWmULSI8E6SAojZA5L0YQ==
 
-ember-a11y-refocus@^3.0.2:
-  version "3.0.2"
-  resolved "https://registry.yarnpkg.com/ember-a11y-refocus/-/ember-a11y-refocus-3.0.2.tgz#e648c491d3a8d84cb594679bafc8430cd22b2ed4"
-  integrity sha512-5T9kAvl0RUBF6SSeaaWpVS2WC8MTktgqiGdLAbxVjT2f2NGrDDPmv7riDVNMsuL5sHRwSKm0EHCIzZ4M3aFMow==
+ember-a11y-refocus@^4.1.3:
+  version "4.1.4"
+  resolved "https://registry.yarnpkg.com/ember-a11y-refocus/-/ember-a11y-refocus-4.1.4.tgz#ffcabbc91503379cd2c0124cb5f0bc93178098b5"
+  integrity sha512-51tGk30bskObL1LsGZRxzqIxgZhIE8ZvvDYcT1OWphxZlq00+Arz57aMLS4Vz4qhSE40BfeN2qFYP/gXtp9qDA==
   dependencies:
     ember-cli-babel "^7.26.11"
     ember-cli-htmlbars "^6.0.1"
@@ -7441,7 +7439,7 @@ ember-decorators@^6.1.1:
     "@ember-decorators/object" "^6.1.1"
     ember-cli-babel "^7.7.3"
 
-ember-destroyable-polyfill@^2.0.1, ember-destroyable-polyfill@^2.0.2, ember-destroyable-polyfill@^2.0.3:
+ember-destroyable-polyfill@^2.0.1, ember-destroyable-polyfill@^2.0.2:
   version "2.0.3"
   resolved "https://registry.yarnpkg.com/ember-destroyable-polyfill/-/ember-destroyable-polyfill-2.0.3.tgz#1673ed66609a82268ef270a7d917ebd3647f11e1"
   integrity sha512-TovtNqCumzyAiW0/OisSkkVK93xnVF4NRU6+FN0ubpfwEOpRrmM2RqDwXI6YAChCgSHON1cz0DfQStpA1Gjuuw==
@@ -7567,16 +7565,6 @@ ember-inline-svg@^1.0.1:
     svgo "~1.2.2"
     walk-sync "~2.0.2"
 
-ember-keyboard@^8.2.1:
-  version "8.2.1"
-  resolved "https://registry.yarnpkg.com/ember-keyboard/-/ember-keyboard-8.2.1.tgz#945a8a71068d81c06ad26851008ef81061db2a59"
-  integrity sha512-wT9xpt3GKsiodGZoifKU4OyeRjXWlmKV9ZHHsp6wJBwMFpl4wWPjTNdINxivk2qg/WFNIh8nUiwuG4+soWXPdw==
-  dependencies:
-    "@embroider/addon-shim" "^1.8.4"
-    ember-destroyable-polyfill "^2.0.3"
-    ember-modifier "^2.1.2 || ^3.1.0 || ^4.0.0"
-    ember-modifier-manager-polyfill "^1.2.0"
-
 ember-lifeline@^7.0.0:
   version "7.0.0"
   resolved "https://registry.yarnpkg.com/ember-lifeline/-/ember-lifeline-7.0.0.tgz#46780c8f832b6c784ee4681b938a1e1437bfa676"
@@ -7631,7 +7619,7 @@ ember-modifier@3.2.7, ember-modifier@^3.2.0, ember-modifier@^3.2.7:
     ember-cli-typescript "^5.0.0"
     ember-compatibility-helpers "^1.2.5"
 
-"ember-modifier@^2.1.2 || ^3.1.0 || ^4.0.0", "ember-modifier@^3.2.7 || ^4.0.0", "ember-modifier@^3.2.7 || ^4.1.0", ember-modifier@^4.1.0:
+"ember-modifier@^3.2.7 || ^4.0.0", "ember-modifier@^3.2.7 || ^4.1.0", ember-modifier@^4.1.0:
   version "4.1.0"
   resolved "https://registry.yarnpkg.com/ember-modifier/-/ember-modifier-4.1.0.tgz#cb91efbf8ca4ff4a1a859767afa42dddba5a2bbd"
   integrity sha512-YFCNpEYj6jdyy3EjslRb2ehNiDvaOrXTilR9+ngq+iUqSHYto2zKV0rleiA1XJQ27ELM1q8RihT29U6Lq5EyqQ==
@@ -7849,13 +7837,23 @@ ember-statecharts@^0.13.2:
     ember-usable "https://github.com/pzuraq/ember-usable#0d03a50"
     xstate "^4.12.0"
 
-"ember-style-modifier@^0.8.0 || ^1.0.0 || ^2.0.0 || ^3.0.0", ember-style-modifier@^3.0.1:
+"ember-style-modifier@^0.8.0 || ^1.0.0 || ^2.0.0 || ^3.0.0":
   version "3.1.1"
   resolved "https://registry.yarnpkg.com/ember-style-modifier/-/ember-style-modifier-3.1.1.tgz#313269708552c42255806586160411840adc98c5"
   integrity sha512-J91YLKVp3/m7LrcLEWNSG2sJlSFhE5Ny75empU048qYJtdJMe788Ks/EpKEi953o1mJujVRg792YGrwbrpTzNA==
   dependencies:
     ember-auto-import "^2.5.0"
     ember-cli-babel "^7.26.11"
+    ember-modifier "^3.2.7 || ^4.0.0"
+
+ember-style-modifier@^4.4.0:
+  version "4.4.0"
+  resolved "https://registry.yarnpkg.com/ember-style-modifier/-/ember-style-modifier-4.4.0.tgz#2d1fa6a35d41d88612277d7d149f1e569acaf8d3"
+  integrity sha512-gT1ckbhl1KSj5sWTo/8UChj98eZeE+mUmYoXw8VjwJgWP0wiTCibGZjVbC0WlIUd7umxuG61OQ/ivfF+sAiOEQ==
+  dependencies:
+    "@embroider/addon-shim" "^1.8.7"
+    csstype "^3.1.3"
+    decorator-transforms "^2.0.0"
     ember-modifier "^3.2.7 || ^4.0.0"
 
 ember-template-lint@^3.15.0:

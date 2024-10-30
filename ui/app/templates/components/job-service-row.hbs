@@ -19,10 +19,10 @@
     }}
   >
     {{#if (eq @service.provider "nomad")}}
-      <FlightIcon @name="nomad-color" />
+      <Hds::Icon @name="nomad-color" @isInline={{true}} />
       <LinkTo class="is-primary" @route="jobs.job.services.service" @model={{@service}} @query={{hash level=@service.level}}>{{@service.name}}</LinkTo>
     {{else}}
-      <FlightIcon @name="consul-color" />
+      <Hds::Icon @name="consul-color" @isInline={{true}} />
       {{#if (and (eq @service.provider "consul") this.consulRedirectLink)}}
         <a class="is-primary" href={{this.consulRedirectLink}} target="_blank" rel="noopener noreferrer">
           {{@service.name}}
@@ -31,7 +31,7 @@
         {{@service.name}}
       {{/if}}
       {{#if @service.connect}}
-        <FlightIcon @name="mesh" @color="#444444" />
+        <Hds::Icon @name="mesh" @color="#444444" @isInline={{true}} />
       {{/if}}
     {{/if}}
   </td>

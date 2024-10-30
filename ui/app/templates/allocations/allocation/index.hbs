@@ -311,11 +311,11 @@
             >
               <td class="is-narrow">
                 {{#if (eq row.model.provider "nomad")}}
-                  <FlightIcon @name="nomad-color" />
+                  <Hds::Icon @name="nomad-color" @isInline={{true}} />
                 {{else}}
-                  <FlightIcon @name="consul-color" />
+                  <Hds::Icon @name="consul-color" @isInline={{true}} />
                   {{#if row.model.connect}}
-                    <FlightIcon @name="mesh" @color="#444444" />
+                    <Hds::Icon @name="mesh" @color="#444444" @isInline={{true}} />
                   {{/if}}
                 {{/if}}
               </td>

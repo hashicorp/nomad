@@ -342,7 +342,7 @@
             />
           {{/if}}
         </A.Body>
-        <A.Footer @hasDivider={{true}} as |F|>
+        <A.Footer as |F|>
           <Hds::Button
             @text="Reset Filters"
             @color="tertiary"
@@ -353,7 +353,7 @@
 
           <F.LinkStandalone @icon="docs" @text="Learn more about Filter Expressions" @href="https://developer.hashicorp.com/nomad/api-docs#creating-expressions" @iconPosition="trailing" />
 
-          <F.LinkStandalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
+          <F.LinkStandalone @icon="plus" @text="Run a New Job" @route="jobs.run"
             @iconPosition="trailing" />
 
         </A.Footer>
@@ -362,8 +362,8 @@
         <A.Body
           @text="No jobs found."
         />
-        <A.Footer @hasDivider={{true}} as |F|>
-          <F.LinkStandalone @icon="plus" @text="Run a New Job" @route="jobs.run" 
+        <A.Footer as |F|>
+          <F.LinkStandalone @icon="plus" @text="Run a New Job" @route="jobs.run"
             @iconPosition="trailing" />
         </A.Footer>
       {{/if}}

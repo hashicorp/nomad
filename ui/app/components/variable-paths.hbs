@@ -27,7 +27,7 @@
           }}
         >
           <span>
-            <FlightIcon @name="folder" />
+            <Hds::Icon @name="folder" @isInline={{true}} />
             <LinkTo @route="variables.path" @model={{folder.data.absolutePath}} @query={{hash namespace="*"}}>
               {{trim-path folder.name}}
             </LinkTo>
@@ -48,7 +48,7 @@
         }}
       >
         <B.Td>
-          <FlightIcon @name="file-text" />
+          <Hds::Icon @name="file-text" @isInline={{true}} />
           {{#if (can "read variable" path=file.absoluteFilePath namespace=file.variable.namespace)}}
           <LinkTo
             @route="variables.variable"

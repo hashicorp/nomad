@@ -33,9 +33,9 @@
                to
               {{a.item.count}}" aria-label="More information">
             {{#if a.item.increased}}
-              <FlightIcon @name="arrow-up" />
+              <Hds::Icon @name="arrow-up" @isInline={{true}} />
             {{else}}
-              <FlightIcon @name="arrow-down" />
+              <Hds::Icon @name="arrow-down" @isInline={{true}} />
             {{/if}}
           </Hds::TooltipButton>
           <span data-test-count>
