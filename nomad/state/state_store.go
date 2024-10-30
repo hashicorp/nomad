@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) HashupdateCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
 package state
@@ -366,7 +366,7 @@ RUN_QUERY:
 }
 
 // UpsertPlanResults is used to upsert the results of a plan.
-func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64, now int64, results *structs.ApplyPlanResultsRequest) error {
+func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64, results *structs.ApplyPlanResultsRequest) error {
 	snapshot, err := s.Snapshot()
 	if err != nil {
 		return err
@@ -408,7 +408,7 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// Upsert the newly created or updated deployment
 	if results.Deployment != nil {
-		if err := s.upsertDeploymentImpl(index, now, results.Deployment, txn); err != nil {
+		if err := s.upsertDeploymentImpl(index, results.Deployment, txn); err != nil {
 			return err
 		}
 	}
@@ -575,16 +575,16 @@ func (s *StateStore) DeleteJobSummary(index uint64, namespace, id string) error 
 }
 
 // UpsertDeployment is used to insert or update a new deployment.
-func (s *StateStore) UpsertDeployment(index uint64, now int64, deployment *structs.Deployment) error {
+func (s *StateStore) UpsertDeployment(index uint64, deployment *structs.Deployment) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
-	if err := s.upsertDeploymentImpl(index, now, deployment, txn); err != nil {
+	if err := s.upsertDeploymentImpl(index, deployment, txn); err != nil {
 		return err
 	}
 	return txn.Commit()
 }
 
-func (s *StateStore) upsertDeploymentImpl(index uint64, now int64, deployment *structs.Deployment, txn *txn) error {
+func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Deployment, txn *txn) error {
 	// Check if the deployment already exists
 	existing, err := txn.First("deployment", "id", deployment.ID)
 	if err != nil {
@@ -595,13 +595,9 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, now int64, deployment *s
 	if existing != nil {
 		deployment.CreateIndex = existing.(*structs.Deployment).CreateIndex
 		deployment.ModifyIndex = index
-		deployment.CreateTime = existing.(*structs.Deployment).CreateTime
-		deployment.ModifyTime = now
 	} else {
 		deployment.CreateIndex = index
 		deployment.ModifyIndex = index
-		deployment.CreateTime = now
-		deployment.ModifyTime = now
 	}
 
 	// Insert the deployment
@@ -3945,7 +3941,7 @@ func (s *StateStore) EvalsByNamespaceOrdered(ws memdb.WatchSet, namespace string
 // most things, some updates are authoritative from the client. Specifically,
 // the desired state comes from the schedulers, while the actual state comes
 // from clients.
-func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index uint64, now int64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
@@ -3956,7 +3952,7 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 	// Handle each of the updated allocations
 	for _, alloc := range allocs {
 		nodeIDs.Insert(alloc.NodeID)
-		if err := s.nestedUpdateAllocFromClient(txn, index, now, alloc); err != nil {
+		if err := s.nestedUpdateAllocFromClient(txn, index, alloc); err != nil {
 			return err
 		}
 	}
@@ -3977,7 +3973,7 @@ func (s *StateStore) UpdateAllocsFromClient(msgType structs.MessageType, index u
 }
 
 // nestedUpdateAllocFromClient is used to nest an update of an allocation with client status
-func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, now int64, alloc *structs.Allocation) error {
+func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *structs.Allocation) error {
 	// Look for existing alloc
 	existing, err := txn.First("allocs", "id", alloc.ID)
 	if err != nil {
@@ -4025,7 +4021,7 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, now int
 	// Update the modify time
 	copyAlloc.ModifyTime = alloc.ModifyTime
 
-	if err := s.updateDeploymentWithAlloc(index, now, copyAlloc, exist, txn); err != nil {
+	if err := s.updateDeploymentWithAlloc(index, copyAlloc, exist, txn); err != nil {
 		return fmt.Errorf("error updating deployment: %v", err)
 	}
 
@@ -4164,7 +4160,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, now int64, allocs []*structs
 		// These should be given a map of new to old allocation and the updates
 		// should be one on all changes. The current implementation causes O(n)
 		// lookups/copies/insertions rather than O(1)
-		if err := s.updateDeploymentWithAlloc(index, now, alloc, exist, txn); err != nil {
+		if err := s.updateDeploymentWithAlloc(index, alloc, exist, txn); err != nil {
 			return fmt.Errorf("error updating deployment: %v", err)
 		}
 
@@ -4829,11 +4825,11 @@ func (s *StateStore) SITokenAccessorsByNode(ws memdb.WatchSet, nodeID string) ([
 
 // UpdateDeploymentStatus is used to make deployment status updates and
 // potentially make a evaluation
-func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index uint64, now int64, req *structs.DeploymentStatusUpdateRequest) error {
+func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index uint64, req *structs.DeploymentStatusUpdateRequest) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	if err := s.updateDeploymentStatusImpl(index, now, req.DeploymentUpdate, txn); err != nil {
+	if err := s.updateDeploymentStatusImpl(index, req.DeploymentUpdate, txn); err != nil {
 		return err
 	}
 
@@ -4855,7 +4851,7 @@ func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index u
 }
 
 // updateDeploymentStatusImpl is used to make deployment status updates
-func (s *StateStore) updateDeploymentStatusImpl(index uint64, now int64, u *structs.DeploymentStatusUpdate, txn *txn) error {
+func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.DeploymentStatusUpdate, txn *txn) error {
 	// Retrieve deployment
 	ws := memdb.NewWatchSet()
 	deployment, err := s.deploymentByIDImpl(ws, u.DeploymentID, txn)
@@ -4872,7 +4868,7 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, now int64, u *stru
 	copy.Status = u.Status
 	copy.StatusDescription = u.StatusDescription
 	copy.ModifyIndex = index
-	copy.ModifyTime = now
+	copy.ModifyTime = u.UpdatedAt
 
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
@@ -5021,7 +5017,7 @@ func (s *StateStore) unsetJobVersionTagImpl(index uint64, namespace, jobID strin
 
 // UpdateDeploymentPromotion is used to promote canaries in a deployment and
 // potentially make a evaluation
-func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, index uint64, now int64, req *structs.ApplyDeploymentPromoteRequest) error {
+func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, index uint64, req *structs.ApplyDeploymentPromoteRequest) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
@@ -5114,7 +5110,6 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 	// Update deployment
 	copy := deployment.Copy()
 	copy.ModifyIndex = index
-	copy.ModifyTime = now
 	for tg, status := range copy.TaskGroups {
 		_, ok := groupIndex[tg]
 		if !req.All && !ok {
@@ -5133,8 +5128,11 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 		copy.StatusDescription = structs.DeploymentStatusDescriptionRunning
 	}
 
+	// Update modify time to the time of deployment promotion
+	copy.ModifyTime = req.PromotedAt
+
 	// Insert the deployment
-	if err := s.upsertDeploymentImpl(index, now, copy, txn); err != nil {
+	if err := s.upsertDeploymentImpl(index, copy, txn); err != nil {
 		return err
 	}
 
@@ -5168,7 +5166,7 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 
 // UpdateDeploymentAllocHealth is used to update the health of allocations as
 // part of the deployment and potentially make a evaluation
-func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, index uint64, now int64, req *structs.ApplyDeploymentAllocHealthRequest) error {
+func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, index uint64, req *structs.ApplyDeploymentAllocHealthRequest) error {
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
@@ -5207,9 +5205,10 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 			copy.DeploymentStatus.Healthy = pointer.Of(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
+			copy.ModifyTime = req.Timestamp.UnixNano()
 			copy.ModifyIndex = index
 
-			if err := s.updateDeploymentWithAlloc(index, now, copy, old, txn); err != nil {
+			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
 				return fmt.Errorf("error updating deployment: %v", err)
 			}
 
@@ -5239,7 +5238,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 
 	// Update the deployment status as needed.
 	if req.DeploymentUpdate != nil {
-		if err := s.updateDeploymentStatusImpl(index, now, req.DeploymentUpdate, txn); err != nil {
+		if err := s.updateDeploymentStatusImpl(index, req.DeploymentUpdate, txn); err != nil {
 			return err
 		}
 	}
@@ -5917,7 +5916,7 @@ func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, t
 // updateDeploymentWithAlloc is used to update the deployment state associated
 // with the given allocation. The passed alloc may be updated if the deployment
 // status has changed to capture the modify index at which it has changed.
-func (s *StateStore) updateDeploymentWithAlloc(index uint64, now int64, alloc, existing *structs.Allocation, txn *txn) error {
+func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *structs.Allocation, txn *txn) error {
 	// Nothing to do if the allocation is not associated with a deployment
 	if alloc.DeploymentID == "" {
 		return nil
@@ -5979,7 +5978,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, now int64, alloc, e
 	// Create a copy of the deployment object
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
-	deploymentCopy.ModifyTime = now
+	deploymentCopy.ModifyTime = alloc.ModifyTime
 
 	dstate := deploymentCopy.TaskGroups[alloc.TaskGroup]
 	dstate.PlacedAllocs += placed
@@ -6015,7 +6014,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, now int64, alloc, e
 	}
 
 	// Upsert the deployment
-	if err := s.upsertDeploymentImpl(index, now, deploymentCopy, txn); err != nil {
+	if err := s.upsertDeploymentImpl(index, deploymentCopy, txn); err != nil {
 		return err
 	}
 

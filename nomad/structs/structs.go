@@ -1381,6 +1381,9 @@ type DeploymentPromoteRequest struct {
 	// Groups is used to set the promotion status per task group
 	Groups []string
 
+	// PromotedAt is the timestamp stored as Unix nano
+	PromotedAt int64
+
 	WriteRequest
 }
 
@@ -10645,7 +10648,7 @@ type Deployment struct {
 }
 
 // NewDeployment creates a new deployment given the job.
-func NewDeployment(job *Job, evalPriority int) *Deployment {
+func NewDeployment(job *Job, evalPriority int, now int64) *Deployment {
 	return &Deployment{
 		ID:                 uuid.Generate(),
 		Namespace:          job.Namespace,
@@ -10659,6 +10662,7 @@ func NewDeployment(job *Job, evalPriority int) *Deployment {
 		StatusDescription:  DeploymentStatusDescriptionRunning,
 		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
 		EvalPriority:       evalPriority,
+		CreateTime:         now,
 	}
 }
 
@@ -10838,6 +10842,9 @@ type DeploymentStatusUpdate struct {
 
 	// StatusDescription is the new status description of the deployment.
 	StatusDescription string
+
+	// Updated at is the time of the update
+	UpdatedAt int64
 }
 
 // RescheduleTracker encapsulates previous reschedule events

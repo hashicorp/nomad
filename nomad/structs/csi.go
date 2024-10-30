@@ -851,7 +851,8 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 
 // Request and response wrappers
 type CSIVolumeRegisterRequest struct {
-	Volumes []*CSIVolume
+	Volumes   []*CSIVolume
+	Timestamp int64
 	WriteRequest
 }
 
@@ -870,7 +871,8 @@ type CSIVolumeDeregisterResponse struct {
 }
 
 type CSIVolumeCreateRequest struct {
-	Volumes []*CSIVolume
+	Volumes   []*CSIVolume
+	Timestamp int64
 	WriteRequest
 }
 
@@ -927,6 +929,7 @@ type CSIVolumeClaimRequest struct {
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
 	State          CSIVolumeClaimState
+	Timestamp      int64
 	WriteRequest
 }
 
