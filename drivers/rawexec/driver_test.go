@@ -225,6 +225,8 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 		Args:    []string{"sleep", "10ms"},
 	}
 	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+	require.NoError(harness.SetConfig(&base.Config{}))
+
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, false)
