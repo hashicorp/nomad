@@ -410,9 +410,7 @@ module('Acceptance | variables', function (hooks) {
       await typeIn('[data-test-path-input]', 'foo/bar');
       await clickToggle('[data-test-variable-namespace-filter]');
       assert
-        .dom(
-          '[data-test-variable-namespace-filter] .hds-menu-primitive__content'
-        )
+        .dom('[data-test-variable-namespace-filter] .hds-dropdown__content')
         .exists('Namespace can be edited.');
       assert
         .dom('[data-test-variable-namespace-filter]')

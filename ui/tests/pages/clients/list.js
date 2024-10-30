@@ -22,7 +22,7 @@ const heliosFacet = (scope) => ({
   scope,
   toggle: clickable('button'),
   options: collection(
-    '.hds-menu-primitive__content .hds-dropdown__content .hds-dropdown__list .hds-dropdown-list-item--variant-checkbox',
+    '.hds-dropdown__content .hds-dropdown__list .hds-dropdown-list-item--variant-checkbox',
     {
       toggle: clickable('label'),
       count: text('label .hds-dropdown-list-item__count'),

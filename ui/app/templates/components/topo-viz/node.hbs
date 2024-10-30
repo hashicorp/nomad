@@ -12,7 +12,7 @@
           @text="Client is draining"
           aria-label="Client is draining"
         >
-          <FlightIcon @name="clock" />
+          <Hds::Icon @name="clock" @isInline={{true}} />
         </Hds::TooltipButton>
       {{else if (not @node.node.isEligible)}}
         <Hds::TooltipButton
@@ -20,7 +20,7 @@
           @text="Client is ineligible"
           aria-label="Client is ineligible"
         >
-          <FlightIcon @name="lock" />
+          <Hds::Icon @name="lock" @isInline={{true}} />
         </Hds::TooltipButton>
       {{/if}}
       <LinkTo @route="clients.client" @model={{@node.node.id}} {{hds-tooltip "Node Name"}}>{{@node.node.name}}</LinkTo>
