@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -76,6 +77,12 @@ var (
 	topology = numalib.Scan(numalib.PlatformScanners())
 )
 
+type mockIDValidator struct{}
+
+func (mv *mockIDValidator) HasValidIDs(user *user.User) error {
+	return nil
+}
+
 func newEnabledRawExecDriver(t *testing.T) *Driver {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -86,6 +93,7 @@ func newEnabledRawExecDriver(t *testing.T) *Driver {
 	d.nomadConfig = &base.ClientDriverConfig{
 		Topology: topology,
 	}
+	d.userIDValidator = &mockIDValidator{}
 
 	return d
 }
@@ -225,7 +233,7 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 		Args:    []string{"sleep", "10ms"},
 	}
 	require.NoError(task.EncodeConcreteDriverConfig(&tc))
-	require.NoError(harness.SetConfig(&base.Config{}))
+	//require.NoError(harness.SetConfig(&base.Config{}))
 
 	testtask.SetTaskConfigEnv(task)
 
