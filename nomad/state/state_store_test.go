@@ -1082,7 +1082,7 @@ func TestStateStore_DeleteNamespaces_CSIVolumes(t *testing.T) {
 	vol := mock.CSIVolume(plugin)
 	vol.Namespace = ns.Name
 
-	require.NoError(t, state.UpsertCSIVolume(1001, time.Now().UnixNano(), []*structs.CSIVolume{vol}))
+	require.NoError(t, state.UpsertCSIVolume(1001, []*structs.CSIVolume{vol}))
 
 	// Create a watchset so we can test that delete fires the watch
 	ws := memdb.NewWatchSet()
@@ -4021,18 +4021,18 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	}}
 
 	index++
-	err = state.UpsertCSIVolume(index, now, []*structs.CSIVolume{v0, v1})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v0, v1})
 	require.NoError(t, err)
 
 	// volume registration is idempotent, unless identies are changed
 	index++
-	err = state.UpsertCSIVolume(index, now, []*structs.CSIVolume{v0, v1})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v0, v1})
 	require.NoError(t, err)
 
 	index++
 	v2 := v0.Copy()
 	v2.PluginID = "new-id"
-	err = state.UpsertCSIVolume(index, now, []*structs.CSIVolume{v2})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{v2})
 	require.Error(t, err, fmt.Sprintf("volume exists: %s", v0.ID))
 
 	ws := memdb.NewWatchSet()
@@ -4455,7 +4455,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			Namespace: structs.DefaultNamespace,
 			PluginID:  plugID,
 		}
-		err = store.UpsertCSIVolume(nextIndex(store), now, []*structs.CSIVolume{vol})
+		err = store.UpsertCSIVolume(nextIndex(store), []*structs.CSIVolume{vol})
 		must.NoError(t, err)
 
 		err = store.DeleteJob(nextIndex(store), structs.DefaultNamespace, controllerJobID)

@@ -1366,7 +1366,7 @@ func (n *nomadFSM) applyCSIVolumeRegister(buf []byte, index uint64) interface{} 
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_register"}, time.Now())
 
-	if err := n.state.UpsertCSIVolume(index, req.Timestamp, req.Volumes); err != nil {
+	if err := n.state.UpsertCSIVolume(index, req.Volumes); err != nil {
 		n.logger.Error("CSIVolumeRegister failed", "error", err)
 		return err
 	}
