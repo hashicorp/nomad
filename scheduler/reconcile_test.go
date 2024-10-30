@@ -1625,7 +1625,7 @@ func TestReconciler_MultiTG_SingleUpdateBlock(t *testing.T) {
 		}
 	}
 
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
@@ -2384,7 +2384,7 @@ func TestReconciler_RescheduleNow_Service_WithCanaries(t *testing.T) {
 	job2 := job.Copy()
 	job2.Version++
 
-	d := structs.NewDeployment(job2, 50)
+	d := structs.NewDeployment(job2, 50, time.Now().UnixNano())
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	s := &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -2491,7 +2491,7 @@ func TestReconciler_RescheduleNow_Service_Canaries(t *testing.T) {
 	job2 := job.Copy()
 	job2.Version++
 
-	d := structs.NewDeployment(job2, 50)
+	d := structs.NewDeployment(job2, 50, time.Now().UnixNano())
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	s := &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -2619,7 +2619,7 @@ func TestReconciler_RescheduleNow_Service_Canaries_Limit(t *testing.T) {
 	job2 := job.Copy()
 	job2.Version++
 
-	d := structs.NewDeployment(job2, 50)
+	d := structs.NewDeployment(job2, 50, time.Now().UnixNano())
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	s := &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -2790,8 +2790,8 @@ func TestReconciler_CancelDeployment_JobStop(t *testing.T) {
 	job := mock.Job()
 	job.Stop = true
 
-	running := structs.NewDeployment(job, 50)
-	failed := structs.NewDeployment(job, 50)
+	running := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	failed := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	failed.Status = structs.DeploymentStatusFailed
 
 	cases := []struct {
@@ -2891,8 +2891,8 @@ func TestReconciler_CancelDeployment_JobUpdate(t *testing.T) {
 	job := mock.Job()
 
 	// Create two deployments
-	running := structs.NewDeployment(job, 50)
-	failed := structs.NewDeployment(job, 50)
+	running := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	failed := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	failed.Status = structs.DeploymentStatusFailed
 
 	// Make the job newer than the deployment
@@ -2985,7 +2985,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
@@ -3031,7 +3031,7 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
@@ -3076,7 +3076,7 @@ func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 5,
 	}
@@ -3167,7 +3167,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreCanaries(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			// Create a deployment that is paused/failed and has placed some canaries
-			d := structs.NewDeployment(job, 50)
+			d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 			d.Status = c.deploymentStatus
 			d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 				Promoted:        false,
@@ -3248,7 +3248,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMorePlacements(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			// Create a deployment that is paused and has placed some canaries
-			d := structs.NewDeployment(job, 50)
+			d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 			d.Status = c.deploymentStatus
 			d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 				Promoted:     false,
@@ -3314,7 +3314,7 @@ func TestReconciler_PausedOrFailedDeployment_NoMoreDestructiveUpdates(t *testing
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			// Create a deployment that is paused and has placed some canaries
-			d := structs.NewDeployment(job, 50)
+			d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 			d.Status = c.deploymentStatus
 			d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 				Promoted:     false,
@@ -3374,7 +3374,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 	job.TaskGroups[0].Update = canaryUpdate
 
 	// Create a deployment that is paused and has placed some canaries
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	s := &structs.DeploymentState{
 		Promoted:        false,
 		DesiredTotal:    10,
@@ -3449,7 +3449,7 @@ func TestReconciler_LostNode_Canary(t *testing.T) {
 	job.TaskGroups[0].Update = canaryUpdate
 
 	// Create a deployment that is paused and has placed some canaries
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	s := &structs.DeploymentState{
 		Promoted:        false,
 		DesiredTotal:    10,
@@ -3525,7 +3525,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 	job.TaskGroups[0].Update = canaryUpdate
 
 	// Create an old deployment that has placed some canaries
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	s := &structs.DeploymentState{
 		Promoted:        false,
 		DesiredTotal:    10,
@@ -3567,7 +3567,7 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50)
+	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3623,7 +3623,7 @@ func TestReconciler_NewCanaries(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50)
+	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3674,7 +3674,7 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50)
+	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	state := &structs.DeploymentState{
 		DesiredCanaries: 7,
@@ -3728,7 +3728,7 @@ func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50)
+	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	state := &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3784,7 +3784,7 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50)
+	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3835,7 +3835,7 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50)
+	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3876,7 +3876,7 @@ func TestReconciler_NewCanaries_FillNames(t *testing.T) {
 	}
 
 	// Create an existing deployment that has placed some canaries
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	s := &structs.DeploymentState{
 		Promoted:        false,
 		DesiredTotal:    10,
@@ -3942,7 +3942,7 @@ func TestReconciler_PromoteCanaries_Unblock(t *testing.T) {
 
 	// Create an existing deployment that has placed some canaries and mark them
 	// promoted
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	s := &structs.DeploymentState{
 		Promoted:        true,
 		DesiredTotal:    10,
@@ -4018,7 +4018,7 @@ func TestReconciler_PromoteCanaries_CanariesEqualCount(t *testing.T) {
 
 	// Create an existing deployment that has placed some canaries and mark them
 	// promoted
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	s := &structs.DeploymentState{
 		Promoted:        true,
 		DesiredTotal:    2,
@@ -4123,7 +4123,7 @@ func TestReconciler_DeploymentLimit_HealthAccounting(t *testing.T) {
 		t.Run(fmt.Sprintf("%d healthy", c.healthy), func(t *testing.T) {
 			// Create an existing deployment that has placed some canaries and mark them
 			// promoted
-			d := structs.NewDeployment(job, 50)
+			d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 			d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 				Promoted:     true,
 				DesiredTotal: 10,
@@ -4195,7 +4195,7 @@ func TestReconciler_TaintedNode_RollingUpgrade(t *testing.T) {
 	job.TaskGroups[0].Update = noCanaryUpdate
 
 	// Create an existing deployment that has some placed allocs
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:     true,
 		DesiredTotal: 10,
@@ -4282,7 +4282,7 @@ func TestReconciler_FailedDeployment_TaintedNodes(t *testing.T) {
 	job.TaskGroups[0].Update = noCanaryUpdate
 
 	// Create an existing failed deployment that has some placed allocs
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.Status = structs.DeploymentStatusFailed
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:     true,
@@ -4367,7 +4367,7 @@ func TestReconciler_CompleteDeployment(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Update = canaryUpdate
 
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.Status = structs.DeploymentStatusSuccessful
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:        true,
@@ -4421,7 +4421,7 @@ func TestReconciler_MarkDeploymentComplete_FailedAllocations(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal:  10,
 		PlacedAllocs:  20,
@@ -4489,7 +4489,7 @@ func TestReconciler_FailedDeployment_CancelCanaries(t *testing.T) {
 	job.TaskGroups[1].Name = "two"
 
 	// Create an existing failed deployment that has promoted one task group
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.Status = structs.DeploymentStatusFailed
 	s0 := &structs.DeploymentState{
 		Promoted:        true,
@@ -4582,7 +4582,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 	job.TaskGroups[0].Update = noCanaryUpdate
 
 	// Create an existing failed deployment that has some placed allocs
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.Status = structs.DeploymentStatusFailed
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:     true,
@@ -4625,7 +4625,7 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	dnew := structs.NewDeployment(jobNew, 50)
+	dnew := structs.NewDeployment(jobNew, 50, time.Now().UnixNano())
 	dnew.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
@@ -4653,7 +4653,7 @@ func TestReconciler_MarkDeploymentComplete(t *testing.T) {
 	job := mock.Job()
 	job.TaskGroups[0].Update = noCanaryUpdate
 
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:      true,
 		DesiredTotal:  10,
@@ -4715,7 +4715,7 @@ func TestReconciler_JobChange_ScaleUp_SecondEval(t *testing.T) {
 	job.TaskGroups[0].Count = 30
 
 	// Create a deployment that is paused and has placed some canaries
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:     false,
 		DesiredTotal: 30,
@@ -4791,7 +4791,7 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
@@ -4874,7 +4874,7 @@ func TestReconciler_FailedDeployment_DontReschedule(t *testing.T) {
 	tgName := job.TaskGroups[0].Name
 	now := time.Now()
 	// Create an existing failed deployment that has some placed allocs
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.Status = structs.DeploymentStatusFailed
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:     true,
@@ -4934,7 +4934,7 @@ func TestReconciler_DeploymentWithFailedAllocs_DontReschedule(t *testing.T) {
 	now := time.Now()
 
 	// Mock deployment with failed allocs, but deployment watcher hasn't marked it as failed yet
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.Status = structs.DeploymentStatusRunning
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:     false,
@@ -5010,7 +5010,7 @@ func TestReconciler_FailedDeployment_AutoRevert_CancelCanaries(t *testing.T) {
 	jobv2.Version = 2
 	jobv2.TaskGroups[0].Meta = map[string]string{"version": "2"}
 
-	d := structs.NewDeployment(jobv2, 50)
+	d := structs.NewDeployment(jobv2, 50, time.Now().UnixNano())
 	state := &structs.DeploymentState{
 		Promoted:      true,
 		DesiredTotal:  3,
@@ -5092,7 +5092,7 @@ func TestReconciler_SuccessfulDeploymentWithFailedAllocs_Reschedule(t *testing.T
 	now := time.Now()
 
 	// Mock deployment with failed allocs, but deployment watcher hasn't marked it as failed yet
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
 	d.Status = structs.DeploymentStatusSuccessful
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		Promoted:     false,
@@ -6181,7 +6181,7 @@ func TestReconciler_Client_Disconnect_Canaries(t *testing.T) {
 			// Validate tc.canaryAllocs against tc.deploymentState
 			must.Eq(t, tc.deploymentState.PlacedAllocs, canariesConfigured, must.Sprintf("invalid canary configuration: expect %d got %d", tc.deploymentState.PlacedAllocs, canariesConfigured))
 
-			deployment := structs.NewDeployment(updatedJob, 50)
+			deployment := structs.NewDeployment(updatedJob, 50, time.Now().UnixNano())
 			deployment.TaskGroups[updatedJob.TaskGroups[0].Name] = tc.deploymentState
 
 			// Build a map of tainted nodes that contains the last canary
@@ -6331,7 +6331,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 				// fetched by the scheduler before handing it to the
 				// reconciler.
 				if job.UsesDeployments() {
-					deployment = structs.NewDeployment(job, 100)
+					deployment = structs.NewDeployment(job, 100, time.Now().UnixNano())
 					deployment.Status = structs.DeploymentStatusInitializing
 					deployment.StatusDescription = structs.DeploymentStatusDescriptionPendingForPeer
 				}

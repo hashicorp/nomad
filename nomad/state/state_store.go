@@ -457,7 +457,7 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 		alloc.Canonicalize()
 	}
 
-	if err := s.upsertAllocsImpl(index, results.UpdatedAt, allocsToUpsert, txn); err != nil {
+	if err := s.upsertAllocsImpl(index, allocsToUpsert, txn); err != nil {
 		return err
 	}
 
@@ -2557,7 +2557,7 @@ func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string)
 }
 
 // UpsertCSIVolume inserts a volume in the state store.
-func (s *StateStore) UpsertCSIVolume(index uint64, now int64, volumes []*structs.CSIVolume) error {
+func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -2583,10 +2583,8 @@ func (s *StateStore) UpsertCSIVolume(index uint64, now int64, volumes []*structs
 			}
 		} else {
 			v.CreateIndex = index
-			v.CreateTime = now
 		}
 		v.ModifyIndex = index
-		v.ModifyTime = now
 
 		// Allocations are copy on write, so we want to keep the Allocation ID
 		// but we need to clear the pointer so that we don't store it when we
@@ -3162,7 +3160,7 @@ func (s *StateStore) CSIPluginDenormalizeTxn(txn Txn, ws memdb.WatchSet, plug *s
 // UpsertCSIPlugin writes the plugin to the state store. Note: there
 // is currently no raft message for this, as it's intended to support
 // testing use cases.
-func (s *StateStore) UpsertCSIPlugin(index uint64, now int64, plug *structs.CSIPlugin) error {
+func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -3172,7 +3170,6 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, now int64, plug *structs.CSIP
 	}
 
 	plug.ModifyIndex = index
-	plug.ModifyTime = now
 	if existing != nil {
 		plug.CreateIndex = existing.(*structs.CSIPlugin).CreateIndex
 		plug.CreateTime = existing.(*structs.CSIPlugin).CreateTime
@@ -4091,10 +4088,10 @@ func (s *StateStore) updateClientAllocUpdateIndex(txn *txn, index uint64, nodeID
 
 // UpsertAllocs is used to evict a set of allocations and allocate new ones at
 // the same time.
-func (s *StateStore) UpsertAllocs(msgType structs.MessageType, index uint64, now int64, allocs []*structs.Allocation) error {
+func (s *StateStore) UpsertAllocs(msgType structs.MessageType, index uint64, allocs []*structs.Allocation) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
-	if err := s.upsertAllocsImpl(index, now, allocs, txn); err != nil {
+	if err := s.upsertAllocsImpl(index, allocs, txn); err != nil {
 		return err
 	}
 	return txn.Commit()
@@ -4102,7 +4099,7 @@ func (s *StateStore) UpsertAllocs(msgType structs.MessageType, index uint64, now
 
 // upsertAllocs is the actual implementation of UpsertAllocs so that it may be
 // used with an existing transaction.
-func (s *StateStore) upsertAllocsImpl(index uint64, now int64, allocs []*structs.Allocation, txn *txn) error {
+func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation, txn *txn) error {
 	// Handle the allocations
 	jobs := make(map[structs.NamespacedID]string, 1)
 	for _, alloc := range allocs {
