@@ -143,7 +143,7 @@ func TestStateStore_UpsertPlanResults_AllocationsCreated_Denormalized(t *testing
 		EvalID: eval.ID,
 	}
 	assert := assert.New(t)
-	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	assert.Nil(err)
 
 	ws := memdb.NewWatchSet()
@@ -220,7 +220,7 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	}
 	assert := assert.New(t)
 	planModifyIndex := uint64(1000)
-	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, planModifyIndex, time.Now().UnixNano(), &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, planModifyIndex, &res)
 	require.NoError(err)
 
 	ws := memdb.NewWatchSet()
@@ -301,8 +301,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 		EvalID:     eval.ID,
 	}
 
-	now := time.Now().UnixNano()
-	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, now, &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -350,7 +349,7 @@ func TestStateStore_UpsertPlanResults_Deployment(t *testing.T) {
 		EvalID:     eval.ID,
 	}
 
-	err = state.UpsertPlanResults(structs.MsgTypeTestSetup, 1001, now, &res)
+	err = state.UpsertPlanResults(structs.MsgTypeTestSetup, 1001, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -420,7 +419,7 @@ func TestStateStore_UpsertPlanResults_PreemptedAllocs(t *testing.T) {
 		PreemptionEvals: []*structs.Evaluation{eval2},
 	}
 
-	err = state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, now, &res)
+	err = state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	require.NoError(err)
 
 	ws := memdb.NewWatchSet()
@@ -460,8 +459,6 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	ci.Parallel(t)
 	state := testStateStore(t)
 
-	now := time.Now().UnixNano()
-
 	// Create a job that applies to all
 	job := mock.Job()
 	if err := state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, job); err != nil {
@@ -472,7 +469,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	doutstanding := mock.Deployment()
 	doutstanding.JobID = job.ID
 
-	if err := state.UpsertDeployment(1000, now, doutstanding); err != nil {
+	if err := state.UpsertDeployment(1000, doutstanding); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -508,7 +505,7 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 		EvalID:            eval.ID,
 	}
 
-	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, now, &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -576,7 +573,7 @@ func TestStateStore_UpsertPlanResults_AllocationResources(t *testing.T) {
 		EvalID: eval.ID,
 	}
 
-	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), &res))
+	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res))
 
 	out, err := state.AllocByID(nil, alloc.ID)
 	must.NoError(t, err)
@@ -598,7 +595,7 @@ func TestStateStore_UpsertDeployment(t *testing.T) {
 		t.Fatalf("bad: %v", err)
 	}
 
-	err = state.UpsertDeployment(1000, time.Now().UnixNano(), deployment)
+	err = state.UpsertDeployment(1000, deployment)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -648,13 +645,11 @@ func TestStateStore_OldDeployment(t *testing.T) {
 
 	require := require.New(t)
 
-	now := time.Now().UnixNano()
-
 	// Insert both deployments
-	err := state.UpsertDeployment(1001, now, deploy1)
+	err := state.UpsertDeployment(1001, deploy1)
 	require.Nil(err)
 
-	err = state.UpsertDeployment(1002, now, deploy2)
+	err = state.UpsertDeployment(1002, deploy2)
 	require.Nil(err)
 
 	ws := memdb.NewWatchSet()
@@ -677,13 +672,11 @@ func TestStateStore_DeleteDeployment(t *testing.T) {
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
 
-	now := time.Now().UnixNano()
-
-	err := state.UpsertDeployment(1000, now, d1)
+	err := state.UpsertDeployment(1000, d1)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if err := state.UpsertDeployment(1001, now, d2); err != nil {
+	if err := state.UpsertDeployment(1001, d2); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -735,7 +728,7 @@ func TestStateStore_Deployments(t *testing.T) {
 		deployment := mock.Deployment()
 		deployments = append(deployments, deployment)
 
-		err := state.UpsertDeployment(1000+uint64(i), time.Now().UnixNano(), deployment)
+		err := state.UpsertDeployment(1000+uint64(i), deployment)
 		require.NoError(t, err)
 	}
 
@@ -784,11 +777,10 @@ func TestStateStore_Deployments_Namespace(t *testing.T) {
 	_, err = state.DeploymentsByNamespace(watches[1], ns2.Name)
 	require.NoError(t, err)
 
-	now := time.Now().UnixNano()
-	require.NoError(t, state.UpsertDeployment(1001, now, deploy1))
-	require.NoError(t, state.UpsertDeployment(1002, now, deploy2))
-	require.NoError(t, state.UpsertDeployment(1003, now, deploy3))
-	require.NoError(t, state.UpsertDeployment(1004, now, deploy4))
+	require.NoError(t, state.UpsertDeployment(1001, deploy1))
+	require.NoError(t, state.UpsertDeployment(1002, deploy2))
+	require.NoError(t, state.UpsertDeployment(1003, deploy3))
+	require.NoError(t, state.UpsertDeployment(1004, deploy4))
 	require.True(t, watchFired(watches[0]))
 	require.True(t, watchFired(watches[1]))
 
@@ -838,10 +830,8 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 	state := testStateStore(t)
 	deploy := mock.Deployment()
 
-	now := time.Now().UnixNano()
-
 	deploy.ID = "11111111-662e-d0ab-d1c9-3e434af7bdb4"
-	err := state.UpsertDeployment(1000, now, deploy)
+	err := state.UpsertDeployment(1000, deploy)
 	require.NoError(t, err)
 
 	gatherDeploys := func(iter memdb.ResultIterator) []*structs.Deployment {
@@ -880,7 +870,7 @@ func TestStateStore_DeploymentsByIDPrefix(t *testing.T) {
 
 	deploy = mock.Deployment()
 	deploy.ID = "11222222-662e-d0ab-d1c9-3e434af7bdb4"
-	err = state.UpsertDeployment(1001, now, deploy)
+	err = state.UpsertDeployment(1001, deploy)
 	require.NoError(t, err)
 
 	t.Run("more than one", func(t *testing.T) {
@@ -937,10 +927,9 @@ func TestStateStore_DeploymentsByIDPrefix_Namespaces(t *testing.T) {
 	deploy1.Namespace = ns1.Name
 	deploy2.Namespace = ns2.Name
 
-	now := time.Now().UnixNano()
 	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
-	require.NoError(t, state.UpsertDeployment(1000, now, deploy1))
-	require.NoError(t, state.UpsertDeployment(1001, now, deploy2))
+	require.NoError(t, state.UpsertDeployment(1000, deploy1))
+	require.NoError(t, state.UpsertDeployment(1001, deploy2))
 
 	gatherDeploys := func(iter memdb.ResultIterator) []*structs.Deployment {
 		var deploys []*structs.Deployment
@@ -4235,7 +4224,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			// from multiple nodes concurrently but not in a single
 			// RPC call. But this guarantees we'll trigger any nested
 			// transaction setup bugs
-			err = store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIndex(store), now, allocs)
+			err = store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIndex(store), allocs)
 		}
 		must.NoError(t, err)
 		return allocs
@@ -5843,7 +5832,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 	}
-	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, now, []*structs.Allocation{update})
+	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update})
 	must.NoError(t, err)
 
 	must.True(t, watchFired(ws))
@@ -5924,7 +5913,7 @@ func TestStateStore_UpdateAllocsFromClient_ChildJob(t *testing.T) {
 		TaskGroup:    alloc2.TaskGroup,
 	}
 
-	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, now, []*structs.Allocation{update, update2})
+	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update, update2})
 	must.NoError(t, err)
 
 	for _, ws := range watches {
@@ -6004,7 +5993,7 @@ func TestStateStore_UpdateMultipleAllocsFromClient(t *testing.T) {
 		TaskGroup:    alloc.TaskGroup,
 	}
 
-	err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, now, []*structs.Allocation{update, update2})
+	err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update, update2})
 	must.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
@@ -6053,7 +6042,7 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 998, node))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
-	must.NoError(t, state.UpsertDeployment(1000, now.UnixNano(), deployment))
+	must.NoError(t, state.UpsertDeployment(1000, deployment))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, now.UnixNano(), []*structs.Allocation{alloc}))
 
 	healthy := now.Add(time.Second)
@@ -6068,7 +6057,7 @@ func TestStateStore_UpdateAllocsFromClient_Deployment(t *testing.T) {
 			Timestamp: healthy,
 		},
 	}
-	must.NoError(t, state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, now.UnixNano(), []*structs.Allocation{update}))
+	must.NoError(t, state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update}))
 
 	// Check that the deployment state was updated because the healthy
 	// deployment
@@ -6105,7 +6094,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 
 	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 998, node))
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
-	must.NoError(t, state.UpsertDeployment(1000, now.UnixNano(), deployment))
+	must.NoError(t, state.UpsertDeployment(1000, deployment))
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, now.UnixNano(), []*structs.Allocation{alloc}))
 
 	update := &structs.Allocation{
@@ -6119,7 +6108,7 @@ func TestStateStore_UpdateAllocsFromClient_DeploymentStateMerges(t *testing.T) {
 			Canary:  false,
 		},
 	}
-	must.NoError(t, state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, now.UnixNano(), []*structs.Allocation{update}))
+	must.NoError(t, state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update}))
 
 	// Check that the merging of the deployment status was correct
 	out, err := state.AllocByID(nil, alloc.ID)
@@ -6194,7 +6183,7 @@ func TestStateStore_UpdateAllocsFromClient_UpdateNodes(t *testing.T) {
 		TaskGroup:    "group",
 	}
 
-	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1005, now, []*structs.Allocation{
+	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1005, []*structs.Allocation{
 		updateAlloc1, updateAlloc2, updateAllocNonExisting,
 	})
 	must.NoError(t, err)
@@ -6315,7 +6304,7 @@ func TestStateStore_UpsertAlloc_Deployment(t *testing.T) {
 	alloc.DeploymentID = deployment.ID
 
 	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, alloc.Job))
-	require.Nil(state.UpsertDeployment(1000, now.UnixNano(), deployment))
+	require.Nil(state.UpsertDeployment(1000, deployment))
 
 	// Create a watch set so we can test that update fires the watch
 	ws := memdb.NewWatchSet()
@@ -6660,7 +6649,7 @@ func TestStateStore_UpdateAlloc_NoJob(t *testing.T) {
 	// Update the client state of the allocation to complete
 	allocCopy1 := allocCopy.Copy()
 	allocCopy1.ClientStatus = structs.AllocClientStatusComplete
-	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1003, now, []*structs.Allocation{allocCopy1}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{allocCopy1}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -6772,12 +6761,12 @@ func TestStateStore_JobSummary(t *testing.T) {
 	alloc1 := alloc.Copy()
 	alloc1.ClientStatus = structs.AllocClientStatusPending
 	alloc1.DesiredStatus = ""
-	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 920, now, []*structs.Allocation{alloc})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 920, []*structs.Allocation{alloc})
 
 	alloc3 := alloc.Copy()
 	alloc3.ClientStatus = structs.AllocClientStatusRunning
 	alloc3.DesiredStatus = ""
-	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 930, now, []*structs.Allocation{alloc3})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 930, []*structs.Allocation{alloc3})
 
 	// Upsert the alloc
 	alloc4 := alloc.Copy()
@@ -6820,7 +6809,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 	alloc6 := alloc.Copy()
 	alloc6.ClientStatus = structs.AllocClientStatusRunning
 	alloc6.DesiredStatus = ""
-	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 990, now, []*structs.Allocation{alloc6})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 990, []*structs.Allocation{alloc6})
 
 	// We shouldn't have any summary at this point
 	summary, _ = state.JobSummaryByID(ws, job.Namespace, job.ID)
@@ -6847,7 +6836,7 @@ func TestStateStore_JobSummary(t *testing.T) {
 	alloc7.Job = outJob
 	alloc7.ClientStatus = structs.AllocClientStatusComplete
 	alloc7.DesiredStatus = structs.AllocDesiredStatusRun
-	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1020, now, []*structs.Allocation{alloc7})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1020, []*structs.Allocation{alloc7})
 
 	expectedSummary = structs.JobSummary{
 		JobID:     job.ID,
@@ -6893,7 +6882,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 	// Change the state of the first alloc to running
 	alloc3 := alloc.Copy()
 	alloc3.ClientStatus = structs.AllocClientStatusRunning
-	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 120, now, []*structs.Allocation{alloc3})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 120, []*structs.Allocation{alloc3})
 
 	//Add some more allocs to the second tg
 	alloc4 := mock.Alloc()
@@ -6932,7 +6921,7 @@ func TestStateStore_ReconcileJobSummary(t *testing.T) {
 
 	state.UpsertAllocs(structs.MsgTypeTestSetup, 130, now, []*structs.Allocation{alloc4, alloc6, alloc8, alloc10, alloc12})
 
-	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 150, now, []*structs.Allocation{alloc5, alloc7, alloc9, alloc11})
+	state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 150, []*structs.Allocation{alloc5, alloc7, alloc9, alloc11})
 
 	// DeleteJobSummary is a helper method and doesn't modify the indexes table
 	state.DeleteJobSummary(130, alloc.Namespace, alloc.Job.ID)
@@ -7073,7 +7062,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 	alloc1.ClientStatus = structs.AllocClientStatusRunning
 
 	// Updating allocation should not throw any error
-	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 400, now, []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 400, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("expect err: %v", err)
 	}
 
@@ -7083,7 +7072,7 @@ func TestStateStore_UpdateAlloc_JobNotPresent(t *testing.T) {
 	// Update the alloc again
 	alloc2 := alloc.Copy()
 	alloc2.ClientStatus = structs.AllocClientStatusComplete
-	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 400, now, []*structs.Allocation{alloc1}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 400, []*structs.Allocation{alloc1}); err != nil {
 		t.Fatalf("expect err: %v", err)
 	}
 
@@ -8040,7 +8029,7 @@ func TestStateJobSummary_UpdateJobCount(t *testing.T) {
 	alloc5.JobID = alloc3.JobID
 	alloc5.ClientStatus = structs.AllocClientStatusComplete
 
-	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1004, now, []*structs.Allocation{alloc4, alloc5}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1004, []*structs.Allocation{alloc4, alloc5}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8118,7 +8107,7 @@ func TestJobSummary_UpdateClientStatus(t *testing.T) {
 	alloc6.JobID = alloc.JobID
 	alloc6.ClientStatus = structs.AllocClientStatusRunning
 
-	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1002, now, []*structs.Allocation{alloc4, alloc5, alloc6}); err != nil {
+	if err := state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc4, alloc5, alloc6}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
@@ -8157,7 +8146,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Nonexistent(t *testing.T) {
 			Status:       structs.DeploymentStatusRunning,
 		},
 	}
-	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, time.Now().UnixNano(), req)
+	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error updating the status because the deployment doesn't exist")
 	}
@@ -8168,13 +8157,12 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Terminal(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
-	now := time.Now().UnixNano()
 
 	// Insert a terminal deployment
 	d := mock.Deployment()
 	d.Status = structs.DeploymentStatusFailed
 
-	if err := state.UpsertDeployment(1, now, d); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8185,7 +8173,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Terminal(t *testing.T) {
 			Status:       structs.DeploymentStatusRunning,
 		},
 	}
-	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, now, req)
+	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error updating the status because the deployment is terminal")
 	}
@@ -8197,11 +8185,10 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
-	now := time.Now().UnixNano()
 
 	// Insert a deployment
 	d := mock.Deployment()
-	if err := state.UpsertDeployment(1, now, d); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8220,7 +8207,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_NonTerminal(t *testing.T) {
 		Job:  j,
 		Eval: e,
 	}
-	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, now, req)
+	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 2, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -8269,8 +8256,8 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 	}
 
 	// Insert a deployment
-	d := structs.NewDeployment(job, 50)
-	if err := state.UpsertDeployment(2, now, d); err != nil {
+	d := structs.NewDeployment(job, 50, now)
+	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8282,7 +8269,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 			StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
 		},
 	}
-	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 3, now, req)
+	err := state.UpdateDeploymentStatus(structs.MsgTypeTestSetup, 3, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -8362,7 +8349,7 @@ func TestStateStore_UpsertDeploymentPromotion_Nonexistent(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, time.Now().UnixNano(), req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error promoting because the deployment doesn't exist")
 	}
@@ -8373,13 +8360,12 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
-	now := time.Now().UnixNano()
 
 	// Insert a terminal deployment
 	d := mock.Deployment()
 	d.Status = structs.DeploymentStatusFailed
 
-	if err := state.UpsertDeployment(1, now, d); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8390,7 +8376,7 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, now, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error updating the status because the deployment is terminal: %v", err)
 	}
@@ -8412,7 +8398,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 	d.TaskGroups["web"].DesiredCanaries = 2
-	require.Nil(state.UpsertDeployment(2, now, d))
+	require.Nil(state.UpsertDeployment(2, d))
 
 	// Create a set of allocations
 	c1 := mock.Alloc()
@@ -8441,7 +8427,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, now, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
 	require.NotNil(err)
 	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
 }
@@ -8450,7 +8436,6 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 	ci.Parallel(t)
 
-	now := time.Now().UnixNano()
 	state := testStateStore(t)
 	require := require.New(t)
 
@@ -8462,7 +8447,7 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 	d := mock.Deployment()
 	d.TaskGroups["web"].DesiredCanaries = 2
 	d.JobID = j.ID
-	require.Nil(state.UpsertDeployment(2, now, d))
+	require.Nil(state.UpsertDeployment(2, d))
 
 	// Promote the canaries
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -8471,7 +8456,7 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, now, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
 	require.NotNil(err)
 	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
 }
@@ -8507,7 +8492,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	if err := state.UpsertDeployment(2, now, d); err != nil {
+	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8543,7 +8528,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		},
 		Eval: e,
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, now, req)
+	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -8605,7 +8590,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	require.Nil(state.UpsertDeployment(2, now, d))
+	require.Nil(state.UpsertDeployment(2, d))
 
 	// Create a set of allocations for both groups, including an unhealthy one
 	c1 := mock.Alloc()
@@ -8650,7 +8635,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 		},
 		Eval: e,
 	}
-	require.Nil(state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, now, req))
+	require.Nil(state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req))
 
 	// Check that the status per task group was updated properly
 	ws := memdb.NewWatchSet()
@@ -8693,7 +8678,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Nonexistent(t *testing.T) {
 			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, time.Now().UnixNano(), req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "does not exist") {
 		t.Fatalf("expected error because the deployment doesn't exist: %v", err)
 	}
@@ -8704,13 +8689,12 @@ func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
-	now := time.Now().UnixNano()
 
 	// Insert a terminal deployment
 	d := mock.Deployment()
 	d.Status = structs.DeploymentStatusFailed
 
-	if err := state.UpsertDeployment(1, now, d); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8721,7 +8705,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_Terminal(t *testing.T) {
 			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, now, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
 		t.Fatalf("expected error because the deployment is terminal: %v", err)
 	}
@@ -8732,11 +8716,10 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_Nonexistent(t *testing.
 	ci.Parallel(t)
 
 	state := testStateStore(t)
-	now := time.Now().UnixNano()
 
 	// Insert a deployment
 	d := mock.Deployment()
-	if err := state.UpsertDeployment(1, now, d); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8747,7 +8730,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_Nonexistent(t *testing.
 			HealthyAllocationIDs: []string{uuid.Generate()},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, now, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 2, req)
 	if err == nil || !strings.Contains(err.Error(), "unknown alloc") {
 		t.Fatalf("expected error because the alloc doesn't exist: %v", err)
 	}
@@ -8762,7 +8745,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 
 	// Create a deployment
 	d1 := mock.Deployment()
-	require.NoError(t, state.UpsertDeployment(2, now, d1))
+	require.NoError(t, state.UpsertDeployment(2, d1))
 
 	// Create a Job
 	job := mock.Job()
@@ -8806,7 +8789,7 @@ func TestStateStore_UpsertDeploymentAlloc_Canaries(t *testing.T) {
 
 	// Create a second deployment
 	d2 := mock.Deployment()
-	require.NoError(t, state.UpsertDeployment(5, now, d2))
+	require.NoError(t, state.UpsertDeployment(5, d2))
 
 	c := mock.Alloc()
 	c.JobID = job.ID
@@ -8833,7 +8816,7 @@ func TestStateStore_UpsertDeploymentAlloc_NoCanaries(t *testing.T) {
 
 	// Create a deployment
 	d1 := mock.Deployment()
-	require.NoError(t, state.UpsertDeployment(2, now, d1))
+	require.NoError(t, state.UpsertDeployment(2, d1))
 
 	// Create a Job
 	job := mock.Job()
@@ -8869,10 +8852,10 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *t
 	// Insert two  deployment
 	d1 := mock.Deployment()
 	d2 := mock.Deployment()
-	if err := state.UpsertDeployment(1, now, d1); err != nil {
+	if err := state.UpsertDeployment(1, d1); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
-	if err := state.UpsertDeployment(2, now, d2); err != nil {
+	if err := state.UpsertDeployment(2, d2); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8890,7 +8873,7 @@ func TestStateStore_UpsertDeploymentAllocHealth_BadAlloc_MismatchDeployment(t *t
 			HealthyAllocationIDs: []string{a.ID},
 		},
 	}
-	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 4, now, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 4, req)
 	if err == nil || !strings.Contains(err.Error(), "not part of deployment") {
 		t.Fatalf("expected error because the alloc isn't part of the deployment: %v", err)
 	}
@@ -8906,7 +8889,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 	// Insert a deployment
 	d := mock.Deployment()
 	d.TaskGroups["web"].ProgressDeadline = 5 * time.Minute
-	if err := state.UpsertDeployment(1, now, d); err != nil {
+	if err := state.UpsertDeployment(1, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
 
@@ -8948,7 +8931,7 @@ func TestStateStore_UpsertDeploymentAllocHealth(t *testing.T) {
 		DeploymentUpdate: u,
 		Timestamp:        ts,
 	}
-	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 3, now, req)
+	err := state.UpdateDeploymentAllocHealth(structs.MsgTypeTestSetup, 3, req)
 	if err != nil {
 		t.Fatalf("bad: %v", err)
 	}

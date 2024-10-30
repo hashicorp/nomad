@@ -415,7 +415,7 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// Update the status of deployments effected by the plan.
 	if len(results.DeploymentUpdates) != 0 {
-		s.upsertDeploymentUpdates(index, now, results.DeploymentUpdates, txn)
+		s.upsertDeploymentUpdates(index, results.UpdatedAt, results.DeploymentUpdates, txn)
 	}
 
 	if results.EvalID != "" {
@@ -457,7 +457,7 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 		alloc.Canonicalize()
 	}
 
-	if err := s.upsertAllocsImpl(index, now, allocsToUpsert, txn); err != nil {
+	if err := s.upsertAllocsImpl(index, results.UpdatedAt, allocsToUpsert, txn); err != nil {
 		return err
 	}
 
@@ -517,7 +517,7 @@ func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
 // updates.
 func (s *StateStore) upsertDeploymentUpdates(index uint64, now int64, updates []*structs.DeploymentStatusUpdate, txn *txn) error {
 	for _, u := range updates {
-		if err := s.updateDeploymentStatusImpl(index, now, u, txn); err != nil {
+		if err := s.updateDeploymentStatusImpl(index, u, txn); err != nil {
 			return err
 		}
 	}
