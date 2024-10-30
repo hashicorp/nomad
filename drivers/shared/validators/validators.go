@@ -84,7 +84,8 @@ func (v *validator) HasValidIDs(user *user.User) error {
 	return nil
 }
 
-// ParseIdRange is used to ensure that the configuration for ID ranges is valid.
+// validateIDRange is used to ensure that the configuration for ID ranges is valid
+// by checking the syntax and bounds.
 func validateIDRange(rangeType string, deniedRanges string) error {
 
 	parts := strings.Split(deniedRanges, ",")
