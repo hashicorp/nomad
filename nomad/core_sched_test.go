@@ -34,6 +34,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
+	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
 	eval.Status = structs.EvalStatusFailed
 	store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
@@ -45,6 +46,7 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
+	job.SubmitTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
 	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job))
 
 	// Insert "dead" alloc
@@ -53,6 +55,8 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.JobID = eval.JobID
 	alloc.TaskGroup = job.TaskGroups[0].Name
+	alloc.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	alloc.ModifyTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
 
 	// Insert "lost" alloc
 	alloc2 := mock.Alloc()
@@ -61,6 +65,8 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 	alloc2.JobID = eval.JobID
 	alloc2.TaskGroup = job.TaskGroups[0].Name
+	alloc2.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	alloc2.ModifyTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2}))
 
