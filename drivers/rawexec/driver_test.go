@@ -117,20 +117,27 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	// Enable raw_exec, but disable cgroups.
 	config.Enabled = true
 	data = []byte{}
+
 	must.NoError(t, basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
+
 	must.NoError(t, harness.SetConfig(bconfig))
 	must.Eq(t, config, d.(*Driver).config)
 
-	// Turns on uid/gid restrictions, and sets the range to a bad value
+	// Turns on uid/gid restrictions, and sets the range to a bad value and
+	// force the recreation of the validator.
+	d.(*Driver).userIDValidator = nil
 	config.DeniedHostUidsStr = "100-1"
 	data = []byte{}
+
 	must.NoError(t, basePlug.MsgPackEncode(&data, config))
+
 	bconfig.PluginConfig = data
 	err := harness.SetConfig(bconfig)
 	must.Error(t, err)
 
 	must.ErrorContains(t, err, "invalid range deniedHostUIDs \"100-1\": lower bound cannot be greater than upper bound")
+
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
