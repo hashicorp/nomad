@@ -5,7 +5,6 @@ package scheduler
 
 import (
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/idset"
@@ -163,7 +162,7 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 	}
 	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Add a planned eviction to alloc1
 	plan := ctx.Plan()
@@ -303,7 +302,7 @@ func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(allocEvict.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPreempt.JobID)))
 	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPropose.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{allocEvict, allocPreempt, allocPropose}))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocEvict, allocPreempt, allocPropose}))
 
 	// Plan to evict one alloc and preempt another
 	plan := ctx.Plan()

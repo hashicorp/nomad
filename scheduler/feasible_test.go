@@ -368,7 +368,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 		{Segments: map[string]string{"rack": "R1"}},
 		{Segments: map[string]string{"rack": "R2"}},
 	}
-	err := state.UpsertCSIVolume(index, time.Now().UnixNano(), []*structs.CSIVolume{vol})
+	err := state.UpsertCSIVolume(index, []*structs.CSIVolume{vol})
 	must.NoError(t, err)
 	index++
 
@@ -379,14 +379,14 @@ func TestCSIVolumeChecker(t *testing.T) {
 	vol2.Namespace = structs.DefaultNamespace
 	vol2.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	vol2.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
-	err = state.UpsertCSIVolume(index, time.Now().UnixNano(), []*structs.CSIVolume{vol2})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol2})
 	must.NoError(t, err)
 	index++
 
 	vid3 := "volume-id[0]"
 	vol3 := vol.Copy()
 	vol3.ID = vid3
-	err = state.UpsertCSIVolume(index, time.Now().UnixNano(), []*structs.CSIVolume{vol3})
+	err = state.UpsertCSIVolume(index, []*structs.CSIVolume{vol3})
 	must.NoError(t, err)
 	index++
 
@@ -405,7 +405,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	summary := mock.JobSummary(alloc.JobID)
 	must.NoError(t, state.UpsertJobSummary(index, summary))
 	index++
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, time.Now().UnixNano(), []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
 	must.NoError(t, err)
 	index++
 
@@ -1857,7 +1857,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty(t *testing.T) {
 			NodeID:    nodes[4].ID,
 		},
 	}
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -2066,7 +2066,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Count(t *testing.T) {
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -2153,7 +2153,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_RemoveAndReplace(t *testin
 			NodeID:    nodes[0].ID,
 		},
 	}
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -2232,7 +2232,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible(t *testing.T) {
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -2329,7 +2329,7 @@ func TestDistinctPropertyIterator_JobDistinctProperty_Infeasible_Count(t *testin
 			NodeID:    nodes[1].ID,
 		},
 	}
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 
@@ -2446,7 +2446,7 @@ func TestDistinctPropertyIterator_TaskGroupDistinctProperty(t *testing.T) {
 			NodeID:    nodes[2].ID,
 		},
 	}
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), upserting); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, upserting); err != nil {
 		t.Fatalf("failed to UpsertAllocs: %v", err)
 	}
 

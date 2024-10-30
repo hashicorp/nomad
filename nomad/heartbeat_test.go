@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHeartbeat_InitializeHeartbeatTimers(t *testing.T) {
@@ -70,18 +71,19 @@ func TestHeartbeat_ResetHeartbeatTimer(t *testing.T) {
 
 func TestHeartbeat_ResetHeartbeatTimer_Nonleader(t *testing.T) {
 	ci.Parallel(t)
+	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.BootstrapExpect = 3 // Won't become leader
 	})
 	defer cleanupS1()
 
-	must.False(t, s1.IsLeader())
+	require.False(s1.IsLeader())
 
 	// Create a new timer
 	_, err := s1.resetHeartbeatTimer("test")
-	must.NotNil(t, err)
-	must.EqError(t, err, heartbeatNotLeader)
+	require.NotNil(err)
+	require.EqualError(err, heartbeatNotLeader)
 }
 
 func TestHeartbeat_ResetHeartbeatTimerLocked(t *testing.T) {
@@ -148,6 +150,7 @@ func TestHeartbeat_ResetHeartbeatTimerLocked_Renew(t *testing.T) {
 
 func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	ci.Parallel(t)
+	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -156,7 +159,7 @@ func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	// Create a node
 	node := mock.Node()
 	state := s1.fsm.State()
-	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
+	require.NoError(state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
 
 	// This should cause a status update
 	s1.invalidateHeartbeat(node.ID)
@@ -164,10 +167,10 @@ func TestHeartbeat_InvalidateHeartbeat(t *testing.T) {
 	// Check it is updated
 	ws := memdb.NewWatchSet()
 	out, err := state.NodeByID(ws, node.ID)
-	must.NoError(t, err)
-	must.True(t, out.TerminalStatus())
-	must.SliceLen(t, 2, out.Events)
-	must.Eq(t, NodeHeartbeatEventMissed, out.Events[1].Message)
+	require.NoError(err)
+	require.True(out.TerminalStatus())
+	require.Len(out.Events, 2)
+	require.Equal(NodeHeartbeatEventMissed, out.Events[1].Message)
 }
 
 func TestHeartbeat_ClearHeartbeatTimer(t *testing.T) {
@@ -340,7 +343,7 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 				Time:  tc.now,
 			}}
 
-			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
 
 			// Trigger status update
 			s1.invalidateHeartbeat(node.ID)
@@ -410,7 +413,7 @@ func TestHeartbeat_InvalidateHeartbeatDisconnectedClient(t *testing.T) {
 				Value: structs.AllocClientStatusUnknown,
 				Time:  tc.now,
 			}}
-			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
 
 			// Trigger status update
 			s1.invalidateHeartbeat(node.ID)

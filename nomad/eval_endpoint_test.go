@@ -404,7 +404,7 @@ func TestEvalEndpoint_Dequeue_UpdateWaitIndex(t *testing.T) {
 		EvalID: eval.ID,
 	}
 	assert := assert.New(t)
-	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), &res)
+	err := state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res)
 	assert.Nil(err)
 
 	// Dequeue the eval
@@ -930,7 +930,7 @@ func TestEvalEndpoint_Delete(t *testing.T) {
 			allocs = append(allocs, alloc)
 		}
 		index++
-		must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, time.Now().UnixNano(), allocs))
+		must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, allocs))
 
 		// Delete all the unwanted evals
 
@@ -1775,7 +1775,7 @@ func TestEvalEndpoint_Allocations(t *testing.T) {
 	state := s1.fsm.State()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -1814,7 +1814,7 @@ func TestEvalEndpoint_Allocations_ACL(t *testing.T) {
 	state := s1.fsm.State()
 	assert.Nil(state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
 	assert.Nil(state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2}))
+	assert.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Create ACL tokens
 	validToken := mock.CreatePolicyAndToken(t, state, 1003, "test-valid",
@@ -1876,12 +1876,10 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 	alloc1 := mock.Alloc()
 	alloc2 := mock.Alloc()
 
-	now := time.Now().UnixNano()
-
 	// Upsert an unrelated alloc first
 	time.AfterFunc(100*time.Millisecond, func() {
 		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, now, []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -1890,7 +1888,7 @@ func TestEvalEndpoint_Allocations_Blocking(t *testing.T) {
 	// Upsert an alloc which will trigger the watch later
 	time.AfterFunc(200*time.Millisecond, func() {
 		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, now, []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}

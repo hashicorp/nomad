@@ -180,7 +180,7 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 	}
 
 	// Apply the full plan
-	err := h.State.UpsertPlanResults(structs.MsgTypeTestSetup, index, time.Now().UnixNano(), &req)
+	err := h.State.UpsertPlanResults(structs.MsgTypeTestSetup, index, &req)
 	return result, nil, err
 }
 

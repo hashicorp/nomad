@@ -8,7 +8,6 @@ import (
 	"reflect"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -335,7 +334,7 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	v.AccessMode = structs.CSIVolumeAccessModeMultiNodeSingleWriter
 	v.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	v.PluginID = "bar"
-	err := state.UpsertCSIVolume(999, time.Now().UnixNano(), []*structs.CSIVolume{v})
+	err := state.UpsertCSIVolume(999, []*structs.CSIVolume{v})
 	must.NoError(t, err)
 
 	// Create a node with healthy fingerprints for both controller and node plugins

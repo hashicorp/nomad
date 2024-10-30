@@ -621,7 +621,7 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 		alloc.ClientStatus = structs.AllocClientStatusComplete
 		badAllocs = append(badAllocs, alloc)
 	}
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1, time.Now().UnixNano(), badAllocs))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1, badAllocs))
 
 	// Create the second node
 	n2 := mock.Node()

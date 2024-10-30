@@ -488,7 +488,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	store := srv.fsm.State()
 	must.NoError(t, store.UpsertNamespaces(1000, []*structs.Namespace{{Name: ns}}))
 	must.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, 1001, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}))
+		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc1, alloc2, alloc3, alloc4}))
 
 	wiHandle := &structs.WIHandle{
 		WorkloadIdentifier: "web",
@@ -590,7 +590,7 @@ func TestVariablesEndpoint_auth(t *testing.T) {
 	// make alloc non-terminal
 	alloc1.ClientStatus = structs.AllocClientStatusRunning
 	must.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, 1200, time.Now().UnixNano(), []*structs.Allocation{alloc1}))
+		structs.MsgTypeTestSetup, 1200, []*structs.Allocation{alloc1}))
 
 	t.Run("wrong namespace should be denied", func(t *testing.T) {
 		err := testFn(&structs.QueryOptions{
@@ -877,7 +877,7 @@ func TestVariablesEndpoint_ListFiltering(t *testing.T) {
 	must.NoError(t, store.UpsertNamespaces(idx, []*structs.Namespace{{Name: ns}}))
 	idx++
 	must.NoError(t, store.UpsertAllocs(
-		structs.MsgTypeTestSetup, idx, time.Now().UnixNano(), []*structs.Allocation{alloc}))
+		structs.MsgTypeTestSetup, idx, []*structs.Allocation{alloc}))
 
 	wiHandle := &structs.WIHandle{
 		WorkloadIdentifier: "web",

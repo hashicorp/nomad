@@ -1353,7 +1353,7 @@ func TestOperator_UpgradeCheckRequest_VaultWorkloadIdentity(t *testing.T) {
 	allocJobWithWID.JobID = jobWithWID.ID
 	allocJobWithWID.NodeID = node.ID
 
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1006, time.Now().UnixNano(), []*structs.Allocation{allocJobNoWID, allocJobWithWID})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1006, []*structs.Allocation{allocJobNoWID, allocJobWithWID})
 	must.NoError(t, err)
 
 	// Create Vault token accessor for job without Vault identity and one that

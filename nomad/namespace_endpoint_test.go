@@ -530,7 +530,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_NoAssociatedVolumes_Local(t *testing
 	// Create a volume in one
 	vol := mock.CSIVolume(mock.CSIPlugin())
 	vol.Namespace = ns1.Name
-	must.Nil(t, s1.fsm.State().UpsertCSIVolume(1001, time.Now().UnixNano(), []*structs.CSIVolume{vol}))
+	must.Nil(t, s1.fsm.State().UpsertCSIVolume(1001, []*structs.CSIVolume{vol}))
 
 	// Lookup the namespaces
 	req := &structs.NamespaceDeleteRequest{

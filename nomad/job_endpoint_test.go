@@ -3282,7 +3282,7 @@ func TestJobEndpoint_ForceRescheduleEvaluate(t *testing.T) {
 	alloc.TaskGroup = job.TaskGroups[0].Name
 	alloc.Namespace = job.Namespace
 	alloc.ClientStatus = structs.AllocClientStatusFailed
-	err = s1.State().UpsertAllocs(structs.MsgTypeTestSetup, resp.Index+1, time.Now().UnixNano(), []*structs.Allocation{alloc})
+	err = s1.State().UpsertAllocs(structs.MsgTypeTestSetup, resp.Index+1, []*structs.Allocation{alloc})
 	require.Nil(err)
 
 	// Force a re-evaluation
@@ -5131,7 +5131,7 @@ func TestJobEndpoint_GetJobSummary_Blocking(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.JobID = job1.ID
 		alloc.Job = job1
-		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, time.Now().UnixNano(), []*structs.Allocation{alloc}); err != nil {
+		if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 	})
@@ -5632,7 +5632,7 @@ func TestJobEndpoint_Allocations(t *testing.T) {
 	state := s1.fsm.State()
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -5674,7 +5674,7 @@ func TestJobEndpoint_Allocations_ACL(t *testing.T) {
 	alloc2.JobID = alloc1.JobID
 	state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID))
 	state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, time.Now().UnixNano(), []*structs.Allocation{alloc1, alloc2})
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2})
 	require.Nil(err)
 
 	// Look up allocations for that job
@@ -5737,7 +5737,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	// First upsert an unrelated alloc
 	time.AfterFunc(100*time.Millisecond, func() {
 		state.UpsertJobSummary(99, mock.JobSummary(alloc1.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, time.Now().UnixNano(), []*structs.Allocation{alloc1})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc1})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -5746,7 +5746,7 @@ func TestJobEndpoint_Allocations_Blocking(t *testing.T) {
 	// Upsert an alloc for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
 		state.UpsertJobSummary(199, mock.JobSummary(alloc2.JobID))
-		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, time.Now().UnixNano(), []*structs.Allocation{alloc2})
+		err := state.UpsertAllocs(structs.MsgTypeTestSetup, 200, []*structs.Allocation{alloc2})
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -5977,8 +5977,8 @@ func TestJobEndpoint_Deployments(t *testing.T) {
 	d1.JobCreateIndex = j.CreateIndex
 	d2.JobCreateIndex = j.CreateIndex
 
-	require.Nil(state.UpsertDeployment(1001, time.Now().UnixNano(), d1), "UpsertDeployment")
-	require.Nil(state.UpsertDeployment(1002, time.Now().UnixNano(), d2), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
@@ -6013,8 +6013,8 @@ func TestJobEndpoint_Deployments_ACL(t *testing.T) {
 	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j), "UpsertJob")
 	d1.JobCreateIndex = j.CreateIndex
 	d2.JobCreateIndex = j.CreateIndex
-	require.Nil(state.UpsertDeployment(1001, time.Now().UnixNano(), d1), "UpsertDeployment")
-	require.Nil(state.UpsertDeployment(1002, time.Now().UnixNano(), d2), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
@@ -6077,12 +6077,12 @@ func TestJobEndpoint_Deployments_Blocking(t *testing.T) {
 	d2.JobCreateIndex = j.CreateIndex
 	// First upsert an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
-		require.Nil(state.UpsertDeployment(100, time.Now().UnixNano(), d1), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
 	})
 
 	// Upsert an eval for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
-		require.Nil(state.UpsertDeployment(200, time.Now().UnixNano(), d2), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(200, d2), "UpsertDeployment")
 	})
 
 	// Lookup the jobs
@@ -6126,8 +6126,8 @@ func TestJobEndpoint_LatestDeployment(t *testing.T) {
 	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j), "UpsertJob")
 	d1.JobCreateIndex = j.CreateIndex
 	d2.JobCreateIndex = j.CreateIndex
-	require.Nil(state.UpsertDeployment(1001, time.Now().UnixNano(), d1), "UpsertDeployment")
-	require.Nil(state.UpsertDeployment(1002, time.Now().UnixNano(), d2), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
@@ -6165,8 +6165,8 @@ func TestJobEndpoint_LatestDeployment_ACL(t *testing.T) {
 	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j), "UpsertJob")
 	d1.JobCreateIndex = j.CreateIndex
 	d2.JobCreateIndex = j.CreateIndex
-	require.Nil(state.UpsertDeployment(1001, time.Now().UnixNano(), d1), "UpsertDeployment")
-	require.Nil(state.UpsertDeployment(1002, time.Now().UnixNano(), d2), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
+	require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
 	// Lookup the jobs
 	get := &structs.JobSpecificRequest{
@@ -6233,12 +6233,12 @@ func TestJobEndpoint_LatestDeployment_Blocking(t *testing.T) {
 
 	// First upsert an unrelated eval
 	time.AfterFunc(100*time.Millisecond, func() {
-		require.Nil(state.UpsertDeployment(100, time.Now().UnixNano(), d1), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(100, d1), "UpsertDeployment")
 	})
 
 	// Upsert an eval for the job we are interested in later
 	time.AfterFunc(200*time.Millisecond, func() {
-		require.Nil(state.UpsertDeployment(200, time.Now().UnixNano(), d2), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(200, d2), "UpsertDeployment")
 	})
 
 	// Lookup the jobs
@@ -7502,7 +7502,7 @@ func TestJobEndpoint_Dispatch_JobChildrenSummary(t *testing.T) {
 	alloc.TaskGroup = dispatchedJob.TaskGroups[0].Name
 	alloc.Namespace = dispatchedJob.Namespace
 	alloc.ClientStatus = structs.AllocClientStatusPending
-	err = s1.State().UpsertAllocs(structs.MsgTypeTestSetup, nextIdx, time.Now().UnixNano(), []*structs.Allocation{alloc})
+	err = s1.State().UpsertAllocs(structs.MsgTypeTestSetup, nextIdx, []*structs.Allocation{alloc})
 	require.NoError(t, err)
 	require.Equal(t, &structs.JobChildrenSummary{Running: 1}, jobChildren())
 	require.Equal(t, structs.JobStatusRunning, dispatchedStatus())
@@ -7521,7 +7521,7 @@ func TestJobEndpoint_Dispatch_JobChildrenSummary(t *testing.T) {
 		require.NoError(t, err)
 		nalloc = nalloc.Copy()
 		nalloc.ClientStatus = status
-		err = s1.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIdx, time.Now().UnixNano(), []*structs.Allocation{nalloc})
+		err = s1.State().UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIdx, []*structs.Allocation{nalloc})
 		require.NoError(t, err)
 	}
 
@@ -7700,13 +7700,13 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 		d1.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
 		d1.JobID = job.ID
 		d1.JobCreateIndex = job.CreateIndex
-		require.Nil(state.UpsertDeployment(1001, time.Now().UnixNano(), d1), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
 		d2 := mock.Deployment()
 		d2.Status = structs.DeploymentStatusSuccessful
 		d2.StatusDescription = structs.DeploymentStatusDescriptionSuccessful
 		d2.JobID = job.ID
 		d2.JobCreateIndex = job.CreateIndex
-		require.Nil(state.UpsertDeployment(1002, time.Now().UnixNano(), d2), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
 		// add the latest deployment for the test case
 		dLatest := mock.Deployment()
@@ -7714,7 +7714,7 @@ func TestJobEndpoint_Scale_DeploymentBlocking(t *testing.T) {
 		dLatest.StatusDescription = "description does not matter for this test"
 		dLatest.JobID = job.ID
 		dLatest.JobCreateIndex = job.CreateIndex
-		require.Nil(state.UpsertDeployment(1003, time.Now().UnixNano(), dLatest), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(1003, dLatest), "UpsertDeployment")
 
 		// attempt to scale
 		originalCount := job.TaskGroups[0].Count
@@ -7825,13 +7825,13 @@ func TestJobEndpoint_Scale_InformationalEventsShouldNotBeBlocked(t *testing.T) {
 		d1.StatusDescription = structs.DeploymentStatusDescriptionNewerJob
 		d1.JobID = job.ID
 		d1.JobCreateIndex = job.CreateIndex
-		require.Nil(state.UpsertDeployment(1001, time.Now().UnixNano(), d1), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(1001, d1), "UpsertDeployment")
 		d2 := mock.Deployment()
 		d2.Status = structs.DeploymentStatusSuccessful
 		d2.StatusDescription = structs.DeploymentStatusDescriptionSuccessful
 		d2.JobID = job.ID
 		d2.JobCreateIndex = job.CreateIndex
-		require.Nil(state.UpsertDeployment(1002, time.Now().UnixNano(), d2), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(1002, d2), "UpsertDeployment")
 
 		// add the latest deployment for the test case
 		dLatest := mock.Deployment()
@@ -7839,7 +7839,7 @@ func TestJobEndpoint_Scale_InformationalEventsShouldNotBeBlocked(t *testing.T) {
 		dLatest.StatusDescription = "description does not matter for this test"
 		dLatest.JobID = job.ID
 		dLatest.JobCreateIndex = job.CreateIndex
-		require.Nil(state.UpsertDeployment(1003, time.Now().UnixNano(), dLatest), "UpsertDeployment")
+		require.Nil(state.UpsertDeployment(1003, dLatest), "UpsertDeployment")
 
 		// register informational scaling event
 		groupName := job.TaskGroups[0].Name
@@ -8387,7 +8387,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a0.Namespace = jobV1.Namespace
 	a0.JobID = jobV1.ID
 	a0.ClientStatus = structs.AllocClientStatusComplete
-	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1010, time.Now().UnixNano(), []*structs.Allocation{a0}), "UpsertAllocs")
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1010, []*structs.Allocation{a0}), "UpsertAllocs")
 
 	jobV2 := jobV1.Copy()
 	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 1100, nil, jobV2), "UpsertJob")
@@ -8426,7 +8426,7 @@ func TestJobEndpoint_GetScaleStatus(t *testing.T) {
 	a4.JobID = jobV2.ID
 	a4.ClientStatus = structs.AllocClientStatusRunning
 	// upsert allocations
-	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1110, time.Now().UnixNano(), []*structs.Allocation{a1, a2, a3, a4}), "UpsertAllocs")
+	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1110, []*structs.Allocation{a1, a2, a3, a4}), "UpsertAllocs")
 
 	event := &structs.ScalingEvent{
 		Time:    time.Now().Unix(),

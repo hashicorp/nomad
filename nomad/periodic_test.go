@@ -758,7 +758,7 @@ func TestPeriodicDispatch_RunningChildren_ActiveAllocs(t *testing.T) {
 	alloc.JobID = childjob.ID
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, time.Now().UnixNano(), []*structs.Allocation{alloc}); err != nil {
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("UpsertAllocs failed: %v", err)
 	}
 
