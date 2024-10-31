@@ -7,6 +7,7 @@ package rawexec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/base"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
@@ -456,6 +458,7 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 
 	config := &Config{Enabled: true}
 	var data []byte
+
 	require.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig := &basePlug.Config{
 		PluginConfig: data,
@@ -476,6 +479,7 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 		Env:       defaultEnv(),
 		Resources: testResources(allocID, taskName),
 	}
+
 	tc := &TaskConfig{
 		Command: testtask.Path(),
 		Args:    []string{"sleep", "100s"},
@@ -541,4 +545,70 @@ func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
 	wg.Wait()
 	require.NoError(d.DestroyTask(task.ID, false))
 	require.True(waitDone)
+}
+
+func TestRawExec_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	current, err := users.Current()
+	must.NoError(t, err)
+
+	currentUserErrStr := fmt.Sprintf("running as uid %s is disallowed", current.Uid)
+
+	allowAll := ""
+	denyCurrent := current.Uid
+
+	configAllowCurrent := Config{DeniedHostUids: allowAll}
+	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
+
+	driverConfigNoUserSpecified := drivers.TaskConfig{}
+	driverTaskConfig := drivers.TaskConfig{User: current.Name}
+
+	for _, tc := range []struct {
+		config       Config
+		driverConfig drivers.TaskConfig
+		exp          error
+	}{
+		{
+			config:       configAllowCurrent,
+			driverConfig: driverTaskConfig,
+			exp:          nil,
+		},
+		{
+			config:       configDenyCurrent,
+			driverConfig: driverConfigNoUserSpecified,
+			exp:          errors.New(currentUserErrStr),
+		},
+		{
+			config:       configDenyCurrent,
+			driverConfig: driverTaskConfig,
+			exp:          errors.New(currentUserErrStr),
+		},
+	} {
+
+		d := newEnabledRawExecDriver(t)
+
+		// Force the creation of the validatior, the mock is used by newEnabledRawExecDriver by default
+		d.userIDValidator = nil
+
+		harness := dtestutil.NewDriverHarness(t, d)
+		defer harness.Kill()
+
+		config := tc.config
+
+		var data []byte
+
+		must.NoError(t, base.MsgPackEncode(&data, config))
+		bconfig := &base.Config{
+			PluginConfig: data,
+			AgentConfig: &base.AgentConfig{
+				Driver: &base.ClientDriverConfig{
+					Topology: d.nomadConfig.Topology,
+				},
+			},
+		}
+
+		must.NoError(t, harness.SetConfig(bconfig))
+		must.Eq(t, tc.exp, d.Validate(tc.driverConfig))
+	}
 }

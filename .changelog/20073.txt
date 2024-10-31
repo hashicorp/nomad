@@ -1,0 +1,3 @@
+```release-note:improvement
+drivers: add posibility to restrict user and group for exec and rawexec
+```
