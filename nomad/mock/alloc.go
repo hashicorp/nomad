@@ -5,7 +5,6 @@ package mock
 
 import (
 	"math/rand"
-	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -81,8 +80,6 @@ func Alloc() *structs.Allocation {
 		Job:           job,
 		DesiredStatus: structs.AllocDesiredStatusRun,
 		ClientStatus:  structs.AllocClientStatusPending,
-		CreateTime:    time.Now().UTC().UnixNano(),
-		ModifyTime:    time.Now().UTC().UnixNano(),
 	}
 	alloc.JobID = alloc.Job.ID
 	alloc.Canonicalize()
