@@ -1833,42 +1833,47 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
 
 	// Insert an active, terminal, and terminal with allocations deployment
 	store := s1.fsm.State()
 	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
+	d1.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
+	d1.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
 	d3.Status = structs.DeploymentStatusSuccessful
-	assert.Nil(store.UpsertDeployment(1000, d1), "UpsertDeployment")
-	assert.Nil(store.UpsertDeployment(1001, d2), "UpsertDeployment")
-	assert.Nil(store.UpsertDeployment(1002, d3), "UpsertDeployment")
+
+	must.Nil(t, store.UpsertDeployment(1000, d1), must.Sprint("UpsertDeployment"))
+	must.Nil(t, store.UpsertDeployment(1001, d2), must.Sprint("UpsertDeployment"))
+	must.Nil(t, store.UpsertDeployment(1002, d3), must.Sprint("UpsertDeployment"))
 
 	a := mock.Alloc()
 	a.JobID = d3.JobID
 	a.DeploymentID = d3.ID
-	assert.Nil(store.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}), "UpsertAllocs")
+	a.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
+	a.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	must.Nil(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	assert.Nil(err, "Snapshot")
+	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobDeploymentGC, 2000)
-	assert.Nil(core.Process(gc), "Process GC")
+	must.NoError(t, core.Process(gc))
 
 	// Should be gone
 	ws := memdb.NewWatchSet()
 	out, err := store.DeploymentByID(ws, d1.ID)
-	assert.Nil(err, "DeploymentByID")
-	assert.Nil(out, "Terminal Deployment")
+	must.NoError(t, err)
+	must.Nil(t, out)
+
 	out2, err := store.DeploymentByID(ws, d2.ID)
-	assert.Nil(err, "DeploymentByID")
-	assert.NotNil(out2, "Active Deployment")
+	must.NoError(t, err)
+	must.NotNil(t, out2)
 	out3, err := store.DeploymentByID(ws, d3.ID)
-	assert.Nil(err, "DeploymentByID")
-	assert.NotNil(out3, "Terminal Deployment With Allocs")
+	must.NoError(t, err)
+	must.NotNil(t, out3)
 }
 
 func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
@@ -1890,6 +1895,8 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 			store := server.fsm.State()
 			d1, d2 := mock.Deployment(), mock.Deployment()
 			d1.Status = structs.DeploymentStatusFailed
+			d1.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
+			d1.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
 			assert.Nil(store.UpsertDeployment(1000, d1), "UpsertDeployment")
 			assert.Nil(store.UpsertDeployment(1001, d2), "UpsertDeployment")
 
@@ -2299,7 +2306,6 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	defer deleteNodes()
 	store := srv.fsm.State()
 
-	// Update the time tables to make this work
 	index := uint64(2000)
 
 	// Create a core scheduler
@@ -2931,37 +2937,42 @@ func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
 	unexpiredLocal := mock.ACLToken()
 	unexpiredLocal.ExpirationTime = pointer.Of(now.Add(2 * time.Hour))
 
+	// Set creation time in the past for all the tokens, otherwise GC won't trigger
+	for _, token := range []*structs.ACLToken{expiredGlobal, unexpiredGlobal, expiredLocal, unexpiredLocal} {
+		token.CreateTime = time.Now().Add(-1 * 10 * time.Hour)
+	}
+
 	// Upsert these into state.
 	err := testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 10, []*structs.ACLToken{
 		expiredGlobal, unexpiredGlobal, expiredLocal, unexpiredLocal,
 	})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Generate the core scheduler.
 	snap, err := testServer.State().Snapshot()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	coreScheduler := NewCoreScheduler(testServer, snap)
 
 	// Trigger global and local periodic garbage collection runs.
 	index, err := testServer.State().LatestIndex()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	index++
 
 	globalGCEval := testServer.coreJobEval(structs.CoreJobGlobalTokenExpiredGC, index)
-	require.NoError(t, coreScheduler.Process(globalGCEval))
+	must.NoError(t, coreScheduler.Process(globalGCEval))
 
 	localGCEval := testServer.coreJobEval(structs.CoreJobLocalTokenExpiredGC, index)
-	require.NoError(t, coreScheduler.Process(localGCEval))
+	must.NoError(t, coreScheduler.Process(localGCEval))
 
 	// Ensure the ACL tokens stored within state are as expected.
 	iter, err := testServer.State().ACLTokens(nil, state.SortDefault)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var tokens []*structs.ACLToken
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		tokens = append(tokens, raw.(*structs.ACLToken))
 	}
-	require.ElementsMatch(t, []*structs.ACLToken{rootACLToken, unexpiredGlobal, unexpiredLocal}, tokens)
+	must.SliceContainsAll(t, []*structs.ACLToken{rootACLToken, unexpiredGlobal, unexpiredLocal}, tokens)
 }
 
 func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
@@ -2990,6 +3001,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		mockedToken := mock.ACLToken()
 		mockedToken.Global = true
+		mockedToken.CreateTime = time.Now().Add(-1 * 10 * time.Hour)
 		if i%2 == 0 {
 			expiredGlobalTokens = append(expiredGlobalTokens, mockedToken)
 			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
@@ -3004,6 +3016,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		mockedToken := mock.ACLToken()
 		mockedToken.Global = false
+		mockedToken.CreateTime = time.Now().Add(-1 * 10 * time.Hour)
 		if i%2 == 0 {
 			expiredLocalTokens = append(expiredLocalTokens, mockedToken)
 			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
