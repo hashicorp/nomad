@@ -142,9 +142,9 @@ config {
 }
 ```
 
-- `denied_host_gids` - (Optional) Specifies a comma-separated list of host uids to
+- `denied_host_gids` - (Optional) Specifies a comma-separated list of host gids to
   deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
-  If a "user" value is specified in task configuration and that user has is part of
+  If a "user" value is specified in task configuration and that user is part of
   any groups with gid's in the specified ranges, the task will error before
   starting. This will not be checked on Windows clients.
 
