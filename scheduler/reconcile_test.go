@@ -2985,7 +2985,9 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Destructive(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	d := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
@@ -3031,7 +3033,9 @@ func TestReconciler_CreateDeployment_RollingUpgrade_Inplace(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	d := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
@@ -3076,7 +3080,9 @@ func TestReconciler_CreateDeployment_NewerCreateIndex(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	d := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 5,
 	}
@@ -3567,7 +3573,9 @@ func TestReconciler_StopOldCanaries(t *testing.T) {
 		allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	newD := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3623,7 +3631,9 @@ func TestReconciler_NewCanaries(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	newD := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3674,7 +3684,9 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	newD := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	state := &structs.DeploymentState{
 		DesiredCanaries: 7,
@@ -3728,7 +3740,9 @@ func TestReconciler_NewCanaries_MultiTG(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	newD := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	state := &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3784,7 +3798,9 @@ func TestReconciler_NewCanaries_ScaleUp(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	newD := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -3835,7 +3851,9 @@ func TestReconciler_NewCanaries_ScaleDown(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	newD := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	newD := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	newD.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
 	newD.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredCanaries: 2,
@@ -4625,7 +4643,9 @@ func TestReconciler_FailedDeployment_NewJob(t *testing.T) {
 		d, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	dnew := structs.NewDeployment(jobNew, 50, time.Now().UnixNano())
+	// reconciler sets the creation time automatically so we have to copy here,
+	// otherwise there will be a discrepancy
+	dnew := structs.NewDeployment(jobNew, 50, r.deployment.CreateTime)
 	dnew.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
@@ -4791,7 +4811,7 @@ func TestReconciler_RollingUpgrade_MissingAllocs(t *testing.T) {
 		nil, allocs, nil, "", 50, true)
 	r := reconciler.Compute()
 
-	d := structs.NewDeployment(job, 50, time.Now().UnixNano())
+	d := structs.NewDeployment(job, 50, r.deployment.CreateTime)
 	d.TaskGroups[job.TaskGroups[0].Name] = &structs.DeploymentState{
 		DesiredTotal: 10,
 	}
