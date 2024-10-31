@@ -26,6 +26,7 @@ const (
 	TableACLBindingRules      = "acl_binding_rules"
 	TableAllocs               = "allocs"
 	TableJobSubmission        = "job_submission"
+	TableHostVolumes          = "host_volumes"
 )
 
 const (
@@ -41,6 +42,7 @@ const (
 	indexName          = "name"
 	indexSigningKey    = "signing_key"
 	indexAuthMethod    = "auth_method"
+	indexNodePool      = "node_pool"
 )
 
 var (
@@ -97,6 +99,7 @@ func init() {
 		aclRolesTableSchema,
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
+		hostVolumeTableSchema,
 	}...)
 }
 
@@ -1642,4 +1645,85 @@ func bindingRulesTableSchema() *memdb.TableSchema {
 			},
 		},
 	}
+}
+
+// HostVolumes are identified by id globally, and searchable by namespace+name,
+// node+state, or node_pool+state
+func hostVolumeTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableHostVolumes,
+		Indexes: map[string]*memdb.IndexSchema{
+			"id": {
+				Name:         "id",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field:     "ID",
+							Lowercase: true,
+						},
+					},
+				},
+			},
+			"name": {
+				Name:         "name",
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "Name",
+						},
+					},
+				},
+			},
+			"node_id": {
+				Name:         indexNodeID,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field:     "NodeID",
+							Lowercase: true,
+						},
+						&memdb.ConditionalIndex{
+							Conditional: hostVolumeIsReadyIndex,
+						},
+					},
+				},
+			},
+			"node_pool": {
+				Name:         indexNodePool,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field:     "NodePool",
+							Lowercase: true,
+						},
+						&memdb.ConditionalIndex{
+							Conditional: hostVolumeIsReadyIndex,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func hostVolumeIsReadyIndex(obj any) (bool, error) {
+	vol, ok := obj.(*structs.HostVolume)
+	if !ok {
+		panic("unknown object indexed as HostVolume")
+	}
+	return vol.State == structs.HostVolumeStateReady, nil
 }
