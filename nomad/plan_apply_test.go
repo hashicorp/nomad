@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -265,8 +264,9 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		ID:                    preemptedAlloc.ID,
 		PreemptedByAllocation: alloc.ID,
 	}
-	s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID))
-	s1.State().UpsertAllocs(structs.MsgTypeTestSetup, 1100, []*structs.Allocation{stoppedAlloc, preemptedAlloc})
+	must.NoError(t, s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, s1.State().UpsertAllocs(structs.MsgTypeTestSetup, 1100, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
+
 	// Create an eval
 	eval := mock.Eval()
 	eval.JobID = alloc.JobID
@@ -274,7 +274,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	timestampBeforeCommit := time.Now().UTC().UnixNano()
+	timestampBeforeCommit := time.Now().UnixNano()
 	planRes := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -291,9 +291,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 
 	// Snapshot the state
 	snap, err := s1.State().Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Create the plan with a deployment
 	plan := &structs.Plan{
@@ -303,72 +301,69 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		EvalID:            eval.ID,
 	}
 
-	require := require.New(t)
-	assert := assert.New(t)
-
 	// Apply the plan
 	future, err := s1.applyPlan(plan, planRes, snap)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Verify our optimistic snapshot is updated
 	ws := memdb.NewWatchSet()
 	allocOut, err := snap.AllocByID(ws, alloc.ID)
-	require.NoError(err)
-	require.NotNil(allocOut)
+	must.NoError(t, err)
+	must.NotNil(t, allocOut)
 
 	deploymentOut, err := snap.DeploymentByID(ws, plan.Deployment.ID)
-	require.NoError(err)
-	require.NotNil(deploymentOut)
+	must.NoError(t, err)
+	must.NotNil(t, deploymentOut)
 
 	// Check plan does apply cleanly
 	index, err := planWaitFuture(future)
-	require.NoError(err)
-	assert.NotEqual(0, index)
+	must.NoError(t, err)
+	must.NotEq(t, 0, index)
 
 	// Lookup the allocation
 	fsmState := s1.fsm.State()
 	allocOut, err = fsmState.AllocByID(ws, alloc.ID)
-	require.NoError(err)
-	require.NotNil(allocOut)
-	assert.True(allocOut.CreateTime > 0)
-	assert.True(allocOut.ModifyTime > 0)
-	assert.Equal(allocOut.CreateTime, allocOut.ModifyTime)
+	must.NoError(t, err)
+	must.NotNil(t, allocOut)
+	must.True(t, allocOut.CreateTime > 0)
+	must.True(t, allocOut.ModifyTime > 0)
+	must.Eq(t, allocOut.CreateTime, allocOut.ModifyTime)
 
 	// Verify stopped alloc diff applied cleanly
 	updatedStoppedAlloc, err := fsmState.AllocByID(ws, stoppedAlloc.ID)
-	require.NoError(err)
-	require.NotNil(updatedStoppedAlloc)
-	assert.True(updatedStoppedAlloc.ModifyTime > timestampBeforeCommit)
-	assert.Equal(updatedStoppedAlloc.DesiredDescription, stoppedAllocDiff.DesiredDescription)
-	assert.Equal(updatedStoppedAlloc.ClientStatus, stoppedAllocDiff.ClientStatus)
-	assert.Equal(updatedStoppedAlloc.DesiredStatus, structs.AllocDesiredStatusStop)
+	must.NoError(t, err)
+	must.NotNil(t, updatedStoppedAlloc)
+	must.True(t, updatedStoppedAlloc.ModifyTime > timestampBeforeCommit)
+	must.Eq(t, updatedStoppedAlloc.DesiredDescription, stoppedAllocDiff.DesiredDescription)
+	must.Eq(t, updatedStoppedAlloc.ClientStatus, stoppedAllocDiff.ClientStatus)
+	must.Eq(t, updatedStoppedAlloc.DesiredStatus, structs.AllocDesiredStatusStop)
 
 	// Verify preempted alloc diff applied cleanly
 	updatedPreemptedAlloc, err := fsmState.AllocByID(ws, preemptedAlloc.ID)
-	require.NoError(err)
-	require.NotNil(updatedPreemptedAlloc)
-	assert.True(updatedPreemptedAlloc.ModifyTime > timestampBeforeCommit)
-	assert.Equal(updatedPreemptedAlloc.DesiredDescription,
+	must.NoError(t, err)
+	must.NotNil(t, updatedPreemptedAlloc)
+	must.True(t, updatedPreemptedAlloc.ModifyTime > timestampBeforeCommit)
+	must.Eq(t, updatedPreemptedAlloc.DesiredDescription,
 		"Preempted by alloc ID "+preemptedAllocDiff.PreemptedByAllocation)
-	assert.Equal(updatedPreemptedAlloc.DesiredStatus, structs.AllocDesiredStatusEvict)
+	must.Eq(t, updatedPreemptedAlloc.DesiredStatus, structs.AllocDesiredStatusEvict)
 
 	// Lookup the new deployment
 	dout, err := fsmState.DeploymentByID(ws, plan.Deployment.ID)
-	require.NoError(err)
-	require.NotNil(dout)
+	must.NoError(t, err)
+	must.NotNil(t, dout)
 
 	// Lookup the updated deployment
 	dout2, err := fsmState.DeploymentByID(ws, oldDeployment.ID)
-	require.NoError(err)
-	require.NotNil(dout2)
-	assert.Equal(desiredStatus, dout2.Status)
-	assert.Equal(desiredStatusDescription, dout2.StatusDescription)
+	must.NoError(t, err)
+	must.NotNil(t, dout2)
+	must.Eq(t, desiredStatus, dout2.Status)
+	must.Eq(t, desiredStatusDescription, dout2.StatusDescription)
 
 	// Lookup updated eval
 	evalOut, err := fsmState.EvalByID(ws, eval.ID)
-	require.NoError(err)
-	require.NotNil(evalOut)
-	assert.Equal(index, evalOut.ModifyIndex)
+	must.NoError(t, err)
+	must.NotNil(t, evalOut)
+	must.Eq(t, index, evalOut.ModifyIndex)
 }
 
 func TestPlanApply_signAllocIdentities(t *testing.T) {
