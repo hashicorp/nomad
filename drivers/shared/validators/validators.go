@@ -56,7 +56,7 @@ func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*
 	return v, nil
 }
 
-// HasValidIds is used when running a task to ensure the
+// HasValidIDs is used when running a task to ensure the
 // given user is in the ID range defined in the task config
 func (v *validator) HasValidIDs(user *user.User) error {
 	uid, err := getUserID(user)
