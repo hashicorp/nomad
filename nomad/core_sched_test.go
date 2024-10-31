@@ -34,8 +34,8 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
-	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	eval.Status = structs.EvalStatusFailed
 	must.NoError(t, store.UpsertJobSummary(999, mock.JobSummary(eval.JobID)))
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
@@ -120,8 +120,8 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
-	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	eval.Status = structs.EvalStatusFailed
 	must.NoError(t, store.UpsertJobSummary(999, mock.JobSummary(eval.JobID)))
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
@@ -129,8 +129,8 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	// Insert "pending" eval for same job
 	eval2 := mock.Eval()
 	eval2.JobID = eval.JobID
-	eval2.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval2.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	must.NoError(t, store.UpsertJobSummary(999, mock.JobSummary(eval2.JobID)))
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2}))
 
@@ -152,7 +152,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	alloc.RescheduleTracker = &structs.RescheduleTracker{
 		Events: []*structs.RescheduleEvent{
 			{
-				RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+				RescheduleTime: time.Now().Add(-time.Hour).UTC().UnixNano(),
 				PrevNodeID:     uuid.Generate(),
 				PrevAllocID:    uuid.Generate(),
 			},
@@ -215,8 +215,8 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	store := s1.fsm.State()
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusFailed
-	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	must.NoError(t, store.UpsertJobSummary(999, mock.JobSummary(eval.JobID)))
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
 
@@ -299,8 +299,8 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedJobEval.Status = structs.EvalStatusComplete
 	stoppedJobEval.Type = structs.JobTypeBatch
 	stoppedJobEval.JobID = stoppedJob.ID
-	stoppedJobEval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	stoppedJobEval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	stoppedJobEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	stoppedJobEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Evaluation{stoppedJobEval}))
 
 	stoppedJobStoppedAlloc := mock.Alloc()
@@ -334,8 +334,8 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	deadJobEval.Status = structs.EvalStatusComplete
 	deadJobEval.Type = structs.JobTypeBatch
 	deadJobEval.JobID = deadJob.ID
-	deadJobEval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	deadJobEval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	deadJobEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	deadJobEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{deadJobEval}))
 
 	stoppedAlloc := mock.Alloc()
@@ -371,8 +371,8 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobEval.Status = structs.EvalStatusComplete
 	activeJobEval.Type = structs.JobTypeBatch
 	activeJobEval.JobID = activeJob.ID
-	activeJobEval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	activeJobEval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	activeJobEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	activeJobEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{activeJobEval}))
 
 	activeJobRunningAlloc := mock.Alloc()
@@ -395,8 +395,8 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobCompleteEval.Status = structs.EvalStatusComplete
 	activeJobCompleteEval.Type = structs.JobTypeBatch
 	activeJobCompleteEval.JobID = activeJob.ID
-	activeJobCompleteEval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	activeJobCompleteEval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	activeJobCompleteEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	activeJobCompleteEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{activeJobCompleteEval}))
 
@@ -434,8 +434,8 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	purgedJobCompleteEval.Status = structs.EvalStatusComplete
 	purgedJobCompleteEval.Type = structs.JobTypeBatch
 	purgedJobCompleteEval.JobID = purgedJob.ID
-	purgedJobCompleteEval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	purgedJobCompleteEval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	purgedJobCompleteEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	purgedJobCompleteEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{purgedJobCompleteEval}))
 
@@ -590,8 +590,8 @@ func TestCoreScheduler_EvalGC_JobVersionTag(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = job.ID
 	eval.Status = structs.EvalStatusComplete
-	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 999, []*structs.Evaluation{eval}))
 	// upsert a couple versions of the job, so the "jobs" table has one
@@ -673,8 +673,8 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	store := s1.fsm.State()
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
-	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
 	err := store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
@@ -793,8 +793,8 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 			store := server.fsm.State()
 			eval := mock.Eval()
 			eval.Status = structs.EvalStatusFailed
-			eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-			eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+			eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+			eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 			store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
 			err := store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
@@ -1061,21 +1061,21 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.Status = structs.JobStatusDead
-	job.SubmitTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
+	job.SubmitTime = time.Now().Add(-6 * time.Hour).UnixNano()
 	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
 
 	// Insert two evals, one terminal and one not
 	eval := mock.Eval()
 	eval.JobID = job.ID
 	eval.Status = structs.EvalStatusComplete
-	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	eval2 := mock.Eval()
 	eval2.JobID = job.ID
 	eval2.Status = structs.EvalStatusPending
-	eval2.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval2.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval, eval2}))
 
 	// Create a core scheduler
@@ -1153,8 +1153,8 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = job.ID
 	eval.Status = structs.EvalStatusComplete
-	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1399,14 +1399,14 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = job.ID
 	eval.Status = structs.EvalStatusComplete
-	eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	eval2 := mock.Eval()
 	eval2.JobID = job.ID
 	eval2.Status = structs.EvalStatusComplete
-	eval2.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	eval2.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	eval2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval, eval2})
 	if err != nil {
@@ -1419,8 +1419,8 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.TaskGroup = job.TaskGroups[0].Name
-	alloc.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
-	alloc.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	alloc.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	alloc.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1503,8 +1503,8 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 			eval := mock.Eval()
 			eval.JobID = job.ID
 			eval.Status = structs.EvalStatusComplete
-			eval.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-			eval.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+			eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+			eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 			err = store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval})
 			if err != nil {
@@ -1713,22 +1713,22 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		mockEval1.JobID = inputJob.ID
 		mockEval1.Namespace = inputJob.Namespace
 		mockEval1.Status = structs.EvalStatusComplete
-		mockEval1.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-		mockEval1.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+		mockEval1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+		mockEval1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 		mockJob1Alloc1 := mock.Alloc()
 		mockJob1Alloc1.EvalID = mockEval1.ID
 		mockJob1Alloc1.JobID = inputJob.ID
 		mockJob1Alloc1.ClientStatus = structs.AllocClientStatusRunning
-		mockJob1Alloc1.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
-		mockJob1Alloc1.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+		mockJob1Alloc1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+		mockJob1Alloc1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 		mockJob1Alloc2 := mock.Alloc()
 		mockJob1Alloc2.EvalID = mockEval1.ID
 		mockJob1Alloc2.JobID = inputJob.ID
 		mockJob1Alloc2.ClientStatus = structs.AllocClientStatusRunning
-		mockJob1Alloc2.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
-		mockJob1Alloc2.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+		mockJob1Alloc2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+		mockJob1Alloc2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 		must.NoError(t,
 			testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, inputJob))
@@ -1838,8 +1838,8 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	store := s1.fsm.State()
 	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
-	d1.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
-	d1.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	d1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	d1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	d3.Status = structs.DeploymentStatusSuccessful
 
 	must.Nil(t, store.UpsertDeployment(1000, d1), must.Sprint("UpsertDeployment"))
@@ -1849,8 +1849,8 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	a := mock.Alloc()
 	a.JobID = d3.JobID
 	a.DeploymentID = d3.ID
-	a.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
-	a.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+	a.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	a.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	must.Nil(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Create a core scheduler
@@ -1895,8 +1895,8 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 			store := server.fsm.State()
 			d1, d2 := mock.Deployment(), mock.Deployment()
 			d1.Status = structs.DeploymentStatusFailed
-			d1.CreateTime = time.Now().Add(-1 * 6 * time.Hour).UnixNano()
-			d1.ModifyTime = time.Now().Add(-1 * 5 * time.Hour).UnixNano()
+			d1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+			d1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 			assert.Nil(store.UpsertDeployment(1000, d1), "UpsertDeployment")
 			assert.Nil(store.UpsertDeployment(1001, d2), "UpsertDeployment")
 
@@ -2308,6 +2308,15 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 
 	index := uint64(2000)
 
+	ws := memdb.NewWatchSet()
+	plug, err := store.CSIPluginByID(ws, "foo")
+	must.NotNil(t, plug)
+	must.NoError(t, err)
+	// set the creation and modification times on the plugin in the past, otherwise
+	// they won't meet the GC threshold
+	plug.CreateTime = time.Now().Add(-10 * time.Hour).UnixNano()
+	plug.ModifyTime = time.Now().Add(-9 * time.Hour).UnixNano()
+
 	// Create a core scheduler
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
@@ -2319,8 +2328,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	must.NoError(t, core.Process(gc))
 
 	// Should not be gone (plugin in use)
-	ws := memdb.NewWatchSet()
-	plug, err := store.CSIPluginByID(ws, "foo")
+	plug, err = store.CSIPluginByID(ws, "foo")
 	must.NotNil(t, plug)
 	must.NoError(t, err)
 
@@ -2328,6 +2336,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	plug = plug.Copy()
 	plug.Controllers = map[string]*structs.CSIInfo{}
 	plug.Nodes = map[string]*structs.CSIInfo{}
+	plug.ModifyTime = time.Now().Add(-6 * time.Hour).UnixNano()
 
 	job := mock.CSIPluginJob(structs.CSIPluginTypeController, plug.ID)
 	index++
@@ -2939,7 +2948,7 @@ func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
 
 	// Set creation time in the past for all the tokens, otherwise GC won't trigger
 	for _, token := range []*structs.ACLToken{expiredGlobal, unexpiredGlobal, expiredLocal, unexpiredLocal} {
-		token.CreateTime = time.Now().Add(-1 * 10 * time.Hour)
+		token.CreateTime = time.Now().Add(-10 * time.Hour)
 	}
 
 	// Upsert these into state.
@@ -3001,7 +3010,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		mockedToken := mock.ACLToken()
 		mockedToken.Global = true
-		mockedToken.CreateTime = time.Now().Add(-1 * 10 * time.Hour)
+		mockedToken.CreateTime = time.Now().Add(-10 * time.Hour)
 		if i%2 == 0 {
 			expiredGlobalTokens = append(expiredGlobalTokens, mockedToken)
 			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
@@ -3016,7 +3025,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		mockedToken := mock.ACLToken()
 		mockedToken.Global = false
-		mockedToken.CreateTime = time.Now().Add(-1 * 10 * time.Hour)
+		mockedToken.CreateTime = time.Now().Add(-10 * time.Hour)
 		if i%2 == 0 {
 			expiredLocalTokens = append(expiredLocalTokens, mockedToken)
 			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))

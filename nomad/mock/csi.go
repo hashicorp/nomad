@@ -51,8 +51,8 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 		ControllersExpected: len(plugin.Controllers),
 		NodesHealthy:        plugin.NodesHealthy,
 		NodesExpected:       len(plugin.Nodes),
-		CreateTime:          time.Now().Add(-1 * time.Hour).UnixNano(),
-		ModifyTime:          time.Now().UnixNano(),
+		CreateTime:          time.Now().Add(-6 * time.Hour).UnixNano(),
+		ModifyTime:          time.Now().Add(-5 * time.Hour).UnixNano(),
 	}
 }
 
