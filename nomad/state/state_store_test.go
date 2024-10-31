@@ -4198,8 +4198,6 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		CLIENT
 	)
 
-	now := time.Now().UnixNano()
-
 	// helper function calling client-side update with with
 	// UpsertAllocs and/or UpdateAllocsFromClient, depending on which
 	// status(es) are set

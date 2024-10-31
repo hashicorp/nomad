@@ -350,6 +350,8 @@ type CSIVolume struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+	CreateTime  int64
+	ModifyTime  int64
 
 	// ExtraKeysHCL is used by the hcl parser to report unexpected keys
 	ExtraKeysHCL []string `hcl1:",unusedKeys" json:"-"`
@@ -401,6 +403,8 @@ type CSIVolumeListStub struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+	CreateTime  int64
+	ModifyTime  int64
 }
 
 type CSIVolumeListExternalResponse struct {
@@ -543,6 +547,8 @@ type CSIPlugin struct {
 	NodesExpected       int
 	CreateIndex         uint64
 	ModifyIndex         uint64
+	CreateTime          int64
+	ModifyTime          int64
 }
 
 type CSIPluginListStub struct {
