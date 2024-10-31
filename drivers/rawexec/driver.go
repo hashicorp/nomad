@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -112,7 +111,7 @@ var (
 )
 
 type UserIDValidator interface {
-	HasValidIDs(user *user.User) error
+	HasValidIDs(userName string) error
 }
 
 // Driver is a privileged version of the exec driver. It provides no

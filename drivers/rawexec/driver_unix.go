@@ -7,7 +7,6 @@ package rawexec
 
 import (
 	"fmt"
-	"os/user"
 
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -15,22 +14,17 @@ import (
 
 func (d *Driver) Validate(cfg drivers.TaskConfig) error {
 	usernameToLookup := cfg.User
-	var user *user.User
-	var err error
 
 	// Uses the current user of the client agent process
 	// if no override is given (differs from exec)
 	if usernameToLookup == "" {
-		user, err = users.Current()
+		user, err := users.Current()
 		if err != nil {
 			return fmt.Errorf("failed to get current user: %w", err)
 		}
-	} else {
-		user, err = users.Lookup(usernameToLookup)
-		if err != nil {
-			return fmt.Errorf("failed to identify user %q: %w", usernameToLookup, err)
-		}
+
+		usernameToLookup = user.Username
 	}
 
-	return d.userIDValidator.HasValidIDs(user)
+	return d.userIDValidator.HasValidIDs(usernameToLookup)
 }

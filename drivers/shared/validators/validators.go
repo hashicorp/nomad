@@ -6,13 +6,12 @@ package validators
 import (
 	"errors"
 	"fmt"
-	"os/user"
 	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/helper/users"
 )
 
 var (
@@ -21,12 +20,21 @@ var (
 	ErrInvalidRange = errors.New("lower bound cannot be greater than upper bound")
 )
 
+type (
+
+	// A GroupID (GID) represents a unique numerical value assigned to each user group.
+	GroupID uint64
+
+	// A UserID represents a unique numerical value assigned to each user account.
+	UserID uint64
+)
+
 type validator struct {
 	// DeniedHostUids configures which host uids are disallowed
-	deniedUIDs *idset.Set[hw.UserID]
+	deniedUIDs *idset.Set[UserID]
 
 	// DeniedHostGids configures which host gids are disallowed
-	deniedGIDs *idset.Set[hw.GroupID]
+	deniedGIDs *idset.Set[GroupID]
 
 	// logger will log to the Nomad agent
 	logger hclog.Logger
@@ -48,8 +56,8 @@ func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*
 	valLogger.Debug("group range configured", "denied range", deniedHostGIDs)
 
 	v := &validator{
-		deniedUIDs: idset.Parse[hw.UserID](deniedHostUIDs),
-		deniedGIDs: idset.Parse[hw.GroupID](deniedHostGIDs),
+		deniedUIDs: idset.Parse[UserID](deniedHostUIDs),
+		deniedGIDs: idset.Parse[GroupID](deniedHostGIDs),
 		logger:     valLogger,
 	}
 
@@ -58,7 +66,12 @@ func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*
 
 // HasValidIDs is used when running a task to ensure the
 // given user is in the ID range defined in the task config
-func (v *validator) HasValidIDs(user *user.User) error {
+func (v *validator) HasValidIDs(userName string) error {
+	user, err := users.Lookup(userName)
+	if err != nil {
+		return fmt.Errorf("failed to identify user %q: %w", userName, err)
+	}
+
 	uid, err := getUserID(user)
 	if err != nil {
 		return fmt.Errorf("validator: %w", err)

@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -79,7 +78,7 @@ var (
 
 type mockIDValidator struct{}
 
-func (mv *mockIDValidator) HasValidIDs(user *user.User) error {
+func (mv *mockIDValidator) HasValidIDs(userName string) error {
 	return nil
 }
 

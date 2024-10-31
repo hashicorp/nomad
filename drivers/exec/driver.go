@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"runtime"
 	"sync"
@@ -24,7 +23,6 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
@@ -253,7 +251,7 @@ type TaskState struct {
 }
 
 type UserIDValidator interface {
-	HasValidIDs(user *user.User) error
+	HasValidIDs(userName string) error
 }
 
 // NewExecDriver returns a new DrivePlugin implementation
@@ -450,15 +448,6 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) validateUserIds(cfg *drivers.TaskConfig) error {
-	user, err := users.Lookup(cfg.User)
-	if err != nil {
-		return fmt.Errorf("failed to identify user %q: %w", cfg.User, err)
-	}
-
-	return d.userIDValidator.HasValidIDs(user)
-}
-
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if _, ok := d.tasks.Get(cfg.ID); ok {
 		return nil, nil, fmt.Errorf("task with ID %q already started", cfg.ID)
@@ -476,9 +465,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	if cfg.User == "" {
 		cfg.User = "nobody"
 	}
+
 	d.logger.Debug("setting up user", "user", cfg.User)
 
-	if err := d.validateUserIds(cfg); err != nil {
+	if err := d.userIDValidator.HasValidIDs(cfg.User); err != nil {
 		return nil, nil, fmt.Errorf("failed host user validation: %v", err)
 	}
 
