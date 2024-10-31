@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -81,6 +82,8 @@ var (
 			hclspec.NewAttr("enabled", "bool", false),
 			hclspec.NewLiteral("false"),
 		),
+		"denied_host_uids": hclspec.NewAttr("denied_host_uids", "string", false),
+		"denied_host_gids": hclspec.NewAttr("denied_host_gids", "string", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -106,6 +109,10 @@ var (
 		MountConfigs: drivers.MountConfigSupportNone,
 	}
 )
+
+type UserIDValidator interface {
+	HasValidIDs(userName string) error
+}
 
 // Driver is a privileged version of the exec driver. It provides no
 // resource isolation and just fork/execs. The Exec driver should be preferred
@@ -133,12 +140,17 @@ type Driver struct {
 
 	// compute contains cpu compute information
 	compute cpustats.Compute
+
+	userIDValidator UserIDValidator
 }
 
 // Config is the driver configuration set by the SetConfig RPC call
 type Config struct {
 	// Enabled is set to true to enable the raw_exec driver
 	Enabled bool `codec:"enabled"`
+
+	DeniedHostUids string `codec:"denied_host_uids"`
+	DeniedHostGids string `codec:"denied_host_gids"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -194,17 +206,29 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
 	var config Config
+
 	if len(cfg.PluginConfig) != 0 {
 		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
 			return err
 		}
 	}
 
+	if d.userIDValidator == nil {
+		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUids, config.DeniedHostGids)
+		if err != nil {
+			return fmt.Errorf("unable to start validator: %w", err)
+		}
+
+		d.userIDValidator = idValidator
+	}
+
 	d.config = &config
+
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 		d.compute = cfg.AgentConfig.Compute()
 	}
+
 	return nil
 }
 
@@ -330,6 +354,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	if driverConfig.OOMScoreAdj < 0 {
 		return nil, nil, fmt.Errorf("oom_score_adj must not be negative")
+	}
+
+	if err := d.Validate(*cfg); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
