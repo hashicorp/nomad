@@ -20,7 +20,7 @@ func getUserID(user *user.User) (UserID, error) {
 	return UserID(id), nil
 }
 
-func getGroupID(user *user.User) ([]GroupID, error) {
+func getGroupsID(user *user.User) ([]GroupID, error) {
 	gidStrings, err := user.GroupIds()
 	if err != nil {
 		return []GroupID{}, fmt.Errorf("unable to lookup user's group membership: %w", err)

@@ -16,7 +16,7 @@ import (
 
 var (
 	ErrInvalidBound = errors.New("range bound not valid")
-	ErrEmptyRange   = errors.New("range value cannot be empty")
+	//ErrEmptyRange   = errors.New("range value cannot be empty")
 	ErrInvalidRange = errors.New("lower bound cannot be greater than upper bound")
 )
 
@@ -29,7 +29,7 @@ type (
 	UserID uint64
 )
 
-type validator struct {
+type Validator struct {
 	// DeniedHostUids configures which host uids are disallowed
 	deniedUIDs *idset.Set[UserID]
 
@@ -40,7 +40,7 @@ type validator struct {
 	logger hclog.Logger
 }
 
-func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*validator, error) {
+func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*Validator, error) {
 	valLogger := logger.Named("id_validator")
 
 	err := validateIDRange("deniedHostUIDs", deniedHostUIDs)
@@ -55,7 +55,7 @@ func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*
 	}
 	valLogger.Debug("group range configured", "denied range", deniedHostGIDs)
 
-	v := &validator{
+	v := &Validator{
 		deniedUIDs: idset.Parse[UserID](deniedHostUIDs),
 		deniedGIDs: idset.Parse[GroupID](deniedHostGIDs),
 		logger:     valLogger,
@@ -66,7 +66,7 @@ func NewValidator(logger hclog.Logger, deniedHostUIDs, deniedHostGIDs string) (*
 
 // HasValidIDs is used when running a task to ensure the
 // given user is in the ID range defined in the task config
-func (v *validator) HasValidIDs(userName string) error {
+func (v *Validator) HasValidIDs(userName string) error {
 	user, err := users.Lookup(userName)
 	if err != nil {
 		return fmt.Errorf("failed to identify user %q: %w", userName, err)
@@ -82,7 +82,7 @@ func (v *validator) HasValidIDs(userName string) error {
 		return fmt.Errorf("running as uid %d is disallowed", uid)
 	}
 
-	gids, err := getGroupID(user)
+	gids, err := getGroupsID(user)
 	if err != nil {
 		return fmt.Errorf("validator:  %w", err)
 	}
@@ -122,9 +122,6 @@ func validateBounds(boundsString string) error {
 	uidDenyRangeParts := strings.Split(boundsString, "-")
 
 	switch len(uidDenyRangeParts) {
-	case 0:
-		return ErrEmptyRange
-
 	case 1:
 		disallowedIdStr := uidDenyRangeParts[0]
 		if _, err := strconv.ParseUint(disallowedIdStr, 10, 32); err != nil {

@@ -8,6 +8,7 @@ package validators
 import (
 	"fmt"
 	"os/user"
+	"strconv"
 	"testing"
 
 	"github.com/hashicorp/go-hclog"
@@ -50,47 +51,45 @@ func Test_IDRangeValid(t *testing.T) {
 }
 
 func Test_HasValidIds(t *testing.T) {
-	var validRange = "1-100"
 
-	var validRangeSingle = "1"
+	user, err := user.Current()
+	must.NoError(t, err)
+
+	userID, err := strconv.ParseUint(user.Uid, 10, 32)
+	groupID, err := strconv.ParseUint(user.Gid, 10, 32)
+	must.NoError(t, err)
+
+	userNotIncluded := fmt.Sprintf("%d-%d", userID+1, userID+11)
+	userIncluded := fmt.Sprintf("%d-%d", userID, userID+11)
+	userNotIncludedSingle := fmt.Sprintf("%d", userID+1)
+
+	groupNotIncluded := fmt.Sprintf("%d-%d", groupID+1, groupID+11)
+	groupIncluded := fmt.Sprintf("%d-%d", groupID, groupID+11)
+	groupNotIncludedSingle := fmt.Sprintf("%d", groupID+1)
 
 	emptyRanges := ""
-	validRangesList := fmt.Sprintf("%s,%s", validRange, validRangeSingle)
+
+	userDeniedRangesList := fmt.Sprintf("%s,%s", userNotIncluded, userNotIncludedSingle)
+	groupDeniedRangesList := fmt.Sprintf("%s,%s", groupNotIncluded, groupNotIncludedSingle)
 
 	testCases := []struct {
 		name        string
 		uidRanges   string
 		gidRanges   string
-		uid         string
-		gid         string
 		expectedErr string
 	}{
-		{name: "no-ranges-are-valid", uidRanges: validRangesList, gidRanges: emptyRanges},
-		{name: "uid-and-gid-outside-of-ranges-valid", uidRanges: validRangesList, gidRanges: validRangesList},
-		{name: "uid-in-one-of-ranges-is-invalid", uidRanges: validRangesList, gidRanges: validRangesList, uid: "50", expectedErr: "running as uid 50 is disallowed"},
-		{name: "gid-in-one-of-ranges-is-invalid", uidRanges: validRangesList, gidRanges: validRangesList, gid: "50", expectedErr: "running as gid 50 is disallowed"},
-		{name: "string-uid-throws-error", uid: "banana", expectedErr: "unable to convert userid banana to integer"},
+		{name: "user_not_in_denied_ranges", uidRanges: userDeniedRangesList, gidRanges: emptyRanges},
+		{name: "user_and group_not_in_denied_ranges", uidRanges: userDeniedRangesList, gidRanges: groupDeniedRangesList},
+		{name: "uid_in_one_of_ranges_is_invalid", uidRanges: userIncluded, gidRanges: groupDeniedRangesList, expectedErr: fmt.Sprintf("running as uid %s is disallowed", user.Uid)},
+		{name: "gid-in-one-of-ranges-is-invalid", uidRanges: userDeniedRangesList, gidRanges: groupIncluded, expectedErr: fmt.Sprintf("running as gid %s is disallowed", user.Gid)},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			user := &user.User{
-				Uid: "200",
-				Gid: "200",
-			}
-
-			if tc.uid != "" {
-				user.Uid = tc.uid
-			}
-
-			if tc.gid != "" {
-				user.Gid = tc.gid
-			}
-
 			v, err := NewValidator(hclog.NewNullLogger(), tc.uidRanges, tc.gidRanges)
 			must.NoError(t, err)
 
-			err = v.HasValidIDs(user)
+			err = v.HasValidIDs(user.Username)
 
 			if tc.expectedErr == "" {
 				must.NoError(t, err)
@@ -98,6 +97,26 @@ func Test_HasValidIds(t *testing.T) {
 				must.Error(t, err)
 				must.ErrorContains(t, err, tc.expectedErr)
 			}
+		})
+	}
+}
+
+func Test_ValidateBounds(t *testing.T) {
+	testCases := []struct {
+		name        string
+		bounds      string
+		expectedErr error
+	}{
+		{name: "invalid_bound", bounds: "banana", expectedErr: ErrInvalidBound},
+		{name: "invalid_lower_bound", bounds: "banana-10", expectedErr: ErrInvalidBound},
+		{name: "invalid_upper_bound", bounds: "10-banana", expectedErr: ErrInvalidBound},
+		{name: "lower_bigger_than_upper", bounds: "10-1", expectedErr: ErrInvalidRange},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateBounds(tc.bounds)
+			must.ErrorIs(t, err, tc.expectedErr)
 		})
 	}
 }

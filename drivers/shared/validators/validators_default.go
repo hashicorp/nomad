@@ -15,6 +15,6 @@ func getUserID(*user.User) (UserID, error) {
 }
 
 // noop
-func getGroupID(*user.User) ([]GroupID, error) {
+func getGroupsID(*user.User) ([]GroupID, error) {
 	return []GroupID{}, nil
 }
