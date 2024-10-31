@@ -299,8 +299,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedJobEval.Status = structs.EvalStatusComplete
 	stoppedJobEval.Type = structs.JobTypeBatch
 	stoppedJobEval.JobID = stoppedJob.ID
-	stoppedJobEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	stoppedJobEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	stoppedJobEval.ModifyTime = time.Now().UnixNano()
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Evaluation{stoppedJobEval}))
 
 	stoppedJobStoppedAlloc := mock.Alloc()
@@ -309,6 +308,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedJobStoppedAlloc.EvalID = stoppedJobEval.ID
 	stoppedJobStoppedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
 	stoppedJobStoppedAlloc.ClientStatus = structs.AllocClientStatusFailed
+	stoppedJobStoppedAlloc.ModifyTime = time.Now().UnixNano()
 
 	stoppedJobLostAlloc := mock.Alloc()
 	stoppedJobLostAlloc.Job = stoppedJob
@@ -316,6 +316,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedJobLostAlloc.EvalID = stoppedJobEval.ID
 	stoppedJobLostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	stoppedJobLostAlloc.ClientStatus = structs.AllocClientStatusLost
+	stoppedJobLostAlloc.ModifyTime = time.Now().UnixNano()
 
 	must.NoError(t, store.UpsertAllocs(
 		structs.MsgTypeTestSetup, jobModifyIdx+3,
@@ -334,8 +335,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	deadJobEval.Status = structs.EvalStatusComplete
 	deadJobEval.Type = structs.JobTypeBatch
 	deadJobEval.JobID = deadJob.ID
-	deadJobEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	deadJobEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	deadJobEval.ModifyTime = time.Now().UnixNano()
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{deadJobEval}))
 
 	stoppedAlloc := mock.Alloc()
@@ -344,6 +344,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedAlloc.EvalID = deadJobEval.ID
 	stoppedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
 	stoppedAlloc.ClientStatus = structs.AllocClientStatusFailed
+	stoppedAlloc.ModifyTime = time.Now().UnixNano()
 
 	lostAlloc := mock.Alloc()
 	lostAlloc.Job = deadJob
@@ -351,6 +352,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	lostAlloc.EvalID = deadJobEval.ID
 	lostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	lostAlloc.ClientStatus = structs.AllocClientStatusLost
+	lostAlloc.ModifyTime = time.Now().UnixNano()
 
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Allocation{stoppedAlloc, lostAlloc}))
 
@@ -371,8 +373,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobEval.Status = structs.EvalStatusComplete
 	activeJobEval.Type = structs.JobTypeBatch
 	activeJobEval.JobID = activeJob.ID
-	activeJobEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	activeJobEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	activeJobEval.ModifyTime = time.Now().UnixNano()
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{activeJobEval}))
 
 	activeJobRunningAlloc := mock.Alloc()
@@ -381,6 +382,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobRunningAlloc.EvalID = activeJobEval.ID
 	activeJobRunningAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	activeJobRunningAlloc.ClientStatus = structs.AllocClientStatusRunning
+	activeJobRunningAlloc.ModifyTime = time.Now().UnixNano()
 
 	activeJobLostAlloc := mock.Alloc()
 	activeJobLostAlloc.Job = activeJob
@@ -388,6 +390,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobLostAlloc.EvalID = activeJobEval.ID
 	activeJobLostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	activeJobLostAlloc.ClientStatus = structs.AllocClientStatusLost
+	activeJobLostAlloc.ModifyTime = time.Now().UnixNano()
 
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobRunningAlloc, activeJobLostAlloc}))
 
@@ -395,8 +398,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobCompleteEval.Status = structs.EvalStatusComplete
 	activeJobCompleteEval.Type = structs.JobTypeBatch
 	activeJobCompleteEval.JobID = activeJob.ID
-	activeJobCompleteEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	activeJobCompleteEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	activeJobCompleteEval.ModifyTime = time.Now().UnixNano()
 
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{activeJobCompleteEval}))
 
@@ -406,6 +408,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobCompletedEvalCompletedAlloc.EvalID = activeJobCompleteEval.ID
 	activeJobCompletedEvalCompletedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
 	activeJobCompletedEvalCompletedAlloc.ClientStatus = structs.AllocClientStatusComplete
+	activeJobCompletedEvalCompletedAlloc.ModifyTime = time.Now().UnixNano()
 
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobCompletedEvalCompletedAlloc}))
 
@@ -419,6 +422,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	purgedJobEval.Status = structs.EvalStatusComplete
 	purgedJobEval.Type = structs.JobTypeBatch
 	purgedJobEval.JobID = purgedJob.ID
+	purgedJobEval.ModifyTime = time.Now().UnixNano()
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{purgedJobEval}))
 
 	purgedJobCompleteAlloc := mock.Alloc()
@@ -427,6 +431,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	purgedJobCompleteAlloc.EvalID = purgedJobEval.ID
 	purgedJobCompleteAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	purgedJobCompleteAlloc.ClientStatus = structs.AllocClientStatusLost
+	purgedJobCompleteAlloc.ModifyTime = time.Now().UnixNano()
 
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{purgedJobCompleteAlloc}))
 
@@ -434,8 +439,6 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	purgedJobCompleteEval.Status = structs.EvalStatusComplete
 	purgedJobCompleteEval.Type = structs.JobTypeBatch
 	purgedJobCompleteEval.JobID = purgedJob.ID
-	purgedJobCompleteEval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
-	purgedJobCompleteEval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{purgedJobCompleteEval}))
 
