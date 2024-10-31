@@ -19,10 +19,4 @@ type (
 
 	// A CoreID represents one logical (vCPU) core.
 	CoreID uint16
-
-	// A GroupID (GID) represents a unique numerical value assigned to each user group.
-	GroupID uint64
-
-	// A UserID represents a unique numerical value assigned to each user account.
-	UserID uint64
 )
