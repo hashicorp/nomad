@@ -3068,5 +3068,5 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	must.NoError(t, err)
 
 	tokens = fromIteratorFunc(iter)
-	must.Eq(t, append(nonExpiredGlobalTokens, nonExpiredLocalTokens...), tokens)
+	must.SliceContainsAll(t, append(nonExpiredGlobalTokens, nonExpiredLocalTokens...), tokens)
 }
