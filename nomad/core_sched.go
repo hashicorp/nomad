@@ -285,11 +285,10 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 	return c.evalReap(gcEval, gcAlloc)
 }
 
-// gcEval returns whether the eval should be garbage collected given a raft
-// threshold index. The eval disqualifies for garbage collection if it or its
-// allocs are not older than the threshold. If the eval should be garbage
-// collected, the associated alloc ids that should also be removed are also
-// returned
+// gcEval returns whether the eval should be garbage collected given the cutoff
+// time. The eval disqualifies for garbage collection if it or its allocs are not
+// older than the cutoff. If the eval should be garbage collected, the associated
+// alloc ids that should also be removed are also returned
 func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, allowBatch bool) (
 	bool, []string, error) {
 
