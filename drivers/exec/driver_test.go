@@ -36,12 +36,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type mockIDValidator struct{}
-
-func (mv *mockIDValidator) HasValidIDs(userName string) error {
-	return nil
-}
-
 func TestMain(m *testing.M) {
 	if !testtask.Run() {
 		os.Exit(m.Run())
@@ -76,8 +70,6 @@ func newExecDriverTest(t *testing.T, ctx context.Context) drivers.DriverPlugin {
 	topology := numalib.Scan(numalib.PlatformScanners())
 	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
-	d.(*Driver).userIDValidator = &mockIDValidator{}
-
 	return d
 }
 
@@ -839,81 +831,6 @@ func TestExecDriver_OOMKilled(t *testing.T) {
 	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
-func TestDriver_Config_setDeniedIds(t *testing.T) {
-
-	ci.Parallel(t)
-
-	testCases := []struct {
-		name      string
-		uidRanges string
-		gidRanges string
-		exError   bool
-	}{
-		{
-			name:      "empty_ranges",
-			uidRanges: "",
-			gidRanges: "",
-			exError:   false,
-		},
-		{
-			name:      "valid_ranges",
-			uidRanges: "1-10",
-			gidRanges: "1-10",
-			exError:   false,
-		},
-		{
-			name:      "empty_GID_invalid_UID_range",
-			uidRanges: "10-1",
-			gidRanges: "",
-			exError:   true,
-		},
-		{
-			name:      "empty_UID_invalid_GID_range",
-			uidRanges: "",
-			gidRanges: "10-1",
-			exError:   true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
-
-			d := newExecDriverTest(t, ctx)
-
-			// Force the creation of the validatior.
-			d.(*Driver).userIDValidator = nil
-
-			harness := dtestutil.NewDriverHarness(t, d)
-			defer harness.Kill()
-
-			config := &Config{
-				NoPivotRoot:    false,
-				DefaultModePID: executor.IsolationModePrivate,
-				DefaultModeIPC: executor.IsolationModePrivate,
-				DeniedHostUids: tc.uidRanges,
-				DeniedHostGids: tc.gidRanges,
-			}
-
-			var data []byte
-			must.NoError(t, base.MsgPackEncode(&data, config))
-
-			baseConfig := &base.Config{
-				PluginConfig: data,
-				AgentConfig: &base.AgentConfig{
-					Driver: &base.ClientDriverConfig{
-						Topology: d.(*Driver).nomadConfig.Topology,
-					},
-				},
-			}
-
-			err := harness.SetConfig(baseConfig)
-			must.Eq(t, err != nil, tc.exError)
-		})
-	}
-}
-
 func TestDriver_Config_validate(t *testing.T) {
 	ci.Parallel(t)
 	t.Run("pid/ipc", func(t *testing.T) {
@@ -957,7 +874,6 @@ func TestDriver_Config_validate(t *testing.T) {
 
 func TestDriver_TaskConfig_validate(t *testing.T) {
 	ci.Parallel(t)
-
 	t.Run("pid/ipc", func(t *testing.T) {
 		for _, tc := range []struct {
 			pidMode, ipcMode string
@@ -973,7 +889,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{pidMode: "", ipcMode: "host", exp: nil},
 			{pidMode: "other", ipcMode: "host", exp: errors.New(`pid_mode must be "private" or "host", got "other"`)},
 		} {
-			must.Eq(t, tc.exp, (&TaskConfig{
+			require.Equal(t, tc.exp, (&TaskConfig{
 				ModePID: tc.pidMode,
 				ModeIPC: tc.ipcMode,
 			}).validate())
@@ -991,7 +907,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{adds: []string{"chown", "sys_time"}, exp: nil},
 			{adds: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_add configured with capabilities not supported by system: not_valid")},
 		} {
-			must.Eq(t, tc.exp, (&TaskConfig{
+			require.Equal(t, tc.exp, (&TaskConfig{
 				CapAdd: tc.adds,
 			}).validate())
 		}
@@ -1008,7 +924,7 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 			{drops: []string{"chown", "sys_time"}, exp: nil},
 			{drops: []string{"chown", "not_valid", "sys_time"}, exp: errors.New("cap_drop configured with capabilities not supported by system: not_valid")},
 		} {
-			must.Eq(t, tc.exp, (&TaskConfig{
+			require.Equal(t, tc.exp, (&TaskConfig{
 				CapDrop: tc.drops,
 			}).validate())
 		}

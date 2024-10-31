@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
 	"github.com/hashicorp/nomad/drivers/shared/resolvconf"
-	"github.com/hashicorp/nomad/drivers/shared/validators"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/plugins/base"
@@ -84,8 +83,6 @@ var (
 			hclspec.NewAttr("allow_caps", "list(string)", false),
 			hclspec.NewLiteral(capabilities.HCLSpecLiteral),
 		),
-		"denied_host_uids": hclspec.NewAttr("denied_host_uids", "string", false),
-		"denied_host_gids": hclspec.NewAttr("denied_host_gids", "string", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -143,8 +140,6 @@ type Driver struct {
 
 	// compute contains cpu compute information
 	compute cpustats.Compute
-
-	userIDValidator UserIDValidator
 }
 
 // Config is the driver configuration set by the SetConfig RPC call
@@ -164,9 +159,6 @@ type Config struct {
 	// AllowCaps configures which Linux Capabilities are enabled for tasks
 	// running on this node.
 	AllowCaps []string `codec:"allow_caps"`
-
-	DeniedHostUids string `codec:"denied_host_uids"`
-	DeniedHostGids string `codec:"denied_host_gids"`
 }
 
 func (c *Config) validate() error {
@@ -231,7 +223,6 @@ func (tc *TaskConfig) validate() error {
 	if !badAdds.Empty() {
 		return fmt.Errorf("cap_add configured with capabilities not supported by system: %s", badAdds)
 	}
-
 	badDrops := supported.Difference(capabilities.New(tc.CapDrop))
 	if !badDrops.Empty() {
 		return fmt.Errorf("cap_drop configured with capabilities not supported by system: %s", badDrops)
@@ -248,10 +239,6 @@ type TaskState struct {
 	TaskConfig     *drivers.TaskConfig
 	Pid            int
 	StartedAt      time.Time
-}
-
-type UserIDValidator interface {
-	HasValidIDs(userName string) error
 }
 
 // NewExecDriver returns a new DrivePlugin implementation
@@ -298,26 +285,14 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 func (d *Driver) SetConfig(cfg *base.Config) error {
 	// unpack, validate, and set agent plugin config
 	var config Config
-
 	if len(cfg.PluginConfig) != 0 {
 		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
 			return err
 		}
 	}
-
 	if err := config.validate(); err != nil {
 		return err
 	}
-
-	if d.userIDValidator == nil {
-		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUids, config.DeniedHostGids)
-		if err != nil {
-			return fmt.Errorf("unable to start validator: %w", err)
-		}
-
-		d.userIDValidator = idValidator
-	}
-
 	d.config = config
 
 	if cfg != nil && cfg.AgentConfig != nil {
@@ -462,16 +437,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 
-	if cfg.User == "" {
-		cfg.User = "nobody"
-	}
-
-	d.logger.Debug("setting up user", "user", cfg.User)
-
-	if err := d.userIDValidator.HasValidIDs(cfg.User); err != nil {
-		return nil, nil, fmt.Errorf("failed host user validation: %v", err)
-	}
-
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
@@ -492,6 +457,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	}
 
 	user := cfg.User
+	if user == "" {
+		user = "nobody"
+	}
+
 	if cfg.DNS != nil {
 		dnsMount, err := resolvconf.GenerateDNSMount(cfg.TaskDir().Dir, cfg.DNS)
 		if err != nil {

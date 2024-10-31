@@ -76,12 +76,6 @@ var (
 	topology = numalib.Scan(numalib.PlatformScanners())
 )
 
-type mockIDValidator struct{}
-
-func (mv *mockIDValidator) HasValidIDs(userName string) error {
-	return nil
-}
-
 func newEnabledRawExecDriver(t *testing.T) *Driver {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -92,13 +86,13 @@ func newEnabledRawExecDriver(t *testing.T) *Driver {
 	d.nomadConfig = &base.ClientDriverConfig{
 		Topology: topology,
 	}
-	d.userIDValidator = &mockIDValidator{}
 
 	return d
 }
 
 func TestRawExecDriver_SetConfig(t *testing.T) {
 	ci.Parallel(t)
+	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -116,35 +110,18 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	)
 
 	// Default is raw_exec is disabled.
-	must.NoError(t, basePlug.MsgPackEncode(&data, config))
+	require.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
-	must.NoError(t, harness.SetConfig(bconfig))
-	must.Eq(t, config, d.(*Driver).config)
+	require.NoError(harness.SetConfig(bconfig))
+	require.Exactly(config, d.(*Driver).config)
 
 	// Enable raw_exec, but disable cgroups.
 	config.Enabled = true
 	data = []byte{}
-
-	must.NoError(t, basePlug.MsgPackEncode(&data, config))
+	require.NoError(basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
-
-	must.NoError(t, harness.SetConfig(bconfig))
-	must.Eq(t, config, d.(*Driver).config)
-
-	// Turns on uid/gid restrictions, and sets the range to a bad value and
-	// force the recreation of the validator.
-	d.(*Driver).userIDValidator = nil
-	config.DeniedHostUids = "100-1"
-	data = []byte{}
-
-	must.NoError(t, basePlug.MsgPackEncode(&data, config))
-
-	bconfig.PluginConfig = data
-	err := harness.SetConfig(bconfig)
-	must.Error(t, err)
-
-	must.ErrorContains(t, err, "invalid range deniedHostUIDs \"100-1\": lower bound cannot be greater than upper bound")
-
+	require.NoError(harness.SetConfig(bconfig))
+	require.Exactly(config, d.(*Driver).config)
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
@@ -232,7 +209,6 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 		Args:    []string{"sleep", "10ms"},
 	}
 	require.NoError(task.EncodeConcreteDriverConfig(&tc))
-
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, false)
