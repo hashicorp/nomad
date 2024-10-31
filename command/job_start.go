@@ -5,16 +5,18 @@ package command
 
 import (
 	"fmt"
-	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/posener/complete"
 	"os"
 	"strings"
 	"sync"
+
+	"github.com/hashicorp/nomad/api"
+	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/posener/complete"
 )
 
 type JobStartCommand struct {
 	Meta
+	versionSelected uint64
 }
 
 func (c *JobStartCommand) Help() string {
@@ -23,8 +25,8 @@ Usage: nomad job start [options] <job>
 Alias: nomad start
 
   Start an existing stopped job. This command is used to start a previously stopped job's
-  most recent running version up. Upon successful start, an interactive
-  monitor session will start to display log lines as the job starts up its
+  most recent running version. Upon successful start, an interactive
+  monitor session will start to display log lines as the job starts its
   allocations based on its most recent running version. It is safe to exit the monitor
   early using ctrl+c.
 
@@ -32,7 +34,6 @@ Alias: nomad start
   and 'read-job' capabilities for the job's namespace. The 'list-jobs'
   capability is required to run the command with job prefixes instead of exact
   job IDs.
-
 
 General Options:
 
@@ -126,8 +127,7 @@ func (c *JobStartCommand) Run(args []string) int {
 	statusCh := make(chan int, len(jobIDs))
 	var wg sync.WaitGroup
 
-	for _, jobID := range jobIDs {
-		jobID := jobID
+	for _, jobIDPrefix := range jobIDs {
 
 		wg.Add(1)
 		go func() {
@@ -139,14 +139,7 @@ func (c *JobStartCommand) Run(args []string) int {
 				length = fullId
 			}
 
-			// Check if the job exists and has been stopped (status is dead)
-			jobId, namespace, err := c.JobIDByPrefix(client, jobID, nil)
-			if err != nil {
-				c.Ui.Error(err.Error())
-				statusCh <- 1
-				return
-			}
-			job, err := c.JobByPrefix(client, jobId, nil)
+			job, err := c.JobByPrefix(client, jobIDPrefix, nil)
 			if err != nil {
 				c.Ui.Error(err.Error())
 				statusCh <- 1
@@ -160,9 +153,9 @@ func (c *JobStartCommand) Run(args []string) int {
 			}
 
 			// Get all versions associated to current job
-			q := &api.QueryOptions{Namespace: namespace}
+			q := &api.QueryOptions{Namespace: *job.Namespace}
 
-			versions, _, _, err := client.Jobs().Versions(jobID, true, q)
+			versions, _, _, err := client.Jobs().Versions(*job.ID, true, q)
 			if err != nil {
 				c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 				statusCh <- 1
@@ -179,35 +172,32 @@ func (c *JobStartCommand) Run(args []string) int {
 				}
 
 			}
+			c.versionSelected = chosenIndex
 			if !versionAvailable {
-				c.Ui.Error(fmt.Sprintf("No previous running versions of job %v,  %s", *job.Name, err))
+				c.Ui.Error(fmt.Sprintf("No previous running versions of job %v", *job.Name))
 				statusCh <- 1
 				return
 			}
 
-			// Parse the Consul token
 			if consulToken == "" {
-				// Check the environment variable
 				consulToken = os.Getenv("CONSUL_HTTP_TOKEN")
 			}
 
-			// Parse the Vault token
 			if vaultToken == "" {
-				// Check the environment variable
 				vaultToken = os.Getenv("VAULT_TOKEN")
 			}
 
 			// Revert to most recent running version!
-			m := &api.WriteOptions{Namespace: namespace}
+			m := &api.WriteOptions{Namespace: *job.Namespace}
 
-			resp, _, err := client.Jobs().Revert(jobID, chosenIndex, nil, m, consulToken, vaultToken)
+			resp, _, err := client.Jobs().Revert(*job.ID, chosenIndex, nil, m, consulToken, vaultToken)
 			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error retrieving job version %v for job %s: %s,", chosenIndex, jobID, err))
+				c.Ui.Error(fmt.Sprintf("Error retrieving job version %v for job %s: %s,", chosenIndex, *job.ID, err))
 				statusCh <- 1
 				return
 			}
 
-			// Nothing to do
+			// Nothing to do: periodic or dispatch job
 			evalCreated := resp.EvalID != ""
 
 			if !evalCreated {

@@ -5,6 +5,10 @@ package command
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"testing"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -14,9 +18,6 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 var _ cli.Command = (*JobStartCommand)(nil)
@@ -89,7 +90,7 @@ func TestJobStartCommand_Fails(t *testing.T) {
 	code = cmd.Run([]string{"-address=" + addr, jobID})
 	must.Zero(t, code)
 	out = ui.OutputWriter.String()
-	must.StrContains(t, out, "has not been stopped and has following status:")
+	must.StrContains(t, out, "has not been stopped and has the following status:")
 
 }
 
@@ -178,6 +179,70 @@ func TestStartCommand_ManyJobs(t *testing.T) {
 		must.Sprintf("job start stdout: %s", stdout),
 		must.Sprintf("job start stderr: %s", stderr),
 	)
+
+}
+
+func TestStartCommand_StartCorrectVersion(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, _, addr := testServer(t, true, func(c *agent.Config) {
+		c.DevMode = true
+	})
+	defer srv.Shutdown()
+
+	jobID := uuid.Generate()
+
+	jobFilePath := filepath.Join(os.TempDir(), jobID+".nomad")
+
+	t.Cleanup(func() {
+		_ = os.Remove(jobFilePath)
+	})
+
+	ui := cli.NewMockUi()
+
+	job := testNomadServiceJob(jobID)
+	job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
+	job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
+	job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
+	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "30s",
+	}
+
+	jobJSON, err := json.MarshalIndent(job, "", " ")
+	must.NoError(t, err)
+
+	jobFile := jobFilePath
+	err = os.WriteFile(jobFile, []byte(jobJSON), 0o644)
+	must.NoError(t, err)
+
+	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
+
+	code := cmd.Run([]string{"-address", addr, "-json", jobFile})
+	must.Zero(t, code,
+		must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
+		must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
+	)
+
+	args := []string{"-address", addr, "-detach"}
+	args = append(args, jobID)
+	expectedVersions := []uint64{0, 2, 4}
+	stopCmd := &JobStopCommand{Meta: Meta{Ui: ui}}
+	startCmd := &JobStartCommand{Meta: Meta{Ui: ui}}
+
+	// for multiple cycles of starting/stopping a job, check that the correct, most recent running version is picked
+	for i := range 3 {
+		code = stopCmd.Run(args)
+		must.Zero(t, code,
+			must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
+			must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
+		)
+		code = startCmd.Run(args)
+		must.Zero(t, code,
+			must.Sprintf("job start stdout: %s", ui.OutputWriter.String()),
+			must.Sprintf("job start stderr: %s", ui.ErrorWriter.String()),
+		)
+		must.Eq(t, expectedVersions[i], startCmd.versionSelected)
+	}
 
 }
 
