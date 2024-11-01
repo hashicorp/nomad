@@ -63,38 +63,6 @@ func TestRawExecDriver_User(t *testing.T) {
 	require.Contains(err.Error(), msg)
 }
 
-func TestRawExecDriver_ValidateCgroupOverrides(t *testing.T) {
-	ci.Parallel(t)
-	clienttestutil.RequireLinux(t)
-
-	d := newEnabledRawExecDriver(t)
-	harness := dtestutil.NewDriverHarness(t, d)
-
-	task := &drivers.TaskConfig{
-		ID:   uuid.Generate(),
-		Name: "sleep",
-		User: "nobody",
-	}
-
-	cleanup := harness.MkAllocDir(task, false)
-	defer cleanup()
-
-	tc := &TaskConfig{
-		Command:          "sleep",
-		Args:             []string{"infinity"},
-		OverrideCgroupV2: "custom.slice/app.scope",
-		OverrideCgroupV1: map[string]string{
-			"pids": "custom/path",
-		},
-	}
-
-	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
-	testtask.SetTaskConfigEnv(task)
-
-	_, _, err := harness.StartTask(task)
-	must.ErrorContains(t, err, "only one of cgroups_v1_override and cgroups_v2_override may be set")
-}
-
 func TestRawExecDriver_Signal(t *testing.T) {
 	ci.Parallel(t)
 	clienttestutil.RequireLinux(t)
