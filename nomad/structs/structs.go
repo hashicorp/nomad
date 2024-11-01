@@ -10843,7 +10843,7 @@ type DeploymentStatusUpdate struct {
 	// StatusDescription is the new status description of the deployment.
 	StatusDescription string
 
-	// UpdatedAt is the time of the update
+	// UpdatedAt is the time of the update, stored as UnixNano
 	UpdatedAt int64
 }
 

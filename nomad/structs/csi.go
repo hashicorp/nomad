@@ -368,8 +368,10 @@ type CSIVolListStub struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
-	CreateTime  int64
-	ModifyTime  int64
+
+	// Create and modify times stored as UnixNano
+	CreateTime int64
+	ModifyTime int64
 }
 
 // NewCSIVolume creates the volume struct. No side-effects
@@ -852,7 +854,7 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 // Request and response wrappers
 type CSIVolumeRegisterRequest struct {
 	Volumes   []*CSIVolume
-	Timestamp int64
+	Timestamp int64 // UnixNano
 	WriteRequest
 }
 
@@ -872,7 +874,7 @@ type CSIVolumeDeregisterResponse struct {
 
 type CSIVolumeCreateRequest struct {
 	Volumes   []*CSIVolume
-	Timestamp int64
+	Timestamp int64 // UnixNano
 	WriteRequest
 }
 
@@ -929,7 +931,7 @@ type CSIVolumeClaimRequest struct {
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
 	State          CSIVolumeClaimState
-	Timestamp      int64
+	Timestamp      int64 // UnixNano
 	WriteRequest
 }
 
@@ -1111,6 +1113,7 @@ type CSIPlugin struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 
+	// Create and modify times stored as UnixNano
 	CreateTime int64
 	ModifyTime int64
 }

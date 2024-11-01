@@ -1563,6 +1563,10 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 		// Decode
 		snapType := SnapshotType(msgType[0])
 		switch snapType {
+		case TimeTableSnapshot:
+			// COMPAT: Nomad 1.9.2 removed the timetable, this case kept to gracefully handle
+			// tt snapshot requests
+			return nil
 		case NodeSnapshot:
 			node := new(structs.Node)
 			if err := dec.Decode(node); err != nil {
