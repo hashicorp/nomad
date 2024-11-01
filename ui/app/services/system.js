@@ -110,6 +110,12 @@ export default class SystemService extends Service {
     return this.get('regions.length') > 1;
   }
 
+  get hasNonDefaultRegion() {
+    return this.get('regions')
+      .toArray()
+      .some((region) => region !== 'global');
+  }
+
   @computed('activeRegion', 'defaultRegion.region', 'shouldShowRegions')
   get shouldIncludeRegion() {
     return (

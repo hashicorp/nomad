@@ -21,7 +21,7 @@
       {{region}}
     </PowerSelect>
   </span>
-{{else}}
+{{else if this.system.hasNonDefaultRegion}}
   <div class="navbar-item is-region">
     <span>Region: </span>{{this.system.activeRegion}}
   </div>
