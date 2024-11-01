@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
@@ -15,6 +16,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -31,16 +34,16 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.Stop = true
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job); err != nil {
-		t.Fatalf("UpsertJob() failed: %v", err)
-	}
+	// submit time must be older than default job GC
+	job.SubmitTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
 
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
 	eval.JobID = job.ID
-	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("UpsertEvals() failed: %v", err)
-	}
+	// modify time must be older than default eval GC
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}))
 
 	// Make the GC request
 	req := &structs.GenericRequest{
@@ -49,11 +52,9 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 		},
 	}
 	var resp structs.GenericResponse
-	if err := msgpackrpc.CallWithCodec(codec, "System.GarbageCollect", req, &resp); err != nil {
-		t.Fatalf("expect err")
-	}
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "System.GarbageCollect", req, &resp))
 
-	testutil.WaitForResult(func() (bool, error) {
+	must.Wait(t, wait.InitialSuccess(wait.TestFunc(func() (bool, error) {
 		// Check if the job has been GC'd
 		ws := memdb.NewWatchSet()
 		exist, err := state.JobByID(ws, job.Namespace, job.ID)
@@ -64,9 +65,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 			return false, fmt.Errorf("job %+v wasn't garbage collected", job)
 		}
 		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
+	}), wait.Timeout(3*time.Second)))
 }
 
 func TestSystemEndpoint_GarbageCollect_ACL(t *testing.T) {

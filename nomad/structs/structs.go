@@ -1381,6 +1381,9 @@ type DeploymentPromoteRequest struct {
 	// Groups is used to set the promotion status per task group
 	Groups []string
 
+	// PromotedAt is the timestamp stored as Unix nano
+	PromotedAt int64
+
 	WriteRequest
 }
 
@@ -2169,7 +2172,7 @@ type Node struct {
 	StatusDescription string
 
 	// StatusUpdatedAt is the time stamp at which the state of the node was
-	// updated
+	// updated, stored as Unix (no nano seconds!)
 	StatusUpdatedAt int64
 
 	// Events is the most recent set of events generated for the node,
@@ -10629,10 +10632,14 @@ type Deployment struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// Creation and modification times, stored as UnixNano
+	CreateTime int64
+	ModifyTime int64
 }
 
 // NewDeployment creates a new deployment given the job.
-func NewDeployment(job *Job, evalPriority int) *Deployment {
+func NewDeployment(job *Job, evalPriority int, now int64) *Deployment {
 	return &Deployment{
 		ID:                 uuid.Generate(),
 		Namespace:          job.Namespace,
@@ -10646,6 +10653,7 @@ func NewDeployment(job *Job, evalPriority int) *Deployment {
 		StatusDescription:  DeploymentStatusDescriptionRunning,
 		TaskGroups:         make(map[string]*DeploymentState, len(job.TaskGroups)),
 		EvalPriority:       evalPriority,
+		CreateTime:         now,
 	}
 }
 
@@ -10825,6 +10833,9 @@ type DeploymentStatusUpdate struct {
 
 	// StatusDescription is the new status description of the deployment.
 	StatusDescription string
+
+	// UpdatedAt is the time of the update, stored as UnixNano
+	UpdatedAt int64
 }
 
 // RescheduleTracker encapsulates previous reschedule events
@@ -11154,10 +11165,10 @@ type Allocation struct {
 	AllocModifyIndex uint64
 
 	// CreateTime is the time the allocation has finished scheduling and been
-	// verified by the plan applier.
+	// verified by the plan applier, stored as UnixNano.
 	CreateTime int64
 
-	// ModifyTime is the time the allocation was last updated.
+	// ModifyTime is the time the allocation was last updated stored as UnixNano.
 	ModifyTime int64
 }
 
@@ -12543,6 +12554,7 @@ type Evaluation struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 
+	// Creation and modification times stored as UnixNano
 	CreateTime int64
 	ModifyTime int64
 }

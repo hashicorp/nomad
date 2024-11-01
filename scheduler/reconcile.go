@@ -995,7 +995,7 @@ func (a *allocReconciler) createDeployment(groupName string, strategy *structs.U
 
 	// A previous group may have made the deployment already. If not create one.
 	if a.deployment == nil {
-		a.deployment = structs.NewDeployment(a.job, a.evalPriority)
+		a.deployment = structs.NewDeployment(a.job, a.evalPriority, a.now.UnixNano())
 		a.result.deployment = a.deployment
 	}
 

@@ -48,7 +48,7 @@ func TestVolumeWatch_EnableDisable(t *testing.T) {
 		State: structs.CSIVolumeClaimStateNodeDetached,
 	}
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, time.Now().UnixNano(), vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 	require.Eventually(t, func() bool {
 		watcher.wlock.RLock()
@@ -127,7 +127,7 @@ func TestVolumeWatch_LeadershipTransition(t *testing.T) {
 		State:        structs.CSIVolumeClaimStateUnpublishing,
 	}
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, time.Now().UnixNano(), vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 
 	// create a new watcher and enable it to simulate the leadership
@@ -197,11 +197,11 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	}
 
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, time.Now().UnixNano(), vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 	claim.AllocationID = alloc2.ID
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, time.Now().UnixNano(), vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 
 	// reap the volume and assert nothing has happened
@@ -210,7 +210,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 		NodeID:       node.ID,
 	}
 	index++
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, time.Now().UnixNano(), vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
@@ -225,7 +225,7 @@ func TestVolumeWatch_StartStop(t *testing.T) {
 	require.NoError(t, err)
 	index++
 	claim.State = structs.CSIVolumeClaimStateReadyToFree
-	err = srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID, claim)
+	err = srv.State().CSIVolumeClaim(index, time.Now().UnixNano(), vol.Namespace, vol.ID, claim)
 	require.NoError(t, err)
 
 	// watcher stops and 1 claim has been released
@@ -270,7 +270,7 @@ func TestVolumeWatch_Delete(t *testing.T) {
 	// write a GC claim to the volume and then immediately delete, to
 	// potentially hit the race condition between updates and deletes
 	index++
-	must.NoError(t, srv.State().CSIVolumeClaim(index, vol.Namespace, vol.ID,
+	must.NoError(t, srv.State().CSIVolumeClaim(index, time.Now().UnixNano(), vol.Namespace, vol.ID,
 		&structs.CSIVolumeClaim{
 			Mode:  structs.CSIVolumeClaimGC,
 			State: structs.CSIVolumeClaimStateReadyToFree,

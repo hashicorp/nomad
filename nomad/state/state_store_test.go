@@ -192,7 +192,8 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	}
 
 	require := require.New(t)
-	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
+	require.NoError(state.UpsertAllocs(
+		structs.MsgTypeTestSetup, 900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
 
 	// modify job and ensure that stopped and preempted alloc point to original Job
@@ -3986,6 +3987,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.NoError(t, err)
 	defer state.DeleteNode(structs.MsgTypeTestSetup, 9999, []string{pluginID})
 
+	now := time.Now().UnixNano()
+
 	index++
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
 	require.NoError(t, err)
@@ -4086,10 +4089,10 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	}
 
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
+	err = state.CSIVolumeClaim(index, now, ns, vol0, claim0)
 	require.NoError(t, err)
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
+	err = state.CSIVolumeClaim(index, now, ns, vol0, claim1)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
@@ -4101,7 +4104,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	claim2 := new(structs.CSIVolumeClaim)
 	*claim2 = *claim0
 	claim2.Mode = u
-	err = state.CSIVolumeClaim(2, ns, vol0, claim2)
+	err = state.CSIVolumeClaim(2, now, ns, vol0, claim2)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
 	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
@@ -4129,12 +4132,12 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	claim3 := new(structs.CSIVolumeClaim)
 	*claim3 = *claim2
 	claim3.State = structs.CSIVolumeClaimStateReadyToFree
-	err = state.CSIVolumeClaim(index, ns, vol0, claim3)
+	err = state.CSIVolumeClaim(index, now, ns, vol0, claim3)
 	require.NoError(t, err)
 	index++
 	claim1.Mode = u
 	claim1.State = structs.CSIVolumeClaimStateReadyToFree
-	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
+	err = state.CSIVolumeClaim(index, now, ns, vol0, claim1)
 	require.NoError(t, err)
 
 	index++
@@ -7438,7 +7441,8 @@ func TestStateStore_AllocsByIDPrefix_Namespaces(t *testing.T) {
 	alloc2.Namespace = ns2.Name
 
 	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(
+		structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	gatherAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
 		var allocs []*structs.Allocation
@@ -8223,6 +8227,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
+	now := time.Now().UnixNano()
 
 	// Insert a job
 	job := mock.Job()
@@ -8231,7 +8236,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 	}
 
 	// Insert a deployment
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, now)
 	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
