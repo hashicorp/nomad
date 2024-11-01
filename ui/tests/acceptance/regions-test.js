@@ -15,6 +15,7 @@ import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import Layout from 'nomad-ui/tests/pages/layout';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
+import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 
 module('Acceptance | regions (only one)', function (hooks) {
   setupApplicationTest(hooks);
@@ -217,5 +218,27 @@ module('Acceptance | regions (many)', function (hooks) {
         assert.ok(req.url.includes(`region=${region}`), req.url);
       }
     });
+  });
+
+  test('Signing in sets the active region', async function (assert) {
+    window.localStorage.clear();
+    let managementToken = server.create('token');
+    await Tokens.visit();
+    assert.equal(
+      Layout.navbar.regionSwitcher.text,
+      'Select a Region',
+      'Region picker says "Select a Region" before signing in'
+    );
+    await Tokens.secret(managementToken.secretId).submit();
+    assert.equal(
+      window.localStorage.nomadActiveRegion,
+      'global',
+      'Region is set in localStorage after signing in'
+    );
+    assert.equal(
+      Layout.navbar.regionSwitcher.text,
+      'Region: global',
+      'Region picker says "Region: global" after signing in'
+    );
   });
 });

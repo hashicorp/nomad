@@ -57,7 +57,7 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed
+  @computed('token.selfToken')
   get defaultRegion() {
     const token = this.token;
     return PromiseObject.create({
