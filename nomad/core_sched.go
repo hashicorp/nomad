@@ -27,6 +27,18 @@ type CoreScheduler struct {
 	srv    *Server
 	snap   *state.StateSnapshot
 	logger log.Logger
+
+	// custom GC Threshold values can be used by unit tests to simulate time
+	// manipulation
+	customJobGCThreshold                time.Duration
+	customEvalGCThreshold               time.Duration
+	customBatchEvalGCThreshold          time.Duration
+	customNodeGCThreshold               time.Duration
+	customDeploymentGCThreshold         time.Duration
+	customCSIVolumeClaimGCThreshold     time.Duration
+	customCSIPluginGCThreshold          time.Duration
+	customACLTokenExpirationGCThreshold time.Duration
+	customRootKeyGCThreshold            time.Duration
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
@@ -44,13 +56,13 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 	job := strings.Split(eval.JobID, ":") // extra data can be smuggled in w/ JobID
 	switch job[0] {
 	case structs.CoreJobEvalGC:
-		return c.evalGC(eval)
+		return c.evalGC()
 	case structs.CoreJobNodeGC:
 		return c.nodeGC(eval)
 	case structs.CoreJobJobGC:
 		return c.jobGC(eval)
 	case structs.CoreJobDeploymentGC:
-		return c.deploymentGC(eval)
+		return c.deploymentGC()
 	case structs.CoreJobCSIVolumeClaimGC:
 		return c.csiVolumeClaimGC(eval)
 	case structs.CoreJobCSIPluginGC:
@@ -77,10 +89,10 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.jobGC(eval); err != nil {
 		return err
 	}
-	if err := c.evalGC(eval); err != nil {
+	if err := c.evalGC(); err != nil {
 		return err
 	}
-	if err := c.deploymentGC(eval); err != nil {
+	if err := c.deploymentGC(); err != nil {
 		return err
 	}
 	if err := c.csiPluginGC(eval); err != nil {
@@ -115,7 +127,15 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	cutoffTime := c.getCutoffTime(c.srv.config.JobGCThreshold)
+	var threshold time.Duration
+	threshold = c.srv.config.JobGCThreshold
+
+	// custom threshold override
+	if c.customJobGCThreshold != 0 {
+		threshold = c.customJobGCThreshold
+	}
+
+	cutoffTime := c.getCutoffTime(threshold)
 
 	// Collect the allocations, evaluations and jobs to GC
 	var gcAlloc, gcEval []string
@@ -243,7 +263,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string, 
 }
 
 // evalGC is used to garbage collect old evaluations
-func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
+func (c *CoreScheduler) evalGC() error {
 	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.Evals(ws, false)
@@ -251,8 +271,20 @@ func (c *CoreScheduler) evalGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	cutoffTime := c.getCutoffTime(c.srv.config.EvalGCThreshold)
-	batchCutoffTime := c.getCutoffTime(c.srv.config.BatchEvalGCThreshold)
+	var threshold, batchThreshold time.Duration
+	threshold = c.srv.config.EvalGCThreshold
+	batchThreshold = c.srv.config.BatchEvalGCThreshold
+
+	// custom threshold override
+	if c.customEvalGCThreshold != 0 {
+		threshold = c.customEvalGCThreshold
+	}
+	if c.customBatchEvalGCThreshold != 0 {
+		batchThreshold = c.customBatchEvalGCThreshold
+	}
+
+	cutoffTime := c.getCutoffTime(threshold)
+	batchCutoffTime := c.getCutoffTime(batchThreshold)
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
@@ -293,7 +325,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, a
 	bool, []string, error) {
 
 	// Ignore non-terminal and new evaluations
-	mt := time.Unix(0, eval.ModifyTime)
+	mt := time.Unix(0, eval.ModifyTime).UTC()
 	if !eval.TerminalStatus() || mt.After(cutoffTime) {
 		return false, nil, nil
 	}
@@ -356,8 +388,8 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, a
 	return gcEval, gcAllocIDs, nil
 }
 
-// olderVersionTerminalAllocs returns a list of terminal allocations that belong to the evaluation and may be
-// GCed.
+// olderVersionTerminalAllocs returns a list of terminal allocations that belong
+// to the evaluation and may be GCed.
 func olderVersionTerminalAllocs(allocs []*structs.Allocation, job *structs.Job, cutoffTime time.Time) []string {
 	var ret []string
 	for _, alloc := range allocs {
@@ -438,7 +470,14 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	cutoffTime := c.getCutoffTime(c.srv.config.NodeGCThreshold)
+	var threshold time.Duration
+	threshold = c.srv.config.NodeGCThreshold
+
+	// custom threshold override
+	if c.customNodeGCThreshold != 0 {
+		threshold = c.customNodeGCThreshold
+	}
+	cutoffTime := c.getCutoffTime(threshold)
 
 	// Collect the nodes to GC
 	var gcNode []string
@@ -527,7 +566,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 }
 
 // deploymentGC is used to garbage collect old deployments
-func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
+func (c *CoreScheduler) deploymentGC() error {
 	// Iterate over the deployments
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.Deployments(ws, state.SortDefault)
@@ -535,7 +574,14 @@ func (c *CoreScheduler) deploymentGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	cutoffTime := c.getCutoffTime(c.srv.config.DeploymentGCThreshold)
+	var threshold time.Duration
+	threshold = c.srv.config.DeploymentGCThreshold
+
+	// custom threshold override
+	if c.customDeploymentGCThreshold != 0 {
+		threshold = c.customDeploymentGCThreshold
+	}
+	cutoffTime := c.getCutoffTime(threshold)
 
 	// Collect the deployments to GC
 	var gcDeployment []string
@@ -728,7 +774,14 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	cutoffTime := c.getCutoffTime(c.srv.config.CSIVolumeClaimGCThreshold)
+	var threshold time.Duration
+	threshold = c.srv.config.CSIVolumeClaimGCThreshold
+
+	// custom threshold override
+	if c.customCSIVolumeClaimGCThreshold != 0 {
+		threshold = c.customCSIVolumeClaimGCThreshold
+	}
+	cutoffTime := c.getCutoffTime(threshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		vol := i.(*structs.CSIVolume)
@@ -768,7 +821,14 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 		return err
 	}
 
-	cutoffTime := c.getCutoffTime(c.srv.config.CSIPluginGCThreshold)
+	var threshold time.Duration
+	threshold = c.srv.config.CSIPluginGCThreshold
+
+	// custom threshold override
+	if c.customCSIPluginGCThreshold != 0 {
+		threshold = c.customCSIPluginGCThreshold
+	}
+	cutoffTime := c.getCutoffTime(threshold)
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		plugin := i.(*structs.CSIPlugin)
@@ -829,7 +889,14 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 		return nil
 	}
 
-	cutoffTime := c.getCutoffTime(c.srv.config.ACLTokenExpirationGCThreshold)
+	var threshold time.Duration
+	threshold = c.srv.config.ACLTokenExpirationGCThreshold
+
+	// custom threshold override
+	if c.customACLTokenExpirationGCThreshold != 0 {
+		threshold = c.customACLTokenExpirationGCThreshold
+	}
+	cutoffTime := c.getCutoffTime(threshold)
 
 	expiredIter, err := c.snap.ACLTokensByExpired(global)
 	if err != nil {
@@ -936,11 +1003,19 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 		return err
 	}
 
+	var threshold time.Duration
+	threshold = c.srv.config.RootKeyGCThreshold
+
+	// custom threshold override
+	if c.customRootKeyGCThreshold != 0 {
+		threshold = c.customRootKeyGCThreshold
+	}
+
 	// the threshold is longer than we can support with the time table, and we
 	// never want to force-GC keys because that will orphan signed Workload
 	// Identities
 	rotationThreshold := now.Add(-1 *
-		(c.srv.config.RootKeyRotationThreshold + c.srv.config.RootKeyGCThreshold))
+		(c.srv.config.RootKeyRotationThreshold + threshold))
 
 	for {
 		raw := iter.Next()
