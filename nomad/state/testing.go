@@ -92,6 +92,7 @@ func createTestCSIPlugin(s *StateStore, id string, requiresController bool) func
 				SupportsCreateDeleteSnapshot:     true,
 				SupportsListSnapshots:            true,
 			},
+			UpdateTime: time.Now().Add(-6 * time.Hour),
 		},
 	}
 
