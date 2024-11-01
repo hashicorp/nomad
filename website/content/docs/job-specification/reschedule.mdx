@@ -81,7 +81,7 @@ they run on every node.
 - `unlimited` `(boolean:<varies>)` - `unlimited` enables unlimited reschedule attempts. If this is
   set to `true` the `attempts` and `interval` fields are not used. The [`progress_deadline`][]
   parameter within the update block is still adhered to when this is set to `true`, meaning no more
-  reschedule attempts will be triggered once the [`progress_deadline`][] is reached.
+  reschedule attempts are triggered once the [`progress_deadline`][] is reached.
 
 Information about reschedule attempts are displayed in the CLI and API for
 allocations. Rescheduling is enabled by default for service and batch jobs
