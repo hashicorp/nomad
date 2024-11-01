@@ -415,7 +415,7 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 
 	// Update the status of deployments effected by the plan.
 	if len(results.DeploymentUpdates) != 0 {
-		s.upsertDeploymentUpdates(index, results.DeploymentUpdates, txn)
+		s.upsertDeploymentUpdates(index, results.UpdatedAt, results.DeploymentUpdates, txn)
 	}
 
 	if results.EvalID != "" {
@@ -515,7 +515,7 @@ func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
 
 // upsertDeploymentUpdates updates the deployments given the passed status
 // updates.
-func (s *StateStore) upsertDeploymentUpdates(index uint64, updates []*structs.DeploymentStatusUpdate, txn *txn) error {
+func (s *StateStore) upsertDeploymentUpdates(index uint64, now int64, updates []*structs.DeploymentStatusUpdate, txn *txn) error {
 	for _, u := range updates {
 		if err := s.updateDeploymentStatusImpl(index, u, txn); err != nil {
 			return err
@@ -591,7 +591,7 @@ func (s *StateStore) upsertDeploymentImpl(index uint64, deployment *structs.Depl
 		return fmt.Errorf("deployment lookup failed: %v", err)
 	}
 
-	// Setup the indexes correctly
+	// Setup the indexes and timestamps correctly
 	if existing != nil {
 		deployment.CreateIndex = existing.(*structs.Deployment).CreateIndex
 		deployment.ModifyIndex = index
@@ -2779,7 +2779,7 @@ func (s *StateStore) csiVolumesByNamespaceImpl(txn *txn, ws memdb.WatchSet, name
 }
 
 // CSIVolumeClaim updates the volume's claim count and allocation list
-func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *structs.CSIVolumeClaim) error {
+func (s *StateStore) CSIVolumeClaim(index uint64, now int64, namespace, id string, claim *structs.CSIVolumeClaim) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
@@ -2805,9 +2805,6 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 		}
 		if alloc == nil {
 			s.logger.Error("AllocByID failed to find alloc", "alloc_id", claim.AllocationID)
-			if err != nil {
-				return fmt.Errorf(structs.ErrUnknownAllocationPrefix)
-			}
 		}
 	}
 
@@ -2831,6 +2828,7 @@ func (s *StateStore) CSIVolumeClaim(index uint64, namespace, id string, claim *s
 	}
 
 	volume.ModifyIndex = index
+	volume.ModifyTime = now
 
 	// Allocations are copy on write, so we want to keep the Allocation ID
 	// but we need to clear the pointer so that we don't store it when we
@@ -3174,6 +3172,7 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 	plug.ModifyIndex = index
 	if existing != nil {
 		plug.CreateIndex = existing.(*structs.CSIPlugin).CreateIndex
+		plug.CreateTime = existing.(*structs.CSIPlugin).CreateTime
 	}
 
 	err = txn.Insert("csi_plugins", plug)
@@ -4866,6 +4865,7 @@ func (s *StateStore) updateDeploymentStatusImpl(index uint64, u *structs.Deploym
 	copy.Status = u.Status
 	copy.StatusDescription = u.StatusDescription
 	copy.ModifyIndex = index
+	copy.ModifyTime = u.UpdatedAt
 
 	// Insert the deployment
 	if err := txn.Insert("deployment", copy); err != nil {
@@ -5125,6 +5125,9 @@ func (s *StateStore) UpdateDeploymentPromotion(msgType structs.MessageType, inde
 		copy.StatusDescription = structs.DeploymentStatusDescriptionRunning
 	}
 
+	// Update modify time to the time of deployment promotion
+	copy.ModifyTime = req.PromotedAt
+
 	// Insert the deployment
 	if err := s.upsertDeploymentImpl(index, copy, txn); err != nil {
 		return err
@@ -5199,6 +5202,7 @@ func (s *StateStore) UpdateDeploymentAllocHealth(msgType structs.MessageType, in
 			copy.DeploymentStatus.Healthy = pointer.Of(healthy)
 			copy.DeploymentStatus.Timestamp = ts
 			copy.DeploymentStatus.ModifyIndex = index
+			copy.ModifyTime = req.Timestamp.UnixNano()
 			copy.ModifyIndex = index
 
 			if err := s.updateDeploymentWithAlloc(index, copy, old, txn); err != nil {
@@ -5971,6 +5975,7 @@ func (s *StateStore) updateDeploymentWithAlloc(index uint64, alloc, existing *st
 	// Create a copy of the deployment object
 	deploymentCopy := deployment.Copy()
 	deploymentCopy.ModifyIndex = index
+	deploymentCopy.ModifyTime = alloc.ModifyTime
 
 	dstate := deploymentCopy.TaskGroups[alloc.TaskGroup]
 	dstate.PlacedAllocs += placed

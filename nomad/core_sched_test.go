@@ -31,14 +31,13 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	eval.Status = structs.EvalStatusFailed
-	store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
+	must.NoError(t, store.UpsertJobSummary(999, mock.JobSummary(eval.JobID)))
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
 
 	// Insert mock job with rescheduling disabled
@@ -64,7 +63,8 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	alloc2.ClientStatus = structs.AllocClientStatusLost
 	alloc2.JobID = eval.JobID
 	alloc2.TaskGroup = job.TaskGroups[0].Name
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2}))
+	must.NoError(t, store.UpsertAllocs(
+		structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2}))
 
 	// Insert service for "dead" alloc
 	service := &structs.ServiceRegistration{
@@ -80,10 +80,6 @@ func TestCoreScheduler_EvalGC(t *testing.T) {
 	}
 	must.NoError(t, store.UpsertServiceRegistrations(
 		structs.MsgTypeTestSetup, 1002, []*structs.ServiceRegistration{service}))
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -121,30 +117,28 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	eval.Status = structs.EvalStatusFailed
-	store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
-	err := store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
-	require.Nil(t, err)
+	must.NoError(t, store.UpsertJobSummary(999, mock.JobSummary(eval.JobID)))
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
 
 	// Insert "pending" eval for same job
 	eval2 := mock.Eval()
 	eval2.JobID = eval.JobID
-	store.UpsertJobSummary(999, mock.JobSummary(eval2.JobID))
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
-	require.Nil(t, err)
+	eval2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	must.NoError(t, store.UpsertJobSummary(999, mock.JobSummary(eval2.JobID)))
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2}))
 
 	// Insert mock job with default reschedule policy of 2 in 10 minutes
 	job := mock.Job()
 	job.ID = eval.JobID
 
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
-	require.Nil(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job))
 
 	// Insert failed alloc with an old reschedule attempt, can be GCed
 	alloc := mock.Alloc()
@@ -158,7 +152,7 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 	alloc.RescheduleTracker = &structs.RescheduleTracker{
 		Events: []*structs.RescheduleEvent{
 			{
-				RescheduleTime: time.Now().Add(-1 * time.Hour).UTC().UnixNano(),
+				RescheduleTime: time.Now().Add(-time.Hour).UTC().UnixNano(),
 				PrevNodeID:     uuid.Generate(),
 				PrevAllocID:    uuid.Generate(),
 			},
@@ -181,39 +175,31 @@ func TestCoreScheduler_EvalGC_ReschedulingAllocs(t *testing.T) {
 			},
 		},
 	}
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2})
-	require.Nil(t, err)
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc, alloc2}))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC, job has all terminal allocs and one pending eval
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
-	err = core.Process(gc)
-	require.Nil(t, err)
+	must.NoError(t, core.Process(gc))
 
 	// Eval should still exist
 	ws := memdb.NewWatchSet()
 	out, err := store.EvalByID(ws, eval.ID)
-	require.Nil(t, err)
-	require.NotNil(t, out)
-	require.Equal(t, eval.ID, out.ID)
+	must.Nil(t, err)
+	must.NotNil(t, out)
+	must.Eq(t, eval.ID, out.ID)
 
 	outA, err := store.AllocByID(ws, alloc.ID)
-	require.Nil(t, err)
-	require.Nil(t, outA)
+	must.Nil(t, err)
+	must.Nil(t, outA)
 
 	outA2, err := store.AllocByID(ws, alloc2.ID)
-	require.Nil(t, err)
-	require.Equal(t, alloc2.ID, outA2.ID)
+	must.Nil(t, err)
+	must.Eq(t, alloc2.ID, outA2.ID)
 
 }
 
@@ -225,24 +211,21 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusFailed
-	store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
-	err := store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
-	require.Nil(t, err)
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	must.NoError(t, store.UpsertJobSummary(999, mock.JobSummary(eval.JobID)))
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}))
 
 	// Insert mock stopped job with default reschedule policy of 2 in 10 minutes
 	job := mock.Job()
 	job.ID = eval.JobID
 	job.Stop = true
 
-	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
-	require.Nil(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job))
 
 	// Insert failed alloc with a recent reschedule attempt
 	alloc := mock.Alloc()
@@ -260,12 +243,7 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 			},
 		},
 	}
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc})
-	require.Nil(t, err)
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -276,20 +254,18 @@ func TestCoreScheduler_EvalGC_StoppedJob_Reschedulable(t *testing.T) {
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, 2000)
-	err = core.Process(gc)
-	require.Nil(t, err)
+	must.NoError(t, core.Process(gc))
 
 	// Eval should not exist
 	ws := memdb.NewWatchSet()
 	out, err := store.EvalByID(ws, eval.ID)
-	require.Nil(t, err)
-	require.Nil(t, out)
+	must.Nil(t, err)
+	must.Nil(t, out)
 
 	// Alloc should not exist
 	outA, err := store.AllocByID(ws, alloc.ID)
-	require.Nil(t, err)
-	require.Nil(t, outA)
-
+	must.Nil(t, err)
+	must.Nil(t, outA)
 }
 
 // An EvalGC should never reap a batch job that has not been stopped
@@ -299,14 +275,12 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		// Set EvalGCThreshold past BatchEvalThreshold to make sure that only
 		// BatchEvalThreshold affects the results.
-		c.BatchEvalGCThreshold = time.Hour
-		c.EvalGCThreshold = 2 * time.Hour
+		c.BatchEvalGCThreshold = 2 * time.Hour
+		c.EvalGCThreshold = 4 * time.Hour
+		c.JobGCThreshold = 2 * time.Hour
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 2, 10)
 
 	var jobModifyIdx uint64 = 1000
 
@@ -320,15 +294,14 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		Attempts: 0,
 		Interval: 0 * time.Second,
 	}
-	err := store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, nil, stoppedJob)
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx+1, nil, stoppedJob))
 
 	stoppedJobEval := mock.Eval()
 	stoppedJobEval.Status = structs.EvalStatusComplete
 	stoppedJobEval.Type = structs.JobTypeBatch
 	stoppedJobEval.JobID = stoppedJob.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Evaluation{stoppedJobEval})
-	must.NoError(t, err)
+	stoppedJobEval.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano() // set to less than initial BatchEvalGCThreshold
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Evaluation{stoppedJobEval}))
 
 	stoppedJobStoppedAlloc := mock.Alloc()
 	stoppedJobStoppedAlloc.Job = stoppedJob
@@ -336,6 +309,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedJobStoppedAlloc.EvalID = stoppedJobEval.ID
 	stoppedJobStoppedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
 	stoppedJobStoppedAlloc.ClientStatus = structs.AllocClientStatusFailed
+	stoppedJobStoppedAlloc.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano()
 
 	stoppedJobLostAlloc := mock.Alloc()
 	stoppedJobLostAlloc.Job = stoppedJob
@@ -343,9 +317,11 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedJobLostAlloc.EvalID = stoppedJobEval.ID
 	stoppedJobLostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	stoppedJobLostAlloc.ClientStatus = structs.AllocClientStatusLost
+	stoppedJobLostAlloc.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano()
 
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx+3, []*structs.Allocation{stoppedJobStoppedAlloc, stoppedJobLostAlloc})
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertAllocs(
+		structs.MsgTypeTestSetup, jobModifyIdx+3,
+		[]*structs.Allocation{stoppedJobStoppedAlloc, stoppedJobLostAlloc}))
 
 	// A "dead" job containing one "complete" eval with:
 	//	1. A "stopped" alloc
@@ -354,15 +330,14 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	deadJob := mock.Job()
 	deadJob.Type = structs.JobTypeBatch
 	deadJob.Status = structs.JobStatusDead
-	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, deadJob)
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, deadJob))
 
 	deadJobEval := mock.Eval()
 	deadJobEval.Status = structs.EvalStatusComplete
 	deadJobEval.Type = structs.JobTypeBatch
 	deadJobEval.JobID = deadJob.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{deadJobEval})
-	must.NoError(t, err)
+	deadJobEval.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano() // set to less than initial BatchEvalGCThreshold
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{deadJobEval}))
 
 	stoppedAlloc := mock.Alloc()
 	stoppedAlloc.Job = deadJob
@@ -370,6 +345,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	stoppedAlloc.EvalID = deadJobEval.ID
 	stoppedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
 	stoppedAlloc.ClientStatus = structs.AllocClientStatusFailed
+	stoppedAlloc.ModifyTime = time.Now().UnixNano()
 
 	lostAlloc := mock.Alloc()
 	lostAlloc.Job = deadJob
@@ -377,9 +353,9 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	lostAlloc.EvalID = deadJobEval.ID
 	lostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	lostAlloc.ClientStatus = structs.AllocClientStatusLost
+	lostAlloc.ModifyTime = time.Now().UnixNano()
 
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Allocation{stoppedAlloc, lostAlloc})
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx+2, []*structs.Allocation{stoppedAlloc, lostAlloc}))
 
 	// An "alive" job #2 containing two complete evals. The first with:
 	//	1. A "lost" alloc
@@ -392,15 +368,14 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJob := mock.Job()
 	activeJob.Type = structs.JobTypeBatch
 	activeJob.Status = structs.JobStatusDead
-	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, activeJob)
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, activeJob))
 
 	activeJobEval := mock.Eval()
 	activeJobEval.Status = structs.EvalStatusComplete
 	activeJobEval.Type = structs.JobTypeBatch
 	activeJobEval.JobID = activeJob.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{activeJobEval})
-	must.NoError(t, err)
+	activeJobEval.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano() // set to less than initial BatchEvalGCThreshold
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{activeJobEval}))
 
 	activeJobRunningAlloc := mock.Alloc()
 	activeJobRunningAlloc.Job = activeJob
@@ -408,6 +383,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobRunningAlloc.EvalID = activeJobEval.ID
 	activeJobRunningAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	activeJobRunningAlloc.ClientStatus = structs.AllocClientStatusRunning
+	activeJobRunningAlloc.ModifyTime = time.Now().UnixNano()
 
 	activeJobLostAlloc := mock.Alloc()
 	activeJobLostAlloc.Job = activeJob
@@ -415,16 +391,17 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobLostAlloc.EvalID = activeJobEval.ID
 	activeJobLostAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	activeJobLostAlloc.ClientStatus = structs.AllocClientStatusLost
+	activeJobLostAlloc.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano()
 
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobRunningAlloc, activeJobLostAlloc})
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobRunningAlloc, activeJobLostAlloc}))
 
 	activeJobCompleteEval := mock.Eval()
 	activeJobCompleteEval.Status = structs.EvalStatusComplete
 	activeJobCompleteEval.Type = structs.JobTypeBatch
 	activeJobCompleteEval.JobID = activeJob.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{activeJobCompleteEval})
-	must.NoError(t, err)
+	activeJobCompleteEval.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano() // set to less than initial BatchEvalGCThreshold
+
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{activeJobCompleteEval}))
 
 	activeJobCompletedEvalCompletedAlloc := mock.Alloc()
 	activeJobCompletedEvalCompletedAlloc.Job = activeJob
@@ -432,23 +409,22 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	activeJobCompletedEvalCompletedAlloc.EvalID = activeJobCompleteEval.ID
 	activeJobCompletedEvalCompletedAlloc.DesiredStatus = structs.AllocDesiredStatusStop
 	activeJobCompletedEvalCompletedAlloc.ClientStatus = structs.AllocClientStatusComplete
+	activeJobCompletedEvalCompletedAlloc.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano()
 
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobCompletedEvalCompletedAlloc})
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{activeJobCompletedEvalCompletedAlloc}))
 
 	// A job that ran once and was then purged.
 	purgedJob := mock.Job()
 	purgedJob.Type = structs.JobTypeBatch
 	purgedJob.Status = structs.JobStatusDead
-	err = store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, purgedJob)
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, jobModifyIdx, nil, purgedJob))
 
 	purgedJobEval := mock.Eval()
 	purgedJobEval.Status = structs.EvalStatusComplete
 	purgedJobEval.Type = structs.JobTypeBatch
 	purgedJobEval.JobID = purgedJob.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{purgedJobEval})
-	must.NoError(t, err)
+	purgedJobEval.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano() // set to less than initial BatchEvalGCThreshold
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx+1, []*structs.Evaluation{purgedJobEval}))
 
 	purgedJobCompleteAlloc := mock.Alloc()
 	purgedJobCompleteAlloc.Job = purgedJob
@@ -456,20 +432,20 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 	purgedJobCompleteAlloc.EvalID = purgedJobEval.ID
 	purgedJobCompleteAlloc.DesiredStatus = structs.AllocDesiredStatusRun
 	purgedJobCompleteAlloc.ClientStatus = structs.AllocClientStatusLost
+	purgedJobCompleteAlloc.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano()
 
-	err = store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{purgedJobCompleteAlloc})
-	must.NoError(t, err)
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Allocation{purgedJobCompleteAlloc}))
 
 	purgedJobCompleteEval := mock.Eval()
 	purgedJobCompleteEval.Status = structs.EvalStatusComplete
 	purgedJobCompleteEval.Type = structs.JobTypeBatch
 	purgedJobCompleteEval.JobID = purgedJob.ID
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{purgedJobCompleteEval})
-	must.NoError(t, err)
+	purgedJobCompleteEval.ModifyTime = time.Now().UTC().Add(-1 * time.Hour).UnixNano() // set to less than initial BatchEvalGCThreshold
+
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, jobModifyIdx-1, []*structs.Evaluation{purgedJobCompleteEval}))
 
 	// Purge job.
-	err = store.DeleteJob(jobModifyIdx, purgedJob.Namespace, purgedJob.ID)
-	must.NoError(t, err)
+	must.NoError(t, store.DeleteJob(jobModifyIdx, purgedJob.Namespace, purgedJob.ID))
 
 	// A little helper for assertions
 	assertCorrectJobEvalAlloc := func(
@@ -519,12 +495,12 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		}
 	}
 
-	// Create a core scheduler
+	// Create a core scheduler, no time modifications
 	snap, err := store.Snapshot()
 	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
-	// Attempt the GC without moving the time at all
+	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx)
 	err = core.Process(gc)
 	must.NoError(t, err)
@@ -549,43 +525,12 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 		[]*structs.Allocation{},
 	)
 
-	// Update the time tables by half of the BatchEvalGCThreshold which is too
-	// small to GC anything.
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add((-1)*s1.config.BatchEvalGCThreshold/2))
-
+	// set a shorter GC threshold this time
 	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
-	err = core.Process(gc)
-	must.NoError(t, err)
-
-	// Nothing is gone.
-	assertCorrectJobEvalAlloc(
-		memdb.NewWatchSet(),
-		[]*structs.Job{deadJob, activeJob, stoppedJob},
-		[]*structs.Job{},
-		[]*structs.Evaluation{
-			deadJobEval,
-			activeJobEval, activeJobCompleteEval,
-			stoppedJobEval,
-			purgedJobEval,
-		},
-		[]*structs.Evaluation{},
-		[]*structs.Allocation{
-			stoppedAlloc, lostAlloc,
-			activeJobRunningAlloc, activeJobLostAlloc, activeJobCompletedEvalCompletedAlloc,
-			stoppedJobStoppedAlloc, stoppedJobLostAlloc,
-		},
-		[]*structs.Allocation{},
-	)
-
-	// Update the time tables so that BatchEvalGCThreshold has elapsed.
-	s1.fsm.timetable.table = make([]TimeTableEntry, 2, 10)
-	tt = s1.fsm.TimeTable()
-	tt.Witness(2*jobModifyIdx, time.Now().UTC().Add(-1*s1.config.BatchEvalGCThreshold))
-
-	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
-	err = core.Process(gc)
-	must.NoError(t, err)
+	core.(*CoreScheduler).customBatchEvalGCThreshold = time.Minute
+	//core.(*CoreScheduler).customEvalGCThreshold = time.Minute
+	//core.(*CoreScheduler).customJobGCThreshold = time.Minute
+	must.NoError(t, core.Process(gc))
 
 	// We expect the following:
 	//
@@ -629,6 +574,9 @@ func TestCoreScheduler_EvalGC_JobVersionTag(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = job.ID
 	eval.Status = structs.EvalStatusComplete
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+
 	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 999, []*structs.Evaluation{eval}))
 	// upsert a couple versions of the job, so the "jobs" table has one
 	// and the "job_version" table has two.
@@ -705,13 +653,13 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" eval
 	store := s1.fsm.State()
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+
 	store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
 	err := store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
 	if err != nil {
@@ -760,10 +708,6 @@ func TestCoreScheduler_EvalGC_Partial(t *testing.T) {
 	}
 	err = store.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job)
 	require.Nil(t, err)
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.EvalGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -829,13 +773,13 @@ func TestCoreScheduler_EvalGC_Force(t *testing.T) {
 			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 
-			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-			server.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 			// Insert "dead" eval
 			store := server.fsm.State()
 			eval := mock.Eval()
 			eval.Status = structs.EvalStatusFailed
+			eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+			eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+
 			store.UpsertJobSummary(999, mock.JobSummary(eval.JobID))
 			err := store.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval})
 			if err != nil {
@@ -912,9 +856,6 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 
-			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-			server.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 			// Insert "dead" node
 			store := server.fsm.State()
 			node := mock.Node()
@@ -923,10 +864,6 @@ func TestCoreScheduler_NodeGC(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %v", err)
 			}
-
-			// Update the time tables to make this work
-			tt := server.fsm.TimeTable()
-			tt.Witness(2000, time.Now().UTC().Add(-1*server.config.NodeGCThreshold))
 
 			// Create a core scheduler
 			snap, err := store.Snapshot()
@@ -962,9 +899,6 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" node
 	store := s1.fsm.State()
 	node := mock.Node()
@@ -981,10 +915,6 @@ func TestCoreScheduler_NodeGC_TerminalAllocs(t *testing.T) {
 	if err := store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.NodeGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1018,9 +948,6 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert "dead" node
 	store := s1.fsm.State()
 	node := mock.Node()
@@ -1039,10 +966,6 @@ func TestCoreScheduler_NodeGC_RunningAllocs(t *testing.T) {
 	if err := store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc}); err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.NodeGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1075,9 +998,6 @@ func TestCoreScheduler_NodeGC_Force(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert "dead" node
 	store := s1.fsm.State()
@@ -1120,121 +1040,76 @@ func TestCoreScheduler_JobGC_OutstandingEvals(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert job.
 	store := s1.fsm.State()
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.Status = structs.JobStatusDead
-	err := store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	job.SubmitTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
 
 	// Insert two evals, one terminal and one not
 	eval := mock.Eval()
 	eval.JobID = job.ID
 	eval.Status = structs.EvalStatusComplete
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	eval2 := mock.Eval()
 	eval2.JobID = job.ID
 	eval2.Status = structs.EvalStatusPending
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval, eval2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
+	eval2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval, eval2}))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobJobGC, 2000)
-	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, core.Process(gc))
 
 	// Should still exist
 	ws := memdb.NewWatchSet()
 	out, err := store.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out == nil {
-		t.Fatalf("bad: %v", out)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, out)
 
 	outE, err := store.EvalByID(ws, eval.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outE == nil {
-		t.Fatalf("bad: %v", outE)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, outE)
 
 	outE2, err := store.EvalByID(ws, eval2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outE2 == nil {
-		t.Fatalf("bad: %v", outE2)
-	}
+	must.NoError(t, err)
+	must.NotNil(t, outE2)
 
 	// Update the second eval to be terminal
 	eval2.Status = structs.EvalStatusComplete
-	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2})
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, 1003, []*structs.Evaluation{eval2}))
 
 	// Create a core scheduler
 	snap, err = store.Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 	core = NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
 	gc = s1.coreJobEval(structs.CoreJobJobGC, 2000)
-	err = core.Process(gc)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, core.Process(gc))
 
 	// Should not still exist
 	out, err = store.JobByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if out != nil {
-		t.Fatalf("bad: %v", out)
-	}
+	must.NoError(t, err)
+	must.Nil(t, out)
 
 	outE, err = store.EvalByID(ws, eval.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outE != nil {
-		t.Fatalf("bad: %v", outE)
-	}
+	must.NoError(t, err)
+	must.Nil(t, outE)
 
 	outE2, err = store.EvalByID(ws, eval2.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if outE2 != nil {
-		t.Fatalf("bad: %v", outE2)
-	}
+	must.NoError(t, err)
+	must.Nil(t, outE2)
 }
 
 func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
@@ -1243,9 +1118,6 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert job.
 	store := s1.fsm.State()
@@ -1265,6 +1137,8 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = job.ID
 	eval.Status = structs.EvalStatusComplete
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval})
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1289,10 +1163,6 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1390,9 +1260,6 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert job.
 	store := s1.fsm.State()
 	job := mock.Job()
@@ -1434,10 +1301,6 @@ func TestCoreScheduler_JobGC_OneShot(t *testing.T) {
 
 	// Force the jobs state to dead
 	job.Status = structs.JobStatusDead
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1503,9 +1366,6 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	// Insert job.
 	store := s1.fsm.State()
 	job := mock.Job()
@@ -1523,10 +1383,14 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	eval := mock.Eval()
 	eval.JobID = job.ID
 	eval.Status = structs.EvalStatusComplete
+	eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	eval2 := mock.Eval()
 	eval2.JobID = job.ID
 	eval2.Status = structs.EvalStatusComplete
+	eval2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+	eval2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 	err = store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval, eval2})
 	if err != nil {
@@ -1539,14 +1403,12 @@ func TestCoreScheduler_JobGC_Stopped(t *testing.T) {
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusStop
 	alloc.TaskGroup = job.TaskGroups[0].Name
+	alloc.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	alloc.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	err = store.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.JobGCThreshold))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -1611,9 +1473,6 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 			defer cleanup()
 			testutil.WaitForLeader(t, server.RPC)
 
-			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-			server.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 			// Insert job.
 			store := server.fsm.State()
 			job := mock.Job()
@@ -1628,6 +1487,9 @@ func TestCoreScheduler_JobGC_Force(t *testing.T) {
 			eval := mock.Eval()
 			eval.JobID = job.ID
 			eval.Status = structs.EvalStatusComplete
+			eval.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+			eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+
 			err = store.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval})
 			if err != nil {
 				t.Fatalf("err: %v", err)
@@ -1675,9 +1537,6 @@ func TestCoreScheduler_JobGC_Parameterized(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert a parameterized job.
 	store := s1.fsm.State()
@@ -1755,9 +1614,6 @@ func TestCoreScheduler_JobGC_Periodic(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert a parameterized job.
 	store := s1.fsm.State()
@@ -1841,16 +1697,22 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		mockEval1.JobID = inputJob.ID
 		mockEval1.Namespace = inputJob.Namespace
 		mockEval1.Status = structs.EvalStatusComplete
+		mockEval1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano() // make sure objects we insert are older than GC thresholds
+		mockEval1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 		mockJob1Alloc1 := mock.Alloc()
 		mockJob1Alloc1.EvalID = mockEval1.ID
 		mockJob1Alloc1.JobID = inputJob.ID
 		mockJob1Alloc1.ClientStatus = structs.AllocClientStatusRunning
+		mockJob1Alloc1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+		mockJob1Alloc1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 		mockJob1Alloc2 := mock.Alloc()
 		mockJob1Alloc2.EvalID = mockEval1.ID
 		mockJob1Alloc2.JobID = inputJob.ID
 		mockJob1Alloc2.ClientStatus = structs.AllocClientStatusRunning
+		mockJob1Alloc2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+		mockJob1Alloc2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 
 		must.NoError(t,
 			testServer.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 10, nil, inputJob))
@@ -1955,49 +1817,47 @@ func TestCoreScheduler_DeploymentGC(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Insert an active, terminal, and terminal with allocations deployment
 	store := s1.fsm.State()
 	d1, d2, d3 := mock.Deployment(), mock.Deployment(), mock.Deployment()
 	d1.Status = structs.DeploymentStatusFailed
+	d1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	d1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 	d3.Status = structs.DeploymentStatusSuccessful
-	assert.Nil(store.UpsertDeployment(1000, d1), "UpsertDeployment")
-	assert.Nil(store.UpsertDeployment(1001, d2), "UpsertDeployment")
-	assert.Nil(store.UpsertDeployment(1002, d3), "UpsertDeployment")
+
+	must.Nil(t, store.UpsertDeployment(1000, d1), must.Sprint("UpsertDeployment"))
+	must.Nil(t, store.UpsertDeployment(1001, d2), must.Sprint("UpsertDeployment"))
+	must.Nil(t, store.UpsertDeployment(1002, d3), must.Sprint("UpsertDeployment"))
 
 	a := mock.Alloc()
 	a.JobID = d3.JobID
 	a.DeploymentID = d3.ID
-	assert.Nil(store.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}), "UpsertAllocs")
-
-	// Update the time tables to make this work
-	tt := s1.fsm.TimeTable()
-	tt.Witness(2000, time.Now().UTC().Add(-1*s1.config.DeploymentGCThreshold))
+	a.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	a.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	must.Nil(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1003, []*structs.Allocation{a}))
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
-	assert.Nil(err, "Snapshot")
+	must.NoError(t, err)
 	core := NewCoreScheduler(s1, snap)
 
 	// Attempt the GC
 	gc := s1.coreJobEval(structs.CoreJobDeploymentGC, 2000)
-	assert.Nil(core.Process(gc), "Process GC")
+	must.NoError(t, core.Process(gc))
 
 	// Should be gone
 	ws := memdb.NewWatchSet()
 	out, err := store.DeploymentByID(ws, d1.ID)
-	assert.Nil(err, "DeploymentByID")
-	assert.Nil(out, "Terminal Deployment")
+	must.NoError(t, err)
+	must.Nil(t, out)
+
 	out2, err := store.DeploymentByID(ws, d2.ID)
-	assert.Nil(err, "DeploymentByID")
-	assert.NotNil(out2, "Active Deployment")
+	must.NoError(t, err)
+	must.NotNil(t, out2)
 	out3, err := store.DeploymentByID(ws, d3.ID)
-	assert.Nil(err, "DeploymentByID")
-	assert.NotNil(out3, "Terminal Deployment With Allocs")
+	must.NoError(t, err)
+	must.NotNil(t, out3)
 }
 
 func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
@@ -2015,13 +1875,12 @@ func TestCoreScheduler_DeploymentGC_Force(t *testing.T) {
 			testutil.WaitForLeader(t, server.RPC)
 			assert := assert.New(t)
 
-			// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-			server.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 			// Insert terminal and active deployment
 			store := server.fsm.State()
 			d1, d2 := mock.Deployment(), mock.Deployment()
 			d1.Status = structs.DeploymentStatusFailed
+			d1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
+			d1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
 			assert.Nil(store.UpsertDeployment(1000, d1), "UpsertDeployment")
 			assert.Nil(store.UpsertDeployment(1001, d2), "UpsertDeployment")
 
@@ -2052,9 +1911,6 @@ func TestCoreScheduler_PartitionEvalReap(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Create a core scheduler
 	snap, err := s1.fsm.State().Snapshot()
@@ -2094,9 +1950,6 @@ func TestCoreScheduler_PartitionDeploymentReap(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-
-	// COMPAT Remove in 0.6: Reset the FSM time table since we reconcile which sets index 0
-	s1.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
 
 	// Create a core scheduler
 	snap, err := s1.fsm.State().Snapshot()
@@ -2160,63 +2013,63 @@ func TestAllocation_GCEligible(t *testing.T) {
 		PreventRescheduleOnLost *bool
 		AllocJobModifyIndex     uint64
 		JobModifyIndex          uint64
-		ModifyIndex             uint64
+		ModifyTime              int64
 		NextAllocID             string
 		ReschedulePolicy        *structs.ReschedulePolicy
 		RescheduleTrackers      []*structs.RescheduleEvent
-		ThresholdIndex          uint64
+		CutoffTime              time.Time
 		ShouldGC                bool
 	}
 
-	fail := time.Now()
+	now := time.Now()
 
 	harness := []testCase{
 		{
-			Desc:           "Don't GC when non terminal",
-			ClientStatus:   structs.AllocClientStatusPending,
-			DesiredStatus:  structs.AllocDesiredStatusRun,
-			GCTime:         fail,
-			ModifyIndex:    90,
-			ThresholdIndex: 90,
-			ShouldGC:       false,
+			Desc:          "Don't GC when non terminal",
+			ClientStatus:  structs.AllocClientStatusPending,
+			DesiredStatus: structs.AllocDesiredStatusRun,
+			GCTime:        now,
+			ModifyTime:    now.UnixNano(),
+			CutoffTime:    now,
+			ShouldGC:      false,
 		},
 		{
-			Desc:           "Don't GC when non terminal and job stopped",
-			ClientStatus:   structs.AllocClientStatusPending,
-			DesiredStatus:  structs.AllocDesiredStatusRun,
-			JobStop:        true,
-			GCTime:         fail,
-			ModifyIndex:    90,
-			ThresholdIndex: 90,
-			ShouldGC:       false,
+			Desc:          "Don't GC when non terminal and job stopped",
+			ClientStatus:  structs.AllocClientStatusPending,
+			DesiredStatus: structs.AllocDesiredStatusRun,
+			JobStop:       true,
+			GCTime:        now,
+			ModifyTime:    now.UnixNano(),
+			CutoffTime:    now,
+			ShouldGC:      false,
 		},
 		{
-			Desc:           "Don't GC when non terminal and job dead",
-			ClientStatus:   structs.AllocClientStatusPending,
-			DesiredStatus:  structs.AllocDesiredStatusRun,
-			JobStatus:      structs.JobStatusDead,
-			GCTime:         fail,
-			ModifyIndex:    90,
-			ThresholdIndex: 90,
-			ShouldGC:       false,
+			Desc:          "Don't GC when non terminal and job dead",
+			ClientStatus:  structs.AllocClientStatusPending,
+			DesiredStatus: structs.AllocDesiredStatusRun,
+			JobStatus:     structs.JobStatusDead,
+			GCTime:        now,
+			ModifyTime:    now.UnixNano(),
+			CutoffTime:    now,
+			ShouldGC:      false,
 		},
 		{
-			Desc:           "Don't GC when non terminal on client and job dead",
-			ClientStatus:   structs.AllocClientStatusRunning,
-			DesiredStatus:  structs.AllocDesiredStatusStop,
-			JobStatus:      structs.JobStatusDead,
-			GCTime:         fail,
-			ModifyIndex:    90,
-			ThresholdIndex: 90,
-			ShouldGC:       false,
+			Desc:          "Don't GC when non terminal on client and job dead",
+			ClientStatus:  structs.AllocClientStatusRunning,
+			DesiredStatus: structs.AllocDesiredStatusStop,
+			JobStatus:     structs.JobStatusDead,
+			GCTime:        now,
+			ModifyTime:    now.UnixNano(),
+			CutoffTime:    now,
+			ShouldGC:      false,
 		},
 		{
 			Desc:             "GC when terminal but not failed ",
 			ClientStatus:     structs.AllocClientStatusComplete,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
-			ModifyIndex:      90,
-			ThresholdIndex:   90,
+			GCTime:           now,
+			ModifyTime:       now.UnixNano(),
+			CutoffTime:       now,
 			ReschedulePolicy: nil,
 			ShouldGC:         true,
 		},
@@ -2224,9 +2077,9 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "Don't GC when threshold not met",
 			ClientStatus:     structs.AllocClientStatusComplete,
 			DesiredStatus:    structs.AllocDesiredStatusStop,
-			GCTime:           fail,
-			ModifyIndex:      100,
-			ThresholdIndex:   90,
+			GCTime:           now,
+			ModifyTime:       now.UnixNano(),
+			CutoffTime:       now.Add(-1 * time.Hour),
 			ReschedulePolicy: nil,
 			ShouldGC:         false,
 		},
@@ -2234,29 +2087,29 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "GC when no reschedule policy",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
+			GCTime:           now,
 			ReschedulePolicy: nil,
-			ModifyIndex:      90,
-			ThresholdIndex:   90,
+			ModifyTime:       now.UnixNano(),
+			CutoffTime:       now,
 			ShouldGC:         true,
 		},
 		{
 			Desc:             "GC when empty policy",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
+			GCTime:           now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 0, Interval: 0 * time.Minute},
-			ModifyIndex:      90,
-			ThresholdIndex:   90,
+			ModifyTime:       now.UnixNano(),
+			CutoffTime:       now,
 			ShouldGC:         true,
 		},
 		{
 			Desc:             "Don't GC when no previous reschedule attempts",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
-			ModifyIndex:      90,
-			ThresholdIndex:   90,
+			GCTime:           now,
+			ModifyTime:       now.UnixNano(),
+			CutoffTime:       now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 1, Interval: 1 * time.Minute},
 			ShouldGC:         false,
 		},
@@ -2265,12 +2118,12 @@ func TestAllocation_GCEligible(t *testing.T) {
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
 			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 2, Interval: 30 * time.Minute},
-			GCTime:           fail,
-			ModifyIndex:      90,
-			ThresholdIndex:   90,
+			GCTime:           now,
+			ModifyTime:       now.UnixNano(),
+			CutoffTime:       now,
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
-					RescheduleTime: fail.Add(-5 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: now.Add(-5 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			ShouldGC: false,
@@ -2279,14 +2132,15 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "GC with prev reschedule attempt outside interval",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
+			GCTime:           now,
+			CutoffTime:       now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
-					RescheduleTime: fail.Add(-45 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: now.Add(-45 * time.Minute).UTC().UnixNano(),
 				},
 				{
-					RescheduleTime: fail.Add(-60 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: now.Add(-60 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			ShouldGC: true,
@@ -2295,11 +2149,12 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "GC when next alloc id is set",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
+			GCTime:           now,
+			CutoffTime:       now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
-					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			NextAllocID: uuid.Generate(),
@@ -2309,11 +2164,12 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "Don't GC when next alloc id is not set and unlimited restarts",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
+			GCTime:           now,
+			CutoffTime:       now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Unlimited: true, Delay: 5 * time.Second, DelayFunction: "constant"},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
-					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			ShouldGC: false,
@@ -2322,11 +2178,12 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "GC when job is stopped",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
+			GCTime:           now,
+			CutoffTime:       now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
-					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			JobStop:  true,
@@ -2336,7 +2193,8 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:          "GC when alloc is lost and eligible for reschedule",
 			ClientStatus:  structs.AllocClientStatusLost,
 			DesiredStatus: structs.AllocDesiredStatusStop,
-			GCTime:        fail,
+			GCTime:        now,
+			CutoffTime:    now,
 			JobStatus:     structs.JobStatusDead,
 			ShouldGC:      true,
 		},
@@ -2344,11 +2202,12 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "GC when job status is dead",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusRun,
-			GCTime:           fail,
+			GCTime:           now,
+			CutoffTime:       now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
-					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			JobStatus: structs.JobStatusDead,
@@ -2358,7 +2217,8 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "GC when desired status is stop, unlimited reschedule policy, no previous reschedule events",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusStop,
-			GCTime:           fail,
+			GCTime:           now,
+			CutoffTime:       now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Unlimited: true, Delay: 5 * time.Second, DelayFunction: "constant"},
 			ShouldGC:         true,
 		},
@@ -2366,11 +2226,12 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:             "GC when desired status is stop, limited reschedule policy, some previous reschedule events",
 			ClientStatus:     structs.AllocClientStatusFailed,
 			DesiredStatus:    structs.AllocDesiredStatusStop,
-			GCTime:           fail,
+			GCTime:           now,
+			CutoffTime:       now,
 			ReschedulePolicy: &structs.ReschedulePolicy{Attempts: 5, Interval: 30 * time.Minute},
 			RescheduleTrackers: []*structs.RescheduleEvent{
 				{
-					RescheduleTime: fail.Add(-3 * time.Minute).UTC().UnixNano(),
+					RescheduleTime: now.Add(-3 * time.Minute).UTC().UnixNano(),
 				},
 			},
 			ShouldGC: true,
@@ -2379,7 +2240,8 @@ func TestAllocation_GCEligible(t *testing.T) {
 			Desc:          "GC when alloc is unknown and but desired state is running",
 			ClientStatus:  structs.AllocClientStatusUnknown,
 			DesiredStatus: structs.AllocDesiredStatusRun,
-			GCTime:        fail,
+			GCTime:        now,
+			CutoffTime:    now,
 			JobStatus:     structs.JobStatusRunning,
 			ShouldGC:      false,
 		},
@@ -2387,7 +2249,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 
 	for _, tc := range harness {
 		alloc := &structs.Allocation{}
-		alloc.ModifyIndex = tc.ModifyIndex
+		alloc.ModifyTime = tc.ModifyTime
 		alloc.DesiredStatus = tc.DesiredStatus
 		alloc.ClientStatus = tc.ClientStatus
 		alloc.RescheduleTracker = &structs.RescheduleTracker{Events: tc.RescheduleTrackers}
@@ -2404,7 +2266,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 		job.Stop = tc.JobStop
 
 		t.Run(tc.Desc, func(t *testing.T) {
-			if got := allocGCEligible(alloc, job, tc.GCTime, tc.ThresholdIndex); got != tc.ShouldGC {
+			if got := allocGCEligible(alloc, job, tc.GCTime, tc.CutoffTime); got != tc.ShouldGC {
 				t.Fatalf("expected %v but got %v", tc.ShouldGC, got)
 			}
 		})
@@ -2414,7 +2276,7 @@ func TestAllocation_GCEligible(t *testing.T) {
 	// Verify nil job
 	alloc := mock.Alloc()
 	alloc.ClientStatus = structs.AllocClientStatusComplete
-	require.True(t, allocGCEligible(alloc, nil, time.Now(), 1000))
+	require.True(t, allocGCEligible(alloc, nil, time.Now(), time.Now()))
 }
 
 func TestCoreScheduler_CSIPluginGC(t *testing.T) {
@@ -2424,16 +2286,20 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	defer cleanupSRV()
 	testutil.WaitForLeader(t, srv.RPC)
 
-	srv.fsm.timetable.table = make([]TimeTableEntry, 1, 10)
-
 	deleteNodes := state.CreateTestCSIPlugin(srv.fsm.State(), "foo")
 	defer deleteNodes()
 	store := srv.fsm.State()
 
-	// Update the time tables to make this work
-	tt := srv.fsm.TimeTable()
 	index := uint64(2000)
-	tt.Witness(index, time.Now().UTC().Add(-1*srv.config.CSIPluginGCThreshold))
+
+	ws := memdb.NewWatchSet()
+	plug, err := store.CSIPluginByID(ws, "foo")
+	must.NotNil(t, plug)
+	must.NoError(t, err)
+	// set the creation and modification times on the plugin in the past, otherwise
+	// they won't meet the GC threshold
+	plug.CreateTime = time.Now().Add(-10 * time.Hour).UnixNano()
+	plug.ModifyTime = time.Now().Add(-9 * time.Hour).UnixNano()
 
 	// Create a core scheduler
 	snap, err := store.Snapshot()
@@ -2446,8 +2312,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	must.NoError(t, core.Process(gc))
 
 	// Should not be gone (plugin in use)
-	ws := memdb.NewWatchSet()
-	plug, err := store.CSIPluginByID(ws, "foo")
+	plug, err = store.CSIPluginByID(ws, "foo")
 	must.NotNil(t, plug)
 	must.NoError(t, err)
 
@@ -2455,6 +2320,7 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	plug = plug.Copy()
 	plug.Controllers = map[string]*structs.CSIInfo{}
 	plug.Nodes = map[string]*structs.CSIInfo{}
+	plug.ModifyTime = time.Now().Add(-6 * time.Hour).UnixNano()
 
 	job := mock.CSIPluginJob(structs.CSIPluginTypeController, plug.ID)
 	index++
@@ -3064,44 +2930,42 @@ func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
 	unexpiredLocal := mock.ACLToken()
 	unexpiredLocal.ExpirationTime = pointer.Of(now.Add(2 * time.Hour))
 
+	// Set creation time in the past for all the tokens, otherwise GC won't trigger
+	for _, token := range []*structs.ACLToken{expiredGlobal, unexpiredGlobal, expiredLocal, unexpiredLocal} {
+		token.CreateTime = time.Now().Add(-10 * time.Hour)
+	}
+
 	// Upsert these into state.
 	err := testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 10, []*structs.ACLToken{
 		expiredGlobal, unexpiredGlobal, expiredLocal, unexpiredLocal,
 	})
-	require.NoError(t, err)
-
-	// Overwrite the timetable. The existing timetable has an entry due to the
-	// ACL bootstrapping which makes witnessing a new index at a timestamp in
-	// the past impossible.
-	tt := NewTimeTable(timeTableGranularity, timeTableLimit)
-	tt.Witness(20, time.Now().UTC().Add(-1*testServer.config.ACLTokenExpirationGCThreshold))
-	testServer.fsm.timetable = tt
+	must.NoError(t, err)
 
 	// Generate the core scheduler.
 	snap, err := testServer.State().Snapshot()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	coreScheduler := NewCoreScheduler(testServer, snap)
 
 	// Trigger global and local periodic garbage collection runs.
 	index, err := testServer.State().LatestIndex()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	index++
 
 	globalGCEval := testServer.coreJobEval(structs.CoreJobGlobalTokenExpiredGC, index)
-	require.NoError(t, coreScheduler.Process(globalGCEval))
+	must.NoError(t, coreScheduler.Process(globalGCEval))
 
 	localGCEval := testServer.coreJobEval(structs.CoreJobLocalTokenExpiredGC, index)
-	require.NoError(t, coreScheduler.Process(localGCEval))
+	must.NoError(t, coreScheduler.Process(localGCEval))
 
 	// Ensure the ACL tokens stored within state are as expected.
 	iter, err := testServer.State().ACLTokens(nil, state.SortDefault)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var tokens []*structs.ACLToken
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		tokens = append(tokens, raw.(*structs.ACLToken))
 	}
-	require.ElementsMatch(t, []*structs.ACLToken{rootACLToken, unexpiredGlobal, unexpiredLocal}, tokens)
+	must.SliceContainsAll(t, []*structs.ACLToken{rootACLToken, unexpiredGlobal, unexpiredLocal}, tokens)
 }
 
 func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
@@ -3130,6 +2994,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		mockedToken := mock.ACLToken()
 		mockedToken.Global = true
+		mockedToken.CreateTime = time.Now().Add(-10 * time.Hour)
 		if i%2 == 0 {
 			expiredGlobalTokens = append(expiredGlobalTokens, mockedToken)
 			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
@@ -3144,6 +3009,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	for i := 0; i < 20; i++ {
 		mockedToken := mock.ACLToken()
 		mockedToken.Global = false
+		mockedToken.CreateTime = time.Now().Add(-10 * time.Hour)
 		if i%2 == 0 {
 			expiredLocalTokens = append(expiredLocalTokens, mockedToken)
 			mockedToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-24 * time.Hour))
@@ -3158,8 +3024,7 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	allTokens = append(allTokens, nonExpiredLocalTokens...)
 
 	// Upsert them all.
-	err := testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 10, allTokens)
-	require.NoError(t, err)
+	must.NoError(t, testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 10, allTokens))
 
 	// This function provides an easy way to get all tokens out of the
 	// iterator.
@@ -3173,28 +3038,28 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 
 	// Check all the tokens are correctly stored within state.
 	iter, err := testServer.State().ACLTokens(nil, state.SortDefault)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	tokens := fromIteratorFunc(iter)
-	require.ElementsMatch(t, allTokens, tokens)
+	must.SliceContainsAll(t, allTokens, tokens)
 
 	// Generate the core scheduler and trigger a forced garbage collection
 	// which should delete all expired tokens.
 	snap, err := testServer.State().Snapshot()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	coreScheduler := NewCoreScheduler(testServer, snap)
 
 	index, err := testServer.State().LatestIndex()
-	require.NoError(t, err)
+	must.NoError(t, err)
 	index++
 
 	forceGCEval := testServer.coreJobEval(structs.CoreJobForceGC, index)
-	require.NoError(t, coreScheduler.Process(forceGCEval))
+	must.NoError(t, coreScheduler.Process(forceGCEval))
 
 	// List all the remaining ACL tokens to be sure they are as expected.
 	iter, err = testServer.State().ACLTokens(nil, state.SortDefault)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	tokens = fromIteratorFunc(iter)
-	require.ElementsMatch(t, append(nonExpiredGlobalTokens, nonExpiredLocalTokens...), tokens)
+	must.SliceContainsAll(t, append(nonExpiredGlobalTokens, nonExpiredLocalTokens...), tokens)
 }

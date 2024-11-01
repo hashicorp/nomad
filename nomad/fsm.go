@@ -23,14 +23,6 @@ import (
 	"github.com/hashicorp/raft"
 )
 
-const (
-	// timeTableGranularity is the granularity of index to time tracking
-	timeTableGranularity = 5 * time.Minute
-
-	// timeTableLimit is the maximum limit of our tracking
-	timeTableLimit = 72 * time.Hour
-)
-
 // SnapshotType is prefixed to a record in the FSM snapshot
 // so that we can determine the type for restore
 type SnapshotType byte
@@ -131,7 +123,6 @@ type nomadFSM struct {
 	encrypter          *Encrypter
 	logger             hclog.Logger
 	state              *state.StateStore
-	timetable          *TimeTable
 
 	// config is the FSM config
 	config *FSMConfig
@@ -153,8 +144,7 @@ type nomadFSM struct {
 // state in a way that can be accessed concurrently with operations
 // that may modify the live state.
 type nomadSnapshot struct {
-	snap      *state.StateSnapshot
-	timetable *TimeTable
+	snap *state.StateSnapshot
 }
 
 // SnapshotHeader is the first entry in our snapshot
@@ -217,7 +207,6 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		logger:              config.Logger.Named("fsm"),
 		config:              config,
 		state:               state,
-		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
 		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
 		enterpriseRestorers: make(map[SnapshotType]SnapshotRestorer, 8),
 	}
@@ -244,17 +233,9 @@ func (n *nomadFSM) State() *state.StateStore {
 	return n.state
 }
 
-// TimeTable returns the time table of transactions
-func (n *nomadFSM) TimeTable() *TimeTable {
-	return n.timetable
-}
-
 func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	buf := log.Data
 	msgType := structs.MessageType(buf[0])
-
-	// Witness this write
-	n.timetable.Witness(log.Index, time.Now().UTC())
 
 	// Check if this message type should be ignored when unknown. This is
 	// used so that new commands can be added with developer control if older
@@ -1416,7 +1397,7 @@ func (n *nomadFSM) applyCSIVolumeBatchClaim(buf []byte, index uint64) interface{
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_batch_claim"}, time.Now())
 
 	for _, req := range batch.Claims {
-		err := n.state.CSIVolumeClaim(index, req.RequestNamespace(),
+		err := n.state.CSIVolumeClaim(index, req.Timestamp, req.RequestNamespace(),
 			req.VolumeID, req.ToClaim())
 		if err != nil {
 			n.logger.Error("CSIVolumeClaim for batch failed", "error", err)
@@ -1433,7 +1414,7 @@ func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_claim"}, time.Now())
 
-	if err := n.state.CSIVolumeClaim(index, req.RequestNamespace(), req.VolumeID, req.ToClaim()); err != nil {
+	if err := n.state.CSIVolumeClaim(index, req.Timestamp, req.RequestNamespace(), req.VolumeID, req.ToClaim()); err != nil {
 		n.logger.Error("CSIVolumeClaim failed", "error", err)
 		return err
 	}
@@ -1518,8 +1499,7 @@ func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	}
 
 	ns := &nomadSnapshot{
-		snap:      snap,
-		timetable: n.timetable,
+		snap: snap,
 	}
 	return ns, nil
 }
@@ -1584,10 +1564,9 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 		snapType := SnapshotType(msgType[0])
 		switch snapType {
 		case TimeTableSnapshot:
-			if err := n.timetable.Deserialize(dec); err != nil {
-				return fmt.Errorf("time table deserialize failed: %v", err)
-			}
-
+			// COMPAT: Nomad 1.9.2 removed the timetable, this case kept to gracefully handle
+			// tt snapshot requests
+			return nil
 		case NodeSnapshot:
 			node := new(structs.Node)
 			if err := dec.Decode(node); err != nil {
@@ -2422,13 +2401,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	// Write the header
 	header := SnapshotHeader{}
 	if err := encoder.Encode(&header); err != nil {
-		sink.Cancel()
-		return err
-	}
-
-	// Write the time table
-	sink.Write([]byte{byte(TimeTableSnapshot)})
-	if err := s.timetable.Serialize(encoder); err != nil {
 		sink.Cancel()
 		return err
 	}

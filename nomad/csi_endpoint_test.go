@@ -673,9 +673,11 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 				Mode:           structs.CSIVolumeClaimRead,
 			}
 
+			now := time.Now().UnixNano()
+
 			index++
 			claim.State = structs.CSIVolumeClaimStateTaken
-			err = state.CSIVolumeClaim(index, ns, volID, claim)
+			err = state.CSIVolumeClaim(index, now, ns, volID, claim)
 			must.NoError(t, err)
 
 			// setup: claim the volume for our other alloc
@@ -688,7 +690,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 
 			index++
 			otherClaim.State = structs.CSIVolumeClaimStateTaken
-			err = state.CSIVolumeClaim(index, ns, volID, otherClaim)
+			err = state.CSIVolumeClaim(index, now, ns, volID, otherClaim)
 			must.NoError(t, err)
 
 			// test: unpublish and check the results
