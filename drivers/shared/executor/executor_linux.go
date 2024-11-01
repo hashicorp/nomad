@@ -214,6 +214,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	process := &libcontainer.Process{
 		Args:   combined,
 		Env:    command.Env,
+		Cwd:    command.WorkDir,
 		Stdout: stdout,
 		Stderr: stderr,
 		Init:   true,
@@ -497,6 +498,7 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 	process := &libcontainer.Process{
 		Args:   combined,
 		Env:    l.command.Env,
+		Cwd:    l.command.WorkDir,
 		Stdout: buf,
 		Stderr: buf,
 	}
@@ -552,7 +554,7 @@ func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, 
 		Env:  l.userProc.Env,
 		User: l.userProc.User,
 		Init: false,
-		Cwd:  "/",
+		Cwd:  l.command.WorkDir,
 	}
 
 	execHelper := &execHelper{

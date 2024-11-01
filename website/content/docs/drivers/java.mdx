@@ -85,6 +85,11 @@ config {
 }
 ```
 
+- `work_dir` - (Optional) Sets a custom working directory for the task. This path must be
+  absolute and within the task's [chroot](#chroot) or in a [host volume][] mounted
+  with a [`volume_mount`][volume_mount] block. This will also change the working
+  directory when using `nomad alloc exec`.
+
 ## Examples
 
 A simple config block to run a Java Jar:
@@ -260,3 +265,5 @@ This list is configurable through the agent client
 [allow_caps]: /nomad/docs/drivers/java#allow_caps
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [cgroup controller requirements]: /nomad/docs/install/production/requirements#hardening-nomad
+[volume_mount]: /nomad/docs/job-specification/volume_mount
+[host volume]: /nomad/docs/configuration/client#host_volume-block

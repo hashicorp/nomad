@@ -94,6 +94,7 @@ var (
 		"cgroup_v2_override": hclspec.NewAttr("cgroup_v2_override", "string", false),
 		"cgroup_v1_override": hclspec.NewAttr("cgroup_v1_override", "list(map(string))", false),
 		"oom_score_adj":      hclspec.NewAttr("oom_score_adj", "number", false),
+		"work_dir":           hclspec.NewAttr("work_dir", "string", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -172,6 +173,25 @@ type TaskConfig struct {
 
 	// OOMScoreAdj sets the oom_score_adj on Linux systems
 	OOMScoreAdj int `codec:"oom_score_adj"`
+
+	// WorkDir sets the working directory of the task
+	WorkDir string `codec:"work_dir"`
+}
+
+func (t *TaskConfig) validate() error {
+	// ensure only one of cgroups_v1_override and cgroups_v2_override have been
+	// configured; must check here because task config validation cannot happen
+	// on the server.
+	if len(t.OverrideCgroupV1) > 0 && t.OverrideCgroupV2 != "" {
+		return errors.New("only one of cgroups_v1_override and cgroups_v2_override may be set")
+	}
+	if t.OOMScoreAdj < 0 {
+		return errors.New("oom_score_adj must not be negative")
+	}
+	if t.WorkDir != "" && !filepath.IsAbs(t.WorkDir) {
+		return errors.New("work_dir must be an absolute path")
+	}
+	return nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -352,8 +372,10 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
-	if driverConfig.OOMScoreAdj < 0 {
-		return nil, nil, fmt.Errorf("oom_score_adj must not be negative")
+	driverConfig.OverrideCgroupV2 = cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2)
+
+	if err := driverConfig.validate(); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
 	}
 
 	if err := d.Validate(*cfg); err != nil {
@@ -383,20 +405,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Env:              cfg.EnvList(),
 		User:             cfg.User,
 		TaskDir:          cfg.TaskDir().Dir,
+		WorkDir:          driverConfig.WorkDir,
 		StdoutPath:       cfg.StdoutPath,
 		StderrPath:       cfg.StderrPath,
 		NetworkIsolation: cfg.NetworkIsolation,
 		Resources:        cfg.Resources.Copy(),
-		OverrideCgroupV2: cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2),
+		OverrideCgroupV2: driverConfig.OverrideCgroupV2,
 		OverrideCgroupV1: driverConfig.OverrideCgroupV1,
 		OOMScoreAdj:      int32(driverConfig.OOMScoreAdj),
-	}
-
-	// ensure only one of cgroups_v1_override and cgroups_v2_override have been
-	// configured; must check here because task config validation cannot happen
-	// on the server.
-	if len(execCmd.OverrideCgroupV1) > 0 && execCmd.OverrideCgroupV2 != "" {
-		return nil, nil, errors.New("only one of cgroups_v1_override and cgroups_v2_override may be set")
 	}
 
 	ps, err := exec.Launch(execCmd)

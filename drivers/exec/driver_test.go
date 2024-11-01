@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	ctestutils "github.com/hashicorp/nomad/client/testutil"
@@ -125,6 +126,50 @@ func TestExecDriver_Fingerprint(t *testing.T) {
 	case <-time.After(time.Duration(testutil.TestMultiplier()*5) * time.Second):
 		require.Fail("timeout receiving fingerprint")
 	}
+}
+
+func TestExecDriver_WorkDir(t *testing.T) {
+	ci.Parallel(t)
+
+	ctestutils.ExecCompatible(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := newExecDriverTest(t, ctx)
+	harness := dtestutil.NewDriverHarness(t, d)
+	allocID := uuid.Generate()
+	task := &drivers.TaskConfig{
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      "test",
+		Resources: testResources(allocID, "test"),
+	}
+
+	workDir := filepath.Join("/", allocdir.TaskLocal)
+	tc := &TaskConfig{
+		Command: "/bin/cat",
+		Args:    []string{"foo.txt"},
+		WorkDir: workDir,
+	}
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	must.NoError(t, os.WriteFile(filepath.Join(task.TaskDir().Dir, allocdir.TaskLocal, "foo.txt"), []byte("foo"), 660))
+
+	handle, _, err := harness.StartTask(task)
+	must.NoError(t, err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	must.NoError(t, err)
+
+	// Task will fail if cat cannot find the file, which would only happen
+	// if the task's WorkDir was setup incorrectly
+	result := <-ch
+	must.Zero(t, result.ExitCode)
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestExecDriver_StartWait(t *testing.T) {
@@ -735,11 +780,13 @@ func TestConfig_ParseAllHCL(t *testing.T) {
 config {
   command = "/bin/bash"
   args = ["-c", "echo hello"]
+  work_dir = "/root"
 }`
 
 	expected := &TaskConfig{
 		Command: "/bin/bash",
 		Args:    []string{"-c", "echo hello"},
+		WorkDir: "/root",
 	}
 
 	var tc *TaskConfig
@@ -1010,6 +1057,20 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 		} {
 			must.Eq(t, tc.exp, (&TaskConfig{
 				CapDrop: tc.drops,
+			}).validate())
+		}
+	})
+
+	t.Run("work_dir", func(t *testing.T) {
+		for _, tc := range []struct {
+			workDir string
+			exp     error
+		}{
+			{workDir: "/foo", exp: nil},
+			{workDir: "foo", exp: errors.New(`work_dir must be absolute but got relative path "foo"`)},
+		} {
+			must.Eq(t, tc.exp, (&TaskConfig{
+				WorkDir: tc.workDir,
 			}).validate())
 		}
 	})
