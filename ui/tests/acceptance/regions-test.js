@@ -36,21 +36,23 @@ module('Acceptance | regions (only one)', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('when there is only one region, the region switcher is not shown in the nav bar and the region is not in the page title', async function (assert) {
+  test('when there is only one region, and it is the default one, the region switcher is not shown in the nav bar and the region is not in the page title', async function (assert) {
     server.create('region', { id: 'global' });
 
     await JobsList.visit();
 
     assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
+    assert.notOk(Layout.navbar.singleRegion.isPresent, 'No single region');
     assert.ok(document.title.includes('Jobs'));
   });
 
-  test('when the only region is not named "global", the region switcher still is not shown', async function (assert) {
+  test('when the only region is not named "global", the region switcher still is not shown, but the single region name is', async function (assert) {
     server.create('region', { id: 'some-region' });
 
     await JobsList.visit();
 
     assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
+    assert.ok(Layout.navbar.singleRegion.isPresent, 'Single region');
   });
 
   test('pages do not include the region query param', async function (assert) {
