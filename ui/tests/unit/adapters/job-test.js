@@ -468,6 +468,9 @@ module('Unit | Adapter | Job', function (hooks) {
   });
 
   test('when the region is set to the default region, requests are made without the region query param', async function (assert) {
+    const secret = 'here is the secret';
+    this.subject().set('token.secret', secret);
+
     await this.initializeUI({ region: 'region-1' });
 
     const { pretender } = this.server;

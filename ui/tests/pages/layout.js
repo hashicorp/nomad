@@ -28,6 +28,11 @@ export default create({
       }),
     },
 
+    singleRegion: {
+      scope: '.single-region',
+      text: text(),
+    },
+
     search: {
       scope: '[data-test-search-parent]',
 
