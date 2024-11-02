@@ -708,7 +708,12 @@ export default function () {
     return this.serialize(volume);
   });
 
-  this.get('/agent/members', function ({ agents, regions }) {
+  this.get('/agent/members', function ({ agents, regions }, req) {
+    const tokenPresent = req.requestHeaders['X-Nomad-Token'];
+    if (!tokenPresent) {
+      return new Response(403, {}, 'Forbidden');
+    }
+
     const firstRegion = regions.first();
     return {
       ServerRegion: firstRegion ? firstRegion.id : null,

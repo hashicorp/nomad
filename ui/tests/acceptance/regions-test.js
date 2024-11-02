@@ -15,6 +15,7 @@ import JobsList from 'nomad-ui/tests/pages/jobs/list';
 import ClientsList from 'nomad-ui/tests/pages/clients/list';
 import Layout from 'nomad-ui/tests/pages/layout';
 import Allocation from 'nomad-ui/tests/pages/allocations/detail';
+import Tokens from 'nomad-ui/tests/pages/settings/tokens';
 
 module('Acceptance | regions (only one)', function (hooks) {
   setupApplicationTest(hooks);
@@ -35,21 +36,23 @@ module('Acceptance | regions (only one)', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('when there is only one region, the region switcher is not shown in the nav bar and the region is not in the page title', async function (assert) {
+  test('when there is only one region, and it is the default one, the region switcher is not shown in the nav bar and the region is not in the page title', async function (assert) {
     server.create('region', { id: 'global' });
 
     await JobsList.visit();
 
     assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
+    assert.notOk(Layout.navbar.singleRegion.isPresent, 'No single region');
     assert.ok(document.title.includes('Jobs'));
   });
 
-  test('when the only region is not named "global", the region switcher still is not shown', async function (assert) {
+  test('when the only region is not named "global", the region switcher still is not shown, but the single region name is', async function (assert) {
     server.create('region', { id: 'some-region' });
 
     await JobsList.visit();
 
     assert.notOk(Layout.navbar.regionSwitcher.isPresent, 'No region switcher');
+    assert.ok(Layout.navbar.singleRegion.isPresent, 'Single region');
   });
 
   test('pages do not include the region query param', async function (assert) {
@@ -217,5 +220,27 @@ module('Acceptance | regions (many)', function (hooks) {
         assert.ok(req.url.includes(`region=${region}`), req.url);
       }
     });
+  });
+
+  test('Signing in sets the active region', async function (assert) {
+    window.localStorage.clear();
+    let managementToken = server.create('token');
+    await Tokens.visit();
+    assert.equal(
+      Layout.navbar.regionSwitcher.text,
+      'Select a Region',
+      'Region picker says "Select a Region" before signing in'
+    );
+    await Tokens.secret(managementToken.secretId).submit();
+    assert.equal(
+      window.localStorage.nomadActiveRegion,
+      'global',
+      'Region is set in localStorage after signing in'
+    );
+    assert.equal(
+      Layout.navbar.regionSwitcher.text,
+      'Region: global',
+      'Region picker says "Region: global" after signing in'
+    );
   });
 });

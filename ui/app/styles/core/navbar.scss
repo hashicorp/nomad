@@ -142,6 +142,17 @@ $secondaryNavbarHeight: 4.5rem;
     display: flex;
     align-items: center;
 
+    &.single-region {
+      display: block;
+      padding: 0;
+      font-size: 1em;
+      color: rgba($primary-invert, 0.9);
+
+      > span {
+        font-weight: 500;
+      }
+    }
+
     &.is-gutter {
       width: $gutter-width;
       display: block;
