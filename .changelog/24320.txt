@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Show region in header when only one region exists, and set it immediately upon logging in with a token
+```

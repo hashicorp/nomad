@@ -23,7 +23,7 @@ export default class Tokens extends Controller {
   @service token;
   @service store;
   @service router;
-
+  @service system;
   queryParams = ['code', 'state', 'jwtAuthMethod'];
 
   @tracked secret = this.token.secret;
@@ -163,6 +163,14 @@ export default class Tokens extends Controller {
 
           // Refetch the token and associated policies
           this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+
+          if (!this.system.activeRegion) {
+            this.system.get('defaultRegion').then((res) => {
+              if (res.region) {
+                this.system.set('activeRegion', res.region);
+              }
+            });
+          }
 
           this.signInStatus = 'success';
           this.token.set('tokenNotFound', false);
