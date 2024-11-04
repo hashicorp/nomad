@@ -983,6 +983,19 @@ The table below shows this endpoint's support for
   must be the full UUID, not the short 8-character one. This is specified as
   part of the path.
 
+- `Task` `(string: <required>)` - Specifies the name of the task whose schedule
+  should be overridden.
+
+- `ScheduleState` `(string: <required>)` - Specifies the pause state to force
+  the task into. One of:
+
+    - `"pause"` - Forces the task to pause.
+
+    - `"run"` - Forces the task to run.
+
+    - `"scheduled"` - Removes any overrides and forces the task to adhere to
+      its schedule.
+
 ### Sample Request
 
 ```shell-session
@@ -1018,12 +1031,12 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `:alloc_id` `(string: <required>)`- Specifies the UUID of the allocation. This
-  must be the full UUID, not the short 8-character one. This is specified as
-  part of the path.
+- `:alloc_id` `(string: <required>)` - Specifies the UUID of the allocation.
+  This must be the full UUID, not the short 8-character one. This is
+  specified as part of the path.
 
-- `task` - Specifies the task from which to retrieve the time based task
-  execution state.
+- `task` `(string: <required>)` - Specifies the name of the task from which to
+  retrieve the time-based task execution state.
 
 ### Sample Request
 
@@ -1038,6 +1051,25 @@ $ nomad operator api /v1/client/allocation/23f520cc-629a-46ff-395f-0661e7aa939e/
   "ScheduleState": "scheduled_pause"
 }
 ```
+
+#### Field Reference
+
+- `ScheduleState` `(string)`: The task's current paused state. It can can have
+  one of the following values:
+
+  - `""` - The task is running. The only state returned for tasks with no
+    schedule.
+
+  - `force_run` - The task's schedule has been overridden to run.
+
+  - `force_pause` - The task's schedule has been overridden to pause.
+
+  - `scheduled_pause` - The task is paused according to its schedule.
+
+  - `schedule_resume` - A schedule override is being removed. Subsequent calls
+    should return running (`""`) or paused (`scheduled_pause`) states. This
+    state is rarely possible to observe since it transitions immediately to
+    another state.
 
 [`shutdown_delay`]: /nomad/docs/job-specification/group#shutdown_delay
 [schedule]: /nomad/docs/job-specification/schedule

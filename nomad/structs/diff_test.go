@@ -6059,6 +6059,7 @@ func TestTaskDiff(t *testing.T) {
 						},
 						GetterMode:   "dir",
 						RelativeDest: "bar",
+						Chown:        false,
 					},
 				},
 			},
@@ -6082,6 +6083,7 @@ func TestTaskDiff(t *testing.T) {
 						},
 						GetterMode:   "file",
 						RelativeDest: "bam",
+						Chown:        true,
 					},
 				},
 			},
@@ -6104,6 +6106,12 @@ func TestTaskDiff(t *testing.T) {
 						Type: DiffTypeAdded,
 						Name: "Artifact",
 						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Chown",
+								Old:  "",
+								New:  "true",
+							},
 							{
 								Type: DiffTypeAdded,
 								Name: "GetterHeaders[User-Agent]",
@@ -6154,11 +6162,16 @@ func TestTaskDiff(t *testing.T) {
 						Fields: []*FieldDiff{
 							{
 								Type: DiffTypeDeleted,
+								Name: "Chown",
+								Old:  "false",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
 								Name: "GetterHeaders[User]",
 								Old:  "user1",
 								New:  "",
 							},
-
 							{
 								Type: DiffTypeDeleted,
 								Name: "GetterInsecure",

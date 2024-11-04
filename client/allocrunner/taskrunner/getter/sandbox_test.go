@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
 	"time"
 
@@ -46,7 +47,7 @@ func TestSandbox_Get_http(t *testing.T) {
 		RelativeDest: "local/downloads",
 	}
 
-	err := sbox.Get(env, artifact)
+	err := sbox.Get(env, artifact, "nobody")
 	must.NoError(t, err)
 
 	b, err := os.ReadFile(filepath.Join(taskDir, "local", "downloads", "go.mod"))
@@ -74,11 +75,37 @@ func TestSandbox_Get_insecure_http(t *testing.T) {
 		RelativeDest: "local/downloads",
 	}
 
-	err := sbox.Get(env, artifact)
+	err := sbox.Get(env, artifact, "nobody")
 	must.Error(t, err)
 	must.StrContains(t, err.Error(), "x509: certificate signed by unknown authority")
 
 	artifact.GetterInsecure = true
-	err = sbox.Get(env, artifact)
+	err = sbox.Get(env, artifact, "nobody")
 	must.NoError(t, err)
+}
+
+func TestSandbox_Get_chown(t *testing.T) {
+	testutil.RequireRoot(t)
+	logger := testlog.HCLogger(t)
+
+	ac := artifactConfig(10 * time.Second)
+	sbox := New(ac, logger)
+
+	_, taskDir := SetupDir(t)
+	env := noopTaskEnv(taskDir)
+
+	artifact := &structs.TaskArtifact{
+		GetterSource: "https://raw.githubusercontent.com/hashicorp/go-set/main/go.mod",
+		RelativeDest: "local/downloads",
+		Chown:        true,
+	}
+
+	err := sbox.Get(env, artifact, "nobody")
+	must.NoError(t, err)
+
+	info, err := os.Stat(filepath.Join(taskDir, "local", "downloads"))
+	must.NoError(t, err)
+
+	uid := info.Sys().(*syscall.Stat_t).Uid
+	must.Eq(t, 65534, uid) // nobody's conventional uid
 }

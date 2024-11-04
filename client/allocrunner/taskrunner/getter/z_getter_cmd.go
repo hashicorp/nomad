@@ -51,6 +51,16 @@ func init() {
 			return subproc.ExitFailure
 		}
 
+		// chown the resulting artifact to the task user, but only if configured
+		// to do so in the artifact block (for compatibility)
+		if env.Chown {
+			err := chownDestination(env.Destination, env.User)
+			if err != nil {
+				subproc.Print("failed to chown artifact: %v", err)
+				return subproc.ExitFailure
+			}
+		}
+
 		subproc.Print("artifact download was a success")
 		return subproc.ExitSuccess
 	})

@@ -9815,6 +9815,11 @@ type TaskArtifact struct {
 	// RelativeDest is the download destination given relative to the task's
 	// directory.
 	RelativeDest string
+
+	// Chown the resulting files and directories to the user of the task.
+	//
+	// Defaults to false.
+	Chown bool
 }
 
 func (ta *TaskArtifact) Equal(o *TaskArtifact) bool {
@@ -9834,6 +9839,8 @@ func (ta *TaskArtifact) Equal(o *TaskArtifact) bool {
 		return false
 	case ta.RelativeDest != o.RelativeDest:
 		return false
+	case ta.Chown != o.Chown:
+		return false
 	}
 	return true
 }
@@ -9849,6 +9856,7 @@ func (ta *TaskArtifact) Copy() *TaskArtifact {
 		GetterMode:     ta.GetterMode,
 		GetterInsecure: ta.GetterInsecure,
 		RelativeDest:   ta.RelativeDest,
+		Chown:          ta.Chown,
 	}
 }
 
@@ -9890,6 +9898,7 @@ func (ta *TaskArtifact) Hash() string {
 	_, _ = h.Write([]byte(ta.GetterMode))
 	_, _ = h.Write([]byte(strconv.FormatBool(ta.GetterInsecure)))
 	_, _ = h.Write([]byte(ta.RelativeDest))
+	_, _ = h.Write([]byte(strconv.FormatBool(ta.Chown)))
 	return base64.RawStdEncoding.EncodeToString(h.Sum(nil))
 }
 
