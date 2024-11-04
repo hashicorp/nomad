@@ -976,6 +976,9 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"runc": func() (cli.Command, error) {
+			return &RuncCommand{}, nil
+		},
 		"scaling": func() (cli.Command, error) {
 			return &ScalingCommand{
 				Meta: meta,
