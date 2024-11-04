@@ -62,6 +62,7 @@ func testExecutorCommandWithChroot(t *testing.T) *testExecCmd {
 		"/lib64":            "/lib64",
 		"/usr/lib":          "/usr/lib",
 		"/bin/ls":           "/bin/ls",
+		"/bin/pwd":          "/bin/pwd",
 		"/bin/cat":          "/bin/cat",
 		"/bin/echo":         "/bin/echo",
 		"/bin/bash":         "/bin/bash",
@@ -796,6 +797,34 @@ func TestExecutor_cmdMounts(t *testing.T) {
 	}
 
 	require.EqualValues(t, expected, cmdMounts(input))
+}
+
+func TestExecutor_WorkDir(t *testing.T) {
+	t.Parallel()
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	execCmd.ResourceLimits = true
+	workDir := "/etc"
+	execCmd.WorkDir = workDir
+	execCmd.Cmd = "/bin/pwd"
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	must.NoError(t, err)
+	must.NonZero(t, ps.Pid)
+
+	state, err := executor.Wait(context.Background())
+	must.NoError(t, err)
+	must.Zero(t, state.ExitCode)
+
+	output := strings.TrimSpace(testExecCmd.stdout.String())
+	must.Eq(t, output, workDir)
 }
 
 func TestExecCommand_getCgroupOr_off(t *testing.T) {

@@ -125,6 +125,10 @@ type ExecCommand struct {
 	// TaskDir is the directory path on the host where for the task
 	TaskDir string
 
+	// WorkDir is the working directory of the task inside of a chroot
+	// which defaults to the chroot directory (TaskDir) itself
+	WorkDir string
+
 	// ResourceLimits determines whether resource limits are enforced by the
 	// executor.
 	ResourceLimits bool
@@ -363,7 +367,11 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// set the task dir as the working directory for the command
-	e.childCmd.Dir = e.command.TaskDir
+	if e.command.WorkDir != "" {
+		e.childCmd.Dir = e.command.WorkDir
+	} else {
+		e.childCmd.Dir = e.command.TaskDir
+	}
 
 	// start command in separate process group
 	if err := e.setNewProcessGroup(); err != nil {
@@ -482,7 +490,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 
-	cmd.Dir = "/"
+	cmd.Dir = e.childCmd.Dir
 	cmd.Env = e.childCmd.Env
 
 	execHelper := &execHelper{
