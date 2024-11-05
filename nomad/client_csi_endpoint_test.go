@@ -117,8 +117,7 @@ func (c *MockClientCSI) NodeExpandVolume(req *cstructs.ClientCSINodeExpandVolume
 
 func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -131,8 +130,7 @@ func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 
 func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -145,8 +143,7 @@ func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 
 func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerDetachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -159,8 +156,7 @@ func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 
 func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerDetachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -173,8 +169,7 @@ func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 
 func TestClientCSIController_ValidateVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerValidateVolumeRequest{
 		VolumeID:           "test",
@@ -188,8 +183,7 @@ func TestClientCSIController_ValidateVolume_Local(t *testing.T) {
 
 func TestClientCSIController_ValidateVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerValidateVolumeRequest{
 		VolumeID:           "test",
@@ -203,8 +197,7 @@ func TestClientCSIController_ValidateVolume_Forwarded(t *testing.T) {
 
 func TestClientCSIController_CreateVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerCreateVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -217,8 +210,7 @@ func TestClientCSIController_CreateVolume_Local(t *testing.T) {
 
 func TestClientCSIController_CreateVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerCreateVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -231,8 +223,7 @@ func TestClientCSIController_CreateVolume_Forwarded(t *testing.T) {
 
 func TestClientCSIController_DeleteVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerDeleteVolumeRequest{
 		ExternalVolumeID:   "test",
@@ -246,8 +237,7 @@ func TestClientCSIController_DeleteVolume_Local(t *testing.T) {
 
 func TestClientCSIController_DeleteVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerDeleteVolumeRequest{
 		ExternalVolumeID:   "test",
@@ -261,8 +251,7 @@ func TestClientCSIController_DeleteVolume_Forwarded(t *testing.T) {
 
 func TestClientCSIController_ListVolumes_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerListVolumesRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -275,8 +264,7 @@ func TestClientCSIController_ListVolumes_Local(t *testing.T) {
 
 func TestClientCSIController_ListVolumes_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerListVolumesRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -289,8 +277,7 @@ func TestClientCSIController_ListVolumes_Forwarded(t *testing.T) {
 
 func TestClientCSIController_CreateSnapshot_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -303,8 +290,7 @@ func TestClientCSIController_CreateSnapshot_Local(t *testing.T) {
 
 func TestClientCSIController_CreateSnapshot_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -317,8 +303,7 @@ func TestClientCSIController_CreateSnapshot_Forwarded(t *testing.T) {
 
 func TestClientCSIController_DeleteSnapshot_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerDeleteSnapshotRequest{
 		ID:                 "test",
@@ -332,8 +317,7 @@ func TestClientCSIController_DeleteSnapshot_Local(t *testing.T) {
 
 func TestClientCSIController_DeleteSnapshot_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerDeleteSnapshotRequest{
 		ID:                 "test",
@@ -347,8 +331,7 @@ func TestClientCSIController_DeleteSnapshot_Forwarded(t *testing.T) {
 
 func TestClientCSIController_ListSnapshots_Local(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerListSnapshotsRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -361,8 +344,7 @@ func TestClientCSIController_ListSnapshots_Local(t *testing.T) {
 
 func TestClientCSIController_ListSnapshots_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerListSnapshotsRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -420,10 +402,12 @@ func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 
 // sets up a pair of servers, each with one client, and registers a plugin to the clients.
 // returns a RPC client to the leader and a cleanup function.
-func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
+func setupForward(t *testing.T) rpc.ClientCodec {
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
 	s2, cleanupS2 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
+	t.Cleanup(cleanupS1)
+	t.Cleanup(cleanupS2)
 	TestJoin(t, s1, s2)
 
 	testutil.WaitForLeader(t, s1.RPC)
@@ -433,27 +417,22 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 	c1, cleanupC1 := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s1.config.RPCAddr.String()}
 	})
+	t.Cleanup(func() { cleanupC1() })
 
 	// Wait for client initialization
 	select {
 	case <-c1.Ready():
 	case <-time.After(10 * time.Second):
-		cleanupC1()
-		cleanupS1()
-		cleanupS2()
 		t.Fatal("client timedout on initialize")
 	}
 
 	c2, cleanupC2 := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
+	t.Cleanup(func() { cleanupC2() })
 	select {
 	case <-c2.Ready():
 	case <-time.After(10 * time.Second):
-		cleanupC1()
-		cleanupC2()
-		cleanupS1()
-		cleanupS2()
 		t.Fatal("client timedout on initialize")
 	}
 
@@ -483,20 +462,14 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 
 	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
-	cleanup := func() {
-		cleanupC1()
-		cleanupC2()
-		cleanupS2()
-		cleanupS1()
-	}
-
-	return codec, cleanup
+	return codec
 }
 
 // sets up a single server with a client, and registers a plugin to the client.
-func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
+func setupLocal(t *testing.T) rpc.ClientCodec {
 	var err error
 	s1, cleanupS1 := TestServer(t, func(c *Config) { c.BootstrapExpect = 1 })
+	t.Cleanup(cleanupS1)
 
 	testutil.WaitForLeader(t, s1.RPC)
 	codec := rpcClient(t, s1)
@@ -512,15 +485,10 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	mockCSI.NextDeleteSnapshotError = fmt.Errorf("no plugins registered for type")
 	mockCSI.NextListExternalSnapshotsError = fmt.Errorf("no plugins registered for type")
 
-	c1, cleanupC1, err := client.TestRPCOnlyClient(t, nil, s1.config.RPCAddr,
+	c1, cleanupC1 := client.TestRPCOnlyClient(t, nil, s1.config.RPCAddr,
 		map[string]interface{}{"CSI": mockCSI},
 	)
-
-	if err != nil {
-		cleanupC1()
-		cleanupS1()
-		must.NoError(t, err, must.Sprint("could not setup test client"))
-	}
+	t.Cleanup(cleanupC1)
 
 	node1 := c1.UpdateConfig(func(c *config.Config) {
 		c.Node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
@@ -532,11 +500,7 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	}
 	var resp structs.NodeUpdateResponse
 	err = c1.RPC("Node.Register", req, &resp)
-	if err != nil {
-		cleanupC1()
-		cleanupS1()
-		must.NoError(t, err, must.Sprint("could not register client node"))
-	}
+	must.NoError(t, err, must.Sprint("could not register client node"))
 
 	waitForNodes(t, s1, 1, 1)
 
@@ -555,12 +519,7 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	}).Node
 	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
-	cleanup := func() {
-		cleanupC1()
-		cleanupS1()
-	}
-
-	return codec, cleanup
+	return codec
 }
 
 // waitForNodes waits until the server is connected to connectedNodes
