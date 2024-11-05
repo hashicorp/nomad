@@ -39,9 +39,16 @@ jobs:
     runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: ./.github/actions/vault-secrets
+      - name: Retrieve Vault-hosted Secrets
+        if: endsWith(github.repository, '-enterprise')
+        id: vault
+        uses: hashicorp/vault-action@d1720f055e0635fd932a1d2a48f87a666a57906c # v3.0.0
         with:
-          paths: |-
+          url: ${{ vars.CI_VAULT_URL }}
+          method: ${{ vars.CI_VAULT_METHOD }}
+          path: ${{ vars.CI_VAULT_PATH }}
+          jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
+          secrets: |-
             kv/data/github/hashicorp/nomad-enterprise/gha ELEVATED_GITHUB_TOKEN ;
       - name: Git config token
         if: endsWith(github.repository, '-enterprise')
