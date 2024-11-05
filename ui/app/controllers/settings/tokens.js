@@ -24,6 +24,7 @@ export default class Tokens extends Controller {
   @service store;
   @service router;
   @service system;
+  @service notifications;
   queryParams = ['code', 'state', 'jwtAuthMethod'];
 
   @tracked secret = this.token.secret;
@@ -145,6 +146,7 @@ export default class Tokens extends Controller {
           this.token.get('fetchSelfTokenAndPolicies').perform().catch();
 
           this.signInStatus = 'success';
+          this.optionallyRedirectPathAfterSignIn();
         },
         () => {
           this.token.set('secret', undefined);
@@ -174,12 +176,32 @@ export default class Tokens extends Controller {
 
           this.signInStatus = 'success';
           this.token.set('tokenNotFound', false);
+          this.optionallyRedirectPathAfterSignIn();
         },
         () => {
           this.token.set('secret', undefined);
           this.signInStatus = 'failure';
         }
       );
+    }
+  }
+
+  /**
+   * If the user was redirected to the login page because their token expired,
+   * redirect them back to the page they were on.
+   */
+  optionallyRedirectPathAfterSignIn() {
+    if (this.token.postExpiryPath) {
+      this.router.transitionTo(this.token.postExpiryPath);
+      this.token.postExpiryPath = null;
+
+      // Because they won't be on the page to see "Successfully signed in", use a toast.
+      this.notifications.add({
+        title: 'Successfully signed in',
+        message:
+          'You were redirected back to the page you were on before you were signed out.',
+        type: 'success',
+      });
     }
   }
 
@@ -270,6 +292,7 @@ export default class Tokens extends Controller {
 
       this.signInStatus = 'success';
       this.token.set('tokenNotFound', false);
+      this.optionallyRedirectPathAfterSignIn();
     } else {
       this.state = 'failure';
       this.code = null;
