@@ -3859,6 +3859,7 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 	prestartSidecarTasks := &AllocatedTaskResources{}
 	prestartEphemeralTasks := &AllocatedTaskResources{}
 	main := &AllocatedTaskResources{}
+	poststartTasks := &AllocatedTaskResources{}
 	poststopTasks := &AllocatedTaskResources{}
 
 	for taskName, r := range a.Tasks {
@@ -3871,12 +3872,15 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 			} else {
 				prestartEphemeralTasks.Add(r)
 			}
+		} else if lc.Hook == TaskLifecycleHookPoststart {
+			poststartTasks.Add(r)
 		} else if lc.Hook == TaskLifecycleHookPoststop {
 			poststopTasks.Add(r)
 		}
 	}
 
 	// update this loop to account for lifecycle hook
+	main.Add(poststartTasks)
 	prestartEphemeralTasks.Max(main)
 	prestartEphemeralTasks.Max(poststopTasks)
 	prestartSidecarTasks.Add(prestartEphemeralTasks)
