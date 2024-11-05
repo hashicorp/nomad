@@ -51,9 +51,16 @@ jobs:
     runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: ./.github/actions/vault-secrets
+      - name: Retrieve Vault-hosted Secrets
+        if: endsWith(github.repository, '-enterprise')
+        id: vault
+        uses: hashicorp/vault-action@d1720f055e0635fd932a1d2a48f87a666a57906c # v3.0.0
         with:
-          paths: |-
+          url: ${{ vars.CI_VAULT_URL }}
+          method: ${{ vars.CI_VAULT_METHOD }}
+          path: ${{ vars.CI_VAULT_PATH }}
+          jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
+          secrets: |-
             kv/data/teams/nomad/slack-webhooks feed-nomad | SLACK_FEED_NOMAD ;
       - name: Send slack notification on failure
         uses: slackapi/slack-github-action@37ebaef184d7626c5f204ab8d3baff4262dd30f0 # v1.27.0
