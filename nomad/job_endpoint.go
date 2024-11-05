@@ -1027,8 +1027,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if job == nil {
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
-	if job.Type == structs.JobTypeSystem {
-		return structs.NewErrRPCCoded(http.StatusBadRequest, `cannot scale jobs of type "system"`)
+
+	if job.Type == structs.JobTypeSystem && *args.Count > 1 {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, `jobs of type "system" can only be scaled to 1 or 0`)
 	}
 
 	// Since job is going to be mutated we must copy it since state store methods
