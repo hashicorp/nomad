@@ -43,14 +43,14 @@ type HostVolume struct {
 	// Constraints are used to select a node. If the NodeID is provided,
 	// Constraints are used to validate that the node meets those constraints at
 	// the time of volume creation.
-	Constraints []*Constraint
+	Constraints []*Constraint `json:",omitempty"`
 
 	// Because storage may allow only specific intervals of size, we accept a
 	// min and max and return the actual capacity when the volume is created or
 	// updated on the client
-	RequestedCapacityMin int64 // bytes
-	RequestedCapacityMax int64 // bytes
-	Capacity             int64 // bytes
+	RequestedCapacityMinBytes int64
+	RequestedCapacityMaxBytes int64
+	CapacityBytes             int64
 
 	// RequestedCapabilities defines the options available to group.volume
 	// blocks. The scheduler checks against the listed capability blocks and
@@ -58,7 +58,7 @@ type HostVolume struct {
 	RequestedCapabilities []*HostVolumeCapability
 
 	// Parameters are an opaque map of parameters for the host volume plugin.
-	Parameters map[string]string
+	Parameters map[string]string `json:",omitempty"`
 
 	// HostPath is the path on disk where the volume's mount point was
 	// created. We record this to make debugging easier.
@@ -77,7 +77,7 @@ type HostVolume struct {
 	// Allocations is the list of non-client-terminal allocations with claims on
 	// this host volume. They are denormalized on read and this field will be
 	// never written to Raft
-	Allocations []*AllocListStub
+	Allocations []*AllocListStub `json:",omitempty"`
 }
 
 type HostVolumeState string
@@ -107,24 +107,27 @@ func (hv *HostVolume) Stub() *HostVolumeStub {
 	}
 
 	return &HostVolumeStub{
-		Namespace:   hv.Namespace,
-		ID:          hv.ID,
-		Name:        hv.Name,
-		PluginID:    hv.PluginID,
-		NodePool:    hv.NodePool,
-		NodeID:      hv.NodeID,
-		Capacity:    hv.Capacity,
-		State:       hv.State,
-		CreateIndex: hv.CreateIndex,
-		CreateTime:  hv.CreateTime,
-		ModifyIndex: hv.ModifyIndex,
-		ModifyTime:  hv.ModifyTime,
+		Namespace:     hv.Namespace,
+		ID:            hv.ID,
+		Name:          hv.Name,
+		PluginID:      hv.PluginID,
+		NodePool:      hv.NodePool,
+		NodeID:        hv.NodeID,
+		CapacityBytes: hv.CapacityBytes,
+		State:         hv.State,
+		CreateIndex:   hv.CreateIndex,
+		CreateTime:    hv.CreateTime,
+		ModifyIndex:   hv.ModifyIndex,
+		ModifyTime:    hv.ModifyTime,
 	}
 }
 
 func (hv *HostVolume) Validate(existing *HostVolume) error {
 	// TODO(1.10.0): validate a host volume is validate or that changes to a
 	// host volume are valid
+
+	// TODO(1.10.0): note that we have to handle nil existing *HostVolume
+	// parameter safely
 	return nil
 }
 
@@ -180,18 +183,69 @@ const (
 
 // HostVolumeStub is used for responses for the list volumes endpoint
 type HostVolumeStub struct {
-	Namespace string
-	ID        string
-	Name      string
-	PluginID  string
-	NodePool  string
-	NodeID    string
-	Capacity  int64 // bytes
-	State     HostVolumeState
+	Namespace     string
+	ID            string
+	Name          string
+	PluginID      string
+	NodePool      string
+	NodeID        string
+	CapacityBytes int64
+	State         HostVolumeState
 
 	CreateIndex uint64
 	CreateTime  int64
 
 	ModifyIndex uint64
 	ModifyTime  int64
+}
+
+type HostVolumeCreateRequest struct {
+	Volumes []*HostVolume
+	WriteRequest
+}
+
+type HostVolumeCreateResponse struct {
+	Volumes []*HostVolume
+	WriteMeta
+}
+
+type HostVolumeRegisterRequest struct {
+	Volumes []*HostVolume
+	WriteRequest
+}
+
+type HostVolumeRegisterResponse struct {
+	Volumes []*HostVolume
+	WriteMeta
+}
+
+type HostVolumeDeleteRequest struct {
+	VolumeIDs []string
+	WriteRequest
+}
+
+type HostVolumeDeleteResponse struct {
+	VolumeIDs []string // volumes actually deleted
+	WriteMeta
+}
+
+type HostVolumeGetRequest struct {
+	ID string
+	QueryOptions
+}
+
+type HostVolumeGetResponse struct {
+	Volume *HostVolume
+	QueryMeta
+}
+
+type HostVolumeListRequest struct {
+	NodeID   string // filter
+	NodePool string // filter
+	QueryOptions
+}
+
+type HostVolumeListResponse struct {
+	Volumes []*HostVolumeStub
+	QueryMeta
 }
