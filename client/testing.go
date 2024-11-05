@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/client/serviceregistration/mock"
+	"github.com/hashicorp/nomad/client/state"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
@@ -91,19 +92,25 @@ func TestClientWithRPCs(t testing.T, cb func(c *config.Config), rpcs map[string]
 // with the server and then returns mock RPC responses for those interfaces
 // passed in the `rpcs` parameter. Useful for testing client RPCs from the
 // server. Returns the Client, a shutdown function, and any error.
-func TestRPCOnlyClient(t testing.T, srvAddr net.Addr, rpcs map[string]interface{}) (*Client, func() error, error) {
+func TestRPCOnlyClient(t testing.T, cb func(c *config.Config), srvAddr net.Addr, rpcs map[string]any) (*Client, func() error, error) {
 	var err error
 	conf, cleanup := config.TestClientConfig(t)
+	conf.StateDBFactory = state.GetStateDBFactory(true)
+	if cb != nil {
+		cb(conf)
+	}
 
-	client := &Client{config: conf, logger: testlog.HCLogger(t)}
+	client := &Client{config: conf, logger: testlog.HCLogger(t), shutdownCh: make(chan struct{})}
 	client.servers = servers.New(client.logger, client.shutdownCh, client)
-
+	client.registeredCh = make(chan struct{})
 	client.rpcServer = rpc.NewServer()
 	for name, rpc := range rpcs {
 		client.rpcServer.RegisterName(name, rpc)
 	}
-
+	client.heartbeatStop = newHeartbeatStop(
+		client.getAllocRunner, time.Second, client.logger, client.shutdownCh)
 	client.connPool = pool.NewPool(testlog.HCLogger(t), 10*time.Second, 10, nil)
+	client.init()
 
 	cancelFunc := func() error {
 		ch := make(chan error)
@@ -111,6 +118,7 @@ func TestRPCOnlyClient(t testing.T, srvAddr net.Addr, rpcs map[string]interface{
 		go func() {
 			defer close(ch)
 			client.connPool.Shutdown()
+			close(client.shutdownCh)
 			client.shutdownGroup.Wait()
 			cleanup()
 		}()
@@ -118,7 +126,7 @@ func TestRPCOnlyClient(t testing.T, srvAddr net.Addr, rpcs map[string]interface{
 		select {
 		case <-ch:
 			return nil
-		case <-time.After(1 * time.Minute):
+		case <-time.After(5 * time.Second):
 			return fmt.Errorf("timed out while shutting down client")
 		}
 	}
