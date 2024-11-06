@@ -28,8 +28,9 @@ Usage: nomad volume register [options] <input>
   If the supplied path is "-" the volume file is read from stdin. Otherwise, it
   is read from the file at the supplied path.
 
-  When ACLs are enabled, this command requires a token with the
-  'csi-write-volume' capability for the volume's namespace.
+  When ACLs are enabled, this command requires a token with the appropriate
+  capability in the volume's namespace: the 'csi-write-volume' capability for
+  CSI volumes or 'host-volume-register' for dynamic host volumes.
 
 General Options:
 
@@ -103,16 +104,13 @@ func (c *VolumeRegisterCommand) Run(args []string) int {
 
 	switch volType {
 	case "csi":
-		code := c.csiRegister(client, ast)
-		if code != 0 {
-			return code
-		}
+		return c.csiRegister(client, ast)
+	case "host":
+		return c.hostVolumeRegister(client, ast)
 	default:
 		c.Ui.Error(fmt.Sprintf("Error unknown volume type: %s", volType))
 		return 1
 	}
-
-	return 0
 }
 
 // parseVolume is used to parse the quota specification from HCL

@@ -25,8 +25,9 @@ Usage: nomad volume create [options] <input>
   If the supplied path is "-" the volume file is read from stdin. Otherwise, it
   is read from the file at the supplied path.
 
-  When ACLs are enabled, this command requires a token with the
-  'csi-write-volume' capability for the volume's namespace.
+  When ACLs are enabled, this command requires a token with the appropriate
+  capability in the volume's namespace: the 'csi-write-volume' capability for
+  CSI volumes or 'host-volume-create' for dynamic host volumes.
 
 General Options:
 
@@ -99,8 +100,9 @@ func (c *VolumeCreateCommand) Run(args []string) int {
 
 	switch strings.ToLower(volType) {
 	case "csi":
-		code := c.csiCreate(client, ast)
-		return code
+		return c.csiCreate(client, ast)
+	case "host":
+		return c.hostVolumeCreate(client, ast)
 	default:
 		c.Ui.Error(fmt.Sprintf("Error unknown volume type: %s", volType))
 		return 1
