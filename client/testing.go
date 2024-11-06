@@ -101,7 +101,15 @@ func TestRPCOnlyClient(t testing.T, cb func(c *config.Config), srvAddr net.Addr,
 		cb(conf)
 	}
 
-	client := &Client{config: conf, logger: testlog.HCLogger(t), shutdownCh: make(chan struct{})}
+	testLogger := testlog.HCLogger(t)
+
+	client := &Client{
+		config:           conf,
+		logger:           testLogger,
+		shutdownCh:       make(chan struct{}),
+		EnterpriseClient: newEnterpriseClient(testLogger),
+	}
+
 	client.servers = servers.New(client.logger, client.shutdownCh, client)
 	client.registeredCh = make(chan struct{})
 	client.rpcServer = rpc.NewServer()
