@@ -157,10 +157,10 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
-	@golangci-lint run
+	@golangci-lint run --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting ./api source code..."
-	@cd ./api && golangci-lint run --config ../.golangci.yml
+	@cd ./api && golangci-lint run --config ../.golangci.yml --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting hclog statements..."
 	@hclogvet .
