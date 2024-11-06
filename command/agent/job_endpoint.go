@@ -5,6 +5,7 @@ package agent
 
 import (
 	"fmt"
+	"io"
 	"maps"
 	"net/http"
 	"slices"
@@ -88,6 +89,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/dispatch"):
 		jobID := strings.TrimSuffix(path, "/dispatch")
 		return s.jobDispatchRequest(resp, req, jobID)
+	case strings.HasSuffix(path, "/dispatch/payload"):
+		jobID := strings.TrimSuffix(path, "/dispatch/payload")
+		return s.jobDispatchPayloadRequest(resp, req, jobID)
 	case strings.HasSuffix(path, "/versions"):
 		jobID := strings.TrimSuffix(path, "/versions")
 		return s.jobVersions(resp, req, jobID)
@@ -886,6 +890,30 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 		args.JobID = jobID
 	}
 
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.JobDispatchResponse
+	if err := s.agent.RPC("Job.Dispatch", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) jobDispatchPayloadRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.JobDispatchRequest{}
+	var err error
+	args.JobID = jobID
+	args.Payload, err = io.ReadAll(req.Body)
+	if err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	// this only parses query args and headers (not request body)
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDispatchResponse
