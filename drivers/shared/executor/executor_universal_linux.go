@@ -201,7 +201,7 @@ func (e *UniversalExecutor) enterCG1(statsCgroup, cpusetCgroup string) (runningF
 
 	move := func() error {
 		// move the executor back out
-		for _, iface := range ifaces {
+		for _, iface := range append(ifaces, "cpuset") {
 			err := cgroupslib.WriteNomadCG1(iface, "cgroup.procs", pid)
 			if err != nil {
 				e.logger.Warn("failed to move executor cgroup", "interface", iface, "error", err)
