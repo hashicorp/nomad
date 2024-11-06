@@ -153,6 +153,7 @@ export default class ApplicationRoute extends Route {
             e.detail === 'ACL token not found'
         )
       ) {
+        this.token.postExpiryPath = this.router.currentURL;
         this.router.transitionTo('settings.tokens');
       } else {
         this.controllerFor('application').set('error', error);

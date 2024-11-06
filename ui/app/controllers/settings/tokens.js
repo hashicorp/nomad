@@ -200,7 +200,8 @@ export default class Tokens extends Controller {
         title: 'Successfully signed in',
         message:
           'You were redirected back to the page you were on before you were signed out.',
-        type: 'success',
+        color: 'success',
+        timeout: 10000,
       });
     }
   }
