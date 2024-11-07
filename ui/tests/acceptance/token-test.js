@@ -60,7 +60,6 @@ module('Acceptance | tokens', function (hooks) {
     });
     soonExpiringToken = server.create('token', {
       expirationTime: moment().add(1, 's').toDate(),
-      type: 'management',
     });
   });
 
