@@ -411,7 +411,7 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 	// Store the index in which the unblock happened. We use this on subsequent
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
-	b.unblockIndexes[computedClass] = unblockEvent{index, time.Now()}
+	b.unblockIndexes[computedClass] = unblockEvent{index, time.Now().UTC()}
 
 	// Capture chan in lock as Flush overwrites it
 	ch := b.capacityChangeCh
@@ -446,7 +446,7 @@ func (b *BlockedEvals) UnblockQuota(quota string, index uint64) {
 	// Store the index in which the unblock happened. We use this on subsequent
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
-	b.unblockIndexes[quota] = unblockEvent{index, time.Now()}
+	b.unblockIndexes[quota] = unblockEvent{index, time.Now().UTC()}
 	ch := b.capacityChangeCh
 	done := b.stopCh
 	b.l.Unlock()
@@ -475,7 +475,7 @@ func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
 	// Store the index in which the unblock happened. We use this on subsequent
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
-	now := time.Now()
+	now := time.Now().UTC()
 	if quota != "" {
 		b.unblockIndexes[quota] = unblockEvent{index, now}
 	}
