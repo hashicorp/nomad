@@ -20,11 +20,25 @@ export default class JobAdapter extends WatchableNamespaceIDs {
     summary: '/summary',
   };
 
+  /**
+   * Gets the JSON definition of a job.
+   * Prior to Nomad 1.6, this was the only way to get job definition data.
+   * Now, this is included as a stringified JSON object when fetching raw specification (under .Source).
+   * This method is still important for backwards compatibility with older job versions, as well as a fallback
+   * for when fetching raw specification fails.
+   * @param {import('../models/job').default} job
+   */
   fetchRawDefinition(job) {
     const url = this.urlForFindRecord(job.get('id'), 'job');
     return this.ajax(url, 'GET');
   }
 
+  /**
+   * Gets submission info for a job, including (if available) the raw HCL or JSON spec used to run it,
+   * including variable flags and literals.
+   * @param {import('../models/job').default} job
+   * @param {number} version
+   */
   fetchRawSpecification(job, version) {
     const url = addToPath(
       this.urlForFindRecord(job.get('id'), 'job', null, 'submission'),
