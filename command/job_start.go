@@ -198,7 +198,6 @@ func (c *JobStartCommand) Run(args []string) int {
 				statusCh <- 1
 				return
 			}
-			versions, _, _, err = client.Jobs().Versions(*job.ID, true, q)
 
 			// Nothing to do: periodic or dispatch job
 			evalCreated := resp.EvalID != ""
