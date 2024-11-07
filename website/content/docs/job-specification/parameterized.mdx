@@ -152,7 +152,7 @@ job "email-blast" {
 }
 ```
 
-### Interactions with [periodic][periodic]
+### Interactions with [periodic] 
 
 When trying to schedule a job that is both `parameterized` and `periodic`, an internal 
 hierarchy comes into play: A parametrized job should not be dispatched without 
@@ -162,7 +162,7 @@ periodic configuration comes into play and a new job job will be dispatched acco
 to that job and not the originally submitted one. 
 
 For example a job with the following configuration: 
-```
+```hcl
   periodic {
     crons = [
       "*/40 * * * * * *"
@@ -188,8 +188,9 @@ sync/dispatch-1730972650-247c6e97/periodic-1730972860  batch                    
 sync/dispatch-1730972760-f79a96e1                      batch/periodic                50        running  2024-11-07T10:46:00+01:00 // Second dispatched job with parameters B
 sync/dispatch-1730972760-f79a96e1/periodic-1730972800  batch                         50        running  2024-11-07T10:46:40+01:00 // Cron job with parameters B
 sync/dispatch-1730972760-f79a96e1/periodic-1730972860  batch                         50        running  2024-11-07T10:47:40+01:00 // Cron job with parameters B
-
+```
 In order to force a cron job, the corresponding parameterized job needs to be used:
+
 ```
 $ nomad job periodic force sync/dispatch-1730972650-247c6e97 
 ```
@@ -200,4 +201,4 @@ $ nomad job periodic force sync/dispatch-1730972650-247c6e97
 [interpolation]: /nomad/docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [dispatch_payload]: /nomad/docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
 [multiregion]: /nomad/docs/job-specification/multiregion#parameterized-dispatch
-[periodic]/nomad/docs/job-specification/periodic
+[periodic]: /nomad/docs/job-specification/periodic
