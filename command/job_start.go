@@ -25,9 +25,9 @@ Usage: nomad job start [options] <job>
 Alias: nomad start
 
   Start an existing stopped job. This command is used to start a previously stopped job's
-  most recent running version. Upon successful start, an interactive
+  most recent version. Upon successful start, an interactive
   monitor session will start to display log lines as the job starts its
-  allocations based on its most recent running version. It is safe to exit the monitor
+  allocations based on its most recent version. It is safe to exit the monitor
   early using ctrl+c.
 
   When ACLs are enabled, this command requires a token with the 'submit-job'
@@ -174,8 +174,9 @@ func (c *JobStartCommand) Run(args []string) int {
 
 			}
 			c.versionSelected = chosenVersion
+
 			if !versionAvailable {
-				c.Ui.Error(fmt.Sprintf("No previous running versions of job %v", *job.Name))
+				c.Ui.Error(fmt.Sprintf("No previous available versions of job %v", *job.Name))
 				statusCh <- 1
 				return
 			}
