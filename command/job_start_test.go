@@ -127,12 +127,6 @@ func TestStartCommand_ManyJobs(t *testing.T) {
 
 	for _, jobID := range jobIDs {
 		job := testJob(jobID)
-		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
-		job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
-		job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
-		job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-			"run_for": "30s",
-		}
 
 		jobJSON, err := json.MarshalIndent(job, "", " ")
 		must.NoError(t, err)
@@ -182,60 +176,41 @@ func TestStartCommand_ManyJobs(t *testing.T) {
 
 }
 
-func TestStartCommand_StartCorrectVersion(t *testing.T) {
+func TestStartCommand_MultipleCycles(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, _, addr := testServer(t, true, func(c *agent.Config) {
+	srv, client, addr := testServer(t, true, func(c *agent.Config) {
 		c.DevMode = true
 	})
+
 	defer srv.Shutdown()
-
-	jobID := uuid.Generate()
-
-	jobFilePath := filepath.Join(os.TempDir(), jobID+".nomad")
-
-	t.Cleanup(func() {
-		_ = os.Remove(jobFilePath)
-	})
 
 	ui := cli.NewMockUi()
 
-	job := testNomadServiceJob(jobID)
-	job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
-	job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
-	job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "30s",
+	job1 := testJob("job-start-test")
+	resp, _, err := client.Jobs().Register(job1, nil)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
+		t.Fatalf("status code non zero saw %d", code)
 	}
 
-	jobJSON, err := json.MarshalIndent(job, "", " ")
-	must.NoError(t, err)
-
-	jobFile := jobFilePath
-	err = os.WriteFile(jobFile, []byte(jobJSON), 0o644)
-	must.NoError(t, err)
-
-	cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
-
-	code := cmd.Run([]string{"-address", addr, "-json", jobFile})
-	must.Zero(t, code,
-		must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
-		must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
-	)
-
 	args := []string{"-address", addr, "-detach"}
-	args = append(args, jobID)
-	expectedVersions := []uint64{0, 2, 4}
+	args = append(args, "job-start-test")
+	expectedVersions := []uint64{0, 2, 4, 6, 8, 10}
 	stopCmd := &JobStopCommand{Meta: Meta{Ui: ui}}
 	startCmd := &JobStartCommand{Meta: Meta{Ui: ui}}
 
-	// for multiple cycles of starting/stopping a job, check that the correct, most recent running version is picked
-	for i := range 3 {
-		code = stopCmd.Run(args)
+	// check multiple cycles of starting/stopping a job result in the correct version selected
+	for i := range 6 {
+
+		code := stopCmd.Run(args)
 		must.Zero(t, code,
 			must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
 			must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
 		)
+
 		code = startCmd.Run(args)
 		must.Zero(t, code,
 			must.Sprintf("job start stdout: %s", ui.OutputWriter.String()),
