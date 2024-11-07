@@ -216,7 +216,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 		evalID:                      evalID,
 		evalPriority:                evalPriority,
 		supportsDisconnectedClients: supportsDisconnectedClients,
-		now:                         time.Now(),
+		now:                         time.Now().UTC(),
 		result: &reconcileResults{
 			attributeUpdates:          make(map[string]*structs.Allocation),
 			disconnectUpdates:         make(map[string]*structs.Allocation),
