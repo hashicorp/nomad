@@ -8,6 +8,7 @@ package executor
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -126,4 +127,38 @@ func TestUniversalExecutor_setOomAdj(t *testing.T) {
 
 	oomScoreInt, _ := strconv.Atoi(strings.TrimSuffix(string(oomScore), "\n"))
 	must.Eq(t, execCmd.OOMScoreAdj, int32(oomScoreInt))
+}
+
+func TestUniversalExecutor_cg1_no_executor_pid(t *testing.T) {
+	testutil.CgroupsCompatibleV1(t)
+	ci.Parallel(t)
+
+	factory := universalFactory
+	testExecCmd := testExecutorCommand(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "sleep"
+	execCmd.Args = []string{"infinity"}
+
+	factory.configureExecCmd(t, execCmd)
+	defer allocDir.Destroy()
+	executor := factory.new(testlog.HCLogger(t), compute)
+	defer executor.Shutdown("", 0)
+
+	p, err := executor.Launch(execCmd)
+	must.NoError(t, err)
+
+	alloc := filepath.Base(allocDir.AllocDirPath())
+
+	ifaces := []string{"cpu", "memory", "freezer"}
+	for _, iface := range ifaces {
+		cgroup := fmt.Sprintf("/sys/fs/cgroup/%s/nomad/%s.web/cgroup.procs", iface, alloc)
+
+		content, err := os.ReadFile(cgroup)
+		must.NoError(t, err)
+
+		// ensure only 1 pid (sleep) is present in this  cgroup
+		pids := strings.Fields(string(content))
+		must.SliceLen(t, 1, pids)
+		must.Eq(t, pids[0], strconv.Itoa(p.Pid))
+	}
 }

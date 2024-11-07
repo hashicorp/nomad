@@ -379,7 +379,8 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// setup containment (i.e. cgroups on linux)
-	if cleanup, err := e.configureResourceContainer(command, os.Getpid()); err != nil {
+	running, cleanup, err := e.configureResourceContainer(command, os.Getpid())
+	if err != nil {
 		e.logger.Error("failed to configure container, process isolation will not work", "error", err)
 		if os.Geteuid() == 0 || e.usesCustomCgroup() {
 			return nil, fmt.Errorf("unable to configure cgroups: %w", err)
@@ -424,6 +425,12 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
+	// Run the runningFunc hook after the process starts
+	if err := running(); err != nil {
+		return nil, err
+	}
+
+	// Wait on the task process
 	go e.wait()
 	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }

@@ -21,9 +21,10 @@ func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Exe
 	return NewExecutor(logger, compute)
 }
 
-func (e *UniversalExecutor) configureResourceContainer(_ *ExecCommand, _ int) (func(), error) {
-	nothing := func() {}
-	return nothing, nil
+func (e *UniversalExecutor) configureResourceContainer(_ *ExecCommand, _ int) (func() error, func(), error) {
+	cleanup := func() {}
+	running := func() error { return nil }
+	return running, cleanup, nil
 }
 
 func (e *UniversalExecutor) start(command *ExecCommand) error {
