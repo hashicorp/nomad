@@ -376,7 +376,7 @@ type CSIVolListStub struct {
 
 // NewCSIVolume creates the volume struct. No side-effects
 func NewCSIVolume(volumeID string, index uint64) *CSIVolume {
-	now := time.Now().UnixNano()
+	now := time.Now().UTC().UnixNano()
 	out := &CSIVolume{
 		ID:          volumeID,
 		CreateIndex: index,
@@ -1121,7 +1121,7 @@ type CSIPlugin struct {
 
 // NewCSIPlugin creates the plugin struct. No side-effects
 func NewCSIPlugin(id string, index uint64) *CSIPlugin {
-	now := time.Now().UnixNano()
+	now := time.Now().UTC().UnixNano()
 	out := &CSIPlugin{
 		ID:          id,
 		CreateIndex: index,

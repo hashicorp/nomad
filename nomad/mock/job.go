@@ -144,7 +144,7 @@ func Job() *structs.Job {
 		CreateIndex:    42,
 		ModifyIndex:    99,
 		JobModifyIndex: 99,
-		SubmitTime:     time.Now().Add(-6 * time.Hour).UnixNano(),
+		SubmitTime:     time.Now().UTC().Add(-6 * time.Hour).UnixNano(),
 	}
 	job.Canonicalize()
 	return job
