@@ -84,49 +84,32 @@
 
   .lifecycle-chart-row {
     position: relative;
+    padding: 0.25rem 0.5rem;
 
-    .task {
-      margin: 0.55em 0.9em;
-      padding: 0.3em 0.55em;
-      border: 1px solid $grey-blue;
-      border-radius: $radius;
-      background: white;
+    $pending-mid: rgba(255, 255, 255, 0.5);
+    .hds-alert {
+      padding: 4px 8px;
 
-      .name {
-        font-weight: $weight-semibold;
+      &.pending {
+        position: relative;
+        overflow: hidden;
+        border-style: dashed;
 
-        a {
-          color: inherit;
-          text-decoration: none;
+        &:before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            -60deg,
+            transparent,
+            $pending-mid,
+            transparent
+          );
+          animation: shimmer 2s ease-in-out infinite;
         }
-      }
-
-      &:hover {
-        .name a {
-          text-decoration: underline;
-        }
-      }
-
-      .lifecycle {
-        font-size: $size-7;
-        color: $ui-gray-400;
-      }
-    }
-
-    &.is-active {
-      .task {
-        border-color: $nomad-green;
-        background: lighten($nomad-green, 50%);
-
-        .lifecycle {
-          color: $ui-gray-500;
-        }
-      }
-    }
-
-    &.is-finished {
-      .task {
-        color: $ui-gray-400;
       }
     }
 
@@ -158,10 +141,6 @@
 
     &.poststop {
       margin-left: 75%;
-    }
-
-    &:last-child .task {
-      margin-bottom: 0.9em;
     }
   }
 }
