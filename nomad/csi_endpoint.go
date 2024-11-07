@@ -304,7 +304,8 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 
 	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, time.Now())
 
-	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+	// permission for the volume namespaces will be checked below
+	if !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -312,24 +313,25 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return fmt.Errorf("missing volume definition")
 	}
 
-	// This is the only namespace we ACL checked, force all the volumes to use it.
-	// We also validate that the plugin exists for each plugin, and validate the
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Validate ACLs, that the plugin exists for each volume, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
-
-		snap, err := v.srv.State().Snapshot()
-		if err != nil {
-			return err
-		}
 		if vol.Namespace == "" {
 			vol.Namespace = args.RequestNamespace()
+		}
+		if !allowVolume(aclObj, vol.Namespace) {
+			return structs.ErrPermissionDenied
 		}
 		if err = vol.Validate(); err != nil {
 			return err
 		}
 
-		ws := memdb.NewWatchSet()
-		existingVol, err := snap.CSIVolumeByID(ws, vol.Namespace, vol.ID)
+		existingVol, err := snap.CSIVolumeByID(nil, vol.Namespace, vol.ID)
 		if err != nil {
 			return err
 		}
@@ -1044,7 +1046,8 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		return err
 	}
 
-	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+	// permission for the volume namespaces will be checked below
+	if !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1062,12 +1065,19 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 	}
 	validatedVols := []validated{}
 
-	// This is the only namespace we ACL checked, force all the volumes to use it.
-	// We also validate that the plugin exists for each plugin, and validate the
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Validate ACLs, that the plugin exists for each volume, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
 		if vol.Namespace == "" {
 			vol.Namespace = args.RequestNamespace()
+		}
+		if !allowVolume(aclObj, vol.Namespace) {
+			return structs.ErrPermissionDenied
 		}
 		if err = vol.Validate(); err != nil {
 			return err
@@ -1084,10 +1094,6 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		}
 
 		// if the volume already exists, we'll update it instead
-		snap, err := v.srv.State().Snapshot()
-		if err != nil {
-			return err
-		}
 		// current will be nil if it does not exist.
 		current, err := snap.CSIVolumeByID(nil, vol.Namespace, vol.ID)
 		if err != nil {
