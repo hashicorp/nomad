@@ -11,6 +11,7 @@ import classic from 'ember-classic-decorator';
 @classic
 @tagName('')
 export default class LifecycleChartRow extends Component {
+  @computed('taskState.{failed,state}')
   get taskColor() {
     let color = 'neutral';
     if (this.taskState?.state === 'running') {

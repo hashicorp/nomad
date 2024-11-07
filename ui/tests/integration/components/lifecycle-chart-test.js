@@ -117,7 +117,7 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
   });
 
   test('it reflects phase and task states when states are passed in', async function (assert) {
-    assert.expect(24);
+    assert.expect(26);
 
     this.set(
       'taskStates',
@@ -152,8 +152,12 @@ module('Integration | Component | lifecycle-chart', function (hooks) {
 
     this.set('taskStates.4.finishedAt', new Date());
     this.set('taskStates.4.state', 'dead');
+    this.set('taskStates.4.failed', true);
+    this.set('taskStates.0.state', 'pending');
     await settled();
 
+    assert.ok(Chart.tasks[3].child.pending, 'Task is pending');
+    assert.ok(Chart.tasks[5].child.failed, 'Task is failed');
     assert.ok(Chart.tasks[5].isFinished);
   });
 
