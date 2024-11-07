@@ -145,15 +145,15 @@ func (e *UniversalExecutor) configureResourceContainer(
 	// v1: remove the executor process from the task's cgroups
 	// v2: let go of the file descriptor of the task's cgroup
 	var (
-		deleteCgroup cleanupFunc
-		moveProcess  runningFunc
+		deleteCgroup = func() {}
+		moveProcess  = func() error { return nil }
 	)
 
 	// manually configure cgroup for cpu / memory constraints
 	switch cgroupslib.GetMode() {
 	case cgroupslib.CG1:
 		if err := e.configureCG1(cgroup, command); err != nil {
-			return nil, nil, err
+			return moveProcess, deleteCgroup, err
 		}
 		moveProcess, deleteCgroup = e.enterCG1(cgroup, command.CpusetCgroup())
 	default:
@@ -162,12 +162,11 @@ func (e *UniversalExecutor) configureResourceContainer(
 		// get file descriptor of the cgroup made for this task
 		fd, cleanup, err := e.statCG(cgroup)
 		if err != nil {
-			return nil, nil, err
+			return moveProcess, deleteCgroup, err
 		}
 		e.childCmd.SysProcAttr.UseCgroupFD = true
 		e.childCmd.SysProcAttr.CgroupFD = fd
 		deleteCgroup = cleanup
-		moveProcess = func() error { return nil }
 	}
 
 	e.logger.Info("configured cgroup for executor", "pid", pid)
