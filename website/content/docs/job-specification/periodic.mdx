@@ -59,6 +59,9 @@ consistent evaluation when Nomad spans multiple time zones.
   prevents this job from running on the `cron` schedule but prevents force
   launches.
 
+See the [parameterized] documentation for additional considerations when
+using in conjunction with parameterized options.
+
 ## `periodic` Examples
 
 The following examples only show the `periodic` blocks. Remember that the
@@ -116,3 +119,4 @@ configuring time zones for periodic jobs.
 [cron]: https://github.com/hashicorp/cronexpr#implementation 'List of cron expressions'
 [dst]: #daylight-saving-time
 [multiregion]: /nomad/docs/job-specification/multiregion#periodic-time-zones
+[parameterized]: /nomad/docs/job-specification/parameterized
