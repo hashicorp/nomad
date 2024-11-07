@@ -4,7 +4,6 @@
 package scaling
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/hashicorp/nomad/api"
@@ -12,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -184,25 +184,19 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	allocs, _, err := jobs.Allocations(jobID, true, nil)
 	require.NoError(t, err)
 
+	require.Equal(t, 1, len(allocs))
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
-	require.Equal(t, 1, len(allocIDs))
-
-	fmt.Printf("ids %+v\n job %+v", allocIDs, len(allocs))
-
-	for a := range allocs {
-		fmt.Printf("alloc %+v\n", a)
-	}
 
 	// Wait for allocations to get past initial pending state
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
 
 	// Try to scale beyond 1
 	testMeta := map[string]interface{}{"scaling-e2e-test": "value"}
-	scaleResp, _, err := tc.Nomad().Jobs().Scale(
-		jobID, "horizontally_scalable", pointer.Of(3),
+	scaleResp, _, err := tc.Nomad().Jobs().Scale(jobID, "system_job_group", pointer.Of(3),
 		"Nomad e2e testing", false, testMeta, nil)
+
 	f.Error(err)
-	f.Empty(scaleResp.EvalID)
+	f.Nil(scaleResp)
 
 	// The same allocs should be running.
 	jobs = nomadClient.Jobs()
@@ -212,39 +206,41 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 
 	// Scale down to 0
 	testMeta = map[string]interface{}{"scaling-e2e-test": "value"}
-	scaleResp, _, err = tc.Nomad().Jobs().Scale(
-		jobID, "horizontally_scalable", pointer.Of(0),
+	scaleResp, _, err = tc.Nomad().Jobs().Scale(jobID, "system_job_group", pointer.Of(0),
 		"Nomad e2e testing", false, testMeta, nil)
 	f.NoError(err)
 	f.NotEmpty(scaleResp.EvalID)
 
-	// Assert job is still running
+	// Assert job is still up but no allocs are running
 	jobs = nomadClient.Jobs()
-	allocs, _, err = jobs.Allocations(jobID, true, nil)
+	allocs, _, err = jobs.Allocations(jobID, false, nil)
 	require.NoError(t, err)
-	require.Equal(t, 0, len(allocs))
+	require.Equal(t, 1, len(allocs))
+
+	stopedAlloc := allocs[0].ID
+	e2eutil.WaitForAllocStatus(t, nomadClient, stopedAlloc, structs.AllocClientStatusComplete)
 
 	// Scale up to 1 again
 	testMeta = map[string]interface{}{"scaling-e2e-test": "value"}
-	scaleResp, _, err = tc.Nomad().Jobs().Scale(
-		jobID, "horizontally_scalable", pointer.Of(1),
+	scaleResp, _, err = tc.Nomad().Jobs().Scale(jobID, "system_job_group", pointer.Of(1),
 		"Nomad e2e testing", false, testMeta, nil)
 	f.NoError(err)
 	f.NotEmpty(scaleResp.EvalID)
 
-	// Wait for allocations to get past initial pending state
+	// Wait for new allocation to get past initial pending state
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
 
-	// Assert job is still running and there is an allocation again
+	// Assert job is still running and there is a running allocation again
 	jobs = nomadClient.Jobs()
 	allocs, _, err = jobs.Allocations(jobID, true, nil)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(allocs))
+	require.Equal(t, 2, len(allocs))
+
+	require.Equal(t, allocs[1].DesiredStatus, structs.AllocDesiredStatusStop)
+	require.Equal(t, allocs[0].DesiredStatus, structs.AllocDesiredStatusRun)
 
 	// Remove the job.
 	_, _, err = tc.Nomad().Jobs().Deregister(jobID, true, nil)
 	f.NoError(err)
 	f.NoError(tc.Nomad().System().GarbageCollect())
-	tc.namespacedJobIDs = [][2]string{}
-
 }
