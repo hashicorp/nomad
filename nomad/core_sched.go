@@ -375,7 +375,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, a
 	gcEval := true
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
-		if !allocGCEligible(alloc, job, time.Now(), cutoffTime) {
+		if !allocGCEligible(alloc, job, time.Now().UTC(), cutoffTime) {
 			// Can't GC the evaluation since not all of the allocations are
 			// terminal
 			gcEval = false
