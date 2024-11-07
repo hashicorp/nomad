@@ -11,6 +11,7 @@ import { inject as service } from '@ember/service';
 export default class ForbiddenMessage extends Component {
   @service token;
   @service store;
+  @service router;
 
   get authMethods() {
     return this.store.findAll('auth-method');

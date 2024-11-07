@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: When your token expires, upon signing back in, redirect to your original route
+```
