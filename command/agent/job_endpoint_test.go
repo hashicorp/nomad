@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -2000,6 +2001,45 @@ func TestHTTP_JobDispatch(t *testing.T) {
 		if dispatch.DispatchedJobID == "" {
 			t.Fatalf("bad: %v", dispatch)
 		}
+	})
+}
+
+func TestHTTP_JobDispatchPayload(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the parameterized job
+		job := mock.BatchJob()
+		job.ParameterizedJob = &structs.ParameterizedJobConfig{
+			Payload: "required",
+		}
+
+		// Register the job
+		var resp structs.JobRegisterResponse
+		must.NoError(t, s.Agent.RPC("Job.Register",
+			&structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+				},
+			}, &resp))
+
+		// Build the request
+		url := "/v1/job/" + job.ID + "/dispatch/payload"
+		body := bytes.NewReader([]byte("any body at all"))
+		req, err := http.NewRequest(http.MethodPut, url, body)
+		must.NoError(t, err)
+
+		// Make the request
+		respW := httptest.NewRecorder()
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		must.NoError(t, err)
+		must.Eq(t, http.StatusOK, respW.Result().StatusCode)
+
+		// Check the response
+		dispatch := obj.(structs.JobDispatchResponse)
+		must.NotEq(t, "", dispatch.EvalID, must.Sprintf("expect EvalID in: %v", dispatch))
+		must.NotEq(t, "", dispatch.DispatchedJobID, must.Sprintf("expect DispatchedJobID in: %v", dispatch))
 	})
 }
 
