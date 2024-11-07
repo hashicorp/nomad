@@ -4,6 +4,7 @@
 package scaling
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/hashicorp/nomad/api"
@@ -182,9 +183,15 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	jobs := nomadClient.Jobs()
 	allocs, _, err := jobs.Allocations(jobID, true, nil)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(allocs))
 
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	require.Equal(t, 1, len(allocIDs))
+
+	fmt.Printf("ids %+v\n job %+v", allocIDs, len(allocs))
+
+	for a := range allocs {
+		fmt.Printf("alloc %+v\n", a)
+	}
 
 	// Wait for allocations to get past initial pending state
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
