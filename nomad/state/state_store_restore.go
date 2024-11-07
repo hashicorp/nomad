@@ -291,3 +291,11 @@ func (r *StateRestore) JobSubmissionRestore(jobSubmission *structs.JobSubmission
 	}
 	return nil
 }
+
+// HostVolumeRestore restores a single host volume into the host_volumes table
+func (r *StateRestore) HostVolumeRestore(vol *structs.HostVolume) error {
+	if err := r.txn.Insert(TableHostVolumes, vol); err != nil {
+		return fmt.Errorf("host volume insert failed: %w", err)
+	}
+	return nil
+}
