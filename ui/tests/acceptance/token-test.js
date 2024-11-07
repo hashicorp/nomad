@@ -36,6 +36,8 @@ let job;
 let node;
 let managementToken;
 let clientToken;
+let recentlyExpiredToken;
+let soonExpiringToken;
 
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
@@ -53,6 +55,12 @@ module('Acceptance | tokens', function (hooks) {
     job = server.create('job');
     managementToken = server.create('token');
     clientToken = server.create('token');
+    recentlyExpiredToken = server.create('token', {
+      expirationTime: moment().add(-5, 'm').toDate(),
+    });
+    soonExpiringToken = server.create('token', {
+      expirationTime: moment().add(1, 's').toDate(),
+    });
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -755,6 +763,109 @@ module('Acceptance | tokens', function (hooks) {
       .hasText(`Example Token for ${testPolicy.name}`);
     await percySnapshot(assert);
     window.localStorage.nomadTokenSecret = null;
+  });
+
+  // Note: this differs from the 500-throwing errors above.
+  // In Nomad 1.5, errors for expired tokens moved from 500 "ACL token expired" to 403 "Permission Denied"
+  // In practice, the UI handles this differently: 403s can be either ACL-policy-denial or token-expired-denial related.
+  // As such, instead of an automatic redirect to the tokens page, like we did for a 500, we prompt the user with in-app
+  // error messages but otherwise keep them on their route, with actions to re-authenticate.
+  test('When a token expires with permission denial, the user is prompted to redirect to the token page (jobs page)', async function (assert) {
+    assert.expect(4);
+    window.localStorage.clear();
+
+    window.localStorage.nomadTokenSecret = recentlyExpiredToken.secretId; // simulate refreshing the page with an expired token
+    server.pretender.get('/v1/jobs/statuses', function () {
+      return [403, {}, 'Permission Denied'];
+    });
+
+    await visit('/jobs');
+
+    assert
+      .dom('[data-test-error]')
+      .exists('Error message is shown on the Jobs page');
+    await click('[data-test-permission-link]');
+    assert.equal(
+      currentURL(),
+      '/settings/tokens',
+      'Redirected to the tokens page'
+    );
+
+    server.pretender.get('/v1/jobs/statuses', function () {
+      return [200, {}, null];
+    });
+    await Tokens.visit();
+
+    await Tokens.secret(recentlyExpiredToken.secretId).submit();
+    assert.equal(currentURL(), '/jobs');
+
+    assert.dom('.flash-message.alert-success').exists();
+  });
+
+  // Evaluations page (and others) fall back to application.hbs handling of error messages
+  test('When a token expires with permission denial, the user is prompted to redirect to the token page (evaluations page)', async function (assert) {
+    window.localStorage.clear();
+    window.localStorage.nomadTokenSecret = recentlyExpiredToken.secretId; // simulate refreshing the page with an expired token
+    server.pretender.get('/v1/evaluations', function () {
+      return [403, {}, 'Permission Denied'];
+    });
+
+    await visit('/evaluations');
+
+    assert
+      .dom('[data-test-error]')
+      .exists('Error message is shown on the Evaluations page');
+    await click('[data-test-error-acl-link]');
+    assert.equal(
+      currentURL(),
+      '/settings/tokens',
+      'Redirected to the tokens page'
+    );
+
+    server.pretender.get('/v1/evaluations', function () {
+      return [200, {}, JSON.stringify([])];
+    });
+
+    await Tokens.secret(managementToken.secretId).submit();
+
+    assert.equal(currentURL(), '/evaluations');
+
+    assert.dom('.flash-message.alert-success').exists();
+  });
+
+  module('Token Expiry and redirect', function (hooks) {
+    hooks.beforeEach(function () {
+      window.localStorage.nomadTokenSecret = soonExpiringToken.secretId;
+    });
+
+    test('When a token expires while the user is on a page, the notification saves redirect route', async function (assert) {
+      // window.localStorage.nomadTokenSecret = soonExpiringToken.secretId;
+      await Jobs.visit();
+      assert.equal(currentURL(), '/jobs');
+
+      assert
+        .dom('.flash-message.alert-warning button')
+        .exists('A global alert exists and has a clickable button');
+
+      await click('.flash-message.alert-warning button');
+
+      assert.equal(
+        currentURL(),
+        '/settings/tokens',
+        'Redirected to tokens page on notification action'
+      );
+
+      assert
+        .dom('[data-test-token-expired]')
+        .exists('Notification is rendered');
+
+      await Tokens.secret(managementToken.secretId).submit();
+      assert.equal(
+        currentURL(),
+        '/jobs',
+        'Redirected to initial route on manager sign in'
+      );
+    });
   });
 
   function getHeader({ requestHeaders }, name) {

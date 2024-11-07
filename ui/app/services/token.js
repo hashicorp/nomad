@@ -196,6 +196,8 @@ export default class TokenService extends Service {
               title: 'Your access has expired',
               message: `Your token will need to be re-authenticated`,
             });
+            const currentPath = this.router.currentURL;
+            this.postExpiryPath = currentPath;
           }
           this.monitorTokenTime.cancelAll(); // Stop updating time left after expiration
         }
