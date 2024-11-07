@@ -145,6 +145,7 @@ func (c *JobStartCommand) Run(args []string) int {
 				statusCh <- 1
 				return
 			}
+
 			if *job.Status != "dead" {
 				c.Ui.Info(fmt.Sprintf("Job  %v has not been stopped and has the following status: %v", *job.Name, *job.Status))
 				statusCh <- 0
@@ -161,18 +162,18 @@ func (c *JobStartCommand) Run(args []string) int {
 				statusCh <- 1
 			}
 
-			// Find the most recent running version for this job
-			var chosenIndex uint64
+			// Find the most recent version for this job that has not been stopped
+			var chosenVersion uint64
 			versionAvailable := false
-			for i := len(versions) - 1; i >= 0; i-- {
-				if *versions[i].Status == "running" && *versions[i].Stop {
-					chosenIndex = uint64(i)
+			for i := range versions {
+				if !*versions[i].Stop {
+					chosenVersion = *versions[i].Version
 					versionAvailable = true
 					break
 				}
 
 			}
-			c.versionSelected = chosenIndex
+			c.versionSelected = chosenVersion
 			if !versionAvailable {
 				c.Ui.Error(fmt.Sprintf("No previous running versions of job %v", *job.Name))
 				statusCh <- 1
@@ -190,12 +191,13 @@ func (c *JobStartCommand) Run(args []string) int {
 			// Revert to most recent running version!
 			m := &api.WriteOptions{Namespace: *job.Namespace}
 
-			resp, _, err := client.Jobs().Revert(*job.ID, chosenIndex, nil, m, consulToken, vaultToken)
+			resp, _, err := client.Jobs().Revert(*job.ID, chosenVersion, nil, m, consulToken, vaultToken)
 			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error retrieving job version %v for job %s: %s,", chosenIndex, *job.ID, err))
+				c.Ui.Error(fmt.Sprintf("Error retrieving job version %v for job %s: %s,", chosenVersion, *job.ID, err))
 				statusCh <- 1
 				return
 			}
+			versions, _, _, err = client.Jobs().Versions(*job.ID, true, q)
 
 			// Nothing to do: periodic or dispatch job
 			evalCreated := resp.EvalID != ""
