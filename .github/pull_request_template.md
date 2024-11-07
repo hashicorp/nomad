@@ -16,13 +16,14 @@ merged.
 -->
 
 ### All Checklist
-- [ ] **Changelog Entry** If required, please generate and add a changelog entry to this PR using
-  the `make cl` command.
+- [ ] **Changelog Entry** If this PR changes user-facing behavior, please generate and add a
+  changelog entry using the `make cl` command.
 - [ ] **Testing** Please add tests to cover any new functionality or to demonstrate bug fixes and
   ensure regressions will be caught.
-- [ ] **Documentation** If the change impacts external components such as the API, please update the
-  Nomad website documentation to reflect this. Please also consider whether the change requires
-  notes within the upgrade guide.
+- [ ] **Documentation** If the change impacts user-facing functionality such as the CLI, API, UI,
+  and job configuration, please update the  Nomad website documentation to reflect this. Refer to
+  the [website README](../website/README.md) for docs guidelines. Please also consider whether the
+  change requires notes within the [upgrade guide](../website/content/docs/upgrade/upgrade-specific.mdx).
 
 ### HashiCorp Employee Checklist
 - [ ] **Backport Labels** Please add the correct backport labels as described by the internal
