@@ -322,6 +322,45 @@ module('Acceptance | job versions', function (hooks) {
   });
 });
 
+// Module for Clone and Edit
+module('Acceptance | job versions (clone and edit)', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function () {
+    server.create('node-pool');
+
+    const managementToken = server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+
+    job = server.create('job', { createAllocations: false, version: 99 });
+    // remove auto-created versions and create 3 of them, one with a tag
+    server.db.jobVersions.remove();
+    server.create('job-version', { job, version: 99 });
+    server.create('job-version', {
+      job,
+      version: 98,
+      versionTag: {
+        Name: 'test-tag',
+        Description: 'A tag with a brief description',
+      },
+    });
+    server.create('job-version', { job, version: 97 });
+    await Versions.visit({ id: job.id });
+  });
+
+  test('You can clone a version as a new job', async function (assert) {
+    // Buttons exist
+    assert.dom('.job-version').exists({ count: 3 });
+    assert
+      .dom('[data-test-clone-and-edit]')
+      .exists(
+        { count: 2 },
+        'Current job version doesnt have clone or revert buttons'
+      );
+  });
+});
+
 module('Acceptance | job versions (with client token)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
