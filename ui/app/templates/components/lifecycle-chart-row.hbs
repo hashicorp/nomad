@@ -3,11 +3,10 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="lifecycle-chart-row {{this.task.lifecycleName}}" data-test-lifecycle-task>
+<div class="lifecycle-chart-row {{this.task.lifecycleName}} {{this.activeClass}} {{this.finishedClass}}" data-test-lifecycle-task>
 <Hds::Alert
   @type="inline"
   @color={{this.taskColor}}
-  data-test-lifecycle-task
   class="{{if (eq this.taskState.state "pending") "pending"}}"
   @icon={{this.taskIcon}} as |A|>
   <A.Title class="name" data-test-name>

@@ -53,6 +53,15 @@ export default class LifecycleChartRow extends Component {
   }
 
   @computed('taskState.state')
+  get activeClass() {
+    if (this.taskState && this.taskState.state === 'running') {
+      return 'is-active';
+    }
+
+    return undefined;
+  }
+
+  @computed('taskState.state')
   get finishedClass() {
     if (this.taskState && this.taskState.state === 'dead') {
       return 'is-finished';
