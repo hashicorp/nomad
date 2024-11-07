@@ -241,4 +241,10 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	require.NoError(t, err)
 	require.Equal(t, 1, len(allocs))
 
+	// Remove the job.
+	_, _, err = tc.Nomad().Jobs().Deregister(jobID, true, nil)
+	f.NoError(err)
+	f.NoError(tc.Nomad().System().GarbageCollect())
+	tc.namespacedJobIDs = [][2]string{}
+
 }
