@@ -806,6 +806,69 @@ OUTER:
 	}
 }
 
+// Tests an edge case where a task has multiple templates and the client is restarted.
+// In this case, vault may re-render and overwrite some fields in the first render event
+// but we still want to make sure it causes a restart.
+// We cannot control the order in which these templates are rendered, so this test will
+// exhibit flakiness if this edge case is not properly handled.
+func TestTaskTemplateManager_FirstRender_MultiSecret(t *testing.T) {
+	ci.Parallel(t)
+	clienttestutil.RequireVault(t)
+
+	// Make a template that will render based on a key in Vault
+	vaultPath := "secret/data/restart"
+	key := "shouldRestart"
+	content := "shouldRestart"
+	embedded := fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath, key)
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: embedded,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeRestart,
+	}
+
+	vaultPath2 := "secret/data/noop"
+	key2 := "noop"
+	content2 := "noop"
+	embedded2 := fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath2, key2)
+	file2 := "my.tmpl2"
+	template2 := &structs.Template{
+		EmbeddedTmpl: embedded2,
+		DestPath:     file2,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template, template2}, false, true)
+
+	// Write the secret to Vault
+	logical := harness.vault.Client.Logical()
+	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	must.NoError(t, err)
+	_, err = logical.Write(vaultPath2, map[string]interface{}{"data": map[string]interface{}{key2: content2}})
+	must.NoError(t, err)
+
+	// simulate task is running already
+	harness.mockHooks.HasHandle = true
+
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatal("Task unblock should have been called")
+	}
+
+	select {
+	case <-harness.mockHooks.RestartCh:
+	case <-harness.mockHooks.SignalCh:
+		t.Fatal("should not have received signal", harness.mockHooks)
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		t.Fatal("should have restarted")
+	}
+}
+
 func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	ci.Parallel(t)
 	clienttestutil.RequireConsul(t)
