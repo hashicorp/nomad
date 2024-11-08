@@ -1,3 +1,32 @@
+## 1.9.2 (November 08, 2024)
+
+SECURITY:
+
+* csi: Fixed a bug where a user with csi-write-volume permissions to one namespace can create volumes in another namespace (CVE-2024-10975) [[GH-24396](https://github.com/hashicorp/nomad/issues/24396)]
+
+IMPROVEMENTS:
+
+* api: new parameterized dispatch endpoint sends raw HTTP request body as Payload [[GH-24312](https://github.com/hashicorp/nomad/issues/24312)]
+* connect: Able to accept go-sockaddr address for consul grpc address [[GH-24280](https://github.com/hashicorp/nomad/issues/24280)]
+* consul: add support for service weight [[GH-24186](https://github.com/hashicorp/nomad/issues/24186)]
+* drivers: Add work_dir config to exec/rawexec/java drivers for setting the working directory of processes in a task [[GH-24249](https://github.com/hashicorp/nomad/issues/24249)]
+* drivers: Move executor process out of task cgroup after task starts on cgroups v1 [[GH-24340](https://github.com/hashicorp/nomad/issues/24340)]
+* drivers: add posibility to restrict user and group for exec and rawexec [[GH-20073](https://github.com/hashicorp/nomad/issues/20073)]
+* fingerprint gce: fingerprint preemptibility [[GH-24169](https://github.com/hashicorp/nomad/issues/24169)]
+* getter: Added option to chown artifact(s) to task user [[GH-24157](https://github.com/hashicorp/nomad/issues/24157)]
+* ui: Indicates prestart/poststart tasks by running/failed/pending status [[GH-24133](https://github.com/hashicorp/nomad/issues/24133)]
+* ui: Show region in header when only one region exists, and set it immediately upon logging in with a token [[GH-24320](https://github.com/hashicorp/nomad/issues/24320)]
+* ui: When your token expires, upon signing back in, redirect to your original route [[GH-24374](https://github.com/hashicorp/nomad/issues/24374)]
+
+BUG FIXES:
+
+* cli: Corrected an ordering mistake in job tag unset help text [[GH-24272](https://github.com/hashicorp/nomad/issues/24272)]
+* connect: add validation to ensure that connect native services specify a port [[GH-24329](https://github.com/hashicorp/nomad/issues/24329)]
+* deps: Fixed a bug where restarting Nomad could cause an unrelated process with the same PID as a failed executor to be killed [[GH-24265](https://github.com/hashicorp/nomad/issues/24265)]
+* keyring: Fixed a panic on server startup when decrypting AEAD key data with empty RSA block [[GH-24383](https://github.com/hashicorp/nomad/issues/24383)]
+* scheduler: fixed a bug where resource calculation did not account correctly for poststart tasks [[GH-24297](https://github.com/hashicorp/nomad/issues/24297)]
+* state: Fixed setting GC threshold to more than 72hrs being ignored [[GH-24112](https://github.com/hashicorp/nomad/issues/24112)]
+
 ## 1.9.1 (October 21, 2024)
 
 IMPROVEMENTS:
