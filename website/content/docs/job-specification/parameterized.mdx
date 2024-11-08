@@ -161,6 +161,8 @@ precedence. Once the job is dispatched and given parameters, the
 periodic configuration comes into play and a new jobs will be dispatched according 
 to the periodic configurations and with the parameters of the triggering job.
 
+In short, the ordering is `parameterized` => `periodic` => `batch`.
+
 For example a job with the following configuration will not trigger any new jobs 
 until it is dispatched at least once, and after that the dispatched child will 
 periodically trigger more children with the given parameters. 
