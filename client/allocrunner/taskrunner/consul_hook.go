@@ -25,7 +25,7 @@ const (
 
 	// consulTokenFilePerms is the level of file permissions granted on the file in
 	// the secrets directory for the task
-	consulTokenFilePerms = 0440
+	consulTokenFilePerms = 0640
 )
 
 type consulHook struct {
