@@ -163,9 +163,8 @@ to the periodic configurations and with the parameters of the triggering job.
 
 In short, the ordering is `parameterized` => `periodic` => `batch`.
 
-For example a job with the following configuration will not trigger any new jobs 
-until it is dispatched at least once, and after that the dispatched child will 
-periodically trigger more children with the given parameters. 
+In this example, the periodic job does not trigger any new jobs 
+until Nomad dispatches the parameterized job at least once. After that, the dispatched child periodically triggers more children with the given parameters. 
 
 ```hcl
   periodic {
