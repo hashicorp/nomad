@@ -59,6 +59,7 @@ const (
 	NodePoolSnapshot                     SnapshotType = 28
 	JobSubmissionSnapshot                SnapshotType = 29
 	RootKeySnapshot                      SnapshotType = 30
+	HostVolumeSnapshot                   SnapshotType = 31
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
@@ -96,6 +97,7 @@ var snapshotTypeStrings = map[SnapshotType]string{
 	NodePoolSnapshot:                     "NodePool",
 	JobSubmissionSnapshot:                "JobSubmission",
 	RootKeySnapshot:                      "WrappedRootKeys",
+	HostVolumeSnapshot:                   "HostVolumeSnapshot",
 	NamespaceSnapshot:                    "Namespace",
 }
 
@@ -375,9 +377,12 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLBindingRulesDelete(buf[1:], log.Index)
 	case structs.WrappedRootKeysUpsertRequestType:
 		return n.applyWrappedRootKeysUpsert(msgType, buf[1:], log.Index)
-
 	case structs.JobVersionTagRequestType:
 		return n.applyJobVersionTag(buf[1:], log.Index)
+	case structs.HostVolumeRegisterRequestType:
+		return n.applyHostVolumeRegister(msgType, buf[1:], log.Index)
+	case structs.HostVolumeDeleteRequestType:
+		return n.applyHostVolumeDelete(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -1929,6 +1934,17 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
+		case HostVolumeSnapshot:
+			vol := new(structs.HostVolume)
+			if err := dec.Decode(vol); err != nil {
+				return err
+			}
+			if filter.Include(vol) {
+				if err := restore.HostVolumeRestore(vol); err != nil {
+					return err
+				}
+			}
+
 		default:
 			// Check if this is an enterprise only object being restored
 			restorer, ok := n.enterpriseRestorers[snapType]
@@ -2397,6 +2413,36 @@ func (n *nomadFSM) applyWrappedRootKeysDelete(msgType structs.MessageType, buf [
 	return nil
 }
 
+func (n *nomadFSM) applyHostVolumeRegister(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_host_volume_register"}, time.Now())
+
+	var req structs.HostVolumeRegisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertHostVolumes(index, req.Volumes); err != nil {
+		n.logger.Error("UpsertHostVolumes failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_host_volume_delete"}, time.Now())
+
+	var req structs.HostVolumeDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteHostVolumes(index, req.RequestNamespace(), req.VolumeIDs); err != nil {
+		n.logger.Error("DeleteHostVolumes failed", "error", err)
+		return err
+	}
+	return nil
+}
+
 func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "persist"}, time.Now())
 	// Register the nodes
@@ -2527,6 +2573,10 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistJobSubmissions(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistHostVolumes(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -3261,6 +3311,22 @@ func (s *nomadSnapshot) persistJobSubmissions(sink raft.SnapshotSink, encoder *c
 		// write the snapshot
 		sink.Write([]byte{byte(JobSubmissionSnapshot)})
 		if err := encoder.Encode(jobSubmission); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistHostVolumes(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	iter, err := s.snap.HostVolumes(nil, state.SortDefault)
+	if err != nil {
+		return err
+	}
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		vol := raw.(*structs.HostVolume)
+
+		sink.Write([]byte{byte(HostVolumeSnapshot)})
+		if err := encoder.Encode(vol); err != nil {
 			return err
 		}
 	}
