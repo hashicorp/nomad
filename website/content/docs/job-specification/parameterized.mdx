@@ -196,7 +196,9 @@ sync/dispatch-1730972760-f79a96e1                      batch/periodic           
 sync/dispatch-1730972760-f79a96e1/periodic-1730972800  batch                           2024-11-07T10:46:40+01:00 // Cron job with parameters B
 sync/dispatch-1730972760-f79a96e1/periodic-1730972860  batch                           2024-11-07T10:47:40+01:00 // Cron job with parameters B
 ```
-If a periodic job needs to be forced by any reason, the corresponding parameterized job needs to be used:
+If you need to force the periodic job, force the the corresponding parameterized job.
+
+This example forces the first dispatched job with parameters A from the preceding example.
 
 ```
 $ nomad job periodic force sync/dispatch-1730972650-247c6e97 
