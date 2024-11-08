@@ -317,7 +317,10 @@ WAIT:
 				if event.LastWouldRender.IsZero() {
 					continue WAIT
 				}
-				// If the template _actually_ rendered to disk, mark it dirty
+				// If the template _actually_ rendered to disk, mark it
+				// dirty. We track events here so that onTemplateRendered
+				// doesn't go back to the runner's RenderedEvents and process
+				// new events that don't make us dirty.				
 				if !event.LastDidRender.IsZero() {
 					dirtyEvents[event.Template.ID()] = event
 				}
