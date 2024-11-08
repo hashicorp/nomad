@@ -201,8 +201,8 @@ sync/dispatch-1730972760-f79a96e1/periodic-1730972860  batch                    
 The output illustrates the following:
 
 1. The `sync` job is the parameterized and periodic job. However, Nomad doesn't run the periodic job until you submit with the required parameters.
-1. The `sync/dispatch-1730972650-247c6e97` job contains parameters and triggers the batch jobs, named `sync/dispatch-1730972650-247c6e97/periodic-1730972680` and `sync/dispatch-1730972650-247c6e97/periodic-1730972860`.
-1. The `sync/dispatch-1730972760-f79a96e1` job assigns new parameters and triggers new batch jobs that use those parameters.
+2. The `sync/dispatch-1730972650-247c6e97` job contains parameters and triggers the batch jobs, named `sync/dispatch-1730972650-247c6e97/periodic-1730972680` and `sync/dispatch-1730972650-247c6e97/periodic-1730972860`.
+3. The `sync/dispatch-1730972760-f79a96e1` job assigns new parameters and triggers new batch jobs that use those parameters.
 
 If you need to force the periodic job, force the the corresponding parameterized job.
 
