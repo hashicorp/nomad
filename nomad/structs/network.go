@@ -354,49 +354,36 @@ func (idx *NetworkIndex) AddAllocs(allocs []*Allocation) (collide bool, reason s
 			continue
 		}
 
-		if alloc.AllocatedResources != nil {
-			// Only look at AllocatedPorts if populated, otherwise use pre 0.12 logic
-			// COMPAT(1.0): Remove when network resources struct is removed.
-			if len(alloc.AllocatedResources.Shared.Ports) > 0 {
-				if c, r := idx.AddReservedPorts(alloc.AllocatedResources.Shared.Ports); c {
-					collide = true
-					reason = fmt.Sprintf("collision when reserving port for alloc %s: %v", alloc.ID, r)
-				}
-			} else {
-				// Add network resources that are at the task group level
-				if len(alloc.AllocatedResources.Shared.Networks) > 0 {
-					for _, network := range alloc.AllocatedResources.Shared.Networks {
-						if c, r := idx.AddReserved(network); c {
-							collide = true
-							reason = fmt.Sprintf("collision when reserving port for network %s in alloc %s: %v", network.IP, alloc.ID, r)
-						}
-					}
-				}
-
-				for task, resources := range alloc.AllocatedResources.Tasks {
-					if len(resources.Networks) == 0 {
-						continue
-					}
-					n := resources.Networks[0]
-					if c, r := idx.AddReserved(n); c {
+		// Only look at AllocatedPorts if populated, otherwise use pre 0.12 logic
+		// COMPAT(1.0): Remove when network resources struct is removed.
+		if len(alloc.AllocatedResources.Shared.Ports) > 0 {
+			if c, r := idx.AddReservedPorts(alloc.AllocatedResources.Shared.Ports); c {
+				collide = true
+				reason = fmt.Sprintf("collision when reserving port for alloc %s: %v", alloc.ID, r)
+			}
+		} else {
+			// Add network resources that are at the task group level
+			if len(alloc.AllocatedResources.Shared.Networks) > 0 {
+				for _, network := range alloc.AllocatedResources.Shared.Networks {
+					if c, r := idx.AddReserved(network); c {
 						collide = true
-						reason = fmt.Sprintf("collision when reserving port for network %s in task %s of alloc %s: %v", n.IP, task, alloc.ID, r)
+						reason = fmt.Sprintf("collision when reserving port for network %s in alloc %s: %v", network.IP, alloc.ID, r)
 					}
 				}
 			}
-		} else {
-			// COMPAT(0.11): Remove in 0.11
-			for task, resources := range alloc.TaskResources {
+
+			for task, resources := range alloc.AllocatedResources.Tasks {
 				if len(resources.Networks) == 0 {
 					continue
 				}
 				n := resources.Networks[0]
 				if c, r := idx.AddReserved(n); c {
 					collide = true
-					reason = fmt.Sprintf("(deprecated) collision when reserving port for network %s in task %s of alloc %s: %v", n.IP, task, alloc.ID, r)
+					reason = fmt.Sprintf("collision when reserving port for network %s in task %s of alloc %s: %v", n.IP, task, alloc.ID, r)
 				}
 			}
 		}
+
 	}
 	return
 }

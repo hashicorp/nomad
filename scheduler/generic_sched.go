@@ -669,16 +669,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					NodeID:             option.Node.ID,
 					NodeName:           option.Node.Name,
 					DeploymentID:       deploymentID,
-					TaskResources:      resources.OldTaskResources(),
 					AllocatedResources: resources,
 					DesiredStatus:      structs.AllocDesiredStatusRun,
 					ClientStatus:       structs.AllocClientStatusPending,
-					// SharedResources is considered deprecated, will be removed in 0.11.
-					// It is only set for compat reasons.
-					SharedResources: &structs.Resources{
-						DiskMB:   tg.EphemeralDisk.SizeMB,
-						Networks: resources.Shared.Networks,
-					},
 				}
 
 				// If the new allocation is replacing an older allocation then we

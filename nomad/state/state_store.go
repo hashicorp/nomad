@@ -431,13 +431,13 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 		// Attach the job to all the allocations. It is pulled out in the payload to
 		// avoid the redundancy of encoding, but should be denormalized prior to
 		// being inserted into MemDB.
-		addComputedAllocAttrs(results.Alloc, results.Job)
+		structs.DenormalizeAllocationJobs(results.Job, results.Alloc)
 		numAllocs = len(results.Alloc) + len(results.NodePreemptions)
 	} else {
 		// Attach the job to all the allocations. It is pulled out in the payload to
 		// avoid the redundancy of encoding, but should be denormalized prior to
 		// being inserted into MemDB.
-		addComputedAllocAttrs(results.AllocsUpdated, results.Job)
+		structs.DenormalizeAllocationJobs(results.Job, results.AllocsUpdated)
 		numAllocs = len(allocsStopped) + len(results.AllocsUpdated) + len(allocsPreempted)
 	}
 
@@ -469,48 +469,6 @@ func (s *StateStore) UpsertPlanResults(msgType structs.MessageType, index uint64
 	}
 
 	return txn.Commit()
-}
-
-// addComputedAllocAttrs adds the computed/derived attributes to the allocation.
-// This method is used when an allocation is being denormalized.
-func addComputedAllocAttrs(allocs []*structs.Allocation, job *structs.Job) {
-	structs.DenormalizeAllocationJobs(job, allocs)
-
-	// COMPAT(0.11): Remove in 0.11
-	// Calculate the total resources of allocations. It is pulled out in the
-	// payload to avoid encoding something that can be computed, but should be
-	// denormalized prior to being inserted into MemDB.
-	for _, alloc := range allocs {
-		if alloc.Resources != nil {
-			continue
-		}
-
-		alloc.Resources = new(structs.Resources)
-		for _, task := range alloc.TaskResources {
-			alloc.Resources.Add(task)
-		}
-
-		// While we still rely on alloc.Resources field for quotas, we have to add
-		// device info from AllocatedResources to alloc.Resources
-		for _, resources := range alloc.AllocatedResources.Tasks {
-			for _, d := range resources.Devices {
-				name := d.ID().String()
-				count := len(d.DeviceIDs)
-
-				if count > 0 {
-					if alloc.Resources.Devices == nil {
-						alloc.Resources.Devices = make(structs.ResourceDevices, 0)
-					}
-					alloc.Resources.Devices = append(
-						alloc.Resources.Devices, &structs.RequestedDevice{Name: name, Count: uint64(count)},
-					)
-				}
-			}
-		}
-
-		// Add the shared resources
-		alloc.Resources.Add(alloc.SharedResources)
-	}
 }
 
 // upsertDeploymentUpdates updates the deployments given the passed status

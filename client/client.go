@@ -3431,20 +3431,8 @@ func (c *Client) getAllocatedResources(selfNode *structs.Node) *structs.Comparab
 		allocated.Add(alloc.AllocatedResources.Comparable())
 
 		// Add the used network
-		if alloc.AllocatedResources != nil {
-			for _, tr := range alloc.AllocatedResources.Tasks {
-				for _, allocatedNetwork := range tr.Networks {
-					for cidr, dev := range cidrToDevice {
-						ip := net.ParseIP(allocatedNetwork.IP)
-						if cidr.Contains(ip) {
-							allocatedDeviceMbits[dev] += allocatedNetwork.MBits
-							break
-						}
-					}
-				}
-			}
-		} else if alloc.Resources != nil {
-			for _, allocatedNetwork := range alloc.Resources.Networks {
+		for _, tr := range alloc.AllocatedResources.Tasks {
+			for _, allocatedNetwork := range tr.Networks {
 				for cidr, dev := range cidrToDevice {
 					ip := net.ParseIP(allocatedNetwork.IP)
 					if cidr.Contains(ip) {

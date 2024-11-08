@@ -767,13 +767,9 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		for task, resources := range option.TaskResources {
 			var networks structs.Networks
 			var devices []*structs.AllocatedDeviceResource
-			if update.Alloc.AllocatedResources != nil {
-				if tr, ok := update.Alloc.AllocatedResources.Tasks[task]; ok {
-					networks = tr.Networks
-					devices = tr.Devices
-				}
-			} else if tr, ok := update.Alloc.TaskResources[task]; ok {
+			if tr, ok := update.Alloc.AllocatedResources.Tasks[task]; ok {
 				networks = tr.Networks
+				devices = tr.Devices
 			}
 
 			// Add the networks and devices back
@@ -787,8 +783,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 
 		// Update the allocation
 		newAlloc.EvalID = eval.ID
-		newAlloc.Job = nil       // Use the Job in the Plan
-		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.Job = nil // Use the Job in the Plan
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks:          option.TaskResources,
 			TaskLifecycles: option.TaskLifecycles,
@@ -1013,13 +1008,9 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		for task, resources := range option.TaskResources {
 			var networks structs.Networks
 			var devices []*structs.AllocatedDeviceResource
-			if existing.AllocatedResources != nil {
-				if tr, ok := existing.AllocatedResources.Tasks[task]; ok {
-					networks = tr.Networks
-					devices = tr.Devices
-				}
-			} else if tr, ok := existing.TaskResources[task]; ok {
+			if tr, ok := existing.AllocatedResources.Tasks[task]; ok {
 				networks = tr.Networks
+				devices = tr.Devices
 			}
 
 			// Add the networks back
@@ -1033,8 +1024,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 
 		// Update the allocation
 		newAlloc.EvalID = evalID
-		newAlloc.Job = nil       // Use the Job in the Plan
-		newAlloc.Resources = nil // Computed in Plan Apply
+		newAlloc.Job = nil // Use the Job in the Plan
 		newAlloc.AllocatedResources = &structs.AllocatedResources{
 			Tasks:          option.TaskResources,
 			TaskLifecycles: option.TaskLifecycles,

@@ -11082,25 +11082,6 @@ type Allocation struct {
 	// TaskGroup is the name of the task group that should be run
 	TaskGroup string
 
-	// COMPAT(0.11): Remove in 0.11
-	// Resources is the total set of resources allocated as part
-	// of this allocation of the task group. Dynamic ports will be set by
-	// the scheduler.
-	Resources *Resources
-
-	// SharedResources are the resources that are shared by all the tasks in an
-	// allocation
-	// Deprecated: use AllocatedResources.Shared instead.
-	// Keep field to allow us to handle upgrade paths from old versions
-	SharedResources *Resources
-
-	// TaskResources is the set of resources allocated to each
-	// task. These should sum to the total Resources. Dynamic ports will be
-	// set by the scheduler.
-	// Deprecated: use AllocatedResources.Tasks instead.
-	// Keep field to allow us to handle upgrade paths from old versions
-	TaskResources map[string]*Resources
-
 	// AllocatedResources is the total resources allocated for the task group.
 	AllocatedResources *AllocatedResources
 
@@ -11283,28 +11264,6 @@ func (a *Allocation) CopySkipJob() *Allocation {
 // Allocations or receiving Allocations from Nomad agents potentially on an
 // older version of Nomad.
 func (a *Allocation) Canonicalize() {
-	if a.AllocatedResources == nil && a.TaskResources != nil {
-		ar := AllocatedResources{}
-
-		tasks := make(map[string]*AllocatedTaskResources, len(a.TaskResources))
-		for name, tr := range a.TaskResources {
-			atr := AllocatedTaskResources{}
-			atr.Cpu.CpuShares = int64(tr.CPU)
-			atr.Memory.MemoryMB = int64(tr.MemoryMB)
-			atr.Networks = tr.Networks.Copy()
-
-			tasks[name] = &atr
-		}
-		ar.Tasks = tasks
-
-		if a.SharedResources != nil {
-			ar.Shared.DiskMB = int64(a.SharedResources.DiskMB)
-			ar.Shared.Networks = a.SharedResources.Networks.Copy()
-		}
-
-		a.AllocatedResources = &ar
-	}
-
 	a.Job.Canonicalize()
 }
 
@@ -11320,17 +11279,6 @@ func (a *Allocation) copyImpl(job bool) *Allocation {
 	}
 
 	na.AllocatedResources = na.AllocatedResources.Copy()
-	na.Resources = na.Resources.Copy()
-	na.SharedResources = na.SharedResources.Copy()
-
-	if a.TaskResources != nil {
-		tr := make(map[string]*Resources, len(na.TaskResources))
-		for task, resource := range na.TaskResources {
-			tr[task] = resource.Copy()
-		}
-		na.TaskResources = tr
-	}
-
 	na.Metrics = na.Metrics.Copy()
 	na.DeploymentStatus = na.DeploymentStatus.Copy()
 
@@ -12977,9 +12925,6 @@ func (p *Plan) AppendStoppedAlloc(alloc *Allocation, desiredDesc, clientStatus, 
 	// Normalize the job
 	newAlloc.Job = nil
 
-	// Strip the resources as it can be rebuilt.
-	newAlloc.Resources = nil
-
 	newAlloc.DesiredStatus = AllocDesiredStatusStop
 	newAlloc.DesiredDescription = desiredDesc
 
@@ -13011,15 +12956,9 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 	desiredDesc := fmt.Sprintf("Preempted by alloc ID %v", preemptingAllocID)
 	newAlloc.DesiredDescription = desiredDesc
 
-	// TaskResources are needed by the plan applier to check if allocations fit
+	// task resources are needed by the plan applier to check if allocations fit
 	// after removing preempted allocations
-	if alloc.AllocatedResources != nil {
-		newAlloc.AllocatedResources = alloc.AllocatedResources
-	} else {
-		// COMPAT Remove in version 0.11
-		newAlloc.TaskResources = alloc.TaskResources
-		newAlloc.SharedResources = alloc.SharedResources
-	}
+	newAlloc.AllocatedResources = alloc.AllocatedResources
 
 	// Append this alloc to slice for this node
 	node := alloc.NodeID
@@ -13029,9 +12968,6 @@ func (p *Plan) AppendPreemptedAlloc(alloc *Allocation, preemptingAllocID string)
 
 // AppendUnknownAlloc marks an allocation as unknown.
 func (p *Plan) AppendUnknownAlloc(alloc *Allocation) {
-	// Strip the resources as they can be rebuilt.
-	alloc.Resources = nil
-
 	existing := p.NodeAllocation[alloc.NodeID]
 	p.NodeAllocation[alloc.NodeID] = append(existing, alloc)
 }

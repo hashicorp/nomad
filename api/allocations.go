@@ -275,8 +275,6 @@ type Allocation struct {
 	JobID                 string
 	Job                   *Job
 	TaskGroup             string
-	Resources             *Resources
-	TaskResources         map[string]*Resources
 	AllocatedResources    *AllocatedResources
 	Services              map[string]string
 	Metrics               *AllocationMetric
@@ -465,7 +463,8 @@ type PortMapping struct {
 }
 
 type AllocatedCpuResources struct {
-	CpuShares int64
+	CpuShares     int64
+	ReservedCores []uint16
 }
 
 type AllocatedMemoryResources struct {

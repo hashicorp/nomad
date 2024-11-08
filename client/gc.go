@@ -263,12 +263,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 
 	totalResource := &structs.AllocatedSharedResources{}
 	for _, alloc := range allocations {
-		// COMPAT(0.11): Remove in 0.11
-		if alloc.AllocatedResources != nil {
-			totalResource.Add(&alloc.AllocatedResources.Shared)
-		} else {
-			totalResource.DiskMB += int64(alloc.Resources.DiskMB)
-		}
+		totalResource.Add(&alloc.AllocatedResources.Shared)
 	}
 
 	// If the host has enough free space to accommodate the new allocations then
@@ -327,7 +322,7 @@ func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) e
 		if alloc.AllocatedResources != nil {
 			allocDiskMB = alloc.AllocatedResources.Shared.DiskMB
 		} else {
-			allocDiskMB = int64(alloc.Resources.DiskMB)
+			// allocDiskMB = int64(alloc.Resources.DiskMB)
 		}
 
 		// Destroy the alloc runner and wait until it exits
