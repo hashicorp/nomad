@@ -163,8 +163,8 @@ parameterized => periodic => batch
 Nomad processes a periodic with parameterized job in the following order:
 
 1. Nomad does not dispatch a periodic job with null parameters in the periodic configuration. This forces the parameterized job to take precedence over the periodic job.
-1. After Nomad dispatches the parameterized job and gives it parameters, Nomad uses the periodic configuration.
-1. Nomad dispatches new jobs according to the periodic configuration that uses thee parameters from the triggering parameterized job.
+2. After Nomad dispatches the parameterized job and gives it parameters, Nomad uses the periodic configuration.
+3. Nomad dispatches new jobs according to the periodic configuration that uses thee parameters from the triggering parameterized job.
 
 In this example, the periodic job does not trigger any new jobs 
 until the operator dispatches the parameterized job at least once. After that, the 
