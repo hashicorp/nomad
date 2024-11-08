@@ -152,9 +152,70 @@ job "email-blast" {
 }
 ```
 
+### Use periodic with parameterized
+
+Nomad uses an internal hierarchy when scheduling a job that is both `parameterized` and [`periodic`][periodic].
+
+```plaintext
+parameterized => periodic => batch
+```
+
+Nomad processes a periodic with parameterized job in the following order:
+
+1. Nomad does not dispatch a periodic job with null parameters in the periodic configuration. This forces the parameterized job to take precedence over the periodic job.
+2. After Nomad dispatches the parameterized job and gives it parameters, Nomad uses the periodic configuration.
+3. Nomad dispatches new jobs according to the periodic configuration that uses thee parameters from the triggering parameterized job.
+
+In this example, the periodic job does not trigger any new jobs 
+until the operator dispatches the parameterized job at least once. After that, the 
+dispatched child periodically triggers more children with the given parameters. 
+
+```hcl
+  periodic {
+    crons = [
+      "*/40 * * * * * *"
+    ]
+  }
+  parameterized {
+    payload       = "required"
+    meta_required = ["dispatcher_email"]
+    meta_optional = ["pager_email"]
+  }
+```
+
+
+
+There are three columns plus comments in this example output, which is for the preceding periodic, parameterized example job. Scroll to the last column to review the comments.
+
+```
+$ nomad job status                                                      
+ID                                                     Type                            Submit Date
+sync                                                   batch/periodic/parameterized    2024-11-07T10:43:30+01:00 // Original submitted job
+sync/dispatch-1730972650-247c6e97                      batch/periodic                  2024-11-07T10:44:10+01:00 // First dispatched job with parameters A
+sync/dispatch-1730972650-247c6e97/periodic-1730972680  batch                           2024-11-07T10:44:40+01:00 // Cron job with parameters A
+sync/dispatch-1730972650-247c6e97/periodic-1730972860  batch                           2024-11-07T10:47:40+01:00 // Cron job with parameters A
+sync/dispatch-1730972760-f79a96e1                      batch/periodic                  2024-11-07T10:46:00+01:00 // Second dispatched job with parameters B
+sync/dispatch-1730972760-f79a96e1/periodic-1730972800  batch                           2024-11-07T10:46:40+01:00 // Cron job with parameters B
+sync/dispatch-1730972760-f79a96e1/periodic-1730972860  batch                           2024-11-07T10:47:40+01:00 // Cron job with parameters B
+```
+The output illustrates the following:
+
+1. The `sync` job is the parameterized and periodic job. However, Nomad doesn't run the periodic job until you submit with the required parameters.
+2. The `sync/dispatch-1730972650-247c6e97` job contains parameters and triggers the batch jobs, named `sync/dispatch-1730972650-247c6e97/periodic-1730972680` and `sync/dispatch-1730972650-247c6e97/periodic-1730972860`.
+3. The `sync/dispatch-1730972760-f79a96e1` job assigns new parameters and triggers new batch jobs that use those parameters.
+
+If you need to force the periodic job, force the the corresponding parameterized job.
+
+This example forces the first dispatched job with parameters A from the preceding example.
+
+```
+$ nomad job periodic force sync/dispatch-1730972650-247c6e97 
+```
+
 [batch-type]: /nomad/docs/job-specification/job#type 'Batch scheduler type'
 [dispatch command]: /nomad/docs/commands/job/dispatch 'Nomad Job Dispatch Command'
 [resources]: /nomad/docs/job-specification/resources 'Nomad resources Job Specification'
 [interpolation]: /nomad/docs/runtime/interpolation 'Nomad Runtime Interpolation'
 [dispatch_payload]: /nomad/docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'
 [multiregion]: /nomad/docs/job-specification/multiregion#parameterized-dispatch
+[periodic]: /nomad/docs/job-specification/periodic
