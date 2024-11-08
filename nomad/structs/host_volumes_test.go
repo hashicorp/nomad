@@ -29,7 +29,7 @@ func TestHostVolume_Copy(t *testing.T) {
 			RTarget: "r1",
 			Operand: "=",
 		}},
-		Capacity: 150000,
+		CapacityBytes: 150000,
 		RequestedCapabilities: []*HostVolumeCapability{{
 			AttachmentMode: HostVolumeAttachmentModeFilesystem,
 			AccessMode:     HostVolumeAccessModeSingleNodeWriter,

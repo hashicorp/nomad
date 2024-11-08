@@ -8,16 +8,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func HostVolume() *structs.HostVolume {
-
-	volID := uuid.Generate()
+func HostVolumeRequest() *structs.HostVolume {
 	vol := &structs.HostVolume{
 		Namespace: structs.DefaultNamespace,
-		ID:        volID,
 		Name:      "example",
 		PluginID:  "example-plugin",
 		NodePool:  structs.NodePoolDefault,
-		NodeID:    uuid.Generate(),
 		Constraints: []*structs.Constraint{
 			{
 				LTarget: "${meta.rack}",
@@ -25,9 +21,8 @@ func HostVolume() *structs.HostVolume {
 				Operand: "=",
 			},
 		},
-		RequestedCapacityMin: 100000,
-		RequestedCapacityMax: 200000,
-		Capacity:             150000,
+		RequestedCapacityMinBytes: 100000,
+		RequestedCapacityMaxBytes: 200000,
 		RequestedCapabilities: []*structs.HostVolumeCapability{
 			{
 				AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
@@ -35,8 +30,18 @@ func HostVolume() *structs.HostVolume {
 			},
 		},
 		Parameters: map[string]string{"foo": "bar"},
-		HostPath:   "/var/data/nomad/alloc_mounts/" + volID,
 		State:      structs.HostVolumeStatePending,
 	}
+	return vol
+
+}
+
+func HostVolume() *structs.HostVolume {
+	volID := uuid.Generate()
+	vol := HostVolumeRequest()
+	vol.ID = volID
+	vol.NodeID = uuid.Generate()
+	vol.CapacityBytes = 150000
+	vol.HostPath = "/var/data/nomad/alloc_mounts/" + volID
 	return vol
 }

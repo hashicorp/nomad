@@ -525,3 +525,15 @@ func Merge[T comparable](a, b T) T {
 	}
 	return a
 }
+
+// FlattenMultierror takes a multierror and unwraps it if there's only one error
+// in the output, otherwise returning the multierror or nil.
+func FlattenMultierror(mErr *multierror.Error) error {
+	if mErr == nil {
+		return nil
+	}
+	if mErr.Len() == 1 {
+		return mErr.Errors[0]
+	}
+	return mErr.ErrorOrNil()
+}

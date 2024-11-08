@@ -68,4 +68,6 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.WrappedRootKeysUpsertRequestType:             "WrappedRootKeysUpsertRequestType",
 	structs.NamespaceUpsertRequestType:                   "NamespaceUpsertRequestType",
 	structs.NamespaceDeleteRequestType:                   "NamespaceDeleteRequestType",
+	structs.HostVolumeRegisterRequestType:                "HostVolumeRegisterRequestType",
+	structs.HostVolumeDeleteRequestType:                  "HostVolumeDeleteRequestType",
 }
