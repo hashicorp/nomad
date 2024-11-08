@@ -7759,6 +7759,67 @@ func TestComparableResources_Superset(t *testing.T) {
 	}
 }
 
+func TestAllocatedResources_Comparable_Flattened(t *testing.T) {
+	ci.Parallel(t)
+
+	allocationResources := AllocatedResources{
+		TaskLifecycles: map[string]*TaskLifecycleConfig{
+			"prestart-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: false,
+			},
+			"prestart-sidecar-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: true,
+			},
+			"poststart-task": {
+				Hook:    TaskLifecycleHookPoststart,
+				Sidecar: false,
+			},
+			"poststop-task": {
+				Hook:    TaskLifecycleHookPoststop,
+				Sidecar: false,
+			},
+		},
+		Tasks: map[string]*AllocatedTaskResources{
+			"prestart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{0, 1},
+				},
+			},
+			"prestart-sidecar-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{2, 3},
+				},
+			},
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     1000,
+					ReservedCores: []uint16{4},
+				},
+			},
+			"poststart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{5, 6},
+				},
+			},
+			"poststop-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{7, 8},
+				},
+			},
+		},
+	}
+
+	// The output of Flattened should return the resource required during the execution of the largest lifecycle
+	must.Eq(t, 5000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 5, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+}
+
 func requireErrors(t *testing.T, err error, expected ...string) {
 	t.Helper()
 	require.Error(t, err)

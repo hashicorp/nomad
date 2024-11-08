@@ -7,6 +7,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -27,13 +28,14 @@ func TestDockerAllocExec(t *testing.T) {
 }
 
 func testDockerExecStdin(t *testing.T) {
-	_, cleanup := jobs3.Submit(t, "./input/sleepytar.hcl")
+	sub, cleanup := jobs3.Submit(t, "./input/sleepytar.hcl")
 	t.Cleanup(cleanup)
 
 	client, err := nomadapi.NewClient(nomadapi.DefaultConfig())
 	must.NoError(t, err)
 
-	allocations, _, err := client.Allocations().List(nil)
+	filter := fmt.Sprintf("JobID == \"%s\"", sub.JobID())
+	allocations, _, err := client.Allocations().List(&nomadapi.QueryOptions{Filter: filter})
 	must.NoError(t, err)
 	must.SliceLen(t, 1, allocations)
 
@@ -85,7 +87,7 @@ func testDockerExecStdin(t *testing.T) {
 		nil,
 		nil,
 	)
-	must.NoError(t, err)
+	must.NoError(t, err, must.Sprintf("error executing command inside the container: %v", err))
 	must.Zero(t, exitCode)
 
 	// check the output of tar

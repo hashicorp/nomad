@@ -120,6 +120,67 @@ func TestEncrypter_LoadSave(t *testing.T) {
 
 }
 
+// TestEncrypter_loadKeyFromStore_emptyRSA tests a panic seen by some
+// operators where the aead key disk file content had an empty RSA block.
+func TestEncrypter_loadKeyFromStore_emptyRSA(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	tmpDir := t.TempDir()
+
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	encrypter, err := NewEncrypter(srv, tmpDir)
+	must.NoError(t, err)
+
+	wrappedKey, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
+	must.NotNil(t, wrappedKey)
+	must.NoError(t, err)
+
+	// Use an artisanally crafted key file.
+	kek, err := json.Marshal(wrappedKey.KeyEncryptionKey)
+	must.NoError(t, err)
+
+	wrappedDEKCipher, err := json.Marshal(wrappedKey.WrappedDataEncryptionKey.Ciphertext)
+	must.NoError(t, err)
+
+	testData := fmt.Sprintf(`
+	{
+	 "Meta": {
+	   "KeyID": %q,
+	   "Algorithm": "aes256-gcm",
+	   "CreateTime": 1730000000000000000,
+	   "CreateIndex": 1555555,
+	   "ModifyIndex": 1555555,
+	   "State": "active",
+	   "PublishTime": 0
+	 },
+	 "ProviderID": "aead",
+	 "WrappedDEK": {
+	   "ciphertext": %s,
+	   "key_info": {
+	     "key_id": %q
+	   }
+	 },
+	 "WrappedRSAKey": {},
+	 "KEK": %s
+	}
+	`, key.Meta.KeyID, wrappedDEKCipher, key.Meta.KeyID, kek)
+
+	path := filepath.Join(tmpDir, key.Meta.KeyID+".nks.json")
+	err = os.WriteFile(path, []byte(testData), 0o600)
+	must.NoError(t, err)
+
+	unwrappedKey, err := encrypter.loadKeyFromStore(path)
+	must.NoError(t, err)
+	must.NotNil(t, unwrappedKey)
+}
+
 // TestEncrypter_Restore exercises the entire reload of a keystore,
 // including pairing metadata with key material
 func TestEncrypter_Restore(t *testing.T) {

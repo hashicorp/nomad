@@ -24,12 +24,9 @@ interfaces and assign it as the protocol's address.
 
 ```hcl
 advertise {
-  http = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" \
-         | limit 1 | attr \"address\" }}"
-  rpc  = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" \
-         | limit 1 | attr \"address\" }}"
-  serf = "{{ GetPublicInterfaces | include \"type\" \"IPv6\" \
-         | limit 1 | attr \"address\" }}"
+  http = "{{ GetPublicInterfaces | include `type` `IPv6` | limit 1 | attr `address` }}"
+  rpc  = "{{ GetPublicInterfaces | include `type` `IPv6` | limit 1 | attr `address` }}"
+  serf = "{{ GetPublicInterfaces | include `type` `IPv6` | limit 1 | attr `address` }}"
 }
 ```
 
@@ -67,7 +64,7 @@ client {
 ```
 
 ```hcl
-server {
+client {
   enabled = true
   server_join {
     retry_join = ["[2001:db8::1]", "[2001:db8::2]", "[2001:db8::3]"]
@@ -79,7 +76,7 @@ server {
 
 Most connections between Nomad and other external systems occur via HTTP.
 
-For example, when you set this `NOMAD_ADDR` environment variable:
+For example, when you set a `NOMAD_ADDR` environment variable like this one:
 
 ```
 export NOMAD_ADDR='http://[2001:db8::1]:4646'

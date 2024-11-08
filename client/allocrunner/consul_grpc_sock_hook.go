@@ -17,6 +17,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-secure-stdlib/listenerutil"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -132,7 +133,7 @@ func (h *consulGRPCSocketHook) Prerun() error {
 
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(h.alloc); err != nil {
+		if err := proxy.run(); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -156,7 +157,7 @@ func (h *consulGRPCSocketHook) Update(req *interfaces.RunnerUpdateRequest) error
 
 	var mErr *multierror.Error
 	for _, proxy := range h.proxies {
-		if err := proxy.run(h.alloc); err != nil {
+		if err := proxy.run(); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -216,7 +217,7 @@ func newGRPCSocketProxy(
 // hasn't been told to stop.
 //
 // NOT safe for concurrent use.
-func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
+func (p *grpcSocketProxy) run() error {
 	// Only run once.
 	if p.runOnce {
 		return nil
@@ -240,6 +241,7 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 	}
 
 	destAddr := p.config.GRPCAddr
+
 	if destAddr == "" {
 		// No GRPCAddr defined. Use Addr but replace port with the gRPC
 		// default of 8502.
@@ -248,6 +250,13 @@ func (p *grpcSocketProxy) run(alloc *structs.Allocation) error {
 			return fmt.Errorf("error parsing Consul address %q: %v", p.config.Addr, err)
 		}
 		destAddr = net.JoinHostPort(host, p.consulGRPCFallbackPort)
+	} else {
+		// GRPCAddr may be sockaddr/template string, parse it.
+		ipStr, err := listenerutil.ParseSingleIPTemplate(destAddr)
+		if err != nil {
+			return fmt.Errorf("unable to parse address template %q: %v", destAddr, err)
+		}
+		destAddr = ipStr
 	}
 
 	socketFile := allocdir.AllocGRPCSocket
