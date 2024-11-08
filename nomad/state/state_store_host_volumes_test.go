@@ -109,7 +109,7 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	// update all the volumes, which should update the state of vol2 as well
 	for i, vol := range vols {
 		vol = vol.Copy()
-		vol.RequestedCapacityMax = 300000
+		vol.RequestedCapacityMaxBytes = 300000
 		vols[i] = vol
 	}
 	index++
