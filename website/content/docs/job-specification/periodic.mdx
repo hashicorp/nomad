@@ -32,6 +32,8 @@ consistent evaluation when Nomad spans multiple time zones.
 - The job's [scheduler type][batch-type] must be `batch` or `sysbatch`.
 - A job can not be updated to be periodically. Thus, to transition an existing job to be periodic, you must first run `nomad stop -purge «job name»`. This is expected behavior and is to ensure that this change has been intentionally made by an operator.
 
+Refer to the [parameterized] documentation for how to use parameters with a periodic job.
+
 ## `periodic` Parameters
 
 - `cron` `(string: <required>)` - Specifies a cron expression configuring the
@@ -117,3 +119,4 @@ configuring time zones for periodic jobs.
 [cron]: https://github.com/hashicorp/cronexpr#implementation 'List of cron expressions'
 [dst]: #daylight-saving-time
 [multiregion]: /nomad/docs/job-specification/multiregion#periodic-time-zones
+[parameterized]: /nomad/docs/job-specification/parameterized#use-periodic-with-parameterized
