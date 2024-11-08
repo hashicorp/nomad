@@ -155,9 +155,9 @@ job "email-blast" {
 ### Interactions with [`periodic`][periodic] 
 
 When trying to schedule a job that is both `parameterized` and `periodic`, an internal 
-hierarchy comes into play: A parametrized job should not be dispatched without 
+hierarchy comes into play. A parametrized job should not be dispatched without 
 parameters by the periodic configuration, forcing the parameterized option to take
-precedence: Once the job is dispatched and given parameters, the 
+precedence. Once the job is dispatched and given parameters, the 
 periodic configuration comes into play and a new jobs will be dispatched according 
 to the periodic configurations and with the parameters of the triggering job.
 
