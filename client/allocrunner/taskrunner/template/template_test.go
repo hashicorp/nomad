@@ -807,8 +807,8 @@ OUTER:
 }
 
 // Tests an edge case where a task has multiple templates and the client is restarted.
-// In this case, vault may re-render and overwrite some fields in the first render event
-// but we still want to make sure it causes a restart.
+// In this case, consul-template may re-render and overwrite some fields in the first
+// render event but we still want to make sure it causes a restart.
 // We cannot control the order in which these templates are rendered, so this test will
 // exhibit flakiness if this edge case is not properly handled.
 func TestTaskTemplateManager_FirstRender_MultiSecret(t *testing.T) {
