@@ -1,0 +1,3 @@
+```release-note:bug
+fix: handles consul template re-renders on client restart
+```
