@@ -277,6 +277,10 @@ func (tm *TaskTemplateManager) handleFirstRender() {
 		<-eventTimer.C
 	}
 
+	// dirtyEvents are events that actually rendered to disk and need to trigger
+	// their respective change_mode operation
+	dirtyEvents := map[string]*manager.RenderEvent{}
+
 	// outstandingEvent tracks whether there is an outstanding event that should
 	// be fired.
 	outstandingEvent := false
@@ -308,22 +312,25 @@ WAIT:
 				continue
 			}
 
-			dirty := false
 			for _, event := range events {
 				// This template hasn't been rendered
 				if event.LastWouldRender.IsZero() {
 					continue WAIT
 				}
-				if event.WouldRender && event.DidRender {
-					dirty = true
+				// If the template _actually_ rendered to disk, mark it
+				// dirty. We track events here so that onTemplateRendered
+				// doesn't go back to the runner's RenderedEvents and process
+				// events that don't make us dirty.
+				if !event.LastDidRender.IsZero() {
+					dirtyEvents[event.Template.ID()] = event
 				}
 			}
 
 			// if there's a driver handle then the task is already running and
 			// that changes how we want to behave on first render
-			if dirty && tm.config.Lifecycle.IsRunning() {
+			if len(dirtyEvents) > 0 && tm.config.Lifecycle.IsRunning() {
 				handledRenders := make(map[string]time.Time, len(tm.config.Templates))
-				tm.onTemplateRendered(handledRenders, time.Time{})
+				tm.onTemplateRendered(handledRenders, time.Time{}, dirtyEvents)
 			}
 
 			break WAIT
@@ -417,12 +424,13 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
-			tm.onTemplateRendered(handledRenders, allRenderedTime)
+			events := tm.runner.RenderEvents()
+			tm.onTemplateRendered(handledRenders, allRenderedTime, events)
 		}
 	}
 }
 
-func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time) {
+func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time, events map[string]*manager.RenderEvent) {
 
 	var handling []string
 	signals := make(map[string]struct{})
@@ -430,7 +438,6 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 	restart := false
 	var splay time.Duration
 
-	events := tm.runner.RenderEvents()
 	for id, event := range events {
 
 		// First time through
