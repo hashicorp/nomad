@@ -990,7 +990,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	if _, ok := d.config.allowRuntimes[containerRuntime]; !ok && containerRuntime != "" {
 		return c, fmt.Errorf("requested runtime %q is not allowed", containerRuntime)
 	}
-	if d.config.NewNetworking {
+	if d.config.NomadNativeNetworking {
 		if containerRuntime == "" {
 			containerRuntime = "nomad"
 		} else {
@@ -1294,7 +1294,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	// shared alloc network
 	if hostConfig.NetworkMode == "" {
 		if task.NetworkIsolation != nil && task.NetworkIsolation.Path != "" {
-			if d.config.NewNetworking {
+			if d.config.NomadNativeNetworking {
 				// "host" is not actually true here, it will cause joining the existing namespace
 				hostConfig.NetworkMode = "host"
 				hostConfig.Annotations["network_ns"] = task.NetworkIsolation.Path
