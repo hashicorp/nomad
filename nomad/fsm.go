@@ -1564,9 +1564,13 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 		snapType := SnapshotType(msgType[0])
 		switch snapType {
 		case TimeTableSnapshot:
-			// COMPAT: Nomad 1.9.2 removed the timetable, this case kept to gracefully handle
-			// tt snapshot requests
-			return nil
+			// COMPAT: Nomad 1.9.2 removed the timetable, this case kept to
+			// gracefully handle tt snapshot requests
+			var table []TimeTableEntry
+			if err := dec.Decode(&table); err != nil {
+				return err
+			}
+
 		case NodeSnapshot:
 			node := new(structs.Node)
 			if err := dec.Decode(node); err != nil {
@@ -3310,4 +3314,11 @@ func (s SnapshotType) String() string {
 		return v
 	}
 	return fmt.Sprintf("Unknown(%d)", s)
+}
+
+// TimeTableEntry was used to track a time and index, but has been removed. We
+// still need to deserialize existing entries
+type TimeTableEntry struct {
+	Index uint64
+	Time  time.Time
 }
