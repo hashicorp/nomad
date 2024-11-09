@@ -994,7 +994,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		if containerRuntime == "" {
 			containerRuntime = "nomad"
 		} else {
-			return c, fmt.Errorf("new-style networking not compatible with custom runtimess")
+			containerRuntime = fmt.Sprintf("nomad-%s", containerRuntime)
 		}
 	}
 
