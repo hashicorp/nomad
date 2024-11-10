@@ -683,6 +683,25 @@ module('Unit | Adapter | Job', function (hooks) {
         '/v1/job/job-id/submission?namespace=zoey&version=job-version'
       );
     });
+    test('Requests for specific versions include the queryParam', async function (assert) {
+      const adapter = this.owner.lookup('adapter:job');
+      const job = {
+        get: sinon.stub(),
+      };
+
+      // Stub the ajax method to avoid making real API calls
+      sinon.stub(adapter, 'ajax').callsFake(() => resolve({}));
+
+      await adapter.fetchRawSpecification(job, 99);
+
+      assert.ok(adapter.ajax.calledOnce, 'The ajax method is called once');
+      assert.equal(
+        adapter.ajax.args[0][0],
+        '/v1/job/job-id/submission?version=99',
+        'it includes the version query param'
+      );
+      assert.equal(adapter.ajax.args[0][1], 'GET');
+    });
   });
 });
 
