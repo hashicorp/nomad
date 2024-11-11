@@ -27,7 +27,13 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 	if !ok {
 		return []*structs.CSIVolListStub{}, nil
 	}
-	if qtype[0] != "csi" {
+	// TODO(1.10.0): move handling of GET /v1/volumes/ out so that we're not
+	// co-mingling the call for listing host volume here
+	switch qtype[0] {
+	case "host":
+		return s.HostVolumesListRequest(resp, req)
+	case "csi":
+	default:
 		return nil, nil
 	}
 
