@@ -1,3 +1,10 @@
+## 1.9.3 (November 11, 2024)
+
+BUG FIXES:
+
+* fix: handles consul template re-renders on client restart [[GH-24399](https://github.com/hashicorp/nomad/issues/24399)]
+* fsm: Fix bug in snapshot restore that could partially wipe state [[GH-24412](https://github.com/hashicorp/nomad/issues/24412)]
+
 ## 1.9.2 (November 08, 2024)
 
 SECURITY:
