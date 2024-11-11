@@ -205,11 +205,9 @@ func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
 		fmt.Sprintf("Controllers Expected|%d", vol.ControllersExpected),
 		fmt.Sprintf("Nodes Healthy|%d", vol.NodesHealthy),
 		fmt.Sprintf("Nodes Expected|%d", vol.NodesExpected),
-
 		fmt.Sprintf("Access Mode|%s", vol.AccessMode),
 		fmt.Sprintf("Attachment Mode|%s", vol.AttachmentMode),
 		fmt.Sprintf("Mount Options|%s", csiVolMountOption(vol.MountOptions, nil)),
-		fmt.Sprintf("Namespace|%s", vol.Namespace),
 	}
 
 	// Exit early
