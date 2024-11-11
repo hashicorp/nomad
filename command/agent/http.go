@@ -10,17 +10,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"net/http/pprof"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/armon/go-metrics"
-	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-connlimit"
@@ -38,6 +37,7 @@ import (
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/ui"
 )
 
 const (
@@ -61,12 +61,8 @@ const (
 )
 
 var (
-	// Set to false by stub_asset if the ui build tag isn't enabled
-	uiEnabled = true
-
-	// Displayed when ui is disabled, but overridden if the ui build
-	// tag isn't enabled
-	stubHTML = "<html><p>Nomad UI is disabled</p></html>"
+	// Displayed when ui is disabled via configuration.
+	noHTML = "<html><p>Nomad UI is disabled</p></html>"
 
 	// allowCORSWithMethods sets permissive CORS headers for a handler, used by
 	// wrapCORS and wrapCORSWithMethods
@@ -511,19 +507,19 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	agentConfig := s.agent.GetConfig()
 	uiConfigEnabled := agentConfig.UI != nil && agentConfig.UI.Enabled
 
-	if uiEnabled && uiConfigEnabled {
-		s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(agentConfig.UI.ContentSecurityPolicy, http.FileServer(&UIAssetWrapper{FileSystem: assetFS()}))))
-		s.logger.Debug("UI is enabled")
-	} else {
-		// Write the stubHTML
-		s.mux.HandleFunc("/ui/", func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(stubHTML))
-		})
-		if uiEnabled && !uiConfigEnabled {
-			s.logger.Warn("UI is disabled")
+	// HERE
+	if ui.Included {
+		if uiConfigEnabled {
+			dist, _ := fs.Sub(ui.Files, "dist")
+			s.mux.Handle("/ui/", http.StripPrefix("/ui/", s.handleUI(agentConfig.UI.ContentSecurityPolicy, http.FileServerFS(dist))))
+			s.logger.Debug("UI is enabled")
 		} else {
-			s.logger.Debug("UI is disabled in this build")
+			s.logger.Debug("UI is disabled")
 		}
+	} else {
+		empty, _ := fs.Sub(ui.Files, "empty")
+		s.mux.Handle("/ui/", http.StripPrefix("/ui/", http.FileServerFS(empty)))
+		s.logger.Debug("UI is disabled in this build")
 	}
 	s.mux.Handle("/", s.handleRootFallthrough())
 
@@ -618,22 +614,6 @@ func (b *builtinAPI) Shutdown() {
 type HTTPCodedError interface {
 	error
 	Code() int
-}
-
-type UIAssetWrapper struct {
-	FileSystem *assetfs.AssetFS
-}
-
-func (fs *UIAssetWrapper) Open(name string) (http.File, error) {
-	if file, err := fs.FileSystem.Open(name); err == nil {
-		return file, nil
-	} else {
-		// serve index.html instead of 404ing
-		if err == os.ErrNotExist {
-			return fs.FileSystem.Open("index.html")
-		}
-		return nil, err
-	}
 }
 
 func CodedError(c int, s string) HTTPCodedError {

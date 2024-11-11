@@ -127,8 +127,6 @@ bootstrap: deps lint-deps git-hooks # Install all dependencies
 .PHONY: deps
 deps:  ## Install build and development dependencies
 	@echo "==> Updating build dependencies..."
-	go install github.com/hashicorp/go-bindata/go-bindata@bf7910af899725e4938903fb32048c7c0b15f12e
-	go install github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@234c15e7648ff35458026de92b34c637bae5e6f7
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
 	go install gotest.tools/gotestsum@v1.10.0
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
@@ -353,12 +351,6 @@ testcluster: ## Bring up a Linux test cluster using Vagrant. Set PROVIDER if nec
 		nomad-client02 \
 		nomad-client03 \
 		$(if $(PROVIDER),--provider $(PROVIDER))
-
-.PHONY: static-assets
-static-assets: ## Compile the static routes to serve alongside the API
-	@echo "==> Generating static assets"
-	@go-bindata-assetfs -pkg agent -prefix ui -modtime 1480000000 -tags ui -o bindata_assetfs.go ./ui/dist/...
-	@mv bindata_assetfs.go command/agent
 
 .PHONY: test-ui
 test-ui: ## Run Nomad UI test suite
