@@ -1798,7 +1798,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 
 		// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
 		case EventSinkSnapshot:
-			return nil
+			return fmt.Errorf("EventSinkSnapshot is an unsupported snapshot type since Nomad 1.0. Executing this code path means state corruption!")
 
 		case ServiceRegistrationSnapshot:
 			serviceRegistration := new(structs.ServiceRegistration)
