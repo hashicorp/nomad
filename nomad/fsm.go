@@ -33,7 +33,7 @@ const (
 	IndexSnapshot                        SnapshotType = 2
 	EvalSnapshot                         SnapshotType = 3
 	AllocSnapshot                        SnapshotType = 4
-	TimeTableSnapshot                    SnapshotType = 5
+	TimeTableSnapshot                    SnapshotType = 5 // DEPRECATED since 1.9.2
 	PeriodicLaunchSnapshot               SnapshotType = 6
 	JobSummarySnapshot                   SnapshotType = 7
 	VaultAccessorSnapshot                SnapshotType = 8
@@ -48,7 +48,7 @@ const (
 	CSIPluginSnapshot                    SnapshotType = 17
 	CSIVolumeSnapshot                    SnapshotType = 18
 	ScalingEventsSnapshot                SnapshotType = 19
-	EventSinkSnapshot                    SnapshotType = 20
+	EventSinkSnapshot                    SnapshotType = 20 // DEPRECATED since 1.0
 	ServiceRegistrationSnapshot          SnapshotType = 21
 	VariablesSnapshot                    SnapshotType = 22
 	VariablesQuotaSnapshot               SnapshotType = 23
@@ -1796,9 +1796,10 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
-		// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
+		// DEPRECATED: EventSinkSnapshot type only available in pre-1.0 Nomad
 		case EventSinkSnapshot:
-			return fmt.Errorf("EventSinkSnapshot is an unsupported snapshot type since Nomad 1.0. Executing this code path means state corruption!")
+			return fmt.Errorf(
+				"EventSinkSnapshot is an unsupported snapshot type since Nomad 1.0. Executing this code path means state corruption!")
 
 		case ServiceRegistrationSnapshot:
 			serviceRegistration := new(structs.ServiceRegistration)
