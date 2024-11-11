@@ -27,7 +27,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/syndtr/gocapability/capability"
+	"github.com/moby/sys/capability"
 )
 
 const (
@@ -793,15 +793,8 @@ func makeExecutable(binPath string) error {
 // SupportedCaps returns a list of all supported capabilities in kernel.
 func SupportedCaps(allowNetRaw bool) []string {
 	var allCaps []string
-	last := capability.CAP_LAST_CAP
-	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
-	for _, cap := range capability.List() {
-		if cap > last {
-			continue
-		}
+	list, _ := capability.ListSupported()
+	for _, cap := range list {
 		if !allowNetRaw && cap == capability.CAP_NET_RAW {
 			continue
 		}

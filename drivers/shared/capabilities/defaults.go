@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/syndtr/gocapability/capability"
+	"github.com/moby/sys/capability"
 )
 
 const (
@@ -40,18 +40,9 @@ func NomadDefaults() *Set {
 func Supported() *Set {
 	s := New(nil)
 
-	last := capability.CAP_LAST_CAP
-
-	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
-
+	list, _ := capability.ListSupported()
 	// accumulate every capability supported by this system
-	for _, c := range capability.List() {
-		if c > last {
-			continue
-		}
+	for _, c := range list {
 		s.Add(c.String())
 	}
 
