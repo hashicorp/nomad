@@ -23,7 +23,7 @@ func (c *VolumeStatusCommand) csiBanner() {
 func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 	// Invoke list mode if no volume id
 	if id == "" {
-		return c.listVolumes(client)
+		return c.listCSIVolumes(client)
 	}
 
 	// get a CSI volume that matches the given prefix or a list of all matches if an
@@ -55,7 +55,7 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 		return 1
 	}
 
-	str, err := c.formatBasic(vol)
+	str, err := c.formatCSIBasic(vol)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error formatting volume: %s", err))
 		return 1
@@ -65,7 +65,7 @@ func (c *VolumeStatusCommand) csiStatus(client *api.Client, id string) int {
 	return 0
 }
 
-func (c *VolumeStatusCommand) listVolumes(client *api.Client) int {
+func (c *VolumeStatusCommand) listCSIVolumes(client *api.Client) int {
 
 	c.csiBanner()
 	vols, _, err := client.CSIVolumes().List(nil)
@@ -182,7 +182,7 @@ func csiFormatSortedVolumes(vols []*api.CSIVolumeListStub) (string, error) {
 	return formatList(rows), nil
 }
 
-func (c *VolumeStatusCommand) formatBasic(vol *api.CSIVolume) (string, error) {
+func (c *VolumeStatusCommand) formatCSIBasic(vol *api.CSIVolume) (string, error) {
 	if c.json || len(c.template) > 0 {
 		out, err := Format(c.json, c.template, vol)
 		if err != nil {
