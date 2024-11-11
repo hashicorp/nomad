@@ -678,6 +678,7 @@ func TestNetworkIndex_AssignTaskNetwork(t *testing.T) {
 
 	allocs := []*Allocation{
 		{
+			// TODO: this breaks task networking entirely
 			TaskResources: map[string]*Resources{
 				"web": {
 					Networks: []*NetworkResource{
