@@ -30,16 +30,18 @@ func PlatformScanners() []SystemScanner {
 }
 
 const (
-	sysRoot        = "/sys/devices/system"
-	nodeOnline     = sysRoot + "/node/online"
-	cpuOnline      = sysRoot + "/cpu/online"
-	distanceFile   = sysRoot + "/node/node%d/distance"
-	cpulistFile    = sysRoot + "/node/node%d/cpulist"
-	cpuMaxFile     = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_max_freq"
-	cpuBaseFile    = sysRoot + "/cpu/cpu%d/cpufreq/base_frequency"
-	cpuSocketFile  = sysRoot + "/cpu/cpu%d/topology/physical_package_id"
-	cpuSiblingFile = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
-	deviceFiles    = "/sys/bus/pci/devices"
+	sysRoot            = "/sys/devices/system"
+	nodeOnline         = sysRoot + "/node/online"
+	cpuOnline          = sysRoot + "/cpu/online"
+	distanceFile       = sysRoot + "/node/node%d/distance"
+	cpulistFile        = sysRoot + "/node/node%d/cpulist"
+	cpuDriverFile      = sysRoot + "/cpu/cpu%d/cpufreq/scaling_driver"
+	cpuMaxFile         = sysRoot + "/cpu/cpu%d/cpufreq/cpuinfo_max_freq"
+	cpuCpccNominalFile = sysRoot + "/cpu/cpu%d/acpi_cppc/nominal_freq"
+	cpuIntelBaseFile   = sysRoot + "/cpu/cpu%d/cpufreq/base_frequency"
+	cpuSocketFile      = sysRoot + "/cpu/cpu%d/topology/physical_package_id"
+	cpuSiblingFile     = sysRoot + "/cpu/cpu%d/topology/thread_siblings_list"
+	deviceFiles        = "/sys/bus/pci/devices"
 )
 
 // pathReaderFn is a path reader function, injected into all value getters to
@@ -131,8 +133,8 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 			st.nodeIDs = idset.From[hw.NodeID]([]hw.NodeID{0})
 			const node = 0
 			const socket = 0
-			cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, 64, readerFunc, core)
-			base, _ := getNumeric[hw.KHz](cpuBaseFile, 64, readerFunc, core)
+
+			base, cpuMax := discoverCoreSpeeds(core, readerFunc)
 			st.insert(node, socket, core, Performance, cpuMax, base)
 			st.Nodes = st.nodeIDs.Slice()
 			return nil
@@ -149,9 +151,8 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 			_ = cores.ForEach(func(core hw.CoreID) error {
 				// best effort, zero values are defaults
 				socket, _ := getNumeric[hw.SocketID](cpuSocketFile, 8, readerFunc, core)
-				cpuMax, _ := getNumeric[hw.KHz](cpuMaxFile, 64, readerFunc, core)
-				base, _ := getNumeric[hw.KHz](cpuBaseFile, 64, readerFunc, core)
 				siblings, _ := getIDSet[hw.CoreID](cpuSiblingFile, readerFunc, core)
+				base, cpuMax := discoverCoreSpeeds(core, readerFunc)
 
 				// if we get an incorrect core number, this means we're not getting the right
 				// data from SysFS. In this case we bail and set default values.
@@ -165,6 +166,28 @@ func (*Sysfs) discoverCores(st *Topology, readerFunc pathReaderFn) {
 			return nil
 		})
 	}
+}
+
+func discoverCoreSpeeds(core hw.CoreID, readerFunc pathReaderFn) (hw.KHz, hw.KHz) {
+	baseSpeed := hw.KHz(0)
+	maxSpeed := hw.KHz(0)
+
+	driver, _ := getString(cpuDriverFile, readerFunc, core)
+
+	switch driver {
+	case "acpi-cpufreq":
+		// Indicates the highest sustained performance level of the processor
+		baseSpeedMHz, _ := getNumeric[hw.MHz](cpuCpccNominalFile, 64, readerFunc, core)
+		baseSpeed = baseSpeedMHz.KHz()
+	default:
+		// COMPAT(1.9.x): while the `base_frequency` file is specific to the `intel_pstate` scaling driver, we should
+		// preserve the default while we may uncover more scaling driver specific implementations.
+		baseSpeed, _ = getNumeric[hw.KHz](cpuIntelBaseFile, 64, readerFunc, core)
+	}
+
+	maxSpeed, _ = getNumeric[hw.KHz](cpuMaxFile, 64, readerFunc, core)
+
+	return baseSpeed, maxSpeed
 }
 
 func getIDSet[T idset.ID](path string, readerFunc pathReaderFn, args ...any) (*idset.Set[T], error) {
