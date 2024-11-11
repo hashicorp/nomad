@@ -187,7 +187,7 @@ jobs:
           # LAST_RELEASE is used to generate the new CHANGELOG entries, so it's
           # only updated for final releases.
           if [ -z "$(semver get prerel ${{ github.event.inputs.version }})" ]; then
-            sed -i.bak -re "s|^(LAST_RELEASE\s+\?=\s+v).*$|\1${{ github.event.inputs.version }}|g" GNUmakefile
+            sed -i.bak -re "s|^(LAST_RELEASE\s+\?=\s).*$|\1${{ github.event.inputs.version }}|g" GNUmakefile
             rm -fr GNUmakefile.bak
             git diff --color=always GNUmakefile
           else
