@@ -33,7 +33,6 @@ const (
 	IndexSnapshot                        SnapshotType = 2
 	EvalSnapshot                         SnapshotType = 3
 	AllocSnapshot                        SnapshotType = 4
-	TimeTableSnapshot                    SnapshotType = 5 // DEPRECATED since 1.9.2
 	PeriodicLaunchSnapshot               SnapshotType = 6
 	JobSummarySnapshot                   SnapshotType = 7
 	VaultAccessorSnapshot                SnapshotType = 8
@@ -48,7 +47,6 @@ const (
 	CSIPluginSnapshot                    SnapshotType = 17
 	CSIVolumeSnapshot                    SnapshotType = 18
 	ScalingEventsSnapshot                SnapshotType = 19
-	EventSinkSnapshot                    SnapshotType = 20 // DEPRECATED since 1.0
 	ServiceRegistrationSnapshot          SnapshotType = 21
 	VariablesSnapshot                    SnapshotType = 22
 	VariablesQuotaSnapshot               SnapshotType = 23
@@ -59,6 +57,14 @@ const (
 	NodePoolSnapshot                     SnapshotType = 28
 	JobSubmissionSnapshot                SnapshotType = 29
 	RootKeySnapshot                      SnapshotType = 30
+
+	// TimeTableSnapshot
+	// Deprecated: Nomad no longer supports TimeTable snapshots since 1.9.2
+	TimeTableSnapshot SnapshotType = 5
+
+	// EventSinkSnapshot
+	// Deprecated: Nomad no longer supports EventSink snapshots since 1.0
+	EventSinkSnapshot SnapshotType = 20
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
