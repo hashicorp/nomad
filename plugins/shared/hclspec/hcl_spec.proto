@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 syntax = "proto3";
-
-option go_package = "hclspec";
+option go_package = "./plugins/shared/hclspec";
 
 /* Spec allows exposing the specification for an HCL body, allowing for parsing and
 validation.

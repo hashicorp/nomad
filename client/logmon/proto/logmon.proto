@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 package hashicorp.nomad.client.logmon.proto;
-option go_package = "proto";
+option go_package = "./client/logmon/proto";
 
 service LogMon {
     rpc Start(StartRequest) returns (StartResponse) {}

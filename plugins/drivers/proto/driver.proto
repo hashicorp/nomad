@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 package hashicorp.nomad.plugins.drivers.proto;
-option go_package = "proto";
+option go_package = "./plugins/drivers/proto";
 
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";

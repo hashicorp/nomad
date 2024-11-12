@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 package hashicorp.nomad.plugins.shared.structs;
-option go_package = "proto";
+option go_package = "./plugins/shared/structs/proto";
 
 import "google/protobuf/wrappers.proto";
 

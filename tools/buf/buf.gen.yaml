@@ -10,8 +10,7 @@ plugins:
     ## protoc-gen-go what the import path for a given proto file should be. This is
     ## necessary when a proto file foo/a.proto imports a proto file from another
     ## directory, e.g. bar/b.proto
-    opt: "plugins=grpc\
-      ,Mplugins/shared/hclspec/hcl_spec.proto=github.com/hashicorp/nomad/plugins/shared/hclspec\
+    opt: "Mplugins/shared/hclspec/hcl_spec.proto=github.com/hashicorp/nomad/plugins/shared/hclspec\
       ,Mplugins/shared/structs/proto/stats.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
       ,Mplugins/shared/structs/proto/attribute.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\
       ,Mplugins/shared/structs/proto/recoverable_error.proto=github.com/hashicorp/nomad/plugins/shared/structs/proto\

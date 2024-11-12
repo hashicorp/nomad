@@ -132,9 +132,10 @@ deps:  ## Install build and development dependencies
 	go install github.com/a8m/tree/cmd/tree@fce18e2a750ea4e7f53ee706b1c3d9cbb22de79c
 	go install gotest.tools/gotestsum@v1.10.0
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
-	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.5.1
 	go install github.com/hashicorp/go-msgpack/v2/codec/codecgen@v2.1.2
-	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
+	go install github.com/bufbuild/buf/cmd/buf@v1.46.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
 	go install golang.org/x/tools/cmd/stringer@v0.18.0
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.9.0

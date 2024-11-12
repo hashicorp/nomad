@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 package hashicorp.nomad.plugins.device;
-option go_package = "proto";
+option go_package = "./plugins/device/proto";
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
@@ -12,14 +12,14 @@ import "plugins/shared/structs/proto/stats.proto";
 
 // DevicePlugin is the API exposed by device plugins
 service DevicePlugin {
-  // Fingerprint allows the device plugin to return a set of   
+  // Fingerprint allows the device plugin to return a set of
   // detected devices and provide a mechanism to update the state of
   // the device.
   rpc Fingerprint(FingerprintRequest) returns (stream FingerprintResponse) {}
 
   // Reserve is called by the client before starting an allocation
   // that requires access to the plugin’s devices. The plugin can use
-  // this to run any setup steps and provides the mounting details to 
+  // this to run any setup steps and provides the mounting details to
   // the Nomad client
   rpc Reserve(ReserveRequest) returns (ReserveResponse) {}
 
@@ -45,7 +45,7 @@ message DeviceGroup {
 
   // device_type is the type of the device (gpu, fpga, etc).
   string device_type = 2;
-  
+
   // device_name is the name of the device.
   string device_name = 3;
 
@@ -66,8 +66,8 @@ message DetectedDevice {
 
   // Health of the device.
   bool healthy = 2;
-  
-  // health_description allows the device plugin to optionally 
+
+  // health_description allows the device plugin to optionally
   // annotate the health field with a human readable reason.
   string health_description = 3;
 
@@ -80,11 +80,11 @@ message DetectedDevice {
 message DeviceLocality {
   // pci_bus_id is the PCI bus ID for the device. If reported, it
   // allows Nomad to make NUMA aware optimizations.
-  string pci_bus_id = 1; 
+  string pci_bus_id = 1;
 }
 
 
-// ReserveRequest is used to ask the device driver for information on 
+// ReserveRequest is used to ask the device driver for information on
 // how to allocate the requested devices.
 message ReserveRequest {
   // device_ids are the requested devices.
@@ -95,12 +95,12 @@ message ReserveRequest {
 // to the task.
 message ReserveResponse {
   // container_res contains information on how to mount the device
-  // into a task isolated using container technologies (where the 
+  // into a task isolated using container technologies (where the
   // host is shared)
   ContainerReservation container_res = 1;
 }
 
-// ContainerReservation returns how to mount the device into a 
+// ContainerReservation returns how to mount the device into a
 // container that shares the host OS.
 message ContainerReservation {
   // List of environment variable to be set
@@ -167,7 +167,7 @@ message DeviceGroupStats {
 
 // DeviceStats is the statistics for an individual device
 message DeviceStats {
-  // summary exposes a single summary metric that should be the most  
+  // summary exposes a single summary metric that should be the most
   // informative to users.
   hashicorp.nomad.plugins.shared.structs.StatValue summary = 1;
 

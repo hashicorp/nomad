@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 package hashicorp.nomad.plugins.base.proto;
-option go_package = "proto";
+option go_package = "./plugins/base/proto";
 
 import "plugins/shared/hclspec/hcl_spec.proto";
 

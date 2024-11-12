@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 package hashicorp.nomad.drivers.docker.docklog.proto;
-option go_package = "proto";
+option go_package = "./drivers/docker/docklog/proto";
 
 service DockerLogger {
     rpc Start(StartRequest) returns (StartResponse) {}

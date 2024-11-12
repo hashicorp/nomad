@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 package hashicorp.nomad.plugins.shared.structs;
-option go_package = "proto";
+option go_package = "./plugins/shared/structs/proto";
 
 // Attribute is used to describe the value of an attribute, optionally
 // specifying units
@@ -18,11 +18,10 @@ message Attribute {
       // string_val exposes a string value.
       string string_val = 3;
 
-      // bool_val exposes a boolean statistic. 
+      // bool_val exposes a boolean statistic.
       bool bool_val = 4;
     }
-      
+
       // unit gives the unit type: MHz, MB, etc.
       string unit = 5;
 }
-

@@ -3,7 +3,7 @@
 
 syntax = "proto3";
 package hashicorp.nomad.plugins.shared.structs;
-option go_package = "proto";
+option go_package = "./plugins/shared/structs/proto";
 
 // RecoverableError is used with a grpc Status to indicate if the error is one
 // which is recoverable and can be reattempted by the client.
