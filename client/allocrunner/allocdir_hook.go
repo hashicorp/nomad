@@ -11,13 +11,15 @@ import (
 // allocDirHook creates and destroys the root directory and shared directories
 // for an allocation.
 type allocDirHook struct {
-	allocDir allocdir.Interface
+	builder  allocdir.Builder
+	allocDir *allocdir.AllocDir
 	logger   hclog.Logger
 }
 
-func newAllocDirHook(logger hclog.Logger, allocDir allocdir.Interface) *allocDirHook {
+func newAllocDirHook(logger hclog.Logger, builder allocdir.Builder, allocDir *allocdir.AllocDir) *allocDirHook {
 	ad := &allocDirHook{
 		allocDir: allocDir,
+		builder:  builder,
 	}
 	ad.logger = logger.Named(ad.Name())
 	return ad
@@ -28,9 +30,9 @@ func (h *allocDirHook) Name() string {
 }
 
 func (h *allocDirHook) Prerun() error {
-	return h.allocDir.Build()
+	return h.builder.Build(h.allocDir)
 }
 
 func (h *allocDirHook) Destroy() error {
-	return h.allocDir.Destroy()
+	return h.builder.Destroy(h.allocDir)
 }

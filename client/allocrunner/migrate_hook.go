@@ -15,15 +15,17 @@ import (
 // diskMigrationHook migrates ephemeral disk volumes. Depends on alloc dir
 // being built but must be run before anything else manipulates the alloc dir.
 type diskMigrationHook struct {
-	allocDir     allocdir.Interface
+	allocDir     *allocdir.AllocDir
 	allocWatcher config.PrevAllocMigrator
+	builder      allocdir.Builder
 	logger       log.Logger
 }
 
 func newDiskMigrationHook(
 	logger log.Logger,
 	allocWatcher config.PrevAllocMigrator,
-	allocDir allocdir.Interface,
+	allocDir *allocdir.AllocDir,
+	builder allocdir.Builder,
 ) *diskMigrationHook {
 	h := &diskMigrationHook{
 		allocDir:     allocDir,
@@ -55,8 +57,8 @@ func (h *diskMigrationHook) Prerun() error {
 		h.logger.Warn("error migrating data from previous alloc", "error", err)
 
 		// Recreate alloc dir to ensure a clean slate
-		h.allocDir.Destroy()
-		if err := h.allocDir.Build(); err != nil {
+		h.builder.Destroy(h.allocDir)
+		if err := h.builder.Build(h.allocDir); err != nil {
 			return fmt.Errorf("failed to clean task directories after failed migration: %v", err)
 		}
 	}

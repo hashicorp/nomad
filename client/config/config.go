@@ -355,6 +355,8 @@ type Config struct {
 	// Uesrs configuration from the agent's config file.
 	Users *UsersConfig
 
+	Rootless *RootlessConfig
+
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
 }

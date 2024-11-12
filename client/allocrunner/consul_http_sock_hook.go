@@ -46,7 +46,7 @@ type consulHTTPSockHook struct {
 func newConsulHTTPSocketHook(
 	logger hclog.Logger,
 	alloc *structs.Allocation,
-	allocDir allocdir.Interface,
+	allocDir *allocdir.AllocDir,
 	configs map[string]*config.ConsulConfig,
 ) *consulHTTPSockHook {
 
@@ -154,7 +154,7 @@ func (h *consulHTTPSockHook) Postrun() error {
 
 type httpSocketProxy struct {
 	logger   hclog.Logger
-	allocDir allocdir.Interface
+	allocDir *allocdir.AllocDir
 	config   *config.ConsulConfig
 
 	ctx     context.Context
@@ -165,7 +165,7 @@ type httpSocketProxy struct {
 
 func newHTTPSocketProxy(
 	logger hclog.Logger,
-	allocDir allocdir.Interface,
+	allocDir *allocdir.AllocDir,
 	config *config.ConsulConfig,
 ) *httpSocketProxy {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -210,7 +210,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 		socketFile = filepath.Join(allocdir.SharedAllocName, allocdir.TmpDirName,
 			"consul_"+p.config.Name+"_http.sock")
 	}
-	hostHTTPSockPath := filepath.Join(p.allocDir.AllocDirPath(), socketFile)
+	hostHTTPSockPath := filepath.Join(p.allocDir.AllocDir, socketFile)
 	if err := maybeRemoveOldSocket(hostHTTPSockPath); err != nil {
 		return err
 	}

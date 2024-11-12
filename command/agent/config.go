@@ -399,6 +399,8 @@ type ClientConfig struct {
 	// Users is used to configure parameters around operating system users.
 	Users *config.UsersConfig `hcl:"users"`
 
+	Rootless *config.RootlessConfig `hcl:"rootless"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -423,6 +425,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.Artifact = c.Artifact.Copy()
 	nc.Drain = c.Drain.Copy()
 	nc.Users = c.Users.Copy()
+	nc.Rootless = c.Rootless.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -2474,7 +2477,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	result.Artifact = a.Artifact.Merge(b.Artifact)
 	result.Drain = a.Drain.Merge(b.Drain)
 	result.Users = a.Users.Merge(b.Users)
-
+	result.Rootless = a.Rootless.Merge(b.Rootless)
 	return &result
 }
 

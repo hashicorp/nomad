@@ -164,7 +164,8 @@ type TaskRunner struct {
 	taskLock sync.RWMutex
 
 	// taskDir is the directory structure for this task.
-	taskDir *allocdir.TaskDir
+	taskDir        *allocdir.TaskDir
+	taskDirBuilder allocdir.Builder
 
 	// envBuilder is used to build the task's environment
 	envBuilder *taskenv.Builder
@@ -291,7 +292,8 @@ type Config struct {
 	ClientConfig *config.Config
 	Task         *structs.Task
 	TaskDir      *allocdir.TaskDir
-	Logger       log.Logger
+
+	Logger log.Logger
 
 	// ConsulServices is used for managing Consul service registrations
 	ConsulServices serviceregistration.Handler
@@ -362,6 +364,8 @@ type Config struct {
 
 	// Users manages a pool of dynamic workload users
 	Users dynamic.Pool
+
+	TaskDirBuilder allocdir.Builder
 }
 
 func NewTaskRunner(config *Config) (*TaskRunner, error) {
@@ -425,6 +429,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		wranglers:               config.Wranglers,
 		widmgr:                  config.WIDMgr,
 		users:                   config.Users,
+		taskDirBuilder:          config.TaskDirBuilder,
 	}
 
 	// Create the logger based on the allocation ID

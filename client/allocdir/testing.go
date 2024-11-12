@@ -19,18 +19,19 @@ func TestAllocDir(t testing.T, l hclog.Logger, prefix, id string) (*AllocDir, fu
 	}
 
 	allocDir := NewAllocDir(l, dir, dir, id)
+	builder := DefaultBuilder{}
 
 	cleanup := func() {
 		if err := os.RemoveAll(dir); err != nil {
 			t.Logf("error cleaning up alloc dir %q: %v", prefix, err)
 		}
 
-		if err := allocDir.Destroy(); err != nil {
+		if err := builder.Destroy(allocDir); err != nil {
 			t.Logf("error cleaning up alloc dir %q: %v", prefix, err)
 		}
 	}
 
-	if err := allocDir.Build(); err != nil {
+	if err := builder.Build(allocDir); err != nil {
 		cleanup()
 		t.Fatalf("error building alloc dir %q: %v", prefix, err)
 	}

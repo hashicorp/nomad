@@ -66,7 +66,7 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	h.runner.EmitEvent(structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
 
 	// Build the task directory structure
-	err := h.runner.taskDir.Build(fsi, chroot, req.Task.User)
+	err := h.runner.taskDirBuilder.BuildTaskDir(h.runner.taskDir, fsi, chroot, req.Task.User)
 	if err != nil {
 		return err
 	}

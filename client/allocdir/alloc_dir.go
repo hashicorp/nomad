@@ -20,6 +20,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hpcloud/tail/watch"
 	tomb "gopkg.in/tomb.v1"
 )
@@ -88,22 +89,28 @@ var (
 	AllocHTTPSocket = filepath.Join(SharedAllocName, TmpDirName, "consul_http.sock")
 )
 
-// Interface is implemented by AllocDir.
-type Interface interface {
-	AllocDirFS
-
-	NewTaskDir(*structs.Task) *TaskDir
-	AllocDirPath() string
-	ShareDirPath() string
-	GetTaskDir(string) *TaskDir
-	Build() error
-	Destroy() error
-	Move(Interface, []*structs.Task) error
+// Builder is the interface for creating and destroying an allocation's
+// directory. Read operations instead go to the AllocDir struct itself.
+type Builder interface {
+	Build(*AllocDir) error
+	Destroy(*AllocDir) error
+	Move(*AllocDir, *AllocDir, []string) error
+	BuildTaskDir(*TaskDir, fsisolation.Mode, map[string]string, string) error
+	UnmountTaskDir(*TaskDir) error
 }
 
-// AllocDir allows creating, destroying, and accessing an allocation's
-// directory. All methods are safe for concurrent use.
+// DefaultBuilder allows creating, destroying, and accessing an allocation's
+// directory. This default implementation of Builder is where we build
+// everything in the same process as the Nomad client agent (expected to be
+// running as root). All methods are safe for concurrent use.
+type DefaultBuilder struct{}
+
+// AllocDir is the datastructure used to parameterize Builder interface
+// methods. It also implements the AllocDirFS interface for read-only
+// operations. Its methods are safe for concurrent use.
 type AllocDir struct {
+	AllocID string
+
 	// AllocDir is the directory used for storing any state
 	// of this allocation. It will be purged on alloc destroy.
 	AllocDir string
@@ -131,14 +138,6 @@ type AllocDir struct {
 	logger hclog.Logger
 }
 
-func (a *AllocDir) AllocDirPath() string {
-	return a.AllocDir
-}
-
-func (a *AllocDir) ShareDirPath() string {
-	return a.SharedDir
-}
-
 func (a *AllocDir) GetTaskDir(task string) *TaskDir {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -163,6 +162,7 @@ func NewAllocDir(logger hclog.Logger, clientAllocDir, clientMountsDir, allocID s
 	shareDir := filepath.Join(allocDir, SharedAllocName)
 
 	return &AllocDir{
+		AllocID:              allocID,
 		clientAllocDir:       clientAllocDir,
 		clientAllocMountsDir: clientMountsDir,
 		AllocDir:             allocDir,
@@ -273,7 +273,7 @@ func (d *AllocDir) Snapshot(w io.Writer) error {
 }
 
 // Move other alloc directory's shared path and local dir to this alloc dir.
-func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
+func (b *DefaultBuilder) Move(d *AllocDir, other *AllocDir, tasks []string) error {
 	d.mu.RLock()
 	if !d.built {
 		// Enforce the invariant that Build is called before Move
@@ -285,7 +285,7 @@ func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 	d.mu.RUnlock()
 
 	// Move the data directory
-	otherDataDir := filepath.Join(other.ShareDirPath(), SharedDataDir)
+	otherDataDir := filepath.Join(other.SharedDir, SharedDataDir)
 	dataDir := filepath.Join(d.SharedDir, SharedDataDir)
 	if fileInfo, err := os.Stat(otherDataDir); fileInfo != nil && err == nil {
 		os.Remove(dataDir) // remove an empty data dir if it exists
@@ -296,20 +296,20 @@ func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 
 	// Move the task directories
 	for _, task := range tasks {
-		otherTaskDir := filepath.Join(other.AllocDirPath(), task.Name)
+		otherTaskDir := filepath.Join(other.AllocDir, task)
 		otherTaskLocal := filepath.Join(otherTaskDir, TaskLocal)
 
 		fileInfo, err := os.Stat(otherTaskLocal)
 		if fileInfo != nil && err == nil {
 			// TaskDirs haven't been built yet, so create it
-			newTaskDir := filepath.Join(d.AllocDir, task.Name)
+			newTaskDir := filepath.Join(d.AllocDir, task)
 			if err := os.MkdirAll(newTaskDir, fileMode777); err != nil {
-				return fmt.Errorf("error creating task %q dir: %w", task.Name, err)
+				return fmt.Errorf("error creating task %q dir: %w", task, err)
 			}
 			localDir := filepath.Join(newTaskDir, TaskLocal)
 			os.Remove(localDir) // remove an empty local dir if it exists
 			if err := os.Rename(otherTaskLocal, localDir); err != nil {
-				return fmt.Errorf("error moving task %q local dir: %w", task.Name, err)
+				return fmt.Errorf("error moving task %q local dir: %w", task, err)
 			}
 		}
 	}
@@ -318,10 +318,10 @@ func (d *AllocDir) Move(other Interface, tasks []*structs.Task) error {
 }
 
 // Destroy tears down previously build directory structure.
-func (d *AllocDir) Destroy() error {
+func (b *DefaultBuilder) Destroy(d *AllocDir) error {
 	// Unmount all mounted shared alloc dirs.
 	mErr := new(multierror.Error)
-	if err := d.UnmountAll(); err != nil {
+	if err := b.UnmountAll(d); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 
@@ -337,13 +337,13 @@ func (d *AllocDir) Destroy() error {
 }
 
 // UnmountAll linked/mounted directories in task dirs.
-func (d *AllocDir) UnmountAll() error {
+func (b *DefaultBuilder) UnmountAll(d *AllocDir) error {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
 
 	mErr := new(multierror.Error)
 	for _, dir := range d.TaskDirs {
-		if err := dir.Unmount(); err != nil {
+		if err := b.UnmountTaskDir(dir); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 	}
@@ -352,21 +352,22 @@ func (d *AllocDir) UnmountAll() error {
 }
 
 // Build the directory tree for an allocation.
-func (d *AllocDir) Build() error {
+func (b *DefaultBuilder) Build(d *AllocDir) error {
+
 	// Make the alloc directory, owned by the nomad process.
 	if err := os.MkdirAll(d.AllocDir, fileMode755); err != nil {
 		return fmt.Errorf("Failed to make the alloc directory %v: %w", d.AllocDir, err)
 	}
 
 	// Make the shared directory and make it available to all user/groups.
-	if err := allocMkdirAll(d.SharedDir, fileMode755); err != nil {
+	if err := AllocMkdirAll(d.SharedDir, fileMode755); err != nil {
 		return err
 	}
 
 	// Create shared subdirs
 	for _, dir := range SharedAllocDirs {
 		p := filepath.Join(d.SharedDir, dir)
-		if err := allocMkdirAll(p, fileMode777); err != nil {
+		if err := AllocMkdirAll(p, fileMode777); err != nil {
 			return err
 		}
 	}
@@ -712,7 +713,7 @@ func writeError(tw *tar.Writer, allocID string, err error) error {
 // allocMkdirAll creates a directory and sets the permissions to the passed
 // value. It also sets the owner of the directory to "nobody" on systems that
 // allow.
-func allocMkdirAll(path string, perms os.FileMode) error {
+func AllocMkdirAll(path string, perms os.FileMode) error {
 	// Create the directory
 	if err := os.MkdirAll(path, perms); err != nil {
 		return err

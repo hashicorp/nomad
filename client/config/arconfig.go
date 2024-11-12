@@ -123,6 +123,9 @@ type AllocRunnerConfig struct {
 
 	// Users manages a pool of dynamic workload users
 	Users dynamic.Pool
+
+	// AllocDirBuilder shims alloc dir build/destroy operations
+	AllocDirBuilder allocdir.Builder
 }
 
 // PrevAllocWatcher allows AllocRunners to wait for a previous allocation to
@@ -145,5 +148,5 @@ type PrevAllocMigrator interface {
 	IsMigrating() bool
 
 	// Migrate data from previous alloc
-	Migrate(ctx context.Context, dest allocdir.Interface) error
+	Migrate(ctx context.Context, dest *allocdir.AllocDir) error
 }

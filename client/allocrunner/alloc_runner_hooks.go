@@ -111,7 +111,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			ar.Alloc(),
 			nil,
 			config.Region,
-		).SetAllocDir(ar.allocDir.AllocDirPath())
+		).SetAllocDir(ar.allocDir.AllocDir)
 	}
 
 	// Create a *taskenv.TaskEnv which is used for read only purposes by the
@@ -124,7 +124,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 
 	ar.runnerHooks = []interfaces.RunnerHook{
 		newIdentityHook(hookLogger, ar.widmgr),
-		newAllocDirHook(hookLogger, ar.allocDir),
+		newAllocDirHook(hookLogger, ar.allocDirBuilder, ar.allocDir),
 		newConsulHook(consulHookConfig{
 			alloc:                   ar.alloc,
 			allocdir:                ar.allocDir,
@@ -136,7 +136,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			logger:                  hookLogger,
 		}),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
-		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
+		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir, ar.allocDirBuilder),
 		newCPUPartsHook(hookLogger, ar.partitions, alloc),
 		newAllocHealthWatcherHook(hookLogger, alloc, newEnvBuilder, hs, ar.Listener(), ar.consulServicesHandler, ar.checkStore),
 		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, builtTaskEnv),

@@ -38,6 +38,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
+	"github.com/hashicorp/nomad/client/mounter"
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
@@ -335,6 +336,8 @@ type Client struct {
 
 	// users is a pool of dynamic workload users
 	users dynamic.Pool
+
+	allocDirBuilder allocdir.Builder
 }
 
 var (
@@ -600,6 +603,12 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 	// Register and then start heartbeating to the servers.
 	c.shutdownGroup.Go(c.registerAndHeartbeat)
+
+	allocDirBuilder, err := c.getAllocDirBuilder()
+	if err != nil {
+		return nil, fmt.Errorf("failed to setup alloc dir mounter: %w", err)
+	}
+	c.allocDirBuilder = allocDirBuilder
 
 	// Restore the state
 	if err := c.restoreState(); err != nil {
@@ -2781,6 +2790,7 @@ func (c *Client) newAllocRunnerConfig(
 	prevAllocWatcher config.PrevAllocWatcher,
 	prevAllocMigrator config.PrevAllocMigrator,
 ) *config.AllocRunnerConfig {
+
 	return &config.AllocRunnerConfig{
 		Alloc:               alloc,
 		CSIManager:          c.csimanager,
@@ -2806,7 +2816,28 @@ func (c *Client) newAllocRunnerConfig(
 		Wranglers:           c.wranglers,
 		Partitions:          c.partitions,
 		Users:               c.users,
+		AllocDirBuilder:     c.allocDirBuilder,
 	}
+}
+
+func (c *Client) getAllocDirBuilder() (allocdir.Builder, error) {
+	rootless := c.GetConfig().Rootless
+	if rootless != nil && rootless.MounterSocket != "" {
+
+		// configure the shared unix domain socket client
+		client, err := mounter.NewMounterClient(
+			c.shutdownCh,
+			c.logger.Named("mounter"),
+			rootless.MounterSocket,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		return mounter.NewMounterShim(client), nil
+
+	}
+	return &allocdir.DefaultBuilder{}, nil
 }
 
 // setupConsulTokenClient configures a tokenClient for managing consul service

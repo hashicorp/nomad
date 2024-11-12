@@ -45,7 +45,7 @@ type terminated interface {
 // AllocRunnerMeta provides metadata about an AllocRunner such as its alloc and
 // alloc dir.
 type AllocRunnerMeta interface {
-	GetAllocDir() allocdir.Interface
+	GetAllocDir() *allocdir.AllocDir
 	Listener() *cstructs.AllocListener
 	Alloc() *structs.Allocation
 }
@@ -73,12 +73,14 @@ type Config struct {
 	MigrateToken string
 
 	Logger hclog.Logger
+
+	AllocBuilder allocdir.Builder
 }
 
 func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string, m AllocRunnerMeta) config.PrevAllocMigrator {
 	logger := c.Logger.Named("alloc_migrator").With("alloc_id", c.Alloc.ID).With("previous_alloc", watchedAllocID)
 
-	tasks := tg.Tasks
+	tasks := helper.ConvertSlice(tg.Tasks, func(t *structs.Task) string { return t.Name })
 	migrate := tg.EphemeralDisk != nil && tg.EphemeralDisk.Migrate
 	sticky := tg.EphemeralDisk != nil && (tg.EphemeralDisk.Sticky || migrate)
 
@@ -93,6 +95,7 @@ func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string,
 			prevListener: m.Listener(),
 			prevStatus:   m.Alloc(),
 			logger:       logger,
+			builder:      c.AllocBuilder,
 		}
 	}
 
@@ -105,6 +108,7 @@ func newMigratorForAlloc(c Config, tg *structs.TaskGroup, watchedAllocID string,
 		rpc:          c.RPC,
 		migrateToken: c.MigrateToken,
 		logger:       logger,
+		builder:      c.AllocBuilder,
 	}
 }
 
@@ -187,13 +191,16 @@ type localPrevAlloc struct {
 	prevAllocID string
 
 	// tasks on the new alloc
-	tasks []*structs.Task
+	tasks []string
 
 	// sticky is true if data should be moved
 	sticky bool
 
 	// prevAllocDir is the alloc dir for the previous alloc
-	prevAllocDir allocdir.Interface
+	prevAllocDir *allocdir.AllocDir
+
+	// builder executes create/move/destroy operations
+	builder allocdir.Builder
 
 	// prevListener allows blocking for updates to the previous alloc
 	prevListener *cstructs.AllocListener
@@ -263,7 +270,7 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 }
 
 // Migrate from previous local alloc dir to destination alloc dir.
-func (p *localPrevAlloc) Migrate(ctx context.Context, dest allocdir.Interface) error {
+func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) error {
 	if !p.sticky {
 		// Not a sticky volume, nothing to migrate
 		return nil
@@ -280,7 +287,7 @@ func (p *localPrevAlloc) Migrate(ctx context.Context, dest allocdir.Interface) e
 
 	p.logger.Debug("copying previous alloc")
 
-	return dest.Move(p.prevAllocDir, p.tasks)
+	return p.builder.Move(dest, p.prevAllocDir, p.tasks)
 }
 
 // remotePrevAlloc is a prevAllocWatcher for previous allocations on remote
@@ -293,13 +300,16 @@ type remotePrevAlloc struct {
 	prevAllocID string
 
 	// tasks on the new alloc
-	tasks []*structs.Task
+	tasks []string
 
 	// config for the Client to get AllocDir, Region, and Node.SecretID
 	config *config.Config
 
 	// migrate is true if data should be moved between nodes
 	migrate bool
+
+	// builder executes create/move/destroy operations
+	builder allocdir.Builder
 
 	// rpc provides an RPC method for watching for updates to the previous
 	// alloc and determining what node it was on.
@@ -426,7 +436,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 
 // Migrate alloc data from a remote node if the new alloc has migration enabled
 // and the old alloc hasn't been GC'd.
-func (p *remotePrevAlloc) Migrate(ctx context.Context, dest allocdir.Interface) error {
+func (p *remotePrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) error {
 	if !p.migrate {
 		// Volume wasn't configured to be migrated, return early
 		return nil
@@ -459,13 +469,13 @@ func (p *remotePrevAlloc) Migrate(ctx context.Context, dest allocdir.Interface) 
 		return err
 	}
 
-	if err := dest.Move(prevAllocDir, p.tasks); err != nil {
+	if err := p.builder.Move(dest, prevAllocDir, p.tasks); err != nil {
 		// cleanup on error
-		prevAllocDir.Destroy()
+		p.builder.Destroy(prevAllocDir)
 		return err
 	}
 
-	if err := prevAllocDir.Destroy(); err != nil {
+	if err := p.builder.Destroy(prevAllocDir); err != nil {
 		p.logger.Error("error destroying alloc dir",
 			"error", err, "previous_alloc_dir", prevAllocDir.AllocDir)
 	}
@@ -515,7 +525,7 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) (*allocdir.AllocDir, error) {
 	// Create the previous alloc dir
 	prevAllocDir := allocdir.NewAllocDir(p.logger, p.config.AllocDir, p.config.AllocMountsDir, p.prevAllocID)
-	if err := prevAllocDir.Build(); err != nil {
+	if err := p.builder.Build(prevAllocDir); err != nil {
 		return nil, fmt.Errorf("error building alloc dir for previous alloc %q: %w", p.prevAllocID, err)
 	}
 
@@ -537,12 +547,12 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	qo := &nomadapi.QueryOptions{AuthToken: p.migrateToken}
 	resp, err := apiClient.Raw().Response(url, qo)
 	if err != nil {
-		prevAllocDir.Destroy()
+		p.builder.Destroy(prevAllocDir)
 		return nil, fmt.Errorf("error getting snapshot from previous alloc %q: %w", p.prevAllocID, err)
 	}
 
 	if err := p.streamAllocDir(ctx, resp, prevAllocDir.AllocDir); err != nil {
-		prevAllocDir.Destroy()
+		p.builder.Destroy(prevAllocDir)
 		return nil, err
 	}
 
@@ -699,7 +709,7 @@ type NoopPrevAlloc struct{}
 func (NoopPrevAlloc) Wait(context.Context) error { return nil }
 
 // Migrate returns nil immediately.
-func (NoopPrevAlloc) Migrate(context.Context, allocdir.Interface) error { return nil }
+func (NoopPrevAlloc) Migrate(context.Context, *allocdir.AllocDir) error { return nil }
 
 func (NoopPrevAlloc) IsWaiting() bool   { return false }
 func (NoopPrevAlloc) IsMigrating() bool { return false }

@@ -941,6 +941,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 
 	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
 
+	conf.Rootless = clientconfig.RootlessConfigFromAgent(agentConfig.Client.Rootless)
+
 	return conf, nil
 }
 

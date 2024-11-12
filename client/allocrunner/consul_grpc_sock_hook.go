@@ -59,7 +59,7 @@ type consulGRPCSocketHook struct {
 func newConsulGRPCSocketHook(
 	logger hclog.Logger,
 	alloc *structs.Allocation,
-	allocDir allocdir.Interface,
+	allocDir *allocdir.AllocDir,
 	configs map[string]*config.ConsulConfig,
 	nodeAttrs map[string]string,
 ) *consulGRPCSocketHook {
@@ -181,7 +181,7 @@ func (h *consulGRPCSocketHook) Postrun() error {
 
 type grpcSocketProxy struct {
 	logger   hclog.Logger
-	allocDir allocdir.Interface
+	allocDir *allocdir.AllocDir
 	config   *config.ConsulConfig
 
 	// consulGRPCFallbackPort is the port to use if the operator did not
@@ -196,7 +196,7 @@ type grpcSocketProxy struct {
 
 func newGRPCSocketProxy(
 	logger hclog.Logger,
-	allocDir allocdir.Interface,
+	allocDir *allocdir.AllocDir,
 	config *config.ConsulConfig,
 	consulGRPCFallbackPort string,
 ) *grpcSocketProxy {
@@ -264,7 +264,7 @@ func (p *grpcSocketProxy) run() error {
 		socketFile = filepath.Join(allocdir.SharedAllocName, allocdir.TmpDirName,
 			"consul_"+p.config.Name+"_grpc.sock")
 	}
-	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDirPath(), socketFile)
+	hostGRPCSocketPath := filepath.Join(p.allocDir.AllocDir, socketFile)
 
 	// if the socket already exists we'll try to remove it, but if not then any
 	// other errors will bubble up to the caller here or when we try to listen

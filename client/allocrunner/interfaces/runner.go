@@ -48,7 +48,7 @@ type AllocRunner interface {
 	GetTaskDriverCapabilities(taskName string) (*drivers.Capabilities, error)
 	StatsReporter() AllocStatsReporter
 	Listener() *cstructs.AllocListener
-	GetAllocDir() allocdir.Interface
+	GetAllocDir() *allocdir.AllocDir
 	SetTaskPauseState(taskName string, ps structs.TaskScheduleState) error
 	GetTaskPauseState(taskName string) (structs.TaskScheduleState, error)
 }

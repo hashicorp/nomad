@@ -127,12 +127,13 @@ func (d *AllocDir) newTaskDir(taskName string, secretsInMB int) *TaskDir {
 // Build default directories and permissions in a task directory. chrootCreated
 // allows skipping chroot creation if the caller knows it has already been
 // done. client.alloc_dir will be skipped.
-func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username string) error {
-	if err := allocMkdirAll(t.Dir, fileMode777); err != nil {
+
+func (b *DefaultBuilder) BuildTaskDir(t *TaskDir, fsi fsisolation.Mode, chroot map[string]string, username string) error {
+	if err := AllocMkdirAll(t.Dir, fileMode777); err != nil {
 		return err
 	}
 
-	if err := allocMkdirAll(t.LocalDir, fileMode777); err != nil {
+	if err := AllocMkdirAll(t.LocalDir, fileMode777); err != nil {
 		return err
 	}
 
@@ -140,7 +141,7 @@ func (t *TaskDir) Build(fsi fsisolation.Mode, chroot map[string]string, username
 	for dir, perms := range TaskDirs {
 		absdir := filepath.Join(t.Dir, dir)
 
-		if err := allocMkdirAll(absdir, perms); err != nil {
+		if err := AllocMkdirAll(absdir, perms); err != nil {
 			return err
 		}
 	}
@@ -320,8 +321,9 @@ func (t *TaskDir) embedDirs(entries map[string]string) error {
 	return nil
 }
 
-// Unmount or delete task directories. Returns all errors as a multierror.
-func (t *TaskDir) Unmount() error {
+// UnmountTaskDir or delete task directories. Returns all errors as a multierror.
+func (b *DefaultBuilder) UnmountTaskDir(t *TaskDir) error {
+
 	mErr := new(multierror.Error)
 
 	// Check if the directory has the shared alloc mounted.
