@@ -13,13 +13,16 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
-## Nomad 1.9.2
+## Nomad 1.9.3
 
-In Nomad 1.9.2, the mechanism used for calculating when objects are eligible
+In Nomad 1.9.3, the mechanism used for calculating when objects are eligible
 for garbage collection changes to a clock-based one. This has two consequences.
 First, it allows to set arbitrarily long GC intervals. Second, it requires that
 Nomad servers are kept roughly in sync time-wise, because GC can originate in a
 follower.
+
+Nomad 1.9.2 contained a bug that could drop all cluster state on upgrade and
+has been removed from downloads.
 
 ## Nomad 1.9.0
 
@@ -35,10 +38,10 @@ block.
 Nomad 1.9.0 stores keys used for signing Workload Identity and encrypting
 Variables in Raft, instead of storing key material in the external
 keystore. When using external KMS or Vault transit encryption for the
-[`keyring`][] provider, the key encryption key (KEK) is stored outside of Nomad
-and no cleartext key material exists on disk. When using the default AEAD
-provider, the key encryption key (KEK) is stored in Raft alongside the encrypted
-data encryption keys (DEK).
+[`keyring`](/nomad/docs/configuration/keyring) provider, the key encryption key
+(KEK) is stored outside of Nomad and no cleartext key material exists on disk.
+When using the default AEAD provider, the key encryption key (KEK) is stored in
+Raft alongside the encrypted data encryption keys (DEK).
 
 Nomad automatically migrates the key storage for all key material on the
 first [`root_key_gc_interval`][] after all servers are upgraded to 1.9.0. The
