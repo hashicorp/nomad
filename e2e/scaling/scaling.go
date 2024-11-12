@@ -175,17 +175,24 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	nomadClient := tc.Nomad()
 
 	// Register a system job with a scaling policy without a group count, it should
-	// default to 1.
+	// default to 1 per node.
 
 	jobID := "test-scaling-" + uuid.Generate()[0:8]
 	e2eutil.RegisterAndWaitForAllocs(t, nomadClient, "scaling/input/namespace_default_system.nomad", jobID, "")
 
 	jobs := nomadClient.Jobs()
-	allocs, _, err := jobs.Allocations(jobID, true, nil)
+	initialAllocs, _, err := jobs.Allocations(jobID, true, nil)
 	require.NoError(t, err)
 
-	require.Equal(t, 1, len(allocs))
-	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(allocs)
+	nodeStubList, _, err := nomadClient.Nodes().List(&api.QueryOptions{Namespace: "default"})
+	require.NoError(t, err)
+
+	// A system job will spawn an allocation per node, we need to know how many nodes
+	// there are to know how many allocations to expect.
+	numberOfNodes := len(nodeStubList)
+
+	require.Equal(t, numberOfNodes, len(initialAllocs))
+	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(initialAllocs)
 
 	// Wait for allocations to get past initial pending state
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
@@ -202,7 +209,7 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	jobs = nomadClient.Jobs()
 	allocs1, _, err := jobs.Allocations(jobID, true, nil)
 	require.NoError(t, err)
-	require.EqualValues(t, allocs, allocs1)
+	require.EqualValues(t, initialAllocs, allocs1)
 
 	// Scale down to 0
 	testMeta = map[string]interface{}{"scaling-e2e-test": "value"}
@@ -212,13 +219,18 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	f.NotEmpty(scaleResp.EvalID)
 
 	// Assert job is still up but no allocs are running
-	jobs = nomadClient.Jobs()
-	allocs, _, err = jobs.Allocations(jobID, false, nil)
+	stopedAllocs, _, err := jobs.Allocations(jobID, false, nil)
 	require.NoError(t, err)
-	require.Equal(t, 1, len(allocs))
 
-	stopedAlloc := allocs[0].ID
-	e2eutil.WaitForAllocStatus(t, nomadClient, stopedAlloc, structs.AllocClientStatusComplete)
+	for _, alloc := range stopedAllocs {
+		e2eutil.WaitForAllocStatus(t, nomadClient, alloc.ID, structs.AllocClientStatusComplete)
+	}
+
+	stopedAllocs, _, err = jobs.Allocations(jobID, false, nil)
+	require.NoError(t, err)
+
+	require.Equal(t, numberOfNodes, len(filterByDesiredStatus(structs.AllocDesiredStatusStop, stopedAllocs)))
+	require.Equal(t, numberOfNodes, len(stopedAllocs))
 
 	// Scale up to 1 again
 	testMeta = map[string]interface{}{"scaling-e2e-test": "value"}
@@ -231,16 +243,27 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	e2eutil.WaitForAllocsNotPending(t, nomadClient, allocIDs)
 
 	// Assert job is still running and there is a running allocation again
-	jobs = nomadClient.Jobs()
-	allocs, _, err = jobs.Allocations(jobID, true, nil)
+	allocs, _, err := jobs.Allocations(jobID, true, nil)
 	require.NoError(t, err)
-	require.Equal(t, 2, len(allocs))
+	require.Equal(t, numberOfNodes*2, len(allocs))
 
-	require.Equal(t, allocs[1].DesiredStatus, structs.AllocDesiredStatusStop)
-	require.Equal(t, allocs[0].DesiredStatus, structs.AllocDesiredStatusRun)
+	require.Equal(t, numberOfNodes, len(filterByDesiredStatus(structs.AllocDesiredStatusStop, allocs)))
+	require.Equal(t, numberOfNodes, len(filterByDesiredStatus(structs.AllocDesiredStatusRun, allocs)))
 
 	// Remove the job.
 	_, _, err = tc.Nomad().Jobs().Deregister(jobID, true, nil)
 	f.NoError(err)
 	f.NoError(tc.Nomad().System().GarbageCollect())
+}
+
+func filterByDesiredStatus(status string, allocs []*api.AllocationListStub) []*api.AllocationListStub {
+	res := []*api.AllocationListStub{}
+
+	for _, a := range allocs {
+		if a.DesiredStatus == status {
+			res = append(res, a)
+		}
+	}
+
+	return res
 }
