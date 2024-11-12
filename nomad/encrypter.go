@@ -477,7 +477,7 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 		// Decrypt RSAKey for Workload Identity JWT signing if one exists. Prior to
 		// 1.7 an ed25519 key derived from the root key was used instead of an RSA
 		// key.
-		if wrappedKey.WrappedRSAKey != nil {
+		if wrappedKey.WrappedRSAKey != nil && len(wrappedKey.WrappedRSAKey.Ciphertext) > 0 {
 			rsaKey, err = wrapper.Decrypt(e.srv.shutdownCtx, wrappedKey.WrappedRSAKey)
 			if err != nil {
 				err := fmt.Errorf("%w (rsa key): %w", ErrDecryptFailed, err)

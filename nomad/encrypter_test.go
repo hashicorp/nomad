@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3/jwt"
+	wrapping "github.com/hashicorp/go-kms-wrapping/v2"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -833,4 +834,43 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 
 	fallbackVaultConfig(providers[2], &config.VaultConfig{})
 	must.Eq(t, expect, providers[2].Config, must.Sprint("expected fallback to env"))
+}
+
+func TestEncrypter_decryptWrappedKeyTask(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	tmpDir := t.TempDir()
+
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	encrypter, err := NewEncrypter(srv, tmpDir)
+	must.NoError(t, err)
+
+	wrappedKey, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
+	must.NotNil(t, wrappedKey)
+	must.NoError(t, err)
+
+	// Purposely empty the RSA key, but do not nil it, so we can test for a
+	// panic where the key doesn't contain the ciphertext.
+	wrappedKey.WrappedRSAKey = &wrapping.BlobInfo{}
+
+	provider, ok := encrypter.providerConfigs[string(structs.KEKProviderAEAD)]
+	must.True(t, ok)
+	must.NotNil(t, provider)
+
+	KMSWrapper, err := encrypter.newKMSWrapper(provider, key.Meta.KeyID, wrappedKey.KeyEncryptionKey)
+	must.NoError(t, err)
+	must.NotNil(t, KMSWrapper)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	err = encrypter.decryptWrappedKeyTask(ctx, cancel, KMSWrapper, provider, key.Meta, wrappedKey)
+	must.NoError(t, err)
 }
