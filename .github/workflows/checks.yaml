@@ -24,6 +24,7 @@ jobs:
     runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "disk_gb=255", "type=m7a.2xlarge;m6a.2xlarge"]') || 'custom-linux-xl-nomad-22.04' }}
     timeout-minutes: 15
     steps:
+      - uses: extractions/setup-just@dd310ad5a97d8e7b41793f8ef055398d51ad4de6 # v2.0.0
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0 # needs tags for checkproto
@@ -46,11 +47,11 @@ jobs:
           cache: true
           go-version-file: .go-version
           cache-dependency-path: '**/go.sum'
-      - name: Run make check
+      - name: Run just check
         run: |
-          make missing
-          make bootstrap
-          make check
+          just missing
+          just bootstrap
+          just check
 permissions:
   contents: read
   id-token: write
