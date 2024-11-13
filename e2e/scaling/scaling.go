@@ -225,9 +225,6 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	stopedAllocs, _, err := jobs.Allocations(jobID, false, nil)
 	f.NoError(err)
 
-	stopedAllocs, _, err = jobs.Allocations(jobID, false, nil)
-	f.NoError(err)
-
 	f.Equal(numberOfNodes, len(filterAllocsByDesiredStatus(structs.AllocDesiredStatusStop, stopedAllocs)))
 	f.Equal(numberOfNodes, len(stopedAllocs))
 
