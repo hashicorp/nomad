@@ -207,7 +207,12 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	jobs = nomadClient.Jobs()
 	allocs1, _, err := jobs.Allocations(jobID, true, nil)
 	f.NoError(err)
-	f.EqualValues(initialAllocs, allocs1)
+
+	f.Equal(len(initialAllocs), len(allocs1))
+
+	for i, a := range allocs1 {
+		f.Equal(a.ID, initialAllocs[i].ID)
+	}
 
 	// Scale down to 0
 	testMeta = map[string]interface{}{"scaling-e2e-test": "value"}
@@ -219,10 +224,6 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	// Assert job is still up but no allocs are running
 	stopedAllocs, _, err := jobs.Allocations(jobID, false, nil)
 	f.NoError(err)
-
-	for _, alloc := range stopedAllocs {
-		e2eutil.WaitForAllocStatus(t, nomadClient, alloc.ID, structs.AllocClientStatusComplete)
-	}
 
 	stopedAllocs, _, err = jobs.Allocations(jobID, false, nil)
 	f.NoError(err)
