@@ -6,6 +6,7 @@ package capabilities
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 
 	"github.com/moby/sys/capability"
 )
@@ -41,6 +42,13 @@ func Supported() *Set {
 	s := New(nil)
 
 	list, _ := capability.ListSupported()
+
+	// capability.ListSupported() will always return an empty list on non-linux
+	// systems
+	if runtime.GOOS != "linux" {
+		list = capability.ListKnown()
+	}
+
 	// accumulate every capability supported by this system
 	for _, c := range list {
 		s.Add(c.String())
