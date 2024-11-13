@@ -120,7 +120,7 @@ require (
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/ryanuber/go-glob v1.0.0
 	github.com/shirou/gopsutil/v3 v3.24.5
-	github.com/shoenig/go-landlock v1.2.1
+	github.com/shoenig/go-landlock v1.2.2
 	github.com/shoenig/go-m1cpu v0.1.6
 	github.com/shoenig/test v1.11.0
 	github.com/stretchr/testify v1.9.0
@@ -131,7 +131,7 @@ require (
 	golang.org/x/crypto v0.27.0
 	golang.org/x/mod v0.21.0
 	golang.org/x/sync v0.8.0
-	golang.org/x/sys v0.26.0
+	golang.org/x/sys v0.27.0
 	golang.org/x/time v0.3.0
 	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.34.2
@@ -313,5 +313,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
-	kernel.org/pub/linux/libs/security/libcap/psx v1.2.69 // indirect
+	kernel.org/pub/linux/libs/security/libcap/psx v1.2.71 // indirect
 )
