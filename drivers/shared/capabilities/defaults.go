@@ -41,11 +41,14 @@ func NomadDefaults() *Set {
 func Supported() *Set {
 	s := New(nil)
 
-	list, _ := capability.ListSupported()
+	var list []capability.Cap
 
-	// capability.ListSupported() will always return an empty list on non-linux
-	// systems
-	if runtime.GOOS != "linux" {
+	switch runtime.GOOS {
+	case "linux":
+		list, _ = capability.ListSupported()
+	default:
+		// capability.ListSupported() will always return an empty list on
+		// non-linux systems
 		list = capability.ListKnown()
 	}
 
