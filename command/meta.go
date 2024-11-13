@@ -427,3 +427,96 @@ type funcVar func(s string) error
 func (f funcVar) Set(s string) error { return f(s) }
 func (f funcVar) String() string     { return "" }
 func (f funcVar) IsBoolFlag() bool   { return false }
+
+type UIRoute struct {
+	Path        string
+	Description string
+}
+
+type UIHintContext struct {
+	Command    string
+	PathParams map[string]string
+}
+
+const (
+	// Colors and styles
+	resetter = "\033[0m"
+	magenta  = "\033[35m"
+	blue     = "\033[34m"
+	bold     = "\033[1m"
+
+	// Output formatting
+	uiHintDelimiter = "\n\n==> "
+	defaultHint     = "See more in the Web UI:"
+)
+
+var CommandUIRoutes = map[string]UIRoute{
+	"server members": {
+		Path:        "/servers",
+		Description: "View and manage Nomad servers",
+	},
+	"node status": {
+		Path:        "/clients",
+		Description: "View and manage Nomad clients",
+	},
+	"node status single": {
+		Path:        "/clients/:nodeID",
+		Description: "View client details and metrics",
+	},
+}
+
+func (m *Meta) formatUIHint(url string, description string) string {
+	if description == "" {
+		description = defaultHint
+	}
+
+	description = fmt.Sprintf("%s in the Web UI:", description)
+
+	// Basic version without colors
+	hint := fmt.Sprintf("%s%s %s", uiHintDelimiter, description, url)
+
+	// If colors are disabled, return basic version
+	_, coloredUi := m.Ui.(*cli.ColoredUi)
+	if m.noColor || !coloredUi {
+		return hint
+	}
+
+	return fmt.Sprintf("%[1]s%[2]s%[3]s%[4]s%[5]s %[6]s%[7]s%[8]s",
+		bold,
+		magenta,
+		uiHintDelimiter[1:], // "==> "
+		description,
+		resetter,
+		blue,
+		url,
+		resetter,
+	)
+}
+
+func (m *Meta) buildUIPath(route UIRoute, params map[string]string) (string, error) {
+	client, err := m.Client()
+	if err != nil {
+		return "", fmt.Errorf("error getting client config: %v", err)
+	}
+
+	path := route.Path
+	for k, v := range params {
+		path = strings.Replace(path, fmt.Sprintf(":%s", k), v, -1)
+	}
+
+	return fmt.Sprintf("%s/ui%s", client.Address(), path), nil
+}
+
+func (m *Meta) showUIPath(ctx UIHintContext) (string, error) {
+	route, exists := CommandUIRoutes[ctx.Command]
+	if !exists {
+		return "", nil
+	}
+
+	url, err := m.buildUIPath(route, ctx.PathParams)
+	if err != nil {
+		return "", err
+	}
+
+	return m.formatUIHint(url, route.Description), nil
+}

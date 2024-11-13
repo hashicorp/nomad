@@ -312,6 +312,13 @@ Results have been paginated. To get the next page run:
 %s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
 		}
 
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: c.Name(),
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
+
 		return 0
 	}
 
@@ -369,6 +376,7 @@ Results have been paginated. To get the next page run:
 	}
 
 	return c.formatNode(client, node)
+
 }
 
 func nodeDrivers(n *api.Node) []string {
@@ -504,6 +512,16 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "node status single",
+			PathParams: map[string]string{
+				"nodeID": node.ID,
+			},
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
+
 		// Output alloc info
 		if err := c.outputAllocInfo(node, nodeAllocs); err != nil {
 			c.Ui.Error(fmt.Sprintf("%s", err))
@@ -589,6 +607,16 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	if err := c.outputAllocInfo(node, nodeAllocs); err != nil {
 		c.Ui.Error(fmt.Sprintf("%s", err))
 		return 1
+	}
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "node status single",
+		PathParams: map[string]string{
+			"nodeID": node.ID,
+		},
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
 	}
 
 	return 0
