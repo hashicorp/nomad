@@ -237,6 +237,15 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		c.Ui.Output(formatAllocMetrics(alloc.Metrics, true, "  "))
 	}
 
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "alloc status",
+		PathParams: map[string]string{
+			"allocID": alloc.ID,
+		},
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
+	}
 	return 0
 }
 

@@ -159,6 +159,12 @@ func (c *JobStatusCommand) Run(args []string) int {
 		if len(jobs) == 0 {
 			// No output if we have no jobs
 			c.Ui.Output("No running jobs")
+			hint, _ := c.Meta.showUIPath(UIHintContext{
+				Command: "job status",
+			})
+			if hint != "" {
+				c.Ui.Output(hint)
+			}
 		} else {
 			if c.json || len(c.tmpl) > 0 {
 				pairs := make([]NamespacedID, len(jobs))
@@ -182,6 +188,12 @@ func (c *JobStatusCommand) Run(args []string) int {
 				c.Ui.Output(out)
 			} else {
 				c.Ui.Output(createStatusListOutput(jobs, allNamespaces))
+				hint, _ := c.Meta.showUIPath(UIHintContext{
+					Command: "job status",
+				})
+				if hint != "" {
+					c.Ui.Output(hint)
+				}
 			}
 		}
 		return 0
@@ -271,6 +283,15 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	// Exit early
 	if short {
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "job status single",
+			PathParams: map[string]string{
+				"jobID": *job.ID,
+			},
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
 		return 0
 	}
 
@@ -290,6 +311,16 @@ func (c *JobStatusCommand) Run(args []string) int {
 			c.Ui.Error(err.Error())
 			return 1
 		}
+	}
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "job status single",
+		PathParams: map[string]string{
+			"jobID": *job.ID,
+		},
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
 	}
 
 	return 0
