@@ -39,6 +39,9 @@ Server Members Options:
     Show detailed information about each member. This dumps a raw set of tags
     which shows more information than the default output format.
 
+  -ui
+    Open the servers page in the browser.
+
  -json
     Output the latest information about each member in a JSON format.
 
@@ -55,6 +58,7 @@ func (c *ServerMembersCommand) AutocompleteFlags() complete.Flags {
 			"-verbose":  complete.PredictNothing,
 			"-json":     complete.PredictNothing,
 			"-t":        complete.PredictAnything,
+			"-ui":       complete.PredictNothing,
 		})
 }
 
@@ -69,7 +73,7 @@ func (c *ServerMembersCommand) Synopsis() string {
 func (c *ServerMembersCommand) Name() string { return "server members" }
 
 func (c *ServerMembersCommand) Run(args []string) int {
-	var detailed, verbose, json bool
+	var detailed, verbose, json, openURL bool
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -77,6 +81,7 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	flags.BoolVar(&detailed, "detailed", false, "Show detailed output")
 	flags.BoolVar(&verbose, "verbose", false, "Show detailed output")
 	flags.BoolVar(&json, "json", false, "")
+	flags.BoolVar(&openURL, "ui", false, "Open the servers page in the browser")
 	flags.StringVar(&tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -146,11 +151,9 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	// Dump the list
 	c.Ui.Output(columnize.SimpleFormat(out))
 
-	// c.Meta.showUIPath(UIHintContext{
-	// 	Command: "server members",
-	// })
 	hint, _ := c.Meta.showUIPath(UIHintContext{
 		Command: c.Name(),
+		OpenURL: openURL,
 	})
 	if hint != "" {
 		c.Ui.Output(hint)
