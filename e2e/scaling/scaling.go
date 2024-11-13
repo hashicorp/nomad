@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
 )
 
 type ScalingE2ETest struct {
@@ -29,7 +28,6 @@ func init() {
 			new(ScalingE2ETest),
 		},
 	})
-
 }
 
 func (tc *ScalingE2ETest) BeforeAll(f *framework.F) {
@@ -182,16 +180,16 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 
 	jobs := nomadClient.Jobs()
 	initialAllocs, _, err := jobs.Allocations(jobID, true, nil)
-	require.NoError(t, err)
+	f.NoError(err)
 
 	nodeStubList, _, err := nomadClient.Nodes().List(&api.QueryOptions{Namespace: "default"})
-	require.NoError(t, err)
+	f.NoError(err)
 
 	// A system job will spawn an allocation per node, we need to know how many nodes
 	// there are to know how many allocations to expect.
-	numberOfNodes := len(nodeStubList)
+	numberOfNodes := len(filterNodeByStatus(api.NodeStatusReady, nodeStubList))
 
-	require.Equal(t, numberOfNodes, len(initialAllocs))
+	f.Equal(numberOfNodes, len(initialAllocs))
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(initialAllocs)
 
 	// Wait for allocations to get past initial pending state
@@ -208,8 +206,8 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	// The same allocs should be running.
 	jobs = nomadClient.Jobs()
 	allocs1, _, err := jobs.Allocations(jobID, true, nil)
-	require.NoError(t, err)
-	require.EqualValues(t, initialAllocs, allocs1)
+	f.NoError(err)
+	f.EqualValues(initialAllocs, allocs1)
 
 	// Scale down to 0
 	testMeta = map[string]interface{}{"scaling-e2e-test": "value"}
@@ -220,17 +218,17 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 
 	// Assert job is still up but no allocs are running
 	stopedAllocs, _, err := jobs.Allocations(jobID, false, nil)
-	require.NoError(t, err)
+	f.NoError(err)
 
 	for _, alloc := range stopedAllocs {
 		e2eutil.WaitForAllocStatus(t, nomadClient, alloc.ID, structs.AllocClientStatusComplete)
 	}
 
 	stopedAllocs, _, err = jobs.Allocations(jobID, false, nil)
-	require.NoError(t, err)
+	f.NoError(err)
 
-	require.Equal(t, numberOfNodes, len(filterByDesiredStatus(structs.AllocDesiredStatusStop, stopedAllocs)))
-	require.Equal(t, numberOfNodes, len(stopedAllocs))
+	f.Equal(numberOfNodes, len(filterAllocsByDesiredStatus(structs.AllocDesiredStatusStop, stopedAllocs)))
+	f.Equal(numberOfNodes, len(stopedAllocs))
 
 	// Scale up to 1 again
 	testMeta = map[string]interface{}{"scaling-e2e-test": "value"}
@@ -244,11 +242,11 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 
 	// Assert job is still running and there is a running allocation again
 	allocs, _, err := jobs.Allocations(jobID, true, nil)
-	require.NoError(t, err)
-	require.Equal(t, numberOfNodes*2, len(allocs))
+	f.NoError(err)
+	f.Equal(numberOfNodes*2, len(allocs))
 
-	require.Equal(t, numberOfNodes, len(filterByDesiredStatus(structs.AllocDesiredStatusStop, allocs)))
-	require.Equal(t, numberOfNodes, len(filterByDesiredStatus(structs.AllocDesiredStatusRun, allocs)))
+	f.Equal(numberOfNodes, len(filterAllocsByDesiredStatus(structs.AllocDesiredStatusStop, allocs)))
+	f.Equal(numberOfNodes, len(filterAllocsByDesiredStatus(structs.AllocDesiredStatusRun, allocs)))
 
 	// Remove the job.
 	_, _, err = tc.Nomad().Jobs().Deregister(jobID, true, nil)
@@ -256,12 +254,24 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	f.NoError(tc.Nomad().System().GarbageCollect())
 }
 
-func filterByDesiredStatus(status string, allocs []*api.AllocationListStub) []*api.AllocationListStub {
+func filterAllocsByDesiredStatus(status string, allocs []*api.AllocationListStub) []*api.AllocationListStub {
 	res := []*api.AllocationListStub{}
 
 	for _, a := range allocs {
 		if a.DesiredStatus == status {
 			res = append(res, a)
+		}
+	}
+
+	return res
+}
+
+func filterNodeByStatus(status string, nodes []*api.NodeListStub) []*api.NodeListStub {
+	res := []*api.NodeListStub{}
+
+	for _, n := range nodes {
+		if n.Status == status {
+			res = append(res, n)
 		}
 	}
 
