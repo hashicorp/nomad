@@ -97,6 +97,9 @@ Run Options:
     Output the JSON that would be submitted to the HTTP API without submitting
     the job.
 
+  -ui
+    Open the job run page in the browser.
+
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
 
@@ -147,6 +150,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-var":              complete.PredictAnything,
 			"-var-file":         complete.PredictFiles("*.var"),
 			"-eval-priority":    complete.PredictNothing,
+			"-ui":               complete.PredictNothing,
 		})
 }
 
@@ -161,7 +165,7 @@ func (c *JobRunCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
-	var detach, verbose, output, override, preserveCounts bool
+	var detach, verbose, output, override, preserveCounts, openURL bool
 	var checkIndexStr, consulNamespace, vaultNamespace string
 	var evalPriority int
 
@@ -180,6 +184,7 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
 	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
 	flagSet.IntVar(&evalPriority, "eval-priority", 0, "")
+	flagSet.BoolVar(&openURL, "ui", false, "")
 
 	if err := flagSet.Parse(args); err != nil {
 		return 1
@@ -254,6 +259,18 @@ func (c *JobRunCommand) Run(args []string) int {
 		}
 
 		c.Ui.Output(string(buf))
+
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "job run",
+			PathParams: map[string]string{
+				"jobID": *job.ID,
+			},
+			OpenURL: openURL,
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
+
 		return 0
 	}
 
@@ -321,10 +338,33 @@ func (c *JobRunCommand) Run(args []string) int {
 			c.Ui.Output("Evaluation ID: " + evalID)
 		}
 
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "job run",
+			PathParams: map[string]string{
+				"jobID": *job.ID,
+			},
+			OpenURL: openURL,
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
+
 		return 0
 	}
 
 	// Detach was not specified, so start monitoring
+	// Set hint to open the browser
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "job run",
+		PathParams: map[string]string{
+			"jobID": *job.ID,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
+	}
+
 	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(evalID)
 

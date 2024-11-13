@@ -49,6 +49,9 @@ Alloc Status Options:
   -verbose
     Show full information.
 
+  -ui
+    Open the allocation status page in the browser.
+
   -json
     Output the allocation in its JSON format.
 
@@ -70,6 +73,7 @@ func (c *AllocStatusCommand) AutocompleteFlags() complete.Flags {
 			"-verbose": complete.PredictNothing,
 			"-json":    complete.PredictNothing,
 			"-t":       complete.PredictAnything,
+			"-ui":      complete.PredictNothing,
 		})
 }
 
@@ -91,7 +95,7 @@ func (c *AllocStatusCommand) AutocompleteArgs() complete.Predictor {
 func (c *AllocStatusCommand) Name() string { return "alloc status" }
 
 func (c *AllocStatusCommand) Run(args []string) int {
-	var short, displayStats, verbose, json bool
+	var short, displayStats, verbose, json, openURL bool
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -101,6 +105,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 	flags.BoolVar(&displayStats, "stats", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVar(&openURL, "ui", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -242,6 +247,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		PathParams: map[string]string{
 			"allocID": alloc.ID,
 		},
+		OpenURL: openURL,
 	})
 	if hint != "" {
 		c.Ui.Output(hint)
