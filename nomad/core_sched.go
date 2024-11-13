@@ -29,27 +29,40 @@ type CoreScheduler struct {
 	snap   *state.StateSnapshot
 	logger log.Logger
 
-	// custom GC Threshold values can be used by unit tests to simulate time
-	// manipulation
-	customJobGCThreshold                time.Duration
-	customEvalGCThreshold               time.Duration
-	customBatchEvalGCThreshold          time.Duration
-	customNodeGCThreshold               time.Duration
-	customDeploymentGCThreshold         time.Duration
-	customCSIVolumeClaimGCThreshold     time.Duration
-	customCSIPluginGCThreshold          time.Duration
-	customACLTokenExpirationGCThreshold time.Duration
-	customRootKeyGCThreshold            time.Duration
+	// custom GC Threshold is a map of object names to threshold values which can be
+	// used by unit tests to simulate time manipulation, and is used by forceGC to
+	// set minimal threshold so that virtually all eligible objects will get GCd
+	customGCThreshold map[string]time.Duration
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
 func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) scheduler.Scheduler {
 	s := &CoreScheduler{
-		srv:    srv,
-		snap:   snap,
-		logger: srv.logger.ResetNamed("core.sched"),
+		srv:               srv,
+		snap:              snap,
+		logger:            srv.logger.ResetNamed("core.sched"),
+		customGCThreshold: make(map[string]time.Duration),
 	}
 	return s
+}
+
+func (c *CoreScheduler) setCustomThresholdForObject(objectName string, threshold time.Duration) {
+	c.customGCThreshold[objectName] = threshold
+}
+
+func (c *CoreScheduler) setCustomThresholdForAllObjects(threshold time.Duration) {
+	for _, objectName := range []string{
+		"job",
+		"eval",
+		"batchEval",
+		"deployment",
+		"csiPlugin",
+		"csiVolume",
+		"token",
+		"node",
+	} {
+		c.setCustomThresholdForObject(objectName, threshold)
+	}
 }
 
 // Process is used to implement the scheduler.Scheduler interface
@@ -89,14 +102,10 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	var mErr *multierror.Error
 
-	c.customJobGCThreshold = time.Millisecond
-	c.customEvalGCThreshold = time.Millisecond
-	c.customBatchEvalGCThreshold = time.Millisecond
-	c.customDeploymentGCThreshold = time.Millisecond
-	c.customCSIPluginGCThreshold = time.Millisecond
-	c.customCSIVolumeClaimGCThreshold = time.Millisecond
-	c.customACLTokenExpirationGCThreshold = time.Millisecond
-	c.customNodeGCThreshold = time.Millisecond
+	// set a minimal threshold for all objects to make force GC possible, and
+	// remember to reset it when we're done
+	c.setCustomThresholdForAllObjects(time.Millisecond)
+	defer c.setCustomThresholdForAllObjects(0)
 
 	err := c.jobGC(eval)
 	if err != nil {
@@ -150,15 +159,6 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 		mErr = multierror.Append(mErr, err)
 	}
 
-	c.customJobGCThreshold = 0
-	c.customEvalGCThreshold = 0
-	c.customBatchEvalGCThreshold = 0
-	c.customDeploymentGCThreshold = 0
-	c.customCSIPluginGCThreshold = 0
-	c.customCSIVolumeClaimGCThreshold = 0
-	c.customACLTokenExpirationGCThreshold = 0
-	c.customNodeGCThreshold = 0
-
 	return mErr.ErrorOrNil()
 }
 
@@ -175,8 +175,10 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 	threshold = c.srv.config.JobGCThreshold
 
 	// custom threshold override
-	if c.customJobGCThreshold != 0 {
-		threshold = c.customJobGCThreshold
+	if val, ok := c.customGCThreshold["job"]; ok {
+		if val != 0 {
+			threshold = val
+		}
 	}
 
 	cutoffTime := c.getCutoffTime(threshold)
@@ -320,11 +322,15 @@ func (c *CoreScheduler) evalGC() error {
 	batchThreshold = c.srv.config.BatchEvalGCThreshold
 
 	// custom threshold override
-	if c.customEvalGCThreshold != 0 {
-		threshold = c.customEvalGCThreshold
+	if val, ok := c.customGCThreshold["eval"]; ok {
+		if val != 0 {
+			threshold = val
+		}
 	}
-	if c.customBatchEvalGCThreshold != 0 {
-		batchThreshold = c.customBatchEvalGCThreshold
+	if val, ok := c.customGCThreshold["batchEval"]; ok {
+		if val != 0 {
+			batchThreshold = val
+		}
 	}
 
 	cutoffTime := c.getCutoffTime(threshold)
@@ -517,8 +523,10 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 	threshold = c.srv.config.NodeGCThreshold
 
 	// custom threshold override
-	if c.customNodeGCThreshold != 0 {
-		threshold = c.customNodeGCThreshold
+	if val, ok := c.customGCThreshold["node"]; ok {
+		if val != 0 {
+			threshold = val
+		}
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -621,8 +629,10 @@ func (c *CoreScheduler) deploymentGC() error {
 	threshold = c.srv.config.DeploymentGCThreshold
 
 	// custom threshold override
-	if c.customDeploymentGCThreshold != 0 {
-		threshold = c.customDeploymentGCThreshold
+	if val, ok := c.customGCThreshold["deployment"]; ok {
+		if val != 0 {
+			threshold = val
+		}
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -821,8 +831,10 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 	threshold = c.srv.config.CSIVolumeClaimGCThreshold
 
 	// custom threshold override
-	if c.customCSIVolumeClaimGCThreshold != 0 {
-		threshold = c.customCSIVolumeClaimGCThreshold
+	if val, ok := c.customGCThreshold["csiVolume"]; ok {
+		if val != 0 {
+			threshold = val
+		}
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -868,8 +880,10 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 	threshold = c.srv.config.CSIPluginGCThreshold
 
 	// custom threshold override
-	if c.customCSIPluginGCThreshold != 0 {
-		threshold = c.customCSIPluginGCThreshold
+	if val, ok := c.customGCThreshold["csiPlugin"]; ok {
+		if val != 0 {
+			threshold = val
+		}
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -936,8 +950,10 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 	threshold = c.srv.config.ACLTokenExpirationGCThreshold
 
 	// custom threshold override
-	if c.customACLTokenExpirationGCThreshold != 0 {
-		threshold = c.customACLTokenExpirationGCThreshold
+	if val, ok := c.customGCThreshold["token"]; ok {
+		if val != 0 {
+			threshold = val
+		}
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -1046,13 +1062,9 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 		return err
 	}
 
-	var threshold time.Duration
-	threshold = c.srv.config.RootKeyGCThreshold
-
-	// custom threshold override
-	if c.customRootKeyGCThreshold != 0 {
-		threshold = c.customRootKeyGCThreshold
-	}
+	// we don't do custom overrides for root keys because they are never subject to
+	// force GC
+	threshold := c.srv.config.RootKeyGCThreshold
 
 	// the threshold is longer than we can support with the time table, and we
 	// never want to force-GC keys because that will orphan signed Workload

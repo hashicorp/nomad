@@ -527,9 +527,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 	// set a shorter GC threshold this time
 	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
-	core.(*CoreScheduler).customBatchEvalGCThreshold = time.Minute
-	//core.(*CoreScheduler).customEvalGCThreshold = time.Minute
-	//core.(*CoreScheduler).customJobGCThreshold = time.Minute
+	core.(*CoreScheduler).setCustomThresholdForObject("batchEval", time.Minute)
 	must.NoError(t, core.Process(gc))
 
 	// We expect the following:
