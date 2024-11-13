@@ -12,7 +12,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-multierror"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -100,66 +99,54 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 
 // forceGC is used to garbage collect all eligible objects.
 func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
-	var mErr *multierror.Error
-
 	// set a minimal threshold for all objects to make force GC possible, and
 	// remember to reset it when we're done
 	c.setCustomThresholdForAllObjects(time.Millisecond)
 	defer c.setCustomThresholdForAllObjects(0)
 
-	err := c.jobGC(eval)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.jobGC(eval); err != nil {
+		return err
 	}
 
-	err = c.evalGC()
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.evalGC(); err != nil {
+		return err
 	}
 
-	err = c.deploymentGC()
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.deploymentGC(); err != nil {
+		return err
 	}
 
-	err = c.csiPluginGC(eval)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.csiPluginGC(eval); err != nil {
+		return err
 	}
 
-	err = c.csiVolumeClaimGC(eval)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.csiVolumeClaimGC(eval); err != nil {
+		return err
 	}
 
-	err = c.expiredOneTimeTokenGC(eval)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.expiredOneTimeTokenGC(eval); err != nil {
+		return err
 	}
 
-	err = c.expiredACLTokenGC(eval, false)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.expiredACLTokenGC(eval, false); err != nil {
+		return err
 	}
 
-	err = c.expiredACLTokenGC(eval, true)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.expiredACLTokenGC(eval, true); err != nil {
+		return err
 	}
 
-	err = c.rootKeyGC(eval, time.Now())
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.rootKeyGC(eval, time.Now()); err != nil {
+		return err
 	}
 
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
-	err = c.nodeGC(eval)
-	if err != nil {
-		mErr = multierror.Append(mErr, err)
+	if err := c.nodeGC(eval); err != nil {
+		return err
 	}
 
-	return mErr.ErrorOrNil()
+	return nil
 }
 
 // jobGC is used to garbage collect eligible jobs.
