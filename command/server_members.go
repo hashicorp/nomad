@@ -146,6 +146,16 @@ func (c *ServerMembersCommand) Run(args []string) int {
 	// Dump the list
 	c.Ui.Output(columnize.SimpleFormat(out))
 
+	// c.Meta.showUIPath(UIHintContext{
+	// 	Command: "server members",
+	// })
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: c.Name(),
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
+	}
+
 	// If there were leader errors display a warning
 	if leaderErr != nil {
 		c.Ui.Output("")
