@@ -12,6 +12,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-multierror"
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -86,36 +87,79 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 
 // forceGC is used to garbage collect all eligible objects.
 func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
-	if err := c.jobGC(eval); err != nil {
-		return err
+	var mErr *multierror.Error
+
+	c.customJobGCThreshold = time.Millisecond
+	c.customEvalGCThreshold = time.Millisecond
+	c.customBatchEvalGCThreshold = time.Millisecond
+	c.customDeploymentGCThreshold = time.Millisecond
+	c.customCSIPluginGCThreshold = time.Millisecond
+	c.customCSIVolumeClaimGCThreshold = time.Millisecond
+	c.customACLTokenExpirationGCThreshold = time.Millisecond
+	c.customNodeGCThreshold = time.Millisecond
+
+	err := c.jobGC(eval)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
-	if err := c.evalGC(); err != nil {
-		return err
+
+	err = c.evalGC()
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
-	if err := c.deploymentGC(); err != nil {
-		return err
+
+	err = c.deploymentGC()
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
-	if err := c.csiPluginGC(eval); err != nil {
-		return err
+
+	err = c.csiPluginGC(eval)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
-	if err := c.csiVolumeClaimGC(eval); err != nil {
-		return err
+
+	err = c.csiVolumeClaimGC(eval)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
-	if err := c.expiredOneTimeTokenGC(eval); err != nil {
-		return err
+
+	err = c.expiredOneTimeTokenGC(eval)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
-	if err := c.expiredACLTokenGC(eval, false); err != nil {
-		return err
+
+	err = c.expiredACLTokenGC(eval, false)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
-	if err := c.expiredACLTokenGC(eval, true); err != nil {
-		return err
+
+	err = c.expiredACLTokenGC(eval, true)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
-	if err := c.rootKeyGC(eval, time.Now()); err != nil {
-		return err
+
+	err = c.rootKeyGC(eval, time.Now())
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
 	}
+
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
-	return c.nodeGC(eval)
+	err = c.nodeGC(eval)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+
+	c.customJobGCThreshold = 0
+	c.customEvalGCThreshold = 0
+	c.customBatchEvalGCThreshold = 0
+	c.customDeploymentGCThreshold = 0
+	c.customCSIPluginGCThreshold = 0
+	c.customCSIVolumeClaimGCThreshold = 0
+	c.customACLTokenExpirationGCThreshold = 0
+	c.customNodeGCThreshold = 0
+
+	return mErr.ErrorOrNil()
 }
 
 // jobGC is used to garbage collect eligible jobs.
@@ -376,8 +420,7 @@ func (c *CoreScheduler) gcEval(eval *structs.Evaluation, cutoffTime time.Time, a
 	var gcAllocIDs []string
 	for _, alloc := range allocs {
 		if !allocGCEligible(alloc, job, time.Now().UTC(), cutoffTime) {
-			// Can't GC the evaluation since not all of the allocations are
-			// terminal
+			// Can't GC the evaluation since not all the allocations are terminal
 			gcEval = false
 		} else {
 			// The allocation is eligible to be GC'd
