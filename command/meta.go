@@ -463,6 +463,18 @@ var CommandUIRoutes = map[string]UIRoute{
 		Path:        "/clients/:nodeID",
 		Description: "View client details and metrics",
 	},
+	"job status": {
+		Path:        "/jobs",
+		Description: "View and manage Nomad jobs",
+	},
+	"job status single": {
+		Path:        "/jobs/:jobID",
+		Description: "View job details and metrics",
+	},
+	"alloc status": {
+		Path:        "/allocations/:allocID",
+		Description: "View allocation details",
+	},
 }
 
 func (m *Meta) formatUIHint(url string, description string) string {
@@ -501,7 +513,7 @@ func (m *Meta) buildUIPath(route UIRoute, params map[string]string) (string, err
 
 	path := route.Path
 	for k, v := range params {
-		path = strings.Replace(path, fmt.Sprintf(":%s", k), v, -1)
+		path = strings.ReplaceAll(path, fmt.Sprintf(":%s", k), v)
 	}
 
 	return fmt.Sprintf("%s/ui%s", client.Address(), path), nil
