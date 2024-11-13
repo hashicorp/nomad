@@ -79,10 +79,18 @@ func (p *partition) Reserve(cores *idset.Set[hw.CoreID]) error {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	p.share.RemoveSet(cores)
-
 	// Use the intersection with the usable cores to avoid adding more cores than available.
-	p.reserve.InsertSet(p.usableCores.Intersect(cores))
+	usableCores := p.usableCores.Intersect(cores)
+
+	overlappingCores := p.reserve.Intersect(usableCores)
+	if overlappingCores.Size() > 0 {
+		// COMPAT: prior to Nomad 1.9.X this would silently happen, this should probably return an error instead
+		p.log.Warn("Unable to exclusively reserve the requested cores", "cores", cores, "overlapping_cores", overlappingCores)
+	}
+
+	p.share.RemoveSet(cores)
+	p.reserve.InsertSet(usableCores)
+
 	return p.write()
 }
 

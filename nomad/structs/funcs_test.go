@@ -248,6 +248,79 @@ func TestAllocsFit(t *testing.T) {
 	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
 }
 
+func TestAllocsFit_Cores(t *testing.T) {
+	ci.Parallel(t)
+
+	n := node2k()
+
+	a1 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{0},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+	}
+
+	a2 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web-prestart": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{1},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{0},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+			TaskLifecycles: map[string]*TaskLifecycleConfig{
+				"web-prestart": {
+					Hook:    TaskLifecycleHookPrestart,
+					Sidecar: false,
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 500, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+
+	// Should fit one allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a2}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+
+	// Should not fit both allocations
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, dim, "cores")
+}
+
 func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	ci.Parallel(t)
 
