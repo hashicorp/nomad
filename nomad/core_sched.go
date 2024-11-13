@@ -107,46 +107,34 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 	if err := c.jobGC(eval); err != nil {
 		return err
 	}
-
 	if err := c.evalGC(); err != nil {
 		return err
 	}
-
 	if err := c.deploymentGC(); err != nil {
 		return err
 	}
-
 	if err := c.csiPluginGC(eval); err != nil {
 		return err
 	}
-
 	if err := c.csiVolumeClaimGC(eval); err != nil {
 		return err
 	}
-
 	if err := c.expiredOneTimeTokenGC(eval); err != nil {
 		return err
 	}
-
 	if err := c.expiredACLTokenGC(eval, false); err != nil {
 		return err
 	}
-
 	if err := c.expiredACLTokenGC(eval, true); err != nil {
 		return err
 	}
-
 	if err := c.rootKeyGC(eval, time.Now()); err != nil {
 		return err
 	}
 
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
-	if err := c.nodeGC(eval); err != nil {
-		return err
-	}
-
-	return nil
+	return c.nodeGC(eval)
 }
 
 // jobGC is used to garbage collect eligible jobs.
