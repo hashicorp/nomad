@@ -187,7 +187,7 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 
 	// A system job will spawn an allocation per node, we need to know how many nodes
 	// there are to know how many allocations to expect.
-	numberOfNodes := len(filterNodeByStatus(api.NodeStatusReady, nodeStubList))
+	numberOfNodes := len(nodeStubList)
 
 	f.Equal(numberOfNodes, len(initialAllocs))
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(initialAllocs)
@@ -260,18 +260,6 @@ func filterAllocsByDesiredStatus(status string, allocs []*api.AllocationListStub
 	for _, a := range allocs {
 		if a.DesiredStatus == status {
 			res = append(res, a)
-		}
-	}
-
-	return res
-}
-
-func filterNodeByStatus(status string, nodes []*api.NodeListStub) []*api.NodeListStub {
-	res := []*api.NodeListStub{}
-
-	for _, n := range nodes {
-		if n.Status == status {
-			res = append(res, n)
 		}
 	}
 
