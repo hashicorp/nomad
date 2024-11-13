@@ -6,6 +6,7 @@ package capabilities
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 
 	"github.com/moby/sys/capability"
 )
@@ -40,7 +41,17 @@ func NomadDefaults() *Set {
 func Supported() *Set {
 	s := New(nil)
 
-	list, _ := capability.ListSupported()
+	var list []capability.Cap
+
+	switch runtime.GOOS {
+	case "linux":
+		list, _ = capability.ListSupported()
+	default:
+		// capability.ListSupported() will always return an empty list on
+		// non-linux systems
+		list = capability.ListKnown()
+	}
+
 	// accumulate every capability supported by this system
 	for _, c := range list {
 		s.Add(c.String())
