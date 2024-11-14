@@ -496,6 +496,22 @@ var CommandUIRoutes = map[string]UIRoute{
 		Path:        "/variables/var/:path@:namespace",
 		Description: "View variable details",
 	},
+	"job dispatch": {
+		Path:        "/jobs/:dispatchID",
+		Description: "View this job",
+	},
+	"eval list": {
+		Path:        "/evaluations",
+		Description: "View evaluations",
+	},
+	"eval status": {
+		Path:        "/evaluations?currentEval=:evalID",
+		Description: "View evaluation details",
+	},
+	"deployment status": {
+		Path:        "/jobs/:jobID/deployments",
+		Description: "View all deployments for this job",
+	},
 }
 
 func (m *Meta) formatUIHint(url string, description string) string {

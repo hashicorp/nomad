@@ -414,6 +414,8 @@ func (c *JobRunCommand) Run(args []string) int {
 	})
 	if hint != "" {
 		c.Ui.Output(hint)
+		// Because this is before monitor, newline so we don't scrunch
+		c.Ui.Output("\n")
 	}
 
 	mon := newMonitor(c.Ui, client, length)

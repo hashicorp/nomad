@@ -52,6 +52,9 @@ Eval List Options:
 
   -t
     Format and display evaluation using a Go template.
+
+  -ui
+    Open the evaluation in the browser.
 `
 
 	return strings.TrimSpace(helpText)
@@ -72,6 +75,7 @@ func (c *EvalListCommand) AutocompleteFlags() complete.Flags {
 			"-status":     complete.PredictAnything,
 			"-per-page":   complete.PredictAnything,
 			"-page-token": complete.PredictAnything,
+			"-ui":         complete.PredictNothing,
 		})
 }
 
@@ -93,7 +97,7 @@ func (c *EvalListCommand) AutocompleteArgs() complete.Predictor {
 func (c *EvalListCommand) Name() string { return "eval list" }
 
 func (c *EvalListCommand) Run(args []string) int {
-	var monitor, verbose, json bool
+	var monitor, verbose, json, openURL bool
 	var perPage int
 	var tmpl, pageToken, filter, filterJobID, filterStatus string
 
@@ -103,6 +107,7 @@ func (c *EvalListCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.BoolVar(&openURL, "ui", false, "")
 	flags.IntVar(&perPage, "per-page", 0, "")
 	flags.StringVar(&pageToken, "page-token", "", "")
 	flags.StringVar(&filter, "filter", "", "")
@@ -171,6 +176,14 @@ func (c *EvalListCommand) Run(args []string) int {
 Results have been paginated. To get the next page run:
 
 %s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
+	}
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "eval list",
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
 	}
 
 	return 0
