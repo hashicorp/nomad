@@ -485,8 +485,12 @@ var CommandUIRoutes = map[string]UIRoute{
 		Description: "View allocation details",
 	},
 	"var list": {
-		Path:        "/variables/path/:prefix",
+		Path:        "/variables",
 		Description: "View Nomad variables",
+	},
+	"var list prefix": {
+		Path:        "/variables/path/:prefix",
+		Description: "View Nomad variables at this path",
 	},
 	"var get": {
 		Path:        "/variables/var/:path@:namespace",

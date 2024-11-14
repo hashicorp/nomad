@@ -217,15 +217,25 @@ func (c *VarListCommand) Run(args []string) int {
 		c.Ui.Warn(fmt.Sprintf("Next page token: %s", qm.NextToken))
 	}
 
-	hint, _ := c.Meta.showUIPath(UIHintContext{
-		Command: "var list",
-		PathParams: map[string]string{
-			"prefix": prefix,
-		},
-		OpenURL: openURL,
-	})
-	if hint != "" {
-		c.Ui.Output(hint)
+	if prefix != "" {
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "var list prefix",
+			PathParams: map[string]string{
+				"prefix": prefix,
+			},
+			OpenURL: openURL,
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
+	} else {
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "var list",
+			OpenURL: openURL,
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
 	}
 
 	return 0
