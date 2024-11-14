@@ -478,11 +478,23 @@ var CommandUIRoutes = map[string]UIRoute{
 	},
 	"job run": {
 		Path:        "/jobs/:jobID",
-		Description: "View this job in the Web UI",
+		Description: "View this job",
 	},
 	"alloc status": {
 		Path:        "/allocations/:allocID",
 		Description: "View allocation details",
+	},
+	"var list": {
+		Path:        "/variables/path/:prefix",
+		Description: "View Nomad variables",
+	},
+	"var get": {
+		Path:        "/variables/var/:path@:namespace",
+		Description: "View variable details",
+	},
+	"var put": {
+		Path:        "/variables/var/:path@:namespace",
+		Description: "View variable details",
 	},
 }
 

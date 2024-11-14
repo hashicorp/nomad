@@ -65,6 +65,9 @@ List Options:
     Template to render output with. Required when format is "go-template",
     invalid for other formats.
 
+  -ui
+    Open the variable list page in the browser.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -74,6 +77,7 @@ func (c *VarListCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-out":      complete.PredictSet("go-template", "json", "terse", "table"),
 			"-template": complete.PredictAnything,
+			"-ui":       complete.PredictNothing,
 		},
 	)
 }
@@ -90,6 +94,7 @@ func (c *VarListCommand) Name() string { return "var list" }
 func (c *VarListCommand) Run(args []string) int {
 	var perPage int
 	var pageToken, filter, prefix string
+	var openURL bool
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -98,6 +103,7 @@ func (c *VarListCommand) Run(args []string) int {
 	flags.IntVar(&perPage, "per-page", 0, "")
 	flags.StringVar(&pageToken, "page-token", "", "")
 	flags.StringVar(&filter, "filter", "", "")
+	flags.BoolVar(&openURL, "ui", false, "")
 
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.outFmt, "out", "table", "")
@@ -209,6 +215,17 @@ func (c *VarListCommand) Run(args []string) int {
 		// so that scripts consuming paths from stdout will not have
 		// to special case the output.
 		c.Ui.Warn(fmt.Sprintf("Next page token: %s", qm.NextToken))
+	}
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "var list",
+		PathParams: map[string]string{
+			"prefix": prefix,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
 	}
 
 	return 0
