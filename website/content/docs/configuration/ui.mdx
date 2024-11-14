@@ -58,6 +58,11 @@ and the configuration is individual to each agent.
 - `label` <code>([Label]: nil)</code> - Configures a user-defined
   label to display in the Nomad Web UI header.
 
+- `cli_url_links` `(bool: true)` - Controls whether CLI commands display hints
+  about equivalent UI pages. For example, when running `nomad server members`,
+  the CLI will show a message indicating where to find server information in
+  the web UI. Set to `false` to disable these hints.
+
 ## `content_security_policy` Parameters
 
 The `content_security_policy` block configures the HTTP
@@ -106,7 +111,7 @@ header sent with the web UI response.
 - `text` `(string: "")` - Specifies the text of the label that will be
   displayed in the header of the Web UI.
 - `background_color` `(string: "")` - The background color of the label to
-  be displayed. The Web UI will default to a black background. HEX values  
+  be displayed. The Web UI will default to a black background. HEX values
   may be used.
 - `text_color` `(string: "")` - The text color of the label to be displayed.
   The Web UI will default to white text. HEX values may be used.

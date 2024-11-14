@@ -573,5 +573,27 @@ func (m *Meta) showUIPath(ctx UIHintContext) (string, error) {
 		}
 	}
 
+	if m.uiHintsDisabled() {
+		return "", nil
+	}
+
 	return m.formatUIHint(url, route.Description), nil
+}
+
+func (m *Meta) uiHintsDisabled() bool {
+	client, err := m.Client()
+	if err != nil {
+		return true
+	}
+	agent, err := client.Agent().Self()
+	if err != nil {
+		return true
+	}
+	agentConfig := agent.Config
+	uiConfig, ok := agentConfig["UI"].(map[string]interface{})
+	if !ok {
+		return true
+	}
+
+	return !uiConfig["CLIURLLinks"].(bool)
 }
