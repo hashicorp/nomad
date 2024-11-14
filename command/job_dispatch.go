@@ -6,6 +6,7 @@ package command
 import (
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"strings"
 
@@ -68,6 +69,9 @@ Dispatch Options:
 
   -verbose
     Display full information.
+
+  -ui
+    Open the dispatched job in the browser.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -83,6 +87,7 @@ func (c *JobDispatchCommand) AutocompleteFlags() complete.Flags {
 			"-detach":            complete.PredictNothing,
 			"-idempotency-token": complete.PredictAnything,
 			"-verbose":           complete.PredictNothing,
+			"-ui":                complete.PredictNothing,
 		})
 }
 
@@ -113,7 +118,7 @@ func (c *JobDispatchCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobDispatchCommand) Name() string { return "job dispatch" }
 
 func (c *JobDispatchCommand) Run(args []string) int {
-	var detach, verbose bool
+	var detach, verbose, openURL bool
 	var idempotencyToken string
 	var meta []string
 	var idPrefixTemplate string
@@ -125,6 +130,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	flags.StringVar(&idempotencyToken, "idempotency-token", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&idPrefixTemplate, "id-prefix-template", "", "")
+	flags.BoolVar(&openURL, "ui", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -220,5 +226,21 @@ func (c *JobDispatchCommand) Run(args []string) int {
 
 	c.Ui.Output("")
 	mon := newMonitor(c.Ui, client, length)
+
+	// for hint purposes, need the dispatchedJobID to be escaped ("/" becomes "%2F")
+	dispatchID := url.PathEscape(resp.DispatchedJobID)
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "job dispatch",
+		PathParams: map[string]string{
+			"dispatchID": dispatchID,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
+		// Because this is before monitor, newline so we don't scrunch
+		c.Ui.Output("\n")
+	}
 	return mon.monitor(resp.EvalID)
 }

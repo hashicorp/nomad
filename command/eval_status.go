@@ -43,6 +43,9 @@ Eval Status Options:
 
   -t
     Format and display evaluation using a Go template.
+
+  -ui
+    Open the evaluation in the browser.
 `
 
 	return strings.TrimSpace(helpText)
@@ -59,6 +62,7 @@ func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
 			"-monitor": complete.PredictNothing,
 			"-t":       complete.PredictAnything,
 			"-verbose": complete.PredictNothing,
+			"-ui":      complete.PredictNothing,
 		})
 }
 
@@ -84,7 +88,7 @@ func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
 func (c *EvalStatusCommand) Name() string { return "eval status" }
 
 func (c *EvalStatusCommand) Run(args []string) int {
-	var monitor, verbose, json bool
+	var monitor, verbose, json, openURL bool
 	var tmpl string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -93,7 +97,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
-
+	flags.BoolVar(&openURL, "ui", false, "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -245,6 +249,17 @@ func (c *EvalStatusCommand) Run(args []string) int {
 			c.Ui.Output(fmt.Sprintf("Evaluation %q waiting for additional capacity to place remainder",
 				limit(eval.BlockedEval, length)))
 		}
+	}
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "eval status",
+		PathParams: map[string]string{
+			"evalID": eval.ID,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
 	}
 
 	return 0

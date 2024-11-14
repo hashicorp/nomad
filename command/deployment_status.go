@@ -55,6 +55,9 @@ Status Options:
     How long to wait before polling an update, used in conjunction with monitor
     mode. Defaults to 2s.
 
+  -ui
+    Open the deployment in the browser.
+
   -t
     Format and display deployment using a Go template.
 `
@@ -72,6 +75,7 @@ func (c *DeploymentStatusCommand) AutocompleteFlags() complete.Flags {
 			"-json":    complete.PredictNothing,
 			"-monitor": complete.PredictNothing,
 			"-t":       complete.PredictAnything,
+			"-ui":      complete.PredictNothing,
 		})
 }
 
@@ -93,7 +97,7 @@ func (c *DeploymentStatusCommand) AutocompleteArgs() complete.Predictor {
 func (c *DeploymentStatusCommand) Name() string { return "deployment status" }
 
 func (c *DeploymentStatusCommand) Run(args []string) int {
-	var json, verbose, monitor bool
+	var json, verbose, monitor, openURL bool
 	var wait time.Duration
 	var tmpl string
 
@@ -104,7 +108,7 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 	flags.BoolVar(&monitor, "monitor", false, "")
 	flags.StringVar(&tmpl, "t", "", "")
 	flags.DurationVar(&wait, "wait", 2*time.Second, "")
-
+	flags.BoolVar(&openURL, "ui", false, "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -183,9 +187,34 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 			formatTime(time.Now()), limit(deploy.ID, length)))
 		c.monitor(client, deploy.ID, meta.LastIndex, wait, verbose)
 
+		// Hint here
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "deployment status",
+			PathParams: map[string]string{
+				"jobID": deploy.JobID,
+			},
+			OpenURL: openURL,
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+			// Because this is before monitor, newline so we don't scrunch
+			c.Ui.Output("\n")
+		}
+
 		return 0
 	}
 	c.Ui.Output(c.Colorize().Color(formatDeployment(client, deploy, length)))
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "deployment status",
+		PathParams: map[string]string{
+			"jobID": deploy.JobID,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
+	}
 	return 0
 }
 
