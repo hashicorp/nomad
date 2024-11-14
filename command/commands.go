@@ -1269,6 +1269,13 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+
+		"systemd": func() (cli.Command, error) {
+			return &SystemdCommand{Meta: meta}, nil
+		},
+		"systemd run": func() (cli.Command, error) {
+			return &SystemdRunCommand{Meta: meta}, nil
+		},
 	}
 
 	deprecated := map[string]cli.CommandFactory{
