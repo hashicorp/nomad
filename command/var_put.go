@@ -102,6 +102,9 @@ Var put Options:
      Provides additional information via standard error to preserve standard
      output (stdout) for redirected output.
 
+  -ui
+    Open the variable put page in the browser.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -111,6 +114,7 @@ func (c *VarPutCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-in":  complete.PredictSet("hcl", "json"),
 			"-out": complete.PredictSet("none", "hcl", "json", "go-template", "table"),
+			"-ui":  complete.PredictNothing,
 		},
 	)
 }
@@ -126,7 +130,7 @@ func (c *VarPutCommand) Synopsis() string {
 func (c *VarPutCommand) Name() string { return "var put" }
 
 func (c *VarPutCommand) Run(args []string) int {
-	var force, enforce, doVerbose bool
+	var force, enforce, doVerbose, openURL bool
 	var path, checkIndexStr string
 	var checkIndex uint64
 	var err error
@@ -139,7 +143,7 @@ func (c *VarPutCommand) Run(args []string) int {
 	flags.StringVar(&checkIndexStr, "check-index", "", "")
 	flags.StringVar(&c.inFmt, "in", "json", "")
 	flags.StringVar(&c.tmpl, "template", "", "")
-
+	flags.BoolVar(&openURL, "ui", false, "")
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.outFmt, "out", "none", "")
 	} else {
@@ -355,13 +359,46 @@ func (c *VarPutCommand) Run(args []string) int {
 		// the renderSVAsUiTable func writes directly to the ui and doesn't error.
 		verbose(successMsg)
 		renderSVAsUiTable(sv, c)
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "var put",
+			PathParams: map[string]string{
+				"path":      path,
+				"namespace": sv.Namespace,
+			},
+			OpenURL: openURL,
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
 		return 0
 	default:
 		c.Ui.Output(successMsg)
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "var put",
+			PathParams: map[string]string{
+				"path":      path,
+				"namespace": sv.Namespace,
+			},
+			OpenURL: openURL,
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
 		return 0
 	}
 	verbose(successMsg)
 	c.Ui.Output(out)
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "var put",
+		PathParams: map[string]string{
+			"path":      path,
+			"namespace": sv.Namespace,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
+	}
 	return 0
 }
 

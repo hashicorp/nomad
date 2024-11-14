@@ -49,6 +49,9 @@ Get Options:
   -template
      Template to render output with. Required when output is "go-template".
 
+  -ui
+    Open the variable get page in the browser.
+
 `
 	return strings.TrimSpace(helpText)
 }
@@ -58,6 +61,7 @@ func (c *VarGetCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"-out":      complete.PredictSet("go-template", "hcl", "json", "none", "table"),
 			"-template": complete.PredictAnything,
+			"-ui":       complete.PredictNothing,
 		},
 	)
 }
@@ -74,12 +78,13 @@ func (c *VarGetCommand) Name() string { return "var get" }
 
 func (c *VarGetCommand) Run(args []string) int {
 	var out, item string
-
+	var openURL bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	flags.StringVar(&item, "item", "", "")
 	flags.StringVar(&c.tmpl, "template", "", "")
+	flags.BoolVar(&openURL, "ui", false, "")
 
 	if fileInfo, _ := os.Stdout.Stat(); (fileInfo.Mode() & os.ModeCharDevice) != 0 {
 		flags.StringVar(&c.outFmt, "out", "table", "")
@@ -161,10 +166,35 @@ func (c *VarGetCommand) Run(args []string) int {
 	default:
 		// the renderSVAsUiTable func writes directly to the ui and doesn't error.
 		renderSVAsUiTable(sv, c)
+
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "var put",
+			PathParams: map[string]string{
+				"path":      path,
+				"namespace": sv.Namespace,
+			},
+			OpenURL: openURL,
+		})
+		if hint != "" {
+			c.Ui.Output(hint)
+		}
+
 		return 0
 	}
 
 	c.Ui.Output(out)
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "var get",
+		PathParams: map[string]string{
+			"path":      path,
+			"namespace": sv.Namespace,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Output(hint)
+	}
 	return 0
 }
 
