@@ -60,6 +60,11 @@ and the configuration is individual to each agent.
 - `label` <code>([Label]: nil)</code> - Configures a user-defined
   label to display in the Nomad Web UI header.
 
+- `cli_url_links` `(bool: true)` - Controls whether CLI commands display hints
+  about equivalent UI pages. For example, when running `nomad server members`,
+  the CLI will show a message indicating where to find server information in
+  the web UI. Set to `false` to disable these hints.
+
 ## `content_security_policy` Parameters
 
 The `content_security_policy` block configures the HTTP

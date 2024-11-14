@@ -28,6 +28,9 @@ type UIConfig struct {
 
 	// Label configures UI label styles
 	Label *LabelUIConfig `hcl:"label"`
+
+	// CLIURLLinks controls whether CLI commands that return URLs will output that url as a hint
+	CLIURLLinks *bool `hcl:"cli_url_links"`
 }
 
 // only covers the elements of
@@ -136,12 +139,14 @@ type LabelUIConfig struct {
 // DefaultUIConfig returns the canonical defaults for the Nomad
 // `ui` configuration.
 func DefaultUIConfig() *UIConfig {
+	enabled := true
 	return &UIConfig{
-		Enabled:               true,
+		Enabled:               enabled,
 		Consul:                &ConsulUIConfig{},
 		Vault:                 &VaultUIConfig{},
 		Label:                 &LabelUIConfig{},
 		ContentSecurityPolicy: DefaultCSPConfig(),
+		CLIURLLinks:           &enabled,
 	}
 }
 
@@ -176,6 +181,10 @@ func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
 	result.Vault = result.Vault.Merge(other.Vault)
 	result.Label = result.Label.Merge(other.Label)
 	result.ContentSecurityPolicy = result.ContentSecurityPolicy.Merge(other.ContentSecurityPolicy)
+
+	if other.CLIURLLinks != nil {
+		result.CLIURLLinks = other.CLIURLLinks
+	}
 
 	return result
 }
