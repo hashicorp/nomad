@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix a bug where namespaced jobs wouldn't show diffs on the versions page
+```
