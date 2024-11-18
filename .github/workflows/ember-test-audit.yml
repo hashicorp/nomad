@@ -25,6 +25,7 @@ jobs:
           node-version: '18'
       - run: yarn --frozen-lockfile
       - run: mkdir -p /tmp/test-reports
+      - run: yarn add ember-test-audit@0.4.0 --dev
       - run: npx ember-test-audit 1 --json --output ../base-audit.json
       - name: Upload result
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
