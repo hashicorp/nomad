@@ -53,27 +53,27 @@
   {
     "title": "Release Notes",
     "routes": [
-       {
-         "title": "Overview",
-         "path": "release-notes"
-       },
-       {
-         "title": "Nomad",
-         "routes": [
-           {
-             "title": "Upcoming",
-             "path": "release-notes/nomad/upcoming"
-           },
-           {
-             "title": "v1.8.x",
-             "path": "release-notes/nomad/v1_8_x"
-           },
-           {
+      {
+        "title": "Overview",
+        "path": "release-notes"
+      },
+      {
+        "title": "Nomad",
+        "routes": [
+          {
+            "title": "Upcoming",
+            "path": "release-notes/nomad/upcoming"
+          },
+          {
+            "title": "v1.8.x",
+            "path": "release-notes/nomad/v1_8_x"
+          },
+          {
             "title": "v1.9.x",
             "path": "release-notes/nomad/v1_9_x"
           }
-         ]
-       }
+        ]
+      }
     ]
   },
   {
@@ -218,6 +218,10 @@
       {
         "title": "Variables",
         "path": "concepts/variables"
+      },
+      {
+        "title": "Garbage Collection",
+        "path": "concepts/garbage-collection"
       }
     ]
   },
@@ -2400,6 +2404,10 @@
       {
         "title": "IPv6 Support",
         "path": "operations/ipv6-support"
+      },
+      {
+        "title": "Tune garbage collection",
+        "path": "operations/tune-garbage-collection"
       }
     ]
   },

@@ -1,0 +1,177 @@
+---
+layout: docs
+page_title: Garbage collection
+description: |-
+  Learn how Nomad implements garbage collection.
+---
+
+
+this page how gc works. may need to add second page under operations for how to
+tune garbage collection.
+
+garbage collection
+- nodes
+- jobs
+- allocations (instances of running jobs)
+- evaluations
+- deployments
+- encryption keys
+
+
+The existing documentation lists the various configurations associated with GC, but as this is spread across both server and client configuration, there is no singular place to learn about how GC is implemented by Nomad & what are the available ways to tune it.
+
+Some questions that I think would be useful for such a document to answer are:
+
+- **What are the events that explicitly trigger a GC run?** For example, for
+  allocations, the code suggests that the only triggers for GC are (1) the
+  gc_interval elapsing, or (2) allocations being created/terminated, or (3)
+  server-side removals triggered by API/CLI calls (nomad system gc) or GCs of
+  evaluations (see cascading bullet below). The existing documentation IMO could
+  be misinterpreted to mean that GC runs are also triggered by the disk/inode
+  thresholds being surpassed (e.g. as if the Nomad client watching/polling its
+  host's disk usage continuously), which is not the case. Trigger (2) is also
+  not mentioned in any of the docs, which can lead a reader to mistakenly
+  believe alloc GCs are only triggered at gc_interval elapsing.
+- **Once an allocation GC is triggered, how many allocations will be destroyed and
+  how are they chosen?** The code suggests that for triggers (1) and (2) above,
+  allocations are removed in termination-time order until no
+  disk/inode/max-alloc thresholds are surpassed, and that only in case (3) are
+  allocations destroyed if none of these thresholds are surpassed. I wasn't able
+  to find this information from the docs alone.
+- **What are the triggers for non-allocation GC runs?**
+- **What are available configurations for how non-alloc resources are chosen for
+  GC?** This is obvious from reading server stanza documentation; but what's not
+  immediately obvious, without reading through all of client gc_* and server
+  *_gc_* stanza configurations, is that server configs are only for non-alloc
+  resources (except on cascading GC's -- see below), and client configs are only
+  for alloc resources. Similarly, not all resources have the same available
+  controls -- e.g. allocations do not have something like an alloc_gc_threshold
+  configuration similar to (job|deployment|eval)_gc_threshold. Having one place
+  that lists out the GC'able resources and their associated controls across
+  client & server config would be useful.
+- **What sorts of cascading GC (if any) exist?** For example, if a job resource
+  is GC'd, does that include all of its deployments/evals/allocations as well?
+  Or, if an eval is GC'd on the server, are the terminal allocations also GC'd?
+  This latter case appears to be true, but I wasn't able to find it mentioned in
+  the existing docs (save for [this comment
+  block](https://pkg.go.dev/github.com/hashicorp/nomad@v1.3.0/nomad/structs#CoreJobEvalGC),
+  and as this effectively makes the server's eval_gc_threshold config an
+  implicit age threshold on terminal allocations, it'd be useful to document
+  this so that it can be tuned accordingly alongside the client-side alloc
+  parameters.
+
+I understand that there may be things that committing to documentation would
+make future optimizations more difficult (e.g. not committing an order of alloc
+termination so that a future implementation could, for example, destroy allocs
+based on disk usage if that's the threshold the client's trying to drop below).
+I think it'd be reasonable to leave out anything that there isn't a desire to
+commit to in the docs, and maybe to call out that anything not described
+explicitly is subject to change.
+
+Attempted Solutions
+
+ It's possible to glean a full picture by searching for gc
+across the client & server stanza configuration docs, and by reading
+
+- [client/gc.go](https://github.com/hashicorp/nomad/blob/9347613/client/gc.go)
+  for the client-side alloc GC algorithm
+- [client/client.go](https://github.com/hashicorp/nomad/blob/9347613/client/client.go)  for the various non-timer GC triggers
+- server-side code (e.g.
+[nomad/core_sched.go](https://github.com/hashicorp/nomad/blob/9347613/nomad/core_sched.go)) for other cases that can trigger GC
+
+but this is not ideal & toilsome to share with non-Go-developer audiences within
+an organization that have a stake in GC configuration.
+
+(Apologies in advance if this documentation exists in other forms and I wasn't able to find it; if that's the case, I propose linking to those docs from the client/server config docs.)
+
+-----
+ Clients have different GC parameters, e.g. gc_disk_usage_threshold,
+ gc_max_allocs. If the alloc terminates, and free space is low and/or a lot of
+ allocations are running on the client, then the client will GC the allocation.
+ I expect the job info to be still present on server info, but without the
+ stats, logs, and file system info.
+
+Worth noting that Nomad only GC jobs that are dead and aren't expected to restart again (without manual intervention). If a job lasts for days (e.g. service jobs, super long batch job), it will not be GCed. Only after the job completes or stopped manually, will Nomad GC it. jobIsGCable function clarifies which jobs are GCable, and jobGC performs the threshold check. Also, to clarify, GC is mostly meant as an internal process that prevents Nomad from ever growing memory usage - its only user visible affect should be that completed jobs eventually get removed from API results.
+
+
+
+## Evaluation
+
+// CoreJobEvalGC is used for the garbage collection of evaluations
+	// and allocations. We periodically scan evaluations in a terminal state,
+	// in which all the corresponding allocations are also terminal. We
+	// delete these out of the system to bound the state.
+	CoreJobEvalGC = "eval-gc"
+
+## allocation
+ // CoreJobEvalGC is used for the garbage collection of evaluations
+	// and allocations. We periodically scan evaluations in a terminal state,
+	// in which all the corresponding allocations are also terminal. We
+	// delete these out of the system to bound the stat
+ If the alloc terminates, and free space is low and/or a lot of allocations are
+ running on the client, then the client will GC the allocation. I
+
+## Node
+	// CoreJobNodeGC is used for the garbage collection of failed nodes.
+	// We periodically scan nodes in a terminal state, and if they have no
+	// corresponding allocations we delete these out of the system.
+	CoreJobNodeGC = "node-gc"
+
+## Job
+	// CoreJobJobGC is used for the garbage collection of eligible jobs. We
+	// periodically scan garbage collectible jobs and check if both their
+	// evaluations and allocations are terminal. If so, we delete these out of
+	// the system.
+	CoreJobJobGC = "job-gc"
+
+## Deployment
+	// CoreJobDeploymentGC is used for the garbage collection of eligible
+	// deployments. We periodically scan garbage collectible deployments and
+	// check if they are terminal. If so, we delete these out of the system.
+	CoreJobDeploymentGC = "deployment-gc"
+
+## CSI objects
+
+### volume claim
+	// CoreJobCSIVolumeClaimGC is use for the garbage collection of CSI
+	// volume claims. We periodically scan volumes to see if no allocs are
+	// claiming them. If so, we unclaim the volume.
+	CoreJobCSIVolumeClaimGC = "csi-volume-claim-gc"
+
+### plugins
+	// CoreJobCSIPluginGC is use for the garbage collection of CSI plugins.
+	// We periodically scan plugins to see if they have no associated volumes
+	// or allocs running them. If so, we delete the plugin.
+	CoreJobCSIPluginGC = "csi-plugin-gc"
+
+## Tokens
+### One-time tokens
+	// CoreJobOneTimeTokenGC is use for the garbage collection of one-time
+	// tokens. We periodically scan for expired tokens and delete them.
+	CoreJobOneTimeTokenGC = "one-time-token-gc"
+
+### Local ACL tokens
+	// CoreJobLocalTokenExpiredGC is used for the garbage collection of
+	// expired local ACL tokens. We periodically scan for expired tokens and
+	// delete them.
+	CoreJobLocalTokenExpiredGC = "local-token-expired-gc"
+
+### Global ACL tokens
+	// CoreJobGlobalTokenExpiredGC is used for the garbage collection of
+	// expired global ACL tokens. We periodically scan for expired tokens and
+	// delete them.
+	CoreJobGlobalTokenExpiredGC = "global-token-expired-gc"
+
+## Keys
+	// CoreJobRootKeyRotateGC is used for periodic key rotation and
+	// garbage collection of unused encryption keys.
+	CoreJobRootKeyRotateOrGC = "root-key-rotate-gc"
+
+	// CoreJobVariablesRekey is used to fully rotate the encryption keys for
+	// variables by decrypting all variables and re-encrypting them with the
+	// active key
+	CoreJobVariablesRekey = "variables-rekey"
+
+	// CoreJobForceGC is used to force garbage collection of all GCable objects.
+	CoreJobForceGC = "force-gc"
+

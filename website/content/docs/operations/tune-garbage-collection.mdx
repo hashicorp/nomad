@@ -1,0 +1,48 @@
+---
+layout: docs
+page_title: Tune garbage collection
+description: |-
+  Configure Nomad's garbage collection.
+---
+
+
+
+Commands to run gc
+ https://developer.hashicorp.com/nomad/docs/commands/system/gc
+
+System API
+ https://developer.hashicorp.com/nomad/api-docs/system#force-gc
+
+
+Client API
+https://developer.hashicorp.com/nomad/api-docs/client#gc-allocation
+https://developer.hashicorp.com/nomad/api-docs/client#gc-all-allocation
+
+
+Configure
+
+client block
+- https://developer.hashicorp.com/nomad/docs/configuration/client#gc_interval
+- https://developer.hashicorp.com/nomad/docs/configuration/client#gc_disk_usage_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/client#gc_inode_usage_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/client#gc_max_allocs
+- https://developer.hashicorp.com/nomad/docs/configuration/client#gc_parallel_destroys
+
+no examples in the config block page
+
+server
+- https://developer.hashicorp.com/nomad/docs/configuration/server#node_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#job_gc_interval
+- https://developer.hashicorp.com/nomad/docs/configuration/server#job_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#eval_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#batch_eval_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#deployment_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#csi_volume_claim_gc_interval
+- https://developer.hashicorp.com/nomad/docs/configuration/server#csi_volume_claim_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#csi_plugin_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#acl_token_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#root_key_gc_interval
+- https://developer.hashicorp.com/nomad/docs/configuration/server#root_key_gc_threshold
+- https://developer.hashicorp.com/nomad/docs/configuration/server#root_key_rotation_threshold
+
+no config examples on server block page
