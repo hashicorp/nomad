@@ -59,7 +59,7 @@ You will also need a Consul Enterprise license file and a Nomad Enterprise licen
 
 Optionally, edit the `nomad_local_binary` variable in the
 `terraform.tfvars` file to change the path to the local binary of
-Nomad you'd like to upload, but keep in mind it has to match the distribution of the nodes.
+Nomad you'd like to upload, but keep in mind it has to match the OS and the CPU architecture of the nodes (amd64 linux). 
 
 Run Terraform apply to deploy the infrastructure:
 
