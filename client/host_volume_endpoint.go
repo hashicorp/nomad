@@ -22,7 +22,10 @@ func newHostVolumesEndpoint(c *Client) *HostVolume {
 
 var hostVolumeRequestTimeout = time.Minute
 
-func (v *HostVolume) Create(req *cstructs.ClientHostVolumeCreateRequest, resp *cstructs.ClientHostVolumeCreateResponse) error {
+func (v *HostVolume) Create(
+	req *cstructs.ClientHostVolumeCreateRequest,
+	resp *cstructs.ClientHostVolumeCreateResponse) error {
+
 	defer metrics.MeasureSince([]string{"client", "host_volume", "create"}, time.Now())
 	ctx, cancelFn := v.requestContext()
 	defer cancelFn()
@@ -33,7 +36,6 @@ func (v *HostVolume) Create(req *cstructs.ClientHostVolumeCreateRequest, resp *c
 		return err
 	}
 
-	//resp.ID = cresp.ID
 	resp.CapacityBytes = cresp.CapacityBytes
 	resp.HostPath = cresp.HostPath
 
@@ -41,12 +43,18 @@ func (v *HostVolume) Create(req *cstructs.ClientHostVolumeCreateRequest, resp *c
 	return nil
 }
 
-func (v *HostVolume) Delete(req *cstructs.ClientHostVolumeDeleteRequest, resp *cstructs.ClientHostVolumeDeleteResponse) error {
+func (v *HostVolume) Delete(
+	req *cstructs.ClientHostVolumeDeleteRequest,
+	resp *cstructs.ClientHostVolumeDeleteResponse) error {
 	defer metrics.MeasureSince([]string{"client", "host_volume", "create"}, time.Now())
-	_, cancelFn := v.requestContext()
+	ctx, cancelFn := v.requestContext()
 	defer cancelFn()
 
-	// TODO(db): call into Client's host volume manager to delete the volume here
+	_, err := v.c.hostVolumeManager.Delete(ctx, req) // TODO(db): cresp is empty... why return it?
+	if err != nil {
+		v.c.logger.Debug("failed to delete host volume", "ID", req.ID, "error", err)
+		return err
+	}
 
 	v.c.logger.Debug("deleted host volume", "id", req.ID, "path", req.HostPath)
 	return nil

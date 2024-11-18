@@ -1,14 +1,8 @@
 package hostvolumemanager
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
@@ -17,111 +11,89 @@ import (
 )
 
 type HostVolumeManager struct {
-	log            hclog.Logger
-	sharedMountDir string
-
-	pluginsLock sync.Mutex
-	plugins     map[string]hostVolumePluginFunc
+	log     hclog.Logger
+	plugins *sync.Map
 }
 
 func NewHostVolumeManager(sharedMountDir string, logger hclog.Logger) *HostVolumeManager {
-
 	log := logger.Named("host_volumes")
 
-	return &HostVolumeManager{
-		log:            log,
-		sharedMountDir: sharedMountDir,
-		plugins: map[string]hostVolumePluginFunc{
-			// TODO: how do we define the external mounter plugins? plugin configs?
-			// note that these can't be in the usual go-plugins directory
-			"default-mounter": newDefaultHostVolumePluginFn(log, sharedMountDir),
-			"example-host-volume": newExternalHostVolumePluginFn(
-				log, sharedMountDir, "/opt/nomad/hostvolumeplugins/example-host-volume"),
-		},
+	mgr := &HostVolumeManager{
+		log:     log,
+		plugins: &sync.Map{},
 	}
+	// TODO(db): discover plugins on disk, need a new plugin dir
+	// TODO: how do we define the external mounter plugins? plugin configs?
+	mgr.setPlugin("mkdir", &HostVolumePluginMkdir{
+		ID:         "mkdir",
+		TargetPath: sharedMountDir,
+		log:        log.With("plugin_id", "mkdir"),
+	})
+	mgr.setPlugin("example-host-volume", &HostVolumePluginExternal{
+		ID:         "example-host-volume",
+		Executable: "/opt/nomad/hostvolumeplugins/example-host-volume",
+		TargetPath: sharedMountDir,
+		log:        log.With("plugin_id", "example-host-volume"),
+	})
+	return mgr
 }
 
-func (hvm *HostVolumeManager) Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
-	hvm.pluginsLock.Lock()
-	pluginFn, ok := hvm.plugins[req.PluginID]
-	hvm.pluginsLock.Unlock()
+// TODO(db): fingerprint elsewhere / on sighup, and SetPlugin from afar?
+func (hvm *HostVolumeManager) setPlugin(id string, plug HostVolumePlugin) {
+	hvm.plugins.Store(id, plug)
+}
+
+func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, bool) {
+	obj, ok := hvm.plugins.Load(id)
+	if !ok {
+		return nil, false
+	}
+	return obj.(HostVolumePlugin), true
+}
+
+func (hvm *HostVolumeManager) Create(ctx context.Context,
+	req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
+
+	plug, ok := hvm.getPlugin(req.PluginID)
 	if !ok {
 		return nil, fmt.Errorf("no such plugin %q", req.PluginID)
 	}
 
-	volID := uuid.Generate()
-	pluginResp, err := pluginFn(ctx, volID, req)
+	if req.ID == "" {
+		req.ID = uuid.Generate()
+	}
+	pluginResp, err := plug.Create(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	resp := &cstructs.ClientHostVolumeCreateResponse{
 		HostPath:      pluginResp.Path,
-		CapacityBytes: pluginResp.SizeInMB,
+		CapacityBytes: pluginResp.SizeBytes,
 	}
 
-	// TODO: now we need to add it to the node fingerprint!
+	// TODO(db): now we need to add it to the node fingerprint!
+	// TODO(db): and save it in client state!
 
 	return resp, nil
 }
 
-type hostVolumePluginFunc func(ctx context.Context, id string, req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginResponse, error)
+func (hvm *HostVolumeManager) Delete(ctx context.Context,
+	req *cstructs.ClientHostVolumeDeleteRequest) (*cstructs.ClientHostVolumeDeleteResponse, error) {
 
-type hostVolumePluginResponse struct {
-	Path     string            `json:"path"`
-	SizeInMB int64             `json:"size"`
-	Context  map[string]string `json:"context"` // metadata
-}
-
-func newExternalHostVolumePluginFn(log hclog.Logger, sharedMountDir, executablePath string) hostVolumePluginFunc {
-	return func(ctx context.Context, id string, req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginResponse, error) {
-
-		buf, err := json.Marshal(req)
-		if err != nil {
-			return nil, err
-		}
-
-		log.Trace("external host volume plugin", "req", string(buf))
-
-		stdin := bytes.NewReader(buf)
-		targetPath := filepath.Join(sharedMountDir, id)
-
-		cmd := exec.CommandContext(ctx, executablePath, targetPath)
-		cmd.Stdin = stdin
-
-		var stderr bytes.Buffer
-		cmd.Stderr = io.Writer(&stderr)
-		outBuf, err := cmd.Output()
-		if err != nil {
-			out, _ := io.ReadAll(&stderr)
-			return nil, fmt.Errorf("hostvolume plugin failed: %v, %v", err, string(out))
-		}
-
-		var pluginResp hostVolumePluginResponse
-		err = json.Unmarshal(outBuf, &pluginResp)
-		if err != nil {
-			return nil, err
-		}
-
-		return &pluginResp, nil
+	plug, ok := hvm.getPlugin(req.PluginID)
+	if !ok {
+		return nil, fmt.Errorf("no such plugin %q", req.PluginID)
 	}
-}
 
-func newDefaultHostVolumePluginFn(log hclog.Logger, sharedMountDir string) hostVolumePluginFunc {
-	return func(ctx context.Context, id string, req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginResponse, error) {
-
-		targetPath := filepath.Join(sharedMountDir, id)
-		log.Trace("default host volume plugin", "target_path", targetPath)
-
-		err := os.Mkdir(targetPath, 0o700)
-		if err != nil {
-			return nil, err
-		}
-
-		return &hostVolumePluginResponse{
-			Path:     targetPath,
-			SizeInMB: 0,
-			Context:  map[string]string{},
-		}, nil
+	err := plug.Delete(ctx, req)
+	if err != nil {
+		return nil, err
 	}
+
+	resp := &cstructs.ClientHostVolumeDeleteResponse{}
+
+	// TODO(db): save the client state!
+
+	return resp, nil
 }

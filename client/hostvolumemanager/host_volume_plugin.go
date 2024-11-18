@@ -1,0 +1,164 @@
+package hostvolumemanager
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+
+	"github.com/hashicorp/go-hclog"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+)
+
+type HostVolumePlugin interface {
+	Version(ctx context.Context) (string, error)
+	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error)
+	Delete(ctx context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error
+	// TODO(db): update? resize? ??
+}
+
+type hostVolumePluginCreateResponse struct {
+	Path      string            `json:"path"`
+	SizeBytes int64             `json:"bytes"`
+	Context   map[string]string `json:"context"` // metadata
+}
+
+var _ HostVolumePlugin = &HostVolumePluginMkdir{}
+
+type HostVolumePluginMkdir struct {
+	ID         string
+	TargetPath string
+
+	log hclog.Logger
+}
+
+func (p *HostVolumePluginMkdir) Version(_ context.Context) (string, error) {
+	return "0.0.1", nil
+}
+
+func (p *HostVolumePluginMkdir) Create(_ context.Context,
+	req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error) {
+
+	path := filepath.Join(p.TargetPath, req.ID)
+	p.log.Debug("CREATE: default host volume plugin", "target_path", path)
+
+	err := os.Mkdir(path, 0o700)
+	if err != nil {
+		return nil, err
+	}
+
+	return &hostVolumePluginCreateResponse{
+		Path:      path,
+		SizeBytes: 0,
+		Context:   map[string]string{},
+	}, nil
+}
+
+func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error {
+	path := filepath.Join(p.TargetPath, req.ID)
+	p.log.Debug("DELETE: default host volume plugin", "target_path", path)
+	return os.RemoveAll(path)
+}
+
+var _ HostVolumePlugin = &HostVolumePluginExternal{}
+
+type HostVolumePluginExternal struct {
+	ID         string
+	Executable string
+	TargetPath string
+
+	log hclog.Logger
+}
+
+func (p *HostVolumePluginExternal) Version(_ context.Context) (string, error) {
+	return "0.0.1", nil // TODO(db): call the plugin, use in fingerprint
+}
+
+func (p *HostVolumePluginExternal) Create(ctx context.Context,
+	req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error) {
+
+	stdin, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	stdout, _, err := p.runPlugin(ctx, "create", req.ID, stdin, []string{
+		"NODE_ID=" + req.NodeID,
+		"VOLUME_NAME=" + req.Name,
+		fmt.Sprintf("CAPACITY_MIN_BYTES=%d", req.RequestedCapacityMinBytes),
+		fmt.Sprintf("CAPACITY_MAX_BYTES=%d", req.RequestedCapacityMaxBytes),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creating volume %q with plugin %q: %w", req.ID, req.PluginID, err)
+	}
+
+	var pluginResp hostVolumePluginCreateResponse
+	err = json.Unmarshal(stdout, &pluginResp)
+	if err != nil {
+		return nil, err
+	}
+	return &pluginResp, nil
+}
+
+func (p *HostVolumePluginExternal) Delete(ctx context.Context,
+	req *cstructs.ClientHostVolumeDeleteRequest) error {
+
+	stdin, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = p.runPlugin(ctx, "delete", req.ID, stdin, []string{})
+	if err != nil {
+		return fmt.Errorf("error deleting volume %q with plugin %q: %w", req.ID, req.PluginID, err)
+	}
+	return nil
+}
+
+func (p *HostVolumePluginExternal) runPlugin(ctx context.Context, op, volID string,
+	stdin []byte, env []string) (stdout, stderr []byte, err error) {
+
+	p.log.Debug("running host volume plugin",
+		"operation", op,
+		"volume_id", volID,
+		"stdin", string(stdin),
+	)
+
+	path := filepath.Join(p.TargetPath, volID)
+	// set up plugin execution
+	cmd := exec.CommandContext(ctx, p.Executable, op, path)
+
+	// plugins may read the full json from stdin,
+	cmd.Stdin = bytes.NewReader(stdin)
+	// and/or environment variables for basic features.
+	cmd.Env = append([]string{
+		"OPERATION=" + op,
+		"HOST_PATH=" + path,
+	}, env...)
+
+	var errBuf bytes.Buffer
+	cmd.Stderr = io.Writer(&errBuf) // TODO(db): maybe a better way to capture stderr?
+
+	// run the command and capture output
+	stdout, err = cmd.Output()
+	stderr, _ = io.ReadAll(&errBuf)
+
+	logArgs := []any{
+		"operation", op,
+		"volume_id", volID,
+		"stdout", string(stdout),
+		"stderr", string(stderr),
+	}
+
+	if err != nil {
+		logArgs = append(logArgs, []any{"err", err}...)
+		p.log.Error("error with plugin", logArgs...)
+		return stdout, stderr, err
+	}
+	p.log.Debug("plugin ran", logArgs...)
+	return stdout, stderr, nil
+}
