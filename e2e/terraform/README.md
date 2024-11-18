@@ -55,18 +55,26 @@ client_count_ubuntu_jammy_amd64  = "4"
 client_count_windows_2016_amd64  = "1"
 ```
 
-You will also need a Consul Enterprise license file.
+You will also need a Consul Enterprise license file and a Nomad Enterprise license file.
 
 Optionally, edit the `nomad_local_binary` variable in the
 `terraform.tfvars` file to change the path to the local binary of
-Nomad you'd like to upload.
+Nomad you'd like to upload, but keep in mind it has to match the OS and the CPU architecture of the nodes (amd64 linux). 
 
 Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
 terraform init
-terraform apply
+terraform apply -var="consul_license=$(cat full_path_to_consul.hclic)" -var="nomad_license=$(cat full_path_to_nomad.hclic)"    
+```
+ 
+Alternative you can also run `make apply_full` from the terraform directory:
+
+```
+export NOMAD_LICENSE_PATH=./nomad.hclic
+export CONSUL_LICENSE_PATH=./consul.hclic 
+make apply_full
 ```
 
 > Note: You will likely see "Connection refused" or "Permission denied" errors
