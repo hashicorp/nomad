@@ -66,7 +66,7 @@ Run Terraform apply to deploy the infrastructure:
 ```sh
 cd e2e/terraform/
 terraform init
-terraform apply -var="consul_license=$(cat ./consul.hclic)" -var="nomad_license=$(cat ./nomad.hclic)"    
+terraform apply -var="consul_license=$(cat full_path_to_consul.hclic)" -var="nomad_license=$(cat full_path_to_nomad.hclic)"    
 ```
  
 Alternative you can also run `make apply_full` from the terraform directory:
