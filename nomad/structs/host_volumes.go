@@ -4,9 +4,15 @@
 package structs
 
 import (
+	"errors"
+	"fmt"
 	"maps"
+	"strings"
+	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 type HostVolume struct {
@@ -122,13 +128,101 @@ func (hv *HostVolume) Stub() *HostVolumeStub {
 	}
 }
 
-func (hv *HostVolume) Validate(existing *HostVolume) error {
-	// TODO(1.10.0): validate a host volume is validate or that changes to a
-	// host volume are valid
+// Validate verifies that the submitted HostVolume spec has valid field values,
+// without validating any changes or state (see ValidateUpdate).
+func (hv *HostVolume) Validate() error {
 
-	// TODO(1.10.0): note that we have to handle nil existing *HostVolume
-	// parameter safely
-	return nil
+	var mErr *multierror.Error
+
+	if hv.Name == "" {
+		mErr = multierror.Append(mErr, errors.New("missing name"))
+	}
+
+	if hv.RequestedCapacityMaxBytes < hv.RequestedCapacityMinBytes {
+		mErr = multierror.Append(mErr, fmt.Errorf(
+			"capacity_max (%d) must be larger than capacity_min (%d)",
+			hv.RequestedCapacityMaxBytes, hv.RequestedCapacityMinBytes))
+	}
+
+	if len(hv.RequestedCapabilities) == 0 {
+		mErr = multierror.Append(mErr, errors.New("must include at least one capability block"))
+	} else {
+		for _, cap := range hv.RequestedCapabilities {
+			err := cap.Validate()
+			if err != nil {
+				mErr = multierror.Append(mErr, err)
+			}
+		}
+	}
+
+	for _, constraint := range hv.Constraints {
+		if err := constraint.Validate(); err != nil {
+			mErr = multierror.Append(mErr, fmt.Errorf("invalid constraint: %v", err))
+		}
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+// ValidateUpdate verifies that an update to a volume is safe to make.
+func (hv *HostVolume) ValidateUpdate(existing *HostVolume) error {
+	if existing == nil {
+		return nil
+	}
+
+	var mErr *multierror.Error
+	if len(existing.Allocations) > 0 {
+		allocIDs := helper.ConvertSlice(existing.Allocations,
+			func(a *AllocListStub) string { return a.ID })
+		mErr = multierror.Append(mErr, fmt.Errorf(
+			"cannot update a volume in use: claimed by allocs (%s)",
+			strings.Join(allocIDs, ", ")))
+	}
+
+	if hv.NodeID != "" && hv.NodeID != existing.NodeID {
+		mErr = multierror.Append(mErr, errors.New("node ID cannot be updated"))
+	}
+	if hv.NodePool != "" && hv.NodePool != existing.NodePool {
+		mErr = multierror.Append(mErr, errors.New("node pool cannot be updated"))
+	}
+
+	if hv.RequestedCapacityMaxBytes < existing.CapacityBytes {
+		mErr = multierror.Append(mErr, fmt.Errorf(
+			"capacity_max (%d) cannot be less than existing provisioned capacity (%d)",
+			hv.RequestedCapacityMaxBytes, existing.CapacityBytes))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+const DefaultHostVolumePlugin = "default"
+
+// CanonicalizeForUpdate is called in the RPC handler to ensure we call client
+// RPCs with correctly populated fields from the existing volume, even if the
+// RPC request includes otherwise valid zero-values. This method should be
+// called on request objects or a copy, never on a state store object directly.
+func (hv *HostVolume) CanonicalizeForUpdate(existing *HostVolume, now time.Time) {
+	if existing == nil {
+		hv.ID = uuid.Generate()
+		if hv.PluginID == "" {
+			hv.PluginID = DefaultHostVolumePlugin
+		}
+		hv.CapacityBytes = 0 // returned by plugin
+		hv.HostPath = ""     // returned by plugin
+		hv.CreateTime = now.UnixNano()
+	} else {
+		hv.PluginID = existing.PluginID
+		hv.NodePool = existing.NodePool
+		hv.NodeID = existing.NodeID
+		hv.Constraints = existing.Constraints
+		hv.CapacityBytes = existing.CapacityBytes
+		hv.HostPath = existing.HostPath
+		hv.CreateTime = existing.CreateTime
+	}
+
+	hv.State = HostVolumeStatePending // reset on any change
+	hv.ModifyTime = now.UnixNano()
+	hv.Allocations = nil // set on read only
 }
 
 // GetNamespace implements the paginator.NamespaceGetter interface
@@ -154,6 +248,31 @@ func (hvc *HostVolumeCapability) Copy() *HostVolumeCapability {
 
 	nhvc := *hvc
 	return &nhvc
+}
+
+func (hvc *HostVolumeCapability) Validate() error {
+	if hvc == nil {
+		return errors.New("validate called on nil host volume capability")
+	}
+
+	switch hvc.AttachmentMode {
+	case HostVolumeAttachmentModeBlockDevice,
+		HostVolumeAttachmentModeFilesystem:
+	default:
+		return fmt.Errorf("invalid attachment mode: %q", hvc.AttachmentMode)
+	}
+
+	switch hvc.AccessMode {
+	case HostVolumeAccessModeSingleNodeReader,
+		HostVolumeAccessModeSingleNodeWriter,
+		HostVolumeAccessModeMultiNodeReader,
+		HostVolumeAccessModeMultiNodeSingleWriter,
+		HostVolumeAccessModeMultiNodeMultiWriter:
+	default:
+		return fmt.Errorf("invalid access mode: %q", hvc.AccessMode)
+	}
+
+	return nil
 }
 
 // HostVolumeAttachmentMode chooses the type of storage API that will be used to

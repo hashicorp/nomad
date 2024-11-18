@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -232,7 +231,7 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	// volumes
 	validVols, err := v.validateVolumeUpdates(args.Volumes)
 	if err != nil {
-		return err
+		return helper.FlattenMultierror(err)
 	}
 
 	// Attempt to create all the validated volumes and write only successfully
@@ -310,7 +309,7 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	// volumes
 	validVols, err := v.validateVolumeUpdates(args.Volumes)
 	if err != nil {
-		return err
+		return helper.FlattenMultierror(err)
 	}
 
 	raftArgs := &structs.HostVolumeRegisterRequest{
@@ -335,7 +334,7 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 
 func (v *HostVolume) validateVolumeUpdates(requested []*structs.HostVolume) ([]*structs.HostVolume, error) {
 
-	now := time.Now().UnixNano()
+	now := time.Now()
 	var vols []*structs.HostVolume
 
 	snap, err := v.srv.State().Snapshot()
@@ -345,29 +344,83 @@ func (v *HostVolume) validateVolumeUpdates(requested []*structs.HostVolume) ([]*
 
 	var mErr *multierror.Error
 	for _, vol := range requested {
-		vol.ModifyTime = now
 
-		if vol.ID == "" {
-			vol.ID = uuid.Generate()
-			vol.CreateTime = now
-		}
-
-		// if the volume already exists, we'll ensure we're validating the
-		// update
-		current, err := snap.HostVolumeByID(nil, vol.Namespace, vol.ID, false)
+		// validate the volume spec
+		err := vol.Validate()
 		if err != nil {
-			mErr = multierror.Append(mErr, err)
-			continue
-		}
-		if err = vol.Validate(current); err != nil {
-			mErr = multierror.Append(mErr, err)
+			mErr = multierror.Append(mErr, fmt.Errorf("volume validation failed: %v", err))
 			continue
 		}
 
-		vols = append(vols, vol.Copy())
+		// validate any update we're making
+		var existing *structs.HostVolume
+		volID := vol.ID
+		if vol.ID != "" {
+			existing, err = snap.HostVolumeByID(nil, vol.Namespace, vol.ID, true)
+			if err != nil {
+				return nil, err // should never hit, bail out
+			}
+			if existing == nil {
+				mErr = multierror.Append(mErr,
+					fmt.Errorf("cannot update volume %q: volume does not exist", vol.ID))
+				continue
+			}
+			err = vol.ValidateUpdate(existing)
+			if err != nil {
+				mErr = multierror.Append(mErr,
+					fmt.Errorf("validating volume %q update failed: %v", vol.ID, err))
+				continue
+			}
+		} else {
+			// capture this for nicer error messages later
+			volID = vol.Name
+		}
+
+		// set zero values as needed, possibly from existing
+		vol.CanonicalizeForUpdate(existing, now)
+
+		// make sure any nodes or pools actually exist
+		err = v.validateVolumeForState(vol, snap)
+		if err != nil {
+			mErr = multierror.Append(mErr,
+				fmt.Errorf("validating volume %q against state failed: %v", volID, err))
+			continue
+		}
+
+		vols = append(vols, vol)
 	}
 
 	return vols, mErr.ErrorOrNil()
+}
+
+// validateVolumeForState ensures that any references to node IDs or node pools are valid
+func (v *HostVolume) validateVolumeForState(vol *structs.HostVolume, snap *state.StateSnapshot) error {
+	var poolFromExistingNode string
+	if vol.NodeID != "" {
+		node, err := snap.NodeByID(nil, vol.NodeID)
+		if err != nil {
+			return err // should never hit, bail out
+		}
+		if node == nil {
+			return fmt.Errorf("node %q does not exist", vol.NodeID)
+		}
+		poolFromExistingNode = node.NodePool
+	}
+
+	if vol.NodePool != "" {
+		pool, err := snap.NodePoolByName(nil, vol.NodePool)
+		if err != nil {
+			return err // should never hit, bail out
+		}
+		if pool == nil {
+			return fmt.Errorf("node pool %q does not exist", vol.NodePool)
+		}
+		if poolFromExistingNode != "" && poolFromExistingNode != pool.Name {
+			return fmt.Errorf("node ID %q is not in pool %q", vol.NodeID, vol.NodePool)
+		}
+	}
+
+	return nil
 }
 
 func (v *HostVolume) createVolume(vol *structs.HostVolume) error {

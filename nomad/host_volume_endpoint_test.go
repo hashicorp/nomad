@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -74,13 +75,62 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 
 	t.Run("invalid create", func(t *testing.T) {
 
-		// TODO(1.10.0): once validation logic for updating an existing volume is in
-		// place, fully test it here
-
 		req.Namespace = ns
 		var resp structs.HostVolumeCreateResponse
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, "missing volume definition")
+
+		req.Volumes = []*structs.HostVolume{
+			{}, // missing basic fields
+			{
+				Name:     "example",
+				PluginID: "example_plugin",
+				Constraints: []*structs.Constraint{{
+					RTarget: "r1",
+					Operand: "=",
+				}},
+				RequestedCapacityMinBytes: 200000,
+				RequestedCapacityMaxBytes: 100000,
+				RequestedCapabilities: []*structs.HostVolumeCapability{
+					{
+						AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+						AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+					},
+					{
+						AttachmentMode: "bad",
+						AccessMode:     "invalid",
+					},
+				},
+			}, // fails other field validations
+		}
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
+		// TODO(1.10.0): nested multierrors are really ugly, we could really use
+		// some helper functions to make these nicer everywhere they pop up
+		must.EqError(t, err, `2 errors occurred:
+	* volume validation failed: 2 errors occurred:
+	* missing name
+	* must include at least one capability block
+
+
+	* volume validation failed: 3 errors occurred:
+	* capacity_max (100000) must be larger than capacity_min (200000)
+	* invalid attachment mode: "bad"
+	* invalid constraint: 1 error occurred:
+	* No LTarget provided but is required by constraint
+
+
+
+
+
+`)
+
+		invalidNode := &structs.Node{ID: uuid.Generate(), NodePool: "does-not-exist"}
+		volOnInvalidNode := mock.HostVolumeRequestForNode(ns, invalidNode)
+		req.Volumes = []*structs.HostVolume{volOnInvalidNode}
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
+		must.EqError(t, err, fmt.Sprintf(
+			`validating volume "example" against state failed: node %q does not exist`,
+			invalidNode.ID))
 	})
 
 	var vol1ID, vol2ID string
@@ -91,12 +141,10 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		CapacityBytes: 150000,
 	}, nil)
 
-	vol1 := mock.HostVolumeRequest()
-	vol1.Namespace = "apps"
+	vol1 := mock.HostVolumeRequest("apps")
 	vol1.Name = "example1"
 	vol1.NodePool = "prod"
-	vol2 := mock.HostVolumeRequest()
-	vol2.Namespace = "apps"
+	vol2 := mock.HostVolumeRequest("apps")
 	vol2.Name = "example2"
 	vol2.NodePool = "prod"
 	req.Volumes = []*structs.HostVolume{vol1, vol2}
@@ -134,6 +182,50 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Get", getReq, &getResp)
 		must.NoError(t, err)
 		must.NotNil(t, getResp.Volume)
+	})
+
+	t.Run("invalid updates", func(t *testing.T) {
+
+		vol1, err := store.HostVolumeByID(nil, ns, vol1ID, false)
+		must.NoError(t, err)
+		must.NotNil(t, vol1)
+		invalidVol1 := vol1.Copy()
+		invalidVol2 := &structs.HostVolume{}
+
+		createReq := &structs.HostVolumeCreateRequest{
+			Volumes: []*structs.HostVolume{invalidVol1, invalidVol2},
+			WriteRequest: structs.WriteRequest{
+				Region:    srv.Region(),
+				Namespace: ns,
+				AuthToken: token},
+		}
+		c1.setCreate(nil, errors.New("should not call this endpoint on invalid RPCs"))
+		var createResp structs.HostVolumeCreateResponse
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", createReq, &createResp)
+		must.EqError(t, err, `volume validation failed: 2 errors occurred:
+	* missing name
+	* must include at least one capability block
+
+`, must.Sprint("initial validation failures should exit early even if there's another valid vol"))
+
+		invalidVol1.NodeID = uuid.Generate()
+		invalidVol1.RequestedCapacityMinBytes = 100
+		invalidVol1.RequestedCapacityMaxBytes = 200
+		registerReq := &structs.HostVolumeRegisterRequest{
+			Volumes: []*structs.HostVolume{invalidVol1},
+			WriteRequest: structs.WriteRequest{
+				Region:    srv.Region(),
+				Namespace: ns,
+				AuthToken: token},
+		}
+		var registerResp structs.HostVolumeRegisterResponse
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
+		must.EqError(t, err, fmt.Sprintf(`validating volume %q update failed: 2 errors occurred:
+	* node ID cannot be updated
+	* capacity_max (200) cannot be less than existing provisioned capacity (150000)
+
+`, invalidVol1.ID), must.Sprint("update validation checks should have failed"))
+
 	})
 
 	t.Run("blocking Get unblocks on write", func(t *testing.T) {
@@ -308,25 +400,24 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
 		index, nodes[2], state.NodeUpsertWithNodePool))
 
-	vol1, vol2 := mock.HostVolume(), mock.HostVolume()
-	vol1.NodeID = nodes[0].ID
+	vol1 := mock.HostVolumeRequestForNode(ns1, nodes[0])
 	vol1.Name = "foobar-example"
-	vol1.Namespace = ns1
-	vol2.NodeID = nodes[1].ID
-	vol2.Name = "foobaz-example"
-	vol2.Namespace = ns1
+	vol1.Parameters = map[string]string{"mockID": "vol1"}
 
-	vol3, vol4 := mock.HostVolume(), mock.HostVolume()
-	vol3.NodeID = nodes[2].ID
-	vol3.NodePool = "prod"
-	vol3.Namespace = ns2
+	vol2 := mock.HostVolumeRequestForNode(ns1, nodes[1])
+	vol2.Name = "foobaz-example"
+	vol2.Parameters = map[string]string{"mockID": "vol2"}
+
+	vol3 := mock.HostVolumeRequestForNode(ns2, nodes[2])
 	vol3.Name = "foobar-example"
-	vol4.Namespace = ns2
-	vol4.NodeID = nodes[1].ID
+	vol3.Parameters = map[string]string{"mockID": "vol3"}
+
+	vol4 := mock.HostVolumeRequestForNode(ns2, nodes[1])
 	vol4.Name = "foobaz-example"
+	vol4.Parameters = map[string]string{"mockID": "vol4"}
 
 	// we need to register these rather than upsert them so we have the correct
-	// indexes for unblocking later
+	// indexes for unblocking later.
 	registerReq := &structs.HostVolumeRegisterRequest{
 		Volumes: []*structs.HostVolume{vol1, vol2, vol3, vol4},
 		WriteRequest: structs.WriteRequest{
@@ -337,6 +428,21 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 	var registerResp structs.HostVolumeRegisterResponse
 	err := msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
 	must.NoError(t, err)
+
+	// IDs are generated by the server, so we need to read them back to figure
+	// out which mock got which ID
+	for _, vol := range registerResp.Volumes {
+		switch vol.Parameters["mockID"] {
+		case "vol1":
+			vol1 = vol
+		case "vol2":
+			vol2 = vol
+		case "vol3":
+			vol3 = vol
+		case "vol4":
+			vol4 = vol
+		}
+	}
 
 	testCases := []struct {
 		name         string

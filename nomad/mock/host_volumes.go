@@ -8,9 +8,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func HostVolumeRequest() *structs.HostVolume {
+func HostVolumeRequest(ns string) *structs.HostVolume {
 	vol := &structs.HostVolume{
-		Namespace: structs.DefaultNamespace,
+		Namespace: ns,
 		Name:      "example",
 		PluginID:  "example-plugin",
 		NodePool:  structs.NodePoolDefault,
@@ -36,9 +36,16 @@ func HostVolumeRequest() *structs.HostVolume {
 
 }
 
+func HostVolumeRequestForNode(ns string, node *structs.Node) *structs.HostVolume {
+	vol := HostVolumeRequest(ns)
+	vol.NodeID = node.ID
+	vol.NodePool = node.NodePool
+	return vol
+}
+
 func HostVolume() *structs.HostVolume {
 	volID := uuid.Generate()
-	vol := HostVolumeRequest()
+	vol := HostVolumeRequest(structs.DefaultNamespace)
 	vol.ID = volID
 	vol.NodeID = uuid.Generate()
 	vol.CapacityBytes = 150000
