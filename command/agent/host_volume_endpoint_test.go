@@ -20,7 +20,7 @@ func TestHostVolumeEndpoint_CRUD(t *testing.T) {
 
 		// Create a volume on the test node
 
-		vol := mock.HostVolumeRequest()
+		vol := mock.HostVolumeRequest(structs.DefaultNamespace)
 		reqBody := struct {
 			Volumes []*structs.HostVolume
 		}{Volumes: []*structs.HostVolume{vol}}

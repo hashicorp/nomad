@@ -63,6 +63,10 @@ type      = "host"
 plugin_id = "plugin_id"
 node_id   = "%s"
 node_pool = "default"
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
 `, vol.Namespace, vol.ID, nodeID)
 
 		file, err := os.CreateTemp(t.TempDir(), "volume-test-*.hcl")
@@ -114,6 +118,10 @@ type      = "host"
 plugin_id = "plugin_id"
 node_id   = "%s"
 node_pool = "default"
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
 `, nodeID)
 
 	file, err := os.CreateTemp(t.TempDir(), "volume-test-*.hcl")
