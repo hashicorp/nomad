@@ -131,7 +131,16 @@
       },
       {
         "title": "Architecture",
-        "path": "concepts/architecture"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "concepts/architecture"
+          },
+          {
+            "title": "Federation",
+            "path": "concepts/architecture/federation"
+          }
+        ]
       },
       {
         "title": "CPU",
@@ -2384,6 +2393,19 @@
       {
         "title": "Key Management",
         "path": "operations/key-management"
+      },
+      {
+        "title": "Federation",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "operations/federation"
+          },
+          {
+            "title": "Failure",
+            "path": "operations/federation/failure"
+          }
+        ]
       },
       {
         "title": "Considerations for Stateful Workloads",

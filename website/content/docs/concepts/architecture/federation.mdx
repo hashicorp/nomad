@@ -1,0 +1,68 @@
+---
+layout: docs
+page_title: Federation
+description: Learn about processes and architecture of federated clusters.
+---
+
+# Federation
+
+Nomad federation is a multi-cluster orchestration and management feature which allows multiple
+Nomad clusters, defined as a region, to work together seamlessly. By federating clusters,
+organizations can benefit from improved scalability, fault tolerance, and centralized management of
+workloads across various data centers or geographical locations.
+
+## Cross Region Request Forwarding
+
+API calls can include a `region` query parameter which defines the Nomad region the query is
+specified for. If this is not the local region, the request will be transparently forwarded and
+serviced by a server in the requested region. When the query parameter is omitted, the region on
+which the machine is servicing the request will be used.
+
+## Replication
+
+In federated Nomad environments, a number of objects are replicated from the authoritative region
+to all federated regions. When creating, updating, or deleting these objects, the request will
+always be sent to the authoritative region using RPC forwarding.
+
+* **ACL Policies**: All ACL policies are written in the authoritative region and replicated to
+  federated regions.
+
+* **ACL Roles**: All ACL roles are written in the authoritative region and replicated to federated
+  regions.
+
+* **ACL Auth Methods**: All ACL authentication methods are written in the authoritative region and
+  replicated to federated regions.
+
+* **ACL Binding Rules**: All ACL binding rules are written in the authoritative region and
+  replicated to federated regions.
+
+* **ACL Tokens**: ACL tokens whose `global` parameter is set to `true` are written in the
+  authoritative region and replicated to federated regions. Otherwise, they are written to the
+  region where the request is made and not replicated.
+
+* **Namespaces**: All namespaces are written in the authoritative region and replicated to
+  federated regions.
+
+* **Node Pools**: All node pools are written in the authoritative region and replicated to
+  federated regions.
+
+* **Quota Specifications**: All quotas are written in the authoritative region and replicated to
+  federated regions.
+
+* **Sentinel Policies**: All sentinel policies are written in the authoritative region and
+  replicated to federated regions.
+
+Replication routines are started on each federated cluster's leader server in a hub and spoke
+design. The routines then utilize blocking queries to receive updates from the authoritative region
+to mirror in their own state store. They also implement rate limiting, so that busy clusters do not
+degrade due to overly aggressive replication processes.
+
+## Multi-Region Job Deployments <EnterpriseAlert inline />
+
+Nomad job deployments can utilize the [`multiregion`][] block when running in federated mode using
+enterprise binaries. When configured, this instructs Nomad to register and run the job on all the
+specified regions, removing the need for multiple copies of the job specification and registration
+on each region. It is important to note, multiregion jobs do not provide regional failover in the
+event of failure.
+
+[`multiregion`]: /nomad/docs/job-specification/multiregion
