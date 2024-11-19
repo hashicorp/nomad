@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -154,6 +155,25 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		req.AuthToken = otherToken
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, "Permission denied")
+	})
+
+	t.Run("invalid node constraints", func(t *testing.T) {
+		req.Volumes[0].Constraints[0].RTarget = "r2"
+		req.Volumes[1].Constraints[0].RTarget = "r2"
+
+		defer func() {
+			req.Volumes[0].Constraints[0].RTarget = "r1"
+			req.Volumes[1].Constraints[0].RTarget = "r1"
+		}()
+
+		var resp structs.HostVolumeCreateResponse
+		req.AuthToken = token
+		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
+		must.EqError(t, err, `2 errors occurred:
+	* could not place volume "example1": no node meets constraints
+	* could not place volume "example2": no node meets constraints
+
+`)
 	})
 
 	t.Run("valid create", func(t *testing.T) {
@@ -611,6 +631,103 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 	})
 }
 
+func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
+	srv, _, cleanupSrv := TestACLServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	t.Cleanup(cleanupSrv)
+	testutil.WaitForLeader(t, srv.RPC)
+	store := srv.fsm.State()
+
+	endpoint := &HostVolume{
+		srv:    srv,
+		logger: testlog.HCLogger(t),
+	}
+
+	node0, node1, node2, node3 := mock.Node(), mock.Node(), mock.Node(), mock.Node()
+	node0.NodePool = structs.NodePoolDefault
+	node1.NodePool = "dev"
+	node1.Meta["rack"] = "r2"
+	node2.NodePool = "prod"
+	node3.NodePool = "prod"
+	node3.Meta["rack"] = "r3"
+	node3.HostVolumes = map[string]*structs.ClientHostVolumeConfig{"example": {
+		Name: "example",
+		Path: "/srv",
+	}}
+
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node0))
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node2))
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node3))
+
+	testCases := []struct {
+		name      string
+		vol       *structs.HostVolume
+		expect    *structs.Node
+		expectErr string
+	}{
+		{
+			name:   "only one in node pool",
+			vol:    &structs.HostVolume{NodePool: "default"},
+			expect: node0,
+		},
+		{
+			name: "only one that matches constraints",
+			vol: &structs.HostVolume{Constraints: []*structs.Constraint{
+				{
+					LTarget: "${meta.rack}",
+					RTarget: "r2",
+					Operand: "=",
+				},
+			}},
+			expect: node1,
+		},
+		{
+			name:   "only one available in pool",
+			vol:    &structs.HostVolume{NodePool: "prod", Name: "example"},
+			expect: node2,
+		},
+		{
+			name: "no match",
+			vol: &structs.HostVolume{Constraints: []*structs.Constraint{
+				{
+					LTarget: "${meta.rack}",
+					RTarget: "r6",
+					Operand: "=",
+				},
+			}},
+			expectErr: "no node meets constraints",
+		},
+		{
+			name: "match already has a volume with the same name",
+			vol: &structs.HostVolume{
+				Name: "example",
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${meta.rack}",
+						RTarget: "r3",
+						Operand: "=",
+					},
+				}},
+			expectErr: "no node meets constraints",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			node, err := endpoint.placeHostVolume(tc.vol)
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+				must.Eq(t, tc.expect, node)
+			} else {
+				must.EqError(t, err, tc.expectErr)
+				must.Nil(t, node)
+			}
+		})
+	}
+}
+
 // mockHostVolumeClient models client RPCs that have side-effects on the
 // client host
 type mockHostVolumeClient struct {
@@ -631,6 +748,7 @@ func newMockHostVolumeClient(t *testing.T, srv *Server, pool string) (*mockHostV
 		c.Node.NodePool = pool
 		// TODO(1.10.0): we'll want to have a version gate for this feature
 		c.Node.Attributes["nomad.version"] = version.Version
+		c.Node.Meta["rack"] = "r1"
 	}, srv.config.RPCAddr, map[string]any{"HostVolume": mockClientEndpoint})
 	t.Cleanup(cleanup)
 
