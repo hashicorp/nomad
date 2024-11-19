@@ -31,35 +31,35 @@ jobs:
       # - run: yarn list --pattern "@ember/test-helpers" || true
       # Try installing explicitly before running
       - run: yarn add ember-test-audit@0.4.0 --dev
-      # - run: |
-      #     set -x
-      #     echo "=== Starting Tests ==="
-      #     export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
-      #     export TESTEM_LOG_FILE='/tmp/testem.log'
-      #     timeout 900 yarn ember-test-audit 1 --json --output ../base-audit.json || {
-      #       echo "=== Process timed out or failed ==="
-      #       echo "=== Last Testem Logs ==="
-      #       cat /tmp/testem.log || true
-      #       echo "=== Chrome Process Check ==="
-      #       ps aux | grep chrome || true
-      #       exit 1
-      #     }
-      # - run: |
-      #     export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
-      #     yarn ember-test-audit 1 --json --output ../base-audit.json
       - run: |
           set -x
           echo "=== Starting Tests ==="
           export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
           export TESTEM_LOG_FILE='/tmp/testem.log'
-          yarn ember-test-audit 1 --json --output ../base-audit.json || {
-            echo "=== Process failed ==="
+          timeout 1800 yarn ember-test-audit 1 --json --output ../base-audit.json || {
+            echo "=== Process timed out or failed ==="
             echo "=== Last Testem Logs ==="
             cat /tmp/testem.log || true
             echo "=== Chrome Process Check ==="
-            pgrep -a chrome || true
+            ps aux | grep chrome || true
             exit 1
           }
+      # - run: |
+      #     export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
+      #     yarn ember-test-audit 1 --json --output ../base-audit.json
+      # - run: |
+      #     set -x
+      #     echo "=== Starting Tests ==="
+      #     export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
+      #     export TESTEM_LOG_FILE='/tmp/testem.log'
+      #     yarn ember-test-audit 1 --json --output ../base-audit.json || {
+      #       echo "=== Process failed ==="
+      #       echo "=== Last Testem Logs ==="
+      #       cat /tmp/testem.log || true
+      #       echo "=== Chrome Process Check ==="
+      #       pgrep -a chrome || true
+      #       exit 1
+      #     }
       - name: Upload result
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
@@ -81,32 +81,32 @@ jobs:
       # - run: |
       #     export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
       #     yarn ember-test-audit 1 --json --output ../pr-audit.json
-      # - run: |
-      #     set -x
-      #     echo "=== Starting Tests ==="
-      #     export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
-      #     export TESTEM_LOG_FILE='/tmp/testem.log'
-      #     timeout 900 yarn ember-test-audit 1 --json --output ../pr-audit.json || {
-      #       echo "=== Process timed out or failed ==="
-      #       echo "=== Last Testem Logs ==="
-      #       cat /tmp/testem.log || true
-      #       echo "=== Chrome Process Check ==="
-      #       ps aux | grep chrome || true
-      #       exit 1
-      #     }
       - run: |
           set -x
           echo "=== Starting Tests ==="
           export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
           export TESTEM_LOG_FILE='/tmp/testem.log'
-          yarn ember-test-audit 1 --json --output ../pr-audit.json || {
-            echo "=== Process failed ==="
+          timeout 1800 yarn ember-test-audit 1 --json --output ../pr-audit.json || {
+            echo "=== Process timed out or failed ==="
             echo "=== Last Testem Logs ==="
             cat /tmp/testem.log || true
             echo "=== Chrome Process Check ==="
-            pgrep -a chrome || true
+            ps aux | grep chrome || true
             exit 1
           }
+      # - run: |
+      #     set -x
+      #     echo "=== Starting Tests ==="
+      #     export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
+      #     export TESTEM_LOG_FILE='/tmp/testem.log'
+      #     yarn ember-test-audit 1 --json --output ../pr-audit.json || {
+      #       echo "=== Process failed ==="
+      #       echo "=== Last Testem Logs ==="
+      #       cat /tmp/testem.log || true
+      #       echo "=== Chrome Process Check ==="
+      #       pgrep -a chrome || true
+      #       exit 1
+      #     }
       - name: Upload result
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
