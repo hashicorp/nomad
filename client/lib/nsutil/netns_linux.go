@@ -133,11 +133,11 @@ func UnmountNS(nsPath string) error {
 	// Only unmount if it's been bind-mounted (don't touch namespaces in /proc...)
 	if strings.HasPrefix(nsPath, NetNSRunDir) {
 		if err := unix.Unmount(nsPath, 0); err != nil {
-			return fmt.Errorf("failed to unmount NS: at %s: %v", nsPath, err)
+			return fmt.Errorf("failed to unmount NS: at %s: %w", nsPath, err)
 		}
 
 		if err := os.Remove(nsPath); err != nil {
-			return fmt.Errorf("failed to remove ns path %s: %v", nsPath, err)
+			return fmt.Errorf("failed to remove ns path %s: %w", nsPath, err)
 		}
 	}
 
