@@ -28,6 +28,7 @@ import (
 	consulIPTables "github.com/hashicorp/consul/sdk/iptables"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -117,6 +118,26 @@ func addCustomCNIArgs(networks []*structs.NetworkResource, cniArgs map[string]st
 	}
 }
 
+func addNomadWorkloadCNIArgs(logger log.Logger, alloc *structs.Allocation, cniArgs map[string]string) {
+	for key, value := range map[string]string{
+		// these are the very same keys that are used to build task env vars
+		taskenv.Region:    alloc.Job.Region, // NOMAD_REGION
+		taskenv.Namespace: alloc.Namespace,  // NOMAD_NAMESPACE
+		taskenv.JobID:     alloc.Job.ID,     // NOMAD_JOB_ID
+		taskenv.GroupName: alloc.TaskGroup,  // NOMAD_GROUP_NAME
+		taskenv.AllocID:   alloc.ID,         // NOMAD_ALLOC_ID
+	} {
+		// job ID and group name may contain ";" but CNI_ARGS are ";"-separated
+		// per the spec, so they may not be used in arg keys or values.
+		if strings.Contains(value, ";") {
+			logger.Warn("Skipping CNI arg because it contains a semicolon",
+				"key", key, "value", value)
+		} else {
+			cniArgs[key] = value
+		}
+	}
+}
+
 // Setup calls the CNI plugins with the add action
 func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
 	if err := c.ensureCNIInitialized(); err != nil {
@@ -132,6 +153,9 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
 
 	addCustomCNIArgs(tg.Networks, cniArgs)
+
+	// Add NOMAD_* after custom args so it cannot be overridden.
+	addNomadWorkloadCNIArgs(c.logger, alloc, cniArgs)
 
 	portMaps := getPortMapping(alloc, c.ignorePortMappingHostIP)
 
