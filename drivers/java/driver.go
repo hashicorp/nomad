@@ -467,13 +467,6 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		Compute:     d.nomadConfig.Topology.Compute(),
 	}
 
-	exec, pluginClient, err := executor.CreateExecutor(
-		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
-		d.nomadConfig, executorConfig)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
-	}
-
 	user := cfg.User
 	if user == "" {
 		user = "nobody"
@@ -494,6 +487,15 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, err
 	}
 	d.logger.Debug("task capabilities", "capabilities", caps)
+
+	// If any error scenarios occur in StartTask and after creating the executor process,
+	// the executor process must be killed.
+	exec, pluginClient, err := executor.CreateExecutor(
+		d.logger.With("task_name", handle.Config.Name, "alloc_id", handle.Config.AllocID),
+		d.nomadConfig, executorConfig)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
+	}
 
 	execCmd := &executor.ExecCommand{
 		Cmd:              absPath,
