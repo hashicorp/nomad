@@ -12,8 +12,10 @@ soft failures, the region's servers have lost quorum but the Nomad processes are
 and reachable. In hard failures, the regional servers are completely unreachable and are akin to
 the underlying hardware having been terminated (cloud) or powered-off (on-prem).
 
-The scenarios are based on a Nomad deployment which is running with three federated regions named
-`asia-south-1`, `europe-west-1`, and `us-east-1`. The region `europe-west-1` is authoritative.
+The scenarios are based on a Nomad deployment running three federated regions:
+ * `asia-south-1`
+ * `europe-west-1` - authoritative region
+ * `us-east-1`
 
 ## Federated region failure: soft
 In this situation the region `asia-south-1` has lost leadership but the servers are reachable and
