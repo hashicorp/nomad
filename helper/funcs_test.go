@@ -488,11 +488,21 @@ func Test_SliceSetEq(t *testing.T) {
 
 func TestFlattenMultiError(t *testing.T) {
 
+	err := FlattenMultierror(nil)
+	must.Nil(t, err)
+
+	err0 := errors.New("oh no!")
+	err = FlattenMultierror(err0)
+	must.Eq(t, `oh no!`, err.Error())
+
 	var mErr0 *multierror.Error
+	err = FlattenMultierror(mErr0)
+	must.Nil(t, err)
+
 	mErr0 = multierror.Append(mErr0, func() error {
 		return nil
 	}())
-	err := FlattenMultierror(mErr0)
+	err = FlattenMultierror(mErr0)
 	must.Nil(t, err)
 
 	var mErr1 *multierror.Error

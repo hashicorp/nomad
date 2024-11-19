@@ -528,7 +528,12 @@ func Merge[T comparable](a, b T) T {
 
 // FlattenMultierror takes a multierror and unwraps it if there's only one error
 // in the output, otherwise returning the multierror or nil.
-func FlattenMultierror(mErr *multierror.Error) error {
+func FlattenMultierror(err error) error {
+	mErr, ok := err.(*multierror.Error)
+	if !ok {
+		return err
+	}
+	// note: mErr is a pointer so we still need to nil-check even after the cast
 	if mErr == nil {
 		return nil
 	}
