@@ -177,9 +177,14 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 			volCh <- getResp.Volume
 		}()
 
-		var registerResp structs.HostVolumeRegisterResponse
-		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
-		must.NoError(t, err)
+		// re-register the volume long enough later that we can be sure we won't
+		// win a race with the get RPC goroutine
+		time.AfterFunc(200*time.Millisecond, func() {
+			codec := rpcClient(t, srv)
+			var registerResp structs.HostVolumeRegisterResponse
+			err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
+			must.NoError(t, err)
+		})
 
 		select {
 		case <-ctx.Done():
@@ -480,8 +485,14 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 			respCh <- &listResp
 		}()
 
-		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
-		must.NoError(t, err)
+		// re-register the volume long enough later that we can be sure we won't
+		// win a race with the get RPC goroutine
+		time.AfterFunc(200*time.Millisecond, func() {
+			codec := rpcClient(t, srv)
+			var registerResp structs.HostVolumeRegisterResponse
+			err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
+			must.NoError(t, err)
+		})
 
 		select {
 		case <-ctx.Done():
