@@ -33,12 +33,17 @@ jobs:
       - run: yarn add ember-test-audit@0.4.0 --dev
       - run: |
           set -x
+          echo "=== Starting Tests ==="
+          export CHROME_FLAGS="--headless --disable-gpu --no-sandbox --disable-dev-shm-usage --memory-pressure-off --js-flags=\"--max_old_space_size=4096\""
           export TESTEM_LOG_FILE='/tmp/testem.log'
-          yarn ember test -f="" --test-port=0 || true
-          echo "=== Testem Logs ==="
-          cat /tmp/testem.log || true
-          echo "=== Running Audit ==="
-          node --trace-warnings node_modules/.bin/ember-test-audit 1 --json --output ../base-audit.json
+          timeout 900 yarn ember-test-audit 1 --json --output ../base-audit.json || {
+            echo "=== Process timed out or failed ==="
+            echo "=== Last Testem Logs ==="
+            cat /tmp/testem.log || true
+            echo "=== Chrome Process Check ==="
+            ps aux | grep chrome || true
+            exit 1
+          }
       - name: Upload result
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
