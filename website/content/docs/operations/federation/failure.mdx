@@ -1,0 +1,139 @@
+---
+layout: docs
+page_title: Federated cluster failure scenarios
+description: Failure scenarios in multi-region federated cluster deployments.
+---
+
+# Failure scenarios
+
+When running Nomad in federated mode, failure situations and impacts are different depending on
+whether the authoritative region is the impacted region or not, and what the failure mode is. In
+soft failures, the region's servers have lost quorum but the Nomad processes are still up, running,
+and reachable. In hard failures, the regional servers are completely unreachable and are akin to
+the underlying hardware having been terminated (cloud) or powered-off (on-prem).
+
+The scenarios are based on a Nomad deployment running three federated regions:
+ * `asia-south-1`
+ * `europe-west-1` - authoritative region
+ * `us-east-1`
+
+## Federated region failure: soft
+In this situation the region `asia-south-1` has lost leadership but the servers are reachable and
+up.
+
+All server logs in the impacted region have entries such as this example.
+```console
+[ERROR] nomad/worker.go:504: worker: failed to dequeue evaluation: worker_id=d19e6bb5-5ec9-8f75-9caf-47e2513fe28d error="No cluster leader"
+```
+
+✅ Request forwarding continues to work between all federated regions that are running with
+  leadership.
+
+🟨 API requests, either directly or attempting to use request forwarding to the impacted region,
+  fail unless using the `stale=true` flag.
+
+✅ Creation and deletion of replicated objects, such as namespaces, is written to the
+  authoritative region.
+
+✅ Any federated regions with leadership is able to continue to replicate all objects detailed
+  previously.
+
+✅ Creation of local ACL tokens continues to work for all regions with leadership.
+
+✅ Jobs **without** the [`multiregion`][] block deploy to all regions with leadership.
+
+❌ Jobs **with** the [`multiregion`][] block defined fail to deploy.
+
+## Federated region failure: hard
+In this situation the region `asia-south-1` has gone down. When this happens, the Nomad server logs
+for the other regions have log entries similar to this example.
+```console
+[DEBUG] go-hclog@v1.6.3/stdlog.go:58: nomad: memberlist: Failed UDP ping: asia-south-1-server-1.asia-south-1 (timeout reached)
+[INFO]  go-hclog@v1.6.3/stdlog.go:60: nomad: memberlist: Suspect asia-south-1-server-1.asia-south-1 has failed, no acks received
+[DEBUG] go-hclog@v1.6.3/stdlog.go:58: nomad: memberlist: Initiating push/pull sync with: us-east-1-server-1.us-east-1 192.168.1.193:9002
+[DEBUG] go-hclog@v1.6.3/stdlog.go:58: nomad: memberlist: Failed UDP ping: asia-south-1-server-1.asia-south-1 (timeout reached)
+[INFO]  go-hclog@v1.6.3/stdlog.go:60: nomad: memberlist: Suspect asia-south-1-server-1.asia-south-1 has failed, no acks received
+```
+
+✅ Request forwarding continues to work between all federated regions that are running with
+  leadership.
+
+❌ API requests, either directly or attempting to use request forwarding to the impacted region,
+ fail.
+
+✅ Creation and deletion of replicated objects, such as namespaces, are written to the
+  authoritative region.
+
+✅ Any federated regions with leadership continue to replicate all objects detailed
+  above.
+
+✅ Creation of local ACL tokens continues to work for all regions which are running with
+  leadership.
+
+✅ Jobs **without** the [`multiregion`][] block deploy to all regions with leadership.
+
+❌ Jobs **with** the [`multiregion`][] block defined fail to deploy.
+
+## Authoritative region failure: soft
+In this situation the region `europe-west-1` has lost leadership but the servers are reachable and
+up.
+
+The server logs in the authoritative region have entries such as this example.
+```console
+[ERROR] nomad/worker.go:504: worker: failed to dequeue evaluation: worker_id=68b3abe2-5e16-8f04-be5a-f76aebb0e59e error="No cluster leader"
+```
+
+✅ Request forwarding continues to work between all federated regions that are running with
+  leadership.
+
+🟨 API requests, either directly or attempting to use request forwarding to the impacted region,
+ fail unless using the `stale=true` flag.
+
+❌ Creation and deletion of replicated objects, such as namespaces, fails.
+
+❌ Any federated regions are able to read data to replicate as they use the stale flag, but no
+  writes can occur to the authoritative region as described previously.
+
+✅ Creation of local ACL tokens continues to work for all federated regions which are running
+  with leadership.
+
+✅ Jobs **without** the [`multiregion`][] block deploy to all federated regions which
+  are running with leadership.
+
+❌ Jobs **with** the [`multiregion`][] block defined fails to deploy.
+
+## Authoritative region failure: hard
+In this situation the region `europe-west-1` has gone down. When this happens, the Nomad server
+leader logs for the other regions have log entries similar to this example.
+```console
+[ERROR] nomad/leader.go:544: nomad: failed to fetch namespaces from authoritative region: error="rpc error: EOF"
+[ERROR] nomad/leader.go:1767: nomad: failed to fetch policies from authoritative region: error="rpc error: EOF"
+[ERROR] nomad/leader.go:2498: nomad: failed to fetch ACL binding rules from authoritative region: error="rpc error: EOF"
+[ERROR] nomad/leader_ent.go:226: nomad: failed to fetch quota specifications from authoritative region: error="rpc error: EOF"
+[ERROR] nomad/leader.go:703: nomad: failed to fetch node pools from authoritative region: error="rpc error: EOF"
+[ERROR] nomad/leader.go:1909: nomad: failed to fetch tokens from authoritative region: error="rpc error: EOF"
+[ERROR] nomad/leader.go:2083: nomad: failed to fetch ACL Roles from authoritative region: error="rpc error: EOF"
+[DEBUG] nomad/leader_ent.go:84: nomad: failed to fetch policies from authoritative region: error="rpc error: EOF"
+[ERROR] nomad/leader.go:2292: nomad: failed to fetch ACL auth-methods from authoritative region: error="rpc error: EOF"
+[DEBUG] go-hclog@v1.6.3/stdlog.go:58: nomad: memberlist: Failed UDP ping: europe-west-1-server-1.europe-west-1 (timeout reached)
+[INFO]  go-hclog@v1.6.3/stdlog.go:60: nomad: memberlist: Suspect europe-west-1-server-1.europe-west-1 has failed, no acks received
+[DEBUG] go-hclog@v1.6.3/stdlog.go:58: nomad: memberlist: Failed UDP ping: europe-west-1-server-1.europe-west-1 (timeout reached)
+```
+
+✅ Request forwarding continues to work between all federated regions that are running with
+  leadership.
+
+❌ API requests, either directly or attempting to use request forwarding to the impacted region,
+ fail.
+
+❌ Creation and deletion of replicated objects, such as namespaces, fails.
+
+❌ Any federated regions with leadership is not able to replicate objects detailed in the logs.
+
+✅ Creation of local ACL tokens continues to work for all regions with leadership.
+
+✅ Jobs **without** the [`multiregion`][] block deploy to regions with leadership.
+
+❌ Jobs **with** the [`multiregion`][] block defined fail to deploy.
+
+[`multiregion`]: /nomad/docs/job-specification/multiregion
