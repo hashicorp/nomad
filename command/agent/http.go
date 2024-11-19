@@ -58,6 +58,9 @@ const (
 	// MissingRequestID is a placeholder if we cannot retrieve a request
 	// UUID from context
 	MissingRequestID = "<missing request id>"
+
+	contentTypeHeader = "Content-Type"
+	plainContentType  = "text/plain; charset=utf-8"
 )
 
 var (
@@ -745,6 +748,7 @@ func (s *HTTPServer) wrap(handler func(resp http.ResponseWriter, req *http.Reque
 
 			resp.WriteHeader(code)
 			resp.Write([]byte(errMsg))
+			resp.Header().Set(contentTypeHeader, plainContentType)
 			if isAPIClientError(code) {
 				s.logger.Debug("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
 			} else {
@@ -803,6 +807,7 @@ func (s *HTTPServer) wrapNonJSON(handler func(resp http.ResponseWriter, req *htt
 			code, errMsg := errCodeFromHandler(err)
 			resp.WriteHeader(code)
 			resp.Write([]byte(errMsg))
+			resp.Header().Set(contentTypeHeader, plainContentType)
 			if isAPIClientError(code) {
 				s.logger.Debug("request failed", "method", req.Method, "path", reqURL, "error", err, "code", code)
 			} else {
@@ -886,6 +891,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 		if err != nil {
 			resp.WriteHeader(http.StatusBadRequest)
 			resp.Write([]byte("Invalid wait time"))
+			resp.Header().Set(contentTypeHeader, plainContentType)
 			return true
 		}
 		b.MaxQueryTime = dur
@@ -895,6 +901,7 @@ func parseWait(resp http.ResponseWriter, req *http.Request, b *structs.QueryOpti
 		if err != nil {
 			resp.WriteHeader(http.StatusBadRequest)
 			resp.Write([]byte("Invalid index"))
+			resp.Header().Set(contentTypeHeader, plainContentType)
 			return true
 		}
 		b.MinQueryIndex = index
@@ -915,6 +922,7 @@ func parseConsistency(resp http.ResponseWriter, req *http.Request, b *structs.Qu
 			errMsg := "Expect `true` or `false` for `stale` query string parameter"
 			resp.WriteHeader(http.StatusBadRequest)
 			resp.Write([]byte(errMsg))
+			resp.Header().Set(contentTypeHeader, plainContentType)
 			return CodedError(http.StatusBadRequest, errMsg)
 		}
 		b.AllowStale = staleQuery
@@ -1039,6 +1047,7 @@ func parsePagination(resp http.ResponseWriter, req *http.Request, b *structs.Que
 			errMsg := "Expect a number for `per_page` query string parameter"
 			resp.WriteHeader(http.StatusBadRequest)
 			resp.Write([]byte(errMsg))
+			resp.Header().Set(contentTypeHeader, plainContentType)
 			return CodedError(http.StatusBadRequest, errMsg)
 		}
 		b.PerPage = int32(perPage)
@@ -1160,6 +1169,7 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 		// Error parsing request, 400
 		resp.WriteHeader(http.StatusBadRequest)
 		resp.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		resp.Header().Set(contentTypeHeader, plainContentType)
 		return
 	}
 
@@ -1167,6 +1177,7 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 		// 401 instead of 403 since no token was present.
 		resp.WriteHeader(http.StatusUnauthorized)
 		resp.Write([]byte(http.StatusText(http.StatusUnauthorized)))
+		resp.Header().Set(contentTypeHeader, plainContentType)
 		return
 	}
 
@@ -1177,12 +1188,14 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 			a.srv.logger.Debug("Failed to authenticated Task API request", "method", req.Method, "url", req.URL)
 			resp.WriteHeader(http.StatusForbidden)
 			resp.Write([]byte(http.StatusText(http.StatusForbidden)))
+			resp.Header().Set(contentTypeHeader, plainContentType)
 			return
 		}
 
 		a.srv.logger.Error("error authenticating built API request", "error", err, "url", req.URL, "method", req.Method)
 		resp.WriteHeader(http.StatusInternalServerError)
 		resp.Write([]byte("Server error authenticating request\n"))
+		resp.Header().Set(contentTypeHeader, plainContentType)
 		return
 	}
 
@@ -1191,6 +1204,7 @@ func (a *authMiddleware) ServeHTTP(resp http.ResponseWriter, req *http.Request) 
 		a.srv.logger.Debug("Failed to authenticated Task API request", "method", req.Method, "url", req.URL)
 		resp.WriteHeader(http.StatusForbidden)
 		resp.Write([]byte(http.StatusText(http.StatusForbidden)))
+		resp.Header().Set(contentTypeHeader, plainContentType)
 		return
 	}
 
