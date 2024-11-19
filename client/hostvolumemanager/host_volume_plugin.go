@@ -84,17 +84,19 @@ func (p *HostVolumePluginExternal) Version(_ context.Context) (string, error) {
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error) {
 
-	stdin, err := json.Marshal(req)
+	params, err := json.Marshal(req.Parameters) // TODO(db): if this is nil, then PARAMETERS env will be "null"
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
-
-	stdout, _, err := p.runPlugin(ctx, "create", req.ID, stdin, []string{
+	envVars := []string{
 		"NODE_ID=" + req.NodeID,
 		"VOLUME_NAME=" + req.Name,
 		fmt.Sprintf("CAPACITY_MIN_BYTES=%d", req.RequestedCapacityMinBytes),
 		fmt.Sprintf("CAPACITY_MAX_BYTES=%d", req.RequestedCapacityMaxBytes),
-	})
+		"PARAMETERS=" + string(params),
+	}
+
+	stdout, _, err := p.runPlugin(ctx, "create", req.ID, envVars)
 	if err != nil {
 		return nil, fmt.Errorf("error creating volume %q with plugin %q: %w", req.ID, req.PluginID, err)
 	}
@@ -110,34 +112,33 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 	req *cstructs.ClientHostVolumeDeleteRequest) error {
 
-	stdin, err := json.Marshal(req)
+	params, err := json.Marshal(req.Parameters)
 	if err != nil {
-		return err
+		return fmt.Errorf("error marshaling volume pramaters: %w", err)
+	}
+	envVars := []string{
+		"PARAMETERS=" + string(params),
 	}
 
-	_, _, err = p.runPlugin(ctx, "delete", req.ID, stdin, []string{})
+	_, _, err = p.runPlugin(ctx, "delete", req.ID, envVars)
 	if err != nil {
 		return fmt.Errorf("error deleting volume %q with plugin %q: %w", req.ID, req.PluginID, err)
 	}
 	return nil
 }
 
-func (p *HostVolumePluginExternal) runPlugin(ctx context.Context, op, volID string,
-	stdin []byte, env []string) (stdout, stderr []byte, err error) {
+func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
+	op, volID string, env []string) (stdout, stderr []byte, err error) {
 
 	p.log.Debug("running host volume plugin",
 		"operation", op,
 		"volume_id", volID,
-		"stdin", string(stdin),
 	)
 
-	path := filepath.Join(p.TargetPath, volID)
 	// set up plugin execution
+	path := filepath.Join(p.TargetPath, volID)
 	cmd := exec.CommandContext(ctx, p.Executable, op, path)
 
-	// plugins may read the full json from stdin,
-	cmd.Stdin = bytes.NewReader(stdin)
-	// and/or environment variables for basic features.
 	cmd.Env = append([]string{
 		"OPERATION=" + op,
 		"HOST_PATH=" + path,
