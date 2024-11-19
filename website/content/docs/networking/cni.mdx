@@ -250,8 +250,13 @@ To specify that a job should use a CNI network, set the task group's network
 that have fingerprinted a CNI configuration with the given name. For example, to
 use the configuration named `mynet`, you should set the task group's network
 mode to `cni/mynet`. Nodes that have a network configuration defining a network
-named `mynet` in their `cni_config_dir` are eligible to run the workload.
-
+named `mynet` in their `cni_config_dir` are eligible to run the workload. Nomad
+additionally supplies the following arguments via `CNI_ARGS` to the CNI network:
+`NOMAD_REGION`, `NOMAD_NAMESPACE`, `NOMAD_JOB_ID`, `NOMAD_GROUP_NAME`, and
+`NOMAD_ALLOC_ID`. Since the `CNI_ARGS` do not allow values to contain a semicolon
+Nomad will not set keys where the value contains a semicolon (this could happen
+with the job ID). CNI plugins utilizing `NOMAD_*` CNI arguments are advised to
+apply a defensive policy or simply error out.
 
 [cni-spec]: https://www.cni.dev/docs/spec/
 [cni-plugin-docs]: https://www.cni.dev/plugins/current/
