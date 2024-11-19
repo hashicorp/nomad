@@ -13,10 +13,12 @@ import (
 // HostVolumeByID retrieve a specific host volume
 func (s *StateStore) HostVolumeByID(ws memdb.WatchSet, ns, id string, withAllocs bool) (*structs.HostVolume, error) {
 	txn := s.db.ReadTxn()
-	obj, err := txn.First(TableHostVolumes, indexID, ns, id)
+	watchCh, obj, err := txn.FirstWatch(TableHostVolumes, indexID, ns, id)
 	if err != nil {
 		return nil, err
 	}
+	ws.Add(watchCh)
+
 	if obj == nil {
 		return nil, nil
 	}
