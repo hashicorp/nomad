@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
 
 # TODO(db): where does PATH come from here? somewhere implicit? /sbin/ and /bin/ and ...?
 
