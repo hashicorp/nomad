@@ -16,6 +16,7 @@ var _ interfaces.TaskPrestartHook = (*remoteTaskHook)(nil)
 var _ interfaces.TaskPreKillHook = (*remoteTaskHook)(nil)
 
 // remoteTaskHook reattaches to remotely executing tasks.
+// Deprecated: remote tasks drivers are no longer developed or supported.
 type remoteTaskHook struct {
 	tr *TaskRunner
 
