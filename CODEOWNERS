@@ -2,3 +2,6 @@
 
 /.release/                              @hashicorp/github-nomad-core @hashicorp/nomad-eng
 /.github/workflows/build.yml            @hashicorp/github-nomad-core @hashicorp/nomad-eng
+
+# codeowner default
+*                              @hashicorp/github-nomad-core @hashicorp/nomad-eng
