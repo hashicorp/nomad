@@ -82,51 +82,40 @@ func Aggregate(systemStats *cpustats.Tracker, procStats ProcUsages) *drivers.Tas
 	}
 }
 
-func list(executorPID int, processes func() ([]ps.Process, error)) (set.Collection[ProcessID], int) {
-	family := set.From([]int{executorPID})
+func list(executorPID int, processes func() ([]ps.Process, error)) set.Collection[ProcessID] {
+	processFamily := set.From([]ProcessID{executorPID})
 
-	all, err := processes()
+	allPids, err := processes()
 	if err != nil {
-		return family, 0
+		return processFamily
 	}
 
-	parents, examined := mapping(all)
-	examined += gather(family, parents, executorPID)
-
-	return family, examined
-}
-
-func gather(family set.Collection[int], parents map[int]set.Collection[int], parent int) int {
-	examined := 0
-	candidates, ok := parents[parent]
-	if !ok {
-		return examined
-	}
-	for _, candidate := range candidates.Slice() {
-		examined++
-		family.Insert(candidate)
-		examined += gather(family, parents, candidate)
+	// A mapping of pids to their parent pids. It is used to build the process
+	// tree of the executing task
+	pidsRemaining := make(map[int]int, len(allPids))
+	for _, pid := range allPids {
+		pidsRemaining[pid.Pid()] = pid.PPid()
 	}
 
-	return examined
-}
+	for {
+		// flag to indicate if we have found a match
+		foundNewPid := false
 
-// mapping builds a reverse map of parent to children
-func mapping(all []ps.Process) (map[int]set.Collection[int], int) {
+		for pid, ppid := range pidsRemaining {
+			childPid := processFamily.Contains(ppid)
 
-	parents := map[int]set.Collection[int]{}
-	examined := 0
-
-	for _, candidate := range all {
-		if candidate != nil {
-			examined++
-			if children, ok := parents[candidate.PPid()]; ok {
-				children.Insert(candidate.Pid())
-			} else {
-				parents[candidate.PPid()] = set.From([]int{candidate.Pid()})
+			// checking if the pid is a child of any of the parents
+			if childPid {
+				processFamily.Insert(pid)
+				delete(pidsRemaining, pid)
+				foundNewPid = true
 			}
+		}
+
+		if !foundNewPid {
+			break
 		}
 	}
 
-	return parents, examined
+	return processFamily
 }

@@ -63,31 +63,26 @@ func Test_list(t *testing.T) {
 		name     string
 		needles  int
 		haystack int
-		expect   int
 	}{
 		{
 			name:     "minimal",
 			needles:  2,
 			haystack: 10,
-			expect:   16,
 		},
 		{
 			name:     "small needles small haystack",
 			needles:  5,
 			haystack: 200,
-			expect:   212,
 		},
 		{
 			name:     "small needles large haystack",
 			needles:  10,
 			haystack: 1000,
-			expect:   1022,
 		},
 		{
 			name:     "moderate needles giant haystack",
 			needles:  20,
 			haystack: 2000,
-			expect:   2042,
 		},
 	}
 
@@ -100,11 +95,10 @@ func Test_list(t *testing.T) {
 				return procs, nil
 			}
 
-			result, examined := list(executorPID, lister)
+			result := list(executorPID, lister)
 			must.SliceContainsAll(t, expect, result.Slice(),
 				must.Sprintf("exp: %v; got: %v", expect, result),
 			)
-			must.Eq(t, tc.expect, examined)
 		})
 	}
 }
