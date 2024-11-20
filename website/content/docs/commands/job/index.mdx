@@ -16,18 +16,46 @@ Usage: `nomad job <subcommand> [options]`
 Run `nomad job <subcommand> -h` for help on that subcommand. The following
 subcommands are available:
 
+- [`job action`][action] - Execute predefined actions
+- [`job allocs`][allocs] - List allocations for a job
 - [`job deployments`][deployments] - List deployments for a job
 - [`job dispatch`][dispatch] - Dispatch an instance of a parameterized job
 - [`job eval`][eval] - Force an evaluation for a job
 - [`job history`][history] - Display all tracked versions of a job
+- [`job init`][init] - Create an example job specification
+- [`job inspect`][inspect] - Inspect the contents of a submitted job
+- [`job periodic force`][periodic force] - Force the evaluation of a periodic job
+- [`job plan`][plan] - Schedule a dry run for a job
 - [`job promote`][promote] - Promote a job's canaries
+- [`job restart`][restart] - Restart or reschedule allocations for a job
 - [`job revert`][revert] - Revert to a prior version of the job
+- [`job run`][run] - Submit a new job
+- [`job scale`][scale] - Update the number of allocations for a task group in a job
+- [`job scaling-events`][scaling-events] - List the recent scaling events for a job
 - [`job status`][status] - Display status information about a job
+- [`job stop`][stop] - Stop a running job and cancel its allocations
+- [`job tag`][tag] - Tag a job with a version
+- [`job validate`][validate] - Check a job specification for syntax errors
 
+
+[action]: /nomad/docs/commands/job/action 'Execute predefined actions'
+[allocs]: /nomad/docs/commands/job/allocs 'List allocations for a job'
 [deployments]: /nomad/docs/commands/job/deployments 'List deployments for a job'
 [dispatch]: /nomad/docs/commands/job/dispatch 'Dispatch an instance of a parameterized job'
 [eval]: /nomad/docs/commands/job/eval 'Force an evaluation for a job'
 [history]: /nomad/docs/commands/job/history 'Display all tracked versions of a job'
 [promote]: /nomad/docs/commands/job/promote "Promote a job's canaries"
+[init]: /nomad/docs/commands/job/init 'Create an example job specification'
+[inspect]: /nomad/docs/commands/job/inspect 'Inspect the contents of a submitted job'
+[periodic force]: /nomad/docs/commands/job/periodic-force 'Force the evaluation of a periodic job'
+[plan]: /nomad/docs/commands/job/plan 'Schedule a dry run for a job'
+[restart]: /nomad/docs/commands/job/restart 'Restart or reschedule allocations for a job'
 [revert]: /nomad/docs/commands/job/revert 'Revert to a prior version of the job'
+[run]: /nomad/docs/commands/job/run 'Submit a new job'
 [status]: /nomad/docs/commands/job/status 'Display status information about a job'
+[scale]: /nomad/docs/commands/job/scale 'Update the number of allocations for a task group in a job'
+[scaling-events]: /nomad/docs/commands/job/scaling-events 'List the recent scaling events for a job'
+[stop]: /nomad/docs/commands/job/stop 'Stop a running job and cancel its allocations'
+[tag]: /nomad/docs/commands/job/tag 'Tag a job with a version'
+[validate]: /nomad/docs/commands/job/validate 'Check a job specification for syntax errors'
+[promote]: /nomad/docs/commands/job/promote
