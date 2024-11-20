@@ -23,7 +23,7 @@ type HostVolumePlugin interface {
 	Version(ctx context.Context) (string, error)
 	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error)
 	Delete(ctx context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error
-	// TODO(db): update? resize? ??
+	// db TODO(1.10.0): update? resize? ??
 }
 
 type hostVolumePluginCreateResponse struct {
@@ -80,13 +80,13 @@ type HostVolumePluginExternal struct {
 }
 
 func (p *HostVolumePluginExternal) Version(_ context.Context) (string, error) {
-	return "0.0.1", nil // TODO(db): call the plugin, use in fingerprint
+	return "0.0.1", nil // db TODO(1.10.0): call the plugin, use in fingerprint
 }
 
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error) {
 
-	params, err := json.Marshal(req.Parameters) // TODO(db): if this is nil, then PARAMETERS env will be "null"
+	params, err := json.Marshal(req.Parameters) // db TODO(1.10.0): if this is nil, then PARAMETERS env will be "null"
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
@@ -148,7 +148,7 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	}, env...)
 
 	var errBuf bytes.Buffer
-	cmd.Stderr = io.Writer(&errBuf) // TODO(db): maybe a better way to capture stderr?
+	cmd.Stderr = io.Writer(&errBuf) // db TODO(1.10.0): maybe a better way to capture stderr?
 
 	// run the command and capture output
 	mErr := &multierror.Error{}
@@ -167,7 +167,7 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	)
 	if mErr.ErrorOrNil() != nil {
 		err = helper.FlattenMultierror(mErr)
-		log.Error("error with plugin", "error", err)
+		log.Debug("error with plugin", "error", err)
 		return stdout, stderr, err
 	}
 	log.Debug("plugin ran successfully")

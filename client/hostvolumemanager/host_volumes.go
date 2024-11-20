@@ -24,7 +24,7 @@ func NewHostVolumeManager(sharedMountDir string, logger hclog.Logger) *HostVolum
 		log:     log,
 		plugins: &sync.Map{},
 	}
-	// TODO(db): discover plugins on disk, need a new plugin dir
+	// db TODO(1.10.0): discover plugins on disk, need a new plugin dir
 	// TODO: how do we define the external mounter plugins? plugin configs?
 	mgr.setPlugin("mkdir", &HostVolumePluginMkdir{
 		ID:         "mkdir",
@@ -40,7 +40,7 @@ func NewHostVolumeManager(sharedMountDir string, logger hclog.Logger) *HostVolum
 	return mgr
 }
 
-// TODO(db): fingerprint elsewhere / on sighup, and SetPlugin from afar?
+// db TODO(1.10.0): fingerprint elsewhere / on sighup, and SetPlugin from afar?
 func (hvm *HostVolumeManager) setPlugin(id string, plug HostVolumePlugin) {
 	hvm.plugins.Store(id, plug)
 }
@@ -71,8 +71,8 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		CapacityBytes: pluginResp.SizeBytes,
 	}
 
-	// TODO(db): now we need to add it to the node fingerprint!
-	// TODO(db): and save it in client state!
+	// db TODO(1.10.0): now we need to add it to the node fingerprint!
+	// db TODO(1.10.0): and save it in client state!
 
 	return resp, nil
 }
@@ -92,7 +92,7 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 
 	resp := &cstructs.ClientHostVolumeDeleteResponse{}
 
-	// TODO(db): save the client state!
+	// db TODO(1.10.0): save the client state!
 
 	return resp, nil
 }

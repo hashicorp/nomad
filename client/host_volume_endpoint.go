@@ -39,7 +39,7 @@ func (v *HostVolume) Create(
 	resp.CapacityBytes = cresp.CapacityBytes
 	resp.HostPath = cresp.HostPath
 
-	v.c.logger.Debug("created host volume", "id", req.ID, "path", resp.HostPath)
+	v.c.logger.Info("created host volume", "id", req.ID, "path", resp.HostPath)
 	return nil
 }
 
@@ -50,13 +50,13 @@ func (v *HostVolume) Delete(
 	ctx, cancelFn := v.requestContext()
 	defer cancelFn()
 
-	_, err := v.c.hostVolumeManager.Delete(ctx, req) // TODO(db): cresp is empty... why return it?
+	_, err := v.c.hostVolumeManager.Delete(ctx, req) // db TODO(1.10.0): cresp is empty... why return it?
 	if err != nil {
 		v.c.logger.Error("failed to delete host volume", "ID", req.ID, "error", err)
 		return err
 	}
 
-	v.c.logger.Debug("deleted host volume", "id", req.ID, "path", req.HostPath)
+	v.c.logger.Info("deleted host volume", "id", req.ID, "path", req.HostPath)
 	return nil
 }
 

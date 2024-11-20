@@ -43,7 +43,7 @@ case $op in
     export CAPACITY_MAX_BYTES=50000000 # 50mb
     export CAPACITY_MIN_BYTES=50000000 # 50mb
     export PARAMETERS='{"a": "ayy"}'
-    # TODO(db): check stdout
+    # db TODO(1.10.0): check stdout
     ;;
 
   delete)

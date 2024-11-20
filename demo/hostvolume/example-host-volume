@@ -2,7 +2,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-# TODO(db): where does PATH come from here? somewhere implicit? /sbin/ and /bin/ and ...?
+# db TODO(1.10.0): where does PATH come from here? somewhere implicit? /sbin/ and /bin/ and ...?
 
 set -euo pipefail
 
