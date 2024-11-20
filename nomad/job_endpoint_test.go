@@ -8271,20 +8271,43 @@ func TestJobEndpoint_Scale_SystemJob(t *testing.T) {
 	mockSystemJob := mock.SystemJob()
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 10, nil, mockSystemJob))
 
+	// Scale to 0
 	scaleReq := &structs.JobScaleRequest{
 		JobID: mockSystemJob.ID,
 		Target: map[string]string{
 			structs.ScalingTargetGroup: mockSystemJob.TaskGroups[0].Name,
 		},
-		Count: pointer.Of(int64(13)),
+		Count: pointer.Of(int64(0)),
 		WriteRequest: structs.WriteRequest{
 			Region:    DefaultRegion,
 			Namespace: mockSystemJob.Namespace,
 		},
 	}
-	var resp structs.JobRegisterResponse
+
+	resp := structs.JobRegisterResponse{}
+	err := msgpackrpc.CallWithCodec(codec, "Job.Scale", scaleReq, &resp)
+	must.NoError(t, err)
+
+	// Scale to a negative number
+	scaleReq.Count = pointer.Of(int64(-5))
+
+	resp = structs.JobRegisterResponse{}
 	must.ErrorContains(t, msgpackrpc.CallWithCodec(codec, "Job.Scale", scaleReq, &resp),
-		`400,cannot scale jobs of type "system"`)
+		`400,scaling action count can't be negative`)
+
+	// Scale back to 1
+	scaleReq.Count = pointer.Of(int64(1))
+
+	resp = structs.JobRegisterResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "Job.Scale", scaleReq, &resp)
+	must.NoError(t, err)
+
+	// Scale beyond 1
+	scaleReq.Count = pointer.Of(int64(13))
+
+	resp = structs.JobRegisterResponse{}
+	must.ErrorContains(t, msgpackrpc.CallWithCodec(codec, "Job.Scale", scaleReq, &resp),
+		`400,jobs of type "system" can only be scaled between 0 and 1`)
 }
 
 func TestJobEndpoint_Scale_BatchJob(t *testing.T) {
