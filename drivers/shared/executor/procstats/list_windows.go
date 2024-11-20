@@ -26,6 +26,6 @@ import (
 // happens when you use syscalls to work your way from the root down to its
 // descendants.
 func List(executorPID int) set.Collection[ProcessID] {
-	procs, _ := list(executorPID, ps.Processes)
+	procs := list(executorPID, ps.Processes)
 	return procs
 }
