@@ -275,7 +275,8 @@ func TestWrapNonJSON(t *testing.T) {
 	s.Server.wrapNonJSON(handler)(resp, req)
 
 	respBody, _ := io.ReadAll(resp.Body)
-	require.Equal(t, respBody, []byte("test response"))
+	must.Eq(t, respBody, []byte("test response"))
+	must.Eq(t, resp.Header().Get(contentTypeHeader), plainContentType)
 
 }
 
@@ -298,8 +299,9 @@ func TestWrapNonJSON_Error(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/v1/kv/key", nil)
 		s.Server.wrapNonJSON(handlerRPCErr)(resp, req)
 		respBody, _ := io.ReadAll(resp.Body)
-		require.Equal(t, []byte("not found"), respBody)
-		require.Equal(t, 404, resp.Code)
+		must.Eq(t, []byte("not found"), respBody)
+		must.Eq(t, 404, resp.Code)
+		must.Eq(t, resp.Header().Get(contentTypeHeader), plainContentType)
 	}
 
 	// CodedError
@@ -308,8 +310,9 @@ func TestWrapNonJSON_Error(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodGet, "/v1/kv/key", nil)
 		s.Server.wrapNonJSON(handlerCodedErr)(resp, req)
 		respBody, _ := io.ReadAll(resp.Body)
-		require.Equal(t, []byte("unprocessable"), respBody)
-		require.Equal(t, 422, resp.Code)
+		must.Eq(t, []byte("unprocessable"), respBody)
+		must.Eq(t, 422, resp.Code)
+		must.Eq(t, resp.Header().Get(contentTypeHeader), plainContentType)
 	}
 
 }
@@ -381,7 +384,8 @@ func TestPermissionDenied(t *testing.T) {
 
 		req, _ := http.NewRequest(http.MethodGet, "/v1/job/foo", nil)
 		s.Server.wrap(handler)(resp, req)
-		assert.Equal(t, resp.Code, 403)
+		must.Eq(t, resp.Code, 403)
+		must.Eq(t, resp.Header().Get(contentTypeHeader), plainContentType)
 	}
 
 	// When remote RPC is used the errors have "rpc error: " prependend
@@ -393,7 +397,8 @@ func TestPermissionDenied(t *testing.T) {
 
 		req, _ := http.NewRequest(http.MethodGet, "/v1/job/foo", nil)
 		s.Server.wrap(handler)(resp, req)
-		assert.Equal(t, resp.Code, 403)
+		must.Eq(t, resp.Code, 403)
+		must.Eq(t, resp.Header().Get(contentTypeHeader), plainContentType)
 	}
 }
 
@@ -411,7 +416,8 @@ func TestTokenNotFound(t *testing.T) {
 	urlStr := "/v1/job/foo"
 	req, _ := http.NewRequest(http.MethodGet, urlStr, nil)
 	s.Server.wrap(handler)(resp, req)
-	assert.Equal(t, resp.Code, 403)
+	must.Eq(t, resp.Code, 403)
+	must.Eq(t, resp.Header().Get(contentTypeHeader), plainContentType)
 }
 
 func TestParseWait(t *testing.T) {
@@ -421,20 +427,11 @@ func TestParseWait(t *testing.T) {
 
 	req, err := http.NewRequest(http.MethodGet,
 		"/v1/catalog/nodes?wait=60s&index=1000", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	if d := parseWait(resp, req, &b); d {
-		t.Fatalf("unexpected done")
-	}
-
-	if b.MinQueryIndex != 1000 {
-		t.Fatalf("Bad: %v", b)
-	}
-	if b.MaxQueryTime != 60*time.Second {
-		t.Fatalf("Bad: %v", b)
-	}
+	must.False(t, parseWait(resp, req, &b))
+	must.Eq(t, b.MinQueryIndex, 1000)
+	must.Eq(t, b.MaxQueryTime, 60*time.Second)
 }
 
 func TestParseWait_InvalidTime(t *testing.T) {
@@ -444,17 +441,11 @@ func TestParseWait_InvalidTime(t *testing.T) {
 
 	req, err := http.NewRequest(http.MethodGet,
 		"/v1/catalog/nodes?wait=60foo&index=1000", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	if d := parseWait(resp, req, &b); !d {
-		t.Fatalf("expected done")
-	}
-
-	if resp.Code != 400 {
-		t.Fatalf("bad code: %v", resp.Code)
-	}
+	must.True(t, parseWait(resp, req, &b))
+	must.Eq(t, resp.Code, 400)
+	must.Eq(t, resp.Header().Get(contentTypeHeader), plainContentType)
 }
 
 func TestParseWait_InvalidIndex(t *testing.T) {
@@ -464,17 +455,11 @@ func TestParseWait_InvalidIndex(t *testing.T) {
 
 	req, err := http.NewRequest(http.MethodGet,
 		"/v1/catalog/nodes?wait=60s&index=foo", nil)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
-	if d := parseWait(resp, req, &b); !d {
-		t.Fatalf("expected done")
-	}
-
-	if resp.Code != 400 {
-		t.Fatalf("bad code: %v", resp.Code)
-	}
+	must.True(t, parseWait(resp, req, &b))
+	must.Eq(t, resp.Code, 400)
+	must.Eq(t, resp.Header().Get(contentTypeHeader), plainContentType)
 }
 
 func TestParseConsistency(t *testing.T) {
