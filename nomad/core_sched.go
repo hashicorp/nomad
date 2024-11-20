@@ -13,6 +13,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	version "github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -28,64 +29,50 @@ type CoreScheduler struct {
 	snap   *state.StateSnapshot
 	logger log.Logger
 
-	// custom GC Threshold is a map of object names to threshold values which can be
-	// used by unit tests to simulate time manipulation, and is used by forceGC to
-	// set minimal threshold so that virtually all eligible objects will get GCd
-	customGCThreshold map[string]time.Duration
+	// customThresholdForObject is used by unit tests that want to manipulate GC
+	// threshold settings. Users can pass the string that matches the object to GC
+	// (e.g., structs.CoreJobEvalGC) and time.Duration that will be used as GC
+	// threshold value.
+	customThresholdForObject map[string]*time.Duration
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
 func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) scheduler.Scheduler {
 	s := &CoreScheduler{
-		srv:               srv,
-		snap:              snap,
-		logger:            srv.logger.ResetNamed("core.sched"),
-		customGCThreshold: make(map[string]time.Duration),
+		srv:                      srv,
+		snap:                     snap,
+		logger:                   srv.logger.ResetNamed("core.sched"),
+		customThresholdForObject: make(map[string]*time.Duration),
 	}
 	return s
-}
-
-func (c *CoreScheduler) setCustomThresholdForObject(objectName string, threshold time.Duration) {
-	c.customGCThreshold[objectName] = threshold
-}
-
-func (c *CoreScheduler) setCustomThresholdForAllObjects(threshold time.Duration) {
-	for _, objectName := range []string{
-		"job",
-		"eval",
-		"batchEval",
-		"deployment",
-		"csiPlugin",
-		"csiVolume",
-		"token",
-		"node",
-	} {
-		c.setCustomThresholdForObject(objectName, threshold)
-	}
 }
 
 // Process is used to implement the scheduler.Scheduler interface
 func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 	job := strings.Split(eval.JobID, ":") // extra data can be smuggled in w/ JobID
+
+	// check if there are any custom threshold values set
+	customThreshold := c.customThresholdForObject[job[0]]
+
 	switch job[0] {
 	case structs.CoreJobEvalGC:
-		return c.evalGC()
+		return c.evalGC(customThreshold)
 	case structs.CoreJobNodeGC:
-		return c.nodeGC(eval)
+		return c.nodeGC(eval, customThreshold)
 	case structs.CoreJobJobGC:
-		return c.jobGC(eval)
+		return c.jobGC(eval, customThreshold)
 	case structs.CoreJobDeploymentGC:
-		return c.deploymentGC()
+		return c.deploymentGC(customThreshold)
 	case structs.CoreJobCSIVolumeClaimGC:
-		return c.csiVolumeClaimGC(eval)
+		return c.csiVolumeClaimGC(eval, customThreshold)
 	case structs.CoreJobCSIPluginGC:
-		return c.csiPluginGC(eval)
+		return c.csiPluginGC(eval, customThreshold)
 	case structs.CoreJobOneTimeTokenGC:
 		return c.expiredOneTimeTokenGC(eval)
 	case structs.CoreJobLocalTokenExpiredGC:
-		return c.expiredACLTokenGC(eval, false)
+		return c.expiredACLTokenGC(eval, false, customThreshold)
 	case structs.CoreJobGlobalTokenExpiredGC:
-		return c.expiredACLTokenGC(eval, true)
+		return c.expiredACLTokenGC(eval, true, customThreshold)
 	case structs.CoreJobRootKeyRotateOrGC:
 		return c.rootKeyRotateOrGC(eval)
 	case structs.CoreJobVariablesRekey:
@@ -99,33 +86,31 @@ func (c *CoreScheduler) Process(eval *structs.Evaluation) error {
 
 // forceGC is used to garbage collect all eligible objects.
 func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
-	// set a minimal threshold for all objects to make force GC possible, and
-	// remember to reset it when we're done
-	c.setCustomThresholdForAllObjects(time.Millisecond)
-	defer c.setCustomThresholdForAllObjects(0)
+	// set a minimal threshold for all objects to make force GC possible
+	force := pointer.Of(time.Millisecond)
 
-	if err := c.jobGC(eval); err != nil {
+	if err := c.jobGC(eval, force); err != nil {
 		return err
 	}
-	if err := c.evalGC(); err != nil {
+	if err := c.evalGC(force); err != nil {
 		return err
 	}
-	if err := c.deploymentGC(); err != nil {
+	if err := c.deploymentGC(force); err != nil {
 		return err
 	}
-	if err := c.csiPluginGC(eval); err != nil {
+	if err := c.csiPluginGC(eval, force); err != nil {
 		return err
 	}
-	if err := c.csiVolumeClaimGC(eval); err != nil {
+	if err := c.csiVolumeClaimGC(eval, force); err != nil {
 		return err
 	}
 	if err := c.expiredOneTimeTokenGC(eval); err != nil {
 		return err
 	}
-	if err := c.expiredACLTokenGC(eval, false); err != nil {
+	if err := c.expiredACLTokenGC(eval, false, force); err != nil {
 		return err
 	}
-	if err := c.expiredACLTokenGC(eval, true); err != nil {
+	if err := c.expiredACLTokenGC(eval, true, force); err != nil {
 		return err
 	}
 	if err := c.rootKeyGC(eval, time.Now()); err != nil {
@@ -134,11 +119,11 @@ func (c *CoreScheduler) forceGC(eval *structs.Evaluation) error {
 
 	// Node GC must occur after the others to ensure the allocations are
 	// cleared.
-	return c.nodeGC(eval)
+	return c.nodeGC(eval, force)
 }
 
 // jobGC is used to garbage collect eligible jobs.
-func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
+func (c *CoreScheduler) jobGC(eval *structs.Evaluation, customThreshold *time.Duration) error {
 	// Get all the jobs eligible for garbage collection.
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.JobsByGC(ws, true)
@@ -150,10 +135,8 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation) error {
 	threshold = c.srv.config.JobGCThreshold
 
 	// custom threshold override
-	if val, ok := c.customGCThreshold["job"]; ok {
-		if val != 0 {
-			threshold = val
-		}
+	if customThreshold != nil {
+		threshold = *customThreshold
 	}
 
 	cutoffTime := c.getCutoffTime(threshold)
@@ -284,7 +267,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string, 
 }
 
 // evalGC is used to garbage collect old evaluations
-func (c *CoreScheduler) evalGC() error {
+func (c *CoreScheduler) evalGC(customThreshold *time.Duration) error {
 	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.Evals(ws, false)
@@ -297,15 +280,9 @@ func (c *CoreScheduler) evalGC() error {
 	batchThreshold = c.srv.config.BatchEvalGCThreshold
 
 	// custom threshold override
-	if val, ok := c.customGCThreshold["eval"]; ok {
-		if val != 0 {
-			threshold = val
-		}
-	}
-	if val, ok := c.customGCThreshold["batchEval"]; ok {
-		if val != 0 {
-			batchThreshold = val
-		}
+	if customThreshold != nil {
+		threshold = *customThreshold
+		batchThreshold = *customThreshold
 	}
 
 	cutoffTime := c.getCutoffTime(threshold)
@@ -486,7 +463,7 @@ func (c *CoreScheduler) partitionEvalReap(evals, allocs []string, batchSize int)
 }
 
 // nodeGC is used to garbage collect old nodes
-func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
+func (c *CoreScheduler) nodeGC(eval *structs.Evaluation, customThreshold *time.Duration) error {
 	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.Nodes(ws)
@@ -498,10 +475,8 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation) error {
 	threshold = c.srv.config.NodeGCThreshold
 
 	// custom threshold override
-	if val, ok := c.customGCThreshold["node"]; ok {
-		if val != 0 {
-			threshold = val
-		}
+	if customThreshold != nil {
+		threshold = *customThreshold
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -592,7 +567,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 }
 
 // deploymentGC is used to garbage collect old deployments
-func (c *CoreScheduler) deploymentGC() error {
+func (c *CoreScheduler) deploymentGC(customThreshold *time.Duration) error {
 	// Iterate over the deployments
 	ws := memdb.NewWatchSet()
 	iter, err := c.snap.Deployments(ws, state.SortDefault)
@@ -604,10 +579,8 @@ func (c *CoreScheduler) deploymentGC() error {
 	threshold = c.srv.config.DeploymentGCThreshold
 
 	// custom threshold override
-	if val, ok := c.customGCThreshold["deployment"]; ok {
-		if val != 0 {
-			threshold = val
-		}
+	if customThreshold != nil {
+		threshold = *customThreshold
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -767,7 +740,7 @@ func allocGCEligible(a *structs.Allocation, job *structs.Job, gcTime, cutoffTime
 }
 
 // csiVolumeClaimGC is used to garbage collect CSI volume claims
-func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
+func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation, customThreshold *time.Duration) error {
 
 	gcClaims := func(ns, volID string) error {
 		req := &structs.CSIVolumeClaimRequest{
@@ -806,10 +779,8 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 	threshold = c.srv.config.CSIVolumeClaimGCThreshold
 
 	// custom threshold override
-	if val, ok := c.customGCThreshold["csiVolume"]; ok {
-		if val != 0 {
-			threshold = val
-		}
+	if customThreshold != nil {
+		threshold = *customThreshold
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -842,7 +813,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation) error {
 }
 
 // csiPluginGC is used to garbage collect unused plugins
-func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
+func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation, customThreshold *time.Duration) error {
 
 	ws := memdb.NewWatchSet()
 
@@ -855,10 +826,8 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation) error {
 	threshold = c.srv.config.CSIPluginGCThreshold
 
 	// custom threshold override
-	if val, ok := c.customGCThreshold["csiPlugin"]; ok {
-		if val != 0 {
-			threshold = val
-		}
+	if customThreshold != nil {
+		threshold = *customThreshold
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
@@ -902,7 +871,7 @@ func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
 // tokens. It can be used for both local and global tokens and includes
 // behaviour to account for periodic and user actioned garbage collection
 // invocations.
-func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool) error {
+func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool, customThreshold *time.Duration) error {
 
 	// If ACLs are not enabled, we do not need to continue and should exit
 	// early. This is not an error condition as callers can blindly call this
@@ -925,10 +894,8 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool)
 	threshold = c.srv.config.ACLTokenExpirationGCThreshold
 
 	// custom threshold override
-	if val, ok := c.customGCThreshold["token"]; ok {
-		if val != 0 {
-			threshold = val
-		}
+	if customThreshold != nil {
+		threshold = *customThreshold
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
