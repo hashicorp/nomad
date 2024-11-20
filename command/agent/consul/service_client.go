@@ -1105,7 +1105,7 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		if err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
 			err = fmt.Errorf("failed to query Consul checks: %w", err)
-			if mErr.Len() == 0 {
+			if mErr == nil || mErr.Len() == 0 {
 				return err
 			} else {
 				mErr = multierror.Append(mErr, err)
