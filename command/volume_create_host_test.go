@@ -32,7 +32,7 @@ func TestHostVolumeCreateCommand_Run(t *testing.T) {
 namespace = "prod"
 name      = "database"
 type      = "host"
-plugin_id = "plugin_id"
+plugin_id = "mkdir"
 node_pool = "default"
 
 capacity_min = "10GiB"
@@ -99,7 +99,7 @@ func TestHostVolume_HCLDecode(t *testing.T) {
 namespace = "prod"
 name      = "database"
 type      = "host"
-plugin_id = "plugin_id"
+plugin_id = "mkdir"
 node_pool = "default"
 
 capacity_min = "10GiB"
@@ -132,7 +132,7 @@ parameters {
 			expected: &api.HostVolume{
 				Namespace: "prod",
 				Name:      "database",
-				PluginID:  "plugin_id",
+				PluginID:  "mkdir",
 				NodePool:  "default",
 				Constraints: []*api.Constraint{{
 					LTarget: "${attr.kernel.name}",
@@ -165,13 +165,13 @@ parameters {
 namespace = "prod"
 name      = "database"
 type      = "host"
-plugin_id = "plugin_id"
+plugin_id = "mkdir"
 node_pool = "default"
 `,
 			expected: &api.HostVolume{
 				Namespace: "prod",
 				Name:      "database",
-				PluginID:  "plugin_id",
+				PluginID:  "mkdir",
 				NodePool:  "default",
 			},
 		},
@@ -182,7 +182,7 @@ node_pool = "default"
 namespace = "prod"
 name      = "database"
 type      = "host"
-plugin_id = "plugin_id"
+plugin_id = "mkdir"
 node_pool = "default"
 
 capacity_min = "a"
@@ -197,7 +197,7 @@ capacity_min = "a"
 namespace = "prod"
 name      = "database"
 type      = "host"
-plugin_id = "plugin_id"
+plugin_id = "mkdir"
 node_pool = "default"
 
 constraint {

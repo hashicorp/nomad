@@ -12,7 +12,7 @@ func HostVolumeRequest(ns string) *structs.HostVolume {
 	vol := &structs.HostVolume{
 		Namespace: ns,
 		Name:      "example",
-		PluginID:  "example-plugin",
+		PluginID:  "mkdir",
 		NodePool:  structs.NodePoolDefault,
 		Constraints: []*structs.Constraint{
 			{
