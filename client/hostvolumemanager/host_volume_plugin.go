@@ -21,12 +21,12 @@ import (
 
 type HostVolumePlugin interface {
 	Version(ctx context.Context) (string, error)
-	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error)
+	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error)
 	Delete(ctx context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error
 	// db TODO(1.10.0): update? resize? ??
 }
 
-type hostVolumePluginCreateResponse struct {
+type HostVolumePluginCreateResponse struct {
 	Path      string            `json:"path"`
 	SizeBytes int64             `json:"bytes"`
 	Context   map[string]string `json:"context"` // metadata
@@ -46,17 +46,23 @@ func (p *HostVolumePluginMkdir) Version(_ context.Context) (string, error) {
 }
 
 func (p *HostVolumePluginMkdir) Create(_ context.Context,
-	req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error) {
+	req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error) {
 
 	path := filepath.Join(p.TargetPath, req.ID)
-	p.log.Debug("CREATE: default host volume plugin", "target_path", path)
+	log := p.log.With(
+		"operation", "create",
+		"volume_id", req.ID,
+		"path", path)
+	log.Debug("running plugin")
 
 	err := os.Mkdir(path, 0o700)
 	if err != nil {
+		log.Debug("error with plugin", "error", err)
 		return nil, err
 	}
 
-	return &hostVolumePluginCreateResponse{
+	log.Debug("plugin ran successfully")
+	return &HostVolumePluginCreateResponse{
 		Path:      path,
 		SizeBytes: 0,
 		Context:   map[string]string{},
@@ -65,8 +71,20 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 
 func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error {
 	path := filepath.Join(p.TargetPath, req.ID)
-	p.log.Debug("DELETE: default host volume plugin", "target_path", path)
-	return os.RemoveAll(path)
+	log := p.log.With(
+		"operation", "delete",
+		"volume_id", req.ID,
+		"path", path)
+	log.Debug("running plugin")
+
+	err := os.RemoveAll(path)
+	if err != nil {
+		log.Debug("error with plugin", "error", err)
+		return err
+	}
+
+	log.Debug("plugin ran successfully")
+	return nil
 }
 
 var _ HostVolumePlugin = &HostVolumePluginExternal{}
@@ -84,7 +102,7 @@ func (p *HostVolumePluginExternal) Version(_ context.Context) (string, error) {
 }
 
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
-	req *cstructs.ClientHostVolumeCreateRequest) (*hostVolumePluginCreateResponse, error) {
+	req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error) {
 
 	params, err := json.Marshal(req.Parameters) // db TODO(1.10.0): if this is nil, then PARAMETERS env will be "null"
 	if err != nil {
@@ -103,7 +121,7 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 		return nil, fmt.Errorf("error creating volume %q with plugin %q: %w", req.ID, req.PluginID, err)
 	}
 
-	var pluginResp hostVolumePluginCreateResponse
+	var pluginResp HostVolumePluginCreateResponse
 	err = json.Unmarshal(stdout, &pluginResp)
 	if err != nil {
 		return nil, err
@@ -119,6 +137,7 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 		return fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
 	envVars := []string{
+		"NODE_ID=" + req.NodeID,
 		"PARAMETERS=" + string(params),
 	}
 
@@ -132,14 +151,14 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	op, volID string, env []string) (stdout, stderr []byte, err error) {
 
+	path := filepath.Join(p.TargetPath, volID)
 	log := p.log.With(
 		"operation", op,
 		"volume_id", volID,
-	)
+		"path", path)
 	log.Debug("running plugin")
 
 	// set up plugin execution
-	path := filepath.Join(p.TargetPath, volID)
 	cmd := exec.CommandContext(ctx, p.Executable, op, path)
 
 	cmd.Env = append([]string{
@@ -148,7 +167,7 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	}, env...)
 
 	var errBuf bytes.Buffer
-	cmd.Stderr = io.Writer(&errBuf) // db TODO(1.10.0): maybe a better way to capture stderr?
+	cmd.Stderr = io.Writer(&errBuf)
 
 	// run the command and capture output
 	mErr := &multierror.Error{}
