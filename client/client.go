@@ -34,6 +34,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/hoststats"
+	"github.com/hashicorp/nomad/client/hostvolumemanager"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/numalib"
@@ -289,6 +290,8 @@ type Client struct {
 	// drivermanager is responsible for managing driver plugins
 	drivermanager drivermanager.Manager
 
+	hostVolumeManager *hostvolumemanager.HostVolumeManager
+
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -531,6 +534,8 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	devManager := devicemanager.New(devConfig)
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
+
+	c.hostVolumeManager = hostvolumemanager.NewHostVolumeManager(cfg.AllocMountsDir, logger)
 
 	// Set up the service registration wrapper using the Consul and Nomad
 	// implementations. The Nomad implementation is only ever used on the
