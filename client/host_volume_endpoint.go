@@ -32,7 +32,7 @@ func (v *HostVolume) Create(
 
 	cresp, err := v.c.hostVolumeManager.Create(ctx, req)
 	if err != nil {
-		v.c.logger.Debug("failed to create host volume", "name", req.Name, "error", err)
+		v.c.logger.Error("failed to create host volume", "name", req.Name, "error", err)
 		return err
 	}
 
@@ -52,7 +52,7 @@ func (v *HostVolume) Delete(
 
 	_, err := v.c.hostVolumeManager.Delete(ctx, req) // TODO(db): cresp is empty... why return it?
 	if err != nil {
-		v.c.logger.Debug("failed to delete host volume", "ID", req.ID, "error", err)
+		v.c.logger.Error("failed to delete host volume", "ID", req.ID, "error", err)
 		return err
 	}
 

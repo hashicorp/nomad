@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
-	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 type HostVolumeManager struct {
@@ -62,9 +61,6 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		return nil, fmt.Errorf("no such plugin %q", req.PluginID)
 	}
 
-	if req.ID == "" {
-		req.ID = uuid.Generate()
-	}
 	pluginResp, err := plug.Create(ctx, req)
 	if err != nil {
 		return nil, err

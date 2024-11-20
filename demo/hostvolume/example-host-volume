@@ -100,5 +100,5 @@ case "$1" in
     delete_volume "$host_path" ;;
   *)
     echo "unknown operation: $1" 1>&2
-    help; exit 1 ;;
+    exit 1 ;;
 esac

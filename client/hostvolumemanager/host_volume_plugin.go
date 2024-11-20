@@ -14,7 +14,9 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 )
 
 type HostVolumePlugin interface {
@@ -130,10 +132,11 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	op, volID string, env []string) (stdout, stderr []byte, err error) {
 
-	p.log.Debug("running host volume plugin",
+	log := p.log.With(
 		"operation", op,
 		"volume_id", volID,
 	)
+	log.Debug("running plugin")
 
 	// set up plugin execution
 	path := filepath.Join(p.TargetPath, volID)
@@ -148,21 +151,25 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	cmd.Stderr = io.Writer(&errBuf) // TODO(db): maybe a better way to capture stderr?
 
 	// run the command and capture output
+	mErr := &multierror.Error{}
 	stdout, err = cmd.Output()
-	stderr, _ = io.ReadAll(&errBuf)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
+	stderr, err = io.ReadAll(&errBuf)
+	if err != nil {
+		mErr = multierror.Append(mErr, err)
+	}
 
-	logArgs := []any{
-		"operation", op,
-		"volume_id", volID,
+	log = log.With(
 		"stdout", string(stdout),
 		"stderr", string(stderr),
-	}
-
-	if err != nil {
-		logArgs = append(logArgs, []any{"err", err}...)
-		p.log.Error("error with plugin", logArgs...)
+	)
+	if mErr.ErrorOrNil() != nil {
+		err = helper.FlattenMultierror(mErr)
+		log.Error("error with plugin", "error", err)
 		return stdout, stderr, err
 	}
-	p.log.Debug("plugin ran", logArgs...)
+	log.Debug("plugin ran successfully")
 	return stdout, stderr, nil
 }
