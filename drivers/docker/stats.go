@@ -16,8 +16,6 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
 	"github.com/hashicorp/nomad/helper"
-
-	//"github.com/hashicorp/nomad/helper"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 )
 
