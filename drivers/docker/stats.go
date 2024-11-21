@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
+	"github.com/hashicorp/nomad/helper"
 
 	//"github.com/hashicorp/nomad/helper"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
@@ -94,8 +95,8 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration, compute 
 func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, interval time.Duration, compute cpustats.Compute) {
 	defer destCh.close()
 
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
+	ticker, cancel := helper.NewSafeTicker(interval)
+	defer cancel()
 	var stats *containerapi.Stats
 
 	for {
@@ -129,7 +130,6 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 
 			resourceUsage := util.DockerStatsToTaskResourceUsage(stats, compute)
 			destCh.send(resourceUsage)
-
 		}
 	}
 }
