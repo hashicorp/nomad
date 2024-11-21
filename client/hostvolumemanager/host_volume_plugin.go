@@ -12,15 +12,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-version"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 )
 
 type HostVolumePlugin interface {
-	Version(ctx context.Context) (string, error)
+	Version(ctx context.Context) (*version.Version, error)
 	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error)
 	Delete(ctx context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error
 	// db TODO(1.10.0): update? resize? ??
@@ -41,8 +43,8 @@ type HostVolumePluginMkdir struct {
 	log hclog.Logger
 }
 
-func (p *HostVolumePluginMkdir) Version(_ context.Context) (string, error) {
-	return "0.0.1", nil
+func (p *HostVolumePluginMkdir) Version(_ context.Context) (*version.Version, error) {
+	return version.NewVersion("0.0.1")
 }
 
 func (p *HostVolumePluginMkdir) Create(_ context.Context,
@@ -97,8 +99,23 @@ type HostVolumePluginExternal struct {
 	log hclog.Logger
 }
 
-func (p *HostVolumePluginExternal) Version(_ context.Context) (string, error) {
-	return "0.0.1", nil // db TODO(1.10.0): call the plugin, use in fingerprint
+func (p *HostVolumePluginExternal) Version(ctx context.Context) (*version.Version, error) {
+	cmd := exec.CommandContext(ctx, p.Executable, "version")
+	cmd.Env = []string{"OPERATION=version"}
+	stdout, stderr, err := runCommand(cmd)
+	if err != nil {
+		p.log.Debug("error with plugin",
+			"operation", "version",
+			"stdout", string(stdout),
+			"stderr", string(stderr),
+			"error", err)
+		return nil, fmt.Errorf("error getting version from plugin %q: %w", p.ID, err)
+	}
+	v, err := version.NewVersion(strings.TrimSpace(string(stdout)))
+	if err != nil {
+		return nil, fmt.Errorf("error with version from plugin: %w", err)
+	}
+	return v, nil
 }
 
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
@@ -118,7 +135,7 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 
 	stdout, _, err := p.runPlugin(ctx, "create", req.ID, envVars)
 	if err != nil {
-		return nil, fmt.Errorf("error creating volume %q with plugin %q: %w", req.ID, req.PluginID, err)
+		return nil, fmt.Errorf("error creating volume %q with plugin %q: %w", req.ID, p.ID, err)
 	}
 
 	var pluginResp HostVolumePluginCreateResponse
@@ -143,7 +160,7 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 
 	_, _, err = p.runPlugin(ctx, "delete", req.ID, envVars)
 	if err != nil {
-		return fmt.Errorf("error deleting volume %q with plugin %q: %w", req.ID, req.PluginID, err)
+		return fmt.Errorf("error deleting volume %q with plugin %q: %w", req.ID, p.ID, err)
 	}
 	return nil
 }
@@ -166,10 +183,23 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 		"HOST_PATH=" + path,
 	}, env...)
 
+	stdout, stderr, err = runCommand(cmd)
+
+	log = log.With(
+		"stdout", string(stdout),
+		"stderr", string(stderr),
+	)
+	if err != nil {
+		log.Debug("error with plugin", "error", err)
+		return stdout, stderr, err
+	}
+	log.Debug("plugin ran successfully")
+	return stdout, stderr, nil
+}
+
+func runCommand(cmd *exec.Cmd) (stdout, stderr []byte, err error) {
 	var errBuf bytes.Buffer
 	cmd.Stderr = io.Writer(&errBuf)
-
-	// run the command and capture output
 	mErr := &multierror.Error{}
 	stdout, err = cmd.Output()
 	if err != nil {
@@ -179,16 +209,5 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	if err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
-
-	log = log.With(
-		"stdout", string(stdout),
-		"stderr", string(stderr),
-	)
-	if mErr.ErrorOrNil() != nil {
-		err = helper.FlattenMultierror(mErr)
-		log.Debug("error with plugin", "error", err)
-		return stdout, stderr, err
-	}
-	log.Debug("plugin ran successfully")
-	return stdout, stderr, nil
+	return stdout, stderr, helper.FlattenMultierror(mErr.ErrorOrNil())
 }
