@@ -75,7 +75,7 @@ func (s *StateStore) UpsertHostVolumes(index uint64, volumes []*structs.HostVolu
 		}
 
 		// If the fingerprint is written from the node before the create RPC
-		// handler completes, we'll never update from the initial pending , so
+		// handler completes, we'll never update from the initial pending, so
 		// reconcile that here
 		node, err := s.NodeByID(nil, v.NodeID)
 		if err != nil {
@@ -189,4 +189,36 @@ func (s *StateStore) hostVolumesIter(ws memdb.WatchSet, index string, sort SortO
 
 	ws.Add(iter.WatchCh())
 	return iter, nil
+}
+
+// upsertHostVolumeForNode sets newly fingerprinted host volumes to ready state
+func upsertHostVolumeForNode(txn *txn, node *structs.Node, index uint64) error {
+	if len(node.HostVolumes) == 0 {
+		return nil
+	}
+	iter, err := txn.Get(TableHostVolumes, indexNodeID, node.ID)
+	if err != nil {
+		return err
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			return nil
+		}
+		vol := raw.(*structs.HostVolume)
+		switch vol.State {
+		case structs.HostVolumeStateUnknown, structs.HostVolumeStatePending:
+			if _, ok := node.HostVolumes[vol.Name]; ok {
+				vol = vol.Copy()
+				vol.State = structs.HostVolumeStateReady
+				vol.ModifyIndex = index
+				err = txn.Insert(TableHostVolumes, vol)
+				if err != nil {
+					return fmt.Errorf("host volume insert: %w", err)
+				}
+			}
+		default:
+			// don't touch ready or soft-deleted volumes
+		}
+	}
 }
