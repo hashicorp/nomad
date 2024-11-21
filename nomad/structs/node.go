@@ -65,7 +65,15 @@ func (t *CSITopology) Equal(o *CSITopology) bool {
 	if t == nil || o == nil {
 		return t == o
 	}
-	return maps.Equal(t.Segments, o.Segments)
+
+	// check this segments is a superset of other topology's segments
+	for k, ov := range o.Segments {
+		if tv, ok := t.Segments[k]; !ok || tv != ov {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (t *CSITopology) MatchFound(o []*CSITopology) bool {
