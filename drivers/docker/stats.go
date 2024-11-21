@@ -15,7 +15,8 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
-	"github.com/hashicorp/nomad/helper"
+
+	//"github.com/hashicorp/nomad/helper"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -93,34 +94,9 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration, compute 
 func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, interval time.Duration, compute cpustats.Compute) {
 	defer destCh.close()
 
-	timer, cancel := helper.NewSafeTimer(interval)
-	defer cancel()
-
-	// we need to use the streaming stats API here because our calculation for
-	// CPU usage depends on having the values from the previous read, which are
-	// not available in one-shot
-	statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, true)
-	if err != nil && err != io.EOF {
-		h.logger.Debug("error collecting stats from container", "error", err)
-		return
-	}
-	defer statsReader.Body.Close()
-
-	collectOnce := func() {
-		defer timer.Reset(interval)
-		var stats *containerapi.Stats
-		err := json.NewDecoder(statsReader.Body).Decode(&stats)
-		if err != nil && err != io.EOF {
-			h.logger.Debug("error decoding stats data from container", "error", err)
-			return
-		}
-		if stats == nil {
-			h.logger.Debug("error decoding stats data: stats were nil")
-			return
-		}
-		resourceUsage := util.DockerStatsToTaskResourceUsage(stats, compute)
-		destCh.send(resourceUsage)
-	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	var stats *containerapi.Stats
 
 	for {
 		select {
@@ -128,8 +104,32 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 			return
 		case <-h.doneCh:
 			return
-		case <-timer.C:
-			collectOnce()
+		case <-ticker.C:
+			// we need to use the streaming stats API here because our calculation for
+			// CPU usage depends on having the values from the previous read, which are
+			// not available in one-shot. This streaming stats can be reused over time,
+			// but require synchronization, which restricts the interval for the metrics.
+			statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, true)
+			if err != nil && err != io.EOF {
+				h.logger.Debug("error collecting stats from container", "error", err)
+				return
+			}
+
+			err = json.NewDecoder(statsReader.Body).Decode(&stats)
+			statsReader.Body.Close()
+			if err != nil && err != io.EOF {
+				h.logger.Error("error decoding stats data from container", "error", err)
+				return
+			}
+
+			if stats == nil {
+				h.logger.Error("error decoding stats data: stats were nil")
+				return
+			}
+
+			resourceUsage := util.DockerStatsToTaskResourceUsage(stats, compute)
+			destCh.send(resourceUsage)
+
 		}
 	}
 }
