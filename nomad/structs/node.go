@@ -61,12 +61,11 @@ func (t *CSITopology) Copy() *CSITopology {
 	}
 }
 
-func (t *CSITopology) Equal(o *CSITopology) bool {
+func (t *CSITopology) EqualOrContains(o *CSITopology) bool {
 	if t == nil || o == nil {
 		return t == o
 	}
 
-	// check this segments is a superset of other topology's segments
 	for k, ov := range o.Segments {
 		if tv, ok := t.Segments[k]; !ok || tv != ov {
 			return false
@@ -82,7 +81,7 @@ func (t *CSITopology) MatchFound(o []*CSITopology) bool {
 	}
 
 	for _, other := range o {
-		if t.Equal(other) {
+		if t.EqualOrContains(other) {
 			return true
 		}
 	}
