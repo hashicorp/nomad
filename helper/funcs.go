@@ -387,6 +387,28 @@ func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 	return t, cancel
 }
 
+// NewSafeTicker creates a time.Ticker but does not panic if duration is <= 0.
+//
+// Returns the time.Ticker and also a StopFunc, forcing the caller to deal
+// with stopping the time.Ticker to avoid leaking a goroutine.
+
+func NewSafeTicker(duration time.Duration) (*time.Ticker, StopFunc) {
+	if duration <= 0 {
+		// Avoid panic by using the smallest positive value. This is close enough
+		// to the behavior of time.After(0), which this helper is intended to
+		// replace.
+		// https://go.dev/play/p/EIkm9MsPbHY
+		duration = 1
+	}
+
+	t := time.NewTicker(duration)
+	cancel := func() {
+		t.Stop()
+	}
+
+	return t, cancel
+}
+
 // NewStoppedTimer creates a time.Timer in a stopped state. This is useful when
 // the actual wait time will computed and set later via Reset.
 func NewStoppedTimer() (*time.Timer, StopFunc) {
