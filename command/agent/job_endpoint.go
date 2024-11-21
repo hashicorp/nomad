@@ -8,6 +8,7 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -493,13 +494,21 @@ func (s *HTTPServer) jobSubmissionQuery(resp http.ResponseWriter, req *http.Requ
 	}
 
 	var out structs.JobSubmissionResponse
-	if err := s.agent.RPC("Job.GetJobSubmission", &args, &out); err != nil {
+	err := s.agent.RPC("Job.GetJobSubmission", &args, &out)
+	if err != nil {
 		return nil, err
 	}
 
 	setMeta(resp, &out.QueryMeta)
 	if out.Submission == nil {
 		return nil, CodedError(404, "job source not found")
+	}
+
+	for k, v := range out.Submission.VariableFlags {
+		out.Submission.VariableFlags[k], err = url.QueryUnescape(v)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return out.Submission, nil
