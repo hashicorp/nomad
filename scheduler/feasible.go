@@ -752,12 +752,12 @@ func (iter *DistinctPropertyIterator) Reset() {
 // given set of constraints. This is used to filter on job, task group, and task
 // constraints.
 type ConstraintChecker struct {
-	ctx         Context
+	ctx         ConstraintContext
 	constraints []*structs.Constraint
 }
 
 // NewConstraintChecker creates a ConstraintChecker for a set of constraints
-func NewConstraintChecker(ctx Context, constraints []*structs.Constraint) *ConstraintChecker {
+func NewConstraintChecker(ctx ConstraintContext, constraints []*structs.Constraint) *ConstraintChecker {
 	return &ConstraintChecker{
 		ctx:         ctx,
 		constraints: constraints,
@@ -830,7 +830,7 @@ func resolveTarget(target string, node *structs.Node) (string, bool) {
 
 // checkConstraint checks if a constraint is satisfied. The lVal and rVal
 // interfaces may be nil.
-func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
+func checkConstraint(ctx ConstraintContext, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
@@ -852,14 +852,14 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound
 		return !lFound
 	case structs.ConstraintVersion:
 		parser := newVersionConstraintParser(ctx)
-		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
+		return lFound && rFound && checkVersionMatch(parser, lVal, rVal)
 	case structs.ConstraintSemver:
 		parser := newSemverConstraintParser(ctx)
-		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
+		return lFound && rFound && checkVersionMatch(parser, lVal, rVal)
 	case structs.ConstraintRegex:
 		return lFound && rFound && checkRegexpMatch(ctx, lVal, rVal)
 	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
-		return lFound && rFound && checkSetContainsAll(ctx, lVal, rVal)
+		return lFound && rFound && checkSetContainsAll(lVal, rVal)
 	case structs.ConstraintSetContainsAny:
 		return lFound && rFound && checkSetContainsAny(lVal, rVal)
 	default:
@@ -943,7 +943,7 @@ func compareOrder[T cmp.Ordered](op string, left, right T) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(_ Context, parse verConstraintParser, lVal, rVal interface{}) bool {
+func checkVersionMatch(parse verConstraintParser, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -979,7 +979,7 @@ func checkVersionMatch(_ Context, parse verConstraintParser, lVal, rVal interfac
 
 // checkAttributeVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkAttributeVersionMatch(_ Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
+func checkAttributeVersionMatch(parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
 	// Parse the version
 	var versionStr string
 	if s, ok := lVal.GetString(); ok {
@@ -1014,7 +1014,7 @@ func checkAttributeVersionMatch(_ Context, parse verConstraintParser, lVal, rVal
 
 // checkRegexpMatch is used to compare a value on the
 // left hand side with a regexp on the right hand side
-func checkRegexpMatch(ctx Context, lVal, rVal interface{}) bool {
+func checkRegexpMatch(ctx ConstraintContext, lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1047,7 +1047,7 @@ func checkRegexpMatch(ctx Context, lVal, rVal interface{}) bool {
 
 // checkSetContainsAll is used to see if the left hand side contains the
 // string on the right hand side
-func checkSetContainsAll(_ Context, lVal, rVal interface{}) bool {
+func checkSetContainsAll(lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1424,7 +1424,7 @@ func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstruc
 
 // checkAttributeConstraint checks if a constraint is satisfied. nil equality
 // comparisons are considered to be false.
-func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs.Attribute, lFound, rFound bool) bool {
+func checkAttributeConstraint(ctx ConstraintContext, operand string, lVal, rVal *psstructs.Attribute, lFound, rFound bool) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
@@ -1484,7 +1484,7 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		}
 
 		parser := newVersionConstraintParser(ctx)
-		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+		return checkAttributeVersionMatch(parser, lVal, rVal)
 
 	case structs.ConstraintSemver:
 		if !(lFound && rFound) {
@@ -1492,7 +1492,7 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		}
 
 		parser := newSemverConstraintParser(ctx)
-		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+		return checkAttributeVersionMatch(parser, lVal, rVal)
 
 	case structs.ConstraintRegex:
 		if !(lFound && rFound) {
@@ -1516,7 +1516,7 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 			return false
 		}
 
-		return checkSetContainsAll(ctx, ls, rs)
+		return checkSetContainsAll(ls, rs)
 	case structs.ConstraintSetContainsAny:
 		if !(lFound && rFound) {
 			return false
@@ -1550,7 +1550,7 @@ type VerConstraints interface {
 // or semver).
 type verConstraintParser func(verConstraint string) VerConstraints
 
-func newVersionConstraintParser(ctx Context) verConstraintParser {
+func newVersionConstraintParser(ctx ConstraintContext) verConstraintParser {
 	cache := ctx.VersionConstraintCache()
 
 	return func(cstr string) VerConstraints {
@@ -1568,7 +1568,7 @@ func newVersionConstraintParser(ctx Context) verConstraintParser {
 	}
 }
 
-func newSemverConstraintParser(ctx Context) verConstraintParser {
+func newSemverConstraintParser(ctx ConstraintContext) verConstraintParser {
 	cache := ctx.SemverConstraintCache()
 
 	return func(cstr string) VerConstraints {
