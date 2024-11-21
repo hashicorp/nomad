@@ -527,9 +527,7 @@ func TestCoreScheduler_EvalGC_Batch(t *testing.T) {
 
 	// set a shorter GC threshold this time
 	gc = s1.coreJobEval(structs.CoreJobEvalGC, jobModifyIdx*2)
-	core.(*CoreScheduler).customBatchEvalGCThreshold = time.Minute
-	//core.(*CoreScheduler).customEvalGCThreshold = time.Minute
-	//core.(*CoreScheduler).customJobGCThreshold = time.Minute
+	core.(*CoreScheduler).customThresholdForObject[structs.CoreJobEvalGC] = pointer.Of(time.Minute)
 	must.NoError(t, core.Process(gc))
 
 	// We expect the following:
@@ -2513,7 +2511,7 @@ func TestCoreScheduler_CSIVolumeClaimGC(t *testing.T) {
 	index++
 	gc := srv.coreJobEval(structs.CoreJobForceGC, index)
 	c := core.(*CoreScheduler)
-	require.NoError(t, c.csiVolumeClaimGC(gc))
+	require.NoError(t, c.csiVolumeClaimGC(gc, nil))
 
 	// the only remaining claim is for a deleted alloc with no path to
 	// the non-existent node, so volumewatcher will release the
@@ -2551,7 +2549,7 @@ func TestCoreScheduler_CSIBadState_ClaimGC(t *testing.T) {
 	index++
 	gc := srv.coreJobEval(structs.CoreJobForceGC, index)
 	c := core.(*CoreScheduler)
-	must.NoError(t, c.csiVolumeClaimGC(gc))
+	must.NoError(t, c.csiVolumeClaimGC(gc, nil))
 
 	vol, err := srv.State().CSIVolumeByID(nil, structs.DefaultNamespace, "csi-volume-nfs0")
 	must.NoError(t, err)

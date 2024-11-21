@@ -34,15 +34,15 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	job := mock.Job()
 	job.Type = structs.JobTypeBatch
 	job.Stop = true
-	// submit time must be older than default job GC
-	job.SubmitTime = time.Now().Add(-6 * time.Hour).UnixNano()
+	// set submit time older than now but still newer than default GC threshold
+	job.SubmitTime = time.Now().Add(-10 * time.Millisecond).UnixNano()
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, job))
 
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
 	eval.JobID = job.ID
-	// modify time must be older than default eval GC
-	eval.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
+	// set modify time older than now but still newer than default GC threshold
+	eval.ModifyTime = time.Now().Add(-10 * time.Millisecond).UnixNano()
 	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}))
 
 	// Make the GC request
