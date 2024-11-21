@@ -167,16 +167,14 @@ func TestNodeMeta_Validate(t *testing.T) {
 func TestCSITopology_Contains(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	cases := []struct {
 		name     string
 		this     *CSITopology
 		other    *CSITopology
 		expected bool
-		errorMsg string
 	}{
 		{
-			name: "pre 1.27 behavior",
+			name: "AWS EBS pre 1.27 behavior",
 			this: &CSITopology{
 				Segments: map[string]string{
 					"topology.ebs.csi.aws.com/zone": "us-east-1a",
@@ -188,10 +186,9 @@ func TestCSITopology_Contains(t *testing.T) {
 				},
 			},
 			expected: true,
-			errorMsg: "pre 1.27 behavior should pass",
 		},
 		{
-			name: "post 1.27 behavior",
+			name: "AWS EBS post 1.27 behavior",
 			this: &CSITopology{
 				Segments: map[string]string{
 					"topology.kubernetes.io/zone":   "us-east-1a",
@@ -205,10 +202,9 @@ func TestCSITopology_Contains(t *testing.T) {
 				},
 			},
 			expected: true,
-			errorMsg: "post 1.27 behavior should pass",
 		},
 		{
-			name: "invalid case 1",
+			name: "other contains invalid segment value for matched key",
 			this: &CSITopology{
 				Segments: map[string]string{
 					"topology.kubernetes.io/zone":   "us-east-1a",
@@ -223,10 +219,9 @@ func TestCSITopology_Contains(t *testing.T) {
 				},
 			},
 			expected: false,
-			errorMsg: "invalid case 1 should not pass",
 		},
 		{
-			name: "invalid case 2",
+			name: "other contains invalid segment key",
 			this: &CSITopology{
 				Segments: map[string]string{
 					"topology.kubernetes.io/zone": "us-east-1a",
@@ -239,10 +234,9 @@ func TestCSITopology_Contains(t *testing.T) {
 				},
 			},
 			expected: false,
-			errorMsg: "invalid case 2 should not pass",
 		},
 		{
-			name: "invalid case 3",
+			name: "other is nil",
 			this: &CSITopology{
 				Segments: map[string]string{
 					"topology.kubernetes.io/zone": "us-east-1a",
@@ -250,14 +244,12 @@ func TestCSITopology_Contains(t *testing.T) {
 			},
 			other:    nil,
 			expected: false,
-			errorMsg: "invalid case 3 should not pass",
 		},
 	}
 
-	for i := range cases {
-		tc := cases[i]
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(tc.expected, tc.this.Contains(tc.other), tc.errorMsg)
+			must.Eq(t, tc.expected, tc.this.Contains(tc.other))
 		})
 	}
 
