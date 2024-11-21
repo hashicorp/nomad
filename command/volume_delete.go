@@ -40,7 +40,7 @@ Delete Options:
 
   -secret
     Secrets to pass to the plugin to delete the snapshot. Accepts multiple
-    flags in the form -secret key=value
+    flags in the form -secret key=value. Only available for CSI volumes.
 
   -type <type>
     Type of volume to delete. Must be one of "csi" or "host". Defaults to "csi".
@@ -50,7 +50,10 @@ Delete Options:
 
 func (c *VolumeDeleteCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
-		complete.Flags{})
+		complete.Flags{
+			"-type":   complete.PredictSet("csi", "host"),
+			"-secret": complete.PredictNothing,
+		})
 }
 
 func (c *VolumeDeleteCommand) AutocompleteArgs() complete.Predictor {
@@ -66,11 +69,11 @@ func (c *VolumeDeleteCommand) AutocompleteArgs() complete.Predictor {
 		}
 		matches := resp.Matches[contexts.Volumes]
 
-		resp, _, err = client.Search().PrefixSearch(a.Last, contexts.Nodes, nil)
+		resp, _, err = client.Search().PrefixSearch(a.Last, contexts.HostVolumes, nil)
 		if err != nil {
 			return []string{}
 		}
-		matches = append(matches, resp.Matches[contexts.Nodes]...)
+		matches = append(matches, resp.Matches[contexts.HostVolumes]...)
 		return matches
 	})
 }

@@ -69,15 +69,13 @@ func (c *VolumeStatusCommand) Synopsis() string {
 func (c *VolumeStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":    predictVolumeType,
-			"-short":   complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
-
-			// TODO(1.10.0): wire-up predictions for nodes and node pools
-			"-node":      complete.PredictNothing,
-			"-node-pool": complete.PredictNothing,
+			"-type":      complete.PredictSet("csi", "host"),
+			"-short":     complete.PredictNothing,
+			"-verbose":   complete.PredictNothing,
+			"-json":      complete.PredictNothing,
+			"-t":         complete.PredictAnything,
+			"-node":      nodePredictor(c.Client, nil),
+			"-node-pool": nodePoolPredictor(c.Client, nil),
 		})
 }
 
@@ -92,7 +90,14 @@ func (c *VolumeStatusCommand) AutocompleteArgs() complete.Predictor {
 		if err != nil {
 			return []string{}
 		}
-		return resp.Matches[contexts.Volumes]
+		matches := resp.Matches[contexts.Volumes]
+
+		resp, _, err = client.Search().PrefixSearch(a.Last, contexts.HostVolumes, nil)
+		if err != nil {
+			return []string{}
+		}
+		matches = append(matches, resp.Matches[contexts.HostVolumes]...)
+		return matches
 	})
 }
 
