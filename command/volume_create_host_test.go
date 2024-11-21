@@ -11,13 +11,16 @@ import (
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 )
 
 func TestHostVolumeCreateCommand_Run(t *testing.T) {
 	ci.Parallel(t)
-	srv, client, url := testServer(t, true, nil)
+	srv, client, url := testServer(t, true, func(c *agent.Config) {
+		c.Client.Meta = map[string]string{"rack": "foo"}
+	})
 	t.Cleanup(srv.Shutdown)
 
 	waitForNodes(t, client)
@@ -37,11 +40,6 @@ node_pool = "default"
 
 capacity_min = "10GiB"
 capacity_max = "20G"
-
-constraint {
-  attribute = "${attr.kernel.name}"
-  value     = "linux"
-}
 
 constraint {
   attribute = "${meta.rack}"

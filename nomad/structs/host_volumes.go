@@ -159,6 +159,12 @@ func (hv *HostVolume) Validate() error {
 		if err := constraint.Validate(); err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf("invalid constraint: %v", err))
 		}
+		switch constraint.Operand {
+		case ConstraintDistinctHosts, ConstraintDistinctProperty:
+			mErr = multierror.Append(mErr, fmt.Errorf(
+				"invalid constraint %s: host volumes of the same name are always on distinct hosts", constraint.Operand))
+		default:
+		}
 	}
 
 	return mErr.ErrorOrNil()

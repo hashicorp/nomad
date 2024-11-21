@@ -87,6 +87,8 @@ func (s *StateStore) UpsertHostVolumes(index uint64, volumes []*structs.HostVolu
 		if _, ok := node.HostVolumes[v.Name]; ok {
 			v.State = structs.HostVolumeStateReady
 		}
+		// Register RPCs for new volumes may not have the node pool set
+		v.NodePool = node.NodePool
 
 		// Allocations are denormalized on read, so we don't want these to be
 		// written to the state store.

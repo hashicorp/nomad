@@ -6,6 +6,7 @@ package nomad
 import (
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler"
 )
 
 // HostVolume is the server RPC endpoint for host volumes
@@ -425,28 +427,12 @@ func (v *HostVolume) validateVolumeForState(vol *structs.HostVolume, snap *state
 
 func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 
-	// TODO(1.10.0): proper node selection based on constraints and node
-	// pool. Also, should we move this into the validator step?
-	if vol.NodeID == "" {
-		var iter memdb.ResultIterator
-		var err error
-		var raw any
-		if vol.NodePool != "" {
-			iter, err = v.srv.State().NodesByNodePool(nil, vol.NodePool)
-		} else {
-			iter, err = v.srv.State().Nodes(nil)
-		}
-		if err != nil {
-			return err
-		}
-		raw = iter.Next()
-		if raw == nil {
-			return fmt.Errorf("no node meets constraints for volume")
-		}
-
-		node := raw.(*structs.Node)
-		vol.NodeID = node.ID
+	node, err := v.placeHostVolume(vol)
+	if err != nil {
+		return fmt.Errorf("could not place volume %q: %w", vol.Name, err)
 	}
+	vol.NodeID = node.ID
+	vol.NodePool = node.NodePool
 
 	method := "ClientHostVolume.Create"
 	cReq := &cstructs.ClientHostVolumeCreateRequest{
@@ -459,7 +445,7 @@ func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 		Parameters:                vol.Parameters,
 	}
 	cResp := &cstructs.ClientHostVolumeCreateResponse{}
-	err := v.srv.RPC(method, cReq, cResp)
+	err = v.srv.RPC(method, cReq, cResp)
 	if err != nil {
 		return err
 	}
@@ -472,6 +458,80 @@ func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 	vol.CapacityBytes = cResp.CapacityBytes
 
 	return nil
+}
+
+// placeHostVolume finds a node that matches the node pool and constraints,
+// which doesn't already have a volume by that name. It returns a non-nil Node
+// or an error indicating placement failed.
+func (v *HostVolume) placeHostVolume(vol *structs.HostVolume) (*structs.Node, error) {
+
+	var iter memdb.ResultIterator
+	var err error
+	if vol.NodePool != "" {
+		iter, err = v.srv.State().NodesByNodePool(nil, vol.NodePool)
+	} else {
+		iter, err = v.srv.State().Nodes(nil)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	var checker *scheduler.ConstraintChecker
+
+	if len(vol.Constraints) > 0 {
+		ctx := &placementContext{
+			regexpCache:  make(map[string]*regexp.Regexp),
+			versionCache: make(map[string]scheduler.VerConstraints),
+			semverCache:  make(map[string]scheduler.VerConstraints),
+		}
+		checker = scheduler.NewConstraintChecker(ctx, vol.Constraints)
+	}
+
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		candidate := raw.(*structs.Node)
+
+		// note: this is a race if multiple users create volumes of the same
+		// name concurrently, but we can't solve it on the server because we
+		// haven't yet written to state. The client will reject requests to
+		// create/register a volume with the same name with a different ID.
+		if _, hasVol := candidate.HostVolumes[vol.Name]; hasVol {
+			continue
+		}
+
+		if checker != nil {
+			if ok := checker.Feasible(candidate); !ok {
+				continue
+			}
+		}
+
+		return candidate, nil
+	}
+
+	return nil, fmt.Errorf("no node meets constraints")
+}
+
+// placementContext implements the scheduler.ConstraintContext interface, a
+// minimal subset of the scheduler.Context interface that we need to create a
+// feasibility checker for constraints
+type placementContext struct {
+	regexpCache  map[string]*regexp.Regexp
+	versionCache map[string]scheduler.VerConstraints
+	semverCache  map[string]scheduler.VerConstraints
+}
+
+func (ctx *placementContext) Metrics() *structs.AllocMetric          { return &structs.AllocMetric{} }
+func (ctx *placementContext) RegexpCache() map[string]*regexp.Regexp { return ctx.regexpCache }
+
+func (ctx *placementContext) VersionConstraintCache() map[string]scheduler.VerConstraints {
+	return ctx.versionCache
+}
+
+func (ctx *placementContext) SemverConstraintCache() map[string]scheduler.VerConstraints {
+	return ctx.semverCache
 }
 
 func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *structs.HostVolumeDeleteResponse) error {
