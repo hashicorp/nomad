@@ -61,6 +61,14 @@ func (t *CSITopology) Copy() *CSITopology {
 	}
 }
 
+func (t *CSITopology) Equal(o *CSITopology) bool {
+	if t == nil || o == nil {
+		return t == o
+	}
+	return maps.Equal(t.Segments, o.Segments)
+}
+
+
 func (t *CSITopology) EqualOrContains(o *CSITopology) bool {
 	if t == nil || o == nil {
 		return t == o

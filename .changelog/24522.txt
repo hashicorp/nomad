@@ -1,0 +1,3 @@
+```release-note:bug
+csi: fix compatibility issue with aws-ebs-csi driver > 1.26.1
+```
