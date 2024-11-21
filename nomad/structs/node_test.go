@@ -163,3 +163,102 @@ func TestNodeMeta_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestCSITopology_Contains(t *testing.T) {
+	ci.Parallel(t)
+
+	require := require.New(t)
+	cases := []struct {
+		name     string
+		this     *CSITopology
+		other    *CSITopology
+		expected bool
+		errorMsg string
+	}{
+		{
+			name: "pre 1.27 behavior",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.ebs.csi.aws.com/zone": "us-east-1a",
+				},
+			},
+			other: &CSITopology{
+				Segments: map[string]string{
+					"topology.ebs.csi.aws.com/zone": "us-east-1a",
+				},
+			},
+			expected: true,
+			errorMsg: "pre 1.27 behavior should pass",
+		},
+		{
+			name: "post 1.27 behavior",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone":   "us-east-1a",
+					"topology.ebs.csi.aws.com/zone": "us-east-1a",
+					"kubernetes.io/os":              "linux",
+				},
+			},
+			other: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+				},
+			},
+			expected: true,
+			errorMsg: "post 1.27 behavior should pass",
+		},
+		{
+			name: "invalid case 1",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone":   "us-east-1a",
+					"topology.ebs.csi.aws.com/zone": "us-east-1a",
+					"kubernetes.io/os":              "linux",
+				},
+			},
+			other: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+					"kubernetes.io/os":            "windows",
+				},
+			},
+			expected: false,
+			errorMsg: "invalid case 1 should not pass",
+		},
+		{
+			name: "invalid case 2",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+				},
+			},
+			other: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+					"kubernetes.io/os":            "linux",
+				},
+			},
+			expected: false,
+			errorMsg: "invalid case 2 should not pass",
+		},
+		{
+			name: "invalid case 3",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+				},
+			},
+			other:    nil,
+			expected: false,
+			errorMsg: "invalid case 3 should not pass",
+		},
+	}
+
+	for i := range cases {
+		tc := cases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(tc.expected, tc.this.Contains(tc.other), tc.errorMsg)
+		})
+	}
+
+}
