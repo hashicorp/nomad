@@ -7768,6 +7768,124 @@ func TestAllocatedResources_Comparable_Flattened(t *testing.T) {
 				Hook:    TaskLifecycleHookPrestart,
 				Sidecar: false,
 			},
+			"poststop-task": {
+				Hook:    TaskLifecycleHookPoststop,
+				Sidecar: false,
+			},
+		},
+		Tasks: map[string]*AllocatedTaskResources{
+			"prestart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 2000,
+				},
+			},
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 4000,
+				},
+			},
+			"poststop-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 1000,
+				},
+			},
+		},
+	}
+
+	// The output of Flattened should return the resource required during the execution of the largest lifecycle
+	must.Eq(t, 4000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 0, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+
+	allocationResources = AllocatedResources{
+		TaskLifecycles: map[string]*TaskLifecycleConfig{
+			"prestart-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: false,
+			},
+			"prestart-sidecar-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: true,
+			},
+			"poststop-task": {
+				Hook:    TaskLifecycleHookPoststop,
+				Sidecar: false,
+			},
+		},
+		Tasks: map[string]*AllocatedTaskResources{
+			"prestart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     1000,
+					ReservedCores: []uint16{0},
+				},
+			},
+			"prestart-sidecar-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{1, 2},
+				},
+			},
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{3, 4},
+				},
+			},
+			"poststop-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     1000,
+					ReservedCores: []uint16{5},
+				},
+			},
+		},
+	}
+
+	// Reserved core resources are claimed throughout the lifespan of the allocation
+	must.Eq(t, 6000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 6, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+
+	allocationResources = AllocatedResources{
+		TaskLifecycles: map[string]*TaskLifecycleConfig{
+			"prestart-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: false,
+			},
+			"poststop-task": {
+				Hook:    TaskLifecycleHookPoststop,
+				Sidecar: false,
+			},
+		},
+		Tasks: map[string]*AllocatedTaskResources{
+			"prestart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 1000,
+				},
+			},
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{1, 2},
+				},
+			},
+			"poststop-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 1000,
+				},
+			},
+		},
+	}
+
+	// Reserved core resources are claimed throughout the lifespan of the allocation,
+	// but the prestart and poststop task can reuse the CpuShares. It's important to
+	// note that we will only claim 1000 MHz as part of the share slice.
+	must.Eq(t, 3000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 2, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+
+	allocationResources = AllocatedResources{
+		TaskLifecycles: map[string]*TaskLifecycleConfig{
+			"prestart-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: false,
+			},
 			"prestart-sidecar-task": {
 				Hook:    TaskLifecycleHookPrestart,
 				Sidecar: true,
@@ -7816,8 +7934,8 @@ func TestAllocatedResources_Comparable_Flattened(t *testing.T) {
 	}
 
 	// The output of Flattened should return the resource required during the execution of the largest lifecycle
-	must.Eq(t, 5000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
-	must.Len(t, 5, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+	must.Eq(t, 9000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 9, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
 }
 
 func requireErrors(t *testing.T, err error, expected ...string) {

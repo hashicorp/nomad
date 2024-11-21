@@ -3856,35 +3856,45 @@ func (a *AllocatedResources) Comparable() *ComparableResources {
 		Shared: a.Shared,
 	}
 
-	prestartSidecarTasks := &AllocatedTaskResources{}
-	prestartEphemeralTasks := &AllocatedTaskResources{}
-	main := &AllocatedTaskResources{}
-	poststartTasks := &AllocatedTaskResources{}
-	poststopTasks := &AllocatedTaskResources{}
+	// The lifecycle in which a task could run
+	prestartLifecycle := &AllocatedTaskResources{}
+	mainLifecycle := &AllocatedTaskResources{}
+	stopLifecycle := &AllocatedTaskResources{}
 
-	for taskName, r := range a.Tasks {
-		lc := a.TaskLifecycles[taskName]
-		if lc == nil {
-			main.Add(r)
-		} else if lc.Hook == TaskLifecycleHookPrestart {
-			if lc.Sidecar {
-				prestartSidecarTasks.Add(r)
+	for taskName, taskResources := range a.Tasks {
+		taskLifecycle := a.TaskLifecycles[taskName]
+		fungibleTaskResources := taskResources.Copy()
+
+		// Reserved cores (and their respective bandwidth) are not fungible,
+		// hence we should always include it as part of the Flattened resources.
+		if len(fungibleTaskResources.Cpu.ReservedCores) > 0 {
+			c.Flattened.Cpu.Add(&fungibleTaskResources.Cpu)
+			fungibleTaskResources.Cpu = AllocatedCpuResources{}
+		}
+
+		if taskLifecycle == nil {
+			mainLifecycle.Add(fungibleTaskResources)
+		} else if taskLifecycle.Hook == TaskLifecycleHookPrestart {
+			if taskLifecycle.Sidecar {
+				// These tasks span both the prestart and main lifecycle
+				prestartLifecycle.Add(fungibleTaskResources)
+				mainLifecycle.Add(fungibleTaskResources)
 			} else {
-				prestartEphemeralTasks.Add(r)
+				prestartLifecycle.Add(fungibleTaskResources)
 			}
-		} else if lc.Hook == TaskLifecycleHookPoststart {
-			poststartTasks.Add(r)
-		} else if lc.Hook == TaskLifecycleHookPoststop {
-			poststopTasks.Add(r)
+		} else if taskLifecycle.Hook == TaskLifecycleHookPoststart {
+			mainLifecycle.Add(fungibleTaskResources)
+		} else if taskLifecycle.Hook == TaskLifecycleHookPoststop {
+			stopLifecycle.Add(fungibleTaskResources)
 		}
 	}
 
-	// update this loop to account for lifecycle hook
-	main.Add(poststartTasks)
-	prestartEphemeralTasks.Max(main)
-	prestartEphemeralTasks.Max(poststopTasks)
-	prestartSidecarTasks.Add(prestartEphemeralTasks)
-	c.Flattened.Add(prestartSidecarTasks)
+	// Update the main lifecycle to reflect the largest fungible resource set
+	mainLifecycle.Max(prestartLifecycle)
+	mainLifecycle.Max(stopLifecycle)
+
+	// Add the fungible resources
+	c.Flattened.Add(mainLifecycle)
 
 	// Add network resources that are at the task group level
 	for _, network := range a.Shared.Networks {
