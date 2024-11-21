@@ -1263,7 +1263,7 @@ func TestCheckVersionConstraint(t *testing.T) {
 	for _, tc := range cases {
 		_, ctx := testContext(t)
 		p := newVersionConstraintParser(ctx)
-		if res := checkVersionMatch(ctx, p, tc.lVal, tc.rVal); res != tc.result {
+		if res := checkVersionMatch(p, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
@@ -1345,7 +1345,7 @@ func TestCheckSemverConstraint(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, ctx := testContext(t)
 			p := newSemverConstraintParser(ctx)
-			actual := checkVersionMatch(ctx, p, tc.lVal, tc.rVal)
+			actual := checkVersionMatch(p, tc.lVal, tc.rVal)
 			must.Eq(t, tc.result, actual)
 		})
 	}
