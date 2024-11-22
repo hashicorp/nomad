@@ -41,6 +41,7 @@ var (
 		structs.ScalingPolicies,
 		structs.Variables,
 		structs.Namespaces,
+		structs.HostVolumes,
 	}
 )
 
@@ -83,6 +84,8 @@ func (s *Search) getPrefixMatches(iter memdb.ResultIterator, prefix string) ([]s
 		case *structs.CSIPlugin:
 			id = t.ID
 		case *structs.CSIVolume:
+			id = t.ID
+		case *structs.HostVolume:
 			id = t.ID
 		case *structs.ScalingPolicy:
 			id = t.ID
@@ -405,6 +408,8 @@ func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix
 		return store.ScalingPoliciesByIDPrefix(ws, namespace, prefix)
 	case structs.Volumes:
 		return store.CSIVolumesByIDPrefix(ws, namespace, prefix)
+	case structs.HostVolumes:
+		return store.HostVolumesByIDPrefix(ws, namespace, prefix, state.SortDefault)
 	case structs.Namespaces:
 		iter, err := store.NamespacesByNamePrefix(ws, prefix)
 		if err != nil {
@@ -684,6 +689,8 @@ func sufficientSearchPerms(aclObj *acl.ACL, namespace string, context structs.Co
 			acl.NamespaceCapabilityCSIReadVolume,
 			acl.NamespaceCapabilityListJobs,
 			acl.NamespaceCapabilityReadJob)(aclObj, namespace)
+	case structs.HostVolumes:
+		return acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)(aclObj, namespace)
 	case structs.Variables:
 		return aclObj.AllowVariableSearch(namespace)
 	case structs.Plugins:
@@ -774,7 +781,8 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 			for _, ctx := range prefixContexts {
 				switch ctx {
 				// only apply on the types that use UUID prefix searching
-				case structs.Evals, structs.Deployments, structs.ScalingPolicies, structs.Volumes, structs.Quotas, structs.Recommendations:
+				case structs.Evals, structs.Deployments, structs.ScalingPolicies,
+					structs.Volumes, structs.HostVolumes, structs.Quotas, structs.Recommendations:
 					iter, err := getResourceIter(ctx, aclObj, namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
 					if err != nil {
 						if !s.silenceError(err) {
@@ -790,7 +798,9 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 			for _, ctx := range fuzzyContexts {
 				switch ctx {
 				// skip the types that use UUID prefix searching
-				case structs.Evals, structs.Deployments, structs.ScalingPolicies, structs.Volumes, structs.Quotas, structs.Recommendations:
+				case structs.Evals, structs.Deployments, structs.ScalingPolicies,
+					structs.Volumes, structs.HostVolumes, structs.Quotas,
+					structs.Recommendations:
 					continue
 				default:
 					iter, err := getFuzzyResourceIterator(ctx, aclObj, namespace, ws, state)
@@ -925,6 +935,11 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 			}
 		case structs.Volumes:
 			if volRead {
+				available = append(available, c)
+			}
+		case structs.HostVolumes:
+			if acl.NamespaceValidator(
+				acl.NamespaceCapabilityHostVolumeRead)(aclObj, namespace) {
 				available = append(available, c)
 			}
 		case structs.Plugins:

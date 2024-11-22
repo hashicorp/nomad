@@ -23,6 +23,7 @@ const (
 	Plugins         Context = "plugins"
 	Variables       Context = "vars"
 	Volumes         Context = "volumes"
+	HostVolumes     Context = "host_volumes"
 
 	// These Context types are used to associate a search result from a lower
 	// level Nomad object with one of the higher level Context types above.
