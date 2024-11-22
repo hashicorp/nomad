@@ -68,13 +68,27 @@ func (t *CSITopology) Equal(o *CSITopology) bool {
 	return maps.Equal(t.Segments, o.Segments)
 }
 
+func (t *CSITopology) Contains(o *CSITopology) bool {
+	if t == nil || o == nil {
+		return t == o
+	}
+
+	for k, ov := range o.Segments {
+		if tv, ok := t.Segments[k]; !ok || tv != ov {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (t *CSITopology) MatchFound(o []*CSITopology) bool {
 	if t == nil || o == nil || len(o) == 0 {
 		return false
 	}
 
 	for _, other := range o {
-		if t.Equal(other) {
+		if t.Contains(other) {
 			return true
 		}
 	}
