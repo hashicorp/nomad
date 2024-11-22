@@ -13,6 +13,13 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.9.4
+
+In Nomad 1.9.4, the default `function_denylist` includes `executeTemplate`, as
+a measure to prevent accidental or malicious infinitely recursive execution.
+Users that require `executeTemplate` should update their
+[configuration](/nomad/docs/job-specification/template#function_denylist).
+
 ## Nomad 1.9.3
 
 In Nomad 1.9.3, the mechanism used for calculating when objects are eligible
