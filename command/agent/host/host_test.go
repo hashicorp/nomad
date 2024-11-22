@@ -25,6 +25,8 @@ func TestMakeHostData(t *testing.T) {
 	t.Setenv("BOGUS_TOKEN", "foo")
 	t.Setenv("BOGUS_SECRET", "foo")
 	t.Setenv("ryanSECRETS", "foo")
+	t.Setenv("CONSUL_LICENSE_PATH", "foo")
+	t.Setenv("AWS_ACCESS_KEY_ID", "foo")
 
 	host, err := MakeHostData()
 	must.NoError(t, err)
@@ -38,4 +40,6 @@ func TestMakeHostData(t *testing.T) {
 	must.Eq(t, "<redacted>", host.Environment["BOGUS_TOKEN"])
 	must.Eq(t, "<redacted>", host.Environment["BOGUS_SECRET"])
 	must.Eq(t, "<redacted>", host.Environment["ryanSECRETS"])
+	must.Eq(t, "<redacted>", host.Environment["CONSUL_LICENSE_PATH"])
+	must.Eq(t, "<redacted>", host.Environment["AWS_ACCESS_KEY_ID"])
 }

@@ -13,6 +13,14 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.9.4
+
+In Nomad 1.9.4, the [default client env deny
+list](/nomad/docs/configuration/client#env-denylist) includes additional
+environment variables to improve security. Users who need some of these secure
+environment variables passed to their tasks should consult the list and
+overwrite it in the configuration.
+
 ## Nomad 1.9.3
 
 In Nomad 1.9.3, the mechanism used for calculating when objects are eligible
