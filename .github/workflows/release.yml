@@ -53,6 +53,8 @@ jobs:
             exit 1
           fi
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
       - name: Retrieve Vault-hosted Secrets
         if: endsWith(github.repository, '-enterprise')
         id: vault
@@ -65,8 +67,7 @@ jobs:
           secrets: |-
             kv/data/github/hashicorp/nomad-enterprise/gha ELEVATED_GITHUB_TOKEN ;
       - name: Git config token
-        if: endsWith(github.repository, '-enterprise')
-        run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
+        run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN || secrets.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
       - name: Git config user/name
         run: |-
           git config --global user.email "github-team-nomad-core@hashicorp.com"
@@ -215,5 +216,5 @@ jobs:
           fi
 
 permissions:
-  contents: write
+  contents: read
   id-token: write
