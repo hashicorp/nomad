@@ -163,6 +163,17 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.NoError(t, err)
 	got = consumeIter(iter)
 	must.MapLen(t, 3, got, must.Sprint(`expected 3 volumes remain`))
+
+	prefix := vol.ID[:30] // sufficiently long prefix to avoid flakes
+	iter, err = store.HostVolumesByIDPrefix(nil, "*", prefix, SortDefault)
+	must.NoError(t, err)
+	got = consumeIter(iter)
+	must.MapLen(t, 1, got, must.Sprint(`expected only one volume to match prefix`))
+
+	iter, err = store.HostVolumesByIDPrefix(nil, vol.Namespace, prefix, SortDefault)
+	must.NoError(t, err)
+	got = consumeIter(iter)
+	must.MapLen(t, 1, got, must.Sprint(`expected only one volume to match prefix`))
 }
 
 func TestStateStore_UpdateHostVolumesFromFingerprint(t *testing.T) {

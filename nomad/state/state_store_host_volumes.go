@@ -5,6 +5,7 @@ package state
 
 import (
 	"fmt"
+	"strings"
 
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -154,6 +155,30 @@ func (s *StateStore) DeleteHostVolumes(index uint64, ns string, ids []string) er
 // snapshot/restore
 func (s *StateStore) HostVolumes(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
 	return s.hostVolumesIter(ws, indexID, sort)
+}
+
+// HostVolumesByIDPrefix retrieves all host volumes by ID prefix. Because the ID
+// index is namespaced, we need to handle the wildcard namespace here as well.
+func (s *StateStore) HostVolumesByIDPrefix(ws memdb.WatchSet, ns, prefix string, sort SortOption) (memdb.ResultIterator, error) {
+
+	if ns != structs.AllNamespacesSentinel {
+		return s.hostVolumesIter(ws, "id_prefix", sort, ns, prefix)
+	}
+
+	// for wildcard namespace, wrap the iterator in a filter function that
+	// filters all volumes by prefix
+	iter, err := s.hostVolumesIter(ws, indexID, sort)
+	if err != nil {
+		return nil, err
+	}
+	wrappedIter := memdb.NewFilterIterator(iter, func(raw any) bool {
+		vol, ok := raw.(*structs.HostVolume)
+		if !ok {
+			return true
+		}
+		return !strings.HasPrefix(vol.ID, prefix)
+	})
+	return wrappedIter, nil
 }
 
 // HostVolumesByName retrieves all host volumes of the same name

@@ -22,6 +22,7 @@ const (
 	Plugins         Context = "plugins"
 	Variables       Context = "vars"
 	Volumes         Context = "volumes"
+	HostVolumes     Context = "host_volumes"
 
 	// Subtypes used in fuzzy matching.
 	Groups   Context = "groups"
