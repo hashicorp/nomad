@@ -97,7 +97,7 @@ func environment() map[string]string {
 // whenever this is changed.
 var DefaultEnvDenyList = []string{
 	// product tokens
-	"CONSUL_HTTP_TOKEN", "CONSUL_HTTP_TOKEN_FILE", "NOMAD_TOKEN", "VAULT_TOKEN",
+	"CONSUL_TOKEN", "CONSUL_HTTP_TOKEN", "CONSUL_HTTP_TOKEN_FILE", "NOMAD_TOKEN", "VAULT_TOKEN",
 	// licenses
 	"CONSUL_LICENSE", "NOMAD_LICENSE", "VAULT_LICENSE",
 	// license paths
