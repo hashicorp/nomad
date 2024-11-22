@@ -75,7 +75,10 @@ func CreateExecutor(
 	return newExecutorClient(config, logger)
 }
 
-// ReattachToExecutor launches a plugin with a given plugin config
+// ReattachToExecutor launches a plugin with a given plugin config and validates it can call the executor.
+// On Windows, go-plugin listens on a localhost port. It is possible on a reboot that another process is
+// listening on that port, and a process is running with the previous executors PID, leading Nomad to kill
+// "random" processes. Fail early via the Version RPC if we detect the listener isn't actually an Executor.
 func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger, compute cpustats.Compute) (Executor, *plugin.Client, error) {
 	config := &plugin.ClientConfig{
 		HandshakeConfig:  base.Handshake,
@@ -84,7 +87,14 @@ func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logg
 		AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 		Logger:           logger.Named("executor"),
 	}
-	return newExecutorClient(config, logger)
+	exec, pluginClient, err := newExecutorClient(config, logger)
+	if err != nil {
+		return nil, nil, err
+	}
+	if _, err := exec.Version(); err != nil {
+		return nil, nil, err
+	}
+	return exec, pluginClient, nil
 }
 
 func newExecutorClient(config *plugin.ClientConfig, logger hclog.Logger) (Executor, *plugin.Client, error) {
