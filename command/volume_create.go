@@ -31,7 +31,22 @@ Usage: nomad volume create [options] <input>
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault)
+  ` + generalOptionsUsage(usageOptsDefault) + `
+
+Create Options:
+
+  -detach
+    Return immediately instead of entering monitor mode for dynamic host
+    volumes. After creating a volume, the volume ID will be printed to the
+    screen, which can be used to examine the volume using the volume status
+    command. If -detach is omitted or false, the command will monitor the state
+    of the volume until it is ready to be scheduled.
+
+  -verbose
+    Display full information when monitoring volume state. Used for dynamic host
+    volumes only.
+
+`
 
 	return strings.TrimSpace(helpText)
 }
@@ -51,7 +66,10 @@ func (c *VolumeCreateCommand) Synopsis() string {
 func (c *VolumeCreateCommand) Name() string { return "volume create" }
 
 func (c *VolumeCreateCommand) Run(args []string) int {
+	var detach, verbose bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.BoolVar(&detach, "detach", false, "detach from monitor")
+	flags.BoolVar(&verbose, "verbose", false, "display full volume IDs")
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -102,7 +120,7 @@ func (c *VolumeCreateCommand) Run(args []string) int {
 	case "csi":
 		return c.csiCreate(client, ast)
 	case "host":
-		return c.hostVolumeCreate(client, ast)
+		return c.hostVolumeCreate(client, ast, detach, verbose)
 	default:
 		c.Ui.Error(fmt.Sprintf("Error unknown volume type: %s", volType))
 		return 1

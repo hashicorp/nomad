@@ -94,7 +94,7 @@ case "$1" in
     create_volume "$host_path" "$CAPACITY_MIN_BYTES"
     # output what Nomad expects
     bytes="$(stat --format='%s' "$host_path.ext4")"
-    printf '{"path": "%s", "bytes": %s}' "$host_path", "$bytes"
+    printf '{"path": "%s", "bytes": %s}' "$host_path" "$bytes"
     ;;
   "delete")
     delete_volume "$host_path" ;;

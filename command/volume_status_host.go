@@ -22,6 +22,14 @@ func (c *VolumeStatusCommand) hostVolumeStatus(client *api.Client, id, nodeID, n
 		return 1
 	}
 
+	opts := formatOpts{
+		verbose:  c.verbose,
+		short:    c.short,
+		length:   c.length,
+		json:     c.json,
+		template: c.template,
+	}
+
 	// get a host volume that matches the given prefix or a list of all matches
 	// if an exact match is not found. note we can't use the shared getByPrefix
 	// helper here because the List API doesn't match the required signature
@@ -32,7 +40,7 @@ func (c *VolumeStatusCommand) hostVolumeStatus(client *api.Client, id, nodeID, n
 		return 1
 	}
 	if len(possible) > 0 {
-		out, err := c.formatHostVolumes(possible)
+		out, err := formatHostVolumes(possible, opts)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
 			return 1
@@ -47,12 +55,12 @@ func (c *VolumeStatusCommand) hostVolumeStatus(client *api.Client, id, nodeID, n
 		return 1
 	}
 
-	str, err := c.formatHostVolume(vol)
+	str, err := formatHostVolume(vol, opts)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error formatting volume: %s", err))
 		return 1
 	}
-	c.Ui.Output(str)
+	c.Ui.Output(c.Colorize().Color(str))
 	return 0
 }
 
@@ -66,13 +74,20 @@ func (c *VolumeStatusCommand) listHostVolumes(client *api.Client, nodeID, nodePo
 		return 1
 	}
 
-	str, err := c.formatHostVolumes(vols)
+	opts := formatOpts{
+		verbose:  c.verbose,
+		short:    c.short,
+		length:   c.length,
+		json:     c.json,
+		template: c.template,
+	}
+
+	str, err := formatHostVolumes(vols, opts)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error formatting volumes: %s", err))
 		return 1
 	}
-	c.Ui.Output(str)
-
+	c.Ui.Output(c.Colorize().Color(str))
 	return 0
 }
 
@@ -108,9 +123,9 @@ func (c *VolumeStatusCommand) getByPrefix(client *api.Client, prefix string) (*a
 	}
 }
 
-func (c *VolumeStatusCommand) formatHostVolume(vol *api.HostVolume) (string, error) {
-	if c.json || len(c.template) > 0 {
-		out, err := Format(c.json, c.template, vol)
+func formatHostVolume(vol *api.HostVolume, opts formatOpts) (string, error) {
+	if opts.json || len(opts.template) > 0 {
+		out, err := Format(opts.json, opts.template, vol)
 		if err != nil {
 			return "", fmt.Errorf("format error: %v", err)
 		}
@@ -130,48 +145,51 @@ func (c *VolumeStatusCommand) formatHostVolume(vol *api.HostVolume) (string, err
 	}
 
 	// Exit early
-	if c.short {
+	if opts.short {
 		return formatKV(output), nil
 	}
 
 	full := []string{formatKV(output)}
 
 	// Format the allocs
-	banner := c.Colorize().Color("\n[bold]Allocations[reset]")
-	allocs := formatAllocListStubs(vol.Allocations, c.verbose, c.length)
+	banner := "\n[bold]Allocations[reset]"
+	allocs := formatAllocListStubs(vol.Allocations, opts.verbose, opts.length)
 	full = append(full, banner)
 	full = append(full, allocs)
 
 	return strings.Join(full, "\n"), nil
 }
 
-func (c *VolumeStatusCommand) formatHostVolumes(vols []*api.HostVolumeStub) (string, error) {
+// TODO: we could make a bunch more formatters into shared functions using this
+type formatOpts struct {
+	verbose  bool
+	short    bool
+	length   int
+	json     bool
+	template string
+}
+
+func formatHostVolumes(vols []*api.HostVolumeStub, opts formatOpts) (string, error) {
 	// Sort the output by volume ID
 	sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
 
-	if c.json || len(c.template) > 0 {
-		out, err := Format(c.json, c.template, vols)
+	if opts.json || len(opts.template) > 0 {
+		out, err := Format(opts.json, opts.template, vols)
 		if err != nil {
 			return "", fmt.Errorf("format error: %v", err)
 		}
 		return out, nil
 	}
 
-	// Truncate the id unless full length is requested
-	length := shortId
-	if c.verbose {
-		length = fullId
-	}
-
 	rows := make([]string, len(vols)+1)
 	rows[0] = "ID|Name|Namespace|Plugin ID|Node ID|Node Pool|State"
 	for i, v := range vols {
 		rows[i+1] = fmt.Sprintf("%s|%s|%s|%s|%s|%s|%s",
-			limit(v.ID, length),
+			limit(v.ID, opts.length),
 			v.Name,
 			v.Namespace,
 			v.PluginID,
-			limit(v.NodeID, length),
+			limit(v.NodeID, opts.length),
 			v.NodePool,
 			v.State,
 		)

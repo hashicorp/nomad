@@ -4,17 +4,23 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/mitchellh/go-glint"
+	"github.com/mitchellh/go-glint/components"
 	"github.com/mitchellh/mapstructure"
 )
 
-func (c *VolumeCreateCommand) hostVolumeCreate(client *api.Client, ast *ast.File) int {
+func (c *VolumeCreateCommand) hostVolumeCreate(
+	client *api.Client, ast *ast.File, detach, verbose bool) int {
+
 	vol, err := decodeHostVolume(ast)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error decoding the volume definition: %s", err))
@@ -29,15 +35,148 @@ func (c *VolumeCreateCommand) hostVolumeCreate(client *api.Client, ast *ast.File
 		c.Ui.Error(fmt.Sprintf("Error creating volume: %s", err))
 		return 1
 	}
+
+	var volID string
+	var lastIndex uint64
+
+	// note: the command only ever returns 1 volume from the API
 	for _, vol := range vols {
-		// note: the command only ever returns 1 volume from the API
-		c.Ui.Output(fmt.Sprintf(
-			"Created host volume %s with ID %s", vol.Name, vol.ID))
+		if detach || vol.State == api.HostVolumeStateReady {
+			c.Ui.Output(fmt.Sprintf(
+				"Created host volume %s with ID %s", vol.Name, vol.ID))
+			return 0
+		} else {
+			c.Ui.Output(fmt.Sprintf(
+				"==> Created host volume %s with ID %s", vol.Name, vol.ID))
+			volID = vol.ID
+			lastIndex = vol.ModifyIndex
+			break
+		}
 	}
 
-	// TODO(1.10.0): monitor so we can report when the node has fingerprinted
-
+	err = c.monitorHostVolume(client, volID, lastIndex, verbose)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("==> %s: %v", formatTime(time.Now()), err.Error()))
+		return 1
+	}
 	return 0
+}
+
+func (c *VolumeCreateCommand) monitorHostVolume(client *api.Client, id string, lastIndex uint64, verbose bool) error {
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
+	opts := formatOpts{
+		verbose: verbose,
+		short:   !verbose,
+		length:  length,
+	}
+
+	if isStdoutTerminal() {
+		return c.ttyMonitor(client, id, lastIndex, opts)
+	} else {
+		return c.nottyMonitor(client, id, lastIndex, opts)
+	}
+}
+
+func (c *VolumeCreateCommand) ttyMonitor(client *api.Client, id string, lastIndex uint64, opts formatOpts) error {
+
+	gUi := glint.New()
+	spinner := glint.Layout(
+		components.Spinner(),
+		glint.Text(fmt.Sprintf(" Monitoring volume %q in progress...", limit(id, opts.length))),
+	).Row().MarginLeft(2)
+	refreshRate := 100 * time.Millisecond
+
+	gUi.SetRefreshRate(refreshRate)
+	gUi.Set(spinner)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	go gUi.Render(ctx)
+
+	qOpts := &api.QueryOptions{
+		AllowStale: true,
+		WaitIndex:  lastIndex,
+		WaitTime:   time.Second * 5,
+	}
+
+	var statusComponent *glint.LayoutComponent
+	var endSpinner *glint.LayoutComponent
+
+DONE:
+	for {
+		vol, meta, err := client.HostVolumes().Get(id, qOpts)
+		if err != nil {
+			return err
+		}
+		str, err := formatHostVolume(vol, opts)
+		if err != nil {
+			// should never happen b/c we don't pass json/template via opts here
+			return err
+		}
+		statusComponent = glint.Layout(
+			glint.Text(""),
+			glint.Text(formatTime(time.Now())),
+			glint.Text(c.Colorize().Color(str)),
+		).MarginLeft(4)
+
+		statusComponent = glint.Layout(statusComponent)
+		gUi.Set(spinner, statusComponent)
+
+		endSpinner = glint.Layout(
+			components.Spinner(),
+			glint.Text(fmt.Sprintf(" Host volume %q %s", limit(id, opts.length), vol.State)),
+		).Row().MarginLeft(2)
+
+		switch vol.State {
+		case api.HostVolumeStateReady:
+			endSpinner = glint.Layout(
+				glint.Text(fmt.Sprintf("✓ Host volume %q %s", limit(id, opts.length), vol.State)),
+			).Row().MarginLeft(2)
+			break DONE
+
+		case api.HostVolumeStateDeleted:
+			endSpinner = glint.Layout(
+				glint.Text(fmt.Sprintf("! Host volume %q %s", limit(id, opts.length), vol.State)),
+			).Row().MarginLeft(2)
+			break DONE
+
+		default:
+			qOpts.WaitIndex = meta.LastIndex
+			continue
+		}
+
+	}
+
+	// Render one final time with completion message
+	gUi.Set(endSpinner, statusComponent, glint.Text(""))
+	gUi.RenderFrame()
+	return nil
+}
+
+func (c *VolumeCreateCommand) nottyMonitor(client *api.Client, id string, lastIndex uint64, opts formatOpts) error {
+
+	c.Ui.Info(fmt.Sprintf("==> %s: Monitoring volume %q...",
+		formatTime(time.Now()), limit(id, opts.length)))
+
+	for {
+		vol, _, err := client.HostVolumes().Get(id, &api.QueryOptions{
+			WaitIndex: lastIndex,
+			WaitTime:  time.Second * 5,
+		})
+		if err != nil {
+			return err
+		}
+		if vol.State == api.HostVolumeStateReady {
+			c.Ui.Info(fmt.Sprintf("==> %s: Volume %q ready",
+				formatTime(time.Now()), limit(vol.Name, opts.length)))
+			return nil
+		}
+	}
 }
 
 func decodeHostVolume(input *ast.File) (*api.HostVolume, error) {
