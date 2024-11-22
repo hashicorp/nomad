@@ -1,0 +1,3 @@
+```release-note:security
+security: Added more variables to the default deny list
+```
