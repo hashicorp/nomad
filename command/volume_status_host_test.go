@@ -74,7 +74,7 @@ capability {
 		_, err = file.WriteString(hclTestFile)
 		must.NoError(t, err)
 
-		args := []string{"-address", url, file.Name()}
+		args := []string{"-address", url, "-detach", file.Name()}
 		cmd := &VolumeCreateCommand{Meta: Meta{Ui: ui}}
 		code := cmd.Run(args)
 		must.Eq(t, 0, code, must.Sprintf("got error: %s", ui.ErrorWriter.String()))
