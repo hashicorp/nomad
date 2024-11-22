@@ -1535,7 +1535,7 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 		agentConfig = defaultConfig.Merge(agentConfig)
 
 		templateConfig := agentConfig.Client.TemplateConfig
-		must.Len(t, 2, templateConfig.FunctionDenylist)
+		must.Len(t, 3, templateConfig.FunctionDenylist)
 	})
 
 	t.Run("client config with basic template", func(t *testing.T) {
