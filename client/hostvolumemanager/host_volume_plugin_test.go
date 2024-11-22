@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-version"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
@@ -27,7 +28,7 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 	plug := &HostVolumePluginMkdir{
 		ID:         "test-mkdir-plugin",
 		TargetPath: tmp,
-		log:        hclog.Default(),
+		log:        testlog.HCLogger(t),
 	}
 
 	// contexts don't matter here, since they're thrown away by this plugin,

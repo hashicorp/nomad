@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/hostvolumemanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/shoenig/test/must"
 )
 
@@ -22,7 +22,7 @@ func TestHostVolume(t *testing.T) {
 
 	tmp := t.TempDir()
 	expectDir := filepath.Join(tmp, "test-vol-id")
-	hvm := hostvolumemanager.NewHostVolumeManager(tmp, hclog.Default())
+	hvm := hostvolumemanager.NewHostVolumeManager(tmp, testlog.HCLogger(t))
 	client.hostVolumeManager = hvm
 
 	t.Run("happy", func(t *testing.T) {
@@ -72,7 +72,7 @@ func TestHostVolume(t *testing.T) {
 
 	t.Run("error from plugin", func(t *testing.T) {
 		// "mkdir" plugin can't create a directory within a file
-		client.hostVolumeManager = hostvolumemanager.NewHostVolumeManager("host_volume_endpoint_test.go", hclog.Default())
+		client.hostVolumeManager = hostvolumemanager.NewHostVolumeManager("host_volume_endpoint_test.go", testlog.HCLogger(t))
 
 		req := &cstructs.ClientHostVolumeCreateRequest{
 			ID:       "test-vol-id",
