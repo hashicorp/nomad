@@ -1,0 +1,3 @@
+```release-note:security
+security: add CT executeTemplate to default function_denylist
+```
