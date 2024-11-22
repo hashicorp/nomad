@@ -76,9 +76,10 @@ func CreateExecutor(
 }
 
 // ReattachToExecutor launches a plugin with a given plugin config and validates it can call the executor.
-// On Windows, go-plugin listens on a localhost port. It is possible on a reboot that another process is
-// listening on that port, and a process is running with the previous executors PID, leading Nomad to kill
-// "random" processes. Fail early via the Version RPC if we detect the listener isn't actually an Executor.
+// Note: On Windows, go-plugin listens on a localhost port. It is possible on a reboot that another process
+// is listening on that port, and a process is running with the previous executors PID, leading the Nomad
+// TaskRunner to kill the PID after it errors calling the Wait RPC. So, fail early via the Version RPC if
+// we detect the listener isn't actually an Executor.
 func ReattachToExecutor(reattachConfig *plugin.ReattachConfig, logger hclog.Logger, compute cpustats.Compute) (Executor, *plugin.Client, error) {
 	config := &plugin.ClientConfig{
 		HandshakeConfig:  base.Handshake,
