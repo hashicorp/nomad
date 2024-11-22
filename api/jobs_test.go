@@ -1503,7 +1503,17 @@ func TestJobs_JobSubmission_Canonicalize(t *testing.T) {
 			VariableFlags: map[string]string{"test": "foo\nbar"},
 		}
 		js.Canonicalize()
-		must.Eq(t, js.VariableFlags["test"], "foo\\nbar")
+
+		must.Eq(t, js.VariableFlags["test"], "foo%0Abar")
+	})
+
+	t.Run("non-alphabetic chars", func(t *testing.T) {
+		js := &JobSubmission{
+			Source:        "abc123",
+			VariableFlags: map[string]string{"test": `"foo": "bar"`},
+		}
+		js.Canonicalize()
+		must.Eq(t, js.VariableFlags["test"], "%22foo%22%3A+%22bar%22")
 	})
 }
 

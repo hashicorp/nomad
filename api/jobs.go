@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/cronexpr"
@@ -288,6 +287,7 @@ func (j *Jobs) Submission(jobID string, version int, q *QueryOptions) (*JobSubmi
 	if err != nil {
 		return nil, nil, err
 	}
+
 	return &sub, qm, nil
 }
 
@@ -1006,9 +1006,7 @@ func (js *JobSubmission) Canonicalize() {
 	// characters to preserve them. This way, when the job gets stopped and
 	// restarted in the UI, variable values will be parsed correctly.
 	for k, v := range js.VariableFlags {
-		if strings.Contains(v, "\n") {
-			js.VariableFlags[k] = strings.ReplaceAll(v, "\n", "\\n")
-		}
+		js.VariableFlags[k] = url.QueryEscape(v)
 	}
 }
 
