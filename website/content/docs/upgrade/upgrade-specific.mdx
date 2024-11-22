@@ -15,10 +15,17 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.9.4
 
+#### Security updates to default deny lists
+
 In Nomad 1.9.4, the default `function_denylist` includes `executeTemplate`, as
 a measure to prevent accidental or malicious infinitely recursive execution.
 Users that require `executeTemplate` should update their
 [configuration](/nomad/docs/job-specification/template#function_denylist).
+
+Additionally, the [default client env deny
+list](/nomad/docs/configuration/client#env-denylist) includes more environment
+variables. Users who need some of these secure environment variables passed to
+their tasks should consult the list and overwrite it in the configuration.
 
 ## Nomad 1.9.3
 
