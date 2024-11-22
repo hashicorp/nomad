@@ -134,6 +134,10 @@ func (hv *HostVolume) Validate() error {
 
 	var mErr *multierror.Error
 
+	if hv.ID != "" && !helper.IsUUID(hv.ID) {
+		mErr = multierror.Append(mErr, errors.New("invalid ID"))
+	}
+
 	if hv.Name == "" {
 		mErr = multierror.Append(mErr, errors.New("missing name"))
 	}
@@ -167,7 +171,7 @@ func (hv *HostVolume) Validate() error {
 		}
 	}
 
-	return mErr.ErrorOrNil()
+	return helper.FlattenMultierror(mErr.ErrorOrNil())
 }
 
 // ValidateUpdate verifies that an update to a volume is safe to make.

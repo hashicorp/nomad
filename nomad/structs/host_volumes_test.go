@@ -66,7 +66,13 @@ func TestHostVolume_Validate(t *testing.T) {
 
 `)
 
+	invalid = &HostVolume{Name: "example"}
+	err = invalid.Validate()
+	// single error should be flattened
+	must.EqError(t, err, "must include at least one capability block")
+
 	invalid = &HostVolume{
+		ID:       "../../not-a-uuid",
 		Name:     "example",
 		PluginID: "example-plugin",
 		Constraints: []*Constraint{{
@@ -87,7 +93,8 @@ func TestHostVolume_Validate(t *testing.T) {
 		},
 	}
 	err = invalid.Validate()
-	must.EqError(t, err, `3 errors occurred:
+	must.EqError(t, err, `4 errors occurred:
+	* invalid ID
 	* capacity_max (100000) must be larger than capacity_min (200000)
 	* invalid attachment mode: "bad"
 	* invalid constraint: 1 error occurred:
