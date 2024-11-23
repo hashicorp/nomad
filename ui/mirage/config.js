@@ -30,7 +30,7 @@ export function filesForPath(allocFiles, filterPath) {
 export default function () {
   this.timing = 0; // delay for each request, automatically set to 0 during testing
 
-  this.logging = window.location.search.includes('mirage-logging=true');
+  this.logging = true; // TODO:  window.location.search.includes('mirage-logging=true');
 
   this.namespace = 'v1';
   this.trackRequests = Ember.testing;
@@ -667,13 +667,9 @@ export default function () {
   );
 
   this.get(
-    '/volume/:id',
+    '/volume/csi/:id',
     withBlockingSupport(function ({ csiVolumes }, { params, queryParams }) {
-      if (!params.id.startsWith('csi/')) {
-        return new Response(404, {}, null);
-      }
-
-      const id = params.id.replace(/^csi\//, '');
+      const { id } = params;
       const volume = csiVolumes.all().models.find((volume) => {
         const volumeIsDefault =
           !volume.namespaceId || volume.namespaceId === 'default';
