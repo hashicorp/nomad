@@ -404,7 +404,6 @@ func (c *JobRunCommand) Run(args []string) int {
 	}
 
 	// Detach was not specified, so start monitoring
-	// Set hint to open the browser
 	hint, _ := c.Meta.showUIPath(UIHintContext{
 		Command: "job run",
 		PathParams: map[string]string{
