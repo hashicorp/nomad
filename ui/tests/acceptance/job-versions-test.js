@@ -420,7 +420,6 @@ module('Acceptance | job versions (clone and edit)', function (hooks) {
     const versionBlock = '[data-test-job-version="98"]';
     await click(`${versionBlock} [data-test-clone-and-edit]`);
     await click(`${versionBlock} [data-test-clone-as-new-version]`);
-    console.log('namespace', namespace);
 
     assert.equal(
       currentURL(),

@@ -136,7 +136,6 @@ export default class JobVersion extends Component {
   }
 
   @action async cloneAsNewJob() {
-    console.log('cloneAsNewJob');
     try {
       let job = await this.version.get('job');
       let specification = await job.fetchRawSpecification(this.version.number);
