@@ -187,7 +187,6 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 			formatTime(time.Now()), limit(deploy.ID, length)))
 		c.monitor(client, deploy.ID, meta.LastIndex, wait, verbose)
 
-		// Hint here
 		hint, _ := c.Meta.showUIPath(UIHintContext{
 			Command: "deployment status",
 			PathParams: map[string]string{
