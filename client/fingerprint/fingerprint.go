@@ -42,6 +42,7 @@ var (
 		"network":     NewNetworkFingerprint,
 		"nomad":       NewNomadFingerprint,
 		"plugins_cni": NewPluginsCNIFingerprint,
+		"plugins_dhv": NewPluginsHostVolumeFingerprint,
 		"signal":      NewSignalFingerprint,
 		"storage":     NewStorageFingerprint,
 		"vault":       NewVaultFingerprint,

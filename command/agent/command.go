@@ -111,6 +111,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocMountsDir, "alloc-mounts-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.DHVPluginDir, "dhv-plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
 	flags.StringVar(&servers, "servers", "", "")
@@ -388,6 +389,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		"plugin-dir":       config.PluginDir,
 		"alloc-dir":        config.Client.AllocDir,
 		"alloc-mounts-dir": config.Client.AllocMountsDir,
+		"dhv-plugin-dir":   config.Client.DHVPluginDir,
 		"state-dir":        config.Client.StateDir,
 	}
 	for k, dir := range dirs {
@@ -1567,6 +1569,10 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+  -dhv-plugin-dir
+    Directory containing dynamic host volume plugins. Defaults to "plugins-dhv"
+    next to "-state-dir".
 
 ACL Options:
 

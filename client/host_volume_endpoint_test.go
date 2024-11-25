@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/hostvolumemanager"
+	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/shoenig/test/must"
@@ -22,8 +22,8 @@ func TestHostVolume(t *testing.T) {
 
 	tmp := t.TempDir()
 	expectDir := filepath.Join(tmp, "test-vol-id")
-	hvm := hostvolumemanager.NewHostVolumeManager(tmp, testlog.HCLogger(t))
-	client.hostVolumeManager = hvm
+	client.hostVolumeManager = hvm.NewHostVolumeManager(testlog.HCLogger(t),
+		"/no/ext/plugins", tmp)
 
 	t.Run("happy", func(t *testing.T) {
 		req := &cstructs.ClientHostVolumeCreateRequest{
@@ -60,19 +60,20 @@ func TestHostVolume(t *testing.T) {
 		}
 		var resp cstructs.ClientHostVolumeCreateResponse
 		err := client.ClientRPC("HostVolume.Create", req, &resp)
-		must.EqError(t, err, `no such plugin "non-existent"`)
+		must.EqError(t, err, `no such plugin: "non-existent"`)
 
 		delReq := &cstructs.ClientHostVolumeDeleteRequest{
 			PluginID: "non-existent",
 		}
 		var delResp cstructs.ClientHostVolumeDeleteResponse
 		err = client.ClientRPC("HostVolume.Delete", delReq, &delResp)
-		must.EqError(t, err, `no such plugin "non-existent"`)
+		must.EqError(t, err, `no such plugin: "non-existent"`)
 	})
 
 	t.Run("error from plugin", func(t *testing.T) {
 		// "mkdir" plugin can't create a directory within a file
-		client.hostVolumeManager = hostvolumemanager.NewHostVolumeManager("host_volume_endpoint_test.go", testlog.HCLogger(t))
+		client.hostVolumeManager = hvm.NewHostVolumeManager(testlog.HCLogger(t),
+			"/no/ext/plugins", "host_volume_endpoint_test.go")
 
 		req := &cstructs.ClientHostVolumeCreateRequest{
 			ID:       "test-vol-id",

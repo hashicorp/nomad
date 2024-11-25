@@ -310,6 +310,9 @@ type Config struct {
 	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig
 
+	// DynamicHostVolumePluginPath is the directory containing DHV plugins.
+	DynamicHostVolumePluginPath string
+
 	// HostNetworks is a map of the conigured host networks by name.
 	HostNetworks map[string]*structs.ClientHostNetworkConfig
 
