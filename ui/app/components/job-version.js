@@ -136,21 +136,34 @@ export default class JobVersion extends Component {
   }
 
   @action async cloneAsNewJob() {
+    const job = await this.version.get('job');
     try {
-      let job = await this.version.get('job');
-      let specification = await job.fetchRawSpecification(this.version.number);
-      let specificationSourceString = specification.Source;
+      const specification = await job.fetchRawSpecification(
+        this.version.number
+      );
       this.router.transitionTo('jobs.run', {
         queryParams: {
-          sourceString: specificationSourceString,
+          sourceString: specification.Source,
         },
       });
-    } catch (e) {
-      this.args.handleError({
-        level: 'danger',
-        title: 'Could Not Clone as New Job',
-        description: messageForError(e),
-      });
+      return;
+    } catch (specError) {
+      try {
+        // If submission info is not available, try to fetch the raw definition
+        const definition = await job.fetchRawDefinition(this.version.number);
+        this.router.transitionTo('jobs.run', {
+          queryParams: {
+            sourceString: JSON.stringify(definition, null, 2),
+          },
+        });
+      } catch (defError) {
+        // Both methods failed, show error
+        this.args.handleError({
+          level: 'danger',
+          title: 'Could Not Clone as New Job',
+          description: messageForError(defError),
+        });
+      }
     }
   }
 
