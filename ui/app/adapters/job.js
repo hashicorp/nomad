@@ -27,10 +27,28 @@ export default class JobAdapter extends WatchableNamespaceIDs {
    * This method is still important for backwards compatibility with older job versions, as well as a fallback
    * for when fetching raw specification fails.
    * @param {import('../models/job').default} job
+   * @param {number} version
    */
-  fetchRawDefinition(job) {
-    const url = this.urlForFindRecord(job.get('id'), 'job');
-    return this.ajax(url, 'GET');
+  async fetchRawDefinition(job, version) {
+    if (version == null) {
+      const url = this.urlForFindRecord(job.get('id'), 'job');
+      return this.ajax(url, 'GET');
+    }
+
+    // For specific versions, we need to fetch from versions endpoint,
+    // and then find the specified version info from the response.
+    const versionsUrl = addToPath(
+      this.urlForFindRecord(job.get('id'), 'job', null, 'versions')
+    );
+
+    const response = await this.ajax(versionsUrl, 'GET');
+    const versionInfo = response.Versions.find((v) => v.Version === version);
+
+    if (!versionInfo) {
+      throw new Error(`Version ${version} not found`);
+    }
+
+    return versionInfo;
   }
 
   /**

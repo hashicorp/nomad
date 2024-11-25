@@ -501,7 +501,64 @@ module('Unit | Adapter | Job', function (hooks) {
     assert.equal(request.method, 'GET');
   });
 
-  // TODO: test that version requests work for fetchRawDefinition
+  test('fetchRawDefinition handles version requests', async function (assert) {
+    assert.expect(5);
+
+    const adapter = this.owner.lookup('adapter:job');
+    const job = {
+      get: sinon.stub(),
+    };
+
+    job.get.withArgs('id').returns('["job-id"]');
+
+    const mockVersionResponse = {
+      Versions: [
+        { Version: 1, JobID: 'job-id', JobModifyIndex: 100 },
+        { Version: 2, JobID: 'job-id', JobModifyIndex: 200 },
+      ],
+    };
+
+    // Stub ajax to return mock version data
+    const ajaxStub = sinon.stub(adapter, 'ajax');
+    ajaxStub
+      .withArgs('/v1/job/job-id/versions', 'GET')
+      .resolves(mockVersionResponse);
+
+    // Test fetching specific version
+    const result = await adapter.fetchRawDefinition(job, 2);
+    assert.equal(result.Version, 2, 'Returns correct version');
+    assert.equal(result.JobModifyIndex, 200, 'Returns full version info');
+
+    // Test version not found
+    try {
+      await adapter.fetchRawDefinition(job, 999);
+      assert.ok(false, 'Should have thrown error');
+    } catch (e) {
+      assert.equal(
+        e.message,
+        'Version 999 not found',
+        'Throws appropriate error'
+      );
+    }
+
+    // Test no version specified (current version)
+    ajaxStub
+      .withArgs('/v1/job/job-id', 'GET')
+      .resolves({ ID: 'job-id', Version: 2 });
+
+    const currentResult = await adapter.fetchRawDefinition(job);
+
+    assert.equal(
+      ajaxStub.lastCall.args[0],
+      '/v1/job/job-id',
+      'URL has no version query param'
+    );
+    assert.equal(
+      currentResult.Version,
+      2,
+      'Returns current version when no version specified'
+    );
+  });
 
   test('forcePeriodic requests include the activeRegion', async function (assert) {
     const region = 'region-2';
@@ -688,6 +745,8 @@ module('Unit | Adapter | Job', function (hooks) {
       const job = {
         get: sinon.stub(),
       };
+      job.get.withArgs('id').returns('["job-id"]');
+      job.get.withArgs('version').returns(100);
 
       // Stub the ajax method to avoid making real API calls
       sinon.stub(adapter, 'ajax').callsFake(() => resolve({}));

@@ -35,12 +35,7 @@ export default class DefinitionRoute extends Route {
     if (version !== undefined) {
       // Not (!version) because version can be 0
       try {
-        const versionResponse = await job.getVersions();
-        const versions = versionResponse.Versions;
-        definition = versions.findBy('Version', version);
-        if (!definition) {
-          throw new Error('Version not found');
-        }
+        definition = await job.fetchRawDefinition(version);
       } catch (e) {
         console.error('error fetching job version definition', e);
         this.notifications.add({

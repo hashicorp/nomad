@@ -537,8 +537,8 @@ export default class Job extends Model {
     return undefined;
   }
 
-  fetchRawDefinition() {
-    return this.store.adapterFor('job').fetchRawDefinition(this);
+  fetchRawDefinition(version) {
+    return this.store.adapterFor('job').fetchRawDefinition(this, version);
   }
 
   fetchRawSpecification(version) {
