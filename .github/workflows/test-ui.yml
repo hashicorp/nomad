@@ -70,7 +70,7 @@ jobs:
           yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results-${{ matrix.partition }}.json
       - name: Upload partition test results
         # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-partition-${{ matrix.partition }}
           path: ui/test-results-${{ matrix.partition }}.json
@@ -100,7 +100,7 @@ jobs:
             kv/data/teams/nomad/ui PERCY_TOKEN ;
       - name: Download all test results
         # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           pattern: test-results-partition-*
           path: test-results
@@ -126,7 +126,7 @@ jobs:
 
       - name: Upload combined results for comparison
         # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-${{ github.sha }}
           path: combined-test-results.json
