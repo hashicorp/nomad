@@ -8,11 +8,14 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
+	"github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+var _ StateDB = &NoopDB{}
 
 // NoopDB implements a StateDB that does not persist any data.
 type NoopDB struct{}
@@ -143,6 +146,19 @@ func (n NoopDB) PutNodeRegistration(reg *cstructs.NodeRegistration) error {
 
 func (n NoopDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	return nil, nil
+}
+
+func (n NoopDB) PutDynamicHostVolume(_ *hostvolumemanager.HostVolumeState) error {
+	return nil
+}
+func (n NoopDB) GetDynamicHostVolume(_ string) (*hostvolumemanager.HostVolumeState, error) {
+	return nil, nil
+}
+func (n NoopDB) GetDynamicHostVolumes() ([]*hostvolumemanager.HostVolumeState, error) {
+	return nil, nil
+}
+func (n NoopDB) DeleteDynamicHostVolume(_ string) error {
+	return nil
 }
 
 func (n NoopDB) Close() error {

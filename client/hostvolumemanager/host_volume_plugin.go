@@ -147,9 +147,9 @@ func (p *HostVolumePluginExternal) Version(ctx context.Context) (*version.Versio
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error) {
 
-	params, err := json.Marshal(req.Parameters) // db TODO(1.10.0): if this is nil, then PARAMETERS env will be "null"
+	params, createContext, err := p.parseMaps(req.Parameters, req.Context)
 	if err != nil {
-		return nil, fmt.Errorf("error marshaling volume pramaters: %w", err)
+		return nil, err
 	}
 	envVars := []string{
 		"NODE_ID=" + req.NodeID,
@@ -157,6 +157,7 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 		fmt.Sprintf("CAPACITY_MIN_BYTES=%d", req.RequestedCapacityMinBytes),
 		fmt.Sprintf("CAPACITY_MAX_BYTES=%d", req.RequestedCapacityMaxBytes),
 		"PARAMETERS=" + string(params),
+		"CONTEXT=" + string(createContext),
 	}
 
 	stdout, _, err := p.runPlugin(ctx, "create", req.ID, envVars)
@@ -165,7 +166,7 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	}
 
 	var pluginResp HostVolumePluginCreateResponse
-	err = json.Unmarshal(stdout, &pluginResp)
+	err = json.Unmarshal(stdout, &pluginResp) // db TODO(1.10.0): if this fails, e.g. if "context" is not a map, then the volume will have been created, according to the plugin, but Nomad will not save it
 	if err != nil {
 		return nil, err
 	}
@@ -175,13 +176,14 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 	req *cstructs.ClientHostVolumeDeleteRequest) error {
 
-	params, err := json.Marshal(req.Parameters)
+	params, createContext, err := p.parseMaps(req.Parameters, req.Context)
 	if err != nil {
-		return fmt.Errorf("error marshaling volume pramaters: %w", err)
+		return err
 	}
 	envVars := []string{
 		"NODE_ID=" + req.NodeID,
 		"PARAMETERS=" + string(params),
+		"CONTEXT=" + string(createContext),
 	}
 
 	_, _, err = p.runPlugin(ctx, "delete", req.ID, envVars)
@@ -189,6 +191,20 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 		return fmt.Errorf("error deleting volume %q with plugin %q: %w", req.ID, p.ID, err)
 	}
 	return nil
+}
+
+func (p *HostVolumePluginExternal) parseMaps(pMap, cMap map[string]string) (params, ctx []byte, err error) {
+	params, err = json.Marshal(pMap) // db TODO(1.10.0): document if this is nil, then PARAMETERS env will be "null"
+	if err != nil {
+		// this is a proper error, because users can set this in the volume spec
+		return params, ctx, fmt.Errorf("error marshaling volume pramaters: %w", err)
+	}
+	ctx, err = json.Marshal(cMap) // db TODO(1.10.0): document if this is nil, then CONTEXT env will be "null"
+	if err != nil {
+		// only logging this error, because nothing can be done to fix this
+		p.log.Error("error marshaling volume context during create", "error", err)
+	}
+	return params, ctx, nil
 }
 
 func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,

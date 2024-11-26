@@ -4,17 +4,23 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
+	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+var _ StateDB = &ErrDB{}
+
+var ErrDBError = errors.New("Error!")
 
 // ErrDB implements a StateDB that returns errors on restore methods, used for testing
 type ErrDB struct {
@@ -152,6 +158,16 @@ func (m *ErrDB) PutNodeRegistration(reg *cstructs.NodeRegistration) error {
 
 func (m *ErrDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	return nil, fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PutDynamicHostVolume(_ *hvm.HostVolumeState) error {
+	return ErrDBError
+}
+func (m *ErrDB) GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error) {
+	return nil, ErrDBError
+}
+func (m *ErrDB) DeleteDynamicHostVolume(_ string) error {
+	return ErrDBError
 }
 
 func (m *ErrDB) Close() error {

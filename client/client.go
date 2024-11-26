@@ -535,9 +535,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
 
-	c.hostVolumeManager = hvm.NewHostVolumeManager(logger,
+	c.hostVolumeManager, err = hvm.NewHostVolumeManager(logger,
+		c.stateDB,
 		cfg.HostVolumePluginDir,
 		cfg.AllocMountsDir)
+	if err != nil {
+		return nil, err // db TODO(1.10.0): don't fail the whole client if state restore fails?
+	}
 
 	// Set up the service registration wrapper using the Consul and Nomad
 	// implementations. The Nomad implementation is only ever used on the

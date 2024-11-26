@@ -15,6 +15,7 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
+	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -138,6 +139,8 @@ var (
 
 	// nodeRegistrationKey is the key at which node registration data is stored.
 	nodeRegistrationKey = []byte("node_registration")
+
+	hostVolBucket = []byte("volumes_to_create")
 )
 
 // taskBucketName returns the bucket name for the given task name.
@@ -1046,6 +1049,60 @@ func (s *BoltStateDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) 
 	}
 
 	return &reg, err
+}
+
+func (s *BoltStateDB) PutDynamicHostVolume(vol *hvm.HostVolumeState) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		b, err := tx.CreateBucketIfNotExists(hostVolBucket)
+		if err != nil {
+			return err
+		}
+		return b.Put([]byte(vol.ID), vol)
+	})
+}
+
+func (s *BoltStateDB) GetDynamicHostVolume(id string) (*hvm.HostVolumeState, error) {
+	var vol hvm.HostVolumeState
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		b := tx.Bucket(hostVolBucket)
+		if b == nil {
+			return nil
+		}
+		return b.Get([]byte(id), &vol)
+	})
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+	return &vol, nil
+}
+
+func (s *BoltStateDB) GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error) {
+	var vols []*hvm.HostVolumeState
+	err := s.db.View(func(tx *boltdd.Tx) error {
+		b := tx.Bucket(hostVolBucket)
+		if b == nil {
+			return nil
+		}
+		return b.BoltBucket().ForEach(func(k, v []byte) error {
+			var vol hvm.HostVolumeState
+			err := b.Get(k, &vol)
+			if err != nil {
+				return err
+			}
+			vols = append(vols, &vol)
+			return nil
+		})
+	})
+	if boltdd.IsErrNotFound(err) {
+		return nil, nil
+	}
+	return vols, err
+}
+
+func (s *BoltStateDB) DeleteDynamicHostVolume(id string) error {
+	return s.db.Update(func(tx *boltdd.Tx) error {
+		return tx.Bucket(hostVolBucket).Delete([]byte(id))
+	})
 }
 
 // init initializes metadata entries in a newly created state database.
