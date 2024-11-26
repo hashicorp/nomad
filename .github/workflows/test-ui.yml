@@ -70,13 +70,24 @@ jobs:
       #   run: |
       #     yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results-${{ matrix.partition }}.json
       - name: Create fake file
-        run: touch test-results/faux-${{ matrix.partition }}.json
+        working-directory: ui
+        run: |
+          mkdir -p test-results
+          # touch test-results/faux-${{ matrix.partition }}.json
+          echo '{"testResults": [{"name": "Test '${{ matrix.partition }}'", "time": '${{ matrix.partition }}'00}]}' > test-results/faux-${{ matrix.partition }}.json
+          ls -la test-results/  # Debug: List directory contents
+          pwd                   # Debug: Show current directory
+          echo "File exists: $(test -f test-results/faux-${{ matrix.partition }}.json && echo "yes" || echo "no")"
+
+      #   run: |
+      #     mkdir -p test-results
+      #     touch test-results/faux-${{ matrix.partition }}.json
       - name: Upload partition test results
         # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-${{ matrix.partition }}
-          path: test-results-${{ matrix.partition }}.json
+          path: ui/test-results/faux-${{ matrix.partition }}.json
           retention-days: 90
   finalize:
     needs:
@@ -108,6 +119,15 @@ jobs:
           pattern: test-results-*
           path: test-results
 
+      - name: Debug directory structure
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Root directory contents:"
+          ls -la ..
+          echo "Test results directory contents:"
+          ls -la ../test-results || echo "test-results directory not found"
+            
       - name: Combine test results for comparison
         # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         # Note: iterator is hardcoded to 4 to match matrix partitions
@@ -115,8 +135,11 @@ jobs:
           node -e "
             const fs = require('fs');
             const results = [];
+            // Log where I am
+            console.log('Current directory:', process.cwd());
+
             for (let i = 1; i <= 4; i++) {
-              const data = JSON.parse(fs.readFileSync('test-results/test-results-' + i));
+              const data = JSON.parse(fs.readFileSync('../test-results/test-results-' + i + '/faux-' + i + '.json'));
               results.push(...data.testResults);
             }
             fs.writeFileSync('combined-test-results.json', JSON.stringify({
@@ -131,7 +154,7 @@ jobs:
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-${{ github.sha }}
-          path: combined-test-results.json
+          path: ui/combined-test-results.json
           retention-days: 90
 
       - name: finalize
