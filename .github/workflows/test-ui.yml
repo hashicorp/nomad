@@ -61,18 +61,19 @@ jobs:
           jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
           secrets: |-
             kv/data/teams/nomad/ui PERCY_TOKEN ;
+      - name: Create results directory
+        run: mkdir -p ui/test-results
       - name: ember exam
         env:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
-        # run: yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }}
         run: |
           yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results-${{ matrix.partition }}.json
       - name: Upload partition test results
         # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
-          name: test-results-partition-${{ matrix.partition }}
+          name: test-results-${{ matrix.partition }}
           path: ui/test-results-${{ matrix.partition }}.json
           retention-days: 90
   finalize:
@@ -102,7 +103,7 @@ jobs:
         # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          pattern: test-results-partition-*
+          pattern: test-results-*
           path: test-results
 
       - name: Combine test results for comparison
@@ -113,8 +114,7 @@ jobs:
             const fs = require('fs');
             const results = [];
             for (let i = 1; i <= 4; i++) {
-              const filePath = 'test-results/test-results-partition-' + i + '/test-results-' + i + '.json';
-              const data = JSON.parse(fs.readFileSync(filePath));
+              const data = JSON.parse(fs.readFileSync('test-results/test-results-' + i));
               results.push(...data.testResults);
             }
             fs.writeFileSync('combined-test-results.json', JSON.stringify({
