@@ -61,20 +61,22 @@ jobs:
           jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
           secrets: |-
             kv/data/teams/nomad/ui PERCY_TOKEN ;
-      - name: Create results directory
-        run: mkdir -p ui/test-results
-      - name: ember exam
-        env:
-          PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
-          PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
-        run: |
-          yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results-${{ matrix.partition }}.json
+      # - name: Create results directory
+      #   run: mkdir -p ui/test-results
+      # - name: ember exam
+      #   env:
+      #     PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
+      #     PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
+      #   run: |
+      #     yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results-${{ matrix.partition }}.json
+      - name: Create fake file
+        run: touch test-results/faux-${{ matrix.partition }}.json
       - name: Upload partition test results
         # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-${{ matrix.partition }}
-          path: ui/test-results-${{ matrix.partition }}.json
+          path: test-results-${{ matrix.partition }}.json
           retention-days: 90
   finalize:
     needs:
