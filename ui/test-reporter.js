@@ -49,6 +49,23 @@ class JsonReporter {
     });
   }
 
+  filterLogs(logs) {
+    return logs.filter((log) => {
+      // Filter out token-related logs
+      if (
+        log.text &&
+        (log.text.includes('Accessor:') ||
+          log.text === 'TOKENS:' ||
+          log.text === '=====================================')
+      ) {
+        return false;
+      }
+
+      // Keep non-warning logs that aren't token-related
+      return log.type !== 'warn';
+    });
+  }
+
   report(prefix, data) {
     if (!data || !data.name) {
       console.log(`[Reporter] Skipping invalid test result: ${data.name}`);
@@ -57,14 +74,25 @@ class JsonReporter {
 
     console.log(`[Reporter] Processing test: ${data.name}`);
 
+    const partitionMatch = data.name.match(/^Exam Partition (\d+) - (.*)/);
+
     const result = {
-      name: data.name.trim(),
+      name: partitionMatch ? partitionMatch[2] : data.name.trim(),
+      partition: partitionMatch ? parseInt(partitionMatch[1], 10) : null,
       browser: prefix,
       passed: !data.failed,
       duration: data.runDuration,
       error: data.failed ? data.error : null,
-      logs: (data.logs || []).filter((log) => log.type !== 'warn'),
+      logs: this.filterLogs(data.logs || []),
     };
+
+    if (result.passed) {
+      console.log('- [PASS]');
+    } else {
+      console.log('- [FAIL]');
+      console.log('- Error:', result.error);
+      console.log('- Logs:', result.logs);
+    }
 
     this.results.push(result);
   }
@@ -72,23 +100,41 @@ class JsonReporter {
   writeCurrentResults() {
     console.log('[Reporter] Writing current results...');
     try {
+      const passed = this.results.filter((r) => r.passed).length;
+      const failed = this.results.filter((r) => !r.passed).length;
+      const total = this.results.length;
+
       const output = {
-        summary: {
-          total: this.results.length,
-          passed: this.results.filter((r) => r.passed).length,
-          failed: this.results.filter((r) => !r.passed).length,
-        },
+        summary: { total, passed, failed },
         timestamp: new Date().toISOString(),
         tests: this.results,
       };
 
       fs.writeFileSync(this.outputFile, JSON.stringify(output, null, 2));
+
+      // Print a summary
+      console.log('\n[Reporter] Test Summary:');
+      console.log(`Total:  ${total}`);
+      console.log(`Passed: ${passed}`);
+      console.log(`Failed: ${failed}`);
+
+      if (failed > 0) {
+        console.log('\nFailed Tests:');
+        this.results
+          .filter((r) => !r.passed)
+          .forEach((r) => {
+            console.log(`❌ ${r.name}`);
+            if (r.error) {
+              console.log(`   ${r.error}`);
+            }
+          });
+      }
+
       console.log('[Reporter] Successfully wrote results');
     } catch (err) {
       console.error('[Reporter] Error writing results:', err);
     }
   }
-
   finish() {
     console.log('[Reporter] Finishing up...');
     this.writeCurrentResults();
