@@ -207,6 +207,10 @@ type Config struct {
 	// allocation metadata as labels in the metrics to remote Telemetry sinks
 	IncludeAllocMetadataInMetrics bool
 
+	// DisableAllocationHookMetrics allows operators to disable emitting hook
+	// metrics.
+	DisableAllocationHookMetrics bool
+
 	// AllowedMetadataKeysInMetrics when provided nomad will only include the
 	// configured metadata keys as part of the metrics to remote Telemetry sinks
 	AllowedMetadataKeysInMetrics []string

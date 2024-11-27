@@ -18,10 +18,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/hookstats"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
@@ -3098,4 +3100,32 @@ func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
 			must.Eq(t, tc.expect, tr.localState.TaskHandle.Config.DNS)
 		})
 	}
+}
+
+func TestTaskRunner_setHookStatsHandler(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create an task runner that doesn't have any configuration, which means
+	// the operator has not disabled hook metrics.
+	baseTaskRunner := &TaskRunner{
+		clientConfig:     &config.Config{},
+		clientBaseLabels: []metrics.Label{},
+	}
+
+	baseTaskRunner.setHookStatsHandler("platform")
+	handler, ok := baseTaskRunner.hookStatsHandler.(*hookstats.Handler)
+	must.True(t, ok)
+	must.NotNil(t, handler)
+
+	// Create a new allocation runner but explicitly disable hook metrics
+	// collection.
+	baseTaskRunner = &TaskRunner{
+		clientConfig:     &config.Config{DisableAllocationHookMetrics: true},
+		clientBaseLabels: []metrics.Label{},
+	}
+
+	baseTaskRunner.setHookStatsHandler("platform")
+	noopHandler, ok := baseTaskRunner.hookStatsHandler.(*hookstats.NoOpHandler)
+	must.True(t, ok)
+	must.NotNil(t, noopHandler)
 }
