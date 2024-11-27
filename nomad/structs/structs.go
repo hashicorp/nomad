@@ -11114,6 +11114,9 @@ type Allocation struct {
 	// AllocatedResources is the total resources allocated for the task group.
 	AllocatedResources *AllocatedResources
 
+	// VolumeID is the ID of the host volume that this allocation requires.
+	VolumeID *string
+
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
