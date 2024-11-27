@@ -70,6 +70,14 @@ type HostVolume struct {
 	// created. We record this to make debugging easier.
 	HostPath string
 
+	// Sticky property specifies whether the scheduler should treat this volume
+	// as assigned to a particular allocation. If marked sticky, the ID of this
+	// volume will be added to an allocation that uses it during scheduling,
+	// and every time that allocation gets rescheduled it will only be on a
+	// node that has this Volume ID present, thus allowing stateful
+	// deployments.
+	Sticky bool
+
 	// State represents the overall state of the volume. One of pending, ready,
 	// deleted.
 	State HostVolumeState
