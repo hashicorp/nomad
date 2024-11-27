@@ -4,6 +4,7 @@
  */
 
 'use strict';
+const JsonReporter = require('./test-reporter');
 
 const config = {
   test_page: 'tests/index.html?hidepassed',
@@ -13,6 +14,8 @@ const config = {
   browser_start_timeout: 120,
   parallel: -1,
   framework: 'qunit',
+  reporter: JsonReporter,
+  report_file: 'test-results/test-results.json',
   browser_args: {
     // New format in testem/master, but not in a release yet
     // Chrome: {
