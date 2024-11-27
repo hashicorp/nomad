@@ -72,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-${{ matrix.partition }}
-          path: ui/test-results/test-results-${{ matrix.partition }}.json
+          path: ui/test-results/test-results.json
           retention-days: 90
   finalize:
     needs:
@@ -112,13 +112,22 @@ jobs:
             const fs = require('fs');
             const results = [];
             for (let i = 1; i <= 4; i++) {
-              const data = JSON.parse(fs.readFileSync('../test-results/test-results-' + i + '/test-results-' + i + '.json'));
-              results.push(...data.testResults);
+              try {
+                const data = JSON.parse(fs.readFileSync('../test-results/test-results-' + i + '/test-results.json'));
+                results.push(...data.tests);
+              } catch (err) {
+                console.error('Error reading partition ' + i + ':', err);
+              }
             }
             fs.writeFileSync('combined-test-results.json', JSON.stringify({
               timestamp: new Date().toISOString(),
               sha: process.env.GITHUB_SHA,
-              testResults: results
+              summary: {
+                total: results.length,
+                passed: results.filter(r => r.passed).length,
+                failed: results.filter(r => !r.passed).length
+              },
+              tests: results
             }, null, 2));
           "
 
