@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
 /* eslint-env node */
 /* eslint-disable no-console */
 
@@ -6,22 +11,16 @@ const path = require('path');
 
 class JsonReporter {
   constructor(out, socket, config) {
-    // Prevent double initialization
-    if (JsonReporter.instance) {
-      return JsonReporter.instance;
-    }
-    JsonReporter.instance = this;
-
     this.out = out || process.stdout;
     this.results = [];
 
     // Get output file from Testem config
-    this.outputFile = config.fileOptions.report_file || 'test-results.json';
+    this.outputFile =
+      config.fileOptions.custom_report_file || 'test-results/test-results.json';
 
     console.log(`[Reporter] Initializing with output file: ${this.outputFile}`);
 
     try {
-      // Ensure output directory exists
       fs.mkdirSync(path.dirname(this.outputFile), { recursive: true });
 
       // Initialize the results file
@@ -47,6 +46,9 @@ class JsonReporter {
       this.finish();
       process.exit(0);
     });
+
+    this.testCounter = 0;
+    this.startTime = Date.now();
   }
 
   filterLogs(logs) {
@@ -55,6 +57,7 @@ class JsonReporter {
       if (
         log.text &&
         (log.text.includes('Accessor:') ||
+          log.text.includes('log in with a JWT') ||
           log.text === 'TOKENS:' ||
           log.text === '=====================================')
       ) {
@@ -72,7 +75,8 @@ class JsonReporter {
       return;
     }
 
-    console.log(`[Reporter] Processing test: ${data.name}`);
+    this.testCounter++;
+    console.log(`[Reporter] Test #${this.testCounter}: ${data.name}`);
 
     const partitionMatch = data.name.match(/^Exam Partition (\d+) - (.*)/);
 
@@ -103,10 +107,12 @@ class JsonReporter {
       const passed = this.results.filter((r) => r.passed).length;
       const failed = this.results.filter((r) => !r.passed).length;
       const total = this.results.length;
+      const duration = Date.now() - this.startTime;
 
       const output = {
         summary: { total, passed, failed },
         timestamp: new Date().toISOString(),
+        duration,
         tests: this.results,
       };
 
@@ -117,7 +123,7 @@ class JsonReporter {
       console.log(`Total:  ${total}`);
       console.log(`Passed: ${passed}`);
       console.log(`Failed: ${failed}`);
-
+      console.log(`Duration: ${duration}ms`);
       if (failed > 0) {
         console.log('\nFailed Tests:');
         this.results
@@ -125,7 +131,7 @@ class JsonReporter {
           .forEach((r) => {
             console.log(`❌ ${r.name}`);
             if (r.error) {
-              console.log(`   ${r.error}`);
+              console.error(r.error);
             }
           });
       }

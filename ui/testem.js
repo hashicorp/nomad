@@ -15,7 +15,11 @@ const config = {
   parallel: -1,
   framework: 'qunit',
   reporter: JsonReporter,
-  report_file: 'test-results/test-results.json',
+  custom_report_file: 'test-results/test-results.json',
+  // report_file: 'test-results/test-results.json',
+  // NOTE: See https://github.com/testem/testem/issues/1073, report_file + custom reporter results in double output.
+  debug: true,
+
   browser_args: {
     // New format in testem/master, but not in a release yet
     // Chrome: {
