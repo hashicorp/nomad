@@ -51,18 +51,20 @@ host_path="$2"
 # OS detect
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
   ext=ext4
+  mount=/usr/bin/mount
   mkfsExec() {
 	dd if=/dev/zero of="$1".$ext bs=1M count="$2"
 	mkfs.ext4 "$1".$ext 1>&2
   }
   mountExec() {
-    mount "$1".$ext 1>&2
+    $mount "$1".$ext "$1"
   }
   st() {
     stat --format='%s' "$1"
   }
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   ext=dmg
+  mount=/sbin/mount
   mkfsExec() {
     hdiutil create -megabytes "$2" -layout NONE -fs apfs -volname "$1" "$1" 1>&2
   }
@@ -86,7 +88,7 @@ validate_path() {
 }
 
 is_mounted() {
-  /sbin/mount | grep -q "^$1$"
+  $mount | grep -q "^$1$"
 }
 
 create_volume() {
@@ -103,7 +105,7 @@ create_volume() {
     fi
     if ! is_mounted "$path"; then
       mkdir -p "$path"
-      mountExec "$path" 1>&2
+      mountExec "$path"
     fi
 }
 
