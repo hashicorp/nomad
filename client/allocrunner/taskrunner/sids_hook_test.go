@@ -1,8 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-//go:build !windows
-// +build !windows
+//go:build linux
+// +build linux
 
 // todo(shoenig): Once Connect is supported on Windows, we'll need to make this
 //  set of tests work there too.
