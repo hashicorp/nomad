@@ -717,7 +717,7 @@ module('Acceptance | variables', function (hooks) {
       assert.ok(confirmFired, 'Confirm fired when leaving with unsaved form');
       assert.equal(
         currentURL(),
-        '/variables/var/Auto-conflicting%20Variable@default/editte',
+        '/variables/var/Auto-conflicting%20Variable@default/edit',
         'Opted to stay, did not leave page'
       );
 

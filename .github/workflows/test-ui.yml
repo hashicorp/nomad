@@ -111,10 +111,16 @@ jobs:
           node -e "
             const fs = require('fs');
             const results = [];
+            let duration = 0;
+            let aggregateSummary = { total: 0, passed: 0, failed: 0 };
             for (let i = 1; i <= 4; i++) {
               try {
                 const data = JSON.parse(fs.readFileSync('../test-results/test-results-' + i + '/test-results.json'));
                 results.push(...data.tests);
+                duration += data.duration;
+                aggregateSummary.total += data.summary.total;
+                aggregateSummary.passed += data.summary.passed;
+                aggregateSummary.failed += data.summary.failed;
               } catch (err) {
                 console.error('Error reading partition ' + i + ':', err);
               }
@@ -123,10 +129,11 @@ jobs:
               timestamp: new Date().toISOString(),
               sha: process.env.GITHUB_SHA,
               summary: {
-                total: results.length,
-                passed: results.filter(r => r.passed).length,
-                failed: results.filter(r => !r.passed).length
+                total: aggregateSummary.total,
+                passed: aggregateSummary.passed,
+                failed: aggregateSummary.failed
               },
+              duration,
               tests: results
             }, null, 2));
           "
