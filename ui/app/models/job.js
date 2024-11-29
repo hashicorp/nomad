@@ -537,12 +537,12 @@ export default class Job extends Model {
     return undefined;
   }
 
-  fetchRawDefinition() {
-    return this.store.adapterFor('job').fetchRawDefinition(this);
+  fetchRawDefinition(version) {
+    return this.store.adapterFor('job').fetchRawDefinition(this, version);
   }
 
-  fetchRawSpecification() {
-    return this.store.adapterFor('job').fetchRawSpecification(this);
+  fetchRawSpecification(version) {
+    return this.store.adapterFor('job').fetchRawSpecification(this, version);
   }
 
   forcePeriodic() {
