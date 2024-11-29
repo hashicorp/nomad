@@ -158,7 +158,7 @@ func (r *retryJoiner) Validate(config *Config) error {
 	return nil
 }
 
-// retryJoin is used to handle retrying a join until it succeeds or all retries
+// RetryJoin is used to handle retrying a join until it succeeds or all retries
 // are exhausted.
 func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 	if len(serverJoin.RetryJoin) == 0 {
@@ -176,13 +176,16 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 		var err error
 
 		for _, addr := range serverJoin.RetryJoin {
+
+			// If auto-discovery returns an error, log the error and
+			// fall-through, so we reach the retry logic and loop back around
+			// for another go.
 			servers, err := r.autoDiscover.Addrs(addr, r.logger)
 			if err != nil {
 				r.logger.Error("discovering join addresses failed", "join_config", addr, "error", err)
-				return
+			} else {
+				addrs = append(addrs, servers...)
 			}
-
-			addrs = append(addrs, servers...)
 		}
 
 		if len(addrs) > 0 {
