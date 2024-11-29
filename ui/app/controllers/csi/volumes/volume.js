@@ -25,15 +25,13 @@ export default class VolumeController extends Controller {
 
   get breadcrumbs() {
     const volume = this.volume;
+    if (!volume) {
+      return [];
+    }
     return [
       {
         label: 'Volumes',
-        args: [
-          'csi.volumes',
-          qpBuilder({
-            volumeNamespace: volume.get('namespace.name') || 'default',
-          }),
-        ],
+        args: ['csi.volumes'],
       },
       {
         label: volume.name,
