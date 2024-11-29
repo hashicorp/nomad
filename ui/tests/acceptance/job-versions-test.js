@@ -322,6 +322,166 @@ module('Acceptance | job versions', function (hooks) {
   });
 });
 
+// Module for Clone and Edit
+module('Acceptance | job versions (clone and edit)', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function () {
+    server.create('node-pool');
+    namespace = server.create('namespace');
+
+    const managementToken = server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+
+    job = server.create('job', {
+      createAllocations: false,
+      version: 99,
+      namespaceId: namespace.id,
+    });
+    // remove auto-created versions and create 3 of them, one with a tag
+    server.db.jobVersions.remove();
+    server.create('job-version', {
+      job,
+      version: 99,
+      submitTime: 1731101785761339000,
+    });
+    server.create('job-version', {
+      job,
+      version: 98,
+      submitTime: 1731101685761339000,
+      versionTag: {
+        Name: 'test-tag',
+        Description: 'A tag with a brief description',
+      },
+    });
+    server.create('job-version', {
+      job,
+      version: 0,
+      submitTime: 1731101585761339000,
+    });
+    await Versions.visit({ id: job.id });
+  });
+
+  test('Clone and edit buttons are shown', async function (assert) {
+    assert.dom('.job-version').exists({ count: 3 });
+    assert
+      .dom('[data-test-clone-and-edit]')
+      .exists(
+        { count: 2 },
+        'Current job version doesnt have clone or revert buttons'
+      );
+
+    const versionBlock = '[data-test-job-version="98"]';
+
+    assert
+      .dom(`${versionBlock} [data-test-clone-as-new-version]`)
+      .doesNotExist(
+        'Confirmation-stage clone-as-new-version button doesnt exist on initial load'
+      );
+    assert
+      .dom(`${versionBlock} [data-test-clone-as-new-job]`)
+      .doesNotExist(
+        'Confirmation-stage clone-as-new-job button doesnt exist on initial load'
+      );
+
+    await click(`${versionBlock} [data-test-clone-and-edit]`);
+
+    assert
+      .dom(`${versionBlock} [data-test-clone-as-new-version]`)
+      .exists(
+        'Confirmation-stage clone-as-new-version button exists after clicking clone and edit'
+      );
+
+    assert
+      .dom(`${versionBlock} [data-test-clone-as-new-job]`)
+      .exists(
+        'Confirmation-stage clone-as-new-job button exists after clicking clone and edit'
+      );
+
+    assert
+      .dom(`${versionBlock} [data-test-revert-to]`)
+      .doesNotExist('Revert button is hidden when Clone buttons are expanded');
+
+    assert
+      .dom('[data-test-job-version="0"] [data-test-revert-to]')
+      .exists('Revert button is visible for other versions');
+
+    await click(`${versionBlock} [data-test-cancel-clone]`);
+
+    assert
+      .dom(`${versionBlock} [data-test-clone-as-new-version]`)
+      .doesNotExist(
+        'Confirmation-stage clone-as-new-version button doesnt exist after clicking cancel'
+      );
+  });
+
+  test('Clone as new version', async function (assert) {
+    const versionBlock = '[data-test-job-version="98"]';
+    await click(`${versionBlock} [data-test-clone-and-edit]`);
+    await click(`${versionBlock} [data-test-clone-as-new-version]`);
+
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=98&view=job-spec`,
+      'Taken to the definition page in edit mode'
+    );
+
+    await percySnapshot(assert);
+  });
+
+  test('Clone as new version when version is 0', async function (assert) {
+    const versionBlock = '[data-test-job-version="0"]';
+    await click(`${versionBlock} [data-test-clone-and-edit]`);
+    await click(`${versionBlock} [data-test-clone-as-new-version]`);
+
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=0&view=job-spec`,
+      'Taken to the definition page in edit mode'
+    );
+  });
+
+  test('Clone as a new version when no submission info is available', async function (assert) {
+    server.pretender.get('/v1/job/:id/submission', () => [500, {}, '']);
+    const versionBlock = '[data-test-job-version="98"]';
+    await click(`${versionBlock} [data-test-clone-and-edit]`);
+    await click(`${versionBlock} [data-test-clone-as-new-version]`);
+
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}@${namespace.id}/definition?isEditing=true&version=98&view=full-definition`,
+      'Taken to the definition page in edit mode'
+    );
+
+    assert.dom('[data-test-json-warning]').exists();
+
+    await percySnapshot(assert);
+  });
+
+  test('Clone as a new job', async function (assert) {
+    const testString =
+      'Test string that should appear in my sourceString url param';
+    server.pretender.get('/v1/job/:id/submission', () => [
+      200,
+      {},
+      JSON.stringify({
+        Source: testString,
+      }),
+    ]);
+    const versionBlock = '[data-test-job-version="98"]';
+    await click(`${versionBlock} [data-test-clone-and-edit]`);
+    await click(`${versionBlock} [data-test-clone-as-new-job]`);
+
+    assert.equal(
+      currentURL(),
+      `/jobs/run?sourceString=${encodeURIComponent(testString)}`,
+      'Taken to the new job page'
+    );
+    assert.dom('[data-test-job-name-warning]').exists();
+  });
+});
+
 module('Acceptance | job versions (with client token)', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
