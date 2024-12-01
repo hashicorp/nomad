@@ -86,7 +86,7 @@ require (
 	github.com/hashicorp/raft-autopilot v0.1.6
 	github.com/hashicorp/raft-boltdb/v2 v2.3.0
 	github.com/hashicorp/serf v0.10.2-0.20240320153621-5d32001edfaa
-	github.com/hashicorp/vault/api v1.10.0
+	github.com/hashicorp/vault/api v1.15.0
 	github.com/hashicorp/yamux v0.1.2
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
 	github.com/klauspost/cpuid/v2 v2.2.8
@@ -180,7 +180,7 @@ require (
 	github.com/bgentry/speakeasy v0.1.0 // indirect
 	github.com/bmatcuk/doublestar v1.1.5 // indirect
 	github.com/boltdb/bolt v1.3.1 // indirect
-	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/checkpoint-restore/go-criu/v5 v5.3.0 // indirect
 	github.com/cheggaaa/pb/v3 v3.0.5 // indirect
