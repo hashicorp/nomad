@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
+
 import Component from '@glimmer/component';
 import { action, computed } from '@ember/object';
 import { alias } from '@ember/object/computed';
@@ -80,6 +82,11 @@ export default class JobVersion extends Component {
     this.isOpen = !this.isOpen;
   }
 
+  /**
+   * @type {'idle' | 'confirming'}
+   */
+  @tracked cloneButtonStatus = 'idle';
+
   @task(function* () {
     try {
       const versionBeforeReversion = this.version.get('job.version');
@@ -107,6 +114,58 @@ export default class JobVersion extends Component {
     }
   })
   revertTo;
+
+  @action async cloneAsNewVersion() {
+    try {
+      this.router.transitionTo(
+        'jobs.job.definition',
+        this.version.get('job.idWithNamespace'),
+        {
+          queryParams: {
+            isEditing: true,
+            version: this.version.number,
+          },
+        }
+      );
+    } catch (e) {
+      this.args.handleError({
+        level: 'danger',
+        title: 'Could Not Edit from Version',
+      });
+    }
+  }
+
+  @action async cloneAsNewJob() {
+    const job = await this.version.get('job');
+    try {
+      const specification = await job.fetchRawSpecification(
+        this.version.number
+      );
+      this.router.transitionTo('jobs.run', {
+        queryParams: {
+          sourceString: specification.Source,
+        },
+      });
+      return;
+    } catch (specError) {
+      try {
+        // If submission info is not available, try to fetch the raw definition
+        const definition = await job.fetchRawDefinition(this.version.number);
+        this.router.transitionTo('jobs.run', {
+          queryParams: {
+            sourceString: JSON.stringify(definition, null, 2),
+          },
+        });
+      } catch (defError) {
+        // Both methods failed, show error
+        this.args.handleError({
+          level: 'danger',
+          title: 'Could Not Clone as New Job',
+          description: messageForError(defError),
+        });
+      }
+    }
+  }
 
   @action
   handleKeydown(event) {

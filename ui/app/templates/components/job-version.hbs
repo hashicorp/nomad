@@ -4,7 +4,7 @@
 ~}}
 
 {{did-update this.versionsDidUpdate this.diff}}
-<section class="job-version">
+<section class="job-version" data-test-job-version={{this.version.number}}>
   <div class="boxed-section {{if this.version.versionTag "tagged"}}" data-test-tagged-version={{if this.version.versionTag "true" "false"}}>
     <header class="boxed-section-head is-light inline-definitions">
       Version #{{this.version.number}}
@@ -81,20 +81,57 @@
         <div class="version-options">
           {{#unless this.isCurrent}}
             {{#if (can "run job" namespace=this.version.job.namespace)}}
-              <TwoStepButton
-                data-test-revert-to
-                @classes={{hash
-                  idleButton="is-warning is-outlined"
-                  confirmButton="is-warning"}}
-                @fadingBackground={{true}}
-                @idleText="Revert Version"
-                @cancelText="Cancel"
-                @confirmText="Yes, Revert Version"
-                @confirmationMessage="Are you sure you want to revert to this version?"
-                @inlineText={{true}}
-                @size="small"
-                @awaitingConfirmation={{this.revertTo.isRunning}}
-                @onConfirm={{perform this.revertTo}} />
+              {{#if (eq this.cloneButtonStatus 'idle')}}
+                <Hds::Button
+                  data-test-clone-and-edit
+                  @text="Clone and Edit"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action (mut this.cloneButtonStatus) "confirming")}}
+                />
+
+                <TwoStepButton
+                  data-test-revert-to
+                  @classes={{hash
+                    idleButton="is-warning is-outlined"
+                    confirmButton="is-warning"}}
+                  @fadingBackground={{true}}
+                  @idleText="Revert Version"
+                  @cancelText="Cancel"
+                  @confirmText="Yes, Revert Version"
+                  @confirmationMessage="Are you sure you want to revert to this version?"
+                  @inlineText={{true}}
+                  @size="small"
+                  @awaitingConfirmation={{this.revertTo.isRunning}}
+                  @onConfirm={{perform this.revertTo}}
+                />
+              {{else if (eq this.cloneButtonStatus 'confirming')}}
+                <Hds::Button
+                  data-test-cancel-clone
+                  @text="Cancel"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action (mut this.cloneButtonStatus) "idle")}}
+                />
+                <Hds::Button
+                  data-test-clone-as-new-version
+                  @text="Clone as New Version of {{this.version.job.name}}"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action this.cloneAsNewVersion)}}
+                />
+                <Hds::Button
+                  data-test-clone-as-new-job
+                  @text="Clone as New Job"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action this.cloneAsNewJob)}}
+                />
+              {{/if}}
             {{else}}
               <Hds::Button
                 data-test-revert-to
