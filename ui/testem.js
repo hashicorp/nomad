@@ -8,14 +8,15 @@
 'use strict';
 const JsonReporter = require('./test-reporter');
 
-
 /**
  * Get the path for the test results file based on the command line arguments
  * @returns {string} The path to the test results file
  */
 const getReportPath = () => {
   // Look for --json-report=path
-  const jsonReportArg = process.argv.find(arg => arg.startsWith('--json-report='));
+  const jsonReportArg = process.argv.find((arg) =>
+    arg.startsWith('--json-report=')
+  );
   if (jsonReportArg) {
     return jsonReportArg.split('=')[1];
   }
