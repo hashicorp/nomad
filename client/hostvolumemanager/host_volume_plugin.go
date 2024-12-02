@@ -34,6 +34,9 @@ type HostVolumePluginCreateResponse struct {
 	Context   map[string]string `json:"context"` // metadata
 }
 
+const HostVolumePluginMkdirID = "mkdir"
+const HostVolumePluginMkdirVersion = "0.0.1"
+
 var _ HostVolumePlugin = &HostVolumePluginMkdir{}
 
 type HostVolumePluginMkdir struct {
@@ -44,7 +47,7 @@ type HostVolumePluginMkdir struct {
 }
 
 func (p *HostVolumePluginMkdir) Version(_ context.Context) (*version.Version, error) {
-	return version.NewVersion("0.0.1")
+	return version.NewVersion(HostVolumePluginMkdirVersion)
 }
 
 func (p *HostVolumePluginMkdir) Create(_ context.Context,
@@ -90,6 +93,29 @@ func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHo
 }
 
 var _ HostVolumePlugin = &HostVolumePluginExternal{}
+
+func NewHostVolumePluginExternal(log hclog.Logger,
+	id, executable, targetPath string) (*HostVolumePluginExternal, error) {
+	// this should only be called with already-detected executables,
+	// but we'll double-check it anyway, so we can provide a tidy error message
+	// if it has changed between fingerprinting and execution.
+	f, err := os.Stat(executable)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, id)
+		}
+		return nil, err
+	}
+	if !helper.IsExecutable(f) {
+		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, id)
+	}
+	return &HostVolumePluginExternal{
+		ID:         id,
+		Executable: executable,
+		TargetPath: targetPath,
+		log:        log,
+	}, nil
+}
 
 type HostVolumePluginExternal struct {
 	ID         string
