@@ -128,12 +128,12 @@ class JsonReporter {
 
       // Print a summary
       console.log('\n[Reporter] Test Summary:');
-      console.log(`Total:  ${total}`);
-      console.log(`Passed: ${passed}`);
-      console.log(`Failed: ${failed}`);
-      console.log(`Duration: ${duration}ms`);
+      console.log(`- Total:  ${total}`);
+      console.log(`- Passed: ${passed}`);
+      console.log(`- Failed: ${failed}`);
+      console.log(`- Duration: ${duration}ms`);
       if (failed > 0) {
-        console.log('\nFailed Tests:');
+        console.log('\n[Reporter] Failed Tests:');
         this.results
           .filter((r) => !r.passed)
           .forEach((r) => {
