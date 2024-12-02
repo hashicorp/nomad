@@ -58,21 +58,10 @@ func (c *PluginStatusCommand) Synopsis() string {
 	return "Display status information about a plugin"
 }
 
-// predictVolumeType is also used in volume_status
-var predictVolumeType = complete.PredictFunc(func(a complete.Args) []string {
-	types := []string{"csi"}
-	for _, t := range types {
-		if strings.Contains(t, a.Last) {
-			return []string{t}
-		}
-	}
-	return nil
-})
-
 func (c *PluginStatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-type":    predictVolumeType,
+			"-type":    complete.PredictSet("csi"),
 			"-short":   complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
 			"-json":    complete.PredictNothing,
