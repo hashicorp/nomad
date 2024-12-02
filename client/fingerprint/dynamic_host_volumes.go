@@ -39,7 +39,7 @@ func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintReq
 	response.Detected = true
 
 	// this config value will be empty in -dev mode
-	pluginDir := request.Config.DynamicHostVolumePluginPath
+	pluginDir := request.Config.HostVolumePluginDir
 	if pluginDir == "" {
 		return nil
 	}

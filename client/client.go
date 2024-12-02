@@ -536,7 +536,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.pluginManagers.RegisterAndRun(devManager)
 
 	c.hostVolumeManager = hvm.NewHostVolumeManager(logger,
-		cfg.DynamicHostVolumePluginPath,
+		cfg.HostVolumePluginDir,
 		cfg.AllocMountsDir)
 
 	// Set up the service registration wrapper using the Consul and Nomad

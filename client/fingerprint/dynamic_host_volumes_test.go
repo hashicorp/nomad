@@ -19,7 +19,7 @@ import (
 // this is more of a full integration test of:
 // fingerprint <- find plugins <- find executables
 func TestPluginsHostVolumeFingerprint(t *testing.T) {
-	cfg := &config.Config{DynamicHostVolumePluginPath: ""}
+	cfg := &config.Config{HostVolumePluginDir: ""}
 	node := &structs.Node{Attributes: map[string]string{}}
 	req := &FingerprintRequest{Config: cfg, Node: node}
 	fp := NewPluginsHostVolumeFingerprint(testlog.HCLogger(t))
@@ -32,7 +32,7 @@ func TestPluginsHostVolumeFingerprint(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			resp := FingerprintResponse{}
-			cfg.DynamicHostVolumePluginPath = path
+			cfg.HostVolumePluginDir = path
 			err := fp.Fingerprint(req, &resp)
 			must.NoError(t, err)
 			must.True(t, resp.Detected) // always true due to "mkdir" built-in
@@ -45,7 +45,7 @@ func TestPluginsHostVolumeFingerprint(t *testing.T) {
 
 	// happy path: dir exists. this one will contain a single valid plugin.
 	tmp := t.TempDir()
-	cfg.DynamicHostVolumePluginPath = tmp
+	cfg.HostVolumePluginDir = tmp
 
 	files := []struct {
 		name     string

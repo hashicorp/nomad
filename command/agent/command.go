@@ -1573,7 +1573,7 @@ Client Options:
 
   -host-volume-plugin-dir
     Directory containing dynamic host volume plugins. The default is
-    "plugins-host-volume" next to "-state-dir".
+    <data-dir>/host_volume_plugins.
 
 ACL Options:
 
