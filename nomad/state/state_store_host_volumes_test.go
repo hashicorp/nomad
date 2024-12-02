@@ -54,7 +54,10 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	vols[3].NodePool = nodes[2].NodePool
 
 	index++
-	must.NoError(t, store.UpsertHostVolumes(index, vols))
+	must.NoError(t, store.UpsertHostVolume(index, vols[0]))
+	must.NoError(t, store.UpsertHostVolume(index, vols[1]))
+	must.NoError(t, store.UpsertHostVolume(index, vols[2]))
+	must.NoError(t, store.UpsertHostVolume(index, vols[3]))
 
 	vol, err := store.HostVolumeByID(nil, vols[0].Namespace, vols[0].ID, true)
 	must.NoError(t, err)
@@ -108,13 +111,13 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, nodes[2]))
 
 	// update all the volumes, which should update the state of vol2 as well
+	index++
 	for i, vol := range vols {
 		vol = vol.Copy()
 		vol.RequestedCapacityMaxBytes = 300000
 		vols[i] = vol
+		must.NoError(t, store.UpsertHostVolume(index, vol))
 	}
-	index++
-	must.NoError(t, store.UpsertHostVolumes(index, vols))
 
 	iter, err = store.HostVolumesByName(nil, structs.DefaultNamespace, "example", SortDefault)
 	must.NoError(t, err)
@@ -221,7 +224,10 @@ func TestStateStore_UpdateHostVolumesFromFingerprint(t *testing.T) {
 
 	index++
 	oldIndex := index
-	must.NoError(t, store.UpsertHostVolumes(index, vols))
+	must.NoError(t, store.UpsertHostVolume(index, vols[0]))
+	must.NoError(t, store.UpsertHostVolume(index, vols[1]))
+	must.NoError(t, store.UpsertHostVolume(index, vols[2]))
+	must.NoError(t, store.UpsertHostVolume(index, vols[3]))
 
 	vol0, err := store.HostVolumeByID(nil, ns, vols[0].ID, false)
 	must.NoError(t, err)

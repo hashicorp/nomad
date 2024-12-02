@@ -18,18 +18,15 @@ func (c *VolumeRegisterCommand) hostVolumeRegister(client *api.Client, ast *ast.
 	}
 
 	req := &api.HostVolumeRegisterRequest{
-		Volumes: []*api.HostVolume{vol},
+		Volume: vol,
 	}
-	vols, _, err := client.HostVolumes().Register(req, nil)
+	vol, _, err = client.HostVolumes().Register(req, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error registering volume: %s", err))
 		return 1
 	}
-	for _, vol := range vols {
-		// note: the command only ever returns 1 volume from the API
-		c.Ui.Output(fmt.Sprintf(
-			"Registered host volume %s with ID %s", vol.Name, vol.ID))
-	}
+	c.Ui.Output(fmt.Sprintf(
+		"Registered host volume %s with ID %s", vol.Name, vol.ID))
 
 	return 0
 }

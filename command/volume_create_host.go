@@ -28,9 +28,9 @@ func (c *VolumeCreateCommand) hostVolumeCreate(
 	}
 
 	req := &api.HostVolumeCreateRequest{
-		Volumes: []*api.HostVolume{vol},
+		Volume: vol,
 	}
-	vols, _, err := client.HostVolumes().Create(req, nil)
+	vol, _, err = client.HostVolumes().Create(req, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating volume: %s", err))
 		return 1
@@ -39,19 +39,15 @@ func (c *VolumeCreateCommand) hostVolumeCreate(
 	var volID string
 	var lastIndex uint64
 
-	// note: the command only ever returns 1 volume from the API
-	for _, vol := range vols {
-		if detach || vol.State == api.HostVolumeStateReady {
-			c.Ui.Output(fmt.Sprintf(
-				"Created host volume %s with ID %s", vol.Name, vol.ID))
-			return 0
-		} else {
-			c.Ui.Output(fmt.Sprintf(
-				"==> Created host volume %s with ID %s", vol.Name, vol.ID))
-			volID = vol.ID
-			lastIndex = vol.ModifyIndex
-			break
-		}
+	if detach || vol.State == api.HostVolumeStateReady {
+		c.Ui.Output(fmt.Sprintf(
+			"Created host volume %s with ID %s", vol.Name, vol.ID))
+		return 0
+	} else {
+		c.Ui.Output(fmt.Sprintf(
+			"==> Created host volume %s with ID %s", vol.Name, vol.ID))
+		volID = vol.ID
+		lastIndex = vol.ModifyIndex
 	}
 
 	err = c.monitorHostVolume(client, volID, lastIndex, verbose)

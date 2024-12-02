@@ -2428,7 +2428,7 @@ func (n *nomadFSM) applyHostVolumeRegister(msgType structs.MessageType, buf []by
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertHostVolumes(index, req.Volumes); err != nil {
+	if err := n.state.UpsertHostVolume(index, req.Volume); err != nil {
 		n.logger.Error("UpsertHostVolumes failed", "error", err)
 		return err
 	}

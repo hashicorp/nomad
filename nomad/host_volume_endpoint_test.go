@@ -68,7 +68,6 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	codec := rpcClient(t, srv)
 
 	req := &structs.HostVolumeCreateRequest{
-		Volumes: []*structs.HostVolume{},
 		WriteRequest: structs.WriteRequest{
 			Region:    srv.Region(),
 			AuthToken: token},
@@ -81,39 +80,37 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, "missing volume definition")
 
-		req.Volumes = []*structs.HostVolume{
-			{}, // missing basic fields
-			{
-				Name:     "example",
-				PluginID: "example_plugin",
-				Constraints: []*structs.Constraint{{
-					RTarget: "r1",
-					Operand: "=",
-				}},
-				RequestedCapacityMinBytes: 200000,
-				RequestedCapacityMaxBytes: 100000,
-				RequestedCapabilities: []*structs.HostVolumeCapability{
-					{
-						AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
-						AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
-					},
-					{
-						AttachmentMode: "bad",
-						AccessMode:     "invalid",
-					},
-				},
-			}, // fails other field validations
-		}
+		req.Volume = &structs.HostVolume{}
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
-		// TODO(1.10.0): nested multierrors are really ugly, we could really use
-		// some helper functions to make these nicer everywhere they pop up
-		must.EqError(t, err, `2 errors occurred:
-	* volume validation failed: 2 errors occurred:
+		must.EqError(t, err, `volume validation failed: 2 errors occurred:
 	* missing name
 	* must include at least one capability block
 
+`)
 
-	* volume validation failed: 3 errors occurred:
+		req.Volume = &structs.HostVolume{
+			Name:     "example",
+			PluginID: "example_plugin",
+			Constraints: []*structs.Constraint{{
+				RTarget: "r1",
+				Operand: "=",
+			}},
+			RequestedCapacityMinBytes: 200000,
+			RequestedCapacityMaxBytes: 100000,
+			RequestedCapabilities: []*structs.HostVolumeCapability{
+				{
+					AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+					AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+				},
+				{
+					AttachmentMode: "bad",
+					AccessMode:     "invalid",
+				},
+			},
+		}
+
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
+		must.EqError(t, err, `volume validation failed: 3 errors occurred:
 	* capacity_max (100000) must be larger than capacity_min (200000)
 	* invalid attachment mode: "bad"
 	* invalid constraint: 1 error occurred:
@@ -121,20 +118,17 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 
 
 
-
-
 `)
 
 		invalidNode := &structs.Node{ID: uuid.Generate(), NodePool: "does-not-exist"}
 		volOnInvalidNode := mock.HostVolumeRequestForNode(ns, invalidNode)
-		req.Volumes = []*structs.HostVolume{volOnInvalidNode}
+		req.Volume = volOnInvalidNode
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, fmt.Sprintf(
 			`validating volume "example" against state failed: node %q does not exist`,
 			invalidNode.ID))
 	})
 
-	var vol1ID, vol2ID string
 	var expectIndex uint64
 
 	c1.setCreate(&cstructs.ClientHostVolumeCreateResponse{
@@ -148,46 +142,56 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	vol2 := mock.HostVolumeRequest("apps")
 	vol2.Name = "example2"
 	vol2.NodePool = "prod"
-	req.Volumes = []*structs.HostVolume{vol1, vol2}
 
 	t.Run("invalid permissions", func(t *testing.T) {
 		var resp structs.HostVolumeCreateResponse
 		req.AuthToken = otherToken
+
+		req.Volume = vol1
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, "Permission denied")
 	})
 
 	t.Run("invalid node constraints", func(t *testing.T) {
-		req.Volumes[0].Constraints[0].RTarget = "r2"
-		req.Volumes[1].Constraints[0].RTarget = "r2"
+		vol1.Constraints[0].RTarget = "r2"
+		vol2.Constraints[0].RTarget = "r2"
 
 		defer func() {
-			req.Volumes[0].Constraints[0].RTarget = "r1"
-			req.Volumes[1].Constraints[0].RTarget = "r1"
+			vol1.Constraints[0].RTarget = "r1"
+			vol2.Constraints[0].RTarget = "r1"
 		}()
 
+		req.Volume = vol1.Copy()
 		var resp structs.HostVolumeCreateResponse
 		req.AuthToken = token
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
-		must.EqError(t, err, `2 errors occurred:
-	* could not place volume "example1": no node meets constraints
-	* could not place volume "example2": no node meets constraints
+		must.EqError(t, err, `could not place volume "example1": no node meets constraints`)
 
-`)
+		req.Volume = vol2.Copy()
+		resp = structs.HostVolumeCreateResponse{}
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
+		must.EqError(t, err, `could not place volume "example2": no node meets constraints`)
 	})
 
 	t.Run("valid create", func(t *testing.T) {
 		var resp structs.HostVolumeCreateResponse
 		req.AuthToken = token
+		req.Volume = vol1.Copy()
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.NoError(t, err)
-		must.Len(t, 2, resp.Volumes)
-		vol1ID = resp.Volumes[0].ID
-		vol2ID = resp.Volumes[1].ID
+		must.NotNil(t, resp.Volume)
+		vol1 = resp.Volume
+
 		expectIndex = resp.Index
+		req.Volume = vol2.Copy()
+		resp = structs.HostVolumeCreateResponse{}
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
+		must.NoError(t, err)
+		must.NotNil(t, resp.Volume)
+		vol2 = resp.Volume
 
 		getReq := &structs.HostVolumeGetRequest{
-			ID: vol1ID,
+			ID: vol1.ID,
 			QueryOptions: structs.QueryOptions{
 				Region:    srv.Region(),
 				Namespace: ns,
@@ -206,14 +210,11 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 
 	t.Run("invalid updates", func(t *testing.T) {
 
-		vol1, err := store.HostVolumeByID(nil, ns, vol1ID, false)
-		must.NoError(t, err)
-		must.NotNil(t, vol1)
 		invalidVol1 := vol1.Copy()
 		invalidVol2 := &structs.HostVolume{}
 
 		createReq := &structs.HostVolumeCreateRequest{
-			Volumes: []*structs.HostVolume{invalidVol1, invalidVol2},
+			Volume: invalidVol2,
 			WriteRequest: structs.WriteRequest{
 				Region:    srv.Region(),
 				Namespace: ns,
@@ -221,18 +222,18 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		}
 		c1.setCreate(nil, errors.New("should not call this endpoint on invalid RPCs"))
 		var createResp structs.HostVolumeCreateResponse
-		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", createReq, &createResp)
+		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", createReq, &createResp)
 		must.EqError(t, err, `volume validation failed: 2 errors occurred:
 	* missing name
 	* must include at least one capability block
 
-`, must.Sprint("initial validation failures should exit early even if there's another valid vol"))
+`, must.Sprint("initial validation failures should exit early"))
 
 		invalidVol1.NodeID = uuid.Generate()
 		invalidVol1.RequestedCapacityMinBytes = 100
 		invalidVol1.RequestedCapacityMaxBytes = 200
 		registerReq := &structs.HostVolumeRegisterRequest{
-			Volumes: []*structs.HostVolume{invalidVol1},
+			Volume: invalidVol1,
 			WriteRequest: structs.WriteRequest{
 				Region:    srv.Region(),
 				Namespace: ns,
@@ -249,13 +250,10 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	})
 
 	t.Run("blocking Get unblocks on write", func(t *testing.T) {
-		vol1, err := store.HostVolumeByID(nil, ns, vol1ID, false)
-		must.NoError(t, err)
-		must.NotNil(t, vol1)
 		nextVol1 := vol1.Copy()
 		nextVol1.RequestedCapacityMaxBytes = 300000
 		registerReq := &structs.HostVolumeRegisterRequest{
-			Volumes: []*structs.HostVolume{nextVol1},
+			Volume: nextVol1,
 			WriteRequest: structs.WriteRequest{
 				Region:    srv.Region(),
 				Namespace: ns,
@@ -270,7 +268,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		errCh := make(chan error)
 
 		getReq := &structs.HostVolumeGetRequest{
-			ID: vol1ID,
+			ID: vol1.ID,
 			QueryOptions: structs.QueryOptions{
 				Region:        srv.Region(),
 				Namespace:     ns,
@@ -294,7 +292,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		time.AfterFunc(200*time.Millisecond, func() {
 			codec := rpcClient(t, srv)
 			var registerResp structs.HostVolumeRegisterResponse
-			err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
+			err := msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
 			must.NoError(t, err)
 		})
 
@@ -309,9 +307,6 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	})
 
 	t.Run("delete blocked by allocation claims", func(t *testing.T) {
-		vol2, err := store.HostVolumeByID(nil, ns, vol2ID, false)
-		must.NoError(t, err)
-		must.NotNil(t, vol2)
 
 		// claim one of the volumes with a pending allocation
 		alloc := mock.MinAlloc()
@@ -326,7 +321,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 			index, []*structs.Allocation{alloc}))
 
 		delReq := &structs.HostVolumeDeleteRequest{
-			VolumeIDs: []string{vol1ID, vol2ID},
+			VolumeIDs: []string{vol1.ID, vol2.ID},
 			WriteRequest: structs.WriteRequest{
 				Region:    srv.Region(),
 				Namespace: ns,
@@ -334,16 +329,16 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		}
 		var delResp structs.HostVolumeDeleteResponse
 
-		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
+		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
 		must.EqError(t, err, "Permission denied")
 
 		delReq.AuthToken = powerToken
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
-		must.EqError(t, err, fmt.Sprintf("volume %s in use by allocations: [%s]", vol2ID, alloc.ID))
+		must.EqError(t, err, fmt.Sprintf("volume %s in use by allocations: [%s]", vol2.ID, alloc.ID))
 
 		// volume not in use will be deleted even if we got an error
 		getReq := &structs.HostVolumeGetRequest{
-			ID: vol1ID,
+			ID: vol1.ID,
 			QueryOptions: structs.QueryOptions{
 				Region:    srv.Region(),
 				Namespace: ns,
@@ -366,11 +361,11 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		}
 		err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", nArgs, &structs.GenericResponse{})
 
-		delReq.VolumeIDs = []string{vol2ID}
+		delReq.VolumeIDs = []string{vol2.ID}
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
 		must.NoError(t, err)
 
-		getReq.ID = vol2ID
+		getReq.ID = vol2.ID
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Get", getReq, &getResp)
 		must.NoError(t, err)
 		must.Nil(t, getResp.Volume)
@@ -378,6 +373,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 }
 
 func TestHostVolumeEndpoint_List(t *testing.T) {
+	ci.Parallel(t)
 
 	srv, rootToken, cleanupSrv := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0
@@ -422,47 +418,51 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 
 	vol1 := mock.HostVolumeRequestForNode(ns1, nodes[0])
 	vol1.Name = "foobar-example"
-	vol1.Parameters = map[string]string{"mockID": "vol1"}
 
 	vol2 := mock.HostVolumeRequestForNode(ns1, nodes[1])
 	vol2.Name = "foobaz-example"
-	vol2.Parameters = map[string]string{"mockID": "vol2"}
 
 	vol3 := mock.HostVolumeRequestForNode(ns2, nodes[2])
 	vol3.Name = "foobar-example"
-	vol3.Parameters = map[string]string{"mockID": "vol3"}
 
 	vol4 := mock.HostVolumeRequestForNode(ns2, nodes[1])
 	vol4.Name = "foobaz-example"
-	vol4.Parameters = map[string]string{"mockID": "vol4"}
 
 	// we need to register these rather than upsert them so we have the correct
 	// indexes for unblocking later.
 	registerReq := &structs.HostVolumeRegisterRequest{
-		Volumes: []*structs.HostVolume{vol1, vol2, vol3, vol4},
 		WriteRequest: structs.WriteRequest{
 			Region:    srv.Region(),
 			AuthToken: rootToken.SecretID},
 	}
 
 	var registerResp structs.HostVolumeRegisterResponse
+
+	// write the volumes in reverse order so our later test can get a blocking
+	// query index from a Get it has access to
+
+	registerReq.Volume = vol4
 	err := msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
 	must.NoError(t, err)
+	vol4 = registerResp.Volume
 
-	// IDs are generated by the server, so we need to read them back to figure
-	// out which mock got which ID
-	for _, vol := range registerResp.Volumes {
-		switch vol.Parameters["mockID"] {
-		case "vol1":
-			vol1 = vol
-		case "vol2":
-			vol2 = vol
-		case "vol3":
-			vol3 = vol
-		case "vol4":
-			vol4 = vol
-		}
-	}
+	registerReq.Volume = vol3
+	registerResp = structs.HostVolumeRegisterResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
+	must.NoError(t, err)
+	vol3 = registerResp.Volume
+
+	registerReq.Volume = vol2
+	registerResp = structs.HostVolumeRegisterResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
+	must.NoError(t, err)
+	vol2 = registerResp.Volume
+
+	registerReq.Volume = vol1
+	registerResp = structs.HostVolumeRegisterResponse{}
+	err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
+	must.NoError(t, err)
+	vol1 = registerResp.Volume
 
 	testCases := []struct {
 		name         string
@@ -568,21 +568,24 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 
 	t.Run("blocking query unblocks", func(t *testing.T) {
 
-		// Get response will include the volume's Index to block on
+		// the Get response from the most-recently written volume will have the
+		// index we want to block on
 		getReq := &structs.HostVolumeGetRequest{
 			ID: vol1.ID,
 			QueryOptions: structs.QueryOptions{
 				Region:    srv.Region(),
-				Namespace: vol1.Namespace,
+				Namespace: ns1,
 				AuthToken: token,
 			},
 		}
 		var getResp structs.HostVolumeGetResponse
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Get", getReq, &getResp)
+		must.NoError(t, err)
+		must.NotNil(t, getResp.Volume)
 
 		nextVol := getResp.Volume.Copy()
 		nextVol.RequestedCapacityMaxBytes = 300000
-		registerReq.Volumes = []*structs.HostVolume{nextVol}
+		registerReq.Volume = nextVol
 		registerReq.Namespace = nextVol.Namespace
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -716,7 +719,8 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			node, err := endpoint.placeHostVolume(tc.vol)
+			snap, _ := store.Snapshot()
+			node, err := endpoint.placeHostVolume(snap, tc.vol)
 			if tc.expectErr == "" {
 				must.NoError(t, err)
 				must.Eq(t, tc.expect, node)
@@ -788,6 +792,9 @@ func (v *mockHostVolumeClient) Create(
 	resp *cstructs.ClientHostVolumeCreateResponse) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
+	if v.nextCreateResponse == nil {
+		return nil // prevents panics from incorrect tests
+	}
 	*resp = *v.nextCreateResponse
 	return v.nextCreateErr
 }

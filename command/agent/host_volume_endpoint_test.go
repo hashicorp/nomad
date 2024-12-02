@@ -24,8 +24,8 @@ func TestHostVolumeEndpoint_CRUD(t *testing.T) {
 		vol.NodePool = ""
 		vol.Constraints = nil
 		reqBody := struct {
-			Volumes []*structs.HostVolume
-		}{Volumes: []*structs.HostVolume{vol}}
+			Volume *structs.HostVolume
+		}{Volume: vol}
 		buf := encodeReq(reqBody)
 		req, err := http.NewRequest(http.MethodPut, "/v1/volume/host/create", buf)
 		must.NoError(t, err)
@@ -37,12 +37,12 @@ func TestHostVolumeEndpoint_CRUD(t *testing.T) {
 		must.NoError(t, err)
 		must.NotNil(t, obj)
 		resp := obj.(*structs.HostVolumeCreateResponse)
-		must.Len(t, 1, resp.Volumes)
-		must.Eq(t, vol.Name, resp.Volumes[0].Name)
-		must.Eq(t, s.client.NodeID(), resp.Volumes[0].NodeID)
+		must.NotNil(t, resp.Volume)
+		must.Eq(t, vol.Name, resp.Volume.Name)
+		must.Eq(t, s.client.NodeID(), resp.Volume.NodeID)
 		must.NotEq(t, "", respW.Result().Header.Get("X-Nomad-Index"))
 
-		volID := resp.Volumes[0].ID
+		volID := resp.Volume.ID
 
 		// Verify volume was created
 
@@ -61,8 +61,8 @@ func TestHostVolumeEndpoint_CRUD(t *testing.T) {
 		vol = respVol.Copy()
 		vol.Parameters = map[string]string{"bar": "foo"} // swaps key and value
 		reqBody = struct {
-			Volumes []*structs.HostVolume
-		}{Volumes: []*structs.HostVolume{vol}}
+			Volume *structs.HostVolume
+		}{Volume: vol}
 		buf = encodeReq(reqBody)
 		req, err = http.NewRequest(http.MethodPut, "/v1/volume/host/register", buf)
 		must.NoError(t, err)
@@ -70,8 +70,8 @@ func TestHostVolumeEndpoint_CRUD(t *testing.T) {
 		must.NoError(t, err)
 		must.NotNil(t, obj)
 		regResp := obj.(*structs.HostVolumeRegisterResponse)
-		must.Len(t, 1, regResp.Volumes)
-		must.Eq(t, map[string]string{"bar": "foo"}, regResp.Volumes[0].Parameters)
+		must.NotNil(t, regResp.Volume)
+		must.Eq(t, map[string]string{"bar": "foo"}, regResp.Volume.Parameters)
 
 		// Verify volume was updated
 
