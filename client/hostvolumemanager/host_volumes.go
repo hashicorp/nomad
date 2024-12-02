@@ -41,7 +41,7 @@ func NewHostVolumeManager(logger hclog.Logger,
 		log:            log,
 	}
 
-	if err := hvm.restoreState(stateMgr); err != nil { // db TODO(1.10.0): test this behavior
+	if err := hvm.restoreState(stateMgr); err != nil {
 		return nil, err
 	}
 
