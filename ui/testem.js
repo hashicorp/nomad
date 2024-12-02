@@ -13,7 +13,6 @@ const JsonReporter = require('./test-reporter');
  * @returns {string} The path to the test results file
  */
 const getReportPath = () => {
-  // Look for --json-report=path
   const jsonReportArg = process.argv.find((arg) =>
     arg.startsWith('--json-report=')
   );

@@ -14,7 +14,7 @@ class JsonReporter {
     this.out = out || process.stdout;
     this.results = [];
 
-    // Get output file from Testem config
+    // Get output file from Testem config, which is set by the --json-report=path argument
     this.outputFile = config?.fileOptions?.custom_report_file;
     this.generateReport = !!this.outputFile;
 

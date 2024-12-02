@@ -71,7 +71,7 @@ jobs:
         if: ${{ failure() }}
         run: exit 1
       - name: Upload partition test results
-        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-${{ matrix.partition }}
@@ -101,14 +101,14 @@ jobs:
           secrets: |-
             kv/data/teams/nomad/ui PERCY_TOKEN ;
       - name: Download all test results
-        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           pattern: test-results-*
           path: test-results
 
       - name: Combine test results for comparison
-        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         # Note: iterator is hardcoded to 4 to match matrix partitions
         run: |
           node -e "
@@ -142,7 +142,7 @@ jobs:
           "
 
       - name: Upload combined results for comparison
-        # if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-${{ github.sha }}
