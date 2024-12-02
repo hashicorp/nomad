@@ -48,6 +48,37 @@ done
 [ $# -lt 2 ] && { echo 'path required; seek --help' 1>&2; exit 1; }
 host_path="$2"
 
+# OS detect
+if [[ "$OSTYPE" == "linux-"* ]]; then
+  ext=ext4
+  mount=/usr/bin/mount
+  mkfsExec() {
+	dd if=/dev/zero of="$1".$ext bs=1M count="$2"
+	mkfs.ext4 "$1".$ext 1>&2
+  }
+  mountExec() {
+    $mount "$1".$ext "$1"
+  }
+  st() {
+    stat --format='%s' "$1"
+  }
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  ext=dmg
+  mount=/sbin/mount
+  mkfsExec() {
+    hdiutil create -megabytes "$2" -layout NONE -fs apfs -volname "$1" "$1" 1>&2
+  }
+  mountExec() { 
+    hdiutil attach "$1".$ext 1>&2
+  }
+  st() {
+    stat -f %z "$1"
+  }
+else
+  echo "$OSTYPE is an unsupported OS"
+  return 1
+fi
+
 validate_path() {
   local path="$1"
   if [[ ! "$path" =~ [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} ]]; then
@@ -57,7 +88,7 @@ validate_path() {
 }
 
 is_mounted() {
-  awk '{print $2}' /proc/mounts | grep -q "^$1$"
+  $mount | grep -q "^$1$"
 }
 
 create_volume() {
@@ -69,15 +100,12 @@ create_volume() {
     local megs=$((bytes / 1024 / 1024)) # lazy, approximate
 
     # the extra conditionals are for idempotency
-    if [ ! -f "$path.ext4" ]; then
-      dd if=/dev/zero of="$path.ext4" bs=1M count="$megs"
-      # mkfs is noisy on stdout, so we send it to stderr
-      # to avoid breaking the JSON parsing on the client
-      mkfs.ext4 "$path.ext4" 1>&2
+    if [ ! -f "$path.$ext" ]; then
+      mkfsExec "$path" $megs
     fi
     if ! is_mounted "$path"; then
       mkdir -p "$path"
-      mount "$path.ext4" "$path"
+      mountExec "$path"
     fi
 }
 
@@ -86,14 +114,14 @@ delete_volume() {
   validate_path "$path"
   is_mounted "$path" && umount "$path"
   rm -rf "$path"
-  rm -f "$path.ext4"
+  rm -f "$path"."$ext"
 }
 
 case "$1" in
   "create")
     create_volume "$host_path" "$CAPACITY_MIN_BYTES"
     # output what Nomad expects
-    bytes="$(stat --format='%s' "$host_path.ext4")"
+    bytes="$(st "$host_path".$ext)"
     printf '{"path": "%s", "bytes": %s}' "$host_path" "$bytes"
     ;;
   "delete")
