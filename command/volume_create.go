@@ -52,7 +52,11 @@ Create Options:
 }
 
 func (c *VolumeCreateCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-detach":  complete.PredictNothing,
+			"-verbose": complete.PredictNothing,
+		})
 }
 
 func (c *VolumeCreateCommand) AutocompleteArgs() complete.Predictor {
