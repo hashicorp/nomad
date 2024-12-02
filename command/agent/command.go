@@ -111,6 +111,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocMountsDir, "alloc-mounts-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.HostVolumePluginDir, "host-volume-plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
 	flags.StringVar(&servers, "servers", "", "")
@@ -384,11 +385,12 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 
 	// Verify the paths are absolute.
 	dirs := map[string]string{
-		"data-dir":         config.DataDir,
-		"plugin-dir":       config.PluginDir,
-		"alloc-dir":        config.Client.AllocDir,
-		"alloc-mounts-dir": config.Client.AllocMountsDir,
-		"state-dir":        config.Client.StateDir,
+		"data-dir":               config.DataDir,
+		"plugin-dir":             config.PluginDir,
+		"alloc-dir":              config.Client.AllocDir,
+		"alloc-mounts-dir":       config.Client.AllocMountsDir,
+		"host-volume-plugin-dir": config.Client.HostVolumePluginDir,
+		"state-dir":              config.Client.StateDir,
 	}
 	for k, dir := range dirs {
 		if dir == "" {
@@ -735,6 +737,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-region":                      complete.PredictAnything,
 		"-data-dir":                    complete.PredictDirs("*"),
 		"-plugin-dir":                  complete.PredictDirs("*"),
+		"-host-volume-plugin-dir":      complete.PredictDirs("*"),
 		"-dc":                          complete.PredictAnything,
 		"-log-level":                   complete.PredictAnything,
 		"-json-logs":                   complete.PredictNothing,
@@ -1567,6 +1570,10 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+  -host-volume-plugin-dir
+    Directory containing dynamic host volume plugins. The default is
+    <data-dir>/host_volume_plugins.
 
 ACL Options:
 
