@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/mitchellh/cli"
+	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
 )
 
@@ -141,8 +142,19 @@ capability {
 
 	ui.OutputWriter.Reset()
 
+	// autocomplete
+	cmd := &VolumeStatusCommand{Meta: Meta{Ui: ui, namespace: "*", flagAddress: url}}
+	cmd.Meta.namespace = "*"
+	prefix := id[:len(id)-5]
+	cargs := complete.Args{Last: prefix}
+	predictor := cmd.AutocompleteArgs()
+
+	res := predictor.Predict(cargs)
+	must.SliceLen(t, 1, res)
+	must.Eq(t, id, res[0])
+
 	// missing the namespace
-	cmd := &VolumeStatusCommand{Meta: Meta{Ui: ui}}
+	cmd = &VolumeStatusCommand{Meta: Meta{Ui: ui}}
 	args = []string{"-address", url, "-type", "host", id}
 	code = cmd.Run(args)
 	must.Eq(t, 1, code)
