@@ -5,60 +5,57 @@ package hostvolumemanager
 
 import (
 	"context"
-	"fmt"
-	"sync"
+	"errors"
+	"path/filepath"
 
 	"github.com/hashicorp/go-hclog"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
 
+var (
+	ErrPluginNotExists     = errors.New("no such plugin")
+	ErrPluginNotExecutable = errors.New("plugin not executable")
+)
+
 type HostVolumeManager struct {
-	log     hclog.Logger
-	plugins *sync.Map
+	pluginDir      string
+	sharedMountDir string
+
+	log hclog.Logger
 }
 
-func NewHostVolumeManager(sharedMountDir string, logger hclog.Logger) *HostVolumeManager {
-	log := logger.Named("host_volumes")
+func NewHostVolumeManager(logger hclog.Logger, pluginDir, sharedMountDir string) *HostVolumeManager {
+	log := logger.Named("host_volume_mgr")
 
-	mgr := &HostVolumeManager{
-		log:     log,
-		plugins: &sync.Map{},
+	// db TODO(1.10.0): how do we define the external mounter plugins? plugin configs?
+	return &HostVolumeManager{
+		log:            log,
+		pluginDir:      pluginDir,
+		sharedMountDir: sharedMountDir,
 	}
-	// db TODO(1.10.0): discover plugins on disk, need a new plugin dir
-	// TODO: how do we define the external mounter plugins? plugin configs?
-	mgr.setPlugin("mkdir", &HostVolumePluginMkdir{
-		ID:         "mkdir",
-		TargetPath: sharedMountDir,
-		log:        log.With("plugin_id", "mkdir"),
-	})
-	mgr.setPlugin("example-host-volume", &HostVolumePluginExternal{
-		ID:         "example-host-volume",
-		Executable: "/opt/nomad/hostvolumeplugins/example-host-volume",
-		TargetPath: sharedMountDir,
-		log:        log.With("plugin_id", "example-host-volume"),
-	})
-	return mgr
 }
 
-// db TODO(1.10.0): fingerprint elsewhere / on sighup, and SetPlugin from afar?
-func (hvm *HostVolumeManager) setPlugin(id string, plug HostVolumePlugin) {
-	hvm.plugins.Store(id, plug)
-}
+func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
+	log := hvm.log.With("plugin_id", id)
 
-func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, bool) {
-	obj, ok := hvm.plugins.Load(id)
-	if !ok {
-		return nil, false
+	if id == HostVolumePluginMkdirID {
+		return &HostVolumePluginMkdir{
+			ID:         HostVolumePluginMkdirID,
+			TargetPath: hvm.sharedMountDir,
+			log:        log,
+		}, nil
 	}
-	return obj.(HostVolumePlugin), true
+
+	path := filepath.Join(hvm.pluginDir, id)
+	return NewHostVolumePluginExternal(log, id, path, hvm.sharedMountDir)
 }
 
 func (hvm *HostVolumeManager) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
 
-	plug, ok := hvm.getPlugin(req.PluginID)
-	if !ok {
-		return nil, fmt.Errorf("no such plugin %q", req.PluginID)
+	plug, err := hvm.getPlugin(req.PluginID)
+	if err != nil {
+		return nil, err
 	}
 
 	pluginResp, err := plug.Create(ctx, req)
@@ -80,12 +77,12 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 func (hvm *HostVolumeManager) Delete(ctx context.Context,
 	req *cstructs.ClientHostVolumeDeleteRequest) (*cstructs.ClientHostVolumeDeleteResponse, error) {
 
-	plug, ok := hvm.getPlugin(req.PluginID)
-	if !ok {
-		return nil, fmt.Errorf("no such plugin %q", req.PluginID)
+	plug, err := hvm.getPlugin(req.PluginID)
+	if err != nil {
+		return nil, err
 	}
 
-	err := plug.Delete(ctx, req)
+	err = plug.Delete(ctx, req)
 	if err != nil {
 		return nil, err
 	}
