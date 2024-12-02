@@ -15,30 +15,36 @@ class JsonReporter {
     this.results = [];
 
     // Get output file from Testem config
-    this.outputFile =
-      config.fileOptions.custom_report_file || 'test-results/test-results.json';
+    this.outputFile = config?.fileOptions?.custom_report_file;
+    this.generateReport = !!this.outputFile;
 
-    console.log(`[Reporter] Initializing with output file: ${this.outputFile}`);
-
-    try {
-      fs.mkdirSync(path.dirname(this.outputFile), { recursive: true });
-
-      // Initialize the results file
-      fs.writeFileSync(
-        this.outputFile,
-        JSON.stringify(
-          {
-            summary: { total: 0, passed: 0, failed: 0 },
-            timestamp: new Date().toISOString(),
-            tests: [],
-          },
-          null,
-          2
-        )
+    if (this.generateReport) {
+      console.log(
+        `[Reporter] Initializing with output file: ${this.outputFile}`
       );
-      console.log('[Reporter] Initialized results file');
-    } catch (err) {
-      console.error('[Reporter] Error initializing results file:', err);
+
+      try {
+        fs.mkdirSync(path.dirname(this.outputFile), { recursive: true });
+
+        // Initialize the results file
+        fs.writeFileSync(
+          this.outputFile,
+          JSON.stringify(
+            {
+              summary: { total: 0, passed: 0, failed: 0 },
+              timestamp: new Date().toISOString(),
+              tests: [],
+            },
+            null,
+            2
+          )
+        );
+        console.log('[Reporter] Initialized results file');
+      } catch (err) {
+        console.error('[Reporter] Error initializing results file:', err);
+      }
+    } else {
+      console.log('[Reporter] No report file configured, skipping JSON output');
     }
 
     process.on('SIGINT', () => {
@@ -116,7 +122,9 @@ class JsonReporter {
         tests: this.results,
       };
 
-      fs.writeFileSync(this.outputFile, JSON.stringify(output, null, 2));
+      if (this.generateReport) {
+        fs.writeFileSync(this.outputFile, JSON.stringify(output, null, 2));
+      }
 
       // Print a summary
       console.log('\n[Reporter] Test Summary:');
