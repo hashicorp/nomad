@@ -49,7 +49,7 @@ done
 host_path="$2"
 
 # OS detect
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+if [[ "$OSTYPE" == "linux-"* ]]; then
   ext=ext4
   mount=/usr/bin/mount
   mkfsExec() {
