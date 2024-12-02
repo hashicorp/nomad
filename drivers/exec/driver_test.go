@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
 )
 
 type mockIDValidator struct{}
@@ -347,9 +348,70 @@ func TestExecDriver_StartWaitRecover(t *testing.T) {
 	require.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
+func TestExecDriver_NoOrphanedExecutor(t *testing.T) {
+	ci.Parallel(t)
+	ctestutils.ExecCompatible(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := newExecDriverTest(t, ctx)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	config := &Config{
+		NoPivotRoot:    false,
+		DefaultModePID: executor.IsolationModePrivate,
+		DefaultModeIPC: executor.IsolationModePrivate,
+	}
+
+	var data []byte
+	must.NoError(t, base.MsgPackEncode(&data, config))
+	baseConfig := &base.Config{
+		PluginConfig: data,
+		AgentConfig: &base.AgentConfig{
+			Driver: &base.ClientDriverConfig{
+				Topology: d.(*Driver).nomadConfig.Topology,
+			},
+		},
+	}
+	must.NoError(t, harness.SetConfig(baseConfig))
+
+	allocID := uuid.Generate()
+	taskName := "test"
+	task := &drivers.TaskConfig{
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Resources: testResources(allocID, taskName),
+	}
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	taskConfig := map[string]interface{}{}
+	taskConfig["command"] = "force-an-error"
+	must.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
+
+	_, _, err := harness.StartTask(task)
+	must.Error(t, err)
+	defer harness.DestroyTask(task.ID, true)
+
+	testPid := unix.Getpid()
+	tids, err := os.ReadDir(fmt.Sprintf("/proc/%d/task", testPid))
+	must.NoError(t, err)
+	for _, tid := range tids {
+		children, err := os.ReadFile(fmt.Sprintf("/proc/%d/task/%s/children", testPid, tid.Name()))
+		must.NoError(t, err)
+
+		pids := strings.Fields(string(children))
+		must.Eq(t, 0, len(pids))
+	}
+}
+
 // TestExecDriver_NoOrphans asserts that when the main
 // task dies, the orphans in the PID namespaces are killed by the kernel
-func TestExecDriver_NoOrphans(t *testing.T) {
+func TestExecDriver_NoOrphanedTasks(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
