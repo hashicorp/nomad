@@ -147,11 +147,11 @@ func (c *Client) HostVolumes() *HostVolumes {
 }
 
 type HostVolumeCreateRequest struct {
-	Volumes []*HostVolume
+	Volume *HostVolume
 }
 
 type HostVolumeRegisterRequest struct {
-	Volumes []*HostVolume
+	Volume *HostVolume
 }
 
 type HostVolumeListRequest struct {
@@ -163,30 +163,30 @@ type HostVolumeDeleteRequest struct {
 	VolumeIDs []string
 }
 
-// Create forwards to client agents so host volumes can be created on those
-// hosts, and registers the volumes with Nomad servers.
-func (hv *HostVolumes) Create(req *HostVolumeCreateRequest, opts *WriteOptions) ([]*HostVolume, *WriteMeta, error) {
+// Create forwards to client agents so a host volume can be created on those
+// hosts, and registers the volume with Nomad servers.
+func (hv *HostVolumes) Create(req *HostVolumeCreateRequest, opts *WriteOptions) (*HostVolume, *WriteMeta, error) {
 	var out struct {
-		Volumes []*HostVolume
+		Volume *HostVolume
 	}
 	wm, err := hv.client.put("/v1/volume/host/create", req, &out, opts)
 	if err != nil {
 		return nil, wm, err
 	}
-	return out.Volumes, wm, nil
+	return out.Volume, wm, nil
 }
 
-// Register registers host volumes that were created out-of-band with the Nomad
+// Register registers a host volume that was created out-of-band with the Nomad
 // servers.
-func (hv *HostVolumes) Register(req *HostVolumeRegisterRequest, opts *WriteOptions) ([]*HostVolume, *WriteMeta, error) {
+func (hv *HostVolumes) Register(req *HostVolumeRegisterRequest, opts *WriteOptions) (*HostVolume, *WriteMeta, error) {
 	var out struct {
-		Volumes []*HostVolume
+		Volume *HostVolume
 	}
 	wm, err := hv.client.put("/v1/volume/host/register", req, &out, opts)
 	if err != nil {
 		return nil, wm, err
 	}
-	return out.Volumes, wm, nil
+	return out.Volume, wm, nil
 }
 
 // Get queries for a single host volume, by ID

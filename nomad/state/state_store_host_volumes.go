@@ -51,55 +51,53 @@ func (s *StateStore) HostVolumeByID(ws memdb.WatchSet, ns, id string, withAllocs
 	return vol, nil
 }
 
-// UpsertHostVolumes upserts a set of host volumes
-func (s *StateStore) UpsertHostVolumes(index uint64, volumes []*structs.HostVolume) error {
+// UpsertHostVolume upserts a host volume
+func (s *StateStore) UpsertHostVolume(index uint64, vol *structs.HostVolume) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
-	for _, v := range volumes {
-		if exists, err := s.namespaceExists(txn, v.Namespace); err != nil {
-			return err
-		} else if !exists {
-			return fmt.Errorf("host volume %s is in nonexistent namespace %s", v.ID, v.Namespace)
-		}
+	if exists, err := s.namespaceExists(txn, vol.Namespace); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("host volume %s is in nonexistent namespace %s", vol.ID, vol.Namespace)
+	}
 
-		obj, err := txn.First(TableHostVolumes, indexID, v.Namespace, v.ID)
-		if err != nil {
-			return err
-		}
-		if obj != nil {
-			old := obj.(*structs.HostVolume)
-			v.CreateIndex = old.CreateIndex
-			v.CreateTime = old.CreateTime
-		} else {
-			v.CreateIndex = index
-		}
+	obj, err := txn.First(TableHostVolumes, indexID, vol.Namespace, vol.ID)
+	if err != nil {
+		return err
+	}
+	if obj != nil {
+		old := obj.(*structs.HostVolume)
+		vol.CreateIndex = old.CreateIndex
+		vol.CreateTime = old.CreateTime
+	} else {
+		vol.CreateIndex = index
+	}
 
-		// If the fingerprint is written from the node before the create RPC
-		// handler completes, we'll never update from the initial pending, so
-		// reconcile that here
-		node, err := s.NodeByID(nil, v.NodeID)
-		if err != nil {
-			return err
-		}
-		if node == nil {
-			return fmt.Errorf("host volume %s has nonexistent node ID %s", v.ID, v.NodeID)
-		}
-		if _, ok := node.HostVolumes[v.Name]; ok {
-			v.State = structs.HostVolumeStateReady
-		}
-		// Register RPCs for new volumes may not have the node pool set
-		v.NodePool = node.NodePool
+	// If the fingerprint is written from the node before the create RPC handler
+	// completes, we'll never update from the initial pending, so reconcile that
+	// here
+	node, err := s.NodeByID(nil, vol.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return fmt.Errorf("host volume %s has nonexistent node ID %s", vol.ID, vol.NodeID)
+	}
+	if _, ok := node.HostVolumes[vol.Name]; ok {
+		vol.State = structs.HostVolumeStateReady
+	}
+	// Register RPCs for new volumes may not have the node pool set
+	vol.NodePool = node.NodePool
 
-		// Allocations are denormalized on read, so we don't want these to be
-		// written to the state store.
-		v.Allocations = nil
-		v.ModifyIndex = index
+	// Allocations are denormalized on read, so we don't want these to be
+	// written to the state store.
+	vol.Allocations = nil
+	vol.ModifyIndex = index
 
-		err = txn.Insert(TableHostVolumes, v)
-		if err != nil {
-			return fmt.Errorf("host volume insert: %w", err)
-		}
+	err = txn.Insert(TableHostVolumes, vol)
+	if err != nil {
+		return fmt.Errorf("host volume insert: %w", err)
 	}
 
 	if err := txn.Insert(tableIndex, &IndexEntry{TableHostVolumes, index}); err != nil {
