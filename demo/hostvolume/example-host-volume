@@ -53,8 +53,8 @@ if [[ "$OSTYPE" == "linux-"* ]]; then
   ext=ext4
   mount=/usr/bin/mount
   mkfsExec() {
-	dd if=/dev/zero of="$1".$ext bs=1M count="$2"
-	mkfs.ext4 "$1".$ext 1>&2
+    dd if=/dev/zero of="$1".$ext bs=1M count="$2"
+    mkfs.ext4 "$1".$ext 1>&2
   }
   mountExec() {
     $mount "$1".$ext "$1"
@@ -76,7 +76,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
   }
 else
   echo "$OSTYPE is an unsupported OS"
-  return 1
+  exit 1
 fi
 
 validate_path() {
@@ -88,7 +88,7 @@ validate_path() {
 }
 
 is_mounted() {
-  $mount | grep -q "^$1$"
+  $mount | grep -q " $1 "
 }
 
 create_volume() {
