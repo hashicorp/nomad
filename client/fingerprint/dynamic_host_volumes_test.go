@@ -69,8 +69,8 @@ func TestPluginsHostVolumeFingerprint(t *testing.T) {
 	err := fp.Fingerprint(req, &resp)
 	must.NoError(t, err)
 	must.Eq(t, map[string]string{
-		"plugins.dhv.version.happy-plugin": "0.0.1",
-		"plugins.dhv.version.mkdir":        hvm.HostVolumePluginMkdirVersion, // built-in
+		"plugins.host_volume.version.happy-plugin": "0.0.1",
+		"plugins.host_volume.version.mkdir":        hvm.HostVolumePluginMkdirVersion, // built-in
 	}, resp.Attributes)
 
 	// do it again after deleting our one good plugin.
@@ -82,8 +82,8 @@ func TestPluginsHostVolumeFingerprint(t *testing.T) {
 	err = fp.Fingerprint(req, &resp)
 	must.NoError(t, err)
 	must.Eq(t, map[string]string{
-		"plugins.dhv.version.happy-plugin": "", // will get cleaned up later
+		"plugins.host_volume.version.happy-plugin": "", // empty value means removed
 
-		"plugins.dhv.version.mkdir": hvm.HostVolumePluginMkdirVersion, // built-in
+		"plugins.host_volume.version.mkdir": hvm.HostVolumePluginMkdirVersion, // built-in
 	}, resp.Attributes)
 }

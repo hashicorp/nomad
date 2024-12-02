@@ -34,6 +34,7 @@ type HostVolumePluginCreateResponse struct {
 	Context   map[string]string `json:"context"` // metadata
 }
 
+const HostVolumePluginMkdirID = "mkdir"
 const HostVolumePluginMkdirVersion = "0.0.1"
 
 var _ HostVolumePlugin = &HostVolumePluginMkdir{}

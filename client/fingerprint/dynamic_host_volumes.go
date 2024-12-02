@@ -33,8 +33,9 @@ func (h *DynamicHostVolumePluginFingerprint) Reload() {
 
 func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
 	// always add "mkdir" plugin
-	h.logger.Debug("detected plugin built-in", "plugin_id", "mkdir", "version", hvm.HostVolumePluginMkdirVersion)
-	defer response.AddAttribute("plugins.dhv.version.mkdir", hvm.HostVolumePluginMkdirVersion)
+	h.logger.Debug("detected plugin built-in",
+		"plugin_id", hvm.HostVolumePluginMkdirID, "version", hvm.HostVolumePluginMkdirVersion)
+	defer response.AddAttribute("plugins.host_volume.version."+hvm.HostVolumePluginMkdirID, hvm.HostVolumePluginMkdirVersion)
 	response.Detected = true
 
 	// this config value will be empty in -dev mode
@@ -55,7 +56,7 @@ func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintReq
 
 	// if this was a reload, wipe what was there before
 	for k := range request.Node.Attributes {
-		if strings.HasPrefix(k, "plugins.dhv.") {
+		if strings.HasPrefix(k, "plugins.host_volume.") {
 			response.RemoveAttribute(k)
 		}
 	}
@@ -63,14 +64,14 @@ func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintReq
 	// set the attribute(s)
 	for plugin, version := range plugins {
 		h.logger.Debug("detected plugin", "plugin_id", plugin, "version", version)
-		response.AddAttribute("plugins.dhv.version."+plugin, version)
+		response.AddAttribute("plugins.host_volume.version."+plugin, version)
 	}
 
 	return nil
 }
 
 func (h *DynamicHostVolumePluginFingerprint) Periodic() (bool, time.Duration) {
-	return false, 0 // not periodic;  db TODO(1.10.0): could be?
+	return false, 0
 }
 
 // GetHostVolumePluginVersions finds all the executable files on disk
@@ -94,11 +95,11 @@ func GetHostVolumePluginVersions(log hclog.Logger, pluginDir string) (map[string
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 
-			log := log.With("plugin_id", file) // db TODO: "name" like CNI, instead of "ID" ?
+			log := log.With("plugin_id", file)
 
 			p, err := hvm.NewHostVolumePluginExternal(log, file, fullPath, "")
 			if err != nil {
-				log.Debug("error getting plugin", "error", err)
+				log.Warn("error getting plugin", "error", err)
 				return
 			}
 

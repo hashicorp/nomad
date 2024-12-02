@@ -38,9 +38,9 @@ func NewHostVolumeManager(logger hclog.Logger, pluginDir, sharedMountDir string)
 func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 	log := hvm.log.With("plugin_id", id)
 
-	if id == "mkdir" { // db TODO: constant?
+	if id == HostVolumePluginMkdirID {
 		return &HostVolumePluginMkdir{
-			ID:         "mkdir",
+			ID:         HostVolumePluginMkdirID,
 			TargetPath: hvm.sharedMountDir,
 			log:        log,
 		}, nil

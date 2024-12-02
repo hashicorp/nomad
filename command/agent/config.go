@@ -229,9 +229,9 @@ type ClientConfig struct {
 	// AllocMountsDir is the directory for storing mounts into allocation data
 	AllocMountsDir string `hcl:"alloc_mounts_dir"`
 
-	// DHVPluginDir is the directory containing dynamic host volume plugins
+	// HostVolumePluginDir directory contains dynamic host volume plugins
 	// db TODO(1.10.0): document default directory is alongside alloc_mounts
-	DHVPluginDir string `hcl:"dhv_plugin_dir"` // db TODO(1.10.0): is this a good name?
+	HostVolumePluginDir string `hcl:"host_volume_plugin_dir"`
 
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
@@ -2315,8 +2315,8 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.AllocMountsDir != "" {
 		result.AllocMountsDir = b.AllocMountsDir
 	}
-	if b.DHVPluginDir != "" {
-		result.DHVPluginDir = b.DHVPluginDir
+	if b.HostVolumePluginDir != "" {
+		result.HostVolumePluginDir = b.HostVolumePluginDir
 	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
