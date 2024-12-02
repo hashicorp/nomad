@@ -364,12 +364,6 @@ func (m *MemDB) PutDynamicHostVolume(vol *hvm.HostVolumeState) error {
 	m.dynamicHostVolumes[vol.ID] = vol
 	return nil
 }
-func (m *MemDB) GetDynamicHostVolume(s string) (*hvm.HostVolumeState, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	vol, _ := m.dynamicHostVolumes[s]
-	return vol, nil
-}
 func (m *MemDB) GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -1061,21 +1061,6 @@ func (s *BoltStateDB) PutDynamicHostVolume(vol *hvm.HostVolumeState) error {
 	})
 }
 
-func (s *BoltStateDB) GetDynamicHostVolume(id string) (*hvm.HostVolumeState, error) {
-	var vol hvm.HostVolumeState
-	err := s.db.View(func(tx *boltdd.Tx) error {
-		b := tx.Bucket(hostVolBucket)
-		if b == nil {
-			return nil
-		}
-		return b.Get([]byte(id), &vol)
-	})
-	if boltdd.IsErrNotFound(err) {
-		return nil, nil
-	}
-	return &vol, nil
-}
-
 func (s *BoltStateDB) GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error) {
 	var vols []*hvm.HostVolumeState
 	err := s.db.View(func(tx *boltdd.Tx) error {

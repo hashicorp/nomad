@@ -139,7 +139,6 @@ type StateDB interface {
 	GetNodeRegistration() (*cstructs.NodeRegistration, error)
 
 	PutDynamicHostVolume(*hvm.HostVolumeState) error
-	GetDynamicHostVolume(string) (*hvm.HostVolumeState, error)
 	GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error)
 	DeleteDynamicHostVolume(string) error
 

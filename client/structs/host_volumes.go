@@ -29,10 +29,6 @@ type ClientHostVolumeCreateRequest struct {
 
 	// Parameters are an opaque map of parameters for the host volume plugin.
 	Parameters map[string]string
-
-	// Context is saved from the result of each Create call to be passed
-	// in to subsequent Create calls.
-	Context map[string]string
 }
 
 type ClientHostVolumeCreateResponse struct {
@@ -65,9 +61,6 @@ type ClientHostVolumeDeleteRequest struct {
 
 	// Parameters are an opaque map of parameters for the host volume plugin.
 	Parameters map[string]string
-
-	// Context is saved from the result of the most recent Create call.
-	Context map[string]string
 }
 
 type ClientHostVolumeDeleteResponse struct{}

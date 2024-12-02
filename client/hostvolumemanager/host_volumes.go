@@ -67,7 +67,6 @@ func (hvm *HostVolumeManager) restoreState(state HostVolumeStateManager) error {
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 			// note: this will rewrite client state that we just restored
-			// because repeat calls may alter the response Context
 			if _, err := hvm.Create(ctx, vol.CreateReq); err != nil {
 				hvm.log.Error("failed to restore", "volume_id", vol.ID, "error", err)
 				// db TODO: multierror w/ mutex?
@@ -101,17 +100,14 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		return nil, err
 	}
 
-	req.Context = hvm.getContext(req.ID)
-
 	pluginResp, err := plug.Create(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	volState := &HostVolumeState{
-		ID:         req.ID,
-		CreateReq:  req,
-		CreateResp: pluginResp,
+		ID:        req.ID,
+		CreateReq: req,
 	}
 	if err := hvm.stateMgr.PutDynamicHostVolume(volState); err != nil {
 		hvm.log.Error("failed to save volume in state", "volume_id", req.ID, "error", err)
@@ -136,8 +132,6 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 		return nil, err
 	}
 
-	req.Context = hvm.getContext(req.ID)
-
 	err = plug.Delete(ctx, req)
 	if err != nil {
 		return nil, err
@@ -151,21 +145,4 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 	}
 
 	return resp, nil
-}
-
-// getContext provides the most-recently-run Create call's Context response
-// to pass into subsequent Create and Delete calls.
-// It only logs errors, because if the context is somehow invalid,
-// then there's not much a user can do about it. Any error encountered will
-// result in a nil context map.
-func (hvm *HostVolumeManager) getContext(volID string) map[string]string {
-	volState, err := hvm.stateMgr.GetDynamicHostVolume(volID)
-	if err != nil {
-		hvm.log.Error("failed to get volume from client state", "volume_id", volID, "error", err)
-	} else if volState == nil {
-		hvm.log.Warn("volume not found in client state before delete", "volume_id", volID)
-	} else {
-		return volState.CreateResp.Context
-	}
-	return nil
 }

@@ -151,9 +151,6 @@ func (n NoopDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 func (n NoopDB) PutDynamicHostVolume(_ *hostvolumemanager.HostVolumeState) error {
 	return nil
 }
-func (n NoopDB) GetDynamicHostVolume(_ string) (*hostvolumemanager.HostVolumeState, error) {
-	return nil, nil
-}
 func (n NoopDB) GetDynamicHostVolumes() ([]*hostvolumemanager.HostVolumeState, error) {
 	return nil, nil
 }
