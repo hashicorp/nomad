@@ -216,64 +216,70 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 		return err
 	}
 
-	if len(args.Volumes) == 0 {
+	if args.Volume == nil {
 		return fmt.Errorf("missing volume definition")
 	}
 
-	for _, vol := range args.Volumes {
-		if vol.Namespace == "" {
-			vol.Namespace = args.RequestNamespace()
-		}
-		if !allowVolume(aclObj, vol.Namespace) {
-			return structs.ErrPermissionDenied
-		}
+	vol := args.Volume
+	if vol.Namespace == "" {
+		vol.Namespace = args.RequestNamespace()
+	}
+	if !allowVolume(aclObj, vol.Namespace) {
+		return structs.ErrPermissionDenied
 	}
 
-	// ensure we only try to create valid volumes or make valid updates to
-	// volumes
-	validVols, err := v.validateVolumeUpdates(args.Volumes)
+	// ensure we only try to create a valid volume or make valid updates to a
+	// volume
+	now := time.Now()
+	snap, err := v.srv.State().Snapshot()
 	if err != nil {
-		return helper.FlattenMultierror(err)
+		return err
 	}
 
-	// Attempt to create all the validated volumes and write only successfully
-	// created volumes to raft. And we'll report errors for any failed volumes
+	vol, err = v.validateVolumeUpdate(vol, snap, now)
+	if err != nil {
+		return err
+	}
+
+	_, err = v.placeHostVolume(snap, vol)
+	if err != nil {
+		return fmt.Errorf("could not place volume %q: %w", vol.Name, err)
+	}
+
+	warn, err := v.enforceEnterprisePolicy(
+		snap, vol, args.GetIdentity().GetACLToken(), args.PolicyOverride)
+	if warn != nil {
+		reply.Warnings = warn.Error()
+	}
+	if err != nil {
+		return err
+	}
+
+	// Attempt to create the volume on the client.
 	//
 	// NOTE: creating the volume on the client via the plugin can't be made
 	// atomic with the registration, and creating the volume provides values we
 	// want to write on the Volume in raft anyways.
-
-	// This can't reuse the validVols slice because we only want to write
-	// volumes we've successfully created or updated on the client to get
-	// updated in Raft.
-	raftArgs := &structs.HostVolumeRegisterRequest{
-		Volumes:      []*structs.HostVolume{},
-		WriteRequest: args.WriteRequest,
+	err = v.createVolume(vol)
+	if err != nil {
+		return err
 	}
 
-	var mErr *multierror.Error
-	for _, vol := range validVols {
-		err = v.createVolume(vol) // mutates the vol
-		if err != nil {
-			mErr = multierror.Append(mErr, err)
-		} else {
-			raftArgs.Volumes = append(raftArgs.Volumes, vol)
-		}
+	// Write a newly created or modified volume to raft. We create a new request
+	// here because we've likely mutated the volume.
+	_, index, err := v.srv.raftApply(structs.HostVolumeRegisterRequestType,
+		&structs.HostVolumeRegisterRequest{
+			Volume:       vol,
+			WriteRequest: args.WriteRequest,
+		})
+	if err != nil {
+		v.logger.Error("raft apply failed", "error", err, "method", "register")
+		return err
 	}
 
-	// if we created or updated any volumes, apply them to raft.
-	var index uint64
-	if len(raftArgs.Volumes) > 0 {
-		_, index, err = v.srv.raftApply(structs.HostVolumeRegisterRequestType, raftArgs)
-		if err != nil {
-			v.logger.Error("raft apply failed", "error", err, "method", "register")
-			mErr = multierror.Append(mErr, err)
-		}
-	}
-
-	reply.Volumes = raftArgs.Volumes
+	reply.Volume = vol
 	reply.Index = index
-	return helper.FlattenMultierror(mErr)
+	return nil
 }
 
 func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *structs.HostVolumeRegisterResponse) error {
@@ -294,105 +300,97 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 		return err
 	}
 
-	if len(args.Volumes) == 0 {
+	if args.Volume == nil {
 		return fmt.Errorf("missing volume definition")
 	}
 
-	for _, vol := range args.Volumes {
-		if vol.Namespace == "" {
-			vol.Namespace = args.RequestNamespace()
-		}
-		if !allowVolume(aclObj, vol.Namespace) {
-			return structs.ErrPermissionDenied
-		}
+	vol := args.Volume
+	if vol.Namespace == "" {
+		vol.Namespace = args.RequestNamespace()
 	}
-
-	// ensure we only try to create valid volumes or make valid updates to
-	// volumes
-	validVols, err := v.validateVolumeUpdates(args.Volumes)
-	if err != nil {
-		return helper.FlattenMultierror(err)
+	if !allowVolume(aclObj, vol.Namespace) {
+		return structs.ErrPermissionDenied
 	}
-
-	raftArgs := &structs.HostVolumeRegisterRequest{
-		Volumes:      validVols,
-		WriteRequest: args.WriteRequest,
-	}
-
-	var mErr *multierror.Error
-	var index uint64
-	if len(raftArgs.Volumes) > 0 {
-		_, index, err = v.srv.raftApply(structs.HostVolumeRegisterRequestType, raftArgs)
-		if err != nil {
-			v.logger.Error("raft apply failed", "error", err, "method", "register")
-			mErr = multierror.Append(mErr, err)
-		}
-	}
-
-	reply.Volumes = raftArgs.Volumes
-	reply.Index = index
-	return helper.FlattenMultierror(mErr)
-}
-
-func (v *HostVolume) validateVolumeUpdates(requested []*structs.HostVolume) ([]*structs.HostVolume, error) {
-
-	now := time.Now()
-	var vols []*structs.HostVolume
 
 	snap, err := v.srv.State().Snapshot()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var mErr *multierror.Error
-	for _, vol := range requested {
-
-		// validate the volume spec
-		err := vol.Validate()
-		if err != nil {
-			mErr = multierror.Append(mErr, fmt.Errorf("volume validation failed: %v", err))
-			continue
-		}
-
-		// validate any update we're making
-		var existing *structs.HostVolume
-		volID := vol.ID
-		if vol.ID != "" {
-			existing, err = snap.HostVolumeByID(nil, vol.Namespace, vol.ID, true)
-			if err != nil {
-				return nil, err // should never hit, bail out
-			}
-			if existing == nil {
-				mErr = multierror.Append(mErr,
-					fmt.Errorf("cannot update volume %q: volume does not exist", vol.ID))
-				continue
-			}
-			err = vol.ValidateUpdate(existing)
-			if err != nil {
-				mErr = multierror.Append(mErr,
-					fmt.Errorf("validating volume %q update failed: %v", vol.ID, err))
-				continue
-			}
-		} else {
-			// capture this for nicer error messages later
-			volID = vol.Name
-		}
-
-		// set zero values as needed, possibly from existing
-		vol.CanonicalizeForUpdate(existing, now)
-
-		// make sure any nodes or pools actually exist
-		err = v.validateVolumeForState(vol, snap)
-		if err != nil {
-			mErr = multierror.Append(mErr,
-				fmt.Errorf("validating volume %q against state failed: %v", volID, err))
-			continue
-		}
-
-		vols = append(vols, vol)
+	now := time.Now()
+	vol, err = v.validateVolumeUpdate(vol, snap, now)
+	if err != nil {
+		return err
 	}
 
-	return vols, mErr.ErrorOrNil()
+	warn, err := v.enforceEnterprisePolicy(
+		snap, vol, args.GetIdentity().GetACLToken(), args.PolicyOverride)
+	if warn != nil {
+		reply.Warnings = warn.Error()
+	}
+	if err != nil {
+		return err
+	}
+
+	// Write a newly created or modified volume to raft. We create a new request
+	// here because we've likely mutated the volume.
+	_, index, err := v.srv.raftApply(structs.HostVolumeRegisterRequestType,
+		&structs.HostVolumeRegisterRequest{
+			Volume:       vol,
+			WriteRequest: args.WriteRequest,
+		})
+	if err != nil {
+		v.logger.Error("raft apply failed", "error", err, "method", "register")
+		return err
+	}
+
+	reply.Volume = vol
+	reply.Index = index
+	return nil
+}
+
+func (v *HostVolume) validateVolumeUpdate(
+	vol *structs.HostVolume,
+	snap *state.StateSnapshot,
+	now time.Time) (*structs.HostVolume, error) {
+
+	// validate the volume spec
+	err := vol.Validate()
+	if err != nil {
+		return nil, fmt.Errorf("volume validation failed: %v", err)
+	}
+
+	// validate any update we're making
+	var existing *structs.HostVolume
+	volID := vol.ID
+	if vol.ID != "" {
+		existing, err = snap.HostVolumeByID(nil, vol.Namespace, vol.ID, true)
+		if err != nil {
+			return nil, err // should never hit, bail out
+		}
+		if existing == nil {
+			return nil, fmt.Errorf("cannot update volume %q: volume does not exist", vol.ID)
+
+		}
+		err = vol.ValidateUpdate(existing)
+		if err != nil {
+			return nil, fmt.Errorf("validating volume %q update failed: %v", vol.ID, err)
+		}
+	} else {
+		// capture this for nicer error messages later
+		volID = vol.Name
+	}
+
+	// set zero values as needed, possibly from existing
+	vol.CanonicalizeForUpdate(existing, now)
+
+	// make sure any nodes or pools actually exist
+	err = v.validateVolumeForState(vol, snap)
+	if err != nil {
+		return nil, fmt.Errorf("validating volume %q against state failed: %v", volID, err)
+	}
+
+	return vol, nil
 }
 
 // validateVolumeForState ensures that any references to node IDs or node pools are valid
@@ -427,13 +425,6 @@ func (v *HostVolume) validateVolumeForState(vol *structs.HostVolume, snap *state
 
 func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 
-	node, err := v.placeHostVolume(vol)
-	if err != nil {
-		return fmt.Errorf("could not place volume %q: %w", vol.Name, err)
-	}
-	vol.NodeID = node.ID
-	vol.NodePool = node.NodePool
-
 	method := "ClientHostVolume.Create"
 	cReq := &cstructs.ClientHostVolumeCreateRequest{
 		ID:                        vol.ID,
@@ -445,7 +436,7 @@ func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 		Parameters:                vol.Parameters,
 	}
 	cResp := &cstructs.ClientHostVolumeCreateResponse{}
-	err = v.srv.RPC(method, cReq, cResp)
+	err := v.srv.RPC(method, cReq, cResp)
 	if err != nil {
 		return err
 	}
@@ -460,17 +451,29 @@ func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 	return nil
 }
 
-// placeHostVolume finds a node that matches the node pool and constraints,
-// which doesn't already have a volume by that name. It returns a non-nil Node
-// or an error indicating placement failed.
-func (v *HostVolume) placeHostVolume(vol *structs.HostVolume) (*structs.Node, error) {
+// placeHostVolume adds a node to volumes that don't already have one. The node
+// will match the node pool and constraints, which doesn't already have a volume
+// by that name. It returns the node (for testing) and an error indicating
+// placement failed.
+func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.HostVolume) (*structs.Node, error) {
+	if vol.NodeID != "" {
+		node, err := snap.NodeByID(nil, vol.NodeID)
+		if err != nil {
+			return nil, err
+		}
+		if node == nil {
+			return nil, fmt.Errorf("no such node %s", vol.NodeID)
+		}
+		vol.NodePool = node.NodePool
+		return node, nil
+	}
 
 	var iter memdb.ResultIterator
 	var err error
 	if vol.NodePool != "" {
-		iter, err = v.srv.State().NodesByNodePool(nil, vol.NodePool)
+		iter, err = snap.NodesByNodePool(nil, vol.NodePool)
 	} else {
-		iter, err = v.srv.State().Nodes(nil)
+		iter, err = snap.Nodes(nil)
 	}
 	if err != nil {
 		return nil, err
@@ -508,7 +511,10 @@ func (v *HostVolume) placeHostVolume(vol *structs.HostVolume) (*structs.Node, er
 			}
 		}
 
+		vol.NodeID = candidate.ID
+		vol.NodePool = candidate.NodePool
 		return candidate, nil
+
 	}
 
 	return nil, fmt.Errorf("no node meets constraints")
