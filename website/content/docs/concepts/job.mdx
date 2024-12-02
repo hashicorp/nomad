@@ -128,10 +128,20 @@ versions guide for examples.
 ### Revert to a previous version
 
 You can revert the current running job to a previous version. Nomad stops the
-running job and deploys the chosen version.
+running job and deploys the chosen version with a new version number.
 
 Refer to the [Revert to a version section][revert-version-section] of
 the Job versions guide for examples using the CLI, API, and web UI.
+
+## Clone and edit
+
+Using the web UI, you may clone a version as a new version of same job or as a
+new job. After you select the version to clone, Nomad opens a window where you
+can edit, plan, and run the new version.
+
+Because Nomad passes job version attributes via query params, you can copy the
+URL on the **Jobs** run page to send someone a link to a readily-editable job
+spec.
 
 ## Related resources
 
