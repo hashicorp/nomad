@@ -50,6 +50,10 @@ func (c *VolumeCreateCommand) hostVolumeCreate(
 		lastIndex = vol.ModifyIndex
 	}
 
+	if vol.Namespace != "" {
+		client.SetNamespace(vol.Namespace)
+	}
+
 	err = c.monitorHostVolume(client, volID, lastIndex, verbose)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("==> %s: %v", formatTime(time.Now()), err.Error()))
