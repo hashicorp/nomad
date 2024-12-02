@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/client/config"
+	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -34,7 +35,7 @@ func TestPluginsHostVolumeFingerprint(t *testing.T) {
 			cfg.DynamicHostVolumePluginPath = path
 			err := fp.Fingerprint(req, &resp)
 			must.NoError(t, err)
-			must.False(t, resp.Detected)
+			must.True(t, resp.Detected) // always true due to "mkdir" built-in
 		})
 	}
 
@@ -69,6 +70,7 @@ func TestPluginsHostVolumeFingerprint(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, map[string]string{
 		"plugins.dhv.version.happy-plugin": "0.0.1",
+		"plugins.dhv.version.mkdir":        hvm.HostVolumePluginMkdirVersion, // built-in
 	}, resp.Attributes)
 
 	// do it again after deleting our one good plugin.
@@ -81,5 +83,7 @@ func TestPluginsHostVolumeFingerprint(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, map[string]string{
 		"plugins.dhv.version.happy-plugin": "", // will get cleaned up later
+
+		"plugins.dhv.version.mkdir": hvm.HostVolumePluginMkdirVersion, // built-in
 	}, resp.Attributes)
 }

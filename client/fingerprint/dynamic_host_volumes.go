@@ -34,7 +34,8 @@ func (h *DynamicHostVolumePluginFingerprint) Reload() {
 func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintRequest, response *FingerprintResponse) error {
 	// always add "mkdir" plugin
 	h.logger.Debug("detected plugin built-in", "plugin_id", "mkdir", "version", hvm.HostVolumePluginMkdirVersion)
-	response.AddAttribute("plugins.dhv.version.mkdir", hvm.HostVolumePluginMkdirVersion)
+	defer response.AddAttribute("plugins.dhv.version.mkdir", hvm.HostVolumePluginMkdirVersion)
+	response.Detected = true
 
 	// this config value will be empty in -dev mode
 	pluginDir := request.Config.DynamicHostVolumePluginPath
@@ -65,7 +66,6 @@ func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintReq
 		response.AddAttribute("plugins.dhv.version."+plugin, version)
 	}
 
-	response.Detected = true
 	return nil
 }
 
