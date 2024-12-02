@@ -1058,14 +1058,14 @@ func TestSearch_PrefixSearch_HostVolume(t *testing.T) {
 
 	id := uuid.Generate()
 	index++
-	err := store.UpsertHostVolumes(index, []*structs.HostVolume{{
+	err := store.UpsertHostVolume(index, &structs.HostVolume{
 		ID:        id,
 		Name:      "example",
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "glade",
 		NodeID:    node.ID,
 		NodePool:  node.NodePool,
-	}})
+	})
 	must.NoError(t, err)
 
 	req := &structs.SearchRequest{
@@ -1998,14 +1998,14 @@ func TestSearch_FuzzySearch_HostVolume(t *testing.T) {
 
 	id := uuid.Generate()
 	index++
-	err := store.UpsertHostVolumes(index, []*structs.HostVolume{{
+	err := store.UpsertHostVolume(index, &structs.HostVolume{
 		ID:        id,
 		Name:      "example",
 		Namespace: structs.DefaultNamespace,
 		PluginID:  "glade",
 		NodeID:    node.ID,
 		NodePool:  node.NodePool,
-	}})
+	})
 	must.NoError(t, err)
 
 	req := &structs.FuzzySearchRequest{
