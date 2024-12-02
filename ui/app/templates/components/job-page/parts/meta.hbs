@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{#if @job.meta.structured}}
+{{!-- {{#if @job.meta.structured}}
   <div class="boxed-section">
     <div class="boxed-section-head">
       Meta
@@ -12,6 +12,21 @@
       <AttributesTable
         data-test-meta
         @attributePairs={{@job.meta.structured.root}}
+        @class="attributes-table" />
+    </div>
+  </div>
+{{/if}} --}}
+
+
+{{#if @meta.structured}}
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Meta
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      <AttributesTable
+        data-test-meta
+        @attributePairs={{@meta.structured.root}}
         @class="attributes-table" />
     </div>
   </div>

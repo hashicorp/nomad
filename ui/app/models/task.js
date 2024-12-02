@@ -21,7 +21,7 @@ export default class Task extends Fragment {
   @fragmentArray('action', { defaultValue: () => [] })
   actions;
 
-  @attr() meta;
+  @fragment('structured-attributes') meta;
 
   @fragment('task-schedule') schedule;
 

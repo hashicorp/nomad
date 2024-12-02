@@ -62,7 +62,7 @@ export default class TaskGroup extends Fragment {
 
   @fragment('group-scaling') scaling;
 
-  @attr() meta;
+  @fragment('structured-attributes') meta;
 
   @computed('job.meta.raw', 'meta')
   get mergedMeta() {
