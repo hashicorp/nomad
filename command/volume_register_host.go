@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-func (c *VolumeRegisterCommand) hostVolumeRegister(client *api.Client, ast *ast.File) int {
+func (c *VolumeRegisterCommand) hostVolumeRegister(client *api.Client, ast *ast.File, override bool) int {
 	vol, err := decodeHostVolume(ast)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error decoding the volume definition: %s", err))
@@ -18,7 +18,8 @@ func (c *VolumeRegisterCommand) hostVolumeRegister(client *api.Client, ast *ast.
 	}
 
 	req := &api.HostVolumeRegisterRequest{
-		Volume: vol,
+		Volume:         vol,
+		PolicyOverride: override,
 	}
 	vol, _, err = client.HostVolumes().Register(req, nil)
 	if err != nil {

@@ -148,10 +148,16 @@ func (c *Client) HostVolumes() *HostVolumes {
 
 type HostVolumeCreateRequest struct {
 	Volume *HostVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
 }
 
 type HostVolumeRegisterRequest struct {
 	Volume *HostVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
 }
 
 type HostVolumeListRequest struct {
