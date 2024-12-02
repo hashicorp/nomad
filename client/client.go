@@ -536,7 +536,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.pluginManagers.RegisterAndRun(devManager)
 
 	c.hostVolumeManager, err = hvm.NewHostVolumeManager(logger,
-		c.stateDB,
+		c.stateDB, hostVolumeRequestTimeout,
 		cfg.HostVolumePluginDir,
 		cfg.AllocMountsDir)
 	if err != nil {

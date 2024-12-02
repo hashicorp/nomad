@@ -28,7 +28,7 @@ type HostVolumeManager struct {
 }
 
 func NewHostVolumeManager(logger hclog.Logger,
-	stateMgr HostVolumeStateManager,
+	stateMgr HostVolumeStateManager, restoreTimeout time.Duration,
 	pluginDir, sharedMountDir string) (*HostVolumeManager, error) {
 
 	log := logger.Named("host_volume_mgr")
@@ -41,14 +41,14 @@ func NewHostVolumeManager(logger hclog.Logger,
 		log:            log,
 	}
 
-	if err := hvm.restoreState(stateMgr); err != nil {
+	if err := hvm.restoreState(stateMgr, restoreTimeout); err != nil {
 		return nil, err
 	}
 
 	return hvm, nil
 }
 
-func (hvm *HostVolumeManager) restoreState(state HostVolumeStateManager) error {
+func (hvm *HostVolumeManager) restoreState(state HostVolumeStateManager, timeout time.Duration) error {
 	vols, err := state.GetDynamicHostVolumes()
 	if err != nil {
 		return err
@@ -64,7 +64,7 @@ func (hvm *HostVolumeManager) restoreState(state HostVolumeStateManager) error {
 		wg.Add(1)
 		func() {
 			defer wg.Done()
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
 			// note: this will rewrite client state that we just restored
 			if _, err := hvm.Create(ctx, vol.CreateReq); err != nil {

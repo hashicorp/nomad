@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -33,7 +34,7 @@ func TestNewHostVolumeManager_restoreState(t *testing.T) {
 		// resulting in a volume directory in this mountDir.
 		mountDir := t.TempDir()
 
-		_, err := NewHostVolumeManager(log, state, "/wherever", mountDir)
+		_, err := NewHostVolumeManager(log, state, time.Second, "/wherever", mountDir)
 		must.NoError(t, err)
 
 		volPath := filepath.Join(mountDir, vol.ID)
@@ -43,7 +44,7 @@ func TestNewHostVolumeManager_restoreState(t *testing.T) {
 	t.Run("get error", func(t *testing.T) {
 		state := newMockState()
 		state.getErr = errors.New("get error")
-		_, err := NewHostVolumeManager(log, state, "/wherever", "/wherever")
+		_, err := NewHostVolumeManager(log, state, time.Second, "/wherever", "/wherever")
 		// error loading state should break the world
 		must.ErrorIs(t, err, state.getErr)
 	})
@@ -58,7 +59,7 @@ func TestNewHostVolumeManager_restoreState(t *testing.T) {
 		must.Error(t, state.PutDynamicHostVolume(vol))
 
 		// restore process also attempts a state Put during vol Create
-		_, err := NewHostVolumeManager(log, state, "/wherever", t.TempDir())
+		_, err := NewHostVolumeManager(log, state, time.Second, "/wherever", t.TempDir())
 		// but it should not cause the whole agent to fail to start
 		must.NoError(t, err)
 	})
