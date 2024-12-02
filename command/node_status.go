@@ -13,6 +13,7 @@ import (
 	"time"
 
 	humanize "github.com/dustin/go-humanize"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -129,8 +130,12 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *NodeStatusCommand) AutocompleteArgs() complete.Predictor {
+	return nodePredictor(c.Client, nil)
+}
+
+func nodePredictor(factory ApiClientFactory, filter *set.Set[string]) complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
-		client, err := c.Meta.Client()
+		client, err := factory()
 		if err != nil {
 			return nil
 		}
