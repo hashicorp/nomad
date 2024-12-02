@@ -329,22 +329,38 @@ type HostVolumeStub struct {
 }
 
 type HostVolumeCreateRequest struct {
-	Volumes []*HostVolume
+	Volume *HostVolume
+
+	// PolicyOverride is set when the user is attempting to override any
+	// Enterprise policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type HostVolumeCreateResponse struct {
-	Volumes []*HostVolume
+	Volume *HostVolume
+
+	// Warnings are non-fatal messages from Enterprise policy enforcement
+	Warnings string
 	WriteMeta
 }
 
 type HostVolumeRegisterRequest struct {
-	Volumes []*HostVolume
+	Volume *HostVolume
+
+	// PolicyOverride is set when the user is attempting to override any
+	// Enterprise policy enforcement
+	PolicyOverride bool
+
 	WriteRequest
 }
 
 type HostVolumeRegisterResponse struct {
-	Volumes []*HostVolume
+	Volume *HostVolume
+
+	// Warnings are non-fatal messages from Enterprise policy enforcement
+	Warnings string
 	WriteMeta
 }
 
