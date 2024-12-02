@@ -109,38 +109,7 @@ jobs:
 
       - name: Combine test results for comparison
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        # Note: iterator is hardcoded to 4 to match matrix partitions
-        run: |
-          node -e "
-            const fs = require('fs');
-            const results = [];
-            let duration = 0;
-            let aggregateSummary = { total: 0, passed: 0, failed: 0 };
-            for (let i = 1; i <= 4; i++) {
-              try {
-                const data = JSON.parse(fs.readFileSync('../test-results/test-results-' + i + '/test-results.json'));
-                results.push(...data.tests);
-                duration += data.duration;
-                aggregateSummary.total += data.summary.total;
-                aggregateSummary.passed += data.summary.passed;
-                aggregateSummary.failed += data.summary.failed;
-              } catch (err) {
-                console.error('Error reading partition ' + i + ':', err);
-              }
-            }
-            fs.writeFileSync('combined-test-results.json', JSON.stringify({
-              timestamp: new Date().toISOString(),
-              sha: process.env.GITHUB_SHA,
-              summary: {
-                total: aggregateSummary.total,
-                passed: aggregateSummary.passed,
-                failed: aggregateSummary.failed
-              },
-              duration,
-              tests: results
-            }, null, 2));
-          "
-
+        run: node ../scripts/combine-ui-test-results.js
       - name: Upload combined results for comparison
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
