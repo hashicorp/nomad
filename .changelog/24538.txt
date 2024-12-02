@@ -1,0 +1,3 @@
+```release-note:bug
+executor: validate executor on reattach to avoid possibility of killing non-Nomad processes
+```
