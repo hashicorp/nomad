@@ -894,11 +894,14 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 
 // findPreferredNode finds the preferred node for an allocation
 func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.Node, error) {
+	// TODO: is previous allocation set on destrouctive updates?
 	prev := place.PreviousAllocation()
 	if prev == nil {
 		return nil, nil
 	}
 	if place.TaskGroup().EphemeralDisk.Sticky || place.TaskGroup().EphemeralDisk.Migrate {
+		// TODO: this could be a good place where we'd stick the sticky volume
+		// logic, to find the node that must have the right vol id
 		var preferredNode *structs.Node
 		ws := memdb.NewWatchSet()
 		preferredNode, err := s.state.NodeByID(ws, prev.NodeID)

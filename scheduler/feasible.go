@@ -159,6 +159,8 @@ func (h *HostVolumeChecker) SetVolumes(allocName string, ns string, volumes map[
 			continue // filter CSI volumes
 		}
 
+		// FIXME: if there's a sticky vol set, adjust this to look for an ID
+
 		if req.PerAlloc {
 			// provide a unique volume source per allocation
 			copied := req.Copy()
