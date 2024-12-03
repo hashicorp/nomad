@@ -9,8 +9,8 @@ scenario "upgrade" {
 
   matrix {
     arch = ["amd64", "arm64"]
-    service_discovery  = ["consul", "nomad"]
-    editions = ["ce", "ent"]
+    //service_discovery  = ["consul", "nomad"]
+    edition = ["ce", "ent"]
     os       = ["linux", "windows"]
 
     exclude {
@@ -28,7 +28,7 @@ scenario "upgrade" {
 
     variables {
       artifactory_username = var.artifactory_username
-      artifactory_token    = var.artifact_token
+      artifactory_token    = var.artifactory_token
       arch                 = matrix.arch
       edition              = matrix.edition
       product_version      = var.product_version
@@ -37,7 +37,7 @@ scenario "upgrade" {
     }
   }
 
-  step "provision_cluster" {
+/*   step "provision_cluster" {
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
     EOF
@@ -51,7 +51,7 @@ scenario "upgrade" {
         client_count_ubuntu_jammy_amd64 = matrix.distro != "ubuntu" ? var.client_count_ubuntu_jammy_amd64 : 0
         // ...
     }
-  }
+  } */
   /* 
   step "run_new_workloads" {
     description = <<-EOF

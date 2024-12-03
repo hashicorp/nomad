@@ -23,7 +23,7 @@ variable "artifactory_host" {
 variable "artifactory_repo" {
   type        = string
   description = "The artifactory repo to search for Nomad artifacts"
-  default     = "hashicorp-crt-stable-local*"
+  default     = "hashicorp-crt-staging-local*"
 }
 
 variable "edition" {
