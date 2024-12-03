@@ -204,22 +204,8 @@ export default class JobAdapter extends WatchableNamespaceIDs {
   }
 
   getVersions(job, diffVersion) {
-    const url = addToPath(
-      this.urlForFindRecord(job.get('id'), 'job'),
-      '/versions'
-    );
-
-    const namespace = job.get('namespace.name') || 'default';
-
-    const query = {
-      namespace,
-      diffs: true,
-    };
-
-    if (diffVersion) {
-      query.diff_version = diffVersion;
-    }
-    return this.ajax(url, 'GET', { data: query });
+    let url = this.urlForVersions(job, diffVersion);
+    return this.ajax(url, 'GET');
   }
 
   /**
@@ -306,6 +292,17 @@ export default class JobAdapter extends WatchableNamespaceIDs {
       }
     }
     return result;
+  }
+
+  urlForVersions(job, diffVersion) {
+    let url = this.urlForFindRecord(job.get('id'), 'job', null, 'versions');
+
+    let paramString = 'diffs=true';
+    if (diffVersion) {
+      paramString += `&diff_version=${diffVersion}`;
+    }
+    url = addToPath(url, '', paramString);
+    return url;
   }
 
   urlForQuery(query, modelName, method) {
