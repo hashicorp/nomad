@@ -6,3 +6,7 @@
 module "build_artifactory" {
   source = "./modules/fetch_artifactory"
 }
+
+module "provision_cluster" {
+  source = "../e2e/terraform"
+}

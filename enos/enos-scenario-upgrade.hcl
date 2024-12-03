@@ -9,34 +9,39 @@ scenario "upgrade" {
 
   matrix {
     arch = ["amd64", "arm64"]
-    //service_discovery  = ["consul", "nomad"]
-    distro   = ["alpine", "fedora", "rhel", "ubuntu"]
+    service_discovery  = ["consul", "nomad"]
     editions = ["ce", "ent"]
-    os       = ["linux", "darwin", "windows"]
+    os       = ["linux", "windows"]
+
+    exclude {
+      os   = ["windows"]
+      arch = ["arm64"]
+    }
   }
 
   step "copy_binary" {
     description = <<-EOF
     Determine which Nomad artifact we want to use for the scenario, depending on the
-   'arch', 'distro' and 'os'
+   'arch', 'edition' and 'os'
     EOF
     module      = module.build_artifactory
 
     variables {
-      version          = global.initial_version
-      artifactory_path = globals.artifact_path
-      artifact_token   = globals.artifact_token
-      os               = matrix.os
-      distro           = matrix.os != "linux" ? var.distro : null
-      local_path       = var.binary_local_path
+      artifactory_username = var.artifactory_username
+      artifactory_token    = var.artifact_token
+      arch                 = matrix.arch
+      edition              = matrix.edition
+      product_version      = var.product_version
+      os                   = matrix.os
+      local_path           = var.binary_local_path
     }
   }
-  /* 
+
   step "provision_cluster" {
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
     EOF
-    module      = "build_${matrix.os}_${matrix.distro}"
+    module      = module.
 
     variables {
         name  
@@ -47,7 +52,7 @@ scenario "upgrade" {
         // ...
     }
   }
-
+  /* 
   step "run_new_workloads" {
     description = <<-EOF
     Verify the health of the cluster by running new workloads and stopping random allocs

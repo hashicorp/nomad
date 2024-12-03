@@ -18,23 +18,16 @@ variable "artifactory_token" {
 variable "artifactory_host" {
   type        = string
   description = "The artifactory host to search for Nomad artifacts"
-  default     = "https://artifactory.hashicorp.engineering/artifactory"
 }
 
 variable "artifactory_repo" {
   type        = string
   description = "The artifactory repo to search for Nomad artifacts"
-  default     = "hashicorp-crt-stable-local*"
 }
 
 variable "edition" {
   type        = string
   description = "The edition of the binary to search, it can be either CE or ENT"
-}
-
-variable "revision" {
-  type        = string
-  description = "The specific commit of the binary"
 }
 
 variable "os" {
@@ -57,5 +50,4 @@ variable "arch" {
 variable "binary_path" {
   description = "The path to donwload and unzip the binary"
   type        = string
-  default     = "/home/ubuntu/nomad"
 }
