@@ -31,7 +31,7 @@ export default (scope) => ({
 
   label: text('[data-test-label]'),
   labelIsPresent: isPresent('[data-test-label]'),
-  statusIcon: attribute('class', '[data-test-status-icon] .flight-icon'),
+  statusIcon: attribute('class', '[data-test-status-icon] .hds-icon'),
   statusIconLabel: attribute('aria-label', '[data-test-status-icon]'),
 
   selectNode: clickable('[data-test-node-background]'),

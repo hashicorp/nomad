@@ -23,11 +23,11 @@
     {{#if (eq @status "running")}}
       <span class="alloc-health-indicator">
         {{#if (eq @health "healthy")}}
-          <FlightIcon @name="check" @color="white" />
+          <Hds::Icon @name="check" @color="white" @isInline={{true}} />
         {{else if (eq @health "unhealthy")}}
-          <FlightIcon @name="x" @color="white" />
+          <Hds::Icon @name="x" @color="white" @isInline={{true}} />
         {{else}}
-          <FlightIcon @name="running" @color="white" />
+          <Hds::Icon @name="running" @color="white" @isInline={{true}} />
         {{/if}}
       </span>
     {{/if}}
