@@ -48,12 +48,13 @@ variable "product_version" {
   default     = null
 }
 
-variable "artifact_path" {
+variable "arch" {
   description = "The artifactory path to search for Nomad artifacts"
   type        = string
 }
 
-variable "arch" {
-  description = "The artifactory path to search for Nomad artifacts"
+variable "binary_path" {
+  description = "The path to donwload and unzip the binary"
   type        = string
+  default     = "/home/ubuntu/nomad" 
 }
