@@ -139,7 +139,7 @@ var (
 	// nodeRegistrationKey is the key at which node registration data is stored.
 	nodeRegistrationKey = []byte("node_registration")
 
-	hostVolBucket = []byte("volumes_to_create")
+	hostVolBucket = []byte("host_volumes_to_create")
 )
 
 // taskBucketName returns the bucket name for the given task name.
