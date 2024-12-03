@@ -474,6 +474,16 @@ func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
 	return nil
 }
 
+func (a *ACLToken) Sanitize() *ACLToken {
+	if a == nil {
+		return nil
+	}
+
+	out := a.Copy()
+	out.SecretID = ""
+	return out
+}
+
 // ACLRole is an abstraction for the ACL system which allows the grouping of
 // ACL policies into a single object. ACL tokens can be created and linked to
 // a role; the token then inherits all the permissions granted by the policies.

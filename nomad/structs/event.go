@@ -155,8 +155,7 @@ type ServiceRegistrationStreamEvent struct {
 // NewACLTokenEvent takes a token and creates a new ACLTokenEvent.  It creates
 // a copy of the passed in ACLToken and empties out the copied tokens SecretID
 func NewACLTokenEvent(token *ACLToken) *ACLTokenEvent {
-	c := token.Copy()
-	c.SecretID = ""
+	c := token.Sanitize()
 
 	return &ACLTokenEvent{
 		ACLToken: c,
