@@ -31,11 +31,6 @@ variable "edition" {
   description = "The edition of the binary to search, it can be either CE or ENT"
 }
 
-variable "revision" {
-  type        = string
-  description = "The specific commit of the binary"
-}
-
 variable "os" {
   type        = string
   description = "The operative system the binary is needed for"

@@ -29,4 +29,4 @@ resource "enos_local_exec" "install_binary" {
   }
 
   scripts = [abspath("${path.module}/scripts/install.sh")]
-}  
+}

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
@@ -8,9 +8,9 @@ set -xeuo pipefail
 LOCAL_ZIP="nomad.zip"        # Name for the downloaded file
 
 # Download the file
-wget --header="X-JFrog-Art-Api:$TOKEN" -O- "$LOCAL_ZIP" "$URL"
+wget --header="X-JFrog-Art-Api:$TOKEN" -O "$LOCAL_ZIP" "$URL"
 
-# Check if the file was downloaded
+#Check if the file was downloaded
 if [ $? -eq 0 ]; then
     echo "File downloaded successfully: $LOCAL_ZIP"
 else
@@ -31,3 +31,6 @@ else
     echo "Error unzipping file." >&2
     exit 1
 fi
+
+# Remove the zipped file
+rm "$LOCAL_ZIP"
