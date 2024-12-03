@@ -45,7 +45,6 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 		must.Eq(t, &HostVolumePluginCreateResponse{
 			Path:      target,
 			SizeBytes: 0,
-			Context:   map[string]string{},
 		}, resp)
 		must.DirExists(t, target)
 
@@ -115,7 +114,6 @@ func TestHostVolumePluginExternal(t *testing.T) {
 		must.Eq(t, &HostVolumePluginCreateResponse{
 			Path:      target,
 			SizeBytes: 5,
-			Context:   map[string]string{"key": "val"},
 		}, resp)
 		must.DirExists(t, target)
 		logged := getLogs()

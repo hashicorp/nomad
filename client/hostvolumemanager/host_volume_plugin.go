@@ -29,9 +29,8 @@ type HostVolumePlugin interface {
 }
 
 type HostVolumePluginCreateResponse struct {
-	Path      string            `json:"path"`
-	SizeBytes int64             `json:"bytes"`
-	Context   map[string]string `json:"context"` // metadata
+	Path      string `json:"path"`
+	SizeBytes int64  `json:"bytes"`
 }
 
 const HostVolumePluginMkdirID = "mkdir"
@@ -70,7 +69,6 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 	return &HostVolumePluginCreateResponse{
 		Path:      path,
 		SizeBytes: 0,
-		Context:   map[string]string{},
 	}, nil
 }
 
@@ -147,8 +145,9 @@ func (p *HostVolumePluginExternal) Version(ctx context.Context) (*version.Versio
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error) {
 
-	params, err := json.Marshal(req.Parameters) // db TODO(1.10.0): if this is nil, then PARAMETERS env will be "null"
+	params, err := json.Marshal(req.Parameters) // db TODO(1.10.0): document if this is nil, then PARAMETERS env will be "null"
 	if err != nil {
+		// this is a proper error, because users can set this in the volume spec
 		return nil, fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
 	envVars := []string{
@@ -165,7 +164,7 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	}
 
 	var pluginResp HostVolumePluginCreateResponse
-	err = json.Unmarshal(stdout, &pluginResp)
+	err = json.Unmarshal(stdout, &pluginResp) // db TODO(1.10.0): if this fails, then the volume may have been created, according to the plugin, but Nomad will not save it
 	if err != nil {
 		return nil, err
 	}

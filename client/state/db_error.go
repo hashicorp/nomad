@@ -4,6 +4,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
@@ -15,6 +16,10 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+var _ StateDB = &ErrDB{}
+
+var ErrDBError = errors.New("Error!")
 
 // ErrDB implements a StateDB that returns errors on restore methods, used for testing
 type ErrDB struct {
@@ -152,6 +157,16 @@ func (m *ErrDB) PutNodeRegistration(reg *cstructs.NodeRegistration) error {
 
 func (m *ErrDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	return nil, fmt.Errorf("Error!")
+}
+
+func (m *ErrDB) PutDynamicHostVolume(_ *cstructs.HostVolumeState) error {
+	return ErrDBError
+}
+func (m *ErrDB) GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error) {
+	return nil, ErrDBError
+}
+func (m *ErrDB) DeleteDynamicHostVolume(_ string) error {
+	return ErrDBError
 }
 
 func (m *ErrDB) Close() error {
