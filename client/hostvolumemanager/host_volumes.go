@@ -7,11 +7,12 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper"
 )
 
 var (
@@ -58,23 +59,28 @@ func (hvm *HostVolumeManager) restoreState(state HostVolumeStateManager, timeout
 	}
 
 	// re-"create" the volumes - plugins have the best knowledge of their
-	// side effects, and they should be idempotent.
-	var wg sync.WaitGroup
+	// side effects, and they must be idempotent.
+	group := multierror.Group{}
 	for _, vol := range vols {
-		wg.Add(1)
-		func() {
-			defer wg.Done()
+		group.Go(func() error { // db TODO(1.10.0): document that plugins must be safe to run concurrently
+			// missing plugins with associated volumes in state are considered
+			// client-stopping errors. they need to be fixed by cluster admins.
+			plug, err := hvm.getPlugin(vol.CreateReq.PluginID)
+			if err != nil {
+				return err
+			}
+
 			ctx, cancel := context.WithTimeout(context.Background(), timeout)
 			defer cancel()
-			// note: this will rewrite client state that we just restored
-			if _, err := hvm.Create(ctx, vol.CreateReq); err != nil {
-				hvm.log.Error("failed to restore", "volume_id", vol.ID, "error", err)
-				// db TODO: multierror w/ mutex?
+			if _, err := plug.Create(ctx, vol.CreateReq); err != nil {
+				// plugin execution errors are only logged
+				hvm.log.Error("failed to restore", "plugin_id", vol.CreateReq.PluginID, "volume_id", vol.ID, "error", err)
 			}
-		}()
+			return nil
+		})
 	}
-	wg.Wait()
-	return nil
+	mErr := group.Wait()
+	return helper.FlattenMultierror(mErr.ErrorOrNil())
 }
 
 func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
@@ -110,8 +116,21 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		CreateReq: req,
 	}
 	if err := hvm.stateMgr.PutDynamicHostVolume(volState); err != nil {
-		hvm.log.Error("failed to save volume in state", "volume_id", req.ID, "error", err)
-		// db TODO: bail or nah?
+		// if we fail to write to state, delete the volume so it isn't left
+		// lying around without Nomad knowing about it.
+		hvm.log.Error("failed to save volume in state, so deleting", "volume_id", req.ID, "error", err)
+		delErr := plug.Delete(ctx, &cstructs.ClientHostVolumeDeleteRequest{
+			ID:         req.ID,
+			PluginID:   req.PluginID,
+			NodeID:     req.NodeID,
+			HostPath:   hvm.sharedMountDir,
+			Parameters: req.Parameters,
+		})
+		if delErr != nil {
+			hvm.log.Warn("error deleting volume after state store failure", "volume_id", req.ID, "error", delErr)
+			err = multierror.Append(err, delErr)
+		}
+		return nil, helper.FlattenMultierror(err)
 	}
 
 	// db TODO(1.10.0): now we need to add the volume to the node fingerprint!
@@ -141,7 +160,7 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 
 	if err := hvm.stateMgr.DeleteDynamicHostVolume(req.ID); err != nil {
 		hvm.log.Error("failed to delete volume in state", "volume_id", req.ID, "error", err)
-		// db TODO: bail or nah?
+		return nil, err // bail so a user may retry
 	}
 
 	return resp, nil

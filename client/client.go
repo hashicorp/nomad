@@ -540,7 +540,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		cfg.HostVolumePluginDir,
 		cfg.AllocMountsDir)
 	if err != nil {
-		return nil, err // db TODO(1.10.0): don't fail the whole client if state restore fails?
+		// NewHostVolumeManager will only err if it fails to read state store,
+		// or if one or more required plugins do not exist, so halt the client
+		// because something needs to be fixed by a cluster admin.
+		return nil, err
 	}
 
 	// Set up the service registration wrapper using the Consul and Nomad

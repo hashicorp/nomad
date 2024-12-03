@@ -15,6 +15,8 @@ import (
 	"github.com/shoenig/test/must"
 )
 
+// db TODO(1.10.0): improve hostvolumemanager tests.
+
 func TestNewHostVolumeManager_restoreState(t *testing.T) {
 	log := testlog.HCLogger(t)
 	vol := &HostVolumeState{

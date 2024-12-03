@@ -6,6 +6,7 @@ package client
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
@@ -28,7 +29,7 @@ func TestHostVolume(t *testing.T) {
 	var err error
 	expectDir := filepath.Join(tmp, "test-vol-id")
 	client.hostVolumeManager, err = hvm.NewHostVolumeManager(testlog.HCLogger(t),
-		client.stateDB, "/no/ext/plugins", tmp)
+		client.stateDB, time.Second, "/no/ext/plugins", tmp)
 	must.NoError(t, err)
 
 	t.Run("happy", func(t *testing.T) {
@@ -92,7 +93,7 @@ func TestHostVolume(t *testing.T) {
 	t.Run("error from plugin", func(t *testing.T) {
 		// "mkdir" plugin can't create a directory within a file
 		client.hostVolumeManager, err = hvm.NewHostVolumeManager(testlog.HCLogger(t),
-			client.stateDB, "/no/ext/plugins", "host_volume_endpoint_test.go")
+			client.stateDB, time.Second, "/no/ext/plugins", "host_volume_endpoint_test.go")
 		must.NoError(t, err)
 
 		req := &cstructs.ClientHostVolumeCreateRequest{
