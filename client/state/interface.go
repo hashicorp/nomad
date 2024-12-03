@@ -137,6 +137,10 @@ type StateDB interface {
 	PutNodeRegistration(*cstructs.NodeRegistration) error
 	GetNodeRegistration() (*cstructs.NodeRegistration, error)
 
+	PutDynamicHostVolume(*cstructs.HostVolumeState) error
+	GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error)
+	DeleteDynamicHostVolume(string) error
+
 	// Close the database. Unsafe for further use after calling regardless
 	// of return value.
 	Close() error

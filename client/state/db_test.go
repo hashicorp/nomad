@@ -15,6 +15,7 @@ import (
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -381,6 +382,41 @@ func TestStateDB_DynamicRegistry(t *testing.T) {
 		require.NoError(err)
 		require.NotNil(ps)
 		require.Equal(state, ps)
+	})
+}
+
+// TestStateDB_HostVolumes asserts the behavior of dynamic host volume state.
+func TestStateDB_HostVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	testDB(t, func(t *testing.T, db StateDB) {
+		vols, err := db.GetDynamicHostVolumes()
+		must.NoError(t, err)
+		must.Len(t, 0, vols)
+
+		vol := &cstructs.HostVolumeState{
+			ID: "test-vol-id",
+			CreateReq: &cstructs.ClientHostVolumeCreateRequest{
+				ID:                        "test-vol-id",
+				Name:                      "test-vol-name",
+				PluginID:                  "test-plugin-id",
+				NodeID:                    "test-node-id",
+				RequestedCapacityMinBytes: 5,
+				RequestedCapacityMaxBytes: 10,
+				Parameters:                map[string]string{"test": "ing"},
+			},
+		}
+
+		must.NoError(t, db.PutDynamicHostVolume(vol))
+		vols, err = db.GetDynamicHostVolumes()
+		must.NoError(t, err)
+		must.Len(t, 1, vols)
+		must.Eq(t, vol, vols[0])
+
+		must.NoError(t, db.DeleteDynamicHostVolume(vol.ID))
+		vols, err = db.GetDynamicHostVolumes()
+		must.NoError(t, err)
+		must.Len(t, 0, vols)
 	})
 }
 
