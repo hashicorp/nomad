@@ -14,7 +14,6 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
-	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -395,7 +394,7 @@ func TestStateDB_HostVolumes(t *testing.T) {
 		must.NoError(t, err)
 		must.Len(t, 0, vols)
 
-		vol := &hvm.HostVolumeState{
+		vol := &cstructs.HostVolumeState{
 			ID: "test-vol-id",
 			CreateReq: &cstructs.ClientHostVolumeCreateRequest{
 				ID:                        "test-vol-id",

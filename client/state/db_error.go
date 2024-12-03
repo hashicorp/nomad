@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
-	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -160,10 +159,10 @@ func (m *ErrDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	return nil, fmt.Errorf("Error!")
 }
 
-func (m *ErrDB) PutDynamicHostVolume(_ *hvm.HostVolumeState) error {
+func (m *ErrDB) PutDynamicHostVolume(_ *cstructs.HostVolumeState) error {
 	return ErrDBError
 }
-func (m *ErrDB) GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error) {
+func (m *ErrDB) GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error) {
 	return nil, ErrDBError
 }
 func (m *ErrDB) DeleteDynamicHostVolume(_ string) error {

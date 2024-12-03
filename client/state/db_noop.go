@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
-	"github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -148,10 +147,10 @@ func (n NoopDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	return nil, nil
 }
 
-func (n NoopDB) PutDynamicHostVolume(_ *hostvolumemanager.HostVolumeState) error {
+func (n NoopDB) PutDynamicHostVolume(_ *cstructs.HostVolumeState) error {
 	return nil
 }
-func (n NoopDB) GetDynamicHostVolumes() ([]*hostvolumemanager.HostVolumeState, error) {
+func (n NoopDB) GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error) {
 	return nil, nil
 }
 func (n NoopDB) DeleteDynamicHostVolume(_ string) error {

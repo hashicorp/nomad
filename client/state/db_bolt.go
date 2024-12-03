@@ -15,7 +15,6 @@ import (
 	trstate "github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
-	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -1051,7 +1050,7 @@ func (s *BoltStateDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) 
 	return &reg, err
 }
 
-func (s *BoltStateDB) PutDynamicHostVolume(vol *hvm.HostVolumeState) error {
+func (s *BoltStateDB) PutDynamicHostVolume(vol *cstructs.HostVolumeState) error {
 	return s.db.Update(func(tx *boltdd.Tx) error {
 		b, err := tx.CreateBucketIfNotExists(hostVolBucket)
 		if err != nil {
@@ -1061,15 +1060,15 @@ func (s *BoltStateDB) PutDynamicHostVolume(vol *hvm.HostVolumeState) error {
 	})
 }
 
-func (s *BoltStateDB) GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error) {
-	var vols []*hvm.HostVolumeState
+func (s *BoltStateDB) GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error) {
+	var vols []*cstructs.HostVolumeState
 	err := s.db.View(func(tx *boltdd.Tx) error {
 		b := tx.Bucket(hostVolBucket)
 		if b == nil {
 			return nil
 		}
 		return b.BoltBucket().ForEach(func(k, v []byte) error {
-			var vol hvm.HostVolumeState
+			var vol cstructs.HostVolumeState
 			err := b.Get(k, &vol)
 			if err != nil {
 				return err

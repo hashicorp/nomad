@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
-	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -61,7 +60,7 @@ type MemDB struct {
 
 	nodeRegistration *cstructs.NodeRegistration
 
-	dynamicHostVolumes map[string]*hvm.HostVolumeState
+	dynamicHostVolumes map[string]*cstructs.HostVolumeState
 
 	logger hclog.Logger
 
@@ -79,7 +78,7 @@ func NewMemDB(logger hclog.Logger) *MemDB {
 		taskState:          make(map[string]map[string]*structs.TaskState),
 		checks:             make(checks.ClientResults),
 		identities:         make(map[string][]*structs.SignedWorkloadIdentity),
-		dynamicHostVolumes: make(map[string]*hvm.HostVolumeState),
+		dynamicHostVolumes: make(map[string]*cstructs.HostVolumeState),
 		logger:             logger,
 	}
 }
@@ -358,16 +357,16 @@ func (m *MemDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	return m.nodeRegistration, nil
 }
 
-func (m *MemDB) PutDynamicHostVolume(vol *hvm.HostVolumeState) error {
+func (m *MemDB) PutDynamicHostVolume(vol *cstructs.HostVolumeState) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.dynamicHostVolumes[vol.ID] = vol
 	return nil
 }
-func (m *MemDB) GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error) {
+func (m *MemDB) GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	var vols []*hvm.HostVolumeState
+	var vols []*cstructs.HostVolumeState
 	for _, vol := range m.dynamicHostVolumes {
 		vols = append(vols, vol)
 	}

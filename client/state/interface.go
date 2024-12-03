@@ -8,7 +8,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/state"
 	dmstate "github.com/hashicorp/nomad/client/devicemanager/state"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
-	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	driverstate "github.com/hashicorp/nomad/client/pluginmanager/drivermanager/state"
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -138,8 +137,8 @@ type StateDB interface {
 	PutNodeRegistration(*cstructs.NodeRegistration) error
 	GetNodeRegistration() (*cstructs.NodeRegistration, error)
 
-	PutDynamicHostVolume(*hvm.HostVolumeState) error
-	GetDynamicHostVolumes() ([]*hvm.HostVolumeState, error)
+	PutDynamicHostVolume(*cstructs.HostVolumeState) error
+	GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error)
 	DeleteDynamicHostVolume(string) error
 
 	// Close the database. Unsafe for further use after calling regardless

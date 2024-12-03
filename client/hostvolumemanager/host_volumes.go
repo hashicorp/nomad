@@ -20,6 +20,12 @@ var (
 	ErrPluginNotExecutable = errors.New("plugin not executable")
 )
 
+type HostVolumeStateManager interface {
+	PutDynamicHostVolume(*cstructs.HostVolumeState) error
+	GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error)
+	DeleteDynamicHostVolume(string) error
+}
+
 type HostVolumeManager struct {
 	pluginDir      string
 	sharedMountDir string
@@ -29,7 +35,7 @@ type HostVolumeManager struct {
 }
 
 func NewHostVolumeManager(logger hclog.Logger,
-	stateMgr HostVolumeStateManager, restoreTimeout time.Duration,
+	state HostVolumeStateManager, restoreTimeout time.Duration,
 	pluginDir, sharedMountDir string) (*HostVolumeManager, error) {
 
 	log := logger.Named("host_volume_mgr")
@@ -38,11 +44,11 @@ func NewHostVolumeManager(logger hclog.Logger,
 	hvm := &HostVolumeManager{
 		pluginDir:      pluginDir,
 		sharedMountDir: sharedMountDir,
-		stateMgr:       stateMgr,
+		stateMgr:       state,
 		log:            log,
 	}
 
-	if err := hvm.restoreState(stateMgr, restoreTimeout); err != nil {
+	if err := hvm.restoreState(state, restoreTimeout); err != nil {
 		return nil, err
 	}
 
@@ -111,7 +117,7 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		return nil, err
 	}
 
-	volState := &HostVolumeState{
+	volState := &cstructs.HostVolumeState{
 		ID:        req.ID,
 		CreateReq: req,
 	}

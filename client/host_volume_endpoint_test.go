@@ -51,7 +51,7 @@ func TestHostVolume(t *testing.T) {
 		vols, err := memdb.GetDynamicHostVolumes()
 		must.NoError(t, err)
 		must.Len(t, 1, vols)
-		expectState := &hvm.HostVolumeState{
+		expectState := &cstructs.HostVolumeState{
 			ID:        req.ID,
 			CreateReq: req,
 		}
