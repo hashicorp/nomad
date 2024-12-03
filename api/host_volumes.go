@@ -148,10 +148,26 @@ func (c *Client) HostVolumes() *HostVolumes {
 
 type HostVolumeCreateRequest struct {
 	Volume *HostVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
 }
 
 type HostVolumeRegisterRequest struct {
 	Volume *HostVolume
+
+	// PolicyOverride overrides Sentinel soft-mandatory policy enforcement
+	PolicyOverride bool
+}
+
+type HostVolumeCreateResponse struct {
+	Volume   *HostVolume
+	Warnings string
+}
+
+type HostVolumeRegisterResponse struct {
+	Volume   *HostVolume
+	Warnings string
 }
 
 type HostVolumeListRequest struct {
@@ -165,28 +181,24 @@ type HostVolumeDeleteRequest struct {
 
 // Create forwards to client agents so a host volume can be created on those
 // hosts, and registers the volume with Nomad servers.
-func (hv *HostVolumes) Create(req *HostVolumeCreateRequest, opts *WriteOptions) (*HostVolume, *WriteMeta, error) {
-	var out struct {
-		Volume *HostVolume
-	}
+func (hv *HostVolumes) Create(req *HostVolumeCreateRequest, opts *WriteOptions) (*HostVolumeCreateResponse, *WriteMeta, error) {
+	var out *HostVolumeCreateResponse
 	wm, err := hv.client.put("/v1/volume/host/create", req, &out, opts)
 	if err != nil {
 		return nil, wm, err
 	}
-	return out.Volume, wm, nil
+	return out, wm, nil
 }
 
 // Register registers a host volume that was created out-of-band with the Nomad
 // servers.
-func (hv *HostVolumes) Register(req *HostVolumeRegisterRequest, opts *WriteOptions) (*HostVolume, *WriteMeta, error) {
-	var out struct {
-		Volume *HostVolume
-	}
+func (hv *HostVolumes) Register(req *HostVolumeRegisterRequest, opts *WriteOptions) (*HostVolumeRegisterResponse, *WriteMeta, error) {
+	var out *HostVolumeRegisterResponse
 	wm, err := hv.client.put("/v1/volume/host/register", req, &out, opts)
 	if err != nil {
 		return nil, wm, err
 	}
-	return out.Volume, wm, nil
+	return out, wm, nil
 }
 
 // Get queries for a single host volume, by ID
