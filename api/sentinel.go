@@ -82,3 +82,9 @@ type SentinelPolicyListStub struct {
 	CreateIndex      uint64
 	ModifyIndex      uint64
 }
+
+// Possible Sentinel scopes
+const (
+	SentinelScopeSubmitJob        = "submit-job"
+	SentinelScopeSubmitHostVolume = "submit-host-volume"
+)
