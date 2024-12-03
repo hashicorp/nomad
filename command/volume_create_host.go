@@ -19,7 +19,7 @@ import (
 )
 
 func (c *VolumeCreateCommand) hostVolumeCreate(
-	client *api.Client, ast *ast.File, detach, verbose bool) int {
+	client *api.Client, ast *ast.File, detach, verbose, override bool) int {
 
 	vol, err := decodeHostVolume(ast)
 	if err != nil {
@@ -28,12 +28,20 @@ func (c *VolumeCreateCommand) hostVolumeCreate(
 	}
 
 	req := &api.HostVolumeCreateRequest{
-		Volume: vol,
+		Volume:         vol,
+		PolicyOverride: override,
 	}
-	vol, _, err = client.HostVolumes().Create(req, nil)
+	resp, _, err := client.HostVolumes().Create(req, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating volume: %s", err))
 		return 1
+	}
+	vol = resp.Volume
+
+	if resp.Warnings != "" {
+		c.Ui.Output(
+			c.Colorize().Color(
+				fmt.Sprintf("[bold][yellow]Volume Warnings:\n%s[reset]\n", resp.Warnings)))
 	}
 
 	var volID string
