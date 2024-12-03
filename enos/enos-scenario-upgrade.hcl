@@ -11,7 +11,7 @@ scenario "upgrade" {
     arch = ["amd64", "arm64"]
     //service_discovery  = ["consul", "nomad"]
     edition = ["ce", "ent"]
-    os       = ["linux", "windows"]
+    os      = ["linux", "windows"]
 
     exclude {
       os   = ["windows"]
@@ -19,7 +19,13 @@ scenario "upgrade" {
     }
   }
 
-  step "copy_binary" {
+  locals {
+    cluster_name  = "upgrade-testing-cluster-${matrix.os}-${matrix.arch}"
+    ubuntu_count  = matrix.os == "linux" ? 4 : 0
+    windows_count = matrix.os == "windows" ? 4 : 0
+  }
+
+  step "copy_initial_binary" {
     description = <<-EOF
     Determine which Nomad artifact we want to use for the scenario, depending on the
    'arch', 'edition' and 'os'
@@ -37,21 +43,24 @@ scenario "upgrade" {
     }
   }
 
-/*   step "provision_cluster" {
+  step "provision_cluster" {
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
     EOF
-    module      = module.
 
+    depends_on = [step.copy_initial_binary]
+
+    module = module.provision_cluster
     variables {
-        name  
-        nomad_local_binary                = step.copy_binary.nomad_local_binary
-        nomad_license                     = global.nomad_license_path
-        server_count                      = var.server_count
-        client_count_ubuntu_jammy_amd64 = matrix.distro != "ubuntu" ? var.client_count_ubuntu_jammy_amd64 : 0
-        // ...
+      name                            = local.cluster_name
+      nomad_local_binary              = step.copy_initial_binary.nomad_local_binary
+      client_count_ubuntu_jammy_amd64 = local.ubuntu_count
+      client_count_windows_2016_amd64 = local.windows_count
+      nomad_license                   = var.nomad_license
+      consul_license                  = var.consul_license
+      volumes = false
     }
-  } */
+  }
   /* 
   step "run_new_workloads" {
     description = <<-EOF
@@ -77,8 +86,8 @@ scenario "upgrade" {
         version          = global.upgrade_version 
         artifactory_path = globals.artifact_path
         artifact_token   = globals.artifact_toke. 
-        os             = step.copy_binary.os
-        distro           = step.copy_binary.distro
+        os             = step.copy_initial_binary.os
+        distro           = step.copy_initial_binary.distro
         // ...
     }
   }
@@ -98,12 +107,12 @@ scenario "upgrade" {
 
     variables {
         cc_update_type        = "server"  
-        nomad_upgraded_binary = step.copy_binary.nomad_local_binary
+        nomad_upgraded_binary = step.copy_initial_binary.nomad_local_binary
         // ...
     }
   }
 
-  step "run_new_workloads" {
+  step "run_servers_workloads" {
    // ...
   }
 
@@ -121,12 +130,12 @@ scenario "upgrade" {
 
     variables {
         cc_update_type = "client"  
-        nomad_upgraded_binary             = step.copy_binary.nomad_local_binary
+        nomad_upgraded_binary             = step.copy_initial_binary.nomad_local_binary
         // ...
     }
   }
 
-  step "run_new_workloads" {
+  step "run_clients_workloads" {
      // ...
   } */
 }
