@@ -21,11 +21,19 @@ func (c *VolumeRegisterCommand) hostVolumeRegister(client *api.Client, ast *ast.
 		Volume:         vol,
 		PolicyOverride: override,
 	}
-	vol, _, err = client.HostVolumes().Register(req, nil)
+	resp, _, err := client.HostVolumes().Register(req, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error registering volume: %s", err))
 		return 1
 	}
+	vol = resp.Volume
+
+	if resp.Warnings != "" {
+		c.Ui.Output(
+			c.Colorize().Color(
+				fmt.Sprintf("[bold][yellow]Volume Warnings:\n%s[reset]\n", resp.Warnings)))
+	}
+
 	c.Ui.Output(fmt.Sprintf(
 		"Registered host volume %s with ID %s", vol.Name, vol.ID))
 

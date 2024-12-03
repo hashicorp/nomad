@@ -31,10 +31,17 @@ func (c *VolumeCreateCommand) hostVolumeCreate(
 		Volume:         vol,
 		PolicyOverride: override,
 	}
-	vol, _, err = client.HostVolumes().Create(req, nil)
+	resp, _, err := client.HostVolumes().Create(req, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating volume: %s", err))
 		return 1
+	}
+	vol = resp.Volume
+
+	if resp.Warnings != "" {
+		c.Ui.Output(
+			c.Colorize().Color(
+				fmt.Sprintf("[bold][yellow]Volume Warnings:\n%s[reset]\n", resp.Warnings)))
 	}
 
 	var volID string
