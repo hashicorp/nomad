@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 scenario "upgrade" {
     description = <<-EOF
     The upgrade scenario verifies in-place upgrades between previously released versions of Nomad

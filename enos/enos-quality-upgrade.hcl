@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 quality "nomad_agent_info" {
     description = "A GET call to /v1/agent/members returns the correct number of
     running servers and they are all alive"
