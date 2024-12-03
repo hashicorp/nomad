@@ -5,13 +5,15 @@
 set -xeuo pipefail
 
 # Variables
-OUTPUT="nomad.zip"        # Name for the downloaded file
+LOCAL_ZIP="nomad.zip"        # Name for the downloaded file
 
 # Download the file
-wget --header="X-JFrog-Art-Api:$TOKEN" -O- "$OUTPUT" "$URL"
+wget --header="X-JFrog-Art-Api:$TOKEN" -O- "$LOCAL_ZIP" "$URL"
 
 # Check if the file was downloaded
-if [ $? -nq 0 ]; then
+if [ $? -eq 0 ]; then
+    echo "File downloaded successfully: $LOCAL_ZIP"
+else
     echo "Error downloading file." >&2
     exit 1
 fi
@@ -20,13 +22,12 @@ fi
 mkdir -p "$BINARY_PATH"
 
 # Unzip the file
-unzip -o "$OUTPUT" -d "$BINARY_PATH"
+unzip -o "$LOCAL_ZIP" -d "$BINARY_PATH"
 
 # Check if the file was unzipped
-if [ $? -nq 0 ]; then
+if [ $? -eq 0 ]; then
+    echo "File unzipped successfully to $BINARY_PATH"
+else
     echo "Error unzipping file." >&2
     exit 1
 fi
-
-# Remove the zip file 
-rm $OUTPUT

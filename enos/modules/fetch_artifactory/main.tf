@@ -17,7 +17,6 @@ data "enos_artifactory_item" "nomad" {
   path     = local.path
   name     = local.artifact_name
   properties = tomap({
-    "commit"       = var.revision
     "product-name" = var.edition == "ce" ? "nomad" : "nomad-enterprise"
   })
 }
@@ -30,4 +29,4 @@ resource "enos_local_exec" "install_binary" {
   }
 
   scripts = [abspath("${path.module}/scripts/install.sh")]
-} 
+}  
