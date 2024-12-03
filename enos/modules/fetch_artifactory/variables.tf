@@ -39,7 +39,7 @@ variable "revision" {
 variable "os" {
   type        = string
   description = "The operative system the binary is needed for"
-  default =  "linux"
+  default     = "linux"
 }
 
 variable "product_version" {
@@ -56,5 +56,5 @@ variable "arch" {
 variable "binary_path" {
   description = "The path to donwload and unzip the binary"
   type        = string
-  default     = "/home/ubuntu/nomad" 
+  default     = "/home/ubuntu/nomad"
 }

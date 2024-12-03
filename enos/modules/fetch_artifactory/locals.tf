@@ -14,9 +14,9 @@ locals {
     }
 
     arm64 = {
-      linux   = "_linux_arm64.zip"
+      linux = "_linux_arm64.zip"
     }
-  } 
+  }
 
   artifact_name = "nomad_${local.artifact_version}${local.package_extensions[var.arch][var.os]}"
 }

@@ -2,17 +2,17 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 scenario "upgrade" {
-    description = <<-EOF
+  description = <<-EOF
     The upgrade scenario verifies in-place upgrades between previously released versions of Nomad
     against another candidate build. 
     EOF
 
-    matrix {
-        arch                 = ["amd64", "arm64"]
-        //service_discovery  = ["consul", "nomad"]
-        distro               = ["alpine", "fedora", "rhel","ubuntu"]
-        editions             = ["ce", "ent"]
-        os                   = ["linux", "darwin", "windows"]
+  matrix {
+    arch = ["amd64", "arm64"]
+    //service_discovery  = ["consul", "nomad"]
+    distro   = ["alpine", "fedora", "rhel", "ubuntu"]
+    editions = ["ce", "ent"]
+    os       = ["linux", "darwin", "windows"]
   }
 
   step "copy_binary" {
@@ -23,15 +23,15 @@ scenario "upgrade" {
     module      = module.build_artifactory
 
     variables {
-        version          = global.initial_version 
-        artifactory_path = globals.artifact_path
-        artifact_token   = globals.artifact_token 
-        os               = matrix.os
-        distro           = matrix.os != "linux" ? var.distro : null
-        local_path       = var.binary_local_path
+      version          = global.initial_version
+      artifactory_path = globals.artifact_path
+      artifact_token   = globals.artifact_token
+      os               = matrix.os
+      distro           = matrix.os != "linux" ? var.distro : null
+      local_path       = var.binary_local_path
     }
   }
-/* 
+  /* 
   step "provision_cluster" {
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e

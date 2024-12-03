@@ -4,7 +4,7 @@
 terraform {
   required_providers {
     enos = {
-      source  = "registry.terraform.io/hashicorp-forge/enos"
+      source = "registry.terraform.io/hashicorp-forge/enos"
     }
   }
 }
@@ -17,17 +17,17 @@ data "enos_artifactory_item" "nomad" {
   path     = local.path
   name     = local.artifact_name
   properties = tomap({
-    "commit"          = var.revision
-    "product-name"    = var.edition == "ce" ? "nomad" : "nomad-enterprise"
+    "commit"       = var.revision
+    "product-name" = var.edition == "ce" ? "nomad" : "nomad-enterprise"
   })
 }
 
 resource "enos_local_exec" "install_binary" {
-    environment = {
-        URL         = data.enos_artifactory_item.nomad.results[0].url
-        BINARY_PATH = var.binary_path
-        TOKEN       = var.artifactory_token
-    }
+  environment = {
+    URL         = data.enos_artifactory_item.nomad.results[0].url
+    BINARY_PATH = var.binary_path
+    TOKEN       = var.artifactory_token
+  }
 
-    scripts = [abspath("${path.module}/scripts/install.sh")]
+  scripts = [abspath("${path.module}/scripts/install.sh")]
 } 
