@@ -46,6 +46,9 @@ Create Options:
     Display full information when monitoring volume state. Used for dynamic host
     volumes only.
 
+  -policy-override
+    Sets the flag to force override any soft mandatory Sentinel policies. Used
+    for dynamic host volumes only.
 `
 
 	return strings.TrimSpace(helpText)
@@ -54,8 +57,9 @@ Create Options:
 func (c *VolumeCreateCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-detach":  complete.PredictNothing,
-			"-verbose": complete.PredictNothing,
+			"-detach":          complete.PredictNothing,
+			"-verbose":         complete.PredictNothing,
+			"-policy-override": complete.PredictNothing,
 		})
 }
 
@@ -70,10 +74,11 @@ func (c *VolumeCreateCommand) Synopsis() string {
 func (c *VolumeCreateCommand) Name() string { return "volume create" }
 
 func (c *VolumeCreateCommand) Run(args []string) int {
-	var detach, verbose bool
+	var detach, verbose, override bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.BoolVar(&detach, "detach", false, "detach from monitor")
 	flags.BoolVar(&verbose, "verbose", false, "display full volume IDs")
+	flags.BoolVar(&override, "policy-override", false, "override soft mandatory Sentinel policies")
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -124,7 +129,7 @@ func (c *VolumeCreateCommand) Run(args []string) int {
 	case "csi":
 		return c.csiCreate(client, ast)
 	case "host":
-		return c.hostVolumeCreate(client, ast, detach, verbose)
+		return c.hostVolumeCreate(client, ast, detach, verbose, override)
 	default:
 		c.Ui.Error(fmt.Sprintf("Error unknown volume type: %s", volType))
 		return 1

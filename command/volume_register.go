@@ -34,13 +34,23 @@ Usage: nomad volume register [options] <input>
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault)
+  ` + generalOptionsUsage(usageOptsDefault) + `
+
+Register Options:
+
+  -policy-override
+    Sets the flag to force override any soft mandatory Sentinel policies. Used
+    for dynamic host volumes only.
+`
 
 	return strings.TrimSpace(helpText)
 }
 
 func (c *VolumeRegisterCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-policy-override": complete.PredictNothing,
+		})
 }
 
 func (c *VolumeRegisterCommand) AutocompleteArgs() complete.Predictor {
@@ -54,7 +64,9 @@ func (c *VolumeRegisterCommand) Synopsis() string {
 func (c *VolumeRegisterCommand) Name() string { return "volume register" }
 
 func (c *VolumeRegisterCommand) Run(args []string) int {
+	var override bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.BoolVar(&override, "policy-override", false, "override soft mandatory Sentinel policies")
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -106,7 +118,7 @@ func (c *VolumeRegisterCommand) Run(args []string) int {
 	case "csi":
 		return c.csiRegister(client, ast)
 	case "host":
-		return c.hostVolumeRegister(client, ast)
+		return c.hostVolumeRegister(client, ast, override)
 	default:
 		c.Ui.Error(fmt.Sprintf("Error unknown volume type: %s", volType))
 		return 1
