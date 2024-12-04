@@ -132,6 +132,60 @@ jobs:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: yarn percy build:finalize
+
+  analyze-times:
+    needs: [tests, finalize]
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-results-${{ github.sha }}
+          path: ui
+          
+      - name: Download historical results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          path: historical-results
+          merge-multiple: true
+          
+      - name: Analyze test times
+        run: node scripts/analyze-test-times.js
+
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const analysis = JSON.parse(fs.readFileSync('ui/test-time-analysis.json'));
+
+            console.log('=== analysis', analysis);
+            
+            let body = `### Test Time Analysis\n\n`;
+            body += `- Total Tests: ${analysis.summary.totalTests}\n`;
+            body += `- Significantly Slower: ${analysis.summary.significantlySlower}\n`;
+            body += `- Significantly Faster: ${analysis.summary.significantlyFaster}\n\n`;
+            
+            if (analysis.testComparisons.length > 0) {
+              body += `#### Most Significant Changes:\n\n`;
+              analysis.testComparisons.slice(0, 5).forEach(comp => {
+                body += `**${comp.name}**\n`;
+                body += `- Current: ${comp.currentDuration}ms\n`;
+                body += `- Historical Avg: ${comp.historicalAverage}ms\n`;
+                body += `- Change: ${comp.percentDiff.toFixed(1)}%\n\n`;
+              });
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
 permissions:
   contents: read
   id-token: write
