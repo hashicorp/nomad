@@ -370,7 +370,6 @@ type HostVolumeDeleteRequest struct {
 }
 
 type HostVolumeDeleteResponse struct {
-	VolumeID string // volume actually deleted
 	WriteMeta
 }
 

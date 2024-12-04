@@ -362,13 +362,31 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Get", getReq, &getResp)
 		must.NoError(t, err)
 		must.Nil(t, getResp.Volume)
-
-		// delete vol1 to finish cleaning up
-		delReq.VolumeID = vol1.ID
-		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
-		must.NoError(t, err)
-		must.Eq(t, vol1.ID, delResp.VolumeID)
 	})
+
+	// delete vol1 to finish cleaning up
+	var delResp structs.HostVolumeDeleteResponse
+	err := msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", &structs.HostVolumeDeleteRequest{
+		VolumeID: vol1.ID,
+		WriteRequest: structs.WriteRequest{
+			Region:    srv.Region(),
+			Namespace: vol1.Namespace,
+			AuthToken: powerToken,
+		},
+	}, &delResp)
+	must.NoError(t, err)
+
+	// should be no volumes left
+	var listResp structs.HostVolumeListResponse
+	err = msgpackrpc.CallWithCodec(codec, "HostVolume.List", &structs.HostVolumeListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    srv.Region(),
+			Namespace: "*",
+			AuthToken: token,
+		},
+	}, &listResp)
+	must.NoError(t, err)
+	must.Len(t, 0, listResp.Volumes, must.Sprintf("expect no volumes to remain, got: %+v", listResp))
 }
 
 func TestHostVolumeEndpoint_List(t *testing.T) {

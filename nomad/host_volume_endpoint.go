@@ -599,7 +599,6 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 		return err
 	}
 
-	reply.VolumeID = args.VolumeID // db TODO(1.10.0) why?
 	reply.Index = index
 	return nil
 }
