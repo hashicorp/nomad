@@ -321,7 +321,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 			index, []*structs.Allocation{alloc}))
 
 		delReq := &structs.HostVolumeDeleteRequest{
-			VolumeIDs: []string{vol1.ID, vol2.ID},
+			VolumeID: vol2.ID,
 			WriteRequest: structs.WriteRequest{
 				Region:    srv.Region(),
 				Namespace: ns,
@@ -336,20 +336,6 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
 		must.EqError(t, err, fmt.Sprintf("volume %s in use by allocations: [%s]", vol2.ID, alloc.ID))
 
-		// volume not in use will be deleted even if we got an error
-		getReq := &structs.HostVolumeGetRequest{
-			ID: vol1.ID,
-			QueryOptions: structs.QueryOptions{
-				Region:    srv.Region(),
-				Namespace: ns,
-				AuthToken: token,
-			},
-		}
-		var getResp structs.HostVolumeGetResponse
-		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Get", getReq, &getResp)
-		must.NoError(t, err)
-		must.Nil(t, getResp.Volume)
-
 		// update the allocations terminal so the delete works
 		alloc = alloc.Copy()
 		alloc.ClientStatus = structs.AllocClientStatusFailed
@@ -361,14 +347,27 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		}
 		err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", nArgs, &structs.GenericResponse{})
 
-		delReq.VolumeIDs = []string{vol2.ID}
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
 		must.NoError(t, err)
 
-		getReq.ID = vol2.ID
+		getReq := &structs.HostVolumeGetRequest{
+			ID: vol2.ID,
+			QueryOptions: structs.QueryOptions{
+				Region:    srv.Region(),
+				Namespace: ns,
+				AuthToken: token,
+			},
+		}
+		var getResp structs.HostVolumeGetResponse
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Get", getReq, &getResp)
 		must.NoError(t, err)
 		must.Nil(t, getResp.Volume)
+
+		// delete vol1 to finish cleaning up
+		delReq.VolumeID = vol1.ID
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
+		must.NoError(t, err)
+		must.Eq(t, vol1.ID, delResp.VolumeID)
 	})
 }
 

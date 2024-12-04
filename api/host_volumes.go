@@ -175,10 +175,6 @@ type HostVolumeListRequest struct {
 	NodePool string
 }
 
-type HostVolumeDeleteRequest struct {
-	VolumeIDs []string
-}
-
 // Create forwards to client agents so a host volume can be created on those
 // hosts, and registers the volume with Nomad servers.
 func (hv *HostVolumes) Create(req *HostVolumeCreateRequest, opts *WriteOptions) (*HostVolumeCreateResponse, *WriteMeta, error) {

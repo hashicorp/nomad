@@ -129,7 +129,7 @@ func (s *HTTPServer) hostVolumeCreate(resp http.ResponseWriter, req *http.Reques
 func (s *HTTPServer) hostVolumeDelete(id string, resp http.ResponseWriter, req *http.Request) (any, error) {
 	// HTTP API only supports deleting a single ID because of compatibility with
 	// the existing HTTP routes for CSI
-	args := structs.HostVolumeDeleteRequest{VolumeIDs: []string{id}}
+	args := structs.HostVolumeDeleteRequest{VolumeID: id}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.HostVolumeDeleteResponse
