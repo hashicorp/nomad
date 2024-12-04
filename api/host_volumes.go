@@ -175,6 +175,10 @@ type HostVolumeListRequest struct {
 	NodePool string
 }
 
+type HostVolumeDeleteRequest struct {
+	ID string
+}
+
 // Create forwards to client agents so a host volume can be created on those
 // hosts, and registers the volume with Nomad servers.
 func (hv *HostVolumes) Create(req *HostVolumeCreateRequest, opts *WriteOptions) (*HostVolumeCreateResponse, *WriteMeta, error) {
@@ -234,8 +238,8 @@ func (hv *HostVolumes) List(req *HostVolumeListRequest, opts *QueryOptions) ([]*
 }
 
 // Delete deletes a host volume
-func (hv *HostVolumes) Delete(id string, opts *WriteOptions) (*WriteMeta, error) {
-	path, err := url.JoinPath("/v1/volume/host/", url.PathEscape(id))
+func (hv *HostVolumes) Delete(req *HostVolumeDeleteRequest, opts *WriteOptions) (*WriteMeta, error) {
+	path, err := url.JoinPath("/v1/volume/host/", url.PathEscape(req.ID))
 	if err != nil {
 		return nil, err
 	}
