@@ -649,15 +649,22 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 
 	node0, node1, node2, node3 := mock.Node(), mock.Node(), mock.Node(), mock.Node()
 	node0.NodePool = structs.NodePoolDefault
+	node0.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
+
 	node1.NodePool = "dev"
 	node1.Meta["rack"] = "r2"
+	node1.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
+
 	node2.NodePool = "prod"
+	node2.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
+
 	node3.NodePool = "prod"
 	node3.Meta["rack"] = "r3"
 	node3.HostVolumes = map[string]*structs.ClientHostVolumeConfig{"example": {
 		Name: "example",
 		Path: "/srv",
 	}}
+	node3.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
 
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node0))
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
@@ -672,40 +679,50 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 	}{
 		{
 			name:   "only one in node pool",
-			vol:    &structs.HostVolume{NodePool: "default"},
+			vol:    &structs.HostVolume{NodePool: "default", PluginID: "mkdir"},
 			expect: node0,
 		},
 		{
 			name: "only one that matches constraints",
-			vol: &structs.HostVolume{Constraints: []*structs.Constraint{
-				{
-					LTarget: "${meta.rack}",
-					RTarget: "r2",
-					Operand: "=",
-				},
-			}},
+			vol: &structs.HostVolume{
+				PluginID: "mkdir",
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${meta.rack}",
+						RTarget: "r2",
+						Operand: "=",
+					},
+				}},
 			expect: node1,
 		},
 		{
 			name:   "only one available in pool",
-			vol:    &structs.HostVolume{NodePool: "prod", Name: "example"},
+			vol:    &structs.HostVolume{NodePool: "prod", Name: "example", PluginID: "mkdir"},
 			expect: node2,
 		},
 		{
-			name: "no match",
-			vol: &structs.HostVolume{Constraints: []*structs.Constraint{
-				{
-					LTarget: "${meta.rack}",
-					RTarget: "r6",
-					Operand: "=",
-				},
-			}},
+			name: "no matching constraint",
+			vol: &structs.HostVolume{
+				PluginID: "mkdir",
+				Constraints: []*structs.Constraint{
+					{
+						LTarget: "${meta.rack}",
+						RTarget: "r6",
+						Operand: "=",
+					},
+				}},
+			expectErr: "no node meets constraints",
+		},
+		{
+			name:      "no matching plugin",
+			vol:       &structs.HostVolume{PluginID: "not-mkdir"},
 			expectErr: "no node meets constraints",
 		},
 		{
 			name: "match already has a volume with the same name",
 			vol: &structs.HostVolume{
-				Name: "example",
+				Name:     "example",
+				PluginID: "mkdir",
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "${meta.rack}",
@@ -750,8 +767,8 @@ func newMockHostVolumeClient(t *testing.T, srv *Server, pool string) (*mockHostV
 
 	c1, cleanup := client.TestRPCOnlyClient(t, func(c *config.Config) {
 		c.Node.NodePool = pool
-		// TODO(1.10.0): we'll want to have a version gate for this feature
 		c.Node.Attributes["nomad.version"] = version.Version
+		c.Node.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
 		c.Node.Meta["rack"] = "r1"
 	}, srv.config.RPCAddr, map[string]any{"HostVolume": mockClientEndpoint})
 	t.Cleanup(cleanup)

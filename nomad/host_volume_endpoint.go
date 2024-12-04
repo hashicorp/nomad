@@ -480,15 +480,17 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 	}
 
 	var checker *scheduler.ConstraintChecker
-
-	if len(vol.Constraints) > 0 {
-		ctx := &placementContext{
-			regexpCache:  make(map[string]*regexp.Regexp),
-			versionCache: make(map[string]scheduler.VerConstraints),
-			semverCache:  make(map[string]scheduler.VerConstraints),
-		}
-		checker = scheduler.NewConstraintChecker(ctx, vol.Constraints)
+	ctx := &placementContext{
+		regexpCache:  make(map[string]*regexp.Regexp),
+		versionCache: make(map[string]scheduler.VerConstraints),
+		semverCache:  make(map[string]scheduler.VerConstraints),
 	}
+	constraints := []*structs.Constraint{{
+		LTarget: fmt.Sprintf("${attr.plugins.host_volume.version.%s}", vol.PluginID),
+		Operand: "is_set",
+	}}
+	constraints = append(constraints, vol.Constraints...)
+	checker = scheduler.NewConstraintChecker(ctx, constraints)
 
 	for {
 		raw := iter.Next()
