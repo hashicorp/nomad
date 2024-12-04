@@ -13,7 +13,6 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
@@ -564,11 +563,10 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 		return structs.ErrPermissionDenied
 	}
 
-	if len(args.VolumeIDs) == 0 {
-		return fmt.Errorf("missing volumes to delete")
+	if args.VolumeID == "" {
+		return fmt.Errorf("missing volume ID to delete")
 	}
 
-	var deletedVols []string
 	var index uint64
 
 	snap, err := v.srv.State().Snapshot()
@@ -576,45 +574,35 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 		return err
 	}
 
-	var mErr *multierror.Error
 	ns := args.RequestNamespace()
+	id := args.VolumeID
 
-	for _, id := range args.VolumeIDs {
-		vol, err := snap.HostVolumeByID(nil, ns, id, true)
-		if err != nil {
-			return fmt.Errorf("could not query host volume: %w", err)
-		}
-		if vol == nil {
-			return fmt.Errorf("no such volume: %s", id)
-		}
-		if len(vol.Allocations) > 0 {
-			allocIDs := helper.ConvertSlice(vol.Allocations,
-				func(a *structs.AllocListStub) string { return a.ID })
-			mErr = multierror.Append(mErr,
-				fmt.Errorf("volume %s in use by allocations: %v", id, allocIDs))
-			continue
-		}
-
-		err = v.deleteVolume(vol)
-		if err != nil {
-			mErr = multierror.Append(mErr, err)
-		} else {
-			deletedVols = append(deletedVols, id)
-		}
+	vol, err := snap.HostVolumeByID(nil, ns, id, true)
+	if err != nil {
+		return fmt.Errorf("could not query host volume: %w", err)
+	}
+	if vol == nil {
+		return fmt.Errorf("no such volume: %s", id)
+	}
+	if len(vol.Allocations) > 0 {
+		allocIDs := helper.ConvertSlice(vol.Allocations,
+			func(a *structs.AllocListStub) string { return a.ID })
+		return fmt.Errorf("volume %s in use by allocations: %v", id, allocIDs)
 	}
 
-	if len(deletedVols) > 0 {
-		args.VolumeIDs = deletedVols
-		_, index, err = v.srv.raftApply(structs.HostVolumeDeleteRequestType, args)
-		if err != nil {
-			v.logger.Error("raft apply failed", "error", err, "method", "delete")
-			mErr = multierror.Append(mErr, err)
-		}
+	err = v.deleteVolume(vol)
+	if err != nil {
+		return err
 	}
 
-	reply.VolumeIDs = deletedVols
+	_, index, err = v.srv.raftApply(structs.HostVolumeDeleteRequestType, args)
+	if err != nil {
+		v.logger.Error("raft apply failed", "error", err, "method", "delete")
+		return err
+	}
+
 	reply.Index = index
-	return helper.FlattenMultierror(mErr)
+	return nil
 }
 
 func (v *HostVolume) deleteVolume(vol *structs.HostVolume) error {

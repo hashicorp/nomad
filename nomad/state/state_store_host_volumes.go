@@ -107,37 +107,34 @@ func (s *StateStore) UpsertHostVolume(index uint64, vol *structs.HostVolume) err
 	return txn.Commit()
 }
 
-// DeleteHostVolumes deletes a set of host volumes in the same namespace
-func (s *StateStore) DeleteHostVolumes(index uint64, ns string, ids []string) error {
+// DeleteHostVolume deletes a host volume
+func (s *StateStore) DeleteHostVolume(index uint64, ns string, id string) error {
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
-	for _, id := range ids {
+	obj, err := txn.First(TableHostVolumes, indexID, ns, id)
+	if err != nil {
+		return err
+	}
+	if obj != nil {
+		vol := obj.(*structs.HostVolume)
 
-		obj, err := txn.First(TableHostVolumes, indexID, ns, id)
+		allocs, err := s.AllocsByNodeTerminal(nil, vol.NodeID, false)
 		if err != nil {
-			return err
+			return fmt.Errorf("could not query allocs to check for host volume claims: %w", err)
 		}
-		if obj != nil {
-			vol := obj.(*structs.HostVolume)
-
-			allocs, err := s.AllocsByNodeTerminal(nil, vol.NodeID, false)
-			if err != nil {
-				return fmt.Errorf("could not query allocs to check for host volume claims: %w", err)
-			}
-			for _, alloc := range allocs {
-				for _, volClaim := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Volumes {
-					if volClaim.Type == structs.VolumeTypeHost && volClaim.Name == vol.Name {
-						return fmt.Errorf("could not delete volume %s in use by alloc %s",
-							vol.ID, alloc.ID)
-					}
+		for _, alloc := range allocs {
+			for _, volClaim := range alloc.Job.LookupTaskGroup(alloc.TaskGroup).Volumes {
+				if volClaim.Type == structs.VolumeTypeHost && volClaim.Name == vol.Name {
+					return fmt.Errorf("could not delete volume %s in use by alloc %s",
+						vol.ID, alloc.ID)
 				}
 			}
+		}
 
-			err = txn.Delete(TableHostVolumes, vol)
-			if err != nil {
-				return fmt.Errorf("host volume delete: %w", err)
-			}
+		err = txn.Delete(TableHostVolumes, vol)
+		if err != nil {
+			return fmt.Errorf("host volume delete: %w", err)
 		}
 	}
 
