@@ -123,6 +123,8 @@ func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 	}
 }
 
+// TODO: callback for HVM around here
+
 // updateNodeFromCSIControllerLocked makes the changes to the node from a csi
 // update but does not send the update to the server. c.configLock must be held
 // before calling this func.
@@ -336,6 +338,8 @@ type batchNodeUpdates struct {
 	csiBatched           bool
 	csiCB                csimanager.UpdateNodeCSIInfoFunc
 	csiMu                sync.Mutex
+
+	//hostVolumes map[string]*structs.HostVolume
 }
 
 func newBatchNodeUpdates(

@@ -35,7 +35,7 @@ func TestNewHostVolumeManager_restoreState(t *testing.T) {
 		// resulting in a volume directory in this mountDir.
 		mountDir := t.TempDir()
 
-		_, err := NewHostVolumeManager(log, state, time.Second, "/wherever", mountDir)
+		_, _, err := NewHostVolumeManager(log, state, time.Second, "/wherever", mountDir)
 		must.NoError(t, err)
 
 		volPath := filepath.Join(mountDir, vol.ID)
@@ -44,7 +44,7 @@ func TestNewHostVolumeManager_restoreState(t *testing.T) {
 
 	t.Run("get error", func(t *testing.T) {
 		state := &cstate.ErrDB{}
-		_, err := NewHostVolumeManager(log, state, time.Second, "/wherever", "/wherever")
+		_, _, err := NewHostVolumeManager(log, state, time.Second, "/wherever", "/wherever")
 		// error loading state should break the world
 		must.ErrorIs(t, err, cstate.ErrDBError)
 	})

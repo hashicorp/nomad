@@ -6,6 +6,7 @@ package hostvolumemanager
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"time"
 
@@ -13,11 +14,13 @@ import (
 	"github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
 	ErrPluginNotExists     = errors.New("no such plugin")
 	ErrPluginNotExecutable = errors.New("plugin not executable")
+	ErrUpdateTimeout       = errors.New("timeout updating client node")
 )
 
 type HostVolumeStateManager interface {
@@ -31,12 +34,18 @@ type HostVolumeManager struct {
 	sharedMountDir string
 	stateMgr       HostVolumeStateManager
 
+	updateCh chan any
+
 	log hclog.Logger
+}
+
+type NodeUpdater interface {
+	UpdateNode(cb func(*structs.Node)) *structs.Node
 }
 
 func NewHostVolumeManager(logger hclog.Logger,
 	state HostVolumeStateManager, restoreTimeout time.Duration,
-	pluginDir, sharedMountDir string) (*HostVolumeManager, error) {
+	pluginDir, sharedMountDir string) (*HostVolumeManager, <-chan any, error) {
 
 	log := logger.Named("host_volume_mgr")
 
@@ -45,14 +54,15 @@ func NewHostVolumeManager(logger hclog.Logger,
 		pluginDir:      pluginDir,
 		sharedMountDir: sharedMountDir,
 		stateMgr:       state,
+		updateCh:       make(chan any, 1), // TODO: close, somewhere.
 		log:            log,
 	}
 
 	if err := hvm.restoreState(state, restoreTimeout); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return hvm, nil
+	return hvm, hvm.updateCh, nil
 }
 
 func (hvm *HostVolumeManager) restoreState(state HostVolumeStateManager, timeout time.Duration) error {
@@ -107,6 +117,8 @@ func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 func (hvm *HostVolumeManager) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
 
+	// TODO: make hvm stateful, hold a map of creates, check it, and bail if identical: req.Equal(old)
+
 	plug, err := hvm.getPlugin(req.PluginID)
 	if err != nil {
 		return nil, err
@@ -140,10 +152,28 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 	}
 
 	// db TODO(1.10.0): now we need to add the volume to the node fingerprint!
+	//hvm.nodeUpdater.UpdateNode(func(node *structs.Node) {
+	//	node.HostVolumes[req.ID] = &structs.ClientHostVolumeConfig{
+	//		Name:     req.ID,
+	//		Path:     pluginResp.Path,
+	//		ReadOnly: false, // TODO
+	//	}
+	//})
 
 	resp := &cstructs.ClientHostVolumeCreateResponse{
+		VolumeName:    req.Name,
+		VolumeID:      req.ID,
 		HostPath:      pluginResp.Path,
 		CapacityBytes: pluginResp.SizeBytes,
+	}
+	select {
+	case hvm.updateCh <- resp:
+	case <-ctx.Done():
+		// may happen if the client gets halted at exactly the wrong time
+		return nil, ctx.Err()
+	case <-time.After(200 * time.Millisecond):
+		// channel update should be very fast in reality, should not get hit
+		return nil, fmt.Errorf("%w: create id %q", ErrUpdateTimeout, req.ID)
 	}
 
 	return resp, nil
@@ -162,11 +192,24 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 		return nil, err
 	}
 
-	resp := &cstructs.ClientHostVolumeDeleteResponse{}
-
 	if err := hvm.stateMgr.DeleteDynamicHostVolume(req.ID); err != nil {
 		hvm.log.Error("failed to delete volume in state", "volume_id", req.ID, "error", err)
 		return nil, err // bail so a user may retry
+	}
+
+	resp := &cstructs.ClientHostVolumeDeleteResponse{
+		VolumeName: req.Name,
+		VolumeID:   req.ID,
+	}
+
+	select {
+	case hvm.updateCh <- resp:
+	case <-ctx.Done():
+		// may happen if the client gets halted at exactly the wrong time
+		return nil, ctx.Err()
+	case <-time.After(200 * time.Millisecond):
+		// channel update should be very fast in reality, should not get hit
+		return nil, fmt.Errorf("%w: delete id %q", ErrUpdateTimeout, req.ID)
 	}
 
 	return resp, nil

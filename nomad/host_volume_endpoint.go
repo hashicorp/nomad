@@ -610,6 +610,7 @@ func (v *HostVolume) deleteVolume(vol *structs.HostVolume) error {
 	method := "ClientHostVolume.Delete"
 	cReq := &cstructs.ClientHostVolumeDeleteRequest{
 		ID:         vol.ID,
+		Name:       vol.Name,
 		PluginID:   vol.PluginID,
 		NodeID:     vol.NodeID,
 		HostPath:   vol.HostPath,
