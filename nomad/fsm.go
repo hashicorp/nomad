@@ -2443,7 +2443,7 @@ func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteHostVolumes(index, req.RequestNamespace(), req.VolumeIDs); err != nil {
+	if err := n.state.DeleteHostVolume(index, req.RequestNamespace(), req.VolumeID); err != nil {
 		n.logger.Error("DeleteHostVolumes failed", "error", err)
 		return err
 	}

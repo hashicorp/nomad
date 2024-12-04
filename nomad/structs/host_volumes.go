@@ -365,12 +365,11 @@ type HostVolumeRegisterResponse struct {
 }
 
 type HostVolumeDeleteRequest struct {
-	VolumeIDs []string
+	VolumeID string
 	WriteRequest
 }
 
 type HostVolumeDeleteResponse struct {
-	VolumeIDs []string // volumes actually deleted
 	WriteMeta
 }
 
