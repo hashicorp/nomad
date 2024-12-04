@@ -80,7 +80,7 @@ jobs:
           echo "Tests failed or timed out in partition ${{ matrix.partition }}"
           exit 1
       - name: Upload partition test results
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: test-results-${{ matrix.partition }}
@@ -110,15 +110,16 @@ jobs:
           secrets: |-
             kv/data/teams/nomad/ui PERCY_TOKEN ;
       - name: Download all test results
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
           pattern: test-results-*
           path: test-results
 
       - name: Combine test results for comparison
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request'
         run: node ../scripts/combine-ui-test-results.js
+
       - name: Upload combined results for comparison
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
@@ -126,6 +127,14 @@ jobs:
           name: test-results-${{ github.sha }}
           path: ui/combined-test-results.json
           retention-days: 90
+
+      - name: Upload Current PR results
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: pr-test-results-${{ github.sha }} # Prefix with "pr-" to avoid comparing with main during analyze step
+          path: ui/combined-test-results.json
+          retention-days: 7
 
       - name: finalize
         env:

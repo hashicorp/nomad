@@ -19,22 +19,29 @@ async function analyzeTestTimes() {
   });
 
   // Load and process historical results
+  console.log('[analyze-test-times] Processing historical results...\n');
   const historicalAverages = new Map();
   const historicalCounts = new Map();
 
   // Read each historical result file
+  console.log('[analyze-test-times] Reading historical results directory...\n');
   const historicalFiles = fs.readdirSync('../historical-results');
-  historicalFiles.forEach(file => {
+  historicalFiles.forEach((file, index) => {
+    console.log(`[analyze-test-times] Reading ${file} (${index + 1} of ${historicalFiles.length})...`);
     const historical = JSON.parse(
       fs.readFileSync(`../historical-results/${file}`)
     );
 
-    historical.tests.forEach(test => {
-      const current = historicalAverages.get(test.name) || 0;
-      const count = historicalCounts.get(test.name) || 0;
-      historicalAverages.set(test.name, current + test.duration);
-      historicalCounts.set(test.name, count + 1);
-    });
+    if (historical.summary.failed === 0) {
+      historical.tests.forEach(test => {
+        const current = historicalAverages.get(test.name) || 0;
+        const count = historicalCounts.get(test.name) || 0;
+        historicalAverages.set(test.name, current + test.duration);
+        historicalCounts.set(test.name, count + 1);
+      });
+    } else {
+      console.log(`[analyze-test-times] Skipping ${file} because it has failed tests`);
+    }
   });
 
   // Calculate averages and compare
