@@ -11114,9 +11114,9 @@ type Allocation struct {
 	// AllocatedResources is the total resources allocated for the task group.
 	AllocatedResources *AllocatedResources
 
-	// VolumeID is the ID of the host volume that this allocation requires.
-	// FIXME:could be multiple, could be CSI? can't just be a string
-	VolumeID *string
+	// VolumeIDs is a list of volume IDs (host or CSI) that this allocation
+	// requires.
+	VolumeIDs []string
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric

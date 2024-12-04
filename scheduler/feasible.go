@@ -20,6 +20,7 @@ import (
 
 const (
 	FilterConstraintHostVolumes                    = "missing compatible host volumes"
+	FilterConstraintHostVolumesLookupFailed        = "host volume lookup failed"
 	FilterConstraintCSIPluginTemplate              = "CSI plugin %s is missing from client %s"
 	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
 	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
@@ -159,8 +160,6 @@ func (h *HostVolumeChecker) SetVolumes(allocName string, ns string, volumes map[
 			continue // filter CSI volumes
 		}
 
-		// FIXME: if there's a sticky vol set, adjust this to look for an ID
-
 		if req.PerAlloc {
 			// provide a unique volume source per allocation
 			copied := req.Copy()
@@ -174,11 +173,12 @@ func (h *HostVolumeChecker) SetVolumes(allocName string, ns string, volumes map[
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
-	if h.hasVolumes(candidate) {
+	ok, failure := h.hasVolumes(candidate)
+	if ok {
 		return true
 	}
 
-	h.ctx.Metrics().FilterNode(candidate, FilterConstraintHostVolumes)
+	h.ctx.Metrics().FilterNode(candidate, failure)
 	return false
 }
 
@@ -192,7 +192,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	for _, req := range h.volumeReqs {
 		volCfg, ok := n.HostVolumes[req.Source]
 		if !ok {
-			return false
+			return false, FilterConstraintHostVolumes
 		}
 
 		if volCfg.ID != "" { // dynamic host volume
@@ -227,7 +227,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 		}
 	}
 
-	return true
+	return true, ""
 }
 
 type CSIVolumeChecker struct {
