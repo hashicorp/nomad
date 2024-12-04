@@ -150,7 +150,7 @@ func (c *VolumeDeleteCommand) deleteCSIVolume(client *api.Client, volID string, 
 }
 
 func (c *VolumeDeleteCommand) deleteHostVolume(client *api.Client, volID string) int {
-	_, err := client.HostVolumes().Delete(volID, nil)
+	_, err := client.HostVolumes().Delete(&api.HostVolumeDeleteRequest{ID: volID}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting volume: %s", err))
 		return 1

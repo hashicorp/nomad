@@ -176,7 +176,7 @@ type HostVolumeListRequest struct {
 }
 
 type HostVolumeDeleteRequest struct {
-	VolumeIDs []string
+	ID string
 }
 
 // Create forwards to client agents so a host volume can be created on those
@@ -238,8 +238,8 @@ func (hv *HostVolumes) List(req *HostVolumeListRequest, opts *QueryOptions) ([]*
 }
 
 // Delete deletes a host volume
-func (hv *HostVolumes) Delete(id string, opts *WriteOptions) (*WriteMeta, error) {
-	path, err := url.JoinPath("/v1/volume/host/", url.PathEscape(id))
+func (hv *HostVolumes) Delete(req *HostVolumeDeleteRequest, opts *WriteOptions) (*WriteMeta, error) {
+	path, err := url.JoinPath("/v1/volume/host/", url.PathEscape(req.ID))
 	if err != nil {
 		return nil, err
 	}

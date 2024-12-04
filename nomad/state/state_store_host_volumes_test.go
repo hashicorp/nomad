@@ -144,14 +144,11 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		index, []*structs.Allocation{alloc}))
 
 	index++
-	err = store.DeleteHostVolumes(index, vol2.Namespace, []string{vols[1].ID, vols[2].ID})
+	err = store.DeleteHostVolume(index, vol2.Namespace, vols[2].ID)
 	must.EqError(t, err, fmt.Sprintf(
 		"could not delete volume %s in use by alloc %s", vols[2].ID, alloc.ID))
-	vol, err = store.HostVolumeByID(nil, vols[1].Namespace, vols[1].ID, true)
-	must.NoError(t, err)
-	must.NotNil(t, vol, must.Sprint("volume that didn't error should not be deleted"))
 
-	err = store.DeleteHostVolumes(index, vol2.Namespace, []string{vols[1].ID})
+	err = store.DeleteHostVolume(index, vol2.Namespace, vols[1].ID)
 	must.NoError(t, err)
 	vol, err = store.HostVolumeByID(nil, vols[1].Namespace, vols[1].ID, true)
 	must.NoError(t, err)
@@ -177,6 +174,19 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.NoError(t, err)
 	got = consumeIter(iter)
 	must.MapLen(t, 1, got, must.Sprint(`expected only one volume to match prefix`))
+
+	alloc = alloc.Copy()
+	alloc.ClientStatus = structs.AllocClientStatusComplete
+	index++
+	must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup,
+		index, []*structs.Allocation{alloc}))
+	for _, v := range vols {
+		index++
+		must.NoError(t, store.DeleteHostVolume(index, v.Namespace, v.ID))
+	}
+	iter, err = store.HostVolumes(nil, SortDefault)
+	got = consumeIter(iter)
+	must.MapLen(t, 0, got, must.Sprint(`expected no volumes to remain`))
 }
 
 func TestStateStore_UpdateHostVolumesFromFingerprint(t *testing.T) {
