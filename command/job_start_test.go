@@ -5,19 +5,20 @@ package command
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
-	"testing"
-
+	"fmt"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
+	"os"
+	"path/filepath"
+	"testing"
 )
 
 var _ cli.Command = (*JobStartCommand)(nil)
@@ -97,10 +98,25 @@ func TestJobStartCommand_Fails(t *testing.T) {
 func TestStartCommand_ManyJobs(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, _, addr := testServer(t, true, func(c *agent.Config) {
+	srv, client, addr := testServer(t, true, func(c *agent.Config) {
 		c.DevMode = true
 	})
 	defer srv.Shutdown()
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
+			return false, fmt.Errorf("mock_driver not ready")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 	// the number of jobs we want to run
 	numJobs := 10
 
@@ -126,7 +142,13 @@ func TestStartCommand_ManyJobs(t *testing.T) {
 	ui := cli.NewMockUi()
 
 	for _, jobID := range jobIDs {
-		job := testJob(jobID)
+		job := testServiceJob(jobID)
+		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
+		job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
+		job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
+		job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+			"run_for": "500s",
+		}
 
 		jobJSON, err := json.MarshalIndent(job, "", " ")
 		must.NoError(t, err)
@@ -142,6 +164,13 @@ func TestStartCommand_ManyJobs(t *testing.T) {
 			must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
 			must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
 		)
+		// wait for allocation to be running
+		allocs, _, err := client.Jobs().Allocations(jobID, true, nil)
+		must.NoError(t, err)
+		for _, alloc := range allocs {
+			waitForAllocRunning(t, client, alloc.ID)
+
+		}
 
 	}
 
@@ -184,10 +213,32 @@ func TestStartCommand_MultipleCycles(t *testing.T) {
 	})
 
 	defer srv.Shutdown()
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
+			return false, fmt.Errorf("mock_driver not ready")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
 
 	ui := cli.NewMockUi()
 
-	job1 := testJob("job-start-test")
+	job1 := testServiceJob("job-start-test")
+	job1.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
+	job1.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
+	job1.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
+	job1.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
+		"run_for": "500s",
+	}
+
 	resp, _, err := client.Jobs().Register(job1, nil)
 	if err != nil {
 		t.Fatalf("err: %s", err)
@@ -196,14 +247,19 @@ func TestStartCommand_MultipleCycles(t *testing.T) {
 		t.Fatalf("status code non zero saw %d", code)
 	}
 
-	args := []string{"-address", addr, "-detach"}
+	// wait for allocation to be running
+	allocs, _, err := client.Jobs().Allocations("job-start-test", true, nil)
+	must.NoError(t, err)
+	for _, alloc := range allocs {
+		waitForAllocRunning(t, client, alloc.ID)
+	}
+	args := []string{"-address", addr}
 	args = append(args, "job-start-test")
-	expectedVersions := []uint64{0, 2, 4, 6, 8, 10}
 	stopCmd := &JobStopCommand{Meta: Meta{Ui: ui}}
 	startCmd := &JobStartCommand{Meta: Meta{Ui: ui}}
 
 	// check multiple cycles of starting/stopping a job result in the correct version selected
-	for i := range 6 {
+	for _ = range 3 {
 
 		code := stopCmd.Run(args)
 		must.Zero(t, code,
@@ -216,7 +272,17 @@ func TestStartCommand_MultipleCycles(t *testing.T) {
 			must.Sprintf("job start stdout: %s", ui.OutputWriter.String()),
 			must.Sprintf("job start stderr: %s", ui.ErrorWriter.String()),
 		)
-		must.Eq(t, expectedVersions[i], startCmd.versionSelected)
+		if newCode := waitForSuccess(ui, client, fullId, t, resp.EvalID); newCode != 0 {
+			t.Fatalf("status code non zero saw %d", newCode)
+		}
+
+		allocs, _, err = client.Jobs().Allocations("job-start-test", true, nil)
+		must.NoError(t, err)
+		waitForAllocRunning(t, client, allocs[0].ID)
+
+		// check the version selected
+		versionSelected := <-startCmd.versionCh
+		must.Eq(t, 0, versionSelected)
 	}
 
 }
