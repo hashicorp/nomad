@@ -184,7 +184,9 @@ testStats.forEach(([testName, count]) => {
         currentDuration,
         historicalAverage,
         percentDiff,  // This will now always be a number
-        samples: count
+        samples: count,
+        historicalTimings: testTimings.get(testName) || [],
+        trend: createSparkline(testTimings.get(testName) || [], currentDuration)      
       });
 
       if (percentDiff > 0) {
@@ -219,6 +221,25 @@ testStats.forEach(([testName, count]) => {
       console.log(`  Change: ${comp.percentDiff.toFixed(1)}%`);
     });
   }
+}
+
+function createSparkline(timings, currentValue) {
+  const blocks = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+  const min = Math.min(...timings);
+  const max = Math.max(...timings);
+  const range = max - min;
+  
+  const sparkline = timings.map(value => {
+    const normalized = range === 0 ? 0 : (value - min) / range;
+    const blockIndex = Math.floor(normalized * (blocks.length - 1));
+    return blocks[blockIndex];
+  }).join('');
+  
+  const avgHistorical = timings.reduce((a, b) => a + b, 0) / timings.length;
+  const trend = currentValue > avgHistorical ? '↑' : currentValue < avgHistorical ? '↓' : '→';
+  const trendColor = currentValue > avgHistorical ? '🔴' : currentValue < avgHistorical ? '🟢' : '⚪';
+  
+  return `${sparkline} ${trend} ${trendColor}`;
 }
 
 if (require.main === module) {

@@ -321,6 +321,7 @@ jobs:
                   body += `- Current: ${comp.currentDuration}ms\n`;
                   body += `- Historical Avg: ${comp.historicalAverage}ms\n`;
                   body += `- Change: ${comp.percentDiff?.toFixed(1) || 'N/A'}%\n\n`;
+                  body += `- Trend: ${comp.trend}\n\n`;
                 });
             }
             
