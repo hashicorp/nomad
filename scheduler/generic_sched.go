@@ -6,6 +6,7 @@ package scheduler
 import (
 	"fmt"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"time"
 
@@ -894,7 +895,6 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 
 // findPreferredNode finds the preferred node for an allocation
 func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.Node, error) {
-	// TODO: is previous allocation set on destrouctive updates?
 	prev := place.PreviousAllocation()
 	if prev == nil {
 		return nil, nil
@@ -924,12 +924,15 @@ func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.No
 			return nil, err
 		}
 
-		// s.state.CSIVolumesByNodeID(ws, )
-
 		if preferredNode != nil && preferredNode.Ready() {
-			return preferredNode, nil
+			// if this node has at least one of the allocation volumes, it's a
+			// preferred one
+			for _, vol := range preferredNode.HostVolumes {
+				if slices.Contains(prev.VolumeIDs, vol.VolumeID) {
+					return preferredNode, nil
+				}
+			}
 		}
-
 	}
 
 	return nil, nil
