@@ -48,7 +48,7 @@ resource "local_sensitive_file" "consul_agents_cert" {
 resource "random_uuid" "consul_agent_token" {}
 
 resource "local_sensitive_file" "consul_agent_config_file" {
-  content = templatefile("etc/consul.d/clients.hcl", {
+  content = templatefile("${path.module}/etc/consul.d/clients.hcl", {
     token          = "${random_uuid.consul_agent_token.result}"
     autojoin_value = "auto-join-${local.random_name}"
   })
@@ -61,7 +61,7 @@ resource "local_sensitive_file" "consul_agent_config_file" {
 resource "random_uuid" "consul_token_for_nomad" {}
 
 resource "local_sensitive_file" "nomad_client_config_for_consul" {
-  content = templatefile("etc/nomad.d/client-consul.hcl", {
+  content = templatefile("${path.module}/etc/nomad.d/client-consul.hcl", {
     token               = "${random_uuid.consul_token_for_nomad.result}"
     client_service_name = "client-${local.random_name}"
     server_service_name = "server-${local.random_name}"
@@ -71,7 +71,7 @@ resource "local_sensitive_file" "nomad_client_config_for_consul" {
 }
 
 resource "local_sensitive_file" "nomad_server_config_for_consul" {
-  content = templatefile("etc/nomad.d/server-consul.hcl", {
+  content = templatefile("${path.module}/etc/nomad.d/server-consul.hcl", {
     token               = "${random_uuid.consul_token_for_nomad.result}"
     client_service_name = "client-${local.random_name}"
     server_service_name = "server-${local.random_name}"

@@ -15,7 +15,7 @@ resource "local_sensitive_file" "consul_initial_management_token" {
 }
 
 resource "local_sensitive_file" "consul_server_config_file" {
-  content = templatefile("etc/consul.d/servers.hcl", {
+  content = templatefile("${path.module}/etc/consul.d/servers.hcl", {
     management_token = "${random_uuid.consul_initial_management_token.result}"
     token            = "${random_uuid.consul_agent_token.result}"
     nomad_token      = "${random_uuid.consul_token_for_nomad.result}"
@@ -69,7 +69,7 @@ resource "local_sensitive_file" "consul_server_cert" {
 
 # if consul_license is unset, it'll be a harmless empty license file
 resource "local_sensitive_file" "consul_environment" {
-  content = templatefile("etc/consul.d/.environment", {
+  content = templatefile("${path.module}/etc/consul.d/.environment", {
     license = var.consul_license
   })
   filename        = "uploads/shared/consul.d/.environment"
@@ -117,7 +117,7 @@ resource "null_resource" "upload_consul_server_configs" {
     destination = "/tmp/consul_server.hcl"
   }
   provisioner "file" {
-    source      = "etc/consul.d/consul-server.service"
+    source      = "${path.module}/etc/consul.d/consul-server.service"
     destination = "/tmp/consul.service"
   }
 }

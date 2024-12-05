@@ -8,7 +8,7 @@ resource "aws_ecs_cluster" "nomad_rtd_e2e" {
 
 resource "aws_ecs_task_definition" "nomad_rtd_e2e" {
   family                = "nomad-rtd-e2e"
-  container_definitions = file("ecs-task.json")
+  container_definitions = file("${path.module}/ecs-task.json")
 
   # Don't need a network for e2e tests
   network_mode = "awsvpc"
