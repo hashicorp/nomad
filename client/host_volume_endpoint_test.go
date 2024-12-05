@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/shoenig/test"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
@@ -27,50 +27,21 @@ func TestHostVolume(t *testing.T) {
 	client.stateDB = memdb
 
 	tmp := t.TempDir()
-	manager, updateCh, err := hvm.NewHostVolumeManager(testlog.HCLogger(t),
-		client.stateDB, time.Second, "/no/ext/plugins", tmp)
-	must.NoError(t, err)
+	manager := hvm.NewHostVolumeManager(testlog.HCLogger(t),
+		client.stateDB, time.Second, client.updateNodeFromHostVol, "/no/ext/plugins", tmp)
 	client.hostVolumeManager = manager
 	expectDir := filepath.Join(tmp, "test-vol-id")
 
-	// watch update channel - the client expects these to happen to trigger
-	// node updates.
-	doneWithUpdates := make(chan struct{})
-	go func() {
-		defer close(doneWithUpdates)
-		expect := []any{
-			// tests below will do one successful create, and one delete
-			&cstructs.ClientHostVolumeCreateResponse{
-				VolumeName: "test-vol-name",
-				VolumeID:   "test-vol-id",
-				HostPath:   expectDir,
-			},
-			&cstructs.ClientHostVolumeDeleteResponse{
-				VolumeID: "test-vol-id",
-			},
-			// note: we will miss if there are *more* updates than expected
-		}
-		var got []any
-		for range expect {
-			select {
-			case <-time.After(5 * time.Second): // shouldn't take near this long
-				t.Error("got fewer than expected volume updates")
-				break
-			case u := <-updateCh:
-				got = append(got, u)
-			}
-		}
-		test.Eq(t, expect, got)
-	}()
-
 	t.Run("happy", func(t *testing.T) {
+
+		/* create */
+
 		req := &cstructs.ClientHostVolumeCreateRequest{
-			ID:       "test-vol-id",
 			Name:     "test-vol-name",
+			ID:       "test-vol-id",
 			PluginID: "mkdir", // real plugin really makes a dir
 		}
 		var resp cstructs.ClientHostVolumeCreateResponse
-		_ = updateCh
 		err := client.ClientRPC("HostVolume.Create", req, &resp)
 		must.NoError(t, err)
 		must.Eq(t, cstructs.ClientHostVolumeCreateResponse{
@@ -88,8 +59,19 @@ func TestHostVolume(t *testing.T) {
 			CreateReq: req,
 		}
 		must.Eq(t, expectState, vols[0])
+		// and should be fingerprinted
+		must.Eq(t, hvm.VolumeMap{
+			req.Name: {
+				ID:   req.ID,
+				Name: req.Name,
+				Path: expectDir,
+			},
+		}, client.Node().HostVolumes)
+
+		/* delete */
 
 		delReq := &cstructs.ClientHostVolumeDeleteRequest{
+			Name:     "test-vol-name",
 			ID:       "test-vol-id",
 			PluginID: "mkdir",
 			HostPath: expectDir,
@@ -104,6 +86,8 @@ func TestHostVolume(t *testing.T) {
 		vols, err = memdb.GetDynamicHostVolumes()
 		must.NoError(t, err)
 		must.Len(t, 0, vols)
+		// and the fingerprint, too
+		must.Eq(t, map[string]*structs.ClientHostVolumeConfig{}, client.Node().HostVolumes)
 	})
 
 	t.Run("missing plugin", func(t *testing.T) {
@@ -124,9 +108,8 @@ func TestHostVolume(t *testing.T) {
 
 	t.Run("error from plugin", func(t *testing.T) {
 		// "mkdir" plugin can't create a directory within a file
-		client.hostVolumeManager, _, err = hvm.NewHostVolumeManager(testlog.HCLogger(t),
-			client.stateDB, time.Second, "/no/ext/plugins", "host_volume_endpoint_test.go")
-		must.NoError(t, err)
+		client.hostVolumeManager = hvm.NewHostVolumeManager(testlog.HCLogger(t),
+			client.stateDB, time.Second, client.updateNodeFromHostVol, "/no/ext/plugins", "host_volume_endpoint_test.go")
 
 		req := &cstructs.ClientHostVolumeCreateRequest{
 			ID:       "test-vol-id",
@@ -145,10 +128,4 @@ func TestHostVolume(t *testing.T) {
 		err = client.ClientRPC("HostVolume.Delete", delReq, &delResp)
 		must.ErrorContains(t, err, "host_volume_endpoint_test.go/test-vol-id: not a directory")
 	})
-
-	select {
-	case <-doneWithUpdates:
-	case <-time.After(5 * time.Second):
-		t.Error("this shouldn't happen - updates ch didn't close")
-	}
 }
