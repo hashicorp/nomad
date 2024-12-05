@@ -23,7 +23,7 @@ resource "null_resource" "bootstrap_nomad_acls" {
 
 data "local_sensitive_file" "nomad_token" {
   depends_on = [null_resource.bootstrap_nomad_acls]
-  filename   = "${path.root}/keys/nomad_root_token"
+  filename   = "${path.module}/keys/nomad_root_token"
 }
 
 # push the token out to the servers for humans to use.
@@ -36,8 +36,8 @@ locals {
 cat <<ENV | sudo tee -a /root/.bashrc
 export NOMAD_ADDR=https://localhost:4646
 export NOMAD_SKIP_VERIFY=true
-export NOMAD_CLIENT_CERT=/etc/nomad.d/tls/agent.crt
-export NOMAD_CLIENT_KEY=/etc/nomad.d/tls/agent.key
+export NOMAD_CLIENT_CERT="${path.module}/etc/nomad.d/tls/agent.crt"
+export NOMAD_CLIENT_KEY="${path.module}/etc/nomad.d/tls/agent.key"
 export NOMAD_TOKEN=${data.local_sensitive_file.nomad_token.content}
 export CONSUL_HTTP_ADDR=https://localhost:8501
 export CONSUL_HTTP_TOKEN="${random_uuid.consul_initial_management_token.result}"
