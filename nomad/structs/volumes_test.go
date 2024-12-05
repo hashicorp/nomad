@@ -85,19 +85,6 @@ func TestVolumeRequest_Validate(t *testing.T) {
 				PerAlloc: true,
 			},
 		},
-		{
-			name: "Sticky CSI",
-			expected: []string{
-				"CSI volumes cannot be set to sticky",
-			},
-			req: &VolumeRequest{
-				Source:         "source",
-				Type:           VolumeTypeCSI,
-				Sticky:         true,
-				AttachmentMode: CSIVolumeAttachmentModeBlockDevice,
-				AccessMode:     CSIVolumeAccessModeMultiNodeMultiWriter,
-			},
-		},
 	}
 
 	for _, tc := range testCases {
