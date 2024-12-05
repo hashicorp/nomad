@@ -454,6 +454,13 @@ module('Acceptance | task group detail', function (hooks) {
   });
 
   test('when the task group has metadata, the metadata table is shown', async function (assert) {
+    job = server.create('job', {
+      meta: { raw: { a: 'b' } },
+    });
+    taskGroup = server.create('task-group', {
+      job,
+      meta: { raw: { foo: 'bar' } },
+    });
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.ok(TaskGroup.hasMeta);

@@ -25,11 +25,11 @@ export default class Task extends Fragment {
 
   @fragment('task-schedule') schedule;
 
-  @computed('taskGroup.mergedMeta', 'meta')
+  @computed('meta.raw', 'taskGroup.mergedMeta')
   get mergedMeta() {
     return {
       ...this.taskGroup.mergedMeta,
-      ...this.meta,
+      ...this.meta?.raw,
     };
   }
 

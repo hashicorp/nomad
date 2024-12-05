@@ -76,24 +76,22 @@ module('Unit | Model | task-group', function (hooks) {
     const jobWithMeta = run(() =>
       store.createRecord('job', {
         name: 'example-with-meta',
-        meta: store.createFragment('structured-attributes', {
-          raw: { a: 'b' },
-        }),
+        meta: { raw: { a: 'b' } },
         taskGroups: [
           {
             name: 'one',
-            meta: { c: 'd' },
+            meta: { raw: { c: 'd' } },
           },
           {
             name: 'two',
           },
           {
             name: 'three',
-            meta: null,
+            meta: { raw: null },
           },
           {
             name: 'four',
-            meta: {},
+            meta: { raw: {} },
           },
         ],
       })
@@ -114,18 +112,18 @@ module('Unit | Model | task-group', function (hooks) {
         taskGroups: [
           {
             name: 'one',
-            meta: { c: 'd' },
+            meta: { raw: { c: 'd' } },
           },
           {
             name: 'two',
           },
           {
             name: 'three',
-            meta: null,
+            meta: { raw: null },
           },
           {
             name: 'four',
-            meta: {},
+            meta: { raw: {} },
           },
         ],
       })
