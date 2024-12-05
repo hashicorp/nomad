@@ -23,6 +23,8 @@ async function analyzeTestTimes() {
 console.log('[analyze-test-times] Processing historical results...\n');
 const historicalAverages = new Map();
 const historicalCounts = new Map();
+const variablesTimings = new Set();
+const jobACLDisabledTimings = new Set();
 
 // Read each historical result file
 console.log('[analyze-test-times] Reading historical results directory...\n');
@@ -65,6 +67,15 @@ historicalFiles.forEach((file, index) => {
         const count = historicalCounts.get(test.name) || 0;
         historicalAverages.set(test.name, current + test.duration);
         historicalCounts.set(test.name, count + 1);
+        // Log out all timings for "Acceptance | variables > Job Variables Page: If the user has variable read access, but no variables, the subnav exists but contains only a message"
+        if (test.name === "Acceptance | variables > Job Variables Page: If the user has variable read access, but no variables, the subnav exists but contains only a message") {
+          console.log(`[analyze-test-times] Timings for ${test.name}: ${test.duration}`);
+          variablesTimings.add(test.duration);
+        }
+        if (test.name === "Unit | Ability | job: it permits job run when ACLs are disabled") {
+          console.log(`[analyze-test-times] Timings for ${test.name}: ${test.duration}`);
+          jobACLDisabledTimings.add(test.duration);
+        }
       });
     } else {
       console.log(`[analyze-test-times] Skipping ${file} because it has failed tests or invalid format`);
@@ -86,7 +97,58 @@ if (historicalAverages.size > 0) {
     console.log(`- ${name}: ${total}ms total, ${count} samples`);
   }
 }
-  // Calculate averages and compare
+// Log out variablesTimings
+console.log(`[analyze-test-times] Variables timings: ${Array.from(variablesTimings).join(', ')}`);
+console.log(`[analyze-test-times] Job ACL disabled timings: ${Array.from(jobACLDisabledTimings).join(', ')}`);
+
+// After processing all files, show statistics
+console.log('\n[analyze-test-times] Sample count analysis:');
+console.log(`Total unique tests found: ${historicalAverages.size}`);
+
+
+// Sort tests by sample count to see which ones might be missing data
+const testStats = Array.from(historicalCounts.entries())
+  .sort((a, b) => b[1] - a[1]); // Sort by count, descending
+
+console.log('\nSample counts per test:');
+console.log('Format: Test name (count/total files)');
+
+// Create a Map to store timings for each test
+const testTimings = new Map();
+
+// First pass: collect all timings
+historicalFiles.forEach(file => {
+  try {
+    const historical = JSON.parse(fs.readFileSync(path.join(historicalDir, file), 'utf8'));
+    if (historical.tests) {
+      historical.tests.forEach(test => {
+        if (!testTimings.has(test.name)) {
+          testTimings.set(test.name, []);
+        }
+        testTimings.get(test.name).push(test.duration);
+      });
+    }
+  } catch (error) {
+    console.log(`Error reading file ${file}:`, error.message);
+  }
+});
+
+// Second pass: display results
+testStats.forEach(([testName, count]) => {
+  const percentage = ((count / historicalFiles.length) * 100).toFixed(1);
+  const timings = testTimings.get(testName) || [];
+  const timingsStr = timings.join(', ');
+  
+  if (count < historicalFiles.length) {
+    console.log(`⚠️  ${testName}: ${count}/${historicalFiles.length} (${percentage}%)`);
+    console.log(`   Timings: [${timingsStr}]`);
+  } else {
+    console.log(`✓ ${testName}: ${count}/${historicalFiles.length} (${percentage}%)`);
+    console.log(`   Timings: [${timingsStr}]`);
+  }
+});
+
+// Calculate averages and compare
   const analysis = {
     timestamp: new Date().toISOString(),
     sha: process.env.GITHUB_SHA,
@@ -102,11 +164,12 @@ if (historicalAverages.size > 0) {
   console.log('[analyze-test-times] Comparing current test times with historical averages...');
   currentTestTimes.forEach((currentDuration, testName) => {
     const totalHistorical = historicalAverages.get(testName) || 0;
-    const count = historicalCounts.get(testName) || 1;
+    const count = historicalCounts.get(testName);
     const historicalAverage = totalHistorical / count;
 
     // Skip tests with no historical data
-    if (historicalAverage === 0) {
+    // if (historicalAverage === 0) {
+    if (!count) {
       console.log(`[analyze-test-times] Skipping ${testName} - no historical data`);
       return;
     }
