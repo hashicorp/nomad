@@ -20,28 +20,12 @@ func (s *HTTPServer) CSIVolumesRequest(resp http.ResponseWriter, req *http.Reque
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
-	// Type filters volume lists to a specific type. When support for non-CSI volumes is
-	// introduced, we'll need to dispatch here
-	query := req.URL.Query()
-	qtype, ok := query["type"]
-	if !ok {
-		return []*structs.CSIVolListStub{}, nil
-	}
-	// TODO(1.10.0): move handling of GET /v1/volumes/ out so that we're not
-	// co-mingling the call for listing host volume here
-	switch qtype[0] {
-	case "host":
-		return s.HostVolumesListRequest(resp, req)
-	case "csi":
-	default:
-		return nil, nil
-	}
-
 	args := structs.CSIVolumeListRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
 
+	query := req.URL.Query()
 	args.Prefix = query.Get("prefix")
 	args.PluginID = query.Get("plugin_id")
 	args.NodeID = query.Get("node_id")
