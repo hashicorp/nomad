@@ -66,10 +66,7 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 	}
 
 	log.Debug("plugin ran successfully")
-	return &HostVolumePluginCreateResponse{
-		Path:      path,
-		SizeBytes: 0,
-	}, nil
+	return resp, nil
 }
 
 func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error {

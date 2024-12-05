@@ -411,6 +411,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		c.updateNodeFromDriver,
 		c.updateNodeFromDevices,
 		c.updateNodeFromCSI,
+		c.updateNodeFromHostVol,
 	)
 
 	// Initialize the server manager
@@ -535,9 +536,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
 
-	var updateCh <-chan any
-	c.hostVolumeManager, updateCh, err = hvm.NewHostVolumeManager(logger,
+	// TODO: config to align with the others?
+	c.hostVolumeManager = hvm.NewHostVolumeManager(logger,
 		c.stateDB, hostVolumeRequestTimeout,
+		c.batchNodeUpdates.updateNodeFromHostVolume,
 		cfg.HostVolumePluginDir,
 		cfg.AllocMountsDir)
 	if err != nil {
@@ -546,34 +548,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		// because something needs to be fixed by a cluster admin.
 		return nil, err
 	}
-	go func() { // TODO: split into struct method
-		for {
-			select {
-			case <-c.shutdownCh:
-				return
-			case update := <-updateCh:
-				switch up := update.(type) {
-				case *cstructs.ClientHostVolumeCreateResponse:
-					c.UpdateNode(func(n *structs.Node) { // TODO: why twice? and the second one is nil?
-						if n.HostVolumes == nil {
-							n.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig) // TODO: should not be necessary?
-						}
-						n.HostVolumes[up.VolumeName] = &structs.ClientHostVolumeConfig{
-							ID:       up.VolumeID,
-							Name:     up.VolumeName,
-							Path:     up.HostPath, // TODO: this can be a relative path? i.e. only a uuid?
-							ReadOnly: false,       // TODO
-						}
-					})
-				case *cstructs.ClientHostVolumeDeleteResponse:
-					c.UpdateNode(func(n *structs.Node) {
-						delete(n.HostVolumes, up.VolumeName)
-					})
-				}
-				c.updateNode() // TODO: batch?
-			}
-		}
-	}()
+	c.pluginManagers.RegisterAndRun(c.hostVolumeManager)
 
 	// Set up the service registration wrapper using the Consul and Nomad
 	// implementations. The Nomad implementation is only ever used on the

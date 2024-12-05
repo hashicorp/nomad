@@ -34,6 +34,16 @@ type ClientHostVolumeConfig struct {
 	ID       string // dynamic volume ID
 }
 
+func (p *ClientHostVolumeConfig) Equal(o *ClientHostVolumeConfig) bool {
+	if p == nil && o == nil {
+		return true
+	}
+	if p == nil || o == nil {
+		return false
+	}
+	return *p == *o
+}
+
 func (p *ClientHostVolumeConfig) Copy() *ClientHostVolumeConfig {
 	if p == nil {
 		return nil
