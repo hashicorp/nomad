@@ -21,28 +21,6 @@ var (
 	ErrPluginNotExecutable = errors.New("plugin not executable")
 )
 
-type HostVolumeNodeUpdater func(name string, volume *structs.ClientHostVolumeConfig)
-
-type VolumeMap map[string]*structs.ClientHostVolumeConfig
-
-// UpdateVolumeMap returns true if it changes the provided `volumes` map.
-// If `vol` is nil, key `name` will be removed from the map, if present.
-// If it is not nil, `name: vol` will be set on the map.
-// Since it may mutate the map, the caller should make a copy or acquire a lock
-// as appropriate for their context.
-func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolumeConfig) (changed bool) {
-	cur, ok := volumes[name]
-	if !ok || !cur.Equal(vol) { // TODO: revisit
-		changed = true
-		if vol == nil {
-			delete(volumes, name)
-		} else {
-			volumes[vol.Name] = vol
-		}
-	}
-	return changed
-}
-
 type HostVolumeStateManager interface {
 	PutDynamicHostVolume(*cstructs.HostVolumeState) error
 	GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error)
@@ -229,24 +207,4 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 	}
 
 	return resp, nil
-}
-
-/* implement client.FingerprintingPluginManager interface */
-
-func (hvm *HostVolumeManager) Run()      {}
-func (hvm *HostVolumeManager) Shutdown() {}
-func (hvm *HostVolumeManager) PluginType() string {
-	// "Plugin"Type is misleading, because this is for *volumes* but ok.
-	return "host_volume" // TODO: const?
-}
-func (hvm *HostVolumeManager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
-	volumes, err := hvm.restoreFromState(ctx)
-	if err != nil {
-		hvm.log.Error("failed to restore state", "error", err)
-		return ctx.Done()
-	}
-	for name, vol := range volumes {
-		hvm.updateNodeVols(name, vol) // => batchNodeUpdates.updateNodeFromHostVolume()
-	}
-	return ctx.Done()
 }
