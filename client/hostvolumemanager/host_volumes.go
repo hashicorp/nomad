@@ -84,10 +84,14 @@ func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, resp *HostVolumeP
 		return nil
 	}
 	return &structs.ClientHostVolumeConfig{
-		Name:     req.Name,
-		Path:     resp.Path,
-		ReadOnly: false, // db TODO: add to request? (??)
-		ID:       req.ID,
+		Name: req.Name,
+		ID:   req.ID,
+		Path: resp.Path,
+
+		// dynamic volumes, like CSI, have more robust `capabilities`,
+		// so we always set ReadOnly to false, and let the scheduler
+		// decide when to ignore this and check capabilities instead.
+		ReadOnly: false,
 	}
 }
 
