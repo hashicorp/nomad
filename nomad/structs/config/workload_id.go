@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 )
 
-// WorkloadIdentityConfig is the agent configuraion block used to define
+// WorkloadIdentityConfig is the agent configuration block used to define
 // default workload identities.
 //
 // This based on the WorkloadIdentity struct from nomad/structs/workload_id.go
