@@ -20,8 +20,9 @@ import (
 var (
 	ErrPluginNotExists     = errors.New("no such plugin")
 	ErrPluginNotExecutable = errors.New("plugin not executable")
-	ErrUpdateTimeout       = errors.New("timeout updating client node")
 )
+
+type HostVolumeNodeUpdater func(name string, volume *structs.ClientHostVolumeConfig)
 
 type VolumeMap map[string]*structs.ClientHostVolumeConfig
 
@@ -43,7 +44,7 @@ func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolu
 	return changed
 }
 
-type HostVolumeStateManager interface { // TODO: interface.go
+type HostVolumeStateManager interface {
 	PutDynamicHostVolume(*cstructs.HostVolumeState) error
 	GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error)
 	DeleteDynamicHostVolume(string) error
@@ -154,8 +155,6 @@ func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 func (hvm *HostVolumeManager) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
 
-	// TODO: make hvm stateful, hold a map of creates, check it, and bail if identical: req.Equal(old)
-
 	plug, err := hvm.getPlugin(req.PluginID)
 	if err != nil {
 		return nil, err
@@ -228,18 +227,16 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 	return resp, nil
 }
 
-/* impelement client.PluginManager interface */
+/* implement client.FingerprintingPluginManager interface */
 
 func (hvm *HostVolumeManager) Run() {
 	return // nothing to do here.
 }
-
 func (hvm *HostVolumeManager) Shutdown() {
 	return // again, nothing to do.
 }
-
-// PluginType is misleading, because this fingerprint is for *volumes*
 func (hvm *HostVolumeManager) PluginType() string {
+	// "Plugin"Type is misleading, because this is for *volumes* but ok.
 	return "host_volume" // TODO: const?
 }
 func (hvm *HostVolumeManager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
@@ -251,7 +248,7 @@ func (hvm *HostVolumeManager) WaitForFirstFingerprint(ctx context.Context) <-cha
 		return ctx.Done()
 	}
 	for name, vol := range volumes {
-		hvm.updateNodeVols(name, vol)
+		hvm.updateNodeVols(name, vol) // => batchNodeUpdates.updateNodeFromHostVolume()
 	}
 	return ctx.Done()
 }

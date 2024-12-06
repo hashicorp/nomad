@@ -14,6 +14,3 @@ capability {
 parameters {
   a = "ayy"
 }
-
-# TODO(1.10.0): don't require node_pool
-node_pool = "default"

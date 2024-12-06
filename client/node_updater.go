@@ -137,7 +137,7 @@ func (c *Client) updateNodeFromHostVol(name string, vol *structs.ClientHostVolum
 	newConfig := c.config.Copy()
 
 	if newConfig.Node.HostVolumes == nil {
-		newConfig.Node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig) // TODO: why?
+		newConfig.Node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig)
 	}
 
 	changed := hvm.UpdateVolumeMap(newConfig.Node.HostVolumes, name, vol)
