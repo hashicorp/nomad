@@ -6,7 +6,6 @@ package client
 import (
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
@@ -27,8 +26,12 @@ func TestHostVolume(t *testing.T) {
 	client.stateDB = memdb
 
 	tmp := t.TempDir()
-	manager := hvm.NewHostVolumeManager(testlog.HCLogger(t),
-		client.stateDB, time.Second, client.updateNodeFromHostVol, "/no/ext/plugins", tmp)
+	manager := hvm.NewHostVolumeManager(testlog.HCLogger(t), hvm.Config{
+		StateMgr:       client.stateDB,
+		UpdateNodeVols: client.updateNodeFromHostVol,
+		PluginDir:      "/no/ext/plugins",
+		SharedMountDir: tmp,
+	})
 	client.hostVolumeManager = manager
 	expectDir := filepath.Join(tmp, "test-vol-id")
 
@@ -108,8 +111,12 @@ func TestHostVolume(t *testing.T) {
 
 	t.Run("error from plugin", func(t *testing.T) {
 		// "mkdir" plugin can't create a directory within a file
-		client.hostVolumeManager = hvm.NewHostVolumeManager(testlog.HCLogger(t),
-			client.stateDB, time.Second, client.updateNodeFromHostVol, "/no/ext/plugins", "host_volume_endpoint_test.go")
+		client.hostVolumeManager = hvm.NewHostVolumeManager(testlog.HCLogger(t), hvm.Config{
+			StateMgr:       client.stateDB,
+			UpdateNodeVols: client.updateNodeFromHostVol,
+			PluginDir:      "/no/ext/plugins",
+			SharedMountDir: "host_volume_endpoint_test.go",
+		})
 
 		req := &cstructs.ClientHostVolumeCreateRequest{
 			ID:       "test-vol-id",

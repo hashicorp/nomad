@@ -40,7 +40,12 @@ func TestNewHostVolumeManager_restoreState(t *testing.T) {
 		mountDir := t.TempDir()
 		volPath := filepath.Join(mountDir, vol.ID)
 
-		hvm := NewHostVolumeManager(log, state, time.Second, fNode.updateVol, "/wherever", mountDir)
+		hvm := NewHostVolumeManager(log, Config{
+			StateMgr:       state,
+			UpdateNodeVols: fNode.updateVol,
+			PluginDir:      "/wherever",
+			SharedMountDir: mountDir,
+		})
 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
@@ -62,7 +67,12 @@ func TestNewHostVolumeManager_restoreState(t *testing.T) {
 
 	t.Run("get error", func(t *testing.T) {
 		state := &cstate.ErrDB{}
-		hvm := NewHostVolumeManager(log, state, time.Second, fNode.updateVol, "/wherever", "/wherever")
+		hvm := NewHostVolumeManager(log, Config{
+			StateMgr:       state,
+			UpdateNodeVols: fNode.updateVol,
+			PluginDir:      "/wherever",
+			SharedMountDir: "/wherever",
+		})
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		vols, err := hvm.restoreFromState(ctx)

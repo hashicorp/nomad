@@ -8,7 +8,6 @@ import (
 	"errors"
 	"path/filepath"
 	"sync"
-	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -50,33 +49,38 @@ type HostVolumeStateManager interface {
 	DeleteDynamicHostVolume(string) error
 }
 
+type Config struct {
+	// PluginDir is where external plugins may be found.
+	PluginDir string
+
+	// SharedMountDir is where plugins should place the directory
+	// that will later become a volume HostPath
+	SharedMountDir string
+
+	// StateMgr manages client state to restore on agent restarts.
+	StateMgr HostVolumeStateManager
+
+	// UpdateNodeVols is run to update the node when a volume is created
+	// or deleted.
+	UpdateNodeVols HostVolumeNodeUpdater
+}
+
 type HostVolumeManager struct {
 	pluginDir      string
 	sharedMountDir string
 	stateMgr       HostVolumeStateManager
-
-	createTimeout time.Duration
-
 	updateNodeVols HostVolumeNodeUpdater
-
-	log hclog.Logger
+	log            hclog.Logger
 }
 
-func NewHostVolumeManager(logger hclog.Logger,
-	state HostVolumeStateManager, restoreTimeout time.Duration,
-	nodeUpdater HostVolumeNodeUpdater,
-	pluginDir, sharedMountDir string) *HostVolumeManager {
-
-	log := logger.Named("host_volume_mgr")
-
+func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager {
 	// db TODO(1.10.0): document plugin config options
 	return &HostVolumeManager{
-		pluginDir:      pluginDir,
-		sharedMountDir: sharedMountDir,
-		stateMgr:       state,
-		updateNodeVols: nodeUpdater,
-		createTimeout:  restoreTimeout,
-		log:            log,
+		pluginDir:      config.PluginDir,
+		sharedMountDir: config.SharedMountDir,
+		stateMgr:       config.StateMgr,
+		updateNodeVols: config.UpdateNodeVols,
+		log:            logger.Named("host_volume_manager"),
 	}
 }
 
@@ -236,8 +240,6 @@ func (hvm *HostVolumeManager) PluginType() string {
 	return "host_volume" // TODO: const?
 }
 func (hvm *HostVolumeManager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
-	ctx, cancel := context.WithTimeout(context.Background(), hvm.createTimeout)
-	defer cancel()
 	volumes, err := hvm.restoreFromState(ctx)
 	if err != nil {
 		hvm.log.Error("failed to restore state", "error", err)

@@ -536,18 +536,13 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
 
-	// TODO: config to align with the others?
-	c.hostVolumeManager = hvm.NewHostVolumeManager(logger,
-		c.stateDB, hostVolumeRequestTimeout,
-		c.batchNodeUpdates.updateNodeFromHostVolume,
-		cfg.HostVolumePluginDir,
-		cfg.AllocMountsDir)
-	if err != nil {
-		// NewHostVolumeManager will only err if it fails to read state store,
-		// or if one or more required plugins do not exist, so halt the client
-		// because something needs to be fixed by a cluster admin.
-		return nil, err
-	}
+	// set up dynamic host volume manager
+	c.hostVolumeManager = hvm.NewHostVolumeManager(logger, hvm.Config{
+		PluginDir:      cfg.HostVolumePluginDir,
+		SharedMountDir: cfg.AllocMountsDir,
+		StateMgr:       c.stateDB,
+		UpdateNodeVols: c.batchNodeUpdates.updateNodeFromHostVolume,
+	})
 	c.pluginManagers.RegisterAndRun(c.hostVolumeManager)
 
 	// Set up the service registration wrapper using the Consul and Nomad
