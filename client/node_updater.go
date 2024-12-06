@@ -145,8 +145,6 @@ func (c *Client) updateNodeFromHostVol(name string, vol *structs.ClientHostVolum
 		c.config = newConfig
 		c.updateNode()
 	}
-
-	return
 }
 
 // updateNodeFromCSIControllerLocked makes the changes to the node from a csi

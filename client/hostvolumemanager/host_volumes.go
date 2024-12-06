@@ -229,12 +229,8 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 
 /* implement client.FingerprintingPluginManager interface */
 
-func (hvm *HostVolumeManager) Run() {
-	return // nothing to do here.
-}
-func (hvm *HostVolumeManager) Shutdown() {
-	return // again, nothing to do.
-}
+func (hvm *HostVolumeManager) Run()      {}
+func (hvm *HostVolumeManager) Shutdown() {}
 func (hvm *HostVolumeManager) PluginType() string {
 	// "Plugin"Type is misleading, because this is for *volumes* but ok.
 	return "host_volume" // TODO: const?
