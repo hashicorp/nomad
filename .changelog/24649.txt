@@ -1,0 +1,3 @@
+```release-note:bug
+discovery: Fixed a bug where IPv6 addresses would not be accepted from cloud autojoin
+```
