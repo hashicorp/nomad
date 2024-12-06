@@ -16,7 +16,7 @@ data "hcp_vault_cluster" "e2e_shared_vault" {
 # between concurrent E2E clusters
 resource "vault_policy" "nomad" {
   name = "${local.random_name}-nomad-server"
-  policy = templatefile("${path.module}/etc/acls/vault/nomad-policy.hcl", {
+  policy = templatefile("${path.module}/provision-nomad/etc/acls/vault/nomad-policy.hcl", {
     role = "nomad-tasks-${local.random_name}"
   })
 }
@@ -42,7 +42,7 @@ resource "vault_token_auth_backend_role" "nomad_cluster" {
 
 # Nomad agent configuration for Vault
 resource "local_sensitive_file" "nomad_config_for_vault" {
-  content = templatefile("${path.module}/etc/nomad.d/vault.hcl", {
+  content = templatefile("${path.module}/provision-nomad/etc/nomad.d/vault.hcl", {
     token     = vault_token.nomad.client_token
     url       = data.hcp_vault_cluster.e2e_shared_vault.vault_private_endpoint_url
     namespace = var.hcp_vault_namespace

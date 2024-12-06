@@ -7,4 +7,6 @@
 # folder
 
 nomad_local_binary                           = "/Users/juanita.delacuestamorales/nomad/linux-amd64-ce/nomad"
-nomad_local_binary_client_windows_2016_amd64 = ["../../pkg/windows_amd64/nomad.exe"]
+#nomad_local_binary_client_windows_2016_amd64 = ["../../pkg/windows_amd64/nomad.exe"]
+nomad_license                   = ""
+consul_license                  = ""

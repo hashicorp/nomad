@@ -39,6 +39,8 @@ resource "aws_instance" "client_ubuntu_jammy_amd64" {
   }
 }
 
+
+
 resource "aws_instance" "client_windows_2016_amd64" {
   ami                    = data.aws_ami.windows_2016_amd64[0].image_id
   instance_type          = var.instance_type
@@ -98,10 +100,10 @@ data "aws_ami" "ubuntu_jammy_amd64" {
     values = ["Ubuntu"]
   }
 
-  filter {
+  /* filter {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
-  }
+  } */
 }
 
 data "aws_ami" "windows_2016_amd64" {
