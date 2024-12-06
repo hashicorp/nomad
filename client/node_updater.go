@@ -50,9 +50,7 @@ SEND_BATCH:
 	// host volume updates
 	var hostVolChanged bool
 	c.batchNodeUpdates.batchHostVolumeUpdates(func(name string, vol *structs.ClientHostVolumeConfig) {
-		if hvm.UpdateVolumeMap(newConfig.Node.HostVolumes, name, vol) {
-			hostVolChanged = true
-		}
+		hostVolChanged = hvm.UpdateVolumeMap(newConfig.Node.HostVolumes, name, vol)
 	})
 
 	// csi updates

@@ -25,7 +25,11 @@ var (
 
 type VolumeMap map[string]*structs.ClientHostVolumeConfig
 
-// UpdateVolumeMap returns true if it changes the volume map.
+// UpdateVolumeMap returns true if it changes the provided `volumes` map.
+// If `vol` is nil, key `name` will be removed from the map, if present.
+// If it is not nil, `name: vol` will be set on the map.
+// Since it may mutate the map, the caller should make a copy or acquire a lock
+// as appropriate for their context.
 func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolumeConfig) (changed bool) {
 	cur, ok := volumes[name]
 	if !ok || !cur.Equal(vol) { // TODO: revisit
@@ -36,7 +40,6 @@ func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolu
 			volumes[vol.Name] = vol
 		}
 	}
-	//
 	return changed
 }
 
