@@ -2745,6 +2745,13 @@ func (a *ACL) OIDCCompleteAuth(
 		return fmt.Errorf("failed to retrieve the ID token claims: %v", err)
 	}
 
+	//HACK(schmichael) Monstrous hack since cap treats AccessTokens as opaque
+	//                 strings, but we want to treat them as JWTs.
+	var accessTokenClaims map[string]any
+	if err := capOIDC.IDToken(oidcToken.AccessToken()).Claims(&accessTokenClaims); err != nil {
+		a.logger.Debug("faied to read claims from AccessToken", "error", err, "access_token_len", len(oidcToken.AccessToken()))
+	}
+
 	var userClaims map[string]interface{}
 	if !authMethod.Config.OIDCDisableUserInfo {
 		if userTokenSource := oidcToken.StaticTokenSource(); userTokenSource != nil {
@@ -2756,7 +2763,7 @@ func (a *ACL) OIDCCompleteAuth(
 
 	// Generate the data used by the go-bexpr selector that is an internal
 	// representation of the claims that can be understood by Nomad.
-	oidcInternalClaims, err := auth.SelectorData(authMethod, idTokenClaims, userClaims)
+	oidcInternalClaims, err := auth.SelectorData(authMethod, idTokenClaims, userClaims, accessTokenClaims)
 	if err != nil {
 		return err
 	}
@@ -2916,7 +2923,7 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 
 	// Generate the data used by the go-bexpr selector that is an internal
 	// representation of the claims that can be understood by Nomad.
-	jwtClaims, err := auth.SelectorData(authMethod, claims, nil)
+	jwtClaims, err := auth.SelectorData(authMethod, claims, nil, nil)
 	if err != nil {
 		return err
 	}

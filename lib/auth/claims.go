@@ -16,7 +16,7 @@ import (
 
 // SelectorData returns the data for go-bexpr for selector evaluation.
 func SelectorData(
-	am *structs.ACLAuthMethod, idClaims, userClaims map[string]interface{}) (*structs.ACLAuthClaims, error) {
+	am *structs.ACLAuthMethod, idClaims, userClaims, accessClaims map[string]interface{}) (*structs.ACLAuthClaims, error) {
 
 	// Ensure the issuer and subscriber data does not get overwritten.
 	if len(userClaims) > 0 {
@@ -25,6 +25,23 @@ func SelectorData(
 		sub, subOk := idClaims["sub"]
 
 		for k, v := range userClaims {
+			idClaims[k] = v
+		}
+
+		if issOk {
+			idClaims["iss"] = iss
+		}
+		if subOk {
+			idClaims["sub"] = sub
+		}
+	}
+
+	//HACK(schmichael) PoC to explore reading claims from access_token
+	if len(accessClaims) > 0 {
+		iss, issOk := idClaims["iss"]
+		sub, subOk := idClaims["sub"]
+
+		for k, v := range accessClaims {
 			idClaims[k] = v
 		}
 

@@ -81,7 +81,7 @@ func TestSelectorData(t *testing.T) {
 			}
 
 			// Get real selector data
-			actual, err := SelectorData(am, tt.Data, nil)
+			actual, err := SelectorData(am, tt.Data, nil, nil)
 			must.NoError(t, err)
 			must.Eq(t, actual, tt.Expected)
 		})
