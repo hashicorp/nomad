@@ -42,6 +42,11 @@ func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolu
 
 // WaitForFirstFingerprint implements client.FingerprintingPluginManager
 func (hvm *HostVolumeManager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
+	// the fingerprint manager puts batchFirstFingerprintsTimeout (50 seconds)
+	// on the context that it sends to us here so we don't need another
+	// timeout. we just need to cancel to report when we are done.
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 	volumes, err := hvm.restoreFromState(ctx)
 	if err != nil {
 		hvm.log.Error("failed to restore state", "error", err)
