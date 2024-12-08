@@ -13,7 +13,7 @@
     "dart-linkcheck": "^2.0.15",
     "husky": "^9.0.7",
     "next": "14.0.4",
-    "prettier": "^3.4.1"
+    "prettier": "^3.4.2"
   },
   "scripts": {
     "build": "./scripts/website-build.sh",
