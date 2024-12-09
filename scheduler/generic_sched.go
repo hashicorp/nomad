@@ -928,7 +928,7 @@ func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.No
 			// if this node has at least one of the allocation volumes, it's a
 			// preferred one
 			for _, vol := range preferredNode.HostVolumes {
-				if slices.Contains(prev.VolumeIDs, vol.VolumeID) {
+				if slices.Contains(prev.HostVolumeIDs, vol.VolumeID) {
 					return preferredNode, nil
 				}
 			}
