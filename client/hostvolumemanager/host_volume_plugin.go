@@ -59,6 +59,20 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 		"path", path)
 	log.Debug("running plugin")
 
+	resp := &HostVolumePluginCreateResponse{
+		Path:      path,
+		SizeBytes: 0,
+	}
+
+	if _, err := os.Stat(path); err == nil {
+		// already exists
+		return resp, nil
+	} else if !os.IsNotExist(err) {
+		// doesn't exist, but some other path error
+		log.Debug("error with plugin", "error", err)
+		return nil, err
+	}
+
 	err := os.Mkdir(path, 0o700)
 	if err != nil {
 		log.Debug("error with plugin", "error", err)
@@ -66,10 +80,7 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 	}
 
 	log.Debug("plugin ran successfully")
-	return &HostVolumePluginCreateResponse{
-		Path:      path,
-		SizeBytes: 0,
-	}, nil
+	return resp, nil
 }
 
 func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error {
