@@ -7,12 +7,13 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
-	"time"
+	"sync"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 var (
@@ -26,42 +27,68 @@ type HostVolumeStateManager interface {
 	DeleteDynamicHostVolume(string) error
 }
 
+type Config struct {
+	// PluginDir is where external plugins may be found.
+	PluginDir string
+
+	// SharedMountDir is where plugins should place the directory
+	// that will later become a volume HostPath
+	SharedMountDir string
+
+	// StateMgr manages client state to restore on agent restarts.
+	StateMgr HostVolumeStateManager
+
+	// UpdateNodeVols is run to update the node when a volume is created
+	// or deleted.
+	UpdateNodeVols HostVolumeNodeUpdater
+}
+
 type HostVolumeManager struct {
 	pluginDir      string
 	sharedMountDir string
 	stateMgr       HostVolumeStateManager
-
-	log hclog.Logger
+	updateNodeVols HostVolumeNodeUpdater
+	log            hclog.Logger
 }
 
-func NewHostVolumeManager(logger hclog.Logger,
-	state HostVolumeStateManager, restoreTimeout time.Duration,
-	pluginDir, sharedMountDir string) (*HostVolumeManager, error) {
-
-	log := logger.Named("host_volume_mgr")
-
-	// db TODO(1.10.0): how do we define the external mounter plugins? plugin configs?
-	hvm := &HostVolumeManager{
-		pluginDir:      pluginDir,
-		sharedMountDir: sharedMountDir,
-		stateMgr:       state,
-		log:            log,
+func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager {
+	// db TODO(1.10.0): document plugin config options
+	return &HostVolumeManager{
+		pluginDir:      config.PluginDir,
+		sharedMountDir: config.SharedMountDir,
+		stateMgr:       config.StateMgr,
+		updateNodeVols: config.UpdateNodeVols,
+		log:            logger.Named("host_volume_manager"),
 	}
+}
 
-	if err := hvm.restoreState(state, restoreTimeout); err != nil {
+func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, resp *HostVolumePluginCreateResponse) *structs.ClientHostVolumeConfig {
+	if req == nil || resp == nil {
+		return nil
+	}
+	return &structs.ClientHostVolumeConfig{
+		Name: req.Name,
+		ID:   req.ID,
+		Path: resp.Path,
+
+		// dynamic volumes, like CSI, have more robust `capabilities`,
+		// so we always set ReadOnly to false, and let the scheduler
+		// decide when to ignore this and check capabilities instead.
+		ReadOnly: false,
+	}
+}
+
+func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, error) {
+	vols, err := hvm.stateMgr.GetDynamicHostVolumes()
+	if err != nil {
 		return nil, err
 	}
 
-	return hvm, nil
-}
+	volumes := make(VolumeMap)
+	var mut sync.Mutex
 
-func (hvm *HostVolumeManager) restoreState(state HostVolumeStateManager, timeout time.Duration) error {
-	vols, err := state.GetDynamicHostVolumes()
-	if err != nil {
-		return err
-	}
 	if len(vols) == 0 {
-		return nil // nothing to do
+		return volumes, nil // nothing to do
 	}
 
 	// re-"create" the volumes - plugins have the best knowledge of their
@@ -76,17 +103,20 @@ func (hvm *HostVolumeManager) restoreState(state HostVolumeStateManager, timeout
 				return err
 			}
 
-			ctx, cancel := context.WithTimeout(context.Background(), timeout)
-			defer cancel()
-			if _, err := plug.Create(ctx, vol.CreateReq); err != nil {
+			resp, err := plug.Create(ctx, vol.CreateReq)
+			if err != nil {
 				// plugin execution errors are only logged
 				hvm.log.Error("failed to restore", "plugin_id", vol.CreateReq.PluginID, "volume_id", vol.ID, "error", err)
+				return nil
 			}
+			mut.Lock()
+			volumes[vol.CreateReq.Name] = genVolConfig(vol.CreateReq, resp)
+			mut.Unlock()
 			return nil
 		})
 	}
 	mErr := group.Wait()
-	return helper.FlattenMultierror(mErr.ErrorOrNil())
+	return volumes, helper.FlattenMultierror(mErr.ErrorOrNil())
 }
 
 func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
@@ -139,9 +169,11 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		return nil, helper.FlattenMultierror(err)
 	}
 
-	// db TODO(1.10.0): now we need to add the volume to the node fingerprint!
+	hvm.updateNodeVols(req.Name, genVolConfig(req, pluginResp))
 
 	resp := &cstructs.ClientHostVolumeCreateResponse{
+		VolumeName:    req.Name,
+		VolumeID:      req.ID,
 		HostPath:      pluginResp.Path,
 		CapacityBytes: pluginResp.SizeBytes,
 	}
@@ -162,11 +194,16 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 		return nil, err
 	}
 
-	resp := &cstructs.ClientHostVolumeDeleteResponse{}
-
 	if err := hvm.stateMgr.DeleteDynamicHostVolume(req.ID); err != nil {
 		hvm.log.Error("failed to delete volume in state", "volume_id", req.ID, "error", err)
 		return nil, err // bail so a user may retry
+	}
+
+	hvm.updateNodeVols(req.Name, nil)
+
+	resp := &cstructs.ClientHostVolumeDeleteResponse{
+		VolumeName: req.Name,
+		VolumeID:   req.ID,
 	}
 
 	return resp, nil
