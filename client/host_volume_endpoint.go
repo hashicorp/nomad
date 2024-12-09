@@ -50,7 +50,7 @@ func (v *HostVolume) Delete(
 	ctx, cancelFn := v.requestContext()
 	defer cancelFn()
 
-	_, err := v.c.hostVolumeManager.Delete(ctx, req) // db TODO(1.10.0): cresp is empty... why return it?
+	_, err := v.c.hostVolumeManager.Delete(ctx, req)
 	if err != nil {
 		v.c.logger.Error("failed to delete host volume", "ID", req.ID, "error", err)
 		return err

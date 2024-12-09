@@ -6,13 +6,13 @@ package client
 import (
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	"github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
@@ -26,16 +26,22 @@ func TestHostVolume(t *testing.T) {
 	client.stateDB = memdb
 
 	tmp := t.TempDir()
-	var err error
+	manager := hvm.NewHostVolumeManager(testlog.HCLogger(t), hvm.Config{
+		StateMgr:       client.stateDB,
+		UpdateNodeVols: client.updateNodeFromHostVol,
+		PluginDir:      "/no/ext/plugins",
+		SharedMountDir: tmp,
+	})
+	client.hostVolumeManager = manager
 	expectDir := filepath.Join(tmp, "test-vol-id")
-	client.hostVolumeManager, err = hvm.NewHostVolumeManager(testlog.HCLogger(t),
-		client.stateDB, time.Second, "/no/ext/plugins", tmp)
-	must.NoError(t, err)
 
 	t.Run("happy", func(t *testing.T) {
+
+		/* create */
+
 		req := &cstructs.ClientHostVolumeCreateRequest{
-			ID:       "test-vol-id",
 			Name:     "test-vol-name",
+			ID:       "test-vol-id",
 			PluginID: "mkdir", // real plugin really makes a dir
 		}
 		var resp cstructs.ClientHostVolumeCreateResponse
@@ -56,8 +62,19 @@ func TestHostVolume(t *testing.T) {
 			CreateReq: req,
 		}
 		must.Eq(t, expectState, vols[0])
+		// and should be fingerprinted
+		must.Eq(t, hvm.VolumeMap{
+			req.Name: {
+				ID:   req.ID,
+				Name: req.Name,
+				Path: expectDir,
+			},
+		}, client.Node().HostVolumes)
+
+		/* delete */
 
 		delReq := &cstructs.ClientHostVolumeDeleteRequest{
+			Name:     "test-vol-name",
 			ID:       "test-vol-id",
 			PluginID: "mkdir",
 			HostPath: expectDir,
@@ -72,6 +89,8 @@ func TestHostVolume(t *testing.T) {
 		vols, err = memdb.GetDynamicHostVolumes()
 		must.NoError(t, err)
 		must.Len(t, 0, vols)
+		// and the fingerprint, too
+		must.Eq(t, map[string]*structs.ClientHostVolumeConfig{}, client.Node().HostVolumes)
 	})
 
 	t.Run("missing plugin", func(t *testing.T) {
@@ -92,9 +111,12 @@ func TestHostVolume(t *testing.T) {
 
 	t.Run("error from plugin", func(t *testing.T) {
 		// "mkdir" plugin can't create a directory within a file
-		client.hostVolumeManager, err = hvm.NewHostVolumeManager(testlog.HCLogger(t),
-			client.stateDB, time.Second, "/no/ext/plugins", "host_volume_endpoint_test.go")
-		must.NoError(t, err)
+		client.hostVolumeManager = hvm.NewHostVolumeManager(testlog.HCLogger(t), hvm.Config{
+			StateMgr:       client.stateDB,
+			UpdateNodeVols: client.updateNodeFromHostVol,
+			PluginDir:      "/no/ext/plugins",
+			SharedMountDir: "host_volume_endpoint_test.go",
+		})
 
 		req := &cstructs.ClientHostVolumeCreateRequest{
 			ID:       "test-vol-id",
