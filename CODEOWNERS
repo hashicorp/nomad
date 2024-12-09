@@ -6,11 +6,6 @@
 # codeowner default
 *                              @hashicorp/github-nomad-core @hashicorp/nomad-eng
 
-# web presence
+# web presence and education
 
-/website/           @hashicorp/web-presence @hashicorp/github-nomad-core @hashicorp/nomad-eng
-
-# education
-
-/website/content/   @hashicorp/nomad-docs @hashicorp/web-presence @hashicorp/github-nomad-core @hashicorp/nomad-eng
-/website/public/    @hashicorp/nomad-docs @hashicorp/web-presence @hashicorp/github-nomad-core @hashicorp/nomad-eng
+/website/       @hashicorp/nomad-docs @hashicorp/web-presence @hashicorp/github-nomad-core @hashicorp/nomad-eng
