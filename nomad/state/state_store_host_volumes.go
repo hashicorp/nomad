@@ -84,9 +84,17 @@ func (s *StateStore) UpsertHostVolume(index uint64, vol *structs.HostVolume) err
 	if node == nil {
 		return fmt.Errorf("host volume %s has nonexistent node ID %s", vol.ID, vol.NodeID)
 	}
-	if _, ok := node.HostVolumes[vol.Name]; ok {
-		vol.State = structs.HostVolumeStateReady
+	switch vol.State {
+	case structs.HostVolumeStateDeleted:
+	// no-op: don't allow soft-deletes to resurrect a previously fingerprinted volume
+	default:
+		// prevent a race between node fingerprint and create RPC that could
+		// switch a ready volume back to pending
+		if _, ok := node.HostVolumes[vol.Name]; ok {
+			vol.State = structs.HostVolumeStateReady
+		}
 	}
+
 	// Register RPCs for new volumes may not have the node pool set
 	vol.NodePool = node.NodePool
 
