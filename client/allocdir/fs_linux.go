@@ -73,7 +73,7 @@ func createSecretDir(dir string, size int) error {
 		}
 
 		flags := uintptr(syscall.MS_NOEXEC)
-		// Permanantly disable swap for tmpfs for SecretDir.
+		// Permanently disable swap for tmpfs for SecretDir.
 		options := fmt.Sprintf("size=%dm,noswap", size)
 		if err := syscall.Mount("tmpfs", dir, "tmpfs", flags, options); err != nil {
 			return os.NewSyscallError("mount", err)
