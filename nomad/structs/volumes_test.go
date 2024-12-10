@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestVolumeRequest_Validate(t *testing.T) {
@@ -92,7 +91,7 @@ func TestVolumeRequest_Validate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.req.Validate(JobTypeSystem, tc.taskGroupCount, tc.canariesCount)
 			for _, expected := range tc.expected {
-				require.Contains(t, err.Error(), expected)
+				must.StrContains(t, err.Error(), expected)
 			}
 		})
 	}

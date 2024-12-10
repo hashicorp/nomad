@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestJobDiff(t *testing.T) {
@@ -4866,6 +4866,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "Sticky",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "Type",
 								Old:  "",
 								New:  "host",
@@ -5475,17 +5481,17 @@ func TestTaskGroupDiff(t *testing.T) {
 	}
 
 	for i, c := range cases {
-		require.NotEmpty(t, c.TestCase, "case #%d needs a name", i+1)
+		must.NotEq(t, c.TestCase, "", must.Sprintf("case #%d needs a name", i+1))
 
 		t.Run(c.TestCase, func(t *testing.T) {
 
 			result, err := c.Old.Diff(c.New, c.Contextual)
 			switch c.ExpErr {
 			case true:
-				require.Error(t, err, "case %q expected error", c.TestCase)
+				must.Error(t, err, must.Sprintf("case %q expected error", c.TestCase))
 			case false:
-				require.NoError(t, err, "case %q expected no error", c.TestCase)
-				require.Equal(t, c.Expected, result)
+				must.NoError(t, err, must.Sprintf("case %q expected no error", c.TestCase))
+				must.Eq(t, c.Expected, result)
 			}
 		})
 	}
@@ -8372,6 +8378,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "Sticky",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "Volume",
 								Old:  "",
 								New:  "vol0",
@@ -9870,10 +9882,10 @@ func TestTaskDiff(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			actual, err := c.Old.Diff(c.New, c.Contextual)
 			if c.Error {
-				require.Error(t, err)
+				must.Error(t, err)
 			} else {
-				require.NoError(t, err)
-				require.Equal(t, c.Expected, actual)
+				must.NoError(t, err)
+				must.Eq(t, c.Expected, actual)
 			}
 		})
 	}
@@ -10848,7 +10860,7 @@ func TestServicesDiff(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			actual := serviceDiffs(c.Old, c.New, c.Contextual)
-			require.Equal(t, c.Expected, actual)
+			must.Eq(t, c.Expected, actual)
 		})
 	}
 }
