@@ -137,40 +137,38 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 // HostVolumeChecker is a FeasibilityChecker which returns whether a node has
 // the host volumes necessary to schedule a task group.
 type HostVolumeChecker struct {
-	ctx Context
-
-	// volumes is a map[HostVolumeName][]RequestedVolume. The requested volumes are
-	// a slice because a single task group may request the same volume multiple times.
-	volumes map[string][]*structs.VolumeRequest
+	ctx        Context
+	volumeReqs []*structs.VolumeRequest
+	namespace  string
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 	return &HostVolumeChecker{
-		ctx: ctx,
+		ctx:        ctx,
+		volumeReqs: []*structs.VolumeRequest{},
 	}
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
-	lookupMap := make(map[string][]*structs.VolumeRequest)
-	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
-	// lookup performance. Also filter non-host volumes.
+func (h *HostVolumeChecker) SetVolumes(allocName string, ns string, volumes map[string]*structs.VolumeRequest) {
+	h.namespace = ns
+	h.volumeReqs = []*structs.VolumeRequest{}
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {
-			continue
+			continue // filter CSI volumes
 		}
 
 		if req.PerAlloc {
 			// provide a unique volume source per allocation
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			lookupMap[copied.Source] = append(lookupMap[copied.Source], copied)
+			h.volumeReqs = append(h.volumeReqs, copied)
+
 		} else {
-			lookupMap[req.Source] = append(lookupMap[req.Source], req)
+			h.volumeReqs = append(h.volumeReqs, req)
 		}
 	}
-	h.volumes = lookupMap
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
@@ -183,35 +181,45 @@ func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
 }
 
 func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
-	rLen := len(h.volumes)
-	hLen := len(n.HostVolumes)
 
 	// Fast path: Requested no volumes. No need to check further.
-	if rLen == 0 {
+	if len(h.volumeReqs) == 0 {
 		return true
 	}
 
-	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
-	if rLen > hLen {
-		return false
-	}
-
-	for source, requests := range h.volumes {
-		nodeVolume, ok := n.HostVolumes[source]
+	for _, req := range h.volumeReqs {
+		volCfg, ok := n.HostVolumes[req.Source]
 		if !ok {
 			return false
 		}
 
-		// If the volume supports being mounted as ReadWrite, we do not need to
-		// do further validation for readonly placement.
-		if !nodeVolume.ReadOnly {
-			continue
-		}
-
-		// The Volume can only be mounted ReadOnly, validate that no requests for
-		// it are ReadWrite.
-		for _, req := range requests {
-			if !req.ReadOnly {
+		if volCfg.ID != "" { // dynamic host volume
+			vol, err := h.ctx.State().HostVolumeByID(nil, h.namespace, volCfg.ID, false)
+			if err != nil || vol == nil {
+				// node fingerprint has a dynamic volume that's no longer in the
+				// state store; this is only possible if the batched fingerprint
+				// update from a delete RPC is written before the delete RPC's
+				// raft entry completes
+				return false
+			}
+			if vol.State != structs.HostVolumeStateReady {
+				return false
+			}
+			var capOk bool
+			for _, cap := range vol.RequestedCapabilities {
+				if req.AccessMode == structs.CSIVolumeAccessMode(cap.AccessMode) &&
+					req.AttachmentMode == structs.CSIVolumeAttachmentMode(cap.AttachmentMode) {
+					capOk = true
+					break
+				}
+			}
+			if !capOk {
+				return false
+			}
+		} else if !req.ReadOnly {
+			// this is a static host volume and can only be mounted ReadOnly,
+			// validate that no requests for it are ReadWrite.
+			if volCfg.ReadOnly {
 				return false
 			}
 		}
