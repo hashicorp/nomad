@@ -11115,10 +11115,10 @@ type Allocation struct {
 	AllocatedResources *AllocatedResources
 
 	// HostVolumeIDs is a list of host volume IDs that this allocation
-	// requires.
+	// has claimed.
 	HostVolumeIDs []string
 
-	// CSIVolumeIDs is a list of CSI volume IDs that this allocation requires.
+	// CSIVolumeIDs is a list of CSI volume IDs that this allocation has claimed.
 	CSIVolumeIDs []string
 
 	// Metrics associated with this allocation
