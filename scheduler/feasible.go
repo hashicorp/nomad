@@ -233,7 +233,9 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 						continue
 					}
 
-					return slices.Contains(a.HostVolumeIDs, volCfg.ID)
+					if !slices.Contains(a.HostVolumeIDs, volCfg.ID) {
+						return false
+					}
 				}
 			}
 
