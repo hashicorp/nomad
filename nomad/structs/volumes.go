@@ -145,7 +145,8 @@ func (v *VolumeRequest) Equal(o *VolumeRequest) bool {
 }
 
 func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) error {
-	if !(v.Type == VolumeTypeHost || v.Type == VolumeTypeCSI) {
+	if !(v.Type == VolumeTypeHost ||
+		v.Type == VolumeTypeCSI) {
 		return fmt.Errorf("volume has unrecognized type %s", v.Type)
 	}
 
@@ -180,6 +181,7 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 		}
 
 	case VolumeTypeCSI:
+
 		switch v.AttachmentMode {
 		case CSIVolumeAttachmentModeUnknown:
 			addErr("CSI volumes must have an attachment mode")

@@ -212,7 +212,6 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 					capOk = true
 					break
 				}
-				return false
 			}
 			if !capOk {
 				return false
