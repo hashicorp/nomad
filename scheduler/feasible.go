@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -181,7 +182,6 @@ func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
 }
 
 func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
-
 	// Fast path: Requested no volumes. No need to check further.
 	if len(h.volumeReqs) == 0 {
 		return true
@@ -216,6 +216,30 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			if !capOk {
 				return false
 			}
+			if req.Sticky {
+				// FIXME: surely there is a better way to find the right alloc?
+				allocs, err := h.ctx.ProposedAllocs(n.ID)
+				if err != nil {
+					continue
+				}
+
+				for _, a := range allocs {
+					if a.TerminalStatus() || a.NodeID != n.ID {
+						continue
+					}
+
+					// check if the allocation has any volume IDs attached; if
+					// not, attach them
+					if len(a.HostVolumeIDs) == 0 {
+						a.HostVolumeIDs = []string{vol.ID}
+					} else {
+						if !slices.Contains(a.HostVolumeIDs, volCfg.ID) {
+							return false
+						}
+					}
+				}
+			}
+
 		} else if !req.ReadOnly {
 			// this is a static host volume and can only be mounted ReadOnly,
 			// validate that no requests for it are ReadWrite.
