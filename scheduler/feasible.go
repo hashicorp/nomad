@@ -217,7 +217,12 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 				return false
 			}
 			if req.Sticky {
-				// FIXME: surely there is a better way to find the right alloc?
+				// NOTE: surely there is a better way to find the right alloc?
+				// Should we perhaps search for allocs by job? Could there be a
+				// situation in which there are non-terminal allocations
+				// belonging to the job in question that are sticky, have the
+				// volume IDs that match what the node offers and should not
+				// end up in this check?
 				allocs, err := h.ctx.ProposedAllocs(n.ID)
 				if err != nil {
 					continue
@@ -228,13 +233,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 						continue
 					}
 
-					// check if the allocation has any volume IDs attached; if
-					// not, attach them
-					if len(a.HostVolumeIDs) == 0 {
-						a.HostVolumeIDs = []string{vol.ID}
-					} else {
-						return slices.Contains(a.HostVolumeIDs, volCfg.ID)
-					}
+					return slices.Contains(a.HostVolumeIDs, volCfg.ID)
 				}
 			}
 

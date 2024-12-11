@@ -366,6 +366,86 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 	}
 }
 
+func TestHostVolumeChecker_Sticky(t *testing.T) {
+	ci.Parallel(t)
+
+	store, ctx := testContext(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
+		},
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+		},
+	}
+
+	dhv := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[1].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {ID: dhv.ID}}
+
+	for _, node := range nodes {
+		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	}
+	must.NoError(t, store.UpsertHostVolume(1000, dhv))
+
+	stickyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:           "host",
+			Source:         "foo",
+			Sticky:         true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
+	}
+
+	checker := NewHostVolumeChecker(ctx)
+
+	alloc := mock.Alloc()
+	alloc.NodeID = nodes[1].ID
+	alloc.HostVolumeIDs = []string{dhv.ID}
+
+	cases := []struct {
+		name   string
+		node   *structs.Node
+		expect bool
+	}{
+		{
+			"alloc asking for a sticky volume on an infeasible node",
+			nodes[0],
+			false,
+		},
+		{
+			"alloc asking for a sticky volume on a feasible node",
+			nodes[1],
+			true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checker.SetVolumes(alloc.Name, structs.DefaultNamespace, stickyRequest)
+			actual := checker.Feasible(tc.node)
+			must.Eq(t, tc.expect, actual)
+		})
+	}
+}
+
 func TestCSIVolumeChecker(t *testing.T) {
 	ci.Parallel(t)
 	state, ctx := testContext(t)
