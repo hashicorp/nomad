@@ -97,6 +97,9 @@ The following options are available on all telemetry configurations.
   against Nomad's state store, users with many namespaces and many quotas may
   want to disable these metrics.
 
+- `disable_allocation_hook_metrics` `(bool: false)` - Specifies if the Nomad
+  client should publish metrics related to allocation and task hooks.
+
 ### `statsite`
 
 These `telemetry` parameters apply to

@@ -740,6 +740,24 @@ func TestConvertClientConfig(t *testing.T) {
 			},
 			expectErr: "invalid bridge_network_subnet_ipv6: not an IPv6 address: 10.0.0.1/24",
 		},
+		{
+			name: "hook metrics enabled (default value)",
+			modConfig: func(c *Config) {
+				c.Telemetry.DisableAllocationHookMetrics = pointer.Of(false)
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.False(t, cc.DisableAllocationHookMetrics)
+			},
+		},
+		{
+			name: "hook metrics disabled",
+			modConfig: func(c *Config) {
+				c.Telemetry.DisableAllocationHookMetrics = pointer.Of(true)
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.True(t, cc.DisableAllocationHookMetrics)
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
