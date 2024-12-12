@@ -21,6 +21,7 @@ import (
 
 const (
 	FilterConstraintHostVolumes                    = "missing compatible host volumes"
+	FilterConstraintHostVolumesAllocLookupFailed   = "sticky host volume allocation lookup failed"
 	FilterConstraintCSIPluginTemplate              = "CSI plugin %s is missing from client %s"
 	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
 	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
@@ -139,22 +140,28 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 // the host volumes necessary to schedule a task group.
 type HostVolumeChecker struct {
 	ctx        Context
-	volumeReqs []*structs.VolumeRequest
+	volumeReqs []*allocVolumeRequest
 	namespace  string
+}
+
+// allocVolumeRequest associates allocation ID with the volume request
+type allocVolumeRequest struct {
+	allocID   string
+	volumeReq *structs.VolumeRequest
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 	return &HostVolumeChecker{
 		ctx:        ctx,
-		volumeReqs: []*structs.VolumeRequest{},
+		volumeReqs: []*allocVolumeRequest{},
 	}
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(allocName string, ns string, volumes map[string]*structs.VolumeRequest) {
+func (h *HostVolumeChecker) SetVolumes(allocName, allocID string, ns string, volumes map[string]*structs.VolumeRequest) {
 	h.namespace = ns
-	h.volumeReqs = []*structs.VolumeRequest{}
+	h.volumeReqs = []*allocVolumeRequest{}
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {
 			continue // filter CSI volumes
@@ -164,33 +171,35 @@ func (h *HostVolumeChecker) SetVolumes(allocName string, ns string, volumes map[
 			// provide a unique volume source per allocation
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			h.volumeReqs = append(h.volumeReqs, copied)
+			h.volumeReqs = append(h.volumeReqs, &allocVolumeRequest{allocID, copied})
 
 		} else {
-			h.volumeReqs = append(h.volumeReqs, req)
+			h.volumeReqs = append(h.volumeReqs, &allocVolumeRequest{allocID, req})
 		}
 	}
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
-	if h.hasVolumes(candidate) {
+	feasible, failure := h.hasVolumes(candidate)
+	if feasible {
 		return true
 	}
 
-	h.ctx.Metrics().FilterNode(candidate, FilterConstraintHostVolumes)
+	h.ctx.Metrics().FilterNode(candidate, failure)
 	return false
 }
 
-func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
+func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
 	// Fast path: Requested no volumes. No need to check further.
 	if len(h.volumeReqs) == 0 {
-		return true
+		return true, ""
 	}
 
+	ws := memdb.NewWatchSet()
 	for _, req := range h.volumeReqs {
-		volCfg, ok := n.HostVolumes[req.Source]
+		volCfg, ok := n.HostVolumes[req.volumeReq.Source]
 		if !ok {
-			return false
+			return false, FilterConstraintHostVolumes
 		}
 
 		if volCfg.ID != "" { // dynamic host volume
@@ -200,55 +209,51 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 				// state store; this is only possible if the batched fingerprint
 				// update from a delete RPC is written before the delete RPC's
 				// raft entry completes
-				return false
+				return false, FilterConstraintHostVolumes
 			}
 			if vol.State != structs.HostVolumeStateReady {
-				return false
+				return false, FilterConstraintHostVolumes
 			}
 			var capOk bool
 			for _, cap := range vol.RequestedCapabilities {
-				if req.AccessMode == structs.CSIVolumeAccessMode(cap.AccessMode) &&
-					req.AttachmentMode == structs.CSIVolumeAttachmentMode(cap.AttachmentMode) {
+				if req.volumeReq.AccessMode == structs.CSIVolumeAccessMode(cap.AccessMode) &&
+					req.volumeReq.AttachmentMode == structs.CSIVolumeAttachmentMode(cap.AttachmentMode) {
 					capOk = true
 					break
 				}
 			}
 			if !capOk {
-				return false
+				return false, FilterConstraintHostVolumes
 			}
-			if req.Sticky {
-				// NOTE: surely there is a better way to find the right alloc?
-				// Should we perhaps search for allocs by job? Could there be a
-				// situation in which there are non-terminal allocations
-				// belonging to the job in question that are sticky, have the
-				// volume IDs that match what the node offers and should not
-				// end up in this check?
-				allocs, err := h.ctx.ProposedAllocs(n.ID)
+
+			if req.volumeReq.Sticky {
+				allocation, err := h.ctx.State().AllocByID(ws, req.allocID)
 				if err != nil {
-					continue
+					return false, FilterConstraintHostVolumesAllocLookupFailed
+				}
+				if slices.Contains(allocation.HostVolumeIDs, vol.ID) {
+					return true, ""
 				}
 
-				for _, a := range allocs {
-					if a.TerminalStatus() || a.NodeID != n.ID {
-						continue
-					}
-
-					if !slices.Contains(a.HostVolumeIDs, volCfg.ID) {
-						return false
-					}
+				// if an allocation doesn't have a volume ID associated with
+				// it, update it
+				if len(allocation.HostVolumeIDs) == 0 {
+					allocation.HostVolumeIDs = []string{vol.ID}
+					// TODO: figure out how to update allocation. Should we
+					// have a new RPC endpoint for this?
 				}
 			}
 
-		} else if !req.ReadOnly {
+		} else if !req.volumeReq.ReadOnly {
 			// this is a static host volume and can only be mounted ReadOnly,
 			// validate that no requests for it are ReadWrite.
 			if volCfg.ReadOnly {
-				return false
+				return false, FilterConstraintHostVolumes
 			}
 		}
 	}
 
-	return true
+	return true, ""
 }
 
 type CSIVolumeChecker struct {
