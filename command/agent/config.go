@@ -1006,6 +1006,10 @@ type Telemetry struct {
 	// rate is well-controlled but cardinality of requesters is high.
 	DisableRPCRateMetricsLabels bool `hcl:"disable_rpc_rate_metrics_labels"`
 
+	// DisableAllocationHookMetrics allows operators to disable emitting hook
+	// metrics.
+	DisableAllocationHookMetrics *bool `hcl:"disable_allocation_hook_metrics"`
+
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
 	// Valid configuration combinations:
@@ -1450,12 +1454,13 @@ func DefaultConfig() *Config {
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
-			InMemoryCollectionInterval: "10s",
-			inMemoryCollectionInterval: 10 * time.Second,
-			InMemoryRetentionPeriod:    "1m",
-			inMemoryRetentionPeriod:    1 * time.Minute,
-			CollectionInterval:         "1s",
-			collectionInterval:         1 * time.Second,
+			InMemoryCollectionInterval:   "10s",
+			inMemoryCollectionInterval:   10 * time.Second,
+			InMemoryRetentionPeriod:      "1m",
+			inMemoryRetentionPeriod:      1 * time.Minute,
+			CollectionInterval:           "1s",
+			collectionInterval:           1 * time.Second,
+			DisableAllocationHookMetrics: pointer.Of(false),
 		},
 		TLSConfig:          &config.TLSConfig{},
 		Sentinel:           &config.SentinelConfig{},
@@ -2588,6 +2593,9 @@ func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DisableRPCRateMetricsLabels {
 		result.DisableRPCRateMetricsLabels = b.DisableRPCRateMetricsLabels
+	}
+	if b.DisableAllocationHookMetrics != nil {
+		result.DisableAllocationHookMetrics = b.DisableAllocationHookMetrics
 	}
 
 	return &result

@@ -369,6 +369,7 @@
   "syslog_facility": "LOCAL1",
   "telemetry": [
     {
+      "disable_allocation_hook_metrics": true,
       "in_memory_collection_interval": "1m",
       "in_memory_retention_period": "24h",
       "collection_interval": "3s",

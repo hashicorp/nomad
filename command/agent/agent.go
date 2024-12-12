@@ -863,6 +863,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.PublishAllocationMetrics = agentConfig.Telemetry.PublishAllocationMetrics
 	conf.IncludeAllocMetadataInMetrics = agentConfig.Telemetry.IncludeAllocMetadataInMetrics
 	conf.AllowedMetadataKeysInMetrics = agentConfig.Telemetry.AllowedMetadataKeysInMetrics
+	conf.DisableAllocationHookMetrics = *agentConfig.Telemetry.DisableAllocationHookMetrics
 
 	// Set the TLS related configs
 	conf.TLSConfig = agentConfig.TLSConfig
