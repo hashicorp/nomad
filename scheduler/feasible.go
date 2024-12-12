@@ -241,7 +241,10 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
 					allocation.HostVolumeIDs = []string{vol.ID}
 					// TODO: figure out how to update allocation. Should we
 					// have a new RPC endpoint for this?
+					return true, ""
 				}
+
+				return false, FilterConstraintHostVolumes
 			}
 
 		} else if !req.volumeReq.ReadOnly {
