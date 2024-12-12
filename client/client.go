@@ -621,6 +621,10 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	// Begin syncing allocations to the server
 	c.shutdownGroup.Go(c.allocSync)
 
+	// Ensure our base labels are generated and stored before we start the
+	// client and begin emitting stats.
+	c.setupStatsLabels()
+
 	// Start the client! Don't use the shutdownGroup as run handles
 	// shutdowns manually to prevent updates from being applied during
 	// shutdown.
@@ -2783,6 +2787,7 @@ func (c *Client) newAllocRunnerConfig(
 ) *config.AllocRunnerConfig {
 	return &config.AllocRunnerConfig{
 		Alloc:               alloc,
+		BaseLabels:          c.baseLabels,
 		CSIManager:          c.csimanager,
 		CheckStore:          c.checkStore,
 		ClientConfig:        c.GetConfig(),
@@ -3183,22 +3188,33 @@ DISCOLOOP:
 	return nil
 }
 
-// emitStats collects host resource usage stats periodically
-func (c *Client) emitStats() {
-	// Determining NodeClass to be emitted
+// setupStatsLabels builds the base labels for the client. This should be done
+// before Client.run() is called, so that sub-system can use these without fear
+// they have not been set.
+func (c *Client) setupStatsLabels() {
+
+	// Determine the node class label value to emit, so we do not emit an empty
+	// string if this parameter has not been set by operators.
 	var emittedNodeClass string
 	if emittedNodeClass = c.Node().NodeClass; emittedNodeClass == "" {
 		emittedNodeClass = "none"
 	}
 
-	// Assign labels directly before emitting stats so the information expected
-	// is ready
+	// Store the base labels, so client and allocrunner subsystem can access
+	// and use these.
+	//
+	// The four labels provide enough useful information for operators in both
+	// single and multi-tenant clusters while not exploding the cardinality.
 	c.baseLabels = []metrics.Label{
 		{Name: "node_id", Value: c.NodeID()},
 		{Name: "datacenter", Value: c.Datacenter()},
 		{Name: "node_class", Value: emittedNodeClass},
 		{Name: "node_pool", Value: c.Node().NodePool},
 	}
+}
+
+// emitStats collects host resource usage stats periodically
+func (c *Client) emitStats() {
 
 	// Start collecting host stats right away and then keep collecting every
 	// collection interval

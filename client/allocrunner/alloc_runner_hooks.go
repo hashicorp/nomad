@@ -189,7 +189,17 @@ func (ar *allocRunner) prerun() error {
 			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
 		}
 
-		if err := pre.Prerun(); err != nil {
+		// If the operator has disabled hook metrics, then don't call the time
+		// function to save 30ns per hook.
+		var hookExecutionStart time.Time
+
+		if !ar.clientConfig.DisableAllocationHookMetrics {
+			hookExecutionStart = time.Now()
+		}
+
+		err := pre.Prerun()
+		ar.hookStatsHandler.Emit(hookExecutionStart, name, "prerun", err)
+		if err != nil {
 			return fmt.Errorf("pre-run hook %q failed: %v", name, err)
 		}
 

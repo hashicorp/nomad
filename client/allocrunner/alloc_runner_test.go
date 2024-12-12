@@ -12,15 +12,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allochealth"
+	"github.com/hashicorp/nomad/client/allocrunner/hookstats"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	arstate "github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/allocrunner/tasklifecycle"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner"
 	"github.com/hashicorp/nomad/client/allocwatcher"
+	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
@@ -2530,4 +2533,32 @@ func TestAllocRunner_GetUpdatePriority(t *testing.T) {
 	ar.SetClientStatus(structs.AllocClientStatusFailed)
 	calloc = ar.clientAlloc(map[string]*structs.TaskState{})
 	must.Eq(t, cstructs.AllocUpdatePriorityUrgent, ar.GetUpdatePriority(calloc))
+}
+
+func TestAllocRunner_setHookStatsHandler(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create an allocation runner that doesn't have any configuration, which
+	// means the operator has not disabled hook metrics.
+	baseAllocRunner := &allocRunner{
+		clientConfig:     &client.Config{},
+		clientBaseLabels: []metrics.Label{},
+	}
+
+	baseAllocRunner.setHookStatsHandler("platform")
+	handler, ok := baseAllocRunner.hookStatsHandler.(*hookstats.Handler)
+	must.True(t, ok)
+	must.NotNil(t, handler)
+
+	// Create a new allocation runner but explicitly disable hook metrics
+	// collection.
+	baseAllocRunner = &allocRunner{
+		clientConfig:     &client.Config{DisableAllocationHookMetrics: true},
+		clientBaseLabels: []metrics.Label{},
+	}
+
+	baseAllocRunner.setHookStatsHandler("platform")
+	noopHandler, ok := baseAllocRunner.hookStatsHandler.(*hookstats.NoOpHandler)
+	must.True(t, ok)
+	must.NotNil(t, noopHandler)
 }
