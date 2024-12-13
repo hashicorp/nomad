@@ -16,8 +16,8 @@ import (
 	"github.com/hashicorp/go-multierror"
 )
 
-// validJobActionName is used to validate a job action name.
-var validJobActionName = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
+// validJobActionName is used to validate a action name.
+var validJobActionName = regexp.MustCompile(`^[^\x00\s]{1,128}$`)
 
 type Action struct {
 	Name    string

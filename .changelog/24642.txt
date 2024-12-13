@@ -1,0 +1,3 @@
+```release-note:improvement
+actions: Nomad Actions names now accept a wider range of names
+```
