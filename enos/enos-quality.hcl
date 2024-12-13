@@ -13,6 +13,14 @@ quality "nomad_nodes_status" {
   description = "A GET call to /v1/nodes returns the correct number of clients and they are all eligible and ready"
 }
 
+quality "nomad_node_eligibility" {
+  description = "A GET call to /v1/node/:node-id returns the same node.SchedulingEligibility before and after a server upgrade"
+}
+
+quality "nomad_node_metadata" {
+ description =  "A GET call to /v1/node/:node-id returns the same  node.Meta for each server before and after a server upgrade"
+}
+
 quality "nomad_job_status" {
   description = "A GET call to /v1/jobs returns the correct number of jobs and they are all running"
 }
@@ -25,7 +33,6 @@ quality "nomad_reschedule_alloc" {
   description = "A POST / PUT call to /v1/allocation/:alloc_id/stop results in the stopped allocation being rescheduled"
 }
 
-
 quality "nomad_restore_snapshot" {
   description = "A node can be restored from a snapshot built on a previous version"
 }
@@ -33,3 +40,8 @@ quality "nomad_restore_snapshot" {
 quality "nomad_allocs_status" {
   description = "A GET call to /v1/allocs returns the correct number of allocations and they are all running"
 }
+
+quality "nomad_alloc_reconect" {
+  description = "A GET call to /v1/alloc/:alloc_id will return the same alloc.CreateTime for each allocation before and after a client upgrade"
+}
+

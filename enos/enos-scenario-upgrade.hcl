@@ -8,59 +8,65 @@ scenario "upgrade" {
     EOF
 
   matrix {
-    arch = ["amd64", "arm64"]
+    arch = ["amd64"]
+    #arch = ["amd64", "arm64"]
     //service_discovery  = ["consul", "nomad"]
-    edition = ["ce", "ent"]
-    os      = ["linux", "windows"]
+    #edition = ["ce", "ent"]
+    edition = ["ce"]
+    os      = ["linux"]
+    #os      = ["linux", "windows"]
 
-    exclude {
+   /*  exclude {
       os   = ["windows"]
       arch = ["arm64"]
-    }
+    } */
   }
 
   locals {
-    cluster_name  = "upgrade-testing-cluster-${matrix.os}-${matrix.arch}"
-    ubuntu_count  = matrix.os == "linux" ? 4 : 0
+    cluster_name  = "upgrade-testing-cluster-${matrix.os}-${matrix.arch}-${matrix.edition}"
+    linux_count   = matrix.os == "linux" ? 4 : 0
     windows_count = matrix.os == "windows" ? 4 : 0
+    arch          = matrix.arch  
   }
 
-  step "copy_initial_binary" {
+   step "copy_initial_binary" {
     description = <<-EOF
     Determine which Nomad artifact we want to use for the scenario, depending on the
    'arch', 'edition' and 'os'
     EOF
+
     module      = module.build_artifactory
 
     variables {
       artifactory_username = var.artifactory_username
       artifactory_token    = var.artifactory_token
-      arch                 = matrix.arch
+      arch                 = local.arch
       edition              = matrix.edition
       product_version      = var.product_version
       os                   = matrix.os
-      local_path           = var.binary_local_path
+      binary_path          = "${var.nomad_local_binary}/${matrix.os}-${matrix.arch}-${matrix.edition}/nomad"
     }
-  }
+  } 
 
-  step "provision_cluster" {
+ /*  step "provision_cluster" {
+   // depends_on  = [step.copy_initial_binary]
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
     EOF
-
-    depends_on = [step.copy_initial_binary]
 
     module = module.provision_cluster
     variables {
       name                            = local.cluster_name
       nomad_local_binary              = step.copy_initial_binary.nomad_local_binary
-      client_count_ubuntu_jammy_amd64 = local.ubuntu_count
+      client_count_linux              = local.linux_count
       client_count_windows_2016_amd64 = local.windows_count
       nomad_license                   = var.nomad_license
       consul_license                  = var.consul_license
-      volumes = false
+      volumes                         = false
+      instance_architecture           = matrix.arch
     }
   }
+ */
   /* 
   step "run_new_workloads" {
     description = <<-EOF

@@ -1,8 +1,8 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-output "local_binary" {
-  value       = var.binary_path
+output "nomad_local_binary" {
+  value       =  "${var.binary_path}/${var.os}-${var.arch}-${var.edition}/nomad"
   description = "Path where the binary will be placed"
 }
 
@@ -13,3 +13,4 @@ output "vault_artifactory_release" {
     sha256 = data.enos_artifactory_item.nomad.results[0].sha256
   }
 }
+

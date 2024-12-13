@@ -21,12 +21,17 @@ variable "instance_type" {
   default     = "t3a.medium"
 }
 
+variable "instance_architecture" {
+  description = "The architecture for the AWS instance type to use for both clients and servers."
+  default     = "amd64"
+}
+
 variable "server_count" {
   description = "The number of servers to provision."
   default     = "3"
 }
 
-variable "client_count_ubuntu_jammy_amd64" {
+variable "client_count_linux" {
   description = "The number of Ubuntu clients to provision."
   default     = "4"
 }

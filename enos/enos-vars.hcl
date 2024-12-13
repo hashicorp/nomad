@@ -29,7 +29,7 @@ variable "binary_local_path" {
 # Variables for the provision_cluster module
 variable "nomad_local_binary" {
   description = "The path to a local binary to provision"
-  default     = ""
+  #default     = "/Users/juanita.delacuestamorales/nomad" #TODO! 
 }
 
 variable "nomad_license" {

@@ -19,4 +19,5 @@ locals {
   }
 
   artifact_name = "nomad_${local.artifact_version}${local.package_extensions[var.arch][var.os]}"
+  artifact_zip = "nomad_${local.artifact_version}${local.package_extensions[var.arch][var.os]}.zip"
 }
