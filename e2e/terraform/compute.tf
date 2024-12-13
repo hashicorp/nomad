@@ -39,6 +39,8 @@ resource "aws_instance" "client_ubuntu_jammy_amd64" {
   }
 }
 
+
+
 resource "aws_instance" "client_windows_2016_amd64" {
   ami                    = data.aws_ami.windows_2016_amd64[0].image_id
   instance_type          = var.instance_type
@@ -48,7 +50,7 @@ resource "aws_instance" "client_windows_2016_amd64" {
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
-  user_data = file("${path.root}/userdata/windows-2016.ps1")
+  user_data = file("${path.module}/userdata/windows-2016.ps1")
 
   # Instance tags
   tags = {

@@ -4,13 +4,12 @@
 locals {
   upload_dir = "uploads/${var.instance.public_ip}"
 
-  indexed_config_path = fileexists("etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl") ? "etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl" : "etc/nomad.d/index.hcl"
-
+  indexed_config_path = fileexists("${path.module}/etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl") ? "${path.module}/etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl" : "${path.module}/etc/nomad.d/index.hcl"
 }
 
 # if nomad_license is unset, it'll be a harmless empty license file
 resource "local_sensitive_file" "nomad_environment" {
-  content = templatefile("etc/nomad.d/.environment", {
+  content = templatefile("${path.module}/etc/nomad.d/.environment", {
     license = var.nomad_license
   })
   filename        = "${local.upload_dir}/nomad.d/.environment"
@@ -18,7 +17,7 @@ resource "local_sensitive_file" "nomad_environment" {
 }
 
 resource "local_sensitive_file" "nomad_base_config" {
-  content = templatefile("etc/nomad.d/base.hcl", {
+  content = templatefile("${path.module}/etc/nomad.d/base.hcl", {
     data_dir = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
   })
   filename        = "${local.upload_dir}/nomad.d/base.hcl"
@@ -26,7 +25,7 @@ resource "local_sensitive_file" "nomad_base_config" {
 }
 
 resource "local_sensitive_file" "nomad_role_config" {
-  content = templatefile("etc/nomad.d/${var.role}-${var.platform}.hcl", {
+  content = templatefile("${path.module}/etc/nomad.d/${var.role}-${var.platform}.hcl", {
     aws_region     = var.aws_region
     aws_kms_key_id = var.aws_kms_key_id
   })
@@ -41,7 +40,7 @@ resource "local_sensitive_file" "nomad_indexed_config" {
 }
 
 resource "local_sensitive_file" "nomad_tls_config" {
-  content         = templatefile("etc/nomad.d/tls.hcl", {})
+  content         = templatefile("${path.module}/etc/nomad.d/tls.hcl", {})
   filename        = "${local.upload_dir}/nomad.d/tls.hcl"
   file_permission = "0600"
 }
@@ -75,7 +74,7 @@ resource "null_resource" "upload_consul_configs" {
     destination = "/tmp/consul_client.hcl"
   }
   provisioner "file" {
-    source      = "etc/consul.d/consul.service"
+    source      = "${path.module}/etc/consul.d/consul.service"
     destination = "/tmp/consul.service"
   }
 }

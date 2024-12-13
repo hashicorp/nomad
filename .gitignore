@@ -137,3 +137,10 @@ tools/missing/missing
 
 # allow security scanner file
 !scan.hcl
+
+# generated variables for upgrade tests
+enos.vars.hcl
+enos/modules/*/*.tfvars
+
+# local license files
+*.hclic
