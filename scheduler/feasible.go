@@ -231,16 +231,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
 				if err != nil {
 					return false, FilterConstraintHostVolumesAllocLookupFailed
 				}
-				if slices.Contains(allocation.HostVolumeIDs, vol.ID) {
-					return true, ""
-				}
-
-				// if an allocation doesn't have a volume ID associated with
-				// it, update it
-				if len(allocation.HostVolumeIDs) == 0 {
-					allocation.HostVolumeIDs = []string{vol.ID}
-					// TODO: figure out how to update allocation. Should we
-					// have a new RPC endpoint for this?
+				if slices.Contains(allocation.HostVolumeIDs, vol.ID) || len(allocation.HostVolumeIDs) == 0 {
 					return true, ""
 				}
 

@@ -658,6 +658,21 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						"old_alloc_name", oldAllocName, "new_alloc_name", newAllocName)
 				}
 
+				// Are there sticky volumes requested by the task group for the first time? If
+				// yes, make sure the allocation stores their IDs for future reschedules.
+				var newHostVolumeIDs []string
+				for _, v := range tg.Volumes {
+					if v.Sticky {
+						if missing.PreviousAllocation() != nil && len(missing.PreviousAllocation().HostVolumeIDs) > 0 {
+							continue
+						}
+						vol, ok := option.Node.HostVolumes[v.Source]
+						if ok {
+							newHostVolumeIDs = append(newHostVolumeIDs, vol.ID)
+						}
+					}
+				}
+
 				// Create an allocation for this
 				alloc := &structs.Allocation{
 					ID:                 uuid.Generate(),
@@ -680,6 +695,10 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						DiskMB:   tg.EphemeralDisk.SizeMB,
 						Networks: resources.Shared.Networks,
 					},
+				}
+
+				if len(newHostVolumeIDs) > 0 {
+					alloc.HostVolumeIDs = newHostVolumeIDs
 				}
 
 				// If the new allocation is replacing an older allocation then we
