@@ -36,11 +36,6 @@ sudo apt-get install -y \
 curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.9.0/hc-install_0.9.0_linux_amd64.zip
 sudo unzip -d /usr/local/bin /tmp/hc-install.zip
 
-# Install sockaddr
-aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
-sudo mv /tmp/sockaddr /usr/local/bin
-sudo chmod +x /usr/local/bin/sockaddr
-sudo chown root:root /usr/local/bin/sockaddr
 
 # Disable the firewall
 sudo ufw disable || echo "ufw not installed"
@@ -169,14 +164,3 @@ echo "Updating boot parameters"
 # enable cgroup_memory and swap
 sudo sed -i 's/GRUB_CMDLINE_LINUX="[^"]*/& cgroup_enable=memory swapaccount=1/' /etc/default/grub
 sudo update-grub
-
-echo "Configuring user shell"
-sudo tee -a /home/ubuntu/.bashrc << 'EOF'
-IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetPrivateIP')
-export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
-export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
-export VAULT_ADDR=http://$IP_ADDRESS:8200
-export NOMAD_ADDR=http://$IP_ADDRESS:4646
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64/bin
-
-EOF
