@@ -105,8 +105,6 @@ data "aws_ami" "ubuntu_jammy_amd64" {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
   }
-<<<<<<< Updated upstream
-=======
 }
 
 data "aws_ami" "ubuntu_jammy" {
@@ -127,7 +125,6 @@ data "aws_ami" "ubuntu_jammy" {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
   }
->>>>>>> Stashed changes
 }
 
 data "aws_ami" "windows_2016_amd64" {
