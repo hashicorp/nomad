@@ -36,8 +36,8 @@ locals {
 cat <<ENV | sudo tee -a /root/.bashrc
 export NOMAD_ADDR=https://localhost:4646
 export NOMAD_SKIP_VERIFY=true
-export NOMAD_CLIENT_CERT="${path.module}/etc/nomad.d/tls/agent.crt"
-export NOMAD_CLIENT_KEY="${path.module}/etc/nomad.d/tls/agent.key"
+export NOMAD_CLIENT_CERT="/etc/nomad.d/tls/agent.crt"
+export NOMAD_CLIENT_KEY="/etc/nomad.d/tls/agent.key"
 export NOMAD_TOKEN=${data.local_sensitive_file.nomad_token.content}
 export CONSUL_HTTP_ADDR=https://localhost:8501
 export CONSUL_HTTP_TOKEN="${random_uuid.consul_initial_management_token.result}"
