@@ -83,7 +83,7 @@ require (
 	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.0
 	github.com/hashicorp/nomad/api v0.0.0-20230103221135-ce00d683f9be
 	github.com/hashicorp/raft v1.7.1
-	github.com/hashicorp/raft-autopilot v0.1.6
+	github.com/hashicorp/raft-autopilot v0.3.0
 	github.com/hashicorp/raft-boltdb/v2 v2.3.0
 	github.com/hashicorp/serf v0.10.2-0.20240320153621-5d32001edfaa
 	github.com/hashicorp/vault/api v1.15.0
@@ -127,7 +127,7 @@ require (
 	github.com/zclconf/go-cty v1.13.0
 	github.com/zclconf/go-cty-yaml v1.1.0
 	go.etcd.io/bbolt v1.3.9
-	go.uber.org/goleak v1.2.1
+	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.31.0
 	golang.org/x/mod v0.21.0
 	golang.org/x/sync v0.10.0
