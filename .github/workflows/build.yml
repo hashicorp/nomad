@@ -90,7 +90,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -142,7 +142,7 @@ jobs:
         with:
           ref: ${{ github.event.inputs.build-ref }}
       - name: Setup go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -265,7 +265,7 @@ jobs:
         run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
 
       - name: Setup go
-        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -356,7 +356,7 @@ jobs:
         goos: [linux]
         goarch: [amd64]
     steps:
-      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ${{needs.get-go-version.outputs.go-version}}
       - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
