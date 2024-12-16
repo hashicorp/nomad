@@ -33,7 +33,8 @@
 					{
 						"dst": "::/0"
 					}
-				]
+				],
+				"dataDir": "/var/run/cni"
 			}
 		},
 		{

@@ -58,9 +58,10 @@ func NewNomadBridgeConflist(conf NomadBridgeConfig) Conflist {
 			ForceAddress: true,
 			HairpinMode:  conf.HairpinMode,
 			Ipam: IPAM{
-				Type:   "host-local",
-				Ranges: ipRanges,
-				Routes: ipRoutes,
+				Type:    "host-local",
+				Ranges:  ipRanges,
+				Routes:  ipRoutes,
+				DataDir: "/var/run/cni",
 			},
 		},
 		Firewall{
