@@ -11199,6 +11199,23 @@ func (a *Allocation) GetID() string {
 	return a.ID
 }
 
+// Sanitize returns a copy of the allocation with the SignedIdentities field
+// removed. This is useful for returning allocations to clients where the
+// SignedIdentities field is not needed.
+func (a *Allocation) Sanitize() *Allocation {
+	if a == nil {
+		return nil
+	}
+
+	if a.SignedIdentities == nil {
+		return a
+	}
+
+	clean := a.Copy()
+	clean.SignedIdentities = nil
+	return clean
+}
+
 // GetNamespace implements the NamespaceGetter interface, required for
 // pagination and filtering namespaces in endpoints that support glob namespace
 // requests using tokens with limited access.
