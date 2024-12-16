@@ -144,10 +144,11 @@ type HostVolumeChecker struct {
 	namespace  string
 }
 
-// allocVolumeRequest associates allocation ID with the volume request
+// allocVolumeRequest associates allocation volume IDs with the volume request
 type allocVolumeRequest struct {
-	allocID   string
-	volumeReq *structs.VolumeRequest
+	hostVolumeIDs []string
+	cniVolumeIDs  []string
+	volumeReq     *structs.VolumeRequest
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
@@ -159,7 +160,9 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(allocName, allocID string, ns string, volumes map[string]*structs.VolumeRequest) {
+func (h *HostVolumeChecker) SetVolumes(
+	allocName, ns string, volumes map[string]*structs.VolumeRequest, allocHostVolumeIDs []string,
+) {
 	h.namespace = ns
 	h.volumeReqs = []*allocVolumeRequest{}
 	for _, req := range volumes {
@@ -171,10 +174,10 @@ func (h *HostVolumeChecker) SetVolumes(allocName, allocID string, ns string, vol
 			// provide a unique volume source per allocation
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			h.volumeReqs = append(h.volumeReqs, &allocVolumeRequest{allocID, copied})
+			h.volumeReqs = append(h.volumeReqs, &allocVolumeRequest{volumeReq: copied})
 
 		} else {
-			h.volumeReqs = append(h.volumeReqs, &allocVolumeRequest{allocID, req})
+			h.volumeReqs = append(h.volumeReqs, &allocVolumeRequest{hostVolumeIDs: allocHostVolumeIDs, volumeReq: req})
 		}
 	}
 }
@@ -195,7 +198,6 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
 		return true, ""
 	}
 
-	ws := memdb.NewWatchSet()
 	for _, req := range h.volumeReqs {
 		volCfg, ok := n.HostVolumes[req.volumeReq.Source]
 		if !ok {
@@ -227,11 +229,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
 			}
 
 			if req.volumeReq.Sticky {
-				allocation, err := h.ctx.State().AllocByID(ws, req.allocID)
-				if err != nil {
-					return false, FilterConstraintHostVolumesAllocLookupFailed
-				}
-				if slices.Contains(allocation.HostVolumeIDs, vol.ID) || len(allocation.HostVolumeIDs) == 0 {
+				if slices.Contains(req.hostVolumeIDs, vol.ID) || len(req.hostVolumeIDs) == 0 {
 					return true, ""
 				}
 

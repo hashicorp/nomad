@@ -35,11 +35,12 @@ type Stack interface {
 }
 
 type SelectOptions struct {
-	PenaltyNodeIDs map[string]struct{}
-	PreferredNodes []*structs.Node
-	Preempt        bool
-	AllocName      string
-	AllocID        string
+	PenaltyNodeIDs          map[string]struct{}
+	PreferredNodes          []*structs.Node
+	Preempt                 bool
+	AllocName               string
+	AllocID                 string
+	AllocationHostVolumeIDs []string
 }
 
 // GenericStack is the Stack used for the Generic scheduler. It is
@@ -157,7 +158,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
-	s.taskGroupHostVolumes.SetVolumes(options.AllocName, options.AllocID, s.jobNamespace, tg.Volumes)
+	s.taskGroupHostVolumes.SetVolumes(options.AllocName, s.jobNamespace, tg.Volumes, options.AllocationHostVolumeIDs)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
@@ -350,7 +351,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
-	s.taskGroupHostVolumes.SetVolumes(options.AllocName, options.AllocID, s.jobNamespace, tg.Volumes)
+	s.taskGroupHostVolumes.SetVolumes(options.AllocName, s.jobNamespace, tg.Volumes, options.AllocationHostVolumeIDs)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])

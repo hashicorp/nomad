@@ -666,10 +666,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						if missing.PreviousAllocation() != nil && len(missing.PreviousAllocation().HostVolumeIDs) > 0 {
 							continue
 						}
-						vol, ok := option.Node.HostVolumes[v.Source]
-						if ok {
-							newHostVolumeIDs = append(newHostVolumeIDs, vol.ID)
-						}
+						newHostVolumeIDs = append(newHostVolumeIDs, option.Node.HostVolumes[v.Source].ID)
 					}
 				}
 
@@ -699,6 +696,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 				if len(newHostVolumeIDs) > 0 {
 					alloc.HostVolumeIDs = newHostVolumeIDs
+				} else {
+					alloc.HostVolumeIDs = prevAllocation.HostVolumeIDs
 				}
 
 				// If the new allocation is replacing an older allocation then we
@@ -858,6 +857,10 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 			}
 		}
 		selectOptions.PenaltyNodeIDs = penaltyNodes
+
+		if prevAllocation.HostVolumeIDs != nil {
+			selectOptions.AllocationHostVolumeIDs = prevAllocation.HostVolumeIDs
+		}
 	}
 	if preferredNode != nil {
 		selectOptions.PreferredNodes = []*structs.Node{preferredNode}
