@@ -234,6 +234,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		Command: "job dispatch",
 		PathParams: map[string]string{
 			"dispatchID": dispatchID,
+			"namespace":  namespace,
 		},
 		OpenURL: openURL,
 	})

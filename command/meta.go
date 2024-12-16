@@ -501,7 +501,7 @@ var CommandUIRoutes = map[string]UIRoute{
 		Description: "View variable details",
 	},
 	"job dispatch": {
-		Path:        "/jobs/:dispatchID",
+		Path:        "/jobs/:dispatchID@:namespace",
 		Description: "View this job",
 	},
 	"eval list": {
