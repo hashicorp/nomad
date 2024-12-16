@@ -260,17 +260,6 @@ func (c *JobRunCommand) Run(args []string) int {
 
 		c.Ui.Output(string(buf))
 
-		hint, _ := c.Meta.showUIPath(UIHintContext{
-			Command: "job run",
-			PathParams: map[string]string{
-				"jobID": *job.ID,
-			},
-			OpenURL: openURL,
-		})
-		if hint != "" {
-			c.Ui.Output(hint)
-		}
-
 		return 0
 	}
 
@@ -319,6 +308,11 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	evalID := resp.EvalID
 
+	jobNamespace := c.Meta.namespace
+	if jobNamespace == "" {
+		jobNamespace = "default"
+	}
+
 	// Check if we should enter monitor mode
 	if detach || periodic || paramjob || multiregion {
 		c.Ui.Output("Job registration successful")
@@ -341,7 +335,8 @@ func (c *JobRunCommand) Run(args []string) int {
 		hint, _ := c.Meta.showUIPath(UIHintContext{
 			Command: "job run",
 			PathParams: map[string]string{
-				"jobID": *job.ID,
+				"jobID":     *job.ID,
+				"namespace": jobNamespace,
 			},
 			OpenURL: openURL,
 		})
@@ -356,7 +351,8 @@ func (c *JobRunCommand) Run(args []string) int {
 	hint, _ := c.Meta.showUIPath(UIHintContext{
 		Command: "job run",
 		PathParams: map[string]string{
-			"jobID": *job.ID,
+			"jobID":     *job.ID,
+			"namespace": jobNamespace,
 		},
 		OpenURL: openURL,
 	})

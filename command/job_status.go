@@ -294,7 +294,8 @@ func (c *JobStatusCommand) Run(args []string) int {
 		hint, _ := c.Meta.showUIPath(UIHintContext{
 			Command: "job status single",
 			PathParams: map[string]string{
-				"jobID": *job.ID,
+				"jobID":     *job.ID,
+				"namespace": *job.Namespace,
 			},
 			OpenURL: c.openURL,
 		})
@@ -325,7 +326,8 @@ func (c *JobStatusCommand) Run(args []string) int {
 	hint, _ := c.Meta.showUIPath(UIHintContext{
 		Command: "job status single",
 		PathParams: map[string]string{
-			"jobID": *job.ID,
+			"jobID":     *job.ID,
+			"namespace": *job.Namespace,
 		},
 		OpenURL: c.openURL,
 	})
