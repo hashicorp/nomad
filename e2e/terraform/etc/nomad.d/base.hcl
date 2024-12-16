@@ -1,6 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+region       = "e2e"
 bind_addr    = "0.0.0.0"
 data_dir     = "${data_dir}"
 enable_debug = true
