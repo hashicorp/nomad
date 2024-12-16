@@ -473,11 +473,11 @@ var CommandUIRoutes = map[string]UIRoute{
 		Description: "View and manage Nomad jobs",
 	},
 	"job status single": {
-		Path:        "/jobs/:jobID",
+		Path:        "/jobs/:jobID@:namespace",
 		Description: "View job details and metrics",
 	},
 	"job run": {
-		Path:        "/jobs/:jobID",
+		Path:        "/jobs/:jobID@:namespace",
 		Description: "View this job",
 	},
 	"alloc status": {
