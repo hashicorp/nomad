@@ -146,7 +146,6 @@ type HostVolumeChecker struct {
 // allocVolumeRequest associates allocation volume IDs with the volume request
 type allocVolumeRequest struct {
 	hostVolumeIDs []string
-	cniVolumeIDs  []string
 	volumeReq     *structs.VolumeRequest
 }
 
