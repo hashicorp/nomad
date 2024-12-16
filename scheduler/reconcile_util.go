@@ -66,7 +66,6 @@ type allocStopResult struct {
 // allocation
 type allocPlaceResult struct {
 	name          string
-	id            string
 	canary        bool
 	taskGroup     *structs.TaskGroup
 	previousAlloc *structs.Allocation
@@ -79,7 +78,6 @@ type allocPlaceResult struct {
 
 func (a allocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.taskGroup }
 func (a allocPlaceResult) Name() string                            { return a.name }
-func (a allocPlaceResult) ID() string                              { return a.id }
 func (a allocPlaceResult) Canary() bool                            { return a.canary }
 func (a allocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
 func (a allocPlaceResult) IsRescheduling() bool                    { return a.reschedule }

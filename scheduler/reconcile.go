@@ -805,7 +805,6 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	for _, alloc := range reschedule {
 		place = append(place, allocPlaceResult{
 			name:          alloc.Name,
-			id:            alloc.ID,
 			taskGroup:     group,
 			previousAlloc: alloc,
 			reschedule:    true,
@@ -831,7 +830,6 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 		existing++
 		place = append(place, allocPlaceResult{
 			name:               alloc.Name,
-			id:                 alloc.ID,
 			taskGroup:          group,
 			previousAlloc:      alloc,
 			reschedule:         false,
