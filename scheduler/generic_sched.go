@@ -696,8 +696,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 				if len(newHostVolumeIDs) > 0 {
 					alloc.HostVolumeIDs = newHostVolumeIDs
-				} else {
-					alloc.HostVolumeIDs = prevAllocation.HostVolumeIDs
 				}
 
 				// If the new allocation is replacing an older allocation then we
@@ -707,6 +705,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					if missing.IsRescheduling() {
 						updateRescheduleTracker(alloc, prevAllocation, now)
 					}
+
+					alloc.HostVolumeIDs = prevAllocation.HostVolumeIDs
 
 					// If the allocation has task handles,
 					// copy them to the new allocation
