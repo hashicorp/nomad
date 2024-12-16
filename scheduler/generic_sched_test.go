@@ -218,7 +218,7 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 	}
 }
 
-func TestServiceSched_JobRegister_StickyVolumes(t *testing.T) {
+func TestServiceSched_JobRegister_StickyHostVolumes(t *testing.T) {
 	ci.Parallel(t)
 
 	h := NewHarness(t)
