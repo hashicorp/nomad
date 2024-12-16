@@ -5,6 +5,7 @@ package command
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -249,4 +250,204 @@ func TestMeta_JobByPrefix(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMeta_ShowUIPath(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name           string
+		context        UIHintContext
+		expectedURL    string
+		expectedOpened bool
+	}{
+		{
+			name: "server members",
+			context: UIHintContext{
+				Command: "server members",
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/servers",
+		},
+		{
+			name: "node status (many)",
+			context: UIHintContext{
+				Command: "node status",
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/clients",
+		},
+		{
+			name: "node status (single)",
+			context: UIHintContext{
+				Command: "node status single",
+				PathParams: map[string]string{
+					"nodeID": "node-1",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/clients/node-1",
+		},
+		{
+			name: "job status (many)",
+			context: UIHintContext{
+				Command: "job status",
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/jobs",
+		},
+		{
+			name: "job status (single)",
+			context: UIHintContext{
+				Command: "job status single",
+				PathParams: map[string]string{
+					"jobID":     "example-job",
+					"namespace": "default",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/jobs/example-job@default",
+		},
+		{
+			name: "job run (default ns)",
+			context: UIHintContext{
+				Command: "job run",
+				PathParams: map[string]string{
+					"jobID":     "example-job",
+					"namespace": "default",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/jobs/example-job@default",
+		},
+		{
+			name: "job run (non-default ns)",
+			context: UIHintContext{
+				Command: "job run",
+				PathParams: map[string]string{
+					"jobID":     "example-job",
+					"namespace": "prod",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/jobs/example-job@prod",
+		},
+		{
+			name: "job dispatch (default ns)",
+			context: UIHintContext{
+				Command: "job dispatch",
+				PathParams: map[string]string{
+					"dispatchID": "dispatch-1",
+					"namespace":  "default",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/jobs/dispatch-1@default",
+		},
+		{
+			name: "job dispatch (non-default ns)",
+			context: UIHintContext{
+				Command: "job dispatch",
+				PathParams: map[string]string{
+					"dispatchID": "dispatch-1",
+					"namespace":  "toronto",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/jobs/dispatch-1@toronto",
+		},
+		{
+			name: "eval list",
+			context: UIHintContext{
+				Command: "eval list",
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/evaluations",
+		},
+		{
+			name: "eval status",
+			context: UIHintContext{
+				Command: "eval status",
+				PathParams: map[string]string{
+					"evalID": "eval-1",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/evaluations?currentEval=eval-1",
+		},
+		{
+			name: "deployment status",
+			context: UIHintContext{
+				Command: "deployment status",
+				PathParams: map[string]string{
+					"jobID": "example-job",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/jobs/example-job/deployments",
+		},
+		{
+			name: "var list (root)",
+			context: UIHintContext{
+				Command: "var list",
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/variables",
+		},
+		{
+			name: "var list (path)",
+			context: UIHintContext{
+				Command: "var list prefix",
+				PathParams: map[string]string{
+					"prefix": "foo",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/variables/path/foo",
+		},
+		{
+			name: "var get",
+			context: UIHintContext{
+				Command: "var get",
+				PathParams: map[string]string{
+					"path":      "foo",
+					"namespace": "default",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/variables/var/foo@default",
+		},
+		{
+			name: "var put",
+			context: UIHintContext{
+				Command: "var put",
+				PathParams: map[string]string{
+					"path":      "foo",
+					"namespace": "default",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/variables/var/foo@default",
+		},
+		{
+			name: "alloc status",
+			context: UIHintContext{
+				Command: "alloc status",
+				PathParams: map[string]string{
+					"allocID": "alloc-1",
+				},
+			},
+			expectedURL: "http://127.0.0.1:4646/ui/allocations/alloc-1",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			route := CommandUIRoutes[tc.context.Command]
+			expectedHint := fmt.Sprintf("\n\n==> %s in the Web UI: %s", route.Description, tc.expectedURL)
+
+			m := &Meta{
+				Ui: cli.NewMockUi(),
+			}
+
+			hint, err := m.showUIPath(tc.context)
+			must.NoError(t, err)
+			must.Eq(t, expectedHint, hint)
+		})
+	}
+
+	// TODO: invalid/edge cases
+	// - unknown command
+	// - missing required params
+	// - invalid path params
+	// - --output flag on job run
+
+	// TODO: browser opening tests
 }
