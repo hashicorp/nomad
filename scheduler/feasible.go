@@ -21,7 +21,6 @@ import (
 
 const (
 	FilterConstraintHostVolumes                    = "missing compatible host volumes"
-	FilterConstraintHostVolumesAllocLookupFailed   = "sticky host volume allocation lookup failed"
 	FilterConstraintCSIPluginTemplate              = "CSI plugin %s is missing from client %s"
 	FilterConstraintCSIPluginUnhealthyTemplate     = "CSI plugin %s is unhealthy on client %s"
 	FilterConstraintCSIPluginMaxVolumesTemplate    = "CSI plugin %s has the maximum number of volumes on client %s"
@@ -183,25 +182,24 @@ func (h *HostVolumeChecker) SetVolumes(
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
-	feasible, failure := h.hasVolumes(candidate)
-	if feasible {
+	if h.hasVolumes(candidate) {
 		return true
 	}
 
-	h.ctx.Metrics().FilterNode(candidate, failure)
+	h.ctx.Metrics().FilterNode(candidate, FilterConstraintHostVolumes)
 	return false
 }
 
-func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
+func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	// Fast path: Requested no volumes. No need to check further.
 	if len(h.volumeReqs) == 0 {
-		return true, ""
+		return true
 	}
 
 	for _, req := range h.volumeReqs {
 		volCfg, ok := n.HostVolumes[req.volumeReq.Source]
 		if !ok {
-			return false, FilterConstraintHostVolumes
+			return false
 		}
 
 		if volCfg.ID != "" { // dynamic host volume
@@ -211,10 +209,10 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
 				// state store; this is only possible if the batched fingerprint
 				// update from a delete RPC is written before the delete RPC's
 				// raft entry completes
-				return false, FilterConstraintHostVolumes
+				return false
 			}
 			if vol.State != structs.HostVolumeStateReady {
-				return false, FilterConstraintHostVolumes
+				return false
 			}
 			var capOk bool
 			for _, cap := range vol.RequestedCapabilities {
@@ -225,27 +223,27 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) (bool, string) {
 				}
 			}
 			if !capOk {
-				return false, FilterConstraintHostVolumes
+				return false
 			}
 
 			if req.volumeReq.Sticky {
 				if slices.Contains(req.hostVolumeIDs, vol.ID) || len(req.hostVolumeIDs) == 0 {
-					return true, ""
+					return true
 				}
 
-				return false, FilterConstraintHostVolumes
+				return false
 			}
 
 		} else if !req.volumeReq.ReadOnly {
 			// this is a static host volume and can only be mounted ReadOnly,
 			// validate that no requests for it are ReadWrite.
 			if volCfg.ReadOnly {
-				return false, FilterConstraintHostVolumes
+				return false
 			}
 		}
 	}
 
-	return true, ""
+	return true
 }
 
 type CSIVolumeChecker struct {
