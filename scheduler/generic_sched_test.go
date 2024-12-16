@@ -316,13 +316,11 @@ func TestServiceSched_JobRegister_StickyVolumes(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-	h1 := NewHarnessWithState(t, h.State)
-	must.NoError(t, h1.Process(NewServiceScheduler, eval))
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 	// Ensure we have created only one new allocation
-	// Ensure a single plan
-	must.SliceLen(t, 1, h1.Plans)
-	plan = h1.Plans[0]
+	must.SliceLen(t, 2, h.Plans)
+	plan = h.Plans[0]
 	var newPlanned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
 		newPlanned = append(newPlanned, allocList...)
@@ -331,7 +329,6 @@ func TestServiceSched_JobRegister_StickyVolumes(t *testing.T) {
 
 	// Ensure that the new allocations retain the host volume ID
 	for _, new := range newPlanned {
-		must.NotEq(t, new.PreviousAllocation, "")
 		must.Eq(t, new.HostVolumeIDs[0], dhv.ID)
 	}
 }

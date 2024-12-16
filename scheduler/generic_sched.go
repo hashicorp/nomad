@@ -942,8 +942,7 @@ func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.No
 		}
 
 		var preferredNode *structs.Node
-		ws := memdb.NewWatchSet()
-		preferredNode, err := s.state.NodeByID(ws, prev.NodeID)
+		preferredNode, err := s.state.NodeByID(nil, prev.NodeID)
 		if err != nil {
 			return nil, err
 		}

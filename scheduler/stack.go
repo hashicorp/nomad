@@ -39,7 +39,6 @@ type SelectOptions struct {
 	PreferredNodes          []*structs.Node
 	Preempt                 bool
 	AllocName               string
-	AllocID                 string
 	AllocationHostVolumeIDs []string
 }
 
