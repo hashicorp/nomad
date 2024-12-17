@@ -57,6 +57,11 @@ variable "nomad_license" {
   default     = ""
 }
 
+variable "nomad_region" {
+  description = "The name of the Nomad region."
+  default     = "e2e"
+}
+
 variable "consul_license" {
   type        = string
   description = "If consul_license is set, deploy a license"
