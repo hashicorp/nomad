@@ -1334,6 +1334,7 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 				Name:           v.Name,
 				Type:           v.Type,
 				ReadOnly:       v.ReadOnly,
+				Sticky:         v.Sticky,
 				Source:         v.Source,
 				AttachmentMode: structs.CSIVolumeAttachmentMode(v.AttachmentMode),
 				AccessMode:     structs.CSIVolumeAccessMode(v.AccessMode),
