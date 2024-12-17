@@ -16,7 +16,6 @@ variable "nomad_local_binary" {
 variable "nomad_license" {
   type        = string
   description = "The enterprise license to use. overrides Nomad temporary license"
-  default     = ""
 }
 
 variable "tls_ca_algorithm" {
@@ -28,13 +27,11 @@ variable "tls_ca_algorithm" {
 variable "tls_ca_key" {
   type        = string
   description = "Cluster TLS CA private key"
-  default     = ""
 }
 
 variable "tls_ca_cert" {
   type        = string
   description = "Cluster TLS CA cert"
-  default     = ""
 }
 
 variable "arch" {

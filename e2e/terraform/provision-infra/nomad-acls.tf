@@ -11,7 +11,7 @@ resource "null_resource" "bootstrap_nomad_acls" {
   depends_on = [module.nomad_server, null_resource.bootstrap_consul_acls]
 
   provisioner "local-exec" {
-    command = "./scripts/bootstrap-nomad.sh"
+    command = "${path.module}/scripts/bootstrap-nomad.sh"
     environment = {
       NOMAD_ADDR        = "https://${aws_instance.server.0.public_ip}:4646"
       NOMAD_CACERT      = "${path.root}/keys/tls_ca.crt"
