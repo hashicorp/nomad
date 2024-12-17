@@ -138,22 +138,18 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 // HostVolumeChecker is a FeasibilityChecker which returns whether a node has
 // the host volumes necessary to schedule a task group.
 type HostVolumeChecker struct {
-	ctx        Context
-	volumeReqs []*allocVolumeRequest
-	namespace  string
-}
-
-// allocVolumeRequest associates allocation volume IDs with the volume request
-type allocVolumeRequest struct {
+	ctx           Context
+	volumeReqs    []*structs.VolumeRequest
 	hostVolumeIDs []string
-	volumeReq     *structs.VolumeRequest
+	namespace     string
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 	return &HostVolumeChecker{
-		ctx:        ctx,
-		volumeReqs: []*allocVolumeRequest{},
+		ctx:           ctx,
+		volumeReqs:    []*structs.VolumeRequest{},
+		hostVolumeIDs: []string{},
 	}
 }
 
@@ -162,7 +158,8 @@ func (h *HostVolumeChecker) SetVolumes(
 	allocName, ns string, volumes map[string]*structs.VolumeRequest, allocHostVolumeIDs []string,
 ) {
 	h.namespace = ns
-	h.volumeReqs = []*allocVolumeRequest{}
+	h.volumeReqs = []*structs.VolumeRequest{}
+	h.hostVolumeIDs = allocHostVolumeIDs
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {
 			continue // filter CSI volumes
@@ -172,10 +169,10 @@ func (h *HostVolumeChecker) SetVolumes(
 			// provide a unique volume source per allocation
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			h.volumeReqs = append(h.volumeReqs, &allocVolumeRequest{volumeReq: copied})
+			h.volumeReqs = append(h.volumeReqs, copied)
 
 		} else {
-			h.volumeReqs = append(h.volumeReqs, &allocVolumeRequest{hostVolumeIDs: allocHostVolumeIDs, volumeReq: req})
+			h.volumeReqs = append(h.volumeReqs, req)
 		}
 	}
 }
@@ -196,7 +193,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 	}
 
 	for _, req := range h.volumeReqs {
-		volCfg, ok := n.HostVolumes[req.volumeReq.Source]
+		volCfg, ok := n.HostVolumes[req.Source]
 		if !ok {
 			return false
 		}
@@ -215,8 +212,8 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			}
 			var capOk bool
 			for _, cap := range vol.RequestedCapabilities {
-				if req.volumeReq.AccessMode == structs.CSIVolumeAccessMode(cap.AccessMode) &&
-					req.volumeReq.AttachmentMode == structs.CSIVolumeAttachmentMode(cap.AttachmentMode) {
+				if req.AccessMode == structs.CSIVolumeAccessMode(cap.AccessMode) &&
+					req.AttachmentMode == structs.CSIVolumeAttachmentMode(cap.AttachmentMode) {
 					capOk = true
 					break
 				}
@@ -225,15 +222,15 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 				return false
 			}
 
-			if req.volumeReq.Sticky {
-				if slices.Contains(req.hostVolumeIDs, vol.ID) || len(req.hostVolumeIDs) == 0 {
+			if req.Sticky {
+				if slices.Contains(h.hostVolumeIDs, vol.ID) || len(h.hostVolumeIDs) == 0 {
 					return true
 				}
 
 				return false
 			}
 
-		} else if !req.volumeReq.ReadOnly {
+		} else if !req.ReadOnly {
 			// this is a static host volume and can only be mounted ReadOnly,
 			// validate that no requests for it are ReadWrite.
 			if volCfg.ReadOnly {
