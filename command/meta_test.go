@@ -441,8 +441,6 @@ func TestMeta_ShowUIPath(t *testing.T) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			route := CommandUIRoutes[tc.context.Command]
 			expectedHint := fmt.Sprintf("\n\n==> %s in the Web UI: %s", route.Description, tc.expectedURL)
 
