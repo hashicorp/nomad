@@ -497,10 +497,30 @@ func TestMeta_ShowUIPath_CLIURLLinksDisabled(t *testing.T) {
 	must.StrNotContains(t, hint, url+"/ui/jobs")
 }
 
-// TODO: invalid/edge cases
-// - unknown command
-// - missing required params
-// - invalid path params
-// - --output flag on job run
+func TestMeta_ShowUIPath_BrowserOpening(t *testing.T) {
+	ci.Parallel(t)
 
-// TODO: browser opening tests
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.CLIURLLinks = pointer.Of(true)
+	})
+	defer server.Shutdown()
+	waitForNodes(t, client)
+
+	ui := cli.NewMockUi()
+
+	m := &Meta{
+		Ui:          ui,
+		flagAddress: url,
+	}
+
+	hint, err := m.showUIPath(UIHintContext{
+		Command: "job status",
+		OpenURL: true,
+	})
+	must.NoError(t, err)
+	must.StrContains(t, hint, url+"/ui/jobs")
+
+	// Not a perfect test, but it's a start: make sure showUIPath isn't warning about
+	// being unable to open the browser.
+	must.StrNotContains(t, ui.ErrorWriter.String(), "Failed to open browser")
+}
