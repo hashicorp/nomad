@@ -8378,12 +8378,6 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
-								Name: "Sticky",
-								Old:  "",
-								New:  "false",
-							},
-							{
-								Type: DiffTypeAdded,
 								Name: "Volume",
 								Old:  "",
 								New:  "vol0",
