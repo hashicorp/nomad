@@ -377,6 +377,25 @@ jobs:
           echo "::group::Smoke test binary"
           docker run --rm -v "$PWD:/src" registry.access.redhat.com/ubi7/ubi-minimal:7.9-1057 /src/nomad version
 
+  handle-failure:
+    needs:
+      - get-go-version
+      - get-product-version
+      - generate-metadata-file
+      - build-other
+      - build-linux
+      - build-darwin
+      - build-docker
+      - minimum-os
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    uses: ./.github/workflows/test-failure-notification.yml
+    secrets: inherit
+    with:
+      actor: ${{ github.triggering_actor }}
+      git-branch: ${{ github.ref_name }}
+      workflow-run-id: ${{ github.run_id }}
+      workflow-name: ${{ github.workflow }}
+
 permissions:
   contents: read
   id-token: write

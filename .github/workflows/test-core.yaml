@@ -121,6 +121,22 @@ jobs:
           sudo -E env "PATH=$PATH" hc-install install -version ${{env.CONSUL_VERSION}} -path '${{env.GOPATH}}/bin' consul
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad
+
+  handle-failure:
+    needs:
+      - checks
+      - compile
+      - tests-api
+      - tests-groups
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    uses: ./.github/workflows/test-failure-notification.yml
+    secrets: inherit
+    with:
+      actor: ${{ github.triggering_actor }}
+      git-branch: ${{ github.ref_name }}
+      workflow-run-id: ${{ github.run_id }}
+      workflow-name: ${{ github.workflow }}
+
 permissions:
   contents: read
   id-token: write
