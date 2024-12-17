@@ -18,8 +18,10 @@ resource "local_sensitive_file" "nomad_environment" {
 }
 
 resource "local_sensitive_file" "nomad_base_config" {
-  content = templatefile("etc/nomad.d/base.hcl", {
-    data_dir = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
+  data_dir = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
+  content = templatefile("${path.module}/etc/nomad.d/base.hcl", {
+    data_dir     = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
+    nomad_region = var.nomad_region
   })
   filename        = "${local.upload_dir}/nomad.d/base.hcl"
   file_permission = "0600"
