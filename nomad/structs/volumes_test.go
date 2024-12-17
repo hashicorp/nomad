@@ -31,9 +31,9 @@ func TestVolumeRequest_Validate(t *testing.T) {
 		{
 			name: "host volume with CSI volume config",
 			expected: []string{
-				"host volumes cannot have an access mode",
-				"host volumes cannot have an attachment mode",
+				"volume has an empty source",
 				"host volumes cannot have mount options",
+				"single-node-reader-only volumes must be read-only",
 				"volume cannot be per_alloc for system or sysbatch jobs",
 				"volume cannot be per_alloc when canaries are in use",
 			},
