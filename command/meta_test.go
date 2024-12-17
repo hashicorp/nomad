@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
@@ -255,6 +256,18 @@ func TestMeta_JobByPrefix(t *testing.T) {
 func TestMeta_ShowUIPath(t *testing.T) {
 	ci.Parallel(t)
 
+	// Create a test server with UI enabled but CLI URL links disabled
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.CLIURLLinks = pointer.Of(true)
+	})
+	defer server.Shutdown()
+	waitForNodes(t, client)
+
+	m := &Meta{
+		Ui:          cli.NewMockUi(),
+		flagAddress: url,
+	}
+
 	cases := []struct {
 		name           string
 		context        UIHintContext
@@ -266,14 +279,14 @@ func TestMeta_ShowUIPath(t *testing.T) {
 			context: UIHintContext{
 				Command: "server members",
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/servers",
+			expectedURL: url + "/ui/servers",
 		},
 		{
 			name: "node status (many)",
 			context: UIHintContext{
 				Command: "node status",
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/clients",
+			expectedURL: url + "/ui/clients",
 		},
 		{
 			name: "node status (single)",
@@ -283,14 +296,14 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"nodeID": "node-1",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/clients/node-1",
+			expectedURL: url + "/ui/clients/node-1",
 		},
 		{
 			name: "job status (many)",
 			context: UIHintContext{
 				Command: "job status",
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/jobs",
+			expectedURL: url + "/ui/jobs",
 		},
 		{
 			name: "job status (single)",
@@ -301,7 +314,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"namespace": "default",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/jobs/example-job@default",
+			expectedURL: url + "/ui/jobs/example-job@default",
 		},
 		{
 			name: "job run (default ns)",
@@ -312,7 +325,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"namespace": "default",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/jobs/example-job@default",
+			expectedURL: url + "/ui/jobs/example-job@default",
 		},
 		{
 			name: "job run (non-default ns)",
@@ -323,7 +336,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"namespace": "prod",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/jobs/example-job@prod",
+			expectedURL: url + "/ui/jobs/example-job@prod",
 		},
 		{
 			name: "job dispatch (default ns)",
@@ -334,7 +347,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"namespace":  "default",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/jobs/dispatch-1@default",
+			expectedURL: url + "/ui/jobs/dispatch-1@default",
 		},
 		{
 			name: "job dispatch (non-default ns)",
@@ -345,14 +358,14 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"namespace":  "toronto",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/jobs/dispatch-1@toronto",
+			expectedURL: url + "/ui/jobs/dispatch-1@toronto",
 		},
 		{
 			name: "eval list",
 			context: UIHintContext{
 				Command: "eval list",
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/evaluations",
+			expectedURL: url + "/ui/evaluations",
 		},
 		{
 			name: "eval status",
@@ -362,7 +375,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"evalID": "eval-1",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/evaluations?currentEval=eval-1",
+			expectedURL: url + "/ui/evaluations?currentEval=eval-1",
 		},
 		{
 			name: "deployment status",
@@ -372,14 +385,14 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"jobID": "example-job",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/jobs/example-job/deployments",
+			expectedURL: url + "/ui/jobs/example-job/deployments",
 		},
 		{
 			name: "var list (root)",
 			context: UIHintContext{
 				Command: "var list",
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/variables",
+			expectedURL: url + "/ui/variables",
 		},
 		{
 			name: "var list (path)",
@@ -389,7 +402,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"prefix": "foo",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/variables/path/foo",
+			expectedURL: url + "/ui/variables/path/foo",
 		},
 		{
 			name: "var get",
@@ -400,7 +413,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"namespace": "default",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/variables/var/foo@default",
+			expectedURL: url + "/ui/variables/var/foo@default",
 		},
 		{
 			name: "var put",
@@ -411,7 +424,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"namespace": "default",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/variables/var/foo@default",
+			expectedURL: url + "/ui/variables/var/foo@default",
 		},
 		{
 			name: "alloc status",
@@ -421,7 +434,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 					"allocID": "alloc-1",
 				},
 			},
-			expectedURL: "http://127.0.0.1:4646/ui/allocations/alloc-1",
+			expectedURL: url + "/ui/allocations/alloc-1",
 		},
 	}
 
@@ -433,21 +446,63 @@ func TestMeta_ShowUIPath(t *testing.T) {
 			route := CommandUIRoutes[tc.context.Command]
 			expectedHint := fmt.Sprintf("\n\n==> %s in the Web UI: %s", route.Description, tc.expectedURL)
 
-			m := &Meta{
-				Ui: cli.NewMockUi(),
-			}
-
 			hint, err := m.showUIPath(tc.context)
 			must.NoError(t, err)
 			must.Eq(t, expectedHint, hint)
 		})
 	}
-
-	// TODO: invalid/edge cases
-	// - unknown command
-	// - missing required params
-	// - invalid path params
-	// - --output flag on job run
-
-	// TODO: browser opening tests
 }
+
+func TestMeta_ShowUIPath_CLIURLLinksEnabled(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a test server with UI enabled and CLI URL links enabled
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.CLIURLLinks = pointer.Of(true)
+	})
+	defer server.Shutdown()
+	waitForNodes(t, client)
+
+	m := &Meta{
+		Ui:          cli.NewMockUi(),
+		flagAddress: url,
+	}
+
+	hint, err := m.showUIPath(UIHintContext{
+		Command: "job status",
+	})
+	must.NoError(t, err)
+
+	must.StrContains(t, hint, url+"/ui/jobs")
+}
+
+func TestMeta_ShowUIPath_CLIURLLinksDisabled(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a test server with UI enabled and CLI URL links disabled
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.CLIURLLinks = pointer.Of(false)
+	})
+	defer server.Shutdown()
+	waitForNodes(t, client)
+
+	m := &Meta{
+		Ui:          cli.NewMockUi(),
+		flagAddress: url,
+	}
+
+	hint, err := m.showUIPath(UIHintContext{
+		Command: "job status",
+	})
+	must.NoError(t, err)
+
+	must.StrNotContains(t, hint, url+"/ui/jobs")
+}
+
+// TODO: invalid/edge cases
+// - unknown command
+// - missing required params
+// - invalid path params
+// - --output flag on job run
+
+// TODO: browser opening tests
