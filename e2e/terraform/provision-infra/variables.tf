@@ -56,6 +56,11 @@ variable "nomad_local_binary" {
   default     = ""
 }
 
+variable "nomad_region" {
+  description = "The name of the Nomad region."
+  default     = "e2e"
+}
+
 variable "nomad_license" {
   type        = string
   description = "If nomad_license is set, deploy a license"

@@ -11,4 +11,5 @@ module "provision-infra" {
   nomad_local_binary = var.nomad_local_binary
   nomad_license = var.nomad_license
   consul_license = var.consul_license
+  nomad_region = var.nomad_region
 }

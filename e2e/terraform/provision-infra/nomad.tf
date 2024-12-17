@@ -42,7 +42,7 @@ module "nomad_client_ubuntu_jammy" {
   role     = "client"
   index    = count.index
   instance = aws_instance.client_ubuntu_jammy[count.index]
-
+  nomad_license      = var.nomad_license
   nomad_region       = var.nomad_region
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_jammy_amd64) ? var.nomad_local_binary_client_ubuntu_jammy_amd64[count.index] : var.nomad_local_binary
 
