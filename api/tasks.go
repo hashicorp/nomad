@@ -455,6 +455,7 @@ type VolumeRequest struct {
 	Type           string           `hcl:"type,optional"`
 	Source         string           `hcl:"source,optional"`
 	ReadOnly       bool             `hcl:"read_only,optional"`
+	Sticky         bool             `hcl:"sticky,optional"`
 	AccessMode     string           `hcl:"access_mode,optional"`
 	AttachmentMode string           `hcl:"attachment_mode,optional"`
 	MountOptions   *CSIMountOptions `hcl:"mount_options,block"`
@@ -474,6 +475,7 @@ type VolumeMount struct {
 	Volume          *string `hcl:"volume,optional"`
 	Destination     *string `hcl:"destination,optional"`
 	ReadOnly        *bool   `mapstructure:"read_only" hcl:"read_only,optional"`
+	Sticky          *bool   `mapstructure:"sticky" hcl:"sticky,optional"`
 	PropagationMode *string `mapstructure:"propagation_mode" hcl:"propagation_mode,optional"`
 	SELinuxLabel    *string `mapstructure:"selinux_label" hcl:"selinux_label,optional"`
 }
@@ -485,6 +487,10 @@ func (vm *VolumeMount) Canonicalize() {
 
 	if vm.ReadOnly == nil {
 		vm.ReadOnly = pointerOf(false)
+	}
+
+	if vm.Sticky == nil {
+		vm.Sticky = pointerOf(false)
 	}
 
 	if vm.SELinuxLabel == nil {
