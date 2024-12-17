@@ -220,7 +220,7 @@
             </t.head>
             <t.body @key="model.id" as |row|>
               <AllocationRow
-                {{keyboard-shortcut 
+                {{keyboard-shortcut
                   enumerated=true
                   action=(action "gotoAllocation" row.model)
                 }}
@@ -359,5 +359,11 @@
         </ListTable>
       </div>
     </div>
+  {{/if}}
+
+  {{#if this.model.meta}}
+    <JobPage::Parts::Meta
+      @meta={{this.model.meta}}
+    />
   {{/if}}
 </section>
