@@ -2166,7 +2166,6 @@ func apiVolumeMountsToStructs(in []*api.VolumeMount) []*structs.VolumeMount {
 					Volume:          *mount.Volume,
 					Destination:     *mount.Destination,
 					ReadOnly:        *mount.ReadOnly,
-					Sticky:          *mount.Sticky,
 					PropagationMode: *mount.PropagationMode,
 					SELinuxLabel:    *mount.SELinuxLabel,
 				})

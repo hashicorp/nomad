@@ -263,7 +263,6 @@ type VolumeMount struct {
 	Volume          string
 	Destination     string
 	ReadOnly        bool
-	Sticky          bool
 	PropagationMode string
 	SELinuxLabel    string
 }
@@ -283,8 +282,6 @@ func (v *VolumeMount) Equal(o *VolumeMount) bool {
 	case v.Destination != o.Destination:
 		return false
 	case v.ReadOnly != o.ReadOnly:
-		return false
-	case v.Sticky != o.Sticky:
 		return false
 	case v.PropagationMode != o.PropagationMode:
 		return false
