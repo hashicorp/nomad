@@ -13,6 +13,8 @@ do
     echo NOMAD_CACERT = $NOMAD_CACERT
     echo NOMAD_CLIENT_CERT = $NOMAD_CLIENT_CERT
     echo NOMAD_CLIENT_KEY = $NOMAD_CLIENT_KEY
+    pwd
+    echo $(pwd)
     sleep 5
 done
 set -e
@@ -20,7 +22,7 @@ set -e
 export NOMAD_TOKEN="$ROOT_TOKEN"
 
 mkdir -p ../keys
-echo $NOMAD_TOKEN > "${DIR}/../keys/nomad_root_token"
+echo $NOMAD_TOKEN > "${DIR}/../../keys/nomad_root_token"
 
 # Our default policy after bootstrapping will be full-access. Without
 # further policy, we only test that we're hitting the ACL code
