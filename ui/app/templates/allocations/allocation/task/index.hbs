@@ -287,4 +287,9 @@
       </ListTable>
     </div>
   </div>
+  {{#if this.model.task.meta}}
+    <JobPage::Parts::Meta
+      @meta={{this.model.task.meta}}
+    />
+  {{/if}}
 </section>
