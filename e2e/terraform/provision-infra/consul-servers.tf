@@ -21,7 +21,7 @@ resource "local_sensitive_file" "consul_server_config_file" {
     nomad_token      = "${random_uuid.consul_token_for_nomad.result}"
     autojoin_value   = "auto-join-${local.random_name}"
   })
-  filename        = "uploads/shared/consul.d/servers.hcl"
+  filename        = "${path.module}/provision-nomad/uploads/shared/consul.d/servers.hcl"
   file_permission = "0600"
 }
 
@@ -59,12 +59,12 @@ resource "tls_locally_signed_cert" "consul_server" {
 
 resource "local_sensitive_file" "consul_server_key" {
   content  = tls_private_key.consul_server.private_key_pem
-  filename = "uploads/shared/consul.d/server_cert.key.pem"
+  filename = "${path.module}/provision-nomad/uploads/shared/consul.d/server_cert.key.pem"
 }
 
 resource "local_sensitive_file" "consul_server_cert" {
   content  = tls_locally_signed_cert.consul_server.cert_pem
-  filename = "uploads/shared/consul.d/server_cert.pem"
+  filename = "${path.module}/provision-nomad/uploads/shared/consul.d/server_cert.pem"
 }
 
 # if consul_license is unset, it'll be a harmless empty license file
@@ -72,7 +72,7 @@ resource "local_sensitive_file" "consul_environment" {
   content = templatefile("${path.module}/provision-nomad/etc/consul.d/.environment", {
     license = var.consul_license
   })
-  filename        = "uploads/shared/consul.d/.environment"
+  filename        = "${path.module}/provision-nomad/uploads/shared/consul.d/.environment"
   file_permission = "0600"
 }
 
@@ -97,23 +97,23 @@ resource "null_resource" "upload_consul_server_configs" {
   }
 
   provisioner "file" {
-    source      = "keys/tls_ca.crt"
+    source      = "${path.root}/keys/tls_ca.crt"
     destination = "/tmp/consul_ca.pem"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/.environment"
+    source      = "${path.module}/provision-nomad/uploads/shared/consul.d/.environment"
     destination = "/tmp/.consul_environment"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/server_cert.pem"
+    source      = "${path.module}/provision-nomad/uploads/shared/consul.d/server_cert.pem"
     destination = "/tmp/consul_cert.pem"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/server_cert.key.pem"
+    source      = "${path.module}/provision-nomad/uploads/shared/consul.d/server_cert.key.pem"
     destination = "/tmp/consul_cert.key.pem"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/servers.hcl"
+    source      = "${path.module}/provision-nomad/uploads/shared/consul.d/servers.hcl"
     destination = "/tmp/consul_server.hcl"
   }
   provisioner "file" {
@@ -166,10 +166,10 @@ resource "null_resource" "bootstrap_consul_acls" {
   depends_on = [null_resource.install_consul_server_configs]
 
   provisioner "local-exec" {
-    command = "./scripts/bootstrap-consul.sh"
+    command = "${path.module}/scripts/bootstrap-consul.sh"
     environment = {
       CONSUL_HTTP_ADDR           = "https://${aws_instance.consul_server.public_ip}:8501"
-      CONSUL_CACERT              = "keys/tls_ca.crt"
+      CONSUL_CACERT              = "${path.root}/keys/tls_ca.crt"
       CONSUL_HTTP_TOKEN          = "${random_uuid.consul_initial_management_token.result}"
       CONSUL_AGENT_TOKEN         = "${random_uuid.consul_agent_token.result}"
       NOMAD_CLUSTER_CONSUL_TOKEN = "${random_uuid.consul_token_for_nomad.result}"

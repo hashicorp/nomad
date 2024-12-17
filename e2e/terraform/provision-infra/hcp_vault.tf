@@ -48,6 +48,6 @@ resource "local_sensitive_file" "nomad_config_for_vault" {
     namespace = var.hcp_vault_namespace
     role      = "nomad-tasks-${local.random_name}"
   })
-  filename        = "uploads/shared/nomad.d/vault.hcl"
+  filename        = "${path.module}/provision-nomad/uploads/shared/nomad.d/vault.hcl"
   file_permission = "0600"
 }

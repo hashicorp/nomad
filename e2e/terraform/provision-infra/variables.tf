@@ -53,16 +53,19 @@ variable "restrict_ingress_cidrblock" {
 
 variable "nomad_local_binary" {
   description = "The path to a local binary to provision"
+  default     = ""
 }
 
 variable "nomad_license" {
   type        = string
   description = "If nomad_license is set, deploy a license"
+  default     = ""
 }
 
 variable "consul_license" {
   type        = string
   description = "If consul_license is set, deploy a license"
+  default     = ""
 }
 
 variable "volumes" {

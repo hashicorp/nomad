@@ -6,5 +6,7 @@
 # before running `terraform apply` and created the /pkg/goos_goarch/binary 
 # folder
 
-nomad_local_binary                           = "../../pkg/linux_amd64/nomad"
+nomad_local_binary                           = "/Users/juanita.delacuestamorales/nomad/linux-amd64-ce/nomad"
 nomad_local_binary_client_windows_2016_amd64 = ["../../pkg/windows_amd64/nomad.exe"]
+server_count = 1
+client_count_linux = 1
