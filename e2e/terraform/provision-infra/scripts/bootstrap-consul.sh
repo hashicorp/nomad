@@ -9,6 +9,12 @@ while true :
 do
     consul info && break
     echo "Consul server not ready, waiting 5s"
+    echo "CONSUL_HTTP_ADDR = $CONSUL_HTTP_ADDR"
+    echo "CONSUL_HTTP_ADDR = $CONSUL_HTTP_ADDR"
+    echo "CONSUL_CACERT = $CONSUL_CACERT"
+    echo "CONSUL_HTTP_TOKEN = $CONSUL_HTTP_TOKEN"
+    echo "CONSUL_AGENT_TOKEN = $CONSUL_AGENT_TOKEN"
+    echo "NOMAD_CLUSTER_CONSUL_TOKEN = $NOMAD_CLUSTER_CONSUL_TOKEN"
     sleep 5
 done
 

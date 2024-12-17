@@ -32,16 +32,16 @@ module "nomad_server" {
 
 # TODO: split out the different Linux targets (ubuntu, centos, arm, etc.) when
 # they're available
-module "nomad_client_ubuntu_jammy_amd64" {
+module "nomad_client_ubuntu_jammy" {
   source     = "./provision-nomad"
-  depends_on = [aws_instance.client_ubuntu_jammy_amd64]
-  count      = var.client_count_ubuntu_jammy_amd64
+  depends_on = [aws_instance.client_ubuntu_jammy]
+  count      = var.client_count_linux
 
   platform = "linux"
   arch     = "linux_amd64"
   role     = "client"
   index    = count.index
-  instance = aws_instance.client_ubuntu_jammy_amd64[count.index]
+  instance = aws_instance.client_ubuntu_jammy[count.index]
 
   nomad_region       = var.nomad_region
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_jammy_amd64) ? var.nomad_local_binary_client_ubuntu_jammy_amd64[count.index] : var.nomad_local_binary
