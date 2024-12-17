@@ -22,7 +22,7 @@
       PlacementFailures=(component "job-page/parts/placement-failures" job=@job)
       TaskGroups=(component "job-page/parts/task-groups" job=@job)
       RecentAllocations=(component "job-page/parts/recent-allocations" job=@job activeTask=@activeTask setActiveTaskQueryParam=@setActiveTaskQueryParam)
-      Meta=(component "job-page/parts/meta" job=@job)
+      Meta=(component "job-page/parts/meta" meta=@job.meta)
       DasRecommendations=(component
         "job-page/parts/das-recommendations" job=@job
       )

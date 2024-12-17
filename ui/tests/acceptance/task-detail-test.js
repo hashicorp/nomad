@@ -12,7 +12,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import moment from 'moment';
-
 let allocation;
 let task;
 
@@ -211,6 +210,28 @@ module('Acceptance | task detail', function (hooks) {
         taskGroup.volumes[volume.Volume].Source
       );
     });
+  });
+
+  test('when a task group has metadata, the metadata table is shown', async function (assert) {
+    const job = server.create('job', {
+      createAllocations: false,
+    });
+    const taskGroup = server.create('task-group', {
+      job,
+      name: 'scaling',
+      count: 1,
+      withTaskMeta: true,
+    });
+    job.update({ taskGroupIds: [taskGroup.id] });
+    allocation = server.db.allocations[1];
+    server.db.taskStates.update(
+      { allocationId: allocation.id },
+      { state: 'running' }
+    );
+    const jobTask = taskGroup.tasks.models[0];
+    task = jobTask;
+    await Task.visit({ id: allocation.id, name: task.name });
+    assert.ok(Task.hasMeta);
   });
 
   test('each recent event should list the time, type, and description of the event', async function (assert) {

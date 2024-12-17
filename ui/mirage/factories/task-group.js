@@ -57,6 +57,9 @@ export default Factory.extend({
   // When true, the group will simulate a "scheduled" block's paused state
   withPausedTasks: false,
 
+  // When true, the tasks will have metadata
+  withTaskMeta: false,
+
   afterCreate(group, server) {
     let taskIds = [];
     let volumes = Object.keys(group.volumes);
@@ -114,6 +117,7 @@ export default Factory.extend({
           })),
           createRecommendations: group.createRecommendations,
           withSchedule: group.withPausedTasks,
+          withMeta: group.withTaskMeta,
         });
       });
       taskIds = tasks.mapBy('id');
