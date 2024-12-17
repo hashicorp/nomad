@@ -146,7 +146,5 @@ func (c *PluginStatusCommand) Run(args []string) int {
 
 	// Extend this section with other plugin implementations
 
-	// TODO: add UI Hints
-
 	return 0
 }
