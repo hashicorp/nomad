@@ -485,7 +485,7 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		semverCache:  make(map[string]scheduler.VerConstraints),
 	}
 	constraints := []*structs.Constraint{{
-		LTarget: fmt.Sprintf("${attr.plugins.host_volume.version.%s}", vol.PluginID),
+		LTarget: fmt.Sprintf("${attr.plugins.host_volume.%s.version}", vol.PluginID),
 		Operand: "is_set",
 	}}
 	constraints = append(constraints, vol.Constraints...)

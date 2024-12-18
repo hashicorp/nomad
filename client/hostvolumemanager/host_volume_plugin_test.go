@@ -33,7 +33,7 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 
 	// contexts don't matter here, since they're thrown away by this plugin,
 	// but sending timeout contexts anyway, in case the plugin changes later.
-	_, err := plug.Version(timeout(t))
+	_, err := plug.Fingerprint(timeout(t))
 	must.NoError(t, err)
 
 	t.Run("happy", func(t *testing.T) {
@@ -97,9 +97,9 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			log:        log,
 		}
 
-		v, err := plug.Version(timeout(t))
+		v, err := plug.Fingerprint(timeout(t))
 		must.NoError(t, err)
-		must.Eq(t, expectVersion, v)
+		must.Eq(t, expectVersion, v.Version)
 
 		resp, err := plug.Create(timeout(t),
 			&cstructs.ClientHostVolumeCreateRequest{
@@ -147,12 +147,12 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			log:        log,
 		}
 
-		v, err := plug.Version(timeout(t))
+		v, err := plug.Fingerprint(timeout(t))
 		must.EqError(t, err, `error getting version from plugin "test-external-plugin-sad": exit status 1`)
 		must.Nil(t, v)
 		logged := getLogs()
-		must.StrContains(t, logged, "version: sad plugin is sad")
-		must.StrContains(t, logged, "version: it tells you all about it in stderr")
+		must.StrContains(t, logged, "fingerprint: sad plugin is sad")
+		must.StrContains(t, logged, "fingerprint: it tells you all about it in stderr")
 
 		// reset logger
 		log, getLogs = logRecorder(t)

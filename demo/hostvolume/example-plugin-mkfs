@@ -6,6 +6,11 @@
 
 set -euo pipefail
 
+version='0.0.1'
+fingerprint() {
+  printf '{"version": "%s"}' "$version"
+}
+
 help() {
   cat <<EOF
 Dynamic Host Volume plugin which creates an ext4 loopback drive of
@@ -14,7 +19,7 @@ the minimum requested size, and mounts it at the provided path argument.
 Note: Requires superuser access to mount.
 
 Usage:
-  $(basename "$0") [options] <create|delete|version> [path]
+  $(basename "$0") [options] <create|delete|fingerprint> [path]
 
 Options:
   -v|--verbose: Show shell commands (set -x)
@@ -25,13 +30,10 @@ Operations:
     required environment:
       CAPACITY_MIN_BYTES
   delete: Unmounts and deletes the device at path (required)
-  version: Outputs this plugin's version
+  version: Outputs this plugin's version: $version
+  fingerprint: Outputs plugin metadata: $(fingerprint)
 
 EOF
-}
-
-version() {
-  echo "0.0.1"
 }
 
 # parse args
@@ -39,7 +41,8 @@ version() {
 for arg in "$@"; do
   case $arg in
     -h|-help|--help) help; exit 0 ;;
-    version|--version) version; exit 0 ;;
+    fingerprint|fingerprint) fingerprint; exit 0 ;;
+    version|version) echo "$version"; exit 0 ;;
     -v|--verbose) set -x; shift; ;;
   esac
 done

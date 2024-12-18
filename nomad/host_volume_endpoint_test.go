@@ -666,14 +666,14 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 
 	node0, node1, node2, node3 := mock.Node(), mock.Node(), mock.Node(), mock.Node()
 	node0.NodePool = structs.NodePoolDefault
-	node0.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
+	node0.Attributes["plugins.host_volume.mkdir.version"] = "0.0.1"
 
 	node1.NodePool = "dev"
 	node1.Meta["rack"] = "r2"
-	node1.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
+	node1.Attributes["plugins.host_volume.mkdir.version"] = "0.0.1"
 
 	node2.NodePool = "prod"
-	node2.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
+	node2.Attributes["plugins.host_volume.mkdir.version"] = "0.0.1"
 
 	node3.NodePool = "prod"
 	node3.Meta["rack"] = "r3"
@@ -681,7 +681,7 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 		Name: "example",
 		Path: "/srv",
 	}}
-	node3.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
+	node3.Attributes["plugins.host_volume.mkdir.version"] = "0.0.1"
 
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node0))
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
@@ -785,7 +785,7 @@ func newMockHostVolumeClient(t *testing.T, srv *Server, pool string) (*mockHostV
 	c1, cleanup := client.TestRPCOnlyClient(t, func(c *config.Config) {
 		c.Node.NodePool = pool
 		c.Node.Attributes["nomad.version"] = version.Version
-		c.Node.Attributes["plugins.host_volume.version.mkdir"] = "0.0.1"
+		c.Node.Attributes["plugins.host_volume.mkdir.version"] = "0.0.1"
 		c.Node.Meta["rack"] = "r1"
 	}, srv.config.RPCAddr, map[string]any{"HostVolume": mockClientEndpoint})
 	t.Cleanup(cleanup)
