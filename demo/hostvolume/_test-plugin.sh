@@ -4,35 +4,48 @@
 
 set -euo pipefail
 
-if [[ $# -eq 0 || "$*" =~ -h ]]; then
+help() {
   cat <<EOF
 Runs a Dynamic Host Volume plugin with dummy values.
 
 Usage:
-  $(basename "$0") <operation>
+  $0 <plugin> <operation> [target dir] [uuid]
 
-Operations:
-  create, delete, version
-  any other operation will be passed to the plugin
+Args:
+  plugin: path to plugin executable
+  operation: fingerprint, create, or delete
+    create and delete must be idempotent.
+    any other operation will be passed into the plugin,
+    to see how it handles invalid operations.
+  target dir: directory to create the volume (defaults to /tmp)
+  uuid: volume id to use (usually assigned by Nomad;
+    defaults to 74564d17-ce50-0bc1-48e5-6feaa41ede48)
 
-Environment variables:
-  PLUGIN: executable to run (default ./example-host-volume)
-  TARGET_DIR: path to place the mount dir (default /tmp,
-    usually {nomad data dir}/alloc_mounts)
+Examples:
+  $0 ./example-plugin-mkfs fingerprint
+  $0 ./example-plugin-mkfs create
+  $0 ./example-plugin-mkfs create /some/other/place
+  $0 ./example-plugin-mkfs delete
 EOF
+}
+
+if [[ $# -eq 0 || "$*" =~ -h ]]; then
+  help
   exit
 fi
+if [ $# -lt 2 ]; then
+  help
+  exit 1
+fi
 
-op="$1"
-shift
-
-plugin="${PLUGIN:-./example-host-volume}"
-alloc_mounts="${TARGET_DIR:-/tmp}"
-uuid='74564d17-ce50-0bc1-48e5-6feaa41ede48'
+plugin="$1"
+op="$2"
+alloc_mounts="${3:-/tmp}"
+uuid="${4:-74564d17-ce50-0bc1-48e5-6feaa41ede48}"
 
 case $op in
-  version)
-    args='version'
+  fingerprint)
+    args='fingerprint'
     ;;
 
 	create)
@@ -59,4 +72,4 @@ esac
 
 export OPERATION="$op"
 set -x
-eval "$plugin $* $args"
+eval "$plugin $args"

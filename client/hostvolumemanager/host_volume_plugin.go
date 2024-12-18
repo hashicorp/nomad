@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -21,8 +20,12 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
+type PluginFingerprint struct {
+	Version *version.Version `json:"version"`
+}
+
 type HostVolumePlugin interface {
-	Version(ctx context.Context) (*version.Version, error)
+	Fingerprint(ctx context.Context) (*PluginFingerprint, error)
 	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error)
 	Delete(ctx context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error
 	// db TODO(1.10.0): update? resize? ??
@@ -45,8 +48,11 @@ type HostVolumePluginMkdir struct {
 	log hclog.Logger
 }
 
-func (p *HostVolumePluginMkdir) Version(_ context.Context) (*version.Version, error) {
-	return version.NewVersion(HostVolumePluginMkdirVersion)
+func (p *HostVolumePluginMkdir) Fingerprint(_ context.Context) (*PluginFingerprint, error) {
+	v, err := version.NewVersion(HostVolumePluginMkdirVersion)
+	return &PluginFingerprint{
+		Version: v,
+	}, err
 }
 
 func (p *HostVolumePluginMkdir) Create(_ context.Context,
@@ -134,9 +140,9 @@ type HostVolumePluginExternal struct {
 	log hclog.Logger
 }
 
-func (p *HostVolumePluginExternal) Version(ctx context.Context) (*version.Version, error) {
-	cmd := exec.CommandContext(ctx, p.Executable, "version")
-	cmd.Env = []string{"OPERATION=version"}
+func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFingerprint, error) {
+	cmd := exec.CommandContext(ctx, p.Executable, "fingerprint")
+	cmd.Env = []string{"OPERATION=fingerprint"}
 	stdout, stderr, err := runCommand(cmd)
 	if err != nil {
 		p.log.Debug("error with plugin",
@@ -146,11 +152,11 @@ func (p *HostVolumePluginExternal) Version(ctx context.Context) (*version.Versio
 			"error", err)
 		return nil, fmt.Errorf("error getting version from plugin %q: %w", p.ID, err)
 	}
-	v, err := version.NewVersion(strings.TrimSpace(string(stdout)))
-	if err != nil {
-		return nil, fmt.Errorf("error with version from plugin: %w", err)
+	fprint := &PluginFingerprint{}
+	if err := json.Unmarshal(stdout, fprint); err != nil {
+		return nil, fmt.Errorf("error parsing fingerprint output as json: %w", err)
 	}
-	return v, nil
+	return fprint, nil
 }
 
 func (p *HostVolumePluginExternal) Create(ctx context.Context,

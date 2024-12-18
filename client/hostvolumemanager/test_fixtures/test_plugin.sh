@@ -12,6 +12,8 @@ test "$1" == "$OPERATION"
 echo 'all operations should ignore stderr' 1>&2
 
 case $1 in
+  fingerprint)
+    echo '{"version": "0.0.2"}' ;;
   create)
     test "$2" == "$HOST_PATH"
     test "$NODE_ID" == 'test-node'
@@ -26,8 +28,6 @@ case $1 in
     test "$NODE_ID" == 'test-node'
     test "$PARAMETERS" == '{"key":"val"}'
     rm -rfv "$2" ;;
-  version)
-    echo '0.0.2' ;;
   *)
     echo "unknown operation $1"
     exit 1 ;;
