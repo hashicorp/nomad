@@ -133,7 +133,7 @@ resource "null_resource" "install_consul_server_configs" {
     user            = "ubuntu"
     host            = aws_instance.consul_server.public_ip
     port            = 22
-    private_key     = file("${}/keys/${local.random_name}.pem")
+    private_key     = file("${path.module}/../keys/${local.random_name}.pem")
     target_platform = "unix"
     timeout         = "15m"
   }
