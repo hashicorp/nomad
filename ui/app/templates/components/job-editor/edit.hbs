@@ -70,10 +70,14 @@
       }}
     ></div>
   </div>
-  {{#if (eq @data.view "job-spec")}}
+  {{#if (or (eq @data.view "job-spec") @data.job.isNew)}}
     <div class="boxed-section" style="margin-top: 10px">
       <div class="boxed-section-head">
+        {{#if @data.job.isNew}}
+        HCL Variable Values
+        {{else}}
         Edit HCL Variable Values
+        {{/if}}
       </div>
       <div class="boxed-section-body is-full-bleed">
         <div
