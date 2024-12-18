@@ -477,7 +477,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 }
 
 // TestDynamicHostVolumeIsAvailable provides fine-grained coverage of the
-// dynamicHostVolumeIsAvailable function
+// hostVolumeIsAvailable method
 func TestDynamicHostVolumeIsAvailable(t *testing.T) {
 
 	store, ctx := testContext(t)

@@ -290,14 +290,16 @@ func (h *HostVolumeChecker) hostVolumeIsAvailable(
 		// examine all proposed allocs on the node, including those that might
 		// not have yet been persisted. they have nil pointers to their Job, so
 		// we have to go back to the state store to get them
-		seen := map[structs.NamespacedID]struct{}{}
+		seen := map[string]struct{}{}
 		for _, alloc := range proposed {
-			if _, ok := seen[alloc.JobNamespacedID()]; ok {
-				// all allocs for the same job will have the same read-only flag
-				// and capabilities, so we only need to check a given job once
+			uniqueGroup := alloc.JobNamespacedID().String() + alloc.TaskGroup
+			if _, ok := seen[uniqueGroup]; ok {
+				// all allocs for the same group will have the same read-only
+				// flag and capabilities, so we only need to check a given group
+				// once
 				continue
 			}
-			seen[alloc.JobNamespacedID()] = struct{}{}
+			seen[uniqueGroup] = struct{}{}
 			job, err := h.ctx.State().JobByID(nil, alloc.Namespace, alloc.JobID)
 			if err != nil {
 				return false
