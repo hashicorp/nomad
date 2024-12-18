@@ -118,8 +118,11 @@ type State interface {
 	// CSIVolumeByID fetch CSI volumes, containing controller jobs
 	CSIVolumesByNodeID(memdb.WatchSet, string, string) (memdb.ResultIterator, error)
 
+	// HostVolumeByID fetches host volume by its ID
 	HostVolumeByID(memdb.WatchSet, string, string, bool) (*structs.HostVolume, error)
 
+	// HostVolumesByNodeID gets an iterator with all the volumes attached to a
+	// given node
 	HostVolumesByNodeID(memdb.WatchSet, string, state.SortOption) (memdb.ResultIterator, error)
 
 	// LatestIndex returns the greatest index value for all indexes.

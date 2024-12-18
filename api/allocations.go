@@ -278,6 +278,8 @@ type Allocation struct {
 	Resources             *Resources
 	TaskResources         map[string]*Resources
 	AllocatedResources    *AllocatedResources
+	HostVolumeIDs         []string
+	CSIVolumeIDs          []string
 	Services              map[string]string
 	Metrics               *AllocationMetric
 	DesiredStatus         string
