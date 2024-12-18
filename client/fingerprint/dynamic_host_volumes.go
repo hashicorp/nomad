@@ -35,7 +35,7 @@ func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintReq
 	// always add "mkdir" plugin
 	h.logger.Debug("detected plugin built-in",
 		"plugin_id", hvm.HostVolumePluginMkdirID, "version", hvm.HostVolumePluginMkdirVersion)
-	defer response.AddAttribute("plugins.host_volume.version."+hvm.HostVolumePluginMkdirID, hvm.HostVolumePluginMkdirVersion)
+	defer response.AddAttribute("plugins.host_volume."+hvm.HostVolumePluginMkdirID+".version", hvm.HostVolumePluginMkdirVersion)
 	response.Detected = true
 
 	// this config value will be empty in -dev mode
@@ -64,7 +64,7 @@ func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintReq
 	// set the attribute(s)
 	for plugin, version := range plugins {
 		h.logger.Debug("detected plugin", "plugin_id", plugin, "version", version)
-		response.AddAttribute("plugins.host_volume.version."+plugin, version)
+		response.AddAttribute("plugins.host_volume."+plugin+".version", version)
 	}
 
 	return nil
