@@ -53,10 +53,10 @@ func TestPluginsHostVolumeFingerprint(t *testing.T) {
 		perm     os.FileMode
 	}{
 		// only this first one should be detected as a valid plugin
-		{"happy-plugin", "#!/usr/bin/env sh\necho '0.0.1'", 0700},
-		{"not-a-plugin", "#!/usr/bin/env sh\necho 'not-a-version'", 0700},
-		{"unhappy-plugin", "#!/usr/bin/env sh\necho '0.0.2'; exit 1", 0700},
-		{"not-executable", "hello", 0400},
+		{"happy-plugin", "#!/usr/bin/env sh\necho '{\"version\": \"0.0.1\"}'", 0700},
+		{"not-a-plugin", "#!/usr/bin/env sh\necho 'not a version'", 0700},
+		{"unhappy-plugin", "#!/usr/bin/env sh\necho 'sad plugin is sad'; exit 1", 0700},
+		{"not-executable", "do not execute me", 0400},
 	}
 	for _, f := range files {
 		must.NoError(t, os.WriteFile(filepath.Join(tmp, f.name), []byte(f.contents), f.perm))

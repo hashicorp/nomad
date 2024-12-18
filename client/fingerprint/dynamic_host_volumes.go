@@ -103,14 +103,14 @@ func GetHostVolumePluginVersions(log hclog.Logger, pluginDir string) (map[string
 				return
 			}
 
-			version, err := p.Version(ctx)
+			fprint, err := p.Fingerprint(ctx)
 			if err != nil {
 				log.Debug("failed to get version from plugin", "error", err)
 				return
 			}
 
 			mut.Lock()
-			plugins[file] = version.String()
+			plugins[file] = fprint.Version.String()
 			mut.Unlock()
 		}(file, fullPath)
 	}
