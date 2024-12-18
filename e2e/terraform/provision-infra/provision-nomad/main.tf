@@ -67,7 +67,7 @@ resource "null_resource" "upload_consul_configs" {
     destination = "/tmp/consul_cert.pem"
   }
   provisioner "file" {
-    source      = "${path.root}/keys/tls_ca.crt"
+    source      = "${path.module}/../keys/tls_ca.crt"
     destination = "/tmp/consul_ca.crt"
   }
   provisioner "file" {
@@ -136,23 +136,23 @@ resource "null_resource" "upload_nomad_configs" {
     destination = "/tmp/agent-${var.instance.public_ip}.crt"
   }
   provisioner "file" {
-    source      = "${path.root}/keys/tls_api_client.key"
+    source      = "${path.module}/../keys/tls_api_client.key"
     destination = "/tmp/tls_proxy.key"
   }
   provisioner "file" {
-    source      = "${path.root}/keys/tls_api_client.crt"
+    source      = "${path.module}/../keys/tls_api_client.crt"
     destination = "/tmp/tls_proxy.crt"
   }
   provisioner "file" {
-    source      = "${path.root}/keys/tls_ca.crt"
+    source      = "${path.module}/../keys/tls_ca.crt"
     destination = "/tmp/ca.crt"
   }
   provisioner "file" {
-    source      = "${path.root}/keys/self_signed.key"
+    source      = "${path.module}/../keys/self_signed.key"
     destination = "/tmp/self_signed.key"
   }
   provisioner "file" {
-    source      = "${path.root}/keys/self_signed.crt"
+    source      = "${path.module}/../keys/self_signed.crt"
     destination = "/tmp/self_signed.crt"
   }
 }

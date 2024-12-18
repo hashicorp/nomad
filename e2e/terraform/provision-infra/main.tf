@@ -20,7 +20,7 @@ locals {
 # Generates keys to use for provisioning and access
 module "keys" {
   name    = local.random_name
-  path    = "${path.root}/keys"
+  path    = "${path.module}/../keys"
   source  = "mitchellh/dynamic-keys/aws"
   version = "v2.0.0"
 }

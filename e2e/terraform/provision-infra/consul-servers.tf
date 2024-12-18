@@ -91,13 +91,13 @@ resource "null_resource" "upload_consul_server_configs" {
     user            = "ubuntu"
     host            = aws_instance.consul_server.public_ip
     port            = 22
-    private_key     = file("${path.root}/keys/${local.random_name}.pem")
+    private_key     = file("${path.module}/../keys/${local.random_name}.pem")
     target_platform = "unix"
     timeout         = "15m"
   }
 
   provisioner "file" {
-    source      = "${path.root}/keys/tls_ca.crt"
+    source      = "${path.module}/../keys/tls_ca.crt"
     destination = "/tmp/consul_ca.pem"
   }
   provisioner "file" {
@@ -133,7 +133,7 @@ resource "null_resource" "install_consul_server_configs" {
     user            = "ubuntu"
     host            = aws_instance.consul_server.public_ip
     port            = 22
-    private_key     = file("${path.root}/keys/${local.random_name}.pem")
+    private_key     = file("${}/keys/${local.random_name}.pem")
     target_platform = "unix"
     timeout         = "15m"
   }
@@ -169,7 +169,7 @@ resource "null_resource" "bootstrap_consul_acls" {
     command = "${path.module}/scripts/bootstrap-consul.sh"
     environment = {
       CONSUL_HTTP_ADDR           = "https://${aws_instance.consul_server.public_ip}:8501"
-      CONSUL_CACERT              = "${path.root}/keys/tls_ca.crt"
+      CONSUL_CACERT              = "${path.module}/../keys/tls_ca.crt"
       CONSUL_HTTP_TOKEN          = "${random_uuid.consul_initial_management_token.result}"
       CONSUL_AGENT_TOKEN         = "${random_uuid.consul_agent_token.result}"
       NOMAD_CLUSTER_CONSUL_TOKEN = "${random_uuid.consul_token_for_nomad.result}"

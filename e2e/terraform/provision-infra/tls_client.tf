@@ -34,12 +34,12 @@ resource "tls_locally_signed_cert" "api_client" {
 
 resource "local_sensitive_file" "api_client_key" {
   content  = tls_private_key.api_client.private_key_pem
-  filename = "${path.root}/keys/tls_api_client.key"
+  filename = "${path.module}/../keys/tls_api_client.key"
 }
 
 resource "local_sensitive_file" "api_client_cert" {
   content  = tls_locally_signed_cert.api_client.cert_pem
-  filename = "${path.root}/keys/tls_api_client.crt"
+  filename = "${path.module}/../keys/tls_api_client.crt"
 }
 
 # Self signed cert for reverse proxy
@@ -66,10 +66,10 @@ resource "tls_self_signed_cert" "self_signed" {
 
 resource "local_sensitive_file" "self_signed_key" {
   content  = tls_private_key.self_signed.private_key_pem
-  filename = "${path.root}/keys/self_signed.key"
+  filename = "${path.module}/../keys/self_signed.key"
 }
 
 resource "local_sensitive_file" "self_signed_cert" {
   content  = tls_self_signed_cert.self_signed.cert_pem
-  filename = "${path.root}/keys/self_signed.crt"
+  filename = "${path.module}/../keys/self_signed.crt"
 }
