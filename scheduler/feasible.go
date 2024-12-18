@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/constraints/semver"
@@ -208,7 +207,6 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 				// raft entry completes
 				return false
 			}
-
 			if vol.State != structs.HostVolumeStateReady {
 				return false
 			}
@@ -220,16 +218,11 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 					break
 				}
 			}
-			// FIXME: remember to uncomment once done testing
 			if !capOk {
-				//return false
-				h.ctx.Logger().Error("it's not ok, but that's okay")
+				return false
 			}
 
-			h.ctx.Logger().Error("host volume full request", "request", spew.Sdump(req))
-
 			if req.Sticky {
-				h.ctx.Logger().Error("host volume is sticky", "h.hostVolumeIDs", spew.Sdump(h.hostVolumeIDs), "vol.ID", spew.Sdump(vol.ID))
 				if slices.Contains(h.hostVolumeIDs, vol.ID) || len(h.hostVolumeIDs) == 0 {
 					return true
 				}
