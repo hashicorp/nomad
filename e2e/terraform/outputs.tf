@@ -10,7 +10,7 @@ output "linux_clients" {
 }
 
 output "windows_clients" {
- value = module.provision-infra.windows_clients
+  value = module.provision-infra.windows_clients
 }
 
 output "message" {

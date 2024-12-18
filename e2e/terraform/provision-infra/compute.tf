@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 locals {
-  ami_prefix = "nomad-e2e-v3"
+  ami_prefix           = "nomad-e2e-v3"
   ubuntu_instance_name = "ubuntu-jammy-${var.instance_architecture}"
 }
 
@@ -101,7 +101,7 @@ data "aws_ami" "ubuntu_jammy_amd64" {
     values = ["Ubuntu"]
   }
 
-/*   filter {
+  /*   filter {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
   } */
@@ -121,7 +121,7 @@ data "aws_ami" "ubuntu_jammy" {
     values = ["Ubuntu"]
   }
 
-/*   filter {
+  /*   filter {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
   } */
