@@ -5,6 +5,7 @@ description: |-
   Learn how Nomad implements garbage collection.
 ---
 
+# Garbage collection
 
 this page how gc works. may need to add second page under operations for how to
 tune garbage collection.
@@ -17,6 +18,7 @@ garbage collection
 - deployments
 - encryption keys
 
+---
 
 The existing documentation lists the various configurations associated with GC, but as this is spread across both server and client configuration, there is no singular place to learn about how GC is implemented by Nomad & what are the available ways to tune it.
 
@@ -93,7 +95,15 @@ an organization that have a stake in GC configuration.
 
 Worth noting that Nomad only GC jobs that are dead and aren't expected to restart again (without manual intervention). If a job lasts for days (e.g. service jobs, super long batch job), it will not be GCed. Only after the job completes or stopped manually, will Nomad GC it. jobIsGCable function clarifies which jobs are GCable, and jobGC performs the threshold check. Also, to clarify, GC is mostly meant as an internal process that prevents Nomad from ever growing memory usage - its only user visible affect should be that completed jobs eventually get removed from API results.
 
+## Client
 
+Settings:
+	MaxAllocs           int
+	DiskUsageThreshold  float64
+	InodeUsageThreshold float64
+	Interval            time.Duration
+	ReservedDiskMB      int
+	ParallelDestroys    int
 
 ## Evaluation
 
@@ -103,13 +113,22 @@ Worth noting that Nomad only GC jobs that are dead and aren't expected to restar
 	// delete these out of the system to bound the state.
 	CoreJobEvalGC = "eval-gc"
 
-## allocation
+# Allocation
  // CoreJobEvalGC is used for the garbage collection of evaluations
 	// and allocations. We periodically scan evaluations in a terminal state,
 	// in which all the corresponding allocations are also terminal. We
 	// delete these out of the system to bound the stat
  If the alloc terminates, and free space is low and/or a lot of allocations are
- running on the client, then the client will GC the allocation. I
+ running on the client, then the client will GC the allocation.
+
+AllocGarbageCollector garbage collects terminated allocations on a node
+
+destroyAllocRunner is used to destroy an allocation runner. It will acquire a
+lock to restrict parallelism and then destroy the alloc runner, returning
+once the allocation has been destroyed.
+
+	// If the host has enough free space to accommodate the new allocations then
+	// we don't need to garbage collect terminated allocations
 
 ## Node
 	// CoreJobNodeGC is used for the garbage collection of failed nodes.
@@ -175,3 +194,56 @@ Worth noting that Nomad only GC jobs that are dead and aren't expected to restar
 	// CoreJobForceGC is used to force garbage collection of all GCable objects.
 	CoreJobForceGC = "force-gc"
 
+
+## configuration
+
+### client
+https://developer.hashicorp.com/nomad/docs/configuration/client
+
+```
+client {
+  gc_interval (string: "1m") - Specifies the interval at which Nomad attempts to garbage collect terminal allocation directories.
+
+gc_disk_usage_threshold (float: 80) - Specifies the disk usage percent which Nomad tries to maintain by garbage collecting terminal allocations.
+
+gc_inode_usage_threshold (float: 70) - Specifies the inode usage percent which Nomad tries to maintain by garbage collecting terminal allocations.
+
+gc_max_allocs (int: 50) - Specifies the maximum number of allocations which a client will track before triggering a garbage collection of terminal allocations. This will not limit the number of allocations a node can run at a time, however after gc_max_allocs every new allocation will cause terminal allocations to be GC'd.
+
+gc_parallel_destroys (int: 2) - Specifies the maximum number of parallel destroys allowed by the garbage collector. This value should be relatively low to avoid high resource usage during garbage collections.
+}
+
+### server
+
+```
+server {
+
+}
+```
+
+https://developer.hashicorp.com/nomad/docs/configuration/server
+
+node_gc_threshold (string: "24h") - Specifies how long a node must be in a terminal state before it is garbage collected and purged from the system. This is specified using a label suffix like "30s" or "1h".
+
+job_gc_interval (string: "5m") - Specifies the interval between the job garbage collections. Only jobs who have been terminal for at least job_gc_threshold will be collected. Lowering the interval will perform more frequent but smaller collections. Raising the interval will perform collections less frequently but collect more jobs at a time. Reducing this interval is useful if there is a large throughput of tasks, leading to a large set of dead jobs. This is specified using a label suffix like "30s" or "3m".
+
+job_gc_threshold (string: "4h") - Specifies the minimum time a job must be in the terminal state before it is eligible for garbage collection. This is specified using a label suffix like "30s" or "1h".
+
+eval_gc_threshold (string: "1h") - Specifies the minimum time an evaluation must be in the terminal state before it is eligible for garbage collection. This is specified using a label suffix like "30s" or "1h". Note that batch job evaluations are controlled via batch_eval_gc_threshold.
+
+batch_eval_gc_threshold (string: "24h") - Specifies the minimum time an evaluation stemming from a batch job must be in the terminal state before it is eligible for garbage collection. This is specified using a label suffix like "30s" or "1h". Note that the threshold is a necessary but insufficient condition for collection, and the most recent evaluation won't be garbage collected even if it breaches the threshold.
+
+deployment_gc_threshold (string: "1h") - Specifies the minimum time a deployment must be in the terminal state before it is eligible for garbage collection. This is specified using a label suffix like "30s" or "1h".
+
+csi_volume_claim_gc_interval (string: "5m") - Specifies the interval between CSI volume claim garbage collections.
+
+csi_volume_claim_gc_threshold (string: "1h") - Specifies the minimum age of a CSI volume before it is eligible to have its claims garbage collected. This is specified using a label suffix like "30s" or "1h".
+
+csi_plugin_gc_threshold (string: "1h") - Specifies the minimum age of a CSI plugin before it is eligible for garbage collection if not in use. This is specified using a label suffix like "30s" or "1h".
+
+acl_token_gc_threshold (string: "1h") - Specifies the minimum age of an expired ACL token before it is eligible for garbage collection. This is specified using a label suffix like "30s" or "1h".
+
+
+root_key_gc_interval (string: "10m") - Specifies the interval between encryption key metadata garbage collections.
+
+root_key_gc_threshold (string: "1h") - Specifies the minimum time after the root_key_rotation_threshold has passed that an encryption key must exist before it can be eligible for garbage collection.
