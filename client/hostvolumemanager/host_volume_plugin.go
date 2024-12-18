@@ -154,7 +154,7 @@ func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFing
 	}
 	fprint := &PluginFingerprint{}
 	if err := json.Unmarshal(stdout, fprint); err != nil {
-		return nil, fmt.Errorf("error parson fingerprint output as json: %w", err)
+		return nil, fmt.Errorf("error parsing fingerprint output as json: %w", err)
 	}
 	return fprint, nil
 }

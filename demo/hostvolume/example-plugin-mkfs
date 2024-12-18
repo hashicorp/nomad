@@ -8,7 +8,7 @@ set -euo pipefail
 
 version='0.0.1'
 fingerprint() {
-  echo '{"version": "'"$version"'"}'
+  printf '{"version": "%s"}' "$version"
 }
 
 help() {
