@@ -275,9 +275,8 @@ func (hvc *HostVolumeCapability) Validate() error {
 	switch hvc.AccessMode {
 	case HostVolumeAccessModeSingleNodeReader,
 		HostVolumeAccessModeSingleNodeWriter,
-		HostVolumeAccessModeMultiNodeReader,
-		HostVolumeAccessModeMultiNodeSingleWriter,
-		HostVolumeAccessModeMultiNodeMultiWriter:
+		HostVolumeAccessModeSingleNodeSingleWriter,
+		HostVolumeAccessModeSingleNodeMultiWriter:
 	default:
 		return fmt.Errorf("invalid access mode: %q", hvc.AccessMode)
 	}
@@ -302,12 +301,10 @@ type HostVolumeAccessMode string
 const (
 	HostVolumeAccessModeUnknown HostVolumeAccessMode = ""
 
-	HostVolumeAccessModeSingleNodeReader HostVolumeAccessMode = "single-node-reader-only"
-	HostVolumeAccessModeSingleNodeWriter HostVolumeAccessMode = "single-node-writer"
-
-	HostVolumeAccessModeMultiNodeReader       HostVolumeAccessMode = "multi-node-reader-only"
-	HostVolumeAccessModeMultiNodeSingleWriter HostVolumeAccessMode = "multi-node-single-writer"
-	HostVolumeAccessModeMultiNodeMultiWriter  HostVolumeAccessMode = "multi-node-multi-writer"
+	HostVolumeAccessModeSingleNodeReader       HostVolumeAccessMode = "single-node-reader-only"
+	HostVolumeAccessModeSingleNodeWriter       HostVolumeAccessMode = "single-node-writer"
+	HostVolumeAccessModeSingleNodeSingleWriter HostVolumeAccessMode = "single-node-single-writer"
+	HostVolumeAccessModeSingleNodeMultiWriter  HostVolumeAccessMode = "single-node-multi-writer"
 )
 
 // HostVolumeStub is used for responses for the list volumes endpoint
