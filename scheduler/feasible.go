@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -137,23 +138,28 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 // HostVolumeChecker is a FeasibilityChecker which returns whether a node has
 // the host volumes necessary to schedule a task group.
 type HostVolumeChecker struct {
-	ctx        Context
-	volumeReqs []*structs.VolumeRequest
-	namespace  string
+	ctx           Context
+	volumeReqs    []*structs.VolumeRequest
+	hostVolumeIDs []string
+	namespace     string
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 	return &HostVolumeChecker{
-		ctx:        ctx,
-		volumeReqs: []*structs.VolumeRequest{},
+		ctx:           ctx,
+		volumeReqs:    []*structs.VolumeRequest{},
+		hostVolumeIDs: []string{},
 	}
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(allocName string, ns string, volumes map[string]*structs.VolumeRequest) {
+func (h *HostVolumeChecker) SetVolumes(
+	allocName, ns string, volumes map[string]*structs.VolumeRequest, allocHostVolumeIDs []string,
+) {
 	h.namespace = ns
 	h.volumeReqs = []*structs.VolumeRequest{}
+	h.hostVolumeIDs = allocHostVolumeIDs
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {
 			continue // filter CSI volumes
@@ -181,7 +187,6 @@ func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
 }
 
 func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
-
 	// Fast path: Requested no volumes. No need to check further.
 	if len(h.volumeReqs) == 0 {
 		return true
@@ -216,6 +221,15 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			if !capOk {
 				return false
 			}
+
+			if req.Sticky {
+				if slices.Contains(h.hostVolumeIDs, vol.ID) || len(h.hostVolumeIDs) == 0 {
+					return true
+				}
+
+				return false
+			}
+
 		} else if !req.ReadOnly {
 			// this is a static host volume and can only be mounted ReadOnly,
 			// validate that no requests for it are ReadWrite.
