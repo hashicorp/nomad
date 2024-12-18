@@ -170,14 +170,20 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 	switch v.Type {
 
 	case VolumeTypeHost:
-		if v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
-			addErr("host volumes cannot have an attachment mode")
-		}
-		if v.AccessMode != CSIVolumeAccessModeUnknown {
-			addErr("host volumes cannot have an access mode")
-		}
 		if v.MountOptions != nil {
+			// TODO(1.10.0): support mount options for dynamic host volumes
 			addErr("host volumes cannot have mount options")
+		}
+
+		switch v.AccessMode {
+		case CSIVolumeAccessModeSingleNodeReader, CSIVolumeAccessModeMultiNodeReader:
+			if !v.ReadOnly {
+				addErr("%s volumes must be read-only", v.AccessMode)
+			}
+		default:
+			// dynamic host volumes are all "per node" so there's no way to
+			// validate that other access modes work for a given volume until we
+			// have access to other allocations (in the scheduler)
 		}
 
 	case VolumeTypeCSI:

@@ -45,7 +45,7 @@ func TestHostVolume_Copy(t *testing.T) {
 	out.Constraints[0].LTarget = "${meta.node_class}"
 	out.RequestedCapabilities = append(out.RequestedCapabilities, &HostVolumeCapability{
 		AttachmentMode: HostVolumeAttachmentModeBlockDevice,
-		AccessMode:     HostVolumeAccessModeMultiNodeReader,
+		AccessMode:     HostVolumeAccessModeSingleNodeMultiWriter,
 	})
 	out.Parameters["foo"] = "baz"
 
@@ -195,7 +195,7 @@ func TestHostVolume_CanonicalizeForUpdate(t *testing.T) {
 		RequestedCapacityMaxBytes: 500000,
 		RequestedCapabilities: []*HostVolumeCapability{{
 			AttachmentMode: HostVolumeAttachmentModeFilesystem,
-			AccessMode:     HostVolumeAccessModeMultiNodeMultiWriter,
+			AccessMode:     HostVolumeAccessModeSingleNodeMultiWriter,
 		}},
 	}
 	existing := &HostVolume{
@@ -240,7 +240,7 @@ func TestHostVolume_CanonicalizeForUpdate(t *testing.T) {
 
 	must.Eq(t, []*HostVolumeCapability{{
 		AttachmentMode: HostVolumeAttachmentModeFilesystem,
-		AccessMode:     HostVolumeAccessModeMultiNodeMultiWriter,
+		AccessMode:     HostVolumeAccessModeSingleNodeMultiWriter,
 	}}, vol.RequestedCapabilities)
 
 	must.Eq(t, "/var/nomad/alloc_mounts/82f357d6.ext4", vol.HostPath)
