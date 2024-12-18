@@ -101,10 +101,10 @@ data "aws_ami" "ubuntu_jammy_amd64" {
     values = ["Ubuntu"]
   }
 
-  /*   filter {
+  filter {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
-  } */
+  }
 }
 
 data "aws_ami" "ubuntu_jammy" {
@@ -121,10 +121,10 @@ data "aws_ami" "ubuntu_jammy" {
     values = ["Ubuntu"]
   }
 
-  /*   filter {
+  filter {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
-  } */
+  }
 }
 
 data "aws_ami" "windows_2016_amd64" {
