@@ -32,6 +32,8 @@ const (
 	TopicACLBindingRule Topic = "ACLBindingRule"
 	TopicService        Topic = "Service"
 	TopicHostVolume     Topic = "HostVolume"
+	TopicCSIVolume      Topic = "CSIVolume"
+	TopicCSIPlugin      Topic = "CSIPlugin"
 	TopicAll            Topic = "*"
 
 	TypeNodeRegistration              = "NodeRegistration"
@@ -66,6 +68,9 @@ const (
 	TypeServiceDeregistration         = "ServiceDeregistration"
 	TypeHostVolumeRegistered          = "HostVolumeRegistered"
 	TypeHostVolumeDeleted             = "HostVolumeDeleted"
+	TypeCSIVolumeRegistered           = "CSIVolumeRegistered"
+	TypeCSIVolumeDeregistered         = "CSIVolumeDeregistered"
+	TypeCSIVolumeClaim                = "CSIVolumeClaim"
 )
 
 // Event represents a change in Nomads state.
@@ -196,4 +201,16 @@ type ACLBindingRuleEvent struct {
 // used as an event in the event stream
 type HostVolumeEvent struct {
 	Volume *HostVolume
+}
+
+// CSIVolumeEvent holds a newly updated or deleted CSI volume to be
+// used as an event in the event stream
+type CSIVolumeEvent struct {
+	Volume *CSIVolume
+}
+
+// CSIPluginEvent holds a newly updated or deleted CSI plugin to be
+// used as an event in the event stream
+type CSIPluginEvent struct {
+	Plugin *CSIPlugin
 }

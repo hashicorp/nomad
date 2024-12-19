@@ -1216,7 +1216,6 @@ func Test_eventsFromChanges_ACLBindingRule(t *testing.T) {
 }
 
 func TestEvents_HostVolumes(t *testing.T) {
-
 	ci.Parallel(t)
 	store := TestStateStoreCfg(t, TestStateStorePublisher(t))
 	defer store.StopEventBroker()
@@ -1256,6 +1255,84 @@ func TestEvents_HostVolumes(t *testing.T) {
 	must.Eq(t, "NodeRegistration", events[3].Type)
 	must.Eq(t, "HostVolume", events[4].Topic)
 	must.Eq(t, "HostVolumeDeleted", events[4].Type)
+}
+
+func TestEvents_CSIVolumes(t *testing.T) {
+	ci.Parallel(t)
+	store := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer store.StopEventBroker()
+
+	index, err := store.LatestIndex()
+	must.NoError(t, err)
+
+	plugin := mock.CSIPlugin()
+	vol := mock.CSIVolume(plugin)
+
+	index++
+	must.NoError(t, store.UpsertCSIVolume(index, []*structs.CSIVolume{vol}))
+
+	alloc := mock.Alloc()
+	index++
+	store.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
+
+	claim := &structs.CSIVolumeClaim{
+		AllocationID:   alloc.ID,
+		NodeID:         uuid.Generate(),
+		Mode:           structs.CSIVolumeClaimGC,
+		AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+		AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		State:          structs.CSIVolumeClaimStateReadyToFree,
+	}
+	index++
+	must.NoError(t, store.CSIVolumeClaim(index, time.Now().UnixNano(), vol.Namespace, vol.ID, claim))
+
+	index++
+	must.NoError(t, store.CSIVolumeDeregister(index, vol.Namespace, []string{vol.ID}, false))
+
+	events := WaitForEvents(t, store, 0, 3, 1*time.Second)
+	must.Len(t, 3, events)
+	must.Eq(t, "CSIVolume", events[0].Topic)
+	must.Eq(t, "CSIVolumeRegistered", events[0].Type)
+	must.Eq(t, "CSIVolume", events[1].Topic)
+	must.Eq(t, "CSIVolumeClaim", events[1].Type)
+	must.Eq(t, "CSIVolume", events[2].Topic)
+	must.Eq(t, "CSIVolumeDeregistered", events[2].Type)
+
+}
+
+func TestEvents_CSIPlugins(t *testing.T) {
+	ci.Parallel(t)
+	store := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer store.StopEventBroker()
+
+	index, err := store.LatestIndex()
+	must.NoError(t, err)
+
+	node := mock.Node()
+	plugin := mock.CSIPlugin()
+
+	index++
+	must.NoError(t, store.UpsertNode(structs.NodeRegisterRequestType, index, node))
+
+	node = node.Copy()
+	node.CSINodePlugins = map[string]*structs.CSIInfo{
+		plugin.ID: {
+			PluginID:   plugin.ID,
+			Healthy:    true,
+			UpdateTime: time.Now(),
+		},
+	}
+	index++
+	must.NoError(t, store.UpsertNode(structs.NodeRegisterRequestType, index, node))
+
+	events := WaitForEvents(t, store, 0, 3, 1*time.Second)
+	must.Len(t, 3, events)
+	must.Eq(t, "Node", events[0].Topic)
+	must.Eq(t, "NodeRegistration", events[0].Type)
+	must.Eq(t, "Node", events[1].Topic)
+	must.Eq(t, "NodeRegistration", events[1].Type)
+	must.Eq(t, "CSIPlugin", events[2].Topic)
+	must.Eq(t, "NodeRegistration", events[2].Type)
 }
 
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
