@@ -20,7 +20,6 @@ import (
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
 	"github.com/moby/term"
@@ -30,7 +29,6 @@ import (
 
 const (
 	formatJSON = "json"
-	formatHCL1 = "hcl1"
 	formatHCL2 = "hcl2"
 )
 
@@ -410,23 +408,14 @@ type JobGetter struct {
 }
 
 func (j *JobGetter) Validate() error {
-	if j.HCL1 && j.Strict {
-		return fmt.Errorf("cannot parse job file as HCLv1 and HCLv2 strict.")
-	}
-	if j.HCL1 && j.JSON {
-		return fmt.Errorf("cannot parse job file as HCL and JSON.")
+	if j.HCL1 {
+		return fmt.Errorf("HCLv1 is no longer supported")
 	}
 	if len(j.Vars) > 0 && j.JSON {
 		return fmt.Errorf("cannot use variables with JSON files.")
 	}
 	if len(j.VarFiles) > 0 && j.JSON {
 		return fmt.Errorf("cannot use variables with JSON files.")
-	}
-	if len(j.Vars) > 0 && j.HCL1 {
-		return fmt.Errorf("cannot use variables with HCLv1.")
-	}
-	if len(j.VarFiles) > 0 && j.HCL1 {
-		return fmt.Errorf("cannot use variables with HCLv1.")
 	}
 	return nil
 }
@@ -496,14 +485,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 	jobfile = io.TeeReader(jobfile, &source)
 	var err error
 	switch {
-	case j.HCL1:
-		jobStruct, err = jobspec.Parse(jobfile)
-
-		// include the hcl1 source as the submission
-		jobSubmission = &api.JobSubmission{
-			Source: source.String(),
-			Format: formatHCL1,
-		}
 	case j.JSON:
 
 		// Support JSON files with both a top-level Job key as well as
@@ -576,11 +557,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			Variables:     varFileCat,
 			Source:        source.String(),
 			Format:        formatHCL2,
-		}
-		if err != nil {
-			if _, merr := jobspec.Parse(&source); merr == nil {
-				return nil, nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
-			}
 		}
 	}
 
@@ -764,4 +740,41 @@ func isTty() bool {
 	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
 	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
 	return isStdinTerminal && isStdoutTerminal
+}
+
+// getByPrefix makes a prefix list query and tries to find an exact match if
+// available, or returns a list of options if multiple objects match the prefix
+// and there's no exact match
+func getByPrefix[T any](
+	objName string,
+	queryFn func(*api.QueryOptions) ([]*T, *api.QueryMeta, error),
+	prefixCompareFn func(obj *T, prefix string) bool,
+	opts *api.QueryOptions,
+) (*T, []*T, error) {
+	objs, _, err := queryFn(opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error querying %s: %s", objName, err)
+	}
+	switch len(objs) {
+	case 0:
+		return nil, nil, fmt.Errorf("No %s with prefix or ID %q found", objName, opts.Prefix)
+	case 1:
+		return objs[0], nil, nil
+	default:
+		// List queries often sort by by CreateIndex, not by ID, so we need to
+		// search for exact matches but account for multiple exact ID matches
+		// across namespaces
+		var match *T
+		exactMatchesCount := 0
+		for _, obj := range objs {
+			if prefixCompareFn(obj, opts.Prefix) {
+				exactMatchesCount++
+				match = obj
+			}
+		}
+		if exactMatchesCount == 1 {
+			return match, nil, nil
+		}
+		return nil, objs, nil
+	}
 }

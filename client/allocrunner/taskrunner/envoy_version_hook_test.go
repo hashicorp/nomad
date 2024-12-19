@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/shoenig/test/must"
 )
 
@@ -250,10 +251,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_standard(t *testing.T) {
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
-		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0]),
 		TaskEnv: taskEnvDefault,
 	}
-	must.NoError(t, request.TaskDir.Build(false, nil))
+	must.NoError(t, request.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
 
 	// Prepare a response
 	var response ifs.TaskPrestartResponse
@@ -293,10 +294,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_custom(t *testing.T) {
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
-		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0]),
 		TaskEnv: taskEnvDefault,
 	}
-	must.NoError(t, request.TaskDir.Build(false, nil))
+	must.NoError(t, request.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
 
 	// Prepare a response
 	var response ifs.TaskPrestartResponse
@@ -338,10 +339,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_skip(t *testing.T) {
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
-		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0]),
 		TaskEnv: taskEnvDefault,
 	}
-	must.NoError(t, request.TaskDir.Build(false, nil))
+	must.NoError(t, request.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
 
 	// Prepare a response
 	var response ifs.TaskPrestartResponse
@@ -377,10 +378,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_no_fallback(t *testing.T) {
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
-		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0]),
 		TaskEnv: taskEnvDefault,
 	}
-	must.NoError(t, request.TaskDir.Build(false, nil))
+	must.NoError(t, request.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
 
 	// Prepare a response
 	var response ifs.TaskPrestartResponse
@@ -413,10 +414,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_error(t *testing.T) {
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
-		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0]),
 		TaskEnv: taskEnvDefault,
 	}
-	must.NoError(t, request.TaskDir.Build(false, nil))
+	must.NoError(t, request.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
 
 	// Prepare a response
 	var response ifs.TaskPrestartResponse
@@ -452,10 +453,10 @@ func TestTaskRunner_EnvoyVersionHook_Prestart_restart(t *testing.T) {
 	// Create a prestart request
 	request := &ifs.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
-		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0]),
 		TaskEnv: taskEnvDefault,
 	}
-	must.NoError(t, request.TaskDir.Build(false, nil))
+	must.NoError(t, request.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
 
 	// Prepare a response
 	var response ifs.TaskPrestartResponse

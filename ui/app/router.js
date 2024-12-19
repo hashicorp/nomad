@@ -87,6 +87,7 @@ Router.map(function () {
 
   this.route('settings', function () {
     this.route('tokens');
+    this.route('user-settings');
   });
 
   // if we don't include function() the outlet won't render
@@ -111,7 +112,7 @@ Router.map(function () {
     });
   });
 
-  this.route('access-control', function () {
+  this.route('administration', function () {
     this.route('policies', function () {
       this.route('new');
       this.route('policy', {
@@ -129,6 +130,19 @@ Router.map(function () {
       this.route('token', {
         path: '/:id',
       });
+    });
+    this.route('namespaces', function () {
+      this.route('new');
+      // Note, this needs the "acl-" portion due to
+      // "namespace" being a magic string in Ember
+      this.route('acl-namespace', {
+        path: '/:name',
+      });
+    });
+    this.route('sentinel-policies', function () {
+      this.route('new');
+      this.route('gallery');
+      this.route('policy', { path: '/:id' });
     });
   });
   // Mirage-only route for testing OIDC flow

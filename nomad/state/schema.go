@@ -20,11 +20,12 @@ const (
 	TableServiceRegistrations = "service_registrations"
 	TableVariables            = "variables"
 	TableVariablesQuotas      = "variables_quota"
-	TableRootKeyMeta          = "root_key_meta"
+	TableRootKeys             = "root_keys"
 	TableACLRoles             = "acl_roles"
 	TableACLAuthMethods       = "acl_auth_methods"
 	TableACLBindingRules      = "acl_binding_rules"
 	TableAllocs               = "allocs"
+	TableJobSubmission        = "job_submission"
 )
 
 const (
@@ -92,7 +93,7 @@ func init() {
 		serviceRegistrationsTableSchema,
 		variablesTableSchema,
 		variablesQuotasTableSchema,
-		variablesRootKeyMetaSchema,
+		wrappedRootKeySchema,
 		aclRolesTableSchema,
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
@@ -253,6 +254,15 @@ func jobTableSchema() *memdb.TableSchema {
 					Field: "NodePool",
 				},
 			},
+			// ModifyIndex allows sorting by last-changed
+			"modify_index": {
+				Name:         "modify_index",
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.UintFieldIndex{
+					Field: "ModifyIndex",
+				},
+			},
 		},
 	}
 }
@@ -323,7 +333,7 @@ func jobVersionSchema() *memdb.TableSchema {
 // which contain the original source material of each job, per version.
 func jobSubmissionSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "job_submission",
+		Name: TableJobSubmission,
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": {
 				Name:         "id",
@@ -360,6 +370,11 @@ func jobIsGCable(obj interface{}) (bool, error) {
 	j, ok := obj.(*structs.Job)
 	if !ok {
 		return false, fmt.Errorf("Unexpected type: %v", obj)
+	}
+
+	// job versions that are tagged should be kept
+	if j.VersionTag != nil {
+		return false, nil
 	}
 
 	// If the job is periodic or parameterized it is only garbage collectable if
@@ -926,7 +941,7 @@ func (a *ACLPolicyJobACLFieldIndex) FromObject(obj interface{}) (bool, []byte, e
 	jobID := policy.JobACL.JobID
 	if jobID == "" {
 		return false, nil, fmt.Errorf(
-			"object %#v is not a valid ACLPolicy: JobACL.JobID without Namespace", obj)
+			"object %#v is not a valid ACLPolicy: Namespace without JobID", obj)
 	}
 
 	val := ns + "\x00" + jobID + "\x00"
@@ -1547,10 +1562,10 @@ func variablesQuotasTableSchema() *memdb.TableSchema {
 	}
 }
 
-// variablesRootKeyMetaSchema returns the MemDB schema for Nomad root keys
-func variablesRootKeyMetaSchema() *memdb.TableSchema {
+// wrappedRootKeySchema returns the MemDB schema for wrapped Nomad root keys
+func wrappedRootKeySchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableRootKeyMeta,
+		Name: TableRootKeys,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,

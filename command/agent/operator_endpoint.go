@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/raft"
 
 	"github.com/hashicorp/nomad/api"
@@ -251,6 +251,8 @@ func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Re
 	out := &api.OperatorHealthReply{
 		Healthy:          reply.Healthy,
 		FailureTolerance: reply.FailureTolerance,
+		Voters:           reply.Voters,
+		Leader:           reply.Leader,
 	}
 	for _, server := range reply.Servers {
 		out.Servers = append(out.Servers, api.ServerHealth{
@@ -268,6 +270,9 @@ func (s *HTTPServer) OperatorServerHealth(resp http.ResponseWriter, req *http.Re
 			StableSince: server.StableSince.Round(time.Second).UTC(),
 		})
 	}
+
+	// Modify the reply to include Enterprise response
+	autopilotToAPIEntState(reply, out)
 
 	return out, nil
 }
@@ -321,7 +326,8 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 			SystemSchedulerEnabled:   conf.PreemptionConfig.SystemSchedulerEnabled,
 			SysBatchSchedulerEnabled: conf.PreemptionConfig.SysBatchSchedulerEnabled,
 			BatchSchedulerEnabled:    conf.PreemptionConfig.BatchSchedulerEnabled,
-			ServiceSchedulerEnabled:  conf.PreemptionConfig.ServiceSchedulerEnabled},
+			ServiceSchedulerEnabled:  conf.PreemptionConfig.ServiceSchedulerEnabled,
+		},
 	}
 
 	if err := args.Config.Validate(); err != nil {
@@ -520,4 +526,33 @@ func (s *HTTPServer) snapshotRestoreRequest(resp http.ResponseWriter, req *http.
 	codedErr := <-errCh
 
 	return nil, codedErr
+}
+
+func (s *HTTPServer) UpgradeCheckRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
+	path := strings.TrimPrefix(req.URL.Path, "/v1/operator/upgrade-check")
+	switch {
+	case strings.HasSuffix(path, "/vault-workload-identity"):
+		return s.upgradeCheckVaultWorkloadIdentity(resp, req)
+	default:
+		return nil, CodedError(http.StatusNotFound, fmt.Sprintf("Path %s not found", req.URL.Path))
+	}
+}
+
+func (s *HTTPServer) upgradeCheckVaultWorkloadIdentity(resp http.ResponseWriter, req *http.Request) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.UpgradeCheckVaultWorkloadIdentityRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.UpgradeCheckVaultWorkloadIdentityResponse
+	if err := s.agent.RPC("Operator.UpgradeCheckVaultWorkloadIdentity", &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &out.QueryMeta)
+	return out, nil
 }

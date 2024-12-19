@@ -1,6 +1,9 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
+//go:build !windows
+// +build !windows
+
 package allocdir
 
 import (
@@ -9,19 +12,22 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"golang.org/x/sys/unix"
 )
 
 var notFoundErr = fmt.Errorf("not found")
 
-func isMount(path string) error {
+func isMount(path string) (int, error) {
 	file, err := os.Open("/proc/self/mounts")
 	if err != nil {
-		return err
+		return 0, err
 	}
 	defer file.Close()
 	reader := bufio.NewReaderSize(file, 64*1024)
@@ -30,23 +36,31 @@ func isMount(path string) error {
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
-				return notFoundErr
+				return 0, notFoundErr
 			}
-			return err
+			return 0, err
 		}
 		parts := strings.SplitN(line, " ", 3)
 		if len(parts) != 3 {
-			return fmt.Errorf("unexpected line: %q", line)
+			return 0, fmt.Errorf("unexpected line: %q", line)
 		}
 		if parts[1] == path {
 			// Found it! Make sure it's a tmpfs
 			if parts[0] != "tmpfs" {
-				return fmt.Errorf("unexpected fs: %q", parts[1])
+				return 0, fmt.Errorf("unexpected fs: %q", parts[1])
 			}
-			return nil
+			sizeMatch := regexp.MustCompile(`size=(\d+)k`).FindStringSubmatch(parts[2])
+			if len(sizeMatch) == 0 {
+				return 0, fmt.Errorf("mount entry did not include size: %q", parts[2])
+			}
+			size, err := strconv.ParseInt(sizeMatch[1], 10, 64)
+			if err != nil {
+				return 0, fmt.Errorf("could not parse %q as int: %w", sizeMatch[0], err)
+			}
+			return int(size) / 1024, nil
 		}
 	}
-	return fmt.Errorf("exceeded max mount entries (%d)", max)
+	return 0, fmt.Errorf("exceeded max mount entries (%d)", max)
 }
 
 // TestLinuxRootSecretDir asserts secret dir creation and removal are
@@ -69,11 +83,12 @@ func TestLinuxRootSecretDir(t *testing.T) {
 	}
 
 	// creating a secrets dir should work
-	if err := createSecretDir(secretsDir); err != nil {
+	taskSecretsSize := 2
+	if err := createSecretDir(secretsDir, taskSecretsSize); err != nil {
 		t.Fatalf("error creating secrets dir %q: %v", secretsDir, err)
 	}
 	// creating it again should be a noop (NO error)
-	if err := createSecretDir(secretsDir); err != nil {
+	if err := createSecretDir(secretsDir, taskSecretsSize); err != nil {
 		t.Fatalf("error creating secrets dir %q: %v", secretsDir, err)
 	}
 
@@ -85,9 +100,9 @@ func TestLinuxRootSecretDir(t *testing.T) {
 	if !fi.IsDir() {
 		t.Fatalf("secrets dir %q is not a directory and should be", secretsDir)
 	}
-	if err := isMount(secretsDir); err != nil {
-		t.Fatalf("secrets dir %q is not a mount: %v", secretsDir, err)
-	}
+	size, err := isMount(secretsDir)
+	must.NoError(t, err, must.Sprintf("secrets dir %q is not a mount: %v", secretsDir, err))
+	must.Eq(t, taskSecretsSize, size)
 
 	// now remove it
 	if err := removeSecretDir(secretsDir); err != nil {
@@ -95,7 +110,7 @@ func TestLinuxRootSecretDir(t *testing.T) {
 	}
 
 	// make sure it's gone
-	if err := isMount(secretsDir); err != notFoundErr {
+	if _, err := isMount(secretsDir); err != notFoundErr {
 		t.Fatalf("error ensuring secrets dir %q isn't mounted: %v", secretsDir, err)
 	}
 
@@ -125,11 +140,11 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 	}
 
 	// creating a secrets dir should work
-	if err := createSecretDir(secretsDir); err != nil {
+	if err := createSecretDir(secretsDir, defaultSecretDirTmpfsSize); err != nil {
 		t.Fatalf("error creating secrets dir %q: %v", secretsDir, err)
 	}
 	// creating it again should be a noop (NO error)
-	if err := createSecretDir(secretsDir); err != nil {
+	if err := createSecretDir(secretsDir, defaultSecretDirTmpfsSize); err != nil {
 		t.Fatalf("error creating secrets dir %q: %v", secretsDir, err)
 	}
 
@@ -141,7 +156,7 @@ func TestLinuxUnprivilegedSecretDir(t *testing.T) {
 	if !fi.IsDir() {
 		t.Fatalf("secrets dir %q is not a directory and should be", secretsDir)
 	}
-	if err := isMount(secretsDir); err != notFoundErr {
+	if _, err := isMount(secretsDir); err != notFoundErr {
 		t.Fatalf("error ensuring secrets dir %q isn't mounted: %v", secretsDir, err)
 	}
 

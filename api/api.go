@@ -234,7 +234,6 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
 		TLSConfig:  c.TLSConfig.Copy(),
-		url:        copyURL(c.url),
 	}
 
 	// Update the tls server name for connecting to a client
@@ -435,7 +434,7 @@ func cloneWithTimeout(httpClient *http.Client, t time.Duration) (*http.Client, e
 	return &nc, nil
 }
 
-// ConfigureTLS applies a set of TLS configurations to the the HTTP client.
+// ConfigureTLS applies a set of TLS configurations to the HTTP client.
 func ConfigureTLS(httpClient *http.Client, tlsConfig *TLSConfig) error {
 	if tlsConfig == nil {
 		return nil
@@ -509,9 +508,13 @@ func NewClient(config *Config) (*Client, error) {
 	}
 
 	// we have to test the address that comes from DefaultConfig, because it
-	// could be the value of NOMAD_ADDR which is applied without testing
-	if config.url, err = url.Parse(config.Address); err != nil {
-		return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
+	// could be the value of NOMAD_ADDR which is applied without testing. But
+	// only on the first use of this Config, otherwise we'll have mutated the
+	// address
+	if config.url == nil {
+		if config.url, err = url.Parse(config.Address); err != nil {
+			return nil, fmt.Errorf("invalid address '%s': %v", config.Address, err)
+		}
 	}
 
 	httpClient := config.HttpClient
@@ -1183,6 +1186,9 @@ func parseQueryMeta(resp *http.Response, q *QueryMeta) error {
 	last, err := strconv.ParseUint(header.Get("X-Nomad-LastContact"), 10, 64)
 	if err != nil {
 		return fmt.Errorf("Failed to parse X-Nomad-LastContact: %v", err)
+	}
+	if last > math.MaxInt64 {
+		return fmt.Errorf("Last contact duration is out of range: %d", last)
 	}
 	q.LastContact = time.Duration(last) * time.Millisecond
 	q.NextToken = header.Get("X-Nomad-NextToken")

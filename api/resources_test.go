@@ -94,8 +94,11 @@ func TestNUMAResource_Copy(t *testing.T) {
 	r1 := &NUMAResource{Affinity: "none"}
 	r2 := r1.Copy()
 	r1.Affinity = "require"
+	r1.Devices = []string{"nvidia/gpu"}
 	must.Eq(t, "require", r1.Affinity)
 	must.Eq(t, "none", r2.Affinity)
+	must.Eq(t, []string{"nvidia/gpu"}, r1.Devices)
+	must.SliceEmpty(t, r2.Devices)
 }
 
 func TestNUMAResource_Canonicalize(t *testing.T) {
@@ -108,4 +111,8 @@ func TestNUMAResource_Canonicalize(t *testing.T) {
 	var n2 = &NUMAResource{Affinity: ""}
 	n2.Canonicalize()
 	must.Eq(t, &NUMAResource{Affinity: "none"}, n2)
+
+	var n3 = &NUMAResource{Affinity: "require", Devices: []string{}}
+	n3.Canonicalize()
+	must.Eq(t, &NUMAResource{Affinity: "require", Devices: nil}, n3)
 }

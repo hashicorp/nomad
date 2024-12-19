@@ -56,14 +56,16 @@ moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
 
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch)',
-  () =>
-    server.create('job', {
+  () => {
+    server.create('namespace', { id: 'test' });
+    return server.create('job', {
       status: 'running',
       datacenters: ['dc1'],
       type: 'sysbatch',
       createAllocations: false,
       noActiveDeployment: true,
-    })
+    });
+  }
 );
 
 moduleForJobWithClientStatus(
@@ -113,6 +115,7 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
 moduleForJobWithClientStatus(
   'Acceptance | job detail with client status (sysbatch child)',
   () => {
+    server.create('namespace', { id: 'test' });
     const parent = server.create('job', 'periodicSysbatch', {
       childrenCount: 1,
       shallow: true,
@@ -278,6 +281,8 @@ moduleForJob(
       allocStatusDistribution: {
         running: 1,
       },
+      // Child's gotta be non-queued to be able to run
+      status: 'running', //  TODO: TEMP
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -313,6 +318,96 @@ moduleForJob(
       },
   }
 );
+
+module('Acceptance | ui block', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(async function () {
+    window.localStorage.clear();
+    server.create('agent');
+    server.create('node-pool');
+    server.create('node');
+
+    server.create('job', {
+      name: 'hcl-definition-job',
+      id: 'display-hcl',
+      namespaceId: 'default',
+    });
+
+    server.create('job', {
+      name: 'ui-block-job',
+      id: 'ui-block-job',
+      ui: {
+        Links: [
+          {
+            Label: 'HashiCorp',
+            Url: 'https://hashicorp.com',
+          },
+          {
+            Label: 'Nomad',
+            Url: 'https://nomadproject.io',
+          },
+        ],
+        Description:
+          'A job with a UI-block defined description and links. It has **bold text** and everything!',
+      },
+    });
+  });
+
+  test('job renders with description', async function (assert) {
+    window.localStorage.clear();
+    await JobDetail.visit({ id: 'hcl-definition-job' });
+    assert
+      .dom('[data-test-job-description]')
+      .doesNotExist('Job description does not exist on a standard job');
+    await JobDetail.visit({ id: 'ui-block-job' });
+    assert
+      .dom('[data-test-job-description]')
+      .exists('Job description exists when defined in HCL');
+    assert
+      .dom('[data-test-job-description] strong')
+      .exists('Job description is rendered as markdown, with bold text');
+  });
+
+  test('job renders with links', async function (assert) {
+    window.localStorage.clear();
+    await JobDetail.visit({ id: 'hcl-definition-job' });
+    assert
+      .dom('[data-test-job-links]')
+      .doesNotExist('Job links do not exist on a standard job');
+    await JobDetail.visit({ id: 'ui-block-job' });
+    assert
+      .dom('[data-test-job-links] a')
+      .exists({ count: 2 }, 'Job links exists when defined in HCL');
+    await percySnapshot(assert, {
+      percyCSS: `
+        .allocation-row td { display: none; }
+      `,
+    });
+  });
+
+  test('job sanitizes input', async function (assert) {
+    server.create('node-pool');
+    server.create('node');
+    server.create('job', {
+      id: 'xss-job',
+      ui: {
+        Description: '<script>alert("XSS");</script><p>Safe text</p>',
+      },
+    });
+
+    await JobDetail.visit({ id: 'xss-job' });
+
+    assert
+      .dom('[data-test-job-description]')
+      .hasText('Safe text', 'Description should only contain safe text');
+
+    assert
+      .dom('[data-test-job-description] script')
+      .doesNotExist('Should not render script tags');
+  });
+});
 
 module('Acceptance | job detail (with namespaces)', function (hooks) {
   setupApplicationTest(hooks);
@@ -645,7 +740,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await settled();
 
     // User should be booted off the page
-    assert.equal(currentURL(), '/jobs?namespace=*');
+    assert.equal(currentURL(), '/jobs');
 
     // A notification should be present
     assert
@@ -684,7 +779,7 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     await settled();
 
     // User should be booted off the page
-    assert.equal(currentURL(), '/jobs?namespace=*');
+    assert.equal(currentURL(), '/jobs');
 
     // A notification should be present
     assert

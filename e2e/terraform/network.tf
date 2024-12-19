@@ -213,3 +213,48 @@ resource "aws_network_interface" "clients_secondary" {
     device_index = 1
   }
 }
+
+resource "aws_security_group" "consul_server" {
+  name   = "${local.random_name}-consul-server"
+  vpc_id = data.aws_vpc.default.id
+
+  # SSH from test runner
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.ingress_cidr]
+  }
+
+  # Consul HTTP and RPC from test runner
+  ingress {
+    from_port   = 8500
+    to_port     = 8503
+    protocol    = "tcp"
+    cidr_blocks = [local.ingress_cidr]
+  }
+
+  # Consul HTTP and RPC from Consul agents
+  ingress {
+    from_port       = 8500
+    to_port         = 8503
+    protocol        = "tcp"
+    security_groups = [aws_security_group.clients.id, aws_security_group.servers.id]
+  }
+
+  # Consul Server internal from Consul agents
+  ingress {
+    from_port       = 8300
+    to_port         = 8302
+    protocol        = "tcp"
+    security_groups = [aws_security_group.clients.id, aws_security_group.servers.id]
+  }
+
+  # allow all outbound
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}

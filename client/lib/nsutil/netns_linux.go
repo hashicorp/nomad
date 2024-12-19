@@ -14,7 +14,7 @@
 // limitations under the License.
 //
 // The functions in this file are derived from:
-// https://github.com/containernetworking/plugins/blob/0950a3607bf5e8a57c6a655c7e573e6aab0dc650/pkg/testutils/netns_linux.go
+// https://github.com/containernetworking/plugins/blob/670139cffa3075aa42f08c8f1dc2257396205a54/pkg/testutils/netns_linux.go
 
 package nsutil
 
@@ -26,7 +26,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/containernetworking/plugins/pkg/ns"
 	"golang.org/x/sys/unix"
 )
 
@@ -35,7 +34,7 @@ const NetNSRunDir = "/var/run/netns"
 
 // NewNS creates a new persistent (bind-mounted) network namespace and returns
 // an object representing that namespace, without switching to it.
-func NewNS(nsName string) (ns.NetNS, error) {
+func NewNS(nsName string) (NetNS, error) {
 
 	// Create the directory for mounting network namespaces
 	// This needs to be a shared mountpoint in case it is mounted in to
@@ -94,8 +93,8 @@ func NewNS(nsName string) (ns.NetNS, error) {
 		// Don't unlock. By not unlocking, golang will kill the OS thread when the
 		// goroutine is done (for go1.10+)
 
-		var origNS ns.NetNS
-		origNS, err = ns.GetNS(getCurrentThreadNetNSPath())
+		var origNS NetNS
+		origNS, err = GetNS(getCurrentThreadNetNSPath())
 		if err != nil {
 			err = fmt.Errorf("failed to get the current netns: %v", err)
 			return
@@ -126,7 +125,7 @@ func NewNS(nsName string) (ns.NetNS, error) {
 		return nil, fmt.Errorf("failed to create namespace: %v", err)
 	}
 
-	return ns.GetNS(nsPath)
+	return GetNS(nsPath)
 }
 
 // UnmountNS unmounts the NS held by the netns object
@@ -134,21 +133,13 @@ func UnmountNS(nsPath string) error {
 	// Only unmount if it's been bind-mounted (don't touch namespaces in /proc...)
 	if strings.HasPrefix(nsPath, NetNSRunDir) {
 		if err := unix.Unmount(nsPath, 0); err != nil {
-			return fmt.Errorf("failed to unmount NS: at %s: %v", nsPath, err)
+			return fmt.Errorf("failed to unmount NS: at %s: %w", nsPath, err)
 		}
 
 		if err := os.Remove(nsPath); err != nil {
-			return fmt.Errorf("failed to remove ns path %s: %v", nsPath, err)
+			return fmt.Errorf("failed to remove ns path %s: %w", nsPath, err)
 		}
 	}
 
 	return nil
-}
-
-// getCurrentThreadNetNSPath copied from pkg/ns
-func getCurrentThreadNetNSPath() string {
-	// /proc/self/ns/net returns the namespace of the main thread, not
-	// of whatever thread this goroutine is running on.  Make sure we
-	// use the thread's net namespace since the thread is switching around
-	return fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), unix.Gettid())
 }

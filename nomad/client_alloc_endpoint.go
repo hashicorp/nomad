@@ -13,7 +13,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 
 	"github.com/hashicorp/nomad/acl"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -144,6 +144,112 @@ func (a *ClientAllocations) Signal(args *structs.AllocSignalRequest, reply *stru
 
 	// Make the RPC
 	return NodeRpc(state.Session, "Allocations.Signal", args, reply)
+}
+
+func (a *ClientAllocations) SetPauseState(args *structs.AllocPauseRequest, reply *structs.GenericResponse) error {
+	args.QueryOptions.AllowStale = true
+	authErr := a.srv.Authenticate(nil, args)
+
+	// Potentially forward to a different region.
+	if done, err := a.srv.forward("ClientAllocations.SetPauseState", args, args, reply); done {
+		return err
+	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "pause_set"}, time.Now())
+
+	// Verify the arguments.
+	if args.AllocID == "" {
+		return errors.New("missing AllocID")
+	}
+
+	// Find the allocation.
+	snap, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	alloc, err := getAlloc(snap, args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	// Check namespace submit-job permission.
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
+		return err
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Make sure the node is valid and new enough to support RPC
+	_, err = getNodeForRpc(snap, alloc.NodeID)
+	if err != nil {
+		return err
+	}
+
+	// Get the connection to the client
+	state, ok := a.srv.getNodeConn(alloc.NodeID)
+	if !ok {
+		return findNodeConnAndForward(a.srv, alloc.NodeID, "ClientAllocations.SetPauseState", args, reply)
+	}
+
+	// Make the RPC
+	return NodeRpc(state.Session, "Allocations.SetPauseState", args, reply)
+}
+
+func (a *ClientAllocations) GetPauseState(args *structs.AllocGetPauseStateRequest, reply *structs.AllocGetPauseStateResponse) error {
+	args.QueryOptions.AllowStale = true
+	authErr := a.srv.Authenticate(nil, args)
+
+	// Potentially forward to a different region.
+	if done, err := a.srv.forward("ClientAllocations.GetPauseState", args, args, reply); done {
+		return err
+	}
+	a.srv.MeasureRPCRate("client_allocations", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "client_allocations", "pause_get"}, time.Now())
+
+	// Verify the arguments.
+	if args.AllocID == "" {
+		return errors.New("missing AllocID")
+	}
+
+	// Find the allocation.
+	snap, err := a.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	alloc, err := getAlloc(snap, args.AllocID)
+	if err != nil {
+		return err
+	}
+
+	// Check namespace read-job permission.
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
+		return err
+	} else if !aclObj.AllowNsOp(alloc.Namespace, acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	// Make sure the node is valid and new enough to support RPC
+	_, err = getNodeForRpc(snap, alloc.NodeID)
+	if err != nil {
+		return err
+	}
+
+	// Get the connection to the client
+	state, ok := a.srv.getNodeConn(alloc.NodeID)
+	if !ok {
+		return findNodeConnAndForward(a.srv, alloc.NodeID, "ClientAllocations.GetPauseState", args, reply)
+	}
+
+	// Make the RPC
+	return NodeRpc(state.Session, "Allocations.GetPauseState", args, reply)
 }
 
 // GarbageCollect is used to garbage collect an allocation on a client.

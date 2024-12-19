@@ -107,10 +107,9 @@ job "docs" {
 
 - `user` `(string: <varies>)` - Specifies the user that will run the task.
   Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
-  [Docker][] and [rkt][] images specify their own default users. This can only
-  be set on Linux platforms, and clients can restrict
-  [which drivers][user_drivers] are allowed to run tasks as
-  [certain users][user_denylist].
+  [Docker][] images specify their own default users. This can only be set
+  on Linux platforms, and clients can restrict [which drivers][user_drivers]
+  are allowed to run tasks as [certain users][user_denylist].
 
 - `template` <code>([Template][]: nil)</code> - Specifies the set of templates
   to render for the task. Templates can be used to inject both static and

@@ -15,7 +15,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -43,7 +43,12 @@ type consulHTTPSockHook struct {
 	proxies map[string]*httpSocketProxy
 }
 
-func newConsulHTTPSocketHook(logger hclog.Logger, alloc *structs.Allocation, allocDir *allocdir.AllocDir, configs map[string]*config.ConsulConfig) *consulHTTPSockHook {
+func newConsulHTTPSocketHook(
+	logger hclog.Logger,
+	alloc *structs.Allocation,
+	allocDir allocdir.Interface,
+	configs map[string]*config.ConsulConfig,
+) *consulHTTPSockHook {
 
 	// Get the deduplicated set of Consul clusters that are needed by this
 	// alloc. For Nomad CE, this will always be just the default cluster.
@@ -54,10 +59,13 @@ func newConsulHTTPSocketHook(logger hclog.Logger, alloc *structs.Allocation, all
 	}
 	proxies := map[string]*httpSocketProxy{}
 
-	clusterNames.ForEach(func(clusterName string) bool {
-		proxies[clusterName] = newHTTPSocketProxy(logger, allocDir, configs[clusterName])
-		return true
-	})
+	for clusterName := range clusterNames.Items() {
+		proxies[clusterName] = newHTTPSocketProxy(
+			logger,
+			allocDir,
+			configs[clusterName],
+		)
+	}
 
 	return &consulHTTPSockHook{
 		alloc:   alloc,
@@ -146,7 +154,7 @@ func (h *consulHTTPSockHook) Postrun() error {
 
 type httpSocketProxy struct {
 	logger   hclog.Logger
-	allocDir *allocdir.AllocDir
+	allocDir allocdir.Interface
 	config   *config.ConsulConfig
 
 	ctx     context.Context
@@ -155,7 +163,11 @@ type httpSocketProxy struct {
 	runOnce bool
 }
 
-func newHTTPSocketProxy(logger hclog.Logger, allocDir *allocdir.AllocDir, config *config.ConsulConfig) *httpSocketProxy {
+func newHTTPSocketProxy(
+	logger hclog.Logger,
+	allocDir allocdir.Interface,
+	config *config.ConsulConfig,
+) *httpSocketProxy {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &httpSocketProxy{
 		logger:   logger,
@@ -198,7 +210,7 @@ func (p *httpSocketProxy) run(alloc *structs.Allocation) error {
 		socketFile = filepath.Join(allocdir.SharedAllocName, allocdir.TmpDirName,
 			"consul_"+p.config.Name+"_http.sock")
 	}
-	hostHTTPSockPath := filepath.Join(p.allocDir.AllocDir, socketFile)
+	hostHTTPSockPath := filepath.Join(p.allocDir.AllocDirPath(), socketFile)
 	if err := maybeRemoveOldSocket(hostHTTPSockPath); err != nil {
 		return err
 	}

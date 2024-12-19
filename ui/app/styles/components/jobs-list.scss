@@ -1,0 +1,54 @@
+/**
+ * Copyright (c) HashiCorp, Inc.
+ * SPDX-License-Identifier: BUSL-1.1
+ */
+
+// Styling for compnents around the redesigned Jobs Index page.
+// Over time, we can phase most of these custom styles out as Helios components
+// adapt to more use-cases (like custom footer, etc).
+
+#jobs-list-header {
+  z-index: $z-base;
+}
+
+#jobs-list-actions {
+  margin-bottom: 1rem;
+  // If the screen is made very small, don't try to multi-line the text,
+  // instead wrap the flex and let dropdowns/buttons go on a new line.
+  .hds-segmented-group {
+    flex-wrap: wrap;
+    gap: 0.5rem 0;
+  }
+}
+
+#jobs-list-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  grid-template-areas: 'info nav-buttons page-size';
+  align-items: center;
+  justify-items: start;
+  padding: 1rem 0;
+  gap: 1rem;
+
+  .nav-buttons {
+    grid-area: nav-buttons;
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .page-size {
+    grid-area: page-size;
+    justify-self: end;
+  }
+}
+
+#jobs-list-cache-warning {
+  margin-bottom: 1rem;
+}
+
+.status-cell {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}

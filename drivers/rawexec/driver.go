@@ -5,22 +5,25 @@ package rawexec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/eventer"
 	"github.com/hashicorp/nomad/drivers/shared/executor"
+	"github.com/hashicorp/nomad/drivers/shared/validators"
+	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -61,9 +64,6 @@ func PluginLoader(opts map[string]string) (map[string]interface{}, error) {
 	if v, err := strconv.ParseBool(opts["driver.raw_exec.enable"]); err == nil {
 		conf["enabled"] = v
 	}
-	if v, err := strconv.ParseBool(opts["driver.raw_exec.no_cgroups"]); err == nil {
-		conf["no_cgroups"] = v
-	}
 	return conf, nil
 }
 
@@ -82,17 +82,19 @@ var (
 			hclspec.NewAttr("enabled", "bool", false),
 			hclspec.NewLiteral("false"),
 		),
-		"no_cgroups": hclspec.NewDefault(
-			hclspec.NewAttr("no_cgroups", "bool", false),
-			hclspec.NewLiteral("false"),
-		),
+		"denied_host_uids": hclspec.NewAttr("denied_host_uids", "string", false),
+		"denied_host_gids": hclspec.NewAttr("denied_host_gids", "string", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
 	// a task within a job. It is returned in the TaskConfigSchema RPC
 	taskConfigSpec = hclspec.NewObject(map[string]*hclspec.Spec{
-		"command": hclspec.NewAttr("command", "string", true),
-		"args":    hclspec.NewAttr("args", "list(string)", false),
+		"command":            hclspec.NewAttr("command", "string", true),
+		"args":               hclspec.NewAttr("args", "list(string)", false),
+		"cgroup_v2_override": hclspec.NewAttr("cgroup_v2_override", "string", false),
+		"cgroup_v1_override": hclspec.NewAttr("cgroup_v1_override", "list(map(string))", false),
+		"oom_score_adj":      hclspec.NewAttr("oom_score_adj", "number", false),
+		"work_dir":           hclspec.NewAttr("work_dir", "string", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -100,7 +102,7 @@ var (
 	capabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: drivers.FSIsolationNone,
+		FSIsolation: fsisolation.None,
 		NetIsolationModes: []drivers.NetIsolationMode{
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
@@ -108,6 +110,10 @@ var (
 		MountConfigs: drivers.MountConfigSupportNone,
 	}
 )
+
+type UserIDValidator interface {
+	HasValidIDs(userName string) error
+}
 
 // Driver is a privileged version of the exec driver. It provides no
 // resource isolation and just fork/execs. The Exec driver should be preferred
@@ -135,22 +141,57 @@ type Driver struct {
 
 	// compute contains cpu compute information
 	compute cpustats.Compute
+
+	userIDValidator UserIDValidator
 }
 
 // Config is the driver configuration set by the SetConfig RPC call
 type Config struct {
-	// NoCgroups tracks whether we should use a cgroup to manage the process
-	// tree
-	NoCgroups bool `codec:"no_cgroups"`
-
 	// Enabled is set to true to enable the raw_exec driver
 	Enabled bool `codec:"enabled"`
+
+	DeniedHostUids string `codec:"denied_host_uids"`
+	DeniedHostGids string `codec:"denied_host_gids"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
 type TaskConfig struct {
 	Command string   `codec:"command"`
 	Args    []string `codec:"args"`
+
+	// OverrideCgroupV2 allows overriding the unified cgroup the task will be
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV2 string `codec:"cgroup_v2_override"`
+
+	// OverrideCgroupV1 allows overriding per-controller cgroups the task will
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV1 hclutils.MapStrStr `codec:"cgroup_v1_override"`
+
+	// OOMScoreAdj sets the oom_score_adj on Linux systems
+	OOMScoreAdj int `codec:"oom_score_adj"`
+
+	// WorkDir sets the working directory of the task
+	WorkDir string `codec:"work_dir"`
+}
+
+func (t *TaskConfig) validate() error {
+	// ensure only one of cgroups_v1_override and cgroups_v2_override have been
+	// configured; must check here because task config validation cannot happen
+	// on the server.
+	if len(t.OverrideCgroupV1) > 0 && t.OverrideCgroupV2 != "" {
+		return errors.New("only one of cgroups_v1_override and cgroups_v2_override may be set")
+	}
+	if t.OOMScoreAdj < 0 {
+		return errors.New("oom_score_adj must not be negative")
+	}
+	if t.WorkDir != "" && !filepath.IsAbs(t.WorkDir) {
+		return errors.New("work_dir must be an absolute path")
+	}
+	return nil
 }
 
 // TaskState is the state which is encoded in the handle returned in
@@ -185,17 +226,29 @@ func (d *Driver) ConfigSchema() (*hclspec.Spec, error) {
 
 func (d *Driver) SetConfig(cfg *base.Config) error {
 	var config Config
+
 	if len(cfg.PluginConfig) != 0 {
 		if err := base.MsgPackDecode(cfg.PluginConfig, &config); err != nil {
 			return err
 		}
 	}
 
+	if d.userIDValidator == nil {
+		idValidator, err := validators.NewValidator(d.logger, config.DeniedHostUids, config.DeniedHostGids)
+		if err != nil {
+			return fmt.Errorf("unable to start validator: %w", err)
+		}
+
+		d.userIDValidator = idValidator
+	}
+
 	d.config = &config
+
 	if cfg.AgentConfig != nil {
 		d.nomadConfig = cfg.AgentConfig.Driver
 		d.compute = cfg.AgentConfig.Compute()
 	}
+
 	return nil
 }
 
@@ -319,6 +372,16 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to decode driver config: %v", err)
 	}
 
+	driverConfig.OverrideCgroupV2 = cgroupslib.CustomPathCG2(driverConfig.OverrideCgroupV2)
+
+	if err := driverConfig.validate(); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+	}
+
+	if err := d.Validate(*cfg); err != nil {
+		return nil, nil, fmt.Errorf("failed driver config validation: %v", err)
+	}
+
 	d.logger.Info("starting task", "driver_cfg", hclog.Fmt("%+v", driverConfig))
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
@@ -336,21 +399,20 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
 
-	// Only use cgroups when running as root on linux - Doing so in other cases
-	// will cause an error.
-	useCgroups := !d.config.NoCgroups && runtime.GOOS == "linux" && syscall.Geteuid() == 0
-
 	execCmd := &executor.ExecCommand{
-		Cmd:                driverConfig.Command,
-		Args:               driverConfig.Args,
-		Env:                cfg.EnvList(),
-		User:               cfg.User,
-		BasicProcessCgroup: useCgroups,
-		TaskDir:            cfg.TaskDir().Dir,
-		StdoutPath:         cfg.StdoutPath,
-		StderrPath:         cfg.StderrPath,
-		NetworkIsolation:   cfg.NetworkIsolation,
-		Resources:          cfg.Resources.Copy(),
+		Cmd:              driverConfig.Command,
+		Args:             driverConfig.Args,
+		Env:              cfg.EnvList(),
+		User:             cfg.User,
+		TaskDir:          cfg.TaskDir().Dir,
+		WorkDir:          driverConfig.WorkDir,
+		StdoutPath:       cfg.StdoutPath,
+		StderrPath:       cfg.StderrPath,
+		NetworkIsolation: cfg.NetworkIsolation,
+		Resources:        cfg.Resources.Copy(),
+		OverrideCgroupV2: driverConfig.OverrideCgroupV2,
+		OverrideCgroupV1: driverConfig.OverrideCgroupV1,
+		OOMScoreAdj:      int32(driverConfig.OOMScoreAdj),
 	}
 
 	ps, err := exec.Launch(execCmd)
@@ -411,8 +473,9 @@ func (d *Driver) handleWait(ctx context.Context, handle *taskHandle, ch chan *dr
 		}
 	} else {
 		result = &drivers.ExitResult{
-			ExitCode: ps.ExitCode,
-			Signal:   ps.Signal,
+			ExitCode:  ps.ExitCode,
+			Signal:    ps.Signal,
+			OOMKilled: ps.OOMKilled,
 		}
 	}
 

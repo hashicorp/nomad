@@ -12,7 +12,7 @@ import (
 // tokens to the Paginator.
 type Tokenizer interface {
 	// GetToken returns the pagination token for the given element.
-	GetToken(interface{}) string
+	GetToken(interface{}) any
 }
 
 // IDGetter is the interface that must be implemented by structs that need to
@@ -31,6 +31,12 @@ type NamespaceGetter interface {
 // need to have their CreateIndex as part of the pagination token.
 type CreateIndexGetter interface {
 	GetCreateIndex() uint64
+}
+
+// ModifyIndexGetter is the interface that must be implemented by structs that
+// need to have their ModifyIndex as part of the pagination token.
+type ModifyIndexGetter interface {
+	GetModifyIndex() uint64
 }
 
 // StructsTokenizerOptions is the configuration provided to a StructsTokenizer.
@@ -58,10 +64,18 @@ type CreateIndexGetter interface {
 //	    WithNamespace:   true,
 //	    WithCreateIndex: true,
 //	}
+//
+// For structs that can be sorted by the order they were modified, set
+// `OnlyModifyIndex` to `true` and exclude all other options:
+//
+//	StructsTokenizerOptions {
+//	    OnlyModifyIndex: true,
+//	}
 type StructsTokenizerOptions struct {
 	WithCreateIndex bool
 	WithNamespace   bool
 	WithID          bool
+	OnlyModifyIndex bool
 }
 
 // StructsTokenizer is an pagination token generator that can create different
@@ -78,9 +92,13 @@ func NewStructsTokenizer(_ Iterator, opts StructsTokenizerOptions) StructsTokeni
 	}
 }
 
-func (it StructsTokenizer) GetToken(raw interface{}) string {
+func (it StructsTokenizer) GetToken(raw interface{}) any {
 	if raw == nil {
 		return ""
+	}
+
+	if it.opts.OnlyModifyIndex {
+		return raw.(ModifyIndexGetter).GetModifyIndex()
 	}
 
 	parts := []string{}

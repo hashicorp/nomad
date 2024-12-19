@@ -10,7 +10,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
 	"github.com/hashicorp/nomad/client/config"
@@ -19,7 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // MockClientCSI is a mock for the nomad.ClientCSI RPC server (see
@@ -117,9 +117,7 @@ func (c *MockClientCSI) NodeExpandVolume(req *cstructs.ClientCSINodeExpandVolume
 
 func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -127,15 +125,12 @@ func TestClientCSIController_AttachVolume_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerAttachVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -143,15 +138,12 @@ func TestClientCSIController_AttachVolume_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerAttachVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerDetachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -159,15 +151,12 @@ func TestClientCSIController_DetachVolume_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDetachVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerDetachVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -175,15 +164,12 @@ func TestClientCSIController_DetachVolume_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDetachVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_ValidateVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerValidateVolumeRequest{
 		VolumeID:           "test",
@@ -192,15 +178,12 @@ func TestClientCSIController_ValidateVolume_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerValidateVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_ValidateVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerValidateVolumeRequest{
 		VolumeID:           "test",
@@ -209,15 +192,12 @@ func TestClientCSIController_ValidateVolume_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerValidateVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_CreateVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerCreateVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -225,15 +205,12 @@ func TestClientCSIController_CreateVolume_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerCreateVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_CreateVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerCreateVolumeRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -241,15 +218,12 @@ func TestClientCSIController_CreateVolume_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerCreateVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_DeleteVolume_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerDeleteVolumeRequest{
 		ExternalVolumeID:   "test",
@@ -258,15 +232,12 @@ func TestClientCSIController_DeleteVolume_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDeleteVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_DeleteVolume_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerDeleteVolumeRequest{
 		ExternalVolumeID:   "test",
@@ -275,15 +246,12 @@ func TestClientCSIController_DeleteVolume_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDeleteVolume", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_ListVolumes_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerListVolumesRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -291,15 +259,12 @@ func TestClientCSIController_ListVolumes_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerListVolumes", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_ListVolumes_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerListVolumesRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -307,15 +272,12 @@ func TestClientCSIController_ListVolumes_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerListVolumes", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_CreateSnapshot_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -323,15 +285,12 @@ func TestClientCSIController_CreateSnapshot_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerCreateSnapshot", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_CreateSnapshot_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerCreateSnapshotRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -339,15 +298,12 @@ func TestClientCSIController_CreateSnapshot_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerCreateSnapshot", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_DeleteSnapshot_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerDeleteSnapshotRequest{
 		ID:                 "test",
@@ -356,15 +312,12 @@ func TestClientCSIController_DeleteSnapshot_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDeleteSnapshot", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_DeleteSnapshot_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerDeleteSnapshotRequest{
 		ID:                 "test",
@@ -373,15 +326,12 @@ func TestClientCSIController_DeleteSnapshot_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerDeleteSnapshot", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_ListSnapshots_Local(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupLocal(t)
-	defer cleanup()
+	codec := setupLocal(t)
 
 	req := &cstructs.ClientCSIControllerListSnapshotsRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -389,15 +339,12 @@ func TestClientCSIController_ListSnapshots_Local(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerListSnapshots", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSIController_ListSnapshots_Forwarded(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-	codec, cleanup := setupForward(t)
-	defer cleanup()
+	codec := setupForward(t)
 
 	req := &cstructs.ClientCSIControllerListSnapshotsRequest{
 		CSIControllerQuery: cstructs.CSIControllerQuery{PluginID: "minnie"},
@@ -405,8 +352,7 @@ func TestClientCSIController_ListSnapshots_Forwarded(t *testing.T) {
 
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "ClientCSI.ControllerListSnapshots", req, &resp)
-	require.Error(err)
-	require.Contains(err.Error(), "no plugins registered for type")
+	must.ErrorContains(t, err, "no plugins registered for type")
 }
 
 func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
@@ -435,31 +381,33 @@ func TestClientCSI_NodeForControllerPlugin(t *testing.T) {
 	node3.ID = uuid.Generate()
 
 	err := state.UpsertNode(structs.MsgTypeTestSetup, 1002, node1)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	err = state.UpsertNode(structs.MsgTypeTestSetup, 1003, node2)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	err = state.UpsertNode(structs.MsgTypeTestSetup, 1004, node3)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	ws := memdb.NewWatchSet()
 
 	plugin, err := state.CSIPluginByID(ws, "minnie")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	clientCSI := NewClientCSIEndpoint(srv, nil)
 	nodeIDs, err := clientCSI.clientIDsForController(plugin.ID)
-	require.NoError(t, err)
-	require.Equal(t, 1, len(nodeIDs))
+	must.NoError(t, err)
+	must.Len(t, 1, nodeIDs)
 	// only node1 has both the controller and a recent Nomad version
-	require.Equal(t, nodeIDs[0], node1.ID)
+	must.Eq(t, nodeIDs[0], node1.ID)
 }
 
 // sets up a pair of servers, each with one client, and registers a plugin to the clients.
 // returns a RPC client to the leader and a cleanup function.
-func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
+func setupForward(t *testing.T) rpc.ClientCodec {
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
 	s2, cleanupS2 := TestServer(t, func(c *Config) { c.BootstrapExpect = 2 })
+	t.Cleanup(cleanupS1)
+	t.Cleanup(cleanupS2)
 	TestJoin(t, s1, s2)
 
 	testutil.WaitForLeader(t, s1.RPC)
@@ -469,27 +417,22 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 	c1, cleanupC1 := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s1.config.RPCAddr.String()}
 	})
+	t.Cleanup(func() { cleanupC1() })
 
 	// Wait for client initialization
 	select {
 	case <-c1.Ready():
 	case <-time.After(10 * time.Second):
-		cleanupC1()
-		cleanupS1()
-		cleanupS2()
 		t.Fatal("client timedout on initialize")
 	}
 
 	c2, cleanupC2 := client.TestClient(t, func(c *config.Config) {
 		c.Servers = []string{s2.config.RPCAddr.String()}
 	})
+	t.Cleanup(func() { cleanupC2() })
 	select {
 	case <-c2.Ready():
 	case <-time.After(10 * time.Second):
-		cleanupC1()
-		cleanupC2()
-		cleanupS1()
-		cleanupS2()
 		t.Fatal("client timedout on initialize")
 	}
 
@@ -519,20 +462,14 @@ func setupForward(t *testing.T) (rpc.ClientCodec, func()) {
 
 	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
-	cleanup := func() {
-		cleanupC1()
-		cleanupC2()
-		cleanupS2()
-		cleanupS1()
-	}
-
-	return codec, cleanup
+	return codec
 }
 
 // sets up a single server with a client, and registers a plugin to the client.
-func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
+func setupLocal(t *testing.T) rpc.ClientCodec {
 	var err error
 	s1, cleanupS1 := TestServer(t, func(c *Config) { c.BootstrapExpect = 1 })
+	t.Cleanup(cleanupS1)
 
 	testutil.WaitForLeader(t, s1.RPC)
 	codec := rpcClient(t, s1)
@@ -548,18 +485,10 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	mockCSI.NextDeleteSnapshotError = fmt.Errorf("no plugins registered for type")
 	mockCSI.NextListExternalSnapshotsError = fmt.Errorf("no plugins registered for type")
 
-	c1, cleanupC1 := client.TestClientWithRPCs(t,
-		func(c *config.Config) {
-			c.Servers = []string{s1.config.RPCAddr.String()}
-		},
+	c1, cleanupC1 := client.TestRPCOnlyClient(t, nil, s1.config.RPCAddr,
 		map[string]interface{}{"CSI": mockCSI},
 	)
-
-	if err != nil {
-		cleanupC1()
-		cleanupS1()
-		require.NoError(t, err, "could not setup test client")
-	}
+	t.Cleanup(cleanupC1)
 
 	node1 := c1.UpdateConfig(func(c *config.Config) {
 		c.Node.Attributes["nomad.version"] = "0.11.0" // client RPCs not supported on early versions
@@ -571,11 +500,7 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	}
 	var resp structs.NodeUpdateResponse
 	err = c1.RPC("Node.Register", req, &resp)
-	if err != nil {
-		cleanupC1()
-		cleanupS1()
-		require.NoError(t, err, "could not register client node")
-	}
+	must.NoError(t, err, must.Sprint("could not register client node"))
 
 	waitForNodes(t, s1, 1, 1)
 
@@ -594,12 +519,7 @@ func setupLocal(t *testing.T) (rpc.ClientCodec, func()) {
 	}).Node
 	s1.fsm.state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1)
 
-	cleanup := func() {
-		cleanupC1()
-		cleanupS1()
-	}
-
-	return codec, cleanup
+	return codec
 }
 
 // waitForNodes waits until the server is connected to connectedNodes
@@ -630,6 +550,6 @@ func waitForNodes(t *testing.T, s *Server, connectedNodes, totalNodes int) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 }

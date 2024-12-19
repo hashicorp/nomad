@@ -54,19 +54,51 @@ type (
 // The JSON encoding is not used yet but my be part of the gRPC plumbing
 // in the future.
 type Topology struct {
-	NodeIDs   *idset.Set[hw.NodeID]
+	// COMPAT: idset.Set wasn't being serialized correctly but we can't change
+	// the encoding of a field once its shipped. Nodes is the wire
+	// representation
+	nodeIDs *idset.Set[hw.NodeID]
+	Nodes   []uint8
+
 	Distances SLIT
 	Cores     []Core
+
+	// BusAssociativity maps the specific bus each PCI device is plugged into
+	// with its hardware associated numa node
+	//
+	// e.g. "0000:03:00.0" -> 1
+	//
+	// Note that the key may not exactly match the Locality.PciBusID from the
+	// fingerprint of the device with regard to the domain value.
+	//
+	//
+	// 0000:03:00.0
+	// ^    ^  ^  ^
+	// |    |  |  |-- function (identifies functionality of device)
+	// |    |  |-- device (identifies the device number on the bus)
+	// |    |
+	// |    |-- bus (identifies which bus segment the device is connected to)
+	// |
+	// |-- domain (basically always 0, may be 0000 or 00000000)
+	BusAssociativity map[string]hw.NodeID
 
 	// explicit overrides from client configuration
 	OverrideTotalCompute   hw.MHz
 	OverrideWitholdCompute hw.MHz
 }
 
-// NewTopology is a constructor for the Topology object, only used in tests for
-// mocking.
-func NewTopology(nodeIDs *idset.Set[hw.NodeID], distances SLIT, cores []Core) *Topology {
-	return &Topology{NodeIDs: nodeIDs, Distances: distances, Cores: cores}
+func (t *Topology) SetNodes(nodes *idset.Set[hw.NodeID]) {
+	t.nodeIDs = nodes
+	if !nodes.Empty() {
+		t.Nodes = nodes.Slice()
+	} else {
+		t.Nodes = []uint8{}
+	}
+}
+
+func (t *Topology) SetNodesFrom(nodes []uint8) {
+	t.nodeIDs = idset.From[hw.NodeID](nodes)
+	t.Nodes = nodes
 }
 
 // A Core represents one logical (vCPU) core on a processor. Basically the slice
@@ -139,12 +171,12 @@ func (st *Topology) SupportsNUMA() bool {
 	}
 }
 
-// Nodes returns the set of NUMA Node IDs.
-func (st *Topology) Nodes() *idset.Set[hw.NodeID] {
-	if !st.SupportsNUMA() {
-		return nil
+// GetNodes returns the set of NUMA Node IDs.
+func (st *Topology) GetNodes() *idset.Set[hw.NodeID] {
+	if st.nodeIDs.Empty() {
+		st.nodeIDs = idset.From[hw.NodeID](st.Nodes)
 	}
-	return st.NodeIDs
+	return st.nodeIDs
 }
 
 // NodeCores returns the set of Core IDs for the given NUMA Node ID.

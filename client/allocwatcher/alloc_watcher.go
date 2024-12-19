@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -44,7 +45,7 @@ type terminated interface {
 // AllocRunnerMeta provides metadata about an AllocRunner such as its alloc and
 // alloc dir.
 type AllocRunnerMeta interface {
-	GetAllocDir() *allocdir.AllocDir
+	GetAllocDir() allocdir.Interface
 	Listener() *cstructs.AllocListener
 	Alloc() *structs.Allocation
 }
@@ -192,7 +193,7 @@ type localPrevAlloc struct {
 	sticky bool
 
 	// prevAllocDir is the alloc dir for the previous alloc
-	prevAllocDir *allocdir.AllocDir
+	prevAllocDir allocdir.Interface
 
 	// prevListener allows blocking for updates to the previous alloc
 	prevListener *cstructs.AllocListener
@@ -262,7 +263,7 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 }
 
 // Migrate from previous local alloc dir to destination alloc dir.
-func (p *localPrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) error {
+func (p *localPrevAlloc) Migrate(ctx context.Context, dest allocdir.Interface) error {
 	if !p.sticky {
 		// Not a sticky volume, nothing to migrate
 		return nil
@@ -425,7 +426,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 
 // Migrate alloc data from a remote node if the new alloc has migration enabled
 // and the old alloc hasn't been GC'd.
-func (p *remotePrevAlloc) Migrate(ctx context.Context, dest *allocdir.AllocDir) error {
+func (p *remotePrevAlloc) Migrate(ctx context.Context, dest allocdir.Interface) error {
 	if !p.migrate {
 		// Volume wasn't configured to be migrated, return early
 		return nil
@@ -513,9 +514,9 @@ func (p *remotePrevAlloc) getNodeAddr(ctx context.Context, nodeID string) (strin
 // Destroy on the returned allocdir if no error occurs.
 func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) (*allocdir.AllocDir, error) {
 	// Create the previous alloc dir
-	prevAllocDir := allocdir.NewAllocDir(p.logger, p.config.AllocDir, p.prevAllocID)
+	prevAllocDir := allocdir.NewAllocDir(p.logger, p.config.AllocDir, p.config.AllocMountsDir, p.prevAllocID)
 	if err := prevAllocDir.Build(); err != nil {
-		return nil, fmt.Errorf("error building alloc dir for previous alloc %q: %v", p.prevAllocID, err)
+		return nil, fmt.Errorf("error building alloc dir for previous alloc %q: %w", p.prevAllocID, err)
 	}
 
 	// Create an API client
@@ -537,7 +538,7 @@ func (p *remotePrevAlloc) migrateAllocDir(ctx context.Context, nodeAddr string) 
 	resp, err := apiClient.Raw().Response(url, qo)
 	if err != nil {
 		prevAllocDir.Destroy()
-		return nil, fmt.Errorf("error getting snapshot from previous alloc %q: %v", p.prevAllocID, err)
+		return nil, fmt.Errorf("error getting snapshot from previous alloc %q: %w", p.prevAllocID, err)
 	}
 
 	if err := p.streamAllocDir(ctx, resp, prevAllocDir.AllocDir); err != nil {
@@ -582,8 +583,14 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		}
 
 		if err != nil {
-			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %v",
+			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %w",
 				p.prevAllocID, p.allocID, err)
+		}
+
+		if escapes, err := escapingfs.PathEscapesAllocDir(dest, "", hdr.Name); err != nil {
+			return fmt.Errorf("error evaluating object: %w", err)
+		} else if escapes {
+			return fmt.Errorf("archive contains object that escapes alloc dir")
 		}
 
 		if hdr.Name == errorFilename {
@@ -591,7 +598,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 			// the message out of the file and return it.
 			errBuf := make([]byte, int(hdr.Size))
 			if _, err := tr.Read(errBuf); err != nil && err != io.EOF {
-				return fmt.Errorf("error streaming previous alloc %q for new alloc %q; failed reading error message: %v",
+				return fmt.Errorf("error streaming previous alloc %q for new alloc %q; failed reading error message: %w",
 					p.prevAllocID, p.allocID, err)
 			}
 			return fmt.Errorf("error streaming previous alloc %q for new alloc %q: %s",
@@ -606,7 +613,7 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 			// Can't change owner if not root or on Windows.
 			if euid == 0 {
 				if err := os.Chown(name, hdr.Uid, hdr.Gid); err != nil {
-					return fmt.Errorf("error chowning directory %v", err)
+					return fmt.Errorf("error chowning directory %w", err)
 				}
 			}
 			continue
@@ -614,28 +621,43 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 		// If the header is for a symlink we create the symlink
 		if hdr.Typeflag == tar.TypeSymlink {
 			if err = os.Symlink(hdr.Linkname, filepath.Join(dest, hdr.Name)); err != nil {
-				return fmt.Errorf("error creating symlink: %v", err)
+				return fmt.Errorf("error creating symlink: %w", err)
 			}
+
+			for _, path := range []string{hdr.Name, hdr.Linkname} {
+				if escapes, err := escapingfs.PathEscapesAllocDir(dest, "", path); err != nil {
+					return fmt.Errorf("error evaluating symlink: %w", err)
+				} else if escapes {
+					return fmt.Errorf("archive contains symlink that escapes alloc dir")
+				}
+			}
+
 			continue
 		}
 		// If the header is a file, we write to a file
 		if hdr.Typeflag == tar.TypeReg {
-			f, err := os.Create(filepath.Join(dest, hdr.Name))
+			fPath := filepath.Join(dest, hdr.Name)
+			if _, err := os.Lstat(fPath); err == nil {
+				if err := os.Remove(fPath); err != nil {
+					return fmt.Errorf("error removing existing file: %w", err)
+				}
+			}
+			f, err := os.Create(fPath)
 			if err != nil {
-				return fmt.Errorf("error creating file: %v", err)
+				return fmt.Errorf("error creating file: %w", err)
 			}
 
 			// Setting the permissions of the file as the origin.
 			if err := f.Chmod(os.FileMode(hdr.Mode)); err != nil {
 				f.Close()
-				return fmt.Errorf("error chmoding file %v", err)
+				return fmt.Errorf("error chmoding file %w", err)
 			}
 
 			// Can't change owner if not root or on Windows.
 			if euid == 0 {
 				if err := f.Chown(hdr.Uid, hdr.Gid); err != nil {
 					f.Close()
-					return fmt.Errorf("error chowning file %v", err)
+					return fmt.Errorf("error chowning file %w", err)
 				}
 			}
 
@@ -646,14 +668,14 @@ func (p *remotePrevAlloc) streamAllocDir(ctx context.Context, resp io.ReadCloser
 				if n > 0 && (err == nil || err == io.EOF) {
 					if _, err := f.Write(buf[:n]); err != nil {
 						f.Close()
-						return fmt.Errorf("error writing to file %q: %v", f.Name(), err)
+						return fmt.Errorf("error writing to file %q: %w", f.Name(), err)
 					}
 				}
 
 				if err != nil {
 					f.Close()
 					if err != io.EOF {
-						return fmt.Errorf("error reading snapshot: %v", err)
+						return fmt.Errorf("error reading snapshot: %w", err)
 					}
 					break
 				}
@@ -677,7 +699,7 @@ type NoopPrevAlloc struct{}
 func (NoopPrevAlloc) Wait(context.Context) error { return nil }
 
 // Migrate returns nil immediately.
-func (NoopPrevAlloc) Migrate(context.Context, *allocdir.AllocDir) error { return nil }
+func (NoopPrevAlloc) Migrate(context.Context, allocdir.Interface) error { return nil }
 
 func (NoopPrevAlloc) IsWaiting() bool   { return false }
 func (NoopPrevAlloc) IsMigrating() bool { return false }

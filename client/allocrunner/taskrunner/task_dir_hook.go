@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 
 	log "github.com/hashicorp/go-hclog"
@@ -14,7 +15,7 @@ import (
 	cconfig "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 )
 
 const (
@@ -65,7 +66,7 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	h.runner.EmitEvent(structs.NewTaskEvent(structs.TaskSetup).SetMessage(structs.TaskBuildingTaskDir))
 
 	// Build the task directory structure
-	err := h.runner.taskDir.Build(fsi == drivers.FSIsolationChroot, chroot)
+	err := h.runner.taskDir.Build(fsi, chroot, req.Task.User)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func (h *taskDirHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 }
 
 // setEnvvars sets path and host env vars depending on the FS isolation used.
-func setEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *allocdir.TaskDir, conf *cconfig.Config) {
+func setEnvvars(envBuilder *taskenv.Builder, fsi fsisolation.Mode, taskDir *allocdir.TaskDir, conf *cconfig.Config) {
 
 	envBuilder.SetClientTaskRoot(taskDir.Dir)
 	envBuilder.SetClientSharedAllocDir(taskDir.SharedAllocDir)
@@ -88,7 +89,12 @@ func setEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 
 	// Set driver-specific environment variables
 	switch fsi {
-	case drivers.FSIsolationNone:
+	case fsisolation.Unveil:
+		// Use mount paths
+		envBuilder.SetAllocDir(taskDir.MountsAllocDir)
+		envBuilder.SetTaskLocalDir(filepath.Join(taskDir.MountsTaskDir, "local"))
+		envBuilder.SetSecretsDir(taskDir.MountsSecretsDir)
+	case fsisolation.None:
 		// Use host paths
 		envBuilder.SetAllocDir(taskDir.SharedAllocDir)
 		envBuilder.SetTaskLocalDir(taskDir.LocalDir)
@@ -101,7 +107,7 @@ func setEnvvars(envBuilder *taskenv.Builder, fsi drivers.FSIsolation, taskDir *a
 	}
 
 	// Set the host environment variables for non-image based drivers
-	if fsi != drivers.FSIsolationImage {
+	if fsi != fsisolation.Image {
 		// COMPAT(1.0) using inclusive language, blacklist is kept for backward compatibility.
 		filter := strings.Split(conf.ReadAlternativeDefault(
 			[]string{"env.denylist", "env.blacklist"},

@@ -42,11 +42,12 @@ advertise {
 }
 
 client {
-  enabled    = true
-  state_dir  = "/tmp/client-state"
-  alloc_dir  = "/tmp/alloc"
-  servers    = ["a.b.c:80", "127.0.0.1:1234"]
-  node_class = "linux-medium-64bit"
+  enabled          = true
+  state_dir        = "/tmp/client-state"
+  alloc_dir        = "/tmp/alloc"
+  alloc_mounts_dir = "/tmp/mounts"
+  servers          = ["a.b.c:80", "127.0.0.1:1234"]
+  node_class       = "linux-medium-64bit"
 
   meta {
     foo = "bar"
@@ -101,9 +102,10 @@ client {
     path = "/tmp"
   }
 
-  cni_path              = "/tmp/cni_path"
-  bridge_network_name   = "custom_bridge_name"
-  bridge_network_subnet = "custom_bridge_subnet"
+  cni_path                   = "/tmp/cni_path"
+  bridge_network_name        = "custom_bridge_name"
+  bridge_network_subnet      = "custom_bridge_subnet"
+  bridge_network_subnet_ipv6 = "custom_bridge_subnet_ipv6"
 }
 
 server {
@@ -199,13 +201,16 @@ audit {
 }
 
 telemetry {
-  statsite_address           = "127.0.0.1:1234"
-  statsd_address             = "127.0.0.1:2345"
-  prometheus_metrics         = true
-  disable_hostname           = true
-  collection_interval        = "3s"
-  publish_allocation_metrics = true
-  publish_node_metrics       = true
+  disable_allocation_hook_metrics = true
+  in_memory_collection_interval   = "1m"
+  in_memory_retention_period      = "24h"
+  statsite_address                = "127.0.0.1:1234"
+  statsd_address                  = "127.0.0.1:2345"
+  prometheus_metrics              = true
+  disable_hostname                = true
+  collection_interval             = "3s"
+  publish_allocation_metrics      = true
+  publish_node_metrics            = true
 }
 
 leave_on_interrupt = true
@@ -287,17 +292,16 @@ vault {
 }
 
 tls {
-  http                            = true
-  rpc                             = true
-  verify_server_hostname          = true
-  ca_file                         = "foo"
-  cert_file                       = "bar"
-  key_file                        = "pipe"
-  rpc_upgrade_mode                = true
-  verify_https_client             = true
-  tls_prefer_server_cipher_suites = true
-  tls_cipher_suites               = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
-  tls_min_version                 = "tls12"
+  http                   = true
+  rpc                    = true
+  verify_server_hostname = true
+  ca_file                = "foo"
+  cert_file              = "bar"
+  key_file               = "pipe"
+  rpc_upgrade_mode       = true
+  verify_https_client    = true
+  tls_cipher_suites      = "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+  tls_min_version        = "tls12"
 }
 
 sentinel {
@@ -345,4 +349,17 @@ reporting {
   license {
     enabled = true
   }
+
+  address         = "http://localhost:8080"
+  export_interval = "15m"
+}
+
+keyring "awskms" {
+  active     = true
+  region     = "us-east-1"
+  kms_key_id = "alias/kms-nomad-keyring"
+}
+
+keyring "aead" {
+  active = false
 }

@@ -134,6 +134,45 @@ service_prefix "" { policy = "read" }
 node_prefix    "" { policy = "read" }
 ```
 
+#### Transparent Proxy
+
+Using Nomad's support for [transparent proxy][] configures the task group's
+network namespace so that traffic flows through the Envoy proxy. When the
+[`transparent_proxy`][] block is enabled:
+
+* Nomad will invoke the [`consul-cni`][] CNI plugin to configure `iptables` rules
+  in the network namespace to force outbound traffic from an allocation to flow
+  through the proxy.
+* If the local Consul agent is serving DNS, Nomad will set the IP address of the
+  Consul agent as the nameserver in the task's `/etc/resolv.conf`.
+* Consul will provide a [virtual IP][] for any upstream service the workload
+  has access to, based on the service intentions.
+
+Using transparent proxy has several important requirements:
+
+* You must have the [`consul-cni`][] CNI plugin installed on the client host
+  along with the usual [required CNI plugins][cni_plugins].
+* To use Consul DNS and virtual IPs, you will need to configure Consul's DNS
+  listener to be exposed to the workload network namespace. You can do this
+  without exposing the Consul agent on a public IP by setting the Consul
+  `bind_addr` to bind on a private IP address (the default is to use the
+  `client_addr`).
+* The Consul agent must be configured with [`recursors`][] if you want
+  allocations to make DNS queries for applications outside the service mesh.
+* Your workload's task cannot use the same [Unix user ID (UID)][uid] as the
+  Envoy sidecar proxy.
+* You cannot set a [`network.dns`][] block on the allocation (unless you set
+  [`no_dns`][tproxy_no_dns], see below).
+
+For example, a HCL configuration with a [go-sockaddr/template][] binding to the
+subnet `10.37.105.0/20`, with recursive DNS set to OpenDNS nameservers:
+
+```hcl
+bind_addr   = "{{ GetPrivateInterfaces | include \"network\" \"10.37.105.0/20\" | limit 1 | attr \"address\" }}"
+
+recursors = ["208.67.222.222", "208.67.220.220"]
+```
+
 ### Nomad
 
 Nomad must schedule onto a routable interface in order for the proxies to
@@ -150,10 +189,14 @@ Nomad uses CNI reference plugins to configure the network namespace used to secu
 Consul service mesh sidecar proxy. All Nomad client nodes using network namespaces
 must have these CNI plugins [installed][cni_install].
 
+To use [`transparent_proxy`][] mode, Nomad client nodes will also need the
+[`consul-cni`][] plugin installed. See the Linux post-installation [steps](/nomad/docs/install#linux-post-installation-steps) for more detail on how to install CNI plugins.
+
 ## Run the Service Mesh-enabled Services
 
-Once Nomad and Consul are running, submit the following service mesh-enabled services
-to Nomad by copying the HCL into a file named `servicemesh.nomad.hcl` and running:
+Once Nomad and Consul are running, with Consul DNS enabled for transparent proxy
+mode as described above, submit the following service mesh-enabled services to
+Nomad by copying the HCL into a file named `servicemesh.nomad.hcl` and running:
 `nomad job run servicemesh.nomad.hcl`
 
 ```hcl
@@ -170,7 +213,11 @@ job "countdash" {
       port = "9001"
 
       connect {
-        sidecar_service {}
+        sidecar_service {
+          proxy {
+            transparent_proxy {}
+          }
+        }
       }
     }
 
@@ -200,10 +247,7 @@ job "countdash" {
       connect {
         sidecar_service {
           proxy {
-            upstreams {
-              destination_name = "count-api"
-              local_bind_port  = 8080
-            }
+            transparent_proxy {}
           }
         }
       }
@@ -213,7 +257,7 @@ job "countdash" {
       driver = "docker"
 
       env {
-        COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+        COUNTING_SERVICE_URL = "http://count-api.virtual.consul"
       }
 
       config {
@@ -231,35 +275,41 @@ The job contains two task groups: an API service and a web frontend.
 The API service is defined as a task group with a bridge network:
 
 ```hcl
-  group "api" {
-    network {
-      mode = "bridge"
-    }
-
-    # ...
+group "api" {
+  network {
+    mode = "bridge"
   }
+
+  # ...
+}
 ```
 
-Since the API service is only accessible via Consul service mesh, it does not define
-any ports in its network. The service block enables service mesh.
+Since the API service is only accessible via Consul service mesh, it does not
+define any ports in its network. The `connect` block enables the service mesh
+and the `transparent_proxy` block ensures that the service will be reachable via
+a virtual IP address when used with Consul DNS.
 
 ```hcl
-  group "api" {
+group "api" {
 
-    # ...
+  # ...
 
-    service {
-      name = "count-api"
-      port = "9001"
+  service {
+    name = "count-api"
+    port = "9001"
 
-      connect {
-        sidecar_service {}
+    connect {
+      sidecar_service {
+        proxy {
+          transparent_proxy {}
+        }
       }
     }
-
-    # ...
-
   }
+
+  # ...
+
+}
 ```
 
 The `port` in the service block is the port the API service listens on. The
@@ -273,19 +323,19 @@ The web frontend is defined as a task group with a bridge network and a static
 forwarded port:
 
 ```hcl
-  group "dashboard" {
-    network {
-      mode = "bridge"
+group "dashboard" {
+  network {
+    mode = "bridge"
 
-      port "http" {
-        static = 9002
-        to     = 9002
-      }
+    port "http" {
+      static = 9002
+      to     = 9002
     }
-
-    # ...
-
   }
+
+  # ...
+
+}
 ```
 
 The `static = 9002` parameter requests the Nomad scheduler reserve port 9002 on
@@ -300,39 +350,103 @@ This allows you to connect to the web frontend in a browser by visiting
 The web frontend connects to the API service via Consul service mesh.
 
 ```hcl
-    service {
-      name = "count-dashboard"
-      port = "http"
+service {
+  name = "count-dashboard"
+  port = "http"
 
-      connect {
-        sidecar_service {
-          proxy {
-            upstreams {
-              destination_name = "count-api"
-              local_bind_port  = 8080
-            }
-          }
+  connect {
+    sidecar_service {
+      proxy {
+        transparent_proxy {}
+      }
+    }
+  }
+}
+```
+
+The `connect` block with `transparent_proxy` configures the web frontend's
+network namespace to route all access to the `count-api` service through the
+Envoy proxy.
+
+The web frontend is configured to communicate with the API service with an
+environment variable `$COUNTING_SERVICE_URL`:
+
+```hcl
+env {
+  COUNTING_SERVICE_URL = "http://count-api.virtual.consul"
+}
+```
+
+The `transparent_proxy` block ensures that DNS queries are made to Consul so
+that the `count-api.virtual.consul` name resolves to a virtual IP address. Note
+that you don't need to specify a port number because the virtual IP will only be
+directed to the correct service port.
+
+### Manually Configured Upstreams
+
+You can also use Connect without Consul DNS and `transparent_proxy` mode. This
+approach is not recommended because it requires duplicating service intention
+information in an `upstreams` block in the Nomad job specification. But Consul
+DNS is not protected by ACLs, so you might want to do this if you don't want to
+expose Consul DNS to untrusted workloads.
+
+In that case, you can add `upstream` blocks to the job spec. You don't need the
+`transparent_proxy` block for the `count-api` service:
+
+```hcl
+group "api" {
+
+  # ...
+
+  service {
+    name = "count-api"
+    port = "9001"
+
+    connect {
+      sidecar_service {}
+    }
+  }
+
+  # ...
+
+}
+```
+
+But you'll need to add an `upstreams` block to the `count-dashboard` service:
+
+```hcl
+service {
+  name = "count-dashboard"
+  port = "http"
+
+  connect {
+    sidecar_service {
+      proxy {
+        upstreams {
+          destination_name = "count-api"
+          local_bind_port  = 8080
         }
       }
     }
+  }
+}
 ```
 
 The `upstreams` block defines the remote service to access (`count-api`) and
 what port to expose that service on inside the network namespace (`8080`).
 
-The web frontend is configured to communicate with the API service with an
-environment variable:
+The web frontend will also need to use an environment variable to communicate
+with the API service:
 
 ```hcl
-      env {
-        COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
-      }
+env {
+  COUNTING_SERVICE_URL = "http://${NOMAD_UPSTREAM_ADDR_count_api}"
+}
 ```
 
-The web frontend is configured via the `$COUNTING_SERVICE_URL`, so you must
-interpolate the upstream's address into that environment variable. Note that
-dashes (`-`) are converted to underscores (`_`) in environment variables so
-`count-api` becomes `count_api`.
+This environment variable value gets interpolated with the upstream's
+address. Note that dashes (`-`) are converted to underscores (`_`) in
+environment variables so `count-api` becomes `count_api`.
 
 ## Limitations
 
@@ -369,11 +483,38 @@ only be accessible from the host filesystem. However, the sidecar task secrets
 directory may not be available in systems where it is mounted in a temporary
 filesystem.
 
+Bootstrapping the Envoy proxy requires that the Consul ACL token and service
+registration have successfully replicated to whichever Consul server the local
+Consul agent is connected to. Nomad clients poll for this value with exponential
+backoff and a timeout. You can adjust the timeouts on a given node by setting
+node metadata values via the command line or in the [`client.meta`][] agent
+configuration block. The default values are shown below:
+
+```shell-session
+nomad node meta apply -node-id $nodeID \
+    consul.token_preflight_check.timeout=10s \
+    consul.token_preflight_check.base=500ms \
+    consul.service_preflight_check.timeout=60s \
+    consul.service_preflight_check.base=1s
+```
+
 [count-dashboard]: /img/count-dashboard.png
 [consul_acl]: https://github.com/hashicorp/consul/issues/7414
 [gh-9907]: https://github.com/hashicorp/nomad/issues/9907
-[`Local`]: /consul/docs/security/acl/acl-tokens#token-attributes
-[anon_token]: /consul/docs/security/acl/acl-tokens#special-purpose-tokens
+[`Local`]: /consul/docs/security/acl/tokens#token-attributes
+[anon_token]: /consul/docs/security/acl/tokens#special-purpose-tokens
 [consul_ports]: /consul/docs/agent/config/config-files#ports
 [consul_grpc_tls]: /consul/docs/upgrading/upgrade-specific#changes-to-grpc-tls-configuration
-[cni_install]: /nomad/docs/install#post-installation-steps
+[cni_install]: /nomad/docs/install#linux-post-installation-steps
+[transparent proxy]: /consul/docs/k8s/connect/transparent-proxy
+[go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
+[`recursors`]: /consul/docs/agent/config/config-files#recursors
+[`transparent_proxy`]: /nomad/docs/job-specification/transparent_proxy
+[tproxy_no_dns]: /nomad/docs/job-specification/transparent_proxy#no_dns
+[`consul-cni`]: https://releases.hashicorp.com/consul-cni
+[virtual IP]: /consul/docs/services/discovery/dns-static-lookups#service-virtual-ip-lookups
+[cni_plugins]: /nomad/docs/networking/cni#cni-reference-plugins
+[consul_dns_port]: /consul/docs/agent/config/config-files#dns_port
+[`network.dns`]: /nomad/docs/job-specification/network#dns-parameters
+[`client.meta`]: /nomad/docs/configuration/client#meta
+[uid]: /nomad/docs/job-specification/transparent_proxy#uid

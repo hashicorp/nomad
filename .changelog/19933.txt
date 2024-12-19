@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug that caused blocked evaluations due to port conflict to not have a reason explaining why the evaluation was blocked
+```

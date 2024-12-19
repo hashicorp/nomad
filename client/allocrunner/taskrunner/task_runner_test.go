@@ -1,6 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
+//go:build linux
+
 package taskrunner
 
 import (
@@ -18,21 +20,25 @@ import (
 	"testing"
 	"time"
 
+	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/hookstats"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
 	consulclient "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 
@@ -99,14 +105,22 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	}
 
 	// Create the alloc dir + task dir
-	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, alloc.ID)
+	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, clientConf.AllocMountsDir, alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		cleanup()
 		t.Fatalf("error building alloc dir: %v", err)
 	}
-	taskDir := allocDir.NewTaskDir(taskName)
+	taskDir := allocDir.NewTaskDir(thisTask)
+
+	// Create cgroup
+	f := cgroupslib.Factory(alloc.ID, taskName, false)
+	must.NoError(t, f.Setup())
 
 	trCleanup := func() {
+		// destroy and remove the cgroup
+		_ = f.Kill()
+		_ = f.Teardown()
+		// destroy the alloc dir
 		if err := allocDir.Destroy(); err != nil {
 			t.Logf("error destroying alloc dir: %v", err)
 		}
@@ -136,6 +150,9 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	if vault != nil {
 		vaultFunc = func(_ string) (vaultclient.VaultClient, error) { return vault, nil }
 	}
+	// the envBuilder for the WIDMgr never has access to the task, so don't
+	// include it here
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
 
 	conf := &Config{
 		Alloc:                 alloc,
@@ -157,7 +174,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
 		Wranglers:             proclib.MockWranglers(t),
-		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger),
+		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger, envBuilder),
 		AllocHookResources:    cstructs.NewAllocHookResources(),
 	}
 
@@ -185,6 +202,7 @@ func runTestTaskRunner(t *testing.T, alloc *structs.Allocation, taskName string)
 	}
 
 	tr, err := NewTaskRunner(config)
+
 	require.NoError(t, err)
 	go tr.Run()
 
@@ -1452,7 +1470,7 @@ func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
 	// control when we get a Consul SI token
 	token := uuid.Generate()
 	waitCh := make(chan struct{})
-	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+	deriveFn := func(context.Context, *structs.Allocation, []string) (map[string]string, error) {
 		<-waitCh
 		return map[string]string{task.Name: token}, nil
 	}
@@ -1516,7 +1534,7 @@ func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
 	// control when we get a Consul SI token (recoverable failure on first call)
 	token := uuid.Generate()
 	deriveCount := 0
-	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+	deriveFn := func(context.Context, *structs.Allocation, []string) (map[string]string, error) {
 		if deriveCount > 0 {
 
 			return map[string]string{task.Name: token}, nil
@@ -2494,7 +2512,7 @@ func TestTaskRunner_TemplateWorkloadIdentity(t *testing.T) {
 	}
 	conf.AllocHookResources.SetConsulTokens(map[string]map[string]*consulapi.ACLToken{
 		structs.ConsulDefaultCluster: {
-			task.Consul.IdentityName(): {SecretID: "consul-task-token"},
+			task.Consul.IdentityName() + "/web": {SecretID: "consul-task-token"},
 		},
 	})
 	t.Cleanup(cleanup)
@@ -2852,6 +2870,40 @@ func TestTaskRunner_BaseLabels(t *testing.T) {
 	require.Equal(alloc.Namespace, labels["namespace"])
 }
 
+// TestTaskRunner_BaseLabels_IncludesAllocMetadata tests that the base labels include
+// the allocation metadata fields using the provided allowed list of keys
+func TestTaskRunner_BaseLabels_IncludesAllocMetadata(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	alloc.Namespace = "not-default"
+	job := alloc.Job
+	job.Meta = map[string]string{"owner": "HashiCorp", "my-key": "my-value", "some_dynamic_value": "now()"}
+	task := job.TaskGroups[0].Tasks[0]
+	task.Driver = "raw_exec"
+	task.Config = map[string]interface{}{
+		"command": "whoami",
+	}
+
+	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
+	defer cleanup()
+
+	trConfig.ClientConfig.IncludeAllocMetadataInMetrics = true
+	trConfig.ClientConfig.AllowedMetadataKeysInMetrics = []string{"owner", "my-key"}
+
+	tr, err := NewTaskRunner(trConfig)
+	must.NoError(t, err)
+
+	labels := map[string]string{}
+	for _, e := range tr.baseLabels {
+		labels[e.Name] = e.Value
+	}
+
+	must.Eq(t, "HashiCorp", labels["owner"])
+	must.Eq(t, "my-value", labels["my_key"])
+	must.MapNotContainsKey(t, labels, "some_dynamic_value")
+}
+
 // TestTaskRunner_IdentityHook_Enabled asserts that the identity hook exposes a
 // workload identity to a task.
 func TestTaskRunner_IdentityHook_Enabled(t *testing.T) {
@@ -2930,4 +2982,152 @@ func TestTaskRunner_IdentityHook_Disabled(t *testing.T) {
 	// Assert the token is built into the task env
 	taskEnv := tr.envBuilder.Build()
 	must.MapNotContainsKey(t, taskEnv.EnvMap, "NOMAD_TOKEN")
+}
+
+func TestTaskRunner_AllocNetworkStatus(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config = map[string]interface{}{"run_for": "2s"}
+
+	groupNetworks := []*structs.NetworkResource{{
+		Device: "eth0",
+		IP:     "192.168.0.100",
+		DNS: &structs.DNSConfig{
+			Servers:  []string{"1.1.1.1", "8.8.8.8"},
+			Searches: []string{"test.local"},
+			Options:  []string{"ndots:1"},
+		},
+		ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+		DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+	}}
+
+	groupNetworksWithoutDNS := []*structs.NetworkResource{{
+		Device:        "eth0",
+		IP:            "192.168.0.100",
+		ReservedPorts: []structs.Port{{Label: "admin", Value: 5000}},
+		DynamicPorts:  []structs.Port{{Label: "http", Value: 9876}},
+	}}
+
+	testCases := []struct {
+		name     string
+		networks []*structs.NetworkResource
+		fromCNI  *structs.DNSConfig
+		expect   *drivers.DNSConfig
+	}{
+		{
+			name:     "task with group networking overrides CNI",
+			networks: groupNetworks,
+			fromCNI: &structs.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+		},
+		{
+			name: "task with CNI alone",
+			fromCNI: &structs.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"10.37.105.17"},
+				Searches: []string{"node.consul"},
+				Options:  []string{"ndots:2", "edns0"},
+			},
+		},
+		{
+			name:     "task with group networking alone wth DNS",
+			networks: groupNetworks,
+			fromCNI:  nil,
+			expect: &drivers.DNSConfig{
+				Servers:  []string{"1.1.1.1", "8.8.8.8"},
+				Searches: []string{"test.local"},
+				Options:  []string{"ndots:1"},
+			},
+		},
+		{
+			name:     "task with group networking and no CNI dns",
+			networks: groupNetworksWithoutDNS,
+			fromCNI:  &structs.DNSConfig{},
+			expect:   &drivers.DNSConfig{},
+		},
+		{
+			name:    "task without group networking or CNI",
+			fromCNI: nil,
+			expect:  nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			testAlloc := alloc.Copy()
+			testAlloc.AllocatedResources.Shared.Networks = tc.networks
+
+			conf, cleanup := testTaskRunnerConfig(t, testAlloc, task.Name, nil)
+			t.Cleanup(cleanup)
+
+			// note this will never actually be set if we don't have group/CNI
+			// networking, but it's a good validation no-group/CNI code path
+			conf.AllocHookResources.SetAllocNetworkStatus(&structs.AllocNetworkStatus{
+				InterfaceName: "",
+				Address:       "",
+				DNS:           tc.fromCNI,
+			})
+
+			tr, err := NewTaskRunner(conf)
+			must.NoError(t, err)
+
+			// Run the task runner.
+			go tr.Run()
+			t.Cleanup(func() {
+				tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
+			})
+
+			// Wait for task to complete.
+			testWaitForTaskToStart(t, tr)
+
+			tr.stateLock.RLock()
+			t.Cleanup(tr.stateLock.RUnlock)
+
+			must.Eq(t, tc.expect, tr.localState.TaskHandle.Config.DNS)
+		})
+	}
+}
+
+func TestTaskRunner_setHookStatsHandler(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create an task runner that doesn't have any configuration, which means
+	// the operator has not disabled hook metrics.
+	baseTaskRunner := &TaskRunner{
+		clientConfig:     &config.Config{},
+		clientBaseLabels: []metrics.Label{},
+	}
+
+	baseTaskRunner.setHookStatsHandler("platform")
+	handler, ok := baseTaskRunner.hookStatsHandler.(*hookstats.Handler)
+	must.True(t, ok)
+	must.NotNil(t, handler)
+
+	// Create a new allocation runner but explicitly disable hook metrics
+	// collection.
+	baseTaskRunner = &TaskRunner{
+		clientConfig:     &config.Config{DisableAllocationHookMetrics: true},
+		clientBaseLabels: []metrics.Label{},
+	}
+
+	baseTaskRunner.setHookStatsHandler("platform")
+	noopHandler, ok := baseTaskRunner.hookStatsHandler.(*hookstats.NoOpHandler)
+	must.True(t, ok)
+	must.NotNil(t, noopHandler)
 }

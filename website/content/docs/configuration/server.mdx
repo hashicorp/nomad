@@ -29,10 +29,14 @@ server {
 
 ## `server` Parameters
 
-- `authoritative_region` `(string: "")` - Specifies the authoritative region, which
-  provides a single source of truth for global configurations such as ACL Policies and
-  global ACL tokens. Non-authoritative regions will replicate from the authoritative
-  to act as a mirror. By default, the local region is assumed to be authoritative.
+- `authoritative_region` `(string: "")` - Specifies the authoritative region,
+  which provides a single source of truth for global configurations such as ACL
+  Policies and global ACL tokens in multi-region, federated deployments.
+  Non-authoritative regions will replicate from the authoritative to act as a
+  mirror. By default, the local region is assumed to be authoritative. Setting
+  `authoritative_region` assumes that ACLs have been bootstrapped in the
+  authoritative region. See [Configure for multiple regions][] in the ACLs
+  tutorial.
 
 - `bootstrap_expect` `(int: required)` - Specifies the number of server nodes to
   wait for before bootstrapping. It is most common to use the odd-numbered
@@ -40,11 +44,13 @@ server {
   `1` does not provide any fault tolerance and is not recommended for production
   use cases.
 
-- `data_dir` `(string: "[data_dir]/server")` - Specifies the directory to use
-  for server-specific data, including the replicated log. By default, this is
-  the top-level [data_dir](/nomad/docs/configuration#data_dir) suffixed with "server",
-  like `"/opt/nomad/server"`. The top-level option must be set, even when
-  setting this value. This must be an absolute path.
+- `data_dir` `(string: "")` - Specifies the directory to use for server-specific
+  data, including the replicated log. When this parameter is empty, Nomad will
+  generate the path using the [top-level `data_dir`][top_level_data_dir] suffixed
+  with `server`, like `"/opt/nomad/server"`. The
+  [top-level data_dir][top_level_data_dir] must be set, even when setting this
+  value. This must be an absolute path. Nomad will create the directory on the
+  host, if it does not exist when the agent process starts.
 
 - `enabled` `(bool: false)` - Specifies if this agent should run in server mode.
   All other server options depend on this value being set.
@@ -84,8 +90,7 @@ server {
   frequent but smaller collections. Raising the interval will perform collections
   less frequently but collect more jobs at a time. Reducing this interval is
   useful if there is a large throughput of tasks, leading to a large set of
-  dead jobs. This is specified using a label suffix like "30s" or "3m". `job_gc_interval`
-  was introduced in Nomad 0.10.0.
+  dead jobs. This is specified using a label suffix like "30s" or "3m".
 
 - `job_gc_threshold` `(string: "4h")` - Specifies the minimum time a job must be
   in the terminal state before it is eligible for garbage collection. This is
@@ -127,7 +132,6 @@ server {
   bootstrapping cluster. The parameter is ignored once the cluster is bootstrapped or
   value is updated through the [API endpoint][update-scheduler-config]. See [the
   example section](#configuring-scheduler-config) for more details
-  `default_scheduler_config` was introduced in Nomad 0.10.4.
 
 - `heartbeat_grace` `(string: "10s")` - Specifies the additional time given
   beyond the heartbeat TTL of Clients to account for network and processing
@@ -233,13 +237,16 @@ server {
 - `root_key_gc_interval` `(string: "10m")` - Specifies the interval between
   [encryption key][] metadata garbage collections.
 
-- `root_key_gc_threshold` `(string: "1h")` - Specifies the minimum time that an
-  [encryption key][] must exist before it can be eligible for garbage
-  collection.
+- `root_key_gc_threshold` `(string: "1h")` - Specifies the minimum time after
+  the `root_key_rotation_threshold` has passed that an [encryption key][] must
+  exist before it can be eligible for garbage collection.
 
-- `root_key_rotation_threshold` `(string: "720h")` - Specifies the minimum time
-  that an [encryption key][] must exist before it is automatically rotated on
-  the next garbage collection interval.
+- `root_key_rotation_threshold` `(string: "720h")` - Specifies the lifetime of
+  an active [encryption key][] before it is automatically rotated on the next
+  garbage collection interval. Nomad will prepublish the replacement key at half
+  the `root_key_rotation_threshold` time so external consumers of Workload
+  Identity have time to obtain the new public key from the [JWKS URL][] before
+  it is used.
 
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad server will connect to other Nomad servers. The `retry_join`
@@ -404,13 +411,13 @@ server {
     scheduler_algorithm             = "spread"
     memory_oversubscription_enabled = true
     reject_job_registration         = false
-    pause_eval_broker               = false # New in Nomad 1.3.2
+    pause_eval_broker               = false
 
     preemption_config {
       batch_scheduler_enabled    = true
       system_scheduler_enabled   = true
       service_scheduler_enabled  = true
-      sysbatch_scheduler_enabled = true # New in Nomad 1.2
+      sysbatch_scheduler_enabled = true
     }
   }
 }
@@ -424,7 +431,7 @@ server {
 Nomad Clients periodically heartbeat to Nomad Servers to confirm they are
 operating as expected. Nomad Clients which do not heartbeat in the specified
 amount of time are considered `down` and their allocations are marked as `lost`
-or `disconnected` (if [`max_client_disconnect`][max_client_disconnect] is set)
+or `disconnected` (if [`disconnect.lost_after`][disconnect.lost_after] is set)
 and rescheduled.
 
 The various heartbeat related parameters allow you to tune the following
@@ -509,6 +516,9 @@ work.
 [`nomad operator gossip keyring generate`]: /nomad/docs/commands/operator/gossip/keyring-generate
 [search]: /nomad/docs/configuration/search
 [encryption key]: /nomad/docs/operations/key-management
-[max_client_disconnect]: /nomad/docs/job-specification/group#max-client-disconnect
+[disconnect.lost_after]: /nomad/docs/job-specification/disconnect#lost_after
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem
 [wi]: /nomad/docs/concepts/workload-identity
+[Configure for multiple regions]: /nomad/tutorials/access-control/access-control-bootstrap#configure-for-multiple-regions
+[top_level_data_dir]: /nomad/docs/configuration#data_dir
+[JWKS URL]: /nomad/api-docs/operator/keyring#list-active-public-keys

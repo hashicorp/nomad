@@ -18,7 +18,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
@@ -674,7 +674,7 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 		// Skip allocations that don't have any of the requested tasks.
 		if c.tasks.Size() > 0 {
 			hasTask := false
-			for _, taskName := range c.tasks.Slice() {
+			for taskName := range c.tasks.Items() {
 				if stub.HasTask(taskName) {
 					hasTask = true
 					break
@@ -910,7 +910,7 @@ func (c *JobRestartCommand) restartAlloc(alloc AllocationListStubWithJob) error 
 
 	// Run restarts concurrently when specific tasks were requested.
 	var restarts multierror.Group
-	for _, task := range c.tasks.Slice() {
+	for task := range c.tasks.Items() {
 		if !alloc.HasTask(task) {
 			continue
 		}
@@ -965,7 +965,7 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 
 	// Allocations for system jobs do not get replaced by the scheduler after
 	// being stopped, so an eval is needed to trigger the reconciler.
-	if *alloc.Job.Type == api.JobTypeSystem {
+	if alloc.isSystemJob() {
 		opts := api.EvalOptions{
 			ForceReschedule: true,
 		}
@@ -1240,4 +1240,10 @@ func (a *AllocationListStubWithJob) HasTask(name string) bool {
 func (a *AllocationListStubWithJob) IsRunning() bool {
 	return a.ClientStatus == api.AllocClientStatusRunning ||
 		a.DesiredStatus == api.AllocDesiredStatusRun
+}
+
+// isSystemJob returns true if allocation's job type
+// is "system", false otherwise
+func (a *AllocationListStubWithJob) isSystemJob() bool {
+	return a.Job != nil && a.Job.Type != nil && *a.Job.Type == api.JobTypeSystem
 }

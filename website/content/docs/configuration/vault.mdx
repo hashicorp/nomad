@@ -19,7 +19,7 @@ Alternatively, Nomad servers may be configured with a high-privileged Vault
 token that is used to derive fine-grained tokens for tasks. Refer to
 [Token-based Authentication](#token-based-authentication) for configuration
 details. This workflow is deprecated and will be removed in a future version of
-Nomad. Using using workload identities is strongly recommended as it is easier
+Nomad. Using workload identities is strongly recommended as it is easier
 to manage and more secure.
 
 Refer to the [Nomad and Vault Integration][nomad-vault] page for more
@@ -32,6 +32,10 @@ vault {
   default_identity {
     aud = ["vault.io"]
     ttl = "1h"
+
+    extra_claims {
+      unique_id = "${job.region}:${job.namespace}:${job.id}"
+    }
   }
 }
 ```
@@ -186,6 +190,29 @@ will be removed in a future release.
 - `ttl` `(string: "")` - Specifies for how long the workload identity should be
   considered as valid before expiring.
 
+- `extra_claims` `(map[string]string: optional)` - A set of key-value pairs that
+  will be provided as extra identity claims for workloads. You can use the keys
+  as [user claims in Vault role configurations][vault-jwt-user-claim]. The
+  values are interpolated. For example, if you include the extra claim
+  `unique_id = "${job.region}:${job.namespace}:${job.id}"`, you could set the
+  user claim field to `/extra_claims/unique_id` to map that identifier to an
+  entity alias. The available attributes for interpolation are:
+
+  - `${job.region}` - The region where the job is running.
+  - `${job.namespace}` - The job's namespace.
+  - `${job.id}` - The job's ID.
+  - `${job.node_pool}` - The node pool where the allocation is running.
+  - `${group.name}` - The task group name of the task using Vault.
+  - `${alloc.id}` - The allocation's ID.
+  - `${task.name}` - The name of the task using Vault.
+  - `${node.id}` - The ID of the node where the allocation is running.
+  - `${node.datacenter}` - The datacenter of the node where the allocation is running.
+  - `${node.pool}` - The node pool of the node where the allocation is running.
+  - `${node.class` - The class of the node where the allocation is running.
+  - `${vault.cluster}` - The Vault cluster name.
+  - `${vault.namespace}` - The Vault namespace.
+  - `${vault.role}` - The Vault role.
+
 ### Token-based Authentication
 
 ~> **Warning:** The token-based authentication flow is deprecated and will be
@@ -316,3 +343,4 @@ can be accomplished by sending the process a `SIGHUP` signal.
 [vault_bound_aud]: /vault/api-docs/auth/jwt#bound_audiences
 [vault_auth_enable_path]: /vault/docs/commands/auth/enable#path
 [workload_id]: /nomad/docs/concepts/workload-identity
+[vault-jwt-user-claim]: /vault/api-docs/auth/jwt#user_claim

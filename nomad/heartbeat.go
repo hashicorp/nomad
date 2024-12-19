@@ -163,7 +163,8 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 		Status:    structs.NodeStatusDown,
 		NodeEvent: structs.NewNodeEvent().SetSubsystem(structs.NodeEventSubsystemCluster).SetMessage(NodeHeartbeatEventMissed),
 		WriteRequest: structs.WriteRequest{
-			Region: h.srv.config.Region,
+			Region:    h.srv.config.Region,
+			AuthToken: h.srv.getLeaderAcl(),
 		},
 	}
 
@@ -181,6 +182,10 @@ func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
 	node, err := h.srv.State().NodeByID(nil, id)
 	if err != nil {
 		h.logger.Error("error retrieving node by id", "error", err)
+		return false, false
+	}
+	if node == nil {
+		h.logger.Error("node not found", "node_id", id)
 		return false, false
 	}
 

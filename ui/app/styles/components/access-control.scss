@@ -17,7 +17,7 @@
 
   .section-cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1rem;
     & > div {
       padding: 1rem;
@@ -83,7 +83,26 @@
 
   .policy-editor {
     max-height: 600px;
-    overflow: auto;
+  }
+
+  .namespace-editor-wrapper {
+    padding: 1rem 0;
+    &.error {
+      .CodeMirror {
+        box-shadow: 0 0 0 3px $red;
+      }
+      .help {
+        padding: 1rem 0;
+        font-size: 1rem;
+      }
+    }
+  }
+}
+
+.namespace-editor {
+  .boxed-section {
+    padding: 0;
+    margin: 0;
   }
 }
 

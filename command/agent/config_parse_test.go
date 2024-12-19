@@ -44,11 +44,12 @@ var basicConfig = &Config{
 		Serf: "127.0.0.4",
 	},
 	Client: &ClientConfig{
-		Enabled:   true,
-		StateDir:  "/tmp/client-state",
-		AllocDir:  "/tmp/alloc",
-		Servers:   []string{"a.b.c:80", "127.0.0.1:1234"},
-		NodeClass: "linux-medium-64bit",
+		Enabled:        true,
+		StateDir:       "/tmp/client-state",
+		AllocDir:       "/tmp/alloc",
+		AllocMountsDir: "/tmp/mounts",
+		Servers:        []string{"a.b.c:80", "127.0.0.1:1234"},
+		NodeClass:      "linux-medium-64bit",
 		ServerJoin: &ServerJoin{
 			RetryJoin:        []string{"1.1.1.1", "2.2.2.2"},
 			RetryInterval:    time.Duration(15) * time.Second,
@@ -91,9 +92,10 @@ var basicConfig = &Config{
 		HostVolumes: []*structs.ClientHostVolumeConfig{
 			{Name: "tmp", Path: "/tmp"},
 		},
-		CNIPath:             "/tmp/cni_path",
-		BridgeNetworkName:   "custom_bridge_name",
-		BridgeNetworkSubnet: "custom_bridge_subnet",
+		CNIPath:                 "/tmp/cni_path",
+		BridgeNetworkName:       "custom_bridge_name",
+		BridgeNetworkSubnet:     "custom_bridge_subnet",
+		BridgeNetworkSubnetIPv6: "custom_bridge_subnet_ipv6",
 	},
 	Server: &ServerConfig{
 		Enabled:                   true,
@@ -196,15 +198,20 @@ var basicConfig = &Config{
 		},
 	},
 	Telemetry: &Telemetry{
-		StatsiteAddr:             "127.0.0.1:1234",
-		StatsdAddr:               "127.0.0.1:2345",
-		PrometheusMetrics:        true,
-		DisableHostname:          true,
-		UseNodeName:              false,
-		CollectionInterval:       "3s",
-		collectionInterval:       3 * time.Second,
-		PublishAllocationMetrics: true,
-		PublishNodeMetrics:       true,
+		DisableAllocationHookMetrics: pointer.Of(true),
+		StatsiteAddr:                 "127.0.0.1:1234",
+		StatsdAddr:                   "127.0.0.1:2345",
+		PrometheusMetrics:            true,
+		DisableHostname:              true,
+		UseNodeName:                  false,
+		InMemoryCollectionInterval:   "1m",
+		inMemoryCollectionInterval:   1 * time.Minute,
+		InMemoryRetentionPeriod:      "24h",
+		inMemoryRetentionPeriod:      24 * time.Hour,
+		CollectionInterval:           "3s",
+		collectionInterval:           3 * time.Second,
+		PublishAllocationMetrics:     true,
+		PublishNodeMetrics:           true,
 	},
 	LeaveOnInt:                true,
 	LeaveOnTerm:               true,
@@ -277,17 +284,16 @@ var basicConfig = &Config{
 		},
 	}},
 	TLSConfig: &config.TLSConfig{
-		EnableHTTP:                  true,
-		EnableRPC:                   true,
-		VerifyServerHostname:        true,
-		CAFile:                      "foo",
-		CertFile:                    "bar",
-		KeyFile:                     "pipe",
-		RPCUpgradeMode:              true,
-		VerifyHTTPSClient:           true,
-		TLSPreferServerCipherSuites: true,
-		TLSCipherSuites:             "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
-		TLSMinVersion:               "tls12",
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               "foo",
+		CertFile:             "bar",
+		KeyFile:              "pipe",
+		RPCUpgradeMode:       true,
+		VerifyHTTPSClient:    true,
+		TLSCipherSuites:      "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+		TLSMinVersion:        "tls12",
 	},
 	HTTPAPIResponseHeaders: map[string]string{
 		"Access-Control-Allow-Origin": "*",
@@ -339,8 +345,25 @@ var basicConfig = &Config{
 		},
 	},
 	Reporting: &config.ReportingConfig{
+		ExportAddress:     "http://localhost:8080",
+		ExportIntervalHCL: "15m",
+		ExportInterval:    time.Minute * 15,
 		License: &config.LicenseReportingConfig{
 			Enabled: pointer.Of(true),
+		},
+	},
+	KEKProviders: []*structs.KEKProviderConfig{
+		{
+			Provider: "aead",
+			Active:   false,
+		},
+		{
+			Provider: "awskms",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"kms_key_id": "alias/kms-nomad-keyring",
+			},
 		},
 	},
 }
@@ -408,7 +431,7 @@ var pluginConfig = &Config{
 		},
 	},
 	Reporting: &config.ReportingConfig{
-		&config.LicenseReportingConfig{},
+		License: &config.LicenseReportingConfig{},
 	},
 	Consuls: []*config.ConsulConfig{},
 	Vaults:  []*config.VaultConfig{},
@@ -463,7 +486,7 @@ var nonoptConfig = &Config{
 	HTTPAPIResponseHeaders:    map[string]string{},
 	Sentinel:                  nil,
 	Reporting: &config.ReportingConfig{
-		&config.LicenseReportingConfig{},
+		License: &config.LicenseReportingConfig{},
 	},
 	Consuls: []*config.ConsulConfig{},
 	Vaults:  []*config.VaultConfig{},
@@ -476,6 +499,7 @@ func TestConfig_ParseMerge(t *testing.T) {
 	must.NoError(t, err)
 
 	actual, err := ParseConfigFile(path)
+	must.NoError(t, err)
 
 	// The Vault connection retry interval is an internal only configuration
 	// option, and therefore needs to be added here to ensure the test passes.
@@ -594,7 +618,7 @@ func (c *Config) addDefaults() {
 	}
 	if c.Reporting == nil {
 		c.Reporting = &config.ReportingConfig{
-			&config.LicenseReportingConfig{
+			License: &config.LicenseReportingConfig{
 				Enabled: pointer.Of(false),
 			},
 		}
@@ -746,6 +770,16 @@ var sample0 = &Config{
 		CleanupDeadServers: pointer.Of(true),
 	},
 	Reporting: config.DefaultReporting(),
+	KEKProviders: []*structs.KEKProviderConfig{
+		{
+			Provider: "awskms",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"kms_key_id": "alias/kms-nomad-keyring",
+			},
+		},
+	},
 }
 
 func TestConfig_ParseSample0(t *testing.T) {
@@ -862,7 +896,21 @@ var sample1 = &Config{
 		CleanupDeadServers: pointer.Of(true),
 	},
 	Reporting: &config.ReportingConfig{
-		&config.LicenseReportingConfig{},
+		License: &config.LicenseReportingConfig{},
+	},
+	KEKProviders: []*structs.KEKProviderConfig{
+		{
+			Provider: "aead",
+			Active:   false,
+		},
+		{
+			Provider: "awskms",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"kms_key_id": "alias/kms-nomad-keyring",
+			},
+		},
 	},
 }
 
@@ -1076,6 +1124,69 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			// check that extra Consul clusters have the defaults applied when
 			// not overridden
 			must.Eq(t, "nomad-client", cfg.Consuls[2].ClientServiceName)
+		})
+	}
+}
+
+func TestConfig_Telemetry(t *testing.T) {
+	ci.Parallel(t)
+
+	// Ensure merging a mostly empty struct correctly inherits default values
+	// set.
+	inputTelemetry1 := &Telemetry{PrometheusMetrics: true}
+	mergedTelemetry1 := DefaultConfig().Telemetry.Merge(inputTelemetry1)
+	must.Eq(t, mergedTelemetry1.inMemoryCollectionInterval, 10*time.Second)
+	must.Eq(t, mergedTelemetry1.inMemoryRetentionPeriod, 1*time.Minute)
+
+	// Ensure we can then overlay user specified data.
+	inputTelemetry2 := &Telemetry{
+		inMemoryCollectionInterval:   1 * time.Second,
+		inMemoryRetentionPeriod:      10 * time.Second,
+		DisableAllocationHookMetrics: pointer.Of(true),
+	}
+	mergedTelemetry2 := mergedTelemetry1.Merge(inputTelemetry2)
+	must.Eq(t, mergedTelemetry2.inMemoryCollectionInterval, 1*time.Second)
+	must.Eq(t, mergedTelemetry2.inMemoryRetentionPeriod, 10*time.Second)
+	must.True(t, *mergedTelemetry2.DisableAllocationHookMetrics)
+}
+
+func TestConfig_Template(t *testing.T) {
+	ci.Parallel(t)
+
+	for _, suffix := range []string{"hcl", "json"} {
+		t.Run(suffix, func(t *testing.T) {
+			cfg := DefaultConfig()
+			fc, err := LoadConfig("testdata/template." + suffix)
+			must.NoError(t, err)
+			cfg = cfg.Merge(fc)
+
+			must.Eq(t, []string{"plugin"}, cfg.Client.TemplateConfig.FunctionDenylist)
+			must.True(t, cfg.Client.TemplateConfig.DisableSandbox)
+			must.Eq(t, pointer.Of(7600*time.Hour), cfg.Client.TemplateConfig.MaxStale)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.BlockQueryWaitTime)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.Wait)
+			must.Eq(t, pointer.Of(10*time.Second), cfg.Client.TemplateConfig.Wait.Min)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.Wait.Max)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.WaitBounds)
+			must.Eq(t, pointer.Of(1*time.Second), cfg.Client.TemplateConfig.WaitBounds.Min)
+			must.Eq(t, pointer.Of(10*time.Hour), cfg.Client.TemplateConfig.WaitBounds.Max)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.ConsulRetry)
+			must.Eq(t, 6, *cfg.Client.TemplateConfig.ConsulRetry.Attempts)
+			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.ConsulRetry.Backoff)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.ConsulRetry.MaxBackoff)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.VaultRetry)
+			must.Eq(t, 6, *cfg.Client.TemplateConfig.VaultRetry.Attempts)
+			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.VaultRetry.Backoff)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.VaultRetry.MaxBackoff)
+
+			must.NotNil(t, cfg.Client.TemplateConfig.NomadRetry)
+			must.Eq(t, 6, *cfg.Client.TemplateConfig.NomadRetry.Attempts)
+			must.Eq(t, pointer.Of(550*time.Millisecond), cfg.Client.TemplateConfig.NomadRetry.Backoff)
+			must.Eq(t, pointer.Of(10*time.Minute), cfg.Client.TemplateConfig.NomadRetry.MaxBackoff)
 		})
 	}
 }

@@ -7,7 +7,7 @@
   <LinkTo @route="jobs.job.deployments" @model={{@job}}>
     <h4>
       Latest Deployment
-      <FlightIcon @name="arrow-right" />
+      <Hds::Icon @name="arrow-right" @isInline={{true}} />
     </h4>
   </LinkTo>
   <Hds::Badge @text={{capitalize this.status}} @size="small" @color={{this.statusColor}} @type="filled" />

@@ -15,28 +15,26 @@
         <p>
           Paste or author HCL or JSON to submit to your cluster, or select from a list of templates. A plan will be requested before the job is submitted. You can also attach a job spec by uploading a job file or dragging &amp; dropping a file to the editor.
         </p>
-
-        {{#if (can "write variable" path="*" namespace="*")}}
-          <Hds::ButtonSet>
-            <label
-              class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium"
-            >
-              <div class="hds-button__text">Upload file</div>
-              <input
-                type="file"
-                onchange={{action this.uploadJobSpec}}
-                accept=".hcl,.json,.nomad"
-              />
-            </label>
+        <Hds::ButtonSet>
+          <label
+            class="job-spec-upload hds-button hds-button--color-secondary hds-button--size-medium"
+          >
+            <div class="hds-button__text">Upload file</div>
+            <input
+            type="file"
+              onchange={{action this.fns.onUpload}}
+              accept=".hcl,.json,.nomad"
+            />
+          </label>
+          {{#if (can "read variable" path="nomad/job-templates/*" namespace="*")}}
             <Hds::Button
               @text="Choose from template"
               @color="secondary"
               @route="jobs.run.templates"
               data-test-choose-template
             />
-          </Hds::ButtonSet>
-        {{/if}}
-
+          {{/if}}
+        </Hds::ButtonSet>
       </header>
     {{/if}}
     {{did-update this.setDefinitionOnModel this.definition}}

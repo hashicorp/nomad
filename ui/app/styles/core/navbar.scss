@@ -142,6 +142,17 @@ $secondaryNavbarHeight: 4.5rem;
     display: flex;
     align-items: center;
 
+    &.single-region {
+      display: block;
+      padding: 0;
+      font-size: 1em;
+      color: rgba($primary-invert, 0.9);
+
+      > span {
+        font-weight: 500;
+      }
+    }
+
     &.is-gutter {
       width: $gutter-width;
       display: block;
@@ -163,16 +174,26 @@ $secondaryNavbarHeight: 4.5rem;
   .profile-dropdown {
     padding: 0.5rem 1rem 0.5rem 0.75rem;
     z-index: $z-gutter;
-    button.hds-dropdown-toggle-icon {
-      border-color: var(--token-color-palette-neutral-200);
-      background-color: transparent;
-      color: var(--token-color-surface-primary);
+  }
 
-      &.hds-dropdown-toggle-icon--is-open {
-        background-color: var(--token-color-surface-primary);
-        color: var(--token-color-foreground-primary);
-      }
+  .profile-dropdown button.hds-dropdown-toggle-icon,
+  .profile-link .hds-button {
+    border-color: var(--token-color-palette-neutral-200);
+    background-color: transparent;
+    color: var(--token-color-surface-primary);
+
+    &.hds-dropdown-toggle-icon--is-open {
+      background-color: var(--token-color-surface-primary);
+      color: var(--token-color-foreground-primary);
     }
+  }
+
+  .profile-dropdown .hds-dropdown-toggle-button__text {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    direction: rtl;
   }
 
   .custom-label {

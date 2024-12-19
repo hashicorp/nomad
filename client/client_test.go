@@ -5,6 +5,7 @@ package client
 
 import (
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/armon/go-metrics"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
@@ -62,30 +64,84 @@ func TestClient_StartStop(t *testing.T) {
 	}
 }
 
-// Certain labels for metrics are dependant on client initial setup. This tests
-// that the client has properly initialized before we assign values to labels
-func TestClient_BaseLabels(t *testing.T) {
+func TestClient_alloc_dirs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
-	client, cleanup := TestClient(t, nil)
-	if err := client.Shutdown(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	parent := t.TempDir()
+	allocs := filepath.Join(parent, "allocs")
+	mounts := filepath.Join(parent, "mounts")
+
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.AllocDir = allocs
+		c.AllocMountsDir = mounts
+	})
 	defer cleanup()
 
-	// directly invoke this function, as otherwise this will fail on a CI build
-	// due to a race condition
-	client.emitStats()
+	t.Cleanup(func() {
+		test.NoError(t, client.Shutdown())
+	})
 
-	baseLabels := client.baseLabels
-	assert.NotEqual(0, len(baseLabels))
+	// assert existence and permissions of alloc-dir
+	fi, err := os.Stat(allocs)
+	must.NoError(t, err)
+	must.Eq(t, 0o711|fs.ModeDir, fi.Mode())
 
-	nodeID := client.Node().ID
-	for _, e := range baseLabels {
-		if e.Name == "node_id" {
-			assert.Equal(nodeID, e.Value)
-		}
+	// assert existence and permissions of alloc-mounts-dir
+	fi, err = os.Stat(allocs)
+	must.NoError(t, err)
+	must.Eq(t, 0o711|fs.ModeDir, fi.Mode())
+}
+
+func TestClient_setupStatsLabels(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name           string
+		inputConfig    *config.Config
+		expectedLabels []metrics.Label
+	}{
+		{
+			name: "empty node class",
+			inputConfig: &config.Config{
+				Node: &structs.Node{
+					ID:         "f57156f9-19c6-4954-a96e-5abb0b47a8b2",
+					Datacenter: "dc1",
+					NodeClass:  "",
+					NodePool:   "default",
+				},
+			},
+			expectedLabels: []metrics.Label{
+				{Name: "node_id", Value: "f57156f9-19c6-4954-a96e-5abb0b47a8b2"},
+				{Name: "datacenter", Value: "dc1"},
+				{Name: "node_class", Value: "none"},
+				{Name: "node_pool", Value: "default"},
+			},
+		},
+		{
+			name: "non-empty node class",
+			inputConfig: &config.Config{
+				Node: &structs.Node{
+					ID:         "f57156f9-19c6-4954-a96e-5abb0b47a8b2",
+					Datacenter: "dc1",
+					NodeClass:  "high-memory",
+					NodePool:   "default",
+				},
+			},
+			expectedLabels: []metrics.Label{
+				{Name: "node_id", Value: "f57156f9-19c6-4954-a96e-5abb0b47a8b2"},
+				{Name: "datacenter", Value: "dc1"},
+				{Name: "node_class", Value: "high-memory"},
+				{Name: "node_pool", Value: "default"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lightClient := &Client{config: tc.inputConfig}
+			lightClient.setupStatsLabels()
+			must.SliceContainsAll(t, lightClient.baseLabels, tc.expectedLabels)
+		})
 	}
 }
 
@@ -1875,6 +1931,14 @@ func TestClient_hasLocalState(t *testing.T) {
 	defer cleanup()
 
 	c.stateDB = cstate.NewMemDB(c.logger)
+
+	t.Run("nil Job", func(t *testing.T) {
+		alloc := mock.BatchAlloc()
+		alloc.Job = nil
+		c.stateDB.PutAllocation(alloc)
+
+		must.False(t, c.hasLocalState(alloc))
+	})
 
 	t.Run("plain alloc", func(t *testing.T) {
 		alloc := mock.BatchAlloc()

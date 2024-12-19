@@ -25,15 +25,23 @@ const paramsAsJSON = `
   "decompression_limit_file_count": 3,
   "decompression_limit_size": 98765,
   "disable_filesystem_isolation": true,
+  "filesystem_isolation_extra_paths": [
+    "f:r:/dev/urandom",
+    "d:rx:/opt/bin",
+    "d:r:/tmp/stash"
+  ],
   "set_environment_variables": "",
   "artifact_mode": 2,
+  "artifact_insecure": false,
   "artifact_source": "https://example.com/file.txt",
   "artifact_destination": "local/out.txt",
   "artifact_headers": {
     "X-Nomad-Artifact": ["hi"]
   },
   "alloc_dir": "/path/to/alloc",
-  "task_dir": "/path/to/alloc/task"
+  "task_dir": "/path/to/alloc/task",
+  "chown": true,
+  "user":"nobody"
 }`
 
 var paramsAsStruct = &parameters{
@@ -46,7 +54,11 @@ var paramsAsStruct = &parameters{
 	DecompressionLimitFileCount: 3,
 	DecompressionLimitSize:      98765,
 	DisableFilesystemIsolation:  true,
-
+	FilesystemIsolationExtraPaths: []string{
+		"f:r:/dev/urandom",
+		"d:rx:/opt/bin",
+		"d:r:/tmp/stash",
+	},
 	Mode:        getter.ClientModeFile,
 	Source:      "https://example.com/file.txt",
 	Destination: "local/out.txt",
@@ -55,6 +67,8 @@ var paramsAsStruct = &parameters{
 	Headers: map[string][]string{
 		"X-Nomad-Artifact": {"hi"},
 	},
+	User:  "nobody",
+	Chown: true,
 }
 
 func TestParameters_reader(t *testing.T) {

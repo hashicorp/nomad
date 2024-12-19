@@ -1,0 +1,3 @@
+```release-note:bug
+consul (Enterprise): Fixed a bug where the group/task Consul cluster was assigned "default" when unset instead of the namespace-governed value
+```

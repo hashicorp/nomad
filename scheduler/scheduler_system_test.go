@@ -819,8 +819,6 @@ func TestSystemSched_JobModify_RemoveDC(t *testing.T) {
 	node2.Datacenter = "dc2"
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node2))
 
-	fmt.Println("DC1 node: ", node1.ID)
-	fmt.Println("DC2 node: ", node2.ID)
 	nodes := []*structs.Node{node1, node2}
 
 	// Generate a fake job with allocations

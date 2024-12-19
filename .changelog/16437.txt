@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: `acl token create` will now emit a warning if the token has a policy that does not yet exist
+```

@@ -5,7 +5,7 @@
 # setup script for Ubuntu Linux 22.04. Assumes that Packer has placed
 # build-time config files at /tmp/linux
 
-set -euo pipefail
+set -xeuo pipefail
 
 NOMAD_PLUGIN_DIR=/opt/nomad/plugins/
 
@@ -19,7 +19,10 @@ export DEBIAN_FRONTEND=noninteractive
 echo 'debconf debconf/frontend select Noninteractive' | sudo debconf-set-selections
 
 mkdir_for_root /opt
+mkdir_for_root /opt/bin # for envoy
 mkdir_for_root /srv/data # for host volumes
+mkdir_for_root /opt/cni/bin
+mkdir_for_root /opt/cni/config
 
 # Dependencies
 sudo apt-get update
@@ -30,14 +33,9 @@ sudo apt-get install -y \
      apt-transport-https ca-certificates gnupg2 stress
 
 # Install hc-install
-curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.5.2/hc-install_0.5.2_linux_amd64.zip
+curl -o /tmp/hc-install.zip https://releases.hashicorp.com/hc-install/0.9.0/hc-install_0.9.0_linux_amd64.zip
 sudo unzip -d /usr/local/bin /tmp/hc-install.zip
 
-# Install sockaddr
-aws s3 cp "s3://nomad-team-dev-test-binaries/tools/sockaddr_linux_amd64" /tmp/sockaddr
-sudo mv /tmp/sockaddr /usr/local/bin
-sudo chmod +x /usr/local/bin/sockaddr
-sudo chown root:root /usr/local/bin/sockaddr
 
 # Disable the firewall
 sudo ufw disable || echo "ufw not installed"
@@ -90,10 +88,19 @@ sudo apt-get install -y openjdk-17-jdk-headless
 
 # CNI
 echo "Installing CNI plugins"
-sudo mkdir -p /opt/cni/bin
 wget -q -O - \
      https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-amd64-v1.0.0.tgz \
     | sudo tar -C /opt/cni/bin -xz
+
+echo "Installing consul-cni plugin"
+sudo hc-install install --path /opt/cni/bin --version 1.5.1 consul-cni
+
+echo "Installing custom test plugins"
+# for .conf and .json config tests
+sudo mv /tmp/linux/cni/loopback.* /opt/cni/config/
+# cni_args test plugin and network config
+sudo mv /tmp/linux/cni/cni_args.conflist /opt/cni/config/
+sudo mv /tmp/linux/cni/cni_args.sh /opt/cni/bin/
 
 # Podman
 echo "Installing Podman"
@@ -110,6 +117,16 @@ tar -C /tmp -xf /tmp/pledge-driver.tar.gz
 sudo mv /tmp/nomad-pledge-driver ${NOMAD_PLUGIN_DIR}
 sudo mv /tmp/pledge /usr/local/bin
 sudo chmod +x /usr/local/bin/pledge
+
+# Exec2
+echo "Installing Exec2 Driver"
+sudo hc-install install --path ${NOMAD_PLUGIN_DIR} --version v0.1.0-alpha.2 nomad-driver-exec2
+sudo chmod +x ${NOMAD_PLUGIN_DIR}/nomad-driver-exec2
+
+# Envoy
+echo "Installing Envoy"
+sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.29.4/envoy-1.29.4-linux-x86_64
+sudo chmod +x /opt/bin/envoy
 
 # ECS
 if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
@@ -147,14 +164,3 @@ echo "Updating boot parameters"
 # enable cgroup_memory and swap
 sudo sed -i 's/GRUB_CMDLINE_LINUX="[^"]*/& cgroup_enable=memory swapaccount=1/' /etc/default/grub
 sudo update-grub
-
-echo "Configuring user shell"
-sudo tee -a /home/ubuntu/.bashrc << 'EOF'
-IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetPrivateIP')
-export CONSUL_RPC_ADDR=$IP_ADDRESS:8400
-export CONSUL_HTTP_ADDR=$IP_ADDRESS:8500
-export VAULT_ADDR=http://$IP_ADDRESS:8200
-export NOMAD_ADDR=http://$IP_ADDRESS:4646
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64/bin
-
-EOF

@@ -1,0 +1,64 @@
+---
+layout: docs
+page_title: Federated cluster operations
+description: |-
+  Operational considerations for running Nomad multi-region federated clusters as well as instructions for migrating the authoritative region to a federated region.
+---
+
+# Federated cluster operations
+
+This page lists operational considerations for running multi-region federated
+clusters as well as instructions for migrating the authoritative region to a
+federated region.
+
+## Operational considerations
+
+When operating multi-region federated Nomad clusters, consider the following:
+
+* **Regular snapshots**: You can back up Nomad server state using the
+  [`nomad operator snapshot save`][] and [`nomad operator snapshot agent`][] commands. Performing
+  regular backups expedites disaster recovery. The cadence depends on cluster rates of change
+  and your internal SLA’s. You should regularly test snapshots using the
+  [`nomad operator snapshot restore`][] command to ensure they work.
+
+* **Local ACL management tokens**: You need local management tokens to perform federated cluster
+  administration when the authoritative region is down. Make sure you have existing break-glass
+  tokens available for each region.
+
+* **Known paths to creating local ACL tokens**: If the authoritative region fails, creation of
+  global ACL tokens fails. If this happens, having the ability to create local ACL tokens allows
+  you to continue to interact with each available federated region.
+
+## Authoritative and federated regions
+
+* **Can non-authoritative regions continue to operate if the authoritative region is unreachable?**:
+  Yes, running workloads are never interrupted due to federation failures. Scheduling of new
+  workloads and rescheduling of failed workloads is never interrupted due to federation failures.
+  See [Failure Scenarios][failure_scenarios] for details.
+
+* **Can the authoritative region be deployed with servers only?** Yes, deploying the Nomad
+  authoritative region with servers only, without clients, works as expected. This servers-only
+  approach can expedite disaster recovery of the region. Restoration does not include objects such
+  as nodes, jobs, or allocations, which are large and require compute intensive reconciliation
+  after restoration.
+
+* **Can I migrate the authoritative region to a currently federated region?** It is possible by
+  following these steps:
+
+  1. Update the [`authoritative_region`][] configuration parameter on the desired authoritative
+    region servers.
+  1. Restart the server processes in the new authoritative region and ensure all data is present in
+    state as expected. If the network was partitioned as part of the failure of the original
+    authoritative region, writes of replicated objects may not have been successfully replicated to
+    federated regions.
+  1. Update the [`authoritative_region`][] configuration parameter on the federated region servers
+    and restart their processes.
+
+* **Can federated regions be bootstrapped while the authoritative region is down?**  No they
+cannot.
+
+[`nomad operator snapshot save`]: /nomad/docs/commands/operator/snapshot/save
+[`nomad operator snapshot agent`]: /nomad/docs/commands/operator/snapshot/agent
+[`nomad operator snapshot restore`]: /nomad/docs/commands/operator/snapshot/restore
+[failure_scenarios]: /nomad/docs/operations/federation/failure
+[`authoritative_region`]: /nomad/docs/configuration/server#authoritative_region

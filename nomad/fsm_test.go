@@ -169,12 +169,6 @@ func TestFSM_UpsertNode(t *testing.T) {
 		t.Fatalf("bad index: %d", node.CreateIndex)
 	}
 
-	tt := fsm.TimeTable()
-	index := tt.NearestIndex(time.Now().UTC())
-	if index != 1 {
-		t.Fatalf("bad: %d", index)
-	}
-
 	// Verify the eval was unblocked.
 	testutil.WaitForResult(func() (bool, error) {
 		bStats := fsm.blockedEvals.Stats()
@@ -1600,12 +1594,6 @@ func TestFSM_UpsertVaultAccessor(t *testing.T) {
 	if out1.CreateIndex != 1 {
 		t.Fatalf("bad index: %d", out2.CreateIndex)
 	}
-
-	tt := fsm.TimeTable()
-	index := tt.NearestIndex(time.Now().UTC())
-	if index != 1 {
-		t.Fatalf("bad: %d", index)
-	}
 }
 
 func TestFSM_DeregisterVaultAccessor(t *testing.T) {
@@ -1643,12 +1631,6 @@ func TestFSM_DeregisterVaultAccessor(t *testing.T) {
 	if out1 != nil {
 		t.Fatalf("not deleted!")
 	}
-
-	tt := fsm.TimeTable()
-	index := tt.NearestIndex(time.Now().UTC())
-	if index != 1 {
-		t.Fatalf("bad: %d", index)
-	}
 }
 
 func TestFSM_UpsertSITokenAccessor(t *testing.T) {
@@ -1680,10 +1662,6 @@ func TestFSM_UpsertSITokenAccessor(t *testing.T) {
 	r.NoError(err)
 	r.NotNil(result2)
 	r.Equal(uint64(1), result2.CreateIndex)
-
-	tt := fsm.TimeTable()
-	latestIndex := tt.NearestIndex(time.Now())
-	r.Equal(uint64(1), latestIndex)
 }
 
 func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
@@ -1718,10 +1696,6 @@ func TestFSM_DeregisterSITokenAccessor(t *testing.T) {
 	result2, err := fsm.State().SITokenAccessor(ws, a2.AccessorID)
 	r.NoError(err)
 	r.Nil(result2) // should have been deleted
-
-	tt := fsm.TimeTable()
-	latestIndex := tt.NearestIndex(time.Now())
-	r.Equal(uint64(1), latestIndex)
 }
 
 func TestFSM_ApplyPlanResults(t *testing.T) {
@@ -2567,28 +2541,6 @@ func TestFSM_SnapshotRestore_Indexes(t *testing.T) {
 	}
 }
 
-func TestFSM_SnapshotRestore_TimeTable(t *testing.T) {
-	ci.Parallel(t)
-	// Add some state
-	fsm := testFSM(t)
-
-	tt := fsm.TimeTable()
-	start := time.Now().UTC()
-	tt.Witness(1000, start)
-	tt.Witness(2000, start.Add(10*time.Minute))
-
-	// Verify the contents
-	fsm2 := testSnapshotRestore(t, fsm)
-
-	tt2 := fsm2.TimeTable()
-	if tt2.NearestTime(1500) != start {
-		t.Fatalf("bad")
-	}
-	if tt2.NearestIndex(start.Add(15*time.Minute)) != 2000 {
-		t.Fatalf("bad")
-	}
-}
-
 func TestFSM_SnapshotRestore_PeriodicLaunches(t *testing.T) {
 	ci.Parallel(t)
 	// Add some state
@@ -2932,6 +2884,60 @@ func TestFSM_SnapshotRestore_ACLBindingRules(t *testing.T) {
 		restoredACLBindingRules = append(restoredACLBindingRules, raw.(*structs.ACLBindingRule))
 	}
 	must.SliceContainsAll(t, restoredACLBindingRules, mockedACLBindingRoles)
+}
+
+func TestFSM_SnapshotRestore_JobSubmissions(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create our initial FSM which will be snapshotted.
+	fsm := testFSM(t)
+	testState := fsm.State()
+
+	// Create a non-default namespace, so we can later create jobs and
+	// submissions within it.
+	mockNamespace := mock.Namespace()
+	mockNamespace.Name = "platform"
+
+	must.NoError(t, testState.UpsertNamespaces(10, []*structs.Namespace{mockNamespace}))
+
+	// Generate a some mocked jobs and submissions to insert directly into
+	// state.
+	mockJob1 := mock.Job()
+	mockJobSubmission1 := &structs.JobSubmission{
+		Source:         "job{}",
+		Namespace:      mockJob1.Namespace,
+		JobID:          mockJob1.ID,
+		Version:        mockJob1.Version,
+		JobModifyIndex: mockJob1.JobModifyIndex,
+	}
+
+	must.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, mockJob1.ModifyIndex, mockJobSubmission1, mockJob1))
+
+	mockJob2 := mock.Job()
+	mockJob2.Namespace = mockNamespace.Name
+	mockJobSubmission2 := &structs.JobSubmission{
+		Source:         "job{}",
+		Namespace:      mockJob2.Namespace,
+		JobID:          mockJob2.ID,
+		Version:        mockJob2.Version,
+		JobModifyIndex: mockJob2.JobModifyIndex,
+	}
+
+	must.NoError(t, testState.UpsertJob(structs.MsgTypeTestSetup, mockJob2.ModifyIndex, mockJobSubmission2, mockJob2))
+
+	// Perform a snapshot restore.
+	restoredFSM := testSnapshotRestore(t, fsm)
+	restoredState := restoredFSM.State()
+
+	jobSubmission1Resp, err := restoredState.JobSubmission(
+		nil, mockJobSubmission1.Namespace, mockJobSubmission1.JobID, mockJobSubmission1.Version)
+	must.NoError(t, err)
+	must.Eq(t, mockJobSubmission1, jobSubmission1Resp)
+
+	jobSubmission2Resp, err := restoredState.JobSubmission(
+		nil, mockJobSubmission2.Namespace, mockJobSubmission2.JobID, mockJobSubmission2.Version)
+	must.NoError(t, err)
+	must.Eq(t, mockJobSubmission2, jobSubmission2Resp)
 }
 
 func TestFSM_ReconcileSummaries(t *testing.T) {

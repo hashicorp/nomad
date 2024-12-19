@@ -64,7 +64,7 @@ host_volume "*" {
 }
 
 plugin {
-  policy = "write"
+  policy = "read"
 }
 ```
 
@@ -86,15 +86,17 @@ namespace label is specified, the rule will apply to the "default"
 namespace. You may use wildcard globs (`"*"`) in the namespace label, to apply a
 rule to multiple namespaces.
 
-Only one namespace rule can apply. When an action is checked against the ACL
+Only one namespace rule can apply. When Nomad checks an action against the ACL
 Policy, the namespace rule is selected by first checking for an _exact match_,
 before falling back to a glob-based lookup. When looking up the namespace by
-glob, the matching rule with the greatest number of matched characters will be
-chosen.
+glob, Nomad chooses the rule with the greatest number of matched characters. In
+other words, Nomad chooses the rule with the _smallest character difference_,
+which is the _greatest number of matched characters_.
 
-For example the following policy will evaluate to deny for `production-web`,
-because it is 9 characters different from the `"*-web"` rule, but 13 characters
-different from the `"*"` rule.
+In this example, you have a 'production-web' namespace. For the `"*-web"` rule,
+nine characters match. The character difference is four. For the `"*"`rule, no
+characters match the rule. The character difference is thirteen. Nomad chooses
+the `"*-web"` rule since it has the greatest number of matched characters.
 
 ```hcl
 namespace "*-web" {
@@ -120,13 +122,16 @@ of `capabilities`. This includes:
 
 - `deny` - When multiple policies are associated with a token, deny will take
   precedence and prevent any capabilities.
-- `list-jobs` - Allows listing the jobs and seeing coarse grain status.
+- `list-jobs` - Allows listing the jobs and seeing coarse grain status. This
+  implicitly grants `csi-list-volume`.
 - `parse-job` - Allows parsing a job from HCL to JSON.
-- `read-job` - Allows inspecting a job and seeing fine grain status.
+- `read-job` - Allows inspecting a job and seeing fine grain status. This
+  implicitly grants `csi-read-volume`.
 - `submit-job` - Allows jobs to be submitted, updated, or stopped.
 - `dispatch-job` - Allows jobs to be dispatched
 - `read-logs` - Allows the logs associated with a job to be viewed.
-- `read-fs` - Allows the filesystem of allocations associated to be viewed.
+- `read-fs` - Allows the filesystem of allocations associated to be
+  viewed. Implicitly grants `read-logs`.
 - `alloc-exec` - Allows an operator to connect and run commands in running
   allocations.
 - `alloc-node-exec` - Allows an operator to connect and run commands in
@@ -135,28 +140,33 @@ of `capabilities`. This includes:
   manually.
 - `csi-register-plugin` - Allows jobs to be submitted that register themselves
   as CSI plugins.
-- `csi-write-volume` - Allows CSI volumes to be registered or deregistered.
-- `csi-read-volume` - Allows inspecting a CSI volume and seeing fine grain
-  status.
-- `csi-list-volume` - Allows listing CSI volumes and seeing coarse grain status.
-- `csi-mount-volume` - Allows jobs to be submitted that claim a CSI volume.
+- `csi-write-volume` - Allows CSI volumes to be registered or deregistered. This
+  implicitly grants `csi-read-volume`.
+- `csi-read-volume` - Allows inspecting a CSI volume, seeing fine grain status,
+  and listing external volumes and snapshots. This implicitly grants
+  `csi-list-volume`.
+- `csi-list-volume` - Allows listing CSI volumes, seeing coarse grain status,
+  and listing external volumes and snapshots.
+- `csi-mount-volume` - Allows jobs to be submitted that claim a CSI volume. This
+  implicitly grants `csi-read-volume`.
 - `list-scaling-policies` - Allows listing scaling policies.
 - `read-scaling-policy` - Allows inspecting a scaling policy.
 - `read-job-scaling` - Allows inspecting the current scaling of a job.
 - `scale-job`: Allows scaling a job up or down.
 - `sentinel-override` - Allows soft mandatory policies to be overridden.
+- `submit-recommendation` - Allows submitting vertical job scaling recommendations.
 
 The coarse-grained policy permissions are shorthand for the following fine-
 grained namespace capabilities:
 
 <!-- markdownlint-disable -->
 
-| Policy  | Capabilities                                                                                                                                                                                                                                                    |
-| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `deny`  | deny                                                                                                                                                                                                                                                            |
-| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                      |
-| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job |
-| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                             |
+| Policy  | Capabilities                                                                                                                                                                                                                                                                                              |
+|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `deny`  | deny                                                                                                                                                                                                                                                                                                      |
+| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                                                                |
+| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job<br />submit-recommendation |
+| `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                                                                       |
 
 <!-- markdownlint-enable -->
 
@@ -191,7 +201,9 @@ variables block per namespace rule.
 
 A `variables` block includes one or more `path` blocks. Each `path` block is
 labeled with the path it applies to. You may use wildcard globs (`"*"`) in the
-path label, to apply the block to multiple paths in the namespace.
+path label, to apply the block to multiple paths in the namespace. Note that
+variable paths never start with a leading `/`, so Nomad will return an error if
+you submit a policy that has such a path.
 
 Each path has a list of `capabilities`. The available capabilities for Variables
 are as follows:
@@ -453,6 +465,14 @@ agent {
 }
 ```
 
+Additionally, ACL policies for users who can read jobs that mount CSI volumes
+should include the following rules.
+
+```hcl
+plugin {
+  policy = "read"
+}
+```
 
 [Secure Nomad with Access Control]: /nomad/tutorials/access-control
 [hcl]: https://github.com/hashicorp/hcl
@@ -475,3 +495,5 @@ agent {
 [host_volumes]: /nomad/docs/configuration/client#host_volume-block
 [api_plugins]: /nomad/api-docs/plugins/
 [Variables]: /nomad/docs/concepts/variables
+[federated]: /nomad/tutorials/manage-clusters/federation
+[`authoritative_region`]: /nomad/docs/configuration/server#authoritative_region

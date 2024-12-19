@@ -190,6 +190,9 @@ type Config struct {
 	// Reporting is used to enable go census reporting
 	Reporting *config.ReportingConfig `hcl:"reporting,block"`
 
+	// KEKProviders are used to wrap the Nomad keyring
+	KEKProviders []*structs.KEKProviderConfig `hcl:"keyring"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -223,6 +226,9 @@ type ClientConfig struct {
 	// AllocDir is the directory for storing allocation data
 	AllocDir string `hcl:"alloc_dir"`
 
+	// AllocMountsDir is the directory for storing mounts into allocation data
+	AllocMountsDir string `hcl:"alloc_mounts_dir"`
+
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
 
@@ -252,6 +258,11 @@ type ClientConfig struct {
 
 	// Interface to use for network fingerprinting
 	NetworkInterface string `hcl:"network_interface"`
+
+	// Sort the IP addresses by the preferred IP family. This is useful when
+	// the interface has multiple IP addresses and the client should prefer
+	// one over the other.
+	PreferredAddressFamily structs.NodeNetworkAF `hcl:"preferred_address_family"`
 
 	// NetworkSpeed is used to override any detected or default network link
 	// speed.
@@ -346,10 +357,15 @@ type ClientConfig struct {
 	// bridge network mode
 	BridgeNetworkName string `hcl:"bridge_network_name"`
 
-	// BridgeNetworkSubnet is the subnet to allocate IP addresses from when
+	// BridgeNetworkSubnet is the subnet to allocate IPv4 addresses from when
 	// creating allocations with bridge networking mode. This range is local to
 	// the host
 	BridgeNetworkSubnet string `hcl:"bridge_network_subnet"`
+
+	// BridgeNetworkSubnetIPv6 is the subnet to allocate IPv6 addresses when
+	// creating allocations with bridge networking mode. This range is local to
+	// the host
+	BridgeNetworkSubnetIPv6 string `hcl:"bridge_network_subnet_ipv6"`
 
 	// BridgeNetworkHairpinMode is whether or not to enable hairpin mode on the
 	// internal bridge network
@@ -380,6 +396,9 @@ type ClientConfig struct {
 	// Drain specifies whether to drain the client on shutdown; ignored in dev mode.
 	Drain *config.DrainConfig `hcl:"drain_on_shutdown"`
 
+	// Users is used to configure parameters around operating system users.
+	Users *config.UsersConfig `hcl:"users"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
 }
@@ -403,6 +422,7 @@ func (c *ClientConfig) Copy() *ClientConfig {
 	nc.NomadServiceDiscovery = pointer.Copy(c.NomadServiceDiscovery)
 	nc.Artifact = c.Artifact.Copy()
 	nc.Drain = c.Drain.Copy()
+	nc.Users = c.Users.Copy()
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -935,17 +955,33 @@ func (s *ServerConfig) EncryptBytes() ([]byte, error) {
 
 // Telemetry is the telemetry configuration for the server
 type Telemetry struct {
-	StatsiteAddr             string        `hcl:"statsite_address"`
-	StatsdAddr               string        `hcl:"statsd_address"`
-	DataDogAddr              string        `hcl:"datadog_address"`
-	DataDogTags              []string      `hcl:"datadog_tags"`
-	PrometheusMetrics        bool          `hcl:"prometheus_metrics"`
-	DisableHostname          bool          `hcl:"disable_hostname"`
-	UseNodeName              bool          `hcl:"use_node_name"`
-	CollectionInterval       string        `hcl:"collection_interval"`
-	collectionInterval       time.Duration `hcl:"-"`
-	PublishAllocationMetrics bool          `hcl:"publish_allocation_metrics"`
-	PublishNodeMetrics       bool          `hcl:"publish_node_metrics"`
+
+	// InMemoryCollectionInterval configures the in-memory sink collection
+	// interval. This sink is always configured and backs the JSON metrics API
+	// endpoint. This option is particularly useful for debugging or
+	// development.
+	InMemoryCollectionInterval string        `hcl:"in_memory_collection_interval"`
+	inMemoryCollectionInterval time.Duration `hcl:"-"`
+
+	// InMemoryRetentionPeriod configures the in-memory sink retention period
+	// This sink is always configured and backs the JSON metrics API endpoint.
+	// This option is particularly useful for debugging or development.
+	InMemoryRetentionPeriod string        `hcl:"in_memory_retention_period"`
+	inMemoryRetentionPeriod time.Duration `hcl:"-"`
+
+	StatsiteAddr                  string        `hcl:"statsite_address"`
+	StatsdAddr                    string        `hcl:"statsd_address"`
+	DataDogAddr                   string        `hcl:"datadog_address"`
+	DataDogTags                   []string      `hcl:"datadog_tags"`
+	PrometheusMetrics             bool          `hcl:"prometheus_metrics"`
+	DisableHostname               bool          `hcl:"disable_hostname"`
+	UseNodeName                   bool          `hcl:"use_node_name"`
+	CollectionInterval            string        `hcl:"collection_interval"`
+	collectionInterval            time.Duration `hcl:"-"`
+	PublishAllocationMetrics      bool          `hcl:"publish_allocation_metrics"`
+	PublishNodeMetrics            bool          `hcl:"publish_node_metrics"`
+	IncludeAllocMetadataInMetrics bool          `hcl:"include_alloc_metadata_in_metrics"`
+	AllowedMetadataKeysInMetrics  []string      `hcl:"allowed_metadata_keys_in_metrics"`
 
 	// PrefixFilter allows for filtering out metrics from being collected
 	PrefixFilter []string `hcl:"prefix_filter"`
@@ -960,11 +996,19 @@ type Telemetry struct {
 	// a small memory overhead.
 	DisableDispatchedJobSummaryMetrics bool `hcl:"disable_dispatched_job_summary_metrics"`
 
+	// DisableQuotaUtilizationMetrics allows to disable publishing of quota
+	// utilization metrics
+	DisableQuotaUtilizationMetrics bool `hcl:"disable_quota_utilization_metrics"`
+
 	// DisableRPCRateMetricsLabels drops the label for the identity of the
 	// requester when publishing metrics on RPC rate on the server. This may be
 	// useful to control metrics collection costs in environments where request
 	// rate is well-controlled but cardinality of requesters is high.
 	DisableRPCRateMetricsLabels bool `hcl:"disable_rpc_rate_metrics_labels"`
+
+	// DisableAllocationHookMetrics allows operators to disable emitting hook
+	// metrics.
+	DisableAllocationHookMetrics *bool `hcl:"disable_allocation_hook_metrics"`
 
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
@@ -1055,8 +1099,8 @@ func (t *Telemetry) Copy() *Telemetry {
 }
 
 // PrefixFilters parses the PrefixFilter field and returns a list of allowed and blocked filters
-func (a *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
-	for _, rule := range a.PrefixFilter {
+func (t *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
+	for _, rule := range t.PrefixFilter {
 		if rule == "" {
 			continue
 		}
@@ -1070,6 +1114,30 @@ func (a *Telemetry) PrefixFilters() (allowed, blocked []string, err error) {
 		}
 	}
 	return allowed, blocked, nil
+}
+
+// Validate the telemetry configuration options. These are used by the agent,
+// regardless of mode, so can live here rather than a structs package. It is
+// safe to call, without checking whether the config object is nil first.
+func (t *Telemetry) Validate() error {
+	if t == nil {
+		return nil
+	}
+
+	// Ensure we have durations that are greater than zero.
+	if t.inMemoryCollectionInterval <= 0 {
+		return errors.New("telemetry in-memory collection interval must be greater than zero")
+	}
+	if t.inMemoryRetentionPeriod <= 0 {
+		return errors.New("telemetry in-memory retention period must be greater than zero")
+	}
+
+	// Ensure the in-memory durations do not conflict.
+	if t.inMemoryCollectionInterval > t.inMemoryRetentionPeriod {
+		return errors.New("telemetry in-memory collection interval cannot be greater than retention period")
+	}
+
+	return nil
 }
 
 // Ports encapsulates the various ports we bind to for network services. If any
@@ -1274,10 +1342,6 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Client.GCDiskUsageThreshold = 99
 	conf.Client.GCInodeUsageThreshold = 99
 	conf.Client.GCMaxAllocs = 50
-	conf.Client.TemplateConfig = &client.ClientTemplateConfig{
-		FunctionDenylist: client.DefaultTemplateFunctionDenylist,
-		DisableSandbox:   false,
-	}
 	conf.Client.Options[fingerprint.TightenNetworkTimeoutsConfig] = "true"
 	conf.Client.BindWildcardDefaultHostNetwork = true
 	conf.Client.NomadServiceDiscovery = pointer.Of(true)
@@ -1285,6 +1349,8 @@ func DevConfig(mode *devModeConfig) *Config {
 	conf.Telemetry.PrometheusMetrics = true
 	conf.Telemetry.PublishAllocationMetrics = true
 	conf.Telemetry.PublishNodeMetrics = true
+	conf.Telemetry.IncludeAllocMetadataInMetrics = true
+	conf.Telemetry.AllowedMetadataKeysInMetrics = []string{}
 
 	if mode.consulMode {
 		conf.Consuls[0].ServiceIdentity = &config.WorkloadIdentityConfig{
@@ -1346,16 +1412,14 @@ func DefaultConfig() *Config {
 				RetryInterval:    30 * time.Second,
 				RetryMaxAttempts: 0,
 			},
-			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
-				DisableSandbox:   false,
-			},
+			TemplateConfig:                 client.DefaultTemplateConfig(),
 			BindWildcardDefaultHostNetwork: true,
 			CNIPath:                        "/opt/cni/bin",
 			CNIConfigDir:                   "/opt/cni/config",
 			NomadServiceDiscovery:          pointer.Of(true),
 			Artifact:                       config.DefaultArtifactConfig(),
 			Drain:                          nil,
+			Users:                          config.DefaultUsersConfig(),
 		},
 		Server: &ServerConfig{
 			Enabled:           false,
@@ -1390,8 +1454,13 @@ func DefaultConfig() *Config {
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
-			CollectionInterval: "1s",
-			collectionInterval: 1 * time.Second,
+			InMemoryCollectionInterval:   "10s",
+			inMemoryCollectionInterval:   10 * time.Second,
+			InMemoryRetentionPeriod:      "1m",
+			inMemoryRetentionPeriod:      1 * time.Minute,
+			CollectionInterval:           "1s",
+			collectionInterval:           1 * time.Second,
+			DisableAllocationHookMetrics: pointer.Of(false),
 		},
 		TLSConfig:          &config.TLSConfig{},
 		Sentinel:           &config.SentinelConfig{},
@@ -1401,6 +1470,7 @@ func DefaultConfig() *Config {
 		DisableUpdateCheck: pointer.Of(false),
 		Limits:             config.DefaultLimits(),
 		Reporting:          config.DefaultReporting(),
+		KEKProviders:       []*structs.KEKProviderConfig{},
 	}
 
 	return cfg
@@ -1626,6 +1696,8 @@ func (c *Config) Merge(b *Config) *Config {
 
 	result.Limits = c.Limits.Merge(b.Limits)
 
+	result.KEKProviders = mergeKEKProviderConfigs(result.KEKProviders, b.KEKProviders)
+
 	return &result
 }
 
@@ -1697,6 +1769,40 @@ func mergeConsulConfigs(left, right []*config.ConsulConfig) []*config.ConsulConf
 	return results
 }
 
+func mergeKEKProviderConfigs(left, right []*structs.KEKProviderConfig) []*structs.KEKProviderConfig {
+	if len(left) == 0 {
+		return right
+	}
+	if len(right) == 0 {
+		return left
+	}
+	results := []*structs.KEKProviderConfig{}
+	doMerge := func(dstConfigs, srcConfigs []*structs.KEKProviderConfig) []*structs.KEKProviderConfig {
+		for _, src := range srcConfigs {
+			var found bool
+			for i, dst := range dstConfigs {
+				if dst.Provider == src.Provider && dst.Name == src.Name {
+					dstConfigs[i] = dst.Merge(src)
+					found = true
+					break
+				}
+			}
+			if !found {
+				dstConfigs = append(dstConfigs, src)
+			}
+		}
+		return dstConfigs
+	}
+
+	results = doMerge(results, left)
+	results = doMerge(results, right)
+	sort.Slice(results, func(i, j int) bool {
+		return results[i].ID() < results[j].ID()
+	})
+
+	return results
+}
+
 // Copy returns a deep copy safe for mutation.
 func (c *Config) Copy() *Config {
 	if c == nil {
@@ -1730,6 +1836,7 @@ func (c *Config) Copy() *Config {
 	nc.Limits = c.Limits.Copy()
 	nc.Audit = c.Audit.Copy()
 	nc.Reporting = c.Reporting.Copy()
+	nc.KEKProviders = helper.CopySlice(c.KEKProviders)
 	nc.ExtraKeysHCL = slices.Clone(c.ExtraKeysHCL)
 	return &nc
 }
@@ -2206,6 +2313,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.AllocDir != "" {
 		result.AllocDir = b.AllocDir
 	}
+	if b.AllocMountsDir != "" {
+		result.AllocMountsDir = b.AllocMountsDir
+	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
 	}
@@ -2215,6 +2325,11 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.NetworkInterface != "" {
 		result.NetworkInterface = b.NetworkInterface
 	}
+
+	if b.PreferredAddressFamily != "" {
+		result.PreferredAddressFamily = b.PreferredAddressFamily
+	}
+
 	if b.NetworkSpeed != 0 {
 		result.NetworkSpeed = b.NetworkSpeed
 	}
@@ -2282,7 +2397,7 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 
 	if b.TemplateConfig != nil {
-		result.TemplateConfig = b.TemplateConfig
+		result.TemplateConfig = result.TemplateConfig.Merge(b.TemplateConfig)
 	}
 
 	// Add the servers
@@ -2334,7 +2449,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.BridgeNetworkSubnet != "" {
 		result.BridgeNetworkSubnet = b.BridgeNetworkSubnet
 	}
-
+	if b.BridgeNetworkSubnetIPv6 != "" {
+		result.BridgeNetworkSubnetIPv6 = b.BridgeNetworkSubnetIPv6
+	}
 	if b.BridgeNetworkHairpinMode {
 		result.BridgeNetworkHairpinMode = true
 	}
@@ -2361,14 +2478,27 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	result.Artifact = a.Artifact.Merge(b.Artifact)
 	result.Drain = a.Drain.Merge(b.Drain)
+	result.Users = a.Users.Merge(b.Users)
 
 	return &result
 }
 
 // Merge is used to merge two telemetry configs together
-func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
-	result := *a
+func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
+	result := *t
 
+	if b.InMemoryCollectionInterval != "" {
+		result.InMemoryCollectionInterval = b.InMemoryCollectionInterval
+	}
+	if b.inMemoryCollectionInterval != 0 {
+		result.inMemoryCollectionInterval = b.inMemoryCollectionInterval
+	}
+	if b.InMemoryRetentionPeriod != "" {
+		result.InMemoryRetentionPeriod = b.InMemoryRetentionPeriod
+	}
+	if b.inMemoryRetentionPeriod != 0 {
+		result.inMemoryRetentionPeriod = b.inMemoryRetentionPeriod
+	}
 	if b.StatsiteAddr != "" {
 		result.StatsiteAddr = b.StatsiteAddr
 	}
@@ -2403,6 +2533,10 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	if b.PublishAllocationMetrics {
 		result.PublishAllocationMetrics = true
 	}
+	if b.IncludeAllocMetadataInMetrics {
+		result.IncludeAllocMetadataInMetrics = true
+	}
+	result.AllowedMetadataKeysInMetrics = append(result.AllowedMetadataKeysInMetrics, b.AllowedMetadataKeysInMetrics...)
 	if b.CirconusAPIToken != "" {
 		result.CirconusAPIToken = b.CirconusAPIToken
 	}
@@ -2454,8 +2588,14 @@ func (a *Telemetry) Merge(b *Telemetry) *Telemetry {
 	if b.DisableDispatchedJobSummaryMetrics {
 		result.DisableDispatchedJobSummaryMetrics = b.DisableDispatchedJobSummaryMetrics
 	}
+	if b.DisableQuotaUtilizationMetrics {
+		result.DisableQuotaUtilizationMetrics = b.DisableQuotaUtilizationMetrics
+	}
 	if b.DisableRPCRateMetricsLabels {
 		result.DisableRPCRateMetricsLabels = b.DisableRPCRateMetricsLabels
+	}
+	if b.DisableAllocationHookMetrics != nil {
+		result.DisableAllocationHookMetrics = b.DisableAllocationHookMetrics
 	}
 
 	return &result

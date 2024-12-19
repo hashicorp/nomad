@@ -1,6 +1,12 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+variable "nomad_region" {
+  type        = string
+  description = "Cluster region"
+  default     = "e2e"
+}
+
 variable "nomad_local_binary" {
   type        = string
   description = "Path to local Nomad build (ex. \"/home/me/bin/nomad\")"
@@ -72,4 +78,15 @@ variable "connection" {
     private_key = string
   })
   description = "ssh connection information for remote target"
+}
+
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+
+variable "aws_kms_key_id" {
+  type        = string
+  description = "AWS KMS key ID for encrypting and decrypting the Nomad keyring"
+  default     = ""
 }

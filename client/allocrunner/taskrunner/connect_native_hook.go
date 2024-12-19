@@ -119,8 +119,8 @@ func (h *connectNativeHook) Prestart(
 	merge(environment, h.bridgeEnv(request.TaskEnv.EnvMap))
 	merge(environment, h.hostEnv(request.TaskEnv.EnvMap))
 
-	// tls/acl setup for native task done
-	response.Done = true
+	// tls/acl setup for native task done but since SecretsDir is a tmpfs, don't
+	// mark Done=true as this hook will need to rerun on node reboots
 	response.Env = environment
 	return nil
 }

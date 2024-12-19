@@ -172,10 +172,11 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			}
 
 			// Setup the output
-			reply.Alloc = out
 			if out != nil {
+				out = out.Sanitize()
+				reply.Alloc = out
 				// Re-check namespace in case it differs from request.
-				if !allowNsOp(aclObj, out.Namespace) {
+				if !aclObj.AllowClientOp() && !allowNsOp(aclObj, out.Namespace) {
 					return structs.NewErrUnknownAllocation(args.AllocID)
 				}
 
@@ -619,7 +620,24 @@ func (a *Alloc) signTasks(
 		}
 
 		widFound = true
-		err = a.signIdentities(alloc, wid, idReq, reply, now)
+		builder := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, &idReq.WIHandle, wid).
+			WithTask(task).
+			WithConsul()
+
+		var node *structs.Node
+		node, err = a.srv.State().NodeByID(nil, alloc.NodeID)
+		if err != nil {
+			return
+		}
+		builder.WithNode(node)
+
+		vaultCfg := a.srv.GetConfig().GetVaultForIdentity(wid)
+		if vaultCfg != nil && vaultCfg.DefaultIdentity != nil {
+			builder.WithVault(vaultCfg.DefaultIdentity.ExtraClaims)
+		}
+
+		claims := builder.Build(now)
+		err = a.signClaims(claims, idReq, reply)
 		break
 	}
 	return
@@ -637,14 +655,25 @@ func (a *Alloc) signServices(
 	// services can be on the level of task groups or tasks
 	for _, tg := range job.TaskGroups {
 		for _, service := range tg.Services {
-			if service.IdentityHandle().Equal(wid) {
-				return true, a.signIdentities(alloc, service.Identity, idReq, reply, now)
+			if service.IdentityHandle(nil).Equal(wid) {
+				claims := structs.NewIdentityClaimsBuilder(
+					alloc.Job, alloc, &idReq.WIHandle, service.Identity).
+					WithConsul().
+					WithService(service).
+					Build(now)
+				return true, a.signClaims(claims, idReq, reply)
 			}
 		}
 		for _, task := range tg.Tasks {
 			for _, service := range task.Services {
-				if service.IdentityHandle().Equal(wid) {
-					return true, a.signIdentities(alloc, service.Identity, idReq, reply, now)
+				if service.IdentityHandle(nil).Equal(wid) {
+					claims := structs.NewIdentityClaimsBuilder(
+						alloc.Job, alloc, &idReq.WIHandle, service.Identity).
+						WithTask(task).
+						WithConsul().
+						WithService(service).
+						Build(now)
+					return true, a.signClaims(claims, idReq, reply)
 				}
 			}
 		}
@@ -652,14 +681,11 @@ func (a *Alloc) signServices(
 	return
 }
 
-func (a *Alloc) signIdentities(
-	alloc *structs.Allocation,
-	wid *structs.WorkloadIdentity,
+func (a *Alloc) signClaims(
+	claims *structs.IdentityClaims,
 	idReq *structs.WorkloadIdentityRequest,
 	reply *structs.AllocIdentitiesResponse,
-	now time.Time,
 ) error {
-	claims := structs.NewIdentityClaims(alloc.Job, alloc, &idReq.WIHandle, wid, now)
 	token, _, err := a.srv.encrypter.SignClaims(claims)
 	if err != nil {
 		return err

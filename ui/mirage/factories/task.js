@@ -26,10 +26,14 @@ export default Factory.extend({
   // Set in the TaskGroup factory
   volumeMounts: [],
 
+  meta: null,
+
   JobID: '',
 
   name: (id) => `task-${dasherize(faker.hacker.noun())}-${id}`,
   driver: () => faker.helpers.randomize(DRIVERS),
+
+  schedule: null,
 
   originalResources: generateResources,
   resources: function () {
@@ -114,6 +118,21 @@ export default Factory.extend({
         },
       ];
       task.update({ actions: actionsData });
+    }
+
+    if (task.withSchedule) {
+      const schedule = server.create('task-schedule', {
+        cron: {
+          End: '41 13',
+          Start: '40 13 * * * *',
+          Timezone: 'America/New_York',
+        },
+      });
+      task.update({ schedule: schedule });
+    }
+
+    if (task.withMeta) {
+      task.update({ meta: { raw: { foo: 'bar' } } });
     }
   },
 });

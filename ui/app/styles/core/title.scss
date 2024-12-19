@@ -41,4 +41,12 @@
       height: 100%;
     }
   }
+
+  .job-ui-links {
+    margin: 0.5rem 0 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 1rem;
+  }
 }

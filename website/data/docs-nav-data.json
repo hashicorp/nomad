@@ -1,6 +1,6 @@
 [
   {
-    "title": "Installing Nomad",
+    "title": "Install Nomad",
     "routes": [
       {
         "title": "Overview",
@@ -48,6 +48,32 @@
         "title": "Specific Version Details",
         "path": "upgrade/upgrade-specific"
       }
+    ]
+  },
+  {
+    "title": "Release Notes",
+    "routes": [
+       {
+         "title": "Overview",
+         "path": "release-notes"
+       },
+       {
+         "title": "Nomad",
+         "routes": [
+           {
+             "title": "Upcoming",
+             "path": "release-notes/nomad/upcoming"
+           },
+           {
+             "title": "v1.8.x",
+             "path": "release-notes/nomad/v1_8_x"
+           },
+           {
+            "title": "v1.9.x",
+            "path": "release-notes/nomad/v1_9_x"
+          }
+         ]
+       }
     ]
   },
   {
@@ -105,7 +131,16 @@
       },
       {
         "title": "Architecture",
-        "path": "concepts/architecture"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "concepts/architecture"
+          },
+          {
+            "title": "Federation",
+            "path": "concepts/architecture/federation"
+          }
+        ]
       },
       {
         "title": "CPU",
@@ -182,6 +217,10 @@
         "path": "concepts/security"
       },
       {
+        "title": "Job",
+        "path": "concepts/job"
+      },
+      {
         "title": "Workload Identity",
         "path": "concepts/workload-identity"
       },
@@ -217,6 +256,31 @@
       {
         "title": "consul",
         "path": "configuration/consul"
+      },
+      {
+        "title": "keyring",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "configuration/keyring"
+          },
+          {
+            "title": "AWS KMS",
+            "path": "configuration/keyring/awskms"
+          },
+          {
+            "title": "Azure Key Vault",
+            "path": "configuration/keyring/azurekeyvault"
+          },
+          {
+            "title": "GCP Cloud KMS",
+            "path": "configuration/keyring/gcpckms"
+          },
+          {
+            "title": "Vault Transit",
+            "path": "configuration/keyring/transit"
+          }
+        ]
       },
       {
         "title": "plugin",
@@ -437,6 +501,10 @@
             "path": "commands/alloc/logs"
           },
           {
+            "title": "pause",
+            "path": "commands/alloc/pause"
+          },
+          {
             "title": "restart",
             "path": "commands/alloc/restart"
           },
@@ -609,6 +677,10 @@
             "path": "commands/job/stop"
           },
           {
+            "title": "tag",
+            "path": "commands/job/tag"
+          },
+          {
             "title": "validate",
             "path": "commands/job/validate"
           }
@@ -768,6 +840,10 @@
               {
                 "title": "set-config",
                 "path": "commands/operator/autopilot/set-config"
+              },
+              {
+                "title": "health",
+                "path": "commands/operator/autopilot/health"
               }
             ]
           },
@@ -877,6 +953,10 @@
               {
                 "title": "inspect",
                 "path": "commands/operator/snapshot/inspect"
+              },
+              {
+                "title": "redact",
+                "path": "commands/operator/snapshot/redact"
               },
               {
                 "title": "restore",
@@ -1700,6 +1780,10 @@
         "path": "job-specification/expose"
       },
       {
+        "title": "disconnect",
+        "path": "job-specification/disconnect"
+      },
+      {
         "title": "gateway",
         "path": "job-specification/gateway"
       },
@@ -1772,6 +1856,10 @@
         "path": "job-specification/scaling"
       },
       {
+        "title": "schedule",
+        "path": "job-specification/schedule"
+      },
+      {
         "title": "service",
         "path": "job-specification/service"
       },
@@ -1794,6 +1882,14 @@
       {
         "title": "template",
         "path": "job-specification/template"
+      },
+      {
+        "title": "transparent_proxy",
+        "path": "job-specification/transparent_proxy"
+      },
+      {
+        "title": "ui",
+        "path": "job-specification/ui"
       },
       {
         "title": "update",
@@ -1837,6 +1933,10 @@
         "path": "other-specifications/node-pool"
       },
       {
+        "title": "Resource Quota",
+        "path": "other-specifications/quota"
+      },
+      {
         "title": "Variables",
         "path": "other-specifications/variables"
       },
@@ -1875,6 +1975,10 @@
         "path": "drivers/docker"
       },
       {
+        "title": "Exec2",
+        "href": "/plugins/drivers/exec2"
+      },
+      {
         "title": "Isolated Fork/Exec",
         "path": "drivers/exec"
       },
@@ -1893,6 +1997,27 @@
       {
         "title": "Raw Fork/Exec",
         "path": "drivers/raw_exec"
+      },
+      {
+        "title": "Virt <sup>Beta</sup>",
+        "routes": [
+          {
+            "title": "Overview",
+            "href": "/plugins/drivers/virt"
+          },
+          {
+            "title": "Installation",
+            "href": "/plugins/drivers/virt/installation"
+          },
+          {
+            "title": "Client",
+            "href": "/plugins/drivers/virt/client"
+          },
+          {
+            "title": "Task Config",
+            "href": "/plugins/drivers/virt/task-config"
+          }
+        ]
       },
       {
         "title": "Community",
@@ -1922,21 +2047,8 @@
             "href": "/plugins/drivers/community/lightrun"
           },
           {
-            "title": "LXC",
-            "href": "/plugins/drivers/community/lxc"
-          },
-          {
             "title": "Pot",
             "href": "/plugins/drivers/community/pot"
-          },
-          {
-            "title": "Rkt",
-            "badge": {
-              "text": "Deprecated",
-              "type": "outlined",
-              "color": "neutral"
-            },
-            "href": "/plugins/drivers/community/rkt"
           },
           {
             "title": "Rookout",
@@ -1953,19 +2065,10 @@
           {
             "title": "Windows IIS",
             "href": "/plugins/drivers/community/iis"
-          }
-        ]
-      },
-      {
-        "title": "Remote",
-        "routes": [
-          {
-            "title": "Overview",
-            "href": "/plugins/drivers/remote"
           },
           {
-            "title": "ECS",
-            "href": "/plugins/drivers/remote/ecs"
+            "title": "Windows IIS",
+            "href": "/plugins/drivers/community/nomad-iis"
           }
         ]
       }
@@ -2081,10 +2184,6 @@
           {
             "title": "policy_eval",
             "href": "/tools/autoscaling/agent/policy_eval"
-          },
-          {
-            "title": "source",
-            "href": "/tools/autoscaling/agent/source"
           },
           {
             "title": "strategy",
@@ -2294,6 +2393,35 @@
       {
         "title": "Key Management",
         "path": "operations/key-management"
+      },
+      {
+        "title": "Federation",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "operations/federation"
+          },
+          {
+            "title": "Failure",
+            "path": "operations/federation/failure"
+          }
+        ]
+      },
+      {
+        "title": "Considerations for Stateful Workloads",
+        "path": "operations/stateful-workloads"
+      },
+      {
+        "title": "Benchmarking Nomad",
+        "path": "operations/benchmarking"
+      },
+      {
+        "title": "Federate AWS Access with Workload Identity",
+        "path": "operations/aws-oidc-provider"
+      },
+      {
+        "title": "IPv6 Support",
+        "path": "operations/ipv6-support"
       }
     ]
   },

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
@@ -152,6 +152,14 @@ func (c *ACLTokenCreateCommand) Run(args []string) int {
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
+	}
+
+	// Show warning if policy doesn't exist
+	for _, policy := range tk.Policies {
+		_, _, err := client.ACLPolicies().Info(policy, nil)
+		if err != nil {
+			c.Ui.Warn(fmt.Sprintf("Error fetching info on %s policy: %s", policy, err))
+		}
 	}
 
 	// Create the bootstrap token

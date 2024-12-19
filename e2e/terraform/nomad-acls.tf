@@ -7,32 +7,23 @@
 # to get the management token into the provider's environment after we bootstrap.
 # So we run a bootstrapping script and write our management token into a file
 # that we read in for the output of $(terraform output environment) later.
-
-locals {
-  nomad_env = "NOMAD_ADDR=https://${aws_instance.server.0.public_ip}:4646 NOMAD_CACERT=keys/tls_ca.crt NOMAD_CLIENT_CERT=keys/tls_api_client.crt NOMAD_CLIENT_KEY=keys/tls_api_client.key"
-}
-
 resource "null_resource" "bootstrap_nomad_acls" {
-  depends_on = [module.nomad_server]
-  triggers = {
-    script = data.template_file.bootstrap_nomad_script.rendered
-  }
+  depends_on = [module.nomad_server, null_resource.bootstrap_consul_acls]
 
   provisioner "local-exec" {
-    command = data.template_file.bootstrap_nomad_script.rendered
+    command = "./scripts/bootstrap-nomad.sh"
+    environment = {
+      NOMAD_ADDR        = "https://${aws_instance.server.0.public_ip}:4646"
+      NOMAD_CACERT      = "keys/tls_ca.crt"
+      NOMAD_CLIENT_CERT = "keys/tls_api_client.crt"
+      NOMAD_CLIENT_KEY  = "keys/tls_api_client.key"
+    }
   }
-}
-
-# write the bootstrap token to the keys/ directory (where the ssh key is)
-# so that we can read it into the data.local_file later. If not set,
-# ensure that it's empty.
-data "template_file" "bootstrap_nomad_script" {
-  template = "${local.nomad_env} ./scripts/bootstrap-nomad.sh"
 }
 
 data "local_sensitive_file" "nomad_token" {
   depends_on = [null_resource.bootstrap_nomad_acls]
-  filename   = "${path.root}/keys/nomad_root_token"
+  filename   = "${path.module}/keys/nomad_root_token"
 }
 
 # push the token out to the servers for humans to use.
@@ -45,9 +36,12 @@ locals {
 cat <<ENV | sudo tee -a /root/.bashrc
 export NOMAD_ADDR=https://localhost:4646
 export NOMAD_SKIP_VERIFY=true
-export NOMAD_CLIENT_CERT=/etc/nomad.d/tls/agent.crt
-export NOMAD_CLIENT_KEY=/etc/nomad.d/tls/agent.key
+export NOMAD_CLIENT_CERT="/etc/nomad.d/tls/agent.crt"
+export NOMAD_CLIENT_KEY="/etc/nomad.d/tls/agent.key"
 export NOMAD_TOKEN=${data.local_sensitive_file.nomad_token.content}
+export CONSUL_HTTP_ADDR=https://localhost:8501
+export CONSUL_HTTP_TOKEN="${random_uuid.consul_initial_management_token.result}"
+export CONSUL_CACERT=/etc/consul.d/ca.pem
 ENV
 EXEC
 }

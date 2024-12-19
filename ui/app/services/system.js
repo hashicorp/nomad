@@ -57,7 +57,7 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed
+  @computed('token.selfToken')
   get defaultRegion() {
     const token = this.token;
     return PromiseObject.create({
@@ -110,6 +110,12 @@ export default class SystemService extends Service {
     return this.get('regions.length') > 1;
   }
 
+  get hasNonDefaultRegion() {
+    return this.get('regions')
+      .toArray()
+      .some((region) => region !== 'global');
+  }
+
   @computed('activeRegion', 'defaultRegion.region', 'shouldShowRegions')
   get shouldIncludeRegion() {
     return (
@@ -134,6 +140,10 @@ export default class SystemService extends Service {
       namespaces.length &&
       namespaces.some((namespace) => namespace.get('id') !== 'default')
     );
+  }
+
+  get shouldShowNodepools() {
+    return true; // TODO: make this dependent on there being at least one non-default node pool
   }
 
   @task(function* () {

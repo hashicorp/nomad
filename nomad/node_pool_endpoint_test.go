@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set/v2"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/hashicorp/go-set/v3"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/mock"

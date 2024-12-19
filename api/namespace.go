@@ -85,8 +85,10 @@ type Namespace struct {
 // NamespaceCapabilities represents a set of capabilities allowed for this
 // namespace, to be checked at job submission time.
 type NamespaceCapabilities struct {
-	EnabledTaskDrivers  []string `hcl:"enabled_task_drivers"`
-	DisabledTaskDrivers []string `hcl:"disabled_task_drivers"`
+	EnabledTaskDrivers   []string `hcl:"enabled_task_drivers"`
+	DisabledTaskDrivers  []string `hcl:"disabled_task_drivers"`
+	EnabledNetworkModes  []string `hcl:"enabled_network_modes"`
+	DisabledNetworkModes []string `hcl:"disabled_network_modes"`
 }
 
 // NamespaceNodePoolConfiguration stores configuration about node pools for a
@@ -155,4 +157,13 @@ func (n NamespaceIndexSort) Less(i, j int) bool {
 
 func (n NamespaceIndexSort) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
+}
+
+// NamespacedID is used for things that are unique only per-namespace,
+// such as jobs.
+type NamespacedID struct {
+	// Namespace is the Name of the Namespace
+	Namespace string
+	// ID is the ID of the namespaced object (e.g. Job ID)
+	ID string
 }

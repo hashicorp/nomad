@@ -8,13 +8,14 @@ import (
 	"testing"
 	"time"
 
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -488,7 +489,6 @@ func TestNamespaceEndpoint_DeleteNamespaces(t *testing.T) {
 
 func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
@@ -502,7 +502,7 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 	// Create a job in one
 	j := mock.Job()
 	j.Namespace = ns1.Name
-	assert.Nil(s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j))
+	must.Nil(t, s1.fsm.State().UpsertJob(structs.MsgTypeTestSetup, 1001, nil, j))
 
 	// Lookup the namespaces
 	req := &structs.NamespaceDeleteRequest{
@@ -511,9 +511,36 @@ func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Local(t *testing.T) {
 	}
 	var resp structs.GenericResponse
 	err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
-	if assert.NotNil(err) {
-		assert.Contains(err.Error(), "has non-terminal jobs")
+	must.NotNil(t, err)
+	must.StrContains(t, err.Error(), "has non-terminal jobs")
+}
+
+func TestNamespaceEndpoint_DeleteNamespaces_NoAssociatedVolumes_Local(t *testing.T) {
+	ci.Parallel(t)
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Create the register request
+	ns1 := mock.Namespace()
+	ns2 := mock.Namespace()
+	s1.fsm.State().UpsertNamespaces(1000, []*structs.Namespace{ns1, ns2})
+
+	// Create a volume in one
+	vol := mock.CSIVolume(mock.CSIPlugin())
+	vol.Namespace = ns1.Name
+	must.Nil(t, s1.fsm.State().UpsertCSIVolume(1001, []*structs.CSIVolume{vol}))
+
+	// Lookup the namespaces
+	req := &structs.NamespaceDeleteRequest{
+		Namespaces:   []string{ns1.Name, ns2.Name},
+		WriteRequest: structs.WriteRequest{Region: "global"},
 	}
+	var resp structs.GenericResponse
+	err := msgpackrpc.CallWithCodec(codec, "Namespace.DeleteNamespaces", req, &resp)
+	must.NotNil(t, err)
+	must.StrContains(t, err.Error(), "has volumes associated with it")
 }
 
 func TestNamespaceEndpoint_DeleteNamespaces_NonTerminal_Federated_ACL(t *testing.T) {

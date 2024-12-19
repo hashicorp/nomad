@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // aclCacheSize is the number of ACL objects to keep cached. ACLs have a parsing
@@ -92,6 +92,10 @@ func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
 // authorization. Keeping these fields independent rather than merging them into
 // an ephemeral ACLToken makes the original of the credential clear to RPC
 // handlers, who may have different behavior for internal vs external origins.
+//
+// Note: when making a server-to-server RPC that authenticates with this method,
+// the RPC *must* include the leader's ACL token. Use AuthenticateServerOnly for
+// requests that don't have access to the leader's ACL token.
 //
 // Note: when called on the follower we'll be making stale queries, so it's
 // possible if the follower is behind that the leader will get a different value
@@ -325,38 +329,6 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 		return nil, structs.ErrPermissionDenied
 	}
 	identity.ClientID = node.ID
-	return acl.ClientACL, nil
-}
-
-// AuthenticateClientOnlyLegacy is a version of AuthenticateClientOnly that's
-// used by a few older RPCs that did not properly enforce node secrets.
-// COMPAT(1.8.0): In Nomad 1.6.0 we starting sending those node secrets, so we
-// can remove this in Nomad 1.8.0.
-func (s *Authenticator) AuthenticateClientOnlyLegacy(ctx RPCContext, args structs.RequestWithIdentity) (*acl.ACL, error) {
-
-	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
-	if err != nil {
-		s.logger.Error("could not determine remote address", "error", err)
-	}
-
-	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
-	defer args.SetIdentity(identity) // always set the identity, even on errors
-
-	if s.verifyTLS && !ctx.IsStatic() {
-		tlsCert := ctx.Certificate()
-		if tlsCert == nil {
-			return nil, errors.New("missing certificate information")
-		}
-
-		// set on the identity whether or not its valid for server RPC, so we
-		// can capture it for metrics
-		identity.TLSName = tlsCert.Subject.CommonName
-		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	return acl.ClientACL, nil
 }
 
@@ -641,10 +613,7 @@ func (s *Authenticator) ResolvePoliciesForClaims(claims *structs.IdentityClaims)
 	}
 
 	// Find any policies attached to the job
-	jobId := alloc.Job.ID
-	if alloc.Job.ParentID != "" {
-		jobId = alloc.Job.ParentID
-	}
+	jobId := alloc.Job.GetIDforWorkloadIdentity()
 	iter, err := snap.ACLPolicyByJob(nil, alloc.Namespace, jobId)
 	if err != nil {
 		return nil, err

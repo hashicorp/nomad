@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1249,8 +1250,9 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 			{
 				Name: "web",
 				Resources: &structs.Resources{
-					CPU:      1024,
-					MemoryMB: 1024,
+					CPU:       1024,
+					MemoryMB:  1014,
+					SecretsMB: 10,
 				},
 			},
 		},
@@ -1279,7 +1281,6 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 	state, ctx := testContext(t)
 
 	topology := &numalib.Topology{
-		NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 		Distances: numalib.SLIT{[]numalib.Cost{10}},
 		Cores: []numalib.Core{{
 			ID:        0,
@@ -1291,6 +1292,7 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 			BaseSpeed: 1024,
 		}},
 	}
+	topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	legacyCpuResources, processorResources := cpuResourcesFrom(topology)
 
 	nodes := []*RankedNode{
@@ -1903,10 +1905,13 @@ func TestBinPackIterator_Devices(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			require := require.New(t)
-
 			// Setup the context
 			state, ctx := testContext(t)
+
+			// Canonicalize resources
+			for _, task := range c.TaskGroup.Tasks {
+				task.Resources.Canonicalize()
+			}
 
 			// Add the planned allocs
 			if len(c.PlannedAllocs) != 0 {
@@ -1922,7 +1927,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 				for _, alloc := range c.ExistingAllocs {
 					alloc.NodeID = c.Node.ID
 				}
-				require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, c.ExistingAllocs))
+				must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, c.ExistingAllocs))
 			}
 
 			static := NewStaticRankIterator(ctx, []*RankedNode{{Node: c.Node}})
@@ -1938,7 +1943,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 			// Check we got the placements we are expecting
 			for tname, devices := range c.ExpectedPlacements {
 				tr, ok := out.TaskResources[tname]
-				require.True(ok)
+				must.True(t, ok)
 
 				want := len(devices)
 				got := 0
@@ -1946,23 +1951,132 @@ func TestBinPackIterator_Devices(t *testing.T) {
 					got++
 
 					expected, ok := devices[*placed.ID()]
-					require.True(ok)
-					require.Equal(expected.Count, len(placed.DeviceIDs))
+					must.True(t, ok)
+					must.Eq(t, expected.Count, len(placed.DeviceIDs))
 					for _, id := range expected.ExcludeIDs {
-						require.NotContains(placed.DeviceIDs, id)
+						must.SliceNotContains(t, placed.DeviceIDs, id)
 					}
 				}
 
-				require.Equal(want, got)
+				must.Eq(t, want, got)
 			}
 
 			// Check potential affinity scores
 			if c.DeviceScore != 0.0 {
-				require.Len(out.Scores, 2)
-				require.Equal(c.DeviceScore, out.Scores[1])
+				must.Len(t, 2, out.Scores)
+				must.Eq(t, c.DeviceScore, out.Scores[1])
 			}
 		})
 	}
+}
+
+// Tests that bin packing iterator fails due to overprovisioning of devices
+// This test has devices at task level
+func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
+	_, ctx := testContext(t)
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				NodeResources: &structs.NodeResources{
+					Processors: processorResources4096,
+					Cpu:        legacyCpuResources4096,
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 4096,
+					},
+					Networks: []*structs.NetworkResource{},
+					Devices: []*structs.NodeDeviceResource{
+						{
+							Vendor: "nvidia",
+							Type:   "gpu",
+							Instances: []*structs.NodeDevice{
+								{
+									ID:                "1",
+									Healthy:           true,
+									HealthDescription: "healthy",
+									Locality:          &structs.NodeDeviceLocality{},
+								},
+							},
+							Name: "SOME-GPU",
+						},
+					},
+				},
+				ReservedResources: &structs.NodeReservedResources{
+					Cpu: structs.NodeReservedCpuResources{
+						CpuShares: 1024,
+					},
+					Memory: structs.NodeReservedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+	}
+
+	// Add a planned alloc that takes up a gpu
+	plan := ctx.Plan()
+	plan.NodeAllocation[nodes[0].Node.ID] = []*structs.Allocation{
+		{
+			AllocatedResources: &structs.AllocatedResources{
+				Tasks: map[string]*structs.AllocatedTaskResources{
+					"web": {
+						Cpu: structs.AllocatedCpuResources{
+							CpuShares: 2048,
+						},
+						Memory: structs.AllocatedMemoryResources{
+							MemoryMB: 2048,
+						},
+						Networks: []*structs.NetworkResource{},
+						Devices: []*structs.AllocatedDeviceResource{
+							{
+								Vendor:    "nvidia",
+								Type:      "gpu",
+								Name:      "SOME-GPU",
+								DeviceIDs: []string{"1"},
+							},
+						},
+					},
+				},
+				Shared: structs.AllocatedSharedResources{},
+			},
+		},
+	}
+	static := NewStaticRankIterator(ctx, nodes)
+
+	// Create a task group with gpu device specified
+	taskGroup := &structs.TaskGroup{
+		EphemeralDisk: &structs.EphemeralDisk{},
+		Tasks: []*structs.Task{
+			{
+				Name: "web",
+				Resources: &structs.Resources{
+					CPU:      1024,
+					MemoryMB: 1024,
+					Networks: []*structs.NetworkResource{},
+					Devices: structs.ResourceDevices{
+						{
+							Name:  "nvidia/gpu",
+							Count: 1,
+						},
+					},
+					NUMA: &structs.NUMA{Affinity: structs.NoneNUMA},
+				},
+			},
+		},
+		Networks: []*structs.NetworkResource{},
+	}
+
+	binp := NewBinPackIterator(ctx, static, true, 0)
+	binp.SetTaskGroup(taskGroup)
+	binp.SetSchedulerConfiguration(testSchedulerConfig)
+
+	scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+	out := collectRanked(scoreNorm)
+
+	// We expect a placement failure because we need 1 GPU device
+	// and the other one is taken
+	must.SliceEmpty(t, out)
+	must.Eq(t, 1, ctx.metrics.DimensionExhausted["devices: no devices match request"])
 }
 
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {

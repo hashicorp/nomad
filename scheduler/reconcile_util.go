@@ -11,12 +11,12 @@ package scheduler
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/slices"
 )
 
 // placementResult is an allocation that must be placed. It potentially has a
@@ -277,7 +277,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				}
 
 			} else {
-				if alloc.PreventRescheduleOnLost() {
+				if alloc.PreventRescheduleOnDisconnect() {
 					if alloc.ClientStatus == structs.AllocClientStatusRunning {
 						disconnecting[alloc.ID] = alloc
 						continue
@@ -293,9 +293,9 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		}
 
 		if alloc.TerminalStatus() && !reconnect {
-			// Terminal allocs, if supportsDisconnectedClient and not reconnect,
+			// Server-terminal allocs, if supportsDisconnectedClient and not reconnect,
 			// are probably stopped replacements and should be ignored
-			if supportsDisconnectedClients {
+			if supportsDisconnectedClients && alloc.ServerTerminalStatus() {
 				ignore[alloc.ID] = alloc
 				continue
 			}
@@ -364,7 +364,7 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 		// Allocs on terminal nodes that can't be rescheduled need to be treated
 		// differently than those that can.
 		if taintedNode.TerminalStatus() {
-			if alloc.PreventRescheduleOnLost() {
+			if alloc.PreventRescheduleOnDisconnect() {
 				if alloc.ClientStatus == structs.AllocClientStatusUnknown {
 					untainted[alloc.ID] = alloc
 					continue
@@ -414,6 +414,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
 		if isUntainted && !isDisconnecting {
 			untainted[alloc.ID] = alloc
+			continue // these allocs can never be rescheduled, so skip checking
 		}
 
 		if ignore {
@@ -447,6 +448,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 // If desired state is stop - ignore
 //
 // Filtering logic for service jobs:
+// Never untainted
 // If desired state is stop/evict - ignore
 // If client status is complete/lost - ignore
 func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bool) {
@@ -459,6 +461,9 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 		case structs.AllocDesiredStatusStop:
 			if alloc.RanSuccessfully() {
 				return true, false
+			}
+			if alloc.LastRescheduleFailed() {
+				return false, false
 			}
 			return false, true
 		case structs.AllocDesiredStatusEvict:
@@ -476,6 +481,10 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	// Handle service jobs
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
+		if alloc.LastRescheduleFailed() {
+			return false, false
+		}
+
 		return false, true
 	}
 
@@ -505,7 +514,7 @@ func updateByReschedulable(alloc *structs.Allocation, now time.Time, evalID stri
 	var eligible bool
 	switch {
 	case isDisconnecting:
-		rescheduleTime, eligible = alloc.NextRescheduleTimeByTime(now)
+		rescheduleTime, eligible = alloc.RescheduleTimeOnDisconnect(now)
 
 	case alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.FollowupEvalID == evalID:
 		lastDisconnectTime := alloc.LastUnknown()
@@ -554,7 +563,7 @@ func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
 }
 
 // delayByStopAfterClientDisconnect returns a delay for any lost allocation that's got a
-// stop_after_client_disconnect configured
+// disconnect.stop_on_client_after configured
 func (a allocSet) delayByStopAfterClientDisconnect() (later []*delayedRescheduleInfo) {
 	now := time.Now().UTC()
 	for _, a := range a {

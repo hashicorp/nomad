@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/go-netaddrs"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
@@ -259,6 +260,68 @@ func TestRetryJoin_Client(t *testing.T) {
 
 	require.Equal(1, len(output))
 	require.Equal(stubAddress, output[0])
+}
+
+// MockFailDiscover implements the DiscoverInterface interface and can be used
+// for tests that want to purposely fail the discovery process.
+type MockFailDiscover struct {
+	ReceivedConfig string
+}
+
+func (m *MockFailDiscover) Addrs(cfg string, _ *golog.Logger) ([]string, error) {
+	return nil, fmt.Errorf("test: failed discovery %q", cfg)
+}
+func (m *MockFailDiscover) Help() string { return "" }
+func (m *MockFailDiscover) Names() []string {
+	return []string{""}
+}
+
+func TestRetryJoin_RetryMaxAttempts(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create an error channel to pass to the retry joiner. When the retry
+	// attempts have been exhausted, this channel is closed and our only way
+	// to test this apart from inspecting log entries.
+	errCh := make(chan struct{})
+
+	// Create a timeout to protect against problems within the test blocking
+	// for arbitrary long times.
+	timeout, timeoutStop := helper.NewSafeTimer(2 * time.Second)
+	defer timeoutStop()
+
+	var output []string
+
+	joiner := retryJoiner{
+		autoDiscover: autoDiscover{goDiscover: &MockFailDiscover{}},
+		clientJoin: func(s []string) (int, error) {
+			output = s
+			return 0, nil
+		},
+		clientEnabled: true,
+		logger:        testlog.HCLogger(t),
+		errCh:         errCh,
+	}
+
+	// Execute the retry join function in a routine, so we can track whether
+	// this returns and exits without close the error channel and thus
+	// indicating retry failure.
+	doneCh := make(chan struct{})
+
+	go func(doneCh chan struct{}) {
+		joiner.RetryJoin(&ServerJoin{RetryMaxAttempts: 1, RetryJoin: []string{"provider=foo"}})
+		close(doneCh)
+	}(doneCh)
+
+	// The main test; ensure error channel is closed, indicating the retry
+	// limit has been reached.
+	select {
+	case <-errCh:
+		must.Len(t, 0, output)
+	case <-doneCh:
+		t.Fatal("retry join completed without closing error channel")
+	case <-timeout.C:
+		t.Fatal("timeout reached without error channel close")
+	}
 }
 
 func TestRetryJoin_Validate(t *testing.T) {

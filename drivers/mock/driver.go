@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -63,7 +64,7 @@ var (
 	configSpec = hclspec.NewObject(map[string]*hclspec.Spec{
 		"fs_isolation": hclspec.NewDefault(
 			hclspec.NewAttr("fs_isolation", "string", false),
-			hclspec.NewLiteral(fmt.Sprintf("%q", drivers.FSIsolationNone)),
+			hclspec.NewLiteral(fmt.Sprintf("%q", fsisolation.None)),
 		),
 		"shutdown_periodic_after": hclspec.NewDefault(
 			hclspec.NewAttr("shutdown_periodic_after", "bool", false),
@@ -344,7 +345,7 @@ func (d *Driver) buildFingerprint() *drivers.Fingerprint {
 		desc = "disabled"
 	} else {
 		health = drivers.HealthStateHealthy
-		attrs["driver.mock"] = pstructs.NewBoolAttribute(true)
+		attrs["driver.mock_driver"] = pstructs.NewBoolAttribute(true)
 		desc = drivers.DriverHealthy
 	}
 

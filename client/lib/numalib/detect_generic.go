@@ -21,8 +21,9 @@ const (
 func scanGeneric(top *Topology) {
 	// hardware may or may not be NUMA, but for now we only
 	// detect such topology on linux systems
-	top.NodeIDs = idset.Empty[hw.NodeID]()
-	top.NodeIDs.Insert(genericNodeID)
+	top.nodeIDs = idset.Empty[hw.NodeID]()
+	top.nodeIDs.Insert(genericNodeID)
+	top.Nodes = top.nodeIDs.Slice()
 
 	// cores
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

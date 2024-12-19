@@ -42,19 +42,18 @@ endif
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
-# LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
-# published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.7.2
+# LAST_RELEASE is used for generating the changelog. It is the last released GA
+# or backport version, without the leading "v". main should have the latest
+# published release here, and release branches should point to the latest
+# published release in their X.Y release line.
+LAST_RELEASE ?= 1.9.3
 
 default: help
 
 ifeq (Linux,$(THIS_OS))
-ALL_TARGETS = linux_386 \
-	linux_amd64 \
-	linux_arm \
+ALL_TARGETS = linux_amd64 \
 	linux_arm64 \
 	linux_s390x \
-	windows_386 \
 	windows_amd64
 endif
 
@@ -96,10 +95,6 @@ endif
 		CC=$(CC) \
 		go build -trimpath -ldflags "$(GO_LDFLAGS)" -tags "$(GO_TAGS)" -o $(GO_OUT)
 
-ifneq (armv7l,$(THIS_ARCH))
-pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
-endif
-
 ifneq (aarch64,$(THIS_ARCH))
 pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc
 endif
@@ -114,7 +109,10 @@ pkg/windows_%/nomad: GO_TAGS += timetzdata
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
 
-pkg/$(1).zip: pkg/$(1)/nomad
+pkg/$(1)/LICENSE.txt:
+	@cp LICENSE pkg/$(1)/LICENSE.txt
+
+pkg/$(1).zip: pkg/$(1)/nomad pkg/$(1)/LICENSE.txt
 	@echo "==> Packaging for $(1)..."
 	@zip -j pkg/$(1).zip pkg/$(1)/*
 
@@ -135,19 +133,19 @@ deps:  ## Install build and development dependencies
 	go install gotest.tools/gotestsum@v1.10.0
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
-	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	go install github.com/hashicorp/go-msgpack/v2/codec/codecgen@v2.1.2
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
-	go install golang.org/x/tools/cmd/stringer@v0.1.12
-	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.6.1
+	go install golang.org/x/tools/cmd/stringer@v0.18.0
+	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.9.0
 	go install github.com/shoenig/go-modtool@v0.2.0
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
-	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.6
+	go install github.com/hashicorp/go-hclog/hclogvet@v0.2.0
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -159,10 +157,10 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
-	@golangci-lint run
+	@golangci-lint run --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting ./api source code..."
-	@cd ./api && golangci-lint run --config ../.golangci.yml
+	@cd ./api && golangci-lint run --config ../.golangci.yml --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting hclog statements..."
 	@hclogvet .
@@ -227,7 +225,7 @@ proto: ## Generate protobuf bindings
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
 changelog: ## Generate changelog from entries
-	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
+	@changelog-build -last-release v$(LAST_RELEASE) -this-release HEAD \
 		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
 
 ## We skip the terraform directory as there are templated hcl configurations
@@ -447,7 +445,6 @@ copywriteheaders:
 	cd api && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd drivers/shared && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd plugins && $(CURDIR)/scripts/copywrite-exceptions.sh
-	cd jobspec && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd jobspec2 && $(CURDIR)/scripts/copywrite-exceptions.sh
 	cd demo && $(CURDIR)/scripts/copywrite-exceptions.sh
 

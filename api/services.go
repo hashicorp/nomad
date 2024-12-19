@@ -212,6 +212,7 @@ type ServiceCheck struct {
 	Interval               time.Duration       `hcl:"interval,optional"`
 	Timeout                time.Duration       `hcl:"timeout,optional"`
 	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
+	Notes                  string              `hcl:"notes,optional"`
 	TLSServerName          string              `mapstructure:"tls_server_name" hcl:"tls_server_name,optional"`
 	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
 	Header                 map[string][]string `hcl:"header,block"`
@@ -245,6 +246,7 @@ type Service struct {
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
 	Identity          *WorkloadIdentity `hcl:"identity,block"`
+	Weights           *ServiceWeights   `mapstructure:"weights" hcl:"weights,block"`
 
 	// Provider defines which backend system provides the service registration,
 	// either "consul" (default) or "nomad".
@@ -306,6 +308,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	}
 
 	s.Connect.Canonicalize()
+	s.Weights.Canonicalize()
 
 	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
@@ -329,5 +332,25 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 		if s.Checks[i].OnUpdate == "" {
 			s.Checks[i].OnUpdate = s.OnUpdate
 		}
+	}
+}
+
+// ServiceWeights is the jobspec block which configures how a service instance
+// is weighted in a DNS SRV request based on the service's health status.
+type ServiceWeights struct {
+	Passing int `hcl:"passing,optional"`
+	Warning int `hcl:"warning,optional"`
+}
+
+func (weights *ServiceWeights) Canonicalize() {
+	if weights == nil {
+		return
+	}
+
+	if weights.Passing <= 0 {
+		weights.Passing = 1
+	}
+	if weights.Warning <= 0 {
+		weights.Warning = 1
 	}
 }

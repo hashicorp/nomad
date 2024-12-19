@@ -12,7 +12,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -77,6 +76,12 @@ var (
 	topology = numalib.Scan(numalib.PlatformScanners())
 )
 
+type mockIDValidator struct{}
+
+func (mv *mockIDValidator) HasValidIDs(userName string) error {
+	return nil
+}
+
 func newEnabledRawExecDriver(t *testing.T) *Driver {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -87,13 +92,13 @@ func newEnabledRawExecDriver(t *testing.T) *Driver {
 	d.nomadConfig = &base.ClientDriverConfig{
 		Topology: topology,
 	}
+	d.userIDValidator = &mockIDValidator{}
 
 	return d
 }
 
 func TestRawExecDriver_SetConfig(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -111,27 +116,35 @@ func TestRawExecDriver_SetConfig(t *testing.T) {
 	)
 
 	// Default is raw_exec is disabled.
-	require.NoError(basePlug.MsgPackEncode(&data, config))
+	must.NoError(t, basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
-	require.NoError(harness.SetConfig(bconfig))
-	require.Exactly(config, d.(*Driver).config)
+	must.NoError(t, harness.SetConfig(bconfig))
+	must.Eq(t, config, d.(*Driver).config)
 
 	// Enable raw_exec, but disable cgroups.
 	config.Enabled = true
-	config.NoCgroups = true
 	data = []byte{}
-	require.NoError(basePlug.MsgPackEncode(&data, config))
-	bconfig.PluginConfig = data
-	require.NoError(harness.SetConfig(bconfig))
-	require.Exactly(config, d.(*Driver).config)
 
-	// Enable raw_exec, enable cgroups.
-	config.NoCgroups = false
-	data = []byte{}
-	require.NoError(basePlug.MsgPackEncode(&data, config))
+	must.NoError(t, basePlug.MsgPackEncode(&data, config))
 	bconfig.PluginConfig = data
-	require.NoError(harness.SetConfig(bconfig))
-	require.Exactly(config, d.(*Driver).config)
+
+	must.NoError(t, harness.SetConfig(bconfig))
+	must.Eq(t, config, d.(*Driver).config)
+
+	// Turns on uid/gid restrictions, and sets the range to a bad value and
+	// force the recreation of the validator.
+	d.(*Driver).userIDValidator = nil
+	config.DeniedHostUids = "100-1"
+	data = []byte{}
+
+	must.NoError(t, basePlug.MsgPackEncode(&data, config))
+
+	bconfig.PluginConfig = data
+	err := harness.SetConfig(bconfig)
+	must.Error(t, err)
+
+	must.ErrorContains(t, err, "invalid range deniedHostUIDs \"100-1\": lower bound cannot be greater than upper bound")
+
 }
 
 func TestRawExecDriver_Fingerprint(t *testing.T) {
@@ -219,6 +232,7 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 		Args:    []string{"sleep", "10ms"},
 	}
 	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+
 	testtask.SetTaskConfigEnv(task)
 
 	cleanup := harness.MkAllocDir(task, false)
@@ -244,104 +258,6 @@ func TestRawExecDriver_StartWait(t *testing.T) {
 	require.False(result.OOMKilled)
 	require.NoError(result.Err)
 	require.NoError(harness.DestroyTask(task.ID, true))
-}
-
-func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
-	ci.Parallel(t)
-	require := require.New(t)
-
-	d := newEnabledRawExecDriver(t)
-	harness := dtestutil.NewDriverHarness(t, d)
-	defer harness.Kill()
-
-	// Disable cgroups so test works without root
-	config := &Config{NoCgroups: true, Enabled: true}
-	var data []byte
-	require.NoError(basePlug.MsgPackEncode(&data, config))
-	bconfig := &basePlug.Config{
-		PluginConfig: data,
-		AgentConfig: &base.AgentConfig{
-			Driver: &base.ClientDriverConfig{
-				Topology: d.nomadConfig.Topology,
-			},
-		},
-	}
-	require.NoError(harness.SetConfig(bconfig))
-
-	allocID := uuid.Generate()
-	taskName := "sleep"
-	task := &drivers.TaskConfig{
-		AllocID:   allocID,
-		ID:        uuid.Generate(),
-		Name:      taskName,
-		Env:       defaultEnv(),
-		Resources: testResources(allocID, taskName),
-	}
-	tc := &TaskConfig{
-		Command: testtask.Path(),
-		Args:    []string{"sleep", "100s"},
-	}
-	require.NoError(task.EncodeConcreteDriverConfig(&tc))
-
-	testtask.SetTaskConfigEnv(task)
-
-	cleanup := harness.MkAllocDir(task, false)
-	defer cleanup()
-
-	harness.MakeTaskCgroup(allocID, taskName)
-
-	handle, _, err := harness.StartTask(task)
-	require.NoError(err)
-
-	ch, err := harness.WaitTask(context.Background(), task.ID)
-	require.NoError(err)
-
-	var waitDone bool
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		result := <-ch
-		require.Error(result.Err)
-		waitDone = true
-	}()
-
-	originalStatus, err := d.InspectTask(task.ID)
-	require.NoError(err)
-
-	d.tasks.Delete(task.ID)
-
-	wg.Wait()
-	require.True(waitDone)
-	_, err = d.InspectTask(task.ID)
-	require.Equal(drivers.ErrTaskNotFound, err)
-
-	err = d.RecoverTask(handle)
-	require.NoError(err)
-
-	status, err := d.InspectTask(task.ID)
-	require.NoError(err)
-	require.Exactly(originalStatus, status)
-
-	ch, err = harness.WaitTask(context.Background(), task.ID)
-	require.NoError(err)
-
-	wg.Add(1)
-	waitDone = false
-	go func() {
-		defer wg.Done()
-		result := <-ch
-		require.NoError(result.Err)
-		require.NotZero(result.ExitCode)
-		require.Equal(9, result.Signal)
-		waitDone = true
-	}()
-
-	time.Sleep(300 * time.Millisecond)
-	require.NoError(d.StopTask(task.ID, 0, "SIGKILL"))
-	wg.Wait()
-	require.NoError(d.DestroyTask(task.ID, false))
-	require.True(waitDone)
 }
 
 func TestRawExecDriver_Start_Wait_AllocDir(t *testing.T) {
@@ -546,7 +462,6 @@ func TestRawExecDriver_ParentCgroup(t *testing.T) {
 
 func TestRawExecDriver_Exec(t *testing.T) {
 	ci.Parallel(t)
-	ctestutil.ExecCompatible(t)
 
 	require := require.New(t)
 
@@ -590,7 +505,7 @@ func TestRawExecDriver_Exec(t *testing.T) {
 		res, err = harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "stat", "notarealfile123abc"}, 1*time.Second)
 		require.NoError(err)
 		require.False(res.ExitResult.Successful())
-		require.Contains(string(res.Stdout), "not recognized")
+		require.Contains(string(res.Stdout), "No such file or directory")
 	} else {
 		// Exec a command that should work
 		res, err := harness.ExecTask(task.ID, []string{"/usr/bin/stat", "/tmp"}, 1*time.Second)
@@ -606,6 +521,59 @@ func TestRawExecDriver_Exec(t *testing.T) {
 	}
 
 	require.NoError(harness.DestroyTask(task.ID, true))
+}
+
+func TestRawExecDriver_WorkDir(t *testing.T) {
+	ci.Parallel(t)
+
+	d := newEnabledRawExecDriver(t)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	allocID := uuid.Generate()
+	taskName := "test"
+	task := &drivers.TaskConfig{
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Env:       defaultEnv(),
+		Resources: testResources(allocID, taskName),
+	}
+
+	workDir := t.TempDir()
+
+	tc := &TaskConfig{
+		WorkDir: workDir,
+	}
+	if runtime.GOOS == "windows" {
+		tc.Command = "cmd.exe"
+		tc.Args = []string{"/c", "stat", "foo.txt"}
+	} else {
+		tc.Command = "/usr/bin/stat"
+		tc.Args = []string{"foo.txt"}
+	}
+
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+	testtask.SetTaskConfigEnv(task)
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	harness.MakeTaskCgroup(allocID, taskName)
+
+	must.NoError(t, os.WriteFile(filepath.Join(workDir, "foo.txt"), []byte("foo"), 770))
+
+	handle, _, err := harness.StartTask(task)
+	must.NoError(t, err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	must.NoError(t, err)
+
+	// Task will fail if cat cannot find the file, which would only happen
+	// if the task's WorkDir was setup incorrectly
+	result := <-ch
+	must.Zero(t, result.ExitCode)
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestConfig_ParseAllHCL(t *testing.T) {
@@ -651,4 +619,46 @@ func TestRawExecDriver_Disabled(t *testing.T) {
 	require.Error(err)
 	require.Contains(err.Error(), errDisabledDriver.Error())
 	require.Nil(handle)
+}
+
+func TestRawExecDriver_validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name   string
+		config *TaskConfig
+		exp    error
+	}{
+		{
+			name: "validates CGroup overrides",
+			config: &TaskConfig{
+				OverrideCgroupV2: "custom.slice/app.scope",
+				OverrideCgroupV1: map[string]string{
+					"pids": "custom/path",
+				},
+			},
+			exp: errors.New("only one of cgroups_v1_override and cgroups_v2_override may be set"),
+		},
+		{
+			name: "validates OOM score adj",
+			config: &TaskConfig{
+				OOMScoreAdj: -1,
+			},
+			exp: errors.New("oom_score_adj must not be negative"),
+		},
+		{
+			name: "validates work_dir is abolute path",
+			config: &TaskConfig{
+				WorkDir: "bad/path",
+			},
+			exp: errors.New("work_dir must be an absolute path"),
+		},
+	}
+
+	for _, i := range testCases {
+		t.Run(i.name, func(t *testing.T) {
+			err := i.config.validate()
+			must.Eq(t, i.exp, err)
+		})
+	}
 }

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -848,17 +848,7 @@ func TestServiceRegistration_List(t *testing.T) {
 				var serviceRegResp structs.ServiceRegistrationListResponse
 				err = msgpackrpc.CallWithCodec(
 					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
-					{
-						Namespace: "platform",
-						Services: []*structs.ServiceRegistrationStub{
-							{
-								ServiceName: "countdash-api",
-								Tags:        []string{"bar"},
-							},
-						}},
-				}, serviceRegResp.Services)
+				must.EqError(t, err, structs.ErrPermissionDenied.Error())
 			},
 			name: "ACLs enabled with node secret token",
 		},
@@ -1139,17 +1129,7 @@ func TestServiceRegistration_GetService(t *testing.T) {
 				var serviceRegResp structs.ServiceRegistrationListResponse
 				err = msgpackrpc.CallWithCodec(
 					codec, structs.ServiceRegistrationListRPCMethod, serviceRegReq, &serviceRegResp)
-				require.NoError(t, err)
-				require.ElementsMatch(t, []*structs.ServiceRegistrationListStub{
-					{
-						Namespace: "platform",
-						Services: []*structs.ServiceRegistrationStub{
-							{
-								ServiceName: "countdash-api",
-								Tags:        []string{"bar"},
-							},
-						}},
-				}, serviceRegResp.Services)
+				must.EqError(t, err, "Permission denied")
 			},
 			name: "ACLs enabled using node secret",
 		},

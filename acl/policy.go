@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -191,7 +192,7 @@ func isPolicyValid(policy string) bool {
 
 func (p *PluginPolicy) isValid() bool {
 	switch p.Policy {
-	case PolicyDeny, PolicyRead, PolicyList:
+	case PolicyDeny, PolicyRead, PolicyList, PolicyWrite:
 		return true
 	default:
 		return false
@@ -394,6 +395,11 @@ func Parse(rules string) (*Policy, error) {
 			for _, pathPolicy := range ns.Variables.Paths {
 				if pathPolicy.PathSpec == "" {
 					return nil, fmt.Errorf("Invalid missing variable path in namespace %s", ns.Name)
+				}
+				if strings.HasPrefix(pathPolicy.PathSpec, "/") {
+					return nil, fmt.Errorf(
+						"Invalid variable path %q in namespace %s: cannot start with a leading '/'`",
+						pathPolicy.PathSpec, ns.Name)
 				}
 				for _, cap := range pathPolicy.Capabilities {
 					if !isPathCapabilityValid(cap) {

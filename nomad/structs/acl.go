@@ -15,7 +15,7 @@ import (
 
 	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -474,6 +474,16 @@ func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
 	return nil
 }
 
+func (a *ACLToken) Sanitize() *ACLToken {
+	if a == nil {
+		return nil
+	}
+
+	out := a.Copy()
+	out.SecretID = ""
+	return out
+}
+
 // ACLRole is an abstraction for the ACL system which allows the grouping of
 // ACL policies into a single object. ACL tokens can be created and linked to
 // a role; the token then inherits all the permissions granted by the policies.
@@ -779,11 +789,20 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	_, _ = hash.Write([]byte(strconv.FormatBool(a.Default)))
 
 	if a.Config != nil {
+		_, _ = hash.Write([]byte(a.Config.JWKSURL))
+		_, _ = hash.Write([]byte(a.Config.JWKSCACert))
 		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
+		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCDisableUserInfo)))
+		_, _ = hash.Write([]byte(a.Config.ExpirationLeeway.String()))
+		_, _ = hash.Write([]byte(a.Config.NotBeforeLeeway.String()))
+		_, _ = hash.Write([]byte(a.Config.ClockSkewLeeway.String()))
 		for _, ba := range a.Config.BoundAudiences {
 			_, _ = hash.Write([]byte(ba))
+		}
+		for _, bi := range a.Config.BoundIssuer {
+			_, _ = hash.Write([]byte(bi))
 		}
 		for _, uri := range a.Config.AllowedRedirectURIs {
 			_, _ = hash.Write([]byte(uri))
@@ -791,8 +810,14 @@ func (a *ACLAuthMethod) SetHash() []byte {
 		for _, pem := range a.Config.DiscoveryCaPem {
 			_, _ = hash.Write([]byte(pem))
 		}
+		for _, scope := range a.Config.OIDCScopes {
+			_, _ = hash.Write([]byte(scope))
+		}
 		for _, sa := range a.Config.SigningAlgs {
 			_, _ = hash.Write([]byte(sa))
+		}
+		for _, key := range a.Config.JWTValidationPubKeys {
+			_, _ = hash.Write([]byte(key))
 		}
 		for k, v := range a.Config.ClaimMappings {
 			_, _ = hash.Write([]byte(k))
@@ -975,6 +1000,9 @@ type ACLAuthMethodConfig struct {
 
 	// The OAuth Client Secret configured with the OIDC provider
 	OIDCClientSecret string
+
+	// Disable claims from the OIDC UserInfo endpoint
+	OIDCDisableUserInfo bool
 
 	// List of OIDC scopes
 	OIDCScopes []string

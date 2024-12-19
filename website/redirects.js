@@ -29,6 +29,29 @@ module.exports = [
     permanent: true,
   },
   */
+
+  /**
+   * /s/* redirects for useful links that need a stable URL but we may need to
+   * change its destination in the future.
+   */
+  {
+    source: '/nomad/s/port-plan-failure',
+    destination:
+      'https://developer.hashicorp.com/nomad/docs/operations/monitoring-nomad#progress',
+    permanent: false,
+  },
+  {
+    source: '/nomad/s/envoy-bootstrap-error',
+    destination:
+      'https://developer.hashicorp.com/nomad/docs/integrations/consul/service-mesh#troubleshooting',
+    permanent: false,
+  },
+  {
+    source: '/nomad/s/vault-workload-identity-migration',
+    destination:
+      'https://developer.hashicorp.com/nomad/docs/integrations/vault/acl#migrating-to-using-workload-identity-with-vault',
+    permanent: false,
+  },
   // Rename and re-arrange Autoscaling Internals section
   {
     source: '/nomad/tools/autoscaling/internals/:path*',
@@ -59,6 +82,23 @@ module.exports = [
   {
     source: '/nomad/docs/integrations/consul-connect',
     destination: '/nomad/docs/integrations/consul/service-mesh',
+    permanent: true,
+  },
+  {
+    source: '/nomad/tools/autoscaling/agent/source',
+    destination: '/nomad/tools/autoscaling/agent/policy',
+    permanent: true,
+  },
+  // permanently remove /plugins/drivers/remote
+  {
+    source: '/nomad/plugins/drivers/remote/:slug*',
+    destination: 'nomad/plugins/drivers/',
+    permanent: true,
+  },
+  // permanently remove /plugins/drivers/remote
+  {
+    source: '/nomad/plugins/drivers/community/lxc',
+    destination: '/nomad/plugins/drivers/community/',
     permanent: true,
   },
 ]

@@ -4,9 +4,11 @@
 package scheduler
 
 import (
+	"maps"
 	"math"
 	"sort"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -23,6 +25,13 @@ type groupedAllocs struct {
 type allocInfo struct {
 	maxParallel int
 	resources   *structs.ComparableResources
+}
+
+func (ai *allocInfo) Copy() *allocInfo {
+	return &allocInfo{
+		maxParallel: ai.maxParallel,
+		resources:   ai.resources.Copy(),
+	}
 }
 
 // PreemptionResource interface is implemented by different
@@ -131,6 +140,23 @@ func NewPreemptor(jobPriority int, ctx Context, jobID *structs.NamespacedID) *Pr
 		jobID:              jobID,
 		allocDetails:       make(map[string]*allocInfo),
 		ctx:                ctx,
+	}
+}
+
+func (p *Preemptor) Copy() *Preemptor {
+	currentPreemptions := make(map[structs.NamespacedID]map[string]int)
+	for k, v := range p.currentPreemptions {
+		currentPreemptions[k] = maps.Clone(v)
+	}
+
+	return &Preemptor{
+		currentPreemptions:     currentPreemptions,
+		allocDetails:           helper.DeepCopyMap(p.allocDetails),
+		jobPriority:            p.jobPriority,
+		jobID:                  p.jobID,
+		nodeRemainingResources: p.nodeRemainingResources.Copy(),
+		currentAllocs:          helper.CopySlice(p.currentAllocs),
+		ctx:                    p.ctx,
 	}
 }
 
@@ -473,12 +499,12 @@ func newAllocDeviceGroup() *deviceGroupAllocs {
 // PreemptForDevice tries to find allocations to preempt to meet devices needed
 // This is called once per device request when assigning devices to the task
 func (p *Preemptor) PreemptForDevice(ask *structs.RequestedDevice, devAlloc *deviceAllocator) []*structs.Allocation {
-
 	// Group allocations by device, tracking the number of
 	// instances used in each device by alloc id
 	deviceToAllocs := make(map[structs.DeviceIdTuple]*deviceGroupAllocs)
 	for _, alloc := range p.currentAllocs {
 		for _, tr := range alloc.AllocatedResources.Tasks {
+
 			// Ignore allocs that don't use devices
 			if len(tr.Devices) == 0 {
 				continue

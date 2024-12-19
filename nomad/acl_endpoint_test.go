@@ -14,7 +14,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1944,9 +1944,12 @@ func TestACLEndpoint_WhoAmI(t *testing.T) {
 	// Lookup identity claim
 	alloc := mock.Alloc()
 	s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1500, []*structs.Allocation{alloc})
-	claims := structs.NewIdentityClaims(alloc.Job, alloc,
+	task := alloc.LookupTask("web")
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
 		wiHandle, // see encrypter_test.go
-		alloc.LookupTask("web").Identity, time.Now().Add(-10*time.Minute))
+		task.Identity).
+		WithTask(task).
+		Build(time.Now().Add(-10 * time.Minute))
 	jwtToken, _, err := s1.encrypter.SignClaims(claims)
 	must.NoError(t, err)
 

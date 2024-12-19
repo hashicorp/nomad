@@ -1,0 +1,3 @@
+```release-note:bug
+api: Fixed a bug where an `api.Config` targeting a unix domain socket could not be reused between clients
+```

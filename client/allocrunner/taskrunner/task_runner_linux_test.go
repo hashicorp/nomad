@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/shoenig/test/must"
 )
 
@@ -48,7 +49,7 @@ func TestTaskRunner_DisableFileForVaultToken_UpgradePath(t *testing.T) {
 
 	// Remove private dir and write the Vault token to the secrets dir to
 	// simulate an old task.
-	err = conf.TaskDir.Build(false, nil)
+	err = conf.TaskDir.Build(fsisolation.None, nil, task.User)
 	must.NoError(t, err)
 
 	err = syscall.Unmount(conf.TaskDir.PrivateDir, 0)

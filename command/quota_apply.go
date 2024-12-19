@@ -266,9 +266,11 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 
 	// Check for invalid keys
 	valid := []string{
+		"cores",
 		"cpu",
 		"memory",
 		"memory_max",
+		"device",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")
@@ -279,9 +281,57 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 		return err
 	}
 
+	// Manually parse
+	delete(m, "device")
+
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
 	}
 
+	// Parse devices
+	if o := listVal.Filter("device"); len(o.Items) > 0 {
+		result.Devices = make([]*api.RequestedDevice, 0)
+		if err := parseDeviceResource(&result.Devices, o); err != nil {
+			return multierror.Prefix(err, "devices ->")
+		}
+	}
+
+	return nil
+}
+
+func parseDeviceResource(result *[]*api.RequestedDevice, list *ast.ObjectList) error {
+	for idx, o := range list.Items {
+		if l := len(o.Keys); l == 0 {
+			return multierror.Prefix(fmt.Errorf("missing device name"), fmt.Sprintf("resources, device[%d]->", idx))
+		} else if l > 1 {
+			return multierror.Prefix(fmt.Errorf("only one name may be specified"), fmt.Sprintf("resources, device[%d]->", idx))
+		}
+
+		name := o.Keys[0].Token.Value().(string)
+
+		// Check for invalid keys
+		valid := []string{
+			"name",
+			"count",
+		}
+		if err := helper.CheckHCLKeys(o.Val, valid); err != nil {
+			return err
+		}
+
+		// Set the name
+		var device api.RequestedDevice
+		device.Name = name
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, o.Val); err != nil {
+			return err
+		}
+
+		if err := mapstructure.WeakDecode(m, &device); err != nil {
+			return err
+		}
+
+		*result = append(*result, &device)
+	}
 	return nil
 }

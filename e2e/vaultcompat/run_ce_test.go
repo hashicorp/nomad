@@ -17,8 +17,6 @@ import (
 // versions of Vault CE
 func usable(v, minimum *version.Version) bool {
 	switch {
-	case v.Prerelease() != "":
-		return false
 	case v.Metadata() != "":
 		return false
 	case v.LessThan(minimum):
@@ -65,4 +63,5 @@ func testVaultJWT(t *testing.T, b build) {
 
 	// Run test job.
 	runJob(t, nc, "input/cat_jwt.hcl", "default", validateJWTAllocs)
+	runJob(t, nc, "input/restricted_jwt.hcl", "default", validateJWTAllocs)
 }

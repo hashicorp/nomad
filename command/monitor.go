@@ -306,6 +306,9 @@ func (m *monitor) monitor(evalID string) int {
 		if err != nil || status != api.DeploymentStatusSuccessful {
 			return 1
 		}
+		if status == api.DeploymentStatusSuccessful {
+			schedFailure = false
+		}
 	}
 
 	// Treat scheduling failures specially using a dedicated exit code.

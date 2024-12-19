@@ -4,11 +4,14 @@
 package state
 
 import (
+	"errors"
 	"testing"
 
-	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,6 +95,176 @@ func TestState_singleRecord(t *testing.T) {
 	setSingleton("three")
 	require.Equal(1, numRecordsInTable())
 	require.Equal("three", first())
+}
+
+func Test_jobIsGCable(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                string
+		inputObj            interface{}
+		expectedOutput      bool
+		expectedOutputError error
+	}{
+		{
+			name:                "not a job object",
+			inputObj:            &structs.Node{},
+			expectedOutput:      false,
+			expectedOutputError: errors.New("Unexpected type:"),
+		},
+		{
+			name: "stopped periodic",
+			inputObj: &structs.Job{
+				Stop:     true,
+				Periodic: &structs.PeriodicConfig{Enabled: true},
+			},
+			expectedOutput:      true,
+			expectedOutputError: nil,
+		},
+		{
+			name: "stopped parameterized",
+			inputObj: &structs.Job{
+				Stop:             true,
+				ParameterizedJob: &structs.ParameterizedJobConfig{},
+			},
+			expectedOutput:      true,
+			expectedOutputError: nil,
+		},
+		{
+			name: "running periodic",
+			inputObj: &structs.Job{
+				Stop:     false,
+				Periodic: &structs.PeriodicConfig{Enabled: true},
+			},
+			expectedOutput:      false,
+			expectedOutputError: nil,
+		},
+		{
+			name: "running parameterized",
+			inputObj: &structs.Job{
+				Stop:             false,
+				ParameterizedJob: &structs.ParameterizedJobConfig{},
+			},
+			expectedOutput:      false,
+			expectedOutputError: nil,
+		},
+		{
+			name: "running service",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeService,
+				Status: structs.JobStatusRunning,
+			},
+			expectedOutput:      false,
+			expectedOutputError: nil,
+		},
+		{
+			name: "running batch",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeBatch,
+				Status: structs.JobStatusRunning,
+			},
+			expectedOutput:      false,
+			expectedOutputError: nil,
+		},
+		{
+			name: "running system",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeSystem,
+				Status: structs.JobStatusRunning,
+			},
+			expectedOutput:      false,
+			expectedOutputError: nil,
+		},
+		{
+			name: "running sysbatch",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeSysBatch,
+				Status: structs.JobStatusRunning,
+			},
+			expectedOutput:      false,
+			expectedOutputError: nil,
+		},
+		{
+			name: "user stopped service",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeService,
+				Status: structs.JobStatusDead,
+				Stop:   true,
+			},
+			expectedOutput:      true,
+			expectedOutputError: nil,
+		},
+		{
+			name: "user stopped batch",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeBatch,
+				Status: structs.JobStatusDead,
+				Stop:   true,
+			},
+			expectedOutput:      true,
+			expectedOutputError: nil,
+		},
+		{
+			name: "user stopped system",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeSystem,
+				Status: structs.JobStatusDead,
+				Stop:   true,
+			},
+			expectedOutput:      true,
+			expectedOutputError: nil,
+		},
+		{
+			name: "user stopped sysbatch",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeSysBatch,
+				Status: structs.JobStatusDead,
+				Stop:   true,
+			},
+			expectedOutput:      true,
+			expectedOutputError: nil,
+		},
+		{
+			name: "non-user stopped batch",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeBatch,
+				Status: structs.JobStatusDead,
+			},
+			expectedOutput:      true,
+			expectedOutputError: nil,
+		},
+		{
+			name: "non-user stopped sysbatch",
+			inputObj: &structs.Job{
+				Type:   structs.JobTypeSysBatch,
+				Status: structs.JobStatusDead,
+			},
+			expectedOutput:      true,
+			expectedOutputError: nil,
+		},
+		{
+			name: "tagged",
+			inputObj: &structs.Job{
+				VersionTag: &structs.JobVersionTag{Name: "any"},
+			},
+			expectedOutput:      false,
+			expectedOutputError: nil,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			actualOutput, actualError := jobIsGCable(tc.inputObj)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+
+			if tc.expectedOutputError != nil {
+				must.ErrorContains(t, actualError, tc.expectedOutputError.Error())
+			} else {
+				must.NoError(t, actualError)
+			}
+		})
+	}
 }
 
 func TestState_ScalingPolicyTargetFieldIndex_FromObject(t *testing.T) {

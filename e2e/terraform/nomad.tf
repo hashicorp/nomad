@@ -12,11 +12,15 @@ module "nomad_server" {
   index    = count.index
   instance = aws_instance.server[count.index]
 
+  nomad_region       = var.nomad_region
   nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : var.nomad_local_binary
 
   nomad_license = var.nomad_license
   tls_ca_key    = tls_private_key.ca.private_key_pem
   tls_ca_cert   = tls_self_signed_cert.ca.cert_pem
+
+  aws_region     = var.region
+  aws_kms_key_id = data.aws_kms_alias.e2e.target_key_id
 
   connection = {
     type        = "ssh"
@@ -39,6 +43,7 @@ module "nomad_client_ubuntu_jammy_amd64" {
   index    = count.index
   instance = aws_instance.client_ubuntu_jammy_amd64[count.index]
 
+  nomad_region       = var.nomad_region
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_jammy_amd64) ? var.nomad_local_binary_client_ubuntu_jammy_amd64[count.index] : var.nomad_local_binary
 
   tls_ca_key  = tls_private_key.ca.private_key_pem
@@ -66,6 +71,7 @@ module "nomad_client_windows_2016_amd64" {
   index    = count.index
   instance = aws_instance.client_windows_2016_amd64[count.index]
 
+  nomad_region       = var.nomad_region
   nomad_local_binary = count.index < length(var.nomad_local_binary_client_windows_2016_amd64) ? var.nomad_local_binary_client_windows_2016_amd64[count.index] : ""
 
   tls_ca_key  = tls_private_key.ca.private_key_pem

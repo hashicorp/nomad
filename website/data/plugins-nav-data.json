@@ -7,8 +7,33 @@
         "path": "drivers"
       },
       {
+        "title": "Exec2",
+        "path": "drivers/exec2"
+      },
+      {
         "title": "Podman",
         "path": "drivers/podman"
+      },
+      {
+        "title": "Virt <sup>Beta</sup>",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "drivers/virt"
+          },
+          {
+            "title": "Installation",
+            "path": "drivers/virt/installation"
+          },
+          {
+            "title": "Client",
+            "path": "drivers/virt/client"
+          },
+          {
+            "title": "Task Config",
+            "path": "drivers/virt/task-config"
+          }
+        ]
       },
       {
         "title": "Community",
@@ -38,21 +63,8 @@
             "path": "drivers/community/lightrun"
           },
           {
-            "title": "LXC",
-            "path": "drivers/community/lxc"
-          },
-          {
             "title": "Pot",
             "path": "drivers/community/pot"
-          },
-          {
-            "title": "Rkt",
-            "badge": {
-              "text": "Deprecated",
-              "type": "outlined",
-              "color": "neutral"
-            },
-            "path": "drivers/community/rkt"
           },
           {
             "title": "Rookout",
@@ -69,19 +81,10 @@
           {
             "title": "Windows IIS",
             "path": "drivers/community/iis"
-          }
-        ]
-      },
-      {
-        "title": "Remote",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "drivers/remote"
           },
           {
-            "title": "ECS",
-            "path": "drivers/remote/ecs"
+            "title": "Windows IIS",
+            "path": "drivers/community/nomad-iis"
           }
         ]
       }

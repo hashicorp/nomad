@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -88,6 +88,7 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 			&jobValidate{srv: s},
 			&memoryOversubscriptionValidate{srv: s},
 			jobNumaHook{},
+			&jobSchedHook{},
 		},
 	}
 }
@@ -267,31 +268,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	// Create or Update Consul Configuration Entries defined in the job. For now
-	// Nomad only supports Configuration Entries types
-	// - "ingress-gateway" for managing Ingress Gateways
-	// - "terminating-gateway" for managing Terminating Gateways
-	//
-	// This is done as a blocking operation that prevents the job from being
-	// submitted if the configuration entries cannot be set in Consul.
-	//
-	// Every job update will re-write the Configuration Entry into Consul.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	for ns, entries := range args.Job.ConfigEntries() {
-		for service, entry := range entries.Ingress {
-			if errCE := j.srv.consulConfigEntries.SetIngressCE(ctx, ns, service, entries.Cluster, entry); errCE != nil {
-				return errCE
-			}
-		}
-		for service, entry := range entries.Terminating {
-			if errCE := j.srv.consulConfigEntries.SetTerminatingCE(ctx, ns, service, entries.Cluster, entry); errCE != nil {
-				return errCE
-			}
-		}
-	}
-
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
 	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
@@ -307,6 +283,33 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if policyWarnings != nil {
 		warnings = append(warnings, policyWarnings)
 		reply.Warnings = helper.MergeMultierrorWarnings(warnings...)
+	}
+
+	// Create or Update Consul Configuration Entries defined in the job. For now
+	// Nomad only supports Configuration Entries types
+	// - "ingress-gateway" for managing Ingress Gateways
+	// - "terminating-gateway" for managing Terminating Gateways
+	//
+	// This is done as a blocking operation that prevents the job from being
+	// submitted if the configuration entries cannot be set in Consul.
+	//
+	// Every job update will re-write the Configuration Entry into Consul.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	for ns, entries := range args.Job.ConfigEntries() {
+		for service, entry := range entries.Ingress {
+			if errCE := j.srv.consulConfigEntries.SetIngressCE(
+				ctx, ns, service, entries.Cluster, entries.Partition, entry); errCE != nil {
+				return errCE
+			}
+		}
+		for service, entry := range entries.Terminating {
+			if errCE := j.srv.consulConfigEntries.SetTerminatingCE(
+				ctx, ns, service, entries.Cluster, entries.Partition, entry); errCE != nil {
+				return errCE
+			}
+		}
 	}
 
 	// Clear the Vault token
@@ -628,7 +631,6 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	if err != nil {
 		return err
 	}
-
 	ws := memdb.NewWatchSet()
 	cur, err := snap.JobByID(ws, args.RequestNamespace(), args.JobID)
 	if err != nil {
@@ -653,6 +655,10 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	revJob := jobV.Copy()
 	revJob.VaultToken = args.VaultToken   // use vault token from revert to perform (re)registration
 	revJob.ConsulToken = args.ConsulToken // use consul token from revert to perform (re)registration
+
+	// Clear out the VersionTag to prevent tag duplication
+	revJob.VersionTag = nil
+
 	reg := &structs.JobRegisterRequest{
 		Job:          revJob,
 		WriteRequest: args.WriteRequest,
@@ -922,10 +928,13 @@ func (j *Job) Deregister(args *structs.JobDeregisterRequest, reply *structs.JobD
 	return nil
 }
 
-// BatchDeregister is used to remove a set of jobs from the cluster.
+// BatchDeregister is used to remove a set of jobs from the cluster. This
+// endpoint is used for garbage collection purposes only and is not exposed via
+// the HTTP API. It is the responsibility of the caller to ensure the jobs are
+// eligible for GC and that they have no running or pending allocs or evals.
 func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *structs.JobBatchDeregisterResponse) error {
 	authErr := j.srv.Authenticate(j.ctx, args)
-	if done, err := j.srv.forward("Job.BatchDeregister", args, args, reply); done {
+	if done, err := j.srv.forward(structs.JobBatchDeregisterRPCMethod, args, args, reply); done {
 		return err
 	}
 	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
@@ -939,68 +948,18 @@ func (j *Job) BatchDeregister(args *structs.JobBatchDeregisterRequest, reply *st
 		return err
 	}
 
+	// This RPC endpoint is only called from a Nomad server using the leader
+	// ACL when performing garbage collection, therefore we can get away with a
+	// simple management check to ensure the caller can trigger this
+	// functionality as the leader token is always a management token.
+	if !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
 	// Validate the arguments
 	if len(args.Jobs) == 0 {
 		return fmt.Errorf("given no jobs to deregister")
 	}
-	if len(args.Evals) != 0 {
-		return fmt.Errorf("evaluations should not be populated")
-	}
-
-	// Loop through checking for permissions
-	for jobNS := range args.Jobs {
-		// Check for submit-job permissions
-		if !aclObj.AllowNsOp(jobNS.Namespace, acl.NamespaceCapabilitySubmitJob) {
-			return structs.ErrPermissionDenied
-		}
-	}
-
-	// Grab a snapshot
-	snap, err := j.srv.fsm.State().Snapshot()
-	if err != nil {
-		return err
-	}
-
-	// Loop through to create evals
-	for jobNS, options := range args.Jobs {
-		if options == nil {
-			return fmt.Errorf("no deregister options provided for %v", jobNS)
-		}
-
-		job, err := snap.JobByID(nil, jobNS.Namespace, jobNS.ID)
-		if err != nil {
-			return err
-		}
-
-		// If the job is periodic or parameterized, we don't create an eval.
-		if job != nil && (job.IsPeriodic() || job.IsParameterized()) {
-			continue
-		}
-
-		priority := j.srv.config.JobDefaultPriority
-		jtype := structs.JobTypeService
-		if job != nil {
-			priority = job.Priority
-			jtype = job.Type
-		}
-
-		// Create a new evaluation
-		now := time.Now().UnixNano()
-		eval := &structs.Evaluation{
-			ID:          uuid.Generate(),
-			Namespace:   jobNS.Namespace,
-			Priority:    priority,
-			Type:        jtype,
-			TriggeredBy: structs.EvalTriggerJobDeregister,
-			JobID:       jobNS.ID,
-			Status:      structs.EvalStatusPending,
-			CreateTime:  now,
-			ModifyTime:  now,
-		}
-		args.Evals = append(args.Evals, eval)
-	}
-
-	args.SubmitTime = time.Now().UnixNano()
 
 	// Commit this update via Raft
 	_, index, err := j.srv.raftApply(structs.JobBatchDeregisterRequestType, args)
@@ -1068,8 +1027,9 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 	if job == nil {
 		return structs.NewErrRPCCoded(404, fmt.Sprintf("job %q not found", args.JobID))
 	}
-	if job.Type == structs.JobTypeSystem {
-		return structs.NewErrRPCCoded(http.StatusBadRequest, `cannot scale jobs of type "system"`)
+
+	if job.Type == structs.JobTypeSystem && *args.Count > 1 {
+		return structs.NewErrRPCCoded(http.StatusBadRequest, `jobs of type "system" can only be scaled between 0 and 1`)
 	}
 
 	// Since job is going to be mutated we must copy it since state store methods
@@ -1136,6 +1096,14 @@ func (j *Job) Scale(args *structs.JobScaleRequest, reply *structs.JobRegisterRes
 
 		if deployment != nil && deployment.Active() && deployment.JobCreateIndex == job.CreateIndex {
 			return structs.NewErrRPCCoded(400, "job scaling blocked due to active deployment")
+		}
+
+		// If JobModifyIndex set, check it before trying to apply
+		if args.JobModifyIndex > 0 {
+			if args.JobModifyIndex != job.JobModifyIndex {
+				return fmt.Errorf("%s %d: job exists with conflicting job modify index: %d",
+					RegisterEnforceIndexErrPrefix, args.JobModifyIndex, job.JobModifyIndex)
+			}
 		}
 
 		// Commit the job update
@@ -1334,12 +1302,65 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 			// Setup the output
 			reply.Versions = out
 			if len(out) != 0 {
-				reply.Index = out[0].ModifyIndex
+
+				var compareVersionNumber uint64
+				var compareVersion *structs.Job
+				var compareSpecificVersion bool
+
+				if args.Diffs {
+					if args.DiffTagName != "" {
+						compareSpecificVersion = true
+						compareVersion, err = state.JobVersionByTagName(ws, args.RequestNamespace(), args.JobID, args.DiffTagName)
+						if err != nil {
+							return fmt.Errorf("error looking up job version by tag: %v", err)
+						}
+						if compareVersion == nil {
+							return fmt.Errorf("tag %q not found", args.DiffTagName)
+						}
+						compareVersionNumber = compareVersion.Version
+					} else if args.DiffVersion != nil {
+						compareSpecificVersion = true
+						compareVersionNumber = *args.DiffVersion
+					}
+				}
+
+				// Note: a previous assumption here was that the 0th job was the latest, and that we don't modify "old" versions.
+				// Adding version tags breaks this assumption (you can tag an old version, which should unblock /versions queries) so we now look for the highest ModifyIndex.
+				var maxModifyIndex uint64
+				for _, job := range out {
+					if job.ModifyIndex > maxModifyIndex {
+						maxModifyIndex = job.ModifyIndex
+					}
+					if compareSpecificVersion && job.Version == compareVersionNumber {
+						compareVersion = job
+					}
+				}
+				reply.Index = maxModifyIndex
+
+				if compareSpecificVersion && compareVersion == nil {
+					if args.DiffTagName != "" {
+						return fmt.Errorf("tag %q not found", args.DiffTagName)
+					}
+					return fmt.Errorf("version %d not found", *args.DiffVersion)
+				}
 
 				// Compute the diffs
+
 				if args.Diffs {
-					for i := 0; i < len(out)-1; i++ {
-						old, new := out[i+1], out[i]
+					for i := 0; i < len(out); i++ {
+						var old, new *structs.Job
+						new = out[i]
+
+						if compareSpecificVersion {
+							old = compareVersion
+						} else {
+							if i == len(out)-1 {
+								// Skip the last version if not comparing to a specific version
+								break
+							}
+							old = out[i+1]
+						}
+
 						d, err := old.Diff(new, true)
 						if err != nil {
 							return fmt.Errorf("failed to create job diff: %v", err)
@@ -1367,7 +1388,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 // Returns `nil` set if the token has access to all namespaces
 // and ErrPermissionDenied if the token has no capabilities on any namespace.
 func allowedNSes(aclObj *acl.ACL, state *state.StateStore, allow func(ns string) bool) (map[string]bool, error) {
-	if aclObj == nil || aclObj.IsManagement() {
+	if aclObj.IsManagement() {
 		return nil, nil
 	}
 
@@ -1432,6 +1453,8 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	}
 	allow := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
 
+	sort := state.QueryOptionSort(args.QueryOptions)
+
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
@@ -1451,11 +1474,11 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				return err
 			} else {
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.JobsByIDPrefix(ws, namespace, prefix)
+					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.JobsByNamespace(ws, namespace)
+					iter, err = state.JobsByNamespace(ws, namespace, sort)
 				} else {
-					iter, err = state.Jobs(ws)
+					iter, err = state.Jobs(ws, sort)
 				}
 				if err != nil {
 					return err
@@ -2063,9 +2086,9 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// Avoid creating new dispatched jobs for retry requests, by using the idempotency token
 	if args.IdempotencyToken != "" {
 		// Fetch all jobs that match the parameterized job ID prefix
-		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID)
+		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID, state.SortDefault)
 		if err != nil {
-			errMsg := "failed to retrieve jobs for idempotency check"
+			const errMsg = "failed to retrieve jobs for idempotency check"
 			j.logger.Error(errMsg, "error", err)
 			return fmt.Errorf(errMsg)
 		}
@@ -2424,4 +2447,43 @@ func (j *Job) GetServiceRegistrations(
 			return j.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
 		},
 	})
+}
+
+func (j *Job) TagVersion(args *structs.JobApplyTagRequest, reply *structs.JobTagResponse) error {
+	authErr := j.srv.Authenticate(j.ctx, args)
+	if done, err := j.srv.forward("Job.TagVersion", args, args, reply); done {
+		return err
+	}
+	j.srv.MeasureRPCRate("job", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+	defer metrics.MeasureSince([]string{"nomad", "job", "tag_version"}, time.Now())
+
+	aclObj, err := j.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	}
+	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilitySubmitJob) {
+		return structs.ErrPermissionDenied
+	}
+
+	if args.Tag != nil {
+		args.Tag.TaggedTime = time.Now().UnixNano()
+	}
+
+	_, index, err := j.srv.raftApply(structs.JobVersionTagRequestType, args)
+	if err != nil {
+		j.logger.Error("tagging version failed", "error", err)
+		return err
+	}
+
+	reply.Index = index
+	if args.Tag != nil {
+		reply.Name = args.Tag.Name
+		reply.Description = args.Tag.Description
+		reply.TaggedTime = args.Tag.TaggedTime
+	}
+
+	return nil
 }

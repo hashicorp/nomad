@@ -17,7 +17,7 @@ import (
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -94,9 +94,9 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -143,9 +143,9 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -632,9 +632,9 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -786,9 +786,9 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -864,9 +864,9 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1019,9 +1019,9 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1232,9 +1232,9 @@ func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply
 
 	// Check management level permissions
 	if a.srv.config.ACLEnabled {
-		if acl, err := a.srv.ResolveACL(args); err != nil {
+		if aclObj, err := a.srv.ResolveACL(args); err != nil {
 			return err
-		} else if acl == nil || !acl.IsManagement() {
+		} else if !aclObj.IsManagement() {
 			return structs.ErrPermissionDenied
 		}
 	}
@@ -1282,9 +1282,9 @@ func (a *ACL) UpsertRoles(
 	}
 
 	// Only management level permissions can create ACL roles.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1426,9 +1426,9 @@ func (a *ACL) DeleteRolesByID(
 	}
 
 	// Only management level permissions can create ACL roles.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1867,9 +1867,9 @@ func (a *ACL) UpsertAuthMethods(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1970,9 +1970,9 @@ func (a *ACL) DeleteAuthMethods(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2059,10 +2059,9 @@ func (a *ACL) GetAuthMethod(
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_method_name"}, time.Now())
 
 	// Resolve the token and ensure it has some form of permissions.
-	acl, err := a.srv.ResolveACL(args)
-	if err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2224,9 +2223,9 @@ func (a *ACL) UpsertBindingRules(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2351,9 +2350,9 @@ func (a *ACL) DeleteBindingRules(
 	}
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2393,9 +2392,9 @@ func (a *ACL) ListBindingRules(
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_binding_rules"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2452,9 +2451,9 @@ func (a *ACL) GetBindingRules(
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_rules"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2507,9 +2506,9 @@ func (a *ACL) GetBindingRule(
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_binding_rule"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2747,9 +2746,11 @@ func (a *ACL) OIDCCompleteAuth(
 	}
 
 	var userClaims map[string]interface{}
-	if userTokenSource := oidcToken.StaticTokenSource(); userTokenSource != nil {
-		if err := oidcProvider.UserInfo(ctx, userTokenSource, idTokenClaims["sub"].(string), &userClaims); err != nil {
-			return fmt.Errorf("failed to retrieve the user info claims: %v", err)
+	if !authMethod.Config.OIDCDisableUserInfo {
+		if userTokenSource := oidcToken.StaticTokenSource(); userTokenSource != nil {
+			if err := oidcProvider.UserInfo(ctx, userTokenSource, idTokenClaims["sub"].(string), &userClaims); err != nil {
+				return fmt.Errorf("failed to retrieve the user info claims: %v", err)
+			}
 		}
 	}
 

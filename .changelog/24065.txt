@@ -1,0 +1,3 @@
+```release-note:bug
+scaling: Fixed a bug where scaling policies would not get created during job submission unless namespace field was set in jobspec
+```

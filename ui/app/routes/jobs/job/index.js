@@ -10,13 +10,14 @@ import {
   watchRecord,
   watchRelationship,
   watchAll,
-  watchQuery,
 } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
+import { action } from '@ember/object';
 
 export default class IndexRoute extends Route.extend(WithWatchers) {
   @service can;
   @service store;
+  @service watchList;
 
   async model() {
     return this.modelFor('jobs.job');
@@ -33,12 +34,6 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       latestDeployment:
         model.get('supportsDeployments') &&
         this.watchLatestDeployment.perform(model),
-      list:
-        model.get('hasChildren') &&
-        this.watchAllJobs.perform({
-          namespace: model.namespace.get('name'),
-          meta: true,
-        }),
       nodes:
         model.get('hasClientStatus') &&
         this.can.can('read client') &&
@@ -54,11 +49,20 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
         sortProperty: 'submitTime',
         sortDescending: true,
       });
+
+      controller.resetQueryIndex({
+        id: model.get('plainId'),
+        namespace: model.get('namespace.id'),
+      });
+
+      controller.watchChildJobs.perform({
+        id: model.get('plainId'),
+        namespace: model.get('namespace.id'),
+      });
     }
     return super.setupController(...arguments);
   }
 
-  @watchQuery('job') watchAllJobs;
   @watchAll('node') watchNodes;
   @watchRecord('job-summary') watchSummary;
   @watchRelationship('allocations') watchAllocations;
@@ -66,7 +70,6 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @watchRelationship('latestDeployment') watchLatestDeployment;
 
   @collect(
-    'watchAllJobs',
     'watchSummary',
     'watchAllocations',
     'watchEvaluations',
@@ -74,4 +77,14 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
     'watchNodes'
   )
   watchers;
+
+  @action
+  willTransition() {
+    // eslint-disable-next-line
+    this.controller.childJobsController.abort();
+    // eslint-disable-next-line
+    this.controller.watchChildJobs.cancelAll();
+    this.cancelAllWatchers();
+    return true;
+  }
 }

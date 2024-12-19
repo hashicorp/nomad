@@ -13,6 +13,197 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.9.4
+
+#### Security updates to default deny lists
+
+In Nomad 1.9.4, the default `function_denylist` includes `executeTemplate`, as
+a measure to prevent accidental or malicious infinitely recursive execution.
+Users that require `executeTemplate` should update their
+[configuration](/nomad/docs/job-specification/template#function_denylist).
+
+Additionally, the [default client env deny
+list](/nomad/docs/configuration/client#env-denylist) includes more environment
+variables. Users who need some of these secure environment variables passed to
+their tasks should consult the list and overwrite it in the configuration.
+
+## Nomad 1.9.3
+
+In Nomad 1.9.3, the mechanism used for calculating when objects are eligible
+for garbage collection changes to a clock-based one. This has two consequences.
+First, it allows to set arbitrarily long GC intervals. Second, it requires that
+Nomad servers are kept roughly in sync time-wise, because GC can originate in a
+follower.
+
+Nomad 1.9.2 contained a bug that could drop all cluster state on upgrade and
+has been removed from downloads.
+
+## Nomad 1.9.0
+
+#### Dropped support for older clients
+
+Nomad 1.9.0 removes support for Nomad client agents older than 1.6.0. Older
+nodes fail heartbeats. Nomad servers mark the workloads on those nodes
+as lost and reschedule them normally according to the job's [reschedule][]
+block.
+
+#### Keyring In Raft
+
+Nomad 1.9.0 stores keys used for signing Workload Identity and encrypting
+Variables in Raft, instead of storing key material in the external
+keystore. When using external KMS or Vault transit encryption for the
+[`keyring`](/nomad/docs/configuration/keyring) provider, the key encryption key
+(KEK) is stored outside of Nomad and no cleartext key material exists on disk.
+When using the default AEAD provider, the key encryption key (KEK) is stored in
+Raft alongside the encrypted data encryption keys (DEK).
+
+Nomad automatically migrates the key storage for all key material on the
+first [`root_key_gc_interval`][] after all servers are upgraded to 1.9.0. The
+existing on-disk keystore is required to restore servers from older snapshots,
+so you should continue to back up the on-disk keystore until you no longer need
+those older snapshots.
+
+#### Support for HCLv1 removed
+
+Nomad 1.9.0 no longer supports the HCLv1 format for job specifications. Using
+the `-hcl1` option for the `job run`, `job plan`, and `job validate` commands
+will no longer work.
+
+One common use of `-hcl1` was when specifying [Docker
+labels](/nomad/docs/drivers/docker#labels) with dots in their keys such as for
+DataDog autodiscovery:
+
+```hcl
+labels {
+  "com.datadoghq.ad.check_names"  = "[\"openmetrics\"]"
+  "com.datadoghq.ad.init_configs" = "[{}]"
+  # ...
+}
+```
+
+Quoted keys are invalid in HCLv2 blocks and must be specified with a
+list-of-maps syntax:
+
+```hcl
+labels = [
+  {
+    "com.datadoghq.ad.check_names"  = "[\"openmetrics\"]"
+    "com.datadoghq.ad.init_configs" = "[{}]"
+    # ...
+  }
+]
+```
+
+## Nomad 1.8.4
+
+#### Default Docker `infra_image` changed
+
+Due to the deprecation of the third-party `gcr.io` registry, the default Docker
+[`infra_image`][] is now `registry.k8s.io/pause-<arch>:3.3`. If you do not
+override the default, clients using the `docker` driver will make outbound
+requests to the new registry.
+
+## Nomad 1.8.3
+
+#### Nomad keyring rotation
+
+In Nomad 1.8.3, the Nomad root keyring will prepublish keys at half the
+`root_key_rotation_threshold` and promote them to active once the
+`root_key_rotation_threshold` has passed. The `nomad operator root keyring
+rotate` command now requires one of two arguments: `-prepublish <duration>` to
+prepublish a key or `-now` to rotate immediately. We recommend using
+`-prepublish` to avoid outages from workload identities used to log into
+external services such as Vault or Consul.
+
+## Nomad 1.8.2
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.8.2, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true` or by setting `privileged=true`. We made
+this change as a result of regressions introduced by mitigations for
+[HCSEC-2024-03](https://discuss.hashicorp.com/t/hcsec-2024-03-nomad-vulnerable-to-arbitrary-write-through-symlink-attack/62602).
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.8.2 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment. We made this change as a result of regressions introduced by
+mitigations for
+[HCSEC-2024-03](https://discuss.hashicorp.com/t/hcsec-2024-03-nomad-vulnerable-to-arbitrary-write-through-symlink-attack/62602).
+
+## Nomad 1.8.1
+
+<EnterpriseAlert inline />
+
+Nomad Enterprise 1.8.1 includes an updated version of the Sentinel library. Users
+that have built custom Sentinel plugins must recompile them using an SDK
+supporting Sentinel Plugin Protocol Version 3. Consult the Sentinel
+[SDK Compatibility Matrix](https://github.com/hashicorp/sentinel-sdk?tab=readme-ov-file#sdk-compatibility-matrix) for appropriate Sentinel SDK versions.
+
+## Nomad 1.8.0
+
+#### Deprecated Disconnect Fields
+
+Nomad 1.8.0 introduces a `disconnect` block meant to group all the configuration
+options related to disconnected client's and server's behavior, causing the
+deprecation of the fields `stop_after_client_disconnect`, `max_client_disconnect`
+and `prevent_reschedule_on_lost`. This block also introduces new options for
+allocations reconciliation if the client regains connectivity.
+
+#### CNI Constraints
+
+In Nomad 1.8.0, jobs with `bridge` networking will have constraints added during
+job submit that require CNI plugins to be present on the node. Nodes have
+fingerprinted the available CNI plugins starting in Nomad 1.5.0.
+
+If you are upgrading from Nomad 1.5.0 or later to 1.8.0 or later, there's
+nothing additional for you to do. It's not recommended to skip more than 2
+versions of Nomad. But if you upgrade from earlier than 1.5.0 to 1.8.0 or later,
+you will need to ensure that clients have been upgraded before submitting any
+jobs that use `bridge` networking.
+
+#### Removal of `raw_exec` option `no_cgroups`
+
+In Nomad 1.7.0 the `raw_exec` plugin option for `no_cgroups` became ineffective.
+Starting in Nomad 1.8.0 attempting to set the `no_cgroups` in `raw_exec` plugin
+configuration will result in an error when starting the agent.
+
+## Nomad 1.7.11
+
+<EnterpriseAlert inline />
+
+#### Nomad keyring rotation
+
+In Nomad 1.7.11, the Nomad root keyring will prepublish keys at half the
+`root_key_rotation_threshold` and promote them to active once the
+`root_key_rotation_threshold` has passed. The `nomad operator root keyring
+rotate` command now requires one of two arguments: `-prepublish <duration>` to
+prepublish a key or `-now` to rotate immediately. We recommend using
+`-prepublish` to avoid outages from workload identities used to log into
+external services such as Vault or Consul.
+
+## Nomad 1.7.10
+
+<EnterpriseAlert inline />
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.7.10, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true` or by setting `privileged=true`.
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.7.10 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment.
+
 ## Nomad 1.7.2
 
 Nomad 1.7.2 fixes a critical bug in CPU fingerprinting in Nomad 1.7.0 and
@@ -44,20 +235,20 @@ authenticate to Vault and obtain a Vault token specific to the task.
 
 The existing workflow using a Vault token provided in either the agent
 configuration or at the time of job submission is deprecated and will be removed
-in Nomad 1.9. The [`vault.policies`][] field is also deprecated and will work
+in Nomad 1.10. The [`vault.policies`][] field is also deprecated and will work
 only with the existing workflow. Instead, you should configure a suitable Vault
 role and use that.
 
 The following agent configuration fields are deprecated:
-- [`vault.allow_unauthenticated`][] will be removed in Nomad 1.9. Tasks will use
+- [`vault.allow_unauthenticated`][] will be removed in Nomad 1.10. Tasks will use
   the workload identity without the user supplying a Vault token.
-- [`vault.task_token_ttl`][] will be removed in Nomad 1.9. With workload
+- [`vault.task_token_ttl`][] will be removed in Nomad 1.10. With workload
   identity, tasks will receive their TTL configuration from the Vault role.
-- [`vault.token`][] will be removed in Nomad 1.9. Nomad agents will no longer
+- [`vault.token`][] will be removed in Nomad 1.10. Nomad agents will no longer
   make requests to authenticated endpoints except with a task's workload
   identity.
 
-Before upgrading to Nomad 1.9 you will need to have configured authentication
+Before upgrading to Nomad 1.10 you will need to have configured authentication
 with Vault to work with workload identity. See [Migrating to Using Workload
 Identity with Vault][] for more details.
 
@@ -69,11 +260,11 @@ workload.
 
 The existing workflow using a Consul token provided in either the agent
 configuration or at the time of job submission is deprecated and will be removed
-in Nomad 1.9. The [`consul.allow_unauthenticated`][] agent configuration field
-will be removed in Nomad 1.9. Tasks will use the workload identity without the
+in Nomad 1.10. The [`consul.allow_unauthenticated`][] agent configuration field
+will be removed in Nomad 1.10. Tasks will use the workload identity without the
 user supplying a Consul token.
 
-Before upgrading to Nomad 1.9 you will need to have configured authentication
+Before upgrading to Nomad 1.10 you will need to have configured authentication
 with Consul to work with workload identity. See [Migrating to Using Workload
 Identity with Consul][] for more details.
 
@@ -159,6 +350,38 @@ setting `no_cgroups` would disable the mechanism where Nomad used the freezer
 cgroup to halt the process group of a Task before issuing a kill signal to each
 process. Starting in Nomad 1.7.0 this behavior is always enabled (and a similar
 mechanism has always been enabled on cgroups v2 systems).
+
+## Nomad 1.6.14
+
+<EnterpriseAlert inline />
+
+#### Nomad keyring rotation
+
+In Nomad 1.6.14, the Nomad root keyring will prepublish keys at half the
+`root_key_rotation_threshold` and promote them to active once the
+`root_key_rotation_threshold` has passed. The `nomad operator root keyring
+rotate` command now requires one of two arguments: `-prepublish <duration>` to
+prepublish a key or `-now` to rotate immediately. We recommend using
+`-prepublish` to avoid outages from workload identities used to log into
+external services such as Vault or Consul.
+
+## Nomad 1.6.13
+
+<EnterpriseAlert inline />
+
+#### New `windows_allow_insecure_container_admin` configuration option for Docker driver
+
+In 1.6.13, Nomad will refuse to run jobs that use the Docker driver on Windows
+with [Process Isolation][] that run as `ContainerAdmin`. This is in order to
+provide a more secure environment for these jobs, and this behavior can be
+overridden by setting the new `windows_allow_insecure_container_admin` Docker
+plugin configuration option to `true` or by setting `privileged=true`.
+
+#### New default isolation mode for Docker on Windows
+
+Nomad 1.6.13 changes the default isolation mode for Docker tasks on Windows from
+`process` to `hyperv`, since `hyperv` provides a much more secure execution
+environment.
 
 ## Nomad 1.6.0
 
@@ -1949,7 +2172,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [`distinct_property`]: /nomad/docs/job-specification/constraint#distinct_property
 [`extra_hosts`]: /nomad/docs/drivers/docker#extra_hosts
 [`linux capabilities`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-[`Local`]: /consul/docs/security/acl/acl-tokens#token-attributes
+[`Local`]: /consul/docs/security/acl/tokens#token-attributes
 [`log_file`]: /nomad/docs/configuration#log_file
 [`raft protocol`]: /nomad/docs/configuration/server#raft_protocol
 [`rejoin_after_leave`]: /nomad/docs/configuration/server#rejoin_after_leave
@@ -1965,7 +2188,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [alloc_overlap]: https://github.com/hashicorp/nomad/issues/10440
 [allow_caps_exec]: /nomad/docs/drivers/exec#allow_caps
 [allow_caps_java]: /nomad/docs/drivers/java#allow_caps
-[anon_token]: /consul/docs/security/acl/acl-tokens#special-purpose-tokens
+[anon_token]: /consul/docs/security/acl/tokens#special-purpose-tokens
 [api_jobs_parse]: /nomad/api-docs/jobs#parse-job
 [artifact_env]: /nomad/docs/configuration/client#set_environment_variables
 [artifact_fs_isolation]: /nomad/docs/configuration/client#disable_filesystem_isolation
@@ -2019,6 +2242,7 @@ deleted and then Nomad 0.3.0 can be launched.
 [preemption]: /nomad/docs/concepts/scheduling/preemption
 [proxy_concurrency]: /nomad/docs/job-specification/sidecar_task#proxy_concurrency
 [reserved]: /nomad/docs/configuration/client#reserved-parameters
+[`root_key_gc_interval`]: /nomad/docs/configuration/server#root_key_gc_interval
 [task-config]: /nomad/docs/job-specification/task#config
 [template_gid]: /nomad/docs/job-specification/template#gid
 [template_uid]: /nomad/docs/job-specification/template#uid
@@ -2030,3 +2254,6 @@ deleted and then Nomad 0.3.0 can be launched.
 [validate]: /nomad/docs/commands/job/validate
 [vault_grace]: /nomad/docs/job-specification/template
 [Workload Identity]: /nomad/docs/concepts/workload-identity
+[Process Isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container#process-isolation
+[reschedule]: /nomad/docs/jobs-specification/reschedule
+[`infra_image`]: /nomad/docs/drivers/docker#infra_image

@@ -6,18 +6,21 @@ package docker
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"runtime"
 	"strconv"
 	"strings"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 )
 
@@ -28,7 +31,7 @@ const (
 
 	// ContainerNotRunningError is returned by the docker daemon if the container
 	// is not running, yet we requested it to stop
-	ContainerNotRunningError = "Container not running"
+	ContainerNotRunningError = "is not running" // exact string is "Container %s is not running"
 
 	// pluginName is the name of the plugin
 	pluginName = "docker"
@@ -274,7 +277,7 @@ var (
 		"infra_image": hclspec.NewDefault(
 			hclspec.NewAttr("infra_image", "string", false),
 			hclspec.NewLiteral(fmt.Sprintf(
-				`"gcr.io/google_containers/pause-%s:3.1"`,
+				`"registry.k8s.io/pause-%s:3.3"`,
 				runtime.GOARCH,
 			)),
 		),
@@ -282,6 +285,18 @@ var (
 		"infra_image_pull_timeout": hclspec.NewDefault(
 			hclspec.NewAttr("infra_image_pull_timeout", "string", false),
 			hclspec.NewLiteral(`"5m"`),
+		),
+		// number of attempts to try to purge an existing container if it already exists
+		"container_exists_attempts": hclspec.NewDefault(
+			hclspec.NewAttr("container_exists_attempts", "number", false),
+			hclspec.NewLiteral(`5`),
+		),
+
+		// oom_score_adj is the positive integer that can be used to mark the task as
+		// more likely to be OOM killed
+		"oom_score_adj": hclspec.NewDefault(
+			hclspec.NewAttr("oom_score_adj", "number", false),
+			hclspec.NewLiteral(`0`),
 		),
 
 		// the duration that the driver will wait for activity from the Docker engine during an image pull
@@ -294,6 +309,13 @@ var (
 		// disable_log_collection indicates whether docker driver should collect logs of docker
 		// task containers.  If true, nomad doesn't start docker_logger/logmon processes
 		"disable_log_collection": hclspec.NewAttr("disable_log_collection", "bool", false),
+
+		// windows_allow_insecure_container_admin indicates that on windows,
+		// docker checks the task.user field or, if unset, the container image
+		// manifest after pulling the container, to see if it's running as
+		// ContainerAdmin. If so, exits with an error unless the task config has
+		// privileged=true.
+		"windows_allow_insecure_container_admin": hclspec.NewAttr("windows_allow_insecure_container_admin", "bool", false),
 	})
 
 	// mountBodySpec is the hcl specification for the `mount` block
@@ -349,6 +371,7 @@ var (
 			hclspec.NewAttr("cpu_cfs_period", "number", false),
 			hclspec.NewLiteral(`100000`),
 		),
+		"container_exists_attempts": hclspec.NewAttr("container_exists_attempts", "number", false),
 		"devices": hclspec.NewBlockList("devices", hclspec.NewObject(map[string]*hclspec.Spec{
 			"host_path":          hclspec.NewAttr("host_path", "string", false),
 			"container_path":     hclspec.NewAttr("container_path", "string", false),
@@ -385,6 +408,7 @@ var (
 		"mounts":          hclspec.NewBlockList("mounts", mountBodySpec),
 		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
 		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
+		"oom_score_adj":   hclspec.NewAttr("oom_score_adj", "number", false),
 		"runtime":         hclspec.NewAttr("runtime", "string", false),
 		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
 		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
@@ -414,7 +438,7 @@ var (
 	driverCapabilities = &drivers.Capabilities{
 		SendSignals: true,
 		Exec:        true,
-		FSIsolation: drivers.FSIsolationImage,
+		FSIsolation: fsisolation.Image,
 		NetIsolationModes: []drivers.NetIsolationMode{
 			drivers.NetIsolationModeHost,
 			drivers.NetIsolationModeGroup,
@@ -426,60 +450,62 @@ var (
 )
 
 type TaskConfig struct {
-	Image             string             `codec:"image"`
-	AdvertiseIPv6Addr bool               `codec:"advertise_ipv6_address"`
-	Args              []string           `codec:"args"`
-	Auth              DockerAuth         `codec:"auth"`
-	AuthSoftFail      bool               `codec:"auth_soft_fail"`
-	CapAdd            []string           `codec:"cap_add"`
-	CapDrop           []string           `codec:"cap_drop"`
-	Command           string             `codec:"command"`
-	CPUCFSPeriod      int64              `codec:"cpu_cfs_period"`
-	CPUHardLimit      bool               `codec:"cpu_hard_limit"`
-	CPUSetCPUs        string             `codec:"cpuset_cpus"`
-	Devices           []DockerDevice     `codec:"devices"`
-	DNSSearchDomains  []string           `codec:"dns_search_domains"`
-	DNSOptions        []string           `codec:"dns_options"`
-	DNSServers        []string           `codec:"dns_servers"`
-	Entrypoint        []string           `codec:"entrypoint"`
-	ExtraHosts        []string           `codec:"extra_hosts"`
-	ForcePull         bool               `codec:"force_pull"`
-	GroupAdd          []string           `codec:"group_add"`
-	Healthchecks      DockerHealthchecks `codec:"healthchecks"`
-	Hostname          string             `codec:"hostname"`
-	Init              bool               `codec:"init"`
-	Interactive       bool               `codec:"interactive"`
-	IPCMode           string             `codec:"ipc_mode"`
-	IPv4Address       string             `codec:"ipv4_address"`
-	IPv6Address       string             `codec:"ipv6_address"`
-	Isolation         string             `codec:"isolation"`
-	Labels            hclutils.MapStrStr `codec:"labels"`
-	LoadImage         string             `codec:"load"`
-	Logging           DockerLogging      `codec:"logging"`
-	MacAddress        string             `codec:"mac_address"`
-	MemoryHardLimit   int64              `codec:"memory_hard_limit"`
-	Mounts            []DockerMount      `codec:"mount"`
-	NetworkAliases    []string           `codec:"network_aliases"`
-	NetworkMode       string             `codec:"network_mode"`
-	Runtime           string             `codec:"runtime"`
-	PidsLimit         int64              `codec:"pids_limit"`
-	PidMode           string             `codec:"pid_mode"`
-	Ports             []string           `codec:"ports"`
-	PortMap           hclutils.MapStrInt `codec:"port_map"`
-	Privileged        bool               `codec:"privileged"`
-	ImagePullTimeout  string             `codec:"image_pull_timeout"`
-	ReadonlyRootfs    bool               `codec:"readonly_rootfs"`
-	SecurityOpt       []string           `codec:"security_opt"`
-	ShmSize           int64              `codec:"shm_size"`
-	StorageOpt        map[string]string  `codec:"storage_opt"`
-	Sysctl            hclutils.MapStrStr `codec:"sysctl"`
-	TTY               bool               `codec:"tty"`
-	Ulimit            hclutils.MapStrStr `codec:"ulimit"`
-	UTSMode           string             `codec:"uts_mode"`
-	UsernsMode        string             `codec:"userns_mode"`
-	Volumes           []string           `codec:"volumes"`
-	VolumeDriver      string             `codec:"volume_driver"`
-	WorkDir           string             `codec:"work_dir"`
+	Image                   string             `codec:"image"`
+	AdvertiseIPv6Addr       bool               `codec:"advertise_ipv6_address"`
+	Args                    []string           `codec:"args"`
+	Auth                    DockerAuth         `codec:"auth"`
+	AuthSoftFail            bool               `codec:"auth_soft_fail"`
+	CapAdd                  []string           `codec:"cap_add"`
+	CapDrop                 []string           `codec:"cap_drop"`
+	Command                 string             `codec:"command"`
+	ContainerExistsAttempts uint64             `codec:"container_exists_attempts"`
+	CPUCFSPeriod            int64              `codec:"cpu_cfs_period"`
+	CPUHardLimit            bool               `codec:"cpu_hard_limit"`
+	CPUSetCPUs              string             `codec:"cpuset_cpus"`
+	Devices                 []DockerDevice     `codec:"devices"`
+	DNSSearchDomains        []string           `codec:"dns_search_domains"`
+	DNSOptions              []string           `codec:"dns_options"`
+	DNSServers              []string           `codec:"dns_servers"`
+	Entrypoint              []string           `codec:"entrypoint"`
+	ExtraHosts              []string           `codec:"extra_hosts"`
+	ForcePull               bool               `codec:"force_pull"`
+	GroupAdd                []string           `codec:"group_add"`
+	Healthchecks            DockerHealthchecks `codec:"healthchecks"`
+	Hostname                string             `codec:"hostname"`
+	Init                    bool               `codec:"init"`
+	Interactive             bool               `codec:"interactive"`
+	IPCMode                 string             `codec:"ipc_mode"`
+	IPv4Address             string             `codec:"ipv4_address"`
+	IPv6Address             string             `codec:"ipv6_address"`
+	Isolation               string             `codec:"isolation"`
+	Labels                  hclutils.MapStrStr `codec:"labels"`
+	LoadImage               string             `codec:"load"`
+	Logging                 DockerLogging      `codec:"logging"`
+	MacAddress              string             `codec:"mac_address"`
+	MemoryHardLimit         int64              `codec:"memory_hard_limit"`
+	Mounts                  []DockerMount      `codec:"mount"`
+	NetworkAliases          []string           `codec:"network_aliases"`
+	NetworkMode             string             `codec:"network_mode"`
+	OOMScoreAdj             int                `codec:"oom_score_adj"`
+	Runtime                 string             `codec:"runtime"`
+	PidsLimit               int64              `codec:"pids_limit"`
+	PidMode                 string             `codec:"pid_mode"`
+	Ports                   []string           `codec:"ports"`
+	PortMap                 hclutils.MapStrInt `codec:"port_map"`
+	Privileged              bool               `codec:"privileged"`
+	ImagePullTimeout        string             `codec:"image_pull_timeout"`
+	ReadonlyRootfs          bool               `codec:"readonly_rootfs"`
+	SecurityOpt             []string           `codec:"security_opt"`
+	ShmSize                 int64              `codec:"shm_size"`
+	StorageOpt              map[string]string  `codec:"storage_opt"`
+	Sysctl                  hclutils.MapStrStr `codec:"sysctl"`
+	TTY                     bool               `codec:"tty"`
+	Ulimit                  hclutils.MapStrStr `codec:"ulimit"`
+	UTSMode                 string             `codec:"uts_mode"`
+	UsernsMode              string             `codec:"userns_mode"`
+	Volumes                 []string           `codec:"volumes"`
+	VolumeDriver            string             `codec:"volume_driver"`
+	WorkDir                 string             `codec:"work_dir"`
 
 	// MountsList supports the pre-1.0 mounts array syntax
 	MountsList []DockerMount `codec:"mounts"`
@@ -498,8 +524,8 @@ type DockerDevice struct {
 	CgroupPermissions string `codec:"cgroup_permissions"`
 }
 
-func (d DockerDevice) toDockerDevice() (docker.Device, error) {
-	dd := docker.Device{
+func (d DockerDevice) toDockerDevice() (containerapi.DeviceMapping, error) {
+	dd := containerapi.DeviceMapping{
 		PathOnHost:        d.HostPath,
 		PathInContainer:   d.ContainerPath,
 		CgroupPermissions: d.CgroupPermissions,
@@ -549,41 +575,41 @@ type DockerMount struct {
 	TmpfsOptions  DockerTmpfsOptions  `codec:"tmpfs_options"`
 }
 
-func (m DockerMount) toDockerHostMount() (docker.HostMount, error) {
+func (m DockerMount) toDockerHostMount() (mount.Mount, error) {
 	if m.Type == "" {
 		// for backward compatibility, as type is optional
 		m.Type = "volume"
 	}
 
-	hm := docker.HostMount{
+	hm := mount.Mount{
 		Target:   m.Target,
 		Source:   m.Source,
-		Type:     m.Type,
+		Type:     mount.Type(m.Type),
 		ReadOnly: m.ReadOnly,
 	}
 
 	switch m.Type {
 	case "volume":
 		vo := m.VolumeOptions
-		hm.VolumeOptions = &docker.VolumeOptions{
+		hm.VolumeOptions = &mount.VolumeOptions{
 			NoCopy: vo.NoCopy,
 			Labels: vo.Labels,
-			DriverConfig: docker.VolumeDriverConfig{
+			DriverConfig: &mount.Driver{
 				Name:    vo.DriverConfig.Name,
 				Options: vo.DriverConfig.Options,
 			},
 		}
 	case "bind":
-		hm.BindOptions = &docker.BindOptions{
-			Propagation: m.BindOptions.Propagation,
+		hm.BindOptions = &mount.BindOptions{
+			Propagation: mount.Propagation(m.BindOptions.Propagation),
 		}
 	case "tmpfs":
 		if m.Source != "" {
 			return hm, fmt.Errorf(`invalid source, must be "" for tmpfs`)
 		}
-		hm.TempfsOptions = &docker.TempfsOptions{
+		hm.TmpfsOptions = &mount.TmpfsOptions{
 			SizeBytes: m.TmpfsOptions.SizeBytes,
-			Mode:      m.TmpfsOptions.Mode,
+			Mode:      fs.FileMode(m.TmpfsOptions.Mode),
 		}
 	default:
 		return hm, fmt.Errorf(`invalid mount type, must be "bind", "volume", "tmpfs": %q`, m.Type)
@@ -636,26 +662,33 @@ type ContainerGCConfig struct {
 }
 
 type DriverConfig struct {
-	Endpoint                      string        `codec:"endpoint"`
-	Auth                          AuthConfig    `codec:"auth"`
-	TLS                           TLSConfig     `codec:"tls"`
-	GC                            GCConfig      `codec:"gc"`
-	Volumes                       VolumeConfig  `codec:"volumes"`
-	AllowPrivileged               bool          `codec:"allow_privileged"`
-	AllowCaps                     []string      `codec:"allow_caps"`
-	GPURuntimeName                string        `codec:"nvidia_runtime"`
-	InfraImage                    string        `codec:"infra_image"`
-	InfraImagePullTimeout         string        `codec:"infra_image_pull_timeout"`
-	infraImagePullTimeoutDuration time.Duration `codec:"-"`
-	DisableLogCollection          bool          `codec:"disable_log_collection"`
-	PullActivityTimeout           string        `codec:"pull_activity_timeout"`
-	PidsLimit                     int64         `codec:"pids_limit"`
-	pullActivityTimeoutDuration   time.Duration `codec:"-"`
-	ExtraLabels                   []string      `codec:"extra_labels"`
-	Logging                       LoggingConfig `codec:"logging"`
+	Endpoint                           string        `codec:"endpoint"`
+	Auth                               AuthConfig    `codec:"auth"`
+	TLS                                TLSConfig     `codec:"tls"`
+	GC                                 GCConfig      `codec:"gc"`
+	Volumes                            VolumeConfig  `codec:"volumes"`
+	AllowPrivileged                    bool          `codec:"allow_privileged"`
+	AllowCaps                          []string      `codec:"allow_caps"`
+	GPURuntimeName                     string        `codec:"nvidia_runtime"`
+	InfraImage                         string        `codec:"infra_image"`
+	InfraImagePullTimeout              string        `codec:"infra_image_pull_timeout"`
+	infraImagePullTimeoutDuration      time.Duration `codec:"-"`
+	ContainerExistsAttempts            uint64        `codec:"container_exists_attempts"`
+	DisableLogCollection               bool          `codec:"disable_log_collection"`
+	PullActivityTimeout                string        `codec:"pull_activity_timeout"`
+	PidsLimit                          int64         `codec:"pids_limit"`
+	pullActivityTimeoutDuration        time.Duration `codec:"-"`
+	OOMScoreAdj                        int           `codec:"oom_score_adj"`
+	WindowsAllowInsecureContainerAdmin bool          `codec:"windows_allow_insecure_container_admin"`
+	ExtraLabels                        []string      `codec:"extra_labels"`
+	Logging                            LoggingConfig `codec:"logging"`
 
 	AllowRuntimesList []string            `codec:"allow_runtimes"`
 	allowRuntimes     map[string]struct{} `codec:"-"`
+
+	// prevents task handles from writing to cpuset cgroups we don't have
+	// permissions to; not user configurable
+	disableCpusetManagement bool `codec:"-"`
 }
 
 type AuthConfig struct {

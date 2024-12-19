@@ -67,12 +67,6 @@ type templateHook struct {
 	templateManager *template.TaskTemplateManager
 	managerLock     sync.Mutex
 
-	// driverHandle is the task driver executor used by the template manager to
-	// run scripts when the template change mode is set to script.
-	//
-	// Must obtain a managerLock before changing. It may be nil.
-	driverHandle ti.ScriptExecutor
-
 	// consulNamespace is the current Consul namespace
 	consulNamespace string
 
@@ -94,6 +88,10 @@ type templateHook struct {
 
 	// taskDir is the task directory
 	taskDir string
+
+	// taskID is a unique identifier for this templateHook, for use in
+	// downstream platform-specific template runner consumers
+	taskID string
 }
 
 func newTemplateHook(config *templateHookConfig) *templateHook {
@@ -127,6 +125,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	h.taskDir = req.TaskDir.Dir
 	h.vaultToken = req.VaultToken
 	h.nomadToken = req.NomadToken
+	h.taskID = req.Alloc.ID + "-" + req.Task.Name
 
 	// Set the consul token if the task uses WI.
 	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
@@ -157,7 +156,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 			)
 		}
 
-		consulToken := clusterTokens[consulWIDName]
+		consulToken := clusterTokens[consulWIDName+"/"+req.Task.Name]
 		if consulToken == nil {
 			return fmt.Errorf(
 				"consul tokens for cluster %s and identity %s requested by task %s not found",
@@ -184,27 +183,6 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	case <-unblockCh:
 	}
 
-	return nil
-}
-
-func (h *templateHook) Poststart(ctx context.Context, req *interfaces.TaskPoststartRequest, resp *interfaces.TaskPoststartResponse) error {
-	h.managerLock.Lock()
-	defer h.managerLock.Unlock()
-
-	if h.templateManager == nil {
-		return nil
-	}
-
-	if req.DriverExec != nil {
-		h.driverHandle = req.DriverExec
-		h.templateManager.SetDriverHandle(h.driverHandle)
-	} else {
-		for _, tmpl := range h.config.templates {
-			if tmpl.ChangeMode == structs.TemplateChangeModeScript {
-				return fmt.Errorf("template has change mode set to 'script' but the driver it uses does not provide exec capability")
-			}
-		}
-	}
 	return nil
 }
 
@@ -240,6 +218,8 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
 		NomadNamespace:       h.config.nomadNamespace,
 		NomadToken:           h.nomadToken,
+		TaskID:               h.taskID,
+		Logger:               h.logger,
 	})
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)
@@ -247,13 +227,10 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	}
 
 	h.templateManager = m
-	if h.driverHandle != nil {
-		h.templateManager.SetDriverHandle(h.driverHandle)
-	}
 	return unblock, nil
 }
 
-func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
+func (h *templateHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
@@ -266,7 +243,7 @@ func (h *templateHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest
 }
 
 // Update is used to handle updates to vault and/or nomad tokens.
-func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, resp *interfaces.TaskUpdateResponse) error {
+func (h *templateHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, resp *interfaces.TaskUpdateResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 

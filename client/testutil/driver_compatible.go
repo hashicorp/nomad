@@ -5,6 +5,7 @@ package testutil
 
 import (
 	"os/exec"
+	"os/user"
 	"runtime"
 	"syscall"
 	"testing"
@@ -23,6 +24,15 @@ func RequireRoot(t *testing.T) {
 func RequireNonRoot(t *testing.T) {
 	if syscall.Geteuid() == 0 {
 		t.Skip("Test requires non-root")
+	}
+}
+
+// RequireAdministrator skips tests unless:
+// - running as Windows Administrator
+func RequireAdministrator(t *testing.T) {
+	user, _ := user.Current()
+	if user.Name != "Administrator" {
+		t.Skip("Test requires Administrator")
 	}
 }
 
@@ -49,6 +59,22 @@ func RequireVault(t *testing.T) {
 func RequireLinux(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Test requires Linux")
+	}
+}
+
+// RequireNotWindows skips tests whenever:
+// - running on Windows
+func RequireNotWindows(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Test requires non-Windows")
+	}
+}
+
+// RequireWindows skips tests whenever:
+// - not running on Windows
+func RequireWindows(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Test requires Windows")
 	}
 }
 

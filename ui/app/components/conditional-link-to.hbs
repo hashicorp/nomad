@@ -4,11 +4,30 @@
 ~}}
 
 {{#if @condition}}
-  <LinkTo @route={{@route}} @model={{@model}} @query={{this.query}} class={{@class}} aria-label={{@label}}>
-    {{yield}}
-  </LinkTo>
+  {{#if @tooltip}}
+    <LinkTo @route={{@route}} @model={{@model}} @query={{this.query}} class={{@class}} aria-label={{@label}}
+      {{hds-tooltip @tooltip.text options=@tooltip.extraTippyOptions}}
+    >
+      {{yield}}
+    </LinkTo>
+  {{else}}
+    <LinkTo @route={{@route}} @model={{@model}} @query={{this.query}} class={{@class}} aria-label={{@label}}>
+      {{yield}}
+    </LinkTo>
+  {{/if}}
 {{else}}
-  <span class={{@class}}>
-    {{yield}}
-  </span>
+  {{#if @tooltip}}
+    <Hds::TooltipButton
+      @text={{or @tooltip.text ""}}
+      @extraTippyOptions={{@tooltip.extraTippyOptions}}
+    >
+      <span class={{@class}}>
+        {{yield}}
+      </span>
+    </Hds::TooltipButton>
+  {{else}}
+    <span class={{@class}}>
+      {{yield}}
+    </span>
+  {{/if}}
 {{/if}}

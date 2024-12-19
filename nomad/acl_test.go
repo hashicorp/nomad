@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -63,8 +63,8 @@ func TestAuthenticate_mTLS(t *testing.T) {
 	testutil.WaitForLeader(t, leader.RPC)
 
 	testutil.Wait(t, func() (bool, error) {
-		keyset, err := follower.encrypter.activeKeySet()
-		return keyset != nil, err
+		cs, err := follower.encrypter.activeCipherSet()
+		return cs != nil, err
 	})
 
 	rootToken := uuid.Generate()
@@ -131,11 +131,23 @@ func TestAuthenticate_mTLS(t *testing.T) {
 		WorkloadType:       structs.WorkloadTypeTask,
 	}
 
-	claims1 := structs.NewIdentityClaims(job, alloc1, wiHandle, alloc1.LookupTask("web").Identity, time.Now())
+	task1 := alloc1.LookupTask("web")
+	claims1 := structs.NewIdentityClaimsBuilder(job, alloc1,
+		wiHandle,
+		task1.Identity).
+		WithTask(task1).
+		Build(time.Now())
+
 	claims1Token, _, err := leader.encrypter.SignClaims(claims1)
 	must.NoError(t, err, must.Sprint("could not sign claims"))
 
-	claims2 := structs.NewIdentityClaims(job, alloc2, wiHandle, alloc2.LookupTask("web").Identity, time.Now())
+	task2 := alloc2.LookupTask("web")
+	claims2 := structs.NewIdentityClaimsBuilder(job, alloc2,
+		wiHandle,
+		task2.Identity).
+		WithTask(task1).
+		Build(time.Now())
+
 	claims2Token, _, err := leader.encrypter.SignClaims(claims2)
 	must.NoError(t, err, must.Sprint("could not sign claims"))
 

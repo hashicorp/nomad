@@ -32,6 +32,11 @@ job "docs" {
 
         provider = "consul"
 
+        weights {
+          passing = 5
+          warning = 1
+        }
+
         meta {
           meta = "for your service"
         }
@@ -70,9 +75,9 @@ This section of the documentation only cover the job file fields and blocks
 for service discovery. For more details on using Nomad with Consul please see
 the [Consul integration documentation][service-discovery].
 
-Nomad 0.10 also allows specifying the `service` block at the task group level.
+The `service` block can also be at task group level.
 This enables services in the same task group to opt into [Consul
-Connect][connect] integration.
+Service Mesh][connect] integration.
 
 ## `service` Parameters
 
@@ -92,6 +97,13 @@ Connect][connect] integration.
   define multiple checks for the service. At this time, a check using the Nomad
   provider supports `tcp` and `http` checks. The Consul integration supports
   the `grpc`, `http`, `script`<sup><small>1</small></sup>, and `tcp` checks.
+
+- `weights` <code>(Weights: nil)</code> - Specifies how a service instance is
+  weighted in a DNS SRV request based on the service's health status, as
+  described in the Consul [weights][] documentation. Only available where
+  `provider = "consul"` The `weight` block supports the following fields:
+  - `passing` <code>int: 1</code> - The weight of services in passing state.
+  - `warning` <code>int: 1</code> - The weight of services in warning state.
 
 - `connect` - Configures the [Consul Connect][connect] integration. Only
   available on group services and where `provider = "consul"`.
@@ -536,3 +548,4 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [`consul.name`]: /nomad/docs/configuration/consul#name
 [`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
 [identity_block]: /nomad/docs/job-specification/identity
+[weights]: /consul/docs/services/configuration/services-configuration-reference#weights

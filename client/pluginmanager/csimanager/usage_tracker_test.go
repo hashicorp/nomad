@@ -47,16 +47,17 @@ func TestUsageTracker(t *testing.T) {
 			tracker := newVolumeUsageTracker()
 
 			volume := &structs.CSIVolume{
-				ID: "foo",
+				ID:        "foo",
+				Namespace: "bar",
 			}
 			for _, alloc := range tc.RegisterAllocs {
-				tracker.Claim(alloc.ID, volume.ID, &UsageOptions{})
+				tracker.Claim(alloc.ID, volume.Namespace, volume.ID, &UsageOptions{})
 			}
 
 			result := false
 
 			for _, alloc := range tc.FreeAllocs {
-				result = tracker.Free(alloc.ID, volume.ID, &UsageOptions{})
+				result = tracker.Free(alloc.ID, volume.Namespace, volume.ID, &UsageOptions{})
 			}
 
 			require.Equal(t, tc.ExpectedResult, result, "Tracker State: %#v", tracker.state)

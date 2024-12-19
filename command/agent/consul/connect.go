@@ -145,11 +145,16 @@ func connectSidecarProxy(info structs.AllocInfo, proxy *structs.ConsulProxy, cPo
 	if err != nil {
 		return nil, err
 	}
+	mode := api.ProxyModeDefault
+	if proxy.TransparentProxy != nil {
+		mode = api.ProxyModeTransparent
+	}
 
 	return &api.AgentServiceConnectProxyConfig{
+		Mode:                mode,
 		LocalServiceAddress: proxy.LocalServiceAddress,
 		LocalServicePort:    proxy.LocalServicePort,
-		Config:              connectProxyConfig(proxy.Config, cPort, info),
+		Config:              connectProxyConfig(proxy.Config, cPort, info, networks),
 		Upstreams:           connectUpstreams(proxy.Upstreams),
 		Expose:              expose,
 	}, nil
@@ -204,6 +209,7 @@ func connectUpstreams(in []structs.ConsulUpstream) []api.Upstream {
 			DestinationName:      upstream.DestinationName,
 			DestinationNamespace: upstream.DestinationNamespace,
 			DestinationType:      api.UpstreamDestType(upstream.DestinationType),
+			DestinationPartition: upstream.DestinationPartition,
 			DestinationPeer:      upstream.DestinationPeer,
 			LocalBindPort:        upstream.LocalBindPort,
 			LocalBindSocketPath:  upstream.LocalBindSocketPath,
@@ -237,11 +243,13 @@ func connectMeshGateway(in structs.ConsulMeshGateway) api.MeshGatewayConfig {
 	return gw
 }
 
-func connectProxyConfig(cfg map[string]interface{}, port int, info structs.AllocInfo) map[string]interface{} {
+func connectProxyConfig(cfg map[string]interface{}, port int, info structs.AllocInfo, networks structs.Networks) map[string]interface{} {
 	if cfg == nil {
 		cfg = make(map[string]interface{})
 	}
-	cfg["bind_address"] = "0.0.0.0"
+	if _, ok := cfg["bind_address"]; !ok {
+		cfg["bind_address"] = connectProxyBindAddress(networks)
+	}
 	cfg["bind_port"] = port
 
 	tags := map[string]string{
@@ -252,6 +260,15 @@ func connectProxyConfig(cfg map[string]interface{}, port int, info structs.Alloc
 	}
 	injectNomadInfo(cfg, tags)
 	return cfg
+}
+
+func connectProxyBindAddress(networks structs.Networks) string {
+	for _, n := range networks {
+		if n.Mode == "bridge" && n.IsIPv6() {
+			return "::"
+		}
+	}
+	return "0.0.0.0"
 }
 
 // injectNomadInfo merges nomad information into cfg=>envoy_stats_tags

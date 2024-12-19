@@ -25,37 +25,37 @@
 
     {{!-- Radio to select between 1, 4, 8, 24, or never --}}
     <Hds::Form::Radio::Group @layout="horizontal" @name="expiration-time" {{on "change" this.updateTokenExpirationTTL}} as |G|>
-      <G.Radio::Field
+      <G.RadioField
         @id="10m"
         @value="10m"
       as |F|>
         <F.Label>10 minutes</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="8h"
         @value="8h"
       as |F|>
         <F.Label>8 hours</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="24h"
         @value="24h"
       as |F|>
         <F.Label>24 hours</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="never"
         @value="never"
         checked={{eq @token.expirationTTL "never"}}
       as |F|>
         <F.Label>Never</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="custom"
         @value="custom"
       as |F|>
         <F.Label>Custom</F.Label>
-      </G.Radio::Field>
+      </G.RadioField>
     </Hds::Form::Radio::Group>
 
     {{#if @token.expirationTime}}
@@ -95,24 +95,59 @@
   </div>
   {{/unless}}
 
+  {{#if @token.isNew}}
+    {{#if this.system.shouldShowRegions}}
+      <Hds::Form::Radio::Group data-test-global-token-group @layout="horizontal" @name="regional-or-global" {{on "change" this.updateTokenLocality}} as |G|>
+        <G.Legend>Token Region</G.Legend>
+        <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-replication-settings">ACL token fundamentals: Token replication settings</Hds::Link::Inline> for more information.</G.HelperText>
+        <G.RadioField
+          @id={{this.system.activeRegion}}
+          checked={{eq this.tokenRegion this.system.activeRegion}}
+          data-test-locality="active-region"
+        as |F|>
+          <F.Label data-test-active-region-label>{{this.system.activeRegion}}</F.Label>
+        </G.RadioField>
+        {{#if this.system.defaultRegion.region}}
+          {{!-- template-lint-disable simple-unless --}}
+          {{#unless (eq this.system.activeRegion this.system.defaultRegion.region)}}
+            <G.RadioField
+              @id={{this.system.defaultRegion.region}}
+              checked={{eq this.tokenRegion this.system.defaultRegion.region}}
+              data-test-locality="default-region"
+            as |F|>
+              <F.Label>{{this.system.defaultRegion.region}} (authoritative region)</F.Label>
+            </G.RadioField>
+          {{/unless}}
+        {{/if}}
+        <G.RadioField
+          @id="global"
+          checked={{eq this.tokenRegion "global"}}
+          data-test-locality="global"
+        as |F|>
+          <F.Label>global</F.Label>
+        </G.RadioField>
+      </Hds::Form::Radio::Group>
+    {{/if}}
+  {{/if}}
+
   <div>
     <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updateTokenType}} as |G|>
       <G.Legend>Client or Management token?</G.Legend>
       <G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens#token-types">Token types documentation</Hds::Link::Inline> for more information.</G.HelperText>
-      <G.Radio::Field
+      <G.RadioField
         @id="client"
         checked={{eq @token.type "client"}}
         data-test-token-type="client"
       as |F|>
         <F.Label>Client</F.Label>
-      </G.Radio::Field>
-      <G.Radio::Field
+      </G.RadioField>
+      <G.RadioField
         @id="management"
         checked={{eq @token.type "management"}}
         data-test-token-type="management"
       as |F|>
         <F.Label>Management</F.Label>
-      </G.Radio::Field>
+      </G.RadioField>
     </Hds::Form::Radio::Group>
   </div>
 
@@ -145,7 +180,7 @@
               <B.Td data-test-policy-name>{{B.data.name}}</B.Td>
               <B.Td>{{B.data.description}}</B.Td>
               <B.Td>
-                <LinkTo @route="access-control.policies.policy" @model={{B.data.name}}>
+                <LinkTo @route="administration.policies.policy" @model={{B.data.name}}>
                   View Policy Definition
                 </LinkTo>
               </B.Td>
@@ -158,7 +193,7 @@
             No Policies
           </h3>
           <p class="empty-message-body">
-            Get started by <LinkTo @route="access-control.policies.new">creating a new policy</LinkTo>
+            Get started by <LinkTo @route="administration.policies.new">creating a new policy</LinkTo>
           </p>
         </div>
       {{/if}}
@@ -196,7 +231,7 @@
                 <div class="tag-group">
                   {{#each B.data.policies as |policy|}}
                     {{#if policy.name}}
-                      <Hds::Tag @color="primary" @text="{{policy.name}}" @route="access-control.policies.policy" @model="{{policy.name}}" />
+                      <Hds::Tag @color="primary" @text="{{policy.name}}" @route="administration.policies.policy" @model="{{policy.name}}" />
                     {{/if}}
                   {{else}}
                     Role contains no policies
@@ -204,7 +239,7 @@
                 </div>
               </B.Td>
               <B.Td>
-                <LinkTo @route="access-control.roles.role" @model={{B.data.id}}>
+                <LinkTo @route="administration.roles.role" @model={{B.data.id}}>
                   View Role Info
                 </LinkTo>
               </B.Td>
@@ -217,7 +252,7 @@
             No Roles
           </h3>
           <p class="empty-message-body">
-            Get started by <LinkTo @route="access-control.roles.new">creating a new role</LinkTo>
+            Get started by <LinkTo @route="administration.roles.new">creating a new role</LinkTo>
           </p>
         </div>
       {{/if}}

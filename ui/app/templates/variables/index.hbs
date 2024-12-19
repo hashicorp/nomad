@@ -23,7 +23,7 @@
           </Hds::Dropdown>
         {{/if}}
 
-        {{#if (can "write variable" path="*" namespace=this.namespaceSelection)}}
+        {{#if (can "write variable" path="*" namespace="*")}}
           <div
             {{keyboard-shortcut
               pattern=(array "n" "v")

@@ -783,6 +783,7 @@ type HostStats struct {
 	Memory           *HostMemoryStats
 	CPU              []*HostCPUStats
 	DiskStats        []*HostDiskStats
+	AllocDirStats    *HostDiskStats
 	DeviceStats      []*DeviceGroupStats
 	Uptime           uint64
 	CPUTicksConsumed float64

@@ -18,7 +18,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/hcl/hcl/ast"
 )
 
@@ -380,6 +380,28 @@ func NewSafeTimer(duration time.Duration) (*time.Timer, StopFunc) {
 	}
 
 	t := time.NewTimer(duration)
+	cancel := func() {
+		t.Stop()
+	}
+
+	return t, cancel
+}
+
+// NewSafeTicker creates a time.Ticker but does not panic if duration is <= 0.
+//
+// Returns the time.Ticker and also a StopFunc, forcing the caller to deal
+// with stopping the time.Ticker to avoid leaking a goroutine.
+
+func NewSafeTicker(duration time.Duration) (*time.Ticker, StopFunc) {
+	if duration <= 0 {
+		// Avoid panic by using the smallest positive value. This is close enough
+		// to the behavior of time.After(0), which this helper is intended to
+		// replace.
+		// https://go.dev/play/p/EIkm9MsPbHY
+		duration = 1
+	}
+
+	t := time.NewTicker(duration)
 	cancel := func() {
 		t.Stop()
 	}

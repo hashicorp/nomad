@@ -1,0 +1,3 @@
+```release-note:improvement
+drivers: Enable configuring a raw_exec task to not have an upper memory limit
+```

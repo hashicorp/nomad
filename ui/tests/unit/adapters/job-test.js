@@ -468,6 +468,9 @@ module('Unit | Adapter | Job', function (hooks) {
   });
 
   test('when the region is set to the default region, requests are made without the region query param', async function (assert) {
+    const secret = 'here is the secret';
+    this.subject().set('token.secret', secret);
+
     await this.initializeUI({ region: 'region-1' });
 
     const { pretender } = this.server;
@@ -496,6 +499,65 @@ module('Unit | Adapter | Job', function (hooks) {
     const request = this.server.pretender.handledRequests[0];
     assert.equal(request.url, `/v1/job/${job.plainId}?region=${region}`);
     assert.equal(request.method, 'GET');
+  });
+
+  test('fetchRawDefinition handles version requests', async function (assert) {
+    assert.expect(5);
+
+    const adapter = this.owner.lookup('adapter:job');
+    const job = {
+      get: sinon.stub(),
+    };
+
+    job.get.withArgs('id').returns('["job-id"]');
+
+    const mockVersionResponse = {
+      Versions: [
+        { Version: 1, JobID: 'job-id', JobModifyIndex: 100 },
+        { Version: 2, JobID: 'job-id', JobModifyIndex: 200 },
+      ],
+    };
+
+    // Stub ajax to return mock version data
+    const ajaxStub = sinon.stub(adapter, 'ajax');
+    ajaxStub
+      .withArgs('/v1/job/job-id/versions', 'GET')
+      .resolves(mockVersionResponse);
+
+    // Test fetching specific version
+    const result = await adapter.fetchRawDefinition(job, 2);
+    assert.equal(result.Version, 2, 'Returns correct version');
+    assert.equal(result.JobModifyIndex, 200, 'Returns full version info');
+
+    // Test version not found
+    try {
+      await adapter.fetchRawDefinition(job, 999);
+      assert.ok(false, 'Should have thrown error');
+    } catch (e) {
+      assert.equal(
+        e.message,
+        'Version 999 not found',
+        'Throws appropriate error'
+      );
+    }
+
+    // Test no version specified (current version)
+    ajaxStub
+      .withArgs('/v1/job/job-id', 'GET')
+      .resolves({ ID: 'job-id', Version: 2 });
+
+    const currentResult = await adapter.fetchRawDefinition(job);
+
+    assert.equal(
+      ajaxStub.lastCall.args[0],
+      '/v1/job/job-id',
+      'URL has no version query param'
+    );
+    assert.equal(
+      currentResult.Version,
+      2,
+      'Returns current version when no version specified'
+    );
   });
 
   test('forcePeriodic requests include the activeRegion', async function (assert) {
@@ -677,6 +739,27 @@ module('Unit | Adapter | Job', function (hooks) {
         expectedURL,
         '/v1/job/job-id/submission?namespace=zoey&version=job-version'
       );
+    });
+    test('Requests for specific versions include the queryParam', async function (assert) {
+      const adapter = this.owner.lookup('adapter:job');
+      const job = {
+        get: sinon.stub(),
+      };
+      job.get.withArgs('id').returns('["job-id"]');
+      job.get.withArgs('version').returns(100);
+
+      // Stub the ajax method to avoid making real API calls
+      sinon.stub(adapter, 'ajax').callsFake(() => resolve({}));
+
+      await adapter.fetchRawSpecification(job, 99);
+
+      assert.ok(adapter.ajax.calledOnce, 'The ajax method is called once');
+      assert.equal(
+        adapter.ajax.args[0][0],
+        '/v1/job/job-id/submission?version=99',
+        'it includes the version query param'
+      );
+      assert.equal(adapter.ajax.args[0][1], 'GET');
     });
   });
 });

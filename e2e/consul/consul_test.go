@@ -19,7 +19,4 @@ func TestConsul(t *testing.T) {
 
 	t.Run("testServiceReversion", testServiceReversion)
 	t.Run("testAllocRestart", testAllocRestart)
-
-	consulWITest := ConsulWITest{nomad.Address()}
-	t.Run("testConsulWI", consulWITest.testConsulWIServiceAndTask)
 }

@@ -5,6 +5,7 @@ package consul
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/exp/maps"
 )
 
 func TestSyncLogic_maybeTweakTaggedAddresses(t *testing.T) {
@@ -125,6 +125,15 @@ func TestSyncLogic_maybeTweakTaggedAddresses(t *testing.T) {
 	}
 }
 
+func TestSyncLogic_weightsDifferent(t *testing.T) {
+	ci.Parallel(t)
+
+	must.False(t, weightsDifferent(nil, api.AgentWeights{Passing: 1, Warning: 1}))
+	must.True(t, weightsDifferent(nil, api.AgentWeights{Passing: 5, Warning: 1}))
+	must.False(t, weightsDifferent(&api.AgentWeights{Passing: 5, Warning: 1}, api.AgentWeights{Passing: 5, Warning: 1}))
+	must.True(t, weightsDifferent(&api.AgentWeights{Passing: 5, Warning: 1}, api.AgentWeights{Passing: 1, Warning: 5}))
+}
+
 func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 	ci.Parallel(t)
 
@@ -172,6 +181,10 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 		Meta:              map[string]string{"foo": "1"},
 		TaggedAddresses: map[string]api.ServiceAddress{
 			"public_wan": {Address: "1.2.3.4", Port: 8080},
+		},
+		Weights: api.AgentWeights{
+			Passing: 1,
+			Warning: 1,
 		},
 	}
 
@@ -259,6 +272,16 @@ func TestSyncLogic_agentServiceUpdateRequired(t *testing.T) {
 	t.Run("different meta", func(t *testing.T) {
 		try(t, true, syncNewOps, func(w asr) *asr {
 			w.Meta = map[string]string{"foo": "2"}
+			return &w
+		})
+	})
+
+	t.Run("different passing weight", func(t *testing.T) {
+		try(t, true, syncNewOps, func(w asr) *asr {
+			w.Weights = &api.AgentWeights{
+				Passing: 5,
+				Warning: 1,
+			}
 			return &w
 		})
 	})
@@ -708,6 +731,15 @@ func TestSyncLogic_proxyUpstreamsDifferent(t *testing.T) {
 	try(t, "different destination peer", func(p proxy) {
 		diff := upstream1()
 		diff.DestinationPeer = "foo"
+		p.Upstreams = []api.Upstream{
+			diff,
+			upstream2(),
+		}
+	})
+
+	try(t, "different destination partition", func(p proxy) {
+		diff := upstream1()
+		diff.DestinationPartition = "foo"
 		p.Upstreams = []api.Upstream{
 			diff,
 			upstream2(),

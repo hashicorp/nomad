@@ -9,7 +9,7 @@ description: >-
   authentication.
 ---
 
-## Overview
+# Security Model
 
 Nomad is a flexible workload orchestrator to deploy and manage any containerized
 or legacy application using a single, unified workflow. It can run diverse
@@ -95,11 +95,10 @@ recommendations accordingly.
 
 #### Requirements
 
-- **[mTLS enabled](/nomad/tutorials/transport-security/security-enable-tls)**
-
-  - Mutual TLS (mTLS) enables [mutual
-    authentication](https://en.wikipedia.org/wiki/Mutual_authentication) with
-    security properties to prevent the following problems:
+- **[mTLS enabled](/nomad/tutorials/transport-security/security-enable-tls)** -
+  Mutual TLS (mTLS) enables [mutual
+  authentication](https://en.wikipedia.org/wiki/Mutual_authentication) with
+  security properties to prevent the following problems:
 
   * Unauthorized access because both server and clients must provide valid TLS
     [X.509](https://en.wikipedia.org/wiki/X.509) certificates signed by the same
@@ -133,6 +132,12 @@ recommendations accordingly.
     Nomad agent HTTP server to use TLS instead of mTLS. This is safe if ACLs are
     enabled and is recommended if you are using the Nomad web UI to avoid the
     difficulty of distributing client certificates to browsers.
+
+    Some API endpoints, such as [`/v1/metrics`][api_metrics] and
+    [`/v1/status/peers`][api_status_peers], can be accessed without an ACL
+    token and may be exposed to anyone with access to the Nomad HTTP address
+    when using `tls.verify_https_client=false`. You can use a reverse proxy or
+    other external means to restrict access to them.
 
 - **[ACLs enabled](/nomad/tutorials/access-control)** - The
   access control list (ACL) system provides a capability-based control
@@ -328,12 +333,15 @@ There are two main components to consider to for external threats in a Nomad clu
 
 ### Network Ports
 
-| **Port / Protocol**  | Agents  | Description                                                                                                                                                                         |
-| -------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Port / Protocol**  | Agents  | Description                                                                                                                                                           |
+|----------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **4646** / TCP       | All     | [HTTP](https://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol) to provide [UI](/nomad/tutorials/web-ui/web-ui-access) and [API](/nomad/api-docs) access to agents. |
-| **4647** / TCP       | All     | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents.                                                                                                 |
-| **4648** / TCP + UDP | Servers | [gossip](/nomad/docs/concepts/gossip) protocol to manage server membership using [Serf](https://www.serf.io/).                                                                           |
+| **4647** / TCP       | All     | [RPC](https://en.wikipedia.org/wiki/Remote_procedure_call) protocol used by agents.                                                                                   |
+| **4648** / TCP + UDP | Servers | [gossip](/nomad/docs/concepts/gossip) protocol to manage server membership using [Serf][serf].                                                                        |
 
 
+[api_metrics]: /nomad/api-docs/metrics
+[api_status_peers]: /nomad/api-docs/status#list-peers
 [Variables]: /nomad/docs/concepts/variables
 [verify_https_client]: /nomad/docs/configuration/tls#verify_https_client
+[serf]: https://github.com/hashicorp/serf

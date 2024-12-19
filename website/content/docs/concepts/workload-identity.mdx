@@ -50,7 +50,7 @@ in the Nomad job specification.
   "nomad_namespace": "default",
   "nomad_job_id": "example",
   "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
-  "nomad_service": "example-cache-redis"
+  "nomad_service": "example-cache-redis",
   "vault_role": "nomad-jwt-login"
 }
 ```
@@ -79,8 +79,8 @@ Similarly, tasks with a [`vault.namespace`][jobspec_vault_ns] value have the add
   "nomad_namespace": "default",
   "nomad_job_id": "example",
   "nomad_allocation_id": "8623ac7a-28ba-20c3-24a6-e615a39bbbf3",
-  "nomad_service": "example-cache-redis"
-  "vault_namespace": "prod",
+  "nomad_service": "example-cache-redis",
+  "vault_namespace": "prod"
 }
 ```
 
@@ -172,7 +172,7 @@ Consul and Vault can be configured to accept workload identities from Nomad for
 authentication. Refer to the [Consul][consul_int] and [Vault][vault_int]
 integration pages for more information.
 
-[allocation]: /nomad/docs/concepts/architecture#allocation
+[allocation]: /nomad/docs/glossary#allocation
 [identity-block]: /nomad/docs/job-specification/identity
 [jobspec_consul]: /nomad/docs/job-specification/consul
 [jobspec_consul_ns]: /nomad/docs/job-specification/consul#namespace

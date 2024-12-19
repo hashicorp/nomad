@@ -530,6 +530,7 @@ module('Acceptance | job status panel', function (hooks) {
       {
         percyCSS: `
           .allocation-row td { display: none; }
+          .inline-chart { visibility: hidden; }
         `,
       }
     );
@@ -545,6 +546,7 @@ module('Acceptance | job status panel', function (hooks) {
       {
         percyCSS: `
           .allocation-row td { display: none; }
+          .inline-chart { visibility: hidden; }
         `,
       }
     );
@@ -588,6 +590,7 @@ module('Acceptance | job status panel', function (hooks) {
       {
         percyCSS: `
           .allocation-row td { display: none; }
+          .inline-chart { visibility: hidden; }
         `,
       }
     );
@@ -976,19 +979,6 @@ module('Acceptance | job status panel', function (hooks) {
         'job',
         JSON.stringify([job.id, 'default'])
       );
-      // Weird Mirage thing: job summary factory is disconnected from its job and therefore allocations.
-      // So we manually create the number here.
-      let summary = await storedJob.get('summary');
-      summary
-        .get('taskGroupSummaries')
-        .objectAt(0)
-        .set(
-          'runningAllocs',
-          server.schema.allocations.where({
-            jobId: job.id,
-            clientStatus: 'running',
-          }).length
-        );
 
       await settled();
 
@@ -1017,17 +1007,8 @@ module('Acceptance | job status panel', function (hooks) {
         nodeId: newNode.id,
       });
 
-      summary
-        .get('taskGroupSummaries')
-        .objectAt(0)
-        .set(
-          'runningAllocs',
-          server.schema.allocations.where({
-            jobId: job.id,
-            clientStatus: 'running',
-          }).length
-        );
-
+      // simulate a blocking query update from /allocations
+      storedJob.allocations.reload();
       await settled();
 
       assert.dom('.running-allocs-title').hasText('4 Allocations Running');

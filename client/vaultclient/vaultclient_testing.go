@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	vaultapi "github.com/hashicorp/vault/api"
 )
 
 // MockVaultClient is used for testing the vaultclient integration and is safe
@@ -43,16 +42,21 @@ type MockVaultClient struct {
 	DeriveTokenFn func(a *structs.Allocation, tasks []string) (map[string]string, error)
 
 	// deriveTokenWithJWTFn allows the caller to control the DeriveTokenWithJWT
-	// functio.
-	deriveTokenWithJWTFn func(context.Context, JWTLoginRequest) (string, error)
+	// function.
+	deriveTokenWithJWTFn func(context.Context, JWTLoginRequest) (string, bool, error)
+
+	// renewable determines if the tokens returned should be marked as renewable
+	renewable bool
 
 	mu sync.Mutex
 }
 
 // NewMockVaultClient returns a MockVaultClient for testing
-func NewMockVaultClient(_ string) (VaultClient, error) { return &MockVaultClient{}, nil }
+func NewMockVaultClient(_ string) (VaultClient, error) {
+	return &MockVaultClient{renewable: true}, nil
+}
 
-func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, error) {
+func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, error) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 
@@ -69,7 +73,7 @@ func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginR
 		token = fmt.Sprintf("%s-%s", token, req.Role)
 	}
 	vc.jwtTokens[req.JWT] = token
-	return token, nil
+	return token, vc.renewable, nil
 }
 
 func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (map[string]string, error) {
@@ -151,7 +155,11 @@ func (vc *MockVaultClient) Start() {}
 
 func (vc *MockVaultClient) Stop() {}
 
-func (vc *MockVaultClient) GetConsulACL(string, string) (*vaultapi.Secret, error) { return nil, nil }
+func (vc *MockVaultClient) SetRenewable(renewable bool) {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.renewable = renewable
+}
 
 // LegacyTokens returns the tokens generated using the legacy flow.
 func (vc *MockVaultClient) LegacyTokens() map[string]string {
@@ -207,7 +215,7 @@ func (vc *MockVaultClient) DeriveTokenErrors() map[string]map[string]error {
 }
 
 // SetDeriveTokenWithJWTFn sets the function used to derive tokens using JWT.
-func (vc *MockVaultClient) SetDeriveTokenWithJWTFn(f func(context.Context, JWTLoginRequest) (string, error)) {
+func (vc *MockVaultClient) SetDeriveTokenWithJWTFn(f func(context.Context, JWTLoginRequest) (string, bool, error)) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	vc.deriveTokenWithJWTFn = f

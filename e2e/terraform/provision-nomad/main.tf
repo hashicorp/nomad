@@ -4,13 +4,12 @@
 locals {
   upload_dir = "uploads/${var.instance.public_ip}"
 
-  indexed_config_path = fileexists("etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl") ? "etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl" : "etc/nomad.d/index.hcl"
-
+  indexed_config_path = fileexists("${path.module}/etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl") ? "${path.module}/etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl" : "${path.module}/etc/nomad.d/index.hcl"
 }
 
 # if nomad_license is unset, it'll be a harmless empty license file
 resource "local_sensitive_file" "nomad_environment" {
-  content = templatefile("etc/nomad.d/.environment", {
+  content = templatefile("${path.module}/etc/nomad.d/.environment", {
     license = var.nomad_license
   })
   filename        = "${local.upload_dir}/nomad.d/.environment"
@@ -18,15 +17,19 @@ resource "local_sensitive_file" "nomad_environment" {
 }
 
 resource "local_sensitive_file" "nomad_base_config" {
-  content = templatefile("etc/nomad.d/base.hcl", {
-    data_dir = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
+  content = templatefile("${path.module}/etc/nomad.d/base.hcl", {
+    data_dir     = var.platform != "windows" ? "/opt/nomad/data" : "C://opt/nomad/data"
+    nomad_region = var.nomad_region
   })
   filename        = "${local.upload_dir}/nomad.d/base.hcl"
   file_permission = "0600"
 }
 
 resource "local_sensitive_file" "nomad_role_config" {
-  content         = templatefile("etc/nomad.d/${var.role}-${var.platform}.hcl", {})
+  content = templatefile("${path.module}/etc/nomad.d/${var.role}-${var.platform}.hcl", {
+    aws_region     = var.aws_region
+    aws_kms_key_id = var.aws_kms_key_id
+  })
   filename        = "${local.upload_dir}/nomad.d/${var.role}.hcl"
   file_permission = "0600"
 }
@@ -38,7 +41,7 @@ resource "local_sensitive_file" "nomad_indexed_config" {
 }
 
 resource "local_sensitive_file" "nomad_tls_config" {
-  content         = templatefile("etc/nomad.d/tls.hcl", {})
+  content         = templatefile("${path.module}/etc/nomad.d/tls.hcl", {})
   filename        = "${local.upload_dir}/nomad.d/tls.hcl"
   file_permission = "0600"
 }
@@ -56,23 +59,23 @@ resource "null_resource" "upload_consul_configs" {
   }
 
   provisioner "file" {
-    source      = "uploads/shared/consul.d/ca.pem"
-    destination = "/tmp/consul_ca.pem"
+    source      = "uploads/shared/consul.d/agent_cert.key.pem"
+    destination = "/tmp/consul_cert.key.pem"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/consul_client.json"
-    destination = "/tmp/consul_client.json"
+    source      = "uploads/shared/consul.d/agent_cert.pem"
+    destination = "/tmp/consul_cert.pem"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/client_acl.json"
-    destination = "/tmp/consul_client_acl.json"
+    source      = "keys/tls_ca.crt"
+    destination = "/tmp/consul_ca.crt"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/consul_client_base.json"
-    destination = "/tmp/consul_client_base.json"
+    source      = "uploads/shared/consul.d/clients.hcl"
+    destination = "/tmp/consul_client.hcl"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/consul.service"
+    source      = "${path.module}/etc/consul.d/consul.service"
     destination = "/tmp/consul.service"
   }
 }
@@ -89,7 +92,7 @@ resource "null_resource" "upload_nomad_configs" {
     timeout         = "15m"
   }
 
-  # created in hcp_consul.tf
+  # created in consul-clients.tf
   provisioner "file" {
     source      = "uploads/shared/nomad.d/${var.role}-consul.hcl"
     destination = "/tmp/consul.hcl"

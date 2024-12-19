@@ -336,11 +336,6 @@ func (a *ACL) AllowNamespaceOperation(ns string, op string) bool {
 		return true
 	}
 
-	// Clients need to be able to read their namespaced objects
-	if a.client != PolicyDeny {
-		return true
-	}
-
 	// If using the all namespaces wildcard, allow if any namespace allows the
 	// operation.
 	if ns == AllNamespacesSentinel && a.anyNamespaceAllowsOp(op) {
@@ -793,9 +788,6 @@ func (a *ACL) AllowNodeRead() bool {
 		return true
 	case a.node == PolicyRead:
 		return true
-	case a.client == PolicyRead,
-		a.client == PolicyWrite:
-		return true
 	case a.server == PolicyRead,
 		a.server == PolicyWrite:
 		return true
@@ -887,9 +879,6 @@ func (a *ACL) AllowPluginRead() bool {
 		return false
 	case a.aclsDisabled, a.management:
 		return true
-	case a.client == PolicyRead,
-		a.client == PolicyWrite:
-		return true
 	case a.plugin == PolicyRead:
 		return true
 	default:
@@ -903,9 +892,6 @@ func (a *ACL) AllowPluginList() bool {
 	case a == nil:
 		return false
 	case a.aclsDisabled, a.management:
-		return true
-	case a.client == PolicyRead,
-		a.client == PolicyWrite:
 		return true
 	case a.plugin == PolicyList:
 		return true
@@ -934,11 +920,13 @@ func (a *ACL) AllowServerOp() bool {
 	return a.server != PolicyDeny || a.isLeader
 }
 
+// AllowClientOp checks if client-only operations are allowed, or ACLs are
+// disabled
 func (a *ACL) AllowClientOp() bool {
 	if a == nil {
 		return false
 	}
-	return a.client != PolicyDeny
+	return a.client != PolicyDeny || a.aclsDisabled
 }
 
 // IsManagement checks if this represents a management token
@@ -959,11 +947,6 @@ func NamespaceValidator(ops ...string) func(*ACL, string) bool {
 		}
 		// Hot path for management tokens or when ACLs are disabled
 		if a.aclsDisabled || a.management {
-			return true
-		}
-
-		// Clients need to be able to read namespaced objects
-		if a.client != PolicyDeny {
 			return true
 		}
 

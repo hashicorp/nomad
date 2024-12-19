@@ -21,17 +21,23 @@ The `acl token update` command requires an existing token's accessor ID.
 
 @include 'general_options_no_namespace.mdx'
 
-## Create Options
+## Update Options
 
 - `-name`: Sets the human readable name for the ACL token.
 
 - `-type`: Sets the type of token. Must be one of "client" or "management".
 
-- `-global`: Toggles the global mode of the token. Global tokens are replicated
-  to all regions. Defaults false.
-
 - `-policy`: Specifies a policy to associate with the token. Can be specified
-  multiple times, but only with client type tokens.
+  multiple times, but only with client type tokens. If any policies are
+  specified, they completely replace the policies on the existing token.
+
+- `-role-id`: ID of a role to use for this token. Can be specified multiple
+  times, but only with client type tokens. If any roles are specified, they
+  completely replace the roles on the existing token.
+
+- `-role-name`: Name of a role to use for this token. Can be specified multiple
+  times, but only with client type tokens. If any roles are specified, they
+  completely replace the roles on the existing token.
 
 ## Examples
 

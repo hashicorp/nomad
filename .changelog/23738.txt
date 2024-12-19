@@ -1,0 +1,3 @@
+```release-note:security
+security: Fix symlink escape during unarchiving by removing existing paths within the same allocdir. Compromising the Nomad client agent at the source allocation first is a prerequisite for leveraging this issue.
+```

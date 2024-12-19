@@ -373,3 +373,15 @@ type SnapshotRestoreResponse struct {
 
 	QueryMeta
 }
+
+type UpgradeCheckVaultWorkloadIdentityRequest struct {
+	QueryOptions
+}
+
+type UpgradeCheckVaultWorkloadIdentityResponse struct {
+	JobsWithoutVaultIdentity []*JobListStub
+	OutdatedNodes            []*NodeListStub
+	VaultTokens              []*VaultAccessor
+
+	QueryMeta
+}

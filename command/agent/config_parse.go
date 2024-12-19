@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/hashicorp/hcl"
@@ -92,6 +93,13 @@ func ParseConfigFile(path string) (*Config, error) {
 		}
 	}
 
+	matches = list.Filter("keyring")
+	if len(matches.Items) > 0 {
+		if err := parseKeyringConfigs(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'keyring': %w", err)
+		}
+	}
+
 	// convert strings to time.Durations
 	tds := []durationConversionMap{
 		{"gc_interval", &c.Client.GCInterval, &c.Client.GCIntervalHCL, nil},
@@ -109,6 +117,8 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
 		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL, nil},
 		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL, nil},
+		{"telemetry.in_memory_collection_interval", &c.Telemetry.inMemoryCollectionInterval, &c.Telemetry.InMemoryCollectionInterval, nil},
+		{"telemetry.in_memory_retention_period", &c.Telemetry.inMemoryRetentionPeriod, &c.Telemetry.InMemoryRetentionPeriod, nil},
 		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval, nil},
 		{"client.template.block_query_wait", nil, &c.Client.TemplateConfig.BlockQueryWaitTimeHCL,
 			func(d *time.Duration) {
@@ -169,6 +179,8 @@ func ParseConfigFile(path string) (*Config, error) {
 				c.Client.TemplateConfig.NomadRetry.MaxBackoff = d
 			},
 		},
+		{"reporting.export_interval",
+			&c.Reporting.ExportInterval, &c.Reporting.ExportIntervalHCL, nil},
 	}
 
 	// Parse durations for Consul and Vault config blocks if provided.
@@ -283,7 +295,7 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "plugin")
 	}
 
-	for _, k := range []string{"options", "meta", "chroot_env", "servers", "server_join"} {
+	for _, k := range []string{"options", "meta", "chroot_env", "servers", "server_join", "template"} {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, k)
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "client")
 	}
@@ -301,6 +313,12 @@ func extraKeys(c *Config) error {
 	for _, hn := range c.Client.HostNetworks {
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, hn.Name)
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "host_network")
+	}
+
+	// Remove Template extra keys
+	for _, t := range []string{"function_denylist", "disable_file_sandbox", "max_stale", "wait", "wait_bounds", "block_query_wait", "consul_retry", "vault_retry", "nomad_retry"} {
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, t)
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "template")
 	}
 
 	// Remove AuditConfig extra keys
@@ -326,6 +344,11 @@ func extraKeys(c *Config) error {
 	for _, k := range []string{"datadog_tags"} {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, k)
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
+	}
+
+	helper.RemoveEqualFold(&c.ExtraKeysHCL, "keyring")
+	for _, provider := range c.KEKProviders {
+		helper.RemoveEqualFold(&c.ExtraKeysHCL, provider.Provider)
 	}
 
 	// Remove reporting extra keys
@@ -517,6 +540,49 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			cc.TaskIdentity = &taskIdentity
 		}
 	}
+
+	return nil
+}
+
+// parseKeyringConfigs parses the keyring blocks. At this point we have a list
+// of ast.Nodes and a KEKProviderConfig for each one. The KEKProviderConfig has
+// the unknown fields (provider-specific config) but not their values. So we
+// decode the ast.Node into a map and then read out the values for the unknown
+// fields. The results get added to the KEKProviderConfig's Config field
+func parseKeyringConfigs(c *Config, keyringBlocks *ast.ObjectList) error {
+	if len(keyringBlocks.Items) == 0 {
+		return nil
+	}
+
+	for idx, obj := range keyringBlocks.Items {
+		provider := c.KEKProviders[idx]
+		if len(provider.ExtraKeysHCL) == 0 {
+			continue
+		}
+
+		provider.Config = map[string]string{}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+			return err
+		}
+
+		for _, extraKey := range provider.ExtraKeysHCL {
+			val, ok := m[extraKey].(string)
+			if !ok {
+				return fmt.Errorf("failed to decode key %q to string", extraKey)
+			}
+			provider.Config[extraKey] = val
+		}
+
+		// clear the extra keys for these blocks because we've already handled
+		// them and don't want them to bubble up to the caller
+		provider.ExtraKeysHCL = nil
+	}
+
+	sort.Slice(c.KEKProviders, func(i, j int) bool {
+		return c.KEKProviders[i].ID() < c.KEKProviders[j].ID()
+	})
 
 	return nil
 }

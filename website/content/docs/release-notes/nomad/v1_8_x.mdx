@@ -1,0 +1,139 @@
+---
+layout: docs
+page_title: 1.8.x
+description: >-
+  Nomad release notes for version 1.8.x
+---
+
+# Nomad 1.8.0
+
+We are pleased to announce the following Nomad updates.
+
+## Release highlights
+
+- **Long Term Support Release (Enterprise):** Nomad 1.8 introduces a [long term
+  support release](/nomad/docs/enterprise#long-term-support-lts-releases) which
+  provides extended maintenance (two years of critical fixes provided through
+  minor releases and efficient upgrades (support for direct upgrades from one
+  LTS release to the next).
+
+- **Exec2 Task Driver (beta):** The `exec2` driver is used to execute a
+  command for a task. It offers a security model optimized for running
+  'ordinary' processes with very low startup times and minimal overhead in
+  terms of CPU, disk, and memory utilization. The `exec2` driver leverages
+  kernel features such as the Landlock LSM, cgroups v2, and the unshare system
+  utility. Due these enhancements, tasks no longer require leveraging
+  filesystem isolation based on chroot, which provide an enhanced security
+  profile and improved performance for the Nomad operator. Refer to [Exec2 Task
+  Driver](/nomad/plugins/v1.8.x/drivers/exec2) for more details.
+
+- **Transparent proxy support for Consul service mesh:** Transparent Proxy
+  introduces a more seamless way of dialing upstream services when Consul service
+  mesh is enabled. Users can configure services to use transparent proxy with a
+  new [`transparent_proxy`](/nomad/docs/v1.8.x/job-specification/transparent_proxy)
+  block. When a service is configured to use transparent proxy, workloads can now dial the
+  service using a virtual IP Consul DNS name.
+
+- **Consul API Gateway for Nomad:** Consul API Gateway on Nomad is now
+  officially supported. A prescriptive job specification on
+  [hashicorp-guides/consul-api-gateway-on-nomad](https://github.com/hashicorp-guides/consul-api-gateway-on-nomad)
+  along with a supporting [tutorial](/nomad/tutorials/integrate-consul/deploy-api-gateway-on-nomad) on
+  how to securely deploy Consul API gateway on Nomad.
+
+- **Re-worked Jobs page in the web UI with live updates:** Within the [Jobs
+  index](/nomad/tutorials/web-ui/web-ui-workload-info#list-jobs) page Nomad has
+  made a few improvements:
+
+  - **Prioritize showing the current state over historical state for jobs:**
+  Previously, long-garbage-collected allocation placement failures, lost nodes,
+  and other historical representations of job state were shown alongside
+  currently running allocations. In self-healing jobs, this often meant that a
+  healthy job looked like it had failures, when in fact Nomad had replaced or
+  rescheduled those failures. Now, the jobs list tries to show accurate
+  allocation information and meaningful statuses (like "Degraded", or
+  "Recovering") to better illustrate the current state of a job.
+
+  - **Server-side pagination:** For users with many thousands of jobs, the main
+  landing page for the web UI will no longer have a noticeable delay on
+  rendering. Users can control page length and filter paginated jobs
+  appropriately.
+
+  - **Live updates:** Previously, users had to manually refresh
+  the page to see newly created jobs, or to hide jobs that had been stopped and
+  garbage-collected. Now, the jobs list will update in real-time as jobs are
+  created, updated, or removed. Further, any changes to allocations of jobs
+  on-page will be reflected in the status of that job in real-time.
+
+- **Time based task execution (Enterprise) :** Using a CRON-like syntax, operators can now
+  [schedule](/nomad/docs/job-specification/schedule) when tasks should execute
+  and when they should stop. This provides governance for tasks executed from
+  jobs, and allows operators to easily opt-in or opt-out of a schedule that
+  governs when the task can run through the web based UI or through the [CLI](/nomad/docs/commands/alloc/pause).
+
+- **Sentinel policy management in the Web UI (Enterprise):** Enterprise users can manage
+  Sentinel policies directly within the Nomad UI. Users can create a Sentinel
+  policy based on a template provided from the UI or create policies directly
+  using an editor for Sentinel policies. Refer to [Sentinel
+  policies](/nomad/tutorials/governance-and-policy/sentinel) to learn more about
+  how to use Sentinel within Nomad.
+
+- **nomad-bench:** Nomad now provides a testing framework through
+  [nomad-bench](https://github.com/hashicorp-forge/nomad-bench) which provisions
+  infrastructure used to run tests and benchmarks against Nomad test
+  clusters. The infrastructure consists of Nomad test clusters that each have a
+  set of servers with hundreds or thousands of simulated nodes created using
+  nomad-nodesim. The Nomad server processes are not simulated and are expected
+  to run on their own hosts, mimicking real-world deployments.  Metrics are then
+  gathered from the Nomad servers for use with benchmarking and load testing.
+
+## What's deprecated
+
+- **LXC Task driver:** The [Community LXC Task
+  Driver](/nomad/plugins/drivers/community/lxc) is now deprecated. Official
+  support will be removed and the repo will be archived when Nomad 1.9 is
+  released. Users are encouraged to migrate their workloads to another task
+  driver such as the built-in Docker task [driver](/nomad/docs/drivers/docker).
+
+- **ECS Task driver:** The remote [ECS Task
+  Driver](https://developer.hashicorp.com/nomad/plugins/drivers/remote/ecs) is
+  now deprecated. Official support will be removed and the repo will be
+  archived when Nomad 1.9 is released. Users are encouraged to migrate their
+  workloads to Amazon ECS or to another Nomad task driver.
+
+- **`stop_after_client_disconnect`, `max_client_disconnect`,
+  `prevent_reschedule_on_lost`:** Nomad 1.8.0 introduces a
+  [disconnect](/nomad/docs/job-specification/disconnect) block meant to group
+  all the configuration options related to disconnected client's and server's
+  behavior, causing the deprecation of the fields stop_after_client_disconnect,
+  max_client_disconnect and prevent_reschedule_on_lost. This block also
+  introduces new options for allocations reconciliation if the client regains
+  connectivity.
+
+- **32-bit builds**: Support for 32-bit architectures is now deprecated. Nomad
+  releases will no longer include binaries built for 32-bit platforms starting
+  with Nomad 1.9.
+
+## What's removed
+
+- **raw_exec option `no_cgroups`:** In Nomad 1.7.0 the raw_exec plugin option
+  for no_cgroups became ineffective. Starting in Nomad 1.8.0 attempting to set
+  the no_cgroups in raw_exec plugin configuration will result in an error when
+  starting the agent.
+
+## Upgrading
+
+For more detailed information, please refer to the [upgrade details
+page](/nomad/docs/upgrade/upgrade-specific#nomad-1-8-0) and the changelogs.
+
+## Known issues
+
+The following issues are known to exist in the v1.8.x releases:
+
+## Changelogs
+
+The changelogs for this major release version and any maintenance versions are
+listed below.
+
+<Note> These links take you to the changelogs on the GitHub website. </Note>
+
+- [1.8.0](https://github.com/hashicorp/nomad/releases/tag/v1.8.0)

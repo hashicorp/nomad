@@ -21,6 +21,9 @@ export default class JobsRunIndexRoute extends Route {
     template: {
       refreshModel: true,
     },
+    sourceString: {
+      refreshModel: true,
+    },
   };
 
   beforeModel(transition) {
@@ -33,7 +36,7 @@ export default class JobsRunIndexRoute extends Route {
     }
   }
 
-  async model({ template }) {
+  async model({ template, sourceString }) {
     try {
       // When jobs are created with a namespace attribute, it is verified against
       // available namespaces to prevent redirecting to a non-existent namespace.
@@ -44,6 +47,10 @@ export default class JobsRunIndexRoute extends Route {
         const templateRecord = await VariableAdapter.getJobTemplate(template);
         return this.store.createRecord('job', {
           _newDefinition: templateRecord.items.template,
+        });
+      } else if (sourceString) {
+        return this.store.createRecord('job', {
+          _newDefinition: sourceString,
         });
       } else {
         return this.store.createRecord('job');
@@ -72,6 +79,8 @@ export default class JobsRunIndexRoute extends Route {
     if (isExiting) {
       controller.model?.deleteRecord();
       controller.set('template', null);
+      controller.set('sourceString', null);
+      controller.set('disregardNameWarning', null);
     }
   }
 }

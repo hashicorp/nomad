@@ -1,0 +1,3 @@
+```release-note:improvement
+client: add a preferred_address_family config to prefer ipv4 or ipv6 when deducing IP from network interface
+```

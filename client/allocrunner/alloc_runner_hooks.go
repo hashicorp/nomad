@@ -106,11 +106,15 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// Create a new taskenv.Builder which is used by hooks that mutate them to
 	// build new taskenv.TaskEnv.
 	newEnvBuilder := func() *taskenv.Builder {
-		return taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).
-			SetAllocDir(ar.allocDir.AllocDir)
+		return taskenv.NewBuilder(
+			config.Node,
+			ar.Alloc(),
+			nil,
+			config.Region,
+		).SetAllocDir(ar.allocDir.AllocDirPath())
 	}
 
-	// Create a taskenv.TaskEnv which is used for read only purposes by the
+	// Create a *taskenv.TaskEnv which is used for read only purposes by the
 	// newNetworkHook and newChecksHook.
 	builtTaskEnv := newEnvBuilder().Build()
 
@@ -126,8 +130,9 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 			allocdir:                ar.allocDir,
 			widmgr:                  ar.widmgr,
 			consulConfigs:           ar.clientConfig.GetConsulConfigs(hookLogger),
-			consulClientConstructor: consul.NewConsulClient,
+			consulClientConstructor: consul.NewConsulClientFactory(config),
 			hookResources:           ar.hookResources,
+			envBuilder:              newEnvBuilder,
 			logger:                  hookLogger,
 		}),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
@@ -184,7 +189,17 @@ func (ar *allocRunner) prerun() error {
 			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
 		}
 
-		if err := pre.Prerun(); err != nil {
+		// If the operator has disabled hook metrics, then don't call the time
+		// function to save 30ns per hook.
+		var hookExecutionStart time.Time
+
+		if !ar.clientConfig.DisableAllocationHookMetrics {
+			hookExecutionStart = time.Now()
+		}
+
+		err := pre.Prerun()
+		ar.hookStatsHandler.Emit(hookExecutionStart, name, "prerun", err)
+		if err != nil {
 			return fmt.Errorf("pre-run hook %q failed: %v", name, err)
 		}
 

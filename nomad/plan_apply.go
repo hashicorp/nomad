@@ -420,7 +420,12 @@ func signAllocIdentities(signer claimSigner, job *structs.Job, allocations []*st
 				continue
 			}
 			defaultWI := &structs.WorkloadIdentity{Name: "default"}
-			claims := structs.NewIdentityClaims(job, alloc, task.IdentityHandle(defaultWI), task.Identity, now)
+
+			claims := structs.NewIdentityClaimsBuilder(
+				job, alloc, task.IdentityHandle(defaultWI), task.Identity).
+				WithTask(task).
+				Build(now)
+
 			token, keyID, err := signer.SignClaims(claims)
 			if err != nil {
 				return err
@@ -801,7 +806,7 @@ func isValidForDisconnectedNode(plan *structs.Plan, nodeID string) bool {
 // as non reschedulables when lost or if the allocs are being updated to lost.
 func isValidForDownNode(plan *structs.Plan, nodeID string) bool {
 	for _, alloc := range plan.NodeAllocation[nodeID] {
-		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.PreventRescheduleOnLost()) &&
+		if !(alloc.ClientStatus == structs.AllocClientStatusUnknown && alloc.PreventRescheduleOnDisconnect()) &&
 			(alloc.ClientStatus != structs.AllocClientStatusLost) {
 			return false
 		}

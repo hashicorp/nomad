@@ -1,0 +1,3 @@
+```release-note:improvement
+raft: Bump raft to v1.7.1 which includes pre-vote. This should make servers more stable after network partitions
+```

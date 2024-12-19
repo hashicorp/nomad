@@ -40,7 +40,8 @@ rules:
 
       # Pattern used by endpoints that are used only for client-to-server.
       # Authorization can be done after forwarding, but must check the
-      # AllowClientOp policy
+      # AllowClientOp policy; the AllowClientOp condition is left open so that
+      # additional ACL checks can be made (ex. to scope to a given node/pool).
       - pattern-not-inside: |
           aclObj, err := $A.$B.AuthenticateClientOnly($A.ctx, args)
           ...
@@ -48,7 +49,7 @@ rules:
             return err
           }
           ...
-          if !aclObj.AllowClientOp() {
+          if !aclObj.AllowClientOp()
             return structs.ErrPermissionDenied
           }
           ...
@@ -112,13 +113,9 @@ rules:
   # authorization, as nil ACLs are always programmer errors.
   - id: "rpc-authz-bypass"
     patterns:
-      # Pattern that will accidentally bypass authorization checks.
+      # Pattern that may accidentally bypass authorization checks.
       - pattern: |
-          ...
-          if aclObj != nil && aclObj.$ACL_CHECK(...) {
-          ...
-          }
-          ...
+          aclObj == nil
 
     message: "RPC method ACL check $ACL_CHECK appears to bypass authorization by first checking for nil ACLs"
     languages:

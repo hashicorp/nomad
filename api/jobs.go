@@ -8,13 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"sort"
 	"strconv"
 	"time"
 
 	"github.com/hashicorp/cronexpr"
-	"golang.org/x/exp/maps"
 )
 
 const (
@@ -74,9 +74,6 @@ type JobsParseRequest struct {
 	// JobHCL is an hcl jobspec
 	JobHCL string
 
-	// HCLv1 indicates whether the JobHCL should be parsed with the hcl v1 parser
-	HCLv1 bool `json:"hclv1,omitempty"`
-
 	// Variables are HCL2 variables associated with the job. Only works with hcl2.
 	//
 	// Interpreted as if it were the content of a variables file.
@@ -104,7 +101,7 @@ func (j *Jobs) ParseHCL(jobHCL string, canonicalize bool) (*Job, error) {
 }
 
 // ParseHCLOpts is used to request the server convert the HCL representation of a
-// Job to JSON on our behalf. Accepts HCL1 or HCL2 jobs as input.
+// Job to JSON on our behalf. Only accepts HCL2 jobs as input.
 func (j *Jobs) ParseHCLOpts(req *JobsParseRequest) (*Job, error) {
 	var job Job
 	_, err := j.client.put("/v1/jobs/parse", req, &job, nil)
@@ -215,8 +212,7 @@ func (j *Jobs) Info(jobID string, q *QueryOptions) (*Job, *QueryMeta, error) {
 	return &resp, qm, nil
 }
 
-// Scale is used to retrieve information about a particular
-// job given its unique ID.
+// Scale is used to scale a job.
 func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool, meta map[string]interface{},
 	q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
 
@@ -242,6 +238,17 @@ func (j *Jobs) Scale(jobID, group string, count *int, message string, error bool
 	return &resp, qm, nil
 }
 
+// ScaleWithRequest is used to scale a job, giving the caller complete control
+// over the ScalingRequest
+func (j *Jobs) ScaleWithRequest(jobID string, req *ScalingRequest, q *WriteOptions) (*JobRegisterResponse, *WriteMeta, error) {
+	var resp JobRegisterResponse
+	qm, err := j.client.put(fmt.Sprintf("/v1/job/%s/scale", url.PathEscape(jobID)), req, &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
 // ScaleStatus is used to retrieve information about a particular
 // job given its unique ID.
 func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*JobScaleStatusResponse, *QueryMeta, error) {
@@ -256,8 +263,50 @@ func (j *Jobs) ScaleStatus(jobID string, q *QueryOptions) (*JobScaleStatusRespon
 // Versions is used to retrieve all versions of a particular job given its
 // unique ID.
 func (j *Jobs) Versions(jobID string, diffs bool, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
+	opts := &VersionsOptions{
+		Diffs: diffs,
+	}
+	return j.VersionsOpts(jobID, opts, q)
+}
+
+// VersionByTag is used to retrieve a job version by its VersionTag name.
+func (j *Jobs) VersionByTag(jobID, tag string, q *QueryOptions) (*Job, *QueryMeta, error) {
+	versions, _, qm, err := j.Versions(jobID, false, q)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Find the version with the matching tag
+	for _, version := range versions {
+		if version.VersionTag != nil && version.VersionTag.Name == tag {
+			return version, qm, nil
+		}
+	}
+
+	return nil, nil, fmt.Errorf("version tag %s not found for job %s", tag, jobID)
+}
+
+type VersionsOptions struct {
+	Diffs       bool
+	DiffTag     string
+	DiffVersion *uint64
+}
+
+func (j *Jobs) VersionsOpts(jobID string, opts *VersionsOptions, q *QueryOptions) ([]*Job, []*JobDiff, *QueryMeta, error) {
 	var resp JobVersionsResponse
-	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?diffs=%v", url.PathEscape(jobID), diffs), &resp, q)
+
+	qp := url.Values{}
+	if opts != nil {
+		qp.Add("diffs", strconv.FormatBool(opts.Diffs))
+		if opts.DiffTag != "" {
+			qp.Add("diff_tag", opts.DiffTag)
+		}
+		if opts.DiffVersion != nil {
+			qp.Add("diff_version", strconv.FormatUint(*opts.DiffVersion, 10))
+		}
+	}
+
+	qm, err := j.client.query(fmt.Sprintf("/v1/job/%s/versions?%s", url.PathEscape(jobID), qp.Encode()), &resp, q)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -274,6 +323,7 @@ func (j *Jobs) Submission(jobID string, version int, q *QueryOptions) (*JobSubmi
 	if err != nil {
 		return nil, nil, err
 	}
+
 	return &sub, qm, nil
 }
 
@@ -918,10 +968,11 @@ type ParameterizedJobConfig struct {
 // the job submission.
 type JobSubmission struct {
 	// Source contains the original job definition (may be in the format of
-	// hcl1, hcl2, or json).
+	// hcl1, hcl2, or json). HCL1 jobs can no longer be parsed.
 	Source string
 
-	// Format indicates what the Source content was (hcl1, hcl2, or json).
+	// Format indicates what the Source content was (hcl1, hcl2, or json). HCL1
+	// jobs can no longer be parsed.
 	Format string
 
 	// VariableFlags contains the CLI "-var" flag arguments as submitted with the
@@ -933,6 +984,70 @@ type JobSubmission struct {
 	Variables string
 }
 
+type JobUIConfig struct {
+	Description string       `hcl:"description,optional"`
+	Links       []*JobUILink `hcl:"link,block"`
+}
+
+type JobUILink struct {
+	Label string `hcl:"label,optional"`
+	URL   string `hcl:"url,optional"`
+}
+
+func (j *JobUIConfig) Canonicalize() {
+	if j == nil {
+		return
+	}
+
+	if len(j.Links) == 0 {
+		j.Links = nil
+	}
+}
+
+func (j *JobUIConfig) Copy() *JobUIConfig {
+	if j == nil {
+		return nil
+	}
+
+	copy := new(JobUIConfig)
+	copy.Description = j.Description
+
+	for _, link := range j.Links {
+		copy.Links = append(copy.Links, link.Copy())
+	}
+
+	return copy
+}
+
+func (j *JobUILink) Copy() *JobUILink {
+	if j == nil {
+		return nil
+	}
+
+	return &JobUILink{
+		Label: j.Label,
+		URL:   j.URL,
+	}
+}
+
+type JobVersionTag struct {
+	Name        string
+	Description string
+	TaggedTime  int64
+}
+
+func (j *JobVersionTag) Copy() *JobVersionTag {
+	if j == nil {
+		return nil
+	}
+
+	return &JobVersionTag{
+		Name:        j.Name,
+		Description: j.Description,
+		TaggedTime:  j.TaggedTime,
+	}
+}
+
 func (js *JobSubmission) Canonicalize() {
 	if js == nil {
 		return
@@ -940,6 +1055,13 @@ func (js *JobSubmission) Canonicalize() {
 
 	if len(js.VariableFlags) == 0 {
 		js.VariableFlags = nil
+	}
+
+	// if there are multiline variables, make sure we escape the newline
+	// characters to preserve them. This way, when the job gets stopped and
+	// restarted in the UI, variable values will be parsed correctly.
+	for k, v := range js.VariableFlags {
+		js.VariableFlags[k] = url.QueryEscape(v)
 	}
 }
 
@@ -982,6 +1104,7 @@ type Job struct {
 	Meta             map[string]string       `hcl:"meta,block"`
 	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
 	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
+	UI               *JobUIConfig            `hcl:"ui,block"`
 
 	/* Fields set by server, not sourced from job config file */
 
@@ -1001,6 +1124,7 @@ type Job struct {
 	CreateIndex              *uint64
 	ModifyIndex              *uint64
 	JobModifyIndex           *uint64
+	VersionTag               *JobVersionTag
 }
 
 // IsPeriodic returns whether a job is periodic.
@@ -1106,6 +1230,10 @@ func (j *Job) Canonicalize() {
 	}
 	for _, a := range j.Affinities {
 		a.Canonicalize()
+	}
+
+	if j.UI != nil {
+		j.UI.Canonicalize()
 	}
 }
 
@@ -1543,4 +1671,32 @@ func (j *Jobs) ActionExec(ctx context.Context,
 	}
 
 	return s.run(ctx)
+}
+
+// JobStatusesRequest is used to get statuses for jobs,
+// their allocations and deployments.
+type JobStatusesRequest struct {
+	// Jobs may be optionally provided to request a subset of specific jobs.
+	Jobs []NamespacedID
+	// IncludeChildren will include child (batch) jobs in the response.
+	IncludeChildren bool
+}
+
+type TagVersionRequest struct {
+	Version     uint64
+	Description string
+	WriteRequest
+}
+
+func (j *Jobs) TagVersion(jobID string, version uint64, name string, description string, q *WriteOptions) (*WriteMeta, error) {
+	var tagRequest = &TagVersionRequest{
+		Version:     version,
+		Description: description,
+	}
+
+	return j.client.put("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", tagRequest, nil, q)
+}
+
+func (j *Jobs) UntagVersion(jobID string, name string, q *WriteOptions) (*WriteMeta, error) {
+	return j.client.delete("/v1/job/"+url.PathEscape(jobID)+"/versions/"+name+"/tag", nil, nil, q)
 }

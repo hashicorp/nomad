@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -24,7 +25,7 @@ const (
 
 	// consulTokenFilePerms is the level of file permissions granted on the file in
 	// the secrets directory for the task
-	consulTokenFilePerms = 0440
+	consulTokenFilePerms = 0640
 )
 
 type consulHook struct {
@@ -56,10 +57,16 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 
 	// Write tokens to tasks' secret dirs
 	for _, t := range tokens {
-		for identity, token := range t {
+		for tokenName, token := range t {
+			s := strings.SplitN(tokenName, "/", 2)
+			if len(s) < 2 {
+				continue
+			}
+			identity := s[0]
+			taskName := s[1]
 			// do not write tokens that do not belong to any of this task's
 			// identities
-			if !slices.ContainsFunc(
+			if taskName != h.task.Name || !slices.ContainsFunc(
 				h.task.Identities,
 				func(id *structs.WorkloadIdentity) bool { return id.Name == identity }) &&
 				identity != h.task.Identity.Name {
@@ -72,7 +79,8 @@ func (h *consulHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartR
 			}
 
 			env := map[string]string{
-				"CONSUL_TOKEN": token.SecretID,
+				"CONSUL_TOKEN":      token.SecretID,
+				"CONSUL_HTTP_TOKEN": token.SecretID,
 			}
 
 			resp.Env = env

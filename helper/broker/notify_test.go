@@ -4,6 +4,7 @@
 package broker
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -16,11 +17,11 @@ func TestGenericNotifier(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create the new notifier.
-	stopChan := make(chan struct{})
-	defer close(stopChan)
+	ctx, cancelFn := context.WithCancel(context.Background())
+	defer cancelFn()
 
-	notifier := NewGenericNotifier()
-	go notifier.Run(stopChan)
+	notifier := NewGenericNotifier(ctx)
+	go notifier.Run()
 
 	// Ensure we have buffered channels.
 	require.Equal(t, 1, cap(notifier.publishCh))
@@ -45,12 +46,12 @@ func TestGenericNotifier(t *testing.T) {
 	var notifiedWG sync.WaitGroup
 
 	for i := 0; i < 6; i++ {
-		go func(wg *sync.WaitGroup) {
-			wg.Add(1)
+		notifiedWG.Add(1)
+		go func() {
+			defer notifiedWG.Done()
 			msg := notifier.WaitForChange(3 * time.Second)
 			require.Equal(t, "we got an update and not a timeout", msg)
-			wg.Done()
-		}(&notifiedWG)
+		}()
 	}
 
 	// Ensure the routines have had time to start before sending the notify

@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/goruntime"
+	"github.com/hashicorp/nomad/helper/group"
 	"github.com/hashicorp/nomad/helper/iterator"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
@@ -85,6 +86,10 @@ const (
 	// raftRemoveGracePeriod is how long we wait to allow a RemovePeer
 	// to replicate to gracefully leave the cluster.
 	raftRemoveGracePeriod = 5 * time.Second
+
+	// workerShutdownGracePeriod is the maximum time we will wait for workers to stop
+	// gracefully when the server shuts down
+	workerShutdownGracePeriod = 5 * time.Second
 
 	// defaultConsulDiscoveryInterval is how often to poll Consul for new
 	// servers if there is no leader.
@@ -263,6 +268,10 @@ type Server struct {
 	workerConfigLock sync.RWMutex
 	workersEventCh   chan interface{}
 
+	// workerShutdownGroup tracks the running worker goroutines so that Shutdown()
+	// can wait on their completion
+	workerShutdownGroup group.Group
+
 	// oidcProviderCache maintains a cache of OIDC providers. This is useful as
 	// the provider performs background HTTP requests. When the Nomad server is
 	// shutting down, the oidcProviderCache.Shutdown() function must be called.
@@ -315,17 +324,6 @@ type Server struct {
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
 func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) (*Server, error) {
-
-	// Create an eval broker
-	evalBroker, err := NewEvalBroker(
-		config.EvalNackTimeout,
-		config.EvalNackInitialReenqueueDelay,
-		config.EvalNackSubsequentReenqueueDelay,
-		config.EvalDeliveryLimit)
-	if err != nil {
-		return nil, err
-	}
-
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -361,9 +359,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		reconcileCh:             make(chan serf.Member, 32),
 		readyForConsistentReads: &atomic.Bool{},
 		eventCh:                 make(chan serf.Event, 256),
-		evalBroker:              evalBroker,
 		reapCancelableEvalsCh:   make(chan struct{}),
-		blockedEvals:            NewBlockedEvals(evalBroker, logger),
 		rpcTLS:                  incomingTLS,
 		workersEventCh:          make(chan interface{}, 1),
 		lockTTLTimer:            lock.NewTTLTimer(),
@@ -372,6 +368,21 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
 	s.shutdownCh = s.shutdownCtx.Done()
+
+	// Create an eval broker
+	evalBroker, err := NewEvalBroker(
+		s.shutdownCtx,
+		config.EvalNackTimeout,
+		config.EvalNackInitialReenqueueDelay,
+		config.EvalNackSubsequentReenqueueDelay,
+		config.EvalDeliveryLimit)
+	if err != nil {
+		return nil, err
+	}
+	s.evalBroker = evalBroker
+
+	// Create the blocked evals
+	s.blockedEvals = NewBlockedEvals(s.evalBroker, s.logger)
 
 	// Create the RPC handler
 	s.rpcHandler = newRpcHandler(s)
@@ -494,7 +505,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Start the eval broker notification system so any subscribers can get
 	// updates when the processes SetEnabled is triggered.
-	go s.evalBroker.enabledNotifier.Run(s.shutdownCh)
+	go s.evalBroker.enabledNotifier.Run()
 
 	// Setup the node drainer.
 	s.setupNodeDrainer()
@@ -541,6 +552,9 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// be created before the RPC server and FSM but needs them to
 	// exist before it can start.
 	s.keyringReplicator = NewKeyringReplicator(s, encrypter)
+
+	// Block until keys are decrypted
+	s.encrypter.IsReady(s.shutdownCtx)
 
 	// Done
 	return s, nil
@@ -711,6 +725,13 @@ func (s *Server) Shutdown() error {
 	s.shutdown = true
 	s.shutdownCancel()
 
+	s.workerLock.Lock()
+	defer s.workerLock.Unlock()
+	s.stopOldWorkers(s.workers)
+	workerShutdownTimeoutCtx, cancelWorkerShutdownTimeoutCtx := context.WithTimeout(context.Background(), workerShutdownGracePeriod)
+	defer cancelWorkerShutdownTimeoutCtx()
+	s.workerShutdownGroup.WaitWithContext(workerShutdownTimeoutCtx)
+
 	if s.serf != nil {
 		s.serf.Shutdown()
 	}
@@ -875,7 +896,24 @@ func (s *Server) Reload(newConfig *Config) error {
 
 	// Handle the Vault reload. Vault should never be nil but just guard.
 	if s.vault != nil {
-		if err := s.vault.SetConfig(newConfig.GetDefaultVault()); err != nil {
+		vconfig := newConfig.GetDefaultVault()
+
+		// Verify if the new configuration would cause the client type to
+		// change.
+		var err error
+		switch s.vault.(type) {
+		case *NoopVault:
+			if vconfig != nil && vconfig.Token != "" {
+				err = fmt.Errorf("setting a Vault token requires restarting the Nomad agent")
+			}
+		case *vaultClient:
+			if vconfig != nil && vconfig.Token == "" {
+				err = fmt.Errorf("removing the Vault token requires restarting the Nomad agent")
+			}
+		}
+		if err != nil {
+			_ = multierror.Append(&mErr, err)
+		} else if err := s.vault.SetConfig(newConfig.GetDefaultVault()); err != nil {
 			_ = multierror.Append(&mErr, err)
 		}
 	}
@@ -1174,8 +1212,8 @@ func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs c
 // setupVaultClient is used to set up the Vault API client.
 func (s *Server) setupVaultClient() error {
 	vconfig := s.config.GetDefaultVault()
-	if vconfig != nil && vconfig.DefaultIdentity != nil {
-		s.vault = &NoopVault{}
+	if vconfig != nil && vconfig.Token == "" {
+		s.vault = NewNoopVault(vconfig, s.logger, s.purgeVaultAccessors)
 		return nil
 	}
 
@@ -1343,12 +1381,14 @@ func (s *Server) setupRaft() error {
 		EvalBroker:         s.evalBroker,
 		Periodic:           s.periodicDispatcher,
 		Blocked:            s.blockedEvals,
+		Encrypter:          s.encrypter,
 		Logger:             s.logger,
 		Region:             s.Region(),
 		EnableEventBroker:  s.config.EnableEventBroker,
 		EventBufferSize:    s.config.EventBufferSize,
 		JobTrackedVersions: s.config.JobTrackedVersions,
 	}
+
 	var err error
 	s.fsm, err = NewFSM(fsmConfig)
 	if err != nil {
@@ -1356,8 +1396,19 @@ func (s *Server) setupRaft() error {
 	}
 
 	// Create a transport layer
-	trans := raft.NewNetworkTransport(s.raftLayer, 3, s.config.RaftTimeout,
-		s.config.LogOutput)
+	logger := log.New(&log.LoggerOptions{
+		Name:   "raft-net",
+		Output: s.config.LogOutput,
+		Level:  log.DefaultLevel,
+	})
+	netConfig := &raft.NetworkTransportConfig{
+		Stream:                  s.raftLayer,
+		MaxPool:                 3,
+		Timeout:                 s.config.RaftTimeout,
+		Logger:                  logger,
+		MsgpackUseNewTimeFormat: true,
+	}
+	trans := raft.NewNetworkTransportWithConfig(netConfig)
 	s.raftTransport = trans
 
 	// Make sure we set the Logger.
@@ -1407,6 +1458,7 @@ func (s *Server) setupRaft() error {
 			BoltOptions: &bbolt.Options{
 				NoFreelistSync: s.config.RaftBoltNoFreelistSync,
 			},
+			MsgpackUseNewTimeFormat: true,
 		})
 		if raftErr != nil {
 			return raftErr
@@ -1593,9 +1645,10 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 			return nil, err
 		}
 	}
-	// LeavePropagateDelay is used to make sure broadcasted leave intents propagate
-	// This value was tuned using https://www.serf.io/docs/internals/simulator.html to
-	// allow for convergence in 99.9% of nodes in a 10 node cluster
+	// LeavePropagateDelay is used to make sure broadcasted leave intents
+	// propagate This value was tuned using
+	// https://github.com/hashicorp/serf/blob/master/docs/internals/simulator.html.erb
+	// to allow for convergence in 99.9% of nodes in a 10 node cluster
 	conf.LeavePropagateDelay = 1 * time.Second
 	conf.Merge = &serfMergeDelegate{}
 
@@ -1788,7 +1841,7 @@ func (s *Server) setupWorkersLocked(ctx context.Context, poolArgs SchedulerWorke
 			return err
 		} else {
 			s.logger.Debug("started scheduling worker", "id", w.ID(), "index", i+1, "of", s.config.NumSchedulers)
-
+			s.workerShutdownGroup.AddCh(w.ShutdownCh())
 			s.workers = append(s.workers, w)
 		}
 	}

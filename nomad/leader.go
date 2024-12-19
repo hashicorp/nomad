@@ -823,7 +823,7 @@ func (s *Server) restoreEvals() error {
 		eval := raw.(*structs.Evaluation)
 
 		if eval.ShouldEnqueue() {
-			s.evalBroker.Enqueue(eval)
+			s.evalBroker.Restore(eval)
 		} else if eval.ShouldBlock() {
 			s.blockedEvals.Block(eval)
 		}
@@ -1438,13 +1438,13 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 			return
 		case <-timer.C:
 			timer.Reset(s.config.StatsCollectionInterval)
-			state, err := s.State().Snapshot()
+			snap, err := s.State().Snapshot()
 			if err != nil {
 				s.logger.Error("failed to get state", "error", err)
 				continue
 			}
 			ws := memdb.NewWatchSet()
-			iter, err := state.Jobs(ws)
+			iter, err := snap.Jobs(ws, state.SortDefault)
 			if err != nil {
 				s.logger.Error("failed to get job statuses", "error", err)
 				continue
@@ -2721,6 +2721,7 @@ func (s *Server) getOrCreateSchedulerConfig() *structs.SchedulerConfiguration {
 }
 
 var minVersionKeyring = version.Must(version.NewVersion("1.4.0"))
+var minVersionKeyringInRaft = version.Must(version.NewVersion("1.9.0-dev"))
 
 // initializeKeyring creates the first root key if the leader doesn't
 // already have one. The metadata will be replicated via raft and then
@@ -2731,12 +2732,12 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 	logger := s.logger.Named("keyring")
 
 	store := s.fsm.State()
-	keyMeta, err := store.GetActiveRootKeyMeta(nil)
+	key, err := store.GetActiveRootKey(nil)
 	if err != nil {
 		logger.Error("failed to get active key: %v", err)
 		return
 	}
-	if keyMeta != nil {
+	if key != nil {
 		return
 	}
 
@@ -2759,25 +2760,39 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 
 	logger.Trace("initializing keyring")
 
-	rootKey, err := structs.NewRootKey(structs.EncryptionAlgorithmAES256GCM)
-	rootKey.Meta.SetActive()
+	rootKey, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	rootKey = rootKey.MakeActive()
 	if err != nil {
 		logger.Error("could not initialize keyring: %v", err)
 		return
 	}
 
-	err = s.encrypter.AddKey(rootKey)
+	isClusterUpgraded := ServersMeetMinimumVersion(
+		s.serf.Members(), s.Region(), minVersionKeyringInRaft, true)
+
+	wrappedKeys, err := s.encrypter.AddUnwrappedKey(rootKey, isClusterUpgraded)
 	if err != nil {
 		logger.Error("could not add initial key to keyring", "error", err)
 		return
 	}
-
-	if _, _, err = s.raftApply(structs.RootKeyMetaUpsertRequestType,
-		structs.KeyringUpdateRootKeyMetaRequest{
-			RootKeyMeta: rootKey.Meta,
-		}); err != nil {
-		logger.Error("could not initialize keyring", "error", err)
-		return
+	if isClusterUpgraded {
+		if _, _, err = s.raftApply(structs.WrappedRootKeysUpsertRequestType,
+			structs.KeyringUpsertWrappedRootKeyRequest{
+				WrappedRootKeys: wrappedKeys,
+			}); err != nil {
+			logger.Error("could not initialize keyring", "error", err)
+			return
+		}
+	} else {
+		logger.Warn(fmt.Sprintf("not all servers are >=%q; initializing legacy keyring",
+			minVersionKeyringInRaft))
+		if _, _, err = s.raftApply(structs.RootKeyMetaUpsertRequestType,
+			structs.KeyringUpdateRootKeyMetaRequest{
+				RootKeyMeta: rootKey.Meta,
+			}); err != nil {
+			logger.Error("could not initialize keyring", "error", err)
+			return
+		}
 	}
 
 	logger.Info("initialized keyring", "id", rootKey.Meta.KeyID)
@@ -2857,10 +2872,6 @@ func (s *Server) handleEvalBrokerStateChange(schedConfig *structs.SchedulerConfi
 		s.logger.Info("blocked evals status modified", "paused", !enableBrokers)
 		s.blockedEvals.SetEnabled(enableBrokers)
 		restoreEvals = enableBrokers
-
-		if enableBrokers {
-			s.blockedEvals.SetTimetable(s.fsm.TimeTable())
-		}
 	}
 
 	return restoreEvals

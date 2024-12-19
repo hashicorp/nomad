@@ -41,7 +41,7 @@ type EnvReplacer interface {
 // ArtifactGetter is an interface satisfied by the getter package.
 type ArtifactGetter interface {
 	// Get artifact and put it in the task directory.
-	Get(EnvReplacer, *structs.TaskArtifact) error
+	Get(EnvReplacer, *structs.TaskArtifact, string) error
 }
 
 // ProcessWranglers is an interface satisfied by the proclib package.

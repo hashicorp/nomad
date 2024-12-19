@@ -1,10 +1,11 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+//go:build linux
+
 package executor
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -12,7 +13,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -30,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	tu "github.com/hashicorp/nomad/testutil"
 	ps "github.com/mitchellh/go-ps"
 	"github.com/shoenig/test/must"
@@ -58,15 +59,6 @@ var (
 	compute  = topology.Compute()
 )
 
-type testExecCmd struct {
-	command  *ExecCommand
-	allocDir *allocdir.AllocDir
-
-	stdout         *bytes.Buffer
-	stderr         *bytes.Buffer
-	outputCopyDone *sync.WaitGroup
-}
-
 // testExecutorContext returns an ExecutorContext and AllocDir.
 //
 // The caller is responsible for calling AllocDir.Destroy() to cleanup.
@@ -75,11 +67,11 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	taskEnv := taskenv.NewBuilder(mock.Node(), alloc, task, "global").Build()
 
-	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), t.TempDir(), alloc.ID)
+	allocDir := allocdir.NewAllocDir(testlog.HCLogger(t), t.TempDir(), t.TempDir(), alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("AllocDir.Build() failed: %v", err)
 	}
-	if err := allocDir.NewTaskDir(task.Name).Build(false, nil); err != nil {
+	if err := allocDir.NewTaskDir(task).Build(fsisolation.None, nil, task.User); err != nil {
 		allocDir.Destroy()
 		t.Fatalf("allocDir.NewTaskDir(%q) failed: %v", task.Name, err)
 	}
@@ -120,38 +112,6 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 	}
 	configureTLogging(t, testCmd)
 	return testCmd
-}
-
-// configureTLogging configures a test command executor with buffer as Std{out|err}
-// but using os.Pipe so it mimics non-test case where cmd is set with files as Std{out|err}
-// the buffers can be used to read command output
-func configureTLogging(t *testing.T, testcmd *testExecCmd) {
-	var stdout, stderr bytes.Buffer
-	var copyDone sync.WaitGroup
-
-	stdoutPr, stdoutPw, err := os.Pipe()
-	require.NoError(t, err)
-
-	stderrPr, stderrPw, err := os.Pipe()
-	require.NoError(t, err)
-
-	copyDone.Add(2)
-	go func() {
-		defer copyDone.Done()
-		io.Copy(&stdout, stdoutPr)
-	}()
-	go func() {
-		defer copyDone.Done()
-		io.Copy(&stderr, stderrPr)
-	}()
-
-	testcmd.stdout = &stdout
-	testcmd.stderr = &stderr
-	testcmd.outputCopyDone = &copyDone
-
-	testcmd.command.stdout = stdoutPw
-	testcmd.command.stderr = stderrPw
-	return
 }
 
 func TestExecutor_Start_Invalid(t *testing.T) {
@@ -647,9 +607,9 @@ func TestExecutor_Start_NonExecutableBinaries(t *testing.T) {
 			// need to configure path in chroot with that file if using isolation executor
 			if _, ok := executor.(*UniversalExecutor); !ok {
 				taskName := filepath.Base(testExecCmd.command.TaskDir)
-				err := allocDir.NewTaskDir(taskName).Build(true, map[string]string{
+				err := allocDir.NewTaskDir(&structs.Task{Name: taskName}).Build(fsisolation.Chroot, map[string]string{
 					tmpDir: tmpDir,
-				})
+				}, "nobody")
 				require.NoError(err)
 			}
 

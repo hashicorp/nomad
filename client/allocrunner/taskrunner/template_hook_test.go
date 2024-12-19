@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -40,7 +42,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	hrTokens.SetConsulTokens(
 		map[string]map[string]*consulapi.ACLToken{
 			structs.ConsulDefaultCluster: {
-				fmt.Sprintf("consul_%s", structs.ConsulDefaultCluster): &consulapi.ACLToken{
+				fmt.Sprintf("consul_%s/web", structs.ConsulDefaultCluster): &consulapi.ACLToken{
 					SecretID: defaultToken,
 				},
 			},
@@ -59,7 +61,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	}{
 		{
 			// COMPAT remove in 1.9+
-			name:            "legecy flow",
+			name:            "legacy flow",
 			hr:              hrEmpty,
 			legacyFlow:      true,
 			wantConsulToken: "",
@@ -119,12 +121,12 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 				hookResources: tt.hr,
 			}
 			h := &templateHook{
-				config:       conf,
-				logger:       logger,
-				managerLock:  sync.Mutex{},
-				driverHandle: nil,
+				config:      conf,
+				logger:      logger,
+				managerLock: sync.Mutex{},
 			}
 			req := &interfaces.TaskPrestartRequest{
+				Alloc:   a,
 				Task:    a.Job.TaskGroups[0].Tasks[0],
 				TaskDir: &allocdir.TaskDir{Dir: "foo"},
 			}
@@ -227,6 +229,7 @@ func Test_templateHook_Prestart_Vault(t *testing.T) {
 
 			// Start template hook with a timeout context to ensure it exists.
 			req := &interfaces.TaskPrestartRequest{
+				Alloc:   alloc,
 				Task:    task,
 				TaskDir: &allocdir.TaskDir{Dir: taskDir},
 			}
@@ -266,4 +269,66 @@ func Test_templateHook_Prestart_Vault(t *testing.T) {
 			must.True(t, gotRequest)
 		})
 	}
+}
+
+// TestTemplateHook_RestoreChangeModeScript exercises change_mode=script
+// behavior for a task restored after a client restart
+func TestTemplateHook_RestoreChangeModeScript(t *testing.T) {
+
+	logger := testlog.HCLogger(t)
+	tmpDir := t.TempDir()
+	destPath := filepath.Join(tmpDir, "foo.txt")
+	must.NoError(t, os.WriteFile(destPath, []byte("original-content"), 0755))
+
+	clientConfig := config.DefaultConfig()
+	clientConfig.TemplateConfig.DisableSandbox = true
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
+
+	lifecycle := trtesting.NewMockTaskHooks()
+	lifecycle.SetupExecTest(117, fmt.Errorf("oh no"))
+	lifecycle.HasHandle = true
+
+	events := &trtesting.MockEmitter{}
+
+	hook := newTemplateHook(&templateHookConfig{
+		alloc:     alloc,
+		logger:    logger,
+		lifecycle: lifecycle,
+		events:    events,
+		templates: []*structs.Template{{
+			DestPath:     destPath,
+			EmbeddedTmpl: "changed-content",
+			ChangeMode:   structs.TemplateChangeModeScript,
+			ChangeScript: &structs.ChangeScript{
+				Command: "echo",
+				Args:    []string{"foo"},
+			},
+		}},
+		clientConfig:  clientConfig,
+		envBuilder:    envBuilder,
+		hookResources: &cstructs.AllocHookResources{},
+	})
+	req := &interfaces.TaskPrestartRequest{
+		Alloc:   alloc,
+		Task:    task,
+		TaskDir: &allocdir.TaskDir{Dir: tmpDir},
+	}
+
+	must.NoError(t, hook.Prestart(context.TODO(), req, nil))
+
+	// self-test the test by making sure we really changed the template file
+	out, err := os.ReadFile(destPath)
+	must.NoError(t, err)
+	must.Eq(t, "changed-content", string(out))
+
+	// verify our change script executed
+	gotEvents := events.Events()
+	must.Len(t, 1, gotEvents)
+	must.Eq(t, structs.TaskHookFailed, gotEvents[0].Type)
+	must.Eq(t, "Template failed to run script echo with arguments [foo] on change: oh no. Exit code: 117",
+		gotEvents[0].DisplayMessage)
+
 }

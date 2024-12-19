@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	clientconfig "github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -672,6 +673,111 @@ func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
 			default:
 				exp := fmt.Sprintf("raft_protocol must be 3 in Nomad v1.4 and later, got %d", tc)
 				must.EqError(t, err, exp)
+			}
+		})
+	}
+}
+
+func TestConvertClientConfig(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		name string
+		// modConfig modifies the agent config before passing to convertClientConfig()
+		modConfig func(*Config)
+		// assert makes assertions about the resulting client config
+		assert    func(*testing.T, *clientconfig.Config)
+		expectErr string
+	}{
+		{
+			name: "default",
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, "global", cc.Region)
+			},
+		},
+		{
+			name: "ipv4 bridge subnet",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnet = "10.0.0.0/24"
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, "10.0.0.0/24", cc.BridgeNetworkAllocSubnet)
+			},
+		},
+		{
+			name: "invalid ipv4 bridge subnet",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnet = "invalid-ip4"
+			},
+			expectErr: "invalid bridge_network_subnet: invalid CIDR address: invalid-ip4",
+		},
+		{
+			name: "invalid ipv4 bridge subnet is ipv6",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnet = "fd00:a110:c8::/120"
+			},
+			expectErr: "invalid bridge_network_subnet: not an IPv4 address: fd00:a110:c8::/120",
+		},
+		{
+			name: "ipv6 bridge subnet",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnetIPv6 = "fd00:a110:c8::/120"
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, "fd00:a110:c8::/120", cc.BridgeNetworkAllocSubnetIPv6)
+			},
+		},
+		{
+			name: "invalid ipv6 bridge subnet",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnetIPv6 = "invalid-ip6"
+			},
+			expectErr: "invalid bridge_network_subnet_ipv6: invalid CIDR address: invalid-ip6",
+		},
+		{
+			name: "invalid ipv6 bridge subnet is ipv4",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnetIPv6 = "10.0.0.1/24"
+			},
+			expectErr: "invalid bridge_network_subnet_ipv6: not an IPv6 address: 10.0.0.1/24",
+		},
+		{
+			name: "hook metrics enabled (default value)",
+			modConfig: func(c *Config) {
+				c.Telemetry.DisableAllocationHookMetrics = pointer.Of(false)
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.False(t, cc.DisableAllocationHookMetrics)
+			},
+		},
+		{
+			name: "hook metrics disabled",
+			modConfig: func(c *Config) {
+				c.Telemetry.DisableAllocationHookMetrics = pointer.Of(true)
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.True(t, cc.DisableAllocationHookMetrics)
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := DefaultConfig()
+
+			if tc.modConfig != nil {
+				tc.modConfig(c)
+			}
+
+			// method under test
+			cc, err := convertClientConfig(c)
+
+			if tc.expectErr != "" {
+				must.ErrorContains(t, err, tc.expectErr)
+			} else {
+				must.NoError(t, err)
+			}
+
+			if tc.assert != nil {
+				tc.assert(t, cc)
 			}
 		})
 	}

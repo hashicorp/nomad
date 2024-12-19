@@ -129,8 +129,8 @@
     "ConsulServerHealthInterval": "10ms",
     "DNSARecordLimit": 0,
     "DNSAddrs": [
-      "tcp://127.0.0.1:8600",
-      "udp://127.0.0.1:8600"
+      "tcp://192.168.1.117:8600",
+      "udp://192.168.1.117:8600"
     ],
     "DNSAllowStale": true,
     "DNSAltDomain": "",

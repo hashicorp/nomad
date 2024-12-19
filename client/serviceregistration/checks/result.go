@@ -4,11 +4,11 @@
 package checks
 
 import (
+	"maps"
 	"net/http"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
 // GetCheckQuery extracts the needed info from c to actually execute the check.

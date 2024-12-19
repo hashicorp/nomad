@@ -7,11 +7,20 @@ description: Learn about the key management in Nomad.
 # Key Management
 
 Nomad servers maintain an encryption keyring used to encrypt [Variables][] and
-sign task [workload identities][]. The servers store key metadata in raft, but
-the encryption key material is stored in a separate file in the `keystore`
-subdirectory of the Nomad [data directory][]. These files have the extension
-`.nks.json`. The key material in each file is wrapped in a unique key encryption
-key (KEK) that is not shared between servers.
+sign task [workload identities][]. The servers encrypt these data encryption
+keys (DEK) and store the wrapped keys in Raft.
+
+The key encryption key (KEK) used to encrypt the DEK is controlled by the
+[`keyring`][] provider. When using an external KMS or Vault transit encryption
+provider, the KEK is securely stored outside of Nomad. For the default AEAD
+provider, the KEK is stored in cleartext in Raft.
+
+<Note>
+
+Default AEAD provider users should be aware that storing the Key Encryption Key
+(KEK) in cleartext in Raft may expose data in case of a breach.
+
+</Note>
 
 Under normal operations the keyring is entirely managed by Nomad, but this
 section provides administrators additional context around key replication and
@@ -32,35 +41,56 @@ operator root keyring rotate -full`][]. A new "active" key will be created and
 re-encrypt all variables with the new key. As each key's variables are encrypted
 with the new key, the old key will marked as "deprecated".
 
-## Key Replication
+## Key Decryption
 
-When a leader is elected, it creates the keyring if it does not already
-exist. When a key is added, the metadata will be replicated via raft. Each
-server runs a key replication process that watches for changes to the state
-store and will fetch the key material from the leader asynchronously, falling
+When a leader is elected, the leader creates the keyring if it does not already
+exist. When a key is added, the new wrapped key material is replicated via
+Raft. As each server replicates the new key, the server starts a task to decrypt
+the key material. Until this task completes, the server is not able to serve
+requests that require this key.
+
+## Key Redaction in Raft Snapshots
+
+The default AEAD `keyring` configuration stores the KEK in Raft. Raft snapshots
+contain the cleartext KEK. The `nomad operator snapshot save` command has a
+`-redact` option that removes the key material when creating a snapshot. The
+`nomad operator snapshot redact` command removes key material from an
+existing snapshot.
+
+Redacting key material is not required when using an external KMS.
+
+## Legacy Keystore
+
+Versions of Nomad prior to 1.9.0 stored only key metadata in Raft, but the
+encryption key material was stored in a separate file in the `keystore`
+subdirectory of the Nomad [data directory][]. These files have the extension
+`.nks.json`. The key material in each file is wrapped in a unique key encryption
+key (KEK) that is not shared between servers.
+
+Each server runs a key replication process that watches for changes to the state
+store and fetches the key material from the leader asynchronously, falling
 back to retrieving from other servers in the case where a key is written
-immediately before a leader election.
+immediately before a leader election. Nomad 1.9.0 and above can replicate keys
+from older servers.
 
-## Restoring the Keyring from Backup
+However, replicating keys from older servers means that to restore an older cluster from snapshot you need to
+also provide the keystore directory with the `.nks.json` key files on at least
+one server. The `.nks.json` key files are unique per server, but only one
+server's key files are needed to recover the cluster. Operators should continue
+to include these files as part of your organization's backup and recovery
+strategy for the cluster until the cluster is fully upgraded to Nomad 1.9.0 and
+at least one [`root_key_gc_interval`][] has passed.
 
-Key material is never stored in raft. This prevents an attacker with a backup of
-the state store from getting access to encrypted variables. It also allows the
-HashiCorp engineering and support organization to safely handle cluster
-snapshots you might provide without exposing any of your keys or variables.
-
-However, this means that to restore a cluster from snapshot you need to also
-provide the keystore directory with the `.nks.json` key files on at least one
-server. The `.nks.json` key files are unique per server, but only one server's
-key files are needed to recover the cluster. Operators should include these
-files as part of your organization's backup and recovery strategy for the
-cluster.
-
-If you are recovering a Raft snapshot onto a new cluster without running
+If you are recovering an older Raft snapshot onto a new cluster without running
 workloads, you can skip restoring the keyring and run [`nomad operator root
 keyring rotate`][] once the servers have joined.
+
+
 
 [variables]: /nomad/docs/concepts/variables
 [workload identities]: /nomad/docs/concepts/workload-identity
 [data directory]: /nomad/docs/configuration#data_dir
+[`keyring`]: /nomad/docs/configuration/keyring
 [`nomad operator root keyring rotate -full`]: /nomad/docs/commands/operator/root/keyring-rotate
 [`nomad operator root keyring rotate`]: /nomad/docs/commands/operator/root/keyring-rotate
+[`root_key_gc_interval`]: /nomad/docs/configuration/server#root_key_gc_interval

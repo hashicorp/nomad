@@ -12,59 +12,9 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
-
-func TestEquivalentToHCL1(t *testing.T) {
-	ci.Parallel(t)
-
-	hclSpecDir := "../jobspec/test-fixtures/"
-	fis, err := os.ReadDir(hclSpecDir)
-	require.NoError(t, err)
-
-	for _, fi := range fis {
-		name := fi.Name()
-
-		t.Run(name, func(t *testing.T) {
-			f, err := os.Open(hclSpecDir + name)
-			require.NoError(t, err)
-			defer f.Close()
-
-			job1, err := jobspec.Parse(f)
-			if err != nil {
-				t.Skip("file is not parsable in v1")
-			}
-
-			f.Seek(0, 0)
-
-			job2, err := Parse(name, f)
-			require.NoError(t, err)
-
-			require.Equal(t, job1, job2)
-		})
-	}
-}
-
-func TestEquivalentToHCL1_ComplexConfig(t *testing.T) {
-	ci.Parallel(t)
-
-	name := "./test-fixtures/config-compatibility.hcl"
-	f, err := os.Open(name)
-	require.NoError(t, err)
-	defer f.Close()
-
-	job1, err := jobspec.Parse(f)
-	require.NoError(t, err)
-
-	f.Seek(0, 0)
-
-	job2, err := Parse(name, f)
-	require.NoError(t, err)
-
-	require.Equal(t, job1, job2)
-}
 
 func TestParse_ConnectJob(t *testing.T) {
 	ci.Parallel(t)
@@ -951,6 +901,106 @@ func TestParse_Meta_Alternatives(t *testing.T) {
 	require.Equal(t, map[string]string{"source": "group"}, asBlock.TaskGroups[0].Meta)
 	require.Equal(t, map[string]string{"source": "task"}, asBlock.TaskGroups[0].Tasks[0].Meta)
 
+}
+
+func TestParse_Constraint_Alternatives(t *testing.T) {
+	ci.Parallel(t)
+
+	hclOpVal := `
+job "example" {
+  constraint {
+    operator = "distinct_hosts"
+    value    = "true"
+  }
+  constraint {
+    operator  = "distinct_property"
+    attribute = "${meta.rack}"
+    value     = "1"
+  }
+  group "group" {
+    constraint {
+      operator = "distinct_hosts"
+      value    = "false"
+    }
+    constraint {
+      operator  = "distinct_property"
+      attribute = "${meta.rack}"
+      value     = "2"
+    }
+    task "task" {
+      constraint {
+        operator = "distinct_hosts"
+        value    = "true"
+      }
+      constraint {
+        operator  = "distinct_property"
+        attribute = "${meta.rack}"
+        value     = "3"
+      }
+      driver = "config"
+      config {}
+    }
+  }
+}
+`
+	hclCompact := `
+job "example" {
+  constraint {
+    distinct_hosts = true
+  }
+  constraint {
+    distinct_property = "${meta.rack}"
+    value     = "1"
+  }
+  group "group" {
+    constraint {
+      distinct_hosts = false
+    }
+    constraint {
+      distinct_property = "${meta.rack}"
+      value     = "2"
+    }
+    task "task" {
+      constraint {
+        distinct_hosts = true
+      }
+      constraint {
+        distinct_property = "${meta.rack}"
+        value     = "3"
+      }
+      driver = "config"
+      config {}
+    }
+  }
+}
+`
+	asOpValue, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hclOpVal),
+	})
+	must.NoError(t, err)
+
+	asCompact, err := ParseWithConfig(&ParseConfig{
+		Path: "input.hcl",
+		Body: []byte(hclCompact),
+	})
+	must.NoError(t, err)
+
+	constraint := func(l, r, op string) *api.Constraint {
+		return &api.Constraint{
+			LTarget: l,
+			RTarget: r,
+			Operand: op,
+		}
+	}
+
+	must.Eq(t, asOpValue, asCompact)
+	must.Eq(t, constraint("", "true", "distinct_hosts"), asOpValue.Constraints[0])
+	must.Eq(t, constraint("", "false", "distinct_hosts"), asOpValue.TaskGroups[0].Constraints[0])
+	must.Eq(t, constraint("", "true", "distinct_hosts"), asOpValue.TaskGroups[0].Tasks[0].Constraints[0])
+	must.Eq(t, constraint("${meta.rack}", "1", "distinct_property"), asOpValue.Constraints[1])
+	must.Eq(t, constraint("${meta.rack}", "2", "distinct_property"), asOpValue.TaskGroups[0].Constraints[1])
+	must.Eq(t, constraint("${meta.rack}", "3", "distinct_property"), asOpValue.TaskGroups[0].Tasks[0].Constraints[1])
 }
 
 // TestParse_UndefinedVariables asserts that values with undefined variables are left

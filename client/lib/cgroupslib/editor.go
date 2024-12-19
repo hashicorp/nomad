@@ -13,13 +13,17 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"golang.org/x/sys/unix"
 )
 
 const (
 	root = "/sys/fs/cgroup"
 )
+
+func GetDefaultRoot() string {
+	return root
+}
 
 // OpenPath creates a handle for modifying cgroup interface files under
 // the given directory.
@@ -172,10 +176,9 @@ func (l *lifeCG1) Kill() error {
 	}
 
 	signal := unix.SignalNum("SIGKILL")
-	pids.ForEach(func(pid int) bool {
+	for pid := range pids.Items() {
 		_ = unix.Kill(pid, signal)
-		return true
-	})
+	}
 
 	return l.thaw()
 }

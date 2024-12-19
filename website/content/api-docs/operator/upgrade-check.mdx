@@ -1,0 +1,187 @@
+---
+layout: api
+page_title: Upgrade Check - Operator - HTTP API
+description: |-
+  The /operator/upgrade-check endpoints provide tools for verifying the state
+  of the cluster prior to upgrades.
+---
+
+# Upgrade Check Operator HTTP API
+
+The `/operator/upgrade-check` endpoints provide some predefined verifications
+that can be useful prior to upgrades and changes to Nomad configuration.
+
+<Note>
+
+These endpoints are meant to target specific releases of Nomad and may be
+removed or modified without notice.
+
+</Note>
+
+## Vault Workload Identity
+
+This endpoint retrieves jobs, nodes, and Vault ACL tokens that may be affected
+when migrating a Nomad cluster to use [workload identities for
+Vault][nomad_acl_vault_wid].
+
+| Method | Path                                                 | Produces           |
+| ------ | ---------------------------------------------------- | ------------------ |
+| `GET`  | `/v1/operator/upgrade-check/vault-workload-identity` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required    |
+| ---------------- | --------------- |
+| `NO`             | `operator:read` |
+
+### Sample Request
+
+```shell-session
+$ nomad operator api \
+    /v1/operator/upgrade-check/vault-workload-identity
+```
+
+### Sample Response
+
+```json
+{
+  "Index": 20,
+  "JobsWithoutVaultIdentity": [
+    {
+      "CreateIndex": 11,
+      "Datacenters": [
+        "*"
+      ],
+      "ID": "example",
+      "JobModifyIndex": 11,
+      "JobSummary": null,
+      "ModifyIndex": 19,
+      "Multiregion": null,
+      "Name": "example",
+      "Namespace": "default",
+      "NodePool": "default",
+      "ParameterizedJob": false,
+      "ParentID": "",
+      "Periodic": false,
+      "Priority": 50,
+      "Status": "running",
+      "StatusDescription": "",
+      "Stop": false,
+      "SubmitTime": 1704995322434188000,
+      "Type": "service"
+    }
+  ],
+  "KnownLeader": true,
+  "LastContact": 0,
+  "NextToken": "",
+  "OutdatedNodes": [
+    {
+      "Address": "192.168.0.186",
+      "CreateIndex": 8,
+      "Datacenter": "dc1",
+      "Drain": false,
+      "Drivers": {
+        "qemu": {
+          "Attributes": {
+            "driver.qemu": "true",
+            "driver.qemu.version": "8.1.1"
+          },
+          "Detected": true,
+          "HealthDescription": "Healthy",
+          "Healthy": true,
+          "UpdateTime": "2024-01-11T12:48:35.993541-05:00"
+        },
+        "exec": {
+          "Attributes": {},
+          "Detected": false,
+          "HealthDescription": "exec driver unsupported on client OS",
+          "Healthy": false,
+          "UpdateTime": "2024-01-11T12:48:35.958495-05:00"
+        },
+        "raw_exec": {
+          "Attributes": {
+            "driver.raw_exec": "true"
+          },
+          "Detected": true,
+          "HealthDescription": "Healthy",
+          "Healthy": true,
+          "UpdateTime": "2024-01-11T12:48:35.958539-05:00"
+        },
+        "java": {
+          "Attributes": {},
+          "Detected": false,
+          "HealthDescription": "",
+          "Healthy": false,
+          "UpdateTime": "2024-01-11T12:48:35.97141-05:00"
+        },
+        "docker": {
+          "Attributes": {
+            "driver.docker.bridge_ip": "172.17.0.1",
+            "driver.docker.runtimes": "io.containerd.runc.v2,runc",
+            "driver.docker.os_type": "linux",
+            "driver.docker": "true",
+            "driver.docker.version": "24.0.7"
+          },
+          "Detected": true,
+          "HealthDescription": "Healthy",
+          "Healthy": true,
+          "UpdateTime": "2024-01-11T12:48:35.989993-05:00"
+        }
+      },
+      "HostVolumes": null,
+      "ID": "049f7683-0cde-727f-428a-913a89f92bd8",
+      "LastDrain": null,
+      "ModifyIndex": 10,
+      "Name": "client-1",
+      "NodeClass": "",
+      "NodePool": "default",
+      "SchedulingEligibility": "eligible",
+      "Status": "ready",
+      "StatusDescription": "",
+      "Version": "1.6.4"
+    }
+  ],
+  "VaultTokens": [
+    {
+      "Accessor": "czh9MPcRXzAhxBL9XKyb3Kh1",
+      "AllocID": "f00893d4-d9ef-4937-6a7a-ab495b68a971",
+      "CreateIndex": 14,
+      "CreationTTL": 60,
+      "NodeID": "049f7683-0cde-727f-428a-913a89f92bd8",
+      "Task": "redis"
+    }
+  ]
+}
+```
+
+#### Field Reference
+
+- `JobsWithoutVaultIdentity` `(array<Job>)` - The list of jobs that have a
+  [`vault`][] block but do not have an [`identity`][] for Vault
+  authentication. These jobs can fail if they are not redeployed with an
+  identity for Vault before the configuration for Nomad servers are updated and
+  their access to Vault is removed.
+
+- `OutdatedNodes` `(array<Node>)` - The list of nodes running a version of
+  Nomad that does not support workload identity authentication for Vault.
+  Allocations placed in these nodes will use the deprecated legacy flow to
+  retrieve Vault tokens. If the Nomad servers configuration is update to remove
+  their access to Vault before these nodes are upgraded, these allocations will
+  fail. Allocations that use workload identity for Vault will not be able to be
+  placed in these nodes until they are upgraded.
+
+- `VaultTokens` `(array<VaultAccessor>)` - The list of Vault ACL tokens created
+  by Nomad servers using the deprecated legacy flow. They will continue to work
+  even after the migration to the workload identities, but they may not be
+  automatically revoked by Nomad and will only expire once their TTL reaches
+  zero.
+
+Refer to [Migrating to Using Workload Identity with
+Vault][nomad_acl_vault_wid_migrate] for more information.
+
+[`identity`]: /nomad/docs/job-specification/identity
+[`vault`]: /nomad/docs/job-specification/vault
+[nomad_acl_vault_wid]: /nomad/docs/integrations/vault/acl#nomad-workload-identities
+[nomad_acl_vault_wid_migrate]: /nomad/docs/integrations/vault/acl#migrating-to-using-workload-identity-with-vault

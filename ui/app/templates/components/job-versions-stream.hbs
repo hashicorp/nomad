@@ -10,6 +10,6 @@
     </li>
   {{/if}}
   <li data-test-version class="timeline-object">
-    <JobVersion @version={{record.version}} @verbose={{this.verbose}} @handleError={{@handleError}} />
+    <JobVersion @version={{record.version}} @diff={{record.diff}} @verbose={{this.verbose}} @handleError={{@handleError}} @diffsExpanded={{@diffsExpanded}} />
   </li>
 {{/each}}

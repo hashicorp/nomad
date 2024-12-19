@@ -534,6 +534,7 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	// Setup telemetry related config
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.DisableDispatchedJobSummaryMetrics = agentConfig.Telemetry.DisableDispatchedJobSummaryMetrics
+	conf.DisableQuotaUtilizationMetrics = agentConfig.Telemetry.DisableQuotaUtilizationMetrics
 	conf.DisableRPCRateMetricsLabels = agentConfig.Telemetry.DisableRPCRateMetricsLabels
 
 	if d, err := time.ParseDuration(agentConfig.Limits.RPCHandshakeTimeout); err != nil {
@@ -612,6 +613,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 	conf.JobMaxSourceSize = int(jobMaxSourceBytes)
 
 	conf.Reporting = agentConfig.Reporting
+
+	conf.KEKProviderConfigs = agentConfig.KEKProviders
 
 	return conf, nil
 }
@@ -721,6 +724,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.DataDir != "" {
 		conf.StateDir = filepath.Join(agentConfig.DataDir, "client")
 		conf.AllocDir = filepath.Join(agentConfig.DataDir, "alloc")
+		dataParent := filepath.Dir(agentConfig.DataDir)
+		conf.AllocMountsDir = filepath.Join(dataParent, "alloc_mounts")
 	}
 	if agentConfig.Client.StateDir != "" {
 		conf.StateDir = agentConfig.Client.StateDir
@@ -728,9 +733,15 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if agentConfig.Client.AllocDir != "" {
 		conf.AllocDir = agentConfig.Client.AllocDir
 	}
+	if agentConfig.Client.AllocMountsDir != "" {
+		conf.AllocMountsDir = agentConfig.Client.AllocMountsDir
+	}
 	if agentConfig.Client.NetworkInterface != "" {
 		conf.NetworkInterface = agentConfig.Client.NetworkInterface
 	}
+
+	conf.PreferredAddressFamily = agentConfig.Client.PreferredAddressFamily
+
 	conf.ChrootEnv = agentConfig.Client.ChrootEnv
 	conf.Options = agentConfig.Client.Options
 	if agentConfig.Client.NetworkSpeed != 0 {
@@ -762,7 +773,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.DisableRemoteExec = agentConfig.Client.DisableRemoteExec
 
 	if agentConfig.Client.TemplateConfig != nil {
-		conf.TemplateConfig = agentConfig.Client.TemplateConfig.Copy()
+		conf.TemplateConfig = conf.TemplateConfig.Merge(agentConfig.Client.TemplateConfig)
 	}
 
 	hvMap := make(map[string]*structs.ClientHostVolumeConfig, len(agentConfig.Client.HostVolumes))
@@ -850,6 +861,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.StatsCollectionInterval = agentConfig.Telemetry.collectionInterval
 	conf.PublishNodeMetrics = agentConfig.Telemetry.PublishNodeMetrics
 	conf.PublishAllocationMetrics = agentConfig.Telemetry.PublishAllocationMetrics
+	conf.IncludeAllocMetadataInMetrics = agentConfig.Telemetry.IncludeAllocMetadataInMetrics
+	conf.AllowedMetadataKeysInMetrics = agentConfig.Telemetry.AllowedMetadataKeysInMetrics
+	conf.DisableAllocationHookMetrics = *agentConfig.Telemetry.DisableAllocationHookMetrics
 
 	// Set the TLS related configs
 	conf.TLSConfig = agentConfig.TLSConfig
@@ -878,7 +892,30 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.CNIPath = agentConfig.Client.CNIPath
 	conf.CNIConfigDir = agentConfig.Client.CNIConfigDir
 	conf.BridgeNetworkName = agentConfig.Client.BridgeNetworkName
-	conf.BridgeNetworkAllocSubnet = agentConfig.Client.BridgeNetworkSubnet
+	ipv4Subnet := agentConfig.Client.BridgeNetworkSubnet
+	if ipv4Subnet != "" {
+		ip, _, err := net.ParseCIDR(ipv4Subnet)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet: %w", err)
+		}
+		// it's a valid IP, so now make sure it is ipv4
+		if ip.To4() == nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet: not an IPv4 address: %s", ipv4Subnet)
+		}
+		conf.BridgeNetworkAllocSubnet = ipv4Subnet
+	}
+	ipv6Subnet := agentConfig.Client.BridgeNetworkSubnetIPv6
+	if ipv6Subnet != "" {
+		ip, _, err := net.ParseCIDR(ipv6Subnet)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet_ipv6: %w", err)
+		}
+		// it's valid, so now make sure it's *not* ipv4
+		if ip.To4() != nil {
+			return nil, fmt.Errorf("invalid bridge_network_subnet_ipv6: not an IPv6 address: %s", ipv6Subnet)
+		}
+		conf.BridgeNetworkAllocSubnetIPv6 = ipv6Subnet
+	}
 	conf.BridgeNetworkHairpinMode = agentConfig.Client.BridgeNetworkHairpinMode
 
 	for _, hn := range agentConfig.Client.HostNetworks {
@@ -894,6 +931,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid artifact config: %v", err)
 	}
+
 	conf.Artifact = artifactConfig
 
 	drainConfig, err := clientconfig.DrainConfigFromAgent(agentConfig.Client.Drain)
@@ -901,6 +939,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		return nil, fmt.Errorf("invalid drain_on_shutdown config: %v", err)
 	}
 	conf.Drain = drainConfig
+
+	conf.Users = clientconfig.UsersConfigFromAgent(agentConfig.Client.Users)
 
 	return conf, nil
 }
@@ -1132,7 +1172,8 @@ func (a *Agent) setupClient() error {
 		a.consulCatalog,     // self service discovery
 		a.consulProxiesFunc, // supported Envoy versions fingerprinting
 		a.consulServices,    // workload service discovery
-		nil)
+		nil,                 // use the standard set of rpcs
+	)
 	if err != nil {
 		return fmt.Errorf("client setup failed: %v", err)
 	}

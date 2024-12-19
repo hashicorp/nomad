@@ -3,55 +3,150 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div class="boxed-section-head is-light inline-definitions">
-  Version #{{this.version.number}}
-  <span class="bumper-left pair is-faded">
-    <span class="term">Stable</span>
-    <span class="badge is-light is-faded" data-test-version-stability><code>{{this.version.stable}}</code></span>
-  </span>
-  <span class="pair is-faded">
-    <span class="term">Submitted</span>
-    <span data-test-version-submit-time class="submit-date">{{format-ts this.version.submitTime}}</span>
-  </span>
-  <div class="pull-right">
-    {{#unless this.isCurrent}}
-      {{#if (can "run job" namespace=this.version.job.namespace)}}
-        <TwoStepButton
-          data-test-revert-to
-          @classes={{hash
-            idleButton="is-warning is-outlined"
-            confirmButton="is-warning"}}
-          @alignRight={{true}}
-          @idleText="Revert Version"
-          @cancelText="Cancel"
-          @confirmText="Yes, Revert Version"
-          @confirmationMessage="Are you sure you want to revert to this version?"
-          @inlineText={{true}}
-          @fadingBackground={{true}}
-          @awaitingConfirmation={{this.revertTo.isRunning}}
-          @onConfirm={{perform this.revertTo}} />
-      {{else}}
-        <button
-          data-test-revert-to
-          type="button"
-          class="button is-warning is-outlined is-small tooltip"
-          disabled
-          aria-label="You don’t have permission to revert"
-        >
-          Revert
-        </button>
-      {{/if}}
-    {{/unless}}
-
-    {{#if this.version.diff}}
-      <button class="button is-light is-small is-fixed-width" {{action "toggleDiff"}} type="button">{{this.changeCount}} {{pluralize "Change" this.changeCount}}</button>
-    {{else}}
-      <div class="is-fixed-width is-size-7 has-text-centered">No Changes</div>
+{{did-update this.versionsDidUpdate this.diff}}
+<section class="job-version" data-test-job-version={{this.version.number}}>
+  <div class="boxed-section {{if this.version.versionTag "tagged"}}" data-test-tagged-version={{if this.version.versionTag "true" "false"}}>
+    <header class="boxed-section-head is-light inline-definitions">
+      Version #{{this.version.number}}
+      <span class="bumper-left pair is-faded">
+        <span class="term">Stable</span>
+        <span class="badge is-light is-faded" data-test-version-stability><code>{{this.version.stable}}</code></span>
+      </span>
+      <span class="pair is-faded">
+        <span class="term">Submitted</span>
+        <span data-test-version-submit-time class="submit-date">{{format-ts this.version.submitTime}}</span>
+      </span>
+      <div class="pull-right">
+        {{#if this.diff}}
+          <Hds::Button
+            class="is-light is-small"
+            @size="small"
+            @text="{{if this.isOpen "Hide" "See"}} {{this.changeCount}} {{pluralize "Change" this.changeCount}}"
+            @color="tertiary"
+            @icon={{if this.isOpen "chevron-up" "chevron-down"}}
+            @iconPosition="trailing"
+            {{on "click" (action "toggleDiff")}}
+          />
+        {{else}}
+          <div class="is-fixed-width is-size-7 has-text-centered">No Changes</div>
+        {{/if}}
+      </div>
+    </header>
+    {{#if this.isOpen}}
+      <div class="boxed-section-body is-dark">
+        <JobDiff @diff={{this.diff}} @verbose={{this.verbose}} />
+      </div>
     {{/if}}
+    <footer class="boxed-section-foot {{if this.isEditing "editing"}}">
+      {{#if this.isEditing}}
+        <form class="tag-options" autocomplete="off" {{on "submit" (action "saveTag")}}>
+          {{! template-lint-disable no-down-event-binding }}
+          <Hds::Form::TextInput::Field
+            data-test-tag-name-input
+            @label="Tag Name"
+            placeholder="Tag Name"
+            @value={{this.editableTag.name}}
+            @size="small"
+            {{on "input" (action (mut this.editableTag.name) value="target.value") }}
+            {{on "keydown" (action this.handleKeydown)}}
+            autofocus
+          />
+          <Hds::Form::TextInput::Field
+            data-test-tag-description-input
+            @label="Tag Description"
+            placeholder="Tag Description"
+            @value={{this.editableTag.description}}
+            {{on "input" (action (mut this.editableTag.description) value="target.value") }}
+            {{on "keydown" (action this.handleKeydown)}}
+          />
+          {{! template-lint-enable no-down-event-binding }}
+          <Hds::Button data-test-tag-save-button type="submit" @text="Save" @color="primary" @size="small" @isInline={{true}} {{on "click" this.saveTag}} />
+          <Hds::Button @text="Cancel" @color="secondary" @size="small" @isInline={{true}} {{on "click" (action "cancelEditTag")}} />
+          {{#if this.version.versionTag}}
+            <Hds::Button data-test-tag-delete-button @text="Delete" @color="critical" @size="small" @isInline={{true}} {{on "click" (action "deleteTag")}} />
+          {{/if}}
+        </form>
+
+      {{else}}
+        <div class="tag-options">
+          {{#if this.version.versionTag}}
+            <Hds::Button class="tag-button-primary" @text={{this.version.versionTag.name}} @color="primary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
+          {{else}}
+            <Hds::Button class="tag-button-secondary" @text="Tag this version" @color="secondary" @size="small" @icon="tag" @iconPosition="leading" @isInline={{true}} {{on "click" (action "toggleEditTag")}} />
+          {{/if}}
+          <span class="tag-description" title={{this.version.versionTag.description}}>
+              {{this.version.versionTag.description}}
+          </span>
+        </div>
+        <div class="version-options">
+          {{#unless this.isCurrent}}
+            {{#if (can "run job" namespace=this.version.job.namespace)}}
+              {{#if (eq this.cloneButtonStatus 'idle')}}
+                <Hds::Button
+                  data-test-clone-and-edit
+                  @text="Clone and Edit"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action (mut this.cloneButtonStatus) "confirming")}}
+                />
+
+                <TwoStepButton
+                  data-test-revert-to
+                  @classes={{hash
+                    idleButton="is-warning is-outlined"
+                    confirmButton="is-warning"}}
+                  @fadingBackground={{true}}
+                  @idleText="Revert Version"
+                  @cancelText="Cancel"
+                  @confirmText="Yes, Revert Version"
+                  @confirmationMessage="Are you sure you want to revert to this version?"
+                  @inlineText={{true}}
+                  @size="small"
+                  @awaitingConfirmation={{this.revertTo.isRunning}}
+                  @onConfirm={{perform this.revertTo}}
+                />
+              {{else if (eq this.cloneButtonStatus 'confirming')}}
+                <Hds::Button
+                  data-test-cancel-clone
+                  @text="Cancel"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action (mut this.cloneButtonStatus) "idle")}}
+                />
+                <Hds::Button
+                  data-test-clone-as-new-version
+                  @text="Clone as New Version of {{this.version.job.name}}"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action this.cloneAsNewVersion)}}
+                />
+                <Hds::Button
+                  data-test-clone-as-new-job
+                  @text="Clone as New Job"
+                  @color="secondary"
+                  @size="small"
+                  @isInline={{true}}
+                  {{on "click" (action this.cloneAsNewJob)}}
+                />
+              {{/if}}
+            {{else}}
+              <Hds::Button
+                data-test-revert-to
+                class="is-fixed-width"
+                disabled
+                @size="small"
+                @color="secondary"
+                @isInline={{true}}
+                @text="Revert"
+                title="You don’t have permission to revert"
+              />
+            {{/if}}
+          {{/unless}}
+        </div>
+      {{/if}}
+    </footer>
   </div>
-</div>
-{{#if this.isOpen}}
-  <div class="boxed-section-body is-dark">
-    <JobDiff @diff={{this.version.diff}} @verbose={{this.verbose}} />
-  </div>
-{{/if}}
+</section>

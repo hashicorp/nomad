@@ -63,6 +63,7 @@ func (tr *TaskRunner) initHooks() {
 	alloc := tr.Alloc()
 	tr.runnerHooks = []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
+		newDynamicUsersHook(tr.killCtx, tr.driverCapabilities.DynamicWorkloadUsers, tr.logger, tr.users),
 		newTaskDirHook(tr, hookLogger),
 		newIdentityHook(tr, hookLogger),
 		newLogMonHook(tr, hookLogger),
@@ -144,9 +145,11 @@ func (tr *TaskRunner) initHooks() {
 	if task.UsesConnect() {
 		tg := tr.Alloc().Job.LookupTaskGroup(tr.Alloc().TaskGroup)
 
+		consulCfg := tr.clientConfig.GetConsulConfigs(tr.logger)[task.GetConsulClusterName(tg)]
+
 		// Enable the Service Identity hook only if the Nomad client is configured
 		// with a consul token, indicating that Consul ACLs are enabled
-		if tr.clientConfig.GetConsulConfigs(tr.logger)[task.GetConsulClusterName(tg)].Token != "" {
+		if consulCfg != nil && consulCfg.Token != "" {
 			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
 				alloc:              tr.Alloc(),
 				task:               tr.Task(),
@@ -161,14 +164,15 @@ func (tr *TaskRunner) initHooks() {
 			tr.runnerHooks = append(tr.runnerHooks,
 				newEnvoyVersionHook(newEnvoyVersionHookConfig(alloc, tr.consulProxiesClientFunc, hookLogger)),
 				newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc,
-					tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)],
+					consulCfg,
 					consulNamespace,
+					tr.consulServiceClient,
+					tr.clientConfig.Node,
 					hookLogger)),
 			)
 		} else if task.Kind.IsConnectNative() {
 			tr.runnerHooks = append(tr.runnerHooks, newConnectNativeHook(
-				newConnectNativeHookConfig(alloc,
-					tr.clientConfig.ConsulConfigs[task.GetConsulClusterName(tg)], hookLogger),
+				newConnectNativeHookConfig(alloc, consulCfg, hookLogger),
 			))
 		}
 	}
@@ -187,6 +191,11 @@ func (tr *TaskRunner) initHooks() {
 	// hook.
 	if tr.driverCapabilities.RemoteTasks {
 		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
+	}
+
+	// If this task has a pause schedule, initialize the pause (Enterprise)
+	if task.Schedule != nil {
+		tr.runnerHooks = append(tr.runnerHooks, newPauseHook(tr, hookLogger))
 	}
 }
 
@@ -273,9 +282,19 @@ func (tr *TaskRunner) prestart() error {
 			tr.logger.Trace("running prestart hook", "name", name, "start", start)
 		}
 
+		// If the operator has disabled hook metrics, then don't call the time
+		// function to save 30ns per hook.
+		var hookExecutionStart time.Time
+
+		if !tr.clientConfig.DisableAllocationHookMetrics {
+			hookExecutionStart = time.Now()
+		}
+
 		// Run the prestart hook
 		var resp interfaces.TaskPrestartResponse
-		if err := pre.Prestart(joinedCtx, &req, &resp); err != nil {
+		err := pre.Prestart(joinedCtx, &req, &resp)
+		tr.hookStatsHandler.Emit(hookExecutionStart, name, "prestart", err)
+		if err != nil {
 			tr.emitHookError(err, name)
 			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}

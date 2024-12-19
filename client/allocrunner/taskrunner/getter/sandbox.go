@@ -24,8 +24,8 @@ type Sandbox struct {
 	ac     *config.ArtifactConfig
 }
 
-func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact) error {
-	s.logger.Debug("get", "source", artifact.GetterSource, "destination", artifact.RelativeDest)
+func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact, user string) error {
+	s.logger.Debug("get", "source", artifact.GetterSource, "destination", artifact.RelativeDest, "user", user)
 
 	source, err := getURL(env, artifact)
 	if err != nil {
@@ -38,24 +38,27 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 	}
 
 	mode := getMode(artifact)
+	insecure := isInsecure(artifact)
 	headers := getHeaders(env, artifact)
 	allocDir, taskDir := getWritableDirs(env)
 
 	params := &parameters{
 		// downloader configuration
-		HTTPReadTimeout:             s.ac.HTTPReadTimeout,
-		HTTPMaxBytes:                s.ac.HTTPMaxBytes,
-		GCSTimeout:                  s.ac.GCSTimeout,
-		GitTimeout:                  s.ac.GitTimeout,
-		HgTimeout:                   s.ac.HgTimeout,
-		S3Timeout:                   s.ac.S3Timeout,
-		DecompressionLimitFileCount: s.ac.DecompressionLimitFileCount,
-		DecompressionLimitSize:      s.ac.DecompressionLimitSize,
-		DisableFilesystemIsolation:  s.ac.DisableFilesystemIsolation,
-		SetEnvironmentVariables:     s.ac.SetEnvironmentVariables,
+		HTTPReadTimeout:               s.ac.HTTPReadTimeout,
+		HTTPMaxBytes:                  s.ac.HTTPMaxBytes,
+		GCSTimeout:                    s.ac.GCSTimeout,
+		GitTimeout:                    s.ac.GitTimeout,
+		HgTimeout:                     s.ac.HgTimeout,
+		S3Timeout:                     s.ac.S3Timeout,
+		DecompressionLimitFileCount:   s.ac.DecompressionLimitFileCount,
+		DecompressionLimitSize:        s.ac.DecompressionLimitSize,
+		DisableFilesystemIsolation:    s.ac.DisableFilesystemIsolation,
+		FilesystemIsolationExtraPaths: s.ac.FilesystemIsolationExtraPaths,
+		SetEnvironmentVariables:       s.ac.SetEnvironmentVariables,
 
 		// artifact configuration
 		Mode:        mode,
+		Insecure:    insecure,
 		Source:      source,
 		Destination: destination,
 		Headers:     headers,
@@ -63,10 +66,13 @@ func (s *Sandbox) Get(env interfaces.EnvReplacer, artifact *structs.TaskArtifact
 		// task filesystem
 		AllocDir: allocDir,
 		TaskDir:  taskDir,
+		User:     user,
+		Chown:    artifact.Chown,
 	}
 
 	if err = s.runCmd(params); err != nil {
 		return err
 	}
+
 	return nil
 }

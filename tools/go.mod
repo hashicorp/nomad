@@ -1,12 +1,10 @@
 module github.com/hashicorp/nomad/tools
 
-go 1.21
-
-toolchain go1.21.0
+go 1.23
 
 require (
-	github.com/hashicorp/go-set/v2 v2.1.0
-	github.com/shoenig/test v0.6.7
+	github.com/hashicorp/go-set/v3 v3.0.0-alpha.1
+	github.com/shoenig/test v1.8.2
 )
 
-require github.com/google/go-cmp v0.5.9 // indirect
+require github.com/google/go-cmp v0.6.0 // indirect

@@ -6,9 +6,10 @@ package procstats
 import (
 	"time"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/mitchellh/go-ps"
 )
 
 var (
@@ -36,7 +37,7 @@ type ProcessStats interface {
 // A ProcessList is anything (i.e. a task driver) that implements ListProcesses
 // for gathering the list of process IDs associated with a task.
 type ProcessList interface {
-	ListProcesses() *set.Set[ProcessID]
+	ListProcesses() set.Collection[ProcessID]
 }
 
 // Aggregate combines a given ProcUsages with the Tracker for the Client.
@@ -79,4 +80,42 @@ func Aggregate(systemStats *cpustats.Tracker, procStats ProcUsages) *drivers.Tas
 		Timestamp:     ts,
 		Pids:          procStats,
 	}
+}
+
+func list(executorPID int, processes func() ([]ps.Process, error)) set.Collection[ProcessID] {
+	processFamily := set.From([]ProcessID{executorPID})
+
+	allPids, err := processes()
+	if err != nil {
+		return processFamily
+	}
+
+	// A mapping of pids to their parent pids. It is used to build the process
+	// tree of the executing task
+	pidsRemaining := make(map[int]int, len(allPids))
+	for _, pid := range allPids {
+		pidsRemaining[pid.Pid()] = pid.PPid()
+	}
+
+	for {
+		// flag to indicate if we have found a match
+		foundNewPid := false
+
+		for pid, ppid := range pidsRemaining {
+			childPid := processFamily.Contains(ppid)
+
+			// checking if the pid is a child of any of the parents
+			if childPid {
+				processFamily.Insert(pid)
+				delete(pidsRemaining, pid)
+				foundNewPid = true
+			}
+		}
+
+		if !foundNewPid {
+			break
+		}
+	}
+
+	return processFamily
 }

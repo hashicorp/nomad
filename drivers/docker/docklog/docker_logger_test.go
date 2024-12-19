@@ -8,11 +8,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	"github.com/docker/docker/client"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/ci"
@@ -33,48 +38,39 @@ func testContainerDetails() (image string, imageName string, imageTag string) {
 func TestDockerLogger_Success(t *testing.T) {
 	ci.Parallel(t)
 	ctu.DockerCompatible(t)
-
-	require := require.New(t)
+	ctx := context.Background()
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
 
-	client, err := docker.NewClientFromEnv()
+	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		t.Skip("docker unavailable:", err)
 	}
 
-	if img, err := client.InspectImage(containerImage); err != nil || img == nil {
+	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		err = client.PullImage(docker.PullImageOptions{
-			Repository: containerImageName,
-			Tag:        containerImageTag,
-		}, docker.AuthConfiguration{})
-		require.NoError(err, "failed to pull image")
+		out, err := client.ImagePull(ctx, fmt.Sprintf("%s:%s", containerImageName, containerImageTag), image.PullOptions{})
+		must.NoError(t, err, must.Sprint("failed to pull image"))
+		defer out.Close()
+		io.Copy(os.Stdout, out)
 	}
 
-	containerConf := docker.CreateContainerOptions{
-		Config: &docker.Config{
-			Cmd: []string{
-				"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
-			},
-			Image: containerImage,
+	container, err := client.ContainerCreate(ctx, &containerapi.Config{
+		Cmd: []string{
+			"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
 		},
-		Context: context.Background(),
-	}
+		Image: containerImage,
+	}, nil, nil, nil, "")
+	must.NoError(t, err)
 
-	container, err := client.CreateContainer(containerConf)
-	require.NoError(err)
+	cleanup := func() { client.ContainerRemove(ctx, container.ID, containerapi.RemoveOptions{Force: true}) }
+	t.Cleanup(cleanup)
 
-	defer client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    container.ID,
-		Force: true,
-	})
-
-	err = client.StartContainer(container.ID, nil)
-	require.NoError(err)
+	err = client.ContainerStart(ctx, container.ID, containerapi.StartOptions{})
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		container, err = client.InspectContainer(container.ID)
+		container, err := client.ContainerInspect(ctx, container.ID)
 		if err != nil {
 			return false, err
 		}
@@ -83,7 +79,7 @@ func TestDockerLogger_Success(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 
 	stdout := &noopCloser{bytes.NewBuffer(nil)}
@@ -92,7 +88,7 @@ func TestDockerLogger_Success(t *testing.T) {
 	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
 	dl.stdout = stdout
 	dl.stderr = stderr
-	require.NoError(dl.Start(&StartOpts{
+	must.NoError(t, dl.Start(&StartOpts{
 		ContainerID: container.ID,
 	}))
 
@@ -107,56 +103,44 @@ func TestDockerLogger_Success(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 }
 
 func TestDockerLogger_Success_TTY(t *testing.T) {
 	ci.Parallel(t)
 	ctu.DockerCompatible(t)
-
-	require := require.New(t)
+	ctx := context.Background()
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
 
-	client, err := docker.NewClientFromEnv()
+	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		t.Skip("docker unavailable:", err)
 	}
 
-	if img, err := client.InspectImage(containerImage); err != nil || img == nil {
+	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		err = client.PullImage(docker.PullImageOptions{
-			Repository: containerImageName,
-			Tag:        containerImageTag,
-		}, docker.AuthConfiguration{})
-		require.NoError(err, "failed to pull image")
+		_, err = client.ImagePull(ctx, fmt.Sprintf("%s:%s", containerImageName, containerImageTag), image.PullOptions{})
+		must.NoError(t, err, must.Sprint("failed to pull image"))
 	}
 
-	containerConf := docker.CreateContainerOptions{
-		Config: &docker.Config{
-			Cmd: []string{
-				"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
-			},
-			Image: containerImage,
-			Tty:   true,
+	container, err := client.ContainerCreate(ctx, &containerapi.Config{
+		Cmd: []string{
+			"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
 		},
-		Context: context.Background(),
-	}
+		Image: containerImage,
+		Tty:   true,
+	}, nil, nil, nil, "")
+	must.NoError(t, err)
 
-	container, err := client.CreateContainer(containerConf)
-	require.NoError(err)
+	defer client.ContainerRemove(ctx, container.ID, containerapi.RemoveOptions{Force: true})
 
-	defer client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    container.ID,
-		Force: true,
-	})
-
-	err = client.StartContainer(container.ID, nil)
-	require.NoError(err)
+	err = client.ContainerStart(ctx, container.ID, containerapi.StartOptions{})
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		container, err = client.InspectContainer(container.ID)
+		container, err := client.ContainerInspect(ctx, container.ID)
 		if err != nil {
 			return false, err
 		}
@@ -165,7 +149,7 @@ func TestDockerLogger_Success_TTY(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 
 	stdout := &noopCloser{bytes.NewBuffer(nil)}
@@ -174,7 +158,7 @@ func TestDockerLogger_Success_TTY(t *testing.T) {
 	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
 	dl.stdout = stdout
 	dl.stderr = stderr
-	require.NoError(dl.Start(&StartOpts{
+	must.NoError(t, dl.Start(&StartOpts{
 		ContainerID: container.ID,
 		TTY:         true,
 	}))
@@ -190,73 +174,64 @@ func TestDockerLogger_Success_TTY(t *testing.T) {
 
 		return true, nil
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 }
 
-func echoToContainer(t *testing.T, client *docker.Client, id string, line string) {
-	op := docker.CreateExecOptions{
-		Container: id,
+func echoToContainer(t *testing.T, client *client.Client, id string, line string) {
+	ctx := context.Background()
+	op := containerapi.ExecOptions{
 		Cmd: []string{
 			"/bin/sh", "-c",
 			fmt.Sprintf("echo %s >>~/docklog", line),
 		},
 	}
 
-	exec, err := client.CreateExec(op)
-	require.NoError(t, err)
-	require.NoError(t, client.StartExec(exec.ID, docker.StartExecOptions{Detach: true}))
+	exec, err := client.ContainerExecCreate(ctx, id, op)
+	must.NoError(t, err)
+	must.NoError(t, client.ContainerExecStart(ctx, exec.ID, containerapi.ExecStartOptions{Detach: true}))
 }
 
 func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 	ci.Parallel(t)
 	ctu.DockerCompatible(t)
+	ctx := context.Background()
 
 	containerImage, containerImageName, containerImageTag := testContainerDetails()
 
-	client, err := docker.NewClientFromEnv()
+	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		t.Skip("docker unavailable:", err)
 	}
 
-	if img, err := client.InspectImage(containerImage); err != nil || img == nil {
+	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		err = client.PullImage(docker.PullImageOptions{
-			Repository: containerImageName,
-			Tag:        containerImageTag,
-		}, docker.AuthConfiguration{})
+		_, err = client.ImagePull(ctx, fmt.Sprintf("%s:%s", containerImageName, containerImageTag), image.PullOptions{})
 		require.NoError(t, err, "failed to pull image")
 	}
 
-	containerConf := docker.CreateContainerOptions{
-		Config: &docker.Config{
+	container, err := client.ContainerCreate(ctx,
+		&containerapi.Config{
 			Cmd: []string{
 				"sh", "-c", "touch ~/docklog; tail -f ~/docklog",
 			},
 			Image: containerImage,
 		},
-		HostConfig: &docker.HostConfig{
-			LogConfig: docker.LogConfig{
+		&containerapi.HostConfig{
+			LogConfig: containerapi.LogConfig{
 				Type:   "none",
 				Config: map[string]string{},
 			},
-		},
-		Context: context.Background(),
-	}
+		}, nil, nil, "")
+	must.NoError(t, err)
 
-	container, err := client.CreateContainer(containerConf)
-	require.NoError(t, err)
+	defer client.ContainerRemove(ctx, container.ID, containerapi.RemoveOptions{Force: true})
 
-	defer client.RemoveContainer(docker.RemoveContainerOptions{
-		ID:    container.ID,
-		Force: true,
-	})
-
-	err = client.StartContainer(container.ID, nil)
-	require.NoError(t, err)
+	err = client.ContainerStart(ctx, container.ID, containerapi.StartOptions{})
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
-		container, err = client.InspectContainer(container.ID)
+		container, err := client.ContainerInspect(ctx, container.ID)
 		if err != nil {
 			return false, err
 		}
@@ -265,7 +240,7 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 		}
 		return true, nil
 	}, func(err error) {
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	stdout := &noopCloser{bytes.NewBuffer(nil)}
@@ -274,14 +249,14 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 	dl := NewDockerLogger(testlog.HCLogger(t)).(*dockerLogger)
 	dl.stdout = stdout
 	dl.stderr = stderr
-	require.NoError(t, dl.Start(&StartOpts{
+	must.NoError(t, dl.Start(&StartOpts{
 		ContainerID: container.ID,
 	}))
 
 	select {
 	case <-dl.doneCh:
 	case <-time.After(10 * time.Second):
-		require.Fail(t, "timeout while waiting for docker_logging to terminate")
+		t.Fatal("timeout while waiting for docker_logging to terminate")
 	}
 }
 
@@ -322,29 +297,20 @@ func TestIsLoggingTerminalError(t *testing.T) {
 
 	terminalErrs := []error{
 		errors.New("docker returned: configured logging driver does not support reading"),
-		&docker.Error{
-			Status:  501,
-			Message: "configured logging driver does not support reading",
-		},
-		&docker.Error{
-			Status:  501,
-			Message: "not implemented",
-		},
+		errors.New("configured logging driver does not support reading"),
+		errors.New("not implemented"),
 	}
 
 	for _, err := range terminalErrs {
-		require.Truef(t, isLoggingTerminalError(err), "error should be terminal: %v", err)
+		must.True(t, isLoggingTerminalError(err), must.Sprintf("error should be terminal: %v", err))
 	}
 
 	nonTerminalErrs := []error{
 		errors.New("not expected"),
-		&docker.Error{
-			Status:  503,
-			Message: "Service Unavailable",
-		},
+		errors.New("Service unavailable"),
 	}
 
 	for _, err := range nonTerminalErrs {
-		require.Falsef(t, isLoggingTerminalError(err), "error should be terminal: %v", err)
+		must.False(t, isLoggingTerminalError(err), must.Sprintf("error should be terminal: %v", err))
 	}
 }

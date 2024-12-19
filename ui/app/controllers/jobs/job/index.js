@@ -11,11 +11,15 @@ import WithNamespaceResetting from 'nomad-ui/mixins/with-namespace-resetting';
 import classic from 'ember-classic-decorator';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
+import { restartableTask, timeout } from 'ember-concurrency';
+import Ember from 'ember';
+
 @classic
 export default class IndexController extends Controller.extend(
   WithNamespaceResetting
 ) {
   @service system;
+  @service watchList;
 
   queryParams = [
     {
@@ -61,5 +65,64 @@ export default class IndexController extends Controller.extend(
   @action
   setStatusMode(mode) {
     this.statusMode = mode;
+  }
+
+  @tracked
+  childJobsController = new AbortController();
+
+  childJobsQuery(params) {
+    this.childJobsController.abort();
+    this.childJobsController = new AbortController();
+
+    return this.store
+      .query('job', params, {
+        adapterOptions: {
+          abortController: this.childJobsController,
+        },
+      })
+      .catch((e) => {
+        if (e.name !== 'AbortError') {
+          console.log('error fetching job ids', e);
+        }
+        return;
+      });
+  }
+
+  @tracked childJobs = [];
+
+  resetQueryIndex({ id, namespace }) {
+    this.watchList.setIndexFor(`child-jobs-for-${id}-${namespace}`, 1);
+  }
+
+  @restartableTask *watchChildJobs(
+    { id, namespace },
+    throttle = Ember.testing ? 0 : 2000
+  ) {
+    this.childJobs = [];
+    while (true) {
+      let params = {
+        filter: `ParentID == "${id}"`,
+        namespace,
+        include_children: true,
+      };
+      params.index = this.watchList.getIndexFor(
+        `child-jobs-for-${id}-${namespace}`
+      );
+
+      const childJobs = yield this.childJobsQuery(params);
+      if (childJobs) {
+        if (childJobs.meta.index) {
+          this.watchList.setIndexFor(
+            `child-jobs-for-${id}-${namespace}`,
+            childJobs.meta.index
+          );
+        }
+        this.childJobs = childJobs;
+        yield timeout(throttle);
+      }
+      if (Ember.testing) {
+        break;
+      }
+    }
   }
 }

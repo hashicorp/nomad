@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-set/v3"
 )
 
 // An ID is representative of a non-negative identifier of something like
@@ -106,9 +106,16 @@ func From[T, U ID](slice []U) *Set[T] {
 	return result
 }
 
+// Difference returns the set of elements in s but not in other.
 func (s *Set[T]) Difference(other *Set[T]) *Set[T] {
 	diff := s.items.Difference(other.items)
 	return &Set[T]{items: diff.(*set.Set[T])}
+}
+
+// Intersect returns the set of elements that are in both s and other.
+func (s *Set[T]) Intersect(other *Set[T]) *Set[T] {
+	intersection := s.items.Intersect(other.items)
+	return &Set[T]{items: intersection.(*set.Set[T])}
 }
 
 // Contains returns whether the Set contains item.
@@ -177,7 +184,7 @@ func (s *Set[T]) String() string {
 // ForEach iterates the elements in the set and applies f. Iteration stops
 // if the result of f is a non-nil error.
 func (s *Set[T]) ForEach(f func(id T) error) error {
-	for _, id := range s.items.Slice() {
+	for id := range s.items.Items() {
 		if err := f(id); err != nil {
 			return err
 		}
@@ -192,7 +199,7 @@ func (s *Set[T]) Size() int {
 
 // Empty returns whether the set is empty.
 func (s *Set[T]) Empty() bool {
-	if s == nil {
+	if s == nil || s.items == nil {
 		return true
 	}
 	return s.items.Empty()

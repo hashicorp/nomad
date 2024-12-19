@@ -16,11 +16,9 @@ import (
 // versions of Consul CE
 func usable(v, minimum *version.Version) bool {
 	switch {
-	case v.Prerelease() != "":
+	case v.LessThan(minimum):
 		return false
 	case v.Metadata() != "":
-		return false
-	case v.LessThan(minimum):
 		return false
 	default:
 		return true

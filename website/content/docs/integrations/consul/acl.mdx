@@ -18,7 +18,9 @@ running in Nomad.
 
 Nomad agents need access to Consul in order to register themselves in the
 service catalog and discover other Nomad agents via service discovery for
-automatic clustering. Nomad servers also create [configuration
+automatic clustering. Nomad clients use Consul tokens from Workload Identity to
+register services and checks but need permissions on their own token to
+deregister. Nomad servers also create [configuration
 entries][consul_config_entry] for Consul Service Mesh, so the specific
 permissions vary slightly between Nomad servers and clients. The following
 Consul ACL policies represent the minimal permissions Nomad servers and clients
@@ -33,13 +35,14 @@ agent_prefix "" {
 }
 
 node_prefix "" {
-  policy = "read"
+  policy = "write"
 }
 
 service_prefix "" {
   policy = "write"
 }
 
+acl  = "write"
 mesh = "write"
 ```
 
@@ -52,7 +55,7 @@ agent_prefix "" {
 }
 
 node_prefix "" {
-  policy = "read"
+  policy = "write"
 }
 
 service_prefix "" {
@@ -104,6 +107,12 @@ The auth method configuration points to Nomad's [JSON Web Key Set (JWKS)
 URL][nomad_jwks_url]. Consul servers call this URL to retrieve the public keys
 Nomad uses to sign workload identities. With these keys, Consul is able to
 validate their origin and confirm that they were actually created by Nomad.
+
+Nomad cannot recreate Consul tokens that have been deleted. The auth method
+configuration should never set the `MaxTokenTTL` field. Consul tokens are
+local to the Consul datacenter unless you set `TokenLocality: "global"` in the
+auth method. We recommend using local tokens, which is the default. Global tokens
+require that the primary Consul datacenter is available when allocations start.
 
 <CodeBlockConfig highlight="2" filename="auth-method.json">
 
@@ -348,10 +357,10 @@ You may also host the JWKS JSON response from Nomad in an external location
 that is reachable by the Consul servers, and use that address as the value for
 `JWKSURL`.
 
-It is important to remember that the Nomad keys **are rotated periodically**,
-so both approaches should be automated and done continually. The rotation
-frequency is controlled by the [`server.root_key_rotation_threshold`][]
-configuration of the Nomad servers.
+It is important to remember that the Nomad keys **are rotated periodically**, so
+both approaches should be automated and done continually. The rotation frequency
+is controlled by the [`server.root_key_rotation_threshold`][] configuration of
+the Nomad servers. Keys will be prepublished at half the rotation threshold.
 
 ### Additional References
 
@@ -385,8 +394,8 @@ service_prefix "" {
 
 <Note title="Deprecation Warning">
 
-This legacy workflow will be removed in Nomad 1.9. Before upgrading to Nomad 1.9
-you will need to have configured authentication with Consul as described in
+This legacy workflow will be removed in Nomad 1.10. Before upgrading to Nomad 1.10,
+you need to configure authentication with Consul as described in
 [Nomad Workload Identities](#nomad-workload-identities).
 
 </Note>

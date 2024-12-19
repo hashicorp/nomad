@@ -227,11 +227,25 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
 
-    await this.store.findAll('job');
+    const fullId = JSON.stringify([mirageJob.name, 'default']);
+    await this.store.findRecord('job', fullId);
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    this.server.db.jobs.update(mirageJob.id, {
+      activeDeployment: true,
+      noDeployments: true,
+    });
     const deployment = await job.get('latestDeployment');
 
+    server.create('allocation', {
+      jobId: mirageJob.id,
+      deploymentId: deployment.id,
+      clientStatus: 'running',
+      deploymentStatus: {
+        Healthy: true,
+        Canary: true,
+      },
+    });
     this.setProperties(commonProperties(job));
     await render(commonTemplate);
 
@@ -259,9 +273,25 @@ module('Integration | Component | job-page/service', function (hooks) {
     this.server.create('node');
     const mirageJob = makeMirageJob(this.server, { activeDeployment: true });
 
-    await this.store.findAll('job');
+    const fullId = JSON.stringify([mirageJob.name, 'default']);
+    await this.store.findRecord('job', fullId);
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
+    this.server.db.jobs.update(mirageJob.id, {
+      activeDeployment: true,
+      noDeployments: true,
+    });
+    const deployment = await job.get('latestDeployment');
+
+    server.create('allocation', {
+      jobId: mirageJob.id,
+      deploymentId: deployment.id,
+      clientStatus: 'running',
+      deploymentStatus: {
+        Healthy: true,
+        Canary: true,
+      },
+    });
 
     this.setProperties(commonProperties(job));
     await render(commonTemplate);

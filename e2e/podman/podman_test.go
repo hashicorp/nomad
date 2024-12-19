@@ -42,7 +42,7 @@ func findService(t *testing.T, name string) (string, int) {
 
 func runRegistry(t *testing.T) {
 	_, regCleanup := jobs3.Submit(t,
-		"./input/registry.hcl",
+		"../docker_registry/registry.hcl",
 		jobs3.Timeout(40*time.Second), // pulls an image
 	)
 	t.Cleanup(regCleanup)
@@ -53,7 +53,7 @@ func runRegistry(t *testing.T) {
 
 	// run the sed job to fixup the auth.json file with correct address
 	_, sedCleanup := jobs3.Submit(t,
-		"./input/registry-auths.hcl",
+		"../docker_registry/registry-auths.hcl",
 		jobs3.Var("registry_address", address),
 		jobs3.Var("user", "root"),
 		jobs3.Var("helper_dir", "/usr/local/bin"),

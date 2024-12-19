@@ -4,6 +4,7 @@
 package allocrunner
 
 import (
+	"context"
 	"fmt"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -12,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
@@ -19,33 +21,40 @@ import (
 
 type consulHook struct {
 	alloc                   *structs.Allocation
-	allocdir                *allocdir.AllocDir
+	allocdir                allocdir.Interface
 	widmgr                  widmgr.IdentityManager
 	consulConfigs           map[string]*structsc.ConsulConfig
-	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
+	consulClientConstructor consul.ConsulClientFunc
 	hookResources           *cstructs.AllocHookResources
+	envBuilder              *taskenv.Builder
 
-	logger log.Logger
+	logger           log.Logger
+	shutdownCtx      context.Context
+	shutdownCancelFn context.CancelFunc
 }
 
 type consulHookConfig struct {
 	alloc    *structs.Allocation
-	allocdir *allocdir.AllocDir
+	allocdir allocdir.Interface
 	widmgr   widmgr.IdentityManager
 
 	// consulConfigs is a map of cluster names to Consul configs
 	consulConfigs map[string]*structsc.ConsulConfig
 	// consulClientConstructor injects the function that will return a consul
 	// client (eases testing)
-	consulClientConstructor func(*structsc.ConsulConfig, log.Logger) (consul.Client, error)
+	consulClientConstructor consul.ConsulClientFunc
 
 	// hookResources is used for storing and retrieving Consul tokens
 	hookResources *cstructs.AllocHookResources
+
+	// envBuilder is used to interpolate services
+	envBuilder func() *taskenv.Builder
 
 	logger log.Logger
 }
 
 func newConsulHook(cfg consulHookConfig) *consulHook {
+	shutdownCtx, shutdownCancelFn := context.WithCancel(context.Background())
 	h := &consulHook{
 		alloc:                   cfg.alloc,
 		allocdir:                cfg.allocdir,
@@ -53,6 +62,9 @@ func newConsulHook(cfg consulHookConfig) *consulHook {
 		consulConfigs:           cfg.consulConfigs,
 		consulClientConstructor: cfg.consulClientConstructor,
 		hookResources:           cfg.hookResources,
+		envBuilder:              cfg.envBuilder(),
+		shutdownCtx:             shutdownCtx,
+		shutdownCancelFn:        shutdownCancelFn,
 	}
 	h.logger = cfg.logger.Named(h.Name())
 	return h
@@ -81,11 +93,12 @@ func (h *consulHook) Prerun() error {
 	}
 
 	var mErr *multierror.Error
-	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens); err != nil {
+	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens, h.envBuilder.Build()); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 	for _, task := range tg.Tasks {
-		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens); err != nil {
+		h.envBuilder.UpdateTask(h.alloc, task)
+		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens, h.envBuilder.Build()); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 		if err := h.prepareConsulTokensForTask(task, tg, tokens); err != nil {
@@ -150,12 +163,13 @@ func (h *consulHook) prepareConsulTokensForTask(task *structs.Task, tg *structs.
 	if _, ok = tokens[clusterName]; !ok {
 		tokens[clusterName] = make(map[string]*consulapi.ACLToken)
 	}
-	tokens[clusterName][widName] = token
+	tokenName := widName + "/" + task.Name
+	tokens[clusterName][tokenName] = token
 
 	return nil
 }
 
-func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken) error {
+func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service, tg *structs.TaskGroup, tokens map[string]map[string]*consulapi.ACLToken, env *taskenv.TaskEnv) error {
 	if len(services) == 0 {
 		return nil
 	}
@@ -174,8 +188,8 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 		}
 
 		// Find signed identity workload.
-		identity := *service.IdentityHandle()
-		jwt, err := h.widmgr.Get(identity)
+		handle := *service.IdentityHandle(env.ReplaceEnv)
+		jwt, err := h.widmgr.Get(handle)
 		if err != nil {
 			mErr = multierror.Append(mErr, fmt.Errorf(
 				"error getting signed identity for service %s: %v",
@@ -189,7 +203,7 @@ func (h *consulHook) prepareConsulTokensForServices(services []*structs.Service,
 			JWT:            jwt.JWT,
 			AuthMethodName: consulConfig.ServiceIdentityAuthMethod,
 			Meta: map[string]string{
-				"requested_by": fmt.Sprintf("nomad_service_%s", identity.WorkloadIdentifier),
+				"requested_by": fmt.Sprintf("nomad_service_%s", handle.InterpolatedWorkloadIdentifier),
 			},
 		}
 		token, err := h.getConsulToken(clusterName, req)
@@ -217,7 +231,12 @@ func (h *consulHook) getConsulToken(cluster string, req consul.JWTLoginRequest) 
 		return nil, fmt.Errorf("failed to retrieve Consul client for cluster %s: %v", cluster, err)
 	}
 
-	return client.DeriveTokenWithJWT(req)
+	t, err := client.DeriveTokenWithJWT(req)
+	if err == nil {
+		err = client.TokenPreflightCheck(h.shutdownCtx, t)
+	}
+
+	return t, err
 }
 
 func (h *consulHook) clientForCluster(cluster string) (consul.Client, error) {
@@ -238,6 +257,11 @@ func (h *consulHook) Postrun() error {
 	}
 	h.hookResources.SetConsulTokens(tokens)
 	return nil
+}
+
+// Shutdown will get called when the client is gracefully stopping.
+func (h *consulHook) Shutdown() {
+	h.shutdownCancelFn()
 }
 
 // Destroy cleans up any remaining Consul tokens if the alloc is GC'd or fails

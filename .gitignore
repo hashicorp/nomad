@@ -97,7 +97,6 @@ rkt-*
 # misc
 /ui/.sass-cache
 /ui/.eslintcache
-/ui/.storybook/preview-head.html
 /ui/connect.lock
 /ui/coverage/*
 /ui/libpeerconnection.log
@@ -135,3 +134,13 @@ e2e/remotetasks/input/ecs.vars
 
 # Tools files
 tools/missing/missing
+
+# allow security scanner file
+!scan.hcl
+
+# generated variables for upgrade tests
+enos.vars.hcl
+enos/modules/*/*.tfvars
+
+# local license files
+*.hclic

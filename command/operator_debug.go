@@ -157,7 +157,7 @@ Debug Options:
 
   -duration=<duration>
     Set the duration of the debug capture. Logs will be captured from specified servers and
-    nodes at "log-level". Defaults to 2m.
+    nodes at "log-level". Defaults to 5m.
 
   -event-index=<index>
     Specifies the index to start streaming events from. If the requested index is
@@ -177,7 +177,7 @@ Debug Options:
     duration to capture a single snapshot. Defaults to 30s.
 
   -log-level=<level>
-    The log level to monitor. Defaults to DEBUG.
+    The log level to monitor. Defaults to TRACE.
 
   -log-include-location
     Include file and line information in each log line monitored. The default
@@ -200,8 +200,8 @@ Debug Options:
 
   -pprof-interval=<pprof-interval>
     The interval between pprof collections. Set interval equal to
-    duration to capture a single snapshot. Defaults to 250ms or
-   -pprof-duration, whichever is less.
+    duration to capture a single snapshot. Defaults to 30s or
+    -pprof-duration, whichever is more.
 
   -server-id=<server1>,<server2>
     Comma separated list of Nomad server names to monitor for logs, API
@@ -359,11 +359,11 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	var nodeIDs, serverIDs string
 	var allowStale bool
 
-	flags.StringVar(&duration, "duration", "2m", "")
+	flags.StringVar(&duration, "duration", "5m", "")
 	flags.Int64Var(&eventIndex, "event-index", 0, "")
 	flags.StringVar(&eventTopic, "event-topic", "none", "")
 	flags.StringVar(&interval, "interval", "30s", "")
-	flags.StringVar(&c.logLevel, "log-level", "DEBUG", "")
+	flags.StringVar(&c.logLevel, "log-level", "TRACE", "")
 	flags.BoolVar(&c.logIncludeLocation, "log-include-location", true, "")
 	flags.IntVar(&c.maxNodes, "max-nodes", 10, "")
 	flags.StringVar(&c.nodeClass, "node-class", "", "")
@@ -372,7 +372,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	flags.BoolVar(&allowStale, "stale", false, "")
 	flags.StringVar(&output, "output", "", "")
 	flags.StringVar(&pprofDuration, "pprof-duration", "1s", "")
-	flags.StringVar(&pprofInterval, "pprof-interval", "250ms", "")
+	flags.StringVar(&pprofInterval, "pprof-interval", "30s", "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
 
 	c.consul = &external{tls: &api.TLSConfig{}}
@@ -439,7 +439,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Error parsing pprof-interval: %s: %s", pprofInterval, err.Error()))
 		return 1
 	}
-	if pi.Seconds() > pd.Seconds() {
+	if pi.Seconds() < pd.Seconds() {
 		pi = pd
 	}
 	c.pprofInterval = pi
@@ -1034,29 +1034,38 @@ func (c *OperatorDebugCommand) collectPprof(path, id string, client *api.Client,
 		}
 	}
 
-	// goroutine debug type 1 = legacy text format for human readable output
+	// goroutine debug type 1 = goroutine in pprof text format (includes a count
+	// for each identical stack, pprof labels)
 	opts.Debug = 1
-	c.savePprofProfile(path, "goroutine", opts, client)
+	c.savePprofProfile(path, "goroutine", opts, client, interval)
 
-	// goroutine debug type 2 = goroutine stacks in panic format
+	// goroutine debug type 2 = goroutine stacks in panic format (includes a
+	// stack for each goroutine, wait reason, no pprof labels)
 	opts.Debug = 2
-	c.savePprofProfile(path, "goroutine", opts, client)
+	c.savePprofProfile(path, "goroutine", opts, client, interval)
 
 	// Reset to pprof binary format
 	opts.Debug = 0
 
-	c.savePprofProfile(path, "goroutine", opts, client)    // Stack traces of all current goroutines
-	c.savePprofProfile(path, "trace", opts, client)        // A trace of execution of the current program
-	c.savePprofProfile(path, "heap", opts, client)         // A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.
-	c.savePprofProfile(path, "allocs", opts, client)       // A sampling of all past memory allocations
-	c.savePprofProfile(path, "threadcreate", opts, client) // Stack traces that led to the creation of new OS threads
+	// Stack traces of all current goroutines, binary format for `go tool pprof`
+	c.savePprofProfile(path, "goroutine", opts, client, interval)
+
+	// A trace of execution of the current program
+	c.savePprofProfile(path, "trace", opts, client, interval)
+
+	// A sampling of memory allocations of live objects. You can specify
+	// the gc GET parameter to run GC before taking the heap sample.
+	c.savePprofProfile(path, "heap", opts, client, interval)
+
+	// Stack traces that led to the creation of new OS threads
+	c.savePprofProfile(path, "threadcreate", opts, client, interval)
 }
 
 // savePprofProfile retrieves a pprof profile and writes to disk
-func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opts api.PprofOptions, client *api.Client) {
-	fileName := fmt.Sprintf("%s.prof", profile)
+func (c *OperatorDebugCommand) savePprofProfile(path string, profile string, opts api.PprofOptions, client *api.Client, interval int) {
+	fileName := fmt.Sprintf("%s_%04d.prof", profile, interval)
 	if opts.Debug > 0 {
-		fileName = fmt.Sprintf("%s-debug%d.txt", profile, opts.Debug)
+		fileName = fmt.Sprintf("%s-debug%d_%04d.txt", profile, opts.Debug, interval)
 	}
 
 	bs, err := retrievePprofProfile(profile, opts, client, c.queryOpts())

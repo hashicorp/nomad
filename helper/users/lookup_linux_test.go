@@ -114,3 +114,19 @@ func TestSocketFileFor_Linux(t *testing.T) {
 		must.Eq(t, 0o666, int(stat.Mode().Perm()))
 	}
 }
+
+func TestLookupUnix_root(t *testing.T) {
+	uid, gid, home, err := LookupUnix("root")
+	must.NoError(t, err)
+	must.Zero(t, uid)         // linux
+	must.Zero(t, gid)         // linux
+	must.Eq(t, "/root", home) // ubuntu specific
+}
+
+func TestLookupUnix_nobody(t *testing.T) {
+	uid, gid, home, err := LookupUnix("nobody")
+	must.NoError(t, err)
+	must.Eq(t, 65534, uid)           // systemd specific
+	must.Eq(t, 65534, gid)           // systemd specific
+	must.Eq(t, "/nonexistent", home) // ubuntu specific
+}

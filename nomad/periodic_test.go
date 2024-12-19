@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,6 +87,13 @@ func (m *MockJobEvalDispatcher) dispatchedJobs(parent *structs.Job) []*structs.J
 	}
 
 	return jobs
+}
+
+func (m *MockJobEvalDispatcher) hasJob(id structs.NamespacedID) bool {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	_, ok := m.Jobs[id]
+	return ok
 }
 
 type times []time.Time
@@ -262,39 +270,32 @@ func TestPeriodicDispatch_Add_TriggersUpdate(t *testing.T) {
 	job := testPeriodicJob(time.Now().Add(10 * time.Second))
 
 	// Add it.
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
+	must.NoError(t, p.Add(job))
 
 	// Update it to be sooner and re-add.
 	expected := time.Now().Round(1 * time.Second).Add(1 * time.Second)
+	job = job.Copy()
 	job.Periodic.Spec = fmt.Sprintf("%d", expected.Unix())
-	if err := p.Add(job); err != nil {
-		t.Fatalf("Add failed %v", err)
-	}
+	must.NoError(t, p.Add(job))
 
 	// Check that nothing is created.
 	tuple := structs.NamespacedID{
 		ID:        job.ID,
 		Namespace: job.Namespace,
 	}
-	if _, ok := m.Jobs[tuple]; ok {
-		t.Fatalf("periodic dispatcher created eval at the wrong time")
-	}
+	must.False(t, m.hasJob(tuple),
+		must.Sprint("periodic dispatcher created eval too early"))
 
 	time.Sleep(2 * time.Second)
 
 	// Check that job was launched correctly.
 	times, err := m.LaunchTimes(p, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("failed to get launch times for job %q", job.ID)
-	}
-	if len(times) != 1 {
-		t.Fatalf("incorrect number of launch times for job %q", job.ID)
-	}
-	if times[0] != expected {
-		t.Fatalf("periodic dispatcher created eval for time %v; want %v", times[0], expected)
-	}
+	must.NoError(t, err,
+		must.Sprint("failed to get launch times for job"))
+	must.Len(t, 1, times,
+		must.Sprint("incorrect number of launch times for job"))
+	must.Eq(t, expected, times[0],
+		must.Sprint("periodic dispatcher created eval for wrong time"))
 }
 
 func TestPeriodicDispatch_Remove_Untracked(t *testing.T) {

@@ -9,11 +9,13 @@ import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
 import Component from '@glimmer/component';
 import { tracked } from '@glimmer/tracking';
+import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
 export default class TokenEditorComponent extends Component {
   @service notifications;
   @service router;
   @service store;
+  @service system;
 
   @alias('args.roles') roles;
   @alias('args.token') activeToken;
@@ -21,6 +23,14 @@ export default class TokenEditorComponent extends Component {
 
   @tracked tokenPolicies = [];
   @tracked tokenRoles = [];
+
+  /**
+   * When creating a token, it can be made global (has access to all regions),
+   * or non-global. If it's non-global, it can be scoped to a specific region.
+   * By default, the token is created in the active region of the UI.
+   * @type {string}
+   */
+  @tracked tokenRegion = '';
 
   // when this renders, set up tokenPolicies
   constructor() {
@@ -30,6 +40,7 @@ export default class TokenEditorComponent extends Component {
     if (this.activeToken.isNew) {
       this.activeToken.expirationTTL = 'never';
     }
+    this.tokenRegion = this.system.activeRegion;
   }
 
   @action updateTokenPolicies(policy, event) {
@@ -72,6 +83,10 @@ export default class TokenEditorComponent extends Component {
     }
   }
 
+  @action updateTokenLocality(event) {
+    this.tokenRegion = event.target.id;
+  }
+
   @action async save() {
     try {
       const shouldRedirectAfterSave = this.activeToken.isNew;
@@ -87,6 +102,12 @@ export default class TokenEditorComponent extends Component {
         this.activeToken.roles = [];
       }
 
+      if (this.tokenRegion === 'global') {
+        this.activeToken.global = true;
+      } else {
+        this.activeToken.global = false;
+      }
+
       // Sets to "never" for auto-selecting the radio button;
       // if it gets updated by the user, will fall back to "" to represent
       // no expiration. However, if the user never updates it,
@@ -95,7 +116,13 @@ export default class TokenEditorComponent extends Component {
         this.activeToken.expirationTTL = null;
       }
 
-      await this.activeToken.save();
+      const adapterRegion = this.activeToken.global
+        ? this.system.get('defaultRegion.region')
+        : this.tokenRegion;
+
+      await this.activeToken.save({
+        adapterOptions: adapterRegion ? { region: adapterRegion } : {},
+      });
 
       this.notifications.add({
         title: 'Token Saved',
@@ -104,14 +131,18 @@ export default class TokenEditorComponent extends Component {
 
       if (shouldRedirectAfterSave) {
         this.router.transitionTo(
-          'access-control.tokens.token',
+          'administration.tokens.token',
           this.activeToken.id
         );
       }
-    } catch (error) {
+    } catch (err) {
+      let message = err.errors?.length
+        ? messageFromAdapterError(err)
+        : err.message;
+
       this.notifications.add({
         title: `Error creating Token ${this.activeToken.name}`,
-        message: error,
+        message,
         color: 'critical',
         sticky: true,
       });

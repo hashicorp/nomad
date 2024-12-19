@@ -152,7 +152,8 @@ testing.
   agent state. Client nodes use this directory by default to store temporary
   allocation data as well as cluster information. Server nodes use this
   directory to store cluster state, including the replicated log and snapshot
-  data. This must be specified as an absolute path.
+  data. This must be specified as an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `disable_anonymous_signature` `(bool: false)` - Specifies if Nomad should
   provide an anonymous signature for de-duplication with the update check.
@@ -193,9 +194,8 @@ testing.
   [`drain_on_shutdown`][], the client will drain its workloads before shutting
   down.
 
-- `limits` - Available in Nomad 0.10.3 and later, this is a nested object that
-  configures limits that are enforced by the agent. The following parameters
-  are available:
+- `limits` - This is a nested object that configures limits that are enforced by
+   the agent. The following parameters are available:
 
   - `https_handshake_timeout` `(string: "5s")` - Configures the limit for how
     long the HTTPS server in both client and server agents will wait for a
@@ -245,8 +245,8 @@ testing.
     connection.
 
 - `log_level` `(string: "INFO")` - Specifies the verbosity of logs the Nomad
-  agent will output. Valid log levels include `WARN`, `INFO`, or `DEBUG` in
-  increasing order of verbosity.
+  agent will output. Valid log levels include `WARN`, `INFO`, `DEBUG`, or
+  `TRACE` in increasing order of verbosity.
 
 - `log_include_location` `(bool: false)` - Include file and line information in
   each log line.
@@ -276,10 +276,10 @@ testing.
   value is used to identify individual agents. When specified on a server, the
   name must be unique within the region.
 
-- `plugin_dir` `(string: "[data_dir]/plugins")` - Specifies the directory to
-  use for looking up plugins. By default, this is the top-level
-  [data_dir](#data_dir) suffixed with "plugins", like `"/opt/nomad/plugins"`.
-  This must be an absolute path.
+- `plugin_dir` `(string: "")` - Specifies the directory to use for looking up
+  plugins. When this parameter is empty, Nomad will generate the path using the
+  [top-level `data_dir`](#data_dir) suffixed with `plugins`, like
+  `"/opt/nomad/plugins"`. This must be an absolute path.
 
 - `plugin` `(`[`Plugin`]`: nil)` - Specifies configuration for a
   specific plugin. The plugin block may be repeated, once for each plugin being
@@ -391,7 +391,7 @@ http_api_response_headers {
 [`server`]: /nomad/docs/configuration/server 'Nomad Agent server Configuration'
 [tls]: /nomad/docs/configuration/tls 'Nomad Agent tls Configuration'
 [`vault`]: /nomad/docs/configuration/vault 'Nomad Agent vault Configuration'
-[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
+[go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [log-api]: /nomad/api-docs/client#stream-logs
 [hcl]: https://github.com/hashicorp/hcl 'HashiCorp Configuration Language'
 [tls-reload]: /nomad/docs/configuration/tls#tls-configuration-reloads

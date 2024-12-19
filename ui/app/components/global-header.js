@@ -18,17 +18,6 @@ export default class GlobalHeader extends Component {
   'data-test-global-header' = true;
   onHamburgerClick() {}
 
-  // Show sign-in if:
-  // - User can't load agent config (meaning ACLs are enabled but they're not signed in)
-  // - User can load agent config in and ACLs are enabled (meaning ACLs are enabled and they're signed in)
-  // The excluded case here is if there is both an agent config and ACLs are disabled
-  get shouldShowProfileNav() {
-    return (
-      !this.system.agent?.get('config') ||
-      this.system.agent?.get('config.ACL.Enabled') === true
-    );
-  }
-
   get labelStyles() {
     return htmlSafe(
       `

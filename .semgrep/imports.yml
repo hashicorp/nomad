@@ -13,6 +13,7 @@ rules:
       - pattern: '"github.com/mitchellh/cli"'
       - pattern: '"golang.org/x/exp/slices"'
       - pattern: '"golang.org/x/exp/maps"'
+      - pattern: '"golang.org/x/exp/constraints"'
     message: "Import of this package has been disallowed"
     languages:
       - "generic"

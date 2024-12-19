@@ -5,218 +5,368 @@
 
 {{page-title "Jobs"}}
 <section class="section">
-  <div class="toolbar">
-    <div class="toolbar-item">
-      {{#if this.visibleJobs.length}}
-        <SearchBox
-          data-test-jobs-search
-          @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this.resetPagination}}
-          @placeholder="Search jobs..."
-        />
+  {{#if this.showingCachedJobs}}
+    <Hds::Alert @type="inline" @color="warning" id="jobs-list-cache-warning" as |A|>
+      <A.Title>Error fetching jobs — shown jobs are cached</A.Title>
+      <A.Description>Jobs shown are cached and may be out of date. This is often due to a short timeout in proxy configurations.</A.Description>
+      {{#if this.watchJobIDs.isRunning}}
+        <A.Button data-test-pause-fetching @text="Stop polling for job updates" @color="secondary" {{on "click" this.pauseJobFetching}} />
       {{/if}}
-    </div>
-    {{#if (media "isMobile")}}
-      <div class="toolbar-item is-right-aligned">
-        {{#if (can "run job" namespace=this.qpNamespace)}}
-          <LinkTo
-            @route="jobs.run"
-            @query={{hash namespace=this.qpNamespace}}
-            data-test-run-job
-            class="button is-primary"
-          >
-            Run Job
-          </LinkTo>
-        {{else}}
-          <button
-            data-test-run-job
-            class="button is-primary is-disabled tooltip is-right-aligned"
-            aria-label="You don’t have permission to run jobs"
-            disabled
-            type="button"
-          >
-            Run Job
-          </button>
-        {{/if}}
-      </div>
-    {{/if}}
-    <div class="toolbar-item is-right-aligned is-mobile-full-width">
-      <div class="button-bar">
-        {{#if this.system.shouldShowNamespaces}}
-          <SingleSelectDropdown
-            data-test-namespace-facet
-            @label="Namespace"
-            @options={{this.optionsNamespaces}}
-            @selection={{this.qpNamespace}}
-            @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
+      <A.Button data-test-restart-fetching @text="Manually fetch jobs" @color="secondary" {{on "click" this.restartJobList}} />
+      <A.LinkStandalone @size="medium" @color="primary" @icon="learn-link" @iconPosition="trailing" @text="Tutorial: Configure reverse proxy for Nomad's web UI" @href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/reverse-proxy-ui#extend-connection-timeout" />
+    </Hds::Alert>
+  {{/if}}
+
+  <Hds::PageHeader id="jobs-list-header" as |PH|>
+    <PH.Actions id="jobs-list-actions">
+
+      <Hds::SegmentedGroup as |S|>
+
+        <JobSearchBox
+          @searchText={{this.rawSearchText}}
+          @onSearchTextChange={{queue
+            this.updateSearchText
+            this.updateFilter
+          }}
+          @S={{S}}
+        />
+
+        {{#each this.filterFacets as |group|}}
+          <S.Dropdown data-test-facet={{group.label}} @height="300px" as |dd|>
+            <dd.ToggleButton
+              @text={{group.label}}
+              @color="secondary"
+              @count={{get (filter-by "checked" true group.options) "length"}}
+            />
+            {{#if group.filterable}}
+              <dd.Header @hasDivider={{true}}>
+                <Hds::Form::TextInput::Base
+                  @type="search"
+                  placeholder="Filter {{group.label}}"
+                  @value={{group.filter}}
+                  {{autofocus}}
+                  {{on "input" (action (mut group.filter) value="target.value") }}
+                  data-test-namespace-filter-searchbox
+                />
+              </dd.Header>
+              {{#each (get this (concat "filtered" (capitalize group.label) "Options")) as |option|}}
+                <dd.Checkbox
+                  {{on "change" (fn this.toggleOption option)}}
+                  @value={{option.key}}
+                  checked={{option.checked}}
+                  data-test-dropdown-option={{option.key}}
+                >
+                  {{option.key}}
+                </dd.Checkbox>
+              {{else}}
+                <dd.Generic data-test-dropdown-empty>
+                  No {{group.label}} filters match {{group.filter}}
+                </dd.Generic>
+              {{/each}}
+            {{else}}
+              {{#each group.options as |option|}}
+                <dd.Checkbox
+                  {{on "change" (fn this.toggleOption option)}}
+                  @value={{option.key}}
+                  checked={{option.checked}}
+                  data-test-dropdown-option={{option.key}}
+                >
+                  {{option.key}}
+                </dd.Checkbox>
+              {{else}}
+                <dd.Generic data-test-dropdown-empty>
+                  No {{group.label}} filters
+                </dd.Generic>
+              {{/each}}
+            {{/if}}
+          </S.Dropdown>
+        {{/each}}
+
+        {{#if this.filter}}
+          <S.Button
+            @text="Reset Filters"
+            @color="critical"
+            @icon="delete"
+            @size="medium"
+            {{on "click" (action this.resetFilters)}}
           />
         {{/if}}
-        <MultiSelectDropdown
-          data-test-type-facet
-          @label="Type"
-          @options={{this.optionsType}}
-          @selection={{this.selectionType}}
-          @onSelect={{action this.setFacetQueryParam "qpType"}}
+
+      </Hds::SegmentedGroup>
+
+      {{#if this.pendingJobIDDiff}}
+        <Hds::Button
+          @size="medium"
+          @text="Updates Pending"
+          @color="primary"
+          @icon="sync"
+          {{on "click" (perform this.updateJobList)}}
+          data-test-updates-pending-button
         />
-        <MultiSelectDropdown
-          data-test-node-pool-facet
-          @label="Node Pool"
-          @options={{this.optionsNodePool}}
-          @selection={{this.selectionNodePool}}
-          @onSelect={{action this.setFacetQueryParam "qpNodePool"}}
-        />
-        <MultiSelectDropdown
-          data-test-status-facet
-          @label="Status"
-          @options={{this.optionsStatus}}
-          @selection={{this.selectionStatus}}
-          @onSelect={{action this.setFacetQueryParam "qpStatus"}}
-        />
-        <MultiSelectDropdown
-          data-test-datacenter-facet
-          @label="Datacenter"
-          @options={{this.optionsDatacenter}}
-          @selection={{this.selectionDatacenter}}
-          @onSelect={{action this.setFacetQueryParam "qpDatacenter"}}
-        />
-        <MultiSelectDropdown
-          data-test-prefix-facet
-          @label="Prefix"
-          @options={{this.optionsPrefix}}
-          @selection={{this.selectionPrefix}}
-          @onSelect={{action this.setFacetQueryParam "qpPrefix"}}
+      {{/if}}
+
+      <div
+        {{keyboard-shortcut
+          label="Run Job"
+          pattern=(array "r" "u" "n")
+          action=(action this.goToRun)
+        }}
+      >
+        <Hds::Button
+          data-test-run-job
+          @text="Run Job"
+          disabled={{not (can "run job")}}
+          title={{if (can "run job") null "You don’t have permission to run jobs"}}
+          @route="jobs.run"
         />
       </div>
-    </div>
-    {{#if (not (media "isMobile"))}}
-      <div class="toolbar-item is-right-aligned">
-        {{#if (can "run job" namespace=this.qpNamespace)}}
-          <LinkTo
-            @route="jobs.run"
-            @query={{hash namespace=this.qpNamespace}}
-            data-test-run-job
-            class="button is-primary"
-            {{keyboard-shortcut
-              label="Run Job"
-              pattern=(array "r" "u" "n")
-              action=(action this.goToRun)
-            }}
-          >
-            Run Job
-          </LinkTo>
-        {{else}}
-          <button
-            data-test-run-job
-            class="button is-primary is-disabled tooltip is-right-aligned"
-            aria-label="You don’t have permission to run jobs"
-            disabled
-            type="button"
-          >
-            Run Job
-          </button>
-        {{/if}}
-      </div>
-    {{/if}}
-  </div>
+
+    </PH.Actions>
+  </Hds::PageHeader>
+
   {{#if this.isForbidden}}
     <ForbiddenMessage />
-  {{else if this.sortedJobs}}
-    <ListPagination
-      @source={{this.sortedJobs}}
-      @size={{this.pageSize}}
-      @page={{this.currentPage}}
-      as |p|
+  {{else if this.jobs.length}}
+    <Hds::Table
+      @model={{this.jobs}}
+      @columns={{this.tableColumns}}
+      @valign="middle"
     >
-      <ListTable
-        @source={{p.list}}
-        @sortProperty={{this.sortProperty}}
-        @sortDescending={{this.sortDescending}}
-        @class="with-foot"
-        as |t|
-      >
-        <t.head>
-          <t.sort-by @prop="name">
-            Name
-          </t.sort-by>
-          {{#if this.system.shouldShowNamespaces}}
-            <t.sort-by @prop="namespace.name">
-              Namespace
-            </t.sort-by>
-          {{/if}}
-          <t.sort-by @prop="status">
-            Status
-          </t.sort-by>
-          <t.sort-by @prop="type">
-            Type
-          </t.sort-by>
-          <t.sort-by @prop="nodePool">
-              Node Pool
-          </t.sort-by>
-          <t.sort-by @prop="priority">
-            Priority
-          </t.sort-by>
-          <th class="is-3">
-            Summary
-          </th>
-        </t.head>
-        <t.body @key="model.id" as |row|>
-          <JobRow @data-test-job-row={{row.model.plainId}} @job={{row.model}} />
-        </t.body>
-      </ListTable>
-      <div class="table-foot">
-        <PageSizeSelect @onChange={{action this.resetPagination}} />
-        <nav class="pagination">
-          <div class="pagination-numbers">
-            {{p.startsAt}}
-            –
-            {{p.endsAt}}
-            of
-            {{this.sortedJobs.length}}
-            {{#if this.searchTerm}}
-              <em>
-                (
-                {{dec this.sortedJobs.length this.filteredJobs.length}}
-                hidden by search term)
-              </em>
+      <:body as |B|>
+      {{!-- TODO: use <JobRow> --}}
+        <B.Tr
+          {{keyboard-shortcut
+            enumerated=true
+            action=(action "gotoJob" B.data)
+          }}
+          {{on "click" (action this.gotoJob B.data)}}
+          class="job-row is-interactive {{if B.data.assumeGC "assume-gc"}}"
+          data-test-job-row={{B.data.plainId}}
+          data-test-modify-index={{B.data.modifyIndex}}
+        >
+          {{!-- {{#each this.tableColumns as |column|}}
+            <B.Td>{{get B.data (lowercase column.label)}}</B.Td>
+          {{/each}} --}}
+          <B.Td data-test-job-name>
+            {{#if B.data.assumeGC}}
+              {{B.data.name}}
+            {{else}}
+            <LinkTo
+              @route="jobs.job.index"
+              @model={{B.data.idWithNamespace}}
+              class="is-primary"
+            >
+              {{B.data.name}}
+              {{#if B.data.isPack}}
+                <span data-test-pack-tag class="tag is-pack">
+                  {{x-icon "box" class= "test"}}
+                  <span>Pack</span>
+                </span>
+              {{/if}}
+            </LinkTo>
             {{/if}}
-          </div>
-          <p.prev @class="pagination-previous">
-            {{x-icon "chevron-left"}}
-          </p.prev>
-          <p.next @class="pagination-next">
-            {{x-icon "chevron-right"}}
-          </p.next>
-          <ul class="pagination-list"></ul>
-        </nav>
+          </B.Td>
+          {{#if this.system.shouldShowNamespaces}}
+            <B.Td data-test-job-namespace>{{B.data.namespace.id}}</B.Td>
+          {{/if}}
+          <B.Td data-test-job-status>
+            <div class="status-cell">
+              {{#if (not (eq B.data.childStatuses null))}}
+                {{#if B.data.childStatusBreakdown.running}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.running}} running {{pluralize "job" B.data.childStatusBreakdown.running}}" @color="highlight" @size="large" />
+                {{else if B.data.childStatusBreakdown.pending}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.pending}} pending {{pluralize "job" B.data.childStatusBreakdown.pending}}" @color="neutral" @size="large" />
+                {{else if B.data.childStatusBreakdown.dead}}
+                  <Hds::Badge @icon="corner-down-right" @text="{{B.data.childStatusBreakdown.dead}} completed {{pluralize "job" B.data.childStatusBreakdown.dead}}" @color="neutral" @size="large" />
+                {{else if (not B.data.childStatuses.length)}}
+                  <Hds::Badge @icon="corner-down-right" @text="No child jobs" @color="neutral" @size="large" />
+                {{/if}}
+              {{else}}
+                <Hds::Badge @text="{{capitalize B.data.aggregateAllocStatus.label}}" @color={{B.data.aggregateAllocStatus.state}} @size="large" />
+              {{/if}}
+              {{#if B.data.hasPausedTask}}
+                <Hds::TooltipButton @text="At least one task is paused" @placement="right" data-test-paused-task-indicator>
+                  <Hds::Badge @text="At least one task is paused" @icon="delay" @isIconOnly={{true}} @color="highlight" @size="large" />
+                </Hds::TooltipButton>
+              {{/if}}
+            </div>
+          </B.Td>
+          <B.Td data-test-job-type={{B.data.type}}>
+            {{B.data.type}}
+          </B.Td>
+          {{#if this.system.shouldShowNodepools}}
+            <B.Td data-test-job-node-pool>{{B.data.nodePool}}</B.Td>
+          {{/if}}
+          <B.Td>
+            <div class="job-status-panel compact">
+              {{#unless B.data.assumeGC}}
+                {{#if (not (eq B.data.childStatuses null))}}
+                  {{#if B.data.childStatuses.length}}
+                    <Hds::Link::Standalone @icon="chevron-right" @text="View {{B.data.childStatuses.length}} child {{pluralize "job" B.data.childStatuses.length}}" @route="jobs.job.index" @model={{B.data.idWithNamespace}} @iconPosition="trailing" />
+                  {{else}}
+                    --
+                  {{/if}}
+                {{else}}
+                  <JobStatus::AllocationStatusRow
+                    @allocBlocks={{B.data.allocBlocks}}
+                    @steady={{true}}
+                    @compact={{true}}
+                    @runningAllocs={{B.data.allocBlocks.running.healthy.nonCanary.length}}
+                    @groupCountSum={{B.data.expectedRunningAllocCount}}
+                  />
+                {{/if}}
+              {{/unless}}
+            </div>
+          </B.Td>
+        </B.Tr>
+      </:body>
+    </Hds::Table>
+
+    <section id="jobs-list-pagination">
+      <div class="nav-buttons">
+        <span {{keyboard-shortcut
+          label="First Page"
+          pattern=(array "{" "{")
+          action=(action this.handlePageChange "first")}}
+        >
+          <Hds::Button
+            @text="First"
+            @color="tertiary"
+            @size="small"
+            @icon="chevrons-left"
+            @iconPosition="leading"
+            disabled={{not this.cursorAt}}
+            data-test-pager="first"
+            {{on "click" (action this.handlePageChange "first")}}
+          />
+        </span>
+        <span {{keyboard-shortcut
+          label="Previous Page"
+          pattern=(array "[" "[")
+          action=(action this.handlePageChange "prev")}}
+        >
+          <Hds::Button
+            @text="Previous"
+            @color="tertiary"
+            @size="small"
+            @icon="chevron-left"
+            @iconPosition="leading"
+            disabled={{not this.cursorAt}}
+            data-test-pager="previous"
+            {{on "click" (action this.handlePageChange "prev")}}
+          />
+        </span>
+        <span {{keyboard-shortcut
+          label="Next Page"
+          pattern=(array "]" "]")
+          action=(action this.handlePageChange "next")}}
+        >
+          <Hds::Button
+            @text="Next"
+            @color="tertiary"
+            @size="small"
+            @icon="chevron-right"
+            @iconPosition="trailing"
+            disabled={{not this.nextToken}}
+            data-test-pager="next"
+            {{on "click" (action this.handlePageChange "next")}}
+          />
+        </span>
+        <span {{keyboard-shortcut
+          label="Last Page"
+          pattern=(array "}" "}")
+          action=(action this.handlePageChange "last")}}
+        >
+          <Hds::Button
+            @text="Last"
+            @color="tertiary"
+            @icon="chevrons-right"
+            @iconPosition="trailing"
+            @size="small"
+            disabled={{not this.nextToken}}
+            data-test-pager="last"
+            {{on "click" (action this.handlePageChange "last")}}
+          />
+        </span>
       </div>
-    </ListPagination>
+      <div class="page-size">
+        <PageSizeSelect @onChange={{this.handlePageSizeChange}} />
+      </div>
+    </section>
   {{else}}
-    <div data-test-empty-jobs-list class="empty-message">
-      {{#if (eq this.visibleJobs.length 0)}}
-        <h3 data-test-empty-jobs-list-headline class="empty-message-headline">
-          No Jobs
-        </h3>
-        <p class="empty-message-body">
-          The cluster is currently empty.
-        </p>
-      {{else if (eq this.filteredJobs.length 0)}}
-        <h3 data-test-empty-jobs-list-headline class="empty-message-headline">
-          No Matches
-        </h3>
-        <p class="empty-message-body">
-          No jobs match your current filter selection.
-        </p>
-      {{else if this.searchTerm}}
-        <h3 data-test-empty-jobs-list-headline class="empty-message-headline">
-          No Matches
-        </h3>
-        <p class="empty-message-body">
-          No jobs match the term
-          <strong>
-            {{this.searchTerm}}
-          </strong>
-        </p>
+    <Hds::ApplicationState data-test-empty-jobs-list as |A|>
+      {{#if this.filter}}
+        <A.Header data-test-empty-jobs-list-headline @title="No Matches" />
+        <A.Body>
+          {{this.humanizedFilterError}}
+          <br><br>
+          {{#if this.model.error.correction}}
+            Did you mean
+            <Hds::Button
+              data-test-filter-correction
+              @text={{this.model.error.correction.correctKey}}
+              @isInline={{true}}
+              @color="tertiary"
+              @icon="bulb"
+              @iconPosition="trailing"
+              {{on "click" (action this.correctFilterKey this.model.error.correction)}}
+
+            />?
+          {{else if this.model.error.suggestion}}
+            <ul>
+            {{#each this.model.error.suggestion as |suggestion|}}
+              <li><Hds::Button
+                data-test-filter-suggestion
+                @text={{suggestion.key}}
+                @isInline={{true}}
+                @size="small"
+                @color="tertiary"
+                @icon="bulb"
+                {{on "click" (action this.suggestFilter suggestion)}}
+              /></li>
+            {{/each}}
+            </ul>
+          {{else}}
+          {{!-- This is the "Nothing was found for your otherwise valid filter" option. Give them suggestions --}}
+            Did you know: you can try using filter expressions to search through your jobs.
+            Try <Hds::Button
+              data-test-filter-random-suggestion
+              @text={{this.exampleFilter}}
+              @isInline={{true}}
+              @color="tertiary"
+              @icon="bulb"
+              @iconPosition="trailing"
+              {{on "click" (action this.suggestFilter
+                (hash example=this.exampleFilter)
+              )}}
+            />
+          {{/if}}
+        </A.Body>
+        <A.Footer as |F|>
+          <Hds::Button
+            @text="Reset Filters"
+            @color="tertiary"
+            @icon="arrow-left"
+            @size="small"
+            {{on "click" (action this.resetFilters)}}
+          />
+
+          <F.LinkStandalone @icon="docs" @text="Learn more about Filter Expressions" @href="https://developer.hashicorp.com/nomad/api-docs#creating-expressions" @iconPosition="trailing" />
+
+          <F.LinkStandalone @icon="plus" @text="Run a New Job" @route="jobs.run"
+            @iconPosition="trailing" />
+
+        </A.Footer>
+      {{else}}
+        <A.Header data-test-empty-jobs-list-headline @title="No Jobs" />
+        <A.Body
+          @text="No jobs found."
+        />
+        <A.Footer as |F|>
+          <F.LinkStandalone @icon="plus" @text="Run a New Job" @route="jobs.run"
+            @iconPosition="trailing" />
+        </A.Footer>
       {{/if}}
-    </div>
+    </Hds::ApplicationState>
   {{/if}}
 </section>

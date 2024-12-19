@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 resource "local_sensitive_file" "nomad_systemd_unit_file" {
-  content         = templatefile("etc/nomad.d/nomad-${var.role}.service", {})
+  content         = templatefile("${path.module}/etc/nomad.d/nomad-${var.role}.service", {})
   filename        = "${local.upload_dir}/nomad.d/nomad.service"
   file_permission = "0600"
 }
@@ -52,10 +52,10 @@ resource "null_resource" "install_consul_configs_linux" {
     inline = [
       "mkdir -p /etc/consul.d",
       "sudo rm -rf /etc/consul.d/*",
-      "sudo mv /tmp/consul_ca.pem /etc/consul.d/ca.pem",
-      "sudo mv /tmp/consul_client_acl.json /etc/consul.d/acl.json",
-      "sudo mv /tmp/consul_client.json /etc/consul.d/consul_client.json",
-      "sudo mv /tmp/consul_client_base.json /etc/consul.d/consul_client_base.json",
+      "sudo mv /tmp/consul_ca.crt /etc/consul.d/ca.pem",
+      "sudo mv /tmp/consul_cert.pem /etc/consul.d/cert.pem",
+      "sudo mv /tmp/consul_cert.key.pem /etc/consul.d/cert.key.pem",
+      "sudo mv /tmp/consul_client.hcl /etc/consul.d/consul.hcl",
       "sudo mv /tmp/consul.service /etc/systemd/system/consul.service",
     ]
   }

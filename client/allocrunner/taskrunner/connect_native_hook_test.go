@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/stretchr/testify/require"
 )
 
@@ -278,17 +279,14 @@ func TestTaskRunner_ConnectNativeHook_Noop(t *testing.T) {
 
 	request := &interfaces.TaskPrestartRequest{
 		Task:    task,
-		TaskDir: allocDir.NewTaskDir(task.Name),
+		TaskDir: allocDir.NewTaskDir(task),
 	}
-	require.NoError(t, request.TaskDir.Build(false, nil))
+	require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, task.User))
 
 	response := new(interfaces.TaskPrestartResponse)
 
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
-
-	// Assert the hook is Done
-	require.True(t, response.Done)
 
 	// Assert no environment variables configured to be set
 	require.Empty(t, response.Env)
@@ -342,18 +340,15 @@ func TestTaskRunner_ConnectNativeHook_Ok(t *testing.T) {
 	}, logger))
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
-		TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(tg.Tasks[0]),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, request.TaskDir.Build(false, nil))
+	require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, tg.Tasks[0].User))
 
 	response := new(interfaces.TaskPrestartResponse)
 
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
-
-	// Assert the hook is Done
-	require.True(t, response.Done)
 
 	// Assert only CONSUL_HTTP_ADDR env variable is set
 	require.Equal(t, map[string]string{"CONSUL_HTTP_ADDR": testConsul.HTTPAddr}, response.Env)
@@ -407,10 +402,10 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 	}, logger))
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
-		TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(tg.Tasks[0]),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, request.TaskDir.Build(false, nil))
+	require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, tg.Tasks[0].User))
 
 	// Insert service identity token in the secrets directory
 	token := uuid.Generate()
@@ -423,9 +418,6 @@ func TestTaskRunner_ConnectNativeHook_with_SI_token(t *testing.T) {
 
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
-
-	// Assert the hook is Done
-	require.True(t, response.Done)
 
 	// Assert environment variable for token is set
 	require.NotEmpty(t, response.Env)
@@ -493,19 +485,16 @@ func TestTaskRunner_ConnectNativeHook_shareTLS(t *testing.T) {
 		}, logger))
 		request := &interfaces.TaskPrestartRequest{
 			Task:    tg.Tasks[0],
-			TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
+			TaskDir: allocDir.NewTaskDir(tg.Tasks[0]),
 			TaskEnv: taskenv.NewEmptyTaskEnv(), // nothing set in env block
 		}
-		require.NoError(t, request.TaskDir.Build(false, nil))
+		require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, tg.Tasks[0].User))
 
 		response := new(interfaces.TaskPrestartResponse)
 		response.Env = make(map[string]string)
 
 		// Run the Connect Native hook
 		require.NoError(t, h.Prestart(context.Background(), request, response))
-
-		// Assert the hook is Done
-		require.True(t, response.Done)
 
 		// Remove variables we are not interested in
 		delete(response.Env, "CONSUL_HTTP_ADDR")
@@ -623,19 +612,16 @@ func TestTaskRunner_ConnectNativeHook_shareTLS_override(t *testing.T) {
 
 	request := &interfaces.TaskPrestartRequest{
 		Task:    tg.Tasks[0],
-		TaskDir: allocDir.NewTaskDir(tg.Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(tg.Tasks[0]),
 		TaskEnv: taskEnv, // env block is configured w/ non-default tls configs
 	}
-	require.NoError(t, request.TaskDir.Build(false, nil))
+	require.NoError(t, request.TaskDir.Build(fsisolation.None, nil, tg.Tasks[0].User))
 
 	response := new(interfaces.TaskPrestartResponse)
 	response.Env = make(map[string]string)
 
 	// Run the Connect Native hook
 	require.NoError(t, h.Prestart(context.Background(), request, response))
-
-	// Assert the hook is Done
-	require.True(t, response.Done)
 
 	// Assert environment variable for CONSUL_HTTP_SSL is set, because it was
 	// the only one not overridden by task env block config

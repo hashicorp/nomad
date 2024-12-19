@@ -60,6 +60,8 @@ export default create({
     clientSource: text('[data-test-volume-client-source]'),
   }),
 
+  hasMeta: isPresent('[data-test-meta]'),
+
   events: collection('[data-test-task-event]', {
     time: text('[data-test-task-event-time]'),
     type: text('[data-test-task-event-type]'),

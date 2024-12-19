@@ -255,6 +255,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"alloc pause": func() (cli.Command, error) {
+			return &AllocPauseCommand{
+				Meta: meta,
+			}, nil
+		},
 		"alloc stop": func() (cli.Command, error) {
 			return &AllocStopCommand{
 				Meta: meta,
@@ -516,6 +521,21 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"job tag": func() (cli.Command, error) {
+			return &JobTagCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job tag apply": func() (cli.Command, error) {
+			return &JobTagApplyCommand{
+				Meta: meta,
+			}, nil
+		},
+		"job tag unset": func() (cli.Command, error) {
+			return &JobTagUnsetCommand{
+				Meta: meta,
+			}, nil
+		},
 		"job validate": func() (cli.Command, error) {
 			return &JobValidateCommand{
 				Meta: meta,
@@ -695,6 +715,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator autopilot health": func() (cli.Command, error) {
+			return &OperatorAutopilotHealthCommand{
+				Meta: meta,
+			}, nil
+		},
 
 		"operator client-state": func() (cli.Command, error) {
 			return &OperatorClientStateCommand{
@@ -703,6 +728,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator debug": func() (cli.Command, error) {
 			return &OperatorDebugCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator gossip": func() (cli.Command, error) {
+			return &OperatorGossipCommand{
 				Meta: meta,
 			}, nil
 		},
@@ -794,6 +824,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator root": func() (cli.Command, error) {
+			return &OperatorRootCommand{
+				Meta: meta,
+			}, nil
+		},
 		"operator root keyring": func() (cli.Command, error) {
 			return &OperatorRootKeyringCommand{
 				Meta: meta,
@@ -836,6 +871,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 		},
 		"operator snapshot restore": func() (cli.Command, error) {
 			return &OperatorSnapshotRestoreCommand{
+				Meta: meta,
+			}, nil
+		},
+		"operator snapshot redact": func() (cli.Command, error) {
+			return &OperatorSnapshotRedactCommand{
 				Meta: meta,
 			}, nil
 		},

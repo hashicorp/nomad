@@ -4,6 +4,7 @@
 package state
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
@@ -15,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
 // MemDB implements a StateDB that stores data in memory and should only be

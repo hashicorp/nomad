@@ -1496,6 +1496,25 @@ func TestJobs_JobSubmission_Canonicalize(t *testing.T) {
 		js.Canonicalize()
 		must.Nil(t, js.VariableFlags)
 	})
+
+	t.Run("multiline var values", func(t *testing.T) {
+		js := &JobSubmission{
+			Source:        "abc123",
+			VariableFlags: map[string]string{"test": "foo\nbar"},
+		}
+		js.Canonicalize()
+
+		must.Eq(t, js.VariableFlags["test"], "foo%0Abar")
+	})
+
+	t.Run("non-alphabetic chars", func(t *testing.T) {
+		js := &JobSubmission{
+			Source:        "abc123",
+			VariableFlags: map[string]string{"test": `"foo": "bar"`},
+		}
+		js.Canonicalize()
+		must.Eq(t, js.VariableFlags["test"], "%22foo%22%3A+%22bar%22")
+	})
 }
 
 func TestJobs_JobSubmission_Copy(t *testing.T) {
@@ -1676,7 +1695,7 @@ func TestJobs_Submission_namespaces(t *testing.T) {
 	_, wm, err = jobs.RegisterOpts(job2, &RegisterOptions{
 		Submission: &JobSubmission{
 			Source: "second job source",
-			Format: "hcl1",
+			Format: "hcl2",
 		},
 	}, &WriteOptions{Namespace: "second"})
 	must.NoError(t, err)
@@ -2568,7 +2587,6 @@ func TestJobs_Parse(t *testing.T) {
 	// Test ParseHCLOpts
 	req := &JobsParseRequest{
 		JobHCL:       jobspec,
-		HCLv1:        false,
 		Canonicalize: false,
 	}
 
@@ -2579,31 +2597,9 @@ func TestJobs_Parse(t *testing.T) {
 	// Test ParseHCLOpts with Canonicalize=true
 	req = &JobsParseRequest{
 		JobHCL:       jobspec,
-		HCLv1:        false,
 		Canonicalize: true,
 	}
 	job2Canonicalized, err := c.Jobs().ParseHCLOpts(req)
 	must.NoError(t, err)
 	must.Eq(t, job1Canonicalized, job2Canonicalized)
-
-	// Test ParseHCLOpts with HCLv1=true
-	req = &JobsParseRequest{
-		JobHCL:       jobspec,
-		HCLv1:        true,
-		Canonicalize: false,
-	}
-
-	job3, err := c.Jobs().ParseHCLOpts(req)
-	must.NoError(t, err)
-	must.Eq(t, job1, job3)
-
-	// Test ParseHCLOpts with HCLv1=true and Canonicalize=true
-	req = &JobsParseRequest{
-		JobHCL:       jobspec,
-		HCLv1:        true,
-		Canonicalize: true,
-	}
-	job3Canonicalized, err := c.Jobs().ParseHCLOpts(req)
-	must.NoError(t, err)
-	must.Eq(t, job1Canonicalized, job3Canonicalized)
 }

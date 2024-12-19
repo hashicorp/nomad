@@ -1,0 +1,3 @@
+```release-note:improvement
+cli: Add new option `nomad setup vault -check` to help cluster operators migrate to workload identities for Vault
+```

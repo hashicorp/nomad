@@ -95,7 +95,6 @@ func node2k() *Node {
 		NodeResources: &NodeResources{
 			Processors: NodeProcessorResources{
 				Topology: &numalib.Topology{
-					NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 					Distances: numalib.SLIT{[]numalib.Cost{10}},
 					Cores: []numalib.Core{{
 						ID:        0,
@@ -106,6 +105,7 @@ func node2k() *Node {
 						Grade:     numalib.Performance,
 						BaseSpeed: 1000,
 					}},
+					OverrideWitholdCompute: 1000, // set by client reserved field
 				},
 			},
 			Memory: NodeMemoryResources{
@@ -148,6 +148,7 @@ func node2k() *Node {
 			},
 		},
 	}
+	n.NodeResources.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	n.NodeResources.Compatibility()
 	return n
 }
@@ -176,7 +177,7 @@ func TestAllocsFit(t *testing.T) {
 					{
 						Mode:          "host",
 						IP:            "10.0.0.1",
-						ReservedPorts: []Port{{"main", 8000, 0, ""}},
+						ReservedPorts: []Port{{Label: "main", Value: 8000}},
 					},
 				},
 				Ports: AllocatedPorts{
@@ -247,6 +248,79 @@ func TestAllocsFit(t *testing.T) {
 	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
 }
 
+func TestAllocsFit_Cores(t *testing.T) {
+	ci.Parallel(t)
+
+	n := node2k()
+
+	a1 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{0},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+	}
+
+	a2 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web-prestart": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{1},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{0},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+			TaskLifecycles: map[string]*TaskLifecycleConfig{
+				"web-prestart": {
+					Hook:    TaskLifecycleHookPrestart,
+					Sidecar: false,
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 500, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+
+	// Should fit one allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a2}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+
+	// Should not fit both allocations
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, dim, "cores")
+}
+
 func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	ci.Parallel(t)
 
@@ -267,7 +341,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 							Device:        "eth0",
 							IP:            "10.0.0.1",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80, ""}},
+							ReservedPorts: []Port{{Label: "main", Value: 8000, To: 80}},
 						},
 					},
 				},
@@ -321,7 +395,7 @@ func TestAllocsFit_ClientTerminalAlloc(t *testing.T) {
 							Device:        "eth0",
 							IP:            "10.0.0.1",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80, ""}},
+							ReservedPorts: []Port{{Label: "main", Value: 8000, To: 80}},
 						},
 					},
 				},
@@ -372,7 +446,7 @@ func TestAllocsFit_ServerTerminalAlloc(t *testing.T) {
 							Device:        "eth0",
 							IP:            "10.0.0.1",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80, ""}},
+							ReservedPorts: []Port{{Label: "main", Value: 8000, To: 80}},
 						},
 					},
 				},
@@ -521,7 +595,6 @@ func TestScoreFitBinPack(t *testing.T) {
 	node.NodeResources = &NodeResources{
 		Processors: NodeProcessorResources{
 			Topology: &numalib.Topology{
-				NodeIDs:   idset.From[hw.NodeID]([]hw.NodeID{0}),
 				Distances: numalib.SLIT{[]numalib.Cost{10}},
 				Cores: []numalib.Core{{
 					ID:        0,
@@ -534,6 +607,7 @@ func TestScoreFitBinPack(t *testing.T) {
 			MemoryMB: 8192,
 		},
 	}
+	node.NodeResources.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
 	node.NodeResources.Compatibility()
 	node.ReservedResources = &NodeReservedResources{
 		Cpu: NodeReservedCpuResources{

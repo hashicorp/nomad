@@ -22,7 +22,8 @@ import (
 	"github.com/armon/go-metrics"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set/v2"
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
@@ -282,6 +283,9 @@ func (s *ServiceClient) different(wanted *api.AgentServiceRegistration, existing
 	case connectSidecarDifferent(wanted, sidecar):
 		trace("connect_sidecar", wanted.Name, existing.Service)
 		return true
+	case weightsDifferent(wanted.Weights, existing.Weights):
+		trace("weights", wanted.Weights, existing.Weights)
+		return true
 	}
 	return false
 }
@@ -349,6 +353,8 @@ func proxyUpstreamsDifferent(wanted *api.AgentServiceConnect, sidecar *api.Agent
 				return true
 			case A.DestinationPeer != B.DestinationPeer:
 				return true
+			case A.DestinationPartition != B.DestinationPartition:
+				return true
 			case A.DestinationType != B.DestinationType:
 				return true
 			case A.LocalBindSocketPath != B.LocalBindSocketPath:
@@ -397,6 +403,21 @@ func connectSidecarDifferent(wanted *api.AgentServiceRegistration, sidecar *api.
 	return false
 }
 
+func weightsDifferent(wanted *api.AgentWeights, existing api.AgentWeights) bool {
+	if wanted == nil {
+		// When we are either missing or unsetting the weights on Nomad side, check
+		// whether the existing values differ from the Consul defaults.
+		return existing.Passing != 1 || existing.Warning != 1
+	}
+	if wanted.Passing != existing.Passing {
+		return true
+	}
+	if wanted.Warning != existing.Warning {
+		return true
+	}
+	return false
+}
+
 // operations are submitted to the main loop via commit() for synchronizing
 // with Consul.
 type operations struct {
@@ -425,6 +446,18 @@ func (o *operations) empty() bool {
 
 func (o *operations) String() string {
 	return fmt.Sprintf("<%d, %d, %d, %d>", len(o.regServices), len(o.regChecks), len(o.deregServices), len(o.deregChecks))
+}
+
+// newWeights creates a new Consul AgentWeights struct based on a Nomad ServiceWeights struct.
+func newWeights(weights *structs.ServiceWeights) *api.AgentWeights {
+	if weights == nil {
+		return nil
+	}
+
+	return &api.AgentWeights{
+		Passing: weights.Passing,
+		Warning: weights.Warning,
+	}
 }
 
 type ServiceClientWrapper struct {
@@ -971,8 +1004,7 @@ func (c *ServiceClient) merge(ops *operations) {
 func (c *ServiceClient) sync(reason syncReason) error {
 	c.logger.Trace("execute sync", "reason", reason)
 
-	sreg, creg, sdereg, cdereg := 0, 0, 0, 0
-	var err error
+	sreg, creg, sdereg, cdereg, fails := 0, 0, 0, 0, 0
 
 	// Get the list of all namespaces created so we can iterate them.
 	namespaces, err := c.namespacesClient.List()
@@ -999,8 +1031,10 @@ func (c *ServiceClient) sync(reason syncReason) error {
 	// de-registering services.
 	inProbation := time.Now().Before(c.deregisterProbationExpiry)
 
+	var mErr *multierror.Error // collect errors for individual services/checks
+
 	// Remove Nomad services in Consul but unknown to Nomad.
-	for id := range servicesInConsul {
+	for id, service := range servicesInConsul {
 		if _, ok := c.services[id]; ok {
 			// Known service, skip
 			continue
@@ -1025,38 +1059,16 @@ func (c *ServiceClient) sync(reason syncReason) error {
 			continue
 		}
 
-		// Get the Consul namespace this service is in.
-		ns := servicesInConsul[id].Namespace
-
-		token := c.getServiceToken(id)
-
-		// If this service has a sidecar, we need to remove the sidecar first,
-		// otherwise Consul will produce a warning and an error when removing
-		// the parent service.
-		//
-		// The sidecar is not tracked on the Nomad side; it was registered
-		// implicitly through the parent service.
-		if sidecar := getNomadSidecar(id, servicesInConsul); sidecar != nil {
-			if err := c.agentAPI.ServiceDeregisterOpts(sidecar.ID,
-				&api.QueryOptions{Namespace: ns, Token: token},
-			); err != nil {
-				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-				return err
-			}
-		}
-
-		// Remove the unwanted service.
-		if err := c.agentAPI.ServiceDeregisterOpts(id,
-			&api.QueryOptions{Namespace: ns, Token: token},
-		); err != nil {
-			if isOldNomadService(id) {
-				// Don't hard-fail on old entries. See #3620
-				continue
-			}
-
+		// Remove the service and any sidecar; this will return an error early
+		// if removing the sidecar fails
+		err := c.syncRemoveService(service.Namespace, id, servicesInConsul)
+		if err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return err
+			mErr = multierror.Append(mErr, err)
+			fails++
+			continue
 		}
+
 		sdereg++
 		metrics.IncrCounter([]string{"client", "consul", "service_deregistrations"}, 1)
 	}
@@ -1076,7 +1088,9 @@ func (c *ServiceClient) sync(reason syncReason) error {
 					Token:                 token,
 				}); err != nil {
 				metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-				return err
+				mErr = multierror.Append(mErr, err)
+				fails++
+				continue
 			}
 			sreg++
 			metrics.IncrCounter([]string{"client", "consul", "service_registrations"}, 1)
@@ -1090,7 +1104,13 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		nsChecks, err := c.agentAPI.ChecksWithFilterOpts("", &api.QueryOptions{Namespace: normalizeNamespace(namespace)})
 		if err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return fmt.Errorf("failed to query Consul checks: %w", err)
+			err = fmt.Errorf("failed to query Consul checks: %w", err)
+			if mErr == nil || mErr.Len() == 0 {
+				return err
+			} else {
+				mErr = multierror.Append(mErr, err)
+				return mErr.ErrorOrNil()
+			}
 		}
 		for k, v := range nsChecks {
 			checksInConsul[k] = v
@@ -1126,14 +1146,12 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		// Unknown Nomad managed check; remove. Note: this query has to use the
 		// Nomad agent's own Consul token, because by definition we don't have
 		// an associated workload for it
-		if err := c.agentAPI.CheckDeregisterOpts(id, &api.QueryOptions{Namespace: check.Namespace}); err != nil {
-			if isOldNomadService(check.ServiceID) {
-				// Don't hard-fail on old entries.
-				continue
-			}
-
+		err := c.agentAPI.CheckDeregisterOpts(id, &api.QueryOptions{Namespace: check.Namespace})
+		if err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return err
+			mErr = multierror.Append(mErr, err)
+			fails++
+			continue
 		}
 		cdereg++
 		metrics.IncrCounter([]string{"client", "consul", "check_deregistrations"}, 1)
@@ -1150,16 +1168,39 @@ func (c *ServiceClient) sync(reason syncReason) error {
 		}
 		if err := c.agentAPI.CheckRegisterOpts(check, opts); err != nil {
 			metrics.IncrCounter([]string{"client", "consul", "sync_failure"}, 1)
-			return err
+			mErr = multierror.Append(mErr, err)
+			fails++
+			continue
 		}
 		creg++
 		metrics.IncrCounter([]string{"client", "consul", "check_registrations"}, 1)
 	}
 
 	// Only log if something was actually synced
-	if sreg > 0 || sdereg > 0 || creg > 0 || cdereg > 0 {
+	if sreg > 0 || sdereg > 0 || creg > 0 || cdereg > 0 || fails > 0 {
 		c.logger.Debug("sync complete", "registered_services", sreg, "deregistered_services", sdereg,
-			"registered_checks", creg, "deregistered_checks", cdereg)
+			"registered_checks", creg, "deregistered_checks", cdereg, "failures", fails)
+	}
+	return mErr.ErrorOrNil()
+}
+
+// syncRemoveService removes an unwanted service from Consul. If the service has
+// a sidecar, we need to remove the sidecar first, otherwise Consul will produce
+// a warning and an error when removing the parent service. So this returns
+// early if the sidecar can't be removed.
+func (c *ServiceClient) syncRemoveService(ns, id string, servicesInConsul map[string]*api.AgentService) error {
+	// The sidecar is not tracked on the Nomad side; it was registered
+	// implicitly through the parent service.
+	if sidecar := getNomadSidecar(id, servicesInConsul); sidecar != nil {
+		err := c.agentAPI.ServiceDeregisterOpts(sidecar.ID, &api.QueryOptions{Namespace: ns})
+		if err != nil {
+			return err
+		}
+	}
+
+	err := c.agentAPI.ServiceDeregisterOpts(id, &api.QueryOptions{Namespace: ns})
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -1301,6 +1342,9 @@ func (c *ServiceClient) serviceRegs(
 	// newConnectGateway returns nil if there's no Connect gateway.
 	gateway := newConnectGateway(service.Connect)
 
+	// newWeights returns nil if there's no Weights.
+	weights := newWeights(service.Weights)
+
 	// Determine whether to use meta or canary_meta
 	var meta map[string]string
 	if workload.Canary && len(service.CanaryMeta) > 0 {
@@ -1372,6 +1416,7 @@ func (c *ServiceClient) serviceRegs(
 		Address:           ip,
 		Port:              port,
 		Meta:              meta,
+		Weights:           weights,
 		TaggedAddresses:   taggedAddresses,
 		Connect:           connect, // will be nil if no Connect block
 		Proxy:             gateway, // will be nil if no Connect Gateway block
@@ -1822,12 +1867,8 @@ func (c *ServiceClient) Shutdown() error {
 
 	// Always attempt to deregister Nomad agent Consul entries, even if
 	// deadline was reached
-	for _, id := range c.agentServices.Slice() {
-
-		opts := &api.QueryOptions{
-			Token: c.getServiceToken(id),
-		}
-		if err := c.agentAPI.ServiceDeregisterOpts(id, opts); err != nil {
+	for id := range c.agentServices.Items() {
+		if err := c.agentAPI.ServiceDeregisterOpts(id, nil); err != nil {
 			c.logger.Error("failed deregistering agent service", "service_id", id, "error", err)
 		}
 	}
@@ -1858,16 +1899,14 @@ func (c *ServiceClient) Shutdown() error {
 		return false
 	}
 
-	for _, id := range c.agentChecks.Slice() {
+	for id := range c.agentChecks.Items() {
 		// if we couldn't populate remainingChecks it is unlikely that CheckDeregister will work, but try anyway
 		// if we could list the remaining checks, verify that the check we store still exists before removing it.
 		if remainingChecks == nil || checkRemains(id) {
 			check := remainingChecks[id]
 			ns := check.Namespace
-			token := c.getServiceToken(check.ServiceID)
-
 			if err := c.agentAPI.CheckDeregisterOpts(id,
-				&api.QueryOptions{Namespace: ns, Token: token}); err != nil {
+				&api.QueryOptions{Namespace: ns}); err != nil {
 				c.logger.Error("failed deregistering agent check", "check_id", id, "error", err)
 			}
 		}
@@ -1930,7 +1969,7 @@ func (c *ServiceClient) setServiceTokens(tokens map[string]string) {
 func (c *ServiceClient) gcDeregisteredServiceTokens() {
 	c.serviceTokensLock.Lock()
 	defer c.serviceTokensLock.Unlock()
-	for _, serviceID := range c.explicitlyDeregisteredServices.Slice() {
+	for serviceID := range c.explicitlyDeregisteredServices.Items() {
 		delete(c.serviceTokens, serviceID)
 	}
 }
@@ -2042,25 +2081,13 @@ func isNomadAgent(id string) bool {
 // service (new or old formats). Agent services return false as independent
 // client and server agents may be running on the same machine. #2827
 func isNomadService(id string) bool {
-	return strings.HasPrefix(id, nomadTaskPrefix) || isOldNomadService(id)
+	return strings.HasPrefix(id, nomadTaskPrefix)
 }
 
 // isNomadCheck returns true if the ID matches the pattern of a Nomad managed
 // check.
 func isNomadCheck(id string) bool {
 	return strings.HasPrefix(id, nomadCheckPrefix)
-}
-
-// isOldNomadService returns true if the ID matches an old pattern managed by
-// Nomad.
-//
-// Pre-0.7.1 task service IDs are of the form:
-//
-//	{nomadServicePrefix}-executor-{ALLOC_ID}-{Service.Name}-{Service.Tags...}
-//	Example Service ID: _nomad-executor-1234-echo-http-tag1-tag2-tag3
-func isOldNomadService(id string) bool {
-	const prefix = nomadServicePrefix + "-executor"
-	return strings.HasPrefix(id, prefix)
 }
 
 const (

@@ -33,3 +33,12 @@ func formatFloat(f float64, maxPrec int) string {
 func pointerOf[A any](a A) *A {
 	return &a
 }
+
+// pointerCopy returns a new pointer to a.
+func pointerCopy[A any](a *A) *A {
+	if a == nil {
+		return nil
+	}
+	na := *a
+	return &na
+}

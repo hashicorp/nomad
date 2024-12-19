@@ -53,7 +53,18 @@ variable "nomad_local_binary" {
 
 variable "nomad_license" {
   type        = string
-  description = "If nomad_license is set, deploy a license to override the temporary license"
+  description = "If nomad_license is set, deploy a license"
+  default     = ""
+}
+
+variable "nomad_region" {
+  description = "The name of the Nomad region."
+  default     = "e2e"
+}
+
+variable "consul_license" {
+  type        = string
+  description = "If consul_license is set, deploy a license"
   default     = ""
 }
 
@@ -79,6 +90,12 @@ variable "hcp_vault_namespace" {
   description = "The namespace where the HCP Vault cluster policy works"
   type        = string
   default     = "admin"
+}
+
+variable "aws_kms_alias" {
+  description = "The alias for the AWS KMS key ID"
+  type        = string
+  default     = "kms-nomad-keyring"
 }
 
 # ----------------------------------------

@@ -184,6 +184,8 @@ func Deployment() *structs.Deployment {
 		StatusDescription: structs.DeploymentStatusDescriptionRunning,
 		ModifyIndex:       23,
 		CreateIndex:       21,
+		CreateTime:        time.Now().UTC().UnixNano(),
+		ModifyTime:        time.Now().UTC().UnixNano(),
 	}
 }
 

@@ -891,14 +891,7 @@ func TestIsNomadService(t *testing.T) {
 	}{
 		{"_nomad-client-nomad-client-http", false},
 		{"_nomad-server-nomad-serf", false},
-
-		// Pre-0.7.1 style IDs still match
-		{"_nomad-executor-abc", true},
-		{"_nomad-executor", true},
-
-		// Post-0.7.1 style IDs match
 		{"_nomad-task-FBBK265QN4TMT25ND4EP42TJVMYJ3HR4", true},
-
 		{"not-nomad", false},
 		{"_nomad", false},
 	}
@@ -906,9 +899,7 @@ func TestIsNomadService(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.id, func(t *testing.T) {
 			actual := isNomadService(test.id)
-			if actual != test.result {
-				t.Errorf("%q should be %t but found %t", test.id, test.result, actual)
-			}
+			must.Eq(t, test.result, actual)
 		})
 	}
 }

@@ -1,0 +1,3 @@
+```release-note:security
+api: sanitize the SignedIdentities in allocations to prevent privilege escalation through unredacted workload identity token impersonation associated with ACL policies.
+```

@@ -39,8 +39,10 @@ resource "aws_instance" "client_ubuntu_jammy_amd64" {
   }
 }
 
+
+
 resource "aws_instance" "client_windows_2016_amd64" {
-  ami                    = data.aws_ami.windows_2016_amd64.image_id
+  ami                    = data.aws_ami.windows_2016_amd64[0].image_id
   instance_type          = var.instance_type
   key_name               = module.keys.key_name
   vpc_security_group_ids = [aws_security_group.clients.id]
@@ -48,7 +50,7 @@ resource "aws_instance" "client_windows_2016_amd64" {
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
 
-  user_data = file("${path.root}/userdata/windows-2016.ps1")
+  user_data = file("${path.module}/userdata/windows-2016.ps1")
 
   # Instance tags
   tags = {
@@ -57,6 +59,23 @@ resource "aws_instance" "client_windows_2016_amd64" {
     User           = data.aws_caller_identity.current.arn
   }
 }
+
+resource "aws_instance" "consul_server" {
+  ami                    = data.aws_ami.ubuntu_jammy_amd64.image_id
+  instance_type          = var.instance_type
+  key_name               = module.keys.key_name
+  vpc_security_group_ids = [aws_security_group.consul_server.id]
+  iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
+  availability_zone      = var.availability_zone
+
+  # Instance tags
+  tags = {
+    Name           = "${local.random_name}-consul-server-ubuntu-jammy-amd64"
+    ConsulAutoJoin = "auto-join-${local.random_name}"
+    User           = data.aws_caller_identity.current.arn
+  }
+}
+
 
 data "external" "packer_sha" {
   program = ["/bin/sh", "-c", <<EOT
@@ -88,6 +107,8 @@ data "aws_ami" "ubuntu_jammy_amd64" {
 }
 
 data "aws_ami" "windows_2016_amd64" {
+  count = var.client_count_windows_2016_amd64 > 0 ? 1 : 0
+
   most_recent = true
   owners      = ["self"]
 

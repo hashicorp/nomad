@@ -539,6 +539,8 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 //	                                             │                │
 //	                                             └──── ready ─────┘
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
+	// UpdateStatus receives requests from client and servers that mark failed
+	// heartbeats, so we can't use AuthenticateClientOnly
 	authErr := n.srv.Authenticate(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
@@ -559,6 +561,12 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_status"}, time.Now())
+
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+		return structs.ErrPermissionDenied
+	} else if !(aclObj.AllowClientOp() || aclObj.AllowServerOp()) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Verify the arguments
 	if args.NodeID == "" {
@@ -692,31 +700,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
 
-		// Identify the service registrations current placed on the downed
-		// node.
-		serviceRegistrations, err := n.srv.State().GetServiceRegistrationsByNodeID(ws, args.NodeID)
-		if err != nil {
-			n.logger.Error("looking up service registrations for node failed",
-				"node_id", args.NodeID, "error", err)
-			return err
-		}
-
-		// If the node has service registrations assigned to it, delete these
-		// via Raft.
-		if l := len(serviceRegistrations); l > 0 {
-			n.logger.Debug("deleting service registrations on node due to down state",
-				"num_service_registrations", l, "node_id", args.NodeID)
-
-			deleteRegReq := structs.ServiceRegistrationDeleteByNodeIDRequest{NodeID: args.NodeID}
-
-			_, index, err = n.srv.raftApply(structs.ServiceRegistrationDeleteByNodeIDRequestType, &deleteRegReq)
-			if err != nil {
-				n.logger.Error("failed to delete service registrations for node",
-					"node_id", args.NodeID, "error", err)
-				return err
-			}
-		}
-
 	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
@@ -765,7 +748,8 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() &&
+		!(aclObj.AllowClientOp() && args.GetIdentity().ClientID == args.NodeID) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -777,7 +761,10 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node event must not be set")
 	}
 
-	// Look for the node
+	// The AuthenticatedIdentity is unexported so won't be written via
+	// Raft. Record the identity string so it can be written to LastDrain
+	args.UpdatedBy = args.GetIdentity().String()
+
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
@@ -1030,7 +1017,7 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleN
 	if err != nil {
 		return err
 	}
-	if !aclObj.AllowNodeRead() {
+	if !aclObj.AllowClientOp() && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1317,8 +1304,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //   - The node status is down or disconnected. Clients must call the
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
-	// COMPAT(1.9.0): move to AuthenticateClientOnly
-	aclObj, err := n.srv.AuthenticateClientOnlyLegacy(n.ctx, args)
+	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied
@@ -1715,6 +1701,15 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 			continue
 		}
 		jobIDs[alloc.JobNamespacedID()] = struct{}{}
+
+		// If it's a sysbatch job, skip it. Sysbatch job evals should only ever
+		// be created by periodic-job if they are periodic, and job-register or
+		// job-scaling if they are not. Calling the system scheduler by
+		// node-update trigger can cause unnecessary or premature allocations
+		// to be created.
+		if alloc.Job.Type == structs.JobTypeSysBatch {
+			continue
+		}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
@@ -2251,8 +2246,7 @@ func taskUsesConnect(task *structs.Task) bool {
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
-	// COMPAT(1.9.0): move to AuthenticateClientOnly
-	aclObj, err := n.srv.AuthenticateClientOnlyLegacy(n.ctx, args)
+	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
 		return structs.ErrPermissionDenied

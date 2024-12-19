@@ -123,6 +123,9 @@ type vaultHook struct {
 	// deriveTokenFunc is the function used to derive Vault tokens.
 	deriveTokenFunc deriveTokenFunc
 
+	// allowTokenExpiration determines if a renew loop should be run
+	allowTokenExpiration bool
+
 	// future is used to wait on retrieving a Vault token
 	future *tokenFuture
 }
@@ -130,19 +133,20 @@ type vaultHook struct {
 func newVaultHook(config *vaultHookConfig) *vaultHook {
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &vaultHook{
-		vaultBlock:       config.vaultBlock,
-		vaultConfigsFunc: config.vaultConfigsFunc,
-		clientFunc:       config.clientFunc,
-		eventEmitter:     config.events,
-		lifecycle:        config.lifecycle,
-		updater:          config.updater,
-		alloc:            config.alloc,
-		task:             config.task,
-		firstRun:         true,
-		ctx:              ctx,
-		cancel:           cancel,
-		future:           newTokenFuture(),
-		widmgr:           config.widmgr,
+		vaultBlock:           config.vaultBlock,
+		vaultConfigsFunc:     config.vaultConfigsFunc,
+		clientFunc:           config.clientFunc,
+		eventEmitter:         config.events,
+		lifecycle:            config.lifecycle,
+		updater:              config.updater,
+		alloc:                config.alloc,
+		task:                 config.task,
+		firstRun:             true,
+		ctx:                  ctx,
+		cancel:               cancel,
+		future:               newTokenFuture(),
+		widmgr:               config.widmgr,
+		allowTokenExpiration: config.vaultBlock.AllowTokenExpiration,
 	}
 	h.logger = config.logger.Named(h.Name())
 
@@ -237,6 +241,9 @@ func (h *vaultHook) Shutdown() {
 func (h *vaultHook) run(token string) {
 	// Helper for stopping token renewal
 	stopRenewal := func() {
+		if h.allowTokenExpiration {
+			return
+		}
 		if err := h.client.StopRenewToken(h.future.Get()); err != nil {
 			h.logger.Warn("failed to stop token renewal", "error", err)
 		}
@@ -278,6 +285,12 @@ OUTER:
 						SetDisplayMessage(fmt.Sprintf("Vault %v", errorString)))
 				return
 			}
+		}
+
+		if h.allowTokenExpiration {
+			h.future.Set(token)
+			h.logger.Debug("Vault token will not renew")
+			return
 		}
 
 		// Start the renewal process.
@@ -430,7 +443,7 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 	}
 
 	// Derive Vault token with signed identity.
-	token, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
+	token, renewable, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
 		JWT:       signed.JWT,
 		Role:      role,
 		Namespace: h.vaultBlock.Namespace,
@@ -440,6 +453,12 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 			fmt.Sprintf("failed to derive Vault token for identity %s: %v", h.widName, err),
 			err,
 		)
+	}
+
+	// If the token cannot be renewed, it doesn't matter if the user set
+	// allow_token_expiration or not, so override the requested behavior
+	if !renewable {
+		h.allowTokenExpiration = true
 	}
 
 	return token, nil

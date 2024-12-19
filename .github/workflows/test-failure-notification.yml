@@ -1,0 +1,75 @@
+---
+name: CI Test Failure Notification
+
+on:
+  workflow_call:
+    inputs:
+      actor:
+        description: 'Triggering actor of the failed the workflow'
+        required: true
+        type: string
+      git-branch:
+        description: 'Git branch name'
+        required: true
+        type: string
+      workflow-name:
+        description: 'Name of the GitHub Action workflow'
+        required: true
+        type: string
+      workflow-run-id:
+        description: 'GitHub Action run ID that failed'
+        required: true
+        type: string
+
+jobs:
+  send-notification:
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+    steps:
+      - name: Retrieve Vault-hosted Secrets
+        if: endsWith(github.repository, '-enterprise')
+        id: vault
+        uses: hashicorp/vault-action@d1720f055e0635fd932a1d2a48f87a666a57906c # v3.0.0
+        with:
+          url: ${{ vars.CI_VAULT_URL }}
+          method: ${{ vars.CI_VAULT_METHOD }}
+          path: ${{ vars.CI_VAULT_PATH }}
+          jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
+          secrets: |-
+            kv/data/teams/nomad/slack-webhooks feed-nomad | SLACK_FEED_NOMAD ;
+      - name: Send Slack notification
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
+        with:
+          webhook: "${{ env.SLACK_FEED_NOMAD || secrets.SLACK_FEED_NOMAD_CI_FAILURE }}"
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": ":x: CI Workflow '${{ inputs.workflow-name }}' has failed",
+              "attachments": [
+                {
+                  "color": "#C41E3A",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "fields": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Branch:* <${{ github.server_url }}/${{ github.repository }}/tree/${{ inputs.git-branch }}|${{ inputs.git-branch }}>"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*From:* @${{ inputs.actor }}"
+                        },
+                        {
+                          "type": "mrkdwn",
+                          "text": "*Run:* <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ inputs.workflow-run-id }}|${{ inputs.workflow-run-id }}>"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+        
+permissions:
+  contents: read
+  id-token: write

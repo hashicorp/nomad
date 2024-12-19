@@ -25,7 +25,6 @@ const (
 // ErrSubscriptionClosed is a error signalling the subscription has been
 // closed. The client should Unsubscribe, then re-Subscribe.
 var ErrSubscriptionClosed = errors.New("subscription closed by server, client should resubscribe")
-var ErrACLInvalid = errors.New("Provided ACL token is invalid for requested topics")
 
 type Subscription struct {
 	// state must be accessed atomically 0 means open, 1 means closed with reload

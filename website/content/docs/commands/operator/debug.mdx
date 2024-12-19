@@ -47,13 +47,13 @@ true.
 
 ## Debug Options
 
-- `-duration=2m`: Set the duration of the debug capture. Logs will be captured from
-  specified servers and nodes at `log-level`. Defaults to `2m`.
+- `-duration=5m`: Set the duration of the debug capture. Logs will be captured from
+  specified servers and nodes at `log-level`. Defaults to `5m`.
 
 - `-interval=30s`: The interval between snapshots of the Nomad state.
   If unspecified, only one snapshot is captured. Defaults to `30s`.
 
-- `-log-level=DEBUG`: The log level to monitor. Defaults to `DEBUG`.
+- `-log-level=TRACE`: The log level to monitor. Defaults to `TRACE`.
 
 - `-log-include-location`: Include file and line information in each log line
   monitored. The default is `true`.
@@ -70,10 +70,9 @@ true.
 - `-pprof-duration=<duration>`: Duration for pprof
   collection. Defaults to 1s or `-duration`, whichever is less.
 
-- `-pprof-interval=<pprof-interval>`: The interval between pprof
-    collections. Set interval equal to duration to capture a single
-    snapshot. Defaults to 250ms or `-pprof-duration`, whichever is
-    less.
+- `-pprof-interval=30s`: The interval between pprof collections. Set interval
+    equal to pprof duration to capture a single snapshot. Defaults to 30s or
+    `-pprof-duration`, whichever is more.
 
 - `-server-id=<server1>,<server2>`: Comma separated list of Nomad server names to
   monitor for logs, API outputs, and pprof profiles. Accepts server names, "leader", or

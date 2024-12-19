@@ -9,8 +9,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestResourceUsageRoundTrip(t *testing.T) {
@@ -36,8 +35,7 @@ func TestResourceUsageRoundTrip(t *testing.T) {
 	}
 
 	parsed := resourceUsageFromProto(resourceUsageToProto(input))
-
-	require.EqualValues(t, parsed, input)
+	must.Eq(t, parsed, input)
 }
 
 func TestTaskConfigRoundTrip(t *testing.T) {
@@ -109,8 +107,7 @@ func TestTaskConfigRoundTrip(t *testing.T) {
 	}
 
 	parsed := taskConfigFromProto(taskConfigToProto(input))
-
-	require.EqualValues(t, input, parsed)
+	must.Eq(t, input, parsed)
 
 }
 
@@ -140,7 +137,7 @@ func Test_networkCreateRequestFromProto(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput := networkCreateRequestFromProto(tc.inputPB)
-			assert.Equal(t, tc.expectedOutput, actualOutput, tc.name)
+			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
 }

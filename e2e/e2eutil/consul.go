@@ -39,7 +39,7 @@ func serviceStatus(require *require.Assertions, client *capi.Client, namespace, 
 
 // RequireConsulDeregistered asserts that the service eventually is de-registered from Consul.
 func RequireConsulDeregistered(require *require.Assertions, client *capi.Client, namespace, service string) {
-	testutil.WaitForResultRetries(5, func() (bool, error) {
+	testutil.WaitForResultRetries(10, func() (bool, error) {
 		defer time.Sleep(time.Second)
 
 		services, _, err := client.Health().Service(service, "", false, &capi.QueryOptions{Namespace: namespace})

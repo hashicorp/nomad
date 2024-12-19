@@ -4,6 +4,7 @@
 package agent
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -2003,6 +2004,45 @@ func TestHTTP_JobDispatch(t *testing.T) {
 	})
 }
 
+func TestHTTP_JobDispatchPayload(t *testing.T) {
+	ci.Parallel(t)
+	httpTest(t, nil, func(s *TestAgent) {
+		// Create the parameterized job
+		job := mock.BatchJob()
+		job.ParameterizedJob = &structs.ParameterizedJobConfig{
+			Payload: "required",
+		}
+
+		// Register the job
+		var resp structs.JobRegisterResponse
+		must.NoError(t, s.Agent.RPC("Job.Register",
+			&structs.JobRegisterRequest{
+				Job: job,
+				WriteRequest: structs.WriteRequest{
+					Region:    "global",
+					Namespace: structs.DefaultNamespace,
+				},
+			}, &resp))
+
+		// Build the request
+		url := "/v1/job/" + job.ID + "/dispatch/payload"
+		body := bytes.NewReader([]byte("any body at all"))
+		req, err := http.NewRequest(http.MethodPut, url, body)
+		must.NoError(t, err)
+
+		// Make the request
+		respW := httptest.NewRecorder()
+		obj, err := s.Server.JobSpecificRequest(respW, req)
+		must.NoError(t, err)
+		must.Eq(t, http.StatusOK, respW.Result().StatusCode)
+
+		// Check the response
+		dispatch := obj.(structs.JobDispatchResponse)
+		must.NotEq(t, "", dispatch.EvalID, must.Sprintf("expect EvalID in: %v", dispatch))
+		must.NotEq(t, "", dispatch.DispatchedJobID, must.Sprintf("expect DispatchedJobID in: %v", dispatch))
+	})
+}
+
 func TestHTTP_JobRevert(t *testing.T) {
 	ci.Parallel(t)
 	httpTest(t, nil, func(s *TestAgent) {
@@ -2708,6 +2748,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						TaggedAddresses: map[string]string{
 							"wan": "1.2.3.4",
 						},
+						Weights: &api.ServiceWeights{
+							Passing: 5,
+							Warning: 1,
+						},
 						CheckRestart: &api.CheckRestart{
 							Limit: 4,
 							Grace: pointer.Of(11 * time.Second),
@@ -2729,6 +2773,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Interval:      4 * time.Second,
 								Timeout:       2 * time.Second,
 								InitialStatus: "ok",
+								Notes:         "this is a check",
 								CheckRestart: &api.CheckRestart{
 									Limit:          3,
 									IgnoreWarnings: true,
@@ -2751,6 +2796,9 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 					},
+				},
+				Disconnect: &api.DisconnectStrategy{
+					LostAfter: pointer.Of(30 * time.Second),
 				},
 				MaxClientDisconnect: pointer.Of(30 * time.Second),
 				Tasks: []*api.Task{
@@ -2816,6 +2864,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
+								Weights: &api.ServiceWeights{
+									Passing: 7,
+									Warning: 2,
+								},
 								CheckRestart: &api.CheckRestart{
 									Limit: 4,
 									Grace: pointer.Of(11 * time.Second),
@@ -2835,6 +2887,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:               4 * time.Second,
 										Timeout:                2 * time.Second,
 										InitialStatus:          "ok",
+										Notes:                  "this is a check",
 										SuccessBeforePassing:   3,
 										FailuresBeforeCritical: 4,
 										FailuresBeforeWarning:  2,
@@ -2919,6 +2972,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 								GetterMode:   pointer.Of("dir"),
 								RelativeDest: pointer.Of("dest"),
+								Chown:        true,
 							},
 						},
 						Vault: &api.Vault{
@@ -3142,6 +3196,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						TaggedAddresses: map[string]string{
 							"wan": "1.2.3.4",
 						},
+						Weights: &structs.ServiceWeights{
+							Passing: 5,
+							Warning: 1,
+						},
 						OnUpdate: structs.OnUpdateRequireHealthy,
 						Checks: []*structs.ServiceCheck{
 							{
@@ -3160,6 +3218,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Interval:      4 * time.Second,
 								Timeout:       2 * time.Second,
 								InitialStatus: "ok",
+								Notes:         "this is a check",
 								CheckRestart: &structs.CheckRestart{
 									Grace:          11 * time.Second,
 									Limit:          3,
@@ -3184,6 +3243,11 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							},
 						},
 					},
+				},
+				Disconnect: &structs.DisconnectStrategy{
+					LostAfter: 30 * time.Second,
+					Replace:   pointer.Of(true),
+					Reconcile: structs.ReconcileOptionBestScore,
 				},
 				MaxClientDisconnect: pointer.Of(30 * time.Second),
 				Tasks: []*structs.Task{
@@ -3252,6 +3316,10 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								Meta: map[string]string{
 									"servicemeta": "foobar",
 								},
+								Weights: &structs.ServiceWeights{
+									Passing: 7,
+									Warning: 2,
+								},
 								OnUpdate: structs.OnUpdateRequireHealthy,
 								Checks: []*structs.ServiceCheck{
 									{
@@ -3266,6 +3334,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 										Interval:               4 * time.Second,
 										Timeout:                2 * time.Second,
 										InitialStatus:          "ok",
+										Notes:                  "this is a check",
 										GRPCService:            "foo.Bar",
 										GRPCUseTLS:             true,
 										SuccessBeforePassing:   3,
@@ -3359,17 +3428,19 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								},
 								GetterMode:   "dir",
 								RelativeDest: "dest",
+								Chown:        true,
 							},
 						},
 						Vault: &structs.Vault{
-							Role:         "nomad-task",
-							Namespace:    "ns1",
-							Cluster:      structs.VaultDefaultCluster,
-							Policies:     []string{"a", "b", "c"},
-							Env:          true,
-							DisableFile:  false,
-							ChangeMode:   "c",
-							ChangeSignal: "sighup",
+							Role:                 "nomad-task",
+							Namespace:            "ns1",
+							Cluster:              structs.VaultDefaultCluster,
+							Policies:             []string{"a", "b", "c"},
+							Env:                  true,
+							DisableFile:          false,
+							ChangeMode:           "c",
+							ChangeSignal:         "sighup",
+							AllowTokenExpiration: false,
 						},
 						Templates: []*structs.Template{
 							{
@@ -3936,13 +4007,13 @@ func TestConversion_apiJobSubmissionToStructs(t *testing.T) {
 
 func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 	ci.Parallel(t)
-	require.Nil(t, apiConnectSidecarTaskToStructs(nil))
+	must.Nil(t, apiConnectSidecarTaskToStructs(nil))
 	delay := time.Duration(200)
 	timeout := time.Duration(1000)
 	config := make(map[string]interface{})
 	env := make(map[string]string)
 	meta := make(map[string]string)
-	require.Equal(t, &structs.SidecarTask{
+	must.Eq(t, &structs.SidecarTask{
 		Name:   "name",
 		Driver: "driver",
 		User:   "user",
@@ -3961,6 +4032,15 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		},
 		ShutdownDelay: &delay,
 		KillSignal:    "SIGTERM",
+		VolumeMounts: []*structs.VolumeMount{
+			{
+				Volume:          "vol0",
+				Destination:     "/local/foo",
+				ReadOnly:        true,
+				PropagationMode: "private",
+				SELinuxLabel:    "Z",
+			},
+		},
 	}, apiConnectSidecarTaskToStructs(&api.SidecarTask{
 		Name:   "name",
 		Driver: "driver",
@@ -3980,6 +4060,37 @@ func TestConversion_apiConnectSidecarTaskToStructs(t *testing.T) {
 		},
 		ShutdownDelay: &delay,
 		KillSignal:    "SIGTERM",
+		VolumeMounts: []*api.VolumeMount{
+			{
+				Volume:          pointer.Of("vol0"),
+				Destination:     pointer.Of("/local/foo"),
+				ReadOnly:        pointer.Of(true),
+				PropagationMode: pointer.Of("private"),
+				SELinuxLabel:    pointer.Of("Z"),
+			},
+		},
+	}))
+}
+
+func TestConversion_apiVolumeMountsToStructs(t *testing.T) {
+	ci.Parallel(t)
+	must.Nil(t, apiVolumeMountsToStructs(nil))
+	must.Eq(t, []*structs.VolumeMount{
+		{
+			Volume:          "vol0",
+			Destination:     "/local/foo",
+			ReadOnly:        true,
+			PropagationMode: "private",
+			SELinuxLabel:    "Z",
+		},
+	}, apiVolumeMountsToStructs([]*api.VolumeMount{
+		{
+			Volume:          pointer.Of("vol0"),
+			Destination:     pointer.Of("/local/foo"),
+			ReadOnly:        pointer.Of(true),
+			PropagationMode: pointer.Of("private"),
+			SELinuxLabel:    pointer.Of("Z"),
+		},
 	}))
 }
 
@@ -4018,6 +4129,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
 		DestinationPeer:      "10.0.0.1:6379",
+		DestinationPartition: "infra",
 		DestinationType:      "tcp",
 		LocalBindPort:        8000,
 		LocalBindSocketPath:  "/var/run/testsocket.sock",
@@ -4029,6 +4141,7 @@ func TestConversion_apiUpstreamsToStructs(t *testing.T) {
 		DestinationName:      "upstream",
 		DestinationNamespace: "ns2",
 		DestinationPeer:      "10.0.0.1:6379",
+		DestinationPartition: "infra",
 		DestinationType:      "tcp",
 		LocalBindPort:        8000,
 		LocalBindSocketPath:  "/var/run/testsocket.sock",
@@ -4173,6 +4286,33 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 						Services: []*structs.ConsulIngressService{{
 							Name:  "ingress1",
 							Hosts: []string{"host1"},
+							TLS: &structs.ConsulGatewayTLSConfig{
+								SDS: &structs.ConsulGatewayTLSSDSConfig{
+									ClusterName:  "foo",
+									CertResource: "bar",
+								},
+							},
+							RequestHeaders: &structs.ConsulHTTPHeaderModifiers{
+								Add: map[string]string{
+									"test": "testvalue",
+								},
+								Set: map[string]string{
+									"test1": "testvalue1",
+								},
+								Remove: []string{"test2"},
+							},
+							ResponseHeaders: &structs.ConsulHTTPHeaderModifiers{
+								Add: map[string]string{
+									"test": "testvalue",
+								},
+								Set: map[string]string{
+									"test1": "testvalue1",
+								},
+								Remove: []string{"test2"},
+							},
+							MaxConnections:        pointer.Of(uint32(5120)),
+							MaxPendingRequests:    pointer.Of(uint32(512)),
+							MaxConcurrentRequests: pointer.Of(uint32(2048)),
 						}},
 					}},
 				},
@@ -4193,6 +4333,33 @@ func TestConversion_ApiConsulConnectToStructs(t *testing.T) {
 							Services: []*api.ConsulIngressService{{
 								Name:  "ingress1",
 								Hosts: []string{"host1"},
+								TLS: &api.ConsulGatewayTLSConfig{
+									SDS: &api.ConsulGatewayTLSSDSConfig{
+										ClusterName:  "foo",
+										CertResource: "bar",
+									},
+								},
+								RequestHeaders: &api.ConsulHTTPHeaderModifiers{
+									Add: map[string]string{
+										"test": "testvalue",
+									},
+									Set: map[string]string{
+										"test1": "testvalue1",
+									},
+									Remove: []string{"test2"},
+								},
+								ResponseHeaders: &api.ConsulHTTPHeaderModifiers{
+									Add: map[string]string{
+										"test": "testvalue",
+									},
+									Set: map[string]string{
+										"test1": "testvalue1",
+									},
+									Remove: []string{"test2"},
+								},
+								MaxConnections:        pointer.Of(uint32(5120)),
+								MaxPendingRequests:    pointer.Of(uint32(512)),
+								MaxConcurrentRequests: pointer.Of(uint32(2048)),
 							}},
 						}},
 					},
@@ -4290,4 +4457,84 @@ func Test_apiWorkloadIdentityToStructs(t *testing.T) {
 		ChangeSignal: "SIGHUP",
 		TTL:          2 * time.Hour,
 	}))
+}
+
+func TestConversion_ApiJobUIConfigToStructs(t *testing.T) {
+	t.Run("nil jobUI", func(t *testing.T) {
+		must.Nil(t, ApiJobUIConfigToStructs(nil))
+	})
+
+	t.Run("empty jobUI", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{}
+		expected := &structs.JobUIConfig{
+			Description: "",
+			Links:       nil,
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
+
+	t.Run("jobUI with empty description and links", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{
+			Description: "",
+			Links:       []*api.JobUILink{},
+		}
+		expected := &structs.JobUIConfig{
+			Description: "",
+			Links:       nil,
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
+
+	t.Run("jobUI with links", func(t *testing.T) {
+		jobUI := &api.JobUIConfig{
+			Description: "Test description",
+			Links: []*api.JobUILink{
+				{Label: "Link 1", URL: "http://example.com/1"},
+				{Label: "Link 2", URL: "http://example.com/2"},
+			},
+		}
+		expected := &structs.JobUIConfig{
+			Description: "Test description",
+			Links: []*structs.JobUILink{
+				{Label: "Link 1", Url: "http://example.com/1"},
+				{Label: "Link 2", Url: "http://example.com/2"},
+			},
+		}
+		result := ApiJobUIConfigToStructs(jobUI)
+		must.Eq(t, expected, result)
+	})
+}
+
+func TestConversion_ApiJobVersionTagToStructs(t *testing.T) {
+	t.Run("nil tagged version", func(t *testing.T) {
+		must.Nil(t, ApiJobVersionTagToStructs(nil))
+	})
+
+	t.Run("empty tagged version", func(t *testing.T) {
+		versionTag := &api.JobVersionTag{}
+		expected := &structs.JobVersionTag{
+			Name:        "",
+			Description: "",
+			TaggedTime:  0,
+		}
+		result := ApiJobVersionTagToStructs(versionTag)
+		must.Eq(t, expected, result)
+	})
+
+	t.Run("tagged version with tag and version", func(t *testing.T) {
+		versionTag := &api.JobVersionTag{
+			Name:        "low-latency",
+			Description: "Low latency version",
+			TaggedTime:  1234567890,
+		}
+		expected := &structs.JobVersionTag{
+			Name:        "low-latency",
+			Description: "Low latency version",
+			TaggedTime:  1234567890,
+		}
+		result := ApiJobVersionTagToStructs(versionTag)
+		must.Eq(t, expected, result)
+	})
 }

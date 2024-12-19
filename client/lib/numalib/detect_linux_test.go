@@ -68,8 +68,39 @@ func goodSysData(path string) ([]byte, error) {
 	}[path], nil
 }
 
+func goodSysDataAMD(path string) ([]byte, error) {
+	return map[string][]byte{
+		"/sys/devices/system/node/online":                            []byte("0-1"),
+		"/sys/devices/system/cpu/online":                             []byte("0-3"),
+		"/sys/devices/system/node/node0/distance":                    []byte("10"),
+		"/sys/devices/system/node/node0/cpulist":                     []byte("0-3"),
+		"/sys/devices/system/node/node1/distance":                    []byte("10"),
+		"/sys/devices/system/node/node1/cpulist":                     []byte("0-3"),
+		"/sys/devices/system/cpu/cpu0/acpi_cppc/nominal_freq":        []byte("2450"),
+		"/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq":      []byte("3500000"),
+		"/sys/devices/system/cpu/cpu0/cpufreq/scaling_driver":        []byte("acpi-cpufreq"),
+		"/sys/devices/system/cpu/cpu0/topology/physical_package_id":  []byte("0"),
+		"/sys/devices/system/cpu/cpu0/topology/thread_siblings_list": []byte("0,2"),
+		"/sys/devices/system/cpu/cpu1/acpi_cppc/nominal_freq":        []byte("2450"),
+		"/sys/devices/system/cpu/cpu1/cpufreq/cpuinfo_max_freq":      []byte("3500000"),
+		"/sys/devices/system/cpu/cpu1/cpufreq/scaling_driver":        []byte("acpi-cpufreq"),
+		"/sys/devices/system/cpu/cpu1/topology/physical_package_id":  []byte("0"),
+		"/sys/devices/system/cpu/cpu1/topology/thread_siblings_list": []byte("1,3"),
+		"/sys/devices/system/cpu/cpu2/acpi_cppc/nominal_freq":        []byte("2450"),
+		"/sys/devices/system/cpu/cpu2/cpufreq/cpuinfo_max_freq":      []byte("3500000"),
+		"/sys/devices/system/cpu/cpu2/cpufreq/scaling_driver":        []byte("acpi-cpufreq"),
+		"/sys/devices/system/cpu/cpu2/topology/physical_package_id":  []byte("0"),
+		"/sys/devices/system/cpu/cpu2/topology/thread_siblings_list": []byte("0,2"),
+		"/sys/devices/system/cpu/cpu3/acpi_cppc/nominal_freq":        []byte("2450"),
+		"/sys/devices/system/cpu/cpu3/cpufreq/cpuinfo_max_freq":      []byte("3500000"),
+		"/sys/devices/system/cpu/cpu3/cpufreq/scaling_driver":        []byte("acpi-cpufreq"),
+		"/sys/devices/system/cpu/cpu3/topology/physical_package_id":  []byte("0"),
+		"/sys/devices/system/cpu/cpu3/topology/thread_siblings_list": []byte("1,3"),
+	}[path], nil
+}
+
 func TestSysfs_discoverOnline(t *testing.T) {
-	st := NewTopology(&idset.Set[hw.NodeID]{}, SLIT{}, []Core{})
+	st := MockTopology(&idset.Set[hw.NodeID]{}, SLIT{}, []Core{})
 	goodIDSet := idset.From[hw.NodeID]([]uint8{0, 1})
 	oneNode := idset.From[hw.NodeID]([]uint8{0})
 
@@ -85,13 +116,13 @@ func TestSysfs_discoverOnline(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			sy := &Sysfs{}
 			sy.discoverOnline(st, tt.readerFunc)
-			must.Eq(t, tt.expectedIDSet, st.NodeIDs)
+			must.Eq(t, tt.expectedIDSet, st.GetNodes())
 		})
 	}
 }
 
 func TestSysfs_discoverCosts(t *testing.T) {
-	st := NewTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
+	st := MockTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
 	twoNodes := idset.From[hw.NodeID]([]uint8{1, 3})
 
 	tests := []struct {
@@ -113,7 +144,7 @@ func TestSysfs_discoverCosts(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sy := &Sysfs{}
-			st.NodeIDs = tt.nodeIDs
+			st.SetNodes(tt.nodeIDs)
 			sy.discoverCosts(st, tt.readerFunc)
 			must.Eq(t, tt.expectedDistances, st.Distances)
 		})
@@ -121,7 +152,7 @@ func TestSysfs_discoverCosts(t *testing.T) {
 }
 
 func TestSysfs_discoverCores(t *testing.T) {
-	st := NewTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
+	st := MockTopology(idset.Empty[hw.NodeID](), SLIT{}, []Core{})
 	oneNode := idset.From[hw.NodeID]([]uint8{0})
 	twoNodes := idset.From[hw.NodeID]([]uint8{1, 3})
 
@@ -136,7 +167,8 @@ func TestSysfs_discoverCores(t *testing.T) {
 
 		// issue#19372
 		{"one node and bad sys data", oneNode, badSysData, &Topology{
-			NodeIDs: oneNode,
+			nodeIDs: oneNode,
+			Nodes:   oneNode.Slice(),
 			Cores: []Core{
 				{
 					SocketID:  0,
@@ -157,7 +189,8 @@ func TestSysfs_discoverCores(t *testing.T) {
 			},
 		}},
 		{"two nodes and good sys data", twoNodes, goodSysData, &Topology{
-			NodeIDs: twoNodes,
+			nodeIDs: twoNodes,
+			Nodes:   twoNodes.Slice(),
 			Cores: []Core{
 				{
 					SocketID:  1,
@@ -193,11 +226,49 @@ func TestSysfs_discoverCores(t *testing.T) {
 				},
 			},
 		}},
+		{"two nodes and good sys AMD data", twoNodes, goodSysDataAMD, &Topology{
+			nodeIDs: twoNodes,
+			Nodes:   twoNodes.Slice(),
+			Cores: []Core{
+				{
+					SocketID:  1,
+					NodeID:    0,
+					ID:        0,
+					Grade:     Performance,
+					BaseSpeed: 2450,
+					MaxSpeed:  3500,
+				},
+				{
+					SocketID:  1,
+					NodeID:    0,
+					ID:        1,
+					Grade:     Performance,
+					BaseSpeed: 2450,
+					MaxSpeed:  3500,
+				},
+				{
+					SocketID:  1,
+					NodeID:    0,
+					ID:        2,
+					Grade:     Performance,
+					BaseSpeed: 2450,
+					MaxSpeed:  3500,
+				},
+				{
+					SocketID:  1,
+					NodeID:    0,
+					ID:        3,
+					Grade:     Performance,
+					BaseSpeed: 2450,
+					MaxSpeed:  3500,
+				},
+			},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			sy := &Sysfs{}
-			st.NodeIDs = tt.nodeIDs
+			st.SetNodes(tt.nodeIDs)
 			sy.discoverCores(st, tt.readerFunc)
 			must.Eq(t, tt.expectedTopology, st)
 		})

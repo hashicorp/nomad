@@ -4,6 +4,7 @@
 package broker
 
 import (
+	"context"
 	"time"
 
 	"github.com/hashicorp/nomad/helper"
@@ -21,15 +22,18 @@ type GenericNotifier struct {
 	// subscription membership mapping.
 	subscribeCh   chan chan interface{}
 	unsubscribeCh chan chan interface{}
+
+	ctx context.Context
 }
 
 // NewGenericNotifier returns a generic notifier which can be used by a process
 // to notify many subscribers when a specific update is triggered.
-func NewGenericNotifier() *GenericNotifier {
+func NewGenericNotifier(ctx context.Context) *GenericNotifier {
 	return &GenericNotifier{
 		publishCh:     make(chan interface{}, 1),
 		subscribeCh:   make(chan chan interface{}, 1),
 		unsubscribeCh: make(chan chan interface{}, 1),
+		ctx:           ctx,
 	}
 }
 
@@ -46,7 +50,7 @@ func (g *GenericNotifier) Notify(msg interface{}) {
 // Run is a long-lived process which handles updating subscribers as well as
 // ensuring any update is sent to them. The passed stopCh is used to coordinate
 // shutdown.
-func (g *GenericNotifier) Run(stopCh <-chan struct{}) {
+func (g *GenericNotifier) Run() {
 
 	// Store our subscribers inline with a map. This map can only be accessed
 	// via a single channel update at a time, meaning we can manage without
@@ -55,7 +59,7 @@ func (g *GenericNotifier) Run(stopCh <-chan struct{}) {
 
 	for {
 		select {
-		case <-stopCh:
+		case <-g.ctx.Done():
 			return
 		case msgCh := <-g.subscribeCh:
 			subscribers[msgCh] = struct{}{}
@@ -83,7 +87,11 @@ func (g *GenericNotifier) WaitForChange(timeout time.Duration) interface{} {
 	// Create a channel and subscribe to any update. This channel is buffered
 	// to ensure we do not block the main broker process.
 	updateCh := make(chan interface{}, 1)
-	g.subscribeCh <- updateCh
+	select {
+	case <-g.ctx.Done():
+		return "shutting down"
+	case g.subscribeCh <- updateCh:
+	}
 
 	// Create a timeout timer and use the helper to ensure this routine doesn't
 	// panic and making the stop call clear.
@@ -93,7 +101,10 @@ func (g *GenericNotifier) WaitForChange(timeout time.Duration) interface{} {
 	// subscriber once it has been notified of a change, or reached its wait
 	// timeout.
 	defer func() {
-		g.unsubscribeCh <- updateCh
+		select {
+		case <-g.ctx.Done():
+		case g.unsubscribeCh <- updateCh:
+		}
 		close(updateCh)
 		timeoutStop()
 	}()
@@ -101,6 +112,8 @@ func (g *GenericNotifier) WaitForChange(timeout time.Duration) interface{} {
 	// Enter the main loop which listens for an update or timeout and returns
 	// this information to the subscriber.
 	select {
+	case <-g.ctx.Done():
+		return "shutting down"
 	case <-timeoutTimer.C:
 		return "wait timed out after " + timeout.String()
 	case update := <-updateCh:

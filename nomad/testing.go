@@ -25,7 +25,7 @@ var (
 	nodeNumber int32 = 0
 )
 
-func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
+func TestACLServer(t testing.TB, cb func(*Config)) (*Server, *structs.ACLToken, func()) {
 	server, cleanup := TestServer(t, func(c *Config) {
 		c.ACLEnabled = true
 		if cb != nil {
@@ -40,7 +40,7 @@ func TestACLServer(t testing.T, cb func(*Config)) (*Server, *structs.ACLToken, f
 	return server, token, cleanup
 }
 
-func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
+func TestServer(t testing.TB, cb func(*Config)) (*Server, func()) {
 	s, c, err := TestServerErr(t, cb)
 	must.NoError(t, err, must.Sprint("failed to start test server"))
 	return s, c
@@ -48,7 +48,7 @@ func TestServer(t testing.T, cb func(*Config)) (*Server, func()) {
 
 // TestConfigForServer provides a fully functional Config to pass to NewServer()
 // It can be changed beforehand to induce different behavior such as specific errors.
-func TestConfigForServer(t testing.T) *Config {
+func TestConfigForServer(t testing.TB) *Config {
 	t.Helper()
 
 	// Setup the default settings
@@ -75,6 +75,7 @@ func TestConfigForServer(t testing.T) *Config {
 	config.SerfConfig.MemberlistConfig.ProbeTimeout = 50 * time.Millisecond
 	config.SerfConfig.MemberlistConfig.ProbeInterval = 100 * time.Millisecond
 	config.SerfConfig.MemberlistConfig.GossipInterval = 100 * time.Millisecond
+	config.SerfConfig.MemberlistConfig.PushPullInterval = 500 * time.Millisecond
 
 	// Tighten the Raft timing
 	config.RaftConfig.LeaderLeaseTimeout = 50 * time.Millisecond
@@ -121,7 +122,7 @@ func TestConfigForServer(t testing.T) *Config {
 	return config
 }
 
-func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
+func TestServerErr(t testing.TB, cb func(*Config)) (*Server, func(), error) {
 	config := TestConfigForServer(t)
 	// Invoke the callback if any
 	if cb != nil {
@@ -181,15 +182,17 @@ func TestServerErr(t testing.T, cb func(*Config)) (*Server, func(), error) {
 	return nil, nil, fmt.Errorf("error starting test server: %w", err)
 }
 
-func TestJoin(t testing.T, servers ...*Server) {
-	for i := 0; i < len(servers)-1; i++ {
+func TestJoin(t testing.TB, servers ...*Server) {
+	addrs := make([]string, len(servers))
+	for i := 0; i < len(servers); i++ {
 		addr := fmt.Sprintf("127.0.0.1:%d",
 			servers[i].config.SerfConfig.MemberlistConfig.BindPort)
+		addrs[i] = addr
+	}
 
-		for j := i + 1; j < len(servers); j++ {
-			num, err := servers[j].Join([]string{addr})
-			must.NoError(t, err)
-			must.Eq(t, 1, num)
-		}
+	for i := 0; i < len(servers); i++ {
+		num, err := servers[i].Join(addrs)
+		must.NoError(t, err)
+		must.Eq(t, len(addrs), num)
 	}
 }

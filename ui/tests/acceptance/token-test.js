@@ -21,7 +21,7 @@ import Jobs from 'nomad-ui/tests/pages/jobs/list';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import ClientDetail from 'nomad-ui/tests/pages/clients/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
-import AccessControl from 'nomad-ui/tests/pages/access-control';
+import Administration from 'nomad-ui/tests/pages/administration';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 import moment from 'moment';
@@ -36,6 +36,8 @@ let job;
 let node;
 let managementToken;
 let clientToken;
+let recentlyExpiredToken;
+let soonExpiringToken;
 
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
@@ -48,10 +50,17 @@ module('Acceptance | tokens', function (hooks) {
 
     server.create('agent');
     server.create('node-pool');
+    server.create('namespace');
     node = server.create('node');
     job = server.create('job');
     managementToken = server.create('token');
     clientToken = server.create('token');
+    recentlyExpiredToken = server.create('token', {
+      expirationTime: moment().add(-5, 'm').toDate(),
+    });
+    soonExpiringToken = server.create('token', {
+      expirationTime: moment().add(1, 's').toDate(),
+    });
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -193,12 +202,11 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
     await Tokens.secret(secretId).submit();
 
-    server.pretender.get('/v1/jobs', function () {
+    server.pretender.get('/v1/jobs/statuses', function () {
       return [200, {}, '[]'];
     });
 
     await Jobs.visit();
-
     // If jobs are lingering in the store, they would show up
     assert.notOk(find('[data-test-job-row]'), 'No jobs found');
   });
@@ -271,7 +279,7 @@ module('Acceptance | tokens', function (hooks) {
         },
       ],
     };
-    server.pretender.get('/v1/jobs', function () {
+    server.pretender.get('/v1/jobs/statuses', function () {
       return [500, {}, JSON.stringify(expiredServerError)];
     });
 
@@ -297,7 +305,7 @@ module('Acceptance | tokens', function (hooks) {
         },
       ],
     };
-    server.pretender.get('/v1/jobs', function () {
+    server.pretender.get('/v1/jobs/statuses', function () {
       return [500, {}, JSON.stringify(notFoundServerError)];
     });
 
@@ -594,6 +602,19 @@ module('Acceptance | tokens', function (hooks) {
     );
   });
 
+  test('When ACLs are disabled, the user is redirected to the profile settings page', async function (assert) {
+    // Update the existing agent to have ACLs set to false
+    server.db.agents.update(server.db.agents[0].id, {
+      config: {
+        ACL: {
+          Enabled: false,
+        },
+      },
+    });
+    await visit('/settings/tokens');
+    assert.equal(currentURL(), '/settings/user-settings');
+  });
+
   test('Tokens are shown on the Access Control Policies index page', async function (assert) {
     allScenarios.policiesTestCluster(server);
     let firstPolicy = server.db.policies.sort((a, b) => {
@@ -608,7 +629,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/access-control/policies');
+    await visit('/administration/policies');
     assert.dom('[data-test-policy-total-tokens]').exists();
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
       return token.policyIds.includes(firstPolicy.name);
@@ -635,9 +656,9 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/access-control/policies');
+    await visit('/administration/policies');
     await click('[data-test-policy-name]');
-    assert.equal(currentURL(), `/access-control/policies/${firstPolicy.name}`);
+    assert.equal(currentURL(), `/administration/policies/${firstPolicy.name}`);
 
     const expectedFirstPolicyTokens = server.db.tokens.filter((token) => {
       return token.policyIds.includes(firstPolicy.name);
@@ -679,10 +700,10 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/access-control/policies');
+    await visit('/administration/policies');
 
     await click('[data-test-policy-name]:first-child');
-    assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
+    assert.equal(currentURL(), `/administration/policies/${testPolicy.name}`);
     assert
       .dom('[data-test-policy-token-row]')
       .exists(
@@ -717,10 +738,10 @@ module('Acceptance | tokens', function (hooks) {
     );
 
     window.localStorage.nomadTokenSecret = server.db.tokens[0].secretId;
-    await visit('/access-control/policies');
+    await visit('/administration/policies');
 
     await click('[data-test-policy-name]');
-    assert.equal(currentURL(), `/access-control/policies/${testPolicy.name}`);
+    assert.equal(currentURL(), `/administration/policies/${testPolicy.name}`);
 
     assert
       .dom('[data-test-policy-token-row]')
@@ -742,6 +763,109 @@ module('Acceptance | tokens', function (hooks) {
       .hasText(`Example Token for ${testPolicy.name}`);
     await percySnapshot(assert);
     window.localStorage.nomadTokenSecret = null;
+  });
+
+  // Note: this differs from the 500-throwing errors above.
+  // In Nomad 1.5, errors for expired tokens moved from 500 "ACL token expired" to 403 "Permission Denied"
+  // In practice, the UI handles this differently: 403s can be either ACL-policy-denial or token-expired-denial related.
+  // As such, instead of an automatic redirect to the tokens page, like we did for a 500, we prompt the user with in-app
+  // error messages but otherwise keep them on their route, with actions to re-authenticate.
+  test('When a token expires with permission denial, the user is prompted to redirect to the token page (jobs page)', async function (assert) {
+    assert.expect(4);
+    window.localStorage.clear();
+
+    window.localStorage.nomadTokenSecret = recentlyExpiredToken.secretId; // simulate refreshing the page with an expired token
+    server.pretender.get('/v1/jobs/statuses', function () {
+      return [403, {}, 'Permission Denied'];
+    });
+
+    await visit('/jobs');
+
+    assert
+      .dom('[data-test-error]')
+      .exists('Error message is shown on the Jobs page');
+    await click('[data-test-permission-link]');
+    assert.equal(
+      currentURL(),
+      '/settings/tokens',
+      'Redirected to the tokens page'
+    );
+
+    server.pretender.get('/v1/jobs/statuses', function () {
+      return [200, {}, null];
+    });
+    await Tokens.visit();
+
+    await Tokens.secret(recentlyExpiredToken.secretId).submit();
+    assert.equal(currentURL(), '/jobs');
+
+    assert.dom('.flash-message.alert-success').exists();
+  });
+
+  // Evaluations page (and others) fall back to application.hbs handling of error messages
+  test('When a token expires with permission denial, the user is prompted to redirect to the token page (evaluations page)', async function (assert) {
+    window.localStorage.clear();
+    window.localStorage.nomadTokenSecret = recentlyExpiredToken.secretId; // simulate refreshing the page with an expired token
+    server.pretender.get('/v1/evaluations', function () {
+      return [403, {}, 'Permission Denied'];
+    });
+
+    await visit('/evaluations');
+
+    assert
+      .dom('[data-test-error]')
+      .exists('Error message is shown on the Evaluations page');
+    await click('[data-test-error-acl-link]');
+    assert.equal(
+      currentURL(),
+      '/settings/tokens',
+      'Redirected to the tokens page'
+    );
+
+    server.pretender.get('/v1/evaluations', function () {
+      return [200, {}, JSON.stringify([])];
+    });
+
+    await Tokens.secret(managementToken.secretId).submit();
+
+    assert.equal(currentURL(), '/evaluations');
+
+    assert.dom('.flash-message.alert-success').exists();
+  });
+
+  module('Token Expiry and redirect', function (hooks) {
+    hooks.beforeEach(function () {
+      window.localStorage.nomadTokenSecret = soonExpiringToken.secretId;
+    });
+
+    test('When a token expires while the user is on a page, the notification saves redirect route', async function (assert) {
+      // window.localStorage.nomadTokenSecret = soonExpiringToken.secretId;
+      await Jobs.visit();
+      assert.equal(currentURL(), '/jobs');
+
+      assert
+        .dom('.flash-message.alert-warning button')
+        .exists('A global alert exists and has a clickable button');
+
+      await click('.flash-message.alert-warning button');
+
+      assert.equal(
+        currentURL(),
+        '/settings/tokens',
+        'Redirected to tokens page on notification action'
+      );
+
+      assert
+        .dom('[data-test-token-expired]')
+        .exists('Notification is rendered');
+
+      await Tokens.secret(managementToken.secretId).submit();
+      assert.equal(
+        currentURL(),
+        '/jobs',
+        'Redirected to initial route on manager sign in'
+      );
+    });
   });
 
   function getHeader({ requestHeaders }, name) {
@@ -842,8 +966,7 @@ module('Acceptance | tokens', function (hooks) {
 
       // Pop over to the jobs page and make sure the Run button is disabled
       await visit('/jobs');
-      assert.dom('[data-test-run-job]').hasTagName('button');
-      assert.dom('[data-test-run-job]').isDisabled();
+      assert.dom('[data-test-run-job]').hasAttribute('disabled');
 
       // Sign out, and sign back in as a high-level role token
       await Tokens.visit();
@@ -856,7 +979,8 @@ module('Acceptance | tokens', function (hooks) {
       await visit('/jobs');
       // Expect the Run button/link to work now
       assert.dom('[data-test-run-job]').hasTagName('a');
-      assert.dom('[data-test-run-job]').hasAttribute('href', '/ui/jobs/run');
+      let runJobLink = find('[data-test-run-job]');
+      assert.ok(runJobLink.href.includes('/ui/jobs/run'));
     });
   });
 
@@ -872,7 +996,7 @@ module('Acceptance | tokens', function (hooks) {
       );
       const { secretId } = managementToken;
       await Tokens.secret(secretId).submit();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
     });
 
     hooks.afterEach(async function () {
@@ -881,7 +1005,7 @@ module('Acceptance | tokens', function (hooks) {
     });
 
     test('Tokens index, general', async function (assert) {
-      assert.equal(currentURL(), '/access-control/tokens');
+      assert.equal(currentURL(), '/administration/tokens');
       // Number of token rows equivalent to number in db
       assert
         .dom('[data-test-token-row]')
@@ -989,7 +1113,7 @@ module('Acceptance | tokens', function (hooks) {
         (row) => row.textContent.includes(tokenToClick.name)
       );
       await click(tokenRowToClick.querySelector('[data-test-token-name] a'));
-      assert.equal(currentURL(), `/access-control/tokens/${tokenToClick.id}`);
+      assert.equal(currentURL(), `/administration/tokens/${tokenToClick.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(tokenToClick.name);
     });
 
@@ -1046,7 +1170,7 @@ module('Acceptance | tokens', function (hooks) {
 
     test('Token page, general', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      await visit(`/access-control/tokens/${token.id}`);
+      await visit(`/administration/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
       assert.dom('[data-test-token-accessor]').hasValue(token.accessorId);
       assert.dom('[data-test-token-secret]').hasValue(token.secretId);
@@ -1123,18 +1247,18 @@ module('Acceptance | tokens', function (hooks) {
     });
     test('Token name can be edited', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      await visit(`/access-control/tokens/${token.id}`);
+      await visit(`/administration/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
       await fillIn('[data-test-token-name-input]', 'Mud-Token');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="Mud-Token"]').exists({ count: 1 });
     });
 
     test('Token policies and roles can be edited', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      await visit(`/access-control/tokens/${token.id}`);
+      await visit(`/administration/tokens/${token.id}`);
 
       // The policies/roles belonging to this token are checked
       const tokenPolicies = token.policyIds;
@@ -1186,7 +1310,7 @@ module('Acceptance | tokens', function (hooks) {
 
       await percySnapshot(assert);
 
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       // Policies cell for our clay token should read "No Policies"
       const clayToken = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
       const clayTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
@@ -1207,19 +1331,27 @@ module('Acceptance | tokens', function (hooks) {
     });
     test('Token can be deleted', async function (assert) {
       const token = server.db.tokens.findBy((t) => t.id === 'cl4y-t0k3n');
-      await visit(`/access-control/tokens/${token.id}`);
-      await click('[data-test-delete-token]');
+      await visit(`/administration/tokens/${token.id}`);
+
+      const deleteButton = find('[data-test-delete-token] button');
+      assert.dom(deleteButton).exists('delete button is present');
+      await click(deleteButton);
+      assert
+        .dom('[data-test-confirmation-message]')
+        .exists('confirmation message is present');
+      await click(find('[data-test-confirm-button]'));
+
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="cl4y-t0k3n"]').doesNotExist();
     });
     test('New Token creation', async function (assert) {
       await click('[data-test-create-token]');
-      assert.equal(currentURL(), '/access-control/tokens/new');
+      assert.equal(currentURL(), '/administration/tokens/new');
       await fillIn('[data-test-token-name-input]', 'Timeless Token');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert
         .dom('[data-test-token-name="Timeless Token"]')
         .exists({ count: 1 });
@@ -1233,13 +1365,13 @@ module('Acceptance | tokens', function (hooks) {
 
       // Now create one with a TTL
       await click('[data-test-create-token]');
-      assert.equal(currentURL(), '/access-control/tokens/new');
+      assert.equal(currentURL(), '/administration/tokens/new');
       await fillIn('[data-test-token-name-input]', 'TTL Token');
       // Select the "8 hours" radio within the .expiration-time div
       await click('.expiration-time input[value="8h"]');
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert.dom('[data-test-token-name="TTL Token"]').exists({ count: 1 });
       const ttlTokenRow = [...findAll('[data-test-token-row]')].find((row) =>
         row.textContent.includes('TTL Token')
@@ -1251,7 +1383,7 @@ module('Acceptance | tokens', function (hooks) {
 
       // Now create one with an expiration time
       await click('[data-test-create-token]');
-      assert.equal(currentURL(), '/access-control/tokens/new');
+      assert.equal(currentURL(), '/administration/tokens/new');
       await fillIn('[data-test-token-name-input]', 'Expiring Token');
       // select the Custom radio button
       await click('.expiration-time input[value="custom"]');
@@ -1267,7 +1399,7 @@ module('Acceptance | tokens', function (hooks) {
       await fillIn('[data-test-token-expiration-time-input]', soonString);
       await click('[data-test-token-save]');
       assert.dom('.flash-message.alert-success').exists();
-      await AccessControl.visitTokens();
+      await Administration.visitTokens();
       assert
         .dom('[data-test-token-name="Expiring Token"]')
         .exists({ count: 1 });
@@ -1281,5 +1413,168 @@ module('Acceptance | tokens', function (hooks) {
         .dom(expiringTokenExpirationCell)
         .hasText('in 2 hours', 'Expiration time is relativized and rounded');
     });
+
+    test('When no regions are present, Tokens are by default regional', async function (assert) {
+      await visit('/administration/tokens/new');
+      assert.dom('[data-test-global-token-group]').doesNotExist();
+
+      await fillIn('[data-test-token-name-input]', 'Capt. Steven Hiller');
+      await click('[data-test-token-save]');
+      assert.dom('.flash-message.alert-success').exists();
+      const token = server.db.tokens.findBy(
+        (t) => t.name === 'Capt. Steven Hiller'
+      );
+      assert.false(token.global);
+    });
+  });
+});
+
+module('Tokens and Regions', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(function () {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+    faker.seed(1);
+
+    server.create('region', { id: 'america' });
+    server.create('region', { id: 'washington-dc' });
+    server.create('region', { id: 'new-york' });
+    server.create('region', { id: 'alien-ship' });
+
+    server.create('agent');
+    server.create('node-pool');
+    server.create('namespace');
+    node = server.create('node');
+    job = server.create('job');
+    managementToken = server.create('token');
+
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+  });
+  test('When regions are present, Tokens are by default regional, but can be made global', async function (assert) {
+    await visit('/administration/tokens/new');
+    assert.dom('[data-test-global-token-group]').exists();
+  });
+
+  test('A global token can be created, and gets saved in the authoritative region', async function (assert) {
+    await visit('/administration/tokens/new');
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('america', 'america is the default selected region');
+    assert
+      .dom('[data-test-locality]')
+      .exists(
+        { count: 2 },
+        'When in the authoritative/default region, only it and global are region options'
+      );
+
+    // change region from dropdown
+    await selectChoose('[data-test-region-switcher-parent]', 'washington-dc');
+
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('washington-dc', 'washington-dc is the selected region');
+    assert.dom('[data-test-locality="active-region"]').isChecked();
+
+    assert
+      .dom('[data-test-locality]')
+      .exists(
+        { count: 3 },
+        'When in a region other than the authoritative one, the authoritative group becomes an third option in addition to current region and global'
+      );
+
+    await fillIn('[data-test-token-name-input]', 'Thomas J. Whitmore');
+    await click('[data-test-locality="global"]');
+    assert.dom('[data-test-locality="global"]').isChecked();
+
+    await click('[data-test-token-type="management"]');
+    await click('[data-test-token-save]');
+
+    let globalToken = server.db.tokens.findBy(
+      (t) => t.name === 'Thomas J. Whitmore'
+    );
+    assert.ok(globalToken.global, 'Token has Global set to true');
+    assert.dom('.flash-message.alert-success').exists();
+    let tokenRequest = server.pretender.handledRequests.find((req) => {
+      return req.url.includes('acl/token') && req.method === 'POST';
+    });
+    assert.equal(
+      tokenRequest.queryParams.region,
+      'america',
+      'Global token is saved in the authoritative region, regardless of active UI region'
+    );
+    await percySnapshot(assert);
+  });
+
+  test('A token can be created in a non-authoritative region', async function (assert) {
+    await visit('/administration/tokens/new');
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('america', 'america is the default selected region');
+    assert
+      .dom('[data-test-locality]')
+      .exists(
+        { count: 2 },
+        'When in the authoritative/default region, only it and global are region options'
+      );
+
+    // change region from dropdown
+    await selectChoose('[data-test-region-switcher-parent]', 'alien-ship');
+
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('alien-ship', 'alien-ship is the selected region');
+    assert.dom('[data-test-locality="active-region"]').isChecked();
+
+    await fillIn('[data-test-token-name-input]', 'David Levinson');
+    await click('[data-test-token-type="management"]');
+    await click('[data-test-token-save]');
+    assert.dom('.flash-message.alert-success').exists();
+    let token = server.db.tokens.findBy((t) => t.name === 'David Levinson');
+
+    assert.notOk(token.global, 'Token is not global');
+    const tokenRequest = server.pretender.handledRequests.find((req) => {
+      return req.url.includes('acl/token') && req.method === 'POST';
+    });
+
+    assert.equal(
+      tokenRequest.queryParams.region,
+      'alien-ship',
+      'Token is saved in the selected region'
+    );
+  });
+
+  test('A non-global token can be created in the authoritative region', async function (assert) {
+    await visit('/administration/tokens/new');
+
+    // change region from dropdown
+    await selectChoose('[data-test-region-switcher-parent]', 'new-york');
+
+    assert
+      .dom('[data-test-active-region-label]')
+      .hasText('new-york', 'new-york is the selected region');
+    assert.dom('[data-test-locality="active-region"]').isChecked();
+
+    await click('[data-test-locality="default-region"]');
+    assert.dom('[data-test-locality="default-region"]').isChecked();
+
+    await fillIn('[data-test-token-name-input]', 'Russell Casse');
+    await click('[data-test-token-type="management"]');
+    // await this.pauseTest();
+
+    await click('[data-test-token-save]');
+    assert.dom('.flash-message.alert-success').exists();
+    let token = server.db.tokens.findBy((t) => t.name === 'Russell Casse');
+    assert.notOk(token.global, 'Token is not global');
+    const tokenRequest = server.pretender.handledRequests.find((req) => {
+      return req.url.includes('acl/token') && req.method === 'POST';
+    });
+
+    assert.equal(
+      tokenRequest.queryParams.region,
+      'america',
+      'Token is saved in the authoritative region'
+    );
   });
 });

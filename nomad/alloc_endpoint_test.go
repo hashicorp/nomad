@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -1690,7 +1690,7 @@ func TestAlloc_SignIdentities_Bad(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	t.Cleanup(cleanupS1)
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	node := mock.Node()
 	must.NoError(t, s1.fsm.State().UpsertNode(structs.MsgTypeTestSetup, 100, node))

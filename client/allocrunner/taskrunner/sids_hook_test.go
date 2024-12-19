@@ -1,8 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-//go:build !windows
-// +build !windows
+//go:build linux
+// +build linux
 
 // todo(shoenig): Once Connect is supported on Windows, we'll need to make this
 //  set of tests work there too.
@@ -191,7 +191,7 @@ func TestSIDSHook_deriveSIToken_timeout(t *testing.T) {
 	r := require.New(t)
 
 	siClient := consulclient.NewMockServiceIdentitiesClient()
-	siClient.DeriveTokenFn = func(allocation *structs.Allocation, strings []string) (m map[string]string, err error) {
+	siClient.DeriveTokenFn = func(context.Context, *structs.Allocation, []string) (m map[string]string, err error) {
 		select {
 		// block forever, hopefully triggering a timeout in the caller
 		}
@@ -288,7 +288,7 @@ func TestTaskRunner_DeriveSIToken_UnWritableTokenFile(t *testing.T) {
 	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
 
 	// derive token works just fine
-	deriveFn := func(*structs.Allocation, []string) (map[string]string, error) {
+	deriveFn := func(context.Context, *structs.Allocation, []string) (map[string]string, error) {
 		return map[string]string{task.Name: uuid.Generate()}, nil
 	}
 	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)

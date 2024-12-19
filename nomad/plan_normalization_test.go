@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 // This test compares the size of the normalized + OmitEmpty raft plan log entry
@@ -20,6 +20,13 @@ import (
 //
 // Whenever this test is changed, care should be taken to ensure the older msgpack size
 // is recalculated when new fields are introduced in ApplyPlanResultsRequest
+//
+// If you make an unrelated change that unexpectedly fails this test,
+// consider adding omitempty to the struct you are modifying, e.g.:
+//
+//	 type NetworkResource struct {
+//		// msgpack omit empty fields during serialization
+//		_struct bool `codec:",omitempty"` // nolint: structcheck
 func TestPlanNormalize(t *testing.T) {
 	ci.Parallel(t)
 
@@ -68,5 +75,6 @@ func TestPlanNormalize(t *testing.T) {
 	}
 
 	optimizedLogSize := buf.Len()
-	assert.Less(t, float64(optimizedLogSize)/float64(unoptimizedLogSize), 0.67)
+	ratio := float64(optimizedLogSize) / float64(unoptimizedLogSize)
+	must.Less(t, 0.6, ratio)
 }

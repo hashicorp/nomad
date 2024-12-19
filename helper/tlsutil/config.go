@@ -22,6 +22,7 @@ var supportedTLSVersions = map[string]uint16{
 	"tls10": tls.VersionTLS10,
 	"tls11": tls.VersionTLS11,
 	"tls12": tls.VersionTLS12,
+	"tls13": tls.VersionTLS13,
 }
 
 // supportedTLSCiphers are the complete list of TLS ciphers supported by Nomad
@@ -32,15 +33,12 @@ var supportedTLSCiphers = map[string]uint16{
 	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
 	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256,
 	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
 	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
 	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
 	"TLS_RSA_WITH_AES_128_GCM_SHA256":         tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
 	"TLS_RSA_WITH_AES_256_GCM_SHA384":         tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-	"TLS_RSA_WITH_AES_128_CBC_SHA256":         tls.TLS_RSA_WITH_AES_128_CBC_SHA256,
 	"TLS_RSA_WITH_AES_128_CBC_SHA":            tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 	"TLS_RSA_WITH_AES_256_CBC_SHA":            tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 }
@@ -62,15 +60,12 @@ var supportedCipherSignatures = map[string]signatureAlgorithm{
 	"TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256": ecdsaStringRepr,
 	"TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384":   rsaStringRepr,
 	"TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384": ecdsaStringRepr,
-	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256":   rsaStringRepr,
 	"TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA":      rsaStringRepr,
-	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256": ecdsaStringRepr,
 	"TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA":    ecdsaStringRepr,
 	"TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA":      rsaStringRepr,
 	"TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA":    ecdsaStringRepr,
 	"TLS_RSA_WITH_AES_128_GCM_SHA256":         rsaStringRepr,
 	"TLS_RSA_WITH_AES_256_GCM_SHA384":         rsaStringRepr,
-	"TLS_RSA_WITH_AES_128_CBC_SHA256":         rsaStringRepr,
 	"TLS_RSA_WITH_AES_128_CBC_SHA":            rsaStringRepr,
 	"TLS_RSA_WITH_AES_256_CBC_SHA":            rsaStringRepr,
 }
@@ -148,12 +143,6 @@ type Config struct {
 	// these values for acceptable safe alternatives.
 	CipherSuites []uint16
 
-	// PreferServerCipherSuites controls whether the server selects the
-	// client's most preferred ciphersuite, or the server's most preferred
-	// ciphersuite. If true then the server's preference, as expressed in
-	// the order of elements in CipherSuites, is used.
-	PreferServerCipherSuites bool
-
 	// MinVersion contains the minimum SSL/TLS version that is accepted.
 	MinVersion uint16
 }
@@ -170,16 +159,15 @@ func NewTLSConfiguration(newConf *config.TLSConfig, verifyIncoming, verifyOutgoi
 	}
 
 	return &Config{
-		VerifyIncoming:           verifyIncoming,
-		VerifyOutgoing:           verifyOutgoing,
-		VerifyServerHostname:     newConf.VerifyServerHostname,
-		CAFile:                   newConf.CAFile,
-		CertFile:                 newConf.CertFile,
-		KeyFile:                  newConf.KeyFile,
-		KeyLoader:                newConf.GetKeyLoader(),
-		CipherSuites:             ciphers,
-		MinVersion:               minVersion,
-		PreferServerCipherSuites: newConf.TLSPreferServerCipherSuites,
+		VerifyIncoming:       verifyIncoming,
+		VerifyOutgoing:       verifyOutgoing,
+		VerifyServerHostname: newConf.VerifyServerHostname,
+		CAFile:               newConf.CAFile,
+		CertFile:             newConf.CertFile,
+		KeyFile:              newConf.KeyFile,
+		KeyLoader:            newConf.GetKeyLoader(),
+		CipherSuites:         ciphers,
+		MinVersion:           minVersion,
 	}, nil
 }
 
@@ -237,11 +225,10 @@ func (c *Config) OutgoingTLSConfig() (*tls.Config, error) {
 	}
 	// Create the tlsConfig
 	tlsConfig := &tls.Config{
-		RootCAs:                  x509.NewCertPool(),
-		InsecureSkipVerify:       true,
-		CipherSuites:             c.CipherSuites,
-		MinVersion:               c.MinVersion,
-		PreferServerCipherSuites: c.PreferServerCipherSuites,
+		RootCAs:            x509.NewCertPool(),
+		InsecureSkipVerify: true,
+		CipherSuites:       c.CipherSuites,
+		MinVersion:         c.MinVersion,
 	}
 	if c.VerifyServerHostname {
 		tlsConfig.InsecureSkipVerify = false
@@ -355,11 +342,10 @@ func WrapTLSClient(conn net.Conn, tlsConfig *tls.Config) (net.Conn, error) {
 func (c *Config) IncomingTLSConfig() (*tls.Config, error) {
 	// Create the tlsConfig
 	tlsConfig := &tls.Config{
-		ClientCAs:                x509.NewCertPool(),
-		ClientAuth:               tls.NoClientCert,
-		CipherSuites:             c.CipherSuites,
-		MinVersion:               c.MinVersion,
-		PreferServerCipherSuites: c.PreferServerCipherSuites,
+		ClientCAs:    x509.NewCertPool(),
+		ClientAuth:   tls.NoClientCert,
+		CipherSuites: c.CipherSuites,
+		MinVersion:   c.MinVersion,
 	}
 
 	// Parse the CA cert if any

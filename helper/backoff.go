@@ -4,6 +4,8 @@
 package helper
 
 import (
+	"context"
+	"fmt"
 	"time"
 )
 
@@ -28,4 +30,35 @@ func Backoff(backoffBase time.Duration, backoffLimit time.Duration, attempt uint
 	}
 
 	return deadline
+}
+
+// WithBackoffFunc is a helper that runs a function with geometric backoff + a
+// small jitter to a maximum backoff. It returns once the context closes, with
+// the error wrapping over the error from the function.
+func WithBackoffFunc(ctx context.Context, minBackoff, maxBackoff time.Duration, fn func() error) error {
+	var err error
+	backoff := minBackoff
+	t, stop := NewSafeTimer(0)
+	defer stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("operation cancelled: %w", err)
+		case <-t.C:
+		}
+
+		err = fn()
+		if err == nil {
+			return nil
+		}
+
+		if backoff < maxBackoff {
+			backoff = backoff*2 + RandomStagger(minBackoff/10)
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+		}
+
+		t.Reset(backoff)
+	}
 }

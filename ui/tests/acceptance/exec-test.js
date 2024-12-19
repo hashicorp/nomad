@@ -266,7 +266,7 @@ module('Acceptance | exec', function (hooks) {
   });
 
   test('navigating to a task adds its name to the route, chooses an allocation, and assigns a default command', async function (assert) {
-    await Exec.visitJob({ job: this.job.id });
+    await Exec.visitJob({ job: this.job.id, namespace: this.job.namespaceId });
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
@@ -282,7 +282,7 @@ module('Acceptance | exec', function (hooks) {
 
     assert.equal(
       currentURL(),
-      `/exec/${this.job.id}/${taskGroup.name}/${task.name}`
+      `/exec/${this.job.id}/${taskGroup.name}/${task.name}?namespace=${this.job.namespaceId}`
     );
     assert.ok(Exec.taskGroups[0].tasks[0].isActive);
 
@@ -332,6 +332,7 @@ module('Acceptance | exec', function (hooks) {
       task_group: taskGroup.name,
       task_name: task.name,
       allocation: allocation.id.split('-')[0],
+      namespace: this.job.namespaceId,
     });
 
     await settled();
@@ -341,6 +342,43 @@ module('Acceptance | exec', function (hooks) {
       `$ nomad alloc exec -i -t -task spaced\\ name\\! ${
         allocation.id.split('-')[0]
       } /bin/bash`
+    );
+  });
+
+  test('a namespace can be specified', async function (assert) {
+    server.create('namespace'); // default
+    let namespace = server.create('namespace', {
+      id: 'should-show-in-example-string',
+    });
+    let job = server.create('job', {
+      namespaceId: namespace.id,
+      createAllocations: true,
+      status: 'running',
+    });
+
+    let taskGroup = job.taskGroups.models.sortBy('name')[0];
+    let task = taskGroup.tasks.models.sortBy('name')[0];
+    let allocations = this.server.db.allocations.where({
+      jobId: job.id,
+      taskGroup: taskGroup.name,
+    });
+    let allocation = allocations[allocations.length - 1];
+
+    await Exec.visitTask({
+      job: job.id,
+      task_group: taskGroup.name,
+      task_name: task.name,
+      allocation: allocation.id.split('-')[0],
+      namespace: namespace.id,
+    });
+
+    await settled();
+
+    assert.equal(
+      window.execTerminal.buffer.active.getLine(4).translateToString().trim(),
+      `$ nomad alloc exec -i -t -namespace should-show-in-example-string -task ${
+        task.name
+      } ${allocation.id.split('-')[0]} /bin/bash`
     );
   });
 
@@ -495,7 +533,7 @@ module('Acceptance | exec', function (hooks) {
 
     this.owner.register('service:sockets', mockSockets);
 
-    await Exec.visitJob({ job: this.job.id });
+    await Exec.visitJob({ job: this.job.id, namespace: this.job.namespaceId });
     await Exec.taskGroups[0].click();
     await Exec.taskGroups[0].tasks[0].click();
 
@@ -557,6 +595,7 @@ module('Acceptance | exec', function (hooks) {
       task_group: taskGroup.name,
       task_name: task.name,
       allocation: allocation.id.split('-')[0],
+      namespace: this.job.namespaceId,
     });
 
     await settled();

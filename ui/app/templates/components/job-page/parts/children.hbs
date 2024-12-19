@@ -53,11 +53,13 @@
             Status
           </t.sort-by>
           <th class="is-3">
-            Summary
+            Completed Allocations
           </th>
         </t.head>
         <t.body @key="model.id" as |row|>
-          <JobRow data-test-job-row @job={{row.model}} @context="child" />
+          <ChildJobRow
+            @job={{row.model}}
+          />
         </t.body>
       </ListTable>
       <div class="table-foot">

@@ -17,7 +17,70 @@ containers and its command line tool is meant to be [a drop-in replacement]
 
 Source is on [GitHub][github]
 
-Download from HashiCorp [releases][releases]
+## Installation
+
+<Tabs>
+<Tab heading="Manual installation" group="manual">
+
+You can download a [precompiled binary](https://releases.hashicorp.com/nomad-driver-podman/) and verify the
+binary using the available SHA-256 sums. After downloading nomad-driver-podman
+driver, unzip the package. Make sure that the `nomad-driver-podman` binary is
+available on your [plugin_dir](/nomad/docs/configuration#plugin_dir) path,
+specified by the client's config file, before continuing with the other guides.
+
+</Tab>
+<Tab heading="Ubuntu/Debian" group="manual">
+
+Install the required packages.
+
+```shell-session
+$ sudo apt-get update && \
+  sudo apt-get install wget gpg coreutils
+```
+
+Add the HashiCorp [GPG key][gpg-key].
+
+```shell-session
+$ wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+```
+
+Add the official HashiCorp Linux test repository.
+
+```shell-session
+$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+```
+
+Update and install.
+
+```shell-session
+$ sudo apt-get update && sudo apt-get install -y nomad-driver-podman
+```
+
+</Tab>
+<Tab heading="CentOS/RHEL" group="linux">
+
+Install `yum-config-manager` to manage your repositories.
+
+```shell-session
+$ sudo yum install -y yum-utils
+```
+
+Use `yum-config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+```
+
+Install.
+
+```shell-session
+$ sudo yum -y install nomad-driver-podman
+```
+
+</Tab>
+</Tabs>
+
+## Usage
 
 The example job created by [`nomad init -short`][nomad-init] is easily adapted
 to use Podman instead:
@@ -464,20 +527,6 @@ namespace which is created and managed by Nomad itself. Refer to Nomad's
 The Podman plugin has options which may be customized in the agent's
 configuration file.
 
-- `disable_log_collection` `(bool: false)` - Setting this to `true` will
-  disable Nomad logs collection of Podman tasks. If you don't rely on Nomad log
-  capabilities and exclusively use host based log aggregation, you may consider
-  this option to disable Nomad log collection overhead. Beware that you also
-  lose automatic log rotation.
-
-  ```hcl
-  plugin "nomad-driver-podman" {
-    config {
-      disable_log_collection = false
-    }
-  }
-  ```
-
 - `gc` block:
 
   - `container` - Defaults to `true`. This option can be used to disable Nomad
@@ -558,6 +607,25 @@ configuration file.
   }
   ```
 
+If you need to configure authorization to an external registry, you can write a
+file containing the details in a location such as
+`/etc/nomad.d/registry/auth.json`:
+```json
+{
+  "auths": {
+    "yourregistry": {
+      "auth": "token"
+    }
+  }
+}
+```
+
+You can then instruct Nomad and the Podman driver to use this information by
+adding the following to the `/etc/nomad.d/nomad.env` file:
+```env
+REGISTRY_AUTH_FILE=/etc/nomad.d/registry/auth.json
+```
+
 [github]: https://github.com/hashicorp/nomad-driver-podman
 [`count`]: /nomad/docs/job-specification/group#count
 [`disable_log_collection`]: #disable_log_collection
@@ -581,7 +649,7 @@ configuration file.
 [rootless_tutorial]: https://github.com/containers/libpod/blob/master/docs/tutorials/rootless_tutorial.md
 [task]: /nomad/docs/job-specification/task#user
 [`network_mode`]: #network_mode
-[network-mode]: http://docs.podman.io/en/latest/markdown/podman-run.1.html#options
+[network-mode]: https://docs.podman.io/en/latest/markdown/podman-run.1.html#network-mode-net
 [slirp-issue]: https://github.com/containers/libpod/issues/6097
 [downloaded]: https://releases.hashicorp.com/nomad-driver-podman
 [short-names]: https://github.com/containers/image/blob/master/docs/containers-registries.conf.5.md#short-name-aliasing

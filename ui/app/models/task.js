@@ -21,13 +21,15 @@ export default class Task extends Fragment {
   @fragmentArray('action', { defaultValue: () => [] })
   actions;
 
-  @attr() meta;
+  @fragment('structured-attributes') meta;
 
-  @computed('taskGroup.mergedMeta', 'meta')
+  @fragment('task-schedule') schedule;
+
+  @computed('meta.raw', 'taskGroup.mergedMeta')
   get mergedMeta() {
     return {
       ...this.taskGroup.mergedMeta,
-      ...this.meta,
+      ...this.meta?.raw,
     };
   }
 

@@ -73,8 +73,10 @@
   "client": [
     {
       "alloc_dir": "/tmp/alloc",
+      "alloc_mounts_dir": "/tmp/mounts",
       "bridge_network_name": "custom_bridge_name",
       "bridge_network_subnet": "custom_bridge_subnet",
+      "bridge_network_subnet_ipv6": "custom_bridge_subnet_ipv6",
       "chroot_env": [
         {
           "/opt/myapp/bin": "/bin",
@@ -169,7 +171,6 @@
       "server_service_name": "nomad",
       "service_auth_method": "nomad-services",
       "task_auth_method": "nomad-tasks",
-
       "service_identity": {
         "aud": [
           "consul.io",
@@ -204,6 +205,14 @@
       "Access-Control-Allow-Origin": "*"
     }
   ],
+  "keyring": {
+    "awskms": {
+      "active": true,
+      "region": "us-east-1",
+      "kms_key_id": "alias/kms-nomad-keyring"
+    },
+    "aead": {}
+  },
   "leave_on_interrupt": true,
   "leave_on_terminate": true,
   "log_file": "/var/log/nomad.log",
@@ -360,6 +369,9 @@
   "syslog_facility": "LOCAL1",
   "telemetry": [
     {
+      "disable_allocation_hook_metrics": true,
+      "in_memory_collection_interval": "1m",
+      "in_memory_retention_period": "24h",
       "collection_interval": "3s",
       "disable_hostname": true,
       "prometheus_metrics": true,
@@ -379,7 +391,6 @@
       "rpc_upgrade_mode": true,
       "tls_cipher_suites": "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
       "tls_min_version": "tls12",
-      "tls_prefer_server_cipher_suites": true,
       "verify_https_client": true,
       "verify_server_hostname": true
     }
@@ -393,7 +404,10 @@
       "cert_file": "/path/to/cert/file",
       "create_from_role": "test_role",
       "default_identity": {
-        "aud": ["vault.io", "nomad.io"],
+        "aud": [
+          "vault.io",
+          "nomad.io"
+        ],
         "env": false,
         "file": true,
         "ttl": "3h"
@@ -407,9 +421,11 @@
       "token": "12345"
     }
   ],
-  "reporting":{
-    "license":{
-      "enabled":"true"
+  "reporting": {
+    "address": "http://localhost:8080",
+    "export_interval": "15m",
+    "license": {
+      "enabled": "true"
     }
   }
 }

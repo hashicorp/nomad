@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
@@ -32,6 +34,8 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
@@ -65,7 +69,8 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 	}
 
 	t.Run("file does not exist", func(t *testing.T) {
-		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
+		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+			logger: testlog.HCLogger(t), node: mock.Node()})
 		cfg, err := h.maybeLoadSIToken("task1", "/does/not/exist")
 		require.NoError(t, err) // absence of token is not an error
 		require.Equal(t, "", cfg)
@@ -75,7 +80,8 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 		token := uuid.Generate()
 		f := writeTmp(t, token, 0440)
 
-		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
+		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+			logger: testlog.HCLogger(t), node: mock.Node()})
 		cfg, err := h.maybeLoadSIToken("task1", f)
 		require.NoError(t, err)
 		require.Equal(t, token, cfg)
@@ -85,7 +91,8 @@ func TestEnvoyBootstrapHook_maybeLoadSIToken(t *testing.T) {
 		token := uuid.Generate()
 		f := writeTmp(t, token, 0200)
 
-		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{logger: testlog.HCLogger(t)})
+		h := newEnvoyBootstrapHook(&envoyBootstrapHookConfig{
+			logger: testlog.HCLogger(t), node: mock.Node()})
 		cfg, err := h.maybeLoadSIToken("task1", f)
 		require.Error(t, err)
 		require.False(t, os.IsNotExist(err))
@@ -341,21 +348,21 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	require.NoError(t, err)
 	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
+	go serviceClient.Run()
+	defer serviceClient.Shutdown()
+	must.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, consulNamespace, logger))
+	}, consulNamespace, serviceClient, mock.Node(), logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
-		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskDir: allocDir.NewTaskDir(sidecarTask),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
 
 	// Insert service identity token in the secrets directory
 	token := uuid.Generate()
@@ -367,9 +374,6 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), req, resp))
-
-	// Assert it is Done
-	require.True(t, resp.Done)
 
 	// Ensure the default path matches
 	env := map[string]string{
@@ -390,10 +394,10 @@ func TestEnvoyBootstrapHook_with_SI_token(t *testing.T) {
 	require.Equal(t, token, value)
 }
 
-// TestTaskRunner_EnvoyBootstrapHook_sidecar_ok asserts the EnvoyBootstrapHook
+// TestEnvoyBootstrapHook_sidecar_ok asserts the EnvoyBootstrapHook
 // creates Envoy's bootstrap.json configuration based on Connect proxy sidecars
 // registered for the task.
-func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
+func TestEnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
@@ -442,29 +446,26 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	require.NoError(t, err)
 	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
 
-	consulClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
-	go consulClient.Run()
-	defer consulClient.Shutdown()
-	require.NoError(t, consulClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
+	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
+	go serviceClient.Run()
+	defer serviceClient.Shutdown()
+	require.NoError(t, serviceClient.RegisterWorkload(agentconsul.BuildAllocServices(mock.Node(), alloc, agentconsul.NoopRestarter())))
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, consulNamespace, logger))
+	}, consulNamespace, serviceClient, mock.Node(), logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
-		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskDir: allocDir.NewTaskDir(sidecarTask),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
 
 	resp := &interfaces.TaskPrestartResponse{}
 
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), req, resp))
-
-	// Assert it is Done
-	require.True(t, resp.Done)
 
 	require.NotNil(t, resp.Env)
 	require.Equal(t, "127.0.0.2:19001", resp.Env[envoyAdminBindEnvPrefix+"foo"])
@@ -488,7 +489,7 @@ func TestTaskRunner_EnvoyBootstrapHook_sidecar_ok(t *testing.T) {
 	require.Equal(t, "", value)
 }
 
-func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
+func TestEnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
@@ -532,14 +533,14 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	// Run Connect bootstrap hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, consulNamespace, logger))
+	}, consulNamespace, serviceClient, mock.Node(), logger))
 
 	req := &interfaces.TaskPrestartRequest{
 		Task:    alloc.Job.TaskGroups[0].Tasks[0],
-		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0].Name),
+		TaskDir: allocDir.NewTaskDir(alloc.Job.TaskGroups[0].Tasks[0]),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, alloc.Job.TaskGroups[0].Tasks[0].User))
 
 	var resp interfaces.TaskPrestartResponse
 
@@ -547,7 +548,6 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	require.NoError(t, h.Prestart(context.Background(), req, &resp))
 
 	// Assert the hook is Done
-	require.True(t, resp.Done)
 	require.NotNil(t, resp.Env)
 
 	// Read the Envoy Config file
@@ -569,9 +569,9 @@ func TestTaskRunner_EnvoyBootstrapHook_gateway_ok(t *testing.T) {
 	require.Equal(t, "ingress-gateway", out.Node.Cluster)
 }
 
-// TestTaskRunner_EnvoyBootstrapHook_Noop asserts that the Envoy bootstrap hook
+// TestEnvoyBootstrapHook_Noop asserts that the Envoy bootstrap hook
 // is a noop for non-Connect proxy sidecar / gateway tasks.
-func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
+func TestEnvoyBootstrapHook_Noop(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
@@ -584,20 +584,17 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 	// not get hit.
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: "http://127.0.0.2:1",
-	}, consulNamespace, logger))
+	}, consulNamespace, nil, mock.Node(), logger))
 	req := &interfaces.TaskPrestartRequest{
 		Task:    task,
-		TaskDir: allocDir.NewTaskDir(task.Name),
+		TaskDir: allocDir.NewTaskDir(task),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	require.NoError(t, req.TaskDir.Build(fsisolation.None, nil, task.User))
 
 	resp := &interfaces.TaskPrestartResponse{}
 
 	// Run the hook
 	require.NoError(t, h.Prestart(context.Background(), req, resp))
-
-	// Assert it is Done
-	require.True(t, resp.Done)
 
 	// Assert no file was written
 	_, err := os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
@@ -605,10 +602,10 @@ func TestTaskRunner_EnvoyBootstrapHook_Noop(t *testing.T) {
 	require.True(t, os.IsNotExist(err))
 }
 
-// TestTaskRunner_EnvoyBootstrapHook_RecoverableError asserts the Envoy
-// bootstrap hook returns a Recoverable error if the bootstrap command runs but
-// fails.
-func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
+// TestEnvoyBootstrapHook_CommandFailed asserts the Envoy bootstrap
+// hook returns a Recoverable error if the bootstrap command runs but fails, and
+// that we retry the appropriate number of times
+func TestEnvoyBootstrapHook_CommandFailed(t *testing.T) {
 	ci.Parallel(t)
 	testutil.RequireConsul(t)
 
@@ -650,43 +647,63 @@ func TestTaskRunner_EnvoyBootstrapHook_RecoverableError(t *testing.T) {
 	allocDir, cleanup := allocdir.TestAllocDir(t, logger, "EnvoyBootstrap", alloc.ID)
 	defer cleanup()
 
+	begin := time.Now()
+
 	// Unlike the successful test above, do NOT register the group services
-	// yet. This should cause a recoverable error similar to if Consul was
-	// not running.
+	// yet. This should cause a recoverable error similar to if Consul was not
+	// running. We're adding a mock services client here so that the preflight
+	// check passes, so that we can exercise the retry logic specific to the
+	// bootstrap command.
 
 	// Run Connect bootstrap Hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: testConsul.HTTPAddr,
-	}, consulNamespace, logger))
+	}, consulNamespace, newMockAllocServicesClient(tg.Services[0], nil), mock.Node(), logger))
 
-	// Lower the allowable wait time for testing
+	// Lower the allowable wait time for testing and keep track of retry backoff
+	// iterations
 	h.envoyBootstrapWaitTime = 1 * time.Second
-	h.envoyBoostrapInitialGap = 100 * time.Millisecond
+	h.envoyBootstrapInitialGap = 100 * time.Millisecond
+	sleeper := &mockSleeper{}
+	h.envoyBootstrapExpSleep = sleeper
 
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
-		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskDir: allocDir.NewTaskDir(sidecarTask),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	must.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
 
 	resp := &interfaces.TaskPrestartResponse{}
 
 	// Run the hook
 	err := h.Prestart(context.Background(), req, resp)
-	require.ErrorIs(t, err, errEnvoyBootstrapError)
-	require.True(t, structs.IsRecoverable(err))
+	must.ErrorIs(t, err, errEnvoyBootstrapError)
+	must.True(t, structs.IsRecoverable(err))
+	must.False(t, resp.Done)
 
-	// Assert it is not Done
-	require.False(t, resp.Done)
+	// Current time should be at least start time + total wait time, and we
+	// should hit at least 2 iterations
+	minimum := begin.Add(h.envoyBootstrapWaitTime)
+	must.True(t, time.Now().After(minimum))
+	must.GreaterEq(t, 2, sleeper.iterations)
 
-	// Assert no file was written
+	// No bootstrap config file should be written
 	_, err = os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
-	require.Error(t, err)
-	require.True(t, os.IsNotExist(err))
+	must.Error(t, err)
+	must.True(t, os.IsNotExist(err))
 }
 
-func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
+type mockSleeper struct {
+	iterations int
+}
+
+func (m *mockSleeper) Sleep(d time.Duration) {
+	m.iterations++
+	time.Sleep(d)
+}
+
+func TestEnvoyBootstrapHook_PreflightFailed(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
@@ -732,54 +749,56 @@ func TestTaskRunner_EnvoyBootstrapHook_retryTimeout(t *testing.T) {
 	consulConfig := consulapi.DefaultConfig()
 	consulConfig.Address = testConsul.HTTPAddr
 
-	// Do NOT register group services, causing the hook to retry until timeout
+	consulAPIClient, err := consulapi.NewClient(consulConfig)
+	must.NoError(t, err)
+	namespacesClient := agentconsul.NewNamespacesClient(consulAPIClient.Namespaces(), consulAPIClient.Agent())
+
+	serviceClient := agentconsul.NewServiceClient(consulAPIClient.Agent(), namespacesClient, logger, true)
+
+	// Do NOT register group services, causing the hook to retry until timeout.
+	// Note that here we expect the preflight check timeout to happen
 
 	// Run Connect bootstrap hook
 	h := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(alloc, &config.ConsulConfig{
 		Addr: consulConfig.Address,
-	}, consulNamespace, logger))
+	}, consulNamespace, serviceClient, mock.Node(), logger))
 
-	// Keep track of the retry backoff iterations
-	iterations := 0
-
-	// Lower the allowable wait time for testing
-	h.envoyBootstrapWaitTime = 3 * time.Second
-	h.envoyBoostrapInitialGap = 1 * time.Second
-	h.envoyBootstrapExpSleep = func(d time.Duration) {
-		iterations++
-		time.Sleep(d)
-	}
+	// Lower the allowable wait time for testing and keep track of retry backoff
+	// iterations
+	h.envoyBootstrapWaitTime = 1 * time.Second
+	h.envoyBootstrapInitialGap = 100 * time.Millisecond
+	sleeper := &mockSleeper{}
+	h.envoyBootstrapExpSleep = sleeper
 
 	// Create the prestart request
 	req := &interfaces.TaskPrestartRequest{
 		Task:    sidecarTask,
-		TaskDir: allocDir.NewTaskDir(sidecarTask.Name),
+		TaskDir: allocDir.NewTaskDir(sidecarTask),
 		TaskEnv: taskenv.NewEmptyTaskEnv(),
 	}
-	require.NoError(t, req.TaskDir.Build(false, nil))
+	must.NoError(t, req.TaskDir.Build(fsisolation.None, nil, sidecarTask.User))
 
 	var resp interfaces.TaskPrestartResponse
 
 	// Run the hook and get the error
-	err := h.Prestart(context.Background(), req, &resp)
-	require.ErrorIs(t, err, errEnvoyBootstrapError)
+	err = h.Prestart(context.Background(), req, &resp)
+	must.ErrorIs(t, err, errEnvoyBootstrapError)
+	must.True(t, structs.IsRecoverable(err))
+	must.False(t, resp.Done)
 
-	// Current time should be at least start time + total wait time
+	// Current time should be at least start time + total wait time, and we
+	// should hit at least 2 iterations
 	minimum := begin.Add(h.envoyBootstrapWaitTime)
-	require.True(t, time.Now().After(minimum))
+	must.True(t, time.Now().After(minimum))
+	must.GreaterEq(t, 2, sleeper.iterations)
 
-	// Should hit at least 2 iterations
-	require.Greater(t, 2, iterations)
-
-	// Make sure we captured the recoverable-ness of the error
-	_, ok := err.(*structs.RecoverableError)
-	require.True(t, ok)
-
-	// Assert the hook is not done (it failed)
-	require.False(t, resp.Done)
+	// No bootstrap config file should be written
+	_, err = os.Open(filepath.Join(req.TaskDir.SecretsDir, "envoy_bootstrap.json"))
+	must.Error(t, err)
+	must.True(t, os.IsNotExist(err))
 }
 
-func TestTaskRunner_EnvoyBootstrapHook_extractNameAndKind(t *testing.T) {
+func TestEnvoyBootstrapHook_extractNameAndKind(t *testing.T) {
 	t.Run("connect sidecar", func(t *testing.T) {
 		kind, name, err := (*envoyBootstrapHook)(nil).extractNameAndKind(
 			structs.NewTaskKind(structs.ConnectProxyPrefix, "foo"),
@@ -813,13 +832,15 @@ func TestTaskRunner_EnvoyBootstrapHook_extractNameAndKind(t *testing.T) {
 	})
 }
 
-func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
+func TestEnvoyBootstrapHook_grpcAddress(t *testing.T) {
 	ci.Parallel(t)
 
 	bridgeH := newEnvoyBootstrapHook(newEnvoyBootstrapHookConfig(
 		mock.ConnectIngressGatewayAlloc("bridge"),
 		new(config.ConsulConfig),
 		consulNamespace,
+		nil,
+		mock.Node(),
 		testlog.HCLogger(t),
 	))
 
@@ -827,6 +848,8 @@ func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
 		mock.ConnectIngressGatewayAlloc("host"),
 		new(config.ConsulConfig),
 		consulNamespace,
+		nil,
+		mock.Node(),
 		testlog.HCLogger(t),
 	))
 
@@ -844,7 +867,7 @@ func TestTaskRunner_EnvoyBootstrapHook_grpcAddress(t *testing.T) {
 	})
 }
 
-func TestTaskRunner_EnvoyBootstrapHook_isConnectKind(t *testing.T) {
+func TestEnvoyBootstrapHook_isConnectKind(t *testing.T) {
 	ci.Parallel(t)
 
 	require.True(t, isConnectKind(structs.ConnectProxyPrefix))
@@ -853,4 +876,49 @@ func TestTaskRunner_EnvoyBootstrapHook_isConnectKind(t *testing.T) {
 	require.True(t, isConnectKind(structs.ConnectMeshPrefix))
 	require.False(t, isConnectKind(""))
 	require.False(t, isConnectKind("something"))
+}
+
+type mockAllocServicesClient struct {
+	service      *structs.Service
+	lock         sync.RWMutex
+	requestCount int
+	err          error
+}
+
+func (m *mockAllocServicesClient) resetError(err error) {
+	m.lock.Lock()
+	defer m.lock.Unlock()
+	m.requestCount = 0
+	m.err = err
+}
+
+func (m *mockAllocServicesClient) AllocRegistrations(allocID string) (*serviceregistration.AllocRegistration, error) {
+	m.lock.RLock()
+	defer m.lock.RUnlock()
+	m.requestCount++
+	if m.err != nil {
+		return nil, m.err
+	}
+	reg := &serviceregistration.AllocRegistration{
+		Tasks: map[string]*serviceregistration.ServiceRegistrations{
+			"foo": &serviceregistration.ServiceRegistrations{
+				Services: map[string]*serviceregistration.ServiceRegistration{
+					m.service.Name: &serviceregistration.ServiceRegistration{
+						ServiceID:      "",
+						CheckIDs:       map[string]struct{}{},
+						CheckOnUpdate:  map[string]string{},
+						Service:        &consulapi.AgentService{},
+						Checks:         []*consulapi.AgentCheck{},
+						SidecarService: &consulapi.AgentService{},
+						SidecarChecks:  []*consulapi.AgentCheck{},
+					},
+				},
+			},
+		},
+	}
+	return reg, nil
+}
+
+func newMockAllocServicesClient(service *structs.Service, err error) allocServicesClient {
+	return &mockAllocServicesClient{service: service, err: err}
 }

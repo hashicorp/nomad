@@ -90,6 +90,27 @@ job "identity" {
       }
     }
 
+    task "filepath" {
+
+      identity {
+        file     = true
+        filepath = "local/nomad_token"
+      }
+
+      driver = "docker"
+      config {
+        image = "bash:5"
+
+        #HACK without the ending `sleep 2` we seem to sometimes miss logs :(
+        args = ["-c", "wc -c < local/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
+      }
+      resources {
+        cpu    = 16
+        memory = 32
+        disk   = 64
+      }
+    }
+
     # falsey task should be the same as no identity block
     task "falsey" {
 
