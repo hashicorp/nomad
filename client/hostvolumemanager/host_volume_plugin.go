@@ -28,7 +28,6 @@ type HostVolumePlugin interface {
 	Fingerprint(ctx context.Context) (*PluginFingerprint, error)
 	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error)
 	Delete(ctx context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error
-	// db TODO(1.10.0): update? resize? ??
 }
 
 type HostVolumePluginCreateResponse struct {
@@ -66,7 +65,8 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 	log.Debug("running plugin")
 
 	resp := &HostVolumePluginCreateResponse{
-		Path:      path,
+		Path: path,
+		// "mkdir" volumes, being simple directories, have unrestricted size
 		SizeBytes: 0,
 	}
 
@@ -162,9 +162,9 @@ func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFing
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error) {
 
-	params, err := json.Marshal(req.Parameters) // db TODO(1.10.0): document if this is nil, then PARAMETERS env will be "null"
+	params, err := json.Marshal(req.Parameters)
 	if err != nil {
-		// this is a proper error, because users can set this in the volume spec
+		// should never happen; req.Parameters is a simple map[string]string
 		return nil, fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
 	envVars := []string{
@@ -181,8 +181,11 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	}
 
 	var pluginResp HostVolumePluginCreateResponse
-	err = json.Unmarshal(stdout, &pluginResp) // db TODO(1.10.0): if this fails, then the volume may have been created, according to the plugin, but Nomad will not save it
+	err = json.Unmarshal(stdout, &pluginResp)
 	if err != nil {
+		// note: if a plugin does not return valid json, a volume may be
+		// created without any respective state in Nomad, since we return
+		// an error here after the plugin has done who-knows-what.
 		return nil, err
 	}
 	return &pluginResp, nil
@@ -193,6 +196,7 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 
 	params, err := json.Marshal(req.Parameters)
 	if err != nil {
+		// should never happen; req.Parameters is a simple map[string]string
 		return fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
 	envVars := []string{

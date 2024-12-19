@@ -52,7 +52,6 @@ type HostVolumeManager struct {
 }
 
 func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager {
-	// db TODO(1.10.0): document plugin config options
 	return &HostVolumeManager{
 		pluginDir:      config.PluginDir,
 		sharedMountDir: config.SharedMountDir,
