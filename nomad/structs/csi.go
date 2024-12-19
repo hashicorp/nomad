@@ -852,6 +852,22 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 	return errs.ErrorOrNil()
 }
 
+// Event emits an event for the event stream
+func (v *CSIVolume) Event() Event {
+	return Event{
+		Topic: TopicCSIVolume,
+		FilterKeys: []string{
+			v.ID,
+			v.Name,
+			v.PluginID,
+		},
+		Namespace: v.Namespace,
+		Payload: &CSIVolumeEvent{
+			Volume: v,
+		},
+	}
+}
+
 // Request and response wrappers
 type CSIVolumeRegisterRequest struct {
 	Volumes   []*CSIVolume
@@ -1579,6 +1595,20 @@ func (p *CSIPlugin) IsEmpty() bool {
 			len(p.Nodes) == 0 &&
 			p.ControllerJobs.Count() == 0 &&
 			p.NodeJobs.Count() == 0
+}
+
+// Event emits an event for the event stream. Note there is no CSIPlugin event
+// type, because CSI plugins don't have their own write RPCs; they are always
+// created/removed via node updates
+func (p *CSIPlugin) Event() Event {
+	return Event{
+		Topic:      TopicCSIPlugin,
+		Key:        p.ID,
+		FilterKeys: []string{p.ID},
+		Payload: &CSIPluginEvent{
+			Plugin: p,
+		},
+	}
 }
 
 type CSIPluginListRequest struct {

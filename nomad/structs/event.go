@@ -16,6 +16,10 @@ type EventStreamWrapper struct {
 	Event *EventJson
 }
 
+type Eventer interface {
+	Event() Event
+}
+
 type Topic string
 
 const (
@@ -154,25 +158,14 @@ type ACLTokenEvent struct {
 	secretID string
 }
 
+func (a *ACLTokenEvent) SecretID() string {
+	return a.secretID
+}
+
 // ServiceRegistrationStreamEvent holds a newly updated or deleted service
 // registration.
 type ServiceRegistrationStreamEvent struct {
 	Service *ServiceRegistration
-}
-
-// NewACLTokenEvent takes a token and creates a new ACLTokenEvent.  It creates
-// a copy of the passed in ACLToken and empties out the copied tokens SecretID
-func NewACLTokenEvent(token *ACLToken) *ACLTokenEvent {
-	c := token.Sanitize()
-
-	return &ACLTokenEvent{
-		ACLToken: c,
-		secretID: token.SecretID,
-	}
-}
-
-func (a *ACLTokenEvent) SecretID() string {
-	return a.secretID
 }
 
 type ACLPolicyEvent struct {

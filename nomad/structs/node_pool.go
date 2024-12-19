@@ -179,6 +179,17 @@ func (n *NodePool) SetHash() []byte {
 	return hashVal
 }
 
+// Event emits an event for the event stream
+func (n *NodePool) Event() Event {
+	return Event{
+		Topic: TopicNodePool,
+		Key:   n.Name,
+		Payload: &NodePoolEvent{
+			NodePool: n,
+		},
+	}
+}
+
 // NodePoolSchedulerConfiguration is the scheduler confinguration applied to a
 // node pool.
 //

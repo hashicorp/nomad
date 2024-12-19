@@ -68,405 +68,56 @@ func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
 
 func eventFromChange(change memdb.Change) (structs.Event, bool) {
 	if change.Deleted() {
+		// we don't emit events for all Eventers on delete, so we need to make
+		// sure we're only emitting events for the tables we want
 		switch change.Table {
-		case "acl_token":
-			before, ok := change.Before.(*structs.ACLToken)
+		case TableACLAuthMethods,
+			TableACLBindingRules,
+			TableACLPolicies,
+			TableACLRoles,
+			TableACLTokens,
+			TableCSIPlugins,
+			TableCSIVolumes,
+			TableHostVolumes,
+			TableJobs,
+			TableNodePools,
+			TableNodes,
+			TableServiceRegistrations:
+			before, ok := change.Before.(structs.Eventer)
 			if !ok {
 				return structs.Event{}, false
 			}
-
-			return structs.Event{
-				Topic:   structs.TopicACLToken,
-				Key:     before.AccessorID,
-				Payload: structs.NewACLTokenEvent(before),
-			}, true
-		case "acl_policy":
-			before, ok := change.Before.(*structs.ACLPolicy)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic: structs.TopicACLPolicy,
-				Key:   before.Name,
-				Payload: &structs.ACLPolicyEvent{
-					ACLPolicy: before,
-				},
-			}, true
-		case TableACLRoles:
-			before, ok := change.Before.(*structs.ACLRole)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic:      structs.TopicACLRole,
-				Key:        before.ID,
-				FilterKeys: []string{before.Name},
-				Payload: &structs.ACLRoleStreamEvent{
-					ACLRole: before,
-				},
-			}, true
-		case TableACLAuthMethods:
-			before, ok := change.Before.(*structs.ACLAuthMethod)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic: structs.TopicACLAuthMethod,
-				Key:   before.Name,
-				Payload: &structs.ACLAuthMethodEvent{
-					AuthMethod: before,
-				},
-			}, true
-		case TableACLBindingRules:
-			before, ok := change.Before.(*structs.ACLBindingRule)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic:      structs.TopicACLBindingRule,
-				Key:        before.ID,
-				FilterKeys: []string{before.AuthMethod},
-				Payload: &structs.ACLBindingRuleEvent{
-					ACLBindingRule: before,
-				},
-			}, true
-		case "jobs":
-			before, ok := change.Before.(*structs.Job)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic:     structs.TopicJob,
-				Key:       before.ID,
-				Namespace: before.Namespace,
-				Payload: &structs.JobEvent{
-					Job: before,
-				},
-			}, true
-		case "nodes":
-			before, ok := change.Before.(*structs.Node)
-			if !ok {
-				return structs.Event{}, false
-			}
-
-			before = before.Sanitize()
-			return structs.Event{
-				Topic: structs.TopicNode,
-				Key:   before.ID,
-				Payload: &structs.NodeStreamEvent{
-					Node: before,
-				},
-			}, true
-		case TableNodePools:
-			before, ok := change.Before.(*structs.NodePool)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic: structs.TopicNodePool,
-				Key:   before.Name,
-				Payload: &structs.NodePoolEvent{
-					NodePool: before,
-				},
-			}, true
-		case TableServiceRegistrations:
-			before, ok := change.Before.(*structs.ServiceRegistration)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic: structs.TopicService,
-				Key:   before.ID,
-				FilterKeys: []string{
-					before.JobID,
-					before.ServiceName,
-				},
-				Namespace: before.Namespace,
-				Payload: &structs.ServiceRegistrationStreamEvent{
-					Service: before,
-				},
-			}, true
-		case TableHostVolumes:
-			before, ok := change.Before.(*structs.HostVolume)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic: structs.TopicHostVolume,
-				FilterKeys: []string{
-					before.ID,
-					before.Name,
-					before.PluginID,
-				},
-				Namespace: before.Namespace,
-				Payload: &structs.HostVolumeEvent{
-					Volume: before,
-				},
-			}, true
-		case TableCSIVolumes:
-			before, ok := change.Before.(*structs.CSIVolume)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic: structs.TopicCSIVolume,
-				Key:   before.ID,
-				FilterKeys: []string{
-					before.ID,
-					before.Name,
-					before.PluginID,
-				},
-				Namespace: before.Namespace,
-				Payload: &structs.CSIVolumeEvent{
-					Volume: before,
-				},
-			}, true
-		case TableCSIPlugins:
-			// note: there is no CSIPlugin event type, because CSI plugins don't
-			// have their own write RPCs; they are always created/removed via
-			// node updates
-			before, ok := change.Before.(*structs.CSIPlugin)
-			if !ok {
-				return structs.Event{}, false
-			}
-			return structs.Event{
-				Topic:      structs.TopicCSIPlugin,
-				Key:        before.ID,
-				FilterKeys: []string{before.ID},
-				Payload: &structs.CSIPluginEvent{
-					Plugin: before,
-				},
-			}, true
+			return before.Event(), true
+		default:
+			return structs.Event{}, false
 		}
+	}
+
+	// we don't emit events for all Eventers on update (ex. the Job and
+	// JobVersion table have the same Job object), so we need to make sure
+	// we're only emitting events for the tables we want
+	switch change.Table {
+	case TableACLAuthMethods,
+		TableACLBindingRules,
+		TableACLPolicies,
+		TableACLRoles,
+		TableACLTokens,
+		TableAllocs,
+		TableCSIPlugins,
+		TableCSIVolumes,
+		TableDeployments,
+		TableEvals,
+		TableHostVolumes,
+		TableJobs,
+		TableNodePools,
+		TableNodes,
+		TableServiceRegistrations:
+		after, ok := change.After.(structs.Eventer)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return after.Event(), true
+	default:
 		return structs.Event{}, false
 	}
-
-	switch change.Table {
-	case "acl_token":
-		after, ok := change.After.(*structs.ACLToken)
-		if !ok {
-			return structs.Event{}, false
-		}
-
-		return structs.Event{
-			Topic:   structs.TopicACLToken,
-			Key:     after.AccessorID,
-			Payload: structs.NewACLTokenEvent(after),
-		}, true
-	case "acl_policy":
-		after, ok := change.After.(*structs.ACLPolicy)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic: structs.TopicACLPolicy,
-			Key:   after.Name,
-			Payload: &structs.ACLPolicyEvent{
-				ACLPolicy: after,
-			},
-		}, true
-	case TableACLRoles:
-		after, ok := change.After.(*structs.ACLRole)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic:      structs.TopicACLRole,
-			Key:        after.ID,
-			FilterKeys: []string{after.Name},
-			Payload: &structs.ACLRoleStreamEvent{
-				ACLRole: after,
-			},
-		}, true
-	case TableACLAuthMethods:
-		after, ok := change.After.(*structs.ACLAuthMethod)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic: structs.TopicACLAuthMethod,
-			Key:   after.Name,
-			Payload: &structs.ACLAuthMethodEvent{
-				AuthMethod: after,
-			},
-		}, true
-	case TableACLBindingRules:
-		after, ok := change.After.(*structs.ACLBindingRule)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic:      structs.TopicACLBindingRule,
-			Key:        after.ID,
-			FilterKeys: []string{after.AuthMethod},
-			Payload: &structs.ACLBindingRuleEvent{
-				ACLBindingRule: after,
-			},
-		}, true
-	case "evals":
-		after, ok := change.After.(*structs.Evaluation)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic: structs.TopicEvaluation,
-			Key:   after.ID,
-			FilterKeys: []string{
-				after.JobID,
-				after.DeploymentID,
-			},
-			Namespace: after.Namespace,
-			Payload: &structs.EvaluationEvent{
-				Evaluation: after,
-			},
-		}, true
-	case "allocs":
-		after, ok := change.After.(*structs.Allocation)
-		if !ok {
-			return structs.Event{}, false
-		}
-		alloc := after.Copy()
-
-		filterKeys := []string{
-			alloc.JobID,
-			alloc.DeploymentID,
-		}
-
-		// remove job info to help keep size of alloc event down
-		alloc.Job = nil
-
-		return structs.Event{
-			Topic:      structs.TopicAllocation,
-			Key:        after.ID,
-			FilterKeys: filterKeys,
-			Namespace:  after.Namespace,
-			Payload: &structs.AllocationEvent{
-				Allocation: alloc,
-			},
-		}, true
-	case "jobs":
-		after, ok := change.After.(*structs.Job)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic:     structs.TopicJob,
-			Key:       after.ID,
-			Namespace: after.Namespace,
-			Payload: &structs.JobEvent{
-				Job: after,
-			},
-		}, true
-	case "nodes":
-		after, ok := change.After.(*structs.Node)
-		if !ok {
-			return structs.Event{}, false
-		}
-
-		after = after.Sanitize()
-		return structs.Event{
-			Topic: structs.TopicNode,
-			Key:   after.ID,
-			Payload: &structs.NodeStreamEvent{
-				Node: after,
-			},
-		}, true
-	case TableNodePools:
-		after, ok := change.After.(*structs.NodePool)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic: structs.TopicNodePool,
-			Key:   after.Name,
-			Payload: &structs.NodePoolEvent{
-				NodePool: after,
-			},
-		}, true
-	case "deployment":
-		after, ok := change.After.(*structs.Deployment)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic:      structs.TopicDeployment,
-			Key:        after.ID,
-			Namespace:  after.Namespace,
-			FilterKeys: []string{after.JobID},
-			Payload: &structs.DeploymentEvent{
-				Deployment: after,
-			},
-		}, true
-	case TableServiceRegistrations:
-		after, ok := change.After.(*structs.ServiceRegistration)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic: structs.TopicService,
-			Key:   after.ID,
-			FilterKeys: []string{
-				after.JobID,
-				after.ServiceName,
-			},
-			Namespace: after.Namespace,
-			Payload: &structs.ServiceRegistrationStreamEvent{
-				Service: after,
-			},
-		}, true
-	case TableHostVolumes:
-		after, ok := change.After.(*structs.HostVolume)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic: structs.TopicHostVolume,
-			Key:   after.ID,
-			FilterKeys: []string{
-				after.ID,
-				after.Name,
-				after.PluginID,
-			},
-			Namespace: after.Namespace,
-			Payload: &structs.HostVolumeEvent{
-				Volume: after,
-			},
-		}, true
-	case TableCSIVolumes:
-		after, ok := change.After.(*structs.CSIVolume)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic: structs.TopicCSIVolume,
-			Key:   after.ID,
-			FilterKeys: []string{
-				after.ID,
-				after.Name,
-				after.PluginID,
-			},
-			Namespace: after.Namespace,
-			Payload: &structs.CSIVolumeEvent{
-				Volume: after,
-			},
-		}, true
-	case TableCSIPlugins:
-		// note: there is no CSIPlugin event type, because CSI plugins don't
-		// have their own write RPCs; they are always created/removed via
-		// node updates
-		after, ok := change.After.(*structs.CSIPlugin)
-		if !ok {
-			return structs.Event{}, false
-		}
-		return structs.Event{
-			Topic:      structs.TopicCSIPlugin,
-			Key:        after.ID,
-			FilterKeys: []string{after.ID},
-			Payload: &structs.CSIPluginEvent{
-				Plugin: after,
-			},
-		}, true
-	}
-
-	return structs.Event{}, false
 }

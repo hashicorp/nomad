@@ -629,6 +629,18 @@ func (a *ACLRole) Stub() *ACLRoleListStub {
 	}
 }
 
+// Event emits an event for the event stream
+func (a *ACLRole) Event() Event {
+	return Event{
+		Topic:      TopicACLRole,
+		Key:        a.ID,
+		FilterKeys: []string{a.Name},
+		Payload: &ACLRoleStreamEvent{
+			ACLRole: a,
+		},
+	}
+}
+
 // ACLRoleListStub is the stub object returned when performing a listing of ACL
 // roles. While it might not currently be different to the full response
 // object, it allows us to future-proof the RPC in the event the ACLRole object
@@ -981,6 +993,17 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 // tokens or not.
 func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool {
 	return a.TokenLocality == ACLAuthMethodTokenLocalityGlobal
+}
+
+// Event emits an event for the event stream
+func (a *ACLAuthMethod) Event() Event {
+	return Event{
+		Topic: TopicACLAuthMethod,
+		Key:   a.Name,
+		Payload: &ACLAuthMethodEvent{
+			AuthMethod: a,
+		},
+	}
 }
 
 // ACLAuthMethodConfig is used to store configuration of an auth method
@@ -1439,6 +1462,18 @@ func (a *ACLBindingRule) Stub() *ACLBindingRuleListStub {
 		Hash:        a.Hash,
 		CreateIndex: a.CreateIndex,
 		ModifyIndex: a.ModifyIndex,
+	}
+}
+
+// Event emits an event for the event stream
+func (a *ACLBindingRule) Event() Event {
+	return Event{
+		Topic:      TopicACLBindingRule,
+		Key:        a.ID,
+		FilterKeys: []string{a.AuthMethod},
+		Payload: &ACLBindingRuleEvent{
+			ACLBindingRule: a,
+		},
 	}
 }
 

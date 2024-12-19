@@ -196,6 +196,22 @@ func (s *ServiceRegistration) HashWith(key string) string {
 	return fmt.Sprintf("%x", sum.Sum(nil))
 }
 
+// Event emits an event for the event stream
+func (s *ServiceRegistration) Event() Event {
+	return Event{
+		Topic: TopicService,
+		Key:   s.ID,
+		FilterKeys: []string{
+			s.JobID,
+			s.ServiceName,
+		},
+		Namespace: s.Namespace,
+		Payload: &ServiceRegistrationStreamEvent{
+			Service: s,
+		},
+	}
+}
+
 // ServiceRegistrationUpsertRequest is the request object used to upsert one or
 // more service registrations.
 type ServiceRegistrationUpsertRequest struct {

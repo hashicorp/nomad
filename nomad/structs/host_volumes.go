@@ -245,6 +245,22 @@ func (hv *HostVolume) GetID() string {
 	return hv.ID
 }
 
+// Event emits an event for the event stream
+func (hv *HostVolume) Event() Event {
+	return Event{
+		Topic: TopicHostVolume,
+		FilterKeys: []string{
+			hv.ID,
+			hv.Name,
+			hv.PluginID,
+		},
+		Namespace: hv.Namespace,
+		Payload: &HostVolumeEvent{
+			Volume: hv,
+		},
+	}
+}
+
 // HostVolumeCapability is the requested attachment and access mode for a volume
 type HostVolumeCapability struct {
 	AttachmentMode HostVolumeAttachmentMode

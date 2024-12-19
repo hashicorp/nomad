@@ -2401,6 +2401,18 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 	return s
 }
 
+// Event emits a sanitized node event for the event stream
+func (n *Node) Event() Event {
+	nn := n.Sanitize()
+	return Event{
+		Topic: TopicNode,
+		Key:   nn.ID,
+		Payload: &NodeStreamEvent{
+			Node: nn,
+		},
+	}
+}
+
 // NodeListStub is used to return a subset of job information
 // for the job list
 type NodeListStub struct {
@@ -5283,6 +5295,18 @@ func (j *Job) SpecChanged(new *Job) bool {
 
 func (j *Job) SetSubmitTime() {
 	j.SubmitTime = time.Now().UTC().UnixNano()
+}
+
+// Event emits an event for the event stream
+func (j *Job) Event() Event {
+	return Event{
+		Topic:     TopicJob,
+		Key:       j.ID,
+		Namespace: j.Namespace,
+		Payload: &JobEvent{
+			Job: j,
+		},
+	}
 }
 
 // JobListStub is used to return a subset of job information
@@ -10783,6 +10807,19 @@ func (d *Deployment) GetNamespace() string {
 	return d.Namespace
 }
 
+// Event emits an event for the event stream
+func (d *Deployment) Event() Event {
+	return Event{
+		Topic:      TopicDeployment,
+		Key:        d.ID,
+		Namespace:  d.Namespace,
+		FilterKeys: []string{d.JobID},
+		Payload: &DeploymentEvent{
+			Deployment: d,
+		},
+	}
+}
+
 // DeploymentState tracks the state of a deployment for a given task group.
 type DeploymentState struct {
 	// AutoRevert marks whether the task group has indicated the job should be
@@ -11919,6 +11956,26 @@ func (a *Allocation) LastRescheduleFailed() bool {
 		a.RescheduleTracker.LastReschedule != LastRescheduleSuccess
 }
 
+// Event emits an event for the event stream
+func (a *Allocation) Event() Event {
+	// remove job info to help keep size of alloc event down
+	aa := a.Copy()
+	aa.Job = nil
+
+	return Event{
+		Topic: TopicAllocation,
+		Key:   aa.ID,
+		FilterKeys: []string{
+			aa.JobID,
+			aa.DeploymentID,
+		},
+		Namespace: aa.Namespace,
+		Payload: &AllocationEvent{
+			Allocation: aa,
+		},
+	}
+}
+
 // AllocationDiff is another named type for Allocation (to use the same fields),
 // which is used to represent the delta for an Allocation. If you need a method
 // defined on the al
@@ -12870,6 +12927,22 @@ func (e *Evaluation) UpdateModifyTime() {
 	}
 }
 
+// Event emits an event for the event stream
+func (e *Evaluation) Event() Event {
+	return Event{
+		Topic: TopicEvaluation,
+		Key:   e.ID,
+		FilterKeys: []string{
+			e.JobID,
+			e.DeploymentID,
+		},
+		Namespace: e.Namespace,
+		Payload: &EvaluationEvent{
+			Evaluation: e,
+		},
+	}
+}
+
 // Plan is used to submit a commit plan for task allocations. These
 // are submitted to the leader which verifies that resources have
 // not been overcommitted before admitting the plan.
@@ -13376,6 +13449,17 @@ type ACLPolicy struct {
 	ModifyIndex uint64
 }
 
+// Event emits an event for the event stream
+func (a *ACLPolicy) Event() Event {
+	return Event{
+		Topic: TopicACLPolicy,
+		Key:   a.Name,
+		Payload: &ACLPolicyEvent{
+			ACLPolicy: a,
+		},
+	}
+}
+
 // JobACL represents an ACL policy's attachment to a job, group, or task.
 type JobACL struct {
 	Namespace string // namespace of the job
@@ -13572,6 +13656,19 @@ func (a *ACLToken) Copy() *ACLToken {
 	copy(c.Roles, a.Roles)
 
 	return c
+}
+
+// Event emits an sanitized ACLTokenEvent for the event stream
+func (a *ACLToken) Event() Event {
+	out := a.Sanitize()
+	return Event{
+		Topic: TopicACLToken,
+		Key:   a.AccessorID,
+		Payload: &ACLTokenEvent{
+			ACLToken: out,
+			secretID: a.SecretID,
+		},
+	}
 }
 
 var (
