@@ -31,6 +31,18 @@ type ClientHostVolumeConfig struct {
 	Name     string `hcl:",key"`
 	Path     string `hcl:"path"`
 	ReadOnly bool   `hcl:"read_only"`
+	// ID is set for dynamic host volumes only.
+	ID string `hcl:"-"`
+}
+
+func (p *ClientHostVolumeConfig) Equal(o *ClientHostVolumeConfig) bool {
+	if p == nil && o == nil {
+		return true
+	}
+	if p == nil || o == nil {
+		return false
+	}
+	return *p == *o
 }
 
 func (p *ClientHostVolumeConfig) Copy() *ClientHostVolumeConfig {
@@ -91,12 +103,14 @@ func HostVolumeSliceMerge(a, b []*ClientHostVolumeConfig) []*ClientHostVolumeCon
 	return n
 }
 
-// VolumeRequest is a representation of a storage volume that a TaskGroup wishes to use.
+// VolumeRequest is a representation of a storage volume that a TaskGroup wishes
+// to use.
 type VolumeRequest struct {
 	Name           string
 	Type           string
 	Source         string
 	ReadOnly       bool
+	Sticky         bool
 	AccessMode     CSIVolumeAccessMode
 	AttachmentMode CSIVolumeAttachmentMode
 	MountOptions   *CSIMountOptions
@@ -115,6 +129,8 @@ func (v *VolumeRequest) Equal(o *VolumeRequest) bool {
 	case v.Source != o.Source:
 		return false
 	case v.ReadOnly != o.ReadOnly:
+		return false
+	case v.Sticky != o.Sticky:
 		return false
 	case v.AccessMode != o.AccessMode:
 		return false
@@ -149,19 +165,28 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 		if canaries > 0 {
 			addErr("volume cannot be per_alloc when canaries are in use")
 		}
+		if v.Sticky {
+			addErr("volume cannot be per_alloc and sticky at the same time")
+		}
 	}
 
 	switch v.Type {
 
 	case VolumeTypeHost:
-		if v.AttachmentMode != CSIVolumeAttachmentModeUnknown {
-			addErr("host volumes cannot have an attachment mode")
-		}
-		if v.AccessMode != CSIVolumeAccessModeUnknown {
-			addErr("host volumes cannot have an access mode")
-		}
 		if v.MountOptions != nil {
+			// TODO(1.10.0): support mount options for dynamic host volumes
 			addErr("host volumes cannot have mount options")
+		}
+
+		switch v.AccessMode {
+		case CSIVolumeAccessModeSingleNodeReader, CSIVolumeAccessModeMultiNodeReader:
+			if !v.ReadOnly {
+				addErr("%s volumes must be read-only", v.AccessMode)
+			}
+		default:
+			// dynamic host volumes are all "per node" so there's no way to
+			// validate that other access modes work for a given volume until we
+			// have access to other allocations (in the scheduler)
 		}
 
 	case VolumeTypeCSI:

@@ -75,7 +75,6 @@ func testRunCLIVarFlags(t *testing.T) {
 
 	// check the submission api
 	sub, _, err := nomad.Jobs().Submission(jobID, 0, &api.QueryOptions{
-		Region:    "global",
 		Namespace: "default",
 	})
 	must.NoError(t, err)
@@ -101,7 +100,6 @@ func testRunCLIVarFlags(t *testing.T) {
 
 	// check the submission api for v1
 	sub, _, err = nomad.Jobs().Submission(jobID, 1, &api.QueryOptions{
-		Region:    "global",
 		Namespace: "default",
 	})
 	must.NoError(t, err)
@@ -112,7 +110,6 @@ func testRunCLIVarFlags(t *testing.T) {
 
 	// check the submission api for v0 (make sure we still have it)
 	sub, _, err = nomad.Jobs().Submission(jobID, 0, &api.QueryOptions{
-		Region:    "global",
 		Namespace: "default",
 	})
 	must.NoError(t, err)
@@ -130,7 +127,6 @@ func testRunCLIVarFlags(t *testing.T) {
 
 	// check the submission api for v0 after deregister (make sure its gone)
 	sub, _, err = nomad.Jobs().Submission(jobID, 0, &api.QueryOptions{
-		Region:    "global",
 		Namespace: "default",
 	})
 	must.ErrorContains(t, err, "job source not found")
@@ -149,9 +145,7 @@ func testSubmissionACL(t *testing.T) {
 	namespaceClient := nomad.Namespaces()
 	_, err := namespaceClient.Register(&api.Namespace{
 		Name: myNamespaceName,
-	}, &api.WriteOptions{
-		Region: "global",
-	})
+	}, &api.WriteOptions{})
 	must.NoError(t, err)
 	aclCleanup.Add(myNamespaceName, acl.NamespaceTestResourceType)
 
@@ -159,9 +153,7 @@ func testSubmissionACL(t *testing.T) {
 	otherNamespaceName := "submission-other-acl-" + uuid.Short()
 	_, err = namespaceClient.Register(&api.Namespace{
 		Name: otherNamespaceName,
-	}, &api.WriteOptions{
-		Region: "global",
-	})
+	}, &api.WriteOptions{})
 	must.NoError(t, err)
 	aclCleanup.Add(otherNamespaceName, acl.NamespaceTestResourceType)
 
@@ -192,7 +184,6 @@ func testSubmissionACL(t *testing.T) {
 		Type:     "client",
 		Policies: []string{myNamespacePolicy.Name},
 	}, &api.WriteOptions{
-		Region:    "global",
 		Namespace: myNamespaceName,
 	})
 	must.NoError(t, err)
@@ -204,7 +195,6 @@ func testSubmissionACL(t *testing.T) {
 		Type:     "client",
 		Policies: []string{otherNamespacePolicy.Name},
 	}, &api.WriteOptions{
-		Region:    "global",
 		Namespace: otherNamespaceName,
 	})
 	must.NoError(t, err)
@@ -232,7 +222,6 @@ func testSubmissionACL(t *testing.T) {
 
 	// get submission using my token
 	sub, _, err := nomad.Jobs().Submission(jobID, 0, &api.QueryOptions{
-		Region:    "global",
 		Namespace: myNamespaceName,
 		AuthToken: myToken.SecretID,
 	})
@@ -244,7 +233,6 @@ func testSubmissionACL(t *testing.T) {
 
 	// get submission using other token (fail)
 	sub, _, err = nomad.Jobs().Submission(jobID, 0, &api.QueryOptions{
-		Region:    "global",
 		Namespace: myNamespaceName,
 		AuthToken: otherToken.SecretID,
 	})
@@ -274,7 +262,6 @@ func testMaxSize(t *testing.T) {
 	// check the submission api making sure it is not there
 	nomad := e2eutil.NomadClient(t)
 	sub, _, err := nomad.Jobs().Submission(jobID, 0, &api.QueryOptions{
-		Region:    "global",
 		Namespace: "default",
 	})
 	must.ErrorContains(t, err, "job source not found")
@@ -313,7 +300,6 @@ func testReversion(t *testing.T) {
 	expectY := []string{"0", "1", "2", "1"}
 	for version := 0; version < 4; version++ {
 		sub, _, err := nomad.Jobs().Submission(jobID, version, &api.QueryOptions{
-			Region:    "global",
 			Namespace: "default",
 		})
 		must.NoError(t, err)
@@ -348,7 +334,6 @@ func testVarFiles(t *testing.T) {
 
 	// get submission
 	sub, _, err := nomad.Jobs().Submission(jobID, version, &api.QueryOptions{
-		Region:    "global",
 		Namespace: "default",
 	})
 	must.NoError(t, err)

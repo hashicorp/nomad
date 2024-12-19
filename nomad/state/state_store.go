@@ -1048,6 +1048,9 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 	if err := upsertCSIPluginsForNode(txn, node, index); err != nil {
 		return fmt.Errorf("csi plugin update failed: %v", err)
 	}
+	if err := upsertHostVolumeForNode(txn, node, index); err != nil {
+		return fmt.Errorf("dynamic host volumes update failed: %v", err)
+	}
 
 	return nil
 }

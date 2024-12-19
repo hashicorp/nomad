@@ -9,6 +9,7 @@ import (
 	"maps"
 	"math"
 	"net/http"
+	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -524,4 +525,51 @@ func Merge[T comparable](a, b T) T {
 		return b
 	}
 	return a
+}
+
+// FlattenMultierror takes a multierror and unwraps it if there's only one error
+// in the output, otherwise returning the multierror or nil.
+func FlattenMultierror(err error) error {
+	mErr, ok := err.(*multierror.Error)
+	if !ok {
+		return err
+	}
+	// note: mErr is a pointer so we still need to nil-check even after the cast
+	if mErr == nil {
+		return nil
+	}
+	if mErr.Len() == 1 {
+		return mErr.Errors[0]
+	}
+	return mErr.ErrorOrNil()
+}
+
+// FindExecutableFiles looks in the provided path for executables and returns
+// a map where keys are filenames and values are the absolute path.
+func FindExecutableFiles(path string) (map[string]string, error) {
+	executables := make(map[string]string)
+	entries, err := os.ReadDir(path)
+	if err != nil {
+		return executables, err
+	}
+	for _, e := range entries {
+		i, err := e.Info()
+		if err != nil {
+			return executables, err
+		}
+		if !IsExecutable(i) {
+			continue
+		}
+		p := filepath.Join(path, i.Name())
+		abs, err := filepath.Abs(p)
+		if err != nil {
+			return executables, err
+		}
+		executables[i.Name()] = abs
+	}
+	return executables, nil
+}
+
+func IsExecutable(i os.FileInfo) bool {
+	return !i.IsDir() && i.Mode()&0o111 != 0
 }

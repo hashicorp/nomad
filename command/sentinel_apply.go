@@ -37,8 +37,9 @@ Apply Options:
   -description
     Sets a human readable description for the policy.
 
-  -scope (default: submit-job)
-    Sets the scope of the policy and when it should be enforced.
+  -scope
+    Sets the scope of the policy and when it should be enforced. One of
+    "submit-job" or "submit-host-volume".
 
   -level (default: advisory)
     Sets the enforcement level of the policy. Must be one of advisory,
@@ -73,7 +74,7 @@ func (c *SentinelApplyCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&description, "description", "", "")
-	flags.StringVar(&scope, "scope", "submit-job", "")
+	flags.StringVar(&scope, "scope", "", "")
 	flags.StringVar(&enfLevel, "level", "advisory", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -105,6 +106,16 @@ func (c *SentinelApplyCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf("Failed to read file: %v", err))
 			return 1
 		}
+	}
+
+	switch scope {
+	case api.SentinelScopeSubmitJob, api.SentinelScopeSubmitHostVolume:
+	case "":
+		c.Ui.Error("-scope flag is required")
+		return 1
+	default:
+		c.Ui.Error(fmt.Sprintf("Error: invalid -scope value: %q", scope))
+		return 1
 	}
 
 	// Construct the policy

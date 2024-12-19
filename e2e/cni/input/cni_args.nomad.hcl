@@ -8,9 +8,10 @@ job "cni_args" {
       cni {
         # feature under test
         args = {
-          # the message gets placed as a file called "victory"
-          # in the task dir specified here by the cni_args.sh plugin
-          FancyMessage = "${node.region}"
+          # the message gets placed as a file called "victory" in the task dir
+          # specified here by the cni_args.sh plugin. Using node pool allows us
+          # to test interpolation as an extra.
+          FancyMessage = "${node.pool}"
           FancyTaskDir = "${NOMAD_ALLOC_DIR}/task/local"
         }
       }

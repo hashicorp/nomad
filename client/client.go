@@ -34,6 +34,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/client/hoststats"
+	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	cinterfaces "github.com/hashicorp/nomad/client/interfaces"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/numalib"
@@ -289,6 +290,8 @@ type Client struct {
 	// drivermanager is responsible for managing driver plugins
 	drivermanager drivermanager.Manager
 
+	hostVolumeManager *hvm.HostVolumeManager
+
 	// baseLabels are used when emitting tagged metrics. All client metrics will
 	// have these tags, and optionally more.
 	baseLabels []metrics.Label
@@ -408,6 +411,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		c.updateNodeFromDriver,
 		c.updateNodeFromDevices,
 		c.updateNodeFromCSI,
+		c.updateNodeFromHostVol,
 	)
 
 	// Initialize the server manager
@@ -531,6 +535,15 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	devManager := devicemanager.New(devConfig)
 	c.devicemanager = devManager
 	c.pluginManagers.RegisterAndRun(devManager)
+
+	// set up dynamic host volume manager
+	c.hostVolumeManager = hvm.NewHostVolumeManager(logger, hvm.Config{
+		PluginDir:      cfg.HostVolumePluginDir,
+		SharedMountDir: cfg.AllocMountsDir,
+		StateMgr:       c.stateDB,
+		UpdateNodeVols: c.batchNodeUpdates.updateNodeFromHostVolume,
+	})
+	c.pluginManagers.RegisterAndRun(c.hostVolumeManager)
 
 	// Set up the service registration wrapper using the Consul and Nomad
 	// implementations. The Nomad implementation is only ever used on the

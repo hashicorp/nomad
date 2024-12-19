@@ -455,6 +455,7 @@ type VolumeRequest struct {
 	Type           string           `hcl:"type,optional"`
 	Source         string           `hcl:"source,optional"`
 	ReadOnly       bool             `hcl:"read_only,optional"`
+	Sticky         bool             `hcl:"sticky,optional"`
 	AccessMode     string           `hcl:"access_mode,optional"`
 	AttachmentMode string           `hcl:"attachment_mode,optional"`
 	MountOptions   *CSIMountOptions `hcl:"mount_options,block"`

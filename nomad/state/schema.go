@@ -26,6 +26,7 @@ const (
 	TableACLBindingRules      = "acl_binding_rules"
 	TableAllocs               = "allocs"
 	TableJobSubmission        = "job_submission"
+	TableHostVolumes          = "host_volumes"
 )
 
 const (
@@ -41,6 +42,7 @@ const (
 	indexName          = "name"
 	indexSigningKey    = "signing_key"
 	indexAuthMethod    = "auth_method"
+	indexNodePool      = "node_pool"
 )
 
 var (
@@ -97,6 +99,7 @@ func init() {
 		aclRolesTableSchema,
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
+		hostVolumeTableSchema,
 	}...)
 }
 
@@ -161,8 +164,8 @@ func nodeTableSchema() *memdb.TableSchema {
 					Field: "SecretID",
 				},
 			},
-			"node_pool": {
-				Name:         "node_pool",
+			indexNodePool: {
+				Name:         indexNodePool,
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
@@ -844,8 +847,8 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"node_id": {
-				Name:         "node_id",
+			indexNodeID: {
+				Name:         indexNodeID,
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
@@ -882,8 +885,8 @@ func siTokenAccessorTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"node_id": {
-				Name:         "node_id",
+			indexNodeID: {
+				Name:         indexNodeID,
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
@@ -1638,6 +1641,64 @@ func bindingRulesTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "AuthMethod",
+				},
+			},
+		},
+	}
+}
+
+// HostVolumes are identified by id globally, and searchable by namespace+name,
+// node, or node_pool
+func hostVolumeTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableHostVolumes,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field:     "ID",
+							Lowercase: true,
+						},
+					},
+				},
+			},
+			indexName: {
+				Name:         indexName,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "Name",
+						},
+					},
+				},
+			},
+			indexNodeID: {
+				Name:         indexNodeID,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "NodeID",
+					Lowercase: true,
+				},
+			},
+			indexNodePool: {
+				Name:         indexNodePool,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "NodePool",
 				},
 			},
 		},
