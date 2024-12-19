@@ -22,3 +22,15 @@ var NodePoolSpec []byte
 
 //go:embed pool.nomad.json
 var NodePoolSpecJSON []byte
+
+//go:embed volume.csi.hcl
+var CSIVolumeSpecHCL []byte
+
+//go:embed volume.csi.json
+var CSIVolumeSpecJSON []byte
+
+//go:embed volume.host.hcl
+var HostVolumeSpecHCL []byte
+
+//go:embed volume.host.json
+var HostVolumeSpecJSON []byte

@@ -28,6 +28,7 @@ type rpcEndpoints struct {
 	Allocations *Allocations
 	Agent       *Agent
 	NodeMeta    *NodeMeta
+	HostVolume  *HostVolume
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -293,6 +294,7 @@ func (c *Client) setupClientRpc(rpcs map[string]interface{}) {
 		c.endpoints.Allocations = NewAllocationsEndpoint(c)
 		c.endpoints.Agent = NewAgentEndpoint(c)
 		c.endpoints.NodeMeta = newNodeMetaEndpoint(c)
+		c.endpoints.HostVolume = newHostVolumesEndpoint(c)
 		c.setupClientRpcServer(c.rpcServer)
 	}
 
@@ -308,6 +310,7 @@ func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	server.Register(c.endpoints.Allocations)
 	server.Register(c.endpoints.Agent)
 	server.Register(c.endpoints.NodeMeta)
+	server.Register(c.endpoints.HostVolume)
 }
 
 // rpcConnListener is a long lived function that listens for new connections

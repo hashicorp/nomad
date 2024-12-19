@@ -79,10 +79,12 @@ func TestACLManagement(t *testing.T) {
 	// Check default namespace rights
 	must.True(t, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
 	must.True(t, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	must.True(t, acl.AllowNamespaceOperation("default", NamespaceCapabilityHostVolumeCreate))
 	must.True(t, acl.AllowNamespace("default"))
 
 	// Check non-specified namespace
 	must.True(t, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	must.True(t, acl.AllowNamespaceOperation("foo", NamespaceCapabilityHostVolumeCreate))
 	must.True(t, acl.AllowNamespace("foo"))
 
 	// Check node pool rights.
@@ -155,9 +157,11 @@ func TestACLMerge(t *testing.T) {
 	// Check default namespace rights
 	must.True(t, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
 	must.False(t, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	must.False(t, acl.AllowNamespaceOperation("default", NamespaceCapabilityHostVolumeRegister))
 
 	// Check non-specified namespace
 	must.False(t, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	must.False(t, acl.AllowNamespaceOperation("foo", NamespaceCapabilityHostVolumeCreate))
 
 	// Check rights in the node pool specified in policies.
 	must.True(t, acl.AllowNodePoolOperation("my-pool", NodePoolCapabilityRead))

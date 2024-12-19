@@ -9,7 +9,6 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestVolumeRequest_Validate(t *testing.T) {
@@ -32,9 +31,9 @@ func TestVolumeRequest_Validate(t *testing.T) {
 		{
 			name: "host volume with CSI volume config",
 			expected: []string{
-				"host volumes cannot have an access mode",
-				"host volumes cannot have an attachment mode",
+				"volume has an empty source",
 				"host volumes cannot have mount options",
+				"single-node-reader-only volumes must be read-only",
 				"volume cannot be per_alloc for system or sysbatch jobs",
 				"volume cannot be per_alloc when canaries are in use",
 			},
@@ -86,13 +85,24 @@ func TestVolumeRequest_Validate(t *testing.T) {
 				PerAlloc: true,
 			},
 		},
+		{
+			name: "per_alloc sticky",
+			expected: []string{
+				"volume cannot be per_alloc and sticky at the same time",
+			},
+			req: &VolumeRequest{
+				Type:     VolumeTypeCSI,
+				PerAlloc: true,
+				Sticky:   true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.req.Validate(JobTypeSystem, tc.taskGroupCount, tc.canariesCount)
 			for _, expected := range tc.expected {
-				require.Contains(t, err.Error(), expected)
+				must.StrContains(t, err.Error(), expected)
 			}
 		})
 	}

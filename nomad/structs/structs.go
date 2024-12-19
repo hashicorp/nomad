@@ -132,6 +132,10 @@ const (
 	NamespaceUpsertRequestType                   MessageType = 64
 	NamespaceDeleteRequestType                   MessageType = 65
 
+	// MessageTypes 66-74 are in Nomad Enterprise
+	HostVolumeRegisterRequestType MessageType = 75
+	HostVolumeDeleteRequestType   MessageType = 76
+
 	// NOTE: MessageTypes are shared between CE and ENT. If you need to add a
 	// new type, check that ENT is not already using that value.
 )
@@ -11109,6 +11113,13 @@ type Allocation struct {
 
 	// AllocatedResources is the total resources allocated for the task group.
 	AllocatedResources *AllocatedResources
+
+	// HostVolumeIDs is a list of host volume IDs that this allocation
+	// has claimed.
+	HostVolumeIDs []string
+
+	// CSIVolumeIDs is a list of CSI volume IDs that this allocation has claimed.
+	CSIVolumeIDs []string
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric

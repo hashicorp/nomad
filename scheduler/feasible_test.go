@@ -91,7 +91,7 @@ func TestRandomIterator(t *testing.T) {
 	}
 }
 
-func TestHostVolumeChecker(t *testing.T) {
+func TestHostVolumeChecker_Static(t *testing.T) {
 	ci.Parallel(t)
 
 	_, ctx := testContext(t)
@@ -177,20 +177,64 @@ func TestHostVolumeChecker(t *testing.T) {
 	alloc.NodeID = nodes[2].ID
 
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
+		checker.SetVolumes(alloc.Name, structs.DefaultNamespace, c.RequestedVolumes, alloc.HostVolumeIDs)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
 	}
 }
 
-func TestHostVolumeChecker_ReadOnly(t *testing.T) {
+func TestHostVolumeChecker_Dynamic(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	store, ctx := testContext(t)
+
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+		mock.Node(),
+	}
+
+	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
+		},
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+		},
+	}
+	hostVolCapsReadOnly := []*structs.HostVolumeCapability{{
+		AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+		AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
+	}}
+
+	dhvNotReady := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[2].ID,
+		RequestedCapabilities: hostVolCapsReadOnly,
+		State:                 structs.HostVolumeStateDeleted,
+	}
+	dhvReadOnly := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[3].ID,
+		RequestedCapabilities: hostVolCapsReadOnly,
+		State:                 structs.HostVolumeStateReady,
+	}
+	dhvReadWrite := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[4].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
 	}
 
 	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
@@ -203,6 +247,23 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 			ReadOnly: false,
 		},
 	}
+	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {ID: dhvNotReady.ID},
+	}
+	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {ID: dhvReadOnly.ID},
+	}
+	nodes[4].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {ID: dhvReadWrite.ID},
+	}
+
+	for _, node := range nodes {
+		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	}
+
+	must.NoError(t, store.UpsertHostVolume(1000, dhvNotReady))
+	must.NoError(t, store.UpsertHostVolume(1000, dhvReadOnly))
+	must.NoError(t, store.UpsertHostVolume(1000, dhvReadWrite))
 
 	readwriteRequest := map[string]*structs.VolumeRequest{
 		"foo": {
@@ -219,43 +280,346 @@ func TestHostVolumeChecker_ReadOnly(t *testing.T) {
 		},
 	}
 
+	dhvReadOnlyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:           "host",
+			Source:         "foo",
+			ReadOnly:       true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeReader,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
+	}
+	dhvReadWriteRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:           "host",
+			Source:         "foo",
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
+	}
+
 	checker := NewHostVolumeChecker(ctx)
 	cases := []struct {
-		Node             *structs.Node
-		RequestedVolumes map[string]*structs.VolumeRequest
-		Result           bool
+		name             string
+		node             *structs.Node
+		requestedVolumes map[string]*structs.VolumeRequest
+		expect           bool
 	}{
-		{ // ReadWrite Request, ReadOnly Host
-			Node:             nodes[0],
-			RequestedVolumes: readwriteRequest,
-			Result:           false,
+		{
+			name:             "read-write request / read-only host",
+			node:             nodes[0],
+			requestedVolumes: readwriteRequest,
+			expect:           false,
 		},
-		{ // ReadOnly Request, ReadOnly Host
-			Node:             nodes[0],
-			RequestedVolumes: readonlyRequest,
-			Result:           true,
+		{
+			name:             "read-only request / read-only host",
+			node:             nodes[0],
+			requestedVolumes: readonlyRequest,
+			expect:           true,
 		},
-		{ // ReadOnly Request, ReadWrite Host
-			Node:             nodes[1],
-			RequestedVolumes: readonlyRequest,
-			Result:           true,
+		{
+			name:             "read-only request / read-write host",
+			node:             nodes[1],
+			requestedVolumes: readonlyRequest,
+			expect:           true,
 		},
-		{ // ReadWrite Request, ReadWrite Host
-			Node:             nodes[1],
-			RequestedVolumes: readwriteRequest,
-			Result:           true,
+		{
+			name:             "read-write request / read-write host",
+			node:             nodes[1],
+			requestedVolumes: readwriteRequest,
+			expect:           true,
+		},
+		{
+			name:             "dynamic single-reader request / host not ready",
+			node:             nodes[2],
+			requestedVolumes: dhvReadOnlyRequest,
+			expect:           false,
+		},
+		{
+			name:             "dynamic single-reader request / caps match",
+			node:             nodes[3],
+			requestedVolumes: dhvReadOnlyRequest,
+			expect:           true,
+		},
+		{
+			name:             "dynamic single-reader request / no matching cap",
+			node:             nodes[4],
+			requestedVolumes: dhvReadOnlyRequest,
+			expect:           true,
+		},
+		{
+			name:             "dynamic single-writer request / caps match",
+			node:             nodes[4],
+			requestedVolumes: dhvReadWriteRequest,
+			expect:           true,
 		},
 	}
 
 	alloc := mock.Alloc()
 	alloc.NodeID = nodes[1].ID
 
-	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
-		if act := checker.Feasible(c.Node); act != c.Result {
-			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checker.SetVolumes(alloc.Name, structs.DefaultNamespace, tc.requestedVolumes, alloc.HostVolumeIDs)
+			actual := checker.Feasible(tc.node)
+			must.Eq(t, tc.expect, actual)
+		})
+	}
+}
+
+func TestHostVolumeChecker_Sticky(t *testing.T) {
+	ci.Parallel(t)
+
+	store, ctx := testContext(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
+		},
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+		},
+	}
+
+	dhv := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[1].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {ID: dhv.ID}}
+
+	for _, node := range nodes {
+		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	}
+	must.NoError(t, store.UpsertHostVolume(1000, dhv))
+
+	stickyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:           "host",
+			Source:         "foo",
+			Sticky:         true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
+	}
+
+	checker := NewHostVolumeChecker(ctx)
+
+	// alloc0 wants a previously registered volume ID that's available on node1
+	alloc0 := mock.Alloc()
+	alloc0.NodeID = nodes[1].ID
+	alloc0.HostVolumeIDs = []string{dhv.ID}
+
+	// alloc1 wants a volume ID that's available on node1 but hasn't used it
+	// before
+	alloc1 := mock.Alloc()
+	alloc1.NodeID = nodes[1].ID
+
+	// alloc2 wants a volume ID that's unrelated
+	alloc2 := mock.Alloc()
+	alloc2.NodeID = nodes[1].ID
+	alloc2.HostVolumeIDs = []string{uuid.Generate()}
+
+	// insert all the allocs into the state
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc0, alloc1, alloc2}))
+
+	cases := []struct {
+		name   string
+		node   *structs.Node
+		alloc  *structs.Allocation
+		expect bool
+	}{
+		{
+			"alloc asking for a sticky volume on an infeasible node",
+			nodes[0],
+			alloc0,
+			false,
+		},
+		{
+			"alloc asking for a sticky volume on a feasible node",
+			nodes[1],
+			alloc0,
+			true,
+		},
+		{
+			"alloc asking for a sticky volume on a feasible node for the first time",
+			nodes[1],
+			alloc1,
+			true,
+		},
+		{
+			"alloc asking for an unrelated volume",
+			nodes[1],
+			alloc2,
+			false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			checker.SetVolumes(tc.alloc.Name, structs.DefaultNamespace, stickyRequest, tc.alloc.HostVolumeIDs)
+			actual := checker.Feasible(tc.node)
+			must.Eq(t, tc.expect, actual)
+		})
+	}
+}
+
+// TestDynamicHostVolumeIsAvailable provides fine-grained coverage of the
+// hostVolumeIsAvailable method
+func TestDynamicHostVolumeIsAvailable(t *testing.T) {
+
+	store, ctx := testContext(t)
+
+	allCaps := []*structs.HostVolumeCapability{}
+
+	for _, accessMode := range []structs.HostVolumeAccessMode{
+		structs.HostVolumeAccessModeSingleNodeReader,
+		structs.HostVolumeAccessModeSingleNodeWriter,
+		structs.HostVolumeAccessModeSingleNodeSingleWriter,
+		structs.HostVolumeAccessModeSingleNodeMultiWriter,
+	} {
+		for _, attachMode := range []structs.HostVolumeAttachmentMode{
+			structs.HostVolumeAttachmentModeFilesystem,
+			structs.HostVolumeAttachmentModeBlockDevice,
+		} {
+			allCaps = append(allCaps, &structs.HostVolumeCapability{
+				AttachmentMode: attachMode,
+				AccessMode:     accessMode,
+			})
 		}
 	}
+
+	jobReader, jobWriter := mock.Job(), mock.Job()
+	jobReader.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"example": {
+			Type:     structs.VolumeTypeHost,
+			Source:   "example",
+			ReadOnly: true,
+		},
+	}
+	jobWriter.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{
+		"example": {
+			Type:   structs.VolumeTypeHost,
+			Source: "example",
+		},
+	}
+	index, _ := store.LatestIndex()
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, jobReader))
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, jobWriter))
+
+	allocReader0, allocReader1 := mock.Alloc(), mock.Alloc()
+	allocReader0.JobID = jobReader.ID
+	allocReader1.JobID = jobReader.ID
+
+	allocWriter0, allocWriter1 := mock.Alloc(), mock.Alloc()
+	allocWriter0.JobID = jobWriter.ID
+	allocWriter1.JobID = jobWriter.ID
+
+	index++
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index,
+		[]*structs.Allocation{allocReader0, allocReader1, allocWriter0, allocWriter1}))
+
+	testCases := []struct {
+		name        string
+		hasProposed []*structs.Allocation
+		hasCaps     []*structs.HostVolumeCapability
+		wantAccess  structs.HostVolumeAccessMode
+		wantAttach  structs.HostVolumeAttachmentMode
+		readOnly    bool
+		expect      bool
+	}{
+		{
+			name: "enforce attachment mode",
+			hasCaps: []*structs.HostVolumeCapability{{
+				AttachmentMode: structs.HostVolumeAttachmentModeBlockDevice,
+				AccessMode:     structs.HostVolumeAccessModeSingleNodeSingleWriter,
+			}},
+			wantAttach: structs.HostVolumeAttachmentModeFilesystem,
+			wantAccess: structs.HostVolumeAccessModeSingleNodeSingleWriter,
+			expect:     false,
+		},
+		{
+			name:        "enforce read only",
+			hasProposed: []*structs.Allocation{allocReader0, allocReader1},
+			wantAttach:  structs.HostVolumeAttachmentModeFilesystem,
+			wantAccess:  structs.HostVolumeAccessModeSingleNodeReader,
+			expect:      false,
+		},
+		{
+			name:        "enforce read only ok",
+			hasProposed: []*structs.Allocation{allocReader0, allocReader1},
+			wantAttach:  structs.HostVolumeAttachmentModeFilesystem,
+			wantAccess:  structs.HostVolumeAccessModeSingleNodeReader,
+			readOnly:    true,
+			expect:      true,
+		},
+		{
+			name:        "enforce single writer",
+			hasProposed: []*structs.Allocation{allocReader0, allocReader1, allocWriter0},
+			wantAttach:  structs.HostVolumeAttachmentModeFilesystem,
+			wantAccess:  structs.HostVolumeAccessModeSingleNodeSingleWriter,
+			expect:      false,
+		},
+		{
+			name:        "enforce single writer ok",
+			hasProposed: []*structs.Allocation{allocReader0, allocReader1},
+			wantAttach:  structs.HostVolumeAttachmentModeFilesystem,
+			wantAccess:  structs.HostVolumeAccessModeSingleNodeSingleWriter,
+			expect:      true,
+		},
+		{
+			name:        "multi writer is always ok",
+			hasProposed: []*structs.Allocation{allocReader0, allocWriter0, allocWriter1},
+			wantAttach:  structs.HostVolumeAttachmentModeFilesystem,
+			wantAccess:  structs.HostVolumeAccessModeSingleNodeMultiWriter,
+			expect:      true,
+		},
+		{
+			name:   "default capabilities ok",
+			expect: true,
+		},
+		{
+			name:     "default capabilities fail",
+			readOnly: true,
+			hasCaps: []*structs.HostVolumeCapability{{
+				AttachmentMode: structs.HostVolumeAttachmentModeBlockDevice,
+				AccessMode:     structs.HostVolumeAccessModeSingleNodeSingleWriter,
+			}},
+			expect: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			vol := &structs.HostVolume{
+				Name:  "example",
+				State: structs.HostVolumeStateReady,
+			}
+			if len(tc.hasCaps) > 0 {
+				vol.RequestedCapabilities = tc.hasCaps
+			} else {
+				vol.RequestedCapabilities = allCaps
+			}
+			checker := NewHostVolumeChecker(ctx)
+			must.Eq(t, tc.expect, checker.hostVolumeIsAvailable(
+				vol, tc.wantAccess, tc.wantAttach, tc.readOnly, tc.hasProposed))
+		})
+	}
+
 }
 
 func TestCSIVolumeChecker(t *testing.T) {
@@ -1263,7 +1627,7 @@ func TestCheckVersionConstraint(t *testing.T) {
 	for _, tc := range cases {
 		_, ctx := testContext(t)
 		p := newVersionConstraintParser(ctx)
-		if res := checkVersionMatch(ctx, p, tc.lVal, tc.rVal); res != tc.result {
+		if res := checkVersionMatch(p, tc.lVal, tc.rVal); res != tc.result {
 			t.Fatalf("TC: %#v, Result: %v", tc, res)
 		}
 	}
@@ -1345,7 +1709,7 @@ func TestCheckSemverConstraint(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, ctx := testContext(t)
 			p := newSemverConstraintParser(ctx)
-			actual := checkVersionMatch(ctx, p, tc.lVal, tc.rVal)
+			actual := checkVersionMatch(p, tc.lVal, tc.rVal)
 			must.Eq(t, tc.result, actual)
 		})
 	}
