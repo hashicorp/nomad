@@ -6,9 +6,9 @@ package main
 import (
 	"os"
 
+	"github.com/hashicorp/cli"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/plugins/shared/cmd/launcher/command"
-	"github.com/mitchellh/cli"
 )
 
 const (

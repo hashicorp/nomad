@@ -6,8 +6,8 @@ package command
 import (
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/mitchellh/cli"
 )
 
 func TestSystemReconcileSummariesCommand_Implements(t *testing.T) {
