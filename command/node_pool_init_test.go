@@ -8,7 +8,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/ci"
