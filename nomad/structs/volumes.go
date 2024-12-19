@@ -165,6 +165,9 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 		if canaries > 0 {
 			addErr("volume cannot be per_alloc when canaries are in use")
 		}
+		if v.Sticky {
+			addErr("volume cannot be per_alloc and sticky at the same time")
+		}
 	}
 
 	switch v.Type {
