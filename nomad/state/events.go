@@ -43,6 +43,9 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ServiceRegistrationDeleteByNodeIDRequestType: structs.TypeServiceDeregistration,
 	structs.HostVolumeRegisterRequestType:                structs.TypeHostVolumeRegistered,
 	structs.HostVolumeDeleteRequestType:                  structs.TypeHostVolumeDeleted,
+	structs.CSIVolumeRegisterRequestType:                 structs.TypeCSIVolumeRegistered,
+	structs.CSIVolumeDeregisterRequestType:               structs.TypeCSIVolumeDeregistered,
+	structs.CSIVolumeClaimRequestType:                    structs.TypeCSIVolumeClaim,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
@@ -190,7 +193,6 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			}
 			return structs.Event{
 				Topic: structs.TopicHostVolume,
-				Key:   before.ID,
 				FilterKeys: []string{
 					before.ID,
 					before.Name,
@@ -199,6 +201,40 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Namespace: before.Namespace,
 				Payload: &structs.HostVolumeEvent{
 					Volume: before,
+				},
+			}, true
+		case TableCSIVolumes:
+			before, ok := change.Before.(*structs.CSIVolume)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic: structs.TopicCSIVolume,
+				Key:   before.ID,
+				FilterKeys: []string{
+					before.ID,
+					before.Name,
+					before.PluginID,
+				},
+				Namespace: before.Namespace,
+				Payload: &structs.CSIVolumeEvent{
+					Volume: before,
+				},
+			}, true
+		case TableCSIPlugins:
+			// note: there is no CSIPlugin event type, because CSI plugins don't
+			// have their own write RPCs; they are always created/removed via
+			// node updates
+			before, ok := change.Before.(*structs.CSIPlugin)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic:      structs.TopicCSIPlugin,
+				Key:        before.ID,
+				FilterKeys: []string{before.ID},
+				Payload: &structs.CSIPluginEvent{
+					Plugin: before,
 				},
 			}, true
 		}
@@ -394,6 +430,40 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Namespace: after.Namespace,
 			Payload: &structs.HostVolumeEvent{
 				Volume: after,
+			},
+		}, true
+	case TableCSIVolumes:
+		after, ok := change.After.(*structs.CSIVolume)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic: structs.TopicCSIVolume,
+			Key:   after.ID,
+			FilterKeys: []string{
+				after.ID,
+				after.Name,
+				after.PluginID,
+			},
+			Namespace: after.Namespace,
+			Payload: &structs.CSIVolumeEvent{
+				Volume: after,
+			},
+		}, true
+	case TableCSIPlugins:
+		// note: there is no CSIPlugin event type, because CSI plugins don't
+		// have their own write RPCs; they are always created/removed via
+		// node updates
+		after, ok := change.After.(*structs.CSIPlugin)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic:      structs.TopicCSIPlugin,
+			Key:        after.ID,
+			FilterKeys: []string{after.ID},
+			Payload: &structs.CSIPluginEvent{
+				Plugin: after,
 			},
 		}, true
 	}

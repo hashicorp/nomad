@@ -28,6 +28,7 @@ the nature of this endpoint individual topics require specific policies.
 Note that if you do not include a `topic` parameter all topics will be included
 by default, requiring a management token.
 
+
 | Topic        | ACL Required                 |
 |--------------|------------------------------|
 | `*`          | `management`                 |
@@ -35,6 +36,8 @@ by default, requiring a management token.
 | `ACLRole`    | `management`                 |
 | `ACLToken`   | `management`                 |
 | `Allocation` | `namespace:read-job`         |
+| `CSIPlugin`  | `namespace:read-job`         |
+| `CSIVolume`  | `namespace:csi-read-volume`  |
 | `Deployment` | `namespace:read-job`         |
 | `Evaluation` | `namespace:read-job`         |
 | `HostVolume` | `namespace:host-volume-read` |
@@ -72,6 +75,8 @@ by default, requiring a management token.
 | ACLRoles   | ACLRole                                |
 | ACLToken   | ACLToken                               |
 | Allocation | Allocation (no job information)        |
+| CSIPlugin  | CSIPlugin                              |
+| CSIVolume  | CSIVolume                              |
 | Deployment | Deployment                             |
 | Evaluation | Evaluation                             |
 | HostVolume | HostVolume (dynamic host volumes only) |
@@ -94,6 +99,8 @@ by default, requiring a management token.
 | AllocationCreated             |
 | AllocationUpdateDesiredStatus |
 | AllocationUpdated             |
+| CSIVolumeDeregistered         |
+| CSIVolumeRegistered           |
 | DeploymentAllocHealth         |
 | DeploymentPromotion           |
 | DeploymentStatusUpdate        |

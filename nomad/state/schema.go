@@ -27,6 +27,8 @@ const (
 	TableAllocs               = "allocs"
 	TableJobSubmission        = "job_submission"
 	TableHostVolumes          = "host_volumes"
+	TableCSIVolumes           = "csi_volumes"
+	TableCSIPlugins           = "csi_plugins"
 )
 
 const (
@@ -1150,7 +1152,7 @@ func clusterMetaTableSchema() *memdb.TableSchema {
 // CSIVolumes are identified by id globally, and searchable by driver
 func csiVolumeTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "csi_volumes",
+		Name: TableCSIVolumes,
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": {
 				Name:         "id",
@@ -1182,7 +1184,7 @@ func csiVolumeTableSchema() *memdb.TableSchema {
 // CSIPlugins are identified by id globally, and searchable by driver
 func csiPluginTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "csi_plugins",
+		Name: TableCSIPlugins,
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": {
 				Name:         "id",
