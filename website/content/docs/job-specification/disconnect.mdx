@@ -2,7 +2,7 @@
 layout: docs
 page_title: disconnect Block - Job Specification
 description: |-
-  The "disconnect" block describes the behavior of both the Nomad server and 
+  The "disconnect" block describes the behavior of both the Nomad server and
   client in case of a network partition, as well as how to reconcile the workloads
   in case of a reconnection.
 ---
@@ -11,86 +11,102 @@ description: |-
 
 <Placement groups={['job', 'group', 'disconnect']} />
 
-The `disconnect` block describes the system's behavior in case of a network 
-partition. By default, without a `disconnect` block, if an allocation is on a 
-node that misses heartbeats, the allocation will be marked `lost` and will be 
+The `disconnect` block describes the system's behavior in case of a network
+partition. By default, without a `disconnect` block, if an allocation is on a
+node that misses heartbeats, the allocation will be marked `lost` and will be
 rescheduled.
 
 ```hcl
- job "docs" {
-  	    group "example" {
-    	    disconnect {
-		        lost_after = "6h"
-		        stop_after = "2h"
-		        replace = false
-                reconcile = "keep_original"
-     	    }
-  	    }
+job "docs" {
+  group "example" {
+    disconnect {
+      lost_after = "6h"
+      replace = false
+      reconcile = "keep_original"
     }
+  }
+
+  group "example2" {
+    disconnect {
+      stop_on_client_after = "12h"
+      replace = false
+      reconcile = "keep_original"
+    }
+  }
+}
 ```
+
+~> Note that you cannot use both`lost_after` and `stop_on_client_after` in the
+same `disconnect` block.
 
 ## `disconnect` Parameters
 
 - `lost_after` `(string: "")` - Specifies a duration during which a Nomad client
-  will attempt to reconnect allocations after it fails to heartbeat
-  in the [`heartbeat_grace`][] window.  It defaults to "" which is equivalent to 
+  will attempt to reconnect allocations after it fails to heartbeat in the
+  [`heartbeat_grace`][] window.  It defaults to "", which is equivalent to
   having the disconnect block be nil.
-  
-  See [the example code below][lost_after] for more details. This setting cannot
-  be used with [`stop_after`].
 
-- `replace` `(bool: false)` - Specifies if the disconnected allocation should 
-  be replaced by a new one rescheduled on a different node. If false and the 
+  You cannot use `lost_after` and `stop_on_client_after` in the same
+  `disconnect` block.
+
+  Refer to [the Lost After section][lost-after] for more details.
+
+- `replace` `(bool: false)` - Specifies if the disconnected allocation should
+  be replaced by a new one rescheduled on a different node. If false and the
   node it is running on becomes disconnected or goes down, this allocation
-  won't be rescheduled and will be reported as `unknown` until the node reconnects, 
+  won't be rescheduled and will be reported as `unknown` until the node reconnects,
   or until the allocation is manually stopped:
 
   ```plaintext
   `nomad alloc stop  <alloc ID>`
   ```
 
-  If true, a new alloc will be placed immediately upon the node becoming 
+  If true, a new alloc will be placed immediately upon the node becoming
   disconnected.
 
-- `stop_after` `(string: "")` - Specifies a duration after which a disconnected 
-  Nomad client will stop its allocations. Setting `stop_after` shorter than 
-  `lost_after` and `replace = false` at the same time is not permitted and 
-  will cause a validation error, because this would lead to a state where no 
-  allocations can be scheduled.
+- `stop_on_client_after` `(string: "")` - Specifies a duration after which a
+  disconnected Nomad client will stop its allocations. Setting
+  `stop_on_client_after` shorter than `lost_after` and `replace = false` at the
+  same time is not permitted and will cause a validation error, because this
+  would lead to a state where no allocations can be scheduled.
 
-  The Nomad client process must be running for this to occur. This setting
-  cannot be used with [`lost_after`].
+  The Nomad client process must be running for this to occur.
+
+  You cannot use `stop_on_client_after` and `lost_after` in the same
+  `disconnect` block.
+
+  Refer to [the Stop After section][stop-after] for more details.
 
 - `reconcile` `(string: "best_score")` - Specifies which allocation to keep once
   the previously disconnected node regains connectivity.
   It has four possible values which are described below:
 
-    - `keep_original`: Always keep the original allocation. Bear in mind 
-    when choosing this option, it can have crashed while the client was 
+    - `keep_original`: Always keep the original allocation. Bear in mind
+    when choosing this option, it can have crashed while the client was
     disconnected.
-    - `keep_replacement`: Always keep the allocation that was rescheduled 
+    - `keep_replacement`: Always keep the allocation that was rescheduled
     to replace the disconnected one.
-    - `best_score`: Keep the allocation running on the node with the best 
+    - `best_score`: Keep the allocation running on the node with the best
     score.
-    - `longest_running`: Keep the allocation that has been up and running 
+    - `longest_running`: Keep the allocation that has been up and running
     continuously for the longest time.
 
 
 ## `disconnect` Examples
 
 The following examples only show the `disconnect` blocks. Remember that the
-`disconnect` block is only valid in the placements listed above.
+`disconnect` block is only valid in the placements listed previously.
 
 ### Stop After
 
-This example shows how `stop_after` interacts with
+This example shows how `stop_on_client_after` interacts with
 other blocks. For the `first` group, after the default 10 second
 [`heartbeat_grace`] window expires and 90 more seconds passes, the
 server will reschedule the allocation. The client will wait 90 seconds
 before sending a stop signal (`SIGTERM`) to the `first-task`
 task. After 15 more seconds because of the task's `kill_timeout`, the
 client will send `SIGKILL`. The `second` group does not have
-`stop_after`, so the server will reschedule the
+`stop_on_client_after`, so the server will reschedule the
 allocation after the 10 second [`heartbeat_grace`] expires. It will
 not be stopped on the client, regardless of how long the client is out
 of touch.
@@ -108,7 +124,9 @@ potential point of failure.
 
 ```hcl
 group "first" {
-  stop_after_client_disconnect = "90s"
+  disconnect {
+    stop_on_client_after = "90s"
+  }
 
   task "first-task" {
     kill_timeout = "15s"
@@ -137,10 +155,10 @@ mark allocations on a disconnected client as "unknown" rather than "lost".
 These allocations may continue to run on the disconnected client. Replacement
 allocations will be scheduled according to the allocations' `replace` settings
 until the disconnected client reconnects. Once a disconnected client reconnects,
-Nomad will compare the "unknown" allocations with their replacements will 
-decide which ones to keep according to the `reconcile` setting. 
-If the `lost_after` duration expires before the client reconnects, 
-the allocations will be marked "lost". Clients that contain "unknown" 
+Nomad will compare the "unknown" allocations with their replacements will
+decide which ones to keep according to the `reconcile` setting.
+If the `lost_after` duration expires before the client reconnects,
+the allocations will be marked "lost". Clients that contain "unknown"
 allocations will transition to "disconnected" rather than "down" until the last
 `lost_after` duration has expired.
 
@@ -158,7 +176,7 @@ using the strategy defined by [`reconcile`].
 
 Lost After is useful for edge deployments, or scenarios when
 operators want zero on-client downtime due to node connectivity issues. This
-setting cannot be used with [`stop_after`].
+setting cannot be used with `stop_on_client_after`.
 
 ```hcl
 # server_config.hcl
@@ -196,6 +214,6 @@ group "second" {
 ```
 
 [`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
-[`stop_after`]: /nomad/docs/job-specification/disconnect#stop_after
-[`lost_after`]: /nomad/docs/job-specification/disconnect#replace_after
+[stop-after]: /nomad/docs/job-specification/disconnect#stop-after
+[lost-after]: /nomad/docs/job-specification/disconnect#lost-after
 [`reconcile`]: /nomad/docs/job-specification/disconnect#reconcile
