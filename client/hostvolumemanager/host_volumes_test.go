@@ -4,16 +4,21 @@
 package hostvolumemanager
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"path/filepath"
 	"testing"
+	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-version"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
 
@@ -292,5 +297,31 @@ func (n *fakeNode) updateVol(name string, volume *structs.ClientHostVolumeConfig
 func newFakeNode() *fakeNode {
 	return &fakeNode{
 		vols: make(VolumeMap),
+	}
+}
+
+// timeout provides a context that times out in 1 second
+func timeout(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	t.Cleanup(cancel)
+	return ctx
+}
+
+// logRecorder is here so we can assert that stdout/stderr appear in logs
+func logRecorder(t *testing.T) (hclog.Logger, func() string) {
+	t.Helper()
+	buf := &bytes.Buffer{}
+	logger := hclog.New(&hclog.LoggerOptions{
+		Name:            "log-recorder",
+		Output:          buf,
+		Level:           hclog.Debug,
+		IncludeLocation: true,
+		DisableTime:     true,
+	})
+	return logger, func() string {
+		bts, err := io.ReadAll(buf)
+		test.NoError(t, err)
+		return string(bts)
 	}
 }

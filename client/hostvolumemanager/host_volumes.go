@@ -69,78 +69,6 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 	}
 }
 
-func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, resp *HostVolumePluginCreateResponse) *structs.ClientHostVolumeConfig {
-	if req == nil || resp == nil {
-		return nil
-	}
-	return &structs.ClientHostVolumeConfig{
-		Name: req.Name,
-		ID:   req.ID,
-		Path: resp.Path,
-
-		// dynamic volumes, like CSI, have more robust `capabilities`,
-		// so we always set ReadOnly to false, and let the scheduler
-		// decide when to ignore this and check capabilities instead.
-		ReadOnly: false,
-	}
-}
-
-func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, error) {
-	vols, err := hvm.stateMgr.GetDynamicHostVolumes()
-	if err != nil {
-		return nil, err
-	}
-
-	volumes := make(VolumeMap)
-	var mut sync.Mutex
-
-	if len(vols) == 0 {
-		return volumes, nil // nothing to do
-	}
-
-	// re-"create" the volumes - plugins have the best knowledge of their
-	// side effects, and they must be idempotent.
-	group := multierror.Group{}
-	for _, vol := range vols {
-		group.Go(func() error { // db TODO(1.10.0): document that plugins must be safe to run concurrently
-			// missing plugins with associated volumes in state are considered
-			// client-stopping errors. they need to be fixed by cluster admins.
-			plug, err := hvm.getPlugin(vol.CreateReq.PluginID)
-			if err != nil {
-				return err
-			}
-
-			resp, err := plug.Create(ctx, vol.CreateReq)
-			if err != nil {
-				// plugin execution errors are only logged
-				hvm.log.Error("failed to restore", "plugin_id", vol.CreateReq.PluginID, "volume_id", vol.ID, "error", err)
-				return nil
-			}
-			mut.Lock()
-			volumes[vol.CreateReq.Name] = genVolConfig(vol.CreateReq, resp)
-			mut.Unlock()
-			return nil
-		})
-	}
-	mErr := group.Wait()
-	return volumes, helper.FlattenMultierror(mErr.ErrorOrNil())
-}
-
-func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
-	log := hvm.log.With("plugin_id", id)
-
-	if id == HostVolumePluginMkdirID {
-		return &HostVolumePluginMkdir{
-			ID:         HostVolumePluginMkdirID,
-			TargetPath: hvm.sharedMountDir,
-			log:        log,
-		}, nil
-	}
-
-	path := filepath.Join(hvm.pluginDir, id)
-	return NewHostVolumePluginExternal(log, id, path, hvm.sharedMountDir)
-}
-
 func (hvm *HostVolumeManager) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
 
@@ -214,4 +142,67 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 	}
 
 	return resp, nil
+}
+
+func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
+	if plug, ok := hvm.builtIns[id]; ok {
+		return plug, nil
+	}
+	log := hvm.log.With("plugin_id", id)
+	path := filepath.Join(hvm.pluginDir, id)
+	return NewHostVolumePluginExternal(log, id, path, hvm.sharedMountDir)
+}
+
+func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, error) {
+	vols, err := hvm.stateMgr.GetDynamicHostVolumes()
+	if err != nil {
+		return nil, err
+	}
+
+	volumes := make(VolumeMap)
+	var mut sync.Mutex
+
+	if len(vols) == 0 {
+		return volumes, nil // nothing to do
+	}
+
+	// re-"create" the volumes - plugins have the best knowledge of their
+	// side effects, and they must be idempotent.
+	group := multierror.Group{}
+	for _, vol := range vols {
+		group.Go(func() error {
+			// missing plugins with associated volumes in state are considered
+			// client-stopping errors. they need to be fixed by cluster admins.
+			plug, err := hvm.getPlugin(vol.CreateReq.PluginID)
+			if err != nil {
+				return err
+			}
+
+			resp, err := plug.Create(ctx, vol.CreateReq)
+			if err != nil {
+				// plugin execution errors are only logged
+				hvm.log.Error("failed to restore", "plugin_id", vol.CreateReq.PluginID, "volume_id", vol.ID, "error", err)
+				return nil
+			}
+			mut.Lock()
+			volumes[vol.CreateReq.Name] = genVolConfig(vol.CreateReq, resp)
+			mut.Unlock()
+			return nil
+		})
+	}
+	mErr := group.Wait()
+	return volumes, helper.FlattenMultierror(mErr.ErrorOrNil())
+}
+
+func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, resp *HostVolumePluginCreateResponse) *structs.ClientHostVolumeConfig {
+	return &structs.ClientHostVolumeConfig{
+		Name: req.Name,
+		ID:   req.ID,
+		Path: resp.Path,
+
+		// dynamic volumes, like CSI, have more robust `capabilities`,
+		// so we always set ReadOnly to false, and let the scheduler
+		// decide when to ignore this and check capabilities instead.
+		ReadOnly: false,
+	}
 }

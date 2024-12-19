@@ -4,19 +4,13 @@
 package hostvolumemanager
 
 import (
-	"bytes"
-	"context"
-	"io"
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-version"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
 
@@ -217,30 +211,4 @@ func TestHostVolumePluginExternal(t *testing.T) {
 		must.StrContains(t, logged, "delete: sad plugin is sad")
 		must.StrContains(t, logged, "delete: it tells you all about it in stderr")
 	})
-}
-
-// timeout provides a context that times out in 1 second
-func timeout(t *testing.T) context.Context {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	t.Cleanup(cancel)
-	return ctx
-}
-
-// logRecorder is here so we can assert that stdout/stderr appear in logs
-func logRecorder(t *testing.T) (hclog.Logger, func() string) {
-	t.Helper()
-	buf := &bytes.Buffer{}
-	logger := hclog.New(&hclog.LoggerOptions{
-		Name:            "log-recorder",
-		Output:          buf,
-		Level:           hclog.Debug,
-		IncludeLocation: true,
-		DisableTime:     true,
-	})
-	return logger, func() string {
-		bts, err := io.ReadAll(buf)
-		test.NoError(t, err)
-		return string(bts)
-	}
 }

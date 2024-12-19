@@ -20,14 +20,14 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
-type PluginFingerprint struct {
-	Version *version.Version `json:"version"`
-}
-
 type HostVolumePlugin interface {
 	Fingerprint(ctx context.Context) (*PluginFingerprint, error)
 	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error)
 	Delete(ctx context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error
+}
+
+type PluginFingerprint struct {
+	Version *version.Version `json:"version"`
 }
 
 type HostVolumePluginCreateResponse struct {
