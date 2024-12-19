@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Added a /v1/capabilities endpoint that lists Nomad server capabilities
+```

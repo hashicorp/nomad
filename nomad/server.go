@@ -1357,6 +1357,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewStatusEndpoint(s, ctx))
 	_ = server.Register(NewSystemEndpoint(s, ctx))
 	_ = server.Register(NewVariablesEndpoint(s, ctx, s.encrypter))
+	_ = server.Register(NewCapabilitiesEndpoint(s, ctx))
 
 	// Register non-streaming
 
