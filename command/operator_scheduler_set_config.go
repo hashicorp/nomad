@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	flagHelper "github.com/hashicorp/nomad/helper/flags"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 

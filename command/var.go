@@ -15,9 +15,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
