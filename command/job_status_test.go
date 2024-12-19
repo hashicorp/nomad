@@ -55,7 +55,7 @@ func TestJobStatusCommand_Run(t *testing.T) {
 	}
 
 	// Check for this awkward nil string, since a nil bytes.Buffer
-	// returns this purposely, and mitchellh/cli has a nil pointer
+	// returns this purposely, and hashicorp/cli has a nil pointer
 	// if nothing was ever output.
 	exp := "No running jobs"
 	if out := strings.TrimSpace(ui.OutputWriter.String()); out != exp {
