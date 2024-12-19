@@ -85,6 +85,17 @@ func TestVolumeRequest_Validate(t *testing.T) {
 				PerAlloc: true,
 			},
 		},
+		{
+			name: "per_alloc sticky",
+			expected: []string{
+				"volume cannot be per_alloc and sticky at the same time",
+			},
+			req: &VolumeRequest{
+				Type:     VolumeTypeCSI,
+				PerAlloc: true,
+				Sticky:   true,
+			},
+		},
 	}
 
 	for _, tc := range testCases {
