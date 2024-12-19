@@ -192,6 +192,11 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 		return true
 	}
 
+	proposed, err := h.ctx.ProposedAllocs(n.ID)
+	if err != nil {
+		return false // only hit this on state store invariant failure
+	}
+
 	for _, req := range h.volumeReqs {
 		volCfg, ok := n.HostVolumes[req.Source]
 		if !ok {
@@ -207,18 +212,12 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 				// raft entry completes
 				return false
 			}
-			if vol.State != structs.HostVolumeStateReady {
-				return false
-			}
-			var capOk bool
-			for _, cap := range vol.RequestedCapabilities {
-				if req.AccessMode == structs.CSIVolumeAccessMode(cap.AccessMode) &&
-					req.AttachmentMode == structs.CSIVolumeAttachmentMode(cap.AttachmentMode) {
-					capOk = true
-					break
-				}
-			}
-			if !capOk {
+			if !h.hostVolumeIsAvailable(vol,
+				structs.HostVolumeAccessMode(req.AccessMode),
+				structs.HostVolumeAttachmentMode(req.AttachmentMode),
+				req.ReadOnly,
+				proposed,
+			) {
 				return false
 			}
 
@@ -237,6 +236,86 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 				return false
 			}
 		}
+	}
+
+	return true
+}
+
+// hostVolumeIsAvailable determines if a dynamic host volume is available for a request
+func (h *HostVolumeChecker) hostVolumeIsAvailable(
+	vol *structs.HostVolume,
+	reqAccess structs.HostVolumeAccessMode,
+	reqAttach structs.HostVolumeAttachmentMode,
+	readOnly bool,
+	proposed []*structs.Allocation) bool {
+
+	if vol.State != structs.HostVolumeStateReady {
+		return false
+	}
+
+	// pick a default capability based on the read-only flag. this happens here
+	// in the scheduler rather than job submit because we don't know whether a
+	// host volume is dynamic or not until we try to schedule it (ex. the same
+	// name could be static on one node and dynamic on another)
+	if reqAccess == structs.HostVolumeAccessModeUnknown {
+		if readOnly {
+			reqAccess = structs.HostVolumeAccessModeSingleNodeReader
+		} else {
+			reqAccess = structs.HostVolumeAccessModeSingleNodeWriter
+		}
+	}
+	if reqAttach == structs.HostVolumeAttachmentModeUnknown {
+		reqAttach = structs.HostVolumeAttachmentModeFilesystem
+	}
+
+	// check that the volume has the requested capability at all
+	var capOk bool
+	for _, cap := range vol.RequestedCapabilities {
+		if reqAccess == cap.AccessMode &&
+			reqAttach == cap.AttachmentMode {
+			capOk = true
+			break
+		}
+	}
+	if !capOk {
+		return false
+	}
+
+	switch reqAccess {
+	case structs.HostVolumeAccessModeSingleNodeReader:
+		return readOnly
+	case structs.HostVolumeAccessModeSingleNodeWriter:
+		return !readOnly
+	case structs.HostVolumeAccessModeSingleNodeSingleWriter:
+		// examine all proposed allocs on the node, including those that might
+		// not have yet been persisted. they have nil pointers to their Job, so
+		// we have to go back to the state store to get them
+		seen := map[string]struct{}{}
+		for _, alloc := range proposed {
+			uniqueGroup := alloc.JobNamespacedID().String() + alloc.TaskGroup
+			if _, ok := seen[uniqueGroup]; ok {
+				// all allocs for the same group will have the same read-only
+				// flag and capabilities, so we only need to check a given group
+				// once
+				continue
+			}
+			seen[uniqueGroup] = struct{}{}
+			job, err := h.ctx.State().JobByID(nil, alloc.Namespace, alloc.JobID)
+			if err != nil {
+				return false
+			}
+			tg := job.LookupTaskGroup(alloc.TaskGroup)
+			for _, req := range tg.Volumes {
+				if req.Type == structs.VolumeTypeHost && req.Source == vol.Name {
+					if !req.ReadOnly {
+						return false
+					}
+				}
+			}
+		}
+
+	case structs.HostVolumeAccessModeSingleNodeMultiWriter:
+		// no contraint
 	}
 
 	return true
