@@ -117,6 +117,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		if resp == nil {
 			continue
 		}
+		defer resp.Content.Close()
 
 		bytes, err := io.ReadAll(resp.Content)
 		if err != nil {
@@ -163,10 +164,13 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 			return err
 		}
 		if resp != nil {
+			defer resp.Content.Close()
+
 			addrBytes, err := io.ReadAll(resp.Content)
 			if err != nil {
 				return err
 			}
+
 			addrsStr := strings.TrimSpace(string(addrBytes))
 			if addrsStr == "" {
 				f.logger.Debug("read an empty value", "attribute", k)
@@ -284,15 +288,11 @@ func isAWS(ctx context.Context, client *imds.Client) bool {
 	if err != nil {
 		return false
 	}
+	defer resp.Content.Close()
 
-	var v string
-	if resp != nil {
-		b, err := io.ReadAll(resp.Content)
-		if err != nil {
-			return false
-		}
-		v = strings.TrimSpace(string(b))
+	b, err := io.ReadAll(resp.Content)
+	if err != nil {
+		return false
 	}
-
-	return v != ""
+	return strings.TrimSpace(string(b)) != ""
 }
