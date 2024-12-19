@@ -6,6 +6,9 @@ package hostvolumemanager
 import (
 	"testing"
 
+	"github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
@@ -78,4 +81,47 @@ func TestUpdateVolumeMap(t *testing.T) {
 
 		})
 	}
+}
+
+func TestWaitForFirstFingerprint(t *testing.T) {
+	log := testlog.HCLogger(t)
+	tmp := t.TempDir()
+	memDB := state.NewMemDB(log)
+	node := newFakeNode()
+	hvm := NewHostVolumeManager(log, Config{
+		PluginDir:      "",
+		SharedMountDir: tmp,
+		StateMgr:       memDB,
+		UpdateNodeVols: node.updateVol,
+	})
+	plug := &fakePlugin{mountDir: tmp}
+	hvm.builtIns = map[string]HostVolumePlugin{
+		"test-plugin": plug,
+	}
+	must.NoError(t, memDB.PutDynamicHostVolume(&cstructs.HostVolumeState{
+		ID: "vol-id",
+		CreateReq: &cstructs.ClientHostVolumeCreateRequest{
+			ID:       "vol-id",
+			Name:     "vol-name",
+			PluginID: "test-plugin",
+		},
+	}))
+
+	ctx := timeout(t)
+	done := hvm.WaitForFirstFingerprint(ctx)
+	select {
+	case <-ctx.Done():
+		t.Fatal("fingerprint timed out")
+	case <-done:
+	}
+
+	must.Eq(t, "vol-id", plug.created)
+	must.Eq(t, VolumeMap{
+		"vol-name": &structs.ClientHostVolumeConfig{
+			Name:     "vol-name",
+			ID:       "vol-id",
+			Path:     tmp,
+			ReadOnly: false,
+		},
+	}, node.vols)
 }

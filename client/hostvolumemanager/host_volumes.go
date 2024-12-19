@@ -48,6 +48,7 @@ type HostVolumeManager struct {
 	sharedMountDir string
 	stateMgr       HostVolumeStateManager
 	updateNodeVols HostVolumeNodeUpdater
+	builtIns       map[string]HostVolumePlugin
 	log            hclog.Logger
 }
 
@@ -57,7 +58,14 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 		sharedMountDir: config.SharedMountDir,
 		stateMgr:       config.StateMgr,
 		updateNodeVols: config.UpdateNodeVols,
-		log:            logger.Named("host_volume_manager"),
+		builtIns: map[string]HostVolumePlugin{
+			HostVolumePluginMkdirID: &HostVolumePluginMkdir{
+				ID:         HostVolumePluginMkdirID,
+				TargetPath: config.SharedMountDir,
+				log:        logger.With("plugin_id", HostVolumePluginMkdirID),
+			},
+		},
+		log: logger.Named("host_volume_manager"),
 	}
 }
 

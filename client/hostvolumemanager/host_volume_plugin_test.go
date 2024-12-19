@@ -37,23 +37,29 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 	must.NoError(t, err)
 
 	t.Run("happy", func(t *testing.T) {
-		resp, err := plug.Create(timeout(t),
-			&cstructs.ClientHostVolumeCreateRequest{
-				ID: volID, // minimum required by this plugin
-			})
-		must.NoError(t, err)
-		must.Eq(t, &HostVolumePluginCreateResponse{
-			Path:      target,
-			SizeBytes: 0,
-		}, resp)
-		must.DirExists(t, target)
+		// run multiple times, should be idempotent
+		for range 2 {
+			resp, err := plug.Create(timeout(t),
+				&cstructs.ClientHostVolumeCreateRequest{
+					ID: volID, // minimum required by this plugin
+				})
+			must.NoError(t, err)
+			must.Eq(t, &HostVolumePluginCreateResponse{
+				Path:      target,
+				SizeBytes: 0,
+			}, resp)
+			must.DirExists(t, target)
+		}
 
-		err = plug.Delete(timeout(t),
-			&cstructs.ClientHostVolumeDeleteRequest{
-				ID: volID,
-			})
-		must.NoError(t, err)
-		must.DirNotExists(t, target)
+		// delete should be idempotent, too
+		for range 2 {
+			err = plug.Delete(timeout(t),
+				&cstructs.ClientHostVolumeDeleteRequest{
+					ID: volID,
+				})
+			must.NoError(t, err)
+			must.DirNotExists(t, target)
+		}
 	})
 
 	t.Run("sad", func(t *testing.T) {
@@ -72,6 +78,31 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 				ID: volID,
 			})
 		must.ErrorContains(t, err, "host_volume_plugin_test.go/test-vol-id: not a directory")
+	})
+}
+
+func TestNewHostVolumePluginExternal(t *testing.T) {
+	log := testlog.HCLogger(t)
+	var err error
+
+	_, err = NewHostVolumePluginExternal(log, "test-id", "non-existent", "target")
+	must.ErrorIs(t, err, ErrPluginNotExists)
+
+	_, err = NewHostVolumePluginExternal(log, "test-id", "host_volume_plugin_test.go", "target")
+	must.ErrorIs(t, err, ErrPluginNotExecutable)
+
+	t.Run("unix", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("skipped because windows") // db TODO(1.10.0)
+		}
+		p, err := NewHostVolumePluginExternal(log, "test-id", "./test_fixtures/test_plugin.sh", "test-target")
+		must.NoError(t, err)
+		must.Eq(t, &HostVolumePluginExternal{
+			ID:         "test-id",
+			Executable: "./test_fixtures/test_plugin.sh",
+			TargetPath: "test-target",
+			log:        log,
+		}, p)
 	})
 }
 
