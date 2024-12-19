@@ -53,6 +53,9 @@ var ec2NetSpeedTable = map[*regexp.Regexp]int{
 type EnvAWSFingerprint struct {
 	StaticFingerprinter
 
+	// endpoint for EC2 metadata as expected by AWS SDK
+	endpoint string
+
 	logger log.Logger
 }
 
@@ -77,7 +80,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 
-	imdsClient, err := imdsClient(ctx)
+	imdsClient, err := imdsClient(ctx, f.endpoint)
 	if err != nil {
 		return fmt.Errorf("failed to setup IMDS client: %v", err)
 	}
@@ -119,7 +122,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		if err != nil {
 			return err
 		}
-		v := string(bytes)
+		v := strings.TrimSpace(string(bytes))
 		if v == "" {
 			f.logger.Debug("read an empty value", "attribute", k)
 		}
@@ -164,7 +167,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 			if err != nil {
 				return err
 			}
-			addrsStr := string(addrBytes)
+			addrsStr := strings.TrimSpace(string(addrBytes))
 			if addrsStr == "" {
 				f.logger.Debug("read an empty value", "attribute", k)
 			} else {
@@ -210,7 +213,7 @@ func (f *EnvAWSFingerprint) instanceType(client *imds.Client) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(content), nil
+	return strings.TrimSpace(string(content)), nil
 }
 
 func (f *EnvAWSFingerprint) throughput(request *FingerprintRequest, client *imds.Client, ip string) int {
@@ -254,22 +257,42 @@ func (f *EnvAWSFingerprint) linkSpeed(client *imds.Client) int {
 	return netSpeed
 }
 
-func imdsClient(ctx context.Context) (*imds.Client, error) {
+func imdsClient(ctx context.Context, endpoint string) (*imds.Client, error) {
 	client := &http.Client{
 		Transport: cleanhttp.DefaultTransport(),
 	}
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithHTTPClient(client), config.WithRetryMaxAttempts(0))
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithHTTPClient(client),
+		config.WithRetryMaxAttempts(0),
+	)
 	if err != nil {
 		return nil, err
 	}
-	return imds.NewFromConfig(cfg), nil
+
+	imdsClient := imds.NewFromConfig(cfg, func(o *imds.Options) {
+		if endpoint != "" {
+			o.Endpoint = endpoint
+		}
+	})
+	return imdsClient, nil
 }
 
-// isAWS validates the client can reach IMDS. Fetching an ami-id must
-// complete error free to be recognized as running on AWS EC2
 func isAWS(ctx context.Context, client *imds.Client) bool {
-	_, err := client.GetMetadata(ctx, &imds.GetMetadataInput{
+	resp, err := client.GetMetadata(ctx, &imds.GetMetadataInput{
 		Path: "ami-id",
 	})
-	return err == nil
+	if err != nil {
+		return false
+	}
+
+	var v string
+	if resp != nil {
+		b, err := io.ReadAll(resp.Content)
+		if err != nil {
+			return false
+		}
+		v = strings.TrimSpace(string(b))
+	}
+
+	return v != ""
 }
