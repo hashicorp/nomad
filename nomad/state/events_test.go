@@ -1215,6 +1215,49 @@ func Test_eventsFromChanges_ACLBindingRule(t *testing.T) {
 	must.Eq(t, bindingRule, receivedDeleteChange.Events[0].Payload.(*structs.ACLBindingRuleEvent).ACLBindingRule)
 }
 
+func TestEvents_HostVolumes(t *testing.T) {
+
+	ci.Parallel(t)
+	store := TestStateStoreCfg(t, TestStateStorePublisher(t))
+	defer store.StopEventBroker()
+
+	index, err := store.LatestIndex()
+	must.NoError(t, err)
+
+	node := mock.Node()
+	index++
+	must.NoError(t, store.UpsertNode(structs.NodeRegisterRequestType, index, node, NodeUpsertWithNodePool))
+
+	vol := mock.HostVolume()
+	vol.NodeID = node.ID
+	index++
+	must.NoError(t, store.UpsertHostVolume(index, vol))
+
+	node = node.Copy()
+	node.HostVolumes = map[string]*structs.ClientHostVolumeConfig{vol.Name: {
+		Name: vol.Name,
+		Path: "/var/nomad/alloc_mounts" + uuid.Generate(),
+	}}
+	index++
+	must.NoError(t, store.UpsertNode(structs.NodeRegisterRequestType, index, node, NodeUpsertWithNodePool))
+
+	index++
+	must.NoError(t, store.DeleteHostVolume(index, vol.Namespace, vol.ID))
+
+	events := WaitForEvents(t, store, 0, 5, 1*time.Second)
+	must.Len(t, 5, events)
+	must.Eq(t, "Node", events[0].Topic)
+	must.Eq(t, "NodeRegistration", events[0].Type)
+	must.Eq(t, "HostVolume", events[1].Topic)
+	must.Eq(t, "HostVolumeRegistered", events[1].Type)
+	must.Eq(t, "Node", events[2].Topic)
+	must.Eq(t, "NodeRegistration", events[2].Type)
+	must.Eq(t, "HostVolume", events[3].Topic)
+	must.Eq(t, "NodeRegistration", events[3].Type)
+	must.Eq(t, "HostVolume", events[4].Topic)
+	must.Eq(t, "HostVolumeDeleted", events[4].Type)
+}
+
 func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
 	t.Helper()
 

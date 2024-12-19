@@ -41,6 +41,8 @@ var MsgTypeEvents = map[structs.MessageType]string{
 	structs.ServiceRegistrationUpsertRequestType:         structs.TypeServiceRegistration,
 	structs.ServiceRegistrationDeleteByIDRequestType:     structs.TypeServiceDeregistration,
 	structs.ServiceRegistrationDeleteByNodeIDRequestType: structs.TypeServiceDeregistration,
+	structs.HostVolumeRegisterRequestType:                structs.TypeHostVolumeRegistered,
+	structs.HostVolumeDeleteRequestType:                  structs.TypeHostVolumeDeleted,
 }
 
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
@@ -179,6 +181,24 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Namespace: before.Namespace,
 				Payload: &structs.ServiceRegistrationStreamEvent{
 					Service: before,
+				},
+			}, true
+		case TableHostVolumes:
+			before, ok := change.Before.(*structs.HostVolume)
+			if !ok {
+				return structs.Event{}, false
+			}
+			return structs.Event{
+				Topic: structs.TopicHostVolume,
+				Key:   before.ID,
+				FilterKeys: []string{
+					before.ID,
+					before.Name,
+					before.PluginID,
+				},
+				Namespace: before.Namespace,
+				Payload: &structs.HostVolumeEvent{
+					Volume: before,
 				},
 			}, true
 		}
@@ -356,6 +376,24 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			Namespace: after.Namespace,
 			Payload: &structs.ServiceRegistrationStreamEvent{
 				Service: after,
+			},
+		}, true
+	case TableHostVolumes:
+		after, ok := change.After.(*structs.HostVolume)
+		if !ok {
+			return structs.Event{}, false
+		}
+		return structs.Event{
+			Topic: structs.TopicHostVolume,
+			Key:   after.ID,
+			FilterKeys: []string{
+				after.ID,
+				after.Name,
+				after.PluginID,
+			},
+			Namespace: after.Namespace,
+			Payload: &structs.HostVolumeEvent{
+				Volume: after,
 			},
 		}, true
 	}

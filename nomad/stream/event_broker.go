@@ -363,6 +363,10 @@ func aclAllowsSubscription(aclObj *acl.ACL, subReq *SubscribeRequest) bool {
 			if ok := aclObj.AllowNsOp(subReq.Namespace, acl.NamespaceCapabilityReadJob); !ok {
 				return false
 			}
+		case structs.TopicHostVolume:
+			if ok := aclObj.AllowNsOp(subReq.Namespace, acl.NamespaceCapabilityHostVolumeRead); !ok {
+				return false
+			}
 		case structs.TopicNode:
 			if ok := aclObj.AllowNodeRead(); !ok {
 				return false

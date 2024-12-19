@@ -28,19 +28,20 @@ the nature of this endpoint individual topics require specific policies.
 Note that if you do not include a `topic` parameter all topics will be included
 by default, requiring a management token.
 
-| Topic        | ACL Required         |
-| ------------ | -------------------- |
-| `*`          | `management`         |
-| `ACLToken`   | `management`         |
-| `ACLPolicy`  | `management`         |
-| `ACLRole`    | `management`         |
-| `Job`        | `namespace:read-job` |
-| `Allocation` | `namespace:read-job` |
-| `Deployment` | `namespace:read-job` |
-| `Evaluation` | `namespace:read-job` |
-| `Node`       | `node:read`          |
-| `NodePool`   | `management`         |
-| `Service`    | `namespace:read-job` |
+| Topic        | ACL Required                 |
+|--------------|------------------------------|
+| `*`          | `management`                 |
+| `ACLPolicy`  | `management`                 |
+| `ACLRole`    | `management`                 |
+| `ACLToken`   | `management`                 |
+| `Allocation` | `namespace:read-job`         |
+| `Deployment` | `namespace:read-job`         |
+| `Evaluation` | `namespace:read-job`         |
+| `HostVolume` | `namespace:host-volume-read` |
+| `Job`        | `namespace:read-job`         |
+| `NodePool`   | `management`                 |
+| `Node`       | `node:read`                  |
+| `Service`    | `namespace:read-job`         |
 
 ### Parameters
 
@@ -65,50 +66,54 @@ by default, requiring a management token.
 
 ### Event Topics
 
-| Topic      | Output                          |
-| ---------- | ------------------------------- |
-| ACLToken   | ACLToken                        |
-| ACLPolicy  | ACLPolicy                       |
-| ACLRoles   | ACLRole                         |
-| Allocation | Allocation (no job information) |
-| Job        | Job                             |
-| Evaluation | Evaluation                      |
-| Deployment | Deployment                      |
-| Node       | Node                            |
-| NodeDrain  | Node                            |
-| NodePool   | NodePool                        |
-| Service    | Service Registrations           |
+| Topic      | Output                                 |
+|------------|----------------------------------------|
+| ACLPolicy  | ACLPolicy                              |
+| ACLRoles   | ACLRole                                |
+| ACLToken   | ACLToken                               |
+| Allocation | Allocation (no job information)        |
+| Deployment | Deployment                             |
+| Evaluation | Evaluation                             |
+| HostVolume | HostVolume (dynamic host volumes only) |
+| Job        | Job                                    |
+| Node       | Node                                   |
+| NodeDrain  | Node                                   |
+| NodePool   | NodePool                               |
+| Service    | Service Registrations                  |
 
 ### Event Types
 
 | Type                          |
-| ----------------------------- |
-| ACLTokenUpserted              |
-| ACLTokenDeleted               |
-| ACLPolicyUpserted             |
+|-------------------------------|
 | ACLPolicyDeleted              |
-| ACLRoleUpserted               |
+| ACLPolicyUpserted             |
 | ACLRoleDeleted                |
+| ACLRoleUpserted               |
+| ACLTokenDeleted               |
+| ACLTokenUpserted              |
 | AllocationCreated             |
-| AllocationUpdated             |
 | AllocationUpdateDesiredStatus |
-| DeploymentStatusUpdate        |
-| DeploymentPromotion           |
+| AllocationUpdated             |
 | DeploymentAllocHealth         |
+| DeploymentPromotion           |
+| DeploymentStatusUpdate        |
 | EvaluationUpdated             |
-| JobRegistered                 |
-| JobDeregistered               |
+| HostVolumeDeleted             |
+| HostVolumeRegistered          |
 | JobBatchDeregistered          |
-| NodeRegistration              |
+| JobDeregistered               |
+| JobRegistered                 |
 | NodeDeregistration            |
-| NodeEligibility               |
 | NodeDrain                     |
+| NodeEligibility               |
 | NodeEvent                     |
-| NodePoolUpserted              |
 | NodePoolDeleted               |
+| NodePoolUpserted              |
+| NodeRegistration              |
 | PlanResult                    |
-| ServiceRegistration           |
 | ServiceDeregistration         |
+| ServiceRegistration           |
+
 
 ### Sample Request
 

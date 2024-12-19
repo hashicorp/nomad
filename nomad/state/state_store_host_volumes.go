@@ -53,7 +53,7 @@ func (s *StateStore) HostVolumeByID(ws memdb.WatchSet, ns, id string, withAllocs
 
 // UpsertHostVolume upserts a host volume
 func (s *StateStore) UpsertHostVolume(index uint64, vol *structs.HostVolume) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(structs.HostVolumeRegisterRequestType, index)
 	defer txn.Abort()
 
 	if exists, err := s.namespaceExists(txn, vol.Namespace); err != nil {
@@ -117,7 +117,7 @@ func (s *StateStore) UpsertHostVolume(index uint64, vol *structs.HostVolume) err
 
 // DeleteHostVolume deletes a host volume
 func (s *StateStore) DeleteHostVolume(index uint64, ns string, id string) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(structs.HostVolumeDeleteRequestType, index)
 	defer txn.Abort()
 
 	obj, err := txn.First(TableHostVolumes, indexID, ns, id)

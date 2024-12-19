@@ -31,6 +31,7 @@ const (
 	TopicACLAuthMethod  Topic = "ACLAuthMethod"
 	TopicACLBindingRule Topic = "ACLBindingRule"
 	TopicService        Topic = "Service"
+	TopicHostVolume     Topic = "HostVolume"
 	TopicAll            Topic = "*"
 
 	TypeNodeRegistration              = "NodeRegistration"
@@ -63,6 +64,8 @@ const (
 	TypeACLBindingRuleDeleted         = "ACLBindingRuleDeleted"
 	TypeServiceRegistration           = "ServiceRegistration"
 	TypeServiceDeregistration         = "ServiceDeregistration"
+	TypeHostVolumeRegistered          = "HostVolumeRegistered"
+	TypeHostVolumeDeleted             = "HostVolumeDeleted"
 )
 
 // Event represents a change in Nomads state.
@@ -187,4 +190,10 @@ type ACLAuthMethodEvent struct {
 // used as an event in the event stream.
 type ACLBindingRuleEvent struct {
 	ACLBindingRule *ACLBindingRule
+}
+
+// HostVolumeEvent holds a newly updated or deleted dynamic host volume to be
+// used as an event in the event stream
+type HostVolumeEvent struct {
+	Volume *HostVolume
 }
