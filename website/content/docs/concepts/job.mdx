@@ -133,6 +133,19 @@ running job and deploys the chosen version.
 Refer to the [Revert to a version section][revert-version-section] of
 the Job versions guide for examples using the CLI, API, and web UI.
 
+### Clone and edit
+
+Using the web UI, you may clone a version as a new version of the same job or as
+a new job. After you select the version to clone, you may edit, plan, and run
+the new version.
+
+Because Nomad passes job version attributes using query parameters, you can copy
+the browser address bar URL on the **Jobs/Run** screen to send a link to an
+editable job spec.
+
+Refer to the [Clone a version section][clone-version-section] of
+the Job versions guide for cloning examples.
+
 ## Related resources
 
 Refer to the following Nomad documentation pages for more information about
@@ -164,3 +177,4 @@ configure them:
 [job-versions-guide]: /nomad/tutorials/manage-jobs/jobs-version
 [compare-versions-section]: /nomad/tutorials/manage-jobs/jobs-version#compare-versions
 [revert-version-section]: /nomad/tutorials/manage-jobs/jobs-version#revert-to-a-version
+[clone-version-section]: /nomad/tutorials/manage-jobs/jobs-version#clone-a-version
