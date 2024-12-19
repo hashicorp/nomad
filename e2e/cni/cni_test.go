@@ -40,7 +40,7 @@ func testCNIArgs(t *testing.T) {
 	job, _ := jobs3.Submit(t, "./input/cni_args.nomad.hcl")
 	logs := job.Exec("group", "task", []string{"cat", "local/victory"})
 	t.Logf("FancyMessage: %s", logs.Stdout)
-	// "global" is the Nomad node's region, interpolated in the jobspec,
-	// passed through the CNI plugin, and cat-ed by the task.
-	must.Eq(t, "global\n", logs.Stdout)
+	// "default" is the Nomad node's pool, interpolated in the jobspec, passed
+	// through the CNI plugin, and cat-ed by the task.
+	must.Eq(t, "default\n", logs.Stdout)
 }
