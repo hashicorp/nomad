@@ -43,9 +43,10 @@ func TestHostVolumeManager(t *testing.T) {
 
 	t.Run("create", func(t *testing.T) {
 		// plugin doesn't exist
+		name := "vol-name"
 		req := &cstructs.ClientHostVolumeCreateRequest{
+			Name:     name,
 			ID:       "vol-id",
-			Name:     "vol-name",
 			PluginID: "nope",
 
 			RequestedCapacityMinBytes: 5,
@@ -58,6 +59,7 @@ func TestHostVolumeManager(t *testing.T) {
 		plug.createErr = errors.New("sad create")
 		_, err = hvm.Create(ctx, req)
 		must.ErrorIs(t, err, plug.createErr)
+		assertNotLocked(t, hvm, name)
 		plug.reset()
 
 		// error saving state, then error from cleanup attempt
@@ -65,12 +67,14 @@ func TestHostVolumeManager(t *testing.T) {
 		_, err = hvm.Create(ctx, req)
 		must.ErrorIs(t, err, cstate.ErrDBError)
 		must.ErrorIs(t, err, plug.deleteErr)
+		assertNotLocked(t, hvm, name)
 		plug.reset()
 
 		// error saving state, successful cleanup
 		_, err = hvm.Create(ctx, req)
 		must.ErrorIs(t, err, cstate.ErrDBError)
 		must.Eq(t, "vol-id", plug.deleted)
+		assertNotLocked(t, hvm, name)
 		plug.reset()
 
 		// happy path
@@ -90,30 +94,43 @@ func TestHostVolumeManager(t *testing.T) {
 		must.Eq(t, "vol-id", stateDBs[0].ID)
 		must.Eq(t, "vol-id", stateDBs[0].CreateReq.ID)
 		// should be registered with node
-		must.MapContainsKey(t, node.vols, "vol-name", must.Sprintf("no vol-name in %+v", node.vols))
+		must.MapContainsKey(t, node.vols, name, must.Sprintf("no %q in %+v", name, node.vols))
+		assertLocked(t, hvm, name)
+
+		// a duplicate create with the same vol name should fail
+		_, err = hvm.Create(ctx, req)
+		must.ErrorIs(t, err, ErrVolumeNameExists)
 	})
 
+	// despite being a subtest, this needs to run after "create"
 	t.Run("delete", func(t *testing.T) {
+		name := "vol-name"
+		// should be locked from "create" above
+		assertLocked(t, hvm, name)
+
 		// plugin doesn't exist
 		req := &cstructs.ClientHostVolumeDeleteRequest{
+			Name:     name,
 			ID:       "vol-id",
-			Name:     "vol-name",
 			PluginID: "nope",
 		}
 		_, err := hvm.Delete(ctx, req)
 		must.ErrorIs(t, err, ErrPluginNotExists)
+		assertLocked(t, hvm, name)
 
 		// error from plugin
 		req.PluginID = "test-plugin"
 		plug.deleteErr = errors.New("sad delete")
 		_, err = hvm.Delete(ctx, req)
 		must.ErrorIs(t, err, plug.deleteErr)
+		assertLocked(t, hvm, name)
 		plug.reset()
 
 		// error saving state
 		hvm.stateMgr = errDB
 		_, err = hvm.Delete(ctx, req)
 		must.ErrorIs(t, err, cstate.ErrDBError)
+		assertLocked(t, hvm, name)
 
 		// happy path
 		// add stuff that should be deleted
@@ -136,6 +153,7 @@ func TestHostVolumeManager(t *testing.T) {
 		stateVols, err := memDB.GetDynamicHostVolumes()
 		must.NoError(t, err)
 		must.Nil(t, stateVols, must.Sprint("vols should be deleted from state"))
+		assertNotLocked(t, hvm, name)
 	})
 }
 
@@ -179,6 +197,16 @@ func (p *fakePlugin) Delete(_ context.Context, req *cstructs.ClientHostVolumeDel
 	}
 	p.deleted = req.ID
 	return nil
+}
+
+func assertLocked(t *testing.T, hvm *HostVolumeManager, name string) {
+	t.Helper()
+	must.True(t, hvm.names.isLocked(name), must.Sprintf("vol name %q should be locked", name))
+}
+
+func assertNotLocked(t *testing.T, hvm *HostVolumeManager, name string) {
+	t.Helper()
+	must.False(t, hvm.names.isLocked(name), must.Sprintf("vol name %q should not be locked", name))
 }
 
 func TestHostVolumeManager_restoreFromState(t *testing.T) {
@@ -235,6 +263,8 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 		must.Eq(t, expect, vols)
 
 		must.DirExists(t, volPath)
+
+		assertLocked(t, hvm, "test-vol-name")
 	})
 
 	t.Run("state error", func(t *testing.T) {
