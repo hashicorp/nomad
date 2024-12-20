@@ -408,6 +408,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	}
 
 	c.batchNodeUpdates = newBatchNodeUpdates(
+		c.logger,
 		c.updateNodeFromDriver,
 		c.updateNodeFromDevices,
 		c.updateNodeFromCSI,

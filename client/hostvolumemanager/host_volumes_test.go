@@ -27,7 +27,7 @@ func TestHostVolumeManager(t *testing.T) {
 	tmp := t.TempDir()
 	errDB := &cstate.ErrDB{}
 	memDB := cstate.NewMemDB(log)
-	node := newFakeNode()
+	node := newFakeNode(t)
 
 	hvm := NewHostVolumeManager(log, Config{
 		PluginDir:      "./test_fixtures",
@@ -231,7 +231,7 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 			PluginID: "mkdir",
 		},
 	}
-	node := newFakeNode()
+	node := newFakeNode(t)
 
 	t.Run("no vols", func(t *testing.T) {
 		state := cstate.NewMemDB(log)
@@ -332,15 +332,17 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 
 type fakeNode struct {
 	vols VolumeMap
+	log  hclog.Logger
 }
 
 func (n *fakeNode) updateVol(name string, volume *structs.ClientHostVolumeConfig) {
-	UpdateVolumeMap(n.vols, name, volume)
+	UpdateVolumeMap(n.log, n.vols, name, volume)
 }
 
-func newFakeNode() *fakeNode {
+func newFakeNode(t *testing.T) *fakeNode {
 	return &fakeNode{
 		vols: make(VolumeMap),
+		log:  testlog.HCLogger(t),
 	}
 }
 
