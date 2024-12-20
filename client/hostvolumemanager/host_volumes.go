@@ -89,8 +89,8 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		return nil, err
 	}
 
-	// can't have two of the same volume name per client node
-	if err := hvm.names.lock(req.Name); err != nil {
+	// can't have two of the same volume name w/ different IDs per client node
+	if err := hvm.names.lock(req.Name, req.ID); err != nil {
 		return nil, err
 	}
 
@@ -207,7 +207,7 @@ func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, 
 			}
 
 			// lock the name so future creates can't produce duplicates.
-			err = hvm.names.lock(vol.CreateReq.Name)
+			err = hvm.names.lock(vol.CreateReq.Name, vol.CreateReq.ID)
 			// state should never have duplicate vol names, and restore happens
 			// prior to node registration, so new creates shouldn't come in
 			// concurrently, but check for error just in case.
@@ -256,11 +256,11 @@ type nameLocker struct {
 	locks sync.Map
 }
 
-// lock the provided name, error if it was already locked
-func (l *nameLocker) lock(name string) error {
-	_, exists := l.locks.LoadOrStore(name, struct{}{})
-	if exists {
-		return fmt.Errorf("%w: %q", ErrVolumeNameExists, name)
+// lock the provided name, error if it was already locked with a different ID
+func (l *nameLocker) lock(name, id string) error {
+	current, exists := l.locks.LoadOrStore(name, id)
+	if exists && id != current.(string) {
+		return fmt.Errorf("%w: name=%q id=%q", ErrVolumeNameExists, name, id)
 	}
 	return nil
 }

@@ -81,12 +81,13 @@ func TestHostVolumeManager(t *testing.T) {
 		hvm.stateMgr = memDB
 		resp, err := hvm.Create(ctx, req)
 		must.NoError(t, err)
-		must.Eq(t, &cstructs.ClientHostVolumeCreateResponse{
+		expectResp := &cstructs.ClientHostVolumeCreateResponse{
 			VolumeName:    "vol-name",
 			VolumeID:      "vol-id",
 			HostPath:      tmp,
 			CapacityBytes: 5,
-		}, resp)
+		}
+		must.Eq(t, expectResp, resp)
 		stateDBs, err := memDB.GetDynamicHostVolumes()
 		must.NoError(t, err)
 		// should be saved to state
@@ -97,8 +98,19 @@ func TestHostVolumeManager(t *testing.T) {
 		must.MapContainsKey(t, node.vols, name, must.Sprintf("no %q in %+v", name, node.vols))
 		assertLocked(t, hvm, name)
 
-		// a duplicate create with the same vol name should fail
-		_, err = hvm.Create(ctx, req)
+		// repeat create with same ID but different size may update the volume
+		req.RequestedCapacityMinBytes = 10
+		expectResp.CapacityBytes = 10
+		resp, err = hvm.Create(ctx, req)
+		must.NoError(t, err)
+		must.Eq(t, expectResp, resp)
+
+		// duplicate create with the same vol name but different ID should fail
+		_, err = hvm.Create(ctx, &cstructs.ClientHostVolumeCreateRequest{
+			Name:     name,
+			ID:       "different-vol-id",
+			PluginID: "test-plugin",
+		})
 		must.ErrorIs(t, err, ErrVolumeNameExists)
 	})
 
