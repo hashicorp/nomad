@@ -21,12 +21,14 @@ var (
 	ErrPluginNotExecutable = errors.New("plugin not executable")
 )
 
+// HostVolumeStateManager manages the lifecycle of volumes in client state.
 type HostVolumeStateManager interface {
 	PutDynamicHostVolume(*cstructs.HostVolumeState) error
 	GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error)
 	DeleteDynamicHostVolume(string) error
 }
 
+// Config is used to configure a HostVolumeManager.
 type Config struct {
 	// PluginDir is where external plugins may be found.
 	PluginDir string
@@ -43,6 +45,8 @@ type Config struct {
 	UpdateNodeVols HostVolumeNodeUpdater
 }
 
+// HostVolumeManager executes plugins, manages volume metadata in client state,
+// and registers volumes with the client node.
 type HostVolumeManager struct {
 	pluginDir      string
 	sharedMountDir string
@@ -52,6 +56,7 @@ type HostVolumeManager struct {
 	log            hclog.Logger
 }
 
+// NewHostVolumeManager includes default builtin plugins.
 func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager {
 	return &HostVolumeManager{
 		pluginDir:      config.PluginDir,
@@ -69,6 +74,8 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 	}
 }
 
+// Create runs the appropriate plugin for the given request, saves the request
+// to state, and updates the node with the volume.
 func (hvm *HostVolumeManager) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
 
@@ -116,6 +123,8 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 	return resp, nil
 }
 
+// Delete runs the appropriate plugin for the given request, removes it from
+// state, and updates the node to remove the volume.
 func (hvm *HostVolumeManager) Delete(ctx context.Context,
 	req *cstructs.ClientHostVolumeDeleteRequest) (*cstructs.ClientHostVolumeDeleteResponse, error) {
 
@@ -144,6 +153,7 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 	return resp, nil
 }
 
+// getPlugin finds either a built-in plugin or an external plugin.
 func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 	if plug, ok := hvm.builtIns[id]; ok {
 		return plug, nil
@@ -153,6 +163,8 @@ func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 	return NewHostVolumePluginExternal(log, id, path, hvm.sharedMountDir)
 }
 
+// restoreFromState loads all volumes from client state and runs Create for
+// each one, so volumes are restored upon agent restart or host reboot.
 func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, error) {
 	vols, err := hvm.stateMgr.GetDynamicHostVolumes()
 	if err != nil {
@@ -194,6 +206,8 @@ func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, 
 	return volumes, helper.FlattenMultierror(mErr.ErrorOrNil())
 }
 
+// genVolConfig generates the host volume config for the node to report as
+// available to the servers for job scheduling.
 func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, resp *HostVolumePluginCreateResponse) *structs.ClientHostVolumeConfig {
 	return &structs.ClientHostVolumeConfig{
 		Name: req.Name,

@@ -41,6 +41,7 @@ func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolu
 }
 
 // WaitForFirstFingerprint implements client.FingerprintingPluginManager
+// so any existing volumes are added to the client node on agent start.
 func (hvm *HostVolumeManager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
 	// the fingerprint manager puts batchFirstFingerprintsTimeout (50 seconds)
 	// on the context that it sends to us here so we don't need another

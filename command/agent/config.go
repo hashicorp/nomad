@@ -230,7 +230,6 @@ type ClientConfig struct {
 	AllocMountsDir string `hcl:"alloc_mounts_dir"`
 
 	// HostVolumePluginDir directory contains dynamic host volume plugins
-	// db TODO(1.10.0): document default directory is alongside alloc_mounts
 	HostVolumePluginDir string `hcl:"host_volume_plugin_dir"`
 
 	// Servers is a list of known server addresses. These are as "host:port"

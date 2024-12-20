@@ -181,7 +181,7 @@ func (p *fakePlugin) Delete(_ context.Context, req *cstructs.ClientHostVolumeDel
 	return nil
 }
 
-func TestHostVolumeManager_restoreState(t *testing.T) {
+func TestHostVolumeManager_restoreFromState(t *testing.T) {
 	log := testlog.HCLogger(t)
 	vol := &cstructs.HostVolumeState{
 		ID: "test-vol-id",
@@ -278,8 +278,10 @@ func TestHostVolumeManager_restoreState(t *testing.T) {
 		hvm.builtIns["test-plugin"] = plug
 
 		vols, err := hvm.restoreFromState(timeout(t))
+		// error during restore should not halt the whole client
 		must.NoError(t, err)
 		must.NotNil(t, vols)
+		// but it should log
 		logs := getLogs()
 		must.StrContains(t, logs, "[ERROR]")
 		must.StrContains(t, logs, `failed to restore: plugin_id=test-plugin volume_id=test-volume error="sad create"`)
