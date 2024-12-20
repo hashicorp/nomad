@@ -53,7 +53,7 @@ var ec2NetSpeedTable = map[*regexp.Regexp]int{
 type EnvAWSFingerprint struct {
 	StaticFingerprinter
 
-	// endpoint for EC2 metadata as expected by AWS SDK
+	// used to override IMDS endpoint for testing
 	endpoint string
 
 	logger log.Logger
@@ -80,7 +80,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 
-	imdsClient, err := imdsClient(ctx, f.endpoint)
+	imdsClient, err := f.imdsClient(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to setup IMDS client: %v", err)
 	}
@@ -117,15 +117,15 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		if resp == nil {
 			continue
 		}
-		defer resp.Content.Close()
 
-		bytes, err := io.ReadAll(resp.Content)
+		v, err := readMetadataResponse(resp)
 		if err != nil {
 			return err
 		}
-		v := strings.TrimSpace(string(bytes))
+
 		if v == "" {
 			f.logger.Debug("read an empty value", "attribute", k)
+			continue
 		}
 
 		// assume we want blank entries
@@ -164,14 +164,11 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 			return err
 		}
 		if resp != nil {
-			defer resp.Content.Close()
-
-			addrBytes, err := io.ReadAll(resp.Content)
+			addrsStr, err := readMetadataResponse(resp)
 			if err != nil {
 				return err
 			}
 
-			addrsStr := strings.TrimSpace(string(addrBytes))
 			if addrsStr == "" {
 				f.logger.Debug("read an empty value", "attribute", k)
 			} else {
@@ -261,7 +258,7 @@ func (f *EnvAWSFingerprint) linkSpeed(client *imds.Client) int {
 	return netSpeed
 }
 
-func imdsClient(ctx context.Context, endpoint string) (*imds.Client, error) {
+func (f *EnvAWSFingerprint) imdsClient(ctx context.Context) (*imds.Client, error) {
 	client := &http.Client{
 		Transport: cleanhttp.DefaultTransport(),
 	}
@@ -274,8 +271,9 @@ func imdsClient(ctx context.Context, endpoint string) (*imds.Client, error) {
 	}
 
 	imdsClient := imds.NewFromConfig(cfg, func(o *imds.Options) {
-		if endpoint != "" {
-			o.Endpoint = endpoint
+		// endpoint should only be overridden for testing
+		if f.endpoint != "" {
+			o.Endpoint = f.endpoint
 		}
 	})
 	return imdsClient, nil
@@ -288,11 +286,23 @@ func isAWS(ctx context.Context, client *imds.Client) bool {
 	if err != nil {
 		return false
 	}
+
+	s, err := readMetadataResponse(resp)
+	if err != nil {
+		return false
+	}
+
+	return s != ""
+}
+
+// readImdsResponse reads and formats the IMDS response
+// and most importantly, closes the io.ReadCloser
+func readMetadataResponse(resp *imds.GetMetadataOutput) (string, error) {
 	defer resp.Content.Close()
 
 	b, err := io.ReadAll(resp.Content)
 	if err != nil {
-		return false
+		return "", err
 	}
-	return strings.TrimSpace(string(b)) != ""
+	return strings.TrimSpace(string(b)), nil
 }
