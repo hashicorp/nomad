@@ -105,7 +105,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mitchellh/pointerstructure v1.2.1
 	github.com/mitchellh/reflectwalk v1.0.2
-	github.com/moby/sys/capability v0.3.0
+	github.com/moby/sys/capability v0.4.0
 	github.com/moby/sys/mount v0.3.3
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/term v0.5.0
