@@ -46,7 +46,7 @@ but the general mechanisms for a secure Nomad deployment revolve around:
   (**Enterprise Only**) - Sentinel policies allow for granular control over
   components such as task drivers within a cluster.
 
-### Personas
+## Personas
 
 When thinking about Nomad, it helps to consider the following types of base
 personas when managing the security requirements for the cluster deployment. The
@@ -84,7 +84,7 @@ within Nomad itself.
   internet such as a web server. This is someone who shouldn't have any
   network access to the Nomad server API.
 
-### Secure Configuration
+## Secure Configuration
 
 Nomad's security model is applicable only if all parts of the system are running
 with a secure configuration; **Nomad is not secure-by-default.** Without the following
@@ -93,7 +93,7 @@ to a cluster. Like all security considerations, one must appropriately determine
 what concerns they have for their environment and adapt to these security
 recommendations accordingly.
 
-#### Requirements
+### Requirements
 
 - **[mTLS enabled](/nomad/tutorials/transport-security/security-enable-tls)** -
   Mutual TLS (mTLS) enables [mutual
@@ -167,7 +167,7 @@ recommendations accordingly.
   Access to these resource quotas can be managed via ACLs to ensure read-only
   access for operators so they can't just change their quotas.
 
-#### Recommendations
+### Recommendations
 
 The following are security recommendations that can help significantly improve
 the security of your cluster depending on your use case. We recommend always
@@ -226,7 +226,7 @@ environment.
 - **[HTTP Headers](/nomad/docs/configuration#http_api_response_headers)** -
   Additional security [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers), such as [`X-XSS-Protection`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection), can be [configured](/nomad/docs/configuration#http_api_response_headers) for HTTP API responses.
 
-### Threat Model
+## Threat Model
 
 The following are parts of the Nomad threat model:
 
@@ -292,7 +292,7 @@ The following are not part of the threat model for client agents:
   devices. Such privileges can be used to facilitate compromise other workloads,
   or cause denial-of-service attacks.
 
-#### Internal Threats
+### Internal Threats
 
 - **Job Operator** - Someone with a valid mTLS certificate and ACL token may still be a
   threat to your cluster in certain situations, especially in multi-team
@@ -316,7 +316,7 @@ The following are not part of the threat model for client agents:
   to an exposed Docker daemon API through other means such as the [`raw_exec`](/nomad/docs/drivers/raw_exec)
   driver.
 
-#### External Threats
+### External Threats
 
 There are two main components to consider to for external threats in a Nomad cluster:
 
@@ -331,7 +331,7 @@ There are two main components to consider to for external threats in a Nomad clu
   a client node is unencrypted in the agent's data and configuration
   directory.
 
-### Network Ports
+## Network Ports
 
 | **Port / Protocol**  | Agents  | Description                                                                                                                                                           |
 |----------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
