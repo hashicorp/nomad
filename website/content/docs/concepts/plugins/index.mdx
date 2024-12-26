@@ -1,12 +1,12 @@
 ---
 layout: docs
 page_title: Plugins
-description: Learn about how external plugins work in Nomad.
+description: Learn how external plugins let you extend Nomad's functionality.
 ---
 
 # Plugins
 
-Nomad implements a plugin framework which allows users to extend the
+Nomad implements a plugin framework which lets you extend the
 functionality of some components within Nomad. The design of the plugin system
 is inspired by the lessons learned from plugin systems implemented in other
 HashiCorp products such as Terraform and Vault.
@@ -16,7 +16,7 @@ The following components are currently pluggable within Nomad:
 - [Task Drivers](/nomad/docs/concepts/plugins/task-drivers)
 - [Devices](/nomad/docs/concepts/plugins/devices)
 
-# Architecture
+## Architecture
 
 The Nomad plugin framework uses the [go-plugin][goplugin] project to expose
 a language independent plugin interface. Plugins implement a set of gRPC

@@ -1,7 +1,7 @@
 ---
 layout: docs
 page_title: Access Control List (ACL)
-description: Learn about Nomad's ACL subsystem
+description: Learn how Nomad's Access Control List (ACL) feature uses tokens, policies, roles, and capabilities to control access.
 ---
 
 # Access Control List (ACL)
@@ -15,7 +15,7 @@ Single Sign-On (SSO) ACL capabilities.
 The Nomad [access control tutorials][] provide detailed information and
 guidance on Nomad ACL system.
 
-### Policy
+## Policy
 
 Policies consist of a set of rules defining the capabilities or actions to be
 granted. For example, a `readonly` policy might only grant the ability to list
@@ -27,13 +27,13 @@ Nomad ACL token for accessing the objects in a Nomad cluster, objects like
 namespaces, node, agent, operator, quota, etc. For more information on writing
 policies, see the [ACL policy reference doc][].
 
-### Role
+## Role
 
 Roles group one or more ACL policies into a container which can then be used to
 generate ACL tokens for authorisation. This abstraction allows easier control
 and updating of ACL permissions, particularly in larger, more diverse clusters.
 
-### Token
+## Token
 
 Requests to Nomad are authenticated using a bearer token. Each ACL token has a
 public Accessor ID which is used to name a token and a Secret ID which is used
@@ -49,14 +49,14 @@ other regions. Otherwise, tokens are created locally in the region the request
 was made and not replicated. `Local` tokens cannot be used for cross-region
 requests since they are not replicated between regions.
 
-### Workload Identity
+## Workload Identity
 
 Nomad allocations can receive workload identities in the form of a
 [JSON Web Token (JWT)][jwt]. The
 [Workload Identity concept page][workload identity] has more information on
 this topic.
 
-### Auth Method
+## Auth Method
 
 Authentication methods dictate how Nomad should talk to SSO providers when a
 user requests to authenticate using one. Currently, Nomad supports the [OpenID
@@ -64,7 +64,7 @@ Connect (OIDC)][oidc] SSO workflow which allows users to log in to Nomad via
 applications such as [Auth0][auth0], [Okta][okta], and [Vault][vault], and
 non-interactive login via externally-issued [JSON Web Tokens (JWT)][jwt].
 
-### Binding Rule
+## Binding Rule
 
 Binding rules provide a mapping between a Nomad user's SSO authorisation claims
 and internal Nomad objects such as ACL Roles and ACL Policies. A binding rule
