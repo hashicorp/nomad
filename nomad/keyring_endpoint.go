@@ -348,6 +348,15 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 		return fmt.Errorf("active root key cannot be deleted - call rotate first")
 	}
 
+	// make sure the key was used to encrypt an existing variable
+	rootKeyInUse, err := snap.IsRootKeyInUse(args.KeyID)
+	if err != nil {
+		return err
+	}
+	if rootKeyInUse && !args.Force {
+		return fmt.Errorf("root key in use, cannot delete")
+	}
+
 	_, index, err = k.srv.raftApply(structs.WrappedRootKeysDeleteRequestType, args)
 	if err != nil {
 		return err

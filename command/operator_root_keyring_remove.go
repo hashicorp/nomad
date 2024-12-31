@@ -51,11 +51,12 @@ func (c *OperatorRootKeyringRemoveCommand) Name() string {
 }
 
 func (c *OperatorRootKeyringRemoveCommand) Run(args []string) int {
-	var verbose bool
+	var force, verbose bool
 
 	flags := c.Meta.FlagSet("root keyring remove", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
+	flags.BoolVar(&force, "force", false, "Forces deletion of the root keyring even if it's in use.")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -76,6 +77,7 @@ func (c *OperatorRootKeyringRemoveCommand) Run(args []string) int {
 	}
 	_, err = client.Keyring().Delete(&api.KeyringDeleteOptions{
 		KeyID: removeKey,
+		Force: force,
 	}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("error: %s", err))

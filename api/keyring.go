@@ -6,6 +6,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // Keyring is used to access the Variables keyring.
@@ -60,14 +61,15 @@ func (k *Keyring) List(q *QueryOptions) ([]*RootKeyMeta, *QueryMeta, error) {
 
 // Delete deletes a specific inactive key from the keyring
 func (k *Keyring) Delete(opts *KeyringDeleteOptions, w *WriteOptions) (*WriteMeta, error) {
-	wm, err := k.client.delete(fmt.Sprintf("/v1/operator/keyring/key/%v",
-		url.PathEscape(opts.KeyID)), nil, nil, w)
+	wm, err := k.client.delete(fmt.Sprintf("/v1/operator/keyring/key/%v?force=%v",
+		url.PathEscape(opts.KeyID), strconv.FormatBool(opts.Force)), nil, nil, w)
 	return wm, err
 }
 
 // KeyringDeleteOptions are parameters for the Delete API
 type KeyringDeleteOptions struct {
 	KeyID string // UUID
+	Force bool
 }
 
 // Rotate requests a key rotation
