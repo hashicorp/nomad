@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 locals {
-  ami_prefix           = "nomad-e2e-v3"
+  ami_prefix        = "nomad-e2e-v3"
   ubuntu_image_name = "ubuntu-jammy-${var.instance_architecture}"
 }
 
