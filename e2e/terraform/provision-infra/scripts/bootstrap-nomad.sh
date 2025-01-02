@@ -10,6 +10,11 @@ do
     ROOT_TOKEN=$(nomad acl bootstrap | awk '/Secret ID/{print $4}')
     if [ ! -z $ROOT_TOKEN ]; then break; fi
     sleep 5
+    echo NOMAD_ADDR= $NOMAD_ADDR
+    echo NOMAD_CACERT= $NOMAD_CACERT
+    echo NOMAD_CLIENT_CERT= $NOMAD_CLIENT_CERT
+    echo NOMAD_CLIENT_KEY= $NOMAD_CLIENT_KEY
+    pwd
 done
 set -e
 
