@@ -14,9 +14,9 @@ resource "null_resource" "bootstrap_nomad_acls" {
     command = "${path.module}/scripts/bootstrap-nomad.sh"
     environment = {
       NOMAD_ADDR        = "https://${aws_instance.server.0.public_ip}:4646"
-      NOMAD_CACERT      = "./provision-infra/keys/tls_ca.crt"
-      NOMAD_CLIENT_CERT = "./provision-infra/keys/tls_api_client.crt"
-      NOMAD_CLIENT_KEY  = "./provision-infra/keys/tls_api_client.key"
+      NOMAD_CACERT      = "${path.module}/keys/tls_ca.crt"
+      NOMAD_CLIENT_CERT = "${path.module}/keys/tls_api_client.crt"
+      NOMAD_CLIENT_KEY  = "${path.module}/keys/tls_api_client.key"
     }
   }
 }
