@@ -3,7 +3,7 @@
 
 locals {
   ami_prefix           = "nomad-e2e-v3"
-  ubuntu_instance_name = "ubuntu-jammy-${var.instance_architecture}"
+  ubuntu_image_name = "ubuntu-jammy-${var.instance_architecture}"
 }
 
 resource "aws_instance" "server" {
