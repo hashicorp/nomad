@@ -14,16 +14,16 @@ resource "null_resource" "bootstrap_nomad_acls" {
     command = "${path.module}/scripts/bootstrap-nomad.sh"
     environment = {
       NOMAD_ADDR        = "https://${aws_instance.server.0.public_ip}:4646"
-      NOMAD_CACERT      = "./keys/tls_ca.crt"
-      NOMAD_CLIENT_CERT = "./keys/tls_api_client.crt"
-      NOMAD_CLIENT_KEY  = "./keys/tls_api_client.key"
+      NOMAD_CACERT      = "./provision-infra/keys/tls_ca.crt"
+      NOMAD_CLIENT_CERT = "./provision-infra/keys/tls_api_client.crt"
+      NOMAD_CLIENT_KEY  = "./provision-infra/keys/tls_api_client.key"
     }
   }
 }
 
 data "local_sensitive_file" "nomad_token" {
   depends_on = [null_resource.bootstrap_nomad_acls]
-  filename   = "${path.module}/../keys/nomad_root_token"
+  filename   = "${path.module}/keys/nomad_root_token"
 }
 
 # push the token out to the servers for humans to use.

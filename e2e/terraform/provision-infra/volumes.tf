@@ -23,6 +23,6 @@ resource "local_file" "efs_volume_hcl" {
   content = templatefile("${path.module}/volumes.tftpl", {
     id = aws_efs_file_system.csi[0].id,
   })
-  filename        = "${path.module}/../csi/input/volume-efs.hcl"
+  filename        = "${path.module}/csi/input/volume-efs.hcl"
   file_permission = "0664"
 }

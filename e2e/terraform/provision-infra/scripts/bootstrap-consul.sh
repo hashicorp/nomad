@@ -7,6 +7,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 echo "waiting for Consul leader to be up..."
 while true :
 do
+    echo CONSUL_HTTP_ADDR=$CONSUL_HTTP_ADDR
     consul info && break
     echo "Consul server not ready, waiting 5s"
     sleep 5

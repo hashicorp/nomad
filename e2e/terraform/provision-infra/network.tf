@@ -20,7 +20,7 @@ data "aws_subnet" "secondary" {
   }
 }
 
-# using a dns lookup instead of http, because it's faster
+/* # using a dns lookup instead of http, because it's faster
 # and should be more reliable.
 data "external" "my_public_ipv4" {
   program = ["/bin/sh", "-c", <<-EOT
@@ -28,10 +28,14 @@ data "external" "my_public_ipv4" {
     echo '{"ip": "'$ip'"}'
     EOT
   ]
+} */
+
+data "http" "myip" {
+  url = "https://ipv4.icanhazip.com"
 }
 
 locals {
-  ingress_cidr = var.restrict_ingress_cidrblock ? "${chomp(data.external.my_public_ipv4.result["ip"])}/32" : "0.0.0.0/0"
+  ingress_cidr = var.restrict_ingress_cidrblock ? "${chomp(data.http.myip.response_body)}/32" : "0.0.0.0/0"
 }
 
 resource "aws_security_group" "servers" {

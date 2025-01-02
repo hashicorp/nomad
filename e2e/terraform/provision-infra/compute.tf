@@ -113,7 +113,7 @@ data "aws_ami" "ubuntu_jammy" {
 
   filter {
     name   = "name"
-    values = ["${local.ami_prefix}-${local.ubuntu_instance_name}-*"]
+    values = ["${local.ami_prefix}-${local.ubuntu_image_name}-*"]
   }
 
   filter {

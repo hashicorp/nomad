@@ -23,11 +23,11 @@ resource "tls_self_signed_cert" "ca" {
 }
 
 resource "local_sensitive_file" "ca_key" {
-  filename = "${path.module}/../keys/tls_ca.key"
+  filename = "${path.module}/keys/tls_ca.key"
   content  = tls_private_key.ca.private_key_pem
 }
 
 resource "local_sensitive_file" "ca_cert" {
-  filename = "${path.module}/../keys/tls_ca.crt"
+  filename = "${path.module}/keys/tls_ca.crt"
   content  = tls_self_signed_cert.ca.cert_pem
 }
