@@ -79,11 +79,6 @@ variable "volumes" {
   default     = true
 }
 
-variable "hcp_consul_cluster_id" {
-  description = "The ID of the HCP Consul cluster"
-  type        = string
-  default     = "nomad-e2e-shared-hcp-consul"
-}
 
 variable "hcp_vault_cluster_id" {
   description = "The ID of the HCP Vault cluster"
