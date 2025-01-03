@@ -69,6 +69,8 @@ func (k *Keyring) Delete(opts *KeyringDeleteOptions, w *WriteOptions) (*WriteMet
 // KeyringDeleteOptions are parameters for the Delete API
 type KeyringDeleteOptions struct {
 	KeyID string // UUID
+	// Force can be used to force deletion of a root keyring that was used to encrypt
+	// an existing variable or to sign a workload identity
 	Force bool
 }
 

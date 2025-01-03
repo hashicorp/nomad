@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -354,7 +355,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 		return err
 	}
 	if rootKeyInUse && !args.Force {
-		return fmt.Errorf("root key in use, cannot delete")
+		return errors.New("root key in use, cannot delete")
 	}
 
 	_, index, err = k.srv.raftApply(structs.WrappedRootKeysDeleteRequestType, args)
