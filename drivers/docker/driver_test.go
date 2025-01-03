@@ -2860,6 +2860,8 @@ func TestParseDockerImage(t *testing.T) {
 		Repo  string
 		Tag   string
 	}{
+		{"host:5000/library/hello-world", "host:5000/library/hello-world", "latest"},
+		{"host:5000/library/hello-world:1.0", "host:5000/library/hello-world", "1.0"},
 		{"library/hello-world:1.0", "library/hello-world", "1.0"},
 		{"library/hello-world", "library/hello-world", "latest"},
 		{"library/hello-world:latest", "library/hello-world", "latest"},
