@@ -29,7 +29,14 @@ Usage: nomad operator root keyring remove [options] <key ID>
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace)
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+
+Keyring Options:
+
+  -force
+    Remove the key even if it was used to sign an existing variable
+    or workload identity.
+`
 
 	return strings.TrimSpace(helpText)
 }
