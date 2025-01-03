@@ -31,7 +31,7 @@ General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 
-Keyring Options:
+Remove Options:
 
   -force
     Remove the key even if it was used to sign an existing variable
