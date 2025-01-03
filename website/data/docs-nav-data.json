@@ -2007,11 +2007,7 @@
           },
           {
             "title": "Installation",
-            "href": "/plugins/drivers/virt/installation"
-          },
-          {
-            "title": "Client",
-            "href": "/plugins/drivers/virt/client"
+            "href": "/plugins/drivers/virt/install"
           },
           {
             "title": "Task Config",

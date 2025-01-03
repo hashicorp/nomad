@@ -22,12 +22,8 @@
             "path": "drivers/virt"
           },
           {
-            "title": "Installation",
-            "path": "drivers/virt/installation"
-          },
-          {
-            "title": "Client",
-            "path": "drivers/virt/client"
+            "title": "Install",
+            "path": "drivers/virt/install"
           },
           {
             "title": "Task Config",
