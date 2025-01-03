@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/ci"
@@ -35,6 +36,13 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		listResp := obj.([]*structs.RootKeyMeta)
 		must.Len(t, 1, listResp)
 		key0 := listResp[0].KeyID
+
+		// Create a variable to test force key deletion
+		state := s.server.State()
+		encryptedVar := mock.VariableEncrypted()
+		encryptedVar.KeyID = key0
+		varSetResp := state.VarSet(0, &structs.VarApplyStateRequest{Var: encryptedVar})
+		must.NoError(t, varSetResp.Error)
 
 		// Rotate
 
@@ -85,6 +93,12 @@ func TestHTTP_Keyring_CRUD(t *testing.T) {
 		// Delete the original key and verify its gone
 
 		req, err = http.NewRequest(http.MethodDelete, "/v1/operator/keyring/key/"+key0, nil)
+		must.NoError(t, err)
+		obj, err = s.Server.KeyringRequest(respW, req)
+		must.Error(t, err)
+		must.EqError(t, err, "root key in use, cannot delete")
+
+		req, err = http.NewRequest(http.MethodDelete, "/v1/operator/keyring/key/"+key0+"?force=true", nil)
 		must.NoError(t, err)
 		obj, err = s.Server.KeyringRequest(respW, req)
 		must.NoError(t, err)

@@ -116,8 +116,14 @@ func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request)
 		return s.keyringListRequest(resp, req)
 	case strings.HasPrefix(path, "key"):
 		keyID := strings.TrimPrefix(req.URL.Path, "/v1/operator/keyring/key/")
-		force := req.URL.Query()["force"][0]
-		forceBool, err := strconv.ParseBool(force)
+
+		var forceBool bool
+		var err error
+		forceQuery, ok := req.URL.Query()["force"]
+		if ok {
+			forceBool, err = strconv.ParseBool(forceQuery[0])
+		}
+
 		if err != nil {
 			return nil, CodedError(422, "invalid force parameter")
 		}
