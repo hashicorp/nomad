@@ -31,3 +31,5 @@ nomad acl policy apply \
       -description "Anonymous policy (full-access)" \
       anonymous \
       "${DIR}/anonymous.nomad_policy.hcl"
+
+echo "Nomad successfully bootstraped"
