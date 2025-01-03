@@ -116,9 +116,14 @@ func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request)
 		return s.keyringListRequest(resp, req)
 	case strings.HasPrefix(path, "key"):
 		keyID := strings.TrimPrefix(req.URL.Path, "/v1/operator/keyring/key/")
+		force := req.URL.Query()["force"][0]
+		forceBool, err := strconv.ParseBool(force)
+		if err != nil {
+			return nil, CodedError(422, "invalid force parameter")
+		}
 		switch req.Method {
 		case http.MethodDelete:
-			return s.keyringDeleteRequest(resp, req, keyID)
+			return s.keyringDeleteRequest(resp, req, keyID, forceBool)
 		default:
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
@@ -185,9 +190,9 @@ func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Re
 	return out, nil
 }
 
-func (s *HTTPServer) keyringDeleteRequest(resp http.ResponseWriter, req *http.Request, keyID string) (interface{}, error) {
+func (s *HTTPServer) keyringDeleteRequest(resp http.ResponseWriter, req *http.Request, keyID string, force bool) (interface{}, error) {
 
-	args := structs.KeyringDeleteRootKeyRequest{KeyID: keyID}
+	args := structs.KeyringDeleteRootKeyRequest{KeyID: keyID, Force: force}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.KeyringDeleteRootKeyResponse
