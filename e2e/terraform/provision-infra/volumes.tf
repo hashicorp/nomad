@@ -3,7 +3,7 @@
 
 resource "aws_efs_file_system" "csi" {
   count          = var.volumes ? 1 : 0
-  creation_token = "${local.random_name}-CSI"
+  creation_token = "${random_pet.e2e.id}-CSI"
 
   tags = {
     Name = "${local.random_name}-efs"
