@@ -87,3 +87,9 @@ variable "aws_kms_key_id" {
   description = "AWS KMS key ID for encrypting and decrypting the Nomad keyring"
   default     = ""
 }
+
+variable "uploads_dir" {
+  type        = string
+  description = "Directory where all the configuration files for nomad, consul and vault will be taken from to configure each nomad node"
+  default     = ""
+}

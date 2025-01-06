@@ -61,8 +61,8 @@ variable "nomad_license" {
 }
 
 variable "nomad_region" {
-  description = "The name of the Nomad region."
-  default     = "e2e"
+  description = "The AWS region to deploy to."
+  default     = "us-east-1"
 }
 
 variable "consul_license" {

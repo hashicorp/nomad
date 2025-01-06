@@ -22,6 +22,8 @@ module "nomad_server" {
   aws_region     = var.region
   aws_kms_key_id = data.aws_kms_alias.e2e.target_key_id
 
+  uploads_dir = local.uploads_dir
+
   connection = {
     type        = "ssh"
     user        = "ubuntu"
@@ -48,6 +50,8 @@ module "nomad_client_ubuntu_jammy" {
 
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
+
+  uploads_dir = local.uploads_dir
 
   connection = {
     type        = "ssh"
@@ -77,6 +81,8 @@ module "nomad_client_windows_2016_amd64" {
 
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
+
+  uploads_dir = local.uploads_dir
 
   connection = {
     type        = "ssh"
