@@ -6,7 +6,6 @@ package hostvolumemanager
 import (
 	"context"
 	"errors"
-	"fmt"
 	"path/filepath"
 	"sync"
 
@@ -212,7 +211,10 @@ func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, 
 			// prior to node registration, so new creates shouldn't come in
 			// concurrently, but check for error just in case.
 			if err != nil {
-				hvm.log.Error("error during restore", "volume_id", vol.ID, "error", err)
+				hvm.log.Error("error during restore",
+					"volume_name", vol.CreateReq.Name,
+					"volume_id", vol.CreateReq.ID,
+					"error", err)
 				// don't stop the world if it does happen, because an admin
 				// couldn't do anything about it short of wiping client state.
 				return nil
@@ -260,7 +262,7 @@ type volLocker struct {
 func (l *volLocker) lock(name, id string) error {
 	current, exists := l.locks.LoadOrStore(name, id)
 	if exists && id != current.(string) {
-		return fmt.Errorf("%w: name=%q id=%q", ErrVolumeNameExists, name, id)
+		return ErrVolumeNameExists
 	}
 	return nil
 }
