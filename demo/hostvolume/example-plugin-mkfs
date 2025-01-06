@@ -2,8 +2,6 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-# db TODO(1.10.0): where does PATH come from here? somewhere implicit? /sbin/ and /bin/ and ...?
-
 set -euo pipefail
 
 version='0.0.1'
