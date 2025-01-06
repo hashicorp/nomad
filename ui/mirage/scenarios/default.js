@@ -92,6 +92,9 @@ function smallCluster(server) {
   server.create('feature', { name: 'Dynamic Application Sizing' });
   server.create('feature', { name: 'Sentinel Policies' });
   server.createList('agent', 3, 'withConsulLink', 'withVaultLink');
+  if (withRegions) {
+    server.db.agents[0].member.Tags.region = server.db.regions[0].id;
+  }
   server.createList('node-pool', 2);
   server.createList('node', 5);
   server.create(

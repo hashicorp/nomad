@@ -16,7 +16,7 @@
       @size="large"
     />
   </span></td>
-<td data-test-server-is-leader>
+<td data-test-server-is-leader class="server-status-badges">
   <Hds::Badge
     @text={{if
       this.agent.isLeader
@@ -30,6 +30,7 @@
     @icon={{if this.agent.isLeader "check-circle" ""}}
     @color={{if this.agent.isLeader "success" "neutral"}}
     @size="large"
+    class="no-wrap"
   />
 </td>
 <td data-test-server-address class="is-200px is-truncatable">{{this.agent.address}}</td>
