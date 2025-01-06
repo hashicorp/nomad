@@ -59,3 +59,23 @@ export CONSUL_HTTP_TOKEN=${local_sensitive_file.consul_initial_management_token.
 export CONSUL_CACERT=${abspath(path.module)}/keys/tls_ca.crt
 EOM
 }
+
+output "nomad_addr" {
+  value = "https://${aws_instance.server[0].public_ip}:4646"
+}
+
+output "ca_file" {
+  value = "${abspath(path.module)}/keys/tls_ca.crt"
+}
+
+output "cert_file" {
+  value = "${abspath(path.module)}/keys/tls_api_client.crt"
+}
+
+output "key_file" {
+  value = "${abspath(path.module)}/keys/tls_api_client.key"
+}
+
+output "nomad_token" {
+  value = "${data.local_sensitive_file.nomad_token.content}"
+}

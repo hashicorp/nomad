@@ -17,6 +17,29 @@ output "message" {
   value = module.provision-infra.message
 }
 
+output "nomad_addr" {
+  value = module.provision-infra.nomad_addr
+}
+
+output "ca_file" {
+  value = module.provision-infra.ca_file
+}
+
+output "cert_file" {
+  value = module.provision-infra.cert_file
+}
+
+output "key_file" {
+  value = module.provision-infra.key_file
+}
+
+output "nomad_token" {
+  value = module.provision-infra.nomad_token
+}
+
+
+
+
 # Note: Consul and Vault environment needs to be set in test
 # environment before the Terraform run, so we don't have that output
 # here
