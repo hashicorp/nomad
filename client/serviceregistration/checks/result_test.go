@@ -13,79 +13,97 @@ import (
 
 func TestChecks_GetCheckQuery(t *testing.T) {
 	cases := []struct {
-		name        string
-		cType       string
-		protocol    string
-		onUpdate    string
-		expMode     structs.CheckMode
-		expProtocol string
+		name               string
+		cType              string
+		protocol           string
+		onUpdate           string
+		expMode            structs.CheckMode
+		expProtocol        string
+		inputTLSSkipVerify bool
 	}{
 		{
-			name:        "http check and http set",
-			cType:       "http",
-			protocol:    "http",
-			onUpdate:    "checks",
-			expMode:     structs.Healthiness,
-			expProtocol: "http",
+			name:               "http check and http set",
+			cType:              "http",
+			protocol:           "http",
+			onUpdate:           "checks",
+			expMode:            structs.Healthiness,
+			expProtocol:        "http",
+			inputTLSSkipVerify: false,
 		},
 		{
-			name:        "http check and https set",
-			cType:       "http",
-			protocol:    "https",
-			onUpdate:    "checks",
-			expMode:     structs.Healthiness,
-			expProtocol: "https",
+			name:               "http check and https set",
+			cType:              "http",
+			protocol:           "https",
+			onUpdate:           "checks",
+			expMode:            structs.Healthiness,
+			expProtocol:        "https",
+			inputTLSSkipVerify: false,
 		},
 		{
-			name:        "http check and protocol unset",
-			cType:       "http",
-			protocol:    "",
-			onUpdate:    "checks",
-			expMode:     structs.Healthiness,
-			expProtocol: "http", // inherit default
+			name:               "http check and protocol unset",
+			cType:              "http",
+			protocol:           "",
+			onUpdate:           "checks",
+			expMode:            structs.Healthiness,
+			expProtocol:        "http", // inherit default
+			inputTLSSkipVerify: false,
 		},
 		{
-			name:        "tcp check and protocol unset",
-			cType:       "tcp",
-			protocol:    "",
-			onUpdate:    "checks",
-			expMode:     structs.Healthiness,
-			expProtocol: "",
+			name:               "tcp check and protocol unset",
+			cType:              "tcp",
+			protocol:           "",
+			onUpdate:           "checks",
+			expMode:            structs.Healthiness,
+			expProtocol:        "",
+			inputTLSSkipVerify: false,
 		},
 		{
-			name:        "http check and http set",
-			cType:       "http",
-			protocol:    "http",
-			onUpdate:    "checks",
-			expMode:     structs.Healthiness,
-			expProtocol: "http",
+			name:               "http check and http set",
+			cType:              "http",
+			protocol:           "http",
+			onUpdate:           "checks",
+			expMode:            structs.Healthiness,
+			expProtocol:        "http",
+			inputTLSSkipVerify: false,
 		},
 		{
-			name:        "on-update ignore",
-			cType:       "http",
-			protocol:    "http",
-			onUpdate:    structs.OnUpdateIgnore,
-			expMode:     structs.Readiness,
-			expProtocol: "http",
+			name:               "on-update ignore",
+			cType:              "http",
+			protocol:           "http",
+			onUpdate:           structs.OnUpdateIgnore,
+			expMode:            structs.Readiness,
+			expProtocol:        "http",
+			inputTLSSkipVerify: false,
+		},
+		{
+			name:               "tls-skip-verify",
+			cType:              "http",
+			protocol:           "https",
+			onUpdate:           structs.OnUpdateIgnore,
+			expMode:            structs.Readiness,
+			expProtocol:        "https",
+			inputTLSSkipVerify: true,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			serviceCheck := &structs.ServiceCheck{
-				Type:        tc.cType,
-				Path:        "/",
-				Protocol:    tc.protocol,
-				PortLabel:   "web",
-				AddressMode: "host",
-				Interval:    10 * time.Second,
-				Timeout:     2 * time.Second,
-				Method:      "GET",
-				OnUpdate:    tc.onUpdate,
+				Type:          tc.cType,
+				Path:          "/",
+				Protocol:      tc.protocol,
+				PortLabel:     "web",
+				AddressMode:   "host",
+				Interval:      10 * time.Second,
+				Timeout:       2 * time.Second,
+				Method:        "GET",
+				OnUpdate:      tc.onUpdate,
+				TLSSkipVerify: tc.inputTLSSkipVerify,
 			}
 			query := GetCheckQuery(serviceCheck)
 			must.Eq(t, tc.expMode, query.Mode)
 			must.Eq(t, tc.expProtocol, query.Protocol)
+			must.Eq(t, tc.inputTLSSkipVerify, query.TLSSkipVerify)
 		})
 	}
 }
