@@ -144,8 +144,8 @@ parameters {
   of strings passed directly to the CSI plugin to validate the volume. The
   details of these parameters are specific to each storage provider, so consult
   the specific plugin documentation for more information. Only allowed on
-  **volume registration**. Note that, like the rest of the volume specification, 
-  this block is declarative, and an update replaces it in its entirety, therefore 
+  **volume registration**. Note that, like the rest of the volume specification,
+  this block is declarative, and an update replaces it in its entirety, therefore
   all parameters need to be specified.
 
 ## Differences Between Create and Register
@@ -306,8 +306,8 @@ If you encounter errors that are not clear from the command output,
 the CSI plugin allocation logs and/or Nomad leader server logs may be
 helpful.
 
-[api_volume_create]: /nomad/api-docs/volumes#create-volume
-[api_volume_register]: /nomad/api-docs/volumes#register-volume
+[api_volume_create]: /nomad/api-docs/volumes#create-csi-volume
+[api_volume_register]: /nomad/api-docs/volumes#register-csi-volume
 [capability]: /nomad/docs/other-specifications/volume/capability
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin
 [csi_volume_source]: /nomad/docs/job-specification/volume#source
