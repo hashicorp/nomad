@@ -143,8 +143,8 @@ func NewHostVolumePluginExternal(log hclog.Logger,
 	}, nil
 }
 
-// HostVolumePluginExternal calls an executable on disk. All operations should
-// be idempotent, and safe to be called concurrently per volume ID.
+// HostVolumePluginExternal calls an executable on disk. All operations
+// *must* be idempotent, and safe to be called concurrently per volume.
 // For each call, the executable's stdout and stderr may be logged, so plugin
 // authors should not include any sensitive information in their plugin outputs.
 type HostVolumePluginExternal struct {

@@ -58,6 +58,7 @@ type HostVolumeManager struct {
 
 // NewHostVolumeManager includes default builtin plugins.
 func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager {
+	logger = logger.Named("host_volume_manager")
 	return &HostVolumeManager{
 		pluginDir:      config.PluginDir,
 		sharedMountDir: config.SharedMountDir,
@@ -70,7 +71,7 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 				log:        logger.With("plugin_id", HostVolumePluginMkdirID),
 			},
 		},
-		log: logger.Named("host_volume_manager"),
+		log: logger,
 	}
 }
 
