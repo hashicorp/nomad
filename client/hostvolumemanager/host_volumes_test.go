@@ -213,12 +213,12 @@ func (p *fakePlugin) Delete(_ context.Context, req *cstructs.ClientHostVolumeDel
 
 func assertLocked(t *testing.T, hvm *HostVolumeManager, name string) {
 	t.Helper()
-	must.True(t, hvm.names.isLocked(name), must.Sprintf("vol name %q should be locked", name))
+	must.True(t, hvm.locker.isLocked(name), must.Sprintf("vol name %q should be locked", name))
 }
 
 func assertNotLocked(t *testing.T, hvm *HostVolumeManager, name string) {
 	t.Helper()
-	must.False(t, hvm.names.isLocked(name), must.Sprintf("vol name %q should not be locked", name))
+	must.False(t, hvm.locker.isLocked(name), must.Sprintf("vol name %q should not be locked", name))
 }
 
 func TestHostVolumeManager_restoreFromState(t *testing.T) {

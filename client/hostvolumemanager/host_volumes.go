@@ -55,7 +55,7 @@ type HostVolumeManager struct {
 	stateMgr       HostVolumeStateManager
 	updateNodeVols HostVolumeNodeUpdater
 	builtIns       map[string]HostVolumePlugin
-	names          *nameLocker
+	locker         *volLocker
 	log            hclog.Logger
 }
 
@@ -74,8 +74,8 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 				log:        logger.With("plugin_id", HostVolumePluginMkdirID),
 			},
 		},
-		names: &nameLocker{},
-		log:   logger,
+		locker: &volLocker{},
+		log:    logger,
 	}
 }
 
@@ -90,13 +90,13 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 	}
 
 	// can't have two of the same volume name w/ different IDs per client node
-	if err := hvm.names.lock(req.Name, req.ID); err != nil {
+	if err := hvm.locker.lock(req.Name, req.ID); err != nil {
 		return nil, err
 	}
 
 	pluginResp, err := plug.Create(ctx, req)
 	if err != nil {
-		hvm.names.release(req.Name)
+		hvm.locker.release(req.Name)
 		return nil, err
 	}
 
@@ -120,7 +120,7 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 			err = multierror.Append(err, delErr)
 		}
 		// free up the volume name whether delete succeeded or not.
-		hvm.names.release(req.Name)
+		hvm.locker.release(req.Name)
 		return nil, helper.FlattenMultierror(err)
 	}
 
@@ -157,7 +157,7 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 	}
 
 	// free up volume name for reuse
-	hvm.names.release(req.Name)
+	hvm.locker.release(req.Name)
 
 	hvm.updateNodeVols(req.Name, nil)
 
@@ -207,7 +207,7 @@ func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, 
 			}
 
 			// lock the name so future creates can't produce duplicates.
-			err = hvm.names.lock(vol.CreateReq.Name, vol.CreateReq.ID)
+			err = hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
 			// state should never have duplicate vol names, and restore happens
 			// prior to node registration, so new creates shouldn't come in
 			// concurrently, but check for error just in case.
@@ -249,15 +249,15 @@ func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, resp *HostVolumeP
 	}
 }
 
-// nameLocker is used to ensure that volumes on each node are unique by name.
+// volLocker is used to ensure that volumes on each node are unique by name.
 // The volume scheduler will prevent this too, but only after node fingerprint,
 // so we need to protect against concurrent duplicate creates.
-type nameLocker struct {
+type volLocker struct {
 	locks sync.Map
 }
 
 // lock the provided name, error if it was already locked with a different ID
-func (l *nameLocker) lock(name, id string) error {
+func (l *volLocker) lock(name, id string) error {
 	current, exists := l.locks.LoadOrStore(name, id)
 	if exists && id != current.(string) {
 		return fmt.Errorf("%w: name=%q id=%q", ErrVolumeNameExists, name, id)
@@ -265,12 +265,12 @@ func (l *nameLocker) lock(name, id string) error {
 	return nil
 }
 
-func (l *nameLocker) release(name string) {
+func (l *volLocker) release(name string) {
 	l.locks.Delete(name)
 }
 
 // only used in tests to assert lock state
-func (l *nameLocker) isLocked(name string) bool {
+func (l *volLocker) isLocked(name string) bool {
 	_, locked := l.locks.Load(name)
 	return locked
 }
