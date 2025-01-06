@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 variable "nomad_addr" {
   description = "The Nomad API HTTP address."
   type        = string
