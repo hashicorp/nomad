@@ -1,3 +1,6 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
+
 provider "nomad" {
   address   = "${var.nomad_addr}"
   ca_file   = "${var.ca_file}"
