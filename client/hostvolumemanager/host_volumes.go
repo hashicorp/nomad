@@ -19,6 +19,7 @@ import (
 var (
 	ErrPluginNotExists     = errors.New("no such plugin")
 	ErrPluginNotExecutable = errors.New("plugin not executable")
+	ErrVolumeNameExists    = errors.New("volume name already exists on this node")
 )
 
 // HostVolumeStateManager manages the lifecycle of volumes in client state.
@@ -53,6 +54,7 @@ type HostVolumeManager struct {
 	stateMgr       HostVolumeStateManager
 	updateNodeVols HostVolumeNodeUpdater
 	builtIns       map[string]HostVolumePlugin
+	locker         *volLocker
 	log            hclog.Logger
 }
 
@@ -71,7 +73,8 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 				log:        logger.With("plugin_id", HostVolumePluginMkdirID),
 			},
 		},
-		log: logger,
+		locker: &volLocker{},
+		log:    logger,
 	}
 }
 
@@ -85,8 +88,14 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		return nil, err
 	}
 
+	// can't have two of the same volume name w/ different IDs per client node
+	if err := hvm.locker.lock(req.Name, req.ID); err != nil {
+		return nil, err
+	}
+
 	pluginResp, err := plug.Create(ctx, req)
 	if err != nil {
+		hvm.locker.release(req.Name)
 		return nil, err
 	}
 
@@ -109,6 +118,8 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 			hvm.log.Warn("error deleting volume after state store failure", "volume_id", req.ID, "error", delErr)
 			err = multierror.Append(err, delErr)
 		}
+		// free up the volume name whether delete succeeded or not.
+		hvm.locker.release(req.Name)
 		return nil, helper.FlattenMultierror(err)
 	}
 
@@ -143,6 +154,9 @@ func (hvm *HostVolumeManager) Delete(ctx context.Context,
 		hvm.log.Error("failed to delete volume in state", "volume_id", req.ID, "error", err)
 		return nil, err // bail so a user may retry
 	}
+
+	// free up volume name for reuse
+	hvm.locker.release(req.Name)
 
 	hvm.updateNodeVols(req.Name, nil)
 
@@ -191,6 +205,21 @@ func (hvm *HostVolumeManager) restoreFromState(ctx context.Context) (VolumeMap, 
 				return err
 			}
 
+			// lock the name so future creates can't produce duplicates.
+			err = hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
+			// state should never have duplicate vol names, and restore happens
+			// prior to node registration, so new creates shouldn't come in
+			// concurrently, but check for error just in case.
+			if err != nil {
+				hvm.log.Error("error during restore",
+					"volume_name", vol.CreateReq.Name,
+					"volume_id", vol.CreateReq.ID,
+					"error", err)
+				// don't stop the world if it does happen, because an admin
+				// couldn't do anything about it short of wiping client state.
+				return nil
+			}
+
 			resp, err := plug.Create(ctx, vol.CreateReq)
 			if err != nil {
 				// plugin execution errors are only logged
@@ -220,4 +249,30 @@ func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, resp *HostVolumeP
 		// decide when to ignore this and check capabilities instead.
 		ReadOnly: false,
 	}
+}
+
+// volLocker is used to ensure that volumes on each node are unique by name.
+// The volume scheduler will prevent this too, but only after node fingerprint,
+// so we need to protect against concurrent duplicate creates.
+type volLocker struct {
+	locks sync.Map
+}
+
+// lock the provided name, error if it was already locked with a different ID
+func (l *volLocker) lock(name, id string) error {
+	current, exists := l.locks.LoadOrStore(name, id)
+	if exists && id != current.(string) {
+		return ErrVolumeNameExists
+	}
+	return nil
+}
+
+func (l *volLocker) release(name string) {
+	l.locks.Delete(name)
+}
+
+// only used in tests to assert lock state
+func (l *volLocker) isLocked(name string) bool {
+	_, locked := l.locks.Load(name)
+	return locked
 }

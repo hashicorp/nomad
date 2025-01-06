@@ -23,6 +23,8 @@ func TestUpdateVolumeMap(t *testing.T) {
 
 		expectMap    VolumeMap
 		expectChange bool
+
+		expectLog string
 	}{
 		{
 			name:         "delete absent",
@@ -57,20 +59,33 @@ func TestUpdateVolumeMap(t *testing.T) {
 			expectChange: false,
 		},
 		{
-			// this should not happen, but test anyway
+			// this should not happen with dynamic vols, but test anyway
 			name:         "change present",
-			vols:         VolumeMap{"changeme": {Path: "before"}},
+			vols:         VolumeMap{"changeme": {ID: "before"}},
 			volName:      "changeme",
-			vol:          &structs.ClientHostVolumeConfig{Path: "after"},
-			expectMap:    VolumeMap{"changeme": {Path: "after"}},
+			vol:          &structs.ClientHostVolumeConfig{ID: "after"},
+			expectMap:    VolumeMap{"changeme": {ID: "after"}},
 			expectChange: true,
+		},
+		{
+			// this should only happen during agent start, if a static vol has
+			// been added to config after a previous dynamic vol was created
+			// with the same name.
+			name:         "override static",
+			vols:         VolumeMap{"overrideme": {ID: ""}}, // static vols have no ID
+			volName:      "overrideme",
+			vol:          &structs.ClientHostVolumeConfig{ID: "dynamic-vol-id"},
+			expectMap:    VolumeMap{"overrideme": {ID: "dynamic-vol-id"}},
+			expectChange: true,
+			expectLog:    "overriding static host volume with dynamic: name=overrideme id=dynamic-vol-id",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			log, getLogs := logRecorder(t)
 
-			changed := UpdateVolumeMap(tc.vols, tc.volName, tc.vol)
+			changed := UpdateVolumeMap(log, tc.vols, tc.volName, tc.vol)
 			must.Eq(t, tc.expectMap, tc.vols)
 
 			if tc.expectChange {
@@ -79,6 +94,7 @@ func TestUpdateVolumeMap(t *testing.T) {
 				must.False(t, changed, must.Sprint("expect volume not to have been changed"))
 			}
 
+			must.StrContains(t, getLogs(), tc.expectLog)
 		})
 	}
 }
@@ -87,7 +103,7 @@ func TestWaitForFirstFingerprint(t *testing.T) {
 	log := testlog.HCLogger(t)
 	tmp := t.TempDir()
 	memDB := state.NewMemDB(log)
-	node := newFakeNode()
+	node := newFakeNode(t)
 	hvm := NewHostVolumeManager(log, Config{
 		PluginDir:      "",
 		SharedMountDir: tmp,
