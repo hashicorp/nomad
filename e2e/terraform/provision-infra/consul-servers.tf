@@ -21,7 +21,7 @@ resource "local_sensitive_file" "consul_server_config_file" {
     nomad_token      = "${random_uuid.consul_token_for_nomad.result}"
     autojoin_value   = "auto-join-${local.random_name}"
   })
-  filename        = "${path.module}/provision-nomad/uploads/shared/consul.d/servers.hcl"
+  filename        = "${local.uploads_dir}/shared/consul.d/servers.hcl"
   file_permission = "0600"
 }
 
@@ -59,12 +59,12 @@ resource "tls_locally_signed_cert" "consul_server" {
 
 resource "local_sensitive_file" "consul_server_key" {
   content  = tls_private_key.consul_server.private_key_pem
-  filename = "${path.module}/provision-nomad/uploads/shared/consul.d/server_cert.key.pem"
+  filename = "${local.uploads_dir}/shared/consul.d/server_cert.key.pem"
 }
 
 resource "local_sensitive_file" "consul_server_cert" {
   content  = tls_locally_signed_cert.consul_server.cert_pem
-  filename = "${path.module}/provision-nomad/uploads/shared/consul.d/server_cert.pem"
+  filename = "${local.uploads_dir}/shared/consul.d/server_cert.pem"
 }
 
 # if consul_license is unset, it'll be a harmless empty license file
@@ -72,7 +72,7 @@ resource "local_sensitive_file" "consul_environment" {
   content = templatefile("${path.module}/provision-nomad/etc/consul.d/.environment", {
     license = var.consul_license
   })
-  filename        = "${path.module}/provision-nomad/uploads/shared/consul.d/.environment"
+  filename        = "${local.uploads_dir}/shared/consul.d/.environment"
   file_permission = "0600"
 }
 
@@ -101,19 +101,19 @@ resource "null_resource" "upload_consul_server_configs" {
     destination = "/tmp/consul_ca.pem"
   }
   provisioner "file" {
-    source      = "${path.module}/provision-nomad/uploads/shared/consul.d/.environment"
+    source      = "${local.uploads_dir}/shared/consul.d/.environment"
     destination = "/tmp/.consul_environment"
   }
   provisioner "file" {
-    source      = "${path.module}/provision-nomad/uploads/shared/consul.d/server_cert.pem"
+    source      = "${local.uploads_dir}/shared/consul.d/server_cert.pem"
     destination = "/tmp/consul_cert.pem"
   }
   provisioner "file" {
-    source      = "${path.module}/provision-nomad/uploads/shared/consul.d/server_cert.key.pem"
+    source      = "${local.uploads_dir}/shared/consul.d/server_cert.key.pem"
     destination = "/tmp/consul_cert.key.pem"
   }
   provisioner "file" {
-    source      = "${path.module}/provision-nomad/uploads/shared/consul.d/servers.hcl"
+    source      = "${local.uploads_dir}/shared/consul.d/servers.hcl"
     destination = "/tmp/consul_server.hcl"
   }
   provisioner "file" {

@@ -15,6 +15,7 @@ resource "random_password" "windows_admin_password" {
 
 locals {
   random_name = "${var.name}-${random_pet.e2e.id}"
+  uploads_dir = "${path.module}/provision-nomad/uploads"
 }
 
 # Generates keys to use for provisioning and access
