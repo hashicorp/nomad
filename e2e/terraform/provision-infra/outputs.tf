@@ -77,5 +77,6 @@ output "key_file" {
 }
 
 output "nomad_token" {
-  value = "${data.local_sensitive_file.nomad_token.content}"
+  value     = "${data.local_sensitive_file.nomad_token.content}"
+  sensitive = true
 }

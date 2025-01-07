@@ -34,11 +34,9 @@ output "key_file" {
 }
 
 output "nomad_token" {
-  value = module.provision-infra.nomad_token
+  value     = module.provision-infra.nomad_token
+  sensitive = true
 }
-
-
-
 
 # Note: Consul and Vault environment needs to be set in test
 # environment before the Terraform run, so we don't have that output
