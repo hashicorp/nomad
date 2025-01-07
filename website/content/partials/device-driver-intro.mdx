@@ -1,9 +1,12 @@
 
 # Device driver plugins
 
-Use device driver plugins to detect and make devices available to tasks in
-Nomad jobs. Devices are physical hardware that exists on a client node such as a
-GPU or an FPGA. By having extensible device plugins, Nomad has the flexibility
+Use device driver plugins to detect physical hardware devices, such as graph
+processing units (GPUs), a field-programmable gate arrays (FPGAs), and universal
+serial buses (USBs), on your Nomad clients. You can then use those devices in
+your Nomad workloads.
+
+By having extensible device plugins, Nomad has the flexibility
 to support a broad set of devices and allows the community to build additional
 device plugins as needed.
 
