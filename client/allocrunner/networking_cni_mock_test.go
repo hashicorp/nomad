@@ -18,6 +18,7 @@ var _ cni.CNI = &mockCNIPlugin{}
 type mockCNIPlugin struct {
 	counter     *testutil.CallCounter
 	setupErrors []string
+	checkErrors []error
 }
 
 func newMockCNIPlugin() *mockCNIPlugin {
@@ -25,7 +26,9 @@ func newMockCNIPlugin() *mockCNIPlugin {
 	callCounts := testutil.NewCallCounter()
 	callCounts.Reset()
 	return &mockCNIPlugin{
-		counter: callCounts,
+		counter:     callCounts,
+		setupErrors: []string{},
+		checkErrors: []error{},
 	}
 }
 
@@ -65,6 +68,13 @@ func (f *mockCNIPlugin) Remove(ctx context.Context, id, path string, opts ...cni
 }
 
 func (f *mockCNIPlugin) Check(ctx context.Context, id, path string, opts ...cni.NamespaceOpts) error {
+	if f.counter != nil {
+		f.counter.Inc("Check")
+	}
+	numOfCalls := f.counter.Get()["Check"]
+	if numOfCalls <= len(f.checkErrors) {
+		return f.checkErrors[numOfCalls-1]
+	}
 	return nil
 }
 

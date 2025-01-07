@@ -13,6 +13,19 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.9.5
+
+#### CNI plugins
+
+Nomad 1.9.5 includes a bug fix for restoring allocation networking after a
+client host reboot. This fix requires recent versions of the CNI reference
+plugins (minimum 1.2.0) and will fallback to the existing behavior if the CNI
+reference plugins cannot support the fix.
+
+We recommend installing the CNI reference plugins from the [CNI project release
+page](https://github.com/containernetworking/plugins/releases) rather than your
+Linux distribution's package manager.
+
 ## Nomad 1.9.4
 
 #### Security updates to default deny lists
