@@ -146,7 +146,6 @@ type QuotaResources struct {
 	Cores       *int                   `hcl:"cores,optional"`
 	MemoryMB    *int                   `mapstructure:"memory" hcl:"memory,optional"`
 	MemoryMaxMB *int                   `mapstructure:"memory_max" hcl:"memory_max,optional"`
-	DiskMB      *int                   `mapstructure:"disk" hcl:"disk,optional"`
 	Devices     []*RequestedDevice     `hcl:"device,block"`
 	NUMA        *NUMAResource          `hcl:"numa,block"`
 	SecretsMB   *int                   `mapstructure:"secrets" hcl:"secrets,optional"`
