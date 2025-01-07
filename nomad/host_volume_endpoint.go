@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -314,6 +315,10 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	snap, err := v.srv.State().Snapshot()
 	if err != nil {
 		return err
+	}
+
+	if vol.NodeID == "" {
+		return errors.New("cannot register volume: node ID is required")
 	}
 
 	now := time.Now()

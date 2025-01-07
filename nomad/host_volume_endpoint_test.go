@@ -127,6 +127,10 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		must.EqError(t, err, fmt.Sprintf(
 			`validating volume "example" against state failed: node %q does not exist`,
 			invalidNode.ID))
+
+		req.Volume.NodeID = ""
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", req, &resp)
+		must.EqError(t, err, "cannot register volume: node ID is required")
 	})
 
 	var expectIndex uint64
@@ -211,7 +215,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	t.Run("invalid updates", func(t *testing.T) {
 
 		invalidVol1 := vol1.Copy()
-		invalidVol2 := &structs.HostVolume{}
+		invalidVol2 := &structs.HostVolume{NodeID: uuid.Generate()}
 
 		createReq := &structs.HostVolumeCreateRequest{
 			Volume: invalidVol2,
