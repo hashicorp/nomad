@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -344,8 +345,22 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	if err != nil {
 		return err
 	}
+
+	if rootKey == nil {
+		return errors.New("root key not found")
+	}
+
 	if rootKey != nil && rootKey.IsActive() {
 		return fmt.Errorf("active root key cannot be deleted - call rotate first")
+	}
+
+	// make sure the key was used to encrypt an existing variable
+	rootKeyInUse, err := snap.IsRootKeyInUse(args.KeyID)
+	if err != nil {
+		return err
+	}
+	if rootKeyInUse && !args.Force {
+		return errors.New("root key in use, cannot delete")
 	}
 
 	_, index, err = k.srv.raftApply(structs.WrappedRootKeysDeleteRequestType, args)

@@ -23,6 +23,12 @@ nomad operator root keyring remove [options] <key ID>
 
 @include 'general_options.mdx'
 
+## Remove Options
+
+- `-force`: Remove the key even if it was used to sign an existing variable
+or workload identity.
+
+
 ## Examples
 
 ```shell-session
