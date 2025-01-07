@@ -28,6 +28,7 @@ import (
 	consulIPTables "github.com/hashicorp/consul/sdk/iptables"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
@@ -138,8 +139,19 @@ func addNomadWorkloadCNIArgs(logger log.Logger, alloc *structs.Allocation, cniAr
 	}
 }
 
+var supportsCNICheck = mustCNICheckConstraint()
+
+func mustCNICheckConstraint() version.Constraints {
+	v, err := version.NewConstraint(">= 1.3.0")
+	if err != nil {
+		panic(err)
+	}
+	return v
+}
+
 // Setup calls the CNI plugins with the add action
-func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
+func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec, created bool) (*structs.AllocNetworkStatus, error) {
+
 	if err := c.ensureCNIInitialized(); err != nil {
 		return nil, fmt.Errorf("cni not initialized: %w", err)
 	}
@@ -169,6 +181,31 @@ func (c *cniNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Alloc
 			return nil, err
 		}
 		cniArgs[ConsulIPTablesConfigEnvVar] = string(iptablesCfg)
+	}
+
+	if !created {
+		// The netns will not be created if it already exists, typically on
+		// agent restart. If the configuration of a prexisting netns is wrong
+		// (ex. after a host reboot for docker created netns), networking will
+		// be broken. CNI's ADD command is not idempotent so we can't simply try
+		// again. Run CHECK to verify the network is still valid. Older plugins
+		// have a broken CHECK, so we have to allow the buggy behavior in the
+		// case of a host reboot with docker-created netns there.
+		cniVersion, err := version.NewSemver(c.nodeAttrs["plugins.cni.version.bridge"])
+		if err == nil && supportsCNICheck.Check(cniVersion) {
+			err := c.cni.Check(ctx, alloc.ID, spec.Path,
+				c.nsOpts.withCapabilityPortMap(portMaps.ports),
+				c.nsOpts.withArgs(cniArgs),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("%w: %w", ErrCNICheckFailed, err)
+			}
+		} else {
+			c.logger.Debug("network namespace exists but could not check if networking is valid because bridge plugin version was <1.3.0: continuing anyways")
+			return nil, nil
+		}
+		c.logger.Trace("network namespace exists and passed check: skipping setup")
+		return nil, nil
 	}
 
 	// Depending on the version of bridge cni plugin used, a known race could occure
