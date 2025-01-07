@@ -26,9 +26,9 @@ The table below shows this endpoint's support for [blocking queries][] and
 
 ### Parameters
 
-- `type` `(string: "")` - Specifies the type of volume to query. One of `csi` or
-  `host`. The `host` value queries dynamic host volumes. This is specified as a
-  query string parameter. Returns an empty list if omitted.
+- `type` `(string: <required>)` - Specifies the type of volume to query. One of
+  `csi` or `host`. The `host` value queries dynamic host volumes. This is
+  specified as a query string parameter.
 
 - `node_id` `(string: "")` - Specifies a string to filter volumes
   based on an Node ID prefix. Because the value is decoded to bytes,
@@ -322,7 +322,7 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Sample Payload
 
 The payload must include a JSON document that describes the volume's
-parameters.
+parameters. Note that the `NodeID` field is required for the register API.
 
 ```json
 {
@@ -1087,7 +1087,7 @@ $ curl \
 }
 ```
 
-## Delete Dynamic Host Volume Volume
+## Delete Dynamic Host Volume
 
 This endpoint deletes a Dynamic Host Volume, and deregisters it from Nomad. It
 is an error to delete a volume that is in use.
