@@ -7,7 +7,7 @@ description: The `/volume` endpoints are used to query for and interact with vol
 # Volumes HTTP API
 
 The `/volume` and `/volumes` endpoints are used to query for and interact with
-Container Storage Interface (CSI) volumes and Dynamic Host Volumes.
+Container Storage Interface (CSI) volumes and dynamic host volumes.
 
 ## List Volumes
 
@@ -17,7 +17,7 @@ This endpoint lists all volumes.
 | ------ | ------------- | ------------------ |
 | `GET`  | `/v1/volumes` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                                                 |
@@ -27,18 +27,18 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Parameters
 
 - `type` `(string: <required>)` - Specifies the type of volume to query. One of
-  `csi` or `host`. The `host` value queries dynamic host volumes. This is
-  specified as a query string parameter.
+  `csi` or `host`. The `host` value queries dynamic host volumes. Specify this
+  as a query string parameter.
 
 - `node_id` `(string: "")` - Specifies a string to filter volumes
   based on an Node ID prefix. Because the value is decoded to bytes,
   the prefix must have an even number of hexadecimal characters
-  (0-9a-f). This is specified as a query string parameter.
+  (0-9a-f). Specify this as a query string parameter.
 
 - `plugin_id` `(string: "")` - Specifies a string to filter volumes
   based on a plugin ID prefix. Because the value is decoded to bytes,
   the prefix must have an even number of hexadecimal characters
-  (0-9a-f). This is specified as a query string parameter.
+  (0-9a-f). Specify this as a query string parameter.
 
 - `next_token` `(string: "")` - This endpoint supports paging. The `next_token`
   parameter accepts a string which identifies the next expected volume. This
@@ -94,7 +94,7 @@ $ curl \
 ]
 ```
 
-### Sample Response for Dynamic Host Volumes
+### Sample Response for dynamic host volumes
 
 ```json
 [
@@ -123,7 +123,7 @@ This endpoint reads information about a specific CSI volume.
 | ------ | --------------------------- | ------------------ |
 | `GET`  | `/v1/volume/csi/:volume_id` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                |
@@ -133,7 +133,7 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
-  volume. This must be the full ID. This is specified as part of the
+  volume. This must be the full ID. Specify this as part of the
   path.
 
 ### Sample Request
@@ -297,7 +297,8 @@ $ curl \
 ## Register CSI Volume
 
 This endpoint registers an external CSI volume with Nomad. The volume must exist
-in the external storage provider (see [Create CSI Volume][] below).
+in the external storage provider. Refer to the [Create CSI Volume][] section for
+details.
 
 Making the same request again with a higher `RequestedCapacityMin` value
 may trigger a [Volume Expansion][].
@@ -306,7 +307,7 @@ may trigger a [Volume Expansion][].
 | ------ | --------------------------- | ------------------ |
 | `PUT`  | `/v1/volume/csi/:volume_id` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -316,7 +317,7 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
-  volume. This must be the full ID. This is specified as part of the
+  volume. This must be the full ID. Specify this as part of the
   path.
 
 ### Sample Payload
@@ -375,7 +376,7 @@ may trigger a [Volume Expansion][].
 | ------ | ---------------------------------- | ------------------ |
 | `PUT`  | `/v1/volume/csi/:volume_id/create` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -385,7 +386,7 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
-  volume. This must be the full ID. This is specified as part of the
+  volume. This must be the full ID. Specify this as part of the
   path.
 
 ### Sample Payload
@@ -446,7 +447,7 @@ deregister a volume that is in use.
 | -------- | --------------------------- | ------------------ |
 | `DELETE` | `/v1/volume/csi/:volume_id` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -456,13 +457,13 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
-  volume. This must be the full ID. This is specified as part of the
+  volume. This must be the full ID. Specify this as part of the
   path.
 
 - `force` `(bool: false)` - Force deregistration of the volume and immediately
   drop claims for terminal allocations. Returns an error if the volume has
   running allocations. This does not detach the volume from client nodes.
-  This is specified as a query string parameter.
+  Specify this as a query string parameter.
 
 ### Sample Request
 
@@ -483,7 +484,7 @@ interface with the `CREATE_DELETE_VOLUME` capability support this endpoint.
 | -------- | ---------------------------------- | ------------------ |
 | `DELETE` | `/v1/volume/csi/:volume_id/delete` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -498,7 +499,7 @@ stored when the CSI volume was created.
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
-  volume. This must be the full ID. This is specified as part of the
+  volume. This must be the full ID. Specify this as part of the
   path.
 
 ### Sample Request
@@ -519,7 +520,7 @@ error to detach a volume that is in use.
 | -------- | ---------------------------------- | ------------------ |
 | `DELETE` | `/v1/volume/csi/:volume_id/detach` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -529,11 +530,11 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
-  volume. This must be the full ID. This is specified as part of the
+  volume. This must be the full ID. Specify this as part of the
   path.
 
 - `node` `(string: <required>)` - The node to detach the volume from.
-  This is specified as a query string parameter.
+  Specify this as a query string parameter.
 
 ### Sample Request
 
@@ -554,7 +555,7 @@ capability support this endpoint.
 |--------|------------------------|--------------------|
 | `GET`  | `/v1/volumes/external` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -566,14 +567,14 @@ The table below shows this endpoint's support for [blocking queries][] and
 - `plugin_id` `(string: "")` - Specifies a string to filter volumes
   based on a plugin ID prefix. Because the value is decoded to bytes,
   the prefix must have an even number of hexadecimal characters
-  (0-9a-f). This is specified as a query string parameter.
+  (0-9a-f). Specify this as a query string parameter.
 
 - `next_token` `(string: "")` - This endpoint supports paging. The
   `next_token` parameter accepts a string returned in a previous response's
   `NextToken` field to request the next page of results.
 
 - `per_page` `(int: <required>)` - Specifies a maximum number of snapshots to
-  return for this request. The response will include a `NextToken` field that
+  return for this request. The response includes a `NextToken` field that
   can be passed to the next request to fetch additional pages.
 
 ### Sample Request
@@ -620,7 +621,7 @@ capability support this endpoint.
 | -------- | --------------------------------- | ------------------ |
 | `POST`    | `/v1/volumes/snapshot`           | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -687,7 +688,7 @@ capability support this endpoint.
 | -------- | ---------------------- | ------------------ |
 | `DELETE` | `/v1/volumes/snapshot` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -702,12 +703,12 @@ stored when the CSI snapshot was created.
 ### Parameters
 
 - `plugin_id` `(string: <required>)` - Specifies the prefix of a CSI plugin ID
-  to perform the delete. Because the value is decoded to bytes, the prefix
-  must have an even number of hexadecimal characters (0-9a-f). This is
-  specified as a query string parameter.
+  to perform the delete. Because the value is decoded to bytes, the prefix must
+  have an even number of hexadecimal characters (0-9a-f). Specify this as a
+  query string parameter.
 
 - `snapshot_id` `(string: <required>)` - Specifies the snapshot ID to
-  delete. This is specified as a query parameter.
+  delete. Specify this as a query parameter.
 
 ### Sample Request
 
@@ -729,7 +730,7 @@ with the `LIST_SNAPSHOTS` capability support this endpoint.
 | ------ | ---------------------- | ------------------ |
 | `GET`  | `/v1/volumes/snapshot` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                |
@@ -745,7 +746,7 @@ stored when the CSI snapshot was created.
 
 - `plugin_id` `(string: <required>)` - Specifies the prefix of a CSI plugin ID
   to perform the list. Because the value is decoded to bytes, the prefix must
-  have an even number of hexadecimal characters (0-9a-f). This is specified as
+  have an even number of hexadecimal characters (0-9a-f). Specify this as
   a query string parameter.
 
 - `next_token` `(string: "")` - This endpoint supports paging. The
@@ -753,7 +754,7 @@ stored when the CSI snapshot was created.
   `NextToken` field to request the next page of results.
 
 - `per_page` `(int: <required>)` - Specifies a maximum number of snapshots to
-  return for this request. The response will include a `NextToken` field that
+  return for this request. The response includes a `NextToken` field that
   can be passed to the next request to fetch additional pages.
 
 ### Sample Request
@@ -794,13 +795,13 @@ $ curl \
 
 ## Read Dynamic Host Volume
 
-This endpoint reads information about a specific Dynamic Host Volume.
+This endpoint reads information about a specific dynamic host volume.
 
 | Method | Path                         | Produces           |
 |--------|------------------------------|--------------------|
 | `GET`  | `/v1/volume/host/:volume_id` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                 |
@@ -810,7 +811,7 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
-  volume. This must be the full ID. This is specified as part of the
+  volume. This must be the full ID. Specify this as part of the
   path.
 
 ### Sample Request
@@ -854,18 +855,18 @@ $ curl \
 
 ## Create Dynamic Host Volume
 
-This endpoint creates a Dynamic Host Volume and registers it with Nomad.
+This endpoint creates a dynamic host volume and registers it with Nomad.
 
-The response body will include the volume definition with the `ID` and `NodeID`
-fields populated. Making the same request without the ID will create a new
-volume on a different node. Making a request with the ID set will update the
-volume to the new parameters, if possible.
+The response body includes the volume definition with the `ID` and `NodeID`
+fields populated. Making the same request without the ID creates a new volume on
+a different node. Making a request with the ID set updates the volume to the new
+parameters, if possible.
 
 | Method | Path                     | Produces           |
 |--------|--------------------------|--------------------|
 | `PUT`  | `/v1/volume/host/create` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                                                                                                                   |
@@ -878,9 +879,9 @@ The table below shows this endpoint's support for [blocking queries][] and
   volume. You should include the ID field if you are updating an existing
   volume.
 
-- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel
-  policies will be overridden. This allows a volume to be created when it would
-  be denied by policy.
+- `PolicyOverride` `(bool: false)` - If set, Nomad overrides any soft mandatory
+  Sentinel policies. This field allows creating a volume when it would be denied
+  by policy.
 
 ### Sample Payload
 
@@ -974,13 +975,13 @@ $ curl \
 
 ## Register Dynamic Host Volume
 
-This endpoint registers an already-created Dynamic Host Volume with Nomad.
+This endpoint registers an existing dynamic host volume with Nomad.
 
 | Method | Path                       | Produces           |
 |--------|----------------------------|--------------------|
 | `PUT`  | `/v1/volume/host/register` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                                                                                                                     |
@@ -993,9 +994,9 @@ The table below shows this endpoint's support for [blocking queries][] and
   volume. You should include the ID field if you are updating an existing
   volume.
 
-- `PolicyOverride` `(bool: false)` - If set, any soft mandatory Sentinel
-  policies will be overridden. This allows a volume to be registered when it
-  would be denied by policy.
+- `PolicyOverride` `(bool: false)` - If set, Nomad overrides any soft mandatory
+  Sentinel policies. This field allows registering a volume when it would be denied
+  by policy.
 
 ### Sample Payload
 
@@ -1089,14 +1090,14 @@ $ curl \
 
 ## Delete Dynamic Host Volume
 
-This endpoint deletes a Dynamic Host Volume, and deregisters it from Nomad. It
+This endpoint deletes a dynamic host volume, and deregisters it from Nomad. It
 is an error to delete a volume that is in use.
 
 | Method   | Path                                | Produces           |
 |----------|-------------------------------------|--------------------|
 | `DELETE` | `/v1/volume/host/:volume_id/delete` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+The following table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required                                                        |
@@ -1106,7 +1107,7 @@ The table below shows this endpoint's support for [blocking queries][] and
 ### Parameters
 
 - `:volume_id` `(string: <required>)` - Specifies the ID of the
-  volume. This must be the full ID. This is specified as part of the
+  volume. This must be the full ID. Specify this as part of the
   path.
 
 ### Sample Request
