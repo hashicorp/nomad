@@ -1,0 +1,3 @@
+```release-note:bug
+driver/docker: Fix container CPU stats collection where previous CPU stats were missing and causing incorrect calculations
+```
