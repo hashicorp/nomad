@@ -30,6 +30,8 @@ func TestHostVolumeRegisterCommand_Run(t *testing.T) {
 	must.Len(t, 1, nodes)
 	nodeID := nodes[0].ID
 
+	hostPath := t.TempDir()
+
 	ui := cli.NewMockUi()
 	cmd := &VolumeRegisterCommand{Meta: Meta{Ui: ui}}
 
@@ -40,9 +42,9 @@ type      = "host"
 plugin_id = "plugin_id"
 node_id   = "%s"
 node_pool = "default"
+host_path = "%s"
 
 capacity     = 150000000
-host_path    = "/var/nomad/alloc_mounts/example"
 capacity_min = "10GiB"
 capacity_max = "20G"
 
@@ -69,7 +71,7 @@ capability {
 parameters {
   foo = "bar"
 }
-`, nodeID)
+`, nodeID, hostPath)
 
 	file, err := os.CreateTemp(t.TempDir(), "volume-test-*.hcl")
 	must.NoError(t, err)

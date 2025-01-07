@@ -36,6 +36,18 @@ func (c *ClientHostVolume) Create(args *cstructs.ClientHostVolumeCreateRequest, 
 	)
 }
 
+func (c *ClientHostVolume) Register(args *cstructs.ClientHostVolumeRegisterRequest, reply *cstructs.ClientHostVolumeRegisterResponse) error {
+	defer metrics.MeasureSince([]string{"nomad", "client_host_node", "register"}, time.Now())
+	return c.sendVolumeRPC(
+		args.NodeID,
+		"HostVolume.Register",
+		"ClientHostVolume.Register",
+		structs.RateMetricWrite,
+		args,
+		reply,
+	)
+}
+
 func (c *ClientHostVolume) Delete(args *cstructs.ClientHostVolumeDeleteRequest, reply *cstructs.ClientHostVolumeDeleteResponse) error {
 	defer metrics.MeasureSince([]string{"nomad", "client_host_volume", "delete"}, time.Now())
 	return c.sendVolumeRPC(

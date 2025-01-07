@@ -39,14 +39,16 @@ func TestHostVolumeManager(t *testing.T) {
 	plug := &fakePlugin{mountDir: tmp}
 	hvm.builtIns["test-plugin"] = plug
 
+	hostPath := t.TempDir()
+
 	ctx := timeout(t)
 
 	t.Run("create", func(t *testing.T) {
 		// plugin doesn't exist
-		name := "vol-name"
+		name := "created-volume"
 		req := &cstructs.ClientHostVolumeCreateRequest{
 			Name:     name,
-			ID:       "vol-id",
+			ID:       "vol-id-1",
 			PluginID: "nope",
 
 			RequestedCapacityMinBytes: 5,
@@ -73,7 +75,7 @@ func TestHostVolumeManager(t *testing.T) {
 		// error saving state, successful cleanup
 		_, err = hvm.Create(ctx, req)
 		must.ErrorIs(t, err, cstate.ErrDBError)
-		must.Eq(t, "vol-id", plug.deleted)
+		must.Eq(t, "vol-id-1", plug.deleted)
 		assertNotLocked(t, hvm, name)
 		plug.reset()
 
@@ -82,8 +84,8 @@ func TestHostVolumeManager(t *testing.T) {
 		resp, err := hvm.Create(ctx, req)
 		must.NoError(t, err)
 		expectResp := &cstructs.ClientHostVolumeCreateResponse{
-			VolumeName:    "vol-name",
-			VolumeID:      "vol-id",
+			VolumeName:    "created-volume",
+			VolumeID:      "vol-id-1",
 			HostPath:      tmp,
 			CapacityBytes: 5,
 		}
@@ -92,8 +94,8 @@ func TestHostVolumeManager(t *testing.T) {
 		must.NoError(t, err)
 		// should be saved to state
 		must.Len(t, 1, stateDBs)
-		must.Eq(t, "vol-id", stateDBs[0].ID)
-		must.Eq(t, "vol-id", stateDBs[0].CreateReq.ID)
+		must.Eq(t, "vol-id-1", stateDBs[0].ID)
+		must.Eq(t, "vol-id-1", stateDBs[0].CreateReq.ID)
 		// should be registered with node
 		must.MapContainsKey(t, node.vols, name, must.Sprintf("no %q in %+v", name, node.vols))
 		assertLocked(t, hvm, name)
@@ -114,16 +116,37 @@ func TestHostVolumeManager(t *testing.T) {
 		must.ErrorIs(t, err, ErrVolumeNameExists)
 	})
 
-	// despite being a subtest, this needs to run after "create"
+	t.Run("register", func(t *testing.T) {
+		name := "registered-volume"
+		req := &cstructs.ClientHostVolumeRegisterRequest{
+			ID:            "vol-id-2",
+			Name:          name,
+			HostPath:      hostPath,
+			CapacityBytes: 1000,
+		}
+		err := hvm.Register(ctx, req)
+		must.NoError(t, err)
+
+		// should be saved to state and registered with node
+		stateDBs, err := memDB.GetDynamicHostVolumes()
+		must.NoError(t, err)
+		must.Len(t, 2, stateDBs)
+		must.Eq(t, "vol-id-2", stateDBs[1].ID)
+		must.Eq(t, "vol-id-2", stateDBs[1].CreateReq.ID)
+		must.MapContainsKey(t, node.vols, name, must.Sprintf("no %q in %+v", name, node.vols))
+		assertLocked(t, hvm, name)
+	})
+
+	// despite being a subtest, this needs to run after "create" and "register"
 	t.Run("delete", func(t *testing.T) {
-		name := "vol-name"
+		name := "created-volume"
 		// should be locked from "create" above
 		assertLocked(t, hvm, name)
 
 		// plugin doesn't exist
 		req := &cstructs.ClientHostVolumeDeleteRequest{
 			Name:     name,
-			ID:       "vol-id",
+			ID:       "vol-id-1",
 			PluginID: "nope",
 		}
 		_, err := hvm.Delete(ctx, req)
@@ -145,27 +168,40 @@ func TestHostVolumeManager(t *testing.T) {
 		assertLocked(t, hvm, name)
 
 		// happy path
-		// add stuff that should be deleted
 		hvm.stateMgr = memDB
-		must.NoError(t, memDB.PutDynamicHostVolume(&cstructs.HostVolumeState{
-			ID:        "vol-id",
-			CreateReq: &cstructs.ClientHostVolumeCreateRequest{},
-		}))
-		node.vols = VolumeMap{
-			"vol-name": &structs.ClientHostVolumeConfig{},
-		}
+
 		// and delete it
 		resp, err := hvm.Delete(ctx, req)
 		must.NoError(t, err)
 		must.Eq(t, &cstructs.ClientHostVolumeDeleteResponse{
-			VolumeName: "vol-name",
-			VolumeID:   "vol-id",
+			VolumeName: "created-volume",
+			VolumeID:   "vol-id-1",
 		}, resp)
-		must.Eq(t, VolumeMap{}, node.vols, must.Sprint("vols should be deleted from node"))
+		must.Eq(t, VolumeMap{
+			"registered-volume": &structs.ClientHostVolumeConfig{
+				Name: "registered-volume",
+				Path: hostPath,
+				ID:   "vol-id-2",
+			},
+		}, node.vols, must.Sprint("created-volume should be deleted from node"))
 		stateVols, err := memDB.GetDynamicHostVolumes()
 		must.NoError(t, err)
-		must.Nil(t, stateVols, must.Sprint("vols should be deleted from state"))
+		must.Len(t, 1, stateVols, must.Sprint("only one volume should be deleted"))
+
 		assertNotLocked(t, hvm, name)
+		assertLocked(t, hvm, "registered-volume")
+
+		req.Name = "registered-volume"
+		req.ID = "vol-id-2"
+		req.PluginID = ""
+		resp, err = hvm.Delete(ctx, req)
+		must.NoError(t, err)
+
+		must.Eq(t, VolumeMap{}, node.vols, must.Sprint("all volumes should be deleted from node"))
+		stateVols, err = memDB.GetDynamicHostVolumes()
+		must.NoError(t, err)
+		must.Nil(t, stateVols, must.Sprint("all volumes should be deleted"))
+		assertNotLocked(t, hvm, "registered-volume")
 	})
 }
 
@@ -223,14 +259,25 @@ func assertNotLocked(t *testing.T, hvm *HostVolumeManager, name string) {
 
 func TestHostVolumeManager_restoreFromState(t *testing.T) {
 	log := testlog.HCLogger(t)
-	vol := &cstructs.HostVolumeState{
-		ID: "test-vol-id",
+	hostPath := t.TempDir()
+
+	vol1 := &cstructs.HostVolumeState{
+		ID: "test-vol-id-1",
 		CreateReq: &cstructs.ClientHostVolumeCreateRequest{
-			Name:     "test-vol-name",
-			ID:       "test-vol-id",
+			Name:     "created-volume",
+			ID:       "test-vol-id-1",
 			PluginID: "mkdir",
 		},
 	}
+	vol2 := &cstructs.HostVolumeState{
+		ID:       "test-vol-id-2",
+		HostPath: hostPath,
+		CreateReq: &cstructs.ClientHostVolumeCreateRequest{
+			Name: "registered-volume",
+			ID:   "test-vol-id-2",
+		},
+	}
+
 	node := newFakeNode(t)
 
 	t.Run("no vols", func(t *testing.T) {
@@ -247,12 +294,13 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 	t.Run("happy", func(t *testing.T) {
 		// put our volume in state
 		state := cstate.NewMemDB(log)
-		must.NoError(t, state.PutDynamicHostVolume(vol))
+		must.NoError(t, state.PutDynamicHostVolume(vol1))
+		must.NoError(t, state.PutDynamicHostVolume(vol2))
 
 		// new volume manager should load it from state and run Create,
 		// resulting in a volume directory in this mountDir.
 		mountDir := t.TempDir()
-		volPath := filepath.Join(mountDir, vol.ID)
+		volPath := filepath.Join(mountDir, vol1.ID)
 
 		hvm := NewHostVolumeManager(log, Config{
 			StateMgr:       state,
@@ -265,10 +313,16 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 		must.NoError(t, err)
 
 		expect := map[string]*structs.ClientHostVolumeConfig{
-			"test-vol-name": {
-				Name:     "test-vol-name",
-				ID:       "test-vol-id",
+			"created-volume": {
+				Name:     "created-volume",
+				ID:       "test-vol-id-1",
 				Path:     volPath,
+				ReadOnly: false,
+			},
+			"registered-volume": {
+				Name:     "registered-volume",
+				ID:       "test-vol-id-2",
+				Path:     hostPath,
 				ReadOnly: false,
 			},
 		}
@@ -276,7 +330,8 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 
 		must.DirExists(t, volPath)
 
-		assertLocked(t, hvm, "test-vol-name")
+		assertLocked(t, hvm, "created-volume")
+		assertLocked(t, hvm, "registered-volume")
 	})
 
 	t.Run("state error", func(t *testing.T) {
