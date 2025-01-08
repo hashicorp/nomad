@@ -47,3 +47,8 @@ variable "nomad_region" {
   description = "The name of the Nomad region."
   default     = "e2e"
 }
+
+variable "server_count" {
+  description = "The number of servers to provision."
+  default     = "3"
+}

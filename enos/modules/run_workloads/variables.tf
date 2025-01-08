@@ -28,8 +28,8 @@ variable "nomad_token" {
 }
 
 variable "workloads" {
-  description = "A map of bucket names to tags"
-  type        = map(object({
+  description = "A map of workloads to provision"
+  type = map(object({
     path        = string
     alloc_count = number
   }))

@@ -49,7 +49,7 @@ scenario "upgrade" {
   }
 
   step "provision_cluster" {
-    // depends_on  = [step.copy_initial_binary]
+    depends_on  = [step.copy_initial_binary]
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
     EOF
@@ -58,6 +58,7 @@ scenario "upgrade" {
     variables {
       name                            = local.cluster_name
       nomad_local_binary              = step.copy_initial_binary.nomad_local_binary
+      server_count                    = var.server_count
       client_count_linux              = local.linux_count
       client_count_windows_2016_amd64 = local.windows_count
       nomad_license                   = var.nomad_license
@@ -69,8 +70,9 @@ scenario "upgrade" {
   }
 
   step "run_new_workloads" {
+    depends_on  = [step.provision_cluster]
     description = <<-EOF
-    Verify the health of the cluster by running new workloads and stopping random allocs
+    Verify the health of the cluster by running new workloads
     EOF
 
     module = module.run_workloads
@@ -84,7 +86,34 @@ scenario "upgrade" {
 
     verifies = [
       quality.nomad_register_job,
-      quality.nomad_stop_alloc
+    ]
+  }
+
+  step "initial_test_cluster_health" {
+    depends_on  = [step.run_new_workloads]
+    description = <<-EOF
+    Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs"
+    EOF
+
+    module = module.test_cluster_health
+    variables {
+      nomad_addr   = step.provision_cluster.nomad_addr
+      ca_file      = step.provision_cluster.ca_file
+      cert_file    = step.provision_cluster.cert_file
+      key_file     = step.provision_cluster.key_file
+      nomad_token  = step.provision_cluster.nomad_token
+      server_count = var.server_count
+      client_count = local.linux_count + local.windows_count
+      jobs         = step.run_new_workloads.job_names
+    }
+
+    verifies = [
+      quality.nomad_agent_info,
+      quality.nomad_agent_info_sel,
+      quality.nomad_nodes_status,
+      quality.nomad_job_status,
+      quality.nomad_allocs_status,
+      quality.nomad_reschedule_alloc,
     ]
   }
   /*
