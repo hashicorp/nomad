@@ -7,5 +7,5 @@ output "job_names" {
 
 output "allocs_count" {
   description = "The sum of all 'value' fields in the map."
-  value = sum([for wl in var.workloads : wl.alloc_count])
+  value       = sum([for wl in var.workloads : wl.alloc_count])
 }
