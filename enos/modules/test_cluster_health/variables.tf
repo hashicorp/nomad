@@ -41,3 +41,7 @@ variable "running_jobs" {
   description = "List of the jobs currently running in the cluster"
   type        = list
 }
+
+variable "alloc_count" {
+  description = "Number of allocation that should be running in the cluster"
+}

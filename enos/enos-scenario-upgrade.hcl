@@ -105,6 +105,7 @@ scenario "upgrade" {
       server_count = var.server_count
       client_count = local.linux_count + local.windows_count
       jobs         = step.run_new_workloads.job_names
+      alloc_count  = step.run_clients_workloads.allocs_count
     }
 
     verifies = [

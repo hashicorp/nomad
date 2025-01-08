@@ -19,7 +19,12 @@ resource "enos_local_exec" "run_tests" {
     SERVERS           = var.server_count
     CLIENTS           = var.client_count
     JOBS              = var.running_jobs
+    ALLOCS            = var.alloc_count
   }
 
-  scripts = [abspath("${path.module}/scripts/tests.sh")]
+  scripts = [
+    abspath("${path.module}/scripts/servers.sh"),
+    abspath("${path.module}/scripts/clients.sh"),
+    abspath("${path.module}/scripts/jobs.sh")
+  ]
 }
