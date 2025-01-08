@@ -26,3 +26,15 @@ variable "nomad_token" {
   description = "The Secret ID of an ACL token to make requests with, for ACL-enabled clusters."
   type        = string
 }
+
+variable "workloads" {
+  description = "A map of bucket names to tags"
+  type        = map(object({
+    path        = string
+    alloc_count = number
+  }))
+  default = {
+    service_raw_exec = { path = "./jobs/raw-exec-service.nomad.hcl", alloc_count = 3 }
+    service_docker   = { path = "./jobs/docker-service.nomad.hcl", alloc_count = 3 }
+  }
+}

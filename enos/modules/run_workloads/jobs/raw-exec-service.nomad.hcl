@@ -4,7 +4,7 @@
 job "service-raw" {
 
   group "service-raw" {
-    count = 1
+    count = "${alloc_count}"
     task "raw" {
       driver = "raw_exec"
 
