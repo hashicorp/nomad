@@ -109,6 +109,7 @@ func TestHostVolumeStatusCommand_Get(t *testing.T) {
 	must.NoError(t, err)
 	must.Len(t, 1, nodes)
 	nodeID := nodes[0].ID
+	hostPath := t.TempDir()
 
 	ui := cli.NewMockUi()
 
@@ -119,11 +120,12 @@ type      = "host"
 plugin_id = "mkdir"
 node_id   = "%s"
 node_pool = "default"
+host_path = "%s"
 capability {
   access_mode     = "single-node-reader-only"
   attachment_mode = "file-system"
 }
-`, nodeID)
+`, nodeID, hostPath)
 
 	file, err := os.CreateTemp(t.TempDir(), "volume-test-*.hcl")
 	must.NoError(t, err)

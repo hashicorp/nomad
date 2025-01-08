@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/version"
@@ -423,31 +422,25 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 	nspace2.Name = ns2
 	must.NoError(t, store.UpsertNamespaces(index, []*structs.Namespace{nspace1, nspace2}))
 
-	nodes := []*structs.Node{
-		mock.Node(),
-		mock.Node(),
-		mock.Node(),
-	}
-	nodes[2].NodePool = "prod"
-	index++
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
-		index, nodes[0], state.NodeUpsertWithNodePool))
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
-		index, nodes[1], state.NodeUpsertWithNodePool))
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
-		index, nodes[2], state.NodeUpsertWithNodePool))
+	_, node0 := newMockHostVolumeClient(t, srv, "default")
+	_, node1 := newMockHostVolumeClient(t, srv, "default")
+	_, node2 := newMockHostVolumeClient(t, srv, "prod")
 
-	vol1 := mock.HostVolumeRequestForNode(ns1, nodes[0])
+	vol1 := mock.HostVolumeRequestForNode(ns1, node0)
 	vol1.Name = "foobar-example"
+	vol1.HostPath = "/tmp/vol1"
 
-	vol2 := mock.HostVolumeRequestForNode(ns1, nodes[1])
+	vol2 := mock.HostVolumeRequestForNode(ns1, node1)
 	vol2.Name = "foobaz-example"
+	vol2.HostPath = "/tmp/vol2"
 
-	vol3 := mock.HostVolumeRequestForNode(ns2, nodes[2])
+	vol3 := mock.HostVolumeRequestForNode(ns2, node2)
 	vol3.Name = "foobar-example"
+	vol3.HostPath = "/tmp/vol3"
 
-	vol4 := mock.HostVolumeRequestForNode(ns2, nodes[1])
+	vol4 := mock.HostVolumeRequestForNode(ns2, node1)
 	vol4.Name = "foobaz-example"
+	vol4.HostPath = "/tmp/vol4"
 
 	// we need to register these rather than upsert them so we have the correct
 	// indexes for unblocking later.
@@ -538,7 +531,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 		{
 			name: "query by node",
 			req: &structs.HostVolumeListRequest{
-				NodeID: nodes[1].ID,
+				NodeID: node1.ID,
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
 					Namespace: structs.AllNamespacesSentinel,
@@ -562,7 +555,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 		{
 			name: "query by incompatible node ID and pool",
 			req: &structs.HostVolumeListRequest{
-				NodeID:   nodes[1].ID,
+				NodeID:   node1.ID,
 				NodePool: "prod",
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
@@ -776,6 +769,7 @@ type mockHostVolumeClient struct {
 	lock               sync.Mutex
 	nextCreateResponse *cstructs.ClientHostVolumeCreateResponse
 	nextCreateErr      error
+	nextRegisterErr    error
 	nextDeleteErr      error
 }
 
@@ -835,6 +829,15 @@ func (v *mockHostVolumeClient) Create(
 	}
 	*resp = *v.nextCreateResponse
 	return v.nextCreateErr
+}
+
+func (v *mockHostVolumeClient) Register(
+	req *cstructs.ClientHostVolumeRegisterRequest,
+	resp *cstructs.ClientHostVolumeRegisterResponse) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	*resp = cstructs.ClientHostVolumeRegisterResponse{}
+	return v.nextRegisterErr
 }
 
 func (v *mockHostVolumeClient) Delete(

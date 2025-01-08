@@ -169,7 +169,7 @@ func TestHostVolume_ValidateUpdate(t *testing.T) {
 
 }
 
-func TestHostVolume_CanonicalizeForUpdate(t *testing.T) {
+func TestHostVolume_Canonicalize(t *testing.T) {
 	now := time.Now()
 	vol := &HostVolume{
 		CapacityBytes: 100000,
@@ -179,7 +179,7 @@ func TestHostVolume_CanonicalizeForUpdate(t *testing.T) {
 			{ID: "7032e570"},
 		},
 	}
-	vol.CanonicalizeForUpdate(nil, now)
+	vol.CanonicalizeForCreate(nil, now)
 
 	must.NotEq(t, "", vol.ID)
 	must.Eq(t, now.UnixNano(), vol.CreateTime)
@@ -224,7 +224,7 @@ func TestHostVolume_CanonicalizeForUpdate(t *testing.T) {
 		CreateTime: 1,
 	}
 
-	vol.CanonicalizeForUpdate(existing, now)
+	vol.CanonicalizeForCreate(existing, now)
 	must.Eq(t, existing.ID, vol.ID)
 	must.Eq(t, existing.PluginID, vol.PluginID)
 	must.Eq(t, existing.NodePool, vol.NodePool)
