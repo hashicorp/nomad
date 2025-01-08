@@ -10,11 +10,8 @@ import (
 	"reflect"
 	"strings"
 
-<<<<<<< HEAD
-	"github.com/hashicorp/cli"
-=======
 	"github.com/hashicorp/cap/util"
->>>>>>> c48bff6996 (-ui flag for most commands)
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	colorable "github.com/mattn/go-colorable"
@@ -61,6 +58,8 @@ type Meta struct {
 
 	// token is used for ACLs to access privileged information
 	token string
+
+	showCLIHints *bool
 
 	caCert        string
 	caPath        string
@@ -251,6 +250,14 @@ func (m *Meta) SetupUi(args []string) {
 			InfoColor:  cli.UiColorGreen,
 			Ui:         m.Ui,
 		}
+	}
+
+	// Check to see if the user has disabled hints via env var.
+	showCLIHints := os.Getenv(EnvNomadShowCLIHints)
+	if showCLIHints == "false" {
+		m.showCLIHints = pointer.Of(false)
+	} else if showCLIHints == "true" {
+		m.showCLIHints = pointer.Of(true)
 	}
 }
 
@@ -585,19 +592,43 @@ func (m *Meta) showUIPath(ctx UIHintContext) (string, error) {
 }
 
 func (m *Meta) uiHintsDisabled() bool {
+	// Either the local env var is set to false,
+	// or the agent config is set to false nad the local config isn't set to true
+
+	// First check if the user/env var is set to false. If it is, return early.
+	if m.showCLIHints != nil && !*m.showCLIHints {
+		return true
+	}
+
+	// Next, check if the agent config is set to false. If it is, return early.
 	client, err := m.Client()
 	if err != nil {
 		return true
 	}
+
 	agent, err := client.Agent().Self()
 	if err != nil {
 		return true
 	}
+
 	agentConfig := agent.Config
-	uiConfig, ok := agentConfig["UI"].(map[string]interface{})
+	agentUIConfig, ok := agentConfig["UI"].(map[string]interface{})
 	if !ok {
+		return false
+	}
+
+	agentShowCLIHints, ok := agentUIConfig["ShowCLIHints"].(bool)
+	if !ok {
+		return false
+	}
+
+	if !agentShowCLIHints {
+		// check to see if env var is set to true, overriding the agent setting
+		if m.showCLIHints != nil && *m.showCLIHints {
+			return false
+		}
 		return true
 	}
 
-	return !uiConfig["CLIURLLinks"].(bool)
+	return false
 }

@@ -26,7 +26,7 @@ func testServer(t *testing.T, runClient bool, cb func(*agent.Config)) (*agent.Te
 		config.Client.Enabled = runClient
 
 		// Disable UI hints in test by default
-		config.UI.CLIURLLinks = pointer.Of(false)
+		config.UI.ShowCLIHints = pointer.Of(false)
 
 		if cb != nil {
 			cb(config)
