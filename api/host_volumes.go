@@ -48,7 +48,7 @@ type HostVolume struct {
 	// updated on the client
 	RequestedCapacityMinBytes int64 `mapstructure:"capacity_min" hcl:"capacity_min"`
 	RequestedCapacityMaxBytes int64 `mapstructure:"capacity_max" hcl:"capacity_max"`
-	CapacityBytes             int64
+	CapacityBytes             int64 `mapstructure:"capacity" hcl:"capacity"`
 
 	// RequestedCapabilities defines the options available to group.volume
 	// blocks. The scheduler checks against the listed capability blocks and

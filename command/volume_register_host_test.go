@@ -44,7 +44,7 @@ node_id   = "%s"
 node_pool = "default"
 host_path = "%s"
 
-capacity     = 150000000
+capacity     = "15GB"
 capacity_min = "10GiB"
 capacity_max = "20G"
 
