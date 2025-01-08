@@ -55,7 +55,8 @@ type ClientHostVolumeRegisterRequest struct {
 	ID string
 
 	// Name is the name that group.volume will use to identify the volume
-	// source. Not expected to be unique.
+	// source. Not expected to be unique cluster-wide, but must be unique per
+	// node.
 	Name string
 
 	// NodeID is the node where the volume is placed. It's included in the

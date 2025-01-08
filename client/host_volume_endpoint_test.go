@@ -34,9 +34,8 @@ func TestHostVolume(t *testing.T) {
 		SharedMountDir: tmp,
 	})
 	client.hostVolumeManager = manager
-	expectDir := filepath.Join(tmp, "test-vol-id-1")
-
-	hostPath := t.TempDir()
+	hostPathCreate := filepath.Join(tmp, "test-vol-id-1")
+	hostPathRegister := t.TempDir()
 
 	t.Run("happy", func(t *testing.T) {
 
@@ -51,11 +50,11 @@ func TestHostVolume(t *testing.T) {
 		err := client.ClientRPC("HostVolume.Create", req, &resp)
 		must.NoError(t, err)
 		must.Eq(t, cstructs.ClientHostVolumeCreateResponse{
-			HostPath:      expectDir,
+			HostPath:      hostPathCreate,
 			CapacityBytes: 0, // "mkdir" always returns zero
 		}, resp)
 		// technically this is testing "mkdir" more than the RPC
-		must.DirExists(t, expectDir)
+		must.DirExists(t, hostPathCreate)
 		// ensure we saved to client state
 		vols, err := memdb.GetDynamicHostVolumes()
 		must.NoError(t, err)
@@ -63,7 +62,7 @@ func TestHostVolume(t *testing.T) {
 		expectState := &cstructs.HostVolumeState{
 			ID:        req.ID,
 			CreateReq: req,
-			HostPath:  expectDir,
+			HostPath:  hostPathCreate,
 		}
 		must.Eq(t, expectState, vols[0])
 		// and should be fingerprinted
@@ -71,7 +70,7 @@ func TestHostVolume(t *testing.T) {
 			req.Name: {
 				ID:   req.ID,
 				Name: req.Name,
-				Path: expectDir,
+				Path: hostPathCreate,
 			},
 		}, client.Node().HostVolumes)
 
@@ -81,7 +80,7 @@ func TestHostVolume(t *testing.T) {
 			ID:            "test-vol-id-2",
 			Name:          "registered-volume",
 			NodeID:        uuid.Generate(),
-			HostPath:      hostPath,
+			HostPath:      hostPathRegister,
 			CapacityBytes: 1000,
 		}
 		var regResp cstructs.ClientHostVolumeRegisterResponse
@@ -95,7 +94,7 @@ func TestHostVolume(t *testing.T) {
 		sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
 		expectState = &cstructs.HostVolumeState{
 			ID:       regReq.ID,
-			HostPath: hostPath,
+			HostPath: hostPathRegister,
 			CreateReq: &cstructs.ClientHostVolumeCreateRequest{
 				ID:     regReq.ID,
 				Name:   regReq.Name,
@@ -108,12 +107,12 @@ func TestHostVolume(t *testing.T) {
 			req.Name: {
 				ID:   req.ID,
 				Name: req.Name,
-				Path: expectDir,
+				Path: hostPathCreate,
 			},
 			regReq.Name: {
 				ID:   regReq.ID,
 				Name: regReq.Name,
-				Path: hostPath,
+				Path: hostPathRegister,
 			},
 		}, client.Node().HostVolumes)
 
@@ -123,14 +122,14 @@ func TestHostVolume(t *testing.T) {
 			Name:     "created-volume",
 			ID:       "test-vol-id-1",
 			PluginID: "mkdir",
-			HostPath: expectDir,
+			HostPath: hostPathCreate,
 		}
 		var delResp cstructs.ClientHostVolumeDeleteResponse
 		err = client.ClientRPC("HostVolume.Delete", delReq, &delResp)
 		must.NoError(t, err)
 		must.NotNil(t, delResp)
 		// again, actually testing the "mkdir" plugin
-		must.DirNotExists(t, expectDir)
+		must.DirNotExists(t, hostPathCreate)
 		// client state should be deleted
 		vols, err = memdb.GetDynamicHostVolumes()
 		must.NoError(t, err)
@@ -140,7 +139,7 @@ func TestHostVolume(t *testing.T) {
 			regReq.Name: {
 				ID:   regReq.ID,
 				Name: regReq.Name,
-				Path: hostPath,
+				Path: hostPathRegister,
 			},
 		}, client.Node().HostVolumes)
 

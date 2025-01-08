@@ -123,10 +123,10 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		}
 		// free up the volume name whether delete succeeded or not.
 		hvm.locker.release(req.Name)
-		return nil, helper.FlattenMultierror(err)
+		return nil, err
 	}
 
-	hvm.updateNodeVols(req.Name, genVolConfig(req, pluginResp))
+	hvm.updateNodeVols(req.Name, genVolConfig(req, pluginResp.Path))
 
 	resp := &cstructs.ClientHostVolumeCreateResponse{
 		VolumeName:    req.Name,
@@ -161,10 +161,6 @@ func (hvm *HostVolumeManager) Register(ctx context.Context,
 		NodeID:     req.NodeID,
 		Parameters: req.Parameters,
 	}
-	pluginResp := &HostVolumePluginCreateResponse{
-		Path: req.HostPath,
-	}
-
 	volState := &cstructs.HostVolumeState{
 		ID:        req.ID,
 		CreateReq: creq,
@@ -173,10 +169,10 @@ func (hvm *HostVolumeManager) Register(ctx context.Context,
 	if err := hvm.stateMgr.PutDynamicHostVolume(volState); err != nil {
 		hvm.log.Error("failed to save volume in state", "volume_id", req.ID, "error", err)
 		hvm.locker.release(req.Name)
-		return helper.FlattenMultierror(err)
+		return err
 	}
 
-	hvm.updateNodeVols(req.Name, genVolConfig(creq, pluginResp))
+	hvm.updateNodeVols(req.Name, genVolConfig(creq, req.HostPath))
 	return nil
 }
 
@@ -298,7 +294,7 @@ func (hvm *HostVolumeManager) restoreForCreate(ctx context.Context, vol *cstruct
 		return nil, nil
 	}
 
-	return genVolConfig(vol.CreateReq, resp), nil
+	return genVolConfig(vol.CreateReq, resp.Path), nil
 }
 
 // restoreForRegister restores a single volume that was previously created by
@@ -321,16 +317,16 @@ func (hvm *HostVolumeManager) restoreForRegister(vol *cstructs.HostVolumeState) 
 		return nil, nil
 	}
 
-	return genVolConfig(vol.CreateReq, &HostVolumePluginCreateResponse{Path: vol.HostPath}), nil
+	return genVolConfig(vol.CreateReq, vol.HostPath), nil
 }
 
 // genVolConfig generates the host volume config for the node to report as
 // available to the servers for job scheduling.
-func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, resp *HostVolumePluginCreateResponse) *structs.ClientHostVolumeConfig {
+func genVolConfig(req *cstructs.ClientHostVolumeCreateRequest, hostPath string) *structs.ClientHostVolumeConfig {
 	return &structs.ClientHostVolumeConfig{
 		Name: req.Name,
 		ID:   req.ID,
-		Path: resp.Path,
+		Path: hostPath,
 
 		// dynamic volumes, like CSI, have more robust `capabilities`,
 		// so we always set ReadOnly to false, and let the scheduler

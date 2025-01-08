@@ -24,22 +24,22 @@ import (
 
 func TestHostVolumeManager(t *testing.T) {
 	log := testlog.HCLogger(t)
-	tmp := t.TempDir()
 	errDB := &cstate.ErrDB{}
 	memDB := cstate.NewMemDB(log)
 	node := newFakeNode(t)
 
+	hostPathCreate := t.TempDir()
+	hostPathRegister := t.TempDir()
+
 	hvm := NewHostVolumeManager(log, Config{
 		PluginDir:      "./test_fixtures",
-		SharedMountDir: tmp,
+		SharedMountDir: hostPathCreate,
 		StateMgr:       errDB,
 		UpdateNodeVols: node.updateVol,
 	})
 
-	plug := &fakePlugin{mountDir: tmp}
+	plug := &fakePlugin{mountDir: hostPathCreate}
 	hvm.builtIns["test-plugin"] = plug
-
-	hostPath := t.TempDir()
 
 	ctx := timeout(t)
 
@@ -86,7 +86,7 @@ func TestHostVolumeManager(t *testing.T) {
 		expectResp := &cstructs.ClientHostVolumeCreateResponse{
 			VolumeName:    "created-volume",
 			VolumeID:      "vol-id-1",
-			HostPath:      tmp,
+			HostPath:      hostPathCreate,
 			CapacityBytes: 5,
 		}
 		must.Eq(t, expectResp, resp)
@@ -121,7 +121,7 @@ func TestHostVolumeManager(t *testing.T) {
 		req := &cstructs.ClientHostVolumeRegisterRequest{
 			ID:            "vol-id-2",
 			Name:          name,
-			HostPath:      hostPath,
+			HostPath:      hostPathRegister,
 			CapacityBytes: 1000,
 		}
 		err := hvm.Register(ctx, req)
@@ -180,7 +180,7 @@ func TestHostVolumeManager(t *testing.T) {
 		must.Eq(t, VolumeMap{
 			"registered-volume": &structs.ClientHostVolumeConfig{
 				Name: "registered-volume",
-				Path: hostPath,
+				Path: hostPathRegister,
 				ID:   "vol-id-2",
 			},
 		}, node.vols, must.Sprint("created-volume should be deleted from node"))
@@ -273,8 +273,9 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 		ID:       "test-vol-id-2",
 		HostPath: hostPath,
 		CreateReq: &cstructs.ClientHostVolumeCreateRequest{
-			Name: "registered-volume",
-			ID:   "test-vol-id-2",
+			Name:     "registered-volume",
+			ID:       "test-vol-id-2",
+			PluginID: "", // this signifies a Register operation
 		},
 	}
 

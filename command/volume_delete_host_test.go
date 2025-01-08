@@ -38,7 +38,6 @@ func TestHostVolumeDeleteCommand(t *testing.T) {
 namespace = "prod"
 name      = "example"
 type      = "host"
-plugin_id = "mkdir"
 node_id   = "%s"
 node_pool = "default"
 host_path = "%s"
