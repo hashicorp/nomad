@@ -6,7 +6,7 @@ job "service-docker" {
   group "service-docker" {
     count = "${alloc_count}"
     task "alpine" {
-      driver = "docker"git stash 
+      driver = "docker"
 
       config {
         image   = "alpine:latest"
