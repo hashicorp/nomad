@@ -22,14 +22,7 @@ resource "null_resource" "wait_for_nomad_api" {
   }
 }
 
-resource "nomad_job" "raw-exec-service" {
-  jobspec = file("${path.module}/jobs/raw-exec-service.nomad.hcl")
+resource "nomad_job" "workloads" {
+  for_each = var.workloads
+  jobspec = templatefile(each.value.path, {alloc_count = each.value.alloc_count})
 }
-
-resource "nomad_job" "docker-service" {
-  jobspec = file("${path.module}/jobs/docker-service.nomad.hcl")
-}
-
-/* resource "nomad_job" "exec-system" {
-  jobspec    = file("${path.module}/jobs/exec-system.nomad.hcl")
-} */
