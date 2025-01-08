@@ -107,7 +107,7 @@ Run Options:
     the job.
 
   -ui
-    Open the job run page in the browser.
+    Open the job page in the browser.
 
   -policy-override
     Sets the flag to force override any soft mandatory Sentinel policies.
