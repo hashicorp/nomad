@@ -258,7 +258,7 @@ func TestMeta_ShowUIPath(t *testing.T) {
 
 	// Create a test server with UI enabled but CLI URL links disabled
 	server, client, url := testServer(t, true, func(c *agent.Config) {
-		c.UI.CLIURLLinks = pointer.Of(true)
+		c.UI.ShowCLIHints = pointer.Of(true)
 	})
 	defer server.Shutdown()
 	waitForNodes(t, client)
@@ -451,12 +451,12 @@ func TestMeta_ShowUIPath(t *testing.T) {
 	}
 }
 
-func TestMeta_ShowUIPath_CLIURLLinksEnabled(t *testing.T) {
+func TestMeta_ShowUIPath_ShowCLIHintsEnabled(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a test server with UI enabled and CLI URL links enabled
 	server, client, url := testServer(t, true, func(c *agent.Config) {
-		c.UI.CLIURLLinks = pointer.Of(true)
+		c.UI.ShowCLIHints = pointer.Of(true)
 	})
 	defer server.Shutdown()
 	waitForNodes(t, client)
@@ -474,12 +474,12 @@ func TestMeta_ShowUIPath_CLIURLLinksEnabled(t *testing.T) {
 	must.StrContains(t, hint, url+"/ui/jobs")
 }
 
-func TestMeta_ShowUIPath_CLIURLLinksDisabled(t *testing.T) {
+func TestMeta_ShowUIPath_ShowCLIHintsDisabled(t *testing.T) {
 	ci.Parallel(t)
 
 	// Create a test server with UI enabled and CLI URL links disabled
 	server, client, url := testServer(t, true, func(c *agent.Config) {
-		c.UI.CLIURLLinks = pointer.Of(false)
+		c.UI.ShowCLIHints = pointer.Of(false)
 	})
 	defer server.Shutdown()
 	waitForNodes(t, client)
@@ -497,11 +497,81 @@ func TestMeta_ShowUIPath_CLIURLLinksDisabled(t *testing.T) {
 	must.StrNotContains(t, hint, url+"/ui/jobs")
 }
 
+func TestMeta_ShowUIPath_EnvVarOverride(t *testing.T) {
+
+	testCases := []struct {
+		name          string
+		envValue      string
+		serverEnabled bool
+		expectHints   bool
+	}{
+		{
+			name:          "env var true overrides server false",
+			envValue:      "true",
+			serverEnabled: false,
+			expectHints:   true,
+		},
+		{
+			name:          "env var false overrides server true",
+			envValue:      "false",
+			serverEnabled: true,
+			expectHints:   false,
+		},
+		{
+			name:          "empty env var falls back to server true",
+			envValue:      "",
+			serverEnabled: true,
+			expectHints:   true,
+		},
+		{
+			name:          "empty env var falls back to server false",
+			envValue:      "",
+			serverEnabled: false,
+			expectHints:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Set environment variable
+			if tc.envValue != "" {
+				t.Setenv("NOMAD_SHOW_CLI_HINTS", tc.envValue)
+			}
+
+			// Create a test server with UI enabled and CLI hints as per test case
+			server, client, url := testServer(t, true, func(c *agent.Config) {
+				c.UI.ShowCLIHints = pointer.Of(tc.serverEnabled)
+			})
+			defer server.Shutdown()
+			waitForNodes(t, client)
+
+			m := &Meta{
+				Ui:          cli.NewMockUi(),
+				flagAddress: url,
+			}
+			m.SetupUi([]string{})
+
+			hint, err := m.showUIPath(UIHintContext{
+				Command: "job status",
+			})
+			must.NoError(t, err)
+
+			if tc.expectHints {
+				must.StrContains(t, hint, url+"/ui/jobs")
+			} else {
+				must.StrNotContains(t, hint, url+"/ui/jobs")
+			}
+		})
+	}
+}
+
 func TestMeta_ShowUIPath_BrowserOpening(t *testing.T) {
 	ci.Parallel(t)
 
 	server, client, url := testServer(t, true, func(c *agent.Config) {
-		c.UI.CLIURLLinks = pointer.Of(true)
+		c.UI.ShowCLIHints = pointer.Of(true)
 	})
 	defer server.Shutdown()
 	waitForNodes(t, client)

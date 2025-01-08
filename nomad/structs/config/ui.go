@@ -29,8 +29,8 @@ type UIConfig struct {
 	// Label configures UI label styles
 	Label *LabelUIConfig `hcl:"label"`
 
-	// CLIURLLinks controls whether CLI commands that return URLs will output that url as a hint
-	CLIURLLinks *bool `hcl:"cli_url_links"`
+	// ShowCLIHints controls whether CLI commands that return URLs will output that url as a hint
+	ShowCLIHints *bool `hcl:"show_cli_hints"`
 }
 
 // only covers the elements of
@@ -146,7 +146,7 @@ func DefaultUIConfig() *UIConfig {
 		Vault:                 &VaultUIConfig{},
 		Label:                 &LabelUIConfig{},
 		ContentSecurityPolicy: DefaultCSPConfig(),
-		CLIURLLinks:           &enabled,
+		ShowCLIHints:          &enabled,
 	}
 }
 
@@ -182,8 +182,8 @@ func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
 	result.Label = result.Label.Merge(other.Label)
 	result.ContentSecurityPolicy = result.ContentSecurityPolicy.Merge(other.ContentSecurityPolicy)
 
-	if other.CLIURLLinks != nil {
-		result.CLIURLLinks = other.CLIURLLinks
+	if other.ShowCLIHints != nil {
+		result.ShowCLIHints = other.ShowCLIHints
 	}
 
 	return result
