@@ -12,5 +12,9 @@ module "provision_cluster" {
 }
 
 module "run_workload" {
-  source = "../e2e/terraform"
+  source = "./modules/run_workloads"
+}
+
+module "test_cluster_health" {
+  source = "./modules/test_cluster_health"
 }

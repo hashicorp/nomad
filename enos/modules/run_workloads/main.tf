@@ -24,5 +24,5 @@ resource "null_resource" "wait_for_nomad_api" {
 
 resource "nomad_job" "workloads" {
   for_each = var.workloads
-  jobspec = templatefile(each.value.path, {alloc_count = each.value.alloc_count})
+  jobspec  = templatefile(each.value.path, { alloc_count = each.value.alloc_count })
 }
