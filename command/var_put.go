@@ -103,7 +103,7 @@ Var put Options:
      output (stdout) for redirected output.
 
   -ui
-    Open the variable put page in the browser.
+    Open the variable page in the browser.
 
 `
 	return strings.TrimSpace(helpText)

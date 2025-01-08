@@ -50,7 +50,7 @@ Get Options:
      Template to render output with. Required when output is "go-template".
 
   -ui
-    Open the variable get page in the browser.
+    Open the variable page in the browser.
 
 `
 	return strings.TrimSpace(helpText)

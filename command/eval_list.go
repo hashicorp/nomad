@@ -54,7 +54,7 @@ Eval List Options:
     Format and display evaluation using a Go template.
 
   -ui
-    Open the evaluation in the browser.
+    Open the evaluations page in the browser.
 `
 
 	return strings.TrimSpace(helpText)
