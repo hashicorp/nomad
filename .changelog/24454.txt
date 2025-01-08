@@ -1,3 +1,3 @@
 ```release-note:improvement
-cli: Added UI URL hints to the end of common CLI commands and a -ui flag to auto-open them
+cli: Added UI URL hints to the end of common CLI commands and a `-ui` flag to auto-open them
 ```
