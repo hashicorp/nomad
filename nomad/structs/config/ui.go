@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/hashicorp/nomad/helper/pointer"
 )
 
 // UIConfig contains the operator configuration of the web UI
@@ -139,14 +141,13 @@ type LabelUIConfig struct {
 // DefaultUIConfig returns the canonical defaults for the Nomad
 // `ui` configuration.
 func DefaultUIConfig() *UIConfig {
-	enabled := true
 	return &UIConfig{
-		Enabled:               enabled,
+		Enabled:               true,
 		Consul:                &ConsulUIConfig{},
 		Vault:                 &VaultUIConfig{},
 		Label:                 &LabelUIConfig{},
 		ContentSecurityPolicy: DefaultCSPConfig(),
-		ShowCLIHints:          &enabled,
+		ShowCLIHints:          pointer.Of(true),
 	}
 }
 
