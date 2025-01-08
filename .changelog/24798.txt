@@ -1,0 +1,3 @@
+```release-note:bug
+drivers: validate logmon plugin during reattach
+```
