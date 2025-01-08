@@ -92,7 +92,7 @@ scenario "upgrade" {
   step "initial_test_cluster_health" {
     depends_on  = [step.run_new_workloads]
     description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs"
+    Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs to check for correct reschedules"
     EOF
 
     module = module.test_cluster_health
