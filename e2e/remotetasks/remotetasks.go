@@ -4,14 +4,15 @@
 package remotetasks
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ecs"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ecs"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/framework"
@@ -78,7 +79,9 @@ func (tc *RemoteTasksTest) AfterEach(f *framework.F) {
 func (tc *RemoteTasksTest) TestECSJob(f *framework.F) {
 	t := f.T()
 
-	ecsClient := ecsOrSkip(t, tc.Nomad())
+	ctx := context.Background()
+
+	ecsClient := ecsOrSkip(ctx, t, tc.Nomad())
 
 	jobID := "ecsjob-" + uuid.Generate()[0:8]
 	tc.jobIDs = append(tc.jobIDs, jobID)
@@ -92,7 +95,7 @@ func (tc *RemoteTasksTest) TestECSJob(f *framework.F) {
 	arn := arnForAlloc(t, tc.Nomad().Allocations(), allocID)
 
 	// Use ARN to lookup status of ECS task in AWS
-	ensureECSRunning(t, ecsClient, arn)
+	ensureECSRunning(ctx, t, ecsClient, arn)
 
 	t.Logf("Task %s is running!", arn)
 
@@ -102,10 +105,10 @@ func (tc *RemoteTasksTest) TestECSJob(f *framework.F) {
 	// Ensure it is stopped in ECS
 	input := ecs.DescribeTasksInput{
 		Cluster: aws.String("nomad-rtd-e2e"),
-		Tasks:   []*string{aws.String(arn)},
+		Tasks:   []string{arn},
 	}
 	testutil.WaitForResult(func() (bool, error) {
-		resp, err := ecsClient.DescribeTasks(&input)
+		resp, err := ecsClient.DescribeTasks(ctx, &input)
 		if err != nil {
 			return false, err
 		}
@@ -121,7 +124,9 @@ func (tc *RemoteTasksTest) TestECSJob(f *framework.F) {
 func (tc *RemoteTasksTest) TestECSDrain(f *framework.F) {
 	t := f.T()
 
-	ecsClient := ecsOrSkip(t, tc.Nomad())
+	ctx := context.Background()
+
+	ecsClient := ecsOrSkip(ctx, t, tc.Nomad())
 
 	jobID := "ecsjob-" + uuid.Generate()[0:8]
 	tc.jobIDs = append(tc.jobIDs, jobID)
@@ -132,7 +137,7 @@ func (tc *RemoteTasksTest) TestECSDrain(f *framework.F) {
 	e2eutil.WaitForAllocsRunning(t, tc.Nomad(), []string{origAlloc})
 
 	arn := arnForAlloc(t, tc.Nomad().Allocations(), origAlloc)
-	ensureECSRunning(t, ecsClient, arn)
+	ensureECSRunning(ctx, t, ecsClient, arn)
 
 	t.Logf("Task %s is running! Now to drain the node.", arn)
 
@@ -197,7 +202,9 @@ func (tc *RemoteTasksTest) TestECSDrain(f *framework.F) {
 func (tc *RemoteTasksTest) TestECSDeployment(f *framework.F) {
 	t := f.T()
 
-	ecsClient := ecsOrSkip(t, tc.Nomad())
+	ctx := context.Background()
+
+	ecsClient := ecsOrSkip(ctx, t, tc.Nomad())
 
 	jobID := "ecsjob-" + uuid.Generate()[0:8]
 	tc.jobIDs = append(tc.jobIDs, jobID)
@@ -211,7 +218,7 @@ func (tc *RemoteTasksTest) TestECSDeployment(f *framework.F) {
 	origARN := arnForAlloc(t, tc.Nomad().Allocations(), origAllocID)
 
 	// Use ARN to lookup status of ECS task in AWS
-	ensureECSRunning(t, ecsClient, origARN)
+	ensureECSRunning(ctx, t, ecsClient, origARN)
 
 	t.Logf("Task %s is running! Updating...", origARN)
 
@@ -271,10 +278,10 @@ func (tc *RemoteTasksTest) TestECSDeployment(f *framework.F) {
 	// Ensure original ARN is stopped in ECS
 	input := ecs.DescribeTasksInput{
 		Cluster: aws.String("nomad-rtd-e2e"),
-		Tasks:   []*string{aws.String(origARN)},
+		Tasks:   []string{origARN},
 	}
 	testutil.WaitForResult(func() (bool, error) {
-		resp, err := ecsClient.DescribeTasks(&input)
+		resp, err := ecsClient.DescribeTasks(ctx, &input)
 		if err != nil {
 			return false, err
 		}
@@ -287,12 +294,13 @@ func (tc *RemoteTasksTest) TestECSDeployment(f *framework.F) {
 
 // ecsOrSkip returns an AWS ECS client or skips the test if ECS is unreachable
 // by the test runner or the ECS remote task driver isn't healthy.
-func ecsOrSkip(t *testing.T, nomadClient *api.Client) *ecs.ECS {
-	awsSession := session.Must(session.NewSession())
+func ecsOrSkip(ctx context.Context, t *testing.T, nomadClient *api.Client) *ecs.Client {
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"))
+	require.NoError(t, err)
 
-	ecsClient := ecs.New(awsSession, aws.NewConfig().WithRegion("us-east-1"))
+	ecsClient := ecs.NewFromConfig(cfg)
 
-	_, err := ecsClient.ListClusters(&ecs.ListClustersInput{})
+	_, err = ecsClient.ListClusters(ctx, &ecs.ListClustersInput{})
 	if err != nil {
 		t.Skipf("Skipping ECS Remote Task Driver Task. Error querying AWS ECS API: %v", err)
 	}
@@ -378,14 +386,14 @@ func arnForAlloc(t *testing.T, allocAPI *api.Allocations, allocID string) string
 }
 
 // ensureECSRunning asserts that the given ARN is a running ECS task.
-func ensureECSRunning(t *testing.T, ecsClient *ecs.ECS, arn string) {
+func ensureECSRunning(ctx context.Context, t *testing.T, ecsClient *ecs.Client, arn string) {
 	t.Logf("Ensuring ARN=%s is running", arn)
 	input := ecs.DescribeTasksInput{
 		Cluster: aws.String("nomad-rtd-e2e"),
-		Tasks:   []*string{aws.String(arn)},
+		Tasks:   []string{arn},
 	}
 	testutil.WaitForResult(func() (bool, error) {
-		resp, err := ecsClient.DescribeTasks(&input)
+		resp, err := ecsClient.DescribeTasks(ctx, &input)
 		if err != nil {
 			return false, err
 		}
