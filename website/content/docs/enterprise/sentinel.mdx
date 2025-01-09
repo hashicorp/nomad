@@ -18,7 +18,7 @@ See the [Nomad Sentinel Tutorial][] for more information about deploying
 Sentinel policies, as well as the documentation for the [`nomad sentinel`][]
 subcommands.
 
-### Sentinel Policies
+## Sentinel Policies
 
 Sentinel policies are specified in the [Sentinel Language][sentinel]. The
 language is designed to be understandable for people who are reading and writing
@@ -37,7 +37,7 @@ scope automatically, without an explicit import.
 * `job`: the submitted job. This is a [Sentinel Job
   Object](#sentinel-job-objects).
 * `existing_job`: the previous version of the job. If `job_exists` is true, this
-  will always be non-nil. This is also a [Sentinel Job
+  is always non-nil. This is also a [Sentinel Job
   Object](#sentinel-job-objects).
 * `job_exists`: a boolean field that indicates that a previous version of the
   job exists.
@@ -52,7 +52,7 @@ The following top-level objects are available to policies in the
 * `volume`: the submitted volume. This is a [Sentinel Dynamic Host Volume
   Object](#sentinel-dynamic-host-volume-objects).
 * `existing_volume`: the previous version of the volume. If `volume_exists` is
-  true, this will always be non-nil. This is also a [Sentinel Dynamic Host
+  true, this is always non-nil. This is also a [Sentinel Dynamic Host
   Volume Object](#sentinel-dynamic-host-volume-objects).* `volume_exists`: a
   boolean field that indicates that a previous version of the volume exists.
 * `nomad_acl_token`: the ACL token the job was submitted with. This is a
@@ -68,7 +68,7 @@ Sentinel convention for identifiers is lower case and separated by underscores.
 All fields on an object are accessed by the same name, converted to lower case
 and separating camel case to underscores.
 
-### Sentinel Job Objects
+## Sentinel Job Objects
 
 The `job` and `existing_job` objects map to the [JSON job specification][], with
 the fields converted to the Sentinel convention. Here are some examples:
@@ -81,7 +81,7 @@ the fields converted to the Sentinel convention. Here are some examples:
 | `job.TaskGroups`                         | `job.task_groups`                           |
 | `job.TaskGroups[0].EphemeralDisk.SizeMB` | `job.task_groups[0].ephemeral_disk.size_mb` |
 
-### Sentinel ACL Token Objects
+## Sentinel ACL Token Objects
 
 The `nomad_acl_token` object maps to the [ACL token][], with the fields
 converted to the Sentinel convention. Here are some examples:
@@ -93,7 +93,7 @@ converted to the Sentinel convention. Here are some examples:
 
 Note that the `SecretID` field is always redacted to prevent credential leaks.
 
-### Sentinel Namespace Objects
+## Sentinel Namespace Objects
 
 The `namespace` object maps to the [Namespace][], with the fields converted to
 the Sentinel convention. Here are some examples:
@@ -103,7 +103,7 @@ the Sentinel convention. Here are some examples:
 | `namespace.Description`                      | `namespace.description`                        |
 | `namespace.NodePoolConfiguration.Allowed[0]` | `namespace.node_pool_configuration.allowed[0]` |
 
-### Sentinel Node Objects
+## Sentinel Node Objects
 
 The `node` object maps to the [Node][], with the fields converted to the
 Sentinel convention. Here are some examples:
@@ -113,7 +113,7 @@ Sentinel convention. Here are some examples:
 | `node.Class`       | `node.class`       |
 | `node.Meta["foo"]` | `node.meta["foo"]` |
 
-### Sentinel Node Pool Objects
+## Sentinel Node Pool Objects
 
 The `node_pool` object maps to the [Node Pool][], with the fields converted to
 the Sentinel convention. Here are some examples:
@@ -123,7 +123,7 @@ the Sentinel convention. Here are some examples:
 | `node_pool.Description`                               | `node_pool.description`                                 |
 | `node_pool.SchedulerConfiguration.SchedulerAlgorithm` | `node_pool.scheduler_configuration.scheduler_algorithm` |
 
-### Sentinel Dynamic Host Volume Objects
+## Sentinel Dynamic Host Volume Objects
 
 The `volume` object maps to the [Dynamic Host Volume][], with the fields
 converted to the Sentinel convention. Here are some examples:
