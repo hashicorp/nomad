@@ -110,21 +110,16 @@ func (e *EventBroker) Publish(events *structs.Events) {
 // topics to ensure that the tokens privileges are sufficient. It will also
 // return the token expiry time, if any. It is the callers responsibility to
 // check this before publishing events to the caller.
-func (e *EventBroker) SubscribeWithACLCheck(req *SubscribeRequest) (*Subscription, *time.Time, error) {
-	aclObj, expiryTime, err := aclObjFromSnapshotForTokenSecretID(e.aclDelegate.TokenProvider(), e.aclCache, req.Token)
-	if err != nil {
-		return nil, nil, structs.ErrPermissionDenied
-	}
-
+func (e *EventBroker) SubscribeWithACLCheck(req *SubscribeRequest, aclObj *acl.ACL) (*Subscription, error) {
 	if allowed := aclAllowsSubscription(aclObj, req); !allowed {
-		return nil, nil, structs.ErrPermissionDenied
+		return nil, structs.ErrPermissionDenied
 	}
 
 	sub, err := e.Subscribe(req)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return sub, expiryTime, nil
+	return sub, nil
 }
 
 // Subscribe returns a new Subscription for a given request. A Subscription
