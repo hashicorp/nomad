@@ -50,14 +50,14 @@ job "docs" {
 ```
 
 
-The Nomad server will ensure that the allocations are only scheduled on hosts
+The Nomad server ensures that the allocations are only scheduled on hosts
 that have a set of volumes that meet the criteria specified in the `volume`
 blocks. These may be [static host volumes][host_volume] configured on the
 client, [dynamic host volumes][] created via [`volume create`][] or [`volume
 register`][], or [CSI volumes][csi_volume] dynamically mounted by [CSI
 plugins][csi_plugin].
 
-The Nomad client will make the volumes available to tasks according to
+The Nomad client makes the volumes available to tasks according to
 the [volume_mount][volume_mount] block in the `task` configuration.
 
 ## `volume` Parameters
@@ -95,30 +95,39 @@ host volumes with `type = "host"`:
   available concurrently. The `access_mode` and `attachment_mode` together
   must exactly match one of the volume's `capability` blocks.
 
-  - For CSI volumes the `access_mode` is required. Can be one of
-    `"single-node-reader-only"`, `"single-node-writer"`,
-    `"multi-node-reader-only"`, `"multi-node-single-writer"`, or
-    `"multi-node-multi-writer"`. Most CSI plugins support only single-node
-    modes. Consult the documentation of the storage provider and CSI plugin.
+  - For CSI volumes the `access_mode` is required. Can be one of the following:
+  
+    - `"single-node-reader-only"`
+    - `"single-node-writer"`
+    - `"multi-node-reader-only"`
+    - `"multi-node-single-writer"`
+    - `"multi-node-multi-writer"`
+    
+    Most CSI plugins support only single-node modes. 
+    Consult the documentation of the storage provider and CSI plugin.
 
-  - For dynamic host volumes the `access_mode` is optional. Can be one of
-    `"single-node-writer"`, `"single-node-reader-only"`,
-    `"single-node-single-writer"`, or `"single-node-multi-writer"`. Will default
-    to `single-node-writer` unless `read_only = true`, in which case it will
-    default to `single-node-reader-only`.
+  - For dynamic host volumes the `access_mode` is optional. Can be one of the following:
+  
+    - `"single-node-writer"`
+    - `"single-node-reader-only"`
+    - `"single-node-single-writer"`
+    - `"single-node-multi-writer"` 
+    
+    Defaults to `single-node-writer` unless `read_only = true`, in which case it
+    defaults to `single-node-reader-only`.
 
-- `attachment_mode` `(string)` - The storage API that will be used by the
+- `attachment_mode` `(string)` - The storage API used by the
   volume. One of `"file-system"` or `"block-device"`. The `access_mode` and
   `attachment_mode` together must exactly match one of the volume's `capability`
   blocks.
 
   - For CSI volumes the `attachment_mode` field is required. Most storage
-    providers will support `"file-system"`, to mount volumes using the CSI
-    filesystem API. Some storage providers will support `"block-device"`, which
-    will mount the volume with the CSI block device API within the container.
+    providers support `"file-system"`, to mount volumes using the CSI
+    filesystem API. Some storage providers support `"block-device"`, which
+    mounts the volume with the CSI block device API within the container.
 
-  - For dynamic host volumes the `attachment_mode` field is optional and will
-    default to `"file-system"`.
+  - For dynamic host volumes the `attachment_mode` field is optional and
+    defaults to `"file-system"`.
 
 The following fields are only valid for volumes with `type = "csi"`:
 
