@@ -4,35 +4,21 @@
 
 set -euo pipefail
 
+error_exit() {
+    echo "Error: $1"
+    exit 1
+}
+
 # Quality: nomad_job_status: A GET call to /v1/jobs returns the correct number of jobs and they are all running.
 
-RUNNING_JOBS=$(nomad job status)
-JOBS_LENGTH=$(echo "$RUNNING_JOBS" | awk 'NR > 1 {count++} END {print count}')
+jobs_length=$(nomad job status| awk '$4 == "running" {count++} END {print count+0}')
 
-if [ -z "$JOBS_LENGTH" ];  then
-    echo "Error: No jobs found" 
-    exit 1
+if [ -z "$jobs_length" ];  then
+    error_exit "No jobs found"
 fi
 
-if [ "$JOBS_LENGTH" -ne "$JOBS" ]; then
-    echo "Error: The number of jobs does not match the expected count"
-    exit 1
-fi
-
-if [ -n "$(echo "$RUNNING_JOBS" | awk '{if ($2 != "running") print $1}')" ]; then
-    echo "Error: Job not running"
-    exit 1
+if [ "$jobs_length" -ne "$JOBS" ]; then
+    error_exit "The number of jobs does not match the expected count $(nomad job status | awk 'NR > 1 && $4 != "running" {print $2}')"
 fi
 
 echo "All JOBS are running."
-
-#if [ $(echo "$RUNNING_JOBS" | jq '[.[] | .Allocations | length] | add') nq "$ALLOCS"]; then
-#  exit 1
-#fi
-
-#if [jq '[.[] | .Allocations | all(.State == "running")] | all' input.json
-#]
-
-# Quality: nomad_allocs_status: A GET call to /v1/allocs returns the correct number of allocations and they are all running.
-
-echo "All allocs are running."
