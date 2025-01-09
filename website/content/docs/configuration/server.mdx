@@ -1,17 +1,22 @@
 ---
 layout: docs
-page_title: server Block - Agent Configuration
+page_title: server Block in Agent Configuration
 description: |-
-  Use the "server" block to configure the Nomad agent to operate in server mode, which enables participating in scheduling decisions, registering with service discovery, and handling join failures.
+  Configure Nomad agent server mode in the `server` block of a Nomad agent configuration. Server mode lets the agent participate in scheduling decisions, register with service discovery, and handle join failures. Configure bootstrapping, authoritative region, redundancy zone, data directory, Nomad cluster behavior, client heartbeat period, schedulers, garbage collection, Raft and Raft's BoltDB store, OIDC for workload identity, leader plan rejection, as well as job priority, job source content size, and tracked job versions.
 ---
 
-# `server` Block
+# `server` Block in Agent Configuration
 
 <Placement groups={['server']} />
 
-The `server` block configures the Nomad agent to operate in server mode to
-participate in scheduling decisions, register with service discovery, handle
-join failures, and more.
+This page provides reference information for configuring Nomad agent server mode
+in the `server` block of a Nomad agent configuration. Server mode lets the agent
+participate in scheduling decisions, register with service discovery, and handle
+join failures. Configure bootstrapping, authoritative region, redundancy zone,
+data directory, Nomad cluster behavior, client heartbeat period, schedulers,
+garbage collection, Raft and Raft's BoltDB store, OIDC for workload identity,
+and leader plan rejection, as well as job priority, job source content size, and
+tracked job versions.
 
 ```hcl
 server {

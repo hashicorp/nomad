@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: server_join Block - Agent Configuration
+page_title: server_join Block in Agent Configuration
 description: >-
-  Use the "server_join" block to configure how the Nomad agent discovers and
-  connects to Nomad servers.
+  Configure how Nomad agents discover and connect to Nomad servers in Amazon, Microsoft, and Google clouds as well as on-prem. Use the`server_join` block to configure the list of servers to join, retry interval, and max rejoin attempts.
 ---
 
-# `server_join` Block
+# `server_join` Block in Agent Configuration
 
 <Placement
   groups={[
@@ -15,8 +14,10 @@ description: >-
   ]}
 />
 
-The `server_join` block specifies how the Nomad agent will discover and connect
-to Nomad servers.
+This page provides reference information for configuring how Nomad agents
+discover and connect to Nomad servers in Amazon, Microsoft, and Google
+clouds as well as on-prem. Use the`server_join` block to configure the list of
+servers to join, retry interval, and max rejoin attempts.
 
 ```hcl
 server_join {

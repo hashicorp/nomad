@@ -1,19 +1,27 @@
 ---
 layout: docs
-page_title: consul Block - Agent Configuration
+page_title: consul Block in Agent Configuration
 description: |-
-  Use the "consul" block to configure the Nomad agent's communication with
-  Consul for service discovery and key-value integration.
+  Configure Nomad server and client integration with Consul in the `consul` block of a Nomad agent configuration for service discovery and key-value integration. Configure cluster name, the Consul namespace, whether Nomad should advertize its services, certificates, tokens, security, health checks, auto join, and workload service and task identity.
 ---
 
-# `consul` Block
+# `consul` Block in Agent Configuration
 
 <Placement groups={['consul']} />
 
-The `consul` block configures the Nomad agent's communication with
-[Consul][consul] for service discovery and key-value integration. When
-configured, tasks can register themselves with Consul, and the Nomad cluster can
-[automatically bootstrap][bootstrap] itself.
+This page provides reference information for configuring Nomad server and client
+integration with [Consul][consul] in the `consul` block of a Nomad agent
+configuration for service discovery and key-value integration. Configure cluster
+name, the Consul namespace, whether Nomad should advertize its services,
+certificates, tokens, security, health checks, auto join, and workload service
+and task identity.
+
+When configured, tasks can register themselves with Consul, and the Nomad
+cluster can [automatically bootstrap][bootstrap] itself.
+
+Refer to the [Service Discovery on Nomad
+tutorial](/nomad/tutorials/service-discovery) for how to use Consul's service
+discovery.
 
 ```hcl
 consul {

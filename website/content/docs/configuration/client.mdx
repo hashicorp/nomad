@@ -1,16 +1,23 @@
 ---
 layout: docs
-page_title: client Block - Agent Configuration
+page_title: client Block in Agent Configuration
 description: |-
-  Use the "client" block to configure the Nomad agent to accept jobs as assigned by the Nomad server, join the cluster, and specify driver-specific configuration.
+  Configure a Nomad client in the `client` block of a Nomad agent configuration. Enable a client, configure allocation directories, artifact and template behavior, networking, node pools, servers to join, garbage collection, workload behavior, client resources, chroot, host volumes, host network, and driver-specific behavior.
 ---
 
-# `client` Block
+# `client` Block in Agent Configuration
 
 <Placement groups={['client']} />
 
-The `client` block configures the Nomad agent to accept jobs as assigned by
-the Nomad server, join the cluster, and specify driver-specific configuration.
+This page provides reference information for configuring a Nomad client in the
+`client` block of a Nomad agent configuration. Enable a client, configure
+allocation directories, artifact and template behavior, networking, node pools,
+servers to join, garbage collection, workload behavior, client resources,
+chroot, host volumes, host network, and driver-specific behavior.
+
+Refer to the [Set Server and Client Nodes](/nomad/docs/operations/nomad-agent)
+and [Nomad Agent](/nomad/docs/commands/agent) pages to learn about the Nomad
+agent process and how to configure the server and client nodes in your cluster.
 
 ```hcl
 client {

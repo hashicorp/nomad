@@ -1,17 +1,24 @@
 ---
 layout: docs
-page_title: Agent Configuration
-description: Learn about the configuration options available for the Nomad agent.
+page_title: Nomad Agent Configuration
+description: This section contains reference information for configuring Nomad agents. Learn how Nomad loads and merges multiple configuration files. Configure networking and advertise addresses, Nomad regions and datacenters, data directories, Consul integration, handshake limits, connections per client, logging, plugins, Sentinel policies, security, update check behavior, and Vault integration. Enable debugging, writing to syslog, leave on interrupt or terminate, and cross-origin resource sharing (CORS).
 ---
 
-# Nomad Configuration
+# Nomad Agent Configuration
 
-Nomad agents have a variety of parameters that can be specified via
-configuration files or command-line flags. Configuration files are written in
-[HCL][hcl]. Nomad can read and combine parameters from multiple configuration
-files or directories to configure the Nomad agent.
+This page provides an overview of reference information for configuring Nomad
+agents. Learn how Nomad loads and merges multiple configuration files. Configure
+networking and advertise addresses, Nomad regions and data centers, data
+directories, Consul integration, handshake limits, connections per client,
+logging, plugins, Sentinel policies, security, update check behavior, and Vault
+integration. Enable debugging, writing to syslog, leave on interrupt or
+terminate, and cross-origin resource sharing (CORS).
 
-## Load Order and Merging
+Write configuration files in [HCL][hcl] or specify parameters as command-line
+flags. Nomad can read and combine parameters from multiple configuration files
+or directories to configure the Nomad agent.
+
+## Configuration File Load Order and Merging
 
 The Nomad agent supports multiple configuration files, which can be provided
 using the `-config` CLI flag. The flag can accept either a file or folder. In
