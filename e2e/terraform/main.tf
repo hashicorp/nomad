@@ -10,11 +10,11 @@ module "provision-infra" {
 
   server_count                    = var.server_count
   client_count_linux              = var.client_count_linux
-  client_count_windows_2016_amd64 = var.client_count_windows_2016_amd64
+  client_count_windows_2016       = var.client_count_windows_2016
   nomad_local_binary              = var.nomad_local_binary
   nomad_license                   = var.nomad_license
   consul_license                  = var.consul_license
   nomad_region                    = var.nomad_region
-  instance_architecture           = var.instance_architecture
+  instance_arch                   = var.instance_arch
   name                            = var.name
 }

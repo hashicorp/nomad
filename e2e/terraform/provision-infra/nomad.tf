@@ -40,13 +40,13 @@ module "nomad_client_ubuntu_jammy" {
   count      = var.client_count_linux
 
   platform           = "linux"
-  arch               = "linux_amd64"
+  arch               = "linux_${var.instance_arch}"
   role               = "client"
   index              = count.index
   instance           = aws_instance.client_ubuntu_jammy[count.index]
   nomad_license      = var.nomad_license
   nomad_region       = var.nomad_region
-  nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_jammy_amd64) ? var.nomad_local_binary_client_ubuntu_jammy_amd64[count.index] : var.nomad_local_binary
+  nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_jammy) ? var.nomad_local_binary_client_ubuntu_jammy[count.index] : var.nomad_local_binary
 
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
@@ -64,20 +64,20 @@ module "nomad_client_ubuntu_jammy" {
 
 # TODO: split out the different Windows targets (2016, 2019) when they're
 # available
-module "nomad_client_windows_2016_amd64" {
+module "nomad_client_windows_2016" {
   source     = "./provision-nomad"
-  depends_on = [aws_instance.client_windows_2016_amd64]
-  count      = var.client_count_windows_2016_amd64
+  depends_on = [aws_instance.client_windows_2016]
+  count      = var.client_count_windows_2016
 
   platform = "windows"
-  arch     = "windows_amd64"
+  arch     = "windows_${var.instance_arch}"
   role     = "client"
   index    = count.index
-  instance = aws_instance.client_windows_2016_amd64[count.index]
+  instance = aws_instance.client_windows_2016[count.index]
 
   nomad_region       = var.nomad_region
   nomad_license      = var.nomad_license
-  nomad_local_binary = count.index < length(var.nomad_local_binary_client_windows_2016_amd64) ? var.nomad_local_binary_client_windows_2016_amd64[count.index] : ""
+  nomad_local_binary = count.index < length(var.nomad_local_binary_client_windows_2016) ? var.nomad_local_binary_client_windows_2016[count.index] : ""
 
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
