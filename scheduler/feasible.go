@@ -322,10 +322,11 @@ func (h *HostVolumeChecker) hostVolumeIsAvailable(
 }
 
 type CSIVolumeChecker struct {
-	ctx       Context
-	namespace string
-	jobID     string
-	volumes   map[string]*structs.VolumeRequest
+	ctx          Context
+	namespace    string
+	jobID        string
+	volumes      map[string]*structs.VolumeRequest
+	csiVolumeIDs []string
 }
 
 func NewCSIVolumeChecker(ctx Context) *CSIVolumeChecker {
@@ -342,7 +343,7 @@ func (c *CSIVolumeChecker) SetNamespace(namespace string) {
 	c.namespace = namespace
 }
 
-func (c *CSIVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
+func (c *CSIVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest, allocCSIVolumeIDs []string) {
 
 	xs := make(map[string]*structs.VolumeRequest)
 
@@ -361,6 +362,7 @@ func (c *CSIVolumeChecker) SetVolumes(allocName string, volumes map[string]*stru
 		}
 	}
 	c.volumes = xs
+	c.csiVolumeIDs = allocCSIVolumeIDs
 }
 
 func (c *CSIVolumeChecker) Feasible(n *structs.Node) bool {
@@ -461,6 +463,15 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 						return false, fmt.Sprintf(
 							FilterConstraintCSIVolumeInUseTemplate, vol.ID)
 					}
+
+					if req.Sticky {
+						if slices.Contains(c.csiVolumeIDs, vol.ID) || len(c.csiVolumeIDs) == 0 {
+							return true, ""
+						}
+
+						return false, FilterConstraintCSIVolumesLookupFailed
+					}
+
 				}
 			}
 		}

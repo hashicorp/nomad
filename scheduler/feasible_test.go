@@ -861,7 +861,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		checker.SetVolumes(alloc.Name, c.RequestedVolumes)
+		checker.SetVolumes(alloc.Name, c.RequestedVolumes, alloc.CSIVolumeIDs)
 		test.Eq(t, c.Result, checker.Feasible(c.Node), test.Sprint(c.Name))
 	}
 
@@ -876,7 +876,7 @@ func TestCSIVolumeChecker(t *testing.T) {
 	checker.SetNamespace(structs.DefaultNamespace)
 
 	for _, node := range nodes {
-		checker.SetVolumes(alloc.Name, volumes)
+		checker.SetVolumes(alloc.Name, volumes, alloc.CSIVolumeIDs)
 		act := checker.Feasible(node)
 		must.False(t, act, must.Sprint("request with missing volume should never be feasible"))
 	}
