@@ -52,7 +52,7 @@ region                           = "us-east-1"
 instance_type                    = "t2.medium"
 server_count                     = "3"
 client_count_linux               = "4"
-client_count_windows_2016_amd64  = "1"
+client_count_windows_2016        = "1"
 ```
 
 You will also need a Consul Enterprise license file and a Nomad Enterprise license file.
