@@ -202,10 +202,10 @@ client {
   paths from the host as volumes that can be mounted into jobs.
 
 - `host_volume_plugin_dir` `(string: "")` - Specifies the directory to find host
-  volume plugins. When this parameter is empty, Nomad will generate the path
+  volume plugins. When this parameter is empty, Nomad generates the path
   using the [top-level `data_dir`][top_level_data_dir] suffixed with
   `host_volume_plugins`, like `"/opt/nomad/host_volume_plugins"`. This must be
-  an absolute path. Nomad will create the directory on the host, if it does not
+  an absolute path. Nomad creates the directory on the host, if it does not
   exist when the agent process starts.
 
 - `host_network` <code>([host_network](#host_network-block): nil)</code> - Registers
