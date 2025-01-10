@@ -1,19 +1,24 @@
 ---
 layout: docs
-page_title: Azure Key Vault - Keyring - Configuration
+page_title: Azure Key Vault Keyring Configuration
 description: >-
-  The Azure Key Vault keyring configures Nomad to use Azure Key Vault as the key material
-  wrapping mechanism.
+  Configure an Azure Key Vault keyring in the `keyring "azurekeyvault"` block of a Nomad agent configuration. Configure the Key Vault resource's DNS, Azure Cloud environment variables and API endpoints, and vault and key names. Learn how Nomad supports rotating keys defined in Azure Key Vault.
 ---
 
-# `azurekeyvault` keyring
+# Azure Key Vault Keyring Configuration
 
-The AWS KMS keyring configures Nomad to use AWS KMS to wrap its keyring. This
-example shows configuring Azure Key Vault keyring through the Nomad
-configuration file by providing all the required values.
+This page provides reference information for configuring an Azure Key Vault
+keyring in the `keyring "azurekeyvault"` block of a Nomad agent
+configuration. Configure the Key Vault resource's DNS, Azure Cloud environment
+API endpoints, vault and key names, tenant and client IDs, and the client secret. Learn how Nomad supports rotating keys defined in Azure Key
+Vault.
+
+The Azure Key Vault keyring configures Nomad to use Azure Key Vault to wrap its
+keyring. This example shows configuring Azure Key Vault keyring through the
+Nomad configuration file by providing all the required values.
 
 ```hcl
-seal "azurekeyvault" {
+keyring "azurekeyvault" {
   active = true
   name   = "example"
 
@@ -52,7 +57,7 @@ These parameters apply to the `keyring` block in the Nomad configuration file:
 - `key_name` `(string: <required>)`: The Key Vault key to use for encryption and
   decryption.
 
-- `resource` `(string: "vault.azure.net")`: The AZ KeyVault resource's DNS
+- `resource` `(string: "vault.azure.net")`: The Key Vault resource's DNS
   Suffix to connect to. Alternately specify via the `AZURE_AD_RESOURCE`
   environment variable. Needs to be changed to connect to Azure's Managed HSM
   KeyVault instance type.
