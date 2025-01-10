@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -131,6 +132,7 @@ func TestHostVolumeManager(t *testing.T) {
 		stateDBs, err := memDB.GetDynamicHostVolumes()
 		must.NoError(t, err)
 		must.Len(t, 2, stateDBs)
+		sort.Slice(stateDBs, func(i, j int) bool { return stateDBs[i].ID < stateDBs[j].ID })
 		must.Eq(t, "vol-id-2", stateDBs[1].ID)
 		must.Eq(t, "vol-id-2", stateDBs[1].CreateReq.ID)
 		must.MapContainsKey(t, node.vols, name, must.Sprintf("no %q in %+v", name, node.vols))
