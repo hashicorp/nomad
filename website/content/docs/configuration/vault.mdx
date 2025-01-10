@@ -1,26 +1,32 @@
 ---
 layout: docs
-page_title: vault Block - Agent Configuration
+page_title: vault Block in Agent Configuration
 description: |-
-  The "vault" block configures Nomad's integration with HashiCorp's Vault.
-  When configured, Nomad can create and distribute Vault tokens to tasks
-  automatically.
+  Configure Nomad server and client integration with HashiCorp Vault in the `vault` block of a Nomad agent configuration. Configure cluster name and the role for creating tokens. For Nomad clients, configure Vault's address, namespace, and certificate or TLS authentication. Specify the JWT authentication path. For Nomad servers, configure the server's default workload identity, which includes workload identity recipients, workload TTL, and key-value pairs for additional identity claims.
+
 ---
 
-# `vault` Block
+# `vault` Block in Agent Configuration
 
 <Placement groups={['vault']} />
 
-The `vault` block configures Nomad's integration with [HashiCorp's
-Vault][vault]. When configured, tasks can use [workload
-identities][workload_id] to receive Vault ACL tokens automatically.
+This page provides reference information for configuring Nomad server and client
+integration with [HashiCorp Vault][vault] in the `vault` block of a Nomad agent
+configuration. Configure cluster name and the role for creating tokens. For
+Nomad clients, configure Vault's address, namespace, and certificate or TLS
+authentication. Specify the JWT authentication path. For Nomad
+servers, configure the server's default workload identity, which includes
+workload identity recipients, workload TTL, and key-value pairs for additional
+identity claims.
+
+When configured, job tasks can use [workload identities][workload_id] to receive
+Vault ACL tokens automatically.
 
 Alternatively, Nomad servers may be configured with a high-privileged Vault
 token that is used to derive fine-grained tokens for tasks. Refer to
-[Token-based Authentication](#token-based-authentication) for configuration
-details. This workflow is deprecated and will be removed in a future version of
-Nomad. Using using workload identities is strongly recommended as it is easier
-to manage and more secure.
+[Token-Based Authentication](#token-based-authentication) for configuration
+details. However, we strongly recommend using workload identities since
+token-based authentication is deprecated.
 
 Refer to the [Nomad and Vault Integration][nomad-vault] page for more
 information about the Vault integration.
@@ -163,8 +169,8 @@ will be removed in a future release.
 - `token` `(string: "")` - Specifies the parent Vault token to use to derive
   child tokens for jobs requesting tokens. Only required on Nomad servers.
   Nomad client agents use the allocation's token when contacting Vault.
-  Visit the [Vault Integration Guide](/nomad/docs/integrations/vault-integration)
-  to see how to generate an appropriate token in Vault.
+  Refer to the [Vault Integration Guide](/nomad/docs/integrations/vault-integration)
+  for how to generate an appropriate token in Vault.
 
   !> It is **strongly discouraged** to place the token as a configuration
   parameter like this, since the token could be checked into source control
@@ -213,14 +219,14 @@ will be removed in a future release.
   - `${vault.namespace}` - The Vault namespace.
   - `${vault.role}` - The Vault role.
 
-### Token-based Authentication
+### Token-Based Authentication
 
 ~> **Warning:** The token-based authentication flow is deprecated and will be
   removed in a future release. It is highly recommended to migrate and use the
   workload identity flow instead.
 
-When using token-based authentication the `vault` block parameters should be
-defined as below.
+When using token-based authentication the `vault` block, define parameters as in
+the following examples.
 
 #### Parameters for Nomad Clients and Servers
 
@@ -261,7 +267,7 @@ server {
 vault {
   enabled = true
 
-  # Only needed in servers when transioning from the token-based flow to
+  # Only needed in servers when transitioning from the token-based flow to
   # workload identities.
   create_from_role = "nomad-cluster"
 
@@ -291,7 +297,7 @@ vault {
   cert_file = "/var/certs/vault.crt"
   key_file  = "/var/certs/vault.key"
 
-  # Address to communicate with Vault. The below is the default address if
+  # Address to communicate with Vault. The following is the default address if
   # unspecified.
   address = "https://vault.service.consul:8200"
 

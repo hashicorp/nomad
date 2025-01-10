@@ -1,17 +1,23 @@
 ---
 layout: docs
-page_title: client Block - Agent Configuration
+page_title: client Block in Agent Configuration
 description: |-
-  The "client" block configures the Nomad agent to accept jobs as assigned by
-  the Nomad server, join the cluster, and specify driver-specific configuration.
+  Configure a Nomad client in the `client` block of a Nomad agent configuration. Enable a client, configure allocation directories, artifact and template behavior, networking, node pools, servers to join, garbage collection, workload behavior, client resources, chroot, host volumes, host network, and driver-specific behavior.
 ---
 
-# `client` Block
+# `client` Block in Agent Configuration
 
 <Placement groups={['client']} />
 
-The `client` block configures the Nomad agent to accept jobs as assigned by
-the Nomad server, join the cluster, and specify driver-specific configuration.
+This page provides reference information for configuring a Nomad client in the
+`client` block of a Nomad agent configuration. Enable a client, configure
+allocation directories, artifact and template behavior, networking, node pools,
+servers to join, garbage collection, workload behavior, client resources,
+chroot, host volumes, host network, and driver-specific behavior.
+
+Refer to the [Set Server and Client Nodes](/nomad/docs/operations/nomad-agent)
+and [Nomad Agent](/nomad/docs/commands/agent) pages to learn about the Nomad
+agent process and how to configure the server and client nodes in your cluster.
 
 ```hcl
 client {
@@ -130,8 +136,7 @@ client {
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad client will connect to Nomad servers. The `start_join` field
   is not supported on the client. The retry_join fields may directly specify
-  the server address or use go-discover syntax for auto-discovery. See the
-  documentation for more detail.
+  the server address or use go-discover syntax for auto-discovery.
 
 - `state_dir` `(string: "")` - Specifies the directory to use to store client
   state. When this parameter is empty, Nomad will generate the path using the
@@ -254,11 +259,11 @@ Nomad never attempts to embed the `alloc_dir` in the chroot as doing so would ca
 ### `options` Parameters
 
 ~> Note: In Nomad 0.9 client configuration options for drivers were deprecated.
-See the [plugin block][plugin-block] documentation for more information.
+Refer to the [plugin block][plugin-block] documentation for more information.
 
 The following is not an exhaustive list of options for only the Nomad
-client. To find the options supported by each individual Nomad driver, please
-see the [drivers documentation](/nomad/docs/drivers).
+client. To find the options supported by each individual Nomad driver,
+refer to the [drivers documentation](/nomad/docs/drivers).
 
 - `"driver.allowlist"` `(string: "")` - Specifies a comma-separated list of
   allowlisted drivers. If specified, drivers not in the allowlist will be
@@ -285,11 +290,11 @@ see the [drivers documentation](/nomad/docs/drivers).
   }
   ```
 
-- `"env.denylist"` `(string: see below)` - Specifies a comma-separated list of
-  environment variable keys not to pass to these tasks. Nomad passes the host
-  environment variables to `exec`, `raw_exec` and `java` tasks. If specified,
-  the defaults are overridden. If a value is provided, **all** defaults are
-  overridden (they are not merged).
+- `"env.denylist"` `(string: refer to explanation)` - Specifies a
+  comma-separated list of environment variable keys not to pass to these tasks.
+  Nomad passes the host environment variables to `exec`, `raw_exec` and `java`
+  tasks. If specified, the defaults are overridden. If a value is provided,
+  **all** defaults are overridden (they are not merged).
 
   ```hcl
   client {
@@ -312,10 +317,10 @@ see the [drivers documentation](/nomad/docs/drivers).
   GOOGLE_APPLICATION_CREDENTIALS
   ```
 
-- `"user.denylist"` `(string: see below)` - Specifies a comma-separated
-  denylist of usernames for which a task is not allowed to run. This only
-  applies if the driver is included in `"user.checked_drivers"`. If a value is
-  provided, **all** defaults are overridden (they are not merged).
+- `"user.denylist"` `(string: refer to explanation)` - Specifies a
+  comma-separated denylist of usernames for which a task is not allowed to run.
+  This only applies if the driver is included in `"user.checked_drivers"`. If a
+  value is provided, **all** defaults are overridden (they are not merged).
 
   ```hcl
   client {
@@ -332,10 +337,10 @@ see the [drivers documentation](/nomad/docs/drivers).
   Administrator
   ```
 
-- `"user.checked_drivers"` `(string: see below)` - Specifies a comma-separated
-  list of drivers for which to enforce the `"user.denylist"`. For drivers using
-  containers, this enforcement is usually unnecessary. If a value is provided,
-  **all** defaults are overridden (they are not merged).
+- `"user.checked_drivers"` `(string: refer to explanation)` - Specifies a
+  comma-separated list of drivers for which to enforce the `"user.denylist"`.
+  For drivers using containers, this enforcement is usually unnecessary. If a
+  value is provided, **all** defaults are overridden (they are not merged).
 
   ```hcl
   client {
@@ -412,9 +417,9 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `disk` `(int: 0)` - Specifies the amount of disk to reserve, in MB.
 
-- `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports
-  to reserve on all fingerprinted network devices. Ranges can be specified by
-  using a hyphen separating the two inclusive ends. See also
+- `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports to
+  reserve on all fingerprinted network devices. Ranges can be specified by using
+  a hyphen separating the two inclusive ends. Refer to
   [`host_network`](#host_network-block) for reserving ports on specific host
   networks.
 
@@ -766,7 +771,7 @@ client {
 This example shows a client configuration which customizes the metadata
 and node class. The scheduler can use this information while processing
 [constraints][metadata_constraint]. The metadata is completely user configurable;
-the values below are for illustrative purposes only.
+the values in the example are for illustrative purposes only.
 
 ```hcl
 client {

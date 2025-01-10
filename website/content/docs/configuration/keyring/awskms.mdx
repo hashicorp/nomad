@@ -1,16 +1,20 @@
 ---
 layout: docs
-page_title: AWS KMS - Keyring - Configuration
+page_title: AWS Key Management Service (KMS) Keyring Configuration
 description: |-
-  The AWS KMS keyring configures Nomad to use AWS KMS as the key material
-  wrapping mechanism.
+  Configure an AWS Key Management Service (KMS) keyring in the `keyring "awskms"` block of a Nomad agent configuration. Configure AWS region, KMS API endpoint, KMA key ID, and AWS authentication. Learn how Nomad supports KMS root key rotation.
 ---
 
-# `awskms` keyring
+# AWS Key Management Service (KMS) Keyring Configuration
+
+This page provides reference information for configuring an AWS Key Management
+Service (KMS) keyring in the `keyring "awskms"` block of a Nomad agent
+configuration. Configure AWS region, KMS API endpoint, KMA key ID, and AWS
+authentication. Learn how Nomad supports KMS root key rotation.
 
 The AWS KMS keyring configures Nomad to use AWS KMS to wrap its keyring. This
-example shows configuring AWS KMS keyring through the Nomad configuration file
-by providing all the required values.
+example shows configuring an AWS KMS keyring through the Nomad configuration
+file by providing all the required values.
 
 ```hcl
 keyring "awskms" {
