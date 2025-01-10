@@ -14,6 +14,9 @@ Some attributes are only be supported by one volume type or the other, or a
 specific operation, while others may have a different meaning for each action,
 so read the documentation for each attribute carefully.
 
+* [CSI volume specification][csi_spec]
+* [Dynamic host volume specification][dhv_spec]
+
 The file may be provided as either HCL or JSON to the commands and as JSON to
 the API. An example HCL configuration for a `volume create` command with a CSI
 volume:
@@ -64,3 +67,5 @@ parameters {
 
 [`volume create`]: /nomad/docs/commands/volume/create
 [`volume register`]: /nomad/docs/commands/volume/register
+[csi_spec]: /nomad/docs/other-specifications/volume/csi
+[dhv_spec]: /nomad/docs/other-specifications/volume/host

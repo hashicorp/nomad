@@ -12,8 +12,9 @@ description: The "mount_options" block allows for configuring how a volume is mo
   ]}
 />
 
-Options for mounting `file-system` volumes that don't already have a
-pre-formatted file system.
+Options for mounting `file-system` CSI volumes that don't already have a
+pre-formatted file system. The `mount_options` block is not supported for
+dynamic host volumes.
 
 ```hcl
 id           = "ebs_prod_db1"

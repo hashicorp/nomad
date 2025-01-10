@@ -12,8 +12,10 @@ description: The "topology_request" block allows specifying locations where the 
   ]}
 />
 
-Specify locations (region, zone, rack, etc.) where the provisioned volume must
-be accessible from or from where an existing volume is accessible from.
+Specify locations (region, zone, rack, etc.) where the provisioned CSI volume
+must be accessible from or from where an existing volume is accessible from. The
+`topology_request` block is not supported for dynamic host volumes.
+
 
 ```hcl
 id           = "ebs_prod_db1"
