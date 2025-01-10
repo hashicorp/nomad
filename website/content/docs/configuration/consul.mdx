@@ -1,21 +1,27 @@
 ---
 layout: docs
-page_title: consul Block - Agent Configuration
+page_title: consul Block in Agent Configuration
 description: |-
-  The "consul" block configures the Nomad agent's communication with
-  Consul for service discovery and key-value integration. When
-  configured, tasks can register themselves with Consul, and the Nomad cluster
-  can automatically bootstrap itself.
+  Configure Nomad server and client integration with Consul in the `consul` block of a Nomad agent configuration for service discovery and key-value integration. Configure cluster name, the Consul namespace, whether Nomad should advertize its services, certificates, tokens, security, health checks, auto join, and workload service and task identity.
 ---
 
-# `consul` Block
+# `consul` Block in Agent Configuration
 
 <Placement groups={['consul']} />
 
-The `consul` block configures the Nomad agent's communication with
-[Consul][consul] for service discovery and key-value integration. When
-configured, tasks can register themselves with Consul, and the Nomad cluster can
-[automatically bootstrap][bootstrap] itself.
+This page provides reference information for configuring Nomad server and client
+integration with [Consul][consul] in the `consul` block of a Nomad agent
+configuration for service discovery and key-value integration. Configure cluster
+name, the Consul namespace, whether Nomad should advertize its services,
+certificates, tokens, security, health checks, auto join, and workload service
+and task identity.
+
+When configured, tasks can register themselves with Consul, and the Nomad
+cluster can [automatically bootstrap][bootstrap] itself.
+
+Refer to the [Service Discovery on Nomad
+tutorial](/nomad/tutorials/service-discovery) for how to use Consul's service
+discovery.
 
 ```hcl
 consul {
@@ -162,7 +168,7 @@ agents with [`client.enabled`][] set to `true`.
 
     Consul does not support incoming TLS verification of Envoy
     sidecars. You should set `tls.grpc.verify_incoming = false` in your
-    Consul configuration when using Connect. See
+    Consul configuration when using Connect. Refer to
     [Consul/#13088](https://github.com/hashicorp/consul/issues/13088) for
     more details.
 
@@ -241,9 +247,10 @@ jobs to use Workload Identity without modifying the job specification and
 resubmitting them.
 
 The recommended configuration for `service_identity` and `task_identity` is as
-follows. See [Migrating to Using Workload Identity with Consul][] for details on
-how to configure Consul to accept these identities. Note that the `ttl` field
-here refers to the TTL of the Nomad identity and not the Consul token.
+follows. Refer to [Migrating to Using Workload Identity with Consul][] for
+details on how to configure Consul to accept these identities. Note that the
+`ttl` field here refers to the TTL of the Nomad identity and not the Consul
+token.
 
 ```hcl
 consul {
@@ -394,8 +401,9 @@ permissions. Nomad requires `agent:read` permissions. In order to use the
 `consul_namespace` feature, Nomad will need a token generated in Consul's
 default namespace. That token should be created with `agent:read` as well
 as a `namespace` block with the other relevant permissions for running Nomad
-in the intended namespace. The Consul policy below shows an example policy
-configuration for a Nomad server:
+in the intended namespace.
+
+This Consul policy shows an example policy configuration for a Nomad server.
 
 ```hcl
 agent_prefix "" {
