@@ -1,19 +1,22 @@
 ---
 layout: docs
-page_title: server Block - Agent Configuration
+page_title: server Block in Agent Configuration
 description: |-
-  The "server" block configures the Nomad agent to operate in server mode to
-  participate in scheduling decisions, register with service discovery, handle
-  join failures, and more.
+  Configure Nomad agent server mode in the `server` block of a Nomad agent configuration. Server mode lets the agent participate in scheduling decisions, register with service discovery, and handle join failures. Configure bootstrapping, authoritative region, redundancy zone, data directory, Nomad cluster behavior, client heartbeat period, schedulers, garbage collection, Raft and Raft's BoltDB store, OIDC for workload identity, leader plan rejection, as well as job priority, job source content size, and tracked job versions.
 ---
 
-# `server` Block
+# `server` Block in Agent Configuration
 
 <Placement groups={['server']} />
 
-The `server` block configures the Nomad agent to operate in server mode to
-participate in scheduling decisions, register with service discovery, handle
-join failures, and more.
+This page provides reference information for configuring Nomad agent server mode
+in the `server` block of a Nomad agent configuration. Server mode lets the agent
+participate in scheduling decisions, register with service discovery, and handle
+join failures. Configure bootstrapping, authoritative region, redundancy zone,
+data directory, Nomad cluster behavior, client heartbeat period, schedulers,
+garbage collection, Raft and Raft's BoltDB store, OIDC for workload identity,
+and leader plan rejection, as well as job priority, job source content size, and
+tracked job versions.
 
 ```hcl
 server {
@@ -35,7 +38,7 @@ server {
   Non-authoritative regions will replicate from the authoritative to act as a
   mirror. By default, the local region is assumed to be authoritative. Setting
   `authoritative_region` assumes that ACLs have been bootstrapped in the
-  authoritative region. See [Configure for multiple regions][] in the ACLs
+  authoritative region. Refer to [Configure for multiple regions][] in the ACLs
   tutorial.
 
 - `bootstrap_expect` `(int: required)` - Specifies the number of server nodes to
@@ -71,7 +74,7 @@ server {
   that to encrypt Nomad server's gossip protocol, this option only needs to be
   provided once on each agent's initial startup sequence. If it is provided
   after Nomad has been initialized with an encryption key, then the provided key
-  is ignored and a warning will be displayed. See the [encryption
+  is ignored and a warning will be displayed. Refer to the [encryption
   documentation][encryption] for more details on this option and its impact on
   the cluster.
 
@@ -127,31 +130,33 @@ server {
   expired ACL token before it is eligible for garbage collection. This is
   specified using a label suffix like "30s" or "1h".
 
-- `default_scheduler_config` <code>([scheduler_configuration][update-scheduler-config]:
-  nil)</code> - Specifies the initial default scheduler config when
-  bootstrapping cluster. The parameter is ignored once the cluster is bootstrapped or
-  value is updated through the [API endpoint][update-scheduler-config]. See [the
-  example section](#configuring-scheduler-config) for more details
+- `default_scheduler_config`
+  <code>([scheduler_configuration][update-scheduler-config]: nil)</code> -
+  Specifies the initial default scheduler config when bootstrapping cluster. The
+  parameter is ignored once the cluster is bootstrapped or value is updated
+  through the [API endpoint][update-scheduler-config]. Refer to [the example
+  section](#configuring-scheduler-config) for more details
 
 - `heartbeat_grace` `(string: "10s")` - Specifies the additional time given
   beyond the heartbeat TTL of Clients to account for network and processing
   delays and clock skew. This is specified using a label suffix like "30s" or
-  "1h". See [Client Heartbeats](#client-heartbeats) below for details.
+  "1h". Refer to the [Client Heartbeats](#client-heartbeats) section for
+  details.
 
 - `min_heartbeat_ttl` `(string: "10s")` - Specifies the minimum time between
   Client heartbeats. This is used as a floor to prevent excessive updates. This
-  is specified using a label suffix like "30s" or "1h". See [Client
-  Heartbeats](#client-heartbeats) below for details.
+  is specified using a label suffix like "30s" or "1h". Refer to the [Client
+  Heartbeats](#client-heartbeats) section for details.
 
-- `failover_heartbeat_ttl` `(string: "5m")` - The time by which all Clients
-  must heartbeat after a Server leader election. This is specified using a label
-  suffix like "30s" or "1h". See [Client Heartbeats](#client-heartbeats) below
-  for details.
+- `failover_heartbeat_ttl` `(string: "5m")` - The time by which all Clients must
+  heartbeat after a Server leader election. This is specified using a label
+  suffix like "30s" or "1h". Refer to the [Client
+  Heartbeats](#client-heartbeats) section for details.
 
 - `max_heartbeats_per_second` `(float: 50.0)` - Specifies the maximum target
   rate of heartbeats being processed per second. This allows the TTL to be
-  increased to meet the target rate. See [Client Heartbeats](#client-heartbeats)
-  below for details.
+  increased to meet the target rate. Refer to the [Client
+  Heartbeats](#client-heartbeats) section for details.
 
 - `non_voting_server` `(bool: false)` - (Enterprise-only) Specifies whether
   this server will act as a non-voting member of the cluster to help provide
@@ -188,11 +193,12 @@ server {
 
 - `raft_multiplier` `(int: 1)` - An integer multiplier used by Nomad servers to
   scale key Raft timing parameters. Omitting this value or setting it to 0 uses
-  default timing described below. Lower values are used to tighten timing and
-  increase sensitivity while higher values relax timings and reduce sensitivity.
-  Tuning this affects the time it takes Nomad to detect leader failures and to
-  perform leader elections, at the expense of requiring more network and CPU
-  resources for better performance. The maximum allowed value is 10.
+  default timing described in the following paragraph. Lower values are used to
+  tighten timing and increase sensitivity while higher values relax timings and
+  reduce sensitivity. Tuning this affects the time it takes Nomad to detect
+  leader failures and to perform leader elections, at the expense of requiring
+  more network and CPU resources for better performance. The maximum allowed
+  value is 10.
 
   By default, Nomad will use the highest-performance timing, currently equivalent
   to setting this to a value of 1. Increasing the timings makes leader election
@@ -226,7 +232,7 @@ server {
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, see the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
+  information, refer to the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -251,11 +257,11 @@ server {
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad server will connect to other Nomad servers. The `retry_join`
   fields may directly specify the server address or use go-discover syntax for
-  auto-discovery. See the [server_join documentation][server-join] for more detail.
+  auto-discovery. Refer to the [server_join documentation][server-join] for more detail.
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, see the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
+  For more information, refer to the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
 
 - `search` <code>([search][search]: nil)</code> - Specifies configuration parameters
   for the Nomad search API.
@@ -292,7 +298,7 @@ server {
   succeeds. After one succeeds, no further addresses will be contacted. This is
   useful for cases where we know the address will become available eventually.
   Use `retry_join` with an array as a replacement for `start_join`, **do not use
-  both options**. See the [server_join][server-join]
+  both options**. Refer to the [server_join][server-join]
   section for more information on the format of the string. This field is
   deprecated in favor of the [server_join block][server-join].
 
@@ -307,7 +313,7 @@ server {
 
 - `start_join` `(array<string>: [])` - Specifies a list of server addresses to
   join on startup. If Nomad is unable to join with any of the specified
-  addresses, agent startup will fail. See the [server address
+  addresses, agent startup will fail. Refer to the [server address
   format](/nomad/docs/configuration/server_join#server-address-format)
   section for more information on the format of the string. This field is
   deprecated in favor of the [server_join block][server-join].
@@ -370,7 +376,7 @@ server {
 ### Automatic Bootstrapping
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
-more detailed explanation, please see the
+more detailed explanation, refer to the
 [automatic Nomad bootstrapping documentation](/nomad/tutorials/manage-clusters/clustering).
 
 ### Restricting Schedulers
@@ -479,7 +485,7 @@ simply adds the `heartbeat_grace` parameter to the TTL Clients are given.
 | 100     | 10s - 20s   | 20s - 30s   | yes                  |
 | 1000    | 20s - 40s   | 30s - 50s   | yes                  |
 | 5000    | 100s - 200s | 110s - 210s | yes                  |
-| 10000   | 200s - 400s | 210s - 410s | NO (see below)       |
+| 10000   | 200s - 400s | 210s - 410s | NO                   |
 
 Regardless of size, all clients will have a Server TTL of
 `failover_heartbeat_ttl` after a leader election. It should always be larger

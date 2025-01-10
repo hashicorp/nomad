@@ -1,16 +1,18 @@
 ---
 layout: docs
-page_title: ui Block - Agent Configuration
+page_title: ui Block in Agent Configuration
 description: |-
-  The "ui" block configures the Nomad agent's web UI.
-
+  Configure Nomad's web UI in the `ui` block of a Nomad agent configuration. Provide Vault and Consul links, add custom text to Nomad's UI, and define the HTTP Content Security Policy response header.
 ---
 
-# `ui` Block
+# `ui` Block in Agent Configuration
 
 <Placement groups={['ui']} />
 
-The `ui` block configures the Nomad agent's [web UI].
+This page provides reference information for configuring Nomad's web UI in the
+`ui` block of a Nomad agent configuration. Provide Vault and Consul links,
+add custom text to display in Nomad's UI, and define the HTTP Content
+Security Policy response header.
 
 ```hcl
 ui {
@@ -106,7 +108,7 @@ header sent with the web UI response.
 - `text` `(string: "")` - Specifies the text of the label that will be
   displayed in the header of the Web UI.
 - `background_color` `(string: "")` - The background color of the label to
-  be displayed. The Web UI will default to a black background. HEX values  
+  be displayed. The Web UI will default to a black background. HEX values
   may be used.
 - `text_color` `(string: "")` - The text color of the label to be displayed.
   The Web UI will default to white text. HEX values may be used.

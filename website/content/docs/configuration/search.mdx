@@ -1,13 +1,12 @@
 ---
 layout: docs
-page_title: search Block - Agent Configuration
+page_title: search Block in Agent Configuration
 sidebar_title: search
 description: >-
-  The "search" block specifies configuration for the search API provided
-  by the Nomad servers.
+  Configure the Nomad server search API in the `search` block of a Nomad agent configuration. Enable fuzzy searching. Configure the minimum size of the search term, the maximum number of Nomad objects to search through per context type, and the max number of matching results.
 ---
 
-# `search` Block
+# `search` Block in Agent Configuration
 
 <Placement
   groups={[
@@ -15,8 +14,10 @@ description: >-
   ]}
 />
 
-The `search` block specifies configuration for the search API provided by the
-Nomad servers.
+This page provides reference information for configuring the Nomad server search
+API in the `search` block of a Nomad agent configuration. Enable fuzzy
+searching. Configure the minimum size of the search term, the maximum number of
+Nomad objects to search through per context type, and the max number of matching results.
 
 ```hcl
 server {

@@ -1,17 +1,24 @@
 ---
 layout: docs
-page_title: Agent Configuration
-description: Learn about the configuration options available for the Nomad agent.
+page_title: Nomad Agent Configuration
+description: This section contains reference information for configuring Nomad agents. Learn how Nomad loads and merges multiple configuration files. Configure networking and advertise addresses, Nomad regions and datacenters, data directories, Consul integration, handshake limits, connections per client, logging, plugins, Sentinel policies, security, update check behavior, and Vault integration. Enable debugging, write to syslog, leave on interrupt or terminate, and cross-origin resource sharing (CORS).
 ---
 
-# Nomad Configuration
+# Nomad Agent Configuration
 
-Nomad agents have a variety of parameters that can be specified via
-configuration files or command-line flags. Configuration files are written in
-[HCL][hcl]. Nomad can read and combine parameters from multiple configuration
-files or directories to configure the Nomad agent.
+This page provides an overview of reference information for configuring Nomad
+agents. Learn how Nomad loads and merges multiple configuration files. Configure
+networking and advertise addresses, Nomad regions and data centers, data
+directories, Consul integration, handshake limits, connections per client,
+logging, plugins, Sentinel policies, security, update check behavior, and Vault
+integration. Enable debugging, writing to syslog, leave on interrupt or
+terminate, and cross-origin resource sharing (CORS).
 
-## Load Order and Merging
+Write configuration files in [HCL][hcl] or specify parameters as command-line
+flags. Nomad can read and combine parameters from multiple configuration files
+or directories to configure the Nomad agent.
+
+## Configuration File Load Order and Merging
 
 The Nomad agent supports multiple configuration files, which can be provided
 using the `-config` CLI flag. The flag can accept either a file or folder. In
@@ -81,11 +88,11 @@ testing.
 
 - `acl` `(`[`ACL`]`: nil)` - Specifies configuration which is specific to ACLs.
 
-- `addresses` `(Addresses: see below)` - Specifies the bind address for
+- `addresses` `(Addresses: refer to explanation)` - Specifies the bind address for
   individual network services. Any values configured in this block take
   precedence over the default [bind_addr](#bind_addr). These values should be
   specified in IP format without a port (ex. `"0.0.0.0"`). To set the port,
-  see the [`ports`](#ports) field. The values support [go-sockaddr/template
+  refer to the [`ports`](#ports) field. The values support [go-sockaddr/template
   format][go-sockaddr/template].
 
   - `http` - The address the HTTP server is bound to. This is the most
@@ -99,7 +106,7 @@ testing.
     listener will be exposed on this address. Should be exposed only to other
     cluster members if possible.
 
-- `advertise` `(Advertise: see below)` - Specifies the advertise address for
+- `advertise` `(Advertise: refer to explanation)` - Specifies the advertise address for
   individual network services. This can be used to advertise a different address
   to the peers of a server or a client node to support more complex network
   configurations such as NAT. This configuration is optional, and defaults to
@@ -286,8 +293,8 @@ testing.
   configured. The key of the block is the plugin's executable name relative to
   the [plugin_dir](#plugin_dir).
 
-- `ports` `(Port: see below)` - Specifies the network ports used for different
-  services required by the Nomad agent.
+- `ports` `(Port: refer to explanation)` - Specifies the network ports used for
+  different services required by the Nomad agent.
 
   - `http` - The port used to run the HTTP server.
 
@@ -357,7 +364,7 @@ license will be reloaded from the file on a configuration reload.
 </EnterpriseAlert>
 
 If the Nomad agent receives a `SIGHUP` during initialization, it may crash
-(see [GH-3885]). Ensure that the Nomad agent is able to receive RPC traffic
+(refer to [GH-3885]). Ensure that the Nomad agent is able to receive RPC traffic
 before attempting to reload its configuration.
 
 ## Examples
