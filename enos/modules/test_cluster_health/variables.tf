@@ -38,8 +38,8 @@ variable "client_count" {
 }
 
 variable "running_jobs" {
-  description = "List of the jobs currently running in the cluster"
-  type        = list
+  description = "The number of jobs that should be running in the cluster"
+  default = 2
 }
 
 variable "alloc_count" {

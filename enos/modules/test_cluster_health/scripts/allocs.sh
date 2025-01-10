@@ -5,7 +5,7 @@
 set -euo pipefail
 
 error_exit() {
-    echo "Error: $1"
+    printf "Error: $1"
     exit 1
 }
 
@@ -19,7 +19,7 @@ if [ -z "$allocs_length" ];  then
 fi
 
 if [ "$allocs_length" -ne "$ALLOCS" ]; then
-    error_exit "Some allocs are not running $(nomad alloc status -json | jq -r '.[] | select(.ClientStatus != "running") | .ID')"
+    error_exit "Some allocs are not running:\n$(nomad alloc status -json | jq -r '.[] | select(.ClientStatus != "running") | .ID')"
 fi
 
 echo "All allocs are running."
