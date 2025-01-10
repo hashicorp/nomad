@@ -32,7 +32,7 @@ scenario "upgrade" {
   step "copy_initial_binary" {
     description = <<-EOF
     Determine which Nomad artifact we want to use for the scenario, depending on the
-   'arch', 'edition' and 'os'
+   'arch', 'edition' and 'os' and bring it from the artifactory to a local instance.
     EOF
 
     module = module.build_artifactory
@@ -44,7 +44,7 @@ scenario "upgrade" {
       edition              = matrix.edition
       product_version      = var.product_version
       os                   = matrix.os
-      binary_path          = "${var.nomad_local_binary}/${matrix.os}-${matrix.arch}-${matrix.edition}"
+      binary_path          = "${var.nomad_local_binary}/${var.product_version}/${matrix.os}-${matrix.arch}-${matrix.edition}"
     }
   }
 
@@ -69,7 +69,7 @@ scenario "upgrade" {
     }
   }
 
-  step "run_new_workloads" {
+  step "run_initial_workloads" {
     depends_on  = [step.provision_cluster]
     description = <<-EOF
     Verify the health of the cluster by running new workloads
@@ -90,7 +90,7 @@ scenario "upgrade" {
   }
 
   step "initial_test_cluster_health" {
-    depends_on  = [step.run_new_workloads]
+    depends_on  = [step.run_initial_workloads]
     description = <<-EOF
     Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs to check for correct reschedules"
     EOF
@@ -104,8 +104,8 @@ scenario "upgrade" {
       nomad_token  = step.provision_cluster.nomad_token
       server_count = var.server_count
       client_count = local.linux_count + local.windows_count
-      jobs         = step.run_new_workloads.job_names
-      alloc_count  = step.run_clients_workloads.allocs_count
+      jobs         = step.run_initial_workloads.jobs_count
+      alloc_count  = step.run_initial_workloads.allocs_count
     }
 
     verifies = [
@@ -117,24 +117,25 @@ scenario "upgrade" {
       quality.nomad_reschedule_alloc,
     ]
   }
-  /*
-  step "copy_upgraded_binary" {
+
+  step "copy_upgrade_binary" {
     description = <<-EOF
-    Copy the binary of the newer version ...
+    Bring the new upgraded binary from the artifactory
     EOF
 
-    module      = "copy_${matrix.artifact_source}"
+    module = module.build_artifactory
 
     variables {
-        version          = global.upgrade_version 
-        artifactory_path = globals.artifact_path
-        artifact_token   = globals.artifact_toke. 
-        os             = step.copy_initial_binary.os
-        distro           = step.copy_initial_binary.distro
-        // ...
+      artifactory_username = var.artifactory_username
+      artifactory_token    = var.artifactory_token
+      arch                 = local.arch
+      edition              = matrix.edition
+      product_version      = var.upgrade_version
+      os                   = matrix.os
+      binary_path          = "${var.nomad_local_binary}/${var.upgrade_version}/${matrix.os}-${matrix.arch}-${matrix.edition}"
     }
   }
-
+  /*
   step "upgrade_servers" {
     description = <<-EOF
     Upgrade the cluster's servers by invoking nomad-cc ...

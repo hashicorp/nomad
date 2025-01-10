@@ -21,6 +21,12 @@ variable "product_version" {
   default     = null
 }
 
+variable "upgrade_version" {
+  description = "The version of Nomad we want to upgrade the cluster to"
+  type        = string
+  default     = null
+}
+
 variable "binary_local_path" {
   description = "The path to donwload and unzip the binary"
   type        = string
