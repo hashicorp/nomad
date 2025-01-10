@@ -27,3 +27,6 @@ resource "nomad_job" "workloads" {
   jobspec  = templatefile(each.value.path, { alloc_count = each.value.alloc_count })
 }
 
+locals {
+  job_names = [for j in nomad_job.workloads : j.name]
+}

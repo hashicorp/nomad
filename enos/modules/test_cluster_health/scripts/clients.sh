@@ -5,7 +5,7 @@
 set -euo pipefail
 
 error_exit() {
-    echo "Error: $1"
+    printf "Error: $1"
     exit 1
 }
 
@@ -19,7 +19,7 @@ if [ -z "$clients_length" ];  then
 fi
 
 if [ "$clients_length" -ne "$CLIENTS" ]; then
-     error_exit "Unexpected number of clients are ready $(echo $clients | jq '.[] | select(.Status != "ready") | .Name')"
+     error_exit "Unexpected number of clients are ready: $clients_length\n $(echo $clients | jq '.[] | select(.Status != "ready") | .Name')"
 
 fi
 
@@ -29,7 +29,7 @@ echo "$running_clients" | jq -c '.[]' | while read -r node; do
   eligibility=$(echo "$node" | jq -r '.SchedulingEligibility')
 
   if [ "$eligibility" != "eligible" ]; then
-    error_exit "Client not eligible $(echo "$node" | jq -r '.Name')"
+    error_exit "Client not eligible: $(echo "$node" | jq -r '.Name')"
   fi
 done
 

@@ -5,7 +5,7 @@
 set -euo pipefail
 
 error_exit() {
-    echo "Error: $1"
+    printf "Error: $1"
     exit 1
 }
 
@@ -19,7 +19,7 @@ if [ -z "$servers_length" ];  then
 fi
 
 if [ "$servers_length" -ne "$SERVERS" ]; then
-    error_exit "Unexpected number of servers are alive $(echo $servers | jq '.[] | select(.Status != "alive") | .Name')"
+    error_exit "Unexpected number of servers are alive: $servers_length\n$(echo $servers | jq '.[] | select(.Status != "alive") | .Name')"
 fi
 
 if [ $(echo "$running_servers" | jq -r "map(.last_log_index ) | unique | length == 1") != "true" ]; then

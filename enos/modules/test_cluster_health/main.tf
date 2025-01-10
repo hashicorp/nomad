@@ -25,6 +25,7 @@ resource "enos_local_exec" "run_tests" {
   scripts = [
     abspath("${path.module}/scripts/servers.sh"),
     abspath("${path.module}/scripts/clients.sh"),
-    abspath("${path.module}/scripts/jobs.sh")
+    abspath("${path.module}/scripts/jobs.sh"),
+    abspath("${path.module}/scripts/allocs.sh")
   ]
 }
