@@ -20,6 +20,19 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
+const (
+	// environment variables for external plugins
+	EnvOperation   = "DHV_OPERATION"
+	EnvHostPath    = "DHV_HOST_PATH"
+	EnvNodeID      = "DHV_NODE_ID"
+	EnvVolumeName  = "DHV_VOLUME_NAME"
+	EnvVolumeID    = "DHV_VOLUME_ID"
+	EnvCapacityMin = "DHV_CAPACITY_MIN_BYTES"
+	EnvCapacityMax = "DHV_CAPACITY_MAX_BYTES"
+	EnvPluginPath  = "DHV_PLUGIN_PATH" // TODO(db): 1.10.0
+	EnvParameters  = "DHV_PARAMETERS"
+)
+
 // HostVolumePlugin manages the lifecycle of volumes.
 type HostVolumePlugin interface {
 	Fingerprint(ctx context.Context) (*PluginFingerprint, error)
@@ -158,7 +171,7 @@ type HostVolumePluginExternal struct {
 // Fingerprint calls the executable with the following parameters:
 // arguments: fingerprint
 // environment:
-// OPERATION=fingerprint
+// DHV_OPERATION=fingerprint
 //
 // Response should be valid JSON on stdout, with a "version" key, e.g.:
 // {"version": "0.0.1"}
@@ -166,7 +179,7 @@ type HostVolumePluginExternal struct {
 // version.NewVersion()
 func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFingerprint, error) {
 	cmd := exec.CommandContext(ctx, p.Executable, "fingerprint")
-	cmd.Env = []string{"OPERATION=fingerprint"}
+	cmd.Env = []string{EnvOperation + "=fingerprint"}
 	stdout, stderr, err := runCommand(cmd)
 	if err != nil {
 		p.log.Debug("error with plugin",
@@ -186,13 +199,14 @@ func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFing
 // Create calls the executable with the following parameters:
 // arguments: create {path to create}
 // environment:
-// OPERATION=create
-// HOST_PATH={path to create}
-// NODE_ID={Nomad node ID}
-// VOLUME_NAME={name from the volume specification}
-// CAPACITY_MIN_BYTES={capacity_min from the volume spec}
-// CAPACITY_MAX_BYTES={capacity_max from the volume spec}
-// PARAMETERS={json of parameters from the volume spec}
+// DHV_OPERATION=create
+// DHV_HOST_PATH={path to create}
+// DHV_NODE_ID={Nomad node ID}
+// DHV_VOLUME_NAME={name from the volume specification}
+// DHV_VOLUME_ID={Nomad volume ID}
+// DHV_CAPACITY_MIN_BYTES={capacity_min from the volume spec}
+// DHV_CAPACITY_MAX_BYTES={capacity_max from the volume spec}
+// DHV_PARAMETERS={json of parameters from the volume spec}
 //
 // Response should be valid JSON on stdout with "path" and "bytes", e.g.:
 // {"path": $HOST_PATH, "bytes": 50000000}
@@ -208,11 +222,11 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 		return nil, fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
 	envVars := []string{
-		"NODE_ID=" + req.NodeID,
-		"VOLUME_NAME=" + req.Name,
-		fmt.Sprintf("CAPACITY_MIN_BYTES=%d", req.RequestedCapacityMinBytes),
-		fmt.Sprintf("CAPACITY_MAX_BYTES=%d", req.RequestedCapacityMaxBytes),
-		"PARAMETERS=" + string(params),
+		fmt.Sprintf("%s=%s", EnvNodeID, req.NodeID),
+		fmt.Sprintf("%s=%s", EnvVolumeName, req.Name),
+		fmt.Sprintf("%s=%d", EnvCapacityMin, req.RequestedCapacityMinBytes),
+		fmt.Sprintf("%s=%d", EnvCapacityMax, req.RequestedCapacityMaxBytes),
+		fmt.Sprintf("%s=%s", EnvParameters, params),
 	}
 
 	stdout, _, err := p.runPlugin(ctx, "create", req.ID, envVars)
@@ -228,17 +242,19 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 		// an error here after the plugin has done who-knows-what.
 		return nil, err
 	}
+	// TODO: validate returned host path
 	return &pluginResp, nil
 }
 
 // Delete calls the executable with the following parameters:
 // arguments: delete {path to create}
 // environment:
-// OPERATION=delete
-// HOST_PATH={path to create}
-// NODE_ID={Nomad node ID}
-// VOLUME_NAME={name from the volume specification}
-// PARAMETERS={json of parameters from the volume spec}
+// DHV_OPERATION=delete
+// DHV_HOST_PATH={path to create}
+// DHV_NODE_ID={Nomad node ID}
+// DHV_VOLUME_NAME={name from the volume specification}
+// DHV_VOLUME_ID={Nomad volume ID}
+// DHV_PARAMETERS={json of parameters from the volume spec}
 //
 // Response on stdout is discarded.
 func (p *HostVolumePluginExternal) Delete(ctx context.Context,
@@ -250,9 +266,9 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 		return fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
 	envVars := []string{
-		"NODE_ID=" + req.NodeID,
-		"VOLUME_NAME=" + req.Name,
-		"PARAMETERS=" + string(params),
+		fmt.Sprintf("%s=%s", EnvNodeID, req.NodeID),
+		fmt.Sprintf("%s=%s", EnvVolumeName, req.Name),
+		fmt.Sprintf("%s=%s", EnvParameters, params),
 	}
 
 	_, _, err = p.runPlugin(ctx, "delete", req.ID, envVars)
@@ -263,8 +279,9 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 }
 
 // runPlugin executes the... executable with these additional env vars:
-// OPERATION={op}
-// HOST_PATH={p.TargetPath/volID}
+// DHV_OPERATION={op}
+// DHV_HOST_PATH={path to create}
+// DHV_VOLUME_ID={Nomad volume ID}
 func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	op, volID string, env []string) (stdout, stderr []byte, err error) {
 
@@ -279,8 +296,9 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	cmd := exec.CommandContext(ctx, p.Executable, op, path)
 
 	cmd.Env = append([]string{
-		"OPERATION=" + op,
-		"HOST_PATH=" + path,
+		fmt.Sprintf("%s=%s", EnvOperation, op),
+		fmt.Sprintf("%s=%s", EnvHostPath, path),
+		fmt.Sprintf("%s=%s", EnvVolumeID, volID),
 	}, env...)
 
 	stdout, stderr, err = runCommand(cmd)

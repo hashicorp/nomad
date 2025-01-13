@@ -426,6 +426,7 @@ func logRecorder(t *testing.T) (hclog.Logger, func() string) {
 	return logger, func() string {
 		bts, err := io.ReadAll(buf)
 		test.NoError(t, err)
+		buf.Reset()
 		return string(bts)
 	}
 }

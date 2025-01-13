@@ -122,42 +122,44 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			log:        log,
 		}
 
+		// fingerprint
 		v, err := plug.Fingerprint(timeout(t))
-		must.NoError(t, err)
-		must.Eq(t, expectVersion, v.Version)
+		logged := getLogs()
+		must.NoError(t, err, must.Sprintf("logs: %s", logged))
+		must.Eq(t, expectVersion, v.Version, must.Sprintf("logs: %s", logged))
 
+		// create
 		resp, err := plug.Create(timeout(t),
 			&cstructs.ClientHostVolumeCreateRequest{
+				Name:                      "test-vol-name",
 				ID:                        volID,
 				NodeID:                    "test-node",
 				RequestedCapacityMinBytes: 5,
 				RequestedCapacityMaxBytes: 10,
 				Parameters:                map[string]string{"key": "val"},
 			})
-		must.NoError(t, err)
+		logged = getLogs()
+		must.NoError(t, err, must.Sprintf("logs: %s", logged))
 
 		must.Eq(t, &HostVolumePluginCreateResponse{
 			Path:      target,
 			SizeBytes: 5,
 		}, resp)
 		must.DirExists(t, target)
-		logged := getLogs()
 		must.StrContains(t, logged, "OPERATION=create") // stderr from `env`
 		must.StrContains(t, logged, `stdout="{`)        // stdout from printf
 
-		// reset logger for next call
-		log, getLogs = logRecorder(t)
-		plug.log = log
-
+		// delete
 		err = plug.Delete(timeout(t),
 			&cstructs.ClientHostVolumeDeleteRequest{
+				Name:       "test-vol-name",
 				ID:         volID,
 				NodeID:     "test-node",
 				Parameters: map[string]string{"key": "val"},
 			})
-		must.NoError(t, err)
-		must.DirNotExists(t, target)
 		logged = getLogs()
+		must.NoError(t, err, must.Sprintf("logs: %s", logged))
+		must.DirNotExists(t, target)
 		must.StrContains(t, logged, "OPERATION=delete")  // stderr from `env`
 		must.StrContains(t, logged, "removed directory") // stdout from `rm -v`
 	})
