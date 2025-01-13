@@ -205,8 +205,7 @@ client {
   volume plugins. When this parameter is empty, Nomad generates the path
   using the [top-level `data_dir`][top_level_data_dir] suffixed with
   `host_volume_plugins`, like `"/opt/nomad/host_volume_plugins"`. This must be
-  an absolute path. Nomad creates the directory on the host, if it does not
-  exist when the agent process starts.
+  an absolute path.
 
 - `host_network` <code>([host_network](#host_network-block): nil)</code> - Registers
   additional host networks with the node that can be selected when port mapping.
@@ -626,8 +625,8 @@ register`][] commands.
 
 The key of the block corresponds to the name of the volume for use in the
 `source` parameter of a `"host"` type
-[`volume`](/nomad/docs/job-specification/volume) and ACLs. Host volumes in the
-configuration cannot have the same names as dynamic host volumes.
+[`volume`](/nomad/docs/job-specification/volume) and ACLs. A host volume in the
+configuration cannot have the same name as a dynamic host volume on the same node.
 
 ```hcl
 client {
