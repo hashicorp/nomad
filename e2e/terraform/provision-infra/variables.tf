@@ -53,21 +53,24 @@ variable "restrict_ingress_cidrblock" {
 
 variable "nomad_local_binary" {
   description = "The path to a local binary to provision"
+  default     = ""
+}
+
+variable "nomad_region" {
+  description = "The name of the Nomad region."
+  default     = "e2e"
 }
 
 variable "nomad_license" {
   type        = string
   description = "If nomad_license is set, deploy a license"
-}
-
-variable "nomad_region" {
-  description = "The AWS region to deploy to."
-  default     = "us-east-1"
+  default     = ""
 }
 
 variable "consul_license" {
   type        = string
   description = "If consul_license is set, deploy a license"
+  default     = ""
 }
 
 variable "volumes" {
@@ -75,6 +78,7 @@ variable "volumes" {
   description = "Include external EFS volumes (for CSI)"
   default     = true
 }
+
 
 variable "hcp_vault_cluster_id" {
   description = "The ID of the HCP Vault cluster"

@@ -11,12 +11,12 @@ resource "null_resource" "bootstrap_nomad_acls" {
   depends_on = [module.nomad_server, null_resource.bootstrap_consul_acls]
 
   provisioner "local-exec" {
-    command = "./scripts/bootstrap-nomad.sh"
+    command = "${path.module}/scripts/bootstrap-nomad.sh"
     environment = {
       NOMAD_ADDR        = "https://${aws_instance.server.0.public_ip}:4646"
-      NOMAD_CACERT      = "keys/tls_ca.crt"
-      NOMAD_CLIENT_CERT = "keys/tls_api_client.crt"
-      NOMAD_CLIENT_KEY  = "keys/tls_api_client.key"
+      NOMAD_CACERT      = "${path.module}/keys/tls_ca.crt"
+      NOMAD_CLIENT_CERT = "${path.module}/keys/tls_api_client.crt"
+      NOMAD_CLIENT_KEY  = "${path.module}/keys/tls_api_client.key"
     }
   }
 }
@@ -53,7 +53,7 @@ resource "null_resource" "root_nomad_env_servers" {
     user        = "ubuntu"
     host        = aws_instance.server[count.index].public_ip
     port        = 22
-    private_key = file("${path.root}/keys/${local.random_name}.pem")
+    private_key = file("${path.module}/../keys/${local.random_name}.pem")
     timeout     = "5m"
   }
   provisioner "remote-exec" {

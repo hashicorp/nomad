@@ -16,7 +16,6 @@ variable "nomad_local_binary" {
 variable "nomad_license" {
   type        = string
   description = "The enterprise license to use. overrides Nomad temporary license"
-  default     = ""
 }
 
 variable "tls_ca_algorithm" {
@@ -28,13 +27,11 @@ variable "tls_ca_algorithm" {
 variable "tls_ca_key" {
   type        = string
   description = "Cluster TLS CA private key"
-  default     = ""
 }
 
 variable "tls_ca_cert" {
   type        = string
   description = "Cluster TLS CA cert"
-  default     = ""
 }
 
 variable "arch" {
@@ -88,5 +85,11 @@ variable "aws_region" {
 variable "aws_kms_key_id" {
   type        = string
   description = "AWS KMS key ID for encrypting and decrypting the Nomad keyring"
+  default     = ""
+}
+
+variable "uploads_dir" {
+  type        = string
+  description = "Directory where all the configuration files for nomad, consul and vault will be taken from to configure each nomad node"
   default     = ""
 }

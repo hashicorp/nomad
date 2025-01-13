@@ -207,9 +207,9 @@ resource "aws_network_interface" "clients_secondary" {
   subnet_id       = data.aws_subnet.secondary.id
   security_groups = [aws_security_group.clients_secondary.id]
 
-  count = var.client_count_ubuntu_jammy_amd64
+  count = var.client_count_linux
   attachment {
-    instance     = aws_instance.client_ubuntu_jammy_amd64[count.index].id
+    instance     = aws_instance.client_ubuntu_jammy[count.index].id
     device_index = 1
   }
 }

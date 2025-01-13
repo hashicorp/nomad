@@ -7,6 +7,9 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 echo "waiting for Consul leader to be up..."
 while true :
 do
+    pwd
+    echo CONSUL_CACERT=$CONSUL_CACERT
+    echo CONSUL_HTTP_ADDR=$CONSUL_HTTP_ADDR
     consul info && break
     echo "Consul server not ready, waiting 5s"
     sleep 5
@@ -27,3 +30,5 @@ consul acl token create -policy-name=nomad-cluster -secret "$NOMAD_CLUSTER_CONSU
 echo "writing Consul cluster policy and token"
 consul acl policy create -name consul-agents -rules @${DIR}/consul-agents-policy.hcl
 consul acl token create -policy-name=consul-agents -secret "$CONSUL_AGENT_TOKEN"
+
+echo "Consul successfully bootstraped!"
