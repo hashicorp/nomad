@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -177,7 +178,11 @@ type HostVolumePluginExternal struct {
 // {"version": "0.0.1"}
 // The version value should be a valid version number as allowed by
 // version.NewVersion()
+//
+// Must complete within 5 seconds
 func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFingerprint, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	cmd := exec.CommandContext(ctx, p.Executable, "fingerprint")
 	cmd.Env = []string{EnvOperation + "=fingerprint"}
 	stdout, stderr, err := runCommand(cmd)
@@ -213,6 +218,8 @@ func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFing
 // "path" must be provided to confirm that the requested path is what was
 // created by the plugin. "bytes" is the actual size of the volume created
 // by the plugin; if excluded, it will default to 0.
+//
+// Must complete within 60 seconds (timeout on RPC)
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error) {
 
@@ -257,6 +264,8 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 // DHV_PARAMETERS={json of parameters from the volume spec}
 //
 // Response on stdout is discarded.
+//
+// Must complete within 60 seconds (timeout on RPC)
 func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 	req *cstructs.ClientHostVolumeDeleteRequest) error {
 
