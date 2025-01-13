@@ -57,8 +57,8 @@ for each capability you intend to use in a job's [`volume`] block.
     - `"single-node-single-writer"`
     - `"single-node-multi-writer"`
 
-    Defaults to `single-node-writer` unless `read_only = true`, in which case it
-    defaults to `single-node-reader-only`.
+    In the job specification, the default is `single-node-writer` unless
+    `read_only = true`, which translates to `single-node-reader-only`.
 
 - `attachment_mode` `(string)` - The storage API used by the volume. One of
   `"file-system"` or `"block-device"`. The `access_mode` and `attachment_mode`
