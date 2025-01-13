@@ -3,6 +3,18 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
+
+<Hds::SegmentedGroup as |S|>
+  <JobSearchBox
+    @searchText={{this.rawSearchText}}
+    @onSearchTextChange={{queue
+      this.updateSearchText
+      this.updateFilter
+    }}
+    @S={{S}}
+  />
+</Hds::SegmentedGroup>
+
 <div class="boxed-section-head">
   Job Launches
   {{#if this.job.parameterized}}

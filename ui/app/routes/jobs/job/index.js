@@ -19,6 +19,13 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @service store;
   @service watchList;
 
+  queryParams = {
+    filter: {
+      // refreshModel: true,
+      refreshModel: false,
+    },
+  };
+
   async model() {
     return this.modelFor('jobs.job');
   }
@@ -42,6 +49,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   }
 
   setupController(controller, model) {
+    console.log('setupController', model, 'filter', this.queryParams);
     // Parameterized and periodic detail pages, which list children jobs,
     // should sort by submit time.
     if (model && ['periodic', 'parameterized'].includes(model.templateType)) {

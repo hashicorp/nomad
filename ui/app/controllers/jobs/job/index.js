@@ -33,6 +33,7 @@ export default class IndexController extends Controller.extend(
     },
     'activeTask',
     'statusMode',
+    'filter',
   ];
 
   currentPage = 1;
@@ -58,6 +59,88 @@ export default class IndexController extends Controller.extend(
       this.activeTask = null;
     }
   }
+
+  @action
+  updateFilter(filter) {
+    console.log('=== controllers/jobs/job/index.js updateFilter', filter);
+    // this.filter = filter;
+    this.set('filter', filter);
+    this.resetQueryIndex({
+      id: this.job.get('plainId'),
+      namespace: this.job.get('namespace.id'),
+    });
+    this.watchChildJobs.perform({
+      id: this.job.get('plainId'),
+      namespace: this.job.get('namespace.id'),
+    });
+  }
+
+  //#region Filter
+
+  // TODO: An awful lot of this is copied from the jobs/index.js file.
+  // We should probably move this to a shared location.
+
+  filter = '';
+  searchText = '';
+  rawSearchText = '';
+
+  @action resetFilters() {
+    this.searchText = '';
+    this.rawSearchText = '';
+    this.filterFacets.forEach((group) => {
+      group.options.forEach((option) => {
+        set(option, 'checked', false);
+      });
+    });
+    this.namespaceFacet?.options.forEach((option) => {
+      set(option, 'checked', false);
+    });
+    this.updateFilter();
+  }
+
+  /**
+   * Updates the filter based on the input, distinguishing between simple job names and filter expressions.
+   * A simple check for operators with surrounding spaces is used to identify filter expressions.
+   *
+   * @param {string} newFilter
+   */
+  @action
+  updateSearchText(newFilter) {
+    console.log('=== controllers/jobs/job/index.js updateSearchText', newFilter);
+    if (!newFilter.trim()) {
+      this.searchText = '';
+      return;
+    }
+
+    newFilter = newFilter.trim();
+
+    const operators = [
+      '==',
+      '!=',
+      'contains',
+      'not contains',
+      'is empty',
+      'is not empty',
+      'matches',
+      'not matches',
+      'in',
+      'not in',
+    ];
+
+    // Check for any operator surrounded by spaces
+    let isFilterExpression = operators.some((op) =>
+      newFilter.includes(` ${op}`)
+    );
+
+    if (isFilterExpression) {
+      this.searchText = newFilter;
+    } else {
+      // If it's a string without a filter operator, assume the user is trying to look up a job name
+      this.searchText = `Name contains "${newFilter}"`;
+    }
+  }
+
+  //#endregion Filter
 
   /**
    * @param {('current'|'historical')} mode
@@ -100,8 +183,14 @@ export default class IndexController extends Controller.extend(
   ) {
     this.childJobs = [];
     while (true) {
+      console.log('=== controllers/jobs/job/index.js watchChildJobs', id, namespace);
+      let filter = `ParentID == "${id}"`;
+      if (this.filter) {
+        // filter = `(${filter}) and (${this.filter})`;
+        filter = `(${filter}) and (${this.filter})`;
+      }
       let params = {
-        filter: `ParentID == "${id}"`,
+        filter,
         namespace,
         include_children: true,
       };
