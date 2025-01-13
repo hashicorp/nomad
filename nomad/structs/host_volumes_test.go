@@ -169,7 +169,7 @@ func TestHostVolume_ValidateUpdate(t *testing.T) {
 
 }
 
-func TestHostVolume_Canonicalize(t *testing.T) {
+func TestHostVolume_CanonicalizeForCreate(t *testing.T) {
 	now := time.Now()
 	vol := &HostVolume{
 		CapacityBytes: 100000,
@@ -237,6 +237,96 @@ func TestHostVolume_Canonicalize(t *testing.T) {
 	must.Eq(t, 100000, vol.RequestedCapacityMinBytes)
 	must.Eq(t, 500000, vol.RequestedCapacityMaxBytes)
 	must.Eq(t, 150000, vol.CapacityBytes)
+
+	must.Eq(t, []*HostVolumeCapability{{
+		AttachmentMode: HostVolumeAttachmentModeFilesystem,
+		AccessMode:     HostVolumeAccessModeSingleNodeMultiWriter,
+	}}, vol.RequestedCapabilities)
+
+	must.Eq(t, "/var/nomad/alloc_mounts/82f357d6.ext4", vol.HostPath)
+	must.Eq(t, HostVolumeStatePending, vol.State)
+
+	must.Eq(t, existing.CreateTime, vol.CreateTime)
+	must.Eq(t, now.UnixNano(), vol.ModifyTime)
+	must.Nil(t, vol.Allocations)
+}
+
+func TestHostVolume_CanonicalizeForRegister(t *testing.T) {
+	now := time.Now()
+	nodeID := uuid.Generate()
+	vol := &HostVolume{
+		NodeID:        nodeID,
+		CapacityBytes: 100000,
+		HostPath:      "/etc/passwd",
+		Allocations: []*AllocListStub{
+			{ID: "6bd66bfa"},
+			{ID: "7032e570"},
+		},
+	}
+	vol.CanonicalizeForRegister(nil, now)
+
+	must.NotEq(t, "", vol.ID)
+	must.Eq(t, now.UnixNano(), vol.CreateTime)
+	must.Eq(t, now.UnixNano(), vol.ModifyTime)
+	must.Eq(t, HostVolumeStatePending, vol.State)
+	must.Nil(t, vol.Allocations)
+	must.Eq(t, "/etc/passwd", vol.HostPath)
+	must.Eq(t, nodeID, vol.NodeID)
+	must.Eq(t, 100000, vol.CapacityBytes)
+
+	vol = &HostVolume{
+		ID:                        "82f357d6-a5ec-11ef-9e36-3f9884222736",
+		PluginID:                  "example_plugin.v2",
+		RequestedCapacityMinBytes: 100000,
+		RequestedCapacityMaxBytes: 500000,
+		CapacityBytes:             200000,
+		NodePool:                  "infra",
+		RequestedCapabilities: []*HostVolumeCapability{{
+			AttachmentMode: HostVolumeAttachmentModeFilesystem,
+			AccessMode:     HostVolumeAccessModeSingleNodeMultiWriter,
+		}},
+		HostPath: "/var/nomad/alloc_mounts/82f357d6.ext4",
+	}
+	existing := &HostVolume{
+		ID:                        "82f357d6-a5ec-11ef-9e36-3f9884222736",
+		PluginID:                  "example_plugin.v1",
+		NodePool:                  "prod",
+		NodeID:                    uuid.Generate(),
+		RequestedCapacityMinBytes: 100000,
+		RequestedCapacityMaxBytes: 200000,
+		CapacityBytes:             150000,
+		RequestedCapabilities: []*HostVolumeCapability{{
+			AttachmentMode: HostVolumeAttachmentModeFilesystem,
+			AccessMode:     HostVolumeAccessModeSingleNodeWriter,
+		}},
+		Constraints: []*Constraint{{
+			LTarget: "${meta.rack}",
+			RTarget: "r1",
+			Operand: "=",
+		}},
+		Parameters: map[string]string{"foo": "bar"},
+		Allocations: []*AllocListStub{
+			{ID: "6bd66bfa"},
+			{ID: "7032e570"},
+		},
+		HostPath:   "/var/nomad/alloc_mounts/82f357d6.img",
+		CreateTime: 1,
+	}
+
+	vol.CanonicalizeForRegister(existing, now)
+
+	must.Eq(t, existing.ID, vol.ID)
+	must.Eq(t, "example_plugin.v2", vol.PluginID)
+	must.Eq(t, "infra", vol.NodePool)
+	must.Eq(t, existing.NodeID, vol.NodeID)
+	must.Eq(t, []*Constraint{{
+		LTarget: "${meta.rack}",
+		RTarget: "r1",
+		Operand: "=",
+	}}, vol.Constraints)
+	must.Eq(t, 100000, vol.RequestedCapacityMinBytes)
+	must.Eq(t, 500000, vol.RequestedCapacityMaxBytes)
+	must.Eq(t, 200000, vol.CapacityBytes)
 
 	must.Eq(t, []*HostVolumeCapability{{
 		AttachmentMode: HostVolumeAttachmentModeFilesystem,

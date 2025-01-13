@@ -203,7 +203,9 @@ func TestStateStore_UpdateHostVolumesFromFingerprint(t *testing.T) {
 	index++
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
 		index, node, NodeUpsertWithNodePool))
+
 	otherNode := mock.Node()
+
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
 		index, otherNode, NodeUpsertWithNodePool))
 
@@ -278,4 +280,19 @@ func TestStateStore_UpdateHostVolumesFromFingerprint(t *testing.T) {
 		must.Sprint("volume not fingerprinted should not change"))
 	must.Eq(t, structs.HostVolumeStatePending, vol3.State)
 
+	// update the node pool and fingerprint
+	otherNode = otherNode.Copy()
+	otherNode.NodePool = "new-node-pool"
+	otherNode.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"dhv-one": {Name: "dhv-one", Path: "/var/nomad/alloc_mounts" + uuid.Generate()},
+	}
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, otherNode))
+
+	vol2, err = store.HostVolumeByID(nil, ns, vols[2].ID, false)
+	must.NoError(t, err)
+	must.Eq(t, index, vol2.ModifyIndex,
+		must.Sprint("node pool change should update pending volume"))
+	must.Eq(t, "new-node-pool", vol2.NodePool)
+	must.Eq(t, structs.HostVolumeStateReady, vol2.State)
 }
