@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
 
+	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -61,6 +62,16 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 		Topics:    args.Topics,
 		Index:     uint64(args.Index),
 		Namespace: args.Namespace,
+		Authenticate: func() error {
+			if err := e.srv.Authenticate(nil, &args); err != nil {
+				return err
+			}
+			acl, err := e.srv.ResolveACL(&args)
+			if err != nil {
+				return err
+			}
+			return validateACL(args.Namespace, args.Topics, acl)
+		},
 	}
 
 	// Get the servers broker and subscribe
@@ -74,21 +85,20 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	var subscription *stream.Subscription
 	var subErr error
 
-	// Check required ACL permissions for requested Topics
-	if e.srv.config.ACLEnabled {
-		aclObj, err := e.srv.ResolveACL(&args)
-		if err != nil {
-			return
-		}
-		subscription, subErr = publisher.SubscribeWithACLCheck(subReq, aclObj)
-	} else {
-		subscription, subErr = publisher.Subscribe(subReq)
-	}
+	subscription, subErr = publisher.Subscribe(subReq)
 	if subErr != nil {
 		handleJsonResultError(subErr, pointer.Of(int64(500)), encoder)
 		return
 	}
 	defer subscription.Unsubscribe()
+
+	// because we have authenticated, the identity will be set, so extract expiration time
+	var exp time.Time
+	if c := args.GetIdentity().GetClaims(); c != nil {
+		exp = c.Expiry.Time()
+	} else if t := args.GetIdentity().GetACLToken(); t != nil && t.ExpirationTime != nil {
+		exp = *t.ExpirationTime
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -114,7 +124,7 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 
 			// Ensure the token being used is not expired before we send any events
 			// to subscribers.
-			if err := e.srv.Authenticate(nil, &args); err != nil {
+			if !exp.IsZero() && exp.Before(time.Now().UTC()) {
 				select {
 				case errCh <- structs.ErrTokenExpired:
 				case <-ctx.Done():
@@ -213,4 +223,48 @@ func handleJsonResultError(err error, code *int64, encoder *codec.Encoder) {
 	encoder.Encode(&structs.EventStreamWrapper{
 		Error: structs.NewRpcError(err, code),
 	})
+}
+
+func validateACL(namespace string, topics map[structs.Topic][]string, aclObj *acl.ACL) error {
+	for topic := range topics {
+		switch topic {
+		case structs.TopicDeployment,
+			structs.TopicEvaluation,
+			structs.TopicAllocation,
+			structs.TopicJob,
+			structs.TopicService:
+			if ok := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case structs.TopicHostVolume:
+			if ok := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityHostVolumeRead); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case structs.TopicCSIVolume:
+			if ok := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityCSIReadVolume); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case structs.TopicCSIPlugin:
+			if ok := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case structs.TopicNode:
+			if ok := aclObj.AllowNodeRead(); !ok {
+				return structs.ErrPermissionDenied
+			}
+		case structs.TopicNodePool:
+			// Require management token for node pools since we can't filter
+			// out node pools the token doesn't have access to.
+			if ok := aclObj.IsManagement(); !ok {
+				return structs.ErrPermissionDenied
+			}
+		default:
+			if ok := aclObj.IsManagement(); !ok {
+				return structs.ErrPermissionDenied
+			}
+		}
+	}
+
+	return nil
+
 }
