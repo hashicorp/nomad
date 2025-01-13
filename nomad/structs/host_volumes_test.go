@@ -94,7 +94,7 @@ func TestHostVolume_Validate(t *testing.T) {
 	}
 	err = invalid.Validate()
 	must.EqError(t, err, `4 errors occurred:
-	* invalid ID
+	* invalid ID "../../not-a-uuid"
 	* capacity_max (100000) must be larger than capacity_min (200000)
 	* invalid attachment mode: "bad"
 	* invalid constraint: 1 error occurred:
