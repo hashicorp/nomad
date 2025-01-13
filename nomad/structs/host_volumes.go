@@ -135,7 +135,7 @@ func (hv *HostVolume) Validate() error {
 	var mErr *multierror.Error
 
 	if hv.ID != "" && !helper.IsUUID(hv.ID) {
-		mErr = multierror.Append(mErr, errors.New("invalid ID"))
+		mErr = multierror.Append(mErr, fmt.Errorf("invalid ID %q", hv.ID))
 	}
 
 	if hv.Name == "" {
@@ -196,7 +196,8 @@ func (hv *HostVolume) ValidateUpdate(existing *HostVolume) error {
 		mErr = multierror.Append(mErr, errors.New("node pool cannot be updated"))
 	}
 
-	if hv.RequestedCapacityMaxBytes < existing.CapacityBytes {
+	if hv.RequestedCapacityMaxBytes > 0 &&
+		hv.RequestedCapacityMaxBytes < existing.CapacityBytes {
 		mErr = multierror.Append(mErr, fmt.Errorf(
 			"capacity_max (%d) cannot be less than existing provisioned capacity (%d)",
 			hv.RequestedCapacityMaxBytes, existing.CapacityBytes))
