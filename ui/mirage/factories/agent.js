@@ -90,5 +90,6 @@ function generateTags(serfPort) {
       rpcPortCandidate === serfPort ? rpcPortCandidate + 1 : rpcPortCandidate,
     dc: faker.helpers.randomize(DATACENTERS),
     build: faker.helpers.randomize(AGENT_BUILDS),
+    region: 'global',
   };
 }
