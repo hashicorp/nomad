@@ -79,22 +79,23 @@ func TestNewHostVolumePluginExternal(t *testing.T) {
 	log := testlog.HCLogger(t)
 	var err error
 
-	_, err = NewHostVolumePluginExternal(log, "test-id", "non-existent", "target")
+	_, err = NewHostVolumePluginExternal(log, ".", "non-existent", "target")
 	must.ErrorIs(t, err, ErrPluginNotExists)
 
-	_, err = NewHostVolumePluginExternal(log, "test-id", "host_volume_plugin_test.go", "target")
+	_, err = NewHostVolumePluginExternal(log, ".", "host_volume_plugin_test.go", "target")
 	must.ErrorIs(t, err, ErrPluginNotExecutable)
 
 	t.Run("unix", func(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			t.Skip("skipped because windows") // db TODO(1.10.0)
 		}
-		p, err := NewHostVolumePluginExternal(log, "test-id", "./test_fixtures/test_plugin.sh", "test-target")
+		p, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin.sh", "test-target")
 		must.NoError(t, err)
 		must.Eq(t, &HostVolumePluginExternal{
-			ID:         "test-id",
-			Executable: "./test_fixtures/test_plugin.sh",
+			ID:         "test_plugin.sh",
+			Executable: "test_fixtures/test_plugin.sh",
 			TargetPath: "test-target",
+			PluginDir:  "./test_fixtures",
 			log:        log,
 		}, p)
 	})
@@ -115,12 +116,8 @@ func TestHostVolumePluginExternal(t *testing.T) {
 	t.Run("happy", func(t *testing.T) {
 
 		log, getLogs := logRecorder(t)
-		plug := &HostVolumePluginExternal{
-			ID:         "test-external-plugin",
-			Executable: "./test_fixtures/test_plugin.sh",
-			TargetPath: tmp,
-			log:        log,
-		}
+		plug, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin.sh", tmp)
+		must.NoError(t, err)
 
 		// fingerprint
 		v, err := plug.Fingerprint(timeout(t))
@@ -167,15 +164,11 @@ func TestHostVolumePluginExternal(t *testing.T) {
 	t.Run("sad", func(t *testing.T) {
 
 		log, getLogs := logRecorder(t)
-		plug := &HostVolumePluginExternal{
-			ID:         "test-external-plugin-sad",
-			Executable: "./test_fixtures/test_plugin_sad.sh",
-			TargetPath: tmp,
-			log:        log,
-		}
+		plug, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin_sad.sh", tmp)
+		must.NoError(t, err)
 
 		v, err := plug.Fingerprint(timeout(t))
-		must.EqError(t, err, `error getting version from plugin "test-external-plugin-sad": exit status 1`)
+		must.EqError(t, err, `error getting version from plugin "test_plugin_sad.sh": exit status 1`)
 		must.Nil(t, v)
 		logged := getLogs()
 		must.StrContains(t, logged, "fingerprint: sad plugin is sad")
@@ -193,7 +186,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 				RequestedCapacityMaxBytes: 10,
 				Parameters:                map[string]string{"key": "val"},
 			})
-		must.EqError(t, err, `error creating volume "test-vol-id" with plugin "test-external-plugin-sad": exit status 1`)
+		must.EqError(t, err, `error creating volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1`)
 		must.Nil(t, resp)
 		logged = getLogs()
 		must.StrContains(t, logged, "create: sad plugin is sad")
@@ -208,7 +201,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 				NodeID:     "test-node",
 				Parameters: map[string]string{"key": "val"},
 			})
-		must.EqError(t, err, `error deleting volume "test-vol-id" with plugin "test-external-plugin-sad": exit status 1`)
+		must.EqError(t, err, `error deleting volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1`)
 		logged = getLogs()
 		must.StrContains(t, logged, "delete: sad plugin is sad")
 		must.StrContains(t, logged, "delete: it tells you all about it in stderr")

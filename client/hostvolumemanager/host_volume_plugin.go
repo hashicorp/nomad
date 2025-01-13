@@ -30,7 +30,7 @@ const (
 	EnvVolumeID    = "DHV_VOLUME_ID"
 	EnvCapacityMin = "DHV_CAPACITY_MIN_BYTES"
 	EnvCapacityMax = "DHV_CAPACITY_MAX_BYTES"
-	EnvPluginPath  = "DHV_PLUGIN_PATH" // TODO(db): 1.10.0
+	EnvPluginDir   = "DHV_PLUGIN_DIR"
 	EnvParameters  = "DHV_PARAMETERS"
 )
 
@@ -135,24 +135,26 @@ var _ HostVolumePlugin = &HostVolumePluginExternal{}
 // NewHostVolumePluginExternal returns an external host volume plugin
 // if the specified executable exists on disk.
 func NewHostVolumePluginExternal(log hclog.Logger,
-	id, executable, targetPath string) (*HostVolumePluginExternal, error) {
+	pluginDir, filename, targetPath string) (*HostVolumePluginExternal, error) {
 	// this should only be called with already-detected executables,
 	// but we'll double-check it anyway, so we can provide a tidy error message
 	// if it has changed between fingerprinting and execution.
+	executable := filepath.Join(pluginDir, filename)
 	f, err := os.Stat(executable)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, id)
+			return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, filename)
 		}
 		return nil, err
 	}
 	if !helper.IsExecutable(f) {
-		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, id)
+		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, filename)
 	}
 	return &HostVolumePluginExternal{
-		ID:         id,
+		ID:         filename,
 		Executable: executable,
 		TargetPath: targetPath,
+		PluginDir:  pluginDir,
 		log:        log,
 	}, nil
 }
@@ -165,6 +167,7 @@ type HostVolumePluginExternal struct {
 	ID         string
 	Executable string
 	TargetPath string
+	PluginDir  string
 
 	log hclog.Logger
 }
@@ -212,6 +215,7 @@ func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFing
 // DHV_CAPACITY_MIN_BYTES={capacity_min from the volume spec}
 // DHV_CAPACITY_MAX_BYTES={capacity_max from the volume spec}
 // DHV_PARAMETERS={json of parameters from the volume spec}
+// DHV_PLUGIN_DIR={path to directory containing plugins}
 //
 // Response should be valid JSON on stdout with "path" and "bytes", e.g.:
 // {"path": $HOST_PATH, "bytes": 50000000}
@@ -262,6 +266,7 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 // DHV_VOLUME_NAME={name from the volume specification}
 // DHV_VOLUME_ID={Nomad volume ID}
 // DHV_PARAMETERS={json of parameters from the volume spec}
+// DHV_PLUGIN_DIR={path to directory containing plugins}
 //
 // Response on stdout is discarded.
 //
@@ -291,6 +296,7 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 // DHV_OPERATION={op}
 // DHV_HOST_PATH={path to create}
 // DHV_VOLUME_ID={Nomad volume ID}
+// DHV_PLUGIN_DIR={path to directory containing plugins}
 func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	op, volID string, env []string) (stdout, stderr []byte, err error) {
 
@@ -308,6 +314,7 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 		fmt.Sprintf("%s=%s", EnvOperation, op),
 		fmt.Sprintf("%s=%s", EnvHostPath, path),
 		fmt.Sprintf("%s=%s", EnvVolumeID, volID),
+		fmt.Sprintf("%s=%s", EnvPluginDir, p.PluginDir),
 	}, env...)
 
 	stdout, stderr, err = runCommand(cmd)

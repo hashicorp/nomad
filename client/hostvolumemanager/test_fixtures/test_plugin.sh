@@ -32,6 +32,7 @@ case $1 in
     test "$DHV_PARAMETERS" == '{"key":"val"}'
     test "$DHV_CAPACITY_MIN_BYTES" -eq 5
     test "$DHV_CAPACITY_MAX_BYTES" -eq 10
+    test "$DHV_PLUGIN_DIR" == './test_fixtures'
     validate_path "$DHV_HOST_PATH"
     mkdir "$2"
     printf '{"path": "%s", "bytes": 5, "context": %s}' "$2" "$DHV_PARAMETERS"
@@ -42,6 +43,7 @@ case $1 in
     test "$DHV_VOLUME_NAME" == 'test-vol-name'
     test "$DHV_VOLUME_ID" == 'test-vol-id'
     test "$DHV_PARAMETERS" == '{"key":"val"}'
+    test "$DHV_PLUGIN_DIR" == './test_fixtures'
     validate_path "$DHV_HOST_PATH"
     rm -rfv "$2" ;;
   *)

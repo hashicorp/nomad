@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
@@ -217,8 +216,7 @@ func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 		return plug, nil
 	}
 	log := hvm.log.With("plugin_id", id)
-	path := filepath.Join(hvm.pluginDir, id)
-	return NewHostVolumePluginExternal(log, id, path, hvm.sharedMountDir)
+	return NewHostVolumePluginExternal(log, hvm.pluginDir, id, hvm.sharedMountDir)
 }
 
 // restoreFromState loads all volumes from client state and runs Create for
