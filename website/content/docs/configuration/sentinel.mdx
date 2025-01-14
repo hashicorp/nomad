@@ -1,16 +1,19 @@
 ---
 layout: docs
-page_title: sentinel Block - Agent Configuration
+page_title: sentinel Block in Agent Configuration
 description: >-
-  The "sentinel" block configures the Nomad agent for Sentinel policies and
-  tune various parameters.
+  Configure Sentinel policy engine behavior in the "sentinel" block of a Nomad agent configuration. Configure the path to the plugin that Nomad uses to import Sentinel policies and specify arguments to pass to that plugin on startup.
 ---
 
-# `sentinel` Block
+# `sentinel` Block in Agent Configuration
 
 <Placement groups={['sentinel']} />
+<EnterpriseAlert product="nomad"/>
 
-The `sentinel` block configures the Sentinel policy engine and tunes various parameters.
+This page provides reference information for configuring the Sentinel policy
+engine in the `sentinel` block of a Nomad agent configuration. Configure the
+path to the plugin that Nomad uses to import Sentinel policies and specify
+arguments to pass to that plugin on startup.
 
 ```hcl
 sentinel {
@@ -32,3 +35,17 @@ sentinel {
 - `path` `(string: "")` - Specifies the path to the import plugin. Must be executable by Nomad.
 
 - `args` `(array<string>: [])` - Specifies arguments to pass to the plugin when starting it.
+
+## Resources
+
+Refer to these resources for details on using Sentinel policies with
+Nomad:
+
+- [Governance and policy on
+  Nomad](/nomad/tutorials/governance-and-policy/governance-and-policy)
+- [Sentinel policies](/nomad/tutorials/governance-and-policy/sentinel)
+- [Sentinel policy
+  reference](https://developer.hashicorp.com/nomad/docs/enterprise/sentinel)
+
+
+

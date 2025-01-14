@@ -51,7 +51,7 @@ Linux clients or Windows clients.
 region                           = "us-east-1"
 instance_type                    = "t2.medium"
 server_count                     = "3"
-client_count_ubuntu_jammy_amd64  = "4"
+client_count_linux               = "4"
 client_count_windows_2016_amd64  = "1"
 ```
 

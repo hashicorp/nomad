@@ -1,17 +1,19 @@
 ---
 layout: docs
-page_title: audit Block - Agent Configuration
+page_title: audit Block in Agent Configuration
 description: >-
-  The "audit" block configures the Nomad agent to configure Audit Logging
-  behavior. This is an Enterprise-only feature.
+  Configure audit logging behavior in the `audit` block of a Nomad agent configuration. Enable audit logs, define a sink to stream audit logs to, and change filter rules to exclude events from the audit log. Review example audit logs.
 ---
 
-# `audit` Block
+# `audit` Block in Agent Configuration
 
 <Placement groups={['audit']} />
+<EnterpriseAlert product="nomad"/>
 
-The `audit` block configures the Nomad agent to configure Audit logging behavior.
-Audit logging is an Enterprise-only feature.
+This page provides reference information for configuring audit logging behavior
+in the `audit` block of a Nomad agent configuration. Enable audit logs, define a
+sink to stream audit logs to, and change filter rules to exclude events from the
+audit log.
 
 ```hcl
 audit {
@@ -177,12 +179,12 @@ audit {
   apply the filter to for a matching endpoint. For HTTPEvent types this
   corresponds to an HTTP verb (GET, PUT, POST, DELETE...).
 
-## Audit Log Format
+## Example audit logs
 
-Below are two audit log entries for a request made to `/v1/job/web/summary`. The
-first entry is for the `OperationReceived` stage. The second entry is for the
-`OperationComplete` stage and includes the contents of the `OperationReceived`
-stage plus a `response` key.
+The following audit log entries are for a request made to `/v1/job/web/summary`.
+The first entry is for the `OperationReceived` stage. The second entry is for
+the `OperationComplete` stage and includes the contents of the
+`OperationReceived` stage plus a `response` key.
 
 ```json
 {

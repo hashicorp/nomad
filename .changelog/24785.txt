@@ -1,0 +1,11 @@
+```release-note:breaking-change
+api: QuotaSpec.RegionLimit is now of type QuotaResources instead of Resources
+```
+
+```release-note:deprecation
+api: QuotaSpec.VariablesLimit field is deprecated and will be removed in Nomad 1.12.0. Use QuotaSpec.RegionLimit.Storage.Variables instead.
+```
+
+```release-note:deprecation
+quotas: the variables_limit field in the quota specification is deprecated and replaced by a new storage block under the region_limit block, with a variables field. The variables_limit field will be removed in Nomad 1.12.0
+```

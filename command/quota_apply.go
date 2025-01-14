@@ -6,6 +6,7 @@ package command
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -231,7 +232,7 @@ func parseQuotaLimits(result *[]*api.QuotaLimit, list *ast.ObjectList) error {
 
 		// Parse limits
 		if o := listVal.Filter("region_limit"); len(o.Items) > 0 {
-			limit.RegionLimit = new(api.Resources)
+			limit.RegionLimit = new(api.QuotaResources)
 			if err := parseQuotaResource(limit.RegionLimit, o); err != nil {
 				return multierror.Prefix(err, "region_limit ->")
 			}
@@ -244,7 +245,7 @@ func parseQuotaLimits(result *[]*api.QuotaLimit, list *ast.ObjectList) error {
 }
 
 // parseQuotaResource parses the region_limit resources
-func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
+func parseQuotaResource(result *api.QuotaResources, list *ast.ObjectList) error {
 	list = list.Elem()
 	if len(list.Items) == 0 {
 		return nil
@@ -271,6 +272,7 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 		"memory",
 		"memory_max",
 		"device",
+		"storage",
 	}
 	if err := helper.CheckHCLKeys(listVal, valid); err != nil {
 		return multierror.Prefix(err, "resources ->")
@@ -283,6 +285,7 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 
 	// Manually parse
 	delete(m, "device")
+	delete(m, "storage")
 
 	if err := mapstructure.WeakDecode(m, result); err != nil {
 		return err
@@ -296,7 +299,39 @@ func parseQuotaResource(result *api.Resources, list *ast.ObjectList) error {
 		}
 	}
 
+	// Parse storage block
+	storageBlocks := listVal.Filter("storage")
+	storage, err := parseStorageResource(storageBlocks)
+	if err != nil {
+		return multierror.Prefix(err, "storage ->")
+	}
+	result.Storage = storage
+
 	return nil
+}
+
+func parseStorageResource(storageBlocks *ast.ObjectList) (*api.QuotaStorageResources, error) {
+	switch len(storageBlocks.Items) {
+	case 0:
+		return nil, nil
+	case 1:
+	default:
+		return nil, errors.New("only one storage block is allowed")
+	}
+	block := storageBlocks.Items[0]
+	valid := []string{"variables"}
+	if err := helper.CheckHCLKeys(block.Val, valid); err != nil {
+		return nil, err
+	}
+	var storage api.QuotaStorageResources
+	var m map[string]interface{}
+	if err := hcl.DecodeObject(&storage, block.Val); err != nil {
+		return nil, err
+	}
+	if err := mapstructure.WeakDecode(m, &storage); err != nil {
+		return nil, err
+	}
+	return &storage, nil
 }
 
 func parseDeviceResource(result *[]*api.RequestedDevice, list *ast.ObjectList) error {

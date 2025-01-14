@@ -4,19 +4,20 @@
 package fingerprint
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
-	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/session"
-	cleanhttp "github.com/hashicorp/go-cleanhttp"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/ec2/imds"
+	smithyHttp "github.com/aws/smithy-go/transport/http"
+
+	"github.com/hashicorp/go-cleanhttp"
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -52,7 +53,7 @@ var ec2NetSpeedTable = map[*regexp.Regexp]int{
 type EnvAWSFingerprint struct {
 	StaticFingerprinter
 
-	// endpoint for EC2 metadata as expected by AWS SDK
+	// used to override IMDS endpoint for testing
 	endpoint string
 
 	logger log.Logger
@@ -61,8 +62,7 @@ type EnvAWSFingerprint struct {
 // NewEnvAWSFingerprint is used to create a fingerprint from AWS metadata
 func NewEnvAWSFingerprint(logger log.Logger) Fingerprint {
 	f := &EnvAWSFingerprint{
-		logger:   logger.Named("env_aws"),
-		endpoint: strings.TrimSuffix(os.Getenv("AWS_ENV_URL"), "/meta-data/"),
+		logger: logger.Named("env_aws"),
 	}
 	return f
 }
@@ -77,12 +77,16 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 		timeout = 1 * time.Millisecond
 	}
 
-	ec2meta, err := ec2MetaClient(f.endpoint, timeout)
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+
+	imdsClient, err := f.imdsClient(ctx)
 	if err != nil {
-		return fmt.Errorf("failed to setup ec2Metadata client: %v", err)
+		return fmt.Errorf("failed to setup IMDS client: %v", err)
 	}
 
-	if !isAWS(ec2meta) {
+	if !isAWS(ctx, imdsClient) {
+		f.logger.Debug("error querying AWS IDMS URL, skipping")
 		return nil
 	}
 
@@ -104,23 +108,24 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	}
 
 	for k, unique := range keys {
-		resp, err := ec2meta.GetMetadata(k)
-		v := strings.TrimSpace(resp)
+		resp, err := imdsClient.GetMetadata(ctx, &imds.GetMetadataInput{
+			Path: k,
+		})
+		if err := f.handleImdsError(err, k); err != nil {
+			return err
+		}
+		if resp == nil {
+			continue
+		}
+
+		v, err := readMetadataResponse(resp)
+		if err != nil {
+			return err
+		}
+
 		if v == "" {
 			f.logger.Debug("read an empty value", "attribute", k)
 			continue
-		} else if awsErr, ok := err.(awserr.RequestFailure); ok {
-			f.logger.Debug("could not read attribute value", "attribute", k, "error", awsErr)
-			continue
-		} else if awsErr, ok := err.(awserr.Error); ok {
-			// if it's a URL error, assume we're not in an AWS environment
-			// TODO: better way to detect AWS? Check xen virtualization?
-			if _, ok := awsErr.OrigErr().(*url.Error); ok {
-				return nil
-			}
-
-			// not sure what other errors it would return
-			return err
 		}
 
 		// assume we want blank entries
@@ -144,7 +149,7 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 				Device: "eth0",
 				IP:     val,
 				CIDR:   val + "/32",
-				MBits:  f.throughput(request, ec2meta, val),
+				MBits:  f.throughput(request, imdsClient, val),
 			},
 		}
 	}
@@ -152,24 +157,24 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	// copy over IPv6 network specific information
 	if val, ok := response.Attributes["unique.platform.aws.mac"]; ok && val != "" {
 		k := "network/interfaces/macs/" + val + "/ipv6s"
-		addrsStr, err := ec2meta.GetMetadata(k)
-		addrsStr = strings.TrimSpace(addrsStr)
-		if addrsStr == "" {
-			f.logger.Debug("read an empty value", "attribute", k)
-		} else if awsErr, ok := err.(awserr.RequestFailure); ok {
-			f.logger.Debug("could not read attribute value", "attribute", k, "error", awsErr)
-		} else if awsErr, ok := err.(awserr.Error); ok {
-			// if it's a URL error, assume we're not in an AWS environment
-			// TODO: better way to detect AWS? Check xen virtualization?
-			if _, ok := awsErr.OrigErr().(*url.Error); ok {
-				return nil
+		resp, err := imdsClient.GetMetadata(ctx, &imds.GetMetadataInput{
+			Path: k,
+		})
+		if err := f.handleImdsError(err, k); err != nil {
+			return err
+		}
+		if resp != nil {
+			addrsStr, err := readMetadataResponse(resp)
+			if err != nil {
+				return err
 			}
 
-			// not sure what other errors it would return
-			return err
-		} else {
-			addrs := strings.SplitN(addrsStr, "\n", 2)
-			response.AddAttribute("unique.platform.aws.public-ipv6", addrs[0])
+			if addrsStr == "" {
+				f.logger.Debug("read an empty value", "attribute", k)
+			} else {
+				addrs := strings.SplitN(addrsStr, "\n", 2)
+				response.AddAttribute("unique.platform.aws.public-ipv6", addrs[0])
+			}
 		}
 	}
 
@@ -184,21 +189,41 @@ func (f *EnvAWSFingerprint) Fingerprint(request *FingerprintRequest, response *F
 	return nil
 }
 
-func (f *EnvAWSFingerprint) instanceType(ec2meta *ec2metadata.EC2Metadata) (string, error) {
-	response, err := ec2meta.GetMetadata("instance-type")
+// See https://aws.github.io/aws-sdk-go-v2/docs/handling-errors for
+// recommended error handling with aws-sdk-go-v2.
+// See also: https://github.com/aws/aws-sdk-go-v2/issues/1306
+func (f *EnvAWSFingerprint) handleImdsError(err error, attr string) error {
+	var apiErr *smithyHttp.ResponseError
+	if errors.As(err, &apiErr) {
+		// In the event of a request error while fetching attributes, just log and return nil.
+		// This will happen if attributes do not exist for this instance (ex. ipv6, public-ipv4s).
+		f.logger.Debug("could not read attribute value", "attribute", attr, "error", err)
+		return nil
+	}
+	return err
+}
+
+func (f *EnvAWSFingerprint) instanceType(client *imds.Client) (string, error) {
+	output, err := client.GetMetadata(context.TODO(), &imds.GetMetadataInput{
+		Path: "instance-type",
+	})
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(response), nil
+	content, err := io.ReadAll(output.Content)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(content)), nil
 }
 
-func (f *EnvAWSFingerprint) throughput(request *FingerprintRequest, ec2meta *ec2metadata.EC2Metadata, ip string) int {
+func (f *EnvAWSFingerprint) throughput(request *FingerprintRequest, client *imds.Client, ip string) int {
 	throughput := request.Config.NetworkSpeed
 	if throughput != 0 {
 		return throughput
 	}
 
-	throughput = f.linkSpeed(ec2meta)
+	throughput = f.linkSpeed(client)
 	if throughput != 0 {
 		return throughput
 	}
@@ -215,8 +240,8 @@ func (f *EnvAWSFingerprint) throughput(request *FingerprintRequest, ec2meta *ec2
 }
 
 // EnvAWSFingerprint uses lookup table to approximate network speeds
-func (f *EnvAWSFingerprint) linkSpeed(ec2meta *ec2metadata.EC2Metadata) int {
-	instanceType, err := f.instanceType(ec2meta)
+func (f *EnvAWSFingerprint) linkSpeed(client *imds.Client) int {
+	instanceType, err := f.instanceType(client)
 	if err != nil {
 		f.logger.Error("error reading instance-type", "error", err)
 		return 0
@@ -233,26 +258,51 @@ func (f *EnvAWSFingerprint) linkSpeed(ec2meta *ec2metadata.EC2Metadata) int {
 	return netSpeed
 }
 
-func ec2MetaClient(endpoint string, timeout time.Duration) (*ec2metadata.EC2Metadata, error) {
+func (f *EnvAWSFingerprint) imdsClient(ctx context.Context) (*imds.Client, error) {
 	client := &http.Client{
-		Timeout:   timeout,
 		Transport: cleanhttp.DefaultTransport(),
 	}
-
-	c := aws.NewConfig().WithHTTPClient(client).WithMaxRetries(0)
-	if endpoint != "" {
-		c = c.WithEndpoint(endpoint)
-	}
-
-	sess, err := session.NewSession(c)
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithHTTPClient(client),
+		config.WithRetryMaxAttempts(0),
+	)
 	if err != nil {
 		return nil, err
 	}
-	return ec2metadata.New(sess, c), nil
+
+	imdsClient := imds.NewFromConfig(cfg, func(o *imds.Options) {
+		// endpoint should only be overridden for testing
+		if f.endpoint != "" {
+			o.Endpoint = f.endpoint
+		}
+	})
+	return imdsClient, nil
 }
 
-func isAWS(ec2meta *ec2metadata.EC2Metadata) bool {
-	v, err := ec2meta.GetMetadata("ami-id")
-	v = strings.TrimSpace(v)
-	return err == nil && v != ""
+func isAWS(ctx context.Context, client *imds.Client) bool {
+	resp, err := client.GetMetadata(ctx, &imds.GetMetadataInput{
+		Path: "ami-id",
+	})
+	if err != nil {
+		return false
+	}
+
+	s, err := readMetadataResponse(resp)
+	if err != nil {
+		return false
+	}
+
+	return s != ""
+}
+
+// readImdsResponse reads and formats the IMDS response
+// and most importantly, closes the io.ReadCloser
+func readMetadataResponse(resp *imds.GetMetadataOutput) (string, error) {
+	defer resp.Content.Close()
+
+	b, err := io.ReadAll(resp.Content)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(b)), nil
 }

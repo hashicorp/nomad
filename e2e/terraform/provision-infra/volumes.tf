@@ -3,7 +3,7 @@
 
 resource "aws_efs_file_system" "csi" {
   count          = var.volumes ? 1 : 0
-  creation_token = "${local.random_name}-CSI"
+  creation_token = "${random_pet.e2e.id}-CSI"
 
   tags = {
     Name = "${local.random_name}-efs"
@@ -23,6 +23,6 @@ resource "local_file" "efs_volume_hcl" {
   content = templatefile("${path.module}/volumes.tftpl", {
     id = aws_efs_file_system.csi[0].id,
   })
-  filename        = "${path.module}/../csi/input/volume-efs.hcl"
+  filename        = "${path.module}/csi/input/volume-efs.hcl"
   file_permission = "0664"
 }

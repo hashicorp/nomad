@@ -291,12 +291,12 @@
         "path": "configuration/reporting"
       },
       {
-        "title": "sentinel",
-        "path": "configuration/sentinel"
-      },
-      {
         "title": "search",
         "path": "configuration/search"
+      },
+      {
+        "title": "sentinel",
+        "path": "configuration/sentinel"
       },
       {
         "title": "server",

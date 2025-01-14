@@ -1,21 +1,24 @@
 ---
 layout: docs
-page_title: reporting Block - Agent Configuration
+page_title: reporting Block in Agent Configuration
 description: >-
-  The "reporting" block configures the Nomad agents automated license
-  utilization reporting.
+  Enable automated license utilization reporting in the `reporting` block of a Nomad agent configuration. Configuration applies to agents running Nomad Enterprise with server mode enabled.
 ---
 
-# `reporting` Block
+# `reporting` Block in Agent Configuration
 
 <Placement groups={['reporting']} />
+<EnterpriseAlert product="nomad"/>
 
-The `reporting` block configures the Nomad agents automated license utilization
-reporting. This is an Enterprise-only feature and the configuration applies to
-agents running with [server mode enabled][server_mode_enabled].
+This page provides reference information for enabling automated license
+utilization reporting in the `reporting` block of a Nomad agent configuration.
 
-For more information about automated license utilization reporting, please see the
-[guide][automated_license_utilization_reporting].
+Configuration applies to agents running with [server mode
+enabled][server_mode_enabled].
+
+Refer to the [Automated license utilization reporting
+guide][automated_license_utilization_reporting] for which ports to open and what
+data is shared.
 
 ```hcl
 reporting {

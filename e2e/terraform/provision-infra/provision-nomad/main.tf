@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 locals {
-  upload_dir = "uploads/${var.instance.public_ip}"
-
+  upload_dir          = "${var.uploads_dir}/${var.instance.public_ip}"
+  shared_dir          = "${var.uploads_dir}/shared"
   indexed_config_path = fileexists("${path.module}/etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl") ? "${path.module}/etc/nomad.d/${var.role}-${var.platform}-${var.index}.hcl" : "${path.module}/etc/nomad.d/index.hcl"
 }
 
@@ -59,19 +59,19 @@ resource "null_resource" "upload_consul_configs" {
   }
 
   provisioner "file" {
-    source      = "uploads/shared/consul.d/agent_cert.key.pem"
+    source      = "${local.shared_dir}/consul.d/agent_cert.key.pem"
     destination = "/tmp/consul_cert.key.pem"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/agent_cert.pem"
+    source      = "${local.shared_dir}/consul.d/agent_cert.pem"
     destination = "/tmp/consul_cert.pem"
   }
   provisioner "file" {
-    source      = "keys/tls_ca.crt"
+    source      = "${path.module}/../keys/tls_ca.crt"
     destination = "/tmp/consul_ca.crt"
   }
   provisioner "file" {
-    source      = "uploads/shared/consul.d/clients.hcl"
+    source      = "${local.shared_dir}/consul.d/clients.hcl"
     destination = "/tmp/consul_client.hcl"
   }
   provisioner "file" {
@@ -94,12 +94,12 @@ resource "null_resource" "upload_nomad_configs" {
 
   # created in consul-clients.tf
   provisioner "file" {
-    source      = "uploads/shared/nomad.d/${var.role}-consul.hcl"
+    source      = "${local.shared_dir}/nomad.d/${var.role}-consul.hcl"
     destination = "/tmp/consul.hcl"
   }
   # created in hcp_vault.tf
   provisioner "file" {
-    source      = "uploads/shared/nomad.d/vault.hcl"
+    source      = "${local.shared_dir}/nomad.d/vault.hcl"
     destination = "/tmp/vault.hcl"
   }
 
@@ -136,24 +136,23 @@ resource "null_resource" "upload_nomad_configs" {
     destination = "/tmp/agent-${var.instance.public_ip}.crt"
   }
   provisioner "file" {
-    source      = "keys/tls_api_client.key"
+    source      = "${path.module}/../keys/tls_api_client.key"
     destination = "/tmp/tls_proxy.key"
   }
   provisioner "file" {
-    source      = "keys/tls_api_client.crt"
+    source      = "${path.module}/../keys/tls_api_client.crt"
     destination = "/tmp/tls_proxy.crt"
   }
   provisioner "file" {
-    source      = "keys/tls_ca.crt"
+    source      = "${path.module}/../keys/tls_ca.crt"
     destination = "/tmp/ca.crt"
   }
   provisioner "file" {
-    source      = "keys/self_signed.key"
+    source      = "${path.module}/../keys/self_signed.key"
     destination = "/tmp/self_signed.key"
   }
   provisioner "file" {
-    source      = "keys/self_signed.crt"
+    source      = "${path.module}/../keys/self_signed.crt"
     destination = "/tmp/self_signed.crt"
   }
-
 }

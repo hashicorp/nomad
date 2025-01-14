@@ -174,7 +174,6 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 
 	case VolumeTypeHost:
 		if v.MountOptions != nil {
-			// TODO(1.10.0): support mount options for dynamic host volumes
 			addErr("host volumes cannot have mount options")
 		}
 

@@ -87,9 +87,9 @@ func GetHostVolumePluginVersions(log hclog.Logger, pluginDir string) (map[string
 	mut := sync.Mutex{}
 	var wg sync.WaitGroup
 
-	for file, fullPath := range files {
+	for file := range files {
 		wg.Add(1)
-		go func(file, fullPath string) {
+		go func(file string) {
 			defer wg.Done()
 			// really should take way less than a second
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -97,7 +97,7 @@ func GetHostVolumePluginVersions(log hclog.Logger, pluginDir string) (map[string
 
 			log := log.With("plugin_id", file)
 
-			p, err := hvm.NewHostVolumePluginExternal(log, file, fullPath, "")
+			p, err := hvm.NewHostVolumePluginExternal(log, pluginDir, file, "")
 			if err != nil {
 				log.Warn("error getting plugin", "error", err)
 				return
@@ -112,7 +112,7 @@ func GetHostVolumePluginVersions(log hclog.Logger, pluginDir string) (map[string
 			mut.Lock()
 			plugins[file] = fprint.Version.String()
 			mut.Unlock()
-		}(file, fullPath)
+		}(file)
 	}
 
 	wg.Wait()

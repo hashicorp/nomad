@@ -206,10 +206,11 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 		if volCfg.ID != "" { // dynamic host volume
 			vol, err := h.ctx.State().HostVolumeByID(nil, h.namespace, volCfg.ID, false)
 			if err != nil || vol == nil {
-				// node fingerprint has a dynamic volume that's no longer in the
-				// state store; this is only possible if the batched fingerprint
-				// update from a delete RPC is written before the delete RPC's
-				// raft entry completes
+				// the dynamic host volume in the node fingerprint does not
+				// belong to the namespace we need. or the volume is no longer
+				// in the state store because the batched fingerprint update
+				// from a delete RPC is written before the delete RPC's raft
+				// entry completes
 				return false
 			}
 			if !h.hostVolumeIsAvailable(vol,

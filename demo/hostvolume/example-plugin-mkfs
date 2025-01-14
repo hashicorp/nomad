@@ -120,7 +120,7 @@ delete_volume() {
 
 case "$1" in
   "create")
-    create_volume "$host_path" "$CAPACITY_MIN_BYTES"
+    create_volume "$host_path" "$DHV_CAPACITY_MIN_BYTES"
     # output what Nomad expects
     bytes="$(st "$host_path".$ext)"
     printf '{"path": "%s", "bytes": %s}' "$host_path" "$bytes"

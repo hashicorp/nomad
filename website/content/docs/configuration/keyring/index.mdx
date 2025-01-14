@@ -1,13 +1,18 @@
 ---
 layout: docs
-page_title: keyring Block - Agent Configuration
+page_title: keyring Block in Agent Configuration
 description: >-
-  The "keyring" block configures the Nomad servers keyring decryption behavior.
+  Configure keyring protection behavior in the `keyring` block of a Nomad agent configuration. Enable a keyring and configure a name. Learn how to configure keyring high availability (HA) and migrate keyrings.
 ---
 
-# `keyring` Block
+# `keyring` Block in Agent Configuration
 
 <Placement groups={['keyring']} />
+
+This page provides reference information for configuring keyring protection
+behavior in the `keyring` block of a Nomad agent configuration. Enable a keyring
+and configure a name. Learn how to configure keyring high availability (HA) and
+migrate keyrings.
 
 The `keyring` block configures how the Nomad server protects the keyring used
 for encrypting [variables][] and signing [workload identities][]. By default,
@@ -68,9 +73,7 @@ keyring list`][keyring_list_cmd].
 
 ## High Availability
 
-<EnterpriseAlert>
-  This functionality only exists in Nomad Enterprise.
-</EnterpriseAlert>
+<EnterpriseAlert product="nomad"/>
 
 Keyring high availability provides the means to configure multiple active
 `keyring` blocks, in order to have resilience against an outage of an external
