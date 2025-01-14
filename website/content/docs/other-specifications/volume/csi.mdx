@@ -1,0 +1,291 @@
+---
+layout: docs
+page_title: CSI Volume Specification
+description: |-
+  Learn about the Nomad Container Storage Interface (CSI) volume
+  specification. Create and register CSI volumes using the `volume create`
+  and `volume register` commands and the
+  `PUT /v1/volume/csi/:volume_id/create` and
+  `PUT /v1/volume/csi/:volume_id` API endpoints. Define capacity, capabilities, mount
+  options, secrets, topology requests, and a context map of values passed
+  directly to the CSI plugin to validate the volume. Learn how volume
+  creation and registration are different. Additionally, learn how to
+  expand the size of a volume and update a volume definition.
+---
+
+# CSI Volume Specification
+
+This page provides reference information for the Nomad Container Storage
+Interface (CSI) volume specification. Create and register CSI volumes using the
+[`volume create`][] and [`volume register`][] commands and the [`PUT
+/v1/volume/csi/:volume_id/create`][api_volume_create] and [`PUT
+/v1/volume/csi/:volume_id`][api_volume_register] API endpoints. Define capacity,
+capabilities, mount options, secrets, topology requests, and a context map of
+values passed directly to the CSI plugin to validate the volume.  Learn how
+volume creation and registration are different. Additionally, learn how to
+expand the size of a volume and update a volume definition.
+
+Some attributes are only supported by a specific operation, while others may
+have a different meaning for each action, so read the documentation for each
+attribute carefully. The section [Differences Between Create and
+Register](#differences-between-create-and-register) provides a summary of the
+differences.
+
+Provide the file as either HCL or JSON to the commands and as JSON to the API.
+
+## Volume Specification Parameters
+
+- `capability` <code>([Capability][capability]: &lt;required&gt;)</code> -
+  Option for validating the capability of a volume.
+
+- `capacity_min` `(string: <optional>)` - Option for requesting a minimum
+  capacity, in bytes. The capacity of a volume may be the physical size of a
+  disk, or a quota, depending on the storage provider. The specific size of the
+  resulting volume is somewhere between `capacity_min` and `capacity_max`; the
+  exact behavior is up to the storage provider. If you want to specify an exact
+  size, you should set `capacity_min` and `capacity_max` to the same
+  value. Accepts human-friendly suffixes such as `"100GiB"`. This field may not
+  be supported by all storage providers. Increasing this value and reissuing
+  `volume create` or `volume register` may expand the volume, if the CSI plugin
+  supports it.
+
+- `capacity_max` `(string: <optional>)` - Option for requesting a maximum
+  capacity, in bytes. The capacity of a volume may be the physical size of a
+  disk, or a quota, depending on the storage provider. The specific size of the
+  resulting volume is somewhere between `capacity_min` and `capacity_max`; the
+  exact behavior is up to the storage provider. If you want to specify an exact
+  size, you should set `capacity_min` and `capacity_max` to the same
+  value. Accepts human-friendly suffixes such as `"100GiB"`. This field may not
+  be supported by all storage providers.
+
+- `clone_id` `(string: <optional>)` - If the storage provider supports cloning,
+  the external ID of the volume to clone when creating this volume. If omitted,
+  the volume is created from scratch. The `clone_id` cannot be set if the
+  `snapshot_id` field is set. Only allowed on volume creation.
+
+- `context` <code>(map<string|string>:nil)</code> - An optional key-value map of
+  strings passed directly to the CSI plugin to validate the volume. The details
+  of these parameters are specific to each storage provider, so consult the
+  specific plugin documentation for more information. Only allowed on volume
+  registration. Note that, like the rest of the volume specification, this block
+  is declarative, and an update replaces it in its entirety, therefore all
+  parameters need to be specified.
+
+- `external_id` `(string: <required>)` - The ID of the physical volume from the
+  storage provider. For example, the volume ID of an AWS EBS volume or Digital
+  Ocean volume. Only allowed on volume registration.
+
+- `id` `(string: <required>)` - The unique ID of the volume. This is how the
+  [`volume.source`][csi_volume_source] field in a job specification refers to
+  the volume.
+
+- `mount_options` <code>([MountOptions][mount_options]:
+  &lt;required&gt;)</code> - Options for mounting `file-system` volumes that
+  don't already have a pre-formatted file system.
+
+- `name` `(string: <required>)` - The display name of the volume. On volume
+  creation, this field may be used by the external storage provider to tag the
+  volume.
+
+- `namespace` `(string: <optional>)` - The namespace of the volume. This field
+  overrides the namespace provided by the `-namespace` flag or `NOMAD_NAMESPACE`
+  environment variable. Defaults to `"default"` if unset.
+
+- `parameters` <code>(map<string|string>:nil)</code> - An optional key-value map
+  of strings passed directly to the CSI plugin to configure the volume. The
+  details of these parameters are specific to each storage provider, so consult
+  the specific plugin documentation for more information.
+
+- `plugin_id` `(string: <required>)` - The ID of the [CSI plugin][csi_plugin]
+  that manages this volume.
+
+- `secrets` <code>(map<string|string>:nil)</code> - An optional key-value map of
+  strings used as credentials for publishing and unpublishing volumes.
+
+- `snapshot_id` `(string: <optional>)` - If the storage provider supports
+  snapshots, the external ID of the snapshot to restore when creating this
+  volume. If omitted, the volume is created from scratch. The `snapshot_id`
+  cannot be set if the `clone_id` field is set. Only allowed on volume creation.
+
+- `topology_request` <code>([TopologyRequest][topology_request]: nil)</code> -
+  Specify locations such as region, zone, and rack where the provisioned volume
+  must be accessible from in the case of volume creation, or the locations where
+  the existing volume is accessible from in the case of volume registration.
+
+- `type` `(string: <required>)` - The type of volume. Must be `"csi"` for CSI
+  volumes.
+
+## Differences Between Create and Register
+
+Several fields are set automatically by the plugin when `volume create` or
+`volume register` commands are successful and you should not set their values if
+they are not supported by the operation.
+
+On **volume registration** you should not set the [`snapshot_id`](#snapshot_id),
+or [`clone_id`](#clone_id) fields.
+
+On **volume creation** you should not set the [`external_id`](#external_id) or
+[`context`](#context) fields.
+
+## Updating a Volume Definition
+
+The `volume register` command allows updating a volume definition. However,
+after volume registration, you are only allowed to update the following fields:
+
+* `capacity_min` and `capacity_max`. You may increase the volume size if the CSI
+  plugin supports it. Expansion may or may not be possible while the volume is
+  in use, again depending on the plugin.  Reducing volume capacity is not
+  allowed per the CSI spec.
+* `mount_options` block if the volume is not in use.
+* `secrets` block
+* `context` block. The values for this field are typically provided by the CSI
+  plugin and should not be updated unless recommended by the CSI plugin's
+  documentation.
+
+Additionally, you may add or remove `capability` blocks, but only if the
+capability is not currently in use by a mounted volume.
+
+## Volume Expansion
+
+You may expand CSI Volumes if the CSI controller plugin and node plugin, if
+required, has the `EXPAND_VOLUME` capability.
+
+To trigger a volume expansion, increase [`capacity_min`](#capacity_min) above
+the current real capacity of the volume, as received from the [`volume
+status`][] command, and re-issue either [`volume create`][] or [`volume
+register`][].
+
+Nomad reconciles the requested capacity by issuing expand volume requests to the
+controller plugin, and if required by the controller, also to the node plugins
+for each allocation that has a claim on the volume.
+
+## Examples
+
+### Volume registration
+
+This is an example file used for the [`volume register`][] command.
+
+```hcl
+id              = "ebs_prod_db1"
+name            = "database"
+type            = "csi"
+external_id     = "vol-23452345"
+plugin_id       = "ebs-prod"
+
+capability {
+  access_mode     = "single-node-reader-only"
+  attachment_mode = "file-system"
+}
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
+
+mount_options {
+  fs_type     = "ext4"
+  mount_flags = ["noatime"]
+}
+
+topology_request {
+  required {
+    topology { segments { "rack" = "R2" } }
+    topology { segments { "rack" = "R1", "zone" = "us-east-1a"} }
+  }
+}
+
+secrets {
+  example_secret = "xyzzy"
+}
+
+parameters {
+  skuname = "Premium_LRS"
+}
+
+context {
+  endpoint = "http://192.168.1.101:9425"
+}
+```
+
+
+### Example Volume Expansion
+
+Either [`volume create`][] or [`volume register`][] commands can trigger
+an expand to occur, after the volume has already been created or registered.
+
+This example shows you how to expand a volume using the `volume create` command.
+
+1. Create a volume configuration file called `volume.hcl` that defines ID, name,
+   type, plugin ID, and capacity.
+
+   ```hcl
+   id        = "ebs_prod_db1"
+   name      = "database"
+   type      = "csi"
+   plugin_id = "ebs-prod"
+
+   capacity_min = "50gib"
+   capacity_max = "50gib"
+
+   # ... etc ...
+   ```
+
+1. Create the volume using the [`volume create`] command.
+
+   ```shell-session
+   $ nomad volume create volume.hcl
+   Created external volume vol-asdf1234 with ID ebs_prod_db1
+   ```
+
+1.  Review the volume's current capacity using the [`volume status`] command.
+
+   ```shell-session
+   $ nomad volume status ebs_prod_db1 | grep Capacity
+   Capacity             = 50 GiB
+   ```
+
+1. Increase volume capacity in the `volume.hcl` file.
+
+   Update the `capacity_min` and `capacity_max` fields.
+
+   ```hcl
+   id        = "ebs_prod_db1"
+   name      = "database"
+   type      = "csi"
+   plugin_id = "ebs-prod"
+   # all of the above must remain the same
+
+   capacity_min = "100gib" # double
+   capacity_max = "100gib" # increased to match
+
+   # ... etc ...
+   ```
+
+1. Expand the volume using the [`volume create`] command.
+
+   ```shell-session
+   $ nomad volume create volume.hcl
+   Created external volume vol-asdf1234 with ID ebs_prod_db1
+   ```
+
+1. Review the new capacity by running the [`volume status`] command.
+
+   ```shell-session
+   $ nomad volume status ebs_prod_db1 | grep Capacity
+   Capacity             = 100 GiB
+   ```
+
+If you encounter errors that are not clear from the command output,
+the CSI plugin allocation logs and Nomad leader server logs may be
+helpful.
+
+[api_volume_create]: /nomad/api-docs/volumes#create-csi-volume
+[api_volume_register]: /nomad/api-docs/volumes#register-volume
+[capability]: /nomad/docs/other-specifications/volume/capability
+[csi_plugin]: /nomad/docs/job-specification/csi_plugin
+[csi_volume_source]: /nomad/docs/job-specification/volume#source
+[mount_options]: /nomad/docs/other-specifications/volume/mount_options
+[topology_request]: /nomad/docs/other-specifications/volume/topology_request
+[`volume create`]: /nomad/docs/commands/volume/create
+[`volume register`]: /nomad/docs/commands/volume/register
+[`volume status`]: /nomad/docs/commands/volume/status
