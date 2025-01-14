@@ -154,6 +154,9 @@ BUG FIXES:
 * template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
 * ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
 
+## 1.8.9 (January 14, 2025)
+
+
 ## 1.8.8 Enterprise (December 18, 2024)
 
 SECURITY:
@@ -427,6 +430,9 @@ BUG FIXES:
 * ui: Fixed an issue where keynav would not trigger evaluation sidebar expand [[GH-20047](https://github.com/hashicorp/nomad/issues/20047)]
 * ui: Show the namespace in the web UI exec command hint [[GH-20218](https://github.com/hashicorp/nomad/issues/20218)]
 * windows: Fixed a regression where scanning task processes was inefficient [[GH-20619](https://github.com/hashicorp/nomad/issues/20619)]
+
+## 1.7.17 Enterprise (January 14, 2025)
+
 
 ## 1.7.16 Enterprise (December 18, 2024)
 
