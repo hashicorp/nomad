@@ -3,14 +3,20 @@
 
 job "example" {
 
-  type = "batch"
+  # this job will get deployed and recheduled a lot in this test, so make sure
+  # it happens as quickly as possible
+
+  update {
+    min_healthy_time = "1s"
+  }
+
+  reschedule {
+    delay          = "5s"
+    delay_function = "constant"
+    unlimited      = true
+  }
 
   group "web" {
-
-    constraint {
-      attribute = "${attr.kernel.name}"
-      value     = "linux"
-    }
 
     network {
       mode = "bridge"
@@ -19,9 +25,15 @@ job "example" {
       }
     }
 
+    restart {
+      attempts = 0
+      mode     = "fail"
+    }
+
     volume "data" {
       type   = "host"
-      source = "registered-volume"
+      source = "sticky-volume"
+      sticky = true
     }
 
     task "http" {
@@ -46,4 +58,5 @@ job "example" {
 
     }
   }
+
 }
