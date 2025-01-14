@@ -500,6 +500,7 @@ type KeyringUpdateRootKeyMetaResponse struct {
 
 type KeyringDeleteRootKeyRequest struct {
 	KeyID string
+	Force bool
 	WriteRequest
 }
 

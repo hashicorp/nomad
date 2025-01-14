@@ -13,8 +13,14 @@ import { copy } from 'ember-copy';
 import formatHost from 'nomad-ui/utils/format-host';
 import faker from 'nomad-ui/mirage/faker';
 
-export function findLeader(schema) {
-  const agent = schema.agents.first();
+export function findLeader(schema, region = null) {
+  let agent;
+  let agents = schema.agents.all().models;
+  if (region) {
+    agent = agents.find((agent) => agent.member?.Tags?.region === region);
+  } else {
+    agent = agents[0];
+  }
   return formatHost(agent.member.Address, agent.member.Tags.port);
 }
 
@@ -741,8 +747,9 @@ export default function () {
     return logEncode(logFrames, logFrames.length - 1);
   });
 
-  this.get('/status/leader', function (schema) {
-    return JSON.stringify(findLeader(schema));
+  this.get('/status/leader', function (schema, { queryParams: { region } }) {
+    let leader = JSON.stringify(findLeader(schema, region));
+    return leader;
   });
 
   this.get('/acl/tokens', function ({ tokens }, req) {

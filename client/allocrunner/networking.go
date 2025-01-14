@@ -14,7 +14,7 @@ import (
 // NetworkConfigurator sets up and tears down the interfaces, routes, firewall
 // rules, etc for the configured networking mode of the allocation.
 type NetworkConfigurator interface {
-	Setup(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error)
+	Setup(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec, bool) (*structs.AllocNetworkStatus, error)
 	Teardown(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec) error
 }
 
@@ -23,7 +23,7 @@ type NetworkConfigurator interface {
 // require further configuration
 type hostNetworkConfigurator struct{}
 
-func (h *hostNetworkConfigurator) Setup(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
+func (h *hostNetworkConfigurator) Setup(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec, bool) (*structs.AllocNetworkStatus, error) {
 	return nil, nil
 }
 func (h *hostNetworkConfigurator) Teardown(context.Context, *structs.Allocation, *drivers.NetworkIsolationSpec) error {
@@ -41,10 +41,10 @@ type synchronizedNetworkConfigurator struct {
 	nc NetworkConfigurator
 }
 
-func (s *synchronizedNetworkConfigurator) Setup(ctx context.Context, allocation *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
+func (s *synchronizedNetworkConfigurator) Setup(ctx context.Context, allocation *structs.Allocation, spec *drivers.NetworkIsolationSpec, created bool) (*structs.AllocNetworkStatus, error) {
 	networkingGlobalMutex.Lock()
 	defer networkingGlobalMutex.Unlock()
-	return s.nc.Setup(ctx, allocation, spec)
+	return s.nc.Setup(ctx, allocation, spec, created)
 }
 
 func (s *synchronizedNetworkConfigurator) Teardown(ctx context.Context, allocation *structs.Allocation, spec *drivers.NetworkIsolationSpec) error {

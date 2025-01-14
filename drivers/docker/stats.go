@@ -6,6 +6,7 @@ package docker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -89,13 +90,18 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration, compute 
 	return recvCh, nil
 }
 
-// collectStats starts collecting resource usage stats of a docker container
+// collectStats starts collecting resource usage stats of a Docker container
+// and does this until the context or the tasks handler done channel is closed.
 func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, interval time.Duration, compute cpustats.Compute) {
 	defer destCh.close()
 
+	// retry tracks the number of retries the collection has been through since
+	// the last successful Docker API call. This is used to calculate the
+	// backoff time for the collection ticker.
+	var retry uint64
+
 	ticker, cancel := helper.NewSafeTicker(interval)
 	defer cancel()
-	var stats *containerapi.Stats
 
 	for {
 		select {
@@ -104,30 +110,48 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 		case <-h.doneCh:
 			return
 		case <-ticker.C:
-			// we need to use the streaming stats API here because our calculation for
-			// CPU usage depends on having the values from the previous read, which are
-			// not available in one-shot. This streaming stats can be reused over time,
-			// but require synchronization, which restricts the interval for the metrics.
-			statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, true)
-			if err != nil && err != io.EOF {
-				h.logger.Debug("error collecting stats from container", "error", err)
-				return
+			stats, err := h.collectDockerStats(ctx)
+			switch err {
+			case nil:
+				resourceUsage := util.DockerStatsToTaskResourceUsage(stats, compute)
+				destCh.send(resourceUsage)
+				ticker.Reset(interval)
+				retry = 0
+			default:
+				h.logger.Error("error collecting stats from container", "error", err)
+				ticker.Reset(helper.Backoff(statsCollectorBackoffBaseline, statsCollectorBackoffLimit, retry))
+				retry++
 			}
-
-			err = json.NewDecoder(statsReader.Body).Decode(&stats)
-			statsReader.Body.Close()
-			if err != nil && err != io.EOF {
-				h.logger.Error("error decoding stats data from container", "error", err)
-				return
-			}
-
-			if stats == nil {
-				h.logger.Error("error decoding stats data: stats were nil")
-				return
-			}
-
-			resourceUsage := util.DockerStatsToTaskResourceUsage(stats, compute)
-			destCh.send(resourceUsage)
 		}
 	}
+}
+
+// collectDockerStats performs the stats collection from the Docker API. It is
+// split into its own function for the purpose of aiding testing.
+func (h *taskHandle) collectDockerStats(ctx context.Context) (*containerapi.Stats, error) {
+
+	var stats *containerapi.Stats
+
+	statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, false)
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("failed to collect stats: %w", err)
+	}
+
+	// Ensure the body is not nil to avoid potential panics. The statsReader
+	// itself cannot be nil, so there is no need to check this.
+	if statsReader.Body == nil {
+		return nil, errors.New("error decoding stats data: no reader body")
+	}
+
+	err = json.NewDecoder(statsReader.Body).Decode(&stats)
+	_ = statsReader.Body.Close()
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("failed to decode Docker response: %w", err)
+	}
+
+	if stats == nil {
+		return nil, errors.New("error decoding stats data: stats were nil")
+	}
+
+	return stats, nil
 }

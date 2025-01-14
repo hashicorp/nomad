@@ -59,6 +59,16 @@ func LaunchLogMon(logger hclog.Logger, reattachConfig *plugin.ReattachConfig) (L
 		return nil, nil, err
 	}
 
+	// Note: Similar to reattaching to executors, Go-plugin uses localhost
+	// ports on Windows. On reattach, it may attach to another process
+	// listening on that port. We should validate it is actually a plugin.
+	if conf.Reattach != nil {
+		if err := rpcClient.Ping(); err != nil {
+			logger.Warn("failed to ping plugin process during reattach", "error", err)
+			return nil, nil, err
+		}
+	}
+
 	l := raw.(LogMon)
 	return l, client, nil
 }

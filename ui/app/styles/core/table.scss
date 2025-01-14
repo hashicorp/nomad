@@ -110,7 +110,8 @@
       white-space: nowrap;
     }
 
-    &.node-status-badges {
+    &.node-status-badges,
+    &.server-status-badges {
       .hds-badge__text {
         white-space: nowrap;
       }

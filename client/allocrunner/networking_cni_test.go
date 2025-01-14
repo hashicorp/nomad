@@ -296,7 +296,7 @@ func TestSetup(t *testing.T) {
 			}
 
 			// method under test
-			result, err := c.Setup(context.Background(), alloc, spec)
+			result, err := c.Setup(context.Background(), alloc, spec, true)
 			if tc.expectErr == "" {
 				must.NoError(t, err)
 				must.Eq(t, tc.expectResult, result)

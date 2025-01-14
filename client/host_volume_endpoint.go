@@ -43,6 +43,24 @@ func (v *HostVolume) Create(
 	return nil
 }
 
+func (v *HostVolume) Register(
+	req *cstructs.ClientHostVolumeRegisterRequest,
+	resp *cstructs.ClientHostVolumeRegisterResponse) error {
+
+	defer metrics.MeasureSince([]string{"client", "host_volume", "register"}, time.Now())
+	ctx, cancelFn := v.requestContext()
+	defer cancelFn()
+
+	err := v.c.hostVolumeManager.Register(ctx, req)
+	if err != nil {
+		v.c.logger.Error("failed to register host volume", "name", req.Name, "error", err)
+		return err
+	}
+
+	v.c.logger.Info("registered host volume", "id", req.ID, "path", req.HostPath)
+	return nil
+}
+
 func (v *HostVolume) Delete(
 	req *cstructs.ClientHostVolumeDeleteRequest,
 	resp *cstructs.ClientHostVolumeDeleteResponse) error {

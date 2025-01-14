@@ -1,14 +1,19 @@
 ---
 layout: docs
-page_title: plugin Block - Agent Configuration
-description: The "plugin" block is used to configure a Nomad plugin.
+page_title: plugin Block in Agent Configuration
+description: Configure task driver and device driver plugins in the `plugin` block of a Nomad agent configuration. Specify arguments to pass to the plugin. Configure values specific to the plugin.
 ---
 
-# `plugin` Block
+# `plugin` Block in Agent Configuration
 
 <Placement groups={['plugin']} />
 
-The `plugin` block is used to configure plugins.
+This page provides reference information for configuring task driver and device
+driver plugins in the `plugin` block of a Nomad agent configuration. Specify
+arguments to pass to the plugin. Configure values specific to the plugin.
+
+Refer to the [Nomad plugins guide](/nomad/plugins) for details on specific task
+driver and device plugins.
 
 ```hcl
 plugin "example-plugin" {

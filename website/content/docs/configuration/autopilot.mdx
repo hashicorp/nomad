@@ -1,17 +1,21 @@
 ---
 layout: docs
-page_title: autopilot Block - Agent Configuration
+page_title: autopilot Block in Agent Configuration
 description: >-
-  The "autopilot" block configures the Nomad agent to configure Autopilot
-  behavior.
+  Configure settings for Nomad Autopilot features in the `autopilot` block of a Nomad agent configuration. Enable dead server cleanup, redundancy zones, and custom upgrades. Disable upgrade migration. Tune Raft settings for stable server introduction.
 ---
 
-# `autopilot` Block
+# `autopilot` Block in Agent Configuration
 
 <Placement groups={['autopilot']} />
 
-The `autopilot` block configures the Nomad agent to configure Autopilot behavior.
-For more information about Autopilot, see the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
+This page provides reference information for configuring settings for Nomad
+Autopilot features in the `autopilot` block of a Nomad agent configuration.
+Enable dead server cleanup, redundancy zones, and custom upgrades. Disable
+upgrade migration. Tune Raft settings for stable server introduction.
+
+Refer to the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot) for
+how to configure and use Autopilot.
 
 ```hcl
 autopilot {
@@ -42,16 +46,17 @@ autopilot {
   cluster. Only takes effect if all servers are running Raft protocol version 3
   or higher. Must be a duration value such as `30s`.
 
-- `enable_redundancy_zones` `(bool: false)` - (Enterprise-only) Controls whether
+- `enable_redundancy_zones` `(bool: false)` - <EnterpriseAlert product="nomad" inline/> Controls whether
   Autopilot separates servers into zones for redundancy, in conjunction with the
   [redundancy_zone](/nomad/docs/configuration/server#redundancy_zone) parameter.
   Only one server in each zone can be a voting member at one time.
 
-- `disable_upgrade_migration` `(bool: false)` - (Enterprise-only) Disables Autopilot's
+- `disable_upgrade_migration` `(bool: false)` - <EnterpriseAlert product="nomad" inline/> Disables Autopilot's
   upgrade migration strategy in Nomad Enterprise of waiting until enough
   newer-versioned servers have been added to the cluster before promoting any of
   them to voters.
 
-- `enable_custom_upgrades` `(bool: false)` - (Enterprise-only) Specifies whether to
+- `enable_custom_upgrades` `(bool: false)` - <EnterpriseAlert product="nomad" inline/> Specifies whether to
   enable using custom upgrade versions when performing migrations, in conjunction with
-  the [upgrade_version](/nomad/docs/configuration/server#upgrade_version) parameter.
+  the [upgrade_version](/nomad/docs/configuration/server#upgrade_version)
+  parameter.

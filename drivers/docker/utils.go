@@ -31,6 +31,9 @@ func parseDockerImage(image string) (repo, tag string) {
 	} else if t := repoTag[idx+1:]; !strings.Contains(t, "/") {
 		repo = repoTag[:idx]
 		tag = t
+	} else if t := repoTag[idx+1:]; strings.Contains(t, "/") {
+		repo = image
+		tag = "latest"
 	}
 
 	if tag != "" {

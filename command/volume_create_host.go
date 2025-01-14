@@ -206,6 +206,7 @@ func decodeHostVolume(input *ast.File) (*api.HostVolume, error) {
 	// Need to manually parse these fields/blocks
 	delete(m, "capability")
 	delete(m, "constraint")
+	delete(m, "capacity")
 	delete(m, "capacity_max")
 	delete(m, "capacity_min")
 	delete(m, "type")
@@ -216,6 +217,11 @@ func decodeHostVolume(input *ast.File) (*api.HostVolume, error) {
 		return nil, err
 	}
 
+	capacity, err := parseCapacityBytes(list.Filter("capacity"))
+	if err != nil {
+		return nil, fmt.Errorf("invalid capacity: %v", err)
+	}
+	vol.CapacityBytes = capacity
 	capacityMin, err := parseCapacityBytes(list.Filter("capacity_min"))
 	if err != nil {
 		return nil, fmt.Errorf("invalid capacity_min: %v", err)

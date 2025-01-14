@@ -48,7 +48,7 @@ type HostVolume struct {
 	// updated on the client
 	RequestedCapacityMinBytes int64 `mapstructure:"capacity_min" hcl:"capacity_min"`
 	RequestedCapacityMaxBytes int64 `mapstructure:"capacity_max" hcl:"capacity_max"`
-	CapacityBytes             int64
+	CapacityBytes             int64 `mapstructure:"capacity" hcl:"capacity"`
 
 	// RequestedCapabilities defines the options available to group.volume
 	// blocks. The scheduler checks against the listed capability blocks and
@@ -110,12 +110,10 @@ type HostVolumeAccessMode string
 const (
 	HostVolumeAccessModeUnknown HostVolumeAccessMode = ""
 
-	HostVolumeAccessModeSingleNodeReader HostVolumeAccessMode = "single-node-reader-only"
-	HostVolumeAccessModeSingleNodeWriter HostVolumeAccessMode = "single-node-writer"
-
-	HostVolumeAccessModeMultiNodeReader       HostVolumeAccessMode = "multi-node-reader-only"
-	HostVolumeAccessModeMultiNodeSingleWriter HostVolumeAccessMode = "multi-node-single-writer"
-	HostVolumeAccessModeMultiNodeMultiWriter  HostVolumeAccessMode = "multi-node-multi-writer"
+	HostVolumeAccessModeSingleNodeReader       HostVolumeAccessMode = "single-node-reader-only"
+	HostVolumeAccessModeSingleNodeWriter       HostVolumeAccessMode = "single-node-writer"
+	HostVolumeAccessModeSingleNodeSingleWriter HostVolumeAccessMode = "single-node-single-writer"
+	HostVolumeAccessModeSingleNodeMultiWriter  HostVolumeAccessMode = "single-node-multi-writer"
 )
 
 // HostVolumeStub is used for responses for the List Volumes endpoint

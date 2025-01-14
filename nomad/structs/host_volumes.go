@@ -135,7 +135,7 @@ func (hv *HostVolume) Validate() error {
 	var mErr *multierror.Error
 
 	if hv.ID != "" && !helper.IsUUID(hv.ID) {
-		mErr = multierror.Append(mErr, errors.New("invalid ID"))
+		mErr = multierror.Append(mErr, fmt.Errorf("invalid ID %q", hv.ID))
 	}
 
 	if hv.Name == "" {
@@ -196,7 +196,8 @@ func (hv *HostVolume) ValidateUpdate(existing *HostVolume) error {
 		mErr = multierror.Append(mErr, errors.New("node pool cannot be updated"))
 	}
 
-	if hv.RequestedCapacityMaxBytes < existing.CapacityBytes {
+	if hv.RequestedCapacityMaxBytes > 0 &&
+		hv.RequestedCapacityMaxBytes < existing.CapacityBytes {
 		mErr = multierror.Append(mErr, fmt.Errorf(
 			"capacity_max (%d) cannot be less than existing provisioned capacity (%d)",
 			hv.RequestedCapacityMaxBytes, existing.CapacityBytes))
@@ -207,11 +208,11 @@ func (hv *HostVolume) ValidateUpdate(existing *HostVolume) error {
 
 const DefaultHostVolumePlugin = "default"
 
-// CanonicalizeForUpdate is called in the RPC handler to ensure we call client
+// CanonicalizeForCreate is called in the RPC handler to ensure we call client
 // RPCs with correctly populated fields from the existing volume, even if the
 // RPC request includes otherwise valid zero-values. This method should be
 // called on request objects or a copy, never on a state store object directly.
-func (hv *HostVolume) CanonicalizeForUpdate(existing *HostVolume, now time.Time) {
+func (hv *HostVolume) CanonicalizeForCreate(existing *HostVolume, now time.Time) {
 	if existing == nil {
 		hv.ID = uuid.Generate()
 		if hv.PluginID == "" {
@@ -227,6 +228,27 @@ func (hv *HostVolume) CanonicalizeForUpdate(existing *HostVolume, now time.Time)
 		hv.Constraints = existing.Constraints
 		hv.CapacityBytes = existing.CapacityBytes
 		hv.HostPath = existing.HostPath
+		hv.CreateTime = existing.CreateTime
+	}
+
+	hv.State = HostVolumeStatePending // reset on any change
+	hv.ModifyTime = now.UnixNano()
+	hv.Allocations = nil // set on read only
+}
+
+// CanonicalizeForRegister is called in the RPC handler to ensure we call client
+// RPCs with correctly populated fields from the existing volume, even if the
+// RPC request includes otherwise valid zero-values. This method should be
+// called on request objects or a copy, never on a state store object directly.
+func (hv *HostVolume) CanonicalizeForRegister(existing *HostVolume, now time.Time) {
+	if existing == nil {
+		hv.ID = uuid.Generate()
+		hv.CreateTime = now.UnixNano()
+	} else {
+		hv.PluginID = existing.PluginID
+		hv.NodePool = existing.NodePool
+		hv.NodeID = existing.NodeID
+		hv.Constraints = existing.Constraints
 		hv.CreateTime = existing.CreateTime
 	}
 

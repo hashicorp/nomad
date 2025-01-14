@@ -4,7 +4,7 @@
 ~}}
 
 <td data-test-server-name
-  {{keyboard-shortcut 
+  {{keyboard-shortcut
     enumerated=true
     action=(action this.goToAgent)
   }}
@@ -16,14 +16,22 @@
       @size="large"
     />
   </span></td>
-<td data-test-server-is-leader>
-
-    <Hds::Badge
-      @text={{if this.agent.isLeader "True" "False"}}
-      @icon={{if this.agent.isLeader "check-circle" ""}}
-      @color={{if this.agent.isLeader "success" "neutral"}}
-      @size="large"
-    />
+<td data-test-server-is-leader class="server-status-badges">
+  <Hds::Badge
+    @text={{if
+      this.agent.isLeader
+      (if
+        this.agent.system.shouldShowRegions
+        (concat "True" " (" this.agent.region ")")
+        "True"
+      )
+      "False"
+    }}
+    @icon={{if this.agent.isLeader "check-circle" ""}}
+    @color={{if this.agent.isLeader "success" "neutral"}}
+    @size="large"
+    class="no-wrap"
+  />
 </td>
 <td data-test-server-address class="is-200px is-truncatable">{{this.agent.address}}</td>
 <td data-test-server-port>{{this.agent.serfPort}}</td>

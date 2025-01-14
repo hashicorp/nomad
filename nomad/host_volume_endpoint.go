@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -229,15 +230,23 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 
 	// ensure we only try to create a valid volume or make valid updates to a
 	// volume
-	now := time.Now()
 	snap, err := v.srv.State().Snapshot()
 	if err != nil {
 		return err
 	}
-
-	vol, err = v.validateVolumeUpdate(vol, snap, now)
+	existing, err := v.validateVolumeUpdate(vol, snap)
 	if err != nil {
 		return err
+	}
+
+	// set zero values as needed, possibly from existing
+	now := time.Now()
+	vol.CanonicalizeForCreate(existing, now)
+
+	// make sure any nodes or pools actually exist
+	err = v.validateVolumeForState(vol, snap)
+	if err != nil {
+		return fmt.Errorf("validating volume %q against state failed: %v", vol.Name, err)
 	}
 
 	_, err = v.placeHostVolume(snap, vol)
@@ -316,10 +325,26 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 		return err
 	}
 
-	now := time.Now()
-	vol, err = v.validateVolumeUpdate(vol, snap, now)
+	if vol.NodeID == "" {
+		return errors.New("cannot register volume: node ID is required")
+	}
+	if vol.HostPath == "" {
+		return errors.New("cannot register volume: host path is required")
+	}
+
+	existing, err := v.validateVolumeUpdate(vol, snap)
 	if err != nil {
 		return err
+	}
+
+	// set zero values as needed, possibly from existing
+	now := time.Now()
+	vol.CanonicalizeForRegister(existing, now)
+
+	// make sure any nodes or pools actually exist
+	err = v.validateVolumeForState(vol, snap)
+	if err != nil {
+		return fmt.Errorf("validating volume %q against state failed: %v", vol.ID, err)
 	}
 
 	warn, err := v.enforceEnterprisePolicy(
@@ -327,6 +352,15 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	if warn != nil {
 		reply.Warnings = warn.Error()
 	}
+	if err != nil {
+		return err
+	}
+
+	// Attempt to register the volume on the client.
+	//
+	// NOTE: registering the volume on the client via the plugin can't be made
+	// atomic with the registration.
+	err = v.registerVolume(vol)
 	if err != nil {
 		return err
 	}
@@ -349,9 +383,7 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 }
 
 func (v *HostVolume) validateVolumeUpdate(
-	vol *structs.HostVolume,
-	snap *state.StateSnapshot,
-	now time.Time) (*structs.HostVolume, error) {
+	vol *structs.HostVolume, snap *state.StateSnapshot) (*structs.HostVolume, error) {
 
 	// validate the volume spec
 	err := vol.Validate()
@@ -361,7 +393,6 @@ func (v *HostVolume) validateVolumeUpdate(
 
 	// validate any update we're making
 	var existing *structs.HostVolume
-	volID := vol.ID
 	if vol.ID != "" {
 		existing, err = snap.HostVolumeByID(nil, vol.Namespace, vol.ID, true)
 		if err != nil {
@@ -369,27 +400,13 @@ func (v *HostVolume) validateVolumeUpdate(
 		}
 		if existing == nil {
 			return nil, fmt.Errorf("cannot update volume %q: volume does not exist", vol.ID)
-
 		}
 		err = vol.ValidateUpdate(existing)
 		if err != nil {
-			return nil, fmt.Errorf("validating volume %q update failed: %v", vol.ID, err)
+			return existing, fmt.Errorf("validating volume %q update failed: %v", vol.ID, err)
 		}
-	} else {
-		// capture this for nicer error messages later
-		volID = vol.Name
 	}
-
-	// set zero values as needed, possibly from existing
-	vol.CanonicalizeForUpdate(existing, now)
-
-	// make sure any nodes or pools actually exist
-	err = v.validateVolumeForState(vol, snap)
-	if err != nil {
-		return nil, fmt.Errorf("validating volume %q against state failed: %v", volID, err)
-	}
-
-	return vol, nil
+	return existing, nil
 }
 
 // validateVolumeForState ensures that any references to node IDs or node pools are valid
@@ -446,6 +463,30 @@ func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 
 	vol.HostPath = cResp.HostPath
 	vol.CapacityBytes = cResp.CapacityBytes
+
+	return nil
+}
+
+func (v *HostVolume) registerVolume(vol *structs.HostVolume) error {
+
+	method := "ClientHostVolume.Register"
+	cReq := &cstructs.ClientHostVolumeRegisterRequest{
+		ID:            vol.ID,
+		Name:          vol.Name,
+		NodeID:        vol.NodeID,
+		HostPath:      vol.HostPath,
+		CapacityBytes: vol.CapacityBytes,
+		Parameters:    vol.Parameters,
+	}
+	cResp := &cstructs.ClientHostVolumeRegisterResponse{}
+	err := v.srv.RPC(method, cReq, cResp)
+	if err != nil {
+		return err
+	}
+
+	if vol.State == structs.HostVolumeStateUnknown {
+		vol.State = structs.HostVolumeStatePending
+	}
 
 	return nil
 }
