@@ -1,3 +1,20 @@
+## 1.9.5 (January 14, 2025)
+
+IMPROVEMENTS:
+
+* client: Add noswap mount option to secrets directory where supported on Linux [[GH-24645](https://github.com/hashicorp/nomad/issues/24645)]
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+* keyring: Warn if deleting a key previously used to encrypt an existing variable [[GH-24766](https://github.com/hashicorp/nomad/issues/24766)]
+* ui: Added possibility to supply HCL variable values on job submission [[GH-24622](https://github.com/hashicorp/nomad/issues/24622)]
+* ui: add leadership status for servers in other regions [[GH-24723](https://github.com/hashicorp/nomad/issues/24723)]
+
+BUG FIXES:
+
+* docker: Fix a bug where images with port number and no tags weren't parsed correctly [[GH-24547](https://github.com/hashicorp/nomad/issues/24547)]
+* driver/docker: Fix container CPU stats collection where previous CPU stats were missing and causing incorrect calculations [[GH-24768](https://github.com/hashicorp/nomad/issues/24768)]
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
+* networking: check network namespaces on Linux during client restarts and fail the allocation if an existing namespace is invalid [[GH-24658](https://github.com/hashicorp/nomad/issues/24658)]
+
 ## 1.9.4 (December 18, 2024)
 
 SECURITY:
