@@ -1,3 +1,20 @@
+## 1.9.5 (January 14, 2025)
+
+IMPROVEMENTS:
+
+* client: Add noswap mount option to secrets directory where supported on Linux [[GH-24645](https://github.com/hashicorp/nomad/issues/24645)]
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+* keyring: Warn if deleting a key previously used to encrypt an existing variable [[GH-24766](https://github.com/hashicorp/nomad/issues/24766)]
+* ui: Added possibility to supply HCL variable values on job submission [[GH-24622](https://github.com/hashicorp/nomad/issues/24622)]
+* ui: add leadership status for servers in other regions [[GH-24723](https://github.com/hashicorp/nomad/issues/24723)]
+
+BUG FIXES:
+
+* docker: Fix a bug where images with port number and no tags weren't parsed correctly [[GH-24547](https://github.com/hashicorp/nomad/issues/24547)]
+* driver/docker: Fix container CPU stats collection where previous CPU stats were missing and causing incorrect calculations [[GH-24768](https://github.com/hashicorp/nomad/issues/24768)]
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
+* networking: check network namespaces on Linux during client restarts and fail the allocation if an existing namespace is invalid [[GH-24658](https://github.com/hashicorp/nomad/issues/24658)]
+
 ## 1.9.4 (December 18, 2024)
 
 SECURITY:
@@ -136,6 +153,19 @@ BUG FIXES:
 * task: adds node.pool attribute to interpretable values in task env [[GH-24052](https://github.com/hashicorp/nomad/issues/24052)]
 * template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
 * ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
+
+## 1.8.9 (January 14, 2025)
+
+
+IMPROVEMENTS:
+
+* api: Sanitise hcl variables before storage on JobSubmission [[GH-24423](https://github.com/hashicorp/nomad/issues/24423)]
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+
+BUG FIXES:
+
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
+
 
 ## 1.8.8 Enterprise (December 18, 2024)
 
@@ -410,6 +440,17 @@ BUG FIXES:
 * ui: Fixed an issue where keynav would not trigger evaluation sidebar expand [[GH-20047](https://github.com/hashicorp/nomad/issues/20047)]
 * ui: Show the namespace in the web UI exec command hint [[GH-20218](https://github.com/hashicorp/nomad/issues/20218)]
 * windows: Fixed a regression where scanning task processes was inefficient [[GH-20619](https://github.com/hashicorp/nomad/issues/20619)]
+
+## 1.7.17 Enterprise (January 14, 2025)
+
+
+IMPROVEMENTS:
+
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+
+BUG FIXES:
+
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
 
 ## 1.7.16 Enterprise (December 18, 2024)
 
