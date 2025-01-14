@@ -3,6 +3,8 @@
 
 job "example" {
 
+  type = "batch"
+
   group "web" {
 
     network {

@@ -31,6 +31,7 @@ job "register-volumes" {
 #!/usr/bin/env bash
 set -ex
 
+export NOMAD_ADDR="unix://${NOMAD_SECRETS_DIR}/api.sock"
 NODE_ID=$1
 mkdir -p "${NOMAD_META_vol_path}"
 
