@@ -157,6 +157,16 @@ BUG FIXES:
 ## 1.8.9 (January 14, 2025)
 
 
+IMPROVEMENTS:
+
+* api: Sanitise hcl variables before storage on JobSubmission [[GH-24423](https://github.com/hashicorp/nomad/issues/24423)]
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+
+BUG FIXES:
+
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
+
+
 ## 1.8.8 Enterprise (December 18, 2024)
 
 SECURITY:
@@ -433,6 +443,14 @@ BUG FIXES:
 
 ## 1.7.17 Enterprise (January 14, 2025)
 
+
+IMPROVEMENTS:
+
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+
+BUG FIXES:
+
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
 
 ## 1.7.16 Enterprise (December 18, 2024)
 
