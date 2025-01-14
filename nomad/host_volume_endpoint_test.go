@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -23,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/version"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -763,6 +766,103 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 	}
 }
 
+func TestHostVolumeEndpoint_concurrency(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, func(c *Config) { c.NumSchedulers = 0 })
+	t.Cleanup(cleanup)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	_, node := newMockHostVolumeClient(t, srv, "default")
+
+	vol := &structs.HostVolume{
+		// wacky mechanism to make the RPC calls slow
+		Parameters: map[string]string{"sleep": "1"},
+
+		Name:      "test-vol",
+		Namespace: "default",
+		NodeID:    node.ID,
+		PluginID:  "mkdir",
+		HostPath:  "/pretend/path",
+		RequestedCapabilities: []*structs.HostVolumeCapability{
+			{
+				AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+				AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+			},
+		},
+	}
+	wr := structs.WriteRequest{Region: srv.Region()}
+
+	// create the volume for us to attempt concurrent operations on
+	createReq := &structs.HostVolumeCreateRequest{
+		Volume:       vol.Copy(), // copy because HostPath gets mutated
+		WriteRequest: wr,
+	}
+	var createResp structs.HostVolumeCreateResponse
+	err := srv.RPC("HostVolume.Create", createReq, &createResp)
+	must.NoError(t, err)
+
+	// do another create, a register, and a delete, all at once
+	cCh, rCh, dCh := make(chan error, 1), make(chan error, 1), make(chan error, 1)
+
+	// each call should take ~1 second, one at a time
+	start := time.Now()
+
+	go func() {
+		cCh <- srv.RPC("HostVolume.Create", createReq, &createResp)
+	}()
+
+	go func() {
+		registerReq := &structs.HostVolumeRegisterRequest{
+			Volume:       vol.Copy(),
+			WriteRequest: wr,
+		}
+		var registerResp structs.HostVolumeRegisterResponse
+		rCh <- srv.RPC("HostVolume.Register", registerReq, &registerResp)
+	}()
+
+	go func() {
+		deleteReq := &structs.HostVolumeDeleteRequest{
+			VolumeID:     createResp.Volume.ID,
+			WriteRequest: wr,
+		}
+		var deleteResp structs.HostVolumeDeleteResponse
+		dCh <- srv.RPC("HostVolume.Delete", deleteReq, &deleteResp)
+	}()
+
+	// wait for the 3 RPCs to complete - they may happen in any order.
+	cDone, rDone, dDone := time.Time{}, time.Time{}, time.Time{}
+	for range 3 {
+		select {
+		case err = <-cCh:
+			test.NoError(t, err, test.Sprintf("error from create: %s", err))
+			cDone = time.Now()
+		case err = <-rCh:
+			test.NoError(t, err, test.Sprintf("error from register: %s", err))
+			rDone = time.Now()
+		case err = <-dCh:
+			test.NoError(t, err, test.Sprintf("error from delete: %s", err))
+			dDone = time.Now()
+		case <-time.After(5 * time.Second): // just in case
+			t.Fatalf("timeout reached waiting for create/register/delete")
+		}
+	}
+
+	// put them in order
+	dones := []time.Time{cDone, rDone, dDone}
+	slices.SortFunc(dones, func(a, b time.Time) int {
+		return int(a.Sub(b))
+	})
+	// make sure they're a second apart (the "sleep" time)
+	test.GreaterEq(t, time.Second, dones[1].Sub(dones[0]), test.Sprint("second call should be a second after first"))
+	test.GreaterEq(t, time.Second, dones[2].Sub(dones[1]), test.Sprint("third call should be a second after second"))
+
+	// in total, it should have taken 3-4 seconds
+	end := time.Now()
+	test.GreaterEq(t, 3*time.Second, end.Sub(start), test.Sprint("all calls should take 3 seconds total"))
+	test.Less(t, 4*time.Second, end.Sub(start), test.Sprint("all calls should take less than 4 seconds"))
+}
+
 // mockHostVolumeClient models client RPCs that have side-effects on the
 // client host
 type mockHostVolumeClient struct {
@@ -824,6 +924,16 @@ func (v *mockHostVolumeClient) Create(
 	resp *cstructs.ClientHostVolumeCreateResponse) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
+
+	// wacky use of parameters to induce slowness for concurrency test
+	if s, ok := req.Parameters["sleep"]; ok {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(i) * time.Second)
+	}
+
 	if v.nextCreateResponse == nil {
 		return nil // prevents panics from incorrect tests
 	}
@@ -835,6 +945,16 @@ func (v *mockHostVolumeClient) Register(
 	req *cstructs.ClientHostVolumeRegisterRequest,
 	resp *cstructs.ClientHostVolumeRegisterResponse) error {
 	v.lock.Lock()
+
+	// wacky use of parameters to induce slowness for concurrency test
+	if s, ok := req.Parameters["sleep"]; ok {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(i) * time.Second)
+	}
+
 	defer v.lock.Unlock()
 	*resp = cstructs.ClientHostVolumeRegisterResponse{}
 	return v.nextRegisterErr
@@ -845,5 +965,15 @@ func (v *mockHostVolumeClient) Delete(
 	resp *cstructs.ClientHostVolumeDeleteResponse) error {
 	v.lock.Lock()
 	defer v.lock.Unlock()
+
+	// wacky use of parameters to induce slowness for concurrency test
+	if s, ok := req.Parameters["sleep"]; ok {
+		i, err := strconv.Atoi(s)
+		if err != nil {
+			return err
+		}
+		time.Sleep(time.Duration(i) * time.Second)
+	}
+
 	return v.nextDeleteErr
 }
