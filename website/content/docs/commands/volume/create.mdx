@@ -2,7 +2,8 @@
 layout: docs
 page_title: 'Commands: volume create'
 description: |
-  Create CSI volumes or dynamic host volumes.
+  The `nomad volume create` command creates storage volumes that are either
+  Container Storage Interface (CSI) volumes or dynamic host volumes.
 ---
 
 # Command: volume create
@@ -39,8 +40,8 @@ volumes or `host-volume-create` for dynamic host volumes.
 
 - `-detach`: Return immediately instead of entering monitor mode for dynamic
   host volumes. After creating a volume, Nomad prints the volume ID to the
-  screen, which can be used to examine the volume using the `volume status`
-  command. If `-detach` is omitted or false, the command will monitor the state
+  screen, which you can use to examine the volume using the `volume status`
+  command. If `-detach` is omitted or false, the command monitors the state
   of the volume until it is ready to be scheduled. Not valid for CSI volumes.
 
 - `-verbose`: Display full information when monitoring volume state. Used for
@@ -52,10 +53,8 @@ volumes or `host-volume-create` for dynamic host volumes.
 
 ## Volume Specification
 
-The volume specification for CSI is documented in the [CSI Volume
-Specification][csi_vol_spec] page. The volume specification for dynamic host
-volumes is documented in the [Dynamic Host Volume Specification](host_vol_spec)
-page.
+Refer to the [CSI Volume Specification][csi_vol_spec] and the [Dynamic Host
+Volume Specification](host_vol_spec) for further information.
 
 <!--
 Redirection rules are applied server-side, so we can't redirect these sections
