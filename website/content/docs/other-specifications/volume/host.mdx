@@ -139,19 +139,19 @@ The `volume create` and `volume register` commands allow updating a volume
 definition. However, after volume registration, you are only allowed to update
 the following fields:
 
-* The `plugin_id` can be updated.
-* The `capacity_min` and `capacity_max` fields can be updated, and may increase
+- `plugin_id`
+- `capacity_min` and `capacity_max`. You may increase
   the volume size if the plugin supports it. Expansion may or may not be
   possible while the volume is in use, again depending on the plugin.  Reducing
   volume capacity is not allowed. Only available for volume creation.
-* The `capacity` field can be updated only for volume registration.
-* The `constraint` fields can be updated but are ignored after the volume is
-  created.
-* The `capability` blocks can be added or removed, but only if the capability is
-  not currently in use by a mounted volume.
+- `capacity`, but only updated for volume registration.
+- `constraint` fields. Ignored after the volume is created.
 
-The `name`, `type`, and `node_id` fields cannot be updated. The `node_pool`
-field can only be changed from empty to the node pool that matches the `node_id`
+Additionally, you may add or remove `capability` blocks, but only if the
+capability is not currently in use by a mounted volume.
+
+You cannot update the `name`, `type`, and `node_id` fields. You may only change
+the `node_pool` field from empty to the node pool that matches the `node_id`
 field.
 
 ## Volume Expansion
@@ -224,27 +224,27 @@ parameters {
 
 ### Example Volume Expansion
 
-The [`volume create`][] command can trigger an expansion to occur, after the
-volume has already been created or registered.
+This example shows how to expand a volume after it has been created or
+registered.
 
-Example using `volume create`, with a `volume.hcl` file:
+1. Create a volume configuration file called `volume.hcl` that defines name,
+   type, plugin ID, and capacity.
 
-```hcl
-name      = "database"
-type      = "host"
-plugin_id = "external-plugin"
+  ```hcl
+   name      = "database"
+   type      = "host"
+   plugin_id = "external-plugin"
 
-capacity_min = "30GiB"
-capacity_max = "50GiB"
-```
+   capacity_min = "30GiB"
+   capacity_max = "50GiB"
+   ```
 
-Next, use the [`volume create`][] command and the `volume.hcl` file to create
-the volume:
+1. Create the volume using the [`volume create`] command.
 
-```shell-session
-$ nomad volume create ./volume.hcl
-==> Created host volume database with ID 0c903229-311d-ba8a-f77e-45c31b83fab3
-  ✓ Host volume "0c903229" ready
+   ```shell-session
+   $ nomad volume create ./volume.hcl
+   ==> Created host volume database with ID 0c903229-311d-ba8a-f77e-45c31b83fab3
+   ✓ Host volume "0c903229" ready
 
     2025-01-06T16:56:09-05:00
     ID        = 0c903229-311d-ba8a-f77e-45c31b83fab3
@@ -256,41 +256,45 @@ $ nomad volume create ./volume.hcl
     Capacity  = 50 GiB
     State     = ready
     Host Path = /run/nomad/dev/alloc_mounts/0c903229-311d-ba8a-f77e-45c31b83fab3
-```
+   ```
 
-Review the volume's current capacity with the [`volume status`][] command.
+1. Review the volume's current capacity using the [`volume status`] command.
 
-```shell-session
-$ nomad volume status -type=host 0c903229 | grep Capacity
-Capacity             = 50 GiB
-```
+   ```shell-session
+   $ nomad volume status -type=host 0c903229 | grep Capacity
+   Capacity             = 50 GiB
+   ```
 
-Next, to increase volume capacity, update the `capacity_min` and `capcity_max`
-fields in the `volume.hcl` file.
+1. Increase volume capacity in the `volume.hcl` file.
 
-```hcl
-id        = "0c903229-311d-ba8a-f77e-45c31b83fab3"
-name      = "database"
-type      = "host"
-plugin_id = "external-plugin"
+   Update the `capacity_min` and `capacity_max` fields.
 
-capacity_min = "100GiB" # double
-capacity_max = "100GiB" # increased to match
-```
+   ```hcl
+   id        = "0c903229-311d-ba8a-f77e-45c31b83fab3"
+   name      = "database"
+   type      = "host"
+   plugin_id = "external-plugin"
 
-Run the `volume create` command to expand the volume.
+   capacity_min = "100GiB" # double
+   capacity_max = "100GiB" # increased to match
+   ```
 
-```shell-session
-$ nomad volume create volume.hcl
-Created host volume database with ID 0c903229-311d-ba8a-f77e-45c31b83fab3
-```
+1. Expand the volume using the [`volume create`] command.
 
-Use the `volume status` command to make sure the volume has the new capacity.
+   The `volume create` command can trigger an expansion to occur, after the
+   volume has already been created or registered.
 
-```shell-session
-$ nomad volume status -type=host 0c903229 | grep Capacity
-Capacity             = 100 GiB
-```
+   ```shell-session
+   $ nomad volume create volume.hcl
+   Created host volume database with ID 0c903229-311d-ba8a-f77e-45c31b83fab3
+   ```
+
+1. Review the new capacity by running the [`volume status`] command.
+
+   ```shell-session
+   $ nomad volume status -type=host 0c903229 | grep Capacity
+   Capacity             = 100 GiB
+   ```
 
 [api_volume_create]: /nomad/api-docs/volumes#create-dynamic-host-volume
 [api_volume_register]: /nomad/api-docs/volumes#register-dynamic-host-volume

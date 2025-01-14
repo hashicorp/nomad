@@ -213,64 +213,67 @@ context {
 Either [`volume create`][] or [`volume register`][] commands can trigger
 an expand to occur, after the volume has already been created or registered.
 
-Example using `volume create`, with a `volume.hcl` file:
+This example shows you how to expand a volume using the `volume create` command.
 
-```hcl
-id        = "ebs_prod_db1"
-name      = "database"
-type      = "csi"
-plugin_id = "ebs-prod"
+1. Create a volume configuration file called `volume.hcl` that defines ID, name,
+   type, plugin ID, and capacity.
 
-capacity_min = "50gib"
-capacity_max = "50gib"
+   ```hcl
+   id        = "ebs_prod_db1"
+   name      = "database"
+   type      = "csi"
+   plugin_id = "ebs-prod"
 
-# ... etc ...
-```
+   capacity_min = "50gib"
+   capacity_max = "50gib"
 
-Next, use the [`volume create`][] command and the `volume.hcl` file to create
-the volume.
+   # ... etc ...
+   ```
 
-```shell-session
-$ nomad volume create volume.hcl
-Created external volume vol-asdf1234 with ID ebs_prod_db1
-```
+1. Create the volume using the [`volume create`] command.
 
-Review the volume's current capacity with the [`volume status`][] command.
+   ```shell-session
+   $ nomad volume create volume.hcl
+   Created external volume vol-asdf1234 with ID ebs_prod_db1
+   ```
 
-```shell-session
-$ nomad volume status ebs_prod_db1 | grep Capacity
-Capacity             = 50 GiB
-```
+1.  Review the volume's current capacity using the [`volume status`] command.
 
-Next, to increase volume capacity, update the `capacity_min` and `capcity_max`
-fields in the `volume.hcl` file.
+   ```shell-session
+   $ nomad volume status ebs_prod_db1 | grep Capacity
+   Capacity             = 50 GiB
+   ```
 
-```hcl
-id        = "ebs_prod_db1"
-name      = "database"
-type      = "csi"
-plugin_id = "ebs-prod"
-# all of the above must remain the same
+1. Increase volume capacity in the `volume.hcl` file.
 
-capacity_min = "100gib" # double
-capacity_max = "100gib" # increased to match
+   Update the `capacity_min` and `capacity_max` fields.
 
-# ... etc ...
-```
+   ```hcl
+   id        = "ebs_prod_db1"
+   name      = "database"
+   type      = "csi"
+   plugin_id = "ebs-prod"
+   # all of the above must remain the same
 
-Run the `volume create` command to expand the volume.
+   capacity_min = "100gib" # double
+   capacity_max = "100gib" # increased to match
 
-```shell-session
-$ nomad volume create volume.hcl
-Created external volume vol-asdf1234 with ID ebs_prod_db1
-```
+   # ... etc ...
+   ```
 
-Use the `volume status` command to make sure the volume has the new capacity.
+1. Expand the volume using the [`volume create`] command.
 
-```shell-session
-$ nomad volume status ebs_prod_db1 | grep Capacity
-Capacity             = 100 GiB
-```
+   ```shell-session
+   $ nomad volume create volume.hcl
+   Created external volume vol-asdf1234 with ID ebs_prod_db1
+   ```
+
+1. Review the new capacity by running the [`volume status`] command.
+
+   ```shell-session
+   $ nomad volume status ebs_prod_db1 | grep Capacity
+   Capacity             = 100 GiB
+   ```
 
 If you encounter errors that are not clear from the command output,
 the CSI plugin allocation logs and Nomad leader server logs may be
