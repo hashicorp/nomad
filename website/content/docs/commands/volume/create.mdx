@@ -41,8 +41,9 @@ volumes or `host-volume-create` for dynamic host volumes.
 - `-detach`: Return immediately instead of entering monitor mode for dynamic
   host volumes. After creating a volume, Nomad prints the volume ID to the
   screen, which you can use to examine the volume using the `volume status`
-  command. If `-detach` is omitted or false, the command monitors the state
-  of the volume until it is ready to be scheduled. Not valid for CSI volumes.
+  command. If `-detach` is omitted or false, the command monitors the state of
+  the volume until it has been fingerprinted by the client and is ready to be
+  scheduled. Not valid for CSI volumes.
 
 - `-verbose`: Display full information when monitoring volume state. Used for
   dynamic host volumes only. Not valid for CSI volumes.

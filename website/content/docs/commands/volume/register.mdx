@@ -69,11 +69,10 @@ For CSI volumes:
 
 For dynamic host volumes:
 
-- Update the `capacity_min` and `capacity_max` fields and increase
-  the volume size if the plugin supports it. Expansion may or may not be
-  possible while the volume is in use, again depending on the plugin.
-  Reducing volume capacity is not allowed.
-- Update the `capacity` field only for volume registration.
+- Update the `capacity_min` and `capacity_max` fields. The fields are ignored
+  but must be consistent with the `capacity` value if set.
+- Update the `capacity` field to record that you've increased the size of the
+  volume. Reducing volume capacity is not allowed.
 - Update the `constraint` fields on `volume create`, but not after you create the volume.
 - Add or remove the `capability` blocks but only if a mounted volume is not
   using currently using the capability.
