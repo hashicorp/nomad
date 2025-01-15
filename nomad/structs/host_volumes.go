@@ -222,8 +222,12 @@ func (hv *HostVolume) CanonicalizeForCreate(existing *HostVolume, now time.Time)
 		hv.HostPath = ""     // returned by plugin
 		hv.CreateTime = now.UnixNano()
 	} else {
-		hv.PluginID = existing.PluginID
-		hv.NodePool = existing.NodePool
+		if hv.PluginID == "" {
+			hv.PluginID = existing.PluginID
+		}
+		if hv.NodePool == "" {
+			hv.NodePool = existing.NodePool
+		}
 		hv.NodeID = existing.NodeID
 		hv.Constraints = existing.Constraints
 		hv.CapacityBytes = existing.CapacityBytes
@@ -245,8 +249,12 @@ func (hv *HostVolume) CanonicalizeForRegister(existing *HostVolume, now time.Tim
 		hv.ID = uuid.Generate()
 		hv.CreateTime = now.UnixNano()
 	} else {
-		hv.PluginID = existing.PluginID
-		hv.NodePool = existing.NodePool
+		if hv.PluginID == "" {
+			hv.PluginID = existing.PluginID
+		}
+		if hv.NodePool == "" {
+			hv.NodePool = existing.NodePool
+		}
 		hv.NodeID = existing.NodeID
 		hv.Constraints = existing.Constraints
 		hv.CreateTime = existing.CreateTime
