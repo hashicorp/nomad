@@ -6,6 +6,7 @@ package structs
 import (
 	"crypto/md5"
 	"fmt"
+	"strconv"
 )
 
 // The CheckMode of a Nomad check is either Healthiness or Readiness.
@@ -90,6 +91,7 @@ func NomadCheckID(allocID, group string, c *ServiceCheck) CheckID {
 	hashString(sum, c.Protocol)
 	hashString(sum, c.Path)
 	hashString(sum, c.Method)
+	hashString(sum, strconv.FormatBool(c.TLSSkipVerify))
 	h := sum.Sum(nil)
 	return CheckID(fmt.Sprintf("%x", h))
 }
