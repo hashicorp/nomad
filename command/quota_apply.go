@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	humanize "github.com/dustin/go-humanize"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -319,19 +320,44 @@ func parseStorageResource(storageBlocks *ast.ObjectList) (*api.QuotaStorageResou
 		return nil, errors.New("only one storage block is allowed")
 	}
 	block := storageBlocks.Items[0]
-	valid := []string{"variables"}
+	valid := []string{"variables", "host_volumes"}
 	if err := helper.CheckHCLKeys(block.Val, valid); err != nil {
 		return nil, err
 	}
-	var storage api.QuotaStorageResources
-	var m map[string]interface{}
-	if err := hcl.DecodeObject(&storage, block.Val); err != nil {
+
+	var m map[string]any
+	if err := hcl.DecodeObject(&m, block.Val); err != nil {
 		return nil, err
 	}
-	if err := mapstructure.WeakDecode(m, &storage); err != nil {
-		return nil, err
+
+	variablesLimit, err := parseQuotaMegabytes(m["variables"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid variables limit: %v", err)
 	}
-	return &storage, nil
+	hostVolumesLimit, err := parseQuotaMegabytes(m["host_volumes"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid host_volumes limit: %v", err)
+	}
+
+	return &api.QuotaStorageResources{
+		VariablesMB:   variablesLimit,
+		HostVolumesMB: hostVolumesLimit,
+	}, nil
+}
+
+func parseQuotaMegabytes(raw any) (int, error) {
+	switch val := raw.(type) {
+	case string:
+		b, err := humanize.ParseBytes(val)
+		if err != nil {
+			return 0, fmt.Errorf("could not parse value as bytes: %v", err)
+		}
+		return int(b >> 20), nil
+	case int:
+		return val, nil
+	default:
+		return 0, fmt.Errorf("invalid type %T", raw)
+	}
 }
 
 func parseDeviceResource(result *[]*api.RequestedDevice, list *ast.ObjectList) error {
