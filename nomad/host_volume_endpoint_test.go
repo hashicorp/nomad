@@ -168,12 +168,12 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		var resp structs.HostVolumeCreateResponse
 		req.AuthToken = token
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
-		must.EqError(t, err, `could not place volume "example1": no node meets constraints`)
+		must.EqError(t, err, `could not place volume "example1": no node meets constraints: 0 nodes had existing volume, 0 nodes filtered by node pool governance, 1 nodes were infeasible`)
 
 		req.Volume = vol2.Copy()
 		resp = structs.HostVolumeCreateResponse{}
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
-		must.EqError(t, err, `could not place volume "example2": no node meets constraints`)
+		must.EqError(t, err, `could not place volume "example2": no node meets constraints: 0 nodes had existing volume, 0 nodes filtered by node pool governance, 1 nodes were infeasible`)
 	})
 
 	t.Run("valid create", func(t *testing.T) {
@@ -725,12 +725,12 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 						Operand: "=",
 					},
 				}},
-			expectErr: "no node meets constraints",
+			expectErr: "no node meets constraints: 0 nodes had existing volume, 0 nodes filtered by node pool governance, 4 nodes were infeasible",
 		},
 		{
 			name:      "no matching plugin",
 			vol:       &structs.HostVolume{PluginID: "not-mkdir"},
-			expectErr: "no node meets constraints",
+			expectErr: "no node meets constraints: 0 nodes had existing volume, 0 nodes filtered by node pool governance, 4 nodes were infeasible",
 		},
 		{
 			name: "match already has a volume with the same name",
@@ -744,7 +744,7 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 						Operand: "=",
 					},
 				}},
-			expectErr: "no node meets constraints",
+			expectErr: "no node meets constraints: 1 nodes had existing volume, 0 nodes filtered by node pool governance, 3 nodes were infeasible",
 		},
 	}
 
