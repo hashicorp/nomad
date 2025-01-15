@@ -12,7 +12,7 @@ import (
 )
 
 // enforceEnterprisePolicy is the CE stub for Enterprise governance via
-// Sentinel policy, quotas, and node pools
+// Sentinel policy and quotas
 func (v *HostVolume) enforceEnterprisePolicy(
 	_ *state.StateSnapshot,
 	_ *structs.HostVolume,
@@ -20,4 +20,10 @@ func (v *HostVolume) enforceEnterprisePolicy(
 	_ bool,
 ) (error, error) {
 	return nil, nil
+}
+
+// enterpriseNodePoolFilter is the CE stub for filtering nodes during placement
+// via Enterprise node pool governance.
+func (v *HostVolume) enterpriseNodePoolFilter(_ *state.StateSnapshot, _ *structs.HostVolume) (func(string) bool, error) {
+	return func(_ string) bool { return true }, nil
 }

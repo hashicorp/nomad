@@ -508,9 +508,17 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		return node, nil
 	}
 
+	poolFilterFn, err := v.enterpriseNodePoolFilter(snap, vol)
+	if err != nil {
+		return nil, err
+	}
+
 	var iter memdb.ResultIterator
-	var err error
 	if vol.NodePool != "" {
+		if !poolFilterFn(vol.NodePool) {
+			return nil, fmt.Errorf("namespace %q does not allow volumes to use node pool %q",
+				vol.Namespace, vol.NodePool)
+		}
 		iter, err = snap.NodesByNodePool(nil, vol.NodePool)
 	} else {
 		iter, err = snap.Nodes(nil)
@@ -532,6 +540,12 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 	constraints = append(constraints, vol.Constraints...)
 	checker = scheduler.NewConstraintChecker(ctx, constraints)
 
+	var (
+		filteredByExisting    int
+		filteredByGovernance  int
+		filteredByFeasibility int
+	)
+
 	for {
 		raw := iter.Next()
 		if raw == nil {
@@ -544,11 +558,18 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		// haven't yet written to state. The client will reject requests to
 		// create/register a volume with the same name with a different ID.
 		if _, hasVol := candidate.HostVolumes[vol.Name]; hasVol {
+			filteredByExisting++
+			continue
+		}
+
+		if !poolFilterFn(candidate.NodePool) {
+			filteredByGovernance++
 			continue
 		}
 
 		if checker != nil {
 			if ok := checker.Feasible(candidate); !ok {
+				filteredByFeasibility++
 				continue
 			}
 		}
@@ -559,7 +580,9 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 
 	}
 
-	return nil, fmt.Errorf("no node meets constraints")
+	return nil, fmt.Errorf(
+		"no node meets constraints: %d nodes had existing volume, %d nodes filtered by node pool governance, %d nodes were infeasible",
+		filteredByExisting, filteredByGovernance, filteredByFeasibility)
 }
 
 // placementContext implements the scheduler.ConstraintContext interface, a
