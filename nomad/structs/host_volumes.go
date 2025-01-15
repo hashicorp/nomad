@@ -148,14 +148,10 @@ func (hv *HostVolume) Validate() error {
 			hv.RequestedCapacityMaxBytes, hv.RequestedCapacityMinBytes))
 	}
 
-	if len(hv.RequestedCapabilities) == 0 {
-		mErr = multierror.Append(mErr, errors.New("must include at least one capability block"))
-	} else {
-		for _, cap := range hv.RequestedCapabilities {
-			err := cap.Validate()
-			if err != nil {
-				mErr = multierror.Append(mErr, err)
-			}
+	for _, cap := range hv.RequestedCapabilities {
+		err := cap.Validate()
+		if err != nil {
+			mErr = multierror.Append(mErr, err)
 		}
 	}
 
@@ -221,6 +217,14 @@ func (hv *HostVolume) CanonicalizeForCreate(existing *HostVolume, now time.Time)
 		hv.CapacityBytes = 0 // returned by plugin
 		hv.HostPath = ""     // returned by plugin
 		hv.CreateTime = now.UnixNano()
+
+		if len(hv.RequestedCapabilities) == 0 {
+			hv.RequestedCapabilities = []*HostVolumeCapability{{
+				AttachmentMode: HostVolumeAttachmentModeFilesystem,
+				AccessMode:     HostVolumeAccessModeSingleNodeWriter,
+			}}
+		}
+
 	} else {
 		if hv.PluginID == "" {
 			hv.PluginID = existing.PluginID
@@ -248,6 +252,14 @@ func (hv *HostVolume) CanonicalizeForRegister(existing *HostVolume, now time.Tim
 	if existing == nil {
 		hv.ID = uuid.Generate()
 		hv.CreateTime = now.UnixNano()
+
+		if len(hv.RequestedCapabilities) == 0 {
+			hv.RequestedCapabilities = []*HostVolumeCapability{{
+				AttachmentMode: HostVolumeAttachmentModeFilesystem,
+				AccessMode:     HostVolumeAccessModeSingleNodeWriter,
+			}}
+		}
+
 	} else {
 		if hv.PluginID == "" {
 			hv.PluginID = existing.PluginID

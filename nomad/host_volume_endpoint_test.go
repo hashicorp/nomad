@@ -79,11 +79,13 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, "missing volume definition")
 
-		req.Volume = &structs.HostVolume{}
+		req.Volume = &structs.HostVolume{RequestedCapabilities: []*structs.HostVolumeCapability{
+			{AttachmentMode: "foo"}}}
+
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, `volume validation failed: 2 errors occurred:
 	* missing name
-	* must include at least one capability block
+	* invalid attachment mode: "foo"
 
 `)
 
@@ -214,7 +216,14 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	t.Run("invalid updates", func(t *testing.T) {
 
 		invalidVol1 := vol1.Copy()
-		invalidVol2 := &structs.HostVolume{NodeID: uuid.Generate()}
+		invalidVol2 := &structs.HostVolume{
+			NodeID: uuid.Generate(),
+			RequestedCapabilities: []*structs.HostVolumeCapability{
+				{
+					AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+					AccessMode:     "foo",
+				}},
+		}
 
 		createReq := &structs.HostVolumeCreateRequest{
 			Volume: invalidVol2,
@@ -228,7 +237,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", createReq, &createResp)
 		must.EqError(t, err, `volume validation failed: 2 errors occurred:
 	* missing name
-	* must include at least one capability block
+	* invalid access mode: "foo"
 
 `, must.Sprint("initial validation failures should exit early"))
 

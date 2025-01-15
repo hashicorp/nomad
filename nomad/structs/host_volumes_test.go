@@ -58,18 +58,19 @@ func TestHostVolume_Copy(t *testing.T) {
 func TestHostVolume_Validate(t *testing.T) {
 	ci.Parallel(t)
 
-	invalid := &HostVolume{}
+	invalid := &HostVolume{RequestedCapabilities: []*HostVolumeCapability{
+		{AttachmentMode: "foo"}}}
 	err := invalid.Validate()
 	must.EqError(t, err, `2 errors occurred:
 	* missing name
-	* must include at least one capability block
+	* invalid attachment mode: "foo"
 
 `)
 
-	invalid = &HostVolume{Name: "example"}
+	invalid = &HostVolume{}
 	err = invalid.Validate()
 	// single error should be flattened
-	must.EqError(t, err, "must include at least one capability block")
+	must.EqError(t, err, "missing name")
 
 	invalid = &HostVolume{
 		ID:       "../../not-a-uuid",
