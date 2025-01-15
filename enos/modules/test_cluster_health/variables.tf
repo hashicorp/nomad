@@ -37,7 +37,7 @@ variable "client_count" {
   default     = 4
 }
 
-variable "running_jobs" {
+variable "jobs_count" {
   description = "The number of jobs that should be running in the cluster"
   default     = 2
 }
