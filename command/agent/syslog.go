@@ -10,15 +10,26 @@ import (
 	"github.com/hashicorp/logutils"
 )
 
-// levelPriority is used to map a log level to a
-// syslog priority level
+// levelPriority is used to map a log level to a syslog priority level. The
+// level strings should match those described within LevelFilter except for
+// "OFF" which disables syslog.
 var levelPriority = map[string]gsyslog.Priority{
 	"TRACE": gsyslog.LOG_DEBUG,
 	"DEBUG": gsyslog.LOG_INFO,
 	"INFO":  gsyslog.LOG_NOTICE,
 	"WARN":  gsyslog.LOG_WARNING,
-	"ERR":   gsyslog.LOG_ERR,
-	"CRIT":  gsyslog.LOG_CRIT,
+	"ERROR": gsyslog.LOG_ERR,
+}
+
+// getSysLogPriority returns the syslog priority value associated to the passed
+// log level. If the log level does not have a known mapping, the notice
+// priority is returned.
+func getSysLogPriority(level string) gsyslog.Priority {
+	priority, ok := levelPriority[level]
+	if !ok {
+		priority = gsyslog.LOG_NOTICE
+	}
+	return priority
 }
 
 // SyslogWrapper is used to cleanup log messages before
@@ -48,13 +59,7 @@ func (s *SyslogWrapper) Write(p []byte) (int, error) {
 		}
 	}
 
-	// Each log level will be handled by a specific syslog priority
-	priority, ok := levelPriority[level]
-	if !ok {
-		priority = gsyslog.LOG_NOTICE
-	}
-
-	// Attempt the write
-	err := s.l.WriteLevel(priority, afterLevel)
+	// Attempt to write using the converted syslog priority.
+	err := s.l.WriteLevel(getSysLogPriority(level), afterLevel)
 	return len(p), err
 }
