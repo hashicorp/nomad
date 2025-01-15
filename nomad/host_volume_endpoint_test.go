@@ -7,8 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -297,7 +295,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		// win a race with the get RPC goroutine
 		time.AfterFunc(200*time.Millisecond, func() {
 			codec := rpcClient(t, srv)
-			var registerResp structs.HostVolumeRegisterResponse
+			var registerResp structs.HostVolumeCreateResponse
 			err := msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
 			must.NoError(t, err)
 		})
@@ -766,6 +764,8 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 	}
 }
 
+// TestHostVolumeEndpoint_concurrency checks that create/register/delete RPC
+// calls can not run concurrently for a single volume.
 func TestHostVolumeEndpoint_concurrency(t *testing.T) {
 	ci.Parallel(t)
 
@@ -773,12 +773,9 @@ func TestHostVolumeEndpoint_concurrency(t *testing.T) {
 	t.Cleanup(cleanup)
 	testutil.WaitForLeader(t, srv.RPC)
 
-	_, node := newMockHostVolumeClient(t, srv, "default")
+	c, node := newMockHostVolumeClient(t, srv, "default")
 
 	vol := &structs.HostVolume{
-		// wacky mechanism to make the RPC calls slow
-		Parameters: map[string]string{"sleep": "1"},
-
 		Name:      "test-vol",
 		Namespace: "default",
 		NodeID:    node.ID,
@@ -794,73 +791,84 @@ func TestHostVolumeEndpoint_concurrency(t *testing.T) {
 	wr := structs.WriteRequest{Region: srv.Region()}
 
 	// create the volume for us to attempt concurrent operations on
+	c.setCreate(&cstructs.ClientHostVolumeCreateResponse{
+		VolumeName: "test-vol",
+		HostPath:   "/pretend/path",
+	}, nil)
 	createReq := &structs.HostVolumeCreateRequest{
 		Volume:       vol.Copy(), // copy because HostPath gets mutated
 		WriteRequest: wr,
 	}
 	var createResp structs.HostVolumeCreateResponse
-	err := srv.RPC("HostVolume.Create", createReq, &createResp)
-	must.NoError(t, err)
+	must.NoError(t, srv.RPC("HostVolume.Create", createReq, &createResp))
+	volumeID := createResp.Volume.ID // used by delete
 
-	// do another create, a register, and a delete, all at once
-	cCh, rCh, dCh := make(chan error, 1), make(chan error, 1), make(chan error, 1)
+	// prepare blocking channels in the mock client.
+	// sending a struct{} (or closing) the channel will unblock the operation
+	cCh, rCh, dCh := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	c.setBlockChan("create", cCh)
+	c.setBlockChan("register", rCh)
+	c.setBlockChan("delete", dCh)
 
-	// each call should take ~1 second, one at a time
-	start := time.Now()
+	// each RPC call that finishes will put its name here
+	opCh := make(chan string)
 
+	// start all the RPCs concurrently
 	go func() {
-		cCh <- srv.RPC("HostVolume.Create", createReq, &createResp)
+		createReq = &structs.HostVolumeCreateRequest{
+			Volume:       vol.Copy(), // copy because HostPath gets mutated
+			WriteRequest: wr,
+		}
+		createResp = structs.HostVolumeCreateResponse{}
+		test.NoError(t, srv.RPC("HostVolume.Create", createReq, &createResp),
+			test.Sprint("Create method should not error"))
+		opCh <- "create"
 	}()
-
 	go func() {
 		registerReq := &structs.HostVolumeRegisterRequest{
 			Volume:       vol.Copy(),
 			WriteRequest: wr,
 		}
 		var registerResp structs.HostVolumeRegisterResponse
-		rCh <- srv.RPC("HostVolume.Register", registerReq, &registerResp)
+		test.NoError(t, srv.RPC("HostVolume.Register", registerReq, &registerResp),
+			test.Sprint("Register method should not error"))
+		opCh <- "register"
 	}()
-
 	go func() {
 		deleteReq := &structs.HostVolumeDeleteRequest{
-			VolumeID:     createResp.Volume.ID,
+			VolumeID:     volumeID,
 			WriteRequest: wr,
 		}
 		var deleteResp structs.HostVolumeDeleteResponse
-		dCh <- srv.RPC("HostVolume.Delete", deleteReq, &deleteResp)
+		test.NoError(t, srv.RPC("HostVolume.Delete", deleteReq, &deleteResp),
+			test.Sprint("Delete method should not error"))
+		opCh <- "delete"
 	}()
 
-	// wait for the 3 RPCs to complete - they may happen in any order.
-	cDone, rDone, dDone := time.Time{}, time.Time{}, time.Time{}
-	for range 3 {
+	// helper pulls an operation from the channel, or timeout
+	pullOp := func() string {
 		select {
-		case err = <-cCh:
-			test.NoError(t, err, test.Sprintf("error from create: %s", err))
-			cDone = time.Now()
-		case err = <-rCh:
-			test.NoError(t, err, test.Sprintf("error from register: %s", err))
-			rDone = time.Now()
-		case err = <-dCh:
-			test.NoError(t, err, test.Sprintf("error from delete: %s", err))
-			dDone = time.Now()
-		case <-time.After(5 * time.Second): // just in case
-			t.Fatalf("timeout reached waiting for create/register/delete")
+		case op := <-opCh:
+			return op
+		case <-time.After(200 * time.Millisecond): // generous headroom
+			return "timeout"
 		}
 	}
 
-	// put them in order
-	dones := []time.Time{cDone, rDone, dDone}
-	slices.SortFunc(dones, func(a, b time.Time) int {
-		return int(a.Sub(b))
-	})
-	// make sure they're a second apart (the "sleep" time)
-	test.GreaterEq(t, time.Second, dones[1].Sub(dones[0]), test.Sprint("second call should be a second after first"))
-	test.GreaterEq(t, time.Second, dones[2].Sub(dones[1]), test.Sprint("third call should be a second after second"))
+	must.Eq(t, "timeout", pullOp(), must.Sprint("nothing should be unblocked yet"))
 
-	// in total, it should have taken 3-4 seconds
-	end := time.Now()
-	test.GreaterEq(t, 3*time.Second, end.Sub(start), test.Sprint("all calls should take 3 seconds total"))
-	test.Less(t, 4*time.Second, end.Sub(start), test.Sprint("all calls should take less than 4 seconds"))
+	close(rCh)
+	must.Eq(t, "register", pullOp(), must.Sprint("closing register channel should unblock Register"))
+
+	must.Eq(t, "timeout", pullOp(), must.Sprint("again blocked RPCs should remain so"))
+
+	close(cCh)
+	must.Eq(t, "create", pullOp(), must.Sprint("closing create channel should unblock Create"))
+
+	must.Eq(t, "timeout", pullOp(), must.Sprint("last RPC should still be blocked"))
+
+	close(dCh)
+	must.Eq(t, "delete", pullOp(), must.Sprint("closing delete channel should unblock Delete"))
 }
 
 // mockHostVolumeClient models client RPCs that have side-effects on the
@@ -871,6 +879,10 @@ type mockHostVolumeClient struct {
 	nextCreateErr      error
 	nextRegisterErr    error
 	nextDeleteErr      error
+	// blockChans are used to test server->client RPC serialization.
+	// this is separate from lock because no single method should block while
+	// holding the lock for the whole client.
+	blockChans sync.Map
 }
 
 // newMockHostVolumeClient configures a RPC-only Nomad test agent and returns a
@@ -919,21 +931,21 @@ func (v *mockHostVolumeClient) setDelete(errMsg string) {
 	v.nextDeleteErr = errors.New(errMsg)
 }
 
+func (v *mockHostVolumeClient) setBlockChan(operation string, ch chan struct{}) {
+	v.blockChans.Store(operation, ch)
+}
+
 func (v *mockHostVolumeClient) Create(
 	req *cstructs.ClientHostVolumeCreateRequest,
 	resp *cstructs.ClientHostVolumeCreateResponse) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
 
-	// wacky use of parameters to induce slowness for concurrency test
-	if s, ok := req.Parameters["sleep"]; ok {
-		i, err := strconv.Atoi(s)
-		if err != nil {
-			return err
-		}
-		time.Sleep(time.Duration(i) * time.Second)
+	// block until the concurrency test closes the channel
+	if ch, ok := v.blockChans.Load("create"); ok {
+		<-ch.(chan struct{})
 	}
 
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	if v.nextCreateResponse == nil {
 		return nil // prevents panics from incorrect tests
 	}
@@ -944,17 +956,13 @@ func (v *mockHostVolumeClient) Create(
 func (v *mockHostVolumeClient) Register(
 	req *cstructs.ClientHostVolumeRegisterRequest,
 	resp *cstructs.ClientHostVolumeRegisterResponse) error {
-	v.lock.Lock()
 
-	// wacky use of parameters to induce slowness for concurrency test
-	if s, ok := req.Parameters["sleep"]; ok {
-		i, err := strconv.Atoi(s)
-		if err != nil {
-			return err
-		}
-		time.Sleep(time.Duration(i) * time.Second)
+	// block until the concurrency test closes the channel
+	if ch, ok := v.blockChans.Load("register"); ok {
+		<-ch.(chan struct{})
 	}
 
+	v.lock.Lock()
 	defer v.lock.Unlock()
 	*resp = cstructs.ClientHostVolumeRegisterResponse{}
 	return v.nextRegisterErr
@@ -963,17 +971,13 @@ func (v *mockHostVolumeClient) Register(
 func (v *mockHostVolumeClient) Delete(
 	req *cstructs.ClientHostVolumeDeleteRequest,
 	resp *cstructs.ClientHostVolumeDeleteResponse) error {
-	v.lock.Lock()
-	defer v.lock.Unlock()
 
-	// wacky use of parameters to induce slowness for concurrency test
-	if s, ok := req.Parameters["sleep"]; ok {
-		i, err := strconv.Atoi(s)
-		if err != nil {
-			return err
-		}
-		time.Sleep(time.Duration(i) * time.Second)
+	// block until the concurrency test closes the channel
+	if ch, ok := v.blockChans.Load("delete"); ok {
+		<-ch.(chan struct{})
 	}
 
+	v.lock.Lock()
+	defer v.lock.Unlock()
 	return v.nextDeleteErr
 }
