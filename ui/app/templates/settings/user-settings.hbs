@@ -4,19 +4,21 @@
 ~}}
 
 {{page-title "User Settings"}}
-<section class="section">
-  <Hds::Alert @type="inline" @title="Local Storage Settings" as |A|>
+<section class="section user-settings-page">
+  <Hds::Alert @type="inline" @title="User Settings" as |A|>
     <A.Title>User Settings</A.Title>
-    <A.Description>These settings will be saved to your browser settings via Local Storage.</A.Description>
+    <A.Description>These settings will be saved to your browser settings via
+      Local Storage.</A.Description>
     <A.Generic>
-      <Hds::Separator/>
+      <Hds::Separator />
       <Hds::Form::Toggle::Group as |G|>
         <G.ToggleField
           name="word-wrap"
           @id="word-wrap"
           checked={{this.wordWrap}}
           {{on "change" (action (mut this.wordWrap) (not this.wordWrap))}}
-        as |F|>
+          as |F|
+        >
           <F.Label>Word Wrap</F.Label>
           <F.HelperText>Wrap lines of text in logs and exec terminals in the UI</F.HelperText>
         </G.ToggleField>
@@ -24,14 +26,39 @@
           name="jostle"
           @id="jostle"
           checked={{this.liveUpdateJobsIndex}}
-          {{on "change" (action (mut this.liveUpdateJobsIndex) (not this.liveUpdateJobsIndex))}}
-        as |F|>
-          <F.Label>Live Updates to <LinkTo @route="jobs.index">Jobs Index</LinkTo></F.Label>
-          <F.HelperText>When enabled, new or removed jobs will pop into and out of view on your jobs page. When disabled, you will be notified that changes are pending.</F.HelperText>
+          {{on
+            "change"
+            (action
+              (mut this.liveUpdateJobsIndex) (not this.liveUpdateJobsIndex)
+            )
+          }}
+          as |F|
+        >
+          <F.Label>Live Updates to
+            <LinkTo @route="jobs.index">Jobs Index</LinkTo></F.Label>
+          <F.HelperText>When enabled, new or removed jobs will pop into and out
+            of view on your jobs page. When disabled, you will be notified that
+            changes are pending.</F.HelperText>
         </G.ToggleField>
       </Hds::Form::Toggle::Group>
 
-      <Hds::Separator/>
+    </A.Generic>
+  </Hds::Alert>
+
+  <Hds::Alert @type="inline" @title="Defaults" as |A|>
+    <A.Title>Defaults</A.Title>
+    <A.Description>
+      You can set defaults for the UI when it comes to filtering viewing certain pages. You can configure these, in ascending order of precedence:
+      <ol>
+        <li><a href="https://developer.hashicorp.com/nomad/docs/configuration/ui#ui-parameters"><strong>Agent configuration</strong></a>, which is overridden by</li>
+        <li><LinkTo @route="variables.variable.edit"  @model="nomad/ui/defaults@default"><strong>Variable defaults</strong></LinkTo>, which is overridden by</li>
+        <li><strong>Local Storage settings</strong> (which you can modify by making changes on this page), which is overridden by</li>
+        <li><strong>Query Parameters</strong> in your URL.</li>
+      </ol>
+    </A.Description>
+
+    <A.Generic>
+      <Hds::Separator />
       <Hds::Form::Label>
         Default Namespace
         <Hds::Dropdown @height="300px" @listPosition="bottom-left" as |dd|>
@@ -45,7 +72,10 @@
               placeholder="Filter namespaces"
               @value={{this.namespaceFilter}}
               {{autofocus}}
-              {{on "input" (action (mut this.namespaceFilter) value="target.value") }}
+              {{on
+                "input"
+                (action (mut this.namespaceFilter) value="target.value")
+              }}
               data-test-namespace-filter-searchbox
             />
           </dd.Header>
@@ -56,7 +86,10 @@
               checked={{option.checked}}
               data-test-dropdown-option={{option.label}}
             >
-              {{option.label}} {{#if (includes option.id this.namespaceDefaults)}}(default){{/if}}
+              {{option.label}}
+              {{#if
+                (includes option.id this.namespaceDefaults)
+              }}(default){{/if}}
             </dd.Checkbox>
           {{else}}
             <dd.Generic data-test-dropdown-empty>
@@ -73,11 +106,18 @@
         You can set which namespaces are selected by default in the UI.
         {{#if this.system.agentDefaults.Namespace}}
           <br />
-          Your agent configuration has set the default namespace to <strong>{{this.system.agentDefaults.Namespace}}</strong>.
+          Your agent configuration has set the default namespace to
+          <strong>{{this.system.agentDefaults.Namespace}}</strong>.
+        {{/if}}
+        {{#if this.system.variableDefaults.Namespace}}
+          <br />
+          Your <LinkTo @route="variables.variable.edit" @model="nomad/ui/defaults@default">variable defaults</LinkTo> have set the default namespace to
+          <strong>{{this.system.variableDefaults.Namespace}}</strong>.
         {{/if}}
         {{#if this.system.userDefaultNamespace}}
           <br />
-          Your user settings have set the default namespace to <strong>{{this.system.userDefaultNamespace}}</strong>.
+          Your user settings have set the default namespace to
+          <strong>{{this.system.userDefaultNamespace}}</strong>.
 
           <Hds::Button
             @isInline={{true}}
@@ -90,7 +130,7 @@
         {{/if}}
       </Hds::Form::HelperText>
 
-      <Hds::Separator/>
+      <Hds::Separator />
 
       <Hds::Form::Label>
         Default Node Pool
@@ -105,7 +145,10 @@
               placeholder="Filter node pools"
               @value={{this.nodepoolFilter}}
               {{autofocus}}
-              {{on "input" (action (mut this.nodepoolFilter) value="target.value") }}
+              {{on
+                "input"
+                (action (mut this.nodepoolFilter) value="target.value")
+              }}
               data-test-nodepool-filter-searchbox
             />
           </dd.Header>
@@ -116,7 +159,8 @@
               checked={{option.checked}}
               data-test-dropdown-option={{option.label}}
             >
-              {{option.label}} {{#if (includes option.id this.nodepoolDefaults)}}(default){{/if}}
+              {{option.label}}
+              {{#if (includes option.id this.nodepoolDefaults)}}(default){{/if}}
             </dd.Checkbox>
           {{else}}
             <dd.Generic data-test-dropdown-empty>
@@ -133,11 +177,18 @@
         You can set which node pools are selected by default in the UI.
         {{#if this.system.agentDefaults.NodePool}}
           <br />
-          Your agent configuration has set the default node pool to <strong>{{this.system.agentDefaults.NodePool}}</strong>.
+          Your agent configuration has set the default node pool to
+          <strong>{{this.system.agentDefaults.NodePool}}</strong>.
+        {{/if}}
+        {{#if this.system.variableDefaults.NodePool}}
+          <br />
+          Your <LinkTo @route="variables.variable.edit" @model="nomad/ui/defaults@default">variable defaults</LinkTo> have set the default node pool to
+          <strong>{{this.system.variableDefaults.NodePool}}</strong>.
         {{/if}}
         {{#if this.system.userDefaultNodePool}}
           <br />
-          Your user settings have set the default node pool to <strong>{{this.system.userDefaultNodePool}}</strong>.
+          Your user settings have set the default node pool to
+          <strong>{{this.system.userDefaultNodePool}}</strong>.
 
           <Hds::Button
             @isInline={{true}}
@@ -150,8 +201,8 @@
         {{/if}}
       </Hds::Form::HelperText>
 
-      {{#if this.system.shouldShowRegions}}      
-        <Hds::Separator/>
+      {{#if this.system.shouldShowRegions}}
+        <Hds::Separator />
         <Hds::Form::Label>
           Default Region
           {{!-- <RegionSwitcher @onChange={{this.setDefaultRegion}} /> --}}
@@ -169,8 +220,9 @@
               >
                 {{option.label}} {{#if (includes option.id this.regionDefaults)}}(default){{/if}}
               </dd.Checkbox> --}}
-							<dd.Interactive
-                {{on "click" (action this.setDefaultRegion option)}} @text={{option}}
+              <dd.Interactive
+                {{on "click" (action this.setDefaultRegion option)}}
+                @text={{option}}
               />
             {{/each}}
           </Hds::Dropdown>
@@ -179,11 +231,19 @@
           You can set which region is selected by default in the UI.
           {{#if this.system.agentDefaults.Region}}
             <br />
-            Your agent configuration has set the default region to <strong>{{this.system.agentDefaults.Region}}</strong>.
+            Your agent configuration has set the default region to
+            <strong>{{this.system.agentDefaults.Region}}</strong>.
+          {{/if}}
+          {{#if this.system.variableDefaults.Region}}
+            <br />
+            Your <LinkTo @route="variables.variable.edit" @model="nomad/ui/defaults@default">variable defaults</LinkTo> have set the default region to
+            <strong>{{this.system.variableDefaults.Region}}</strong>.
           {{/if}}
           {{#if this.system.userDefaultRegion}}
             <br />
-            Your user settings have set the default region to <strong>{{this.system.userDefaultRegion}}</strong> (This updates every time you change regions via the UI)
+            Your user settings have set the default region to
+            <strong>{{this.system.userDefaultRegion}}</strong>
+            (This updates every time you change regions via the UI)
           {{/if}}
         </Hds::Form::HelperText>
 

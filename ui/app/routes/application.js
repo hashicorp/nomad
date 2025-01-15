@@ -79,6 +79,24 @@ export default class ApplicationRoute extends Route {
       ]);
     }
 
+    // If a variable is set at nomad/ui/defaults, set its results in the system service
+    // TODO: need to do this fetch upon sign-in, not just on app load. Same with agent config.
+    try {
+      const variableDefaults = await this.store.findRecord(
+        'variable',
+        'nomad/ui/defaults@default'
+      );
+      if (variableDefaults) {
+        this.set('system.variableDefaults', {
+          Namespace: variableDefaults.items.namespace,
+          NodePool: variableDefaults.items.nodepool,
+          Region: variableDefaults.items.region,
+        });
+      }
+    } catch (e) {
+      // No default variable found, fall back to agent config or "default".
+    }
+
     if (!this.get('system.shouldShowRegions')) return promises;
 
     const queryParam = transition.to.queryParams.region;

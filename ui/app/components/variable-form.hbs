@@ -49,6 +49,17 @@
     </div>
   {{/if}}
 
+  {{#if this.isUIDefaultsVariable}}
+    <Hds::Alert @type="inline" @color="highlight" @title="UI Defaults" as |A|>
+      <A.Title>UI Defaults</A.Title>
+      <A.Description>
+        <p>This variable is used to set the default values using the UI.</p>
+        <p>Currently-accepted values are <code>namespace</code>, <code>nodepool</code>, and <code>region</code>.</p>
+        <p>You can comma-separate strings to set multiple defaults for namespaces and node pools.</p>
+      </A.Description>
+    </Hds::Alert>
+  {{/if}}
+
   <div class={{if this.namespaceOptions "path-namespace"}}>
 
 		<Hds::Form::TextInput::Field
@@ -62,7 +73,7 @@
       data-test-path-input
 		as |F|>
 			<F.Label>Path</F.Label>
-      
+
       {{#if this.duplicatePathWarning}}
         <F.Error data-test-duplicate-variable-error>
           There is already a variable located at
@@ -94,8 +105,8 @@
 		</Hds::Form::TextInput::Field>
 
 
-    <VariableForm::NamespaceFilter 
-      @data={{hash 
+    <VariableForm::NamespaceFilter
+      @data={{hash
         disabled=(not @model.isNew)
         selection=this.variableNamespace
         namespaceOptions=this.namespaceOptions

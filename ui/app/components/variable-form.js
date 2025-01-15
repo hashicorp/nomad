@@ -77,7 +77,8 @@ export default class VariableFormComponent extends Component {
       !(
         this.path?.startsWith('nomad/jobs') ||
         (this.path?.startsWith('nomad/job-templates') &&
-          trimPath([this.path]) !== 'nomad/job-templates')
+          trimPath([this.path]) !== 'nomad/job-templates') ||
+        this.path === 'nomad/ui/defaults'
       );
     return !!this.JSONError || !this.path || disallowedPath;
   }
@@ -138,6 +139,12 @@ export default class VariableFormComponent extends Component {
   get duplicatePathWarning() {
     const existingVariables = this.args.existingVariables || [];
     const pathValue = trimPath([this.path]);
+    // TODO: temporary hack! This is happening because I'm separately loading the default variable
+    // in the application route, and it's not showing up as this.args.model-equivalent here, so the
+    // .without() call is failing.
+    if (pathValue === 'nomad/ui/defaults') {
+      return null;
+    }
     let existingVariable = existingVariables
       .without(this.args.model)
       .find(
@@ -420,6 +427,10 @@ export default class VariableFormComponent extends Component {
       this.args.model.pathLinkedEntities?.task ||
       trimPath([this.path]) === 'nomad/jobs'
     );
+  }
+
+  get isUIDefaultsVariable() {
+    return this.path === 'nomad/ui/defaults';
   }
 
   //#region Unsaved Changes Confirmation
