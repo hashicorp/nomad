@@ -138,6 +138,7 @@ export default class SystemService extends Service {
   @localStorageProperty('nomadActiveRegion') userDefaultRegion;
 
   @tracked agentDefaults = {};
+  @tracked variableDefaults = {};
 
   /**
    * First read agent config for cluster-level defaults,
@@ -149,7 +150,8 @@ export default class SystemService extends Service {
     'agentDefaults.{Namespace,NodePool,Region}',
     'userDefaultNamespace',
     'userDefaultNodePool',
-    'userDefaultRegion'
+    'userDefaultRegion',
+    'variableDefaults.{Namespace,NodePool,Region}'
   )
   get defaults() {
     return this.agent.then((agent) => {
@@ -159,11 +161,22 @@ export default class SystemService extends Service {
       // eslint-disable-next-line ember/no-side-effects
       this.agentDefaults = agent?.config?.UI?.Defaults || {};
       return {
-        region: this.userDefaultRegion || this.agentDefaults.Region,
-        namespace: (this.userDefaultNamespace || this.agentDefaults.Namespace)
+        region:
+          this.userDefaultRegion ||
+          this.variableDefaults.Region ||
+          this.agentDefaults.Region,
+        namespace: (
+          this.userDefaultNamespace ||
+          this.variableDefaults.Namespace || // TODO: probably have to split/map/trim variableDefaults, too.
+          this.agentDefaults.Namespace
+        )
           ?.split(',')
           .map((ns) => ns.trim()),
-        nodePool: (this.userDefaultNodePool || this.agentDefaults.NodePool)
+        nodePool: (
+          this.userDefaultNodePool ||
+          this.variableDefaults.NodePool ||
+          this.agentDefaults.NodePool
+        )
           ?.split(',')
           .map((np) => np.trim()),
       };

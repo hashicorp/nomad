@@ -63,3 +63,16 @@
     gap: 0.5rem;
   }
 }
+
+.user-settings-page {
+  .hds-alert {
+    margin-bottom: 1.5rem;
+  }
+  ol li {
+    margin-left: 1rem;
+    a, a strong {
+      color: $blue-500;
+      text-decoration-color: $blue-500;
+    }
+  }
+}
