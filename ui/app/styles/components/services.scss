@@ -119,6 +119,9 @@ table.health-checks {
           &.status-success {
             background-color: $nomad-green;
           }
+          &.status-pending {
+            background-color: $gray-300;
+          }
           &.status-failure {
             background-color: $red;
           }
