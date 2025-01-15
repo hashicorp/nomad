@@ -110,11 +110,6 @@ func (s *syslogJSONWrapper) Write(logBytes []byte) (int, error) {
 	// knowledge of the JSON formatting from go-hclog.
 	level := strings.ToTitle(string(logBytes[indexes[0][0]+10 : indexes[0][1]-2]))
 
-	// Rip the level out of the log message line. The level will be indicated
-	// by syslog, depending on the operators formatting setup.
-	afterLevel := logBytes[:indexes[0][0]]
-	afterLevel = append(afterLevel, logBytes[indexes[0][1]:]...)
-
 	// Attempt to write using the converted syslog priority.
-	return len(logBytes), s.logger.WriteLevel(getSysLogPriority(level), afterLevel)
+	return len(logBytes), s.logger.WriteLevel(getSysLogPriority(level), logBytes)
 }

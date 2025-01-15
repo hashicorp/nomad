@@ -164,53 +164,46 @@ func Test_syslogJSONWrapper(t *testing.T) {
 	}
 
 	testCases := []struct {
-		name                   string
-		inputLogLine           string
-		expectedWrittenLogLine string
-		expectedBytesWritten   int
-		expectedPriority       gsyslog.Priority
+		name                 string
+		inputLogLine         string
+		expectedBytesWritten int
+		expectedPriority     gsyslog.Priority
 	}{
 		{
-			name:                   "trace",
-			inputLogLine:           `{"@level":"trace","@message":"i am a trace message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedWrittenLogLine: `{"@message":"i am a trace message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedBytesWritten:   113,
-			expectedPriority:       gsyslog.LOG_DEBUG,
+			name:                 "trace",
+			inputLogLine:         `{"@level":"trace","@message":"i am a trace message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
+			expectedBytesWritten: 113,
+			expectedPriority:     gsyslog.LOG_DEBUG,
 		},
 		{
-			name:                   "debug",
-			inputLogLine:           `{"@level":"debug","@message":"i am a debug message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedWrittenLogLine: `{"@message":"i am a debug message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedBytesWritten:   113,
-			expectedPriority:       gsyslog.LOG_INFO,
+			name:                 "debug",
+			inputLogLine:         `{"@level":"debug","@message":"i am a debug message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
+			expectedBytesWritten: 113,
+			expectedPriority:     gsyslog.LOG_INFO,
 		},
 		{
-			name:                   "info",
-			inputLogLine:           `{"@level":"info","@message":"i am an info message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedWrittenLogLine: `{"@message":"i am an info message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedBytesWritten:   112,
-			expectedPriority:       gsyslog.LOG_NOTICE,
+			name:                 "info",
+			inputLogLine:         `{"@level":"info","@message":"i am an info message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
+			expectedBytesWritten: 112,
+			expectedPriority:     gsyslog.LOG_NOTICE,
 		},
 		{
-			name:                   "warn",
-			inputLogLine:           `{"@level":"warn","@message":"i am a warn message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedWrittenLogLine: `{"@message":"i am a warn message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedBytesWritten:   111,
-			expectedPriority:       gsyslog.LOG_WARNING,
+			name:                 "warn",
+			inputLogLine:         `{"@level":"warn","@message":"i am a warn message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
+			expectedBytesWritten: 111,
+			expectedPriority:     gsyslog.LOG_WARNING,
 		},
 		{
-			name:                   "error",
-			inputLogLine:           `{"@level":"error","@message":"i am an error message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedWrittenLogLine: `{"@message":"i am an error message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedBytesWritten:   114,
-			expectedPriority:       gsyslog.LOG_ERR,
+			name:                 "error",
+			inputLogLine:         `{"@level":"error","@message":"i am an error message","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
+			expectedBytesWritten: 114,
+			expectedPriority:     gsyslog.LOG_ERR,
 		},
 		{
-			name:                   "no level",
-			inputLogLine:           `{"@message":"i am a message without a level","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedWrittenLogLine: `{"@message":"i am a message without a level","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
-			expectedBytesWritten:   106,
-			expectedPriority:       gsyslog.LOG_NOTICE,
+			name:                 "no level",
+			inputLogLine:         `{"@message":"i am a message without a level","@module":"agent","@timestamp":"2025-01-14T08:54:26.245072Z"}`,
+			expectedBytesWritten: 106,
+			expectedPriority:     gsyslog.LOG_NOTICE,
 		},
 	}
 
@@ -224,7 +217,7 @@ func Test_syslogJSONWrapper(t *testing.T) {
 			bytesWritten, err := syslogWriter.Write([]byte(tc.inputLogLine))
 			must.NoError(t, err)
 			must.Eq(t, tc.expectedBytesWritten, bytesWritten)
-			must.Eq(t, tc.expectedWrittenLogLine, testSyslogBackend.msg)
+			must.Eq(t, tc.inputLogLine, testSyslogBackend.msg)
 			must.Eq(t, tc.expectedPriority, testSyslogBackend.pri)
 		})
 	}
