@@ -8,10 +8,10 @@ module "build_artifactory" {
 }
 
 module "provision_cluster" {
-  source = "../e2e/terraform"
+  source = "../e2e/terraform/provision-infra"
 }
 
-module "run_workload" {
+module "run_workloads" {
   source = "./modules/run_workloads"
 }
 

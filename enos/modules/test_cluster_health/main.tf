@@ -18,7 +18,7 @@ resource "enos_local_exec" "run_tests" {
     NOMAD_TOKEN       = var.nomad_token
     SERVERS           = var.server_count
     CLIENTS           = var.client_count
-    JOBS              = var.running_jobs
+    JOBS              = var.jobs_count
     ALLOCS            = var.alloc_count
   }
 

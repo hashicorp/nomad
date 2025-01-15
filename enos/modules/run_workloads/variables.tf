@@ -34,7 +34,7 @@ variable "workloads" {
     alloc_count = number
   }))
   default = {
-    service_raw_exec = { path = "./jobs/raw-exec-service.nomad.hcl", alloc_count = 3 }
-    service_docker   = { path = "./jobs/docker-service.nomad.hcl", alloc_count = 3 }
+    service_raw_exec = { path = "./templates/raw-exec-service.nomad.hcl", alloc_count = 3 }
+    service_docker   = { path = "./templates/docker-service.nomad.hcl", alloc_count = 3 }
   }
 }
