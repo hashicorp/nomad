@@ -8,15 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
-	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 )
-
-const ns = ""
 
 // TestVolumeMounts exercises host volume and Docker volume functionality for
 // the exec and docker task driver, particularly around mounting locations
@@ -27,83 +23,51 @@ func TestVolumeMounts(t *testing.T) {
 	e2eutil.WaitForLeader(t, nomad)
 	e2eutil.WaitForNodesReady(t, nomad, 1)
 
-	jobIDs := []string{}
-	t.Cleanup(e2eutil.CleanupJobsAndGC(t, &jobIDs))
+	sub, stop := jobs3.Submit(t, "./input/volumes.nomad",
+		jobs3.Verbose(true),
+		jobs3.Timeout(30*time.Second), // exec tasks take longer to start
+	)
 
-	jobID := "test-node-drain-" + uuid.Short()
-	require.NoError(t, e2eutil.Register(jobID, "./input/volumes.nomad"))
-	jobIDs = append(jobIDs, jobID)
+	allocs := sub.Allocs()
+	must.Len(t, 1, allocs)
+	allocID0 := allocs[0].ID
+	nodeID := allocs[0].NodeID
 
-	expected := []string{"running"}
-	require.NoError(t, e2eutil.WaitForAllocStatusExpected(jobID, ns, expected),
-		"job should be running")
+	oldPath := fmt.Sprintf("/tmp/foo/%s", allocID0)
+	logs := sub.Exec("group", "docker_task", []string{"cat", oldPath})
+	must.StrContains(t, logs.Stdout, allocID0)
 
-	allocs, err := e2eutil.AllocsForJob(jobID, ns)
-	require.NoError(t, err, "could not get allocs for job")
-	allocID := allocs[0]["ID"]
-	nodeID := allocs[0]["Node ID"]
+	logs = sub.Exec("group", "exec_task", []string{"cat", oldPath})
+	must.StrContains(t, logs.Stdout, allocID0)
 
-	cmdToExec := fmt.Sprintf("cat /tmp/foo/%s", allocID)
+	stop()
 
-	out, err := e2eutil.AllocExec(allocID, "docker_task", cmdToExec, ns, nil)
-	require.NoError(t, err, "could not exec into task: docker_task")
-	require.Equal(t, allocID+"\n", out, "alloc data is missing from docker_task")
+	sub, stop = jobs3.Submit(t, "./input/volumes.nomad",
+		jobs3.Verbose(true),
+		jobs3.Timeout(30*time.Second), // exec tasks take longer to start
+		jobs3.ReplaceInJobSpec("${attr.kernel.name}", "${node.unique.id}"),
+		jobs3.ReplaceInJobSpec("linux", nodeID),
+	)
 
-	out, err = e2eutil.AllocExec(allocID, "exec_task", cmdToExec, ns, nil)
-	require.NoError(t, err, "could not exec into task: exec_task")
-	require.Equal(t, out, allocID+"\n", "alloc data is missing from exec_task")
+	allocs = sub.Allocs()
+	must.Len(t, 1, allocs)
+	allocID1 := allocs[0].ID
 
-	err = e2eutil.StopJob(jobID)
-	require.NoError(t, err, "could not stop job")
+	newPath := fmt.Sprintf("/tmp/foo/%s", allocID1)
 
-	// modify the job so that we make sure it's placed back on the same host.
-	// we want to be able to verify that the data from the previous alloc is
-	// still there
-	job, err := e2eutil.Parse2(t, "./input/volumes.nomad")
-	require.NoError(t, err)
-	job.ID = &jobID
-	job.Constraints = []*api.Constraint{
-		{
-			LTarget: "${node.unique.id}",
-			RTarget: nodeID,
-			Operand: "=",
-		},
-	}
-	_, _, err = nomad.Jobs().Register(job, nil)
-	require.NoError(t, err, "could not register updated job")
+	logs = sub.Exec("group", "docker_task", []string{"cat", newPath})
+	must.StrContains(t, logs.Stdout, allocID1,
+		must.Sprintf("new alloc data is missing from docker_task, got: %s", logs.Stdout))
 
-	testutil.WaitForResultRetries(5000, func() (bool, error) {
-		time.Sleep(time.Millisecond * 100)
-		allocs, err = e2eutil.AllocsForJob(jobID, ns)
-		if err != nil {
-			return false, err
-		}
-		if len(allocs) < 2 {
-			return false, fmt.Errorf("no new allocation for %v: %v", jobID, allocs)
-		}
+	logs = sub.Exec("group", "docker_task", []string{"cat", oldPath})
+	must.StrContains(t, logs.Stdout, allocID0,
+		must.Sprintf("previous alloc data is missing from docker_task, got: %s", logs.Stdout))
 
-		return true, nil
-	}, func(e error) {
-		require.NoError(t, e, "failed to get new alloc")
-	})
+	logs = sub.Exec("group", "exec_task", []string{"cat", newPath})
+	must.StrContains(t, logs.Stdout, allocID1,
+		must.Sprintf("new alloc data is missing from exec_task, got: %s", logs.Stdout))
 
-	newAllocID := allocs[0]["ID"]
-
-	newCmdToExec := fmt.Sprintf("cat /tmp/foo/%s", newAllocID)
-
-	out, err = e2eutil.AllocExec(newAllocID, "docker_task", cmdToExec, ns, nil)
-	require.NoError(t, err, "could not exec into task: docker_task")
-	require.Equal(t, out, allocID+"\n", "previous alloc data is missing from docker_task")
-
-	out, err = e2eutil.AllocExec(newAllocID, "docker_task", newCmdToExec, ns, nil)
-	require.NoError(t, err, "could not exec into task: docker_task")
-	require.Equal(t, out, newAllocID+"\n", "new alloc data is missing from docker_task")
-
-	out, err = e2eutil.AllocExec(newAllocID, "exec_task", cmdToExec, ns, nil)
-	require.NoError(t, err, "could not exec into task: exec_task")
-	require.Equal(t, out, allocID+"\n", "previous alloc data is missing from exec_task")
-
-	out, err = e2eutil.AllocExec(newAllocID, "exec_task", newCmdToExec, ns, nil)
-	require.NoError(t, err, "could not exec into task: exec_task")
-	require.Equal(t, out, newAllocID+"\n", "new alloc data is missing from exec_task")
+	logs = sub.Exec("group", "exec_task", []string{"cat", oldPath})
+	must.StrContains(t, logs.Stdout, allocID0,
+		must.Sprintf("previous alloc data is missing from exec_task, got: %s", logs.Stdout))
 }

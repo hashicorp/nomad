@@ -2,11 +2,14 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "volumes" {
-  datacenters = ["dc1", "dc2"]
 
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
+  }
+
+  update {
+    min_healthy_time = "5s"
   }
 
   group "group" {
