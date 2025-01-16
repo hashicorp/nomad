@@ -11,6 +11,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-set/v3"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client"
@@ -295,7 +297,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		// win a race with the get RPC goroutine
 		time.AfterFunc(200*time.Millisecond, func() {
 			codec := rpcClient(t, srv)
-			var registerResp structs.HostVolumeCreateResponse
+			var registerResp structs.HostVolumeRegisterResponse
 			err := msgpackrpc.CallWithCodec(codec, "HostVolume.Register", registerReq, &registerResp)
 			must.NoError(t, err)
 		})
@@ -790,85 +792,159 @@ func TestHostVolumeEndpoint_concurrency(t *testing.T) {
 	}
 	wr := structs.WriteRequest{Region: srv.Region()}
 
-	// create the volume for us to attempt concurrent operations on
+	// tell the mock client how it should respond to create calls
 	c.setCreate(&cstructs.ClientHostVolumeCreateResponse{
 		VolumeName: "test-vol",
 		HostPath:   "/pretend/path",
 	}, nil)
+
+	// create the volume for us to attempt concurrent operations on
+	cVol := vol.Copy() // copy because HostPath gets mutated
+	cVol.Parameters = map[string]string{"created": "initial"}
 	createReq := &structs.HostVolumeCreateRequest{
-		Volume:       vol.Copy(), // copy because HostPath gets mutated
+		Volume:       cVol,
 		WriteRequest: wr,
 	}
 	var createResp structs.HostVolumeCreateResponse
 	must.NoError(t, srv.RPC("HostVolume.Create", createReq, &createResp))
-	volumeID := createResp.Volume.ID // used by delete
+	got, err := srv.State().HostVolumeByID(nil, vol.Namespace, createResp.Volume.ID, false)
+	must.NoError(t, err)
+	must.Eq(t, map[string]string{"created": "initial"}, got.Parameters)
 
-	// prepare blocking channels in the mock client.
-	// sending a struct{} (or closing) the channel will unblock the operation
-	cCh, rCh, dCh := make(chan struct{}), make(chan struct{}), make(chan struct{})
-	c.setBlockChan("create", cCh)
-	c.setBlockChan("register", rCh)
-	c.setBlockChan("delete", dCh)
+	// warning: below here be (concurrency) dragons. if this test fails,
+	// it is rather difficult to troubleshoot. sorry!
 
-	// each RPC call that finishes will put its name here
-	opCh := make(chan string)
+	// this is critical -- everything needs to use the same volume ID,
+	// because that's what the serialization is based on.
+	vol.ID = createResp.Volume.ID
 
-	// start all the RPCs concurrently
-	go func() {
-		createReq = &structs.HostVolumeCreateRequest{
-			Volume:       vol.Copy(), // copy because HostPath gets mutated
-			WriteRequest: wr,
-		}
-		createResp = structs.HostVolumeCreateResponse{}
-		test.NoError(t, srv.RPC("HostVolume.Create", createReq, &createResp),
-			test.Sprint("Create method should not error"))
-		opCh <- "create"
-	}()
-	go func() {
-		registerReq := &structs.HostVolumeRegisterRequest{
-			Volume:       vol.Copy(),
-			WriteRequest: wr,
-		}
-		var registerResp structs.HostVolumeRegisterResponse
-		test.NoError(t, srv.RPC("HostVolume.Register", registerReq, &registerResp),
-			test.Sprint("Register method should not error"))
-		opCh <- "register"
-	}()
-	go func() {
-		deleteReq := &structs.HostVolumeDeleteRequest{
-			VolumeID:     volumeID,
-			WriteRequest: wr,
-		}
-		var deleteResp structs.HostVolumeDeleteResponse
-		test.NoError(t, srv.RPC("HostVolume.Delete", deleteReq, &deleteResp),
-			test.Sprint("Delete method should not error"))
-		opCh <- "delete"
-	}()
+	// "create" volume #2 (same vol except for parameters)
+	cVol2 := vol.Copy()
+	cVol2.Parameters = map[string]string{"created": "again"}
+	// "register" volume
+	rVol := vol.Copy()
+	rVol.Parameters = map[string]string{"registered": "yup"}
 
-	// helper pulls an operation from the channel, or timeout
-	pullOp := func() string {
+	// prepare the mock client to block its calls
+	must.NoError(t, c.setBlockChan())
+
+	// each operation goroutine will put its name in here when it completes,
+	// so we can wait until the whole RPC completes before checking state.
+	rpcDoneCh := make(chan string)
+	rpcDone := func(op string) {
 		select {
-		case op := <-opCh:
-			return op
-		case <-time.After(200 * time.Millisecond): // generous headroom
-			return "timeout"
+		case rpcDoneCh <- op:
+		case <-time.After(time.Second):
+			t.Errorf("timed out writing %q to rpcDoneCh", op)
 		}
 	}
 
-	must.Eq(t, "timeout", pullOp(), must.Sprint("nothing should be unblocked yet"))
+	// start all the RPCs concurrently
+	var funcs multierror.Group
+	// create
+	funcs.Go(func() error {
+		createReq = &structs.HostVolumeCreateRequest{
+			Volume:       cVol2,
+			WriteRequest: wr,
+		}
+		createResp = structs.HostVolumeCreateResponse{}
+		err := srv.RPC("HostVolume.Create", createReq, &createResp)
+		rpcDone("create")
+		return err
+	})
+	// register
+	funcs.Go(func() error {
+		registerReq := &structs.HostVolumeRegisterRequest{
+			Volume:       rVol,
+			WriteRequest: wr,
+		}
+		var registerResp structs.HostVolumeRegisterResponse
+		err := srv.RPC("HostVolume.Register", registerReq, &registerResp)
+		rpcDone("register")
+		return err
+	})
+	// delete
+	funcs.Go(func() error {
+		deleteReq := &structs.HostVolumeDeleteRequest{
+			VolumeID:     vol.ID,
+			WriteRequest: wr,
+		}
+		var deleteResp structs.HostVolumeDeleteResponse
+		err := srv.RPC("HostVolume.Delete", deleteReq, &deleteResp)
+		rpcDone("delete")
+		return err
+	})
 
-	close(rCh)
-	must.Eq(t, "register", pullOp(), must.Sprint("closing register channel should unblock Register"))
+	// NOTE: below here, we avoid `must` methods, because a t.Fatal causes all
+	// the above goroutines to halt with confusing errors.
 
-	must.Eq(t, "timeout", pullOp(), must.Sprint("again blocked RPCs should remain so"))
+	// keep track of which operations have completed
+	opSet := set.From([]string{"create", "register", "delete"})
 
-	close(cCh)
-	must.Eq(t, "create", pullOp(), must.Sprint("closing create channel should unblock Create"))
+LOOP:
+	for {
+		if opSet.Empty() {
+			break // all done!
+		}
 
-	must.Eq(t, "timeout", pullOp(), must.Sprint("last RPC should still be blocked"))
+		// unblock a client RPC; it will tell us which one it let through.
+		op, err := c.unblockCurrent()
+		if err != nil {
+			t.Errorf("error unblocking client RPC: %v", err)
+			break
+		}
 
-	close(dCh)
-	must.Eq(t, "delete", pullOp(), must.Sprint("closing delete channel should unblock Delete"))
+		if !opSet.Remove(op) {
+			t.Errorf("mystery unblocked RPC operation: %q", op)
+			break
+		}
+
+		// make sure the server RPC has totally completed (and written state),
+		// and that the server RPC matches the unblocked client RPC.
+		select {
+		case serverOp := <-rpcDoneCh:
+			if serverOp != op {
+				t.Errorf("client RPC says %q; server RPC says %q", op, serverOp)
+				continue
+			}
+		case <-time.After(time.Second):
+			t.Error("timeout waiting for an RPC to finish")
+			break LOOP
+		}
+
+		// get the volume to check
+		got, err := srv.State().HostVolumeByID(nil, vol.Namespace, vol.ID, false)
+		if err != nil {
+			t.Errorf("error reading state: %v", err)
+			break
+		}
+
+		switch op {
+
+		case "create":
+			if got == nil {
+				t.Error("volume should not be nil after create RPC")
+				continue
+			}
+			test.Eq(t, cVol2.Parameters, got.Parameters)
+
+		case "register":
+			if got == nil {
+				t.Error("volume should not be nil after register RPC")
+				continue
+			}
+			test.Eq(t, rVol.Parameters, got.Parameters)
+
+		case "delete":
+			test.Nil(t, got, test.Sprint(""))
+		}
+	}
+
+	mErr := funcs.Wait() // ensure all the goroutines are done
+	test.NoError(t, helper.FlattenMultierror(mErr))
+
+	// all of 'em should have happened!
+	test.Eq(t, []string{}, opSet.Slice())
 }
 
 // mockHostVolumeClient models client RPCs that have side-effects on the
@@ -879,10 +955,9 @@ type mockHostVolumeClient struct {
 	nextCreateErr      error
 	nextRegisterErr    error
 	nextDeleteErr      error
-	// blockChans are used to test server->client RPC serialization.
-	// this is separate from lock because no single method should block while
-	// holding the lock for the whole client.
-	blockChans sync.Map
+	// blockChan is used to test server->client RPC serialization.
+	// do not block on this channel while the main lock is held.
+	blockChan chan string
 }
 
 // newMockHostVolumeClient configures a RPC-only Nomad test agent and returns a
@@ -931,17 +1006,13 @@ func (v *mockHostVolumeClient) setDelete(errMsg string) {
 	v.nextDeleteErr = errors.New(errMsg)
 }
 
-func (v *mockHostVolumeClient) setBlockChan(operation string, ch chan struct{}) {
-	v.blockChans.Store(operation, ch)
-}
-
 func (v *mockHostVolumeClient) Create(
 	req *cstructs.ClientHostVolumeCreateRequest,
 	resp *cstructs.ClientHostVolumeCreateResponse) error {
 
-	// block until the concurrency test closes the channel
-	if ch, ok := v.blockChans.Load("create"); ok {
-		<-ch.(chan struct{})
+	// block until something runs unblockCurrent()
+	if bc := v.getBlockChan(); bc != nil {
+		bc <- "create"
 	}
 
 	v.lock.Lock()
@@ -957,9 +1028,9 @@ func (v *mockHostVolumeClient) Register(
 	req *cstructs.ClientHostVolumeRegisterRequest,
 	resp *cstructs.ClientHostVolumeRegisterResponse) error {
 
-	// block until the concurrency test closes the channel
-	if ch, ok := v.blockChans.Load("register"); ok {
-		<-ch.(chan struct{})
+	// block until something runs unblockCurrent()
+	if bc := v.getBlockChan(); bc != nil {
+		bc <- "register"
 	}
 
 	v.lock.Lock()
@@ -972,12 +1043,41 @@ func (v *mockHostVolumeClient) Delete(
 	req *cstructs.ClientHostVolumeDeleteRequest,
 	resp *cstructs.ClientHostVolumeDeleteResponse) error {
 
-	// block until the concurrency test closes the channel
-	if ch, ok := v.blockChans.Load("delete"); ok {
-		<-ch.(chan struct{})
+	// block until something runs unblockCurrent()
+	if bc := v.getBlockChan(); bc != nil {
+		bc <- "delete"
 	}
 
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	return v.nextDeleteErr
+}
+
+func (v *mockHostVolumeClient) setBlockChan() error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	if v.blockChan != nil {
+		return errors.New("blockChan already set")
+	}
+	v.blockChan = make(chan string) // no buffer to ensure blockage
+	return nil
+}
+
+func (v *mockHostVolumeClient) getBlockChan() chan string {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	return v.blockChan
+}
+
+func (v *mockHostVolumeClient) unblockCurrent() (string, error) {
+	bc := v.getBlockChan()
+	if bc == nil {
+		return "", errors.New("no blockChan")
+	}
+	select {
+	case current := <-bc:
+		return current, nil
+	case <-time.After(time.Second):
+		return "", errors.New("unblockCurrent timeout")
+	}
 }

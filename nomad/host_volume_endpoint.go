@@ -269,7 +269,7 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	}
 
 	// serialize client RPC and raft write per volume ID
-	index, err := v.serializeCall(vol.ID, func() (uint64, error) {
+	index, err := v.serializeCall(vol.ID, "create", func() (uint64, error) {
 		// Attempt to create the volume on the client.
 		//
 		// NOTE: creating the volume on the client via the plugin can't be made
@@ -368,7 +368,7 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	}
 
 	// serialize client RPC and raft write per volume ID
-	index, err := v.serializeCall(vol.ID, func() (uint64, error) {
+	index, err := v.serializeCall(vol.ID, "register", func() (uint64, error) {
 		// Attempt to register the volume on the client.
 		//
 		// NOTE: registering the volume on the client via the plugin can't be made
@@ -647,7 +647,7 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 	}
 
 	// serialize client RPC and raft write per volume ID
-	index, err := v.serializeCall(vol.ID, func() (uint64, error) {
+	index, err := v.serializeCall(vol.ID, "delete", func() (uint64, error) {
 		if err := v.deleteVolume(vol); err != nil {
 			return 0, err
 		}
@@ -692,7 +692,7 @@ func (v *HostVolume) deleteVolume(vol *structs.HostVolume) error {
 // Concurrent calls should all run eventually (or timeout, or server shutdown),
 // but there is no guarantee that they will run in the order received.
 // The passed fn is expected to return a raft index and error.
-func (v *HostVolume) serializeCall(volumeID string, fn func() (uint64, error)) (uint64, error) {
+func (v *HostVolume) serializeCall(volumeID, op string, fn func() (uint64, error)) (uint64, error) {
 	timeout := 2 * time.Minute // 2x the client RPC timeout
 	for {
 		ctx, done := context.WithTimeout(v.srv.shutdownCtx, timeout)
@@ -700,6 +700,7 @@ func (v *HostVolume) serializeCall(volumeID string, fn func() (uint64, error)) (
 		loaded, occupied := v.volOps.LoadOrStore(volumeID, ctx)
 
 		if !occupied {
+			v.logger.Trace("HostVolume RPC running ", "operation", op)
 			// run the fn!
 			index, err := fn()
 
@@ -712,6 +713,7 @@ func (v *HostVolume) serializeCall(volumeID string, fn func() (uint64, error)) (
 		}
 
 		// another one is running; wait for it to finish.
+		v.logger.Trace("HostVolume RPC waiting", "operation", op)
 
 		// cancel the tentative context; we'll use the one we pulled from
 		// volOps (set by another RPC call) instead.
