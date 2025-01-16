@@ -14,16 +14,17 @@ resource "null_resource" "bootstrap_nomad_acls" {
     command = "${path.module}/scripts/bootstrap-nomad.sh"
     environment = {
       NOMAD_ADDR        = "https://${aws_instance.server.0.public_ip}:4646"
-      NOMAD_CACERT      = "${path.module}/keys/tls_ca.crt"
-      NOMAD_CLIENT_CERT = "${path.module}/keys/tls_api_client.crt"
-      NOMAD_CLIENT_KEY  = "${path.module}/keys/tls_api_client.key"
+      NOMAD_CACERT      = "${local.keys_dir}/tls_ca.crt"
+      NOMAD_CLIENT_CERT = "${local.keys_dir}/tls_api_client.crt"
+      NOMAD_CLIENT_KEY  = "${local.keys_dir}/tls_api_client.key"
+      NOMAD_TOKEN_PATH  = "${local.keys_dir}"
     }
   }
 }
 
 data "local_sensitive_file" "nomad_token" {
   depends_on = [null_resource.bootstrap_nomad_acls]
-  filename   = "${path.module}/keys/nomad_root_token"
+  filename   = "${local.keys_dir}/nomad_root_token"
 }
 
 # push the token out to the servers for humans to use.
@@ -53,7 +54,7 @@ resource "null_resource" "root_nomad_env_servers" {
     user        = "ubuntu"
     host        = aws_instance.server[count.index].public_ip
     port        = 22
-    private_key = file("${path.module}/../keys/${local.random_name}.pem")
+    private_key = file("${local.keys_dir}/${local.random_name}.pem")
     timeout     = "5m"
   }
   provisioner "remote-exec" {

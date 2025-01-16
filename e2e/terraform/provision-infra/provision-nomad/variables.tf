@@ -93,3 +93,9 @@ variable "uploads_dir" {
   description = "Directory where all the configuration files for nomad, consul and vault will be taken from to configure each nomad node"
   default     = ""
 }
+
+variable "keys_dir" {
+  type        = string
+  description = "Directory where all the configuration TLS and SSH keys and certificates will be stored fro provisioning"
+  default     = ""
+}

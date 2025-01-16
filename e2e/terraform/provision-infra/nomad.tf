@@ -23,12 +23,13 @@ module "nomad_server" {
   aws_kms_key_id = data.aws_kms_alias.e2e.target_key_id
 
   uploads_dir = local.uploads_dir
+  keys_dir    = local.keys_dir
 
   connection = {
     type        = "ssh"
     user        = "ubuntu"
     port        = 22
-    private_key = "${path.module}/../keys/${local.random_name}.pem"
+    private_key = "${local.keys_dir}/${local.random_name}.pem"
   }
 }
 
@@ -52,12 +53,13 @@ module "nomad_client_ubuntu_jammy" {
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
 
   uploads_dir = local.uploads_dir
+  keys_dir    = local.keys_dir
 
   connection = {
     type        = "ssh"
     user        = "ubuntu"
     port        = 22
-    private_key = "${path.module}/../keys/${local.random_name}.pem"
+    private_key = "${local.keys_dir}/${local.random_name}.pem"
   }
 }
 
@@ -83,11 +85,12 @@ module "nomad_client_windows_2016" {
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
 
   uploads_dir = local.uploads_dir
+  keys_dir    = local.keys_dir
 
   connection = {
     type        = "ssh"
     user        = "Administrator"
     port        = 22
-    private_key = "${path.module}/../keys/${local.random_name}.pem"
+    private_key = "${local.keys_dir}/${local.random_name}.pem"
   }
 }

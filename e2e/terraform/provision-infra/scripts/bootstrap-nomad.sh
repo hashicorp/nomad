@@ -19,8 +19,8 @@ set -e
 
 export NOMAD_TOKEN="$ROOT_TOKEN"
 
-mkdir -p ../keys
-echo $NOMAD_TOKEN > "${DIR}/../keys/nomad_root_token"
+mkdir -p "$NOMAD_TOKEN_PATH"
+echo $NOMAD_TOKEN > "${NOMAD_TOKEN_PATH}/nomad_root_token"
 echo NOMAD_TOKEN=$NOMAD_TOKEN
 
 # Our default policy after bootstrapping will be full-access. Without
