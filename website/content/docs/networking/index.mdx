@@ -2,10 +2,16 @@
 layout: docs
 page_title: Networking
 description: |-
-  Learn about Nomad's networking configuration feature enables accessing the information you need to connect your workloads instead of running additional components tools.
+  Nomad's networking feature enables accessing the information you need to connect your workloads instead of running additional component tools like DNS servers and load balancers. Learn about workload allocation networking and bridge networking, which uses Container Network Interface (CNI) plugins or Docker. Review how Nomad networking differs from Kubernetes networking.
 ---
 
 # Networking
+
+This page provides conceptual information about Nomad's networking feature, how
+networking works in Nomad, different patterns and configurations, and how Nomad
+networking differs from Kubernetes networking.
+
+## Introduction
 
 Nomad is a workload orchestrator and focuses on the scheduling aspects of a
 deployment, touching areas such as networking as little as possible.
@@ -14,11 +20,6 @@ Networking in Nomad is usually done via _configuration_ instead of
 _infrastructure_. This means that Nomad provides ways for you to access the
 information you need to connect your workloads instead of running additional
 components behind the scenes, such as DNS servers and load balancers.
-
-Nomad networking is quite different from what you may familiar with from other
-tools. This section explains how networking works in Nomad, some of the
-different patterns and configurations you are likely to find and use, and how
-Nomad differs from other tools in this aspect.
 
 ## Allocation networking
 
