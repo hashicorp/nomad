@@ -2,8 +2,6 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-# db TODO(1.10.0): where does PATH come from here? somewhere implicit? /sbin/ and /bin/ and ...?
-
 set -euo pipefail
 
 version='0.0.1'
@@ -122,7 +120,7 @@ delete_volume() {
 
 case "$1" in
   "create")
-    create_volume "$host_path" "$CAPACITY_MIN_BYTES"
+    create_volume "$host_path" "$DHV_CAPACITY_MIN_BYTES"
     # output what Nomad expects
     bytes="$(st "$host_path".$ext)"
     printf '{"path": "%s", "bytes": %s}' "$host_path" "$bytes"

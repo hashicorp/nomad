@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
@@ -20,17 +21,36 @@ import (
 	"github.com/hashicorp/nomad/helper"
 )
 
-type PluginFingerprint struct {
-	Version *version.Version `json:"version"`
-}
+const (
+	// environment variables for external plugins
+	EnvOperation   = "DHV_OPERATION"
+	EnvHostPath    = "DHV_HOST_PATH"
+	EnvNodeID      = "DHV_NODE_ID"
+	EnvVolumeName  = "DHV_VOLUME_NAME"
+	EnvVolumeID    = "DHV_VOLUME_ID"
+	EnvCapacityMin = "DHV_CAPACITY_MIN_BYTES"
+	EnvCapacityMax = "DHV_CAPACITY_MAX_BYTES"
+	EnvPluginDir   = "DHV_PLUGIN_DIR"
+	EnvParameters  = "DHV_PARAMETERS"
+)
 
+// HostVolumePlugin manages the lifecycle of volumes.
 type HostVolumePlugin interface {
 	Fingerprint(ctx context.Context) (*PluginFingerprint, error)
 	Create(ctx context.Context, req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error)
 	Delete(ctx context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error
-	// db TODO(1.10.0): update? resize? ??
 }
 
+// PluginFingerprint gets set on the node for volume scheduling.
+// Plugins are expected to respond to 'fingerprint' calls with json that
+// unmarshals to this struct.
+type PluginFingerprint struct {
+	Version *version.Version `json:"version"`
+}
+
+// HostVolumePluginCreateResponse gets stored on the volume in server state.
+// Plugins are expected to respond to 'create' calls with json that
+// unmarshals to this struct.
 type HostVolumePluginCreateResponse struct {
 	Path      string `json:"path"`
 	SizeBytes int64  `json:"bytes"`
@@ -41,6 +61,8 @@ const HostVolumePluginMkdirVersion = "0.0.1"
 
 var _ HostVolumePlugin = &HostVolumePluginMkdir{}
 
+// HostVolumePluginMkdir is a plugin that creates a directory within the
+// specified TargetPath. It is built-in to Nomad, so is always available.
 type HostVolumePluginMkdir struct {
 	ID         string
 	TargetPath string
@@ -66,7 +88,8 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 	log.Debug("running plugin")
 
 	resp := &HostVolumePluginCreateResponse{
-		Path:      path,
+		Path: path,
+		// "mkdir" volumes, being simple directories, have unrestricted size
 		SizeBytes: 0,
 	}
 
@@ -109,40 +132,62 @@ func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHo
 
 var _ HostVolumePlugin = &HostVolumePluginExternal{}
 
+// NewHostVolumePluginExternal returns an external host volume plugin
+// if the specified executable exists on disk.
 func NewHostVolumePluginExternal(log hclog.Logger,
-	id, executable, targetPath string) (*HostVolumePluginExternal, error) {
+	pluginDir, filename, targetPath string) (*HostVolumePluginExternal, error) {
 	// this should only be called with already-detected executables,
 	// but we'll double-check it anyway, so we can provide a tidy error message
 	// if it has changed between fingerprinting and execution.
+	executable := filepath.Join(pluginDir, filename)
 	f, err := os.Stat(executable)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, id)
+			return nil, fmt.Errorf("%w: %q", ErrPluginNotExists, filename)
 		}
 		return nil, err
 	}
 	if !helper.IsExecutable(f) {
-		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, id)
+		return nil, fmt.Errorf("%w: %q", ErrPluginNotExecutable, filename)
 	}
 	return &HostVolumePluginExternal{
-		ID:         id,
+		ID:         filename,
 		Executable: executable,
 		TargetPath: targetPath,
+		PluginDir:  pluginDir,
 		log:        log,
 	}, nil
 }
 
+// HostVolumePluginExternal calls an executable on disk. All operations
+// *must* be idempotent, and safe to be called concurrently per volume.
+// For each call, the executable's stdout and stderr may be logged, so plugin
+// authors should not include any sensitive information in their plugin outputs.
 type HostVolumePluginExternal struct {
 	ID         string
 	Executable string
 	TargetPath string
+	PluginDir  string
 
 	log hclog.Logger
 }
 
+// Fingerprint calls the executable with the following parameters:
+// arguments: fingerprint
+// environment:
+// DHV_OPERATION=fingerprint
+//
+// Response should be valid JSON on stdout, with a "version" key, e.g.:
+// {"version": "0.0.1"}
+// The version value should be a valid version number as allowed by
+// version.NewVersion()
+//
+// Must complete within 5 seconds
 func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFingerprint, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	cmd := exec.CommandContext(ctx, p.Executable, "fingerprint")
-	cmd.Env = []string{"OPERATION=fingerprint"}
+	cmd.Env = []string{EnvOperation + "=fingerprint"}
 	stdout, stderr, err := runCommand(cmd)
 	if err != nil {
 		p.log.Debug("error with plugin",
@@ -159,20 +204,40 @@ func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFing
 	return fprint, nil
 }
 
+// Create calls the executable with the following parameters:
+// arguments: create {path to create}
+// environment:
+// DHV_OPERATION=create
+// DHV_HOST_PATH={path to create}
+// DHV_NODE_ID={Nomad node ID}
+// DHV_VOLUME_NAME={name from the volume specification}
+// DHV_VOLUME_ID={Nomad volume ID}
+// DHV_CAPACITY_MIN_BYTES={capacity_min from the volume spec}
+// DHV_CAPACITY_MAX_BYTES={capacity_max from the volume spec}
+// DHV_PARAMETERS={json of parameters from the volume spec}
+// DHV_PLUGIN_DIR={path to directory containing plugins}
+//
+// Response should be valid JSON on stdout with "path" and "bytes", e.g.:
+// {"path": $HOST_PATH, "bytes": 50000000}
+// "path" must be provided to confirm that the requested path is what was
+// created by the plugin. "bytes" is the actual size of the volume created
+// by the plugin; if excluded, it will default to 0.
+//
+// Must complete within 60 seconds (timeout on RPC)
 func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error) {
 
-	params, err := json.Marshal(req.Parameters) // db TODO(1.10.0): document if this is nil, then PARAMETERS env will be "null"
+	params, err := json.Marshal(req.Parameters)
 	if err != nil {
-		// this is a proper error, because users can set this in the volume spec
+		// should never happen; req.Parameters is a simple map[string]string
 		return nil, fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
 	envVars := []string{
-		"NODE_ID=" + req.NodeID,
-		"VOLUME_NAME=" + req.Name,
-		fmt.Sprintf("CAPACITY_MIN_BYTES=%d", req.RequestedCapacityMinBytes),
-		fmt.Sprintf("CAPACITY_MAX_BYTES=%d", req.RequestedCapacityMaxBytes),
-		"PARAMETERS=" + string(params),
+		fmt.Sprintf("%s=%s", EnvNodeID, req.NodeID),
+		fmt.Sprintf("%s=%s", EnvVolumeName, req.Name),
+		fmt.Sprintf("%s=%d", EnvCapacityMin, req.RequestedCapacityMinBytes),
+		fmt.Sprintf("%s=%d", EnvCapacityMax, req.RequestedCapacityMaxBytes),
+		fmt.Sprintf("%s=%s", EnvParameters, params),
 	}
 
 	stdout, _, err := p.runPlugin(ctx, "create", req.ID, envVars)
@@ -181,23 +246,43 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 	}
 
 	var pluginResp HostVolumePluginCreateResponse
-	err = json.Unmarshal(stdout, &pluginResp) // db TODO(1.10.0): if this fails, then the volume may have been created, according to the plugin, but Nomad will not save it
+	err = json.Unmarshal(stdout, &pluginResp)
 	if err != nil {
+		// note: if a plugin does not return valid json, a volume may be
+		// created without any respective state in Nomad, since we return
+		// an error here after the plugin has done who-knows-what.
 		return nil, err
 	}
+	// TODO: validate returned host path
 	return &pluginResp, nil
 }
 
+// Delete calls the executable with the following parameters:
+// arguments: delete {path to create}
+// environment:
+// DHV_OPERATION=delete
+// DHV_HOST_PATH={path to create}
+// DHV_NODE_ID={Nomad node ID}
+// DHV_VOLUME_NAME={name from the volume specification}
+// DHV_VOLUME_ID={Nomad volume ID}
+// DHV_PARAMETERS={json of parameters from the volume spec}
+// DHV_PLUGIN_DIR={path to directory containing plugins}
+//
+// Response on stdout is discarded.
+//
+// Must complete within 60 seconds (timeout on RPC)
 func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 	req *cstructs.ClientHostVolumeDeleteRequest) error {
 
 	params, err := json.Marshal(req.Parameters)
 	if err != nil {
+		// should never happen; req.Parameters is a simple map[string]string
 		return fmt.Errorf("error marshaling volume pramaters: %w", err)
 	}
 	envVars := []string{
-		"NODE_ID=" + req.NodeID,
-		"PARAMETERS=" + string(params),
+		fmt.Sprintf("%s=%s", EnvNodeID, req.NodeID),
+		fmt.Sprintf("%s=%s", EnvVolumeName, req.Name),
+		fmt.Sprintf("%s=%s", EnvParameters, params),
 	}
 
 	_, _, err = p.runPlugin(ctx, "delete", req.ID, envVars)
@@ -207,6 +292,11 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 	return nil
 }
 
+// runPlugin executes the... executable with these additional env vars:
+// DHV_OPERATION={op}
+// DHV_HOST_PATH={path to create}
+// DHV_VOLUME_ID={Nomad volume ID}
+// DHV_PLUGIN_DIR={path to directory containing plugins}
 func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	op, volID string, env []string) (stdout, stderr []byte, err error) {
 
@@ -221,8 +311,10 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	cmd := exec.CommandContext(ctx, p.Executable, op, path)
 
 	cmd.Env = append([]string{
-		"OPERATION=" + op,
-		"HOST_PATH=" + path,
+		fmt.Sprintf("%s=%s", EnvOperation, op),
+		fmt.Sprintf("%s=%s", EnvHostPath, path),
+		fmt.Sprintf("%s=%s", EnvVolumeID, volID),
+		fmt.Sprintf("%s=%s", EnvPluginDir, p.PluginDir),
 	}, env...)
 
 	stdout, stderr, err = runCommand(cmd)
@@ -239,6 +331,7 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	return stdout, stderr, nil
 }
 
+// runCommand executes the provided Cmd and captures stdout and stderr.
 func runCommand(cmd *exec.Cmd) (stdout, stderr []byte, err error) {
 	var errBuf bytes.Buffer
 	cmd.Stderr = io.Writer(&errBuf)

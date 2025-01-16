@@ -93,6 +93,7 @@ scrape_configs:
   - job_name: 'nomad_metrics'
     nomad_sd_configs:
       - server: 'http://127.0.0.1:6666'
+        region: '{{ env "NOMAD_REGION" }}'
     relabel_configs:
       - source_labels: ['__meta_nomad_tags']
         regex: '(.*)monitor(.*)'

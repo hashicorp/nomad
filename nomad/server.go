@@ -2172,7 +2172,7 @@ func (s *Server) ClusterMetadata() (structs.ClusterMetadata, error) {
 
 	// if we are not the leader, nothing more we can do
 	if !s.IsLeader() {
-		return structs.ClusterMetadata{}, errors.New("cluster ID not ready {}yet")
+		return structs.ClusterMetadata{}, errors.New("cluster ID not ready yet")
 	}
 
 	// we are the leader, try to generate the ID now

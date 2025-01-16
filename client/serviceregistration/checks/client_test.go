@@ -390,6 +390,85 @@ func TestChecker_Do_HTTP_extras(t *testing.T) {
 	}
 }
 
+func TestChecker_Do_HTTPS_TLS(t *testing.T) {
+	ci.Parallel(t)
+
+	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		default:
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.WriteString(w, "200 ok")
+		}
+	}))
+	defer ts.Close()
+
+	// get the address and port for https server
+	addr, port := splitURL(ts.URL)
+
+	// create a mock clock so we can assert time is set
+	now := time.Date(2022, 1, 2, 3, 4, 5, 6, time.UTC)
+	clock := libtimetest.NewClockMock(t).NowMock.Return(now)
+
+	testCases := []struct {
+		name                 string
+		inputTLSSkipVerify   bool
+		expectedStatusCode   int
+		expectedResultOutput string
+	}{
+		{
+			name:                 "tls skip verify true",
+			inputTLSSkipVerify:   true,
+			expectedStatusCode:   http.StatusOK,
+			expectedResultOutput: "nomad: http ok",
+		},
+		{
+			name:                 "tls skip verify false",
+			inputTLSSkipVerify:   false,
+			expectedStatusCode:   0,
+			expectedResultOutput: "tls: failed to verify certificate: x509",
+		},
+	}
+
+	for _, tc := range testCases {
+
+		queryContext := &QueryContext{
+			ID:               "abc123",
+			CustomAddress:    addr,
+			ServicePortLabel: port,
+			Networks:         nil,
+			NetworkStatus:    mock.NewNetworkStatus(addr),
+			Ports:            nil,
+			Group:            "group",
+			Task:             "task",
+			Service:          "service",
+			Check:            "check",
+		}
+
+		queryImpl := &Query{
+			Mode:          structs.Healthiness,
+			Type:          "http",
+			Timeout:       1 * time.Second,
+			AddressMode:   "auto",
+			PortLabel:     port,
+			Protocol:      "https",
+			Path:          "/",
+			Method:        http.MethodGet,
+			TLSSkipVerify: tc.inputTLSSkipVerify,
+		}
+
+		t.Run(tc.name, func(t *testing.T) {
+
+			c := New(testlog.HCLogger(t))
+			c.(*checker).clock = clock
+
+			result := c.Do(context.Background(), queryContext, queryImpl)
+
+			must.Eq(t, tc.expectedStatusCode, result.StatusCode)
+			must.StrContains(t, result.Output, tc.expectedResultOutput)
+		})
+	}
+}
+
 func TestChecker_Do_TCP(t *testing.T) {
 	ci.Parallel(t)
 

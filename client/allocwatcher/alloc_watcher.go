@@ -249,7 +249,7 @@ func (p *localPrevAlloc) Wait(ctx context.Context) error {
 	}
 
 	// Block until previous alloc exits
-	p.logger.Debug("waiting for previous alloc to terminate")
+	p.logger.Info("waiting for previous alloc to terminate")
 	for {
 		select {
 		case prevAlloc, ok := <-p.prevListener.Ch():
@@ -350,7 +350,7 @@ func (p *remotePrevAlloc) Wait(ctx context.Context) error {
 		p.waitingLock.Unlock()
 	}()
 
-	p.logger.Debug("waiting for remote previous alloc to terminate")
+	p.logger.Info("waiting for remote previous alloc to terminate")
 	req := structs.AllocSpecificRequest{
 		AllocID: p.prevAllocID,
 		QueryOptions: structs.QueryOptions{

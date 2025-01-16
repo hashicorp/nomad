@@ -120,12 +120,12 @@ func (b *bridgeNetworkConfigurator) ensureForwardingRules() error {
 }
 
 // Setup calls the CNI plugins with the add action
-func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec) (*structs.AllocNetworkStatus, error) {
+func (b *bridgeNetworkConfigurator) Setup(ctx context.Context, alloc *structs.Allocation, spec *drivers.NetworkIsolationSpec, created bool) (*structs.AllocNetworkStatus, error) {
 	if err := b.ensureForwardingRules(); err != nil {
 		return nil, fmt.Errorf("failed to initialize table forwarding rules: %v", err)
 	}
 
-	return b.cni.Setup(ctx, alloc, spec)
+	return b.cni.Setup(ctx, alloc, spec, created)
 }
 
 // Teardown calls the CNI plugins with the delete action

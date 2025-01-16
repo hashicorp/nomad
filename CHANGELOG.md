@@ -1,3 +1,63 @@
+## 1.9.5 (January 14, 2025)
+
+IMPROVEMENTS:
+
+* client: Add noswap mount option to secrets directory where supported on Linux [[GH-24645](https://github.com/hashicorp/nomad/issues/24645)]
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+* keyring: Warn if deleting a key previously used to encrypt an existing variable [[GH-24766](https://github.com/hashicorp/nomad/issues/24766)]
+* ui: Added possibility to supply HCL variable values on job submission [[GH-24622](https://github.com/hashicorp/nomad/issues/24622)]
+* ui: add leadership status for servers in other regions [[GH-24723](https://github.com/hashicorp/nomad/issues/24723)]
+
+BUG FIXES:
+
+* docker: Fix a bug where images with port number and no tags weren't parsed correctly [[GH-24547](https://github.com/hashicorp/nomad/issues/24547)]
+* driver/docker: Fix container CPU stats collection where previous CPU stats were missing and causing incorrect calculations [[GH-24768](https://github.com/hashicorp/nomad/issues/24768)]
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
+* networking: check network namespaces on Linux during client restarts and fail the allocation if an existing namespace is invalid [[GH-24658](https://github.com/hashicorp/nomad/issues/24658)]
+
+## 1.9.4 (December 18, 2024)
+
+SECURITY:
+
+* api: sanitize the SignedIdentities in allocations to prevent privilege escalation through unredacted workload identity token impersonation associated with ACL policies. [[GH-24683](https://github.com/hashicorp/nomad/issues/24683)]
+* security: Added more host environment variables to the default deny list for tasks [[GH-24540](https://github.com/hashicorp/nomad/issues/24540)]
+* security: Explicitly set 'Content-Type' header to mitigate XSS vulnerability [[GH-24489](https://github.com/hashicorp/nomad/issues/24489)]
+* security: add executeTemplate to default template function_denylist [[GH-24541](https://github.com/hashicorp/nomad/issues/24541)]
+
+IMPROVEMENTS:
+
+* actions: Nomad Actions names now accept a wider range of names [[GH-24642](https://github.com/hashicorp/nomad/issues/24642)]
+* api: Sanitise hcl variables before storage on JobSubmission [[GH-24423](https://github.com/hashicorp/nomad/issues/24423)]
+* client: Emit telemetry from prerun and prestart hooks for monitoring and alerting [[GH-24556](https://github.com/hashicorp/nomad/issues/24556)]
+* cni: Add Nomad specific workload information to CNI_ARGS [[GH-24319](https://github.com/hashicorp/nomad/issues/24319)]
+* core: add the possibility to scale system jobs between 0 and 1 [[GH-24363](https://github.com/hashicorp/nomad/issues/24363)]
+* ui: Add an Edit From Version button as an option when reverting from an older job version [[GH-24168](https://github.com/hashicorp/nomad/issues/24168)]
+* ui: Adds metadata tables to Task Group and Task pages [[GH-24594](https://github.com/hashicorp/nomad/issues/24594)]
+
+BUG FIXES:
+
+* agent: Fixed a bug where `retry_join` gave up after a single failure, rather than retrying until max attempts had been reached [[GH-24561](https://github.com/hashicorp/nomad/issues/24561)]
+* api: Fixed a bug where alloc exec/logs/fs APIs would return errors for non-global regions [[GH-24644](https://github.com/hashicorp/nomad/issues/24644)]
+* cli: Ensure the `operator autopilot health` command only outputs JSON when the `json` flag is supplied [[GH-24655](https://github.com/hashicorp/nomad/issues/24655)]
+* consul: Fixed a bug where failures when syncing Consul checks could panic the Nomad agent [[GH-24513](https://github.com/hashicorp/nomad/issues/24513)]
+* consul: Fixed a bug where non-root Nomad agents could not recreate a task's Consul token on task restart [[GH-24410](https://github.com/hashicorp/nomad/issues/24410)]
+* csi: Fixed a bug where drivers that emit multiple topology segments would cause placements to fail [[GH-24522](https://github.com/hashicorp/nomad/issues/24522)]
+* csi: Removed redundant namespace output from volume status command [[GH-24432](https://github.com/hashicorp/nomad/issues/24432)]
+* discovery: Fixed a bug where IPv6 addresses would not be accepted from cloud autojoin [[GH-24649](https://github.com/hashicorp/nomad/issues/24649)]
+* drivers: fix executor leak when drivers error starting tasks [[GH-24495](https://github.com/hashicorp/nomad/issues/24495)]
+* executor: validate executor on reattach to avoid possibility of killing non-Nomad processes [[GH-24538](https://github.com/hashicorp/nomad/issues/24538)]
+* keyring: Fixed a bug when decrypting aead with an empty RSA block on state upserts [[GH-24442](https://github.com/hashicorp/nomad/issues/24442)]
+* networking: use a tmpfs location for the state of CNI IPAM plugin used by bridge mode, to fix a bug where allocations would fail to restore after host reboot [[GH-24650](https://github.com/hashicorp/nomad/issues/24650)]
+* scheduler: Fix bug where forced garbage collection does not ignore GC thresholds [[GH-24456](https://github.com/hashicorp/nomad/issues/24456)]
+* scheduler: take all assigned cpu cores into account instead of only those part of the largest lifecycle [[GH-24304](https://github.com/hashicorp/nomad/issues/24304)]
+* ui: Fix a bug where namespaced jobs wouldn't show diffs on the versions page [[GH-24466](https://github.com/hashicorp/nomad/issues/24466)]
+* ui: Fix an issue where 2 parent jobs would see the others dispatches if it were otherwise empty [[GH-24668](https://github.com/hashicorp/nomad/issues/24668)]
+* ui: Fix an issue where cmd+click or ctrl+click would double-open a var [[GH-24316](https://github.com/hashicorp/nomad/issues/24316)]
+* ui: Fix an issue where system jobs with garbage-collected allocations were showing as Scaled Down [[GH-24620](https://github.com/hashicorp/nomad/issues/24620)]
+* ui: Fix an issue where volumes weren't navigable [[GH-24542](https://github.com/hashicorp/nomad/issues/24542)]
+* vault: Fixed a bug where expired secret leases were treated as non-fatal and retried [[GH-24409](https://github.com/hashicorp/nomad/issues/24409)]
+* windows: Restore process accounting logic from Nomad 1.6.x [[GH-24494](https://github.com/hashicorp/nomad/issues/24494)]
+
 ## 1.9.3 (November 11, 2024)
 
 BUG FIXES:
@@ -93,6 +153,45 @@ BUG FIXES:
 * task: adds node.pool attribute to interpretable values in task env [[GH-24052](https://github.com/hashicorp/nomad/issues/24052)]
 * template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
 * ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
+
+## 1.8.9 (January 14, 2025)
+
+
+IMPROVEMENTS:
+
+* api: Sanitise hcl variables before storage on JobSubmission [[GH-24423](https://github.com/hashicorp/nomad/issues/24423)]
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+
+BUG FIXES:
+
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
+
+
+## 1.8.8 Enterprise (December 18, 2024)
+
+SECURITY:
+
+* api: sanitize the SignedIdentities in allocations to prevent privilege escalation through unredacted workload identity token impersonation associated with ACL policies. [[GH-24683](https://github.com/hashicorp/nomad/issues/24683)]
+* security: Added more host environment variables to the default deny list for tasks [[GH-24540](https://github.com/hashicorp/nomad/issues/24540)]
+* security: Explicitly set 'Content-Type' header to mitigate XSS vulnerability [[GH-24489](https://github.com/hashicorp/nomad/issues/24489)]
+* security: add executeTemplate to default template function_denylist [[GH-24541](https://github.com/hashicorp/nomad/issues/24541)]
+
+BUG FIXES:
+
+* agent: Fixed a bug where `retry_join` gave up after a single failure, rather than retrying until max attempts had been reached [[GH-24561](https://github.com/hashicorp/nomad/issues/24561)]
+* api: Fixed a bug where alloc exec/logs/fs APIs would return errors for non-global regions [[GH-24644](https://github.com/hashicorp/nomad/issues/24644)]
+* cli: Ensure the `operator autopilot health` command only outputs JSON when the `json` flag is supplied [[GH-24655](https://github.com/hashicorp/nomad/issues/24655)]
+* consul: Fixed a bug where failures when syncing Consul checks could panic the Nomad agent [[GH-24513](https://github.com/hashicorp/nomad/issues/24513)]
+* consul: Fixed a bug where non-root Nomad agents could not recreate a task's Consul token on task restart [[GH-24410](https://github.com/hashicorp/nomad/issues/24410)]
+* csi: Fixed a bug where drivers that emit multiple topology segments would cause placements to fail [[GH-24522](https://github.com/hashicorp/nomad/issues/24522)]
+* csi: Removed redundant namespace output from volume status command [[GH-24432](https://github.com/hashicorp/nomad/issues/24432)]
+* discovery: Fixed a bug where IPv6 addresses would not be accepted from cloud autojoin [[GH-24649](https://github.com/hashicorp/nomad/issues/24649)]
+* drivers: fix executor leak when drivers error starting tasks [[GH-24495](https://github.com/hashicorp/nomad/issues/24495)]
+* executor: validate executor on reattach to avoid possibility of killing non-Nomad processes [[GH-24538](https://github.com/hashicorp/nomad/issues/24538)]
+* fix: handles consul template re-renders on client restart [[GH-24399](https://github.com/hashicorp/nomad/issues/24399)]
+* networking: use a tmpfs location for the state of CNI IPAM plugin used by bridge mode, to fix a bug where allocations would fail to restore after host reboot [[GH-24650](https://github.com/hashicorp/nomad/issues/24650)]
+* scheduler: take all assigned cpu cores into account instead of only those part of the largest lifecycle [[GH-24304](https://github.com/hashicorp/nomad/issues/24304)]
+* vault: Fixed a bug where expired secret leases were treated as non-fatal and retried [[GH-24409](https://github.com/hashicorp/nomad/issues/24409)]
 
 ## 1.8.7 Enterprise (November 8, 2024)
 
@@ -342,7 +441,44 @@ BUG FIXES:
 * ui: Show the namespace in the web UI exec command hint [[GH-20218](https://github.com/hashicorp/nomad/issues/20218)]
 * windows: Fixed a regression where scanning task processes was inefficient [[GH-20619](https://github.com/hashicorp/nomad/issues/20619)]
 
-## 1.7.15 (November 8, 2024)
+## 1.7.17 Enterprise (January 14, 2025)
+
+
+IMPROVEMENTS:
+
+* deps: Upgraded aws-sdk-go from v1 to v2 [[GH-24720](https://github.com/hashicorp/nomad/issues/24720)]
+
+BUG FIXES:
+
+* drivers: validate logmon plugin during reattach [[GH-24798](https://github.com/hashicorp/nomad/issues/24798)]
+
+## 1.7.16 Enterprise (December 18, 2024)
+
+SECURITY:
+
+* api: sanitize the SignedIdentities in allocations to prevent privilege escalation through unredacted workload identity token impersonation associated with ACL policies. [[GH-24683](https://github.com/hashicorp/nomad/issues/24683)]
+* security: Added more host environment variables to the default deny list for tasks [[GH-24540](https://github.com/hashicorp/nomad/issues/24540)]
+* security: Explicitly set 'Content-Type' header to mitigate XSS vulnerability [[GH-24489](https://github.com/hashicorp/nomad/issues/24489)]
+* security: add executeTemplate to default template function_denylist [[GH-24541](https://github.com/hashicorp/nomad/issues/24541)]
+
+BUG FIXES:
+
+* agent: Fixed a bug where `retry_join` gave up after a single failure, rather than retrying until max attempts had been reached [[GH-24561](https://github.com/hashicorp/nomad/issues/24561)]
+* cli: Ensure the `operator autopilot health` command only outputs JSON when the `json` flag is supplied [[GH-24655](https://github.com/hashicorp/nomad/issues/24655)]
+* consul: Fixed a bug where failures when syncing Consul checks could panic the Nomad agent [[GH-24513](https://github.com/hashicorp/nomad/issues/24513)]
+* consul: Fixed a bug where non-root Nomad agents could not recreate a task's Consul token on task restart [[GH-24410](https://github.com/hashicorp/nomad/issues/24410)]
+* csi: Fixed a bug where drivers that emit multiple topology segments would cause placements to fail [[GH-24522](https://github.com/hashicorp/nomad/issues/24522)]
+* csi: Removed redundant namespace output from volume status command [[GH-24432](https://github.com/hashicorp/nomad/issues/24432)]
+* discovery: Fixed a bug where IPv6 addresses would not be accepted from cloud autojoin [[GH-24649](https://github.com/hashicorp/nomad/issues/24649)]
+* drivers: fix executor leak when drivers error starting tasks [[GH-24495](https://github.com/hashicorp/nomad/issues/24495)]
+* executor: validate executor on reattach to avoid possibility of killing non-Nomad processes [[GH-24538](https://github.com/hashicorp/nomad/issues/24538)]
+* fix: handles consul template re-renders on client restart [[GH-24399](https://github.com/hashicorp/nomad/issues/24399)]
+* networking: use a tmpfs location for the state of CNI IPAM plugin used by bridge mode, to fix a bug where allocations would fail to restore after host reboot [[GH-24650](https://github.com/hashicorp/nomad/issues/24650)]
+* scheduler: take all assigned cpu cores into account instead of only those part of the largest lifecycle [[GH-24304](https://github.com/hashicorp/nomad/issues/24304)]
+* vault: Fixed a bug where expired secret leases were treated as non-fatal and retried [[GH-24409](https://github.com/hashicorp/nomad/issues/24409)]
+* windows: Restore process accounting logic from Nomad 1.6.x [[GH-24494](https://github.com/hashicorp/nomad/issues/24494)]
+
+## 1.7.15 Enterprise (November 8, 2024)
 
 SECURITY:
 
