@@ -825,13 +825,16 @@ func TestHostVolumeEndpoint_concurrency(t *testing.T) {
 	rVol := vol.Copy()
 	rVol.Parameters = map[string]string{"registered": "yup"}
 
-	// prepare the mock client to block its calls
-	must.NoError(t, c.setBlockChan())
+	// prepare the mock client to block its calls, and get a CancelFunc
+	// to make sure we don't get any deadlocked client RPCs.
+	cancelClientRPCBlocks, err := c.setBlockChan()
+	must.NoError(t, err)
 
 	// each operation goroutine will put its name in here when it completes,
 	// so we can wait until the whole RPC completes before checking state.
 	rpcDoneCh := make(chan string)
 	rpcDone := func(op string) {
+		t.Helper()
 		select {
 		case rpcDoneCh <- op:
 		case <-time.After(time.Second):
@@ -940,11 +943,14 @@ LOOP:
 		}
 	}
 
-	mErr := funcs.Wait() // ensure all the goroutines are done
+	// everything should be done by now, but just in case.
+	cancelClientRPCBlocks()
+
+	mErr := funcs.Wait()
 	test.NoError(t, helper.FlattenMultierror(mErr))
 
 	// all of 'em should have happened!
-	test.Eq(t, []string{}, opSet.Slice())
+	test.Eq(t, []string{}, opSet.Slice(), test.Sprint("remaining opSet should be empty"))
 }
 
 // mockHostVolumeClient models client RPCs that have side-effects on the
@@ -958,6 +964,8 @@ type mockHostVolumeClient struct {
 	// blockChan is used to test server->client RPC serialization.
 	// do not block on this channel while the main lock is held.
 	blockChan chan string
+	// shutdownCtx is an escape hatch to release any/all blocked RPCs
+	shutdownCtx context.Context
 }
 
 // newMockHostVolumeClient configures a RPC-only Nomad test agent and returns a
@@ -1010,9 +1018,8 @@ func (v *mockHostVolumeClient) Create(
 	req *cstructs.ClientHostVolumeCreateRequest,
 	resp *cstructs.ClientHostVolumeCreateResponse) error {
 
-	// block until something runs unblockCurrent()
-	if bc := v.getBlockChan(); bc != nil {
-		bc <- "create"
+	if err := v.block("create"); err != nil {
+		return err
 	}
 
 	v.lock.Lock()
@@ -1028,9 +1035,8 @@ func (v *mockHostVolumeClient) Register(
 	req *cstructs.ClientHostVolumeRegisterRequest,
 	resp *cstructs.ClientHostVolumeRegisterResponse) error {
 
-	// block until something runs unblockCurrent()
-	if bc := v.getBlockChan(); bc != nil {
-		bc <- "register"
+	if err := v.block("register"); err != nil {
+		return err
 	}
 
 	v.lock.Lock()
@@ -1043,9 +1049,8 @@ func (v *mockHostVolumeClient) Delete(
 	req *cstructs.ClientHostVolumeDeleteRequest,
 	resp *cstructs.ClientHostVolumeDeleteResponse) error {
 
-	// block until something runs unblockCurrent()
-	if bc := v.getBlockChan(); bc != nil {
-		bc <- "delete"
+	if err := v.block("delete"); err != nil {
+		return err
 	}
 
 	v.lock.Lock()
@@ -1053,14 +1058,17 @@ func (v *mockHostVolumeClient) Delete(
 	return v.nextDeleteErr
 }
 
-func (v *mockHostVolumeClient) setBlockChan() error {
+func (v *mockHostVolumeClient) setBlockChan() (context.CancelFunc, error) {
 	v.lock.Lock()
 	defer v.lock.Unlock()
 	if v.blockChan != nil {
-		return errors.New("blockChan already set")
+		return nil, errors.New("blockChan already set")
 	}
 	v.blockChan = make(chan string) // no buffer to ensure blockage
-	return nil
+	// timeout context to ensure blockage is not endless
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	v.shutdownCtx = ctx
+	return cancel, nil
 }
 
 func (v *mockHostVolumeClient) getBlockChan() chan string {
@@ -1069,6 +1077,24 @@ func (v *mockHostVolumeClient) getBlockChan() chan string {
 	return v.blockChan
 }
 
+// block stalls the RPC until something (a test) runs unblockCurrent,
+// if something (a test) had previously run setBlockChan to set it up.
+func (v *mockHostVolumeClient) block(op string) error {
+	bc := v.getBlockChan()
+	if bc == nil {
+		return nil
+	}
+	select {
+	case bc <- op:
+		return nil
+	case <-v.shutdownCtx.Done():
+		// if this happens, it'll be because unblockCurrent was not run enough
+		return fmt.Errorf("shutdownCtx done before blockChan unblocked: %w", v.shutdownCtx.Err())
+	}
+}
+
+// unblockCurrent reads from blockChan to unblock a running RPC.
+// it must be run once per RPC that is started.
 func (v *mockHostVolumeClient) unblockCurrent() (string, error) {
 	bc := v.getBlockChan()
 	if bc == nil {
