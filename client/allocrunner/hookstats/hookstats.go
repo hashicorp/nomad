@@ -6,7 +6,7 @@ package hookstats
 import (
 	"time"
 
-	"github.com/armon/go-metrics"
+	"github.com/hashicorp/go-metrics"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 )
 
