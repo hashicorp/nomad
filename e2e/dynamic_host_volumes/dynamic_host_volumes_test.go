@@ -4,13 +4,16 @@
 package dynamic_host_volumes
 
 import (
+	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
+	nomadapi "github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
+	"github.com/hashicorp/nomad/e2e/v3/volumes3"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -24,54 +27,13 @@ func TestDynamicHostVolumes_CreateWorkflow(t *testing.T) {
 	e2eutil.WaitForLeader(t, nomad)
 	e2eutil.WaitForNodesReady(t, nomad, 1)
 
-	out, err := e2eutil.Command("nomad", "volume", "create",
-		"-detach", "input/volume-create.nomad.hcl")
-	must.NoError(t, err)
-
-	split := strings.Split(out, " ")
-	volID := strings.TrimSpace(split[len(split)-1])
-	t.Logf("[%v] volume %q created", time.Since(start), volID)
-
-	t.Cleanup(func() {
-		_, err := e2eutil.Command("nomad", "volume", "delete", "-type", "host", volID)
-		must.NoError(t, err)
-	})
-
-	out, err = e2eutil.Command("nomad", "volume", "status", "-type", "host", volID)
-	must.NoError(t, err)
-
-	nodeID, err := e2eutil.GetField(out, "Node ID")
-	must.NoError(t, err)
-	must.NotEq(t, "", nodeID)
-	t.Logf("[%v] waiting for volume %q to be ready", time.Since(start), volID)
-
-	must.Wait(t, wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			node, _, err := nomad.Nodes().Info(nodeID, nil)
-			if err != nil {
-				return err
-			}
-			_, ok := node.HostVolumes["created-volume"]
-			if !ok {
-				return fmt.Errorf("node %q did not fingerprint volume %q", nodeID, volID)
-			}
-			vol, _, err := nomad.HostVolumes().Get(volID, nil)
-			if err != nil {
-				return err
-			}
-			if vol.State != "ready" {
-				return fmt.Errorf("node fingerprinted volume but status was not updated")
-			}
-			t.Logf("[%v] volume %q is ready", time.Since(start), volID)
-			return nil
-		}),
-		wait.Timeout(10*time.Second),
-		wait.Gap(50*time.Millisecond),
-	))
+	_, cleanupVol := volumes3.Create(t, "input/volume-create.nomad.hcl",
+		volumes3.WithClient(nomad))
+	t.Cleanup(cleanupVol)
 
 	t.Logf("[%v] submitting mounter job", time.Since(start))
-	_, cleanup := jobs3.Submit(t, "./input/mount-created.nomad.hcl")
-	t.Cleanup(cleanup)
+	_, cleanupJob := jobs3.Submit(t, "./input/mount-created.nomad.hcl")
+	t.Cleanup(cleanupJob)
 	t.Logf("[%v] test complete, cleaning up", time.Since(start))
 }
 
@@ -183,4 +145,171 @@ func TestDynamicHostVolumes_RegisterWorkflow(t *testing.T) {
 	_, cleanup2 := jobs3.Submit(t, "./input/mount-registered.nomad.hcl")
 	t.Cleanup(cleanup2)
 	t.Logf("[%v] test complete, cleaning up", time.Since(start))
+}
+
+// TestDynamicHostVolumes_StickyVolumes tests where a job marks a volume as
+// sticky and its allocations should have strong associations with specific
+// volumes as they are replaced
+func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
+
+	start := time.Now()
+	nomad := e2eutil.NomadClient(t)
+	e2eutil.WaitForLeader(t, nomad)
+	e2eutil.WaitForNodesReady(t, nomad, 2)
+
+	// TODO: if we create # of volumes == # of nodes, we can make test flakes
+	// stand out more easily
+
+	_, cleanup1 := volumes3.Create(t, "input/volume-sticky.nomad.hcl",
+		volumes3.WithClient(nomad))
+	t.Cleanup(cleanup1)
+
+	_, cleanup2 := volumes3.Create(t, "input/volume-sticky.nomad.hcl",
+		volumes3.WithClient(nomad))
+	t.Cleanup(cleanup2)
+
+	t.Logf("[%v] submitting sticky volume mounter job", time.Since(start))
+	jobSub, cleanupJob := jobs3.Submit(t, "./input/sticky.nomad.hcl")
+	t.Cleanup(cleanupJob)
+
+	allocID1 := jobSub.Allocs()[0].ID
+	alloc, _, err := nomad.Allocations().Info(allocID1, nil)
+	must.NoError(t, err)
+
+	must.Len(t, 1, alloc.HostVolumeIDs)
+	selectedVolID := alloc.HostVolumeIDs[0]
+	selectedNodeID := alloc.NodeID
+	t.Logf("[%v] volume %q on node %q was selected",
+		time.Since(start), selectedVolID, selectedNodeID)
+
+	// Test: force reschedule
+
+	_, err = nomad.Allocations().Stop(alloc, nil)
+	must.NoError(t, err)
+
+	t.Logf("[%v] stopped allocation %q", time.Since(start), alloc.ID)
+
+	var allocID2 string
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			allocs, _, err := nomad.Jobs().Allocations(jobSub.JobID(), true, nil)
+			must.NoError(t, err)
+			if len(allocs) != 2 {
+				return fmt.Errorf("alloc not started")
+			}
+			for _, a := range allocs {
+				if a.ID != allocID1 {
+					allocID2 = a.ID
+					if a.ClientStatus != api.AllocClientStatusRunning {
+						return fmt.Errorf("replacement alloc not running")
+					}
+				}
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(50*time.Millisecond),
+	))
+
+	newAlloc, _, err := nomad.Allocations().Info(allocID2, nil)
+	must.NoError(t, err)
+	must.Eq(t, []string{selectedVolID}, newAlloc.HostVolumeIDs)
+	must.Eq(t, selectedNodeID, newAlloc.NodeID)
+	t.Logf("[%v] replacement alloc %q is running", time.Since(start), newAlloc.ID)
+
+	// Test: drain node
+
+	t.Logf("[%v] draining node %q", time.Since(start), selectedNodeID)
+	cleanup, err := drainNode(nomad, selectedNodeID, time.Second*20)
+	t.Cleanup(cleanup)
+	must.NoError(t, err)
+
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			evals, _, err := nomad.Jobs().Evaluations(jobSub.JobID(), nil)
+			if err != nil {
+				return err
+			}
+
+			got := map[string]string{}
+
+			for _, eval := range evals {
+				got[eval.ID[:8]] = fmt.Sprintf("status=%q trigger=%q create_index=%d",
+					eval.Status,
+					eval.TriggeredBy,
+					eval.CreateIndex,
+				)
+				if eval.Status == nomadapi.EvalStatusBlocked {
+					return nil
+				}
+			}
+
+			return fmt.Errorf("expected blocked eval, got evals => %#v", got)
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(50*time.Millisecond),
+	))
+
+	t.Logf("[%v] undraining node %q", time.Since(start), selectedNodeID)
+	cleanup()
+
+	var allocID3 string
+	must.Wait(t, wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			allocs, _, err := nomad.Jobs().Allocations(jobSub.JobID(), true, nil)
+			must.NoError(t, err)
+			if len(allocs) != 3 {
+				return fmt.Errorf("alloc not started")
+			}
+			for _, a := range allocs {
+				if a.ID != allocID1 && a.ID != allocID2 {
+					allocID3 = a.ID
+					if a.ClientStatus != api.AllocClientStatusRunning {
+						return fmt.Errorf("replacement alloc %q not running", allocID3)
+					}
+				}
+			}
+			return nil
+		}),
+		wait.Timeout(10*time.Second),
+		wait.Gap(50*time.Millisecond),
+	))
+
+	newAlloc, _, err = nomad.Allocations().Info(allocID3, nil)
+	must.NoError(t, err)
+	must.Eq(t, []string{selectedVolID}, newAlloc.HostVolumeIDs)
+	must.Eq(t, selectedNodeID, newAlloc.NodeID)
+	t.Logf("[%v] replacement alloc %q is running", time.Since(start), newAlloc.ID)
+
+}
+
+func drainNode(nomad *nomadapi.Client, nodeID string, timeout time.Duration) (func(), error) {
+	resp, err := nomad.Nodes().UpdateDrainOpts(nodeID, &nomadapi.DrainOptions{
+		DrainSpec:    &nomadapi.DrainSpec{},
+		MarkEligible: false,
+	}, nil)
+	if err != nil {
+		return func() {}, err
+	}
+
+	cleanup := func() {
+		nomad.Nodes().UpdateDrainOpts(nodeID, &nomadapi.DrainOptions{
+			MarkEligible: true}, nil)
+	}
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
+	defer cancel()
+	drainCh := nomad.Nodes().MonitorDrain(ctx, nodeID, resp.EvalCreateIndex, false)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return cleanup, err
+		case msg := <-drainCh:
+			if msg == nil {
+				return cleanup, nil
+			}
+		}
+	}
 }
