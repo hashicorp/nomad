@@ -37,8 +37,8 @@ func TestKeyring_CRUD(t *testing.T) {
 	assertQueryMeta(t, qm)
 	must.Len(t, 2, keys)
 
-	// Delete the old key
-	wm, err = kr.Delete(&KeyringDeleteOptions{KeyID: oldKeyID}, nil)
+	// Delete the old key with force
+	wm, err = kr.Delete(&KeyringDeleteOptions{KeyID: oldKeyID, Force: true}, nil)
 	must.NoError(t, err)
 	assertWriteMeta(t, wm)
 

@@ -4198,13 +4198,15 @@ func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
+	badSecret := uuid.Generate()
 	req := &structs.DeriveVaultTokenRequest{
 		NodeID:   node.ID,
-		SecretID: uuid.Generate(),
+		SecretID: badSecret,
 		AllocID:  alloc.ID,
 		Tasks:    tasks,
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			AuthToken: badSecret,
 		},
 	}
 
@@ -4311,7 +4313,8 @@ func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 		AllocID:  alloc.ID,
 		Tasks:    tasks,
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			AuthToken: node.SecretID,
 		},
 	}
 
@@ -4395,7 +4398,8 @@ func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
 		AllocID:  alloc.ID,
 		Tasks:    tasks,
 		QueryOptions: structs.QueryOptions{
-			Region: "global",
+			Region:    "global",
+			AuthToken: node.SecretID,
 		},
 	}
 
@@ -4518,11 +4522,14 @@ func TestClientEndpoint_DeriveSIToken(t *testing.T) {
 	r.NoError(err)
 
 	request := &structs.DeriveSITokenRequest{
-		NodeID:       node.ID,
-		SecretID:     node.SecretID,
-		AllocID:      alloc.ID,
-		Tasks:        []string{sidecarTask.Name},
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		AllocID:  alloc.ID,
+		Tasks:    []string{sidecarTask.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
 	}
 
 	var response structs.DeriveSITokenResponse
@@ -4576,11 +4583,14 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 	r.NoError(err)
 
 	request := &structs.DeriveSITokenRequest{
-		NodeID:       node.ID,
-		SecretID:     node.SecretID,
-		AllocID:      alloc.ID,
-		Tasks:        []string{sidecarTask.Name},
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		AllocID:  alloc.ID,
+		Tasks:    []string{sidecarTask.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
 	}
 
 	var response structs.DeriveSITokenResponse

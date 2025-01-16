@@ -13,11 +13,6 @@ import classic from 'ember-classic-decorator';
 @classic
 export default class ClientsRoute extends Route.extend(WithForbiddenState) {
   @service store;
-  @service system;
-
-  beforeModel() {
-    return this.get('system.leader');
-  }
 
   model() {
     return RSVP.hash({

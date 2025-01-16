@@ -134,7 +134,7 @@ job "example" {
   this value takes precedence over the `service.port` value. This is useful for
   services which operate on multiple ports. `grpc`, `http`, and `tcp` checks
   require a port while `script` checks do not. Checks will use the host IP and
-  ports by default. Numeric ports may be used if `address_mode="driver"` is set 
+  ports by default. Numeric ports may be used if `address_mode="driver"` is set
   on the check.
 
 - `protocol` `(string: "http")` - Specifies the protocol for the HTTP-based
@@ -179,11 +179,10 @@ job "example" {
       server being checked. Note: setting `tls_server_name` will also override
       the hostname used for SNI.
 
-  This field is only supported in the Consul service provider. 
+  This field is only supported in the Consul service provider.
 
 - `tls_skip_verify` `(bool: false)` - Skip verification of certificates for
-  `https` and `grpc` with `grpc_use_tls` checks . Only supported in the Consul
-  service provider.
+  `https` and `grpc` with `grpc_use_tls` checks.
 
 - `on_update` `(string: "require_healthy")` - Specifies how checks should be
   evaluated when determining deployment health (including a job's initial

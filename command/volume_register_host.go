@@ -16,6 +16,10 @@ func (c *VolumeRegisterCommand) hostVolumeRegister(client *api.Client, ast *ast.
 		c.Ui.Error(fmt.Sprintf("Error decoding the volume definition: %s", err))
 		return 1
 	}
+	if vol.NodeID == "" {
+		c.Ui.Error("Node ID is required for registering")
+		return 1
+	}
 
 	req := &api.HostVolumeRegisterRequest{
 		Volume:         vol,

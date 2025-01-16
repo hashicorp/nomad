@@ -6,6 +6,7 @@ package hostvolumemanager
 import (
 	"context"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -24,7 +25,7 @@ type VolumeMap map[string]*structs.ClientHostVolumeConfig
 //
 // Since it may mutate the map, the caller should make a copy
 // or acquire a lock as appropriate for their context.
-func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolumeConfig) (changed bool) {
+func UpdateVolumeMap(log hclog.Logger, volumes VolumeMap, name string, vol *structs.ClientHostVolumeConfig) (changed bool) {
 	current, exists := volumes[name]
 	if vol == nil {
 		if exists {
@@ -32,6 +33,12 @@ func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolu
 			changed = true
 		}
 	} else {
+		// if the volume already exists with no ID, it will be because it was
+		// added to client agent config after having been previously created
+		// as a dynamic vol. dynamic takes precedence, but log a warning.
+		if exists && current.ID == "" {
+			log.Warn("overriding static host volume with dynamic", "name", name, "id", vol.ID)
+		}
 		if !exists || !vol.Equal(current) {
 			volumes[name] = vol
 			changed = true
@@ -41,6 +48,7 @@ func UpdateVolumeMap(volumes VolumeMap, name string, vol *structs.ClientHostVolu
 }
 
 // WaitForFirstFingerprint implements client.FingerprintingPluginManager
+// so any existing volumes are added to the client node on agent start.
 func (hvm *HostVolumeManager) WaitForFirstFingerprint(ctx context.Context) <-chan struct{} {
 	// the fingerprint manager puts batchFirstFingerprintsTimeout (50 seconds)
 	// on the context that it sends to us here so we don't need another

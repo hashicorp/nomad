@@ -15,17 +15,18 @@ func TestChecks_NomadCheckID(t *testing.T) {
 	ci.Parallel(t)
 
 	orig := ServiceCheck{
-		Name:        "c1",
-		Type:        "http",
-		Path:        "/health",
-		Protocol:    "https",
-		PortLabel:   "web",
-		AddressMode: "host",
-		Interval:    1 * time.Minute,
-		Timeout:     10 * time.Second,
-		Method:      "GET",
-		TaskName:    "t1",
-		OnUpdate:    OnUpdateIgnore,
+		Name:          "c1",
+		Type:          "http",
+		Path:          "/health",
+		Protocol:      "https",
+		PortLabel:     "web",
+		AddressMode:   "host",
+		Interval:      1 * time.Minute,
+		Timeout:       10 * time.Second,
+		Method:        "GET",
+		TaskName:      "t1",
+		OnUpdate:      OnUpdateIgnore,
+		TLSSkipVerify: false,
 	}
 
 	different := func(a, b ServiceCheck) bool {
@@ -102,6 +103,12 @@ func TestChecks_NomadCheckID(t *testing.T) {
 	t.Run("different on update", func(t *testing.T) {
 		c := orig
 		c.OnUpdate = "checks"
+		must.True(t, different(orig, c))
+	})
+
+	t.Run("different TLS skip verify", func(t *testing.T) {
+		c := orig
+		c.TLSSkipVerify = true
 		must.True(t, different(orig, c))
 	})
 }

@@ -12,6 +12,36 @@ upgrade. However, specific versions of Nomad may have more details provided for
 their upgrades as a result of new features or changed behavior. This page is
 used to document those details separately from the standard upgrade flow.
 
+## Nomad 1.10.0
+
+#### Quota specification variable_limits deprecated
+
+In Nomad 1.10.0, the quota specification's `variable_limits` field is
+deprecated. It is replaced by a new `storage` block with a `variables` field,
+under the `region_limit` block. Existing quotas will be automatically migrated
+during server upgrade. The `variables_limit` field will be removed from the
+quota specification in Nomad 1.12.0.
+
+#### Go SDK API change for quota limits
+
+In Nomad 1.10.0, the Go API for quotas has a breaking change. The
+`QuotaSpec.RegionLimit` field is now of type `QuotaResources` instead of
+`Resources`. The `QuotaSpec.VariablesLimit` field is deprecated in lieu of
+`QuotaSpec.RegionLimit.Storage.Variables` and will be removed in Nomad 1.12.0.
+
+## Nomad 1.9.5
+
+#### CNI plugins
+
+Nomad 1.9.5 includes a bug fix for restoring allocation networking after a
+client host reboot. This fix requires recent versions of the CNI reference
+plugins (minimum 1.2.0) and will fallback to the existing behavior if the CNI
+reference plugins cannot support the fix.
+
+We recommend installing the CNI reference plugins from the [CNI project release
+page](https://github.com/containernetworking/plugins/releases) rather than your
+Linux distribution's package manager.
+
 ## Nomad 1.9.4
 
 #### Security updates to default deny lists

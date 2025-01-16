@@ -1,3 +1,2 @@
-*.zip
-uploads/
 custom.tfvars
+remotetasks/

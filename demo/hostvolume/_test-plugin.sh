@@ -42,27 +42,37 @@ plugin="$1"
 op="$2"
 alloc_mounts="${3:-/tmp}"
 uuid="${4:-74564d17-ce50-0bc1-48e5-6feaa41ede48}"
+node_id='0b62d807-6101-a80f-374d-e1c430abbf47'
+plugin_dir="$(dirname "$plugin")" 
 
 case $op in
   fingerprint)
     args='fingerprint'
+    export DHV_OPERATION='fingerprint'
     ;;
 
 	create)
     args="create $alloc_mounts/$uuid"
-    export HOST_PATH="$alloc_mounts/$uuid"
-    export VOLUME_NAME=test
-    export NODE_ID=0b62d807-6101-a80f-374d-e1c430abbf47
-    export CAPACITY_MAX_BYTES=50000000 # 50mb
-    export CAPACITY_MIN_BYTES=50000000 # 50mb
-    export PARAMETERS='{"a": "ayy"}'
-    # db TODO(1.10.0): check stdout
+    export DHV_OPERATION='create'
+    export DHV_HOST_PATH="$alloc_mounts/$uuid"
+    export DHV_VOLUME_NAME=test
+    export DHV_VOLUME_ID="$uuid"
+    export DHV_NODE_ID="$node_id"
+    export DHV_CAPACITY_MAX_BYTES=50000000 # 50mb
+    export DHV_CAPACITY_MIN_BYTES=50000000 # 50mb
+    export DHV_PARAMETERS='{"a": "ayy"}'
+    export DHV_PLUGIN_DIR="$plugin_dir"
     ;;
 
   delete)
     args="delete $alloc_mounts/$uuid"
-    export HOST_PATH="$alloc_mounts/$uuid"
-    export PARAMETERS='{"a": "ayy"}'
+    export DHV_OPERATION='delete'
+    export DHV_HOST_PATH="$alloc_mounts/$uuid"
+    export DHV_NODE_ID="$node_id"
+    export DHV_VOLUME_NAME=test
+    export DHV_VOLUME_ID="$uuid"
+    export DHV_PARAMETERS='{"a": "ayy"}'
+    export DHV_PLUGIN_DIR="$plugin_dir"
     ;;
 
   *)
@@ -70,6 +80,5 @@ case $op in
 	  ;;
 esac
 
-export OPERATION="$op"
 set -x
 eval "$plugin $args"

@@ -9,9 +9,10 @@ plugin_id = "plugin_id"
 capacity_min = "10GiB"
 capacity_max = "20G"
 
-# Required (at least one): for 'nomad volume create', specify one or more
-# capabilities to validate. Registering an existing volume will record but
-# ignore these fields.
+# Optional: for 'nomad volume create', specify one or more capabilities to
+# validate. Registering an existing volume will record but ignore these fields.
+# If omitted, the single-node-writer + file-system capability will be used as a
+# default.
 capability {
   access_mode     = "single-node-writer"
   attachment_mode = "file-system"

@@ -21,12 +21,17 @@ variable "instance_type" {
   default     = "t3a.medium"
 }
 
+variable "instance_architecture" {
+  description = "The architecture for the AWS instance type to use for both clients and servers."
+  default     = "amd64"
+}
+
 variable "server_count" {
   description = "The number of servers to provision."
   default     = "3"
 }
 
-variable "client_count_ubuntu_jammy_amd64" {
+variable "client_count_linux" {
   description = "The number of Ubuntu clients to provision."
   default     = "4"
 }
@@ -48,36 +53,27 @@ variable "restrict_ingress_cidrblock" {
 
 variable "nomad_local_binary" {
   description = "The path to a local binary to provision"
-  default     = ""
 }
 
 variable "nomad_license" {
   type        = string
   description = "If nomad_license is set, deploy a license"
-  default     = ""
 }
 
 variable "nomad_region" {
-  description = "The name of the Nomad region."
-  default     = "e2e"
+  description = "The AWS region to deploy to."
+  default     = "us-east-1"
 }
 
 variable "consul_license" {
   type        = string
   description = "If consul_license is set, deploy a license"
-  default     = ""
 }
 
 variable "volumes" {
   type        = bool
   description = "Include external EFS volumes (for CSI)"
   default     = true
-}
-
-variable "hcp_consul_cluster_id" {
-  description = "The ID of the HCP Consul cluster"
-  type        = string
-  default     = "nomad-e2e-shared-hcp-consul"
 }
 
 variable "hcp_vault_cluster_id" {

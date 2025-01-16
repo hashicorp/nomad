@@ -6,6 +6,7 @@ package checks
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -188,6 +189,16 @@ func (c *checker) checkHTTP(ctx context.Context, qc *QueryContext, q *Query) *st
 	request.Host = request.Header.Get("Host")
 	request.Body = io.NopCloser(strings.NewReader(q.Body))
 	request = request.WithContext(ctx)
+
+	// Leave this setup until the last as it doesn't generate an error. If the
+	// check has specified TLS skip verify, generate a new round tripper. This
+	// job specification "check.tls_skip_verify" parameter supports in-place
+	// updates, so we must do this on each check iteration.
+	if q.TLSSkipVerify {
+		trans := cleanhttp.DefaultPooledTransport()
+		trans.TLSClientConfig = &tls.Config{InsecureSkipVerify: q.TLSSkipVerify}
+		c.httpClient.Transport = trans
+	}
 
 	result, err := c.httpClient.Do(request)
 	if err != nil {

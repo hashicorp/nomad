@@ -228,25 +228,42 @@ func upsertHostVolumeForNode(txn *txn, node *structs.Node, index uint64) error {
 	if err != nil {
 		return err
 	}
+
+	var dirty bool
+
 	for {
 		raw := iter.Next()
 		if raw == nil {
-			return nil
+			break
 		}
 		vol := raw.(*structs.HostVolume)
-		switch vol.State {
-		case structs.HostVolumeStateUnknown, structs.HostVolumeStatePending:
-			if _, ok := node.HostVolumes[vol.Name]; ok {
-				vol = vol.Copy()
-				vol.State = structs.HostVolumeStateReady
-				vol.ModifyIndex = index
-				err = txn.Insert(TableHostVolumes, vol)
-				if err != nil {
-					return fmt.Errorf("host volume insert: %w", err)
-				}
+		if _, ok := node.HostVolumes[vol.Name]; !ok {
+			continue
+		}
+
+		// the fingerprint has been written on the client for this volume, or
+		// the client's node pool has been changed
+		if vol.State == structs.HostVolumeStateUnknown ||
+			vol.State == structs.HostVolumeStatePending ||
+			vol.NodePool != node.NodePool {
+
+			vol = vol.Copy()
+			vol.State = structs.HostVolumeStateReady
+			vol.NodePool = node.NodePool
+			vol.ModifyIndex = index
+			err = txn.Insert(TableHostVolumes, vol)
+			if err != nil {
+				return fmt.Errorf("host volume insert: %w", err)
 			}
-		default:
-			// don't touch ready or soft-deleted volumes
+			dirty = true
 		}
 	}
+
+	if dirty {
+		if err := txn.Insert("index", &IndexEntry{TableHostVolumes, index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+
+	return nil
 }

@@ -23,14 +23,8 @@ func HostVolumeRequest(ns string) *structs.HostVolume {
 		},
 		RequestedCapacityMinBytes: 100000,
 		RequestedCapacityMaxBytes: 200000,
-		RequestedCapabilities: []*structs.HostVolumeCapability{
-			{
-				AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
-				AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
-			},
-		},
-		Parameters: map[string]string{"foo": "bar"},
-		State:      structs.HostVolumeStatePending,
+		Parameters:                map[string]string{"foo": "bar"},
+		State:                     structs.HostVolumeStatePending,
 	}
 	return vol
 

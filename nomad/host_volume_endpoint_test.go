@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/nomad/version"
@@ -80,11 +79,13 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, "missing volume definition")
 
-		req.Volume = &structs.HostVolume{}
+		req.Volume = &structs.HostVolume{RequestedCapabilities: []*structs.HostVolumeCapability{
+			{AttachmentMode: "foo"}}}
+
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
 		must.EqError(t, err, `volume validation failed: 2 errors occurred:
 	* missing name
-	* must include at least one capability block
+	* invalid attachment mode: "foo"
 
 `)
 
@@ -127,6 +128,10 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		must.EqError(t, err, fmt.Sprintf(
 			`validating volume "example" against state failed: node %q does not exist`,
 			invalidNode.ID))
+
+		req.Volume.NodeID = ""
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", req, &resp)
+		must.EqError(t, err, "cannot register volume: node ID is required")
 	})
 
 	var expectIndex uint64
@@ -165,12 +170,12 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		var resp structs.HostVolumeCreateResponse
 		req.AuthToken = token
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
-		must.EqError(t, err, `could not place volume "example1": no node meets constraints`)
+		must.EqError(t, err, `could not place volume "example1": no node meets constraints: 0 nodes had existing volume, 0 nodes filtered by node pool governance, 1 nodes were infeasible`)
 
 		req.Volume = vol2.Copy()
 		resp = structs.HostVolumeCreateResponse{}
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", req, &resp)
-		must.EqError(t, err, `could not place volume "example2": no node meets constraints`)
+		must.EqError(t, err, `could not place volume "example2": no node meets constraints: 0 nodes had existing volume, 0 nodes filtered by node pool governance, 1 nodes were infeasible`)
 	})
 
 	t.Run("valid create", func(t *testing.T) {
@@ -211,7 +216,14 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	t.Run("invalid updates", func(t *testing.T) {
 
 		invalidVol1 := vol1.Copy()
-		invalidVol2 := &structs.HostVolume{}
+		invalidVol2 := &structs.HostVolume{
+			NodeID: uuid.Generate(),
+			RequestedCapabilities: []*structs.HostVolumeCapability{
+				{
+					AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+					AccessMode:     "foo",
+				}},
+		}
 
 		createReq := &structs.HostVolumeCreateRequest{
 			Volume: invalidVol2,
@@ -225,7 +237,7 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		err := msgpackrpc.CallWithCodec(codec, "HostVolume.Create", createReq, &createResp)
 		must.EqError(t, err, `volume validation failed: 2 errors occurred:
 	* missing name
-	* must include at least one capability block
+	* invalid access mode: "foo"
 
 `, must.Sprint("initial validation failures should exit early"))
 
@@ -419,31 +431,25 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 	nspace2.Name = ns2
 	must.NoError(t, store.UpsertNamespaces(index, []*structs.Namespace{nspace1, nspace2}))
 
-	nodes := []*structs.Node{
-		mock.Node(),
-		mock.Node(),
-		mock.Node(),
-	}
-	nodes[2].NodePool = "prod"
-	index++
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
-		index, nodes[0], state.NodeUpsertWithNodePool))
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
-		index, nodes[1], state.NodeUpsertWithNodePool))
-	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup,
-		index, nodes[2], state.NodeUpsertWithNodePool))
+	_, node0 := newMockHostVolumeClient(t, srv, "default")
+	_, node1 := newMockHostVolumeClient(t, srv, "default")
+	_, node2 := newMockHostVolumeClient(t, srv, "prod")
 
-	vol1 := mock.HostVolumeRequestForNode(ns1, nodes[0])
+	vol1 := mock.HostVolumeRequestForNode(ns1, node0)
 	vol1.Name = "foobar-example"
+	vol1.HostPath = "/tmp/vol1"
 
-	vol2 := mock.HostVolumeRequestForNode(ns1, nodes[1])
+	vol2 := mock.HostVolumeRequestForNode(ns1, node1)
 	vol2.Name = "foobaz-example"
+	vol2.HostPath = "/tmp/vol2"
 
-	vol3 := mock.HostVolumeRequestForNode(ns2, nodes[2])
+	vol3 := mock.HostVolumeRequestForNode(ns2, node2)
 	vol3.Name = "foobar-example"
+	vol3.HostPath = "/tmp/vol3"
 
-	vol4 := mock.HostVolumeRequestForNode(ns2, nodes[1])
+	vol4 := mock.HostVolumeRequestForNode(ns2, node1)
 	vol4.Name = "foobaz-example"
+	vol4.HostPath = "/tmp/vol4"
 
 	// we need to register these rather than upsert them so we have the correct
 	// indexes for unblocking later.
@@ -534,7 +540,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 		{
 			name: "query by node",
 			req: &structs.HostVolumeListRequest{
-				NodeID: nodes[1].ID,
+				NodeID: node1.ID,
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
 					Namespace: structs.AllNamespacesSentinel,
@@ -558,7 +564,7 @@ func TestHostVolumeEndpoint_List(t *testing.T) {
 		{
 			name: "query by incompatible node ID and pool",
 			req: &structs.HostVolumeListRequest{
-				NodeID:   nodes[1].ID,
+				NodeID:   node1.ID,
 				NodePool: "prod",
 				QueryOptions: structs.QueryOptions{
 					Region:    srv.Region(),
@@ -728,12 +734,12 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 						Operand: "=",
 					},
 				}},
-			expectErr: "no node meets constraints",
+			expectErr: "no node meets constraints: 0 nodes had existing volume, 0 nodes filtered by node pool governance, 4 nodes were infeasible",
 		},
 		{
 			name:      "no matching plugin",
 			vol:       &structs.HostVolume{PluginID: "not-mkdir"},
-			expectErr: "no node meets constraints",
+			expectErr: "no node meets constraints: 0 nodes had existing volume, 0 nodes filtered by node pool governance, 4 nodes were infeasible",
 		},
 		{
 			name: "match already has a volume with the same name",
@@ -747,7 +753,7 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 						Operand: "=",
 					},
 				}},
-			expectErr: "no node meets constraints",
+			expectErr: "no node meets constraints: 1 nodes had existing volume, 0 nodes filtered by node pool governance, 3 nodes were infeasible",
 		},
 	}
 
@@ -772,6 +778,7 @@ type mockHostVolumeClient struct {
 	lock               sync.Mutex
 	nextCreateResponse *cstructs.ClientHostVolumeCreateResponse
 	nextCreateErr      error
+	nextRegisterErr    error
 	nextDeleteErr      error
 }
 
@@ -831,6 +838,15 @@ func (v *mockHostVolumeClient) Create(
 	}
 	*resp = *v.nextCreateResponse
 	return v.nextCreateErr
+}
+
+func (v *mockHostVolumeClient) Register(
+	req *cstructs.ClientHostVolumeRegisterRequest,
+	resp *cstructs.ClientHostVolumeRegisterResponse) error {
+	v.lock.Lock()
+	defer v.lock.Unlock()
+	*resp = cstructs.ClientHostVolumeRegisterResponse{}
+	return v.nextRegisterErr
 }
 
 func (v *mockHostVolumeClient) Delete(

@@ -4,14 +4,17 @@
 package docker
 
 import (
+	"context"
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/docker/util"
 	"github.com/shoenig/test/must"
 )
@@ -111,4 +114,60 @@ func TestDriver_DockerUsageSender(t *testing.T) {
 	destCh.close()
 	destCh.close()
 	destCh.send(res)
+}
+
+func Test_taskHandle_collectDockerStats(t *testing.T) {
+	ci.Parallel(t)
+	testutil.DockerCompatible(t)
+
+	// Start a Docker container and wait for it to be running, so we can
+	// guarantee stats generation.
+	driverCfg, dockerTaskConfig, _ := dockerTask(t)
+
+	must.NoError(t, driverCfg.EncodeConcreteDriverConfig(dockerTaskConfig))
+
+	_, driverHarness, handle, cleanup := dockerSetup(t, driverCfg, nil)
+	defer cleanup()
+	must.NoError(t, driverHarness.WaitUntilStarted(driverCfg.ID, 5*time.Second))
+
+	// Generate a context, so the test doesn't hang on Docker problems and
+	// execute a single collection of the stats.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	dockerStats, err := handle.collectDockerStats(ctx)
+	must.NoError(t, err)
+	must.NotNil(t, dockerStats)
+
+	// Ensure all the stats we use for calculating CPU percentages within
+	// DockerStatsToTaskResourceUsage are present and non-zero.
+	must.NonZero(t, dockerStats.CPUStats.CPUUsage.TotalUsage)
+	must.NonZero(t, dockerStats.CPUStats.CPUUsage.TotalUsage)
+
+	must.NonZero(t, dockerStats.PreCPUStats.CPUUsage.TotalUsage)
+	must.NonZero(t, dockerStats.PreCPUStats.CPUUsage.TotalUsage)
+
+	// System usage is only populated on Linux machines. GitHub Actions Windows
+	// runners do not have UsageInKernelmode or UsageInUsermode populated and
+	// these datapoints are not used by the Windows stats usage function. Also
+	// wrap the Linux specific memory stats.
+	if runtime.GOOS == "linux" {
+		must.NonZero(t, dockerStats.CPUStats.SystemUsage)
+		must.NonZero(t, dockerStats.CPUStats.CPUUsage.UsageInKernelmode)
+		must.NonZero(t, dockerStats.CPUStats.CPUUsage.UsageInUsermode)
+
+		must.NonZero(t, dockerStats.PreCPUStats.SystemUsage)
+		must.NonZero(t, dockerStats.PreCPUStats.CPUUsage.UsageInKernelmode)
+		must.NonZero(t, dockerStats.PreCPUStats.CPUUsage.UsageInUsermode)
+
+		must.NonZero(t, dockerStats.MemoryStats.Usage)
+		must.MapContainsKey(t, dockerStats.MemoryStats.Stats, "file_mapped")
+	}
+
+	// Test Windows specific memory stats are collected as and when expected.
+	if runtime.GOOS == "windows" {
+		must.NonZero(t, dockerStats.MemoryStats.PrivateWorkingSet)
+		must.NonZero(t, dockerStats.MemoryStats.Commit)
+		must.NonZero(t, dockerStats.MemoryStats.CommitPeak)
+	}
 }

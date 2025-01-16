@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
@@ -50,7 +51,8 @@ SEND_BATCH:
 	// host volume updates
 	var hostVolChanged bool
 	c.batchNodeUpdates.batchHostVolumeUpdates(func(name string, vol *structs.ClientHostVolumeConfig) {
-		hostVolChanged = hvm.UpdateVolumeMap(newConfig.Node.HostVolumes, name, vol)
+		hostVolChanged = hvm.UpdateVolumeMap(c.logger.Named("node_updater").With("method", "batchFirstFingerprint"),
+			newConfig.Node.HostVolumes, name, vol)
 	})
 
 	// csi updates
@@ -140,7 +142,8 @@ func (c *Client) updateNodeFromHostVol(name string, vol *structs.ClientHostVolum
 		newConfig.Node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig)
 	}
 
-	changed := hvm.UpdateVolumeMap(newConfig.Node.HostVolumes, name, vol)
+	changed := hvm.UpdateVolumeMap(c.logger.Named("node_updater").With("method", "updateNodeFromHostVol"),
+		newConfig.Node.HostVolumes, name, vol)
 	if changed {
 		c.config = newConfig
 		c.updateNode()
@@ -342,6 +345,8 @@ func (c *Client) updateNodeFromDevicesLocked(devices []*structs.NodeDeviceResour
 // Once ready, the batches can be flushed and toggled to stop batching and forward
 // all updates to a configured callback to be performed incrementally
 type batchNodeUpdates struct {
+	logger hclog.Logger
+
 	// access to driver fields must hold driversMu lock
 	drivers        map[string]*structs.DriverInfo
 	driversBatched bool
@@ -368,12 +373,14 @@ type batchNodeUpdates struct {
 }
 
 func newBatchNodeUpdates(
+	logger hclog.Logger,
 	driverCB drivermanager.UpdateNodeDriverInfoFn,
 	devicesCB devicemanager.UpdateNodeDevicesFn,
 	csiCB csimanager.UpdateNodeCSIInfoFunc,
 	hostVolumeCB hvm.HostVolumeNodeUpdater) *batchNodeUpdates {
 
 	return &batchNodeUpdates{
+		logger:               logger,
 		drivers:              make(map[string]*structs.DriverInfo),
 		driverCB:             driverCB,
 		devices:              []*structs.NodeDeviceResource{},
@@ -394,7 +401,8 @@ func (b *batchNodeUpdates) updateNodeFromHostVolume(name string, vol *structs.Cl
 		b.hostVolumeCB(name, vol) // => Client.updateNodeFromHostVol()
 		return
 	}
-	hvm.UpdateVolumeMap(b.hostVolumes, name, vol)
+	hvm.UpdateVolumeMap(b.logger.Named("node_updater").With("method", "updateNodeFromHostVolume"),
+		b.hostVolumes, name, vol)
 }
 
 // this one runs on client start

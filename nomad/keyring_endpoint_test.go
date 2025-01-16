@@ -8,12 +8,11 @@ import (
 	"time"
 
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
-	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 )
 
 // TestKeyringEndpoint_CRUD exercises the basic keyring operations
@@ -26,11 +25,11 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	defer shutdown()
 	testutil.WaitForKeyring(t, srv.RPC, "global")
 	codec := rpcClient(t, srv)
+	state := srv.fsm.State()
 
 	// Upsert a new key
-
 	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	id := key.Meta.KeyID
 	key = key.MakeActive()
 
@@ -41,12 +40,19 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	var updateResp structs.KeyringUpdateRootKeyResponse
 
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
-	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 	updateReq.AuthToken = rootToken.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
-	require.NoError(t, err)
-	require.NotEqual(t, uint64(0), updateResp.Index)
+	must.NoError(t, err)
+	must.NotEq(t, uint64(0), updateResp.Index)
+
+	// Upsert a variable and encrypt it with that key (used for key deletion test
+	// below)
+	encryptedVar := mock.VariableEncrypted()
+	encryptedVar.KeyID = key.Meta.KeyID
+	varSetResp := state.VarSet(0, &structs.VarApplyStateRequest{Var: encryptedVar})
+	must.NoError(t, varSetResp.Error)
 
 	// Get doesn't need a token here because it uses mTLS role verification
 	getReq := &structs.KeyringGetRootKeyRequest{
@@ -56,9 +62,9 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	var getResp structs.KeyringGetRootKeyResponse
 
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Get", getReq, &getResp)
-	require.NoError(t, err)
-	require.Equal(t, updateResp.Index, getResp.Index)
-	require.Equal(t, structs.EncryptionAlgorithmAES256GCM, getResp.Key.Meta.Algorithm)
+	must.NoError(t, err)
+	must.Eq(t, updateResp.Index, getResp.Index)
+	must.Eq(t, structs.EncryptionAlgorithmAES256GCM, getResp.Key.Meta.Algorithm)
 
 	// Make a blocking query for List and wait for an Update. Note
 	// that Get queries don't need ACL tokens in the test server
@@ -82,13 +88,13 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 
 	updateReq.RootKey.Meta.CreateTime = time.Now().UTC().UnixNano()
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
-	require.NoError(t, err)
-	require.NotEqual(t, uint64(0), updateResp.Index)
+	must.NoError(t, err)
+	must.NotEq(t, uint64(0), updateResp.Index)
 
 	// wait for the blocking query to complete and check the response
-	require.NoError(t, <-errCh)
-	require.Equal(t, listResp.Index, updateResp.Index)
-	require.Len(t, listResp.Keys, 2) // bootstrap + new one
+	must.NoError(t, <-errCh)
+	must.Eq(t, listResp.Index, updateResp.Index)
+	must.SliceLen(t, 2, listResp.Keys) /// bootstrap + new one
 
 	// Delete the key and verify that it's gone
 
@@ -99,20 +105,25 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 	var delResp structs.KeyringDeleteRootKeyResponse
 
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Delete", delReq, &delResp)
-	require.EqualError(t, err, structs.ErrPermissionDenied.Error())
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 
 	delReq.AuthToken = rootToken.SecretID
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Delete", delReq, &delResp)
-	require.EqualError(t, err, "active root key cannot be deleted - call rotate first")
+	must.EqError(t, err, "active root key cannot be deleted - call rotate first")
 
 	// set inactive
 	updateReq.RootKey = updateReq.RootKey.MakeInactive()
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Delete", delReq, &delResp)
-	require.NoError(t, err)
-	require.Greater(t, delResp.Index, getResp.Index)
+	must.EqError(t, err, "root key in use, cannot delete")
+
+	// delete with force
+	delReq.Force = true
+	err = msgpackrpc.CallWithCodec(codec, "Keyring.Delete", delReq, &delResp)
+	must.NoError(t, err)
+	must.Greater(t, getResp.Index, delResp.Index)
 
 	listReq := &structs.KeyringListRootKeyMetaRequest{
 		QueryOptions: structs.QueryOptions{
@@ -121,9 +132,9 @@ func TestKeyringEndpoint_CRUD(t *testing.T) {
 		},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.List", listReq, &listResp)
-	require.NoError(t, err)
-	require.Greater(t, listResp.Index, getResp.Index)
-	require.Len(t, listResp.Keys, 1) // just the bootstrap key
+	must.NoError(t, err)
+	must.Greater(t, getResp.Index, listResp.Index)
+	must.SliceLen(t, 1, listResp.Keys) // just the bootstrap key
 }
 
 // TestKeyringEndpoint_validateUpdate exercises all the various
@@ -140,7 +151,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 
 	// Setup an existing key
 	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	id := key.Meta.KeyID
 	key = key.MakeActive()
 
@@ -153,7 +164,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 	}
 	var updateResp structs.KeyringUpdateRootKeyResponse
 	err = msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	testCases := []struct {
 		key            *structs.UnwrappedRootKey
@@ -211,7 +222,7 @@ func TestKeyringEndpoint_InvalidUpdates(t *testing.T) {
 			}
 			var updateResp structs.KeyringUpdateRootKeyResponse
 			err := msgpackrpc.CallWithCodec(codec, "Keyring.Update", updateReq, &updateResp)
-			require.EqualError(t, err, tc.expectedErrMsg)
+			must.EqError(t, err, tc.expectedErrMsg)
 		})
 	}
 
