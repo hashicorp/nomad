@@ -583,7 +583,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
 			return nil, nil, nil
 		}
-		writers = append(writers, &SyslogWrapper{l, logFilter})
+		writers = append(writers, newSyslogWriter(l, config.LogJson))
 	}
 
 	// Check if file logging is enabled
