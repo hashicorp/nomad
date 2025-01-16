@@ -66,11 +66,11 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 			if err := e.srv.Authenticate(nil, &args); err != nil {
 				return err
 			}
-			acl, err := e.srv.ResolveACL(&args)
+			resolvedACL, err := e.srv.ResolveACL(&args)
 			if err != nil {
 				return err
 			}
-			return validateACL(args.Namespace, args.Topics, acl)
+			return validateACL(args.Namespace, args.Topics, resolvedACL)
 		},
 	}
 
