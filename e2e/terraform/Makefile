@@ -45,10 +45,10 @@ destroy_full:
 # don't run this by default in plan/apply because it prevents you from
 # updating a running cluster
 tidy:
-	rm -rf keys
-	mkdir keys
-	chmod 0700 keys
-	rm -rf uploads/*
+	rm -rf provision-infra/keys
+	mkdir -p provision-infra/keys
+	chmod 0700 provision-infra/keys
+	rm -rf provision-infra/uploads/*
 	git checkout uploads/README.md
 	rm -f terraform.tfstate.*.backup
 	rm custom.tfvars
