@@ -79,8 +79,7 @@ $ sudo dnf install -y dnf-plugins-core
 Use `dnf config-manager` to add the official HashiCorp Linux repository.
 
 ```shell-session
-$ sudo dnf config-manager \
-  --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
+$ sudo dnf config-manager addrepo --from-repofile=https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
 ```
 
 Install.
