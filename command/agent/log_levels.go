@@ -4,28 +4,12 @@
 package agent
 
 import (
-	"io"
-
-	"github.com/hashicorp/logutils"
+	"github.com/hashicorp/go-set/v3"
 )
 
-// LevelFilter returns a LevelFilter that is configured with the log
-// levels that we use.
-func LevelFilter() *logutils.LevelFilter {
-	return &logutils.LevelFilter{
-		Levels:   []logutils.LogLevel{"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"},
-		MinLevel: "INFO",
-		Writer:   io.Discard,
-	}
-}
+// validLogLevels is the set of log level values that are valid for a Nomad
+// agent.
+var validLogLevels = set.From([]string{"TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF"})
 
-// ValidateLevelFilter verifies that the log levels within the filter
-// are valid.
-func ValidateLevelFilter(minLevel logutils.LogLevel, filter *logutils.LevelFilter) bool {
-	for _, level := range filter.Levels {
-		if level == minLevel {
-			return true
-		}
-	}
-	return false
-}
+// isLogLevelValid returns whether the passed agent log level is valid.
+func isLogLevelValid(level string) bool { return validLogLevels.Contains(level) }
