@@ -12,8 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/hashicorp/logutils"
 )
 
 var (
@@ -22,8 +20,6 @@ var (
 
 // logFile is used to setup a file based logger that also performs log rotation
 type logFile struct {
-	// Log level Filter to filter out logs that do not matcch LogLevel criteria
-	logFilter *logutils.LevelFilter
 
 	//Name of the log file
 	fileName string
@@ -121,7 +117,7 @@ func (l *logFile) pruneFiles() error {
 		return err
 	}
 
-	// Stort the strings as filepath.Glob does not publicly guarantee that files
+	// Sort the strings as filepath.Glob does not publicly guarantee that files
 	// are sorted, so here we add an extra defensive sort.
 	sort.Strings(matches)
 
@@ -135,15 +131,14 @@ func (l *logFile) pruneFiles() error {
 	return nil
 }
 
-// Write is used to implement io.Writer
+// Write is used to implement io.Writer.
+//
+// Nomad's log file capability is fed by go-hclog which is responsible for
+// performing the log level filtering. It is not needed here.
 func (l *logFile) Write(b []byte) (int, error) {
-	// Filter out log entries that do not match log level criteria
-	if !l.logFilter.Check(b) {
-		return 0, nil
-	}
-
 	l.acquire.Lock()
 	defer l.acquire.Unlock()
+
 	//Create a new file if we have no file to write to
 	if l.FileInfo == nil {
 		if err := l.openNew(); err != nil {

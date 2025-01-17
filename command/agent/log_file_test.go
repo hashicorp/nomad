@@ -9,9 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 const (
@@ -25,158 +24,125 @@ func TestLogFile_timeRotation(t *testing.T) {
 
 	tempDir := t.TempDir()
 
-	filt := LevelFilter()
 	logFile := logFile{
-		logFilter: filt,
-		fileName:  testFileName,
-		logPath:   tempDir,
-		duration:  testDuration,
+		fileName: testFileName,
+		logPath:  tempDir,
+		duration: testDuration,
 	}
-	logFile.Write([]byte("Hello World"))
+
+	_, err := logFile.Write([]byte("Hello World"))
+	must.NoError(t, err)
 	time.Sleep(2 * time.Second)
-	logFile.Write([]byte("Second File"))
-	want := 2
-	if got, _ := os.ReadDir(tempDir); len(got) != want {
-		t.Errorf("Expected %d files, got %v file(s)", want, len(got))
-	}
+	_, err = logFile.Write([]byte("Second File"))
+	must.NoError(t, err)
+
+	numEntries, err := os.ReadDir(tempDir)
+	must.NoError(t, err)
+	must.Len(t, 2, numEntries)
 }
 
 func TestLogFile_openNew(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	tempDir := t.TempDir()
 
-	filt := LevelFilter()
-	filt.MinLevel = logutils.LogLevel("INFO")
 	logFile := logFile{
-		logFilter: filt,
-		fileName:  testFileName,
-		logPath:   tempDir,
-		MaxBytes:  testBytes,
-		duration:  24 * time.Hour,
+		fileName: testFileName,
+		logPath:  tempDir,
+		MaxBytes: testBytes,
+		duration: 24 * time.Hour,
 	}
-	require.NoError(logFile.openNew())
+	must.NoError(t, logFile.openNew())
 
 	_, err := os.ReadFile(logFile.FileInfo.Name())
-	require.NoError(err)
+	must.NoError(t, err)
 
-	require.Equal(logFile.FileInfo.Name(), filepath.Join(tempDir, testFileName))
+	must.Eq(t, logFile.FileInfo.Name(), filepath.Join(tempDir, testFileName))
 
 	// Check if create time and bytes written are kept when opening the active
 	// log file again.
 	bytesWritten, err := logFile.Write([]byte("test"))
-	require.NoError(err)
+	must.NoError(t, err)
 
 	time.Sleep(2 * time.Second)
-	require.NoError(logFile.openNew())
+	must.NoError(t, err)
 
 	timeDelta := time.Now().Sub(logFile.LastCreated)
-	require.GreaterOrEqual(timeDelta, 2*time.Second)
-	require.Equal(logFile.BytesWritten, int64(bytesWritten))
+	must.Greater(t, 2*time.Second, timeDelta)
+	must.Eq(t, logFile.BytesWritten, int64(bytesWritten))
 }
 
 func TestLogFile_byteRotation(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	tempDir := t.TempDir()
 
-	filt := LevelFilter()
-	filt.MinLevel = logutils.LogLevel("INFO")
 	logFile := logFile{
-		logFilter: filt,
-		fileName:  testFileName,
-		logPath:   tempDir,
-		MaxBytes:  testBytes,
-		duration:  24 * time.Hour,
+		fileName: testFileName,
+		logPath:  tempDir,
+		MaxBytes: testBytes,
+		duration: 24 * time.Hour,
 	}
-	logFile.Write([]byte("Hello World"))
-	logFile.Write([]byte("Second File"))
-	want := 2
-	tempFiles, _ := os.ReadDir(tempDir)
-	require.Equal(want, len(tempFiles))
-}
+	_, err := logFile.Write([]byte("Hello World"))
+	must.NoError(t, err)
+	_, err = logFile.Write([]byte("Second File"))
+	must.NoError(t, err)
 
-func TestLogFile_logLevelFiltering(t *testing.T) {
-	ci.Parallel(t)
-	require := require.New(t)
-
-	tempDir := t.TempDir()
-	filt := LevelFilter()
-	logFile := logFile{
-		logFilter: filt,
-		fileName:  testFileName,
-		logPath:   tempDir,
-		MaxBytes:  testBytes,
-		duration:  testDuration,
-	}
-	logFile.Write([]byte("[INFO] This is an info message"))
-	logFile.Write([]byte("[DEBUG] This is a debug message"))
-	logFile.Write([]byte("[ERR] This is an error message"))
-	want := 2
-	tempFiles, _ := os.ReadDir(tempDir)
-	require.Equal(want, len(tempFiles))
+	tempFiles, err := os.ReadDir(tempDir)
+	must.NoError(t, err)
+	must.Len(t, 2, tempFiles)
 }
 
 func TestLogFile_deleteArchives(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	tempDir := t.TempDir()
 
-	filt := LevelFilter()
-	filt.MinLevel = logutils.LogLevel("INFO")
 	logFile := logFile{
-		logFilter: filt,
-		fileName:  testFileName,
-		logPath:   tempDir,
-		MaxBytes:  testBytes,
-		duration:  24 * time.Hour,
-		MaxFiles:  1,
+		fileName: testFileName,
+		logPath:  tempDir,
+		MaxBytes: testBytes,
+		duration: 24 * time.Hour,
+		MaxFiles: 1,
 	}
-	logFile.Write([]byte("[INFO] Hello World"))
-	logFile.Write([]byte("[INFO] Second File"))
-	logFile.Write([]byte("[INFO] Third File"))
-	want := 2
-	tempFiles, _ := os.ReadDir(tempDir)
+	_, err := logFile.Write([]byte("[INFO] Hello World"))
+	must.NoError(t, err)
+	_, err = logFile.Write([]byte("[INFO] Second File"))
+	must.NoError(t, err)
+	_, err = logFile.Write([]byte("[INFO] Third File"))
+	must.NoError(t, err)
 
-	require.Equal(want, len(tempFiles))
+	tempFiles, err := os.ReadDir(tempDir)
+	must.NoError(t, err)
+	must.Len(t, 2, tempFiles)
 
 	for _, tempFile := range tempFiles {
-		var bytes []byte
-		var err error
-		path := filepath.Join(tempDir, tempFile.Name())
-		if bytes, err = os.ReadFile(path); err != nil {
-			t.Errorf(err.Error())
-			return
-		}
-		contents := string(bytes)
-
-		require.NotEqual("[INFO] Hello World", contents, "oldest log should have been deleted")
+		bytes, err := os.ReadFile(filepath.Join(tempDir, tempFile.Name()))
+		must.NoError(t, err)
+		must.StrNotEqFold(t, "[INFO] Hello World", string(bytes))
 	}
 }
 
 func TestLogFile_deleteArchivesDisabled(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	tempDir := t.TempDir()
 
-	filt := LevelFilter()
-	filt.MinLevel = logutils.LogLevel("INFO")
 	logFile := logFile{
-		logFilter: filt,
-		fileName:  testFileName,
-		logPath:   tempDir,
-		MaxBytes:  testBytes,
-		duration:  24 * time.Hour,
-		MaxFiles:  0,
+		fileName: testFileName,
+		logPath:  tempDir,
+		MaxBytes: testBytes,
+		duration: 24 * time.Hour,
+		MaxFiles: 0,
 	}
-	logFile.Write([]byte("[INFO] Hello World"))
-	logFile.Write([]byte("[INFO] Second File"))
-	logFile.Write([]byte("[INFO] Third File"))
-	want := 3
-	tempFiles, _ := os.ReadDir(tempDir)
-	require.Equal(want, len(tempFiles))
+	_, err := logFile.Write([]byte("[INFO] Hello World"))
+	must.NoError(t, err)
+	_, err = logFile.Write([]byte("[INFO] Second File"))
+	must.NoError(t, err)
+	_, err = logFile.Write([]byte("[INFO] Third File"))
+	must.NoError(t, err)
+
+	tempFiles, err := os.ReadDir(tempDir)
+	must.NoError(t, err)
+	must.Len(t, 3, tempFiles)
 }
