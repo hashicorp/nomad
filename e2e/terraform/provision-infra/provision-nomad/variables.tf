@@ -96,6 +96,6 @@ variable "uploads_dir" {
 
 variable "keys_dir" {
   type        = string
-  description = "Directory where all the configuration TLS and SSH keys and certificates will be stored fro provisioning"
+  description = "Directory where all the configuration TLS and SSH keys and certificates will be stored for provisioning"
   default     = ""
 }
