@@ -653,7 +653,7 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 
 	for _, vault := range config.Vaults {
 		if vault.Token != "" {
-			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.9. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
+			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.10. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
 		}
 	}
 
