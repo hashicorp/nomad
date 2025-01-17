@@ -214,8 +214,8 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 				return false
 			}
 			if !h.hostVolumeIsAvailable(vol,
-				structs.HostVolumeAccessMode(req.AccessMode),
-				structs.HostVolumeAttachmentMode(req.AttachmentMode),
+				req.AccessMode,
+				req.AttachmentMode,
 				req.ReadOnly,
 				proposed,
 			) {
@@ -245,8 +245,8 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 // hostVolumeIsAvailable determines if a dynamic host volume is available for a request
 func (h *HostVolumeChecker) hostVolumeIsAvailable(
 	vol *structs.HostVolume,
-	reqAccess structs.HostVolumeAccessMode,
-	reqAttach structs.HostVolumeAttachmentMode,
+	reqAccess structs.VolumeAccessMode,
+	reqAttach structs.VolumeAttachmentMode,
 	readOnly bool,
 	proposed []*structs.Allocation) bool {
 

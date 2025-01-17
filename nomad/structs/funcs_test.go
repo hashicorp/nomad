@@ -549,7 +549,7 @@ func TestAllocsFit_ExclusiveVolumes(t *testing.T) {
 		Job: &Job{TaskGroups: []*TaskGroup{{Name: "group", Volumes: map[string]*VolumeRequest{
 			"foo": {
 				Source:     "example",
-				AccessMode: CSIVolumeAccessMode(HostVolumeAccessModeSingleNodeSingleWriter),
+				AccessMode: HostVolumeAccessModeSingleNodeSingleWriter,
 			},
 		}}}},
 		AllocatedResources: &AllocatedResources{
@@ -566,7 +566,7 @@ func TestAllocsFit_ExclusiveVolumes(t *testing.T) {
 		Cpu:    AllocatedCpuResources{CpuShares: 500},
 		Memory: AllocatedMemoryResources{MemoryMB: 500},
 	}
-	a2.Job.TaskGroups[0].Volumes["foo"].AccessMode = CSIVolumeAccessModeMultiNodeReader
+	a2.Job.TaskGroups[0].Volumes["foo"].AccessMode = HostVolumeAccessModeSingleNodeMultiWriter
 
 	// Should fit one allocation
 	fit, _, _, err := AllocsFit(n, []*Allocation{a1}, nil, true)

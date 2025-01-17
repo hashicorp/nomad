@@ -948,7 +948,7 @@ type VolumeCapability struct {
 	MountVolume *structs.CSIMountOptions
 }
 
-func VolumeCapabilityFromStructs(sAccessType structs.CSIVolumeAttachmentMode, sAccessMode structs.CSIVolumeAccessMode, sMountOptions *structs.CSIMountOptions) (*VolumeCapability, error) {
+func VolumeCapabilityFromStructs(sAccessType structs.VolumeAttachmentMode, sAccessMode structs.VolumeAccessMode, sMountOptions *structs.CSIMountOptions) (*VolumeCapability, error) {
 	var accessType VolumeAccessType
 	switch sAccessType {
 	case structs.CSIVolumeAttachmentModeBlockDevice:

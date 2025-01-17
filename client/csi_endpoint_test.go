@@ -80,7 +80,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				VolumeID:        "1234-4321-1234-4321",
 				ClientCSINodeID: "abcde",
 				AttachmentMode:  nstructs.CSIVolumeAttachmentModeFilesystem,
-				AccessMode:      nstructs.CSIVolumeAccessMode("foo"),
+				AccessMode:      nstructs.VolumeAccessMode("foo"),
 			},
 			ExpectedErr: errors.New("CSI.ControllerAttachVolume: unknown volume access mode: foo"),
 		},
@@ -93,7 +93,7 @@ func TestCSIController_AttachVolume(t *testing.T) {
 				VolumeID:        "1234-4321-1234-4321",
 				ClientCSINodeID: "abcde",
 				AccessMode:      nstructs.CSIVolumeAccessModeMultiNodeReader,
-				AttachmentMode:  nstructs.CSIVolumeAttachmentMode("bar"),
+				AttachmentMode:  nstructs.VolumeAttachmentMode("bar"),
 			},
 			ExpectedErr: errors.New("CSI.ControllerAttachVolume: unknown volume attachment mode: bar"),
 		},
@@ -217,7 +217,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				},
 				VolumeID: "1234-4321-1234-4321",
 				VolumeCapabilities: []*nstructs.CSIVolumeCapability{{
-					AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
+					AttachmentMode: nstructs.VolumeAttachmentMode("bar"),
 					AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
 				}},
 			},
@@ -232,7 +232,7 @@ func TestCSIController_ValidateVolume(t *testing.T) {
 				VolumeID: "1234-4321-1234-4321",
 				VolumeCapabilities: []*nstructs.CSIVolumeCapability{{
 					AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
-					AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
+					AccessMode:     nstructs.VolumeAccessMode("foo"),
 				}},
 			},
 			ExpectedErr: errors.New("CSI.ControllerValidateVolume: unknown volume access mode: foo"),
@@ -395,7 +395,7 @@ func TestCSIController_CreateVolume(t *testing.T) {
 				VolumeCapabilities: []*nstructs.CSIVolumeCapability{
 					{
 						AttachmentMode: nstructs.CSIVolumeAttachmentModeFilesystem,
-						AccessMode:     nstructs.CSIVolumeAccessMode("foo"),
+						AccessMode:     nstructs.VolumeAccessMode("foo"),
 					},
 				},
 			},
@@ -411,7 +411,7 @@ func TestCSIController_CreateVolume(t *testing.T) {
 				VolumeCapabilities: []*nstructs.CSIVolumeCapability{
 					{
 						AccessMode:     nstructs.CSIVolumeAccessModeMultiNodeReader,
-						AttachmentMode: nstructs.CSIVolumeAttachmentMode("bar"),
+						AttachmentMode: nstructs.VolumeAttachmentMode("bar"),
 					},
 				},
 			},

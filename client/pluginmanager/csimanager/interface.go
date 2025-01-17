@@ -29,8 +29,8 @@ func (mi *MountInfo) Copy() *MountInfo {
 
 type UsageOptions struct {
 	ReadOnly       bool
-	AttachmentMode structs.CSIVolumeAttachmentMode
-	AccessMode     structs.CSIVolumeAccessMode
+	AttachmentMode structs.VolumeAttachmentMode
+	AccessMode     structs.VolumeAccessMode
 	MountOptions   *structs.CSIMountOptions
 }
 

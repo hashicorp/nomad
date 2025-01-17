@@ -289,8 +289,8 @@ func (hv *HostVolume) GetID() string {
 
 // HostVolumeCapability is the requested attachment and access mode for a volume
 type HostVolumeCapability struct {
-	AttachmentMode HostVolumeAttachmentMode
-	AccessMode     HostVolumeAccessMode
+	AttachmentMode VolumeAttachmentMode
+	AccessMode     VolumeAccessMode
 }
 
 func (hvc *HostVolumeCapability) Copy() *HostVolumeCapability {
@@ -326,27 +326,23 @@ func (hvc *HostVolumeCapability) Validate() error {
 	return nil
 }
 
-// HostVolumeAttachmentMode chooses the type of storage API that will be used to
+// HostVolumeAttachmentModes choose the type of storage API that will be used to
 // interact with the device.
-type HostVolumeAttachmentMode string
-
 const (
-	HostVolumeAttachmentModeUnknown     HostVolumeAttachmentMode = ""
-	HostVolumeAttachmentModeBlockDevice HostVolumeAttachmentMode = "block-device"
-	HostVolumeAttachmentModeFilesystem  HostVolumeAttachmentMode = "file-system"
+	HostVolumeAttachmentModeUnknown     VolumeAttachmentMode = ""
+	HostVolumeAttachmentModeBlockDevice VolumeAttachmentMode = "block-device"
+	HostVolumeAttachmentModeFilesystem  VolumeAttachmentMode = "file-system"
 )
 
-// HostVolumeAccessMode indicates how Nomad should make the volume available to
+// HostVolumeAccessModes indicate how Nomad should make the volume available to
 // concurrent allocations.
-type HostVolumeAccessMode string
-
 const (
-	HostVolumeAccessModeUnknown HostVolumeAccessMode = ""
+	HostVolumeAccessModeUnknown VolumeAccessMode = ""
 
-	HostVolumeAccessModeSingleNodeReader       HostVolumeAccessMode = "single-node-reader-only"
-	HostVolumeAccessModeSingleNodeWriter       HostVolumeAccessMode = "single-node-writer"
-	HostVolumeAccessModeSingleNodeSingleWriter HostVolumeAccessMode = "single-node-single-writer"
-	HostVolumeAccessModeSingleNodeMultiWriter  HostVolumeAccessMode = "single-node-multi-writer"
+	HostVolumeAccessModeSingleNodeReader       VolumeAccessMode = "single-node-reader-only"
+	HostVolumeAccessModeSingleNodeWriter       VolumeAccessMode = "single-node-writer"
+	HostVolumeAccessModeSingleNodeSingleWriter VolumeAccessMode = "single-node-single-writer"
+	HostVolumeAccessModeSingleNodeMultiWriter  VolumeAccessMode = "single-node-multi-writer"
 )
 
 // HostVolumeStub is used for responses for the list volumes endpoint
