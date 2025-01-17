@@ -82,20 +82,19 @@ The table below shows this endpoint's support for
 
 - `Rules` `(string: <required>)` - Specifies the Policy rules in HCL or JSON format.
 
-- `JobACL` `(JobACL: <optional>)` - Associates the policy with a given
-  namespace, job, group, or task. Refer to [Workload Associated ACL
+- `JobACL` `(JobACL: <optional>)` - Associates the policy with a given job,
+  group, or task. Refer to [Workload Associated ACL
   Policies][concepts_workload_identity_acl] for more information.
 
-  - `Namespace` `(string: <optional>)` - The namespace to attach the policy.
-    Required if `JobID` is set.
+  - `Namespace` `(string: <optional>)` - Attach the policy to the job in this
+    namespace.  Required if `JobID` is set.
 
-  - `JobID` `(string: <optional>)` - The job to attach to the policy. Required
-    if `Group` is set.
+  - `JobID` `(string)` - Attach the policy to this job. Required to use `JobACL`.
 
-  - `Group` `(string: <optional>)` - The group to attach to the policy.
-    Required if `Task` is set.
+  - `Group` `(string: <optional>)` - Attach the policy to this group within the
+    job.  Required if `Task` is set.
 
-  - `Task` `(string: <optional>)` - The task to attach to the policy.
+  - `Task` `(string: <optional>)` - Attach the policy to this task within the job.
 
 ### Sample Payload
 
