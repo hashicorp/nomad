@@ -66,12 +66,18 @@ func (s *StateStore) UpsertHostVolume(index uint64, vol *structs.HostVolume) err
 	if err != nil {
 		return err
 	}
+	var old *structs.HostVolume
 	if obj != nil {
-		old := obj.(*structs.HostVolume)
+		old = obj.(*structs.HostVolume)
 		vol.CreateIndex = old.CreateIndex
 		vol.CreateTime = old.CreateTime
 	} else {
 		vol.CreateIndex = index
+	}
+
+	err = s.enforceHostVolumeQuotaTxn(txn, index, vol, old, true)
+	if err != nil {
+		return err
 	}
 
 	// If the fingerprint is written from the node before the create RPC handler
