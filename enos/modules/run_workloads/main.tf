@@ -9,23 +9,27 @@ terraform {
   }
 }
 
+locals {
+  clean_token = trimspace(var.nomad_token) #Somewhere in the process, a newline is added to teh token.
+}
+
 resource "enos_local_exec" "wait_for_nomad_api" {   
     environment = {
       NOMAD_ADDR        = var.nomad_addr
       NOMAD_CACERT      = var.ca_file
       NOMAD_CLIENT_CERT = var.cert_file
       NOMAD_CLIENT_KEY  = var.key_file
-      NOMAD_TOKEN       = var.nomad_token
+      NOMAD_TOKEN       = local.clean_token
     }
 
-    inline = ["while ! nomad server members > /dev/null 2>&1; do echo 'waiting for nomad api...'; sleep 10; done"]
+    scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
 }
 
 resource "local_file" "nomad_job_files" {
    for_each = var.workloads
 
-  filename = "${path.module}/jobs/${each.key}.hcl"
-  content  = templatefile(each.value.path, { alloc_count = each.value.alloc_count })
+  filename = "${path.module}/jobs/${each.key}.nomad.hcl"
+  content  = templatefile("${path.module}/${each.value.template}", { alloc_count = each.value.alloc_count })
 }
 
 resource "enos_local_exec" "workloads" {
@@ -36,8 +40,8 @@ resource "enos_local_exec" "workloads" {
       NOMAD_CACERT      = var.ca_file
       NOMAD_CLIENT_CERT = var.cert_file
       NOMAD_CLIENT_KEY  = var.key_file
-      NOMAD_TOKEN       = var.nomad_token
+      NOMAD_TOKEN       = local.clean_token
    }
 
-  inline = ["nomad job run ${path.module}/jobs/${each.key}.nomadhcl"]
+  inline = ["nomad job run ${path.module}/jobs/${each.key}.nomad.hcl"]
 }
