@@ -1,10 +1,13 @@
 ---
 layout: docs
 page_title: Workload Identity
-description: Learn about Nomad's workload identity feature
+description: Nomad's workload identity feature isolates and uniquely identities each workload so you can associate Access Control List (ACL) policies to jobs. Learn about workload identity claims, claims attributes specific to Nomad Enterprise, default workload ACL policy, and workload identity for Consul and Vault.
 ---
 
 # Workload Identity
+
+This page provides conceptual information about Nomad's workload identity
+feature, which isolates and uniquely identities each workload so you can associate Access Control List (ACL) policies to jobs. Learn about workload identity claims, claims attributes specific to Nomad Enterprise, default workload ACL policy, and workload identity for Consul and Vault.
 
 Every workload running in Nomad is given a default identity. When an
 [allocation][] is accepted by the [plan applier][], the leader generates a

@@ -1,10 +1,12 @@
 ---
 layout: docs
-page_title: CPU
-description: Learn about how Nomad manages CPU resources.
+page_title: How Nomad Uses CPU
+description: Learn how Nomad discovers and uses CPU resources on nodes in order to place and run workloads. Nomad Enterprise can use non-uniform memory access (NUMA) scheduling, which is optimized for the NUMA topology of a client node.
 ---
 
-# Modern processors
+# How Nomad Uses CPUs
+
+This page provides conceptual information on how Nomad discovers and uses CPU resources on nodes in order to place and run workloads.
 
 Every Nomad node has a Central Processing Unit (CPU) providing the computational
 power needed for running operating system processes. Nomad uses the CPU to

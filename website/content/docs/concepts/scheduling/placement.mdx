@@ -1,10 +1,13 @@
 ---
 layout: docs
-page_title: Placement
-description: Learn about how placements are computed in Nomad.
+page_title: Allocation Placement
+description: Nomad uses allocation placement when scheduling jobs to run on clients. Learn about using affinities, constraints, datacenters, and node pools to specify allocation placement.
 ---
 
-# Placement
+# Allocation Placement
+
+This page provides conceptual information about job allocation placement on
+clients. Learn about using affinities, constraints, datacenters, and node pools to specify allocation placement.
 
 When the Nomad scheduler receives a job registration request, it needs to
 determine which clients will run allocations for the job.
@@ -18,7 +21,7 @@ adjusted via agent and job configuration.
 
 There are several options that can be used depending on the desired outcome.
 
-### Affinities and Constraints
+## Affinities and Constraints
 
 Affinities and constraints allow users to define soft or hard requirements for
 their jobs. The [`affinity`][job_affinity] block specifies a soft requirement
@@ -43,14 +46,14 @@ requirements but it is acceptable to have other jobs sharing the same nodes.
 The sections below describe the node values that can be configured and used in
 job affinity and constraint rules.
 
-#### Node Class
+### Node Class
 
 Node class is an arbitrary value that can be used to group nodes based on some
 characteristics, like the instance size or the presence of fast hard drives,
 and is specified in the client configuration file using the
 [`node_class`][config_client_node_class] parameter.
 
-#### Dynamic and Static Node Metadata
+### Dynamic and Static Node Metadata
 
 Node metadata are arbitrary key-value mappings specified either in the client
 configuration file using the [`meta`][config_client_meta] parameter or
@@ -63,7 +66,7 @@ resource ownership, such as `owner = "team-qa"`, or fine-grained locality,
 `rack = "3"`. Dynamic metadata may be used to track runtime information, such
 as jobs running in a given client.
 
-### Datacenter
+## Datacenter
 
 Datacenters represent a geographical location in a region that can be used for
 fault tolerance and infrastructure isolation.
@@ -79,7 +82,7 @@ represent where a node resides rather than its intended use. The
 [`spread`][job_spread] block can help achieve fault tolerance across
 datacenters.
 
-### Node Pool
+## Node Pool
 
 Node pools allow grouping nodes that can be targeted by jobs to achieve
 workload isolation.
