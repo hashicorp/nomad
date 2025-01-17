@@ -31,6 +31,8 @@ such a job being submitted. Policies can inspect these objects to apply
 fine-grained policies. Nomad supports a `submit-job` scope for registering jobs,
 and a `submit-host-volume` scope for creating or updating dynamic host volumes.
 
+### submit-job scope
+
 The following top-level objects are available to policies in the `submit-job`
 scope automatically, without an explicit import.
 
@@ -46,6 +48,8 @@ scope automatically, without an explicit import.
 * `namespace`: the namespace the job is in. This is a [Sentinel Nomad Namespace
   Object](#sentinel-namespace-objects).
 
+### submit-host-volume scope
+
 The following top-level objects are available to policies in the
 `submit-host-volume` scope automatically, without an explicit import.
 
@@ -53,10 +57,10 @@ The following top-level objects are available to policies in the
   Object](#sentinel-dynamic-host-volume-objects).
 * `existing_volume`: the previous version of the volume. If `volume_exists` is
   true, this is always non-nil. This is also a [Sentinel Dynamic Host
-  Volume Object](#sentinel-dynamic-host-volume-objects).* `volume_exists`: a
+  Volume Object](#sentinel-dynamic-host-volume-objects). `volume_exists`: a
   boolean field that indicates that a previous version of the volume exists.
 * `nomad_acl_token`: the ACL token the job was submitted with. This is a
-  [Sentinel Nomad ACL Token Object](#sentinel-nomad-acl-token-objects).
+  [Sentinel Nomad ACL Token Object](#sentinel-acl-token-objects).
 * `namespace`: the namespace the job is in. This is a [Sentinel Nomad Namespace
   Object](#sentinel-namespace-objects).
 * `node`: the node the volume has been placed on. This is a [Sentinel Node
