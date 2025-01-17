@@ -14,3 +14,12 @@ output "vault_artifactory_release" {
   }
 }
 
+output "nomad_local_binary_ubuntu_jammy" {
+  value       = "${var.binary_path}/nomad"
+  description = "Path where the binary will be placed"
+}
+
+output "nomad_local_binary_windows_2016" {
+  value       = "${var.binary_path}/nomad.exe"
+  description = "Path where the binary will be placed"
+} 
