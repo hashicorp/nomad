@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-bexpr"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/hil"
 	"github.com/hashicorp/hil/ast"
@@ -53,7 +54,7 @@ func (b *Bindings) None() bool {
 }
 
 // Bind collects the ACL roles and policies to be assigned to the created token.
-func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*Bindings, error) {
+func (b *Binder) Bind(vlog hclog.Logger, authMethod *structs.ACLAuthMethod, identity *Identity) (*Bindings, error) {
 	var (
 		bindings Bindings
 		err      error
@@ -75,6 +76,9 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 		rule := raw.(*structs.ACLBindingRule)
 		if doesSelectorMatch(rule.Selector, identity.Claims) {
 			matchingRules = append(matchingRules, rule)
+			vlog.Debug("binding-rule selector matches an identity claim, will evaluate bind-name", "selector", rule.Selector)
+		} else {
+			vlog.Debug("bind-rule selector did not match any claims", "selector", rule.Selector)
 		}
 	}
 	if len(matchingRules) == 0 {
@@ -103,6 +107,9 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 				bindings.Roles = append(bindings.Roles, &structs.ACLTokenRoleLink{
 					ID: role.ID,
 				})
+				vlog.Debug("role found with name matching ACL binding-rule", "name", bindName)
+			} else {
+				vlog.Debug("no role found with name matching ACL binding-rule", "name", bindName)
 			}
 		case structs.ACLBindingRuleBindTypePolicy:
 			policy, err := b.store.ACLPolicyByName(nil, bindName)
@@ -112,8 +119,12 @@ func (b *Binder) Bind(authMethod *structs.ACLAuthMethod, identity *Identity) (*B
 
 			if policy != nil {
 				bindings.Policies = append(bindings.Policies, policy.Name)
+				vlog.Debug("policy found with name matching ACL binding-rule", "name", bindName)
+			} else {
+				vlog.Debug("no policy found with name matching ACL binding-rule", "name", bindName)
 			}
 		case structs.ACLBindingRuleBindTypeManagement:
+			vlog.Debug("management ACL binding-rule found", "name", bindName)
 			bindings.Management = true
 			bindings.Policies = nil
 			bindings.Roles = nil

@@ -8,6 +8,7 @@ import (
 
 	"github.com/shoenig/test/must"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -115,7 +116,8 @@ func TestBinder_Bind(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := testBind.Bind(tt.authMethod, tt.identity)
+			l := hclog.NewNullLogger()
+			got, err := testBind.Bind(l, tt.authMethod, tt.identity)
 			if tt.wantErr {
 				must.Error(t, err)
 			} else {
