@@ -5,7 +5,7 @@ job exec-system {
   type = "system"
 
   group "exec-system" {
-    count = 1
+    count = "${alloc_count}"
 
     task "exec" {
       template {
