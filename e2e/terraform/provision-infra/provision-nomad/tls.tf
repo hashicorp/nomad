@@ -34,10 +34,10 @@ resource "tls_locally_signed_cert" "nomad" {
 
 resource "local_sensitive_file" "nomad_client_key" {
   content  = tls_private_key.nomad.private_key_pem
-  filename = "keys/agent-${var.instance.public_ip}.key"
+  filename = "${var.keys_dir}/agent-${var.instance.public_ip}.key"
 }
 
 resource "local_sensitive_file" "nomad_client_cert" {
   content  = tls_locally_signed_cert.nomad.cert_pem
-  filename = "keys/agent-${var.instance.public_ip}.crt"
+  filename = "${var.keys_dir}/agent-${var.instance.public_ip}.crt"
 }
