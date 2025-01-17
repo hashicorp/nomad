@@ -639,7 +639,7 @@ func Test_setupLoggers_logFile(t *testing.T) {
 	}
 
 	// Generate the loggers and ensure the correct error is generated.
-	gatedWriter, writer := setupLoggers(mockUI, cfg)
+	gatedWriter, writer := SetupLoggers(mockUI, cfg)
 	must.Nil(t, gatedWriter)
 	must.Nil(t, writer)
 	must.StrContains(t, mockUI.ErrorWriter.String(), "Invalid log level: WARNING")
@@ -650,7 +650,7 @@ func Test_setupLoggers_logFile(t *testing.T) {
 	// Update the log level, so that it is a valid option and set up the
 	// loggers again.
 	cfg.LogLevel = "warn"
-	gatedWriter, writer = setupLoggers(mockUI, cfg)
+	gatedWriter, writer = SetupLoggers(mockUI, cfg)
 	must.NotNil(t, gatedWriter)
 	must.NotNil(t, writer)
 
