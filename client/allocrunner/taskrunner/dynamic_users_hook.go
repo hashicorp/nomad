@@ -64,7 +64,7 @@ func (h *dynamicUsersHook) Prestart(_ context.Context, request *interfaces.TaskP
 	if request.PreviousState != nil {
 		ugid, exists := request.PreviousState[dynamicUsersStateKey]
 		if exists {
-			response.State[dynamicUsersStateKey] = ugid
+			response.State = map[string]string{dynamicUsersStateKey: ugid}
 			return nil
 		}
 	}

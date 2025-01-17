@@ -35,6 +35,34 @@ func TestTaskRunner_DynamicUsersHook_Prestart_unusable(t *testing.T) {
 	must.NoError(t, h.Prestart(ctx, request, response))
 }
 
+func TestTaskRunner_DynamicUsersHook_Prestart_State(t *testing.T) {
+	ci.Parallel(t)
+
+	// task driver does not indicate DynamicWorkloadUsers capability
+	const capable = false
+	ctx := context.Background()
+	logger := testlog.HCLogger(t)
+
+	// if the driver does not indicate the DynamicWorkloadUsers capability,
+	// none of the pool, request, or response are touched - so using nil
+	// for each of them shows we are exiting the hook immediatly
+	var pool dynamic.Pool = nil
+	request := &interfaces.TaskPrestartRequest{
+		Task: &structs.Task{},
+		PreviousState: map[string]string{
+			dynamicUsersStateKey: "1",
+		},
+	}
+
+	response := &interfaces.TaskPrestartResponse{}
+	h := newDynamicUsersHook(ctx, capable, logger, pool)
+	h.usable = true
+	must.NoError(t, h.Prestart(ctx, request, response))
+	user, ok := response.State[dynamicUsersStateKey]
+	must.True(t, ok)
+	must.Eq(t, "1", user)
+}
+
 func TestTaskRunner_DynamicUsersHook_Prestart_unnecessary(t *testing.T) {
 	ci.Parallel(t)
 
