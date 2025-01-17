@@ -111,8 +111,8 @@ type VolumeRequest struct {
 	Source         string
 	ReadOnly       bool
 	Sticky         bool
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
+	AccessMode     VolumeAccessMode
+	AttachmentMode VolumeAttachmentMode
 	MountOptions   *CSIMountOptions
 	PerAlloc       bool
 }

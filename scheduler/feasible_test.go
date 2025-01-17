@@ -484,13 +484,13 @@ func TestDynamicHostVolumeIsAvailable(t *testing.T) {
 
 	allCaps := []*structs.HostVolumeCapability{}
 
-	for _, accessMode := range []structs.HostVolumeAccessMode{
+	for _, accessMode := range []structs.VolumeAccessMode{
 		structs.HostVolumeAccessModeSingleNodeReader,
 		structs.HostVolumeAccessModeSingleNodeWriter,
 		structs.HostVolumeAccessModeSingleNodeSingleWriter,
 		structs.HostVolumeAccessModeSingleNodeMultiWriter,
 	} {
-		for _, attachMode := range []structs.HostVolumeAttachmentMode{
+		for _, attachMode := range []structs.VolumeAttachmentMode{
 			structs.HostVolumeAttachmentModeFilesystem,
 			structs.HostVolumeAttachmentModeBlockDevice,
 		} {
@@ -537,8 +537,8 @@ func TestDynamicHostVolumeIsAvailable(t *testing.T) {
 		name        string
 		hasProposed []*structs.Allocation
 		hasCaps     []*structs.HostVolumeCapability
-		wantAccess  structs.HostVolumeAccessMode
-		wantAttach  structs.HostVolumeAttachmentMode
+		wantAccess  structs.VolumeAccessMode
+		wantAttach  structs.VolumeAttachmentMode
 		readOnly    bool
 		expect      bool
 	}{

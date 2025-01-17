@@ -173,7 +173,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 			for _, volReq := range group.Volumes {
 				hostVolumeClaims[volReq.Source]++
 				if volReq.AccessMode ==
-					CSIVolumeAccessMode(HostVolumeAccessModeSingleNodeSingleWriter) {
+					HostVolumeAccessModeSingleNodeSingleWriter {
 					exclusiveHostVolumeClaims = append(exclusiveHostVolumeClaims, volReq.Source)
 				}
 			}
