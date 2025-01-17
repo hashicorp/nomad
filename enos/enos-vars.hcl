@@ -58,3 +58,8 @@ variable "server_count" {
   description = "The number of servers to provision."
   default     = "3"
 }
+
+variable "aws_region" {
+  description = "The AWS region to deploy to."
+  default     = "us-east-1"
+}

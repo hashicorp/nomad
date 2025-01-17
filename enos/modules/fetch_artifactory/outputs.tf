@@ -1,11 +1,6 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-output "nomad_local_binary" {
-  value       = "${var.binary_path}/nomad"
-  description = "Path where the binary will be placed"
-}
-
 output "vault_artifactory_release" {
   description = "Binary information returned from the artifactory"
   value = {
@@ -14,3 +9,7 @@ output "vault_artifactory_release" {
   }
 }
 
+output "nomad_local_binary" {
+  value       = var.os == "windows" ? "${var.binary_path}/nomad.exe" : "${var.binary_path}/nomad"
+  description = "Path where the binary will be placed"
+}

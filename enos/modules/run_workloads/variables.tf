@@ -30,11 +30,11 @@ variable "nomad_token" {
 variable "workloads" {
   description = "A map of workloads to provision"
   type = map(object({
-    path        = string
+    template    = string
     alloc_count = number
   }))
   default = {
-    service_raw_exec = { path = "./templates/raw-exec-service.nomad.hcl", alloc_count = 3 }
-    service_docker   = { path = "./templates/docker-service.nomad.hcl", alloc_count = 3 }
+    service_raw_exec = { template = "templates/raw-exec-service.nomad.hcl", alloc_count = 3 }
+    service_docker   = { template = "templates/docker-service.nomad.hcl", alloc_count = 3 }
   }
 }
