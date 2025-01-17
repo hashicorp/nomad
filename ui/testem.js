@@ -12,6 +12,7 @@ const config = {
   launch_in_dev: ['Chrome'],
   browser_start_timeout: 120,
   parallel: -1,
+  framework: 'qunit',
   browser_args: {
     // New format in testem/master, but not in a release yet
     // Chrome: {
