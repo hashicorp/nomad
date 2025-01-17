@@ -57,7 +57,12 @@ export NOMAD_E2E=1
 export CONSUL_HTTP_ADDR=https://${aws_instance.consul_server.public_ip}:8501
 export CONSUL_HTTP_TOKEN=${local_sensitive_file.consul_initial_management_token.content}
 export CONSUL_CACERT=${abspath(local.keys_dir)}/tls_ca.crt
+export CLUSTER_UNIQUE_IDENTIFIER=${local.random_name}
 EOM
+}
+
+output "cluster_unique_identifier" {
+  value = "${local.random_name}"
 }
 
 output "nomad_addr" {

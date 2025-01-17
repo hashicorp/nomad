@@ -134,20 +134,21 @@ about the cluster:
   client node IPs.
 - `terraform output windows_clients` will output the list of Windows
   client node IPs.
+- `cluster_unique_identifier` will output the random name used to identify the cluster's resources
 
 ## SSH
 
 You can use Terraform outputs above to access nodes via ssh:
 
 ```sh
-ssh -i keys/{cluster-name}/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
+ssh -i keys/${CLUSTER_UNIQUE_IDENTIFIER}/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
 ```
 
 The Windows client runs OpenSSH for convenience, but has a different
 user and will drop you into a Powershell shell instead of bash:
 
 ```sh
-ssh -i keys/{cluster-name}/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
+ssh -i keys/${CLUSTER_UNIQUE_IDENTIFIER}/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
 ```
 
 ## Teardown
