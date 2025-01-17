@@ -10,7 +10,7 @@ terraform {
 }
 
 locals {
-  clean_token = trimspace(var.nomad_token) #Somewhere in the process, a newline is added to teh token.
+  clean_token = trimspace(var.nomad_token) #Somewhere in the process, a newline is added to the token.
 }
 
 resource "enos_local_exec" "wait_for_nomad_api" {   
