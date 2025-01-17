@@ -140,14 +140,14 @@ about the cluster:
 You can use Terraform outputs above to access nodes via ssh:
 
 ```sh
-ssh -i keys/<cluster-name>/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
+ssh -i keys/{cluster-name}/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
 ```
 
 The Windows client runs OpenSSH for convenience, but has a different
 user and will drop you into a Powershell shell instead of bash:
 
 ```sh
-ssh -i keys/<cluster-name>/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
+ssh -i keys/{cluster-name}/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
 ```
 
 ## Teardown
