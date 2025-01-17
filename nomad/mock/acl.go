@@ -283,6 +283,7 @@ func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 			SigningAlgs:         []string{"RS256"},
 			ClaimMappings:       map[string]string{"foo": "bar"},
 			ListClaimMappings:   map[string]string{"foo": "bar"},
+			VerboseLogging:      false,
 		},
 		CreateTime:  time.Now().UTC(),
 		CreateIndex: 10,
