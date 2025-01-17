@@ -77,8 +77,8 @@ Namespace rules control access to APIs in Nomad that are namespaced:
 [Jobs][api_jobs], [Allocations][api_allocations],
 [Deployments][api_deployments], [Evaluations][api_evaluations],
 [Recommendations][api_recommendations], [Scaling
-Policies][api_scaling_policies], [Services][api_services], and [CSI
-Volumes][api_volumes]. Namespace rules also filter items related to the above
+Policies][api_scaling_policies], [Services][api_services], and
+[Volumes][api_volumes]. Namespace rules also filter items related to the above
 APIs from the [Event Stream][api_events] and [Search][api_search] APIs.
 
 Each namespace rule is labeled with the namespace name it applies to. If no
@@ -149,6 +149,11 @@ of `capabilities`. This includes:
   and listing external volumes and snapshots.
 - `csi-mount-volume` - Allows jobs to be submitted that claim a CSI volume. This
   implicitly grants `csi-read-volume`.
+- `host-volume-create` - Allows creating dynamic host volumes. This implicitly grants `host-volume-read`.
+- `host-volume-delete` - Allows deleting dynamic host volumes.
+- `host-volume-read` - Allows inspecting dynamic host volumes.
+- `host-volume-register` - Allows registering dynamic host volumes that have been created without a plugin. This implicitly grants `host-volume-read` and `host-volume-create`.
+- `host-volume-write` - Allows all write operations on dynamic host volumes. This implicitly grants `host-volume-read`, `host-volume-create`, `host-volume-register`, and `host-volume-delete`.
 - `list-scaling-policies` - Allows listing scaling policies.
 - `read-scaling-policy` - Allows inspecting a scaling policy.
 - `read-job-scaling` - Allows inspecting the current scaling of a job.
@@ -164,8 +169,8 @@ grained namespace capabilities:
 | Policy  | Capabilities                                                                                                                                                                                                                                                                                              |
 |---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `deny`  | deny                                                                                                                                                                                                                                                                                                      |
-| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                                                                |
-| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job<br />submit-recommendation |
+| `read`  | list-jobs<br />parse-job<br />read-job<br />csi-list-volume<br />csi-read-volume<br />host-volume-read<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling                                                                                                                                                |
+| `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />host-volume-write<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job<br />submit-recommendation |
 | `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                                                                       |
 
 <!-- markdownlint-enable -->

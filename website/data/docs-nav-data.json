@@ -1948,6 +1948,14 @@
             "path": "other-specifications/volume"
           },
           {
+            "title": "CSI",
+            "path": "other-specifications/volume/csi"
+          },
+          {
+            "title": "Dynamic Host Volumes",
+            "path": "other-specifications/volume/host"
+          },
+          {
             "title": "capability",
             "path": "other-specifications/volume/capability"
           },

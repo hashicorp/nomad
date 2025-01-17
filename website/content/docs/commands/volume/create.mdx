@@ -2,15 +2,19 @@
 layout: docs
 page_title: 'Commands: volume create'
 description: |
-  Create volumes with CSI plugins.
+  The `nomad volume create` command creates storage volumes that are either
+  Container Storage Interface (CSI) volumes or dynamic host volumes.
 ---
 
 # Command: volume create
 
-The `volume create` command creates external storage volumes with Nomad's
-[Container Storage Interface (CSI)][csi] support. Only CSI plugins that
-implement the [Controller][csi_plugins_internals] interface support this
-command. The volume will also be [registered] when it is successfully created.
+The `volume create` command creates storage volumes as either [Container Storage
+Interface (CSI)][csi] volumes or dynamic host volumes.
+
+The [`volume create`][] command can create dynamic host volumes if host volume
+plugins are installed on the node, or CSI volumes if the CSI plugins implement
+the [Controller][csi_plugins_internals] interface. The `volume create` command
+automatically [registers][] the volume as well.
 
 ## Usage
 
@@ -18,20 +22,40 @@ command. The volume will also be [registered] when it is successfully created.
 nomad volume create [options] [file]
 ```
 
-The `volume create` command requires a single argument, specifying the path to
-a file containing a valid [volume specification][volume_specification]. This
-file will be read and the volume will be submitted to Nomad for scheduling. If
-the supplied path is "-", the volume file is read from STDIN. Otherwise it is
+The `volume create` command requires a single argument, specifying the path to a
+file containing a valid [volume specification][volume_specification]. Nomad
+reads the file and submits the volume to the server for placement. If the
+supplied path is "-", the volume file is read from STDIN. Otherwise the file is
 read from the file at the supplied path.
 
-When ACLs are enabled, this command requires a token with the
-`csi-write-volume` capability for the volume's namespace.
+When ACLs are enabled, this command requires a token with the appropriate
+capability in the volume's namespace: the `csi-write-volume` capability for CSI
+volumes or `host-volume-create` for dynamic host volumes.
 
 ## General Options
 
 @include 'general_options.mdx'
 
+## Volume Create Options
+
+- `-detach`: Return immediately instead of entering monitor mode for dynamic
+  host volumes. After creating a volume, Nomad prints the volume ID to the
+  screen, which you can use to examine the volume using the `volume status`
+  command. If `-detach` is omitted or false, the command monitors the state of
+  the volume until it has been fingerprinted by the client and is ready to be
+  scheduled. Not valid for CSI volumes.
+
+- `-verbose`: Display full information when monitoring volume state. Used for
+  dynamic host volumes only. Not valid for CSI volumes.
+
+- `-policy-override`: Sets the flag to force override any soft mandatory
+  Sentinel policies. Used for dynamic host volumes only. Not valid for CSI
+  volumes.
+
 ## Volume Specification
+
+Refer to the [CSI Volume Specification][csi_vol_spec] and the [Dynamic Host
+Volume Specification][host_vol_spec] for further information.
 
 <!--
 Redirection rules are applied server-side, so we can't redirect these sections
@@ -63,10 +87,11 @@ the exact section.
 <span id="segments" />
 <span id="unused-fields" />
 
-The volume specification is documented in the [Volume
-Specification][volume_specification] page.
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /nomad/docs/concepts/plugins/csi#csi-plugins
+[registers]: /nomad/docs/commands/volume/register
 [registered]: /nomad/docs/commands/volume/register
 [volume_specification]: /nomad/docs/other-specifications/volume
+[csi_vol_spec]: /nomad/docs/other-specifications/volume/csi
+[host_vol_spec]: /nomad/docs/other-specifications/volume/host
