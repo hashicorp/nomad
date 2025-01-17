@@ -35,11 +35,16 @@ limit {
     cpu        = 2500
     memory     = 1000
     memory_max = 1000
+
     device "nvidia/gpu/1080ti" {
       count = 1
     }
+
+    storage {
+      variables    = 1000 # in MB
+      host_volumes = "1000 GiB"
+    }
   }
-  variables_limit = 1000
 }
 ```
 
@@ -56,9 +61,6 @@ in a Nomad region.
 - `region` `(string)` - The Nomad `region` that the limit applies to.
 - `region_limit` <code>([RegionLimit](#region_limit-parameters))</code> -
 Resources to limit.
-- `variables_limit` `(int: 0)` - Maximum total size of all Nomad
-[`variables`][] in MiB. The default `0` means unlimited, and `-1` means
-variables are fully disabled.
 
 ### `region_limit` parameters
 
@@ -75,6 +77,7 @@ all `resources.memory` in the namespace.
 - `memory_max` `(int: <optional>)` - The limit on total mount of hard memory
 limits in MB from all `resources.memory_max` in the namespace.
 - `device` <code>([Device](#device-parameters): nil)</code>
+- `storage` <code>([Storage](#storage-parameters): nil)</code>
 
 ### `device` parameters
 
@@ -83,12 +86,27 @@ equivalent to the [`device`][] block in a job specification.
 
 - `count` `(int)` - How many of this device may be used.
 
+### `storage` parameters
+
+The `storage` blcok defines limits on provisioned storage.
+
+- `host_volumes` `(int: 0)` - Maximum total size of all [dynamic host volumes][]
+  in MiB. The default `0` means unlimited, and `-1` means variables are fully
+  disabled. This field accepts human-friendly string inputs such as "100
+  GiB". The quota for host volumes is enforced at the time the volume is created
+  via [`volume create`][].
+
+- `variables` `(int: 0)` - Maximum total size of all Nomad [variables][] in
+  MiB. The default `0` means unlimited, and `-1` means variables are fully
+  disabled. This field accepts human-friendly string inputs such as "100 GiB".
+
 [Resource Quotas]: /nomad/docs/enterprise#resource-quotas
 [`quota`]: /nomad/docs/commands/quota
 [Quota HTTP API]: /nomad/api-docs/quotas
 [Quotas tutorial]: /nomad/tutorials/governance-and-policy/quotas
 [`Namespace`]: /nomad/docs/other-specifications/namespace
-[`variables`]: /nomad/docs/concepts/variables
+[variables]: /nomad/docs/concepts/variables
 [`resources`]: /nomad/docs/job-specification/resources
 [CPU concepts]: /nomad/docs/concepts/cpu
 [`device`]: /nomad/docs/job-specification/device#device-parameters
+[dynamic host volumes]: /nomad/docs/other-specifications/volume/host
