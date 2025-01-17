@@ -1,5 +1,4 @@
 *.zip
-uploads/
 custom.tfvars
 
 # ephemeral objects added by module
