@@ -1,0 +1,3 @@
+```release-note:improvement
+auth: adds VerboseLogging option for debugging when creating auth-method
+```
