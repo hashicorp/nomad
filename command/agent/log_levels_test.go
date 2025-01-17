@@ -6,26 +6,58 @@ package agent
 import (
 	"testing"
 
-	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 )
 
-func TestLevelFilter(t *testing.T) {
+func Test_isLogLevelValid(t *testing.T) {
 	ci.Parallel(t)
 
-	filt := LevelFilter()
-	filt.Levels = []logutils.LogLevel{"TRACE", "DEBUG", "INFO", "WARN", "ERR"}
-	level := logutils.LogLevel("INFO")
-
-	// LevelFilter regards INFO as valid level
-	if !ValidateLevelFilter(level, filt) {
-		t.Fatalf("expected valid LogLevel, %s was invalid", level)
+	testCases := []struct {
+		name           string
+		inputLevel     string
+		expectedOutput bool
+	}{
+		{
+			name:           "trace",
+			inputLevel:     "TRACE",
+			expectedOutput: true,
+		},
+		{
+			name:           "debug",
+			inputLevel:     "DEBUG",
+			expectedOutput: true,
+		},
+		{
+			name:           "info",
+			inputLevel:     "INFO",
+			expectedOutput: true,
+		},
+		{
+			name:           "warn",
+			inputLevel:     "WARN",
+			expectedOutput: true,
+		},
+		{
+			name:           "error",
+			inputLevel:     "ERROR",
+			expectedOutput: true,
+		},
+		{
+			name:           "off",
+			inputLevel:     "OFF",
+			expectedOutput: true,
+		},
+		{
+			name:           "invalid",
+			inputLevel:     "INVALID",
+			expectedOutput: false,
+		},
 	}
 
-	level = logutils.LogLevel("FOO")
-
-	// LevelFilter regards FOO as invalid level
-	if ValidateLevelFilter(level, filt) {
-		t.Fatalf("expected invalid LogLevel, %s was valid", level)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expectedOutput, isLogLevelValid(tc.inputLevel))
+		})
 	}
 }
