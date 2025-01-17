@@ -108,4 +108,9 @@ module.exports = [
     destination: '/nomad/plugins/drivers/virt/install',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/devices',
+    destination: '/nomad/plugins/devices/',
+    permanent: true,
+  },
 ]

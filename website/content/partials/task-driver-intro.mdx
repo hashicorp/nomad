@@ -1,4 +1,4 @@
-# Task drivers
+## Introduction
 
 Nomad clients use task drivers to execute a task and provide resource isolation.
 By having extensible task drivers, Nomad has the flexibility to support a broad
@@ -21,9 +21,9 @@ Requirements][docker_plugin] section for a detailed example.
 ## Nomad task drivers
 
 The Nomad binary contains several bundled task drivers. We also support
-additional task drivers that you may install separately.
+additional task driver plugins that you may install separately.
 
-| Bundled with Nomad   | Separate installation |
+| Bundled with Nomad   | Plugins               |
 |----------------------|-----------------------|
 | [Docker]             | [Exec2]               |
 | [Isolated Fork/Exec] | [Podman]              |

@@ -33,7 +33,7 @@ Nomad is widely adopted and used in production by PagerDuty, Target, Citadel, Tr
 
 - **Simple & Reliable**: Nomad runs as a single binary and is entirely self contained - combining resource management and scheduling into a single system. Nomad does not require any external services for storage or coordination. Nomad automatically handles application, node, and driver failures. Nomad is distributed and resilient, using leader election and state replication to provide high availability in the event of failures.
 
-- **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI). Nomad uses [device plugins](/nomad/docs/devices) to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
+- **Device Plugins & GPU Support**: Nomad offers built-in support for GPU workloads such as machine learning (ML) and artificial intelligence (AI). Nomad uses [device plugins](/nomad/plugins/devices) to automatically detect and utilize resources from hardware devices such as GPU, FPGAs, and TPUs.
 
 - **Federation for Multi-Region**: Nomad has native support for multi-region federation. This built-in capability allows multiple clusters to be linked together, which in turn enables developers to deploy jobs to any cluster in any region. Federation also enables automatic replication of ACL policies, namespaces, resource quotas and Sentinel policies across all clusters.
 
