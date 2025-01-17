@@ -547,8 +547,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	return true
 }
 
-// setupLoggers is used to set up the logGate and our logOutput.
-func setupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
+// SetupLoggers is used to set up the logGate and our logOutput.
+//
+// The function needs to be public due to the way it is used within the Nomad
+// Enterprise codebase.
+func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
 
 	// Pull the log level from the configuration, ensure it is titled and then
 	// perform validation. Do this before the gated writer, as this can
@@ -798,7 +801,7 @@ func (c *Command) Run(args []string) int {
 	}
 
 	// Set up the log outputs.
-	logGate, logOutput := setupLoggers(c.Ui, config)
+	logGate, logOutput := SetupLoggers(c.Ui, config)
 	if logGate == nil {
 		return 1
 	}
