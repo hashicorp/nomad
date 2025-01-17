@@ -28,7 +28,6 @@ import (
 	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
-	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
@@ -55,8 +54,6 @@ type Command struct {
 	args           []string
 	agent          *Agent
 	httpServers    []*HTTPServer
-	logFilter      *logutils.LevelFilter
-	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
 }
 
@@ -550,28 +547,31 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	return true
 }
 
-// SetupLoggers is used to set up the logGate, and our logOutput
-func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
-	// Setup logging. First create the gated log writer, which will
-	// store logs until we're ready to show them. Then create the level
-	// filter, filtering logs of the specified level.
+// setupLoggers is used to set up the logGate and our logOutput.
+func setupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
+
+	// Pull the log level from the configuration, ensure it is titled and then
+	// perform validation. Do this before the gated writer, as this can
+	// generate an error, whereas the writer does not.
+	logLevel := strings.ToUpper(config.LogLevel)
+
+	if !isLogLevelValid(logLevel) {
+		ui.Error(fmt.Sprintf(
+			"Invalid log level: %s. Valid log levels are: %v",
+			logLevel, validLogLevels.Slice()))
+		return nil, nil
+	}
+
+	// Create a gated log writer, which will store logs until we're ready to
+	// output them.
 	logGate := &gatedwriter.Writer{
 		Writer: &cli.UiWriter{Ui: ui},
 	}
 
-	logFilter := LevelFilter()
-	logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
-	logFilter.Writer = logGate
-	if !ValidateLevelFilter(logFilter.MinLevel, logFilter) {
-		ui.Error(fmt.Sprintf(
-			"Invalid log level: %s. Valid log levels are: %v",
-			logFilter.MinLevel, logFilter.Levels))
-		return nil, nil, nil
-	}
+	// Initialize our array of log writers with the gated writer. Additional
+	// log writers will be appended if/when configured.
+	writers := []io.Writer{logGate}
 
-	// Create a log writer, and wrap a logOutput around it
-	writers := []io.Writer{logFilter}
-	logLevel := strings.ToUpper(config.LogLevel)
 	if logLevel == "OFF" {
 		config.EnableSyslog = false
 	}
@@ -581,7 +581,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 		l, err := gsyslog.NewLogger(getSysLogPriority(logLevel), config.SyslogFacility, "nomad")
 		if err != nil {
 			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil, nil
+			return nil, nil
 		}
 		writers = append(writers, newSyslogWriter(l, config.LogJson))
 	}
@@ -601,7 +601,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 			duration, err := time.ParseDuration(config.LogRotateDuration)
 			if err != nil {
 				ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
-				return nil, nil, nil
+				return nil, nil
 			}
 			logRotateDuration = duration
 		} else {
@@ -610,19 +610,18 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 		}
 
 		logFile := &logFile{
-			logFilter: logFilter,
-			fileName:  fileName,
-			logPath:   dir,
-			duration:  logRotateDuration,
-			MaxBytes:  config.LogRotateBytes,
-			MaxFiles:  config.LogRotateMaxFiles,
+			fileName: fileName,
+			logPath:  dir,
+			duration: logRotateDuration,
+			MaxBytes: config.LogRotateBytes,
+			MaxFiles: config.LogRotateMaxFiles,
 		}
 
 		writers = append(writers, logFile)
 	}
 
 	logOutput := io.MultiWriter(writers...)
-	return logFilter, logGate, logOutput
+	return logGate, logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
@@ -798,10 +797,8 @@ func (c *Command) Run(args []string) int {
 		}
 	}
 
-	// Setup the log outputs
-	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
-	c.logFilter = logFilter
-	c.logOutput = logOutput
+	// Set up the log outputs.
+	logGate, logOutput := setupLoggers(c.Ui, config)
 	if logGate == nil {
 		return 1
 	}
@@ -1113,13 +1110,12 @@ func (c *Command) handleReload() {
 	}
 
 	// Change the log level
-	minLevel := logutils.LogLevel(strings.ToUpper(newConf.LogLevel))
-	if ValidateLevelFilter(minLevel, c.logFilter) {
-		c.logFilter.SetMinLevel(minLevel)
-	} else {
+	minLevel := strings.ToUpper(newConf.LogLevel)
+
+	if !isLogLevelValid(minLevel) {
 		c.Ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
-			minLevel, c.logFilter.Levels))
+			minLevel, validLogLevels.Slice()))
 
 		// Keep the current log level
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
