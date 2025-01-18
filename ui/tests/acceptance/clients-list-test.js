@@ -44,7 +44,8 @@ module('Acceptance | clients list', function (hooks) {
 
     await percySnapshot(assert);
 
-    assert.equal(ClientsList.nodes.length, ClientsList.pageSize);
+    // assert.equal(ClientsList.nodes.length, ClientsList.pageSize);
+    assert.equal(ClientsList.nodes.length, 31); // deliberate failure
     assert.ok(ClientsList.hasPagination, 'Pagination found on the page');
 
     const sortedNodes = server.db.nodes.sortBy('modifyIndex').reverse();
