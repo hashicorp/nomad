@@ -50,6 +50,8 @@ export default class Tokens extends Controller {
     this.signInStatus = null;
     // Clear out all data to ensure only data the anonymous token is privileged to see is shown
     this.resetStore();
+    // Unset the active region so that the application will re-read the defaults
+    this.system.set('activeRegion', null);
     this.token.reset();
     this.store.findAll('auth-method');
   }
@@ -159,12 +161,15 @@ export default class Tokens extends Controller {
       this.set('secret', null);
 
       TokenAdapter.findSelf().then(
-        () => {
+        async () => {
           // Clear out all data to ensure only data the new token is privileged to see is shown
           this.resetStore();
 
           // Refetch the token and associated policies
           this.token.get('fetchSelfTokenAndPolicies').perform().catch();
+
+          await this.system.establishUIDefaults();
+          await this.system.defaults;
 
           if (!this.system.activeRegion) {
             this.system.get('defaultRegion').then((res) => {

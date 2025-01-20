@@ -78,7 +78,7 @@ export default class VariableFormComponent extends Component {
         this.path?.startsWith('nomad/jobs') ||
         (this.path?.startsWith('nomad/job-templates') &&
           trimPath([this.path]) !== 'nomad/job-templates') ||
-        this.path === 'nomad/ui/defaults'
+        this.path.startsWith('nomad/ui/defaults/')
       );
     return !!this.JSONError || !this.path || disallowedPath;
   }
@@ -142,7 +142,7 @@ export default class VariableFormComponent extends Component {
     // TODO: temporary hack! This is happening because I'm separately loading the default variable
     // in the application route, and it's not showing up as this.args.model-equivalent here, so the
     // .without() call is failing.
-    if (pathValue === 'nomad/ui/defaults') {
+    if (pathValue?.startsWith('nomad/ui/defaults/')) {
       return null;
     }
     let existingVariable = existingVariables
@@ -430,7 +430,7 @@ export default class VariableFormComponent extends Component {
   }
 
   get isUIDefaultsVariable() {
-    return this.path === 'nomad/ui/defaults';
+    return this.path.startsWith('nomad/ui/defaults/');
   }
 
   //#region Unsaved Changes Confirmation

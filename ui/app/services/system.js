@@ -28,6 +28,7 @@ import { tracked } from '@glimmer/tracking';
 export default class SystemService extends Service {
   @service token;
   @service store;
+  @service can;
 
   /**
    * Iterates over all regions and returns a list of leaders' rpcAddrs
@@ -109,17 +110,95 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed('token.selfToken')
+  @computed('defaults', 'token.selfToken', 'variableDefaults.Region')
   get defaultRegion() {
-    const token = this.token;
-    return PromiseObject.create({
-      promise: token
-        .authorizedRawRequest(`/${namespace}/agent/members`)
-        .then(jsonWithDefault({}))
-        .then((json) => {
-          return { region: json.ServerRegion };
-        }),
+    // // let variableDefaultRegion = this.variableDefaults.Region;
+    // let variableDefaultRegion = false;
+    // if (variableDefaultRegion) {
+    //   return { region: variableDefaultRegion };
+    return this.defaults.then((defaults) => {
+      if (defaults.region) {
+        return { region: defaults.region };
+      } else {
+        const token = this.token;
+        return PromiseObject.create({
+          promise: token
+            .authorizedRawRequest(`/${namespace}/agent/members`)
+            .then(jsonWithDefault({}))
+            .then((json) => {
+              return { region: json.ServerRegion };
+            }),
+        });
+      }
     });
+    // if (this.defaults.region) {
+    //   return { region: this.defaults.region };
+    // } else {
+    //   const token = this.token;
+    //   return PromiseObject.create({
+    //     promise: token
+    //       .authorizedRawRequest(`/${namespace}/agent/members`)
+    //       .then(jsonWithDefault({}))
+    //       .then((json) => {
+    //         return { region: json.ServerRegion };
+    //       }),
+    //   });
+    // }
+  }
+
+  defaultProperties = [
+    'userDefaultRegion',
+    'userDefaultNamespace',
+    'userDefaultNodePool',
+  ];
+
+  async establishUIDefaults() {
+    // // First, check to see if there are localStorage properties set for each of the defaults.
+    // // If there are, we don't need to reach out to check the variable or agent config.
+    // if (this.defaultProperties.every((defaultString) => this[defaultString])) {
+    //   return;
+    // }
+
+    let agent = await this.agent;
+    this.agentDefaults = agent?.config?.UI?.Defaults || {};
+    let variableDefaults = await this.fetchVariableDefaults();
+    this.variableDefaults = variableDefaults || {};
+    return {
+      agentDefaults: this.agentDefaults,
+      variableDefaults: this.variableDefaults,
+    };
+  }
+
+  async fetchVariableDefaults() {
+    try {
+      // if (this.can.can('read variable', 'nomad/ui/defaults', '*')) { // TODO: is wildcard correctly handled by "can"?
+
+      // Get all variables in defaults across all namespaces
+      const variables = await this.store.query('variable', {
+        prefix: 'nomad/ui/defaults',
+        namespace: '*',
+      });
+      // If any exist, take the first one and read it
+      const firstVariable = variables.firstObject;
+      if (firstVariable) {
+        const variableDefaults = await this.store.findRecord(
+          'variable',
+          `${firstVariable.path}@${firstVariable.namespace}`,
+          { reload: true }
+        );
+        return {
+          Namespace: variableDefaults.items.namespace,
+          NodePool: variableDefaults.items.nodepool,
+          Region: variableDefaults.items.region,
+        };
+      } else {
+        return null;
+      }
+      // }
+    } catch (e) {
+      console.warn('Failed to load UI defaults:', e);
+      return null;
+    }
   }
 
   @computed
@@ -154,13 +233,16 @@ export default class SystemService extends Service {
     'variableDefaults.{Namespace,NodePool,Region}'
   )
   get defaults() {
-    return this.agent.then((agent) => {
-      /**
-       * @type {Defaults}
-       */
-      // eslint-disable-next-line ember/no-side-effects
-      this.agentDefaults = agent?.config?.UI?.Defaults || {};
-      return {
+    // TODO: Monday: this gets called a LOT from basically every page, because everything calls system.defaultRegion,
+    // which now calls system.defaults,
+    // which now calls this.establishUIDefaults().
+    // This results in a TON of network requests, most failing because signed out or other-region, etc.
+    // return this.establishUIDefaults().then(() => {
+    /**
+     * @type {Defaults}
+     */
+    return new Promise((resolve) => {
+      resolve({
         region:
           this.userDefaultRegion ||
           this.variableDefaults.Region ||
@@ -179,8 +261,9 @@ export default class SystemService extends Service {
         )
           ?.split(',')
           .map((np) => np.trim()),
-      };
+      });
     });
+    // });
   }
 
   @computed('regions.[]', 'userDefaultRegion')

@@ -48,10 +48,12 @@
   <Hds::Alert @type="inline" @title="Defaults" as |A|>
     <A.Title>Defaults</A.Title>
     <A.Description>
-      You can set defaults for the UI when it comes to filtering viewing certain pages. You can configure these, in ascending order of precedence:
+      You can set defaults for the UI when it comes to viewing certain pages. You can configure these, in ascending order of precedence:
       <ol>
         <li><a href="https://developer.hashicorp.com/nomad/docs/configuration/ui#ui-parameters"><strong>Agent configuration</strong></a>, which is overridden by</li>
-        <li><LinkTo @route="variables.variable.edit"  @model="nomad/ui/defaults@default"><strong>Variable defaults</strong></LinkTo>, which is overridden by</li>
+        {{#if (can "read variable" path="nomad/ui/defaults" namespace="*")}}
+          <li><LinkTo @route="variables.variable.edit"  @model="nomad/ui/defaults@default"><strong>Variable defaults</strong></LinkTo>, which is overridden by</li>
+        {{/if}}
         <li><strong>Local Storage settings</strong> (which you can modify by making changes on this page), which is overridden by</li>
         <li><strong>Query Parameters</strong> in your URL.</li>
       </ol>

@@ -19,6 +19,7 @@ export default class ApplicationRoute extends Route {
   @service store;
   @service token;
   @service router;
+  @service can;
 
   queryParams = {
     region: {
@@ -72,35 +73,19 @@ export default class ApplicationRoute extends Route {
 
       promises = await RSVP.all([
         this.get('system.regions'),
-        this.get('system.defaultRegion'),
         fetchLicense,
         fetchSelfTokenAndPolicies,
         checkFuzzySearchPresence,
       ]);
     }
 
-    // If a variable is set at nomad/ui/defaults, set its results in the system service
-    // TODO: need to do this fetch upon sign-in, not just on app load. Same with agent config.
-    try {
-      const variableDefaults = await this.store.findRecord(
-        'variable',
-        'nomad/ui/defaults@default'
-      );
-      if (variableDefaults) {
-        this.set('system.variableDefaults', {
-          Namespace: variableDefaults.items.namespace,
-          NodePool: variableDefaults.items.nodepool,
-          Region: variableDefaults.items.region,
-        });
-      }
-    } catch (e) {
-      // No default variable found, fall back to agent config or "default".
-    }
+    await this.system.establishUIDefaults();
+    const defaults = await this.system.defaults;
 
     if (!this.get('system.shouldShowRegions')) return promises;
 
     const queryParam = transition.to.queryParams.region;
-    const defaultRegion = this.get('system.defaultRegion.region');
+    const defaultRegion = defaults.region;
     const currentRegion = this.get('system.activeRegion') || defaultRegion;
 
     // Only reset the store if the region actually changed
