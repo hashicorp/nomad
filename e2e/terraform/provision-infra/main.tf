@@ -16,12 +16,13 @@ resource "random_password" "windows_admin_password" {
 locals {
   random_name = "${var.name}-${random_pet.e2e.id}"
   uploads_dir = "${path.module}/provision-nomad/uploads/${random_pet.e2e.id}"
+  keys_dir    = "${path.module}/keys/${random_pet.e2e.id}"
 }
 
 # Generates keys to use for provisioning and access
 module "keys" {
   name    = local.random_name
-  path    = "${path.module}/../keys"
+  path    = "${local.keys_dir}"
   source  = "mitchellh/dynamic-keys/aws"
   version = "v2.0.0"
 }

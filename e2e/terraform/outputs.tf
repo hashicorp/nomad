@@ -38,6 +38,10 @@ output "nomad_token" {
   sensitive = true
 }
 
+output "cluster_unique_identifier" {
+  value = module.provision-infra.cluster_unique_identifier
+}
+
 # Note: Consul and Vault environment needs to be set in test
 # environment before the Terraform run, so we don't have that output
 # here
