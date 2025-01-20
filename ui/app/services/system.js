@@ -233,11 +233,6 @@ export default class SystemService extends Service {
     'variableDefaults.{Namespace,NodePool,Region}'
   )
   get defaults() {
-    // TODO: Monday: this gets called a LOT from basically every page, because everything calls system.defaultRegion,
-    // which now calls system.defaults,
-    // which now calls this.establishUIDefaults().
-    // This results in a TON of network requests, most failing because signed out or other-region, etc.
-    // return this.establishUIDefaults().then(() => {
     /**
      * @type {Defaults}
      */
@@ -263,7 +258,6 @@ export default class SystemService extends Service {
           .map((np) => np.trim()),
       });
     });
-    // });
   }
 
   @computed('regions.[]', 'userDefaultRegion')
