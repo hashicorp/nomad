@@ -56,7 +56,7 @@ scenario "upgrade" {
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
     EOF
-
+    
     module = module.provision_cluster
     variables {
       name                      = local.cluster_name
@@ -143,19 +143,17 @@ scenario "upgrade" {
     description = <<-EOF
     Upgrade the cluster's servers by invoking nomad-cc ...
    EOF
-
-    module      = module.run_cc_nomad
+    module      = module.upgrade_servers
 
     verifies = [
         quality.nomad_agent_info,
         quality.nomad_agent_info_self,
-        nomad_restore_snapshot
+        quality.nomad_restore_snapshot
     ]
 
     variables {
-        cc_update_type        = "server"  
-        nomad_upgraded_binary = step.copy_initial_binary.nomad_local_binary
-        // ...
+        servers               = step.provision_cluster.servers
+        nomad_upgraded_binary = step.copy_upgrade_binary.nomad_local_binary
     }
   }
 

@@ -18,3 +18,7 @@ module "run_workloads" {
 module "test_cluster_health" {
   source = "./modules/test_cluster_health"
 }
+
+module "upgrade_server" {
+  source = "./modules/upgrade_server"
+}
