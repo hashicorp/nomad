@@ -110,13 +110,15 @@ func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
-	var vaultToken, vaultNamespace string
+	var consulToken, consulNamespace, vaultToken, vaultNamespace string
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
 	flagSet.BoolVar(&c.JobGetter.HCL1, "hcl1", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
+	flagSet.StringVa(&consulToken, "consul-token", "", "")
+	flagSet.StringVa(&consulNamespace, "consul-namespace", "", "")
 	flagSet.StringVar(&vaultToken, "vault-token", "", "")
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
@@ -162,6 +164,19 @@ func (c *JobValidateCommand) Run(args []string) int {
 		client.SetRegion(*r)
 	}
 
+	// Parse the Consul token
+	if consulToken == "" {
+		// Check the environment variable
+		consulToken = os.Getenv("CONSUL_HTTP_TOKEN")
+	}
+
+	if consulToken != "" {
+		job.ConsulToken = pointer.Of(consulToken)
+	}
+
+	if consulNamespace != "" {
+		job.ConsulNamespace = pointer.Of(consulNamespace)
+	}
 	// Parse the Vault token
 	if vaultToken == "" {
 		// Check the environment variable
