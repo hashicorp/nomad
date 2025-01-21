@@ -28,7 +28,7 @@ capability {
 }
 
 capability {
-  access_mode     = "single-node-reader"
+  access_mode     = "single-node-reader-only"
   attachment_mode = "block-device"
 }
 
