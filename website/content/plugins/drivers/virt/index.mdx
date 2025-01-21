@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Drivers: virt'
+page_title: Virt Task Driver Plugin
 description: >-
-  Use the Virt task driver in your Nomad jobs to leverage Linux capabilities and to run virtual machines using the libvirt API. Learn about Nomad client requirements, installation, capabilities, and attributes.
+  The Virt task driver leverages Linux capabilities and runs virtual machines using the libvirt API and hypervisors such as QEMU. Learn about Nomad client requirements, installation, capabilities, and Nomad client node attributes.
 ---
 
-# Virt task driver
+# Virt Task Driver Plugin
 
 @include 'virt-beta-callout.mdx'
 
@@ -16,7 +16,7 @@ machines using hypervisors such as [QEMU][]. The task driver supports a wide
 variety of Nomad features including [workload identity][], [task templates][],
 and [service discovery][].
 
-## Driver capabilities
+## Driver Capabilities
 
 The Virt task driver implements these driver [capabilities][capabilities].
 
@@ -28,7 +28,7 @@ The Virt task driver implements these driver [capabilities][capabilities].
 | network isolation    | host           |
 | volume mounting      | false          |
 
-## Nomad client node attributes
+## Nomad Client Node Attributes
 
 The Virt task driver provides these node attributes that you can use as
 constraints when authoring jobs.

@@ -113,4 +113,14 @@ module.exports = [
     destination: '/nomad/plugins/devices/',
     permanent: true,
   },
+  {
+    source: '/nomad/plugins/devices/community',
+    destination: '/nomad/plugins/devices/',
+    permanent: true,
+  },
+  {
+    source: '/nomad/plugins/devices/community/usb',
+    destination: '/nomad/plugins/devices/usb',
+    permanent: true,
+  },
 ]

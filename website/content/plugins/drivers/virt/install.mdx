@@ -1,17 +1,19 @@
 ---
 layout: docs
-page_title: Install and configure the Virt task driver
+page_title: Install the Virt Task Driver Plugin
 description: >-
-  Install and configure the Virt task driver on your Nomad client.
+  Install and configure the Virt task driver plugin on your Nomad clients. Review manual instructions and those for Ubuntu, Debian, CentOS, and RHEL. Add the Virt task driver plugin to Nomad.
 ---
 
-# Install and configure the Virt task driver
+# Install the Virt Task Driver Plugin
 
 @include 'virt-beta-callout.mdx'
 
 The Virt task driver plugin for Linux operating systems is not bundled with
 Nomad. You must install the driver into each Nomad client's [configured plugin
 directory][plugin_dir].
+
+## Prerequisites
 
 Your Nomad client must meet these requirements:
 
@@ -28,7 +30,7 @@ The Virt driver requires the following packages:
 - [libvirt daemon][]
 - [QEMU][]
 
-## Install the Virt driver
+## Install the Virt task driver plugin
 
 <Tabs>
 <Tab heading="Manual installation" group="manual">
@@ -106,7 +108,7 @@ $ sudo yum -y install nomad-driver-virt
 
 
 
-## Configure the Virt driver as a plugin
+## Add the Virt task driver plugin to Nomad
 
 This example shows the default plugin configuration.
 

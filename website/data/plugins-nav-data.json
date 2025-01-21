@@ -15,7 +15,12 @@
         "path": "drivers/podman"
       },
       {
-        "title": "Virt <sup>Beta</sup>",
+        "title": "Virt",
+        "badge": {
+          "text": "BETA",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "routes": [
           {
             "title": "Overview",
@@ -94,26 +99,17 @@
         "path": "devices"
       },
       {
-        "title": "Nvidia",
+        "title": "NVIDIA",
         "path": "devices/nvidia"
       },
       {
-        "title": "Community",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "devices/community"
-          },
-          {
-            "title": "USB",
-            "badge": {
-              "text": "Beta",
-              "type": "outlined",
-              "color": "neutral"
-            },
-            "path": "devices/community/usb"
-          }
-        ]
+        "title": "USB",
+        "badge": {
+          "text": "BETA",
+          "type": "outlined",
+          "color": "neutral"
+        },
+        "path": "devices/usb"
       }
     ]
   }
