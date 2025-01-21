@@ -1576,6 +1576,8 @@ func (c *Client) setupNode() error {
 				}
 				node.HostVolumes[k] = v.Copy()
 			}
+		} else {
+			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, 0)
 		}
 	}
 	if node.HostNetworks == nil {
