@@ -1849,9 +1849,6 @@ type DriverCapabilities struct {
 	MustCreateNetwork     bool                                        `protobuf:"varint,5,opt,name=must_create_network,json=mustCreateNetwork,proto3" json:"must_create_network,omitempty"`
 	// MountConfigs indicates whether the driver supports mount configurations.
 	MountConfigs DriverCapabilities_MountConfigs `protobuf:"varint,6,opt,name=mount_configs,json=mountConfigs,proto3,enum=hashicorp.nomad.plugins.drivers.proto.DriverCapabilities_MountConfigs" json:"mount_configs,omitempty"`
-	// remote_tasks indicates whether the driver executes tasks remotely such
-	// on cloud runtimes like AWS ECS.
-	RemoteTasks bool `protobuf:"varint,7,opt,name=remote_tasks,json=remoteTasks,proto3" json:"remote_tasks,omitempty"` // Deprecated: Do not use.
 	// disable_log_collection indicates whether the driver has the capability of
 	// disabling log collection
 	DisableLogCollection bool `protobuf:"varint,8,opt,name=disable_log_collection,json=disableLogCollection,proto3" json:"disable_log_collection,omitempty"`
@@ -1928,14 +1925,6 @@ func (m *DriverCapabilities) GetMountConfigs() DriverCapabilities_MountConfigs {
 		return m.MountConfigs
 	}
 	return DriverCapabilities_UNKNOWN_MOUNTS
-}
-
-// Deprecated: Do not use.
-func (m *DriverCapabilities) GetRemoteTasks() bool {
-	if m != nil {
-		return m.RemoteTasks
-	}
-	return false
 }
 
 func (m *DriverCapabilities) GetDisableLogCollection() bool {

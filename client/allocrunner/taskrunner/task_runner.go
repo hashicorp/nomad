@@ -1364,12 +1364,6 @@ func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
 	}
 
-	// Store task handle for remote tasks
-	if tr.driverCapabilities != nil && tr.driverCapabilities.RemoteTasks {
-		tr.logger.Trace("storing remote task handle state")
-		tr.localState.TaskHandle.Store(tr.state)
-	}
-
 	// Notify the alloc runner of the transition
 	tr.stateUpdater.TaskStateUpdated()
 }
