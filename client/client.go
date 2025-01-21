@@ -1568,16 +1568,12 @@ func (c *Client) setupNode() error {
 	}
 	node.CgroupParent = newConfig.CgroupParent
 	if node.HostVolumes == nil {
-		if l := len(newConfig.HostVolumes); l != 0 {
-			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)
-			for k, v := range newConfig.HostVolumes {
-				if _, err := os.Stat(v.Path); err != nil {
-					return fmt.Errorf("failed to validate volume %s, err: %v", v.Name, err)
-				}
-				node.HostVolumes[k] = v.Copy()
+		node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, len(newConfig.HostVolumes))
+		for k, v := range newConfig.HostVolumes {
+			if _, err := os.Stat(v.Path); err != nil {
+				return fmt.Errorf("failed to validate volume %s, err: %w", v.Name, err)
 			}
-		} else {
-			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, 0)
+			node.HostVolumes[k] = v.Copy()
 		}
 	}
 	if node.HostNetworks == nil {
