@@ -40,6 +40,9 @@ func UpdateVolumeMap(log hclog.Logger, volumes VolumeMap, name string, vol *stru
 			log.Warn("overriding static host volume with dynamic", "name", name, "id", vol.ID)
 		}
 		if !exists || !vol.Equal(current) {
+			if volumes == nil {
+				volumes = VolumeMap{}
+			}
 			volumes[name] = vol
 			changed = true
 		}
