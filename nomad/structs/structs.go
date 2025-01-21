@@ -11118,9 +11118,6 @@ type Allocation struct {
 	// has claimed.
 	HostVolumeIDs []string
 
-	// CSIVolumeIDs is a list of CSI volume IDs that this allocation has claimed.
-	CSIVolumeIDs []string
-
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
