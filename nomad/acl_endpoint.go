@@ -2778,24 +2778,23 @@ func (a *ACL) OIDCCompleteAuth(
 	if authMethod.Config.VerboseLogging {
 		idTokenClaimBytes, err := json.MarshalIndent(idTokenClaims, "", " ")
 		if err != nil {
-			return fmt.Errorf("failed to marshal ID token claims")
+			vlog.Debug("failed to marshal ID token claims")
 		}
 
 		userClaimBytes, err := json.MarshalIndent(userClaims, "", " ")
 		if err != nil {
-			return fmt.Errorf("failed to marshal user claims")
+			vlog.Debug("failed to marshal user claims")
 		}
+		vlog.Debug("claims from jwt token and user info endpoint",
+			"token_claims", string(idTokenClaimBytes),
+			"user_claims", string(userClaimBytes),
+		)
 
 		internalClaimBytes, err := json.MarshalIndent(oidcInternalClaims.List, "", " ")
 		if err != nil {
-			return fmt.Errorf("failed to marshal OIDC internal claims list")
+			vlog.Debug("failed to marshal OIDC internal claims list")
 		}
-
-		vlog.Debug("Claims",
-			"Token Claims", string(idTokenClaimBytes),
-			"User Claims", string(userClaimBytes),
-			"Claims after mapping to Nomad identity attributes", string(internalClaimBytes),
-		)
+		vlog.Debug("claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
 	}
 
 	// Create a new binder object based on the current state snapshot to
@@ -2970,18 +2969,15 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	if authMethod.Config.VerboseLogging {
 		idTokenClaimBytes, err := json.MarshalIndent(claims, "", " ")
 		if err != nil {
-			return fmt.Errorf("failed to marshal token claims")
+			vlog.Debug("failed to marshal token claims")
 		}
+		vlog.Debug("jwt token claims", "token_claims", string(idTokenClaimBytes))
 
 		internalClaimBytes, err := json.MarshalIndent(jwtClaims.List, "", " ")
 		if err != nil {
-			return fmt.Errorf("failed to marshal claims list")
+			vlog.Debug("failed to marshal claims list")
 		}
-
-		vlog.Debug("Claims",
-			"Token Claims", string(idTokenClaimBytes),
-			"Claims after mapping to Nomad identity attributes", string(internalClaimBytes),
-		)
+		vlog.Debug("claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
 	}
 
 	tokenBindings, err := jwtBinder.Bind(vlog, authMethod, auth.NewIdentity(authMethod.Config, jwtClaims))
