@@ -21,10 +21,11 @@ locals {
 
 # Generates keys to use for provisioning and access
 module "keys" {
-  name    = local.random_name
-  path    = "${local.keys_dir}"
-  source  = "mitchellh/dynamic-keys/aws"
-  version = "v2.0.0"
+  depends_on = [random_pet.e2e]
+  name       = local.random_name
+  path       = "${local.keys_dir}"
+  source     = "mitchellh/dynamic-keys/aws"
+  version    = "v2.0.0"
 }
 
 data "aws_kms_alias" "e2e" {
