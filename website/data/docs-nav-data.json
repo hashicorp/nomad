@@ -127,7 +127,25 @@
       },
       {
         "title": "ACL",
-        "path": "concepts/acl"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "concepts/acl"
+          },
+          {
+            "title": "Auth Methods",
+            "routes": [
+              {
+                "title": "JWT",
+                "path": "concepts/acl/auth-methods/jwt"
+              },
+              {
+                "title": "OIDC",
+                "path": "concepts/acl/auth-methods/oidc"
+              }
+            ]
+          }
+        ]
       },
       {
         "title": "Architecture",

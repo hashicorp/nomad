@@ -1,0 +1,39 @@
+---
+layout: docs
+page_title: JSON Web Token (JWT) Auth Method
+description: >-
+  Use the JWT auth method to authenticate to Nomad with a JSON web token and receive an ACL token with privileges based on JWT identity attributes. Learn how to configure the auth method parameters using this reference page and example configuration.
+---
+
+# JSON Web Token (JWT) Auth Method
+
+The `jwt` auth method can be used to authenticate with Nomad by providing a
+[JWT](https://en.wikipedia.org/wiki/JSON_Web_Token) directly. The JWT is
+cryptographically verified using locally-provided keys, or, if configured, an
+OIDC Discovery service can be used to fetch the appropriate keys.
+
+See [auth-method create] for the parameters required to create a JWT auth-method with a given verification method.
+
+## JWT Verification
+
+JWT signatures will be verified against public keys from the issuer. This
+process can be done one of three ways:
+
+- **Static Keys** - A set of public keys is stored directly in the
+  configuration.
+
+- **JWKS** - A JSON Web Key Set ([JWKS](https://tools.ietf.org/html/rfc7517))
+  URL (and optional certificate chain) is configured. Keys will be fetched from
+  this endpoint during authentication.
+
+- **OIDC Discovery** - An OIDC Discovery URL (and optional certificate chain)
+  is configured. Keys will be fetched from this URL during authentication. When
+  OIDC Discovery is used, OIDC validation criteria (e.g. `iss`, `aud`, etc.)
+  will be applied.
+
+If multiple methods are needed, another auth method of this type may be created
+with a different name.
+
+@include 'jwt_claim_mapping_details.mdx'
+
+[auth-method create]: /nomad/docs/commands/acl/auth-method/create
