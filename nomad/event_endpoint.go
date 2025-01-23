@@ -236,18 +236,6 @@ func validateACL(namespace string, topics map[structs.Topic][]string, aclObj *ac
 			if ok := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob); !ok {
 				return structs.ErrPermissionDenied
 			}
-		case structs.TopicHostVolume:
-			if ok := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityHostVolumeRead); !ok {
-				return structs.ErrPermissionDenied
-			}
-		case structs.TopicCSIVolume:
-			if ok := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityCSIReadVolume); !ok {
-				return structs.ErrPermissionDenied
-			}
-		case structs.TopicCSIPlugin:
-			if ok := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityReadJob); !ok {
-				return structs.ErrPermissionDenied
-			}
 		case structs.TopicNode:
 			if ok := aclObj.AllowNodeRead(); !ok {
 				return structs.ErrPermissionDenied

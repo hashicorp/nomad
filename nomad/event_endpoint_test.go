@@ -409,66 +409,6 @@ func TestEventStream_validateACL(t *testing.T) {
 			Management:  false,
 			ExpectedErr: structs.ErrPermissionDenied,
 		},
-		{
-			Name: "read host volumes - correct policy and ns",
-			Topics: map[structs.Topic][]string{
-				structs.TopicHostVolume: {"*"},
-			},
-			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityHostVolumeRead}),
-			Namespace:   "foo",
-			Management:  false,
-			ExpectedErr: nil,
-		},
-		{
-			Name: "read host volumes - incorrect policy or ns",
-			Topics: map[structs.Topic][]string{
-				structs.TopicHostVolume: {"*"},
-			},
-			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
-			Namespace:   "foo",
-			Management:  false,
-			ExpectedErr: structs.ErrPermissionDenied,
-		},
-		{
-			Name: "read csi volumes - correct policy and ns",
-			Topics: map[structs.Topic][]string{
-				structs.TopicCSIVolume: {"*"},
-			},
-			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityCSIReadVolume}),
-			Namespace:   "foo",
-			Management:  false,
-			ExpectedErr: nil,
-		},
-		{
-			Name: "read csi volumes - incorrect policy or ns",
-			Topics: map[structs.Topic][]string{
-				structs.TopicCSIVolume: {"*"},
-			},
-			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
-			Namespace:   "foo",
-			Management:  false,
-			ExpectedErr: structs.ErrPermissionDenied,
-		},
-		{
-			Name: "read csi plugin - correct policy and ns",
-			Topics: map[structs.Topic][]string{
-				structs.TopicCSIPlugin: {"*"},
-			},
-			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
-			Namespace:   "foo",
-			Management:  false,
-			ExpectedErr: nil,
-		},
-		{
-			Name: "read csi plugin - incorrect policy or ns",
-			Topics: map[structs.Topic][]string{
-				structs.TopicCSIPlugin: {"*"},
-			},
-			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
-			Namespace:   "bar",
-			Management:  false,
-			ExpectedErr: structs.ErrPermissionDenied,
-		},
 	}
 
 	for _, tc := range cases {
