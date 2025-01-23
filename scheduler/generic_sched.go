@@ -663,7 +663,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				var newHostVolumeIDs []string
 				for _, v := range tg.Volumes {
 					if v.Sticky {
-						if missing.PreviousAllocation() != nil && len(missing.PreviousAllocation().HostVolumeIDs) > 0 {
+						if prevAllocation != nil && len(prevAllocation.HostVolumeIDs) > 0 {
 							continue
 						}
 						newHostVolumeIDs = append(newHostVolumeIDs, option.Node.HostVolumes[v.Source].ID)
@@ -713,8 +713,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					// If the allocation has task handles,
 					// copy them to the new allocation
 					propagateTaskState(alloc, prevAllocation, missing.PreviousLost())
-
-					propagateHostVolumes(alloc, prevAllocation, missing.PreviousLost())
 				}
 
 				// If we are placing a canary and we found a match, add the canary
@@ -752,6 +750,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// reschedule as failed so that we can retry it in the following
 				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
+					if len(prevAllocation.HostVolumeIDs) > 0 {
+						s.eval.Status = structs.EvalStatusBlocked
+					}
 					if missing.IsRescheduling() {
 						annotateRescheduleTracker(prevAllocation, structs.LastRescheduleFailedToPlace)
 					}
@@ -842,23 +843,6 @@ func propagateTaskState(newAlloc, prev *structs.Allocation, prevLost bool) {
 		newState.TaskHandle = prevState.TaskHandle.Copy()
 		newAlloc.TaskStates[taskName] = newState
 	}
-}
-
-// propagateHostVolumes assures that allocations that have had host volumes IDs
-// attached keep them upon reschedule
-func propagateHostVolumes(newAlloc, prev *structs.Allocation, prevLost bool) {
-	// Don't transfer state from client terminal allocs
-	if prev.ClientTerminalStatus() {
-		return
-	}
-
-	// If previous allocation is not lost and not draining, do not copy
-	// host volume info
-	if !prevLost && !prev.DesiredTransition.ShouldMigrate() {
-		return
-	}
-
-	newAlloc.HostVolumeIDs = prev.HostVolumeIDs
 }
 
 // getSelectOptions sets up preferred nodes and penalty nodes
