@@ -62,8 +62,8 @@ stderr() {
 get_path() {
   # since delete runs `rm -rf` (frightening), check to make sure
   # the path is something sensible.
-  if [ -z "$DHV_HOST_PATH" ]; then
-    stderr "DHV_HOST_PATH must not be empty"
+  if [ -z "$DHV_VOLUMES_DIR" ]; then
+    stderr "DHV_VOLUMES_DIR must not be empty"
     exit 1
   fi
   if [ -z "$DHV_VOLUME_NAME" ]; then
@@ -71,7 +71,7 @@ get_path() {
     exit 1
   fi
   # create and delete assign this echo output to a variable
-  echo "$DHV_HOST_PATH/$DHV_VOLUME_NAME"
+  echo "$DHV_VOLUMES_DIR/$DHV_VOLUME_NAME"
 }
 
 case "$DHV_OPERATION" in
@@ -128,15 +128,15 @@ stderr() {
 }
 
 get_path() {
-  if [ -z "$DHV_HOST_PATH" ]; then
-    stderr "DHV_HOST_PATH must not be empty"
+  if [ -z "$DHV_VOLUMES_DIR" ]; then
+    stderr "DHV_VOLUMES_DIR must not be empty"
     exit 1
   fi
   if [ -z "$DHV_VOLUME_NAME" ]; then
     stderr "DHV_VOLUME_NAME must not be empty"
     exit 1
   fi
-  echo "$DHV_HOST_PATH/$DHV_VOLUME_NAME"
+  echo "$DHV_VOLUMES_DIR/$DHV_VOLUME_NAME"
 }
 
 is_mounted() {
@@ -273,7 +273,7 @@ after an agent restart or host reboot.
 
 ```
 DHV_OPERATION=create
-DHV_HOST_PATH=/suggested/path/to/place/volume
+DHV_VOLUMES_DIR={directory to put the volume in}
 DHV_NODE_ID={Nomad node ID}
 DHV_NODE_POOL={Nomad node pool}
 DHV_NAMESPACE={volume namespace}
@@ -299,6 +299,8 @@ DHV_PLUGIN_DIR={path to directory containing plugins}
 * Must be safe to run concurrently, per volume name per node.
 * Returned "path" must be the location of the created volume.
   Nomad will mount this path into workloads that request the volume.
+  However the plugin determines the volume's destination path during `create`,
+  `delete` must be able to derive the same path, so it can delete it.
 
 </blockquote>
 
@@ -317,7 +319,7 @@ fails, since it may have been only partially completed.
 
 ```
 DHV_OPERATION=delete
-DHV_HOST_PATH=/suggested/path/to/place/volumes
+DHV_VOLUMES_DIR={directory to put the volume in}
 DHV_NODE_ID={Nomad node ID}
 DHV_NODE_POOL={Nomad node pool}
 DHV_NAMESPACE={volume namespace}
@@ -362,6 +364,10 @@ Plugin authors should consider these details when writing plugins.
   per node, and similarly by `id` on Nomad servers, but many create/delete
   operations for different volume IDs may run concurrently, even on the same
   node.
+* We suggest placing volumes in `DHV_VOLUMES_DIR` for consistency, but it is not
+  required. Often `$DHV_VOLUMES_DIR/$DVH_VOLUME_NAME` will suffice, as the
+  volume `name` is unique per node, or `$DHV_VOLUMES_DIR/$DHV_VOLUME_ID` for
+  uniqueness per Nomad region.
 * Plugins that write into network storage need to take care not to delete
   remote/shared state by `name`, unless they know that there are no other
   volumes with workloads using that name.
