@@ -846,9 +846,13 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 			"volume parameters cannot be updated"))
 	}
 
-	// Context is mutable and will be used during controller
-	// validation
-	v.Context = other.Context
+	// Context is mutable and will be used during controller validation, but we
+	// need to ensure we don't remove context that's been previously stored
+	// server-side if the user has submitted an update without adding it to the
+	// spec manually (which we should not require)
+	if len(other.Context) != 0 {
+		v.Context = other.Context
+	}
 	return errs.ErrorOrNil()
 }
 
