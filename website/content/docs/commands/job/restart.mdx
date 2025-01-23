@@ -40,10 +40,10 @@ When both groups and tasks are defined only the tasks for the allocations of
 those groups are restarted.
 
 When rescheduling, the current allocations are stopped triggering the Nomad
-scheduler to create replacement allocations that may be placed in different
-clients. The command waits until the new allocations have client status `ready`
-before proceeding with the remaining batches. Services health checks are not
-taken into account.
+scheduler to create new allocations that may be placed in different clients. The
+command waits until the new allocations have client status `ready` before
+proceeding with the remaining batches. Services health checks are not taken into
+account.
 
 By default the command restarts all running tasks in-place with one allocation
 per batch.

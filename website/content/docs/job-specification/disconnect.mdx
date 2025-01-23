@@ -14,7 +14,14 @@ description: |-
 The `disconnect` block describes the system's behavior in case of a network
 partition. By default, without a `disconnect` block, if an allocation is on a
 node that misses heartbeats, the allocation will be marked `lost` and will be
-rescheduled.
+replaced.
+
+Replacement happens when a node is lost. When a node is drained, Nomad
+[migrates][] the allocations instead and the `disconnect` block does not
+apply. When a Nomad agent fails to setup the allocation or the tasks of an
+allocation fail more than their [`restart`][] block allows, Nomad
+[reschedules][] the allocations and the `disconnect` block does not apply.
+
 
 ```hcl
 job "docs" {
@@ -51,11 +58,12 @@ same `disconnect` block.
 
   Refer to [the Lost After section][lost-after] for more details.
 
-- `replace` `(bool: false)` - Specifies if the disconnected allocation should
-  be replaced by a new one rescheduled on a different node. If false and the
-  node it is running on becomes disconnected or goes down, this allocation
-  won't be rescheduled and will be reported as `unknown` until the node reconnects,
-  or until the allocation is manually stopped:
+- `replace` `(bool: false)` - Specifies if the disconnected allocation should be
+  replaced by a new one rescheduled on a different node. The replacement
+  allocation is considered a reschedule and will obey the job's [`reschedule`][]
+  block. If false and the node it is running on becomes disconnected or goes
+  down, this allocation won't be replaced and will be reported as `unknown`
+  until the node reconnects, or until the allocation is manually stopped:
 
   ```plaintext
   `nomad alloc stop  <alloc ID>`
@@ -84,7 +92,7 @@ same `disconnect` block.
     - `keep_original`: Always keep the original allocation. Bear in mind
     when choosing this option, it can have crashed while the client was
     disconnected.
-    - `keep_replacement`: Always keep the allocation that was rescheduled
+    - `keep_replacement`: Always keep the allocation that was replaced
     to replace the disconnected one.
     - `best_score`: Keep the allocation running on the node with the best
     score.
@@ -102,17 +110,17 @@ The following examples only show the `disconnect` blocks. Remember that the
 This example shows how `stop_on_client_after` interacts with
 other blocks. For the `first` group, after the default 10 second
 [`heartbeat_grace`] window expires and 90 more seconds passes, the
-server will reschedule the allocation. The client will wait 90 seconds
+server will replace the allocation. The client will wait 90 seconds
 before sending a stop signal (`SIGTERM`) to the `first-task`
 task. After 15 more seconds because of the task's `kill_timeout`, the
 client will send `SIGKILL`. The `second` group does not have
-`stop_on_client_after`, so the server will reschedule the
+`stop_on_client_after`, so the server will replace the
 allocation after the 10 second [`heartbeat_grace`] expires. It will
 not be stopped on the client, regardless of how long the client is out
 of touch.
 
 Note that if the server's clocks are not closely synchronized with
-each other, the server may reschedule the group before the client has
+each other, the server may replace the group before the client has
 stopped the allocation. Operators should ensure that clock drift
 between servers is as small as possible.
 
@@ -217,3 +225,7 @@ group "second" {
 [stop-after]: /nomad/docs/job-specification/disconnect#stop-after
 [lost-after]: /nomad/docs/job-specification/disconnect#lost-after
 [`reconcile`]: /nomad/docs/job-specification/disconnect#reconcile
+[migrates]: /nomad/docs/job-specification/migrate
+[`restart`]: /nomad/docs/job-specification/restart
+[reschedules]: /nomad/docs/job-specification/reschedule
+[`reschedule`]: /nomad/docs/job-specification/reschedule

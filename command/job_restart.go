@@ -132,7 +132,7 @@ Usage: nomad job restart [options] <job>
   groups are restarted.
 
   When rescheduling, the current allocations are stopped triggering the Nomad
-  scheduler to create replacement allocations that may be placed in different
+  scheduler to create new allocations that may be placed in different
   clients. The command waits until the new allocations have client status
   'ready' before proceeding with the remaining batches. Services health checks
   are not taken into account.

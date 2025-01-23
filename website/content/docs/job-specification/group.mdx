@@ -48,9 +48,9 @@ job "docs" {
   ephemeral disk requirements of the group. Ephemeral disks can be marked as
   sticky and support live data migrations.
 
-- `disconnect` <code>([disconnect][]: nil)</code> - Specifies the disconnect 
-  strategy for the server and client for all tasks in this group in case of a 
-  network partition. The tasks can be left unconnected, stopped or replaced 
+- `disconnect` <code>([disconnect][]: nil)</code> - Specifies the disconnect
+  strategy for the server and client for all tasks in this group in case of a
+  network partition. The tasks can be left unconnected, stopped or replaced
   when the client disconnects. The policy for reconciliation in case the client
   regains connectivity is also specified here.
 
@@ -65,14 +65,14 @@ job "docs" {
   requirements and configuration, including static and dynamic port allocations,
   for the group.
 
-- `prevent_reschedule_on_lost` `(bool: false)` - Defines the reschedule behaviour
-  of an allocation when the node it is running on misses heartbeats.
-  When enabled, if the node it is running on becomes disconnected
-  or goes down, this allocations wont be rescheduled and will show up as `unknown`
-  until the node comes back up or it is manually restarted.
+- `prevent_reschedule_on_lost` `(bool: false)` - Defines the replacement
+  behaviour of an allocation when the node it is running on misses heartbeats.
+  When enabled, if the node it is running on becomes disconnected or goes down,
+  this allocations wont be replaced and will show up as `unknown` until the node
+  comes back up or it is manually restarted.
 
-  This behaviour will only modify the reschedule process on the server.
-  To modify the allocation behaviour on the client, see
+  This behaviour will only modify the replacement process on the server.  To
+  modify the allocation behaviour on the client, see
   [`stop_after_client_disconnect`](#stop_after_client_disconnect).
 
   The `unknown` allocation has to be manually stopped to run it again.
@@ -84,7 +84,7 @@ job "docs" {
   Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the
   same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
 
-  This field was deprecated in favour of `replace` on the [`disconnect`] block, 
+  This field was deprecated in favour of `replace` on the [`disconnect`] block,
   see [example below][disconect_migration] for more details about migrating.
 
 - `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
@@ -299,18 +299,18 @@ issues with stateful tasks or tasks with long restart times.
 
 Instead, an operator may desire that these allocations reconnect without a
 restart. When `max_client_disconnect` or `disconnect.lost_after` is specified,
-the Nomad server will mark clients that fail to heartbeat as "disconnected" 
+the Nomad server will mark clients that fail to heartbeat as "disconnected"
 rather than "down", and will mark allocations on a disconnected client as
 "unknown" rather than "lost". These allocations may continue to run on the
 disconnected client. Replacement allocations will be scheduled according to the
-allocations' `disconnect.replace` settings. until the disconnected client 
-reconnects. Once a disconnected client reconnects, Nomad will compare the "unknown" 
-allocations with their replacements and will decide which ones to keep according 
-to the `disconnect.replace` setting. If the `max_client_disconnect` or 
-`disconnect.losta_after` duration expires before the client reconnects, 
+allocations' `disconnect.replace` settings. until the disconnected client
+reconnects. Once a disconnected client reconnects, Nomad will compare the "unknown"
+allocations with their replacements and will decide which ones to keep according
+to the `disconnect.replace` setting. If the `max_client_disconnect` or
+`disconnect.losta_after` duration expires before the client reconnects,
 the allocations will be marked "lost".
 Clients that contain "unknown" allocations will transition to "disconnected"
-rather than "down" until the last `max_client_disconnect` or `disconnect.lost_after` 
+rather than "down" until the last `max_client_disconnect` or `disconnect.lost_after`
 duration has expired.
 
 In the example code below, if both of these task groups were placed on the same
@@ -390,7 +390,7 @@ will remain as `unknown` and won't be rescheduled.
 #### Migration to `disconnect` block
 
 The new configuration fileds in the disconnect block work exactly the same as the
-ones they are replacing: 
+ones they are replacing:
   * `stop_after_client_disconnect` is replaced by `stop_after`
   * `max_client_disconnect` is replaced by `lost_after`
   * `prevent_reschedule_on_lost` is replaced by `replace`
