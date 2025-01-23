@@ -241,7 +241,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	if hint != "" {
 		c.Ui.Output(hint)
 		// Because this is before monitor, newline so we don't scrunch
-		c.Ui.Output("\n")
+		c.Ui.Output("")
 	}
 	return mon.monitor(resp.EvalID)
 }

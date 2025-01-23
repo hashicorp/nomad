@@ -20,8 +20,8 @@ const (
 	// EnvNomadCLIForceColor is an env var that forces colored UI output.
 	EnvNomadCLIForceColor = `NOMAD_CLI_FORCE_COLOR`
 
-	// EnvNomadShowCLIHints is an env var that toggles CLI hints.
-	EnvNomadShowCLIHints = `NOMAD_SHOW_CLI_HINTS`
+	// EnvNomadCLIShowHints is an env var that toggles CLI hints.
+	EnvNomadCLIShowHints = `NOMAD_CLI_SHOW_HINTS`
 )
 
 // DeprecatedCommand is a command that wraps an existing command and prints a

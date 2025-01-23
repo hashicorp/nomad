@@ -537,7 +537,7 @@ func TestMeta_ShowUIPath_EnvVarOverride(t *testing.T) {
 
 			// Set environment variable
 			if tc.envValue != "" {
-				t.Setenv("NOMAD_SHOW_CLI_HINTS", tc.envValue)
+				t.Setenv("NOMAD_CLI_SHOW_HINTS", tc.envValue)
 			}
 
 			// Create a test server with UI enabled and CLI hints as per test case
