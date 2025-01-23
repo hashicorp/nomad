@@ -556,6 +556,8 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
 
+	// TODO: what's in the stop group? is our prevAlloc there? or maybe in the args to the method?
+
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
@@ -672,6 +674,8 @@ func (a *allocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs
 // filterOldTerminalAllocs filters allocations that should be ignored since they
 // are allocations that are terminal from a previous job version.
 func (a *allocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignore allocSet) {
+
+	// TODO: are there prevAllocs here with potentially intersting info?
 	if !a.batch {
 		return all, nil
 	}
@@ -839,6 +843,9 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			lost:               true,
 		})
 	}
+
+	// TODO: is there something here we need to treat as a separate case for
+	// allocs that need to "migrate" the volume info into another "placement"?
 
 	// Add remaining placement results
 	if existing < group.Count {

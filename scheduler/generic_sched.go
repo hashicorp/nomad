@@ -751,7 +751,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
 					if len(prevAllocation.HostVolumeIDs) > 0 {
-						s.eval.Status = structs.EvalStatusBlocked
+						// FIXME: something akin to this has to happen
+						// elsewhere
+						// s.eval.Status = structs.EvalStatusBlocked
 					}
 					if missing.IsRescheduling() {
 						annotateRescheduleTracker(prevAllocation, structs.LastRescheduleFailedToPlace)
