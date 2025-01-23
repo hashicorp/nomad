@@ -21,31 +21,41 @@ import (
 	"github.com/docker/docker/registry"
 )
 
+var regexForDockerImages = `^(?:(?P<registry>[^/]+)/)?(?P<repository>[^:@]+)(?::(?P<tag>[^@]+))?(?:@(?P<digest>sha256:[a-fA-F0-9]{64}))?$`
+
 func parseDockerImage(image string) (repo, tag string) {
-	// decode the image tag
-	splitted := strings.SplitN(image, "@", 2)
-	repoTag := splitted[0]
-	idx := strings.LastIndex(repoTag, ":")
-	if idx < 0 {
-		repo = repoTag
-	} else if t := repoTag[idx+1:]; !strings.Contains(t, "/") {
-		repo = repoTag[:idx]
-		tag = t
-	} else if t := repoTag[idx+1:]; strings.Contains(t, "/") {
-		repo = image
-		tag = "latest"
+	re := regexp.MustCompile(regexForDockerImages)
+
+	matches := re.FindStringSubmatch(image)
+	if matches == nil {
+		return "", ""
 	}
 
-	if tag != "" {
-		return repo, tag
+	result := make(map[string]string)
+	for i, name := range re.SubexpNames() {
+		if i > 0 && name != "" {
+			result[name] = matches[i]
+		}
 	}
-	if i := strings.IndexRune(image, '@'); i > -1 { // Has digest (@sha256:...)
+
+	repo = result["repository"]
+	tag = result["tag"]
+
+	if result["registry"] != "" {
+		repo = fmt.Sprintf("%s/%s", result["registry"], repo)
+	}
+
+	if result["digest"] == "" {
+		if tag == "" {
+			tag = "latest"
+		}
+	} else {
+		repo = fmt.Sprintf("%s@%s", repo, result["digest"])
 		// when pulling images with a digest, the repository contains the sha hash, and the tag is empty
 		// see: https://github.com/fsouza/go-dockerclient/blob/master/image_test.go#L471
-		repo = image
-	} else {
-		tag = "latest"
+		tag = ""
 	}
+
 	return repo, tag
 }
 
