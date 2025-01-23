@@ -274,14 +274,14 @@ after an agent restart or host reboot.
 ```
 DHV_OPERATION=create
 DHV_VOLUMES_DIR={directory to put the volume in}
-DHV_NODE_ID={Nomad node ID}
-DHV_NODE_POOL={Nomad node pool}
-DHV_NAMESPACE={volume namespace}
-DHV_VOLUME_NAME={name from the volume specification}
 DHV_VOLUME_ID={volume ID assigned by Nomad}
+DHV_VOLUME_NAME={name from the volume specification}
+DHV_NAMESPACE={volume namespace}
 DHV_CAPACITY_MIN_BYTES={capacity_min from the volume spec, expressed in bytes}
 DHV_CAPACITY_MAX_BYTES={capacity_max from the volume spec, expressed in bytes}
 DHV_PARAMETERS={json of parameters from the volume spec, or: null}
+DHV_NODE_ID={Nomad node ID}
+DHV_NODE_POOL={Nomad node pool}
 DHV_PLUGIN_DIR={path to directory containing plugins}
 ```
 
@@ -320,12 +320,12 @@ fails, since it may have been only partially completed.
 ```
 DHV_OPERATION=delete
 DHV_VOLUMES_DIR={directory to put the volume in}
+DHV_VOLUME_ID={volume ID assigned by Nomad}
+DHV_VOLUME_NAME={name from the volume specification}
+DHV_NAMESPACE={volume namespace}
+DHV_PARAMETERS={json of parameters from the volume spec, or: null}
 DHV_NODE_ID={Nomad node ID}
 DHV_NODE_POOL={Nomad node pool}
-DHV_NAMESPACE={volume namespace}
-DHV_VOLUME_NAME={name from the volume specification}
-DHV_VOLUME_ID={volume ID assigned by Nomad}
-DHV_PARAMETERS={json of parameters from the volume spec, or: null}
 DHV_PLUGIN_DIR={path to directory containing plugins}
 ```
 
