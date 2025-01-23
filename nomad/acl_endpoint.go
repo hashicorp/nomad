@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -52,6 +53,10 @@ const (
 	// aclLoginRequestExpiryTime is the deadline used when performing HTTP
 	// requests to external APIs during the validation of bearer tokens.
 	aclLoginRequestExpiryTime = 60 * time.Second
+
+	// verboseLoggingMessage is the message displayed to a user when
+	// this auth config is enabled
+	verboseLoggingMessage = "attempting login with verbose logging enabled"
 )
 
 // ACL endpoint is used for manipulating ACL tokens and policies
@@ -2691,6 +2696,14 @@ func (a *ACL) OIDCCompleteAuth(
 		return structs.NewErrRPCCodedf(http.StatusBadRequest, "auth-method %q not found", args.AuthMethodName)
 	}
 
+	// vlog is a verbose logger used for debugging OIDC in test environments
+	vlog := hclog.NewNullLogger()
+	if authMethod.Config.VerboseLogging {
+		vlog = a.logger
+	}
+
+	vlog.Debug(verboseLoggingMessage)
+
 	// If the authentication method generates global ACL tokens, we need to
 	// forward the request onto the authoritative regional leader.
 	if authMethod.TokenLocalityIsGlobal() {
@@ -2761,6 +2774,29 @@ func (a *ACL) OIDCCompleteAuth(
 		return err
 	}
 
+	// No need to do all this marshaling if VerboseLogging is disabled
+	if authMethod.Config.VerboseLogging {
+		idTokenClaimBytes, err := json.MarshalIndent(idTokenClaims, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal ID token claims")
+		}
+
+		userClaimBytes, err := json.MarshalIndent(userClaims, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal user claims")
+		}
+		vlog.Debug("claims from jwt token and user info endpoint",
+			"token_claims", string(idTokenClaimBytes),
+			"user_claims", string(userClaimBytes),
+		)
+
+		internalClaimBytes, err := json.MarshalIndent(oidcInternalClaims.List, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal OIDC internal claims list")
+		}
+		vlog.Debug("claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
+	}
+
 	// Create a new binder object based on the current state snapshot to
 	// provide consistency within the RPC handler.
 	oidcBinder := auth.NewBinder(stateSnapshot)
@@ -2768,7 +2804,7 @@ func (a *ACL) OIDCCompleteAuth(
 	// Generate the role and policy bindings that will be assigned to the ACL
 	// token. Ensure we have at least 1 role or policy, otherwise the RPC will
 	// fail anyway.
-	tokenBindings, err := oidcBinder.Bind(authMethod, auth.NewIdentity(authMethod.Config, oidcInternalClaims))
+	tokenBindings, err := oidcBinder.Bind(vlog, authMethod, auth.NewIdentity(authMethod.Config, oidcInternalClaims))
 	if err != nil {
 		return err
 	}
@@ -2910,6 +2946,14 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 		)
 	}
 
+	// vlog is a verbose logger used for debugging in test environments
+	vlog := hclog.NewNullLogger()
+	if authMethod.Config.VerboseLogging {
+		vlog = a.logger
+	}
+
+	vlog.Debug(verboseLoggingMessage)
+
 	// Create a new binder object based on the current state snapshot to
 	// provide consistency within the RPC handler.
 	jwtBinder := auth.NewBinder(stateSnapshot)
@@ -2921,7 +2965,22 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 		return err
 	}
 
-	tokenBindings, err := jwtBinder.Bind(authMethod, auth.NewIdentity(authMethod.Config, jwtClaims))
+	// No need to do marshaling if VerboseLogging is not enabled
+	if authMethod.Config.VerboseLogging {
+		idTokenClaimBytes, err := json.MarshalIndent(claims, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal token claims")
+		}
+		vlog.Debug("jwt token claims", "token_claims", string(idTokenClaimBytes))
+
+		internalClaimBytes, err := json.MarshalIndent(jwtClaims.List, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal claims list")
+		}
+		vlog.Debug("claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
+	}
+
+	tokenBindings, err := jwtBinder.Bind(vlog, authMethod, auth.NewIdentity(authMethod.Config, jwtClaims))
 	if err != nil {
 		return err
 	}
