@@ -35,9 +35,9 @@ type Config struct {
 	// PluginDir is where external plugins may be found.
 	PluginDir string
 
-	// SharedMountDir is where plugins should place the directory
-	// that will later become a volume HostPath
-	SharedMountDir string
+	// VolumesDir is where plugins should place the directory
+	// that will later become a volume's HostPath
+	VolumesDir string
 
 	// StateMgr manages client state to restore on agent restarts.
 	StateMgr HostVolumeStateManager
@@ -51,7 +51,7 @@ type Config struct {
 // and registers volumes with the client node.
 type HostVolumeManager struct {
 	pluginDir      string
-	sharedMountDir string
+	volumesDir     string
 	stateMgr       HostVolumeStateManager
 	updateNodeVols HostVolumeNodeUpdater
 	builtIns       map[string]HostVolumePlugin
@@ -64,13 +64,13 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 	logger = logger.Named("host_volume_manager")
 	return &HostVolumeManager{
 		pluginDir:      config.PluginDir,
-		sharedMountDir: config.SharedMountDir,
+		volumesDir:     config.VolumesDir,
 		stateMgr:       config.StateMgr,
 		updateNodeVols: config.UpdateNodeVols,
 		builtIns: map[string]HostVolumePlugin{
 			HostVolumePluginMkdirID: &HostVolumePluginMkdir{
 				ID:         HostVolumePluginMkdirID,
-				TargetPath: config.SharedMountDir,
+				VolumesDir: config.VolumesDir,
 				log:        logger.With("plugin_id", HostVolumePluginMkdirID),
 			},
 		},
@@ -113,7 +113,7 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 			ID:         req.ID,
 			PluginID:   req.PluginID,
 			NodeID:     req.NodeID,
-			HostPath:   hvm.sharedMountDir,
+			HostPath:   hvm.volumesDir,
 			Parameters: req.Parameters,
 		})
 		if delErr != nil {
@@ -216,7 +216,7 @@ func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 		return plug, nil
 	}
 	log := hvm.log.With("plugin_id", id)
-	return NewHostVolumePluginExternal(log, hvm.pluginDir, id, hvm.sharedMountDir)
+	return NewHostVolumePluginExternal(log, hvm.pluginDir, id, hvm.volumesDir)
 }
 
 // restoreFromState loads all volumes from client state and runs Create for

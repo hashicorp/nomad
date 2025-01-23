@@ -29,17 +29,18 @@ func TestHostVolumeManager(t *testing.T) {
 	memDB := cstate.NewMemDB(log)
 	node := newFakeNode(t)
 
-	hostPathCreate := t.TempDir()
-	hostPathRegister := t.TempDir()
+	volumesDirCreate := t.TempDir()
+	volumesDirRegister := t.TempDir()
 
 	hvm := NewHostVolumeManager(log, Config{
-		PluginDir:      "./test_fixtures",
-		SharedMountDir: hostPathCreate,
+		PluginDir:  "./test_fixtures",
+		VolumesDir: volumesDirCreate,
+		//StateMgr:       memDB,
 		StateMgr:       errDB,
 		UpdateNodeVols: node.updateVol,
 	})
 
-	plug := &fakePlugin{mountDir: hostPathCreate}
+	plug := &fakePlugin{volsDir: volumesDirCreate}
 	hvm.builtIns["test-plugin"] = plug
 
 	ctx := timeout(t)
@@ -87,7 +88,7 @@ func TestHostVolumeManager(t *testing.T) {
 		expectResp := &cstructs.ClientHostVolumeCreateResponse{
 			VolumeName:    "created-volume",
 			VolumeID:      "vol-id-1",
-			HostPath:      hostPathCreate,
+			HostPath:      filepath.Join(volumesDirCreate, "vol-id-1"),
 			CapacityBytes: 5,
 		}
 		must.Eq(t, expectResp, resp)
@@ -122,7 +123,7 @@ func TestHostVolumeManager(t *testing.T) {
 		req := &cstructs.ClientHostVolumeRegisterRequest{
 			ID:            "vol-id-2",
 			Name:          name,
-			HostPath:      hostPathRegister,
+			HostPath:      volumesDirRegister,
 			CapacityBytes: 1000,
 		}
 		err := hvm.Register(ctx, req)
@@ -182,7 +183,7 @@ func TestHostVolumeManager(t *testing.T) {
 		must.Eq(t, VolumeMap{
 			"registered-volume": &structs.ClientHostVolumeConfig{
 				Name: "registered-volume",
-				Path: hostPathRegister,
+				Path: volumesDirRegister,
 				ID:   "vol-id-2",
 			},
 		}, node.vols, must.Sprint("created-volume should be deleted from node"))
@@ -208,7 +209,7 @@ func TestHostVolumeManager(t *testing.T) {
 }
 
 type fakePlugin struct {
-	mountDir       string
+	volsDir        string
 	created        string
 	deleted        string
 	fingerprintErr error
@@ -236,7 +237,7 @@ func (p *fakePlugin) Create(_ context.Context, req *cstructs.ClientHostVolumeCre
 	}
 	p.created = req.ID
 	return &HostVolumePluginCreateResponse{
-		Path:      p.mountDir,
+		Path:      filepath.Join(p.volsDir, req.ID),
 		SizeBytes: req.RequestedCapacityMinBytes,
 	}, nil
 }
@@ -302,14 +303,14 @@ func TestHostVolumeManager_restoreFromState(t *testing.T) {
 
 		// new volume manager should load it from state and run Create,
 		// resulting in a volume directory in this mountDir.
-		mountDir := t.TempDir()
-		volPath := filepath.Join(mountDir, vol1.ID)
+		volsDir := t.TempDir()
+		volPath := filepath.Join(volsDir, vol1.ID)
 
 		hvm := NewHostVolumeManager(log, Config{
 			StateMgr:       state,
 			UpdateNodeVols: node.updateVol,
 			PluginDir:      "/wherever",
-			SharedMountDir: mountDir,
+			VolumesDir:     volsDir,
 		})
 
 		vols, err := hvm.restoreFromState(timeout(t))

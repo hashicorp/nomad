@@ -62,10 +62,10 @@ const HostVolumePluginMkdirVersion = "0.0.1"
 var _ HostVolumePlugin = &HostVolumePluginMkdir{}
 
 // HostVolumePluginMkdir is a plugin that creates a directory within the
-// specified TargetPath. It is built-in to Nomad, so is always available.
+// specified VolumesDir. It is built-in to Nomad, so is always available.
 type HostVolumePluginMkdir struct {
 	ID         string
-	TargetPath string
+	VolumesDir string
 
 	log hclog.Logger
 }
@@ -80,7 +80,7 @@ func (p *HostVolumePluginMkdir) Fingerprint(_ context.Context) (*PluginFingerpri
 func (p *HostVolumePluginMkdir) Create(_ context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*HostVolumePluginCreateResponse, error) {
 
-	path := filepath.Join(p.TargetPath, req.ID)
+	path := filepath.Join(p.VolumesDir, req.ID)
 	log := p.log.With(
 		"operation", "create",
 		"volume_id", req.ID,
@@ -102,7 +102,7 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 		return nil, err
 	}
 
-	err := os.Mkdir(path, 0o700)
+	err := os.MkdirAll(path, 0o700)
 	if err != nil {
 		log.Debug("error with plugin", "error", err)
 		return nil, err
@@ -113,7 +113,7 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 }
 
 func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error {
-	path := filepath.Join(p.TargetPath, req.ID)
+	path := filepath.Join(p.VolumesDir, req.ID)
 	log := p.log.With(
 		"operation", "delete",
 		"volume_id", req.ID,

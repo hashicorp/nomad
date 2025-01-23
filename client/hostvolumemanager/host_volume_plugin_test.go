@@ -21,7 +21,7 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 
 	plug := &HostVolumePluginMkdir{
 		ID:         "test-mkdir-plugin",
-		TargetPath: tmp,
+		VolumesDir: tmp,
 		log:        testlog.HCLogger(t),
 	}
 
@@ -58,7 +58,7 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 
 	t.Run("sad", func(t *testing.T) {
 		// can't mkdir inside a file
-		plug.TargetPath = "host_volume_plugin_test.go"
+		plug.VolumesDir = "host_volume_plugin_test.go"
 
 		resp, err := plug.Create(timeout(t),
 			&cstructs.ClientHostVolumeCreateRequest{

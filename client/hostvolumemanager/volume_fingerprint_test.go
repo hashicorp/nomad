@@ -106,11 +106,11 @@ func TestWaitForFirstFingerprint(t *testing.T) {
 	node := newFakeNode(t)
 	hvm := NewHostVolumeManager(log, Config{
 		PluginDir:      "",
-		SharedMountDir: tmp,
+		VolumesDir:     tmp,
 		StateMgr:       memDB,
 		UpdateNodeVols: node.updateVol,
 	})
-	plug := &fakePlugin{mountDir: tmp}
+	plug := &fakePlugin{volsDir: tmp}
 	hvm.builtIns = map[string]HostVolumePlugin{
 		"test-plugin": plug,
 	}

@@ -108,6 +108,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocMountsDir, "alloc-mounts-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.HostVolumesDir, "host-volumes-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.HostVolumePluginDir, "host-volume-plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
@@ -386,6 +387,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		"plugin-dir":             config.PluginDir,
 		"alloc-dir":              config.Client.AllocDir,
 		"alloc-mounts-dir":       config.Client.AllocMountsDir,
+		"host-volumes-dir":       config.Client.HostVolumesDir,
 		"host-volume-plugin-dir": config.Client.HostVolumePluginDir,
 		"state-dir":              config.Client.StateDir,
 	}
@@ -1562,6 +1564,10 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+  -host-volumes-dir
+    Directory wherein host volume plugins should place volumes. The default is
+    <data-dir>/host_volumes.
 
   -host-volume-plugin-dir
     Directory containing dynamic host volume plugins. The default is

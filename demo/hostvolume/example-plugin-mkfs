@@ -96,6 +96,7 @@ create_volume() {
     # translate to mb for dd block size
     local megs=$((bytes / 1024 / 1024)) # lazy, approximate
 
+    mkdir -p "$(dirname "$path")"
     # the extra conditionals are for idempotency
     if [ ! -f "$path.$ext" ]; then
       mkfsExec "$path" $megs
