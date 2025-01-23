@@ -121,19 +121,11 @@ type CSIVolumeCapability struct {
 	AccessMode     VolumeAccessMode
 }
 
-// VolumeAttachmentMode chooses the type of storage api that will be used to
-// interact with the device.
-type VolumeAttachmentMode string
-
 const (
 	CSIVolumeAttachmentModeUnknown     VolumeAttachmentMode = ""
 	CSIVolumeAttachmentModeBlockDevice VolumeAttachmentMode = "block-device"
 	CSIVolumeAttachmentModeFilesystem  VolumeAttachmentMode = "file-system"
 )
-
-// VolumeAccessMode indicates how a volume should be used in a storage topology
-// e.g whether the provider should make the volume available concurrently.
-type VolumeAccessMode string
 
 const (
 	CSIVolumeAccessModeUnknown VolumeAccessMode = ""
