@@ -94,7 +94,7 @@ func TestNewHostVolumePluginExternal(t *testing.T) {
 		must.Eq(t, &HostVolumePluginExternal{
 			ID:         "test_plugin.sh",
 			Executable: "test_fixtures/test_plugin.sh",
-			TargetPath: "test-target",
+			VolumesDir: "test-target",
 			PluginDir:  "./test_fixtures",
 			log:        log,
 		}, p)

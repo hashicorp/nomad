@@ -45,10 +45,6 @@ for arg in "$@"; do
   esac
 done
 
-# path is required for everything else
-[ $# -lt 2 ] && { echo 'path required; seek --help' 1>&2; exit 1; }
-host_path="$2"
-
 # OS detect
 if [[ "$OSTYPE" == "linux-"* ]]; then
   ext=ext4
@@ -83,7 +79,7 @@ fi
 validate_path() {
   local path="$1"
   if [[ ! "$path" =~ [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} ]]; then
-    1>&2 echo "expected uuid-lookin ID in the HOST_PATH; got: '$path'"
+    1>&2 echo "expected uuid-lookin ID in target host path; got: '$path'"
     return 1
   fi
 }
@@ -118,6 +114,7 @@ delete_volume() {
   rm -f "$path"."$ext"
 }
 
+host_path="$DHV_VOLUMES_DIR/$DHV_VOLUME_ID"
 case "$1" in
   "create")
     create_volume "$host_path" "$DHV_CAPACITY_MIN_BYTES"

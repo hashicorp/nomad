@@ -40,7 +40,7 @@ fi
 
 plugin="$1"
 op="$2"
-alloc_mounts="${3:-/tmp}"
+volumes_dir="${3:-/tmp}"
 uuid="${4:-74564d17-ce50-0bc1-48e5-6feaa41ede48}"
 node_id='0b62d807-6101-a80f-374d-e1c430abbf47'
 plugin_dir="$(dirname "$plugin")" 
@@ -52,9 +52,9 @@ case $op in
     ;;
 
 	create)
-    args="create $alloc_mounts/$uuid"
+    args='create'
     export DHV_OPERATION='create'
-    export DHV_HOST_PATH="$alloc_mounts/$uuid"
+    export DHV_VOLUMES_DIR="$volumes_dir"
     export DHV_VOLUME_NAME=test
     export DHV_VOLUME_ID="$uuid"
     export DHV_NODE_ID="$node_id"
@@ -65,9 +65,9 @@ case $op in
     ;;
 
   delete)
-    args="delete $alloc_mounts/$uuid"
+    args='delete'
     export DHV_OPERATION='delete'
-    export DHV_HOST_PATH="$alloc_mounts/$uuid"
+    export DHV_VOLUMES_DIR="$volumes_dir"
     export DHV_NODE_ID="$node_id"
     export DHV_VOLUME_NAME=test
     export DHV_VOLUME_ID="$uuid"

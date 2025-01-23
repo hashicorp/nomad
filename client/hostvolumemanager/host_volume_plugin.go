@@ -24,7 +24,7 @@ import (
 const (
 	// environment variables for external plugins
 	EnvOperation   = "DHV_OPERATION"
-	EnvHostPath    = "DHV_HOST_PATH"
+	EnvVolumesDir  = "DHV_VOLUMES_DIR"
 	EnvNodeID      = "DHV_NODE_ID"
 	EnvVolumeName  = "DHV_VOLUME_NAME"
 	EnvVolumeID    = "DHV_VOLUME_ID"
@@ -135,7 +135,7 @@ var _ HostVolumePlugin = &HostVolumePluginExternal{}
 // NewHostVolumePluginExternal returns an external host volume plugin
 // if the specified executable exists on disk.
 func NewHostVolumePluginExternal(log hclog.Logger,
-	pluginDir, filename, targetPath string) (*HostVolumePluginExternal, error) {
+	pluginDir, filename, volumesDir string) (*HostVolumePluginExternal, error) {
 	// this should only be called with already-detected executables,
 	// but we'll double-check it anyway, so we can provide a tidy error message
 	// if it has changed between fingerprinting and execution.
@@ -153,7 +153,7 @@ func NewHostVolumePluginExternal(log hclog.Logger,
 	return &HostVolumePluginExternal{
 		ID:         filename,
 		Executable: executable,
-		TargetPath: targetPath,
+		VolumesDir: volumesDir,
 		PluginDir:  pluginDir,
 		log:        log,
 	}, nil
@@ -166,7 +166,7 @@ func NewHostVolumePluginExternal(log hclog.Logger,
 type HostVolumePluginExternal struct {
 	ID         string
 	Executable string
-	TargetPath string
+	VolumesDir string
 	PluginDir  string
 
 	log hclog.Logger
@@ -253,7 +253,6 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 		// an error here after the plugin has done who-knows-what.
 		return nil, err
 	}
-	// TODO: validate returned host path
 	return &pluginResp, nil
 }
 
@@ -294,25 +293,23 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 
 // runPlugin executes the... executable with these additional env vars:
 // DHV_OPERATION={op}
-// DHV_HOST_PATH={path to create}
+// DHV_VOLUMES_DIR={directory to put the volume in}
 // DHV_VOLUME_ID={Nomad volume ID}
 // DHV_PLUGIN_DIR={path to directory containing plugins}
 func (p *HostVolumePluginExternal) runPlugin(ctx context.Context,
 	op, volID string, env []string) (stdout, stderr []byte, err error) {
 
-	path := filepath.Join(p.TargetPath, volID)
 	log := p.log.With(
 		"operation", op,
-		"volume_id", volID,
-		"path", path)
+		"volume_id", volID)
 	log.Debug("running plugin")
 
 	// set up plugin execution
-	cmd := exec.CommandContext(ctx, p.Executable, op, path)
+	cmd := exec.CommandContext(ctx, p.Executable, op)
 
 	cmd.Env = append([]string{
 		fmt.Sprintf("%s=%s", EnvOperation, op),
-		fmt.Sprintf("%s=%s", EnvHostPath, path),
+		fmt.Sprintf("%s=%s", EnvVolumesDir, p.VolumesDir),
 		fmt.Sprintf("%s=%s", EnvVolumeID, volID),
 		fmt.Sprintf("%s=%s", EnvPluginDir, p.PluginDir),
 	}, env...)
