@@ -201,10 +201,11 @@ esac
 
 ## Specification
 
-A plugin is registered with Nomad if it:
+A host volume plugin is registered with Nomad if it:
 
 * Is an executable file (a script or binary)
 * Is located in the [`client.host_volume_plugin_dir`][plugin_dir] directory
+  on Nomad client nodes
 * Responds appropriately to a `fingerprint` call
 
 ### Operations
@@ -246,10 +247,10 @@ DHV_OPERATION=fingerprint
 
 **Requirements:**
 
-* Must complete within 5 seconds, or Nomad will kill it
-  * should be much faster, as no actual work should be done
+* Must complete within 5 seconds, or Nomad will kill it. It should be much
+  faster, as no actual work should be done.
 * "version" value must be valid per the [hashicorp/go-version][go-version]
-  golang package
+  golang package.
 
 </blockquote>
 
@@ -278,8 +279,8 @@ DHV_NODE_POOL={Nomad node pool}
 DHV_NAMESPACE={volume namespace}
 DHV_VOLUME_NAME={name from the volume specification}
 DHV_VOLUME_ID={volume ID assigned by Nomad}
-DHV_CAPACITY_MIN_BYTES={capacity_min from the volume spec}
-DHV_CAPACITY_MAX_BYTES={capacity_max from the volume spec}
+DHV_CAPACITY_MIN_BYTES={capacity_min from the volume spec, expressed in bytes}
+DHV_CAPACITY_MAX_BYTES={capacity_max from the volume spec, expressed in bytes}
 DHV_PARAMETERS={json of parameters from the volume spec, or: null}
 DHV_PLUGIN_DIR={path to directory containing plugins}
 ```
@@ -292,9 +293,10 @@ DHV_PLUGIN_DIR={path to directory containing plugins}
 
 **Requirements:**
 
-* Must complete within 60 seconds, or Nomad will kill it
-* Must be idempotent - repeat runs produce the same result
-* Must be safe to run concurrently, per volume name per node
+* Must complete within 60 seconds, or Nomad will kill it.
+* Must be idempotent - running create with the same inputs should produce the
+  same result.
+* Must be safe to run concurrently, per volume name per node.
 * Returned "path" must be the location of the created volume.
   Nomad will mount this path into workloads that request the volume.
 
@@ -329,10 +331,11 @@ DHV_PLUGIN_DIR={path to directory containing plugins}
 
 **Requirements:**
 
-* Must complete within 60 seconds, or Nomad will kill it
-* Must be idempotent - repeat runs produce the same result
-* Will be run after a partial (failed) create operation TODO TODO TODO !!! how about create=UPDATE ???
-* Must be safe to run concurrently, per volume name per node
+* Must complete within 60 seconds, or Nomad will kill it.
+* Must be idempotent - calling delete on an already deleted volume must not
+  return an error.
+* Will be run after a failed create operation during initial volume creation.
+* Must be safe to run concurrently, per volume name per node.
 
 </blockquote>
 
