@@ -101,4 +101,10 @@ module.exports = [
     destination: '/nomad/plugins/drivers/community/',
     permanent: true,
   },
+  // CSI plugins moved under new storage path alongside new host volume plugins
+  {
+    source: '/nomad/docs/concepts/plugins/csi',
+    destination: '/nomad/docs/concepts/plugins/storage/csi',
+    permanent: true,
+  },
 ]
