@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
+	"github.com/davecgh/go-spew/spew"
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/helper"
@@ -433,6 +434,10 @@ func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescr
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
 func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
+	fmt.Println("all allocations: ")
+	for _, a := range all {
+		fmt.Println(a.ID)
+	}
 
 	// Create the desired update object for the group
 	desiredChanges := new(structs.DesiredUpdates)
@@ -464,6 +469,20 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
+
+	fmt.Println("alloc sets after filterByRescheduleable")
+	fmt.Println("untainted alloc IDs:")
+	for _, a := range untainted {
+		fmt.Println(a.ID)
+	}
+	fmt.Println("rescheduleNow alloc IDs:")
+	for _, a := range rescheduleNow {
+		fmt.Println(a.ID)
+	}
+	fmt.Println("rescheduleLater alloc IDs:")
+	for _, a := range rescheduleLater {
+		spew.Dump(a)
+	}
 
 	// If there are allocations reconnecting we need to reconcile them and
 	// their replacements first because there is specific logic when deciding
@@ -555,8 +574,6 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 
 	stop := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
-
-	// TODO: what's in the stop group? is our prevAlloc there? or maybe in the args to the method?
 
 	desiredChanges.Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
@@ -674,8 +691,6 @@ func (a *allocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs
 // filterOldTerminalAllocs filters allocations that should be ignored since they
 // are allocations that are terminal from a previous job version.
 func (a *allocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignore allocSet) {
-
-	// TODO: are there prevAllocs here with potentially intersting info?
 	if !a.batch {
 		return all, nil
 	}
@@ -804,6 +819,24 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	nameIndex *allocNameIndex, untainted, migrate, reschedule, lost allocSet,
 	isCanarying bool) []allocPlaceResult {
 
+	fmt.Println("alloc sets on top of computePlacements")
+	fmt.Println("untainted alloc IDs:")
+	for _, a := range untainted {
+		fmt.Println(a.ID)
+	}
+	fmt.Println("migrate alloc IDs:")
+	for _, a := range migrate {
+		fmt.Println(a.ID)
+	}
+	fmt.Println("reschedule alloc IDs:")
+	for _, a := range reschedule {
+		fmt.Println(a.ID)
+	}
+	fmt.Println("lost alloc IDs:")
+	for _, a := range lost {
+		fmt.Println(a.ID)
+	}
+
 	// Add rescheduled placement results
 	var place []allocPlaceResult
 	for _, alloc := range reschedule {
@@ -818,6 +851,23 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			minJobVersion:      alloc.Job.Version,
 			lost:               false,
 		})
+	}
+
+	// If there are allocations in the untainted set that contain host volume
+	// IDs, it means they use stateful deployements and were migrated off a
+	// node. Store them in order to add them as previous allocations to any new
+	// placements.
+	allocsWithHostVolumeIDs := []*structs.Allocation{}
+	for _, alloc := range untainted {
+		spew.Dump(alloc)
+		if len(alloc.HostVolumeIDs) > 0 {
+			allocsWithHostVolumeIDs = append(allocsWithHostVolumeIDs, alloc)
+		}
+	}
+
+	fmt.Println("these are allocsWithHostVolumeIDs: ")
+	for _, a := range allocsWithHostVolumeIDs {
+		fmt.Println(a.ID)
 	}
 
 	// Add replacements for disconnected and lost allocs up to group.Count
@@ -844,15 +894,21 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 		})
 	}
 
-	// TODO: is there something here we need to treat as a separate case for
-	// allocs that need to "migrate" the volume info into another "placement"?
-
 	// Add remaining placement results
+	fmt.Printf("existing < group.Count: %v\n", existing < group.Count)
 	if existing < group.Count {
 		for _, name := range nameIndex.Next(uint(group.Count - existing)) {
+			fmt.Printf("processing allocation %v\n", name)
+			var a *structs.Allocation
+			if len(allocsWithHostVolumeIDs) > 0 {
+				a, allocsWithHostVolumeIDs = allocsWithHostVolumeIDs[len(allocsWithHostVolumeIDs)-1], allocsWithHostVolumeIDs[:len(allocsWithHostVolumeIDs)-1]
+				fmt.Printf("adding previous allocation %v volume ids %v to a placement\n", a.ID, a.HostVolumeIDs)
+			}
+
 			place = append(place, allocPlaceResult{
 				name:               name,
 				taskGroup:          group,
+				previousAlloc:      a,
 				downgradeNonCanary: isCanarying,
 			})
 		}
@@ -895,12 +951,12 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		return underProvisionedBy
 	}
 
-	// We do not want to place additional allocations but in the case we
-	// have lost allocations or allocations that require rescheduling now,
-	// we do so regardless to avoid odd user experiences.
+	// We do not want to place additional allocations but in the case we have
+	// lost allocations or allocations that require rescheduling now, we do so
+	// regardless to avoid odd user experiences.
 
-	// If allocs have been lost, determine the number of replacements that are needed
-	// and add placements to the result for the lost allocs.
+	// If allocs have been lost, determine the number of replacements that are
+	// needed and add placements to the result for the lost allocs.
 	if len(lost) != 0 {
 		allowed := min(len(lost), len(place))
 		desiredChanges.Place += uint64(allowed)
@@ -912,9 +968,10 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		return underProvisionedBy
 	}
 
-	// Handle rescheduling of failed allocations even if the deployment is failed.
-	// If the placement is rescheduling, and not part of a failed deployment, add
-	// to the place set. Add the previous alloc to the stop set unless it is disconnecting.
+	// Handle rescheduling of failed allocations even if the deployment is
+	// failed. If the placement is rescheduling, and not part of a failed
+	// deployment, add to the place set. Add the previous alloc to the stop set
+	// unless it is disconnecting.
 	for _, p := range place {
 		prev := p.PreviousAllocation()
 		partOfFailedDeployment := a.deploymentFailed && prev != nil && a.deployment.ID == prev.DeploymentID
