@@ -22,6 +22,14 @@ type ClientHostVolumeCreateRequest struct {
 	// built-in plugin.
 	PluginID string
 
+	// Namespace is the Nomad namespace for the volume.
+	// It's in the client RPC to be included in plugin execution environment.
+	Namespace string
+
+	// NodePool is the node pool of the node where the volume is placed.
+	// It's in the client RPC to be included in plugin execution environment.
+	NodePool string
+
 	// NodeID is the node where the volume is placed. It's included in the
 	// client RPC request so that the server can route the request to the
 	// correct node.
@@ -88,13 +96,21 @@ type ClientHostVolumeDeleteRequest struct {
 	// built-in plugin.
 	PluginID string
 
+	// Namespace is the Nomad namespace for the volume.
+	// It's in the client RPC to be included in plugin execution environment.
+	Namespace string
+
+	// NodePool is the node pool of the node where the volume is placed.
+	// It's in the client RPC to be included in plugin execution environment.
+	NodePool string
+
 	// NodeID is the node where the volume is placed. It's included in the
 	// client RPC request so that the server can route the request to the
 	// correct node.
 	NodeID string
 
-	// Path is the host path where the volume's mount point was created. We send
-	// this from the server to allow verification by plugins
+	// HostPath is the host path where the volume's mount point was created.
+	// We send this from the server to allow verification by plugins.
 	HostPath string
 
 	// Parameters are an opaque map of parameters for the host volume plugin.

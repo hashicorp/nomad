@@ -4,6 +4,7 @@
 package hostvolumemanager
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/state"
@@ -136,7 +137,7 @@ func TestWaitForFirstFingerprint(t *testing.T) {
 		"vol-name": &structs.ClientHostVolumeConfig{
 			Name:     "vol-name",
 			ID:       "vol-id",
-			Path:     tmp,
+			Path:     filepath.Join(tmp, "vol-id"),
 			ReadOnly: false,
 		},
 	}, node.vols)

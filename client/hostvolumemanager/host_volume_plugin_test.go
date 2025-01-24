@@ -130,6 +130,8 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			&cstructs.ClientHostVolumeCreateRequest{
 				Name:                      "test-vol-name",
 				ID:                        volID,
+				Namespace:                 "test-namespace",
+				NodePool:                  "test-node-pool",
 				NodeID:                    "test-node",
 				RequestedCapacityMinBytes: 5,
 				RequestedCapacityMaxBytes: 10,
@@ -151,6 +153,9 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			&cstructs.ClientHostVolumeDeleteRequest{
 				Name:       "test-vol-name",
 				ID:         volID,
+				HostPath:   resp.Path,
+				Namespace:  "test-namespace",
+				NodePool:   "test-node-pool",
 				NodeID:     "test-node",
 				Parameters: map[string]string{"key": "val"},
 			})
@@ -180,11 +185,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 
 		resp, err := plug.Create(timeout(t),
 			&cstructs.ClientHostVolumeCreateRequest{
-				ID:                        volID,
-				NodeID:                    "test-node",
-				RequestedCapacityMinBytes: 5,
-				RequestedCapacityMaxBytes: 10,
-				Parameters:                map[string]string{"key": "val"},
+				ID: volID,
 			})
 		must.EqError(t, err, `error creating volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1`)
 		must.Nil(t, resp)
@@ -197,9 +198,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 
 		err = plug.Delete(timeout(t),
 			&cstructs.ClientHostVolumeDeleteRequest{
-				ID:         volID,
-				NodeID:     "test-node",
-				Parameters: map[string]string{"key": "val"},
+				ID: volID,
 			})
 		must.EqError(t, err, `error deleting volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1`)
 		logged = getLogs()

@@ -33,9 +33,8 @@ func TestHostVolumeManager(t *testing.T) {
 	volumesDirRegister := t.TempDir()
 
 	hvm := NewHostVolumeManager(log, Config{
-		PluginDir:  "./test_fixtures",
-		VolumesDir: volumesDirCreate,
-		//StateMgr:       memDB,
+		PluginDir:      "./test_fixtures",
+		VolumesDir:     volumesDirCreate,
 		StateMgr:       errDB,
 		UpdateNodeVols: node.updateVol,
 	})
