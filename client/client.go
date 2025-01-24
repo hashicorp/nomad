@@ -541,6 +541,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 	c.hostVolumeManager = hvm.NewHostVolumeManager(logger, hvm.Config{
 		PluginDir:      c.GetConfig().HostVolumePluginDir,
 		VolumesDir:     c.GetConfig().HostVolumesDir,
+		NodePool:       c.Node().NodePool,
 		StateMgr:       c.stateDB,
 		UpdateNodeVols: c.batchNodeUpdates.updateNodeFromHostVolume,
 	})

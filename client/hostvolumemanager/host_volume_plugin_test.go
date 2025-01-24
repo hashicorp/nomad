@@ -79,23 +79,25 @@ func TestNewHostVolumePluginExternal(t *testing.T) {
 	log := testlog.HCLogger(t)
 	var err error
 
-	_, err = NewHostVolumePluginExternal(log, ".", "non-existent", "target")
+	_, err = NewHostVolumePluginExternal(log, ".", "non-existent", "target", "")
 	must.ErrorIs(t, err, ErrPluginNotExists)
 
-	_, err = NewHostVolumePluginExternal(log, ".", "host_volume_plugin_test.go", "target")
+	_, err = NewHostVolumePluginExternal(log, ".", "host_volume_plugin_test.go", "target", "")
 	must.ErrorIs(t, err, ErrPluginNotExecutable)
 
 	t.Run("unix", func(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			t.Skip("skipped because windows") // db TODO(1.10.0)
 		}
-		p, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin.sh", "test-target")
+		p, err := NewHostVolumePluginExternal(log,
+			"./test_fixtures", "test_plugin.sh", "test-target", "test-pool")
 		must.NoError(t, err)
 		must.Eq(t, &HostVolumePluginExternal{
 			ID:         "test_plugin.sh",
 			Executable: "test_fixtures/test_plugin.sh",
 			VolumesDir: "test-target",
 			PluginDir:  "./test_fixtures",
+			NodePool:   "test-pool",
 			log:        log,
 		}, p)
 	})
@@ -116,7 +118,8 @@ func TestHostVolumePluginExternal(t *testing.T) {
 	t.Run("happy", func(t *testing.T) {
 
 		log, getLogs := logRecorder(t)
-		plug, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin.sh", tmp)
+		plug, err := NewHostVolumePluginExternal(log,
+			"./test_fixtures", "test_plugin.sh", tmp, "test-node-pool")
 		must.NoError(t, err)
 
 		// fingerprint
@@ -131,7 +134,6 @@ func TestHostVolumePluginExternal(t *testing.T) {
 				Name:                      "test-vol-name",
 				ID:                        volID,
 				Namespace:                 "test-namespace",
-				NodePool:                  "test-node-pool",
 				NodeID:                    "test-node",
 				RequestedCapacityMinBytes: 5,
 				RequestedCapacityMaxBytes: 10,
@@ -155,7 +157,6 @@ func TestHostVolumePluginExternal(t *testing.T) {
 				ID:         volID,
 				HostPath:   resp.Path,
 				Namespace:  "test-namespace",
-				NodePool:   "test-node-pool",
 				NodeID:     "test-node",
 				Parameters: map[string]string{"key": "val"},
 			})
@@ -169,7 +170,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 	t.Run("sad", func(t *testing.T) {
 
 		log, getLogs := logRecorder(t)
-		plug, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin_sad.sh", tmp)
+		plug, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin_sad.sh", tmp, "")
 		must.NoError(t, err)
 
 		v, err := plug.Fingerprint(timeout(t))

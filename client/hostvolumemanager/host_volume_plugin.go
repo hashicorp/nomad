@@ -139,7 +139,7 @@ var _ HostVolumePlugin = &HostVolumePluginExternal{}
 // NewHostVolumePluginExternal returns an external host volume plugin
 // if the specified executable exists on disk.
 func NewHostVolumePluginExternal(log hclog.Logger,
-	pluginDir, filename, volumesDir string) (*HostVolumePluginExternal, error) {
+	pluginDir, filename, volumesDir, nodePool string) (*HostVolumePluginExternal, error) {
 	// this should only be called with already-detected executables,
 	// but we'll double-check it anyway, so we can provide a tidy error message
 	// if it has changed between fingerprinting and execution.
@@ -159,6 +159,7 @@ func NewHostVolumePluginExternal(log hclog.Logger,
 		Executable: executable,
 		VolumesDir: volumesDir,
 		PluginDir:  pluginDir,
+		NodePool:   nodePool,
 		log:        log,
 	}, nil
 }
@@ -172,6 +173,7 @@ type HostVolumePluginExternal struct {
 	Executable string
 	VolumesDir string
 	PluginDir  string
+	NodePool   string
 
 	log hclog.Logger
 }
@@ -242,6 +244,7 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 		fmt.Sprintf("%s=%s", EnvOperation, "create"),
 		fmt.Sprintf("%s=%s", EnvVolumesDir, p.VolumesDir),
 		fmt.Sprintf("%s=%s", EnvPluginDir, p.PluginDir),
+		fmt.Sprintf("%s=%s", EnvNodePool, p.NodePool),
 		// values from volume spec
 		fmt.Sprintf("%s=%s", EnvNamespace, req.Namespace),
 		fmt.Sprintf("%s=%s", EnvVolumeName, req.Name),
@@ -249,7 +252,6 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 		fmt.Sprintf("%s=%d", EnvCapacityMin, req.RequestedCapacityMinBytes),
 		fmt.Sprintf("%s=%d", EnvCapacityMax, req.RequestedCapacityMaxBytes),
 		fmt.Sprintf("%s=%s", EnvNodeID, req.NodeID),
-		fmt.Sprintf("%s=%s", EnvNodePool, req.NodePool),
 		fmt.Sprintf("%s=%s", EnvParameters, params),
 	}
 
@@ -299,6 +301,7 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 		fmt.Sprintf("%s=%s", EnvOperation, "delete"),
 		fmt.Sprintf("%s=%s", EnvVolumesDir, p.VolumesDir),
 		fmt.Sprintf("%s=%s", EnvPluginDir, p.PluginDir),
+		fmt.Sprintf("%s=%s", EnvNodePool, p.NodePool),
 		// from create response
 		fmt.Sprintf("%s=%s", EnvCreatedPath, req.HostPath),
 		// values from volume spec
@@ -306,7 +309,6 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 		fmt.Sprintf("%s=%s", EnvVolumeName, req.Name),
 		fmt.Sprintf("%s=%s", EnvVolumeID, req.ID),
 		fmt.Sprintf("%s=%s", EnvNodeID, req.NodeID),
-		fmt.Sprintf("%s=%s", EnvNodePool, req.NodePool),
 		fmt.Sprintf("%s=%s", EnvParameters, params),
 	}
 

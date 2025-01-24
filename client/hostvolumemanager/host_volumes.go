@@ -39,6 +39,9 @@ type Config struct {
 	// that will later become a volume's HostPath
 	VolumesDir string
 
+	// NodePool is passed into external plugin execution environment.
+	NodePool string
+
 	// StateMgr manages client state to restore on agent restarts.
 	StateMgr HostVolumeStateManager
 
@@ -52,6 +55,7 @@ type Config struct {
 type HostVolumeManager struct {
 	pluginDir      string
 	volumesDir     string
+	nodePool       string
 	stateMgr       HostVolumeStateManager
 	updateNodeVols HostVolumeNodeUpdater
 	builtIns       map[string]HostVolumePlugin
@@ -65,6 +69,7 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 	return &HostVolumeManager{
 		pluginDir:      config.PluginDir,
 		volumesDir:     config.VolumesDir,
+		nodePool:       config.NodePool,
 		stateMgr:       config.StateMgr,
 		updateNodeVols: config.UpdateNodeVols,
 		builtIns: map[string]HostVolumePlugin{
@@ -226,7 +231,7 @@ func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 		return plug, nil
 	}
 	log := hvm.log.With("plugin_id", id)
-	return NewHostVolumePluginExternal(log, hvm.pluginDir, id, hvm.volumesDir)
+	return NewHostVolumePluginExternal(log, hvm.pluginDir, id, hvm.volumesDir, hvm.nodePool)
 }
 
 // restoreFromState loads all volumes from client state and runs Create for
