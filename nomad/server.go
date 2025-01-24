@@ -36,7 +36,6 @@ import (
 	"github.com/hashicorp/nomad/helper/codec"
 	"github.com/hashicorp/nomad/helper/goruntime"
 	"github.com/hashicorp/nomad/helper/group"
-	"github.com/hashicorp/nomad/helper/iterator"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/tlsutil"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
@@ -2184,20 +2183,6 @@ func (s *Server) ClusterMetadata() (structs.ClusterMetadata, error) {
 
 func (s *Server) isSingleServerCluster() bool {
 	return s.config.BootstrapExpect == 1
-}
-
-func (s *Server) GetClientNodesCount() (int, error) {
-	stateSnapshot, err := s.State().Snapshot()
-	if err != nil {
-		return 0, err
-	}
-
-	iter, err := stateSnapshot.Nodes(nil)
-	if err != nil {
-		return 0, err
-	}
-
-	return iterator.Len(iter), nil
 }
 
 // peersInfoContent is used to help operators understand what happened to the

@@ -251,19 +251,26 @@ func (h *nodeHeartbeater) clearAllHeartbeatTimers() error {
 	return nil
 }
 
-// heartbeatStats is a long running routine used to capture
-// the number of active heartbeats being tracked
+// heartbeatStats is a long-running routine used to capture the number of
+// active heartbeats being tracked.
 func (h *nodeHeartbeater) heartbeatStats() {
 	for {
 		select {
 		case <-time.After(5 * time.Second):
-			h.heartbeatTimersLock.Lock()
-			num := len(h.heartbeatTimers)
-			h.heartbeatTimersLock.Unlock()
+			num := h.getHeartbeatTimerNum()
 			metrics.SetGauge([]string{"nomad", "heartbeat", "active"}, float32(num))
 
 		case <-h.srv.shutdownCh:
 			return
 		}
 	}
+}
+
+// getHeartbeatTimerNum is a helper function that returns the current number of
+// active heartbeat timers. The caller should not hold the lock; this function
+// handles that.
+func (h *nodeHeartbeater) getHeartbeatTimerNum() int {
+	h.heartbeatTimersLock.Lock()
+	defer h.heartbeatTimersLock.Unlock()
+	return len(h.heartbeatTimers)
 }
