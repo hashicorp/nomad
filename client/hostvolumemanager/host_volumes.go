@@ -96,12 +96,9 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		return nil, err
 	}
 
-	// check if the volume already exists, so we can auto-delete on initial create
-	// (not update or restore) if we fail to save client state.
-	isNewVolume := !hvm.locker.isLocked(req.Name)
-
 	// can't have two of the same volume name w/ different IDs per client node
-	if err := hvm.locker.lock(req.Name, req.ID); err != nil {
+	isNewVolume, err := hvm.locker.lock(req.Name, req.ID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -157,7 +154,7 @@ func (hvm *HostVolumeManager) Register(ctx context.Context,
 	req *cstructs.ClientHostVolumeRegisterRequest) error {
 
 	// can't have two of the same volume name w/ different IDs per client node
-	if err := hvm.locker.lock(req.Name, req.ID); err != nil {
+	if _, err := hvm.locker.lock(req.Name, req.ID); err != nil {
 		return err
 	}
 
@@ -285,7 +282,7 @@ func (hvm *HostVolumeManager) restoreForCreate(ctx context.Context, vol *cstruct
 	}
 
 	// lock the name so future creates can't produce duplicates.
-	err = hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
+	_, err = hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
 	// state should never have duplicate vol names, and restore happens
 	// prior to node registration, so new creates shouldn't come in
 	// concurrently, but check for error just in case.
@@ -314,7 +311,7 @@ func (hvm *HostVolumeManager) restoreForCreate(ctx context.Context, vol *cstruct
 // Register, by converting the stored struct. It otherwise behaves the same as
 // restoreForCreate.
 func (hvm *HostVolumeManager) restoreForRegister(vol *cstructs.HostVolumeState) (*structs.ClientHostVolumeConfig, error) {
-	err := hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
+	_, err := hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
 	if err != nil {
 		hvm.log.Error("error during restore",
 			"volume_name", vol.CreateReq.Name,
@@ -355,13 +352,14 @@ type volLocker struct {
 	locks sync.Map
 }
 
-// lock the provided name, error if it was already locked with a different ID
-func (l *volLocker) lock(name, id string) error {
+// lock the provided name, return true if it was not already locked,
+// and error if it was already locked with a different ID.
+func (l *volLocker) lock(name, id string) (bool, error) {
 	current, exists := l.locks.LoadOrStore(name, id)
 	if exists && id != current.(string) {
-		return ErrVolumeNameExists
+		return false, ErrVolumeNameExists
 	}
-	return nil
+	return !exists, nil
 }
 
 func (l *volLocker) release(name string) {
