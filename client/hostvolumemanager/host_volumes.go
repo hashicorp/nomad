@@ -84,10 +84,16 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 func (hvm *HostVolumeManager) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
 
+	log := hvm.log.With("volume_name", req.Name, "volume_id", req.ID)
+
 	plug, err := hvm.getPlugin(req.PluginID)
 	if err != nil {
 		return nil, err
 	}
+
+	// check if the volume already exists, so we can auto-delete on initial create
+	// (not update or restore) if we fail to save client state.
+	isNewVolume := !hvm.locker.isLocked(req.Name)
 
 	// can't have two of the same volume name w/ different IDs per client node
 	if err := hvm.locker.lock(req.Name, req.ID); err != nil {
@@ -106,22 +112,26 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		CreateReq: req,
 	}
 	if err := hvm.stateMgr.PutDynamicHostVolume(volState); err != nil {
-		// if we fail to write to state, delete the volume so it isn't left
-		// lying around without Nomad knowing about it.
-		hvm.log.Error("failed to save volume in state, so deleting", "volume_id", req.ID, "error", err)
-		delErr := plug.Delete(ctx, &cstructs.ClientHostVolumeDeleteRequest{
-			ID:         req.ID,
-			PluginID:   req.PluginID,
-			NodeID:     req.NodeID,
-			HostPath:   hvm.volumesDir,
-			Parameters: req.Parameters,
-		})
-		if delErr != nil {
-			hvm.log.Warn("error deleting volume after state store failure", "volume_id", req.ID, "error", delErr)
-			err = multierror.Append(err, delErr)
+		// if we fail to write to state on initial create,
+		// delete the volume so it isn't left lying around
+		// without Nomad knowing about it.
+		log.Error("failed to save volume in client state", "error", err)
+		if isNewVolume {
+			log.Error("initial create detected, running delete")
+			delErr := plug.Delete(ctx, &cstructs.ClientHostVolumeDeleteRequest{
+				ID:         req.ID,
+				PluginID:   req.PluginID,
+				NodeID:     req.NodeID,
+				HostPath:   hvm.volumesDir,
+				Parameters: req.Parameters,
+			})
+			if delErr != nil {
+				log.Warn("error deleting volume after state store failure", "error", delErr)
+				err = multierror.Append(err, delErr)
+			}
+			// free up the volume name whether delete succeeded or not.
+			hvm.locker.release(req.Name)
 		}
-		// free up the volume name whether delete succeeded or not.
-		hvm.locker.release(req.Name)
 		return nil, err
 	}
 
@@ -353,7 +363,6 @@ func (l *volLocker) release(name string) {
 	l.locks.Delete(name)
 }
 
-// only used in tests to assert lock state
 func (l *volLocker) isLocked(name string) bool {
 	_, locked := l.locks.Load(name)
 	return locked

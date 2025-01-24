@@ -109,6 +109,15 @@ func TestHostVolumeManager(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, expectResp, resp)
 
+		// error saving state on restore/update should not run delete
+		hvm.stateMgr = errDB
+		resp, err = hvm.Create(ctx, req)
+		must.ErrorIs(t, err, cstate.ErrDBError)
+		must.Nil(t, resp)
+		must.Eq(t, "", plug.deleted)
+		plug.reset()
+		hvm.stateMgr = memDB
+
 		// duplicate create with the same vol name but different ID should fail
 		_, err = hvm.Create(ctx, &cstructs.ClientHostVolumeCreateRequest{
 			Name:     name,
