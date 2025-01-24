@@ -21,36 +21,22 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-var regexForDockerImages = `^(?:(?P<registry>[^/]+)/)?(?P<repository>[^:@]+)(?::(?P<tag>[^@]+))?(?:@(?P<digest>sha256:[a-fA-F0-9]{64}))?$`
-
 func parseDockerImage(image string) (repo, tag string) {
-	re := regexp.MustCompile(regexForDockerImages)
-
-	matches := re.FindStringSubmatch(image)
+	matches := reference.ReferenceRegexp.FindStringSubmatch(image)
 	if matches == nil {
 		return "", ""
 	}
 
-	result := make(map[string]string)
-	for i, name := range re.SubexpNames() {
-		if i > 0 && name != "" {
-			result[name] = matches[i]
-		}
-	}
+	repo = matches[1]
+	tag = matches[2]
+	digest := matches[3]
 
-	repo = result["repository"]
-	tag = result["tag"]
-
-	if result["registry"] != "" {
-		repo = fmt.Sprintf("%s/%s", result["registry"], repo)
-	}
-
-	if result["digest"] == "" {
+	if digest == "" {
 		if tag == "" {
 			tag = "latest"
 		}
 	} else {
-		repo = fmt.Sprintf("%s@%s", repo, result["digest"])
+		repo = fmt.Sprintf("%s@%s", repo, digest)
 		// when pulling images with a digest, the repository contains the sha hash, and the tag is empty
 		// see: https://github.com/fsouza/go-dockerclient/blob/master/image_test.go#L471
 		tag = ""
