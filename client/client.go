@@ -1487,7 +1487,7 @@ func ensureNodeID(conf *config.Config) (id, secret string, err error) {
 		id = hostID
 
 		// Persist the ID
-		if err := os.WriteFile(idPath, []byte(id), 0700); err != nil {
+		if err := os.WriteFile(idPath, []byte(id), 0600); err != nil {
 			return "", "", err
 		}
 	}
@@ -1499,7 +1499,7 @@ func ensureNodeID(conf *config.Config) (id, secret string, err error) {
 		secret = uuid.Generate()
 
 		// Persist the ID
-		if err := os.WriteFile(secretPath, []byte(secret), 0700); err != nil {
+		if err := os.WriteFile(secretPath, []byte(secret), 0600); err != nil {
 			return "", "", err
 		}
 	}
