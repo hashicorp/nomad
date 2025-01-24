@@ -167,7 +167,20 @@
           },
           {
             "title": "Storage",
-            "path": "concepts/plugins/csi"
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "concepts/plugins/storage"
+              },
+              {
+                "title": "CSI",
+                "path": "concepts/plugins/storage/csi"
+              },
+              {
+                "title": "Host Volumes",
+                "path": "concepts/plugins/storage/host-volumes"
+              }
+            ]
           },
           {
             "title": "Networking",
