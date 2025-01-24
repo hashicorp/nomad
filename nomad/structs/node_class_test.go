@@ -4,7 +4,6 @@
 package structs
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
@@ -276,8 +275,7 @@ func TestNode_EscapedConstraints(t *testing.T) {
 		Operand: "!=",
 	}
 	constraints := []*Constraint{ne1, ne2, ne3, e1, e2, e3}
-	expected := []*Constraint{ne1, ne2, ne3}
-	if act := EscapedConstraints(constraints); reflect.DeepEqual(act, expected) {
-		t.Fatalf("EscapedConstraints(%v) returned %v; want %v", constraints, act, expected)
-	}
+	expected := []*Constraint{e1, e2, e3}
+	must.Eq(t, expected, EscapedConstraints(constraints),
+		must.Sprintf("expected unique fields to escape constraints"))
 }
