@@ -5,5 +5,4 @@
 
 package reporting
 
-type Manager struct {
-}
+type Manager struct{}
