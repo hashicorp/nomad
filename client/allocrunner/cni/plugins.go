@@ -20,9 +20,10 @@ type Bridge struct {
 	Ipam         IPAM   `json:"ipam"`
 }
 type IPAM struct {
-	Type   string    `json:"type"`
-	Ranges [][]Range `json:"ranges"`
-	Routes []Route   `json:"routes"`
+	Type    string    `json:"type"`
+	Ranges  [][]Range `json:"ranges"`
+	Routes  []Route   `json:"routes"`
+	DataDir string    `json:"dataDir"`
 }
 type Range struct {
 	Subnet string `json:"subnet"`

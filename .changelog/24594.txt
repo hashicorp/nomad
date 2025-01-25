@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Adds metadata tables to Task Group and Task pages
+```

@@ -251,7 +251,11 @@ export default class Job extends Model {
 
     // If the job is scaled down to 0 desired allocations, we shouldn't call it "failed";
     // we should indicate that it is deliberately set to not have any running parts.
-    if (totalAllocs === 0) {
+    // System/Sysbatch jobs (hasClientStatus) get their totalAllocs from expectedRunningAllocCount,
+    // which is a best-guess-based-on-whats-running number. This means that if there are no current allocs,
+    // because they've been GC'd, we don't know if they were deliberately scaled down or failed.
+    // Safer in this case to show as failed rather than imply a deliberate scale-down.
+    if (totalAllocs === 0 && !this.hasClientStatus) {
       return { label: 'Scaled Down', state: 'neutral' };
     }
 

@@ -6,6 +6,7 @@ package scheduler
 import (
 	"fmt"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"time"
 
@@ -657,6 +658,18 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						"old_alloc_name", oldAllocName, "new_alloc_name", newAllocName)
 				}
 
+				// Are there sticky volumes requested by the task group for the first time? If
+				// yes, make sure the allocation stores their IDs for future reschedules.
+				var newHostVolumeIDs []string
+				for _, v := range tg.Volumes {
+					if v.Sticky {
+						if missing.PreviousAllocation() != nil && len(missing.PreviousAllocation().HostVolumeIDs) > 0 {
+							continue
+						}
+						newHostVolumeIDs = append(newHostVolumeIDs, option.Node.HostVolumes[v.Source].ID)
+					}
+				}
+
 				// Create an allocation for this
 				alloc := &structs.Allocation{
 					ID:                 uuid.Generate(),
@@ -681,12 +694,20 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					},
 				}
 
+				if len(newHostVolumeIDs) > 0 {
+					alloc.HostVolumeIDs = newHostVolumeIDs
+				}
+
 				// If the new allocation is replacing an older allocation then we
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
 						updateRescheduleTracker(alloc, prevAllocation, now)
+					}
+
+					if len(prevAllocation.HostVolumeIDs) > 0 {
+						alloc.HostVolumeIDs = prevAllocation.HostVolumeIDs
 					}
 
 					// If the allocation has task handles,
@@ -838,6 +859,10 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 			}
 		}
 		selectOptions.PenaltyNodeIDs = penaltyNodes
+
+		if prevAllocation.HostVolumeIDs != nil {
+			selectOptions.AllocationHostVolumeIDs = prevAllocation.HostVolumeIDs
+		}
 	}
 	if preferredNode != nil {
 		selectOptions.PreferredNodes = []*structs.Node{preferredNode}
@@ -910,6 +935,29 @@ func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.No
 			return preferredNode, nil
 		}
 	}
+
+	for _, vol := range place.TaskGroup().Volumes {
+		if !vol.Sticky {
+			continue
+		}
+
+		var preferredNode *structs.Node
+		preferredNode, err := s.state.NodeByID(nil, prev.NodeID)
+		if err != nil {
+			return nil, err
+		}
+
+		if preferredNode != nil && preferredNode.Ready() {
+			// if this node has at least one of the allocation volumes, it's a
+			// preferred one
+			for _, vol := range preferredNode.HostVolumes {
+				if slices.Contains(prev.HostVolumeIDs, vol.ID) {
+					return preferredNode, nil
+				}
+			}
+		}
+	}
+
 	return nil, nil
 }
 

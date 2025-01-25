@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 )
 
 // WriterUI is an implementation of the cli.Ui interface which can be used for

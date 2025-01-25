@@ -172,8 +172,9 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			}
 
 			// Setup the output
-			reply.Alloc = out
 			if out != nil {
+				out = out.Sanitize()
+				reply.Alloc = out
 				// Re-check namespace in case it differs from request.
 				if !aclObj.AllowClientOp() && !allowNsOp(aclObj, out.Namespace) {
 					return structs.NewErrUnknownAllocation(args.AllocID)

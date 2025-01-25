@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/cap/util"
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"

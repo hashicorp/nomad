@@ -130,9 +130,15 @@ func Test_resolveServer(t *testing.T) {
 		expectErr string
 	}{
 		{
-			name:      "ipv6 no brackets",
-			addr:      "2001:db8::1",
-			expectErr: "address 2001:db8::1: too many colons in address",
+			name:   "ipv6 no brackets",
+			addr:   "2001:db8::1",
+			expect: "[2001:db8::1]:4647",
+		},
+		{
+			// expected bad result
+			name:   "ambiguous ipv6 no brackets with port",
+			addr:   "2001:db8::1:4647",
+			expect: "[2001:db8::1:4647]:4647",
 		},
 		{
 			name:   "ipv6 no port",

@@ -229,6 +229,9 @@ type ClientConfig struct {
 	// AllocMountsDir is the directory for storing mounts into allocation data
 	AllocMountsDir string `hcl:"alloc_mounts_dir"`
 
+	// HostVolumePluginDir directory contains dynamic host volume plugins
+	HostVolumePluginDir string `hcl:"host_volume_plugin_dir"`
+
 	// Servers is a list of known server addresses. These are as "host:port"
 	Servers []string `hcl:"servers"`
 
@@ -1006,6 +1009,10 @@ type Telemetry struct {
 	// rate is well-controlled but cardinality of requesters is high.
 	DisableRPCRateMetricsLabels bool `hcl:"disable_rpc_rate_metrics_labels"`
 
+	// DisableAllocationHookMetrics allows operators to disable emitting hook
+	// metrics.
+	DisableAllocationHookMetrics *bool `hcl:"disable_allocation_hook_metrics"`
+
 	// Circonus: see https://github.com/circonus-labs/circonus-gometrics
 	// for more details on the various configuration options.
 	// Valid configuration combinations:
@@ -1450,12 +1457,13 @@ func DefaultConfig() *Config {
 		},
 		SyslogFacility: "LOCAL0",
 		Telemetry: &Telemetry{
-			InMemoryCollectionInterval: "10s",
-			inMemoryCollectionInterval: 10 * time.Second,
-			InMemoryRetentionPeriod:    "1m",
-			inMemoryRetentionPeriod:    1 * time.Minute,
-			CollectionInterval:         "1s",
-			collectionInterval:         1 * time.Second,
+			InMemoryCollectionInterval:   "10s",
+			inMemoryCollectionInterval:   10 * time.Second,
+			InMemoryRetentionPeriod:      "1m",
+			inMemoryRetentionPeriod:      1 * time.Minute,
+			CollectionInterval:           "1s",
+			collectionInterval:           1 * time.Second,
+			DisableAllocationHookMetrics: pointer.Of(false),
 		},
 		TLSConfig:          &config.TLSConfig{},
 		Sentinel:           &config.SentinelConfig{},
@@ -2311,6 +2319,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	if b.AllocMountsDir != "" {
 		result.AllocMountsDir = b.AllocMountsDir
 	}
+	if b.HostVolumePluginDir != "" {
+		result.HostVolumePluginDir = b.HostVolumePluginDir
+	}
 	if b.NodeClass != "" {
 		result.NodeClass = b.NodeClass
 	}
@@ -2588,6 +2599,9 @@ func (t *Telemetry) Merge(b *Telemetry) *Telemetry {
 	}
 	if b.DisableRPCRateMetricsLabels {
 		result.DisableRPCRateMetricsLabels = b.DisableRPCRateMetricsLabels
+	}
+	if b.DisableAllocationHookMetrics != nil {
+		result.DisableAllocationHookMetrics = b.DisableAllocationHookMetrics
 	}
 
 	return &result

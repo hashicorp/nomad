@@ -7,8 +7,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 )
 
@@ -18,7 +18,6 @@ func TestQuotaInitCommand_Implements(t *testing.T) {
 }
 
 func TestQuotaInitCommand_Run_HCL(t *testing.T) {
-	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &QuotaInitCommand{Meta: Meta{Ui: ui}}
 
@@ -31,7 +30,7 @@ func TestQuotaInitCommand_Run_HCL(t *testing.T) {
 	// Ensure we change the cwd back
 	origDir, err := os.Getwd()
 	must.NoError(t, err)
-	defer os.Chdir(origDir)
+	t.Cleanup(func() { os.Chdir(origDir) })
 
 	// Create a temp dir and change into it
 	dir := t.TempDir()
@@ -65,7 +64,6 @@ func TestQuotaInitCommand_Run_HCL(t *testing.T) {
 }
 
 func TestQuotaInitCommand_Run_JSON(t *testing.T) {
-	ci.Parallel(t)
 	ui := cli.NewMockUi()
 	cmd := &QuotaInitCommand{Meta: Meta{Ui: ui}}
 
@@ -78,7 +76,7 @@ func TestQuotaInitCommand_Run_JSON(t *testing.T) {
 	// Ensure we change the cwd back
 	origDir, err := os.Getwd()
 	must.NoError(t, err)
-	defer os.Chdir(origDir)
+	t.Cleanup(func() { os.Chdir(origDir) })
 
 	// Create a temp dir and change into it
 	dir := t.TempDir()

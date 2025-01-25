@@ -4,6 +4,8 @@
 package interfaces
 
 import (
+	"time"
+
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
@@ -70,4 +72,26 @@ type AllocStatsReporter interface {
 type HookResourceSetter interface {
 	SetCSIMounts(map[string]*csimanager.MountInfo)
 	GetCSIMounts(map[string]*csimanager.MountInfo)
+}
+
+// HookStatsHandler defines the interface used to emit metrics for the alloc
+// and task runner hooks.
+type HookStatsHandler interface {
+
+	// Emit is called once the hook has run, indicating the desired metrics
+	// should be emitted, if configured.
+	//
+	// Args:
+	//  start: The time logged as the hook was triggered. This is used for the
+	//    elapsed time metric.
+	//
+	//  hookName: The name of the hook that was run, as returned typically by
+	//    the Name() hook function.
+	//
+	//  hookType: The type of hook such as "prerun" or "postrun".
+	//
+	//  err: The error returned from the hook execution. The caller should not
+	//    need to check whether this is nil or not before called this function.
+	//
+	Emit(start time.Time, hookName, hookType string, err error)
 }

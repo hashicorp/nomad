@@ -20,22 +20,22 @@ module('Unit | Model | task', function (hooks) {
         taskGroups: [
           {
             name: 'one',
-            meta: { a: 'b' },
+            meta: { raw: { a: 'b' } },
             tasks: [
               {
                 name: 'task-one',
-                meta: { c: 'd' },
+                meta: { raw: { c: 'd' } },
               },
               {
                 name: 'task-two',
               },
               {
                 name: 'task-three',
-                meta: null,
+                meta: { raw: null },
               },
               {
                 name: 'task-four',
-                meta: {},
+                meta: { raw: {} },
               },
             ],
           },
@@ -44,18 +44,18 @@ module('Unit | Model | task', function (hooks) {
             tasks: [
               {
                 name: 'task-one',
-                meta: { c: 'd' },
+                meta: { raw: { c: 'd' } },
               },
               {
                 name: 'task-two',
               },
               {
                 name: 'task-three',
-                meta: null,
+                meta: { raw: null },
               },
               {
                 name: 'task-four',
-                meta: {},
+                meta: { raw: {} },
               },
             ],
           },

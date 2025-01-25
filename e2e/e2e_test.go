@@ -46,7 +46,7 @@ import (
 	_ "github.com/hashicorp/nomad/e2e/rescheduling"
 	_ "github.com/hashicorp/nomad/e2e/spread"
 	_ "github.com/hashicorp/nomad/e2e/vaultsecrets"
-	_ "github.com/hashicorp/nomad/e2e/volumes"
+	_ "github.com/hashicorp/nomad/e2e/volume_mounts"
 )
 
 func TestE2E(t *testing.T) {

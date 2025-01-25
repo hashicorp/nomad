@@ -59,6 +59,11 @@ type SubscribeRequest struct {
 	// the closest index in the buffer will be returned if there is not
 	// an exact match
 	StartExactlyAtIndex bool
+
+	// Authenticate is a callback that authenticates the token
+	// associated with the SubscribeRequest has not expired and
+	// has the correct permissions
+	Authenticate func() error
 }
 
 func newSubscription(req *SubscribeRequest, item *bufferItem, unsub func()) *Subscription {

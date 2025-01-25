@@ -711,6 +711,13 @@ func TestCSIVolume_Merge(t *testing.T) {
 						{Segments: map[string]string{"rack": "R2"}},
 					},
 				},
+				Context: map[string]string{
+					// a typical context for democratic-csi
+					"provisioner_driver": "nfs-client",
+					"node_attach_driver": "nfs",
+					"server":             "192.168.1.170",
+					"share":              "/srv/nfs_data/v/csi-volume-nfs",
+				},
 			},
 			update: &CSIVolume{
 				Topologies: []*CSITopology{
@@ -745,6 +752,14 @@ func TestCSIVolume_Merge(t *testing.T) {
 					test.Sprint("should add 2 requested capabilities"))
 				test.Eq(t, []string{"noatime", "another"}, v.MountOptions.MountFlags,
 					test.Sprint("should add mount flag"))
+				test.Eq(t, map[string]string{
+					"provisioner_driver": "nfs-client",
+					"node_attach_driver": "nfs",
+					"server":             "192.168.1.170",
+					"share":              "/srv/nfs_data/v/csi-volume-nfs",
+				}, v.Context,
+					test.Sprint("context should not be overwritten with empty update"))
+
 			},
 		},
 	}

@@ -2,43 +2,44 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 output "servers" {
-  value = aws_instance.server.*.public_ip
+  value = module.provision-infra.servers
 }
 
 output "linux_clients" {
-  value = aws_instance.client_ubuntu_jammy_amd64.*.public_ip
+  value = module.provision-infra.linux_clients
 }
 
 output "windows_clients" {
-  value = aws_instance.client_windows_2016_amd64.*.public_ip
+  value = module.provision-infra.windows_clients
 }
 
 output "message" {
-  value = <<EOM
-Your cluster has been provisioned! To prepare your environment, run:
+  value = module.provision-infra.message
+}
 
-   $(terraform output --raw environment)
+output "nomad_addr" {
+  value = module.provision-infra.nomad_addr
+}
 
-Then you can run tests from the e2e directory with:
+output "ca_file" {
+  value = module.provision-infra.ca_file
+}
 
-   go test -v .
+output "cert_file" {
+  value = module.provision-infra.cert_file
+}
 
-ssh into servers with:
+output "key_file" {
+  value = module.provision-infra.key_file
+}
 
-%{for ip in aws_instance.server.*.public_ip~}
-   ssh -i keys/${local.random_name}.pem ubuntu@${ip}
-%{endfor~}
+output "nomad_token" {
+  value     = module.provision-infra.nomad_token
+  sensitive = true
+}
 
-ssh into clients with:
-
-%{for ip in aws_instance.client_ubuntu_jammy_amd64.*.public_ip~}
-    ssh -i keys/${local.random_name}.pem ubuntu@${ip}
-%{endfor~}
-%{for ip in aws_instance.client_windows_2016_amd64.*.public_ip~}
-    ssh -i keys/${local.random_name}.pem Administrator@${ip}
-%{endfor~}
-
-EOM
+output "cluster_unique_identifier" {
+  value = module.provision-infra.cluster_unique_identifier
 }
 
 # Note: Consul and Vault environment needs to be set in test
@@ -47,16 +48,5 @@ EOM
 output "environment" {
   description = "get connection config by running: $(terraform output environment)"
   sensitive   = true
-  value       = <<EOM
-export NOMAD_ADDR=https://${aws_instance.server[0].public_ip}:4646
-export NOMAD_CACERT=${abspath(path.root)}/keys/tls_ca.crt
-export NOMAD_CLIENT_CERT=${abspath(path.root)}/keys/tls_api_client.crt
-export NOMAD_CLIENT_KEY=${abspath(path.root)}/keys/tls_api_client.key
-export NOMAD_TOKEN=${data.local_sensitive_file.nomad_token.content}
-export NOMAD_E2E=1
-export CONSUL_HTTP_ADDR=https://${aws_instance.consul_server.public_ip}:8501
-export CONSUL_HTTP_TOKEN=${local_sensitive_file.consul_initial_management_token.content}
-export CONSUL_CACERT=${abspath(path.root)}/keys/tls_ca.crt
-
-EOM
+  value       = module.provision-infra.environment
 }

@@ -123,6 +123,21 @@ jobs:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: yarn percy build:finalize
+
+  handle-failure:
+    needs:
+      - pre-test
+      - tests
+      - finalize
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    uses: ./.github/workflows/test-failure-notification.yml
+    secrets: inherit
+    with:
+      actor: ${{ github.triggering_actor }}
+      git-branch: ${{ github.ref_name }}
+      workflow-run-id: ${{ github.run_id }}
+      workflow-name: ${{ github.workflow }}
+
 permissions:
   contents: read
   id-token: write

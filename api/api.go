@@ -234,7 +234,6 @@ func (c *Config) ClientConfig(region, address string, tlsEnabled bool) *Config {
 		HttpAuth:   c.HttpAuth,
 		WaitTime:   c.WaitTime,
 		TLSConfig:  c.TLSConfig.Copy(),
-		url:        copyURL(c.url),
 	}
 
 	// Update the tls server name for connecting to a client

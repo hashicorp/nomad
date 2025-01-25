@@ -3,7 +3,7 @@
 
 package command
 
-import "github.com/mitchellh/cli"
+import "github.com/hashicorp/cli"
 
 type PluginCommand struct {
 	Meta

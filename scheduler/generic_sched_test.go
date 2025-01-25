@@ -218,6 +218,121 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 	}
 }
 
+func TestServiceSched_JobRegister_StickyHostVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
+		},
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+		},
+	}
+
+	dhv := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[1].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {ID: dhv.ID}}
+
+	for _, node := range nodes {
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	}
+	must.NoError(t, h.State.UpsertHostVolume(1000, dhv))
+
+	stickyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:           "host",
+			Source:         "foo",
+			Sticky:         true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
+	}
+
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Volumes = stickyRequest
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// Ensure the plan allocated
+	plan := h.Plans[0]
+	planned := make(map[string]*structs.Allocation)
+	for _, allocList := range plan.NodeAllocation {
+		for _, alloc := range allocList {
+			planned[alloc.ID] = alloc
+		}
+	}
+	must.MapLen(t, 10, planned)
+
+	// Ensure that the allocations got the host volume ID added
+	for _, p := range planned {
+		must.Eq(t, p.PreviousAllocation, "")
+		must.Eq(t, p.HostVolumeIDs[0], dhv.ID)
+	}
+
+	// Update the job to force a rolling upgrade
+	updated := job.Copy()
+	updated.TaskGroups[0].Tasks[0].Resources.CPU += 10
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, updated))
+
+	// Create a mock evaluation to handle the update
+	eval = &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// Ensure we have created only one new allocation
+	must.SliceLen(t, 2, h.Plans)
+	plan = h.Plans[0]
+	var newPlanned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		newPlanned = append(newPlanned, allocList...)
+	}
+	must.SliceLen(t, 10, newPlanned)
+
+	// Ensure that the new allocations retain the host volume ID
+	for _, new := range newPlanned {
+		must.Eq(t, new.HostVolumeIDs[0], dhv.ID)
+	}
+}
+
 func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
 	ci.Parallel(t)
 

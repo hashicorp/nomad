@@ -126,8 +126,11 @@ limit {
     device "nvidia/gpu/1080ti" {
       count = 1
     }
+    storage {
+      variables    = 1000   # in MB
+      host_volumes = 100000 # in MB
+    }
   }
-  variables_limit = 1000
 }
 `)
 
@@ -148,9 +151,12 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
             "Name": "nvidia/gpu/1080ti",
             "Count": 1
           }
-        ]
-      },
-      "VariablesLimit": 1000
+        ],
+        "Storage": {
+          "Variables": 1000,
+          "HostVolumes": 100000
+        }
+      }
     }
   ]
 }

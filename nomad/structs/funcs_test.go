@@ -538,6 +538,54 @@ func TestAllocsFit_Devices(t *testing.T) {
 	require.True(fit)
 }
 
+// Tests that AllocsFit detects volume collisions for volumes that have
+// exclusive access
+func TestAllocsFit_ExclusiveVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	n := node2k()
+	a1 := &Allocation{
+		TaskGroup: "group",
+		Job: &Job{TaskGroups: []*TaskGroup{{Name: "group", Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Source:     "example",
+				AccessMode: HostVolumeAccessModeSingleNodeSingleWriter,
+			},
+		}}}},
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu:    AllocatedCpuResources{CpuShares: 500},
+					Memory: AllocatedMemoryResources{MemoryMB: 500},
+				},
+			},
+		},
+	}
+	a2 := a1.Copy()
+	a2.AllocatedResources.Tasks["web"] = &AllocatedTaskResources{
+		Cpu:    AllocatedCpuResources{CpuShares: 500},
+		Memory: AllocatedMemoryResources{MemoryMB: 500},
+	}
+	a2.Job.TaskGroups[0].Volumes["foo"].AccessMode = HostVolumeAccessModeSingleNodeMultiWriter
+
+	// Should fit one allocation
+	fit, _, _, err := AllocsFit(n, []*Allocation{a1}, nil, true)
+	must.NoError(t, err)
+	must.True(t, fit)
+
+	// Should not fit second allocation
+	fit, msg, _, err := AllocsFit(n, []*Allocation{a1, a2}, nil, true)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, "conflicting claims for host volume with single-writer", msg)
+
+	// Should not fit second allocation but won't detect since we disabled
+	// checking host volumes
+	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit)
+}
+
 // TestAllocsFit_MemoryOversubscription asserts that only reserved memory is
 // used for capacity
 func TestAllocsFit_MemoryOversubscription(t *testing.T) {

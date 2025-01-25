@@ -132,6 +132,10 @@ const (
 	NamespaceUpsertRequestType                   MessageType = 64
 	NamespaceDeleteRequestType                   MessageType = 65
 
+	// MessageTypes 66-74 are in Nomad Enterprise
+	HostVolumeRegisterRequestType MessageType = 75
+	HostVolumeDeleteRequestType   MessageType = 76
+
 	// NOTE: MessageTypes are shared between CE and ENT. If you need to add a
 	// new type, check that ENT is not already using that value.
 )
@@ -11110,6 +11114,10 @@ type Allocation struct {
 	// AllocatedResources is the total resources allocated for the task group.
 	AllocatedResources *AllocatedResources
 
+	// HostVolumeIDs is a list of host volume IDs that this allocation
+	// has claimed.
+	HostVolumeIDs []string
+
 	// Metrics associated with this allocation
 	Metrics *AllocMetric
 
@@ -11197,6 +11205,23 @@ func (a *Allocation) GetID() string {
 		return ""
 	}
 	return a.ID
+}
+
+// Sanitize returns a copy of the allocation with the SignedIdentities field
+// removed. This is useful for returning allocations to clients where the
+// SignedIdentities field is not needed.
+func (a *Allocation) Sanitize() *Allocation {
+	if a == nil {
+		return nil
+	}
+
+	if a.SignedIdentities == nil {
+		return a
+	}
+
+	clean := a.Copy()
+	clean.SignedIdentities = nil
+	return clean
 }
 
 // GetNamespace implements the NamespaceGetter interface, required for

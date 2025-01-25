@@ -178,12 +178,28 @@ func TestAction_Validate(t *testing.T) {
 			expectedError: errors.New(`invalid name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'`),
 		},
 		{
-			name: "invalid character name",
+			name: "invalid character name with spaces",
 			inputAction: &Action{
-				Name:    `\//?|?|?%&%@$&£@$)`,
+				Name:    "invalid name with spaces",
 				Command: "env",
 			},
-			expectedError: errors.New(`invalid name '\//?|?|?%&%@$&£@$)'`),
+			expectedError: errors.New(`invalid name 'invalid name with spaces'`),
+		},
+		{
+			name: "invalid character name with nulls",
+			inputAction: &Action{
+				Name:    "invalid\x00name",
+				Command: "env",
+			},
+			expectedError: fmt.Errorf("1 error occurred:\n\t* invalid name 'invalid\x00name'\n\n"), // had to use fmt.Errorf to show the null character
+		},
+		{
+			name: "Emoji characters are valid",
+			inputAction: &Action{
+				Name:    "🇳🇴🇲🇦🇩",
+				Command: "env",
+			},
+			expectedError: nil,
 		},
 		{
 			name: "valid",

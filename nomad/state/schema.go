@@ -26,6 +26,9 @@ const (
 	TableACLBindingRules      = "acl_binding_rules"
 	TableAllocs               = "allocs"
 	TableJobSubmission        = "job_submission"
+	TableHostVolumes          = "host_volumes"
+	TableCSIVolumes           = "csi_volumes"
+	TableCSIPlugins           = "csi_plugins"
 )
 
 const (
@@ -41,6 +44,7 @@ const (
 	indexName          = "name"
 	indexSigningKey    = "signing_key"
 	indexAuthMethod    = "auth_method"
+	indexNodePool      = "node_pool"
 )
 
 var (
@@ -97,6 +101,7 @@ func init() {
 		aclRolesTableSchema,
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
+		hostVolumeTableSchema,
 	}...)
 }
 
@@ -161,8 +166,8 @@ func nodeTableSchema() *memdb.TableSchema {
 					Field: "SecretID",
 				},
 			},
-			"node_pool": {
-				Name:         "node_pool",
+			indexNodePool: {
+				Name:         indexNodePool,
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
@@ -844,8 +849,8 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"node_id": {
-				Name:         "node_id",
+			indexNodeID: {
+				Name:         indexNodeID,
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
@@ -882,8 +887,8 @@ func siTokenAccessorTableSchema() *memdb.TableSchema {
 				},
 			},
 
-			"node_id": {
-				Name:         "node_id",
+			indexNodeID: {
+				Name:         indexNodeID,
 				AllowMissing: false,
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
@@ -1147,7 +1152,7 @@ func clusterMetaTableSchema() *memdb.TableSchema {
 // CSIVolumes are identified by id globally, and searchable by driver
 func csiVolumeTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "csi_volumes",
+		Name: TableCSIVolumes,
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": {
 				Name:         "id",
@@ -1179,7 +1184,7 @@ func csiVolumeTableSchema() *memdb.TableSchema {
 // CSIPlugins are identified by id globally, and searchable by driver
 func csiPluginTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: "csi_plugins",
+		Name: TableCSIPlugins,
 		Indexes: map[string]*memdb.IndexSchema{
 			"id": {
 				Name:         "id",
@@ -1638,6 +1643,64 @@ func bindingRulesTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "AuthMethod",
+				},
+			},
+		},
+	}
+}
+
+// HostVolumes are identified by id globally, and searchable by namespace+name,
+// node, or node_pool
+func hostVolumeTableSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableHostVolumes,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field:     "ID",
+							Lowercase: true,
+						},
+					},
+				},
+			},
+			indexName: {
+				Name:         indexName,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.CompoundIndex{
+					Indexes: []memdb.Indexer{
+						&memdb.StringFieldIndex{
+							Field: "Namespace",
+						},
+						&memdb.StringFieldIndex{
+							Field: "Name",
+						},
+					},
+				},
+			},
+			indexNodeID: {
+				Name:         indexNodeID,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field:     "NodeID",
+					Lowercase: true,
+				},
+			},
+			indexNodePool: {
+				Name:         indexNodePool,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "NodePool",
 				},
 			},
 		},

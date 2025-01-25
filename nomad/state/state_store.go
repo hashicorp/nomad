@@ -122,15 +122,6 @@ type StateStore struct {
 	stopEventBroker func()
 }
 
-type streamACLDelegate struct {
-	s *StateStore
-}
-
-func (a *streamACLDelegate) TokenProvider() stream.ACLTokenProvider {
-	resolver, _ := a.s.Snapshot()
-	return resolver
-}
-
 // NewStateStore is used to create a new state store
 func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	if err := config.Validate(); err != nil {
@@ -154,7 +145,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	if config.EnablePublisher {
 		// Create new event publisher using provided config
-		broker, err := stream.NewEventBroker(ctx, &streamACLDelegate{s}, stream.EventBrokerCfg{
+		broker, err := stream.NewEventBroker(ctx, stream.EventBrokerCfg{
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
 		})
@@ -1048,6 +1039,9 @@ func upsertNodeTxn(txn *txn, index uint64, node *structs.Node) error {
 	if err := upsertCSIPluginsForNode(txn, node, index); err != nil {
 		return fmt.Errorf("csi plugin update failed: %v", err)
 	}
+	if err := upsertHostVolumeForNode(txn, node, index); err != nil {
+		return fmt.Errorf("dynamic host volumes update failed: %v", err)
+	}
 
 	return nil
 }
@@ -1395,7 +1389,7 @@ func appendNodeEvents(index uint64, node *structs.Node, events []*structs.NodeEv
 func upsertCSIPluginsForNode(txn *txn, node *structs.Node, index uint64) error {
 
 	upsertFn := func(info *structs.CSIInfo) error {
-		raw, err := txn.First("csi_plugins", "id", info.PluginID)
+		raw, err := txn.First(TableCSIPlugins, "id", info.PluginID)
 		if err != nil {
 			return fmt.Errorf("csi_plugin lookup error: %s %v", info.PluginID, err)
 		}
@@ -1426,7 +1420,7 @@ func upsertCSIPluginsForNode(txn *txn, node *structs.Node, index uint64) error {
 
 		plug.ModifyIndex = index
 
-		err = txn.Insert("csi_plugins", plug)
+		err = txn.Insert(TableCSIPlugins, plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins insert error: %v", err)
 		}
@@ -1455,7 +1449,7 @@ func upsertCSIPluginsForNode(txn *txn, node *structs.Node, index uint64) error {
 
 	// remove the client node from any plugin that's not
 	// running on it.
-	iter, err := txn.Get("csi_plugins", "id")
+	iter, err := txn.Get(TableCSIPlugins, "id")
 	if err != nil {
 		return fmt.Errorf("csi_plugins lookup failed: %v", err)
 	}
@@ -1500,7 +1494,7 @@ func upsertCSIPluginsForNode(txn *txn, node *structs.Node, index uint64) error {
 		}
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableCSIPlugins, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -1522,7 +1516,7 @@ func deleteNodeCSIPlugins(txn *txn, node *structs.Node, index uint64) error {
 	}
 
 	for id := range names {
-		raw, err := txn.First("csi_plugins", "id", id)
+		raw, err := txn.First(TableCSIPlugins, "id", id)
 		if err != nil {
 			return fmt.Errorf("csi_plugins lookup error %s: %v", id, err)
 		}
@@ -1543,7 +1537,7 @@ func deleteNodeCSIPlugins(txn *txn, node *structs.Node, index uint64) error {
 		}
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableCSIPlugins, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -1553,13 +1547,13 @@ func deleteNodeCSIPlugins(txn *txn, node *structs.Node, index uint64) error {
 // updateOrGCPlugin updates a plugin but will delete it if the plugin is empty
 func updateOrGCPlugin(index uint64, txn Txn, plug *structs.CSIPlugin) error {
 	if plug.IsEmpty() {
-		err := txn.Delete("csi_plugins", plug)
+		err := txn.Delete(TableCSIPlugins, plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins delete error: %v", err)
 		}
 	} else {
 		plug.ModifyIndex = index
-		err := txn.Insert("csi_plugins", plug)
+		err := txn.Insert(TableCSIPlugins, plug)
 		if err != nil {
 			return fmt.Errorf("csi_plugins update error %s: %v", plug.ID, err)
 		}
@@ -1658,7 +1652,7 @@ func (s *StateStore) deleteJobFromPlugins(index uint64, txn Txn, job *structs.Jo
 	}
 
 	if len(plugins) > 0 {
-		if err = txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+		if err = txn.Insert("index", &IndexEntry{TableCSIPlugins, index}); err != nil {
 			return fmt.Errorf("index update failed: %v", err)
 		}
 	}
@@ -2558,7 +2552,7 @@ func (s *StateStore) JobSummaryByPrefix(ws memdb.WatchSet, namespace, id string)
 
 // UpsertCSIVolume inserts a volume in the state store.
 func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(structs.CSIVolumeRegisterRequestType, index)
 	defer txn.Abort()
 
 	for _, v := range volumes {
@@ -2568,7 +2562,7 @@ func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume)
 			return fmt.Errorf("volume %s is in nonexistent namespace %s", v.ID, v.Namespace)
 		}
 
-		obj, err := txn.First("csi_volumes", "id", v.Namespace, v.ID)
+		obj, err := txn.First(TableCSIVolumes, "id", v.Namespace, v.ID)
 		if err != nil {
 			return fmt.Errorf("volume existence check error: %v", err)
 		}
@@ -2597,13 +2591,13 @@ func (s *StateStore) UpsertCSIVolume(index uint64, volumes []*structs.CSIVolume)
 			v.WriteAllocs[allocID] = nil
 		}
 
-		err = txn.Insert("csi_volumes", v)
+		err = txn.Insert(TableCSIVolumes, v)
 		if err != nil {
 			return fmt.Errorf("volume insert: %v", err)
 		}
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableCSIVolumes, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -2616,7 +2610,7 @@ func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 	txn := s.db.ReadTxn()
 	defer txn.Abort()
 
-	iter, err := txn.Get("csi_volumes", "id")
+	iter, err := txn.Get(TableCSIVolumes, "id")
 	if err != nil {
 		return nil, fmt.Errorf("csi_volumes lookup failed: %v", err)
 	}
@@ -2632,7 +2626,7 @@ func (s *StateStore) CSIVolumes(ws memdb.WatchSet) (memdb.ResultIterator, error)
 func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*structs.CSIVolume, error) {
 	txn := s.db.ReadTxn()
 
-	watchCh, obj, err := txn.FirstWatch("csi_volumes", "id", namespace, id)
+	watchCh, obj, err := txn.FirstWatch(TableCSIVolumes, "id", namespace, id)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed for %s: %v", id, err)
 	}
@@ -2653,7 +2647,7 @@ func (s *StateStore) CSIVolumeByID(ws memdb.WatchSet, namespace, id string) (*st
 func (s *StateStore) CSIVolumesByPluginID(ws memdb.WatchSet, namespace, prefix, pluginID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("csi_volumes", "plugin_id", pluginID)
+	iter, err := txn.Get(TableCSIVolumes, "plugin_id", pluginID)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
@@ -2681,7 +2675,7 @@ func (s *StateStore) CSIVolumesByIDPrefix(ws memdb.WatchSet, namespace, volumeID
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, volumeID)
+	iter, err := txn.Get(TableCSIVolumes, "id_prefix", namespace, volumeID)
 	if err != nil {
 		return nil, err
 	}
@@ -2695,7 +2689,7 @@ func (s *StateStore) csiVolumeByIDPrefixAllNamespaces(ws memdb.WatchSet, prefix 
 	txn := s.db.ReadTxn()
 
 	// Walk the entire csi_volumes table
-	iter, err := txn.Get("csi_volumes", "id")
+	iter, err := txn.Get(TableCSIVolumes, "id")
 
 	if err != nil {
 		return nil, err
@@ -2747,7 +2741,7 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string
 	txn := s.db.ReadTxn()
 	for id, namespace := range ids {
 		if strings.HasPrefix(id, prefix) {
-			watchCh, raw, err := txn.FirstWatch("csi_volumes", "id", namespace, id)
+			watchCh, raw, err := txn.FirstWatch(TableCSIVolumes, "id", namespace, id)
 			if err != nil {
 				return nil, fmt.Errorf("volume lookup failed: %s %v", id, err)
 			}
@@ -2768,7 +2762,7 @@ func (s *StateStore) CSIVolumesByNamespace(ws memdb.WatchSet, namespace, prefix 
 
 func (s *StateStore) csiVolumesByNamespaceImpl(txn *txn, ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
 
-	iter, err := txn.Get("csi_volumes", "id_prefix", namespace, prefix)
+	iter, err := txn.Get(TableCSIVolumes, "id_prefix", namespace, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("volume lookup failed: %v", err)
 	}
@@ -2780,10 +2774,10 @@ func (s *StateStore) csiVolumesByNamespaceImpl(txn *txn, ws memdb.WatchSet, name
 
 // CSIVolumeClaim updates the volume's claim count and allocation list
 func (s *StateStore) CSIVolumeClaim(index uint64, now int64, namespace, id string, claim *structs.CSIVolumeClaim) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(structs.CSIVolumeClaimRequestType, index)
 	defer txn.Abort()
 
-	row, err := txn.First("csi_volumes", "id", namespace, id)
+	row, err := txn.First(TableCSIVolumes, "id", namespace, id)
 	if err != nil {
 		return fmt.Errorf("volume lookup failed: %s: %v", id, err)
 	}
@@ -2841,11 +2835,11 @@ func (s *StateStore) CSIVolumeClaim(index uint64, now int64, namespace, id strin
 		volume.WriteAllocs[allocID] = nil
 	}
 
-	if err = txn.Insert("csi_volumes", volume); err != nil {
+	if err = txn.Insert(TableCSIVolumes, volume); err != nil {
 		return fmt.Errorf("volume update failed: %s: %v", id, err)
 	}
 
-	if err = txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+	if err = txn.Insert("index", &IndexEntry{TableCSIVolumes, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -2854,11 +2848,11 @@ func (s *StateStore) CSIVolumeClaim(index uint64, now int64, namespace, id strin
 
 // CSIVolumeDeregister removes the volume from the server
 func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []string, force bool) error {
-	txn := s.db.WriteTxn(index)
+	txn := s.db.WriteTxnMsgT(structs.CSIVolumeDeregisterRequestType, index)
 	defer txn.Abort()
 
 	for _, id := range ids {
-		existing, err := txn.First("csi_volumes", "id", namespace, id)
+		existing, err := txn.First(TableCSIVolumes, "id", namespace, id)
 		if err != nil {
 			return fmt.Errorf("volume lookup failed: %s: %v", id, err)
 		}
@@ -2882,12 +2876,12 @@ func (s *StateStore) CSIVolumeDeregister(index uint64, namespace string, ids []s
 			}
 		}
 
-		if err = txn.Delete("csi_volumes", existing); err != nil {
+		if err = txn.Delete(TableCSIVolumes, existing); err != nil {
 			return fmt.Errorf("volume delete failed: %s: %v", id, err)
 		}
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"csi_volumes", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableCSIVolumes, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -3069,7 +3063,7 @@ func (s *StateStore) CSIPlugins(ws memdb.WatchSet) (memdb.ResultIterator, error)
 	txn := s.db.ReadTxn()
 	defer txn.Abort()
 
-	iter, err := txn.Get("csi_plugins", "id")
+	iter, err := txn.Get(TableCSIPlugins, "id")
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugins lookup failed: %v", err)
 	}
@@ -3083,7 +3077,7 @@ func (s *StateStore) CSIPlugins(ws memdb.WatchSet) (memdb.ResultIterator, error)
 func (s *StateStore) CSIPluginsByIDPrefix(ws memdb.WatchSet, pluginID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("csi_plugins", "id_prefix", pluginID)
+	iter, err := txn.Get(TableCSIPlugins, "id_prefix", pluginID)
 	if err != nil {
 		return nil, err
 	}
@@ -3107,7 +3101,7 @@ func (s *StateStore) CSIPluginByID(ws memdb.WatchSet, id string) (*structs.CSIPl
 // CSIPluginByIDTxn returns a named CSIPlugin
 func (s *StateStore) CSIPluginByIDTxn(txn Txn, ws memdb.WatchSet, id string) (*structs.CSIPlugin, error) {
 
-	watchCh, obj, err := txn.FirstWatch("csi_plugins", "id", id)
+	watchCh, obj, err := txn.FirstWatch(TableCSIPlugins, "id", id)
 	if err != nil {
 		return nil, fmt.Errorf("csi_plugin lookup failed: %s %v", id, err)
 	}
@@ -3164,7 +3158,7 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
-	existing, err := txn.First("csi_plugins", "id", plug.ID)
+	existing, err := txn.First(TableCSIPlugins, "id", plug.ID)
 	if err != nil {
 		return fmt.Errorf("csi_plugin lookup error: %s %v", plug.ID, err)
 	}
@@ -3175,11 +3169,11 @@ func (s *StateStore) UpsertCSIPlugin(index uint64, plug *structs.CSIPlugin) erro
 		plug.CreateTime = existing.(*structs.CSIPlugin).CreateTime
 	}
 
-	err = txn.Insert("csi_plugins", plug)
+	err = txn.Insert(TableCSIPlugins, plug)
 	if err != nil {
 		return fmt.Errorf("csi_plugins insert error: %v", err)
 	}
-	if err := txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableCSIPlugins, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 	return txn.Commit()
@@ -3239,7 +3233,7 @@ func (s *StateStore) DeleteCSIPlugin(index uint64, id string) error {
 		return structs.ErrCSIPluginInUse
 	}
 
-	err = txn.Delete("csi_plugins", plug)
+	err = txn.Delete(TableCSIPlugins, plug)
 	if err != nil {
 		return fmt.Errorf("csi_plugins delete error: %v", err)
 	}
@@ -5897,13 +5891,13 @@ func (s *StateStore) updateJobCSIPlugins(index uint64, job, prev *structs.Job, t
 	}
 
 	for _, plugIn := range plugIns {
-		err = txn.Insert("csi_plugins", plugIn)
+		err = txn.Insert(TableCSIPlugins, plugIn)
 		if err != nil {
 			return fmt.Errorf("csi_plugins insert error: %v", err)
 		}
 	}
 
-	if err := txn.Insert("index", &IndexEntry{"csi_plugins", index}); err != nil {
+	if err := txn.Insert("index", &IndexEntry{TableCSIPlugins, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 

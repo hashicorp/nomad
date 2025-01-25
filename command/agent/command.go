@@ -23,11 +23,11 @@ import (
 	"github.com/armon/go-metrics/circonus"
 	"github.com/armon/go-metrics/datadog"
 	"github.com/armon/go-metrics/prometheus"
+	"github.com/hashicorp/cli"
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
 	gsyslog "github.com/hashicorp/go-syslog"
-	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
@@ -36,7 +36,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -55,8 +54,6 @@ type Command struct {
 	args           []string
 	agent          *Agent
 	httpServers    []*HTTPServer
-	logFilter      *logutils.LevelFilter
-	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
 }
 
@@ -111,6 +108,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocMountsDir, "alloc-mounts-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.HostVolumePluginDir, "host-volume-plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
 	flags.StringVar(&servers, "servers", "", "")
@@ -384,11 +382,12 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 
 	// Verify the paths are absolute.
 	dirs := map[string]string{
-		"data-dir":         config.DataDir,
-		"plugin-dir":       config.PluginDir,
-		"alloc-dir":        config.Client.AllocDir,
-		"alloc-mounts-dir": config.Client.AllocMountsDir,
-		"state-dir":        config.Client.StateDir,
+		"data-dir":               config.DataDir,
+		"plugin-dir":             config.PluginDir,
+		"alloc-dir":              config.Client.AllocDir,
+		"alloc-mounts-dir":       config.Client.AllocMountsDir,
+		"host-volume-plugin-dir": config.Client.HostVolumePluginDir,
+		"state-dir":              config.Client.StateDir,
 	}
 	for k, dir := range dirs {
 		if dir == "" {
@@ -550,47 +549,46 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	return true
 }
 
-// SetupLoggers is used to set up the logGate, and our logOutput
-func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
-	// Setup logging. First create the gated log writer, which will
-	// store logs until we're ready to show them. Then create the level
-	// filter, filtering logs of the specified level.
+// SetupLoggers is used to set up the logGate and our logOutput.
+//
+// The function needs to be public due to the way it is used within the Nomad
+// Enterprise codebase.
+func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
+
+	// Pull the log level from the configuration, ensure it is titled and then
+	// perform validation. Do this before the gated writer, as this can
+	// generate an error, whereas the writer does not.
+	logLevel := strings.ToUpper(config.LogLevel)
+
+	if !isLogLevelValid(logLevel) {
+		ui.Error(fmt.Sprintf(
+			"Invalid log level: %s. Valid log levels are: %v",
+			logLevel, validLogLevels.Slice()))
+		return nil, nil
+	}
+
+	// Create a gated log writer, which will store logs until we're ready to
+	// output them.
 	logGate := &gatedwriter.Writer{
 		Writer: &cli.UiWriter{Ui: ui},
 	}
 
-	logFilter := LevelFilter()
-	logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
-	logFilter.Writer = logGate
-	if !ValidateLevelFilter(logFilter.MinLevel, logFilter) {
-		ui.Error(fmt.Sprintf(
-			"Invalid log level: %s. Valid log levels are: %v",
-			logFilter.MinLevel, logFilter.Levels))
-		return nil, nil, nil
-	}
+	// Initialize our array of log writers with the gated writer. Additional
+	// log writers will be appended if/when configured.
+	writers := []io.Writer{logGate}
 
-	// Create a log writer, and wrap a logOutput around it
-	writers := []io.Writer{logFilter}
-	logLevel := strings.ToUpper(config.LogLevel)
-	logLevelMap := map[string]gsyslog.Priority{
-		"ERROR": gsyslog.LOG_ERR,
-		"WARN":  gsyslog.LOG_WARNING,
-		"INFO":  gsyslog.LOG_INFO,
-		"DEBUG": gsyslog.LOG_DEBUG,
-		"TRACE": gsyslog.LOG_DEBUG,
-	}
 	if logLevel == "OFF" {
 		config.EnableSyslog = false
 	}
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		ui.Output(fmt.Sprintf("Config enable_syslog is `true` with log_level=%v", config.LogLevel))
-		l, err := gsyslog.NewLogger(logLevelMap[logLevel], config.SyslogFacility, "nomad")
+		l, err := gsyslog.NewLogger(getSysLogPriority(logLevel), config.SyslogFacility, "nomad")
 		if err != nil {
 			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil, nil
+			return nil, nil
 		}
-		writers = append(writers, &SyslogWrapper{l, logFilter})
+		writers = append(writers, newSyslogWriter(l, config.LogJson))
 	}
 
 	// Check if file logging is enabled
@@ -608,7 +606,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 			duration, err := time.ParseDuration(config.LogRotateDuration)
 			if err != nil {
 				ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
-				return nil, nil, nil
+				return nil, nil
 			}
 			logRotateDuration = duration
 		} else {
@@ -617,19 +615,18 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 		}
 
 		logFile := &logFile{
-			logFilter: logFilter,
-			fileName:  fileName,
-			logPath:   dir,
-			duration:  logRotateDuration,
-			MaxBytes:  config.LogRotateBytes,
-			MaxFiles:  config.LogRotateMaxFiles,
+			fileName: fileName,
+			logPath:  dir,
+			duration: logRotateDuration,
+			MaxBytes: config.LogRotateBytes,
+			MaxFiles: config.LogRotateMaxFiles,
 		}
 
 		writers = append(writers, logFile)
 	}
 
 	logOutput := io.MultiWriter(writers...)
-	return logFilter, logGate, logOutput
+	return logGate, logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
@@ -656,7 +653,7 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 
 	for _, vault := range config.Vaults {
 		if vault.Token != "" {
-			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.9. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
+			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.10. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
 		}
 	}
 
@@ -735,6 +732,7 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		"-region":                      complete.PredictAnything,
 		"-data-dir":                    complete.PredictDirs("*"),
 		"-plugin-dir":                  complete.PredictDirs("*"),
+		"-host-volume-plugin-dir":      complete.PredictDirs("*"),
 		"-dc":                          complete.PredictAnything,
 		"-log-level":                   complete.PredictAnything,
 		"-json-logs":                   complete.PredictNothing,
@@ -805,10 +803,8 @@ func (c *Command) Run(args []string) int {
 		}
 	}
 
-	// Setup the log outputs
-	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
-	c.logFilter = logFilter
-	c.logOutput = logOutput
+	// Set up the log outputs.
+	logGate, logOutput := SetupLoggers(c.Ui, config)
 	if logGate == nil {
 		return 1
 	}
@@ -1120,13 +1116,12 @@ func (c *Command) handleReload() {
 	}
 
 	// Change the log level
-	minLevel := logutils.LogLevel(strings.ToUpper(newConf.LogLevel))
-	if ValidateLevelFilter(minLevel, c.logFilter) {
-		c.logFilter.SetMinLevel(minLevel)
-	} else {
+	minLevel := strings.ToUpper(newConf.LogLevel)
+
+	if !isLogLevelValid(minLevel) {
 		c.Ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
-			minLevel, c.logFilter.Levels))
+			minLevel, validLogLevels.Slice()))
 
 		// Keep the current log level
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
@@ -1567,6 +1562,10 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+  -host-volume-plugin-dir
+    Directory containing dynamic host volume plugins. The default is
+    <data-dir>/host_volume_plugins.
 
 ACL Options:
 

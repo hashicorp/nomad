@@ -224,7 +224,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
       };
     }
 
-    if (this.totalAllocs === 0) {
+    if (this.totalAllocs === 0 && !this.job.hasClientStatus) {
       return {
         label: 'Scaled Down',
         state: 'neutral',
@@ -246,7 +246,7 @@ export default class JobStatusPanelSteadyComponent extends Component {
     }
 
     const healthyAllocs = this.allocBlocks.running?.healthy?.nonCanary;
-    if (healthyAllocs?.length === totalAllocs) {
+    if (healthyAllocs?.length && healthyAllocs?.length === totalAllocs) {
       return { label: 'Healthy', state: 'success' };
     }
 

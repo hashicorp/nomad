@@ -26,6 +26,8 @@ export default Factory.extend({
   // Set in the TaskGroup factory
   volumeMounts: [],
 
+  meta: null,
+
   JobID: '',
 
   name: (id) => `task-${dasherize(faker.hacker.noun())}-${id}`,
@@ -127,6 +129,10 @@ export default Factory.extend({
         },
       });
       task.update({ schedule: schedule });
+    }
+
+    if (task.withMeta) {
+      task.update({ meta: { raw: { foo: 'bar' } } });
     }
   },
 });

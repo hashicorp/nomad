@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: add leadership status for servers in other regions
+```

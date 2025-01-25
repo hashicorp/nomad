@@ -116,7 +116,7 @@ func testQuotaSpec() *QuotaSpec {
 		Limits: []*QuotaLimit{
 			{
 				Region: "global",
-				RegionLimit: &Resources{
+				RegionLimit: &QuotaResources{
 					CPU:      pointerOf(2000),
 					MemoryMB: pointerOf(2000),
 					Devices: []*RequestedDevice{{

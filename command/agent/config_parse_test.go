@@ -198,19 +198,20 @@ var basicConfig = &Config{
 		},
 	},
 	Telemetry: &Telemetry{
-		StatsiteAddr:               "127.0.0.1:1234",
-		StatsdAddr:                 "127.0.0.1:2345",
-		PrometheusMetrics:          true,
-		DisableHostname:            true,
-		UseNodeName:                false,
-		InMemoryCollectionInterval: "1m",
-		inMemoryCollectionInterval: 1 * time.Minute,
-		InMemoryRetentionPeriod:    "24h",
-		inMemoryRetentionPeriod:    24 * time.Hour,
-		CollectionInterval:         "3s",
-		collectionInterval:         3 * time.Second,
-		PublishAllocationMetrics:   true,
-		PublishNodeMetrics:         true,
+		DisableAllocationHookMetrics: pointer.Of(true),
+		StatsiteAddr:                 "127.0.0.1:1234",
+		StatsdAddr:                   "127.0.0.1:2345",
+		PrometheusMetrics:            true,
+		DisableHostname:              true,
+		UseNodeName:                  false,
+		InMemoryCollectionInterval:   "1m",
+		inMemoryCollectionInterval:   1 * time.Minute,
+		InMemoryRetentionPeriod:      "24h",
+		inMemoryRetentionPeriod:      24 * time.Hour,
+		CollectionInterval:           "3s",
+		collectionInterval:           3 * time.Second,
+		PublishAllocationMetrics:     true,
+		PublishNodeMetrics:           true,
 	},
 	LeaveOnInt:                true,
 	LeaveOnTerm:               true,
@@ -1139,12 +1140,14 @@ func TestConfig_Telemetry(t *testing.T) {
 
 	// Ensure we can then overlay user specified data.
 	inputTelemetry2 := &Telemetry{
-		inMemoryCollectionInterval: 1 * time.Second,
-		inMemoryRetentionPeriod:    10 * time.Second,
+		inMemoryCollectionInterval:   1 * time.Second,
+		inMemoryRetentionPeriod:      10 * time.Second,
+		DisableAllocationHookMetrics: pointer.Of(true),
 	}
 	mergedTelemetry2 := mergedTelemetry1.Merge(inputTelemetry2)
 	must.Eq(t, mergedTelemetry2.inMemoryCollectionInterval, 1*time.Second)
 	must.Eq(t, mergedTelemetry2.inMemoryRetentionPeriod, 10*time.Second)
+	must.True(t, *mergedTelemetry2.DisableAllocationHookMetrics)
 }
 
 func TestConfig_Template(t *testing.T) {

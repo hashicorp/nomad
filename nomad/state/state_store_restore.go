@@ -181,7 +181,7 @@ func (r *StateRestore) ScalingPolicyRestore(scalingPolicy *structs.ScalingPolicy
 
 // CSIPluginRestore is used to restore a CSI plugin
 func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
-	if err := r.txn.Insert("csi_plugins", plugin); err != nil {
+	if err := r.txn.Insert(TableCSIPlugins, plugin); err != nil {
 		return fmt.Errorf("csi plugin insert failed: %v", err)
 	}
 	return nil
@@ -189,7 +189,7 @@ func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
 
 // CSIVolumeRestore is used to restore a CSI volume
 func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
-	if err := r.txn.Insert("csi_volumes", volume); err != nil {
+	if err := r.txn.Insert(TableCSIVolumes, volume); err != nil {
 		return fmt.Errorf("csi volume insert failed: %v", err)
 	}
 	return nil
@@ -288,6 +288,14 @@ func (r *StateRestore) ACLBindingRuleRestore(aclBindingRule *structs.ACLBindingR
 func (r *StateRestore) JobSubmissionRestore(jobSubmission *structs.JobSubmission) error {
 	if err := r.txn.Insert(TableJobSubmission, jobSubmission); err != nil {
 		return fmt.Errorf("job submission insert failed: %v", err)
+	}
+	return nil
+}
+
+// HostVolumeRestore restores a single host volume into the host_volumes table
+func (r *StateRestore) HostVolumeRestore(vol *structs.HostVolume) error {
+	if err := r.txn.Insert(TableHostVolumes, vol); err != nil {
+		return fmt.Errorf("host volume insert failed: %w", err)
 	}
 	return nil
 }

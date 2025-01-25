@@ -5,30 +5,16 @@ provider "aws" {
   region = var.region
 }
 
-data "aws_caller_identity" "current" {
-}
+module "provision-infra" {
+  source = "./provision-infra"
 
-resource "random_pet" "e2e" {
-}
-
-resource "random_password" "windows_admin_password" {
-  length           = 20
-  special          = true
-  override_special = "_%@"
-}
-
-locals {
-  random_name = "${var.name}-${random_pet.e2e.id}"
-}
-
-# Generates keys to use for provisioning and access
-module "keys" {
-  name    = local.random_name
-  path    = "${path.root}/keys"
-  source  = "mitchellh/dynamic-keys/aws"
-  version = "v2.0.0"
-}
-
-data "aws_kms_alias" "e2e" {
-  name = "alias/${var.aws_kms_alias}"
+  server_count              = var.server_count
+  client_count_linux        = var.client_count_linux
+  client_count_windows_2016 = var.client_count_windows_2016
+  nomad_local_binary        = var.nomad_local_binary
+  nomad_license             = var.nomad_license
+  consul_license            = var.consul_license
+  nomad_region              = var.nomad_region
+  instance_arch             = var.instance_arch
+  name                      = var.name
 }

@@ -1,13 +1,17 @@
 ---
 layout: docs
-page_title: GCP Cloud KMS - Keyrings - Configuration
+page_title: Google Cloud Platform Key Management Service Keyring Configuration
 description: >-
-  The GCP Cloud KMS keyring configures Nomad to use GCP Cloud KMS as the keyring
-  wrapping mechanism.
+  Configure a Google Cloud Platform Key Management Service (GCP Cloud KMS) keyring in the `keyring "gcpckms"` block of a Nomad agent configuration. Configure GCP credentials, project, region, key ring, and crypto key. Learn how Nomad supports rotating keys defined in GCP Cloud KMS.
 ---
 
-# `gcpckms` keyring
+# Google Cloud Platform Key Management Service Keyring Configuration
 
+This page provides reference information for configuring a Google Cloud Platform
+Key Management Service (GCP Cloud KMS) keyring in the `keyring "gcpckms"` block
+of a Nomad agent configuration. Configure GCP credentials, project, region, key
+ring, and crypto key. Learn how Nomad supports rotating keys defined in GCP
+Cloud KMS.
 
 The GCP Cloud KMS keyring configures Nomad to use GCP Cloud KMS to wrap its
 keyring. This example shows configuring GCP Cloud KMS keyring through the Nomad
@@ -41,9 +45,9 @@ These parameters apply to the `keyring` stanza in the Nomad configuration file:
 - `region` `(string: <required>)`: The GCP region/location where the key ring
   lives. Alternately specify via the `GOOGLE_REGION` environment variable.
 
-- `key_ring` `(string: <required>)`: The GCP CKMS key ring to use.
+- `key_ring` `(string: <required>)`: The GCP KMS key ring to use.
 
-- `crypto_key` `(string: <required>)`: The GCP CKMS crypto key to use for
+- `crypto_key` `(string: <required>)`: The GCP KMS crypto key to use for
   encryption and decryption.
 
 ## Authentication &amp; permissions

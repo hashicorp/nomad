@@ -12,27 +12,23 @@ import { namespace } from '../adapters/application';
 import jsonWithDefault from '../utils/json-with-default';
 import classic from 'ember-classic-decorator';
 import { task } from 'ember-concurrency';
-
 @classic
 export default class SystemService extends Service {
   @service token;
   @service store;
 
-  @computed('activeRegion')
-  get leader() {
-    const token = this.token;
-
-    return PromiseObject.create({
-      promise: token
-        .authorizedRequest(`/${namespace}/status/leader`)
-        .then((res) => res.json())
-        .then((rpcAddr) => ({ rpcAddr }))
-        .then((leader) => {
-          // Dirty self so leader can be used as a dependent key
-          this.notifyPropertyChange('leader.rpcAddr');
-          return leader;
-        }),
-    });
+  /**
+   * Iterates over all regions and returns a list of leaders' rpcAddrs
+   */
+  @computed('regions.[]')
+  get leaders() {
+    return Promise.all(
+      this.regions.map((region) => {
+        return this.token
+          .authorizedRequest(`/${namespace}/status/leader?region=${region}`)
+          .then((res) => res.json());
+      })
+    );
   }
 
   @computed

@@ -403,11 +403,6 @@ func (sc *ServiceCheck) validateNomad() error {
 		return errors.New("tls_server_name may only be set for Consul service checks")
 	}
 
-	// tls_skip_verify is consul only
-	if sc.TLSSkipVerify {
-		return errors.New("tls_skip_verify may only be set for Consul service checks")
-	}
-
 	return nil
 }
 

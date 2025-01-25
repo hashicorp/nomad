@@ -8,10 +8,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -422,4 +424,40 @@ func TestHeartbeat_InvalidateHeartbeatDisconnectedClient(t *testing.T) {
 			must.Eq(t, tc.expectedNodeStatus, out.Status)
 		})
 	}
+}
+
+func Test_nodeHeartbeater_getHeartbeatTimerNum(t *testing.T) {
+	ci.Parallel(t)
+
+	nodeHeartbeat := &nodeHeartbeater{logger: hclog.NewNullLogger()}
+
+	// Generate 5 initial node IDs that will be added to the heartbeater as
+	// active.
+	nodeIDs := []string{
+		uuid.Generate(),
+		uuid.Generate(),
+		uuid.Generate(),
+		uuid.Generate(),
+		uuid.Generate(),
+	}
+
+	// Use the locked insert function, so we can avoid setting up an entire
+	// server for this small test. We don't need the lock as there is no
+	// concurrency.
+	for _, nodeID := range nodeIDs {
+		nodeHeartbeat.resetHeartbeatTimerLocked(nodeID, 10*time.Minute)
+	}
+
+	must.Eq(t, 5, nodeHeartbeat.getHeartbeatTimerNum())
+
+	// Remove a couple of nodes from the heartbeater and check that the number
+	// reports correctly.
+	must.NoError(t, nodeHeartbeat.clearHeartbeatTimer(nodeIDs[0]))
+	must.NoError(t, nodeHeartbeat.clearHeartbeatTimer(nodeIDs[2]))
+
+	must.Eq(t, 3, nodeHeartbeat.getHeartbeatTimerNum())
+
+	// Clear all the timers and test.
+	must.NoError(t, nodeHeartbeat.clearAllHeartbeatTimers())
+	must.Eq(t, 0, nodeHeartbeat.getHeartbeatTimerNum())
 }

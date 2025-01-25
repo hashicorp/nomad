@@ -35,6 +35,10 @@ module('Acceptance | servers list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
+  hooks.beforeEach(function () {
+    server.create('region', { id: 'global' });
+  });
+
   test('it passes an accessibility audit', async function (assert) {
     minimumSetup();
     await ServersList.visit();
@@ -51,7 +55,6 @@ module('Acceptance | servers list', function (hooks) {
     const sortedAgents = server.db.agents.sort(agentSort(leader)).reverse();
 
     await ServersList.visit();
-
     await percySnapshot(assert);
 
     assert.equal(
@@ -115,5 +118,32 @@ module('Acceptance | servers list', function (hooks) {
 
     await ServersList.error.seekHelp();
     assert.equal(currentURL(), '/settings/tokens');
+  });
+
+  test('multiple regions should each show leadership values', async function (assert) {
+    server.createList('node-pool', 1);
+    server.createList('node', 1);
+    server.create('region', { id: 'global' });
+    server.create('region', { id: 'galactic' });
+    server.createList('agent', 3);
+    server.db.agents[0].member.Tags.region = 'global';
+    server.db.agents[1].member.Tags.region = 'galactic';
+    server.db.agents[2].member.Tags.region = 'galactic';
+    await ServersList.visit();
+    assert.equal(
+      ServersList.servers.objectAt(0).leader,
+      'True (galactic)',
+      'Leadership is shown for the galactic region'
+    );
+    assert.equal(
+      ServersList.servers.objectAt(1).leader,
+      'True (global)',
+      'Leadership is shown for the global region'
+    );
+    assert.equal(
+      ServersList.servers.objectAt(2).leader,
+      'False',
+      'Non-leader servers are shown'
+    );
   });
 });

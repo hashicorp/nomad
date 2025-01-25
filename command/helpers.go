@@ -16,12 +16,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/cli"
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
-	"github.com/mitchellh/cli"
 	"github.com/moby/term"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"

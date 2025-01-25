@@ -17,6 +17,7 @@
     "client/dynamicplugins/...",
     "client/fingerprint/...",
     "client/hoststats/...",
+    "client/hostvolumemanager/...",
     "client/interfaces/...",
     "client/lib/...",
     "client/logmon/...",

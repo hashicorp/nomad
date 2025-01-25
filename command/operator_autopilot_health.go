@@ -59,9 +59,9 @@ func (c *OperatorAutopilotHealthCommand) Run(args []string) int {
 			return 1
 		}
 		c.Ui.Output(string(bytes))
+	} else {
+		c.Ui.Output(formatAutopilotState(state))
 	}
-
-	c.Ui.Output(formatAutopilotState(state))
 
 	return 0
 }

@@ -28,6 +28,7 @@ type rpcEndpoints struct {
 	Allocations *Allocations
 	Agent       *Agent
 	NodeMeta    *NodeMeta
+	HostVolume  *HostVolume
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -293,6 +294,7 @@ func (c *Client) setupClientRpc(rpcs map[string]interface{}) {
 		c.endpoints.Allocations = NewAllocationsEndpoint(c)
 		c.endpoints.Agent = NewAgentEndpoint(c)
 		c.endpoints.NodeMeta = newNodeMetaEndpoint(c)
+		c.endpoints.HostVolume = newHostVolumesEndpoint(c)
 		c.setupClientRpcServer(c.rpcServer)
 	}
 
@@ -308,6 +310,7 @@ func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	server.Register(c.endpoints.Allocations)
 	server.Register(c.endpoints.Agent)
 	server.Register(c.endpoints.NodeMeta)
+	server.Register(c.endpoints.HostVolume)
 }
 
 // rpcConnListener is a long lived function that listens for new connections
@@ -445,14 +448,30 @@ func (c *Client) handleStreamingConn(conn net.Conn) {
 // net.Addr or an error.
 func resolveServer(s string) (net.Addr, error) {
 	const defaultClientPort = "4647" // default client RPC port
+
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
-		if strings.Contains(err.Error(), "missing port") {
+		switch {
+		case strings.Contains(err.Error(), "missing port"):
 			// with IPv6 addresses the `host` variable will have brackets
 			// removed, so send the original value thru again with only the
 			// correct port suffix
 			return resolveServer(s + ":" + defaultClientPort)
-		} else {
+		case strings.Contains(err.Error(), "too many colons"):
+			// note: we expect IPv6 address strings to be RFC5952 compliant to
+			// disambiguate port numbers from the address. Because the port number
+			// is typically 4 decimal digits, the same size as an IPv6 address
+			// segment, there's no way to disambiguate this. See
+			// https://www.rfc-editor.org/rfc/rfc5952
+			ip := net.ParseIP(s)
+			if ip.To4() == nil && ip.To16() != nil {
+				if !strings.HasPrefix(s, "[") {
+					return resolveServer("[" + s + "]:" + defaultClientPort)
+				}
+			}
+			return nil, err
+
+		default:
 			return nil, err
 		}
 	} else if port == "" {

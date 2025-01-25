@@ -1,17 +1,18 @@
 ---
 layout: docs
-page_title: telemetry Block - Agent Configuration
+page_title: telemetry Block in Agent Configuration
 description: |-
-  The "telemetry" block configures Nomad's publication of metrics and telemetry
-  to third-party systems.
+  Configure Nomad telemetry behavior in the `telemetry` block of a Nomad agent configuration. Configure Nomad's publication of metrics and telemetry to Statsite, StatsD, DataDog, Prometheus, and Apica (Circonus).
 ---
 
-# `telemetry` Block
+# `telemetry` Block in Agent Configuration
 
 <Placement groups={['telemetry']} />
 
-The `telemetry` block configures Nomad's publication of metrics and telemetry
-to third-party systems.
+This page provides reference information for configuring Nomad telemetry
+behavior in the `telemetry` block of a Nomad agent configuration. Configure
+Nomad's publication of metrics and telemetry to [Statsite], [StatsD], [DataDog],
+[Prometheus], and [Apica (Circonus)][Apica].
 
 ```hcl
 telemetry {
@@ -20,9 +21,9 @@ telemetry {
 }
 ```
 
-This section of the documentation only covers the configuration options for
+This section of the documentation only covers the configuration options for the
 `telemetry` block. To understand the architecture and metrics themselves,
-please see the [Telemetry guide](/nomad/docs/operations/monitoring-nomad).
+refer to the [Telemetry guide](/nomad/docs/operations/monitoring-nomad).
 
 ## `telemetry` Parameters
 
@@ -97,10 +98,12 @@ The following options are available on all telemetry configurations.
   against Nomad's state store, users with many namespaces and many quotas may
   want to disable these metrics.
 
+- `disable_allocation_hook_metrics` `(bool: false)` - Specifies if the Nomad
+  client should publish metrics related to allocation and task hooks.
+
 ### `statsite`
 
-These `telemetry` parameters apply to
-[statsite](https://github.com/armon/statsite).
+These `telemetry` parameters apply to [Statsite].
 
 - `statsite_address` `(string: "")` - Specifies the address of a statsite server
   to forward metrics data to.
@@ -113,8 +116,7 @@ telemetry {
 
 ### `statsd`
 
-These `telemetry` parameters apply to
-[statsd](https://github.com/etsy/statsd).
+These `telemetry` parameters apply to [StatsD].
 
 - `statsd_address` `(string: "")` - Specifies the address of a statsd server to
   forward metrics to.
@@ -127,8 +129,7 @@ telemetry {
 
 ### `datadog`
 
-These `telemetry` parameters apply to
-[DataDog statsd](https://github.com/DataDog/datadog-agent).
+These `telemetry` parameters apply to [DataDog].
 
 - `datadog_address` `(string: "")` - Specifies the address of a DataDog statsd
   server to forward metrics to.
@@ -146,15 +147,14 @@ telemetry {
 
 ### `prometheus`
 
-These `telemetry` parameters apply to [Prometheus](https://prometheus.io).
+These `telemetry` parameters apply to [Prometheus].
 
 - `prometheus_metrics` `(bool: false)` - Specifies whether the agent should
   make Prometheus formatted metrics available at `/v1/metrics?format=prometheus`.
 
-### `circonus`
+### `circonus` (Apica)
 
-These `telemetry` parameters apply to
-[Circonus](http://circonus.com/).
+These `telemetry` parameters apply to [Apica], formerly Circonus. Apica acquired Circonus in 2024.
 
 - `circonus_api_token` `(string: "")` - Specifies a valid Circonus API Token
   used to create/manage check. If provided, metric management is enabled.
@@ -213,3 +213,10 @@ These `telemetry` parameters apply to
   best use of this is to as a hint for which broker should be used based on
   _where_ this particular instance is running (e.g. a specific geographic location or
   datacenter, dc:sfo).
+
+
+[Statsite]: https://github.com/armon/statsite
+[StatsD]: https://github.com/etsy/statsd
+[DataDog]: https://github.com/DataDog/datadog-agent
+[Prometheus]: https://prometheus.io
+[Apica]: https://www.apica.io/

@@ -9,7 +9,7 @@
 
 # engineering and web presence get notified of, and can approve changes to web tooling, but not content.
 
-/website/ @hashicorp/web-presence @hashicorp/github-nomad-core @hashicorp/nomad-eng
+/website/               @hashicorp/web-presence @hashicorp/github-nomad-core @hashicorp/nomad-eng
 /website/data/
 /website/public/
 /website/content/

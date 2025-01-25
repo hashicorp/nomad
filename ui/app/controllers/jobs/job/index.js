@@ -98,6 +98,7 @@ export default class IndexController extends Controller.extend(
     { id, namespace },
     throttle = Ember.testing ? 0 : 2000
   ) {
+    this.childJobs = [];
     while (true) {
       let params = {
         filter: `ParentID == "${id}"`,

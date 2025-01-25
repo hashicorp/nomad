@@ -51,8 +51,8 @@ Linux clients or Windows clients.
 region                           = "us-east-1"
 instance_type                    = "t2.medium"
 server_count                     = "3"
-client_count_ubuntu_jammy_amd64  = "4"
-client_count_windows_2016_amd64  = "1"
+client_count_linux               = "4"
+client_count_windows_2016        = "1"
 ```
 
 You will also need a Consul Enterprise license file and a Nomad Enterprise license file.
@@ -134,20 +134,21 @@ about the cluster:
   client node IPs.
 - `terraform output windows_clients` will output the list of Windows
   client node IPs.
+- `cluster_unique_identifier` will output the random name used to identify the cluster's resources
 
 ## SSH
 
 You can use Terraform outputs above to access nodes via ssh:
 
 ```sh
-ssh -i keys/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
+ssh -i keys/${CLUSTER_UNIQUE_IDENTIFIER}/nomad-e2e-*.pem ubuntu@${EC2_IP_ADDR}
 ```
 
 The Windows client runs OpenSSH for convenience, but has a different
 user and will drop you into a Powershell shell instead of bash:
 
 ```sh
-ssh -i keys/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
+ssh -i keys/${CLUSTER_UNIQUE_IDENTIFIER}/nomad-e2e-*.pem Administrator@${EC2_IP_ADDR}
 ```
 
 ## Teardown

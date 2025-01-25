@@ -282,9 +282,19 @@ func (tr *TaskRunner) prestart() error {
 			tr.logger.Trace("running prestart hook", "name", name, "start", start)
 		}
 
+		// If the operator has disabled hook metrics, then don't call the time
+		// function to save 30ns per hook.
+		var hookExecutionStart time.Time
+
+		if !tr.clientConfig.DisableAllocationHookMetrics {
+			hookExecutionStart = time.Now()
+		}
+
 		// Run the prestart hook
 		var resp interfaces.TaskPrestartResponse
-		if err := pre.Prestart(joinedCtx, &req, &resp); err != nil {
+		err := pre.Prestart(joinedCtx, &req, &resp)
+		tr.hookStatsHandler.Emit(hookExecutionStart, name, "prestart", err)
+		if err != nil {
 			tr.emitHookError(err, name)
 			return structs.WrapRecoverable(fmt.Sprintf("prestart hook %q failed: %v", name, err), err)
 		}

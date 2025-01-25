@@ -145,6 +145,9 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	reservedCores := map[uint16]struct{}{}
 	var coreOverlap bool
 
+	hostVolumeClaims := map[string]int{}
+	exclusiveHostVolumeClaims := []string{}
+
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
@@ -161,6 +164,18 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 				coreOverlap = true
 			} else {
 				reservedCores[core] = struct{}{}
+			}
+		}
+
+		// Job will be nil in the scheduler, where we're not performing this check anyways
+		if checkDevices && alloc.Job != nil {
+			group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+			for _, volReq := range group.Volumes {
+				hostVolumeClaims[volReq.Source]++
+				if volReq.AccessMode ==
+					HostVolumeAccessModeSingleNodeSingleWriter {
+					exclusiveHostVolumeClaims = append(exclusiveHostVolumeClaims, volReq.Source)
+				}
 			}
 		}
 	}
@@ -198,11 +213,17 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		return false, "bandwidth exceeded", used, nil
 	}
 
-	// Check devices
+	// Check devices and host volumes
 	if checkDevices {
 		accounter := NewDeviceAccounter(node)
 		if accounter.AddAllocs(allocs) {
 			return false, "device oversubscribed", used, nil
+		}
+
+		for _, exclusiveClaim := range exclusiveHostVolumeClaims {
+			if hostVolumeClaims[exclusiveClaim] > 1 {
+				return false, "conflicting claims for host volume with single-writer", used, nil
+			}
 		}
 	}
 
