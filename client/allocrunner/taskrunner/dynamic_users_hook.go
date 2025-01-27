@@ -59,6 +59,7 @@ func (h *dynamicUsersHook) Prestart(_ context.Context, request *interfaces.TaskP
 		return nil
 	}
 
+	response.State = make(map[string]string, 1)
 	// if this is the restart case, the UGID will already be acquired and we
 	// just need to read it back out of the hook's state
 	if request.PreviousState != nil {
@@ -86,7 +87,6 @@ func (h *dynamicUsersHook) Prestart(_ context.Context, request *interfaces.TaskP
 	request.Task.User = dynamic.String(ugid)
 
 	// set the user on the hook so we may release it later
-	response.State = make(map[string]string, 1)
 	response.State[dynamicUsersStateKey] = request.Task.User
 
 	return nil
