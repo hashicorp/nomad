@@ -82,9 +82,9 @@ type HostVolume struct {
 type HostVolumeState string
 
 const (
-	HostVolumeStatePending HostVolumeState = "pending"
-	HostVolumeStateReady   HostVolumeState = "ready"
-	HostVolumeStateDeleted HostVolumeState = "deleted"
+	HostVolumeStatePending     HostVolumeState = "pending"
+	HostVolumeStateReady       HostVolumeState = "ready"
+	HostVolumeStateUnavailable HostVolumeState = "unavailable"
 )
 
 // HostVolumeCapability is the requested attachment and access mode for a volume

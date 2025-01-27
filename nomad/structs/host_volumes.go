@@ -89,10 +89,10 @@ type HostVolume struct {
 type HostVolumeState string
 
 const (
-	HostVolumeStateUnknown HostVolumeState = "" // never write this to Raft
-	HostVolumeStatePending HostVolumeState = "pending"
-	HostVolumeStateReady   HostVolumeState = "ready"
-	HostVolumeStateDeleted HostVolumeState = "deleted"
+	HostVolumeStateUnknown     HostVolumeState = "" // never write this to Raft
+	HostVolumeStatePending     HostVolumeState = "pending"
+	HostVolumeStateReady       HostVolumeState = "ready"
+	HostVolumeStateUnavailable HostVolumeState = "unavailable"
 )
 
 func (hv *HostVolume) Copy() *HostVolume {
