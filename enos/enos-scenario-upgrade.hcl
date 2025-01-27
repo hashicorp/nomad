@@ -56,7 +56,7 @@ scenario "upgrade" {
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
     EOF
-    
+
     module = module.provision_cluster
     variables {
       name                      = local.cluster_name
