@@ -406,11 +406,15 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 		return fmt.Errorf("Error querying latest job deployment: %s", err)
 	}
 
-	jobActions := make([]string, 0)
+	jobActions := make([]map[string]string, 0)
 	for _, tg := range job.TaskGroups {
 		for _, task := range tg.Tasks {
 			for _, action := range task.Actions {
-				jobActions = append(jobActions, fmt.Sprintf("%s|%s|%s", *tg.Name, task.Name, action.Name))
+				jobActions = append(jobActions, map[string]string{
+					"group":  *tg.Name,
+					"task":   task.Name,
+					"action": action.Name,
+				})
 			}
 		}
 	}
@@ -507,7 +511,7 @@ func (c *JobStatusCommand) formatDeployment(client *api.Client, d *api.Deploymen
 	return base
 }
 
-func formatJobActions(actions []string) string {
+func formatJobActions(actions []map[string]string) string {
 	if len(actions) == 0 {
 		return "No actions configured"
 	}
@@ -516,11 +520,10 @@ func formatJobActions(actions []string) string {
 	actionsOut[0] = "Action Name|Task Group|Task"
 
 	for i, action := range actions {
-		parts := strings.Split(action, "|")
-		if len(parts) != 3 {
+		group, task, actionName := action["group"], action["task"], action["action"]
+		if group == "" || task == "" || actionName == "" {
 			continue
 		}
-		group, task, actionName := parts[0], parts[1], parts[2]
 
 		actionsOut[i+1] = fmt.Sprintf("%s|%s|%s",
 			actionName,
