@@ -250,7 +250,7 @@ func (c *AllocStatusCommand) Run(args []string) int {
 		OpenURL: openURL,
 	})
 	if hint != "" {
-		c.Ui.Output(hint)
+		c.Ui.Warn(hint)
 	}
 	return 0
 }

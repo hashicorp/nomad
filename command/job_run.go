@@ -341,7 +341,7 @@ func (c *JobRunCommand) Run(args []string) int {
 			OpenURL: openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 		}
 
 		return 0
@@ -357,9 +357,9 @@ func (c *JobRunCommand) Run(args []string) int {
 		OpenURL: openURL,
 	})
 	if hint != "" {
-		c.Ui.Output(hint)
+		c.Ui.Warn(hint)
 		// Because this is before monitor, newline so we don't scrunch
-		c.Ui.Output("")
+		c.Ui.Warn("")
 	}
 
 	mon := newMonitor(c.Ui, client, length)

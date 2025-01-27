@@ -183,7 +183,7 @@ Results have been paginated. To get the next page run:
 		OpenURL: openURL,
 	})
 	if hint != "" {
-		c.Ui.Output(hint)
+		c.Ui.Warn(hint)
 	}
 
 	return 0

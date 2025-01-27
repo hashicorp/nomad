@@ -226,7 +226,7 @@ func (c *VarListCommand) Run(args []string) int {
 			OpenURL: openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 		}
 	} else {
 		hint, _ := c.Meta.showUIPath(UIHintContext{
@@ -234,7 +234,7 @@ func (c *VarListCommand) Run(args []string) int {
 			OpenURL: openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 		}
 	}
 

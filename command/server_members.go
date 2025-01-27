@@ -156,7 +156,7 @@ func (c *ServerMembersCommand) Run(args []string) int {
 		OpenURL: openURL,
 	})
 	if hint != "" {
-		c.Ui.Output(hint)
+		c.Ui.Warn(hint)
 	}
 
 	// If there were leader errors display a warning

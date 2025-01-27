@@ -170,7 +170,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 				OpenURL: c.openURL,
 			})
 			if hint != "" {
-				c.Ui.Output(hint)
+				c.Ui.Warn(hint)
 			}
 		} else {
 			if c.json || len(c.tmpl) > 0 {
@@ -200,7 +200,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 					OpenURL: c.openURL,
 				})
 				if hint != "" {
-					c.Ui.Output(hint)
+					c.Ui.Warn(hint)
 				}
 			}
 		}
@@ -300,7 +300,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 			OpenURL: c.openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 		}
 		return 0
 	}
@@ -332,7 +332,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 		OpenURL: c.openURL,
 	})
 	if hint != "" {
-		c.Ui.Output(hint)
+		c.Ui.Warn(hint)
 	}
 
 	return 0

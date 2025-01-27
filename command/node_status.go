@@ -323,7 +323,7 @@ Results have been paginated. To get the next page run:
 			OpenURL: c.openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 		}
 
 		return 0
@@ -527,7 +527,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 			OpenURL: c.openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 		}
 
 		// Output alloc info
@@ -625,7 +625,7 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		OpenURL: c.openURL,
 	})
 	if hint != "" {
-		c.Ui.Output(hint)
+		c.Ui.Warn(hint)
 	}
 
 	return 0

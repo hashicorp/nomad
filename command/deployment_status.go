@@ -195,9 +195,9 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 			OpenURL: openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 			// Because this is before monitor, newline so we don't scrunch
-			c.Ui.Output("")
+			c.Ui.Warn("")
 		}
 
 		return 0
@@ -212,7 +212,7 @@ func (c *DeploymentStatusCommand) Run(args []string) int {
 		OpenURL: openURL,
 	})
 	if hint != "" {
-		c.Ui.Output(hint)
+		c.Ui.Warn(hint)
 	}
 	return 0
 }

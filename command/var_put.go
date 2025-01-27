@@ -368,7 +368,7 @@ func (c *VarPutCommand) Run(args []string) int {
 			OpenURL: openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 		}
 		return 0
 	default:
@@ -382,7 +382,7 @@ func (c *VarPutCommand) Run(args []string) int {
 			OpenURL: openURL,
 		})
 		if hint != "" {
-			c.Ui.Output(hint)
+			c.Ui.Warn(hint)
 		}
 		return 0
 	}
@@ -397,7 +397,7 @@ func (c *VarPutCommand) Run(args []string) int {
 		OpenURL: openURL,
 	})
 	if hint != "" {
-		c.Ui.Output(hint)
+		c.Ui.Warn(hint)
 	}
 	return 0
 }
