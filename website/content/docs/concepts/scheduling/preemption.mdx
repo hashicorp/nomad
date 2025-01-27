@@ -1,7 +1,7 @@
 ---
 layout: docs
 page_title: Allocation Preemption
-description: Nomad uses preemption to evict existing allocations in order to place allocations for a higher priority job. Learn how Nomad uses job priorty to determine when to preempt running allocations and how you can determine whether Nomad has preempted an allocation. Use `nomad plan` to dry run the scheduler to see if preemption is necessary.
+description: Nomad uses preemption to evict existing allocations in order to place allocations for a higher priority job. Learn how Nomad uses job priority to preempt running allocations and how you can determine whether Nomad preempted an allocation. Use `nomad plan` to dry run the scheduler to find out if preemption is necessary.
 ---
 
 # Allocation Preemption
@@ -10,7 +10,7 @@ This page provides conceptual information about preemption, which is evicting
 existing allocations in order to place allocations for a higher priority job.
 Learn how Nomad uses job priorty to determine when to preempt running
 allocations and how you can determine whether Nomad has preempted an allocation.
-Use `nomad plan` to dry run the scheduler to see if preemption is necessary.
+Use `nomad plan` to dry run the scheduler to find out if preemption is necessary.
 
 Preemption allows Nomad to kill existing allocations in order to place
 allocations for a higher priority job. The evicted allocation is temporarily
