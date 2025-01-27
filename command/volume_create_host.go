@@ -147,7 +147,7 @@ DONE:
 			).Row().MarginLeft(2)
 			break DONE
 
-		case api.HostVolumeStateDeleted:
+		case api.HostVolumeStateUnavailable:
 			endSpinner = glint.Layout(
 				glint.Text(fmt.Sprintf("! Host volume %q %s", limit(id, opts.length), vol.State)),
 			).Row().MarginLeft(2)
