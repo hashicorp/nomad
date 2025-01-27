@@ -462,8 +462,10 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 	desiredChanges.Ignore += uint64(len(ignore))
 
-	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
+	// Determine what set of terminal allocations need to be rescheduled and
+	// see that we don't discard allocations that carry important information
+	// for future reschedules or deployments
+	untainted, rescheduleNow, rescheduleLater, informational := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
 	// If there are allocations reconnecting we need to reconcile them and
 	// their replacements first because there is specific logic when deciding
@@ -509,7 +511,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		// the reschedule policy won't be enabled and the lost allocations
 		// wont be rescheduled, and PreventRescheduleOnLost is ignored.
 		if tg.GetDisconnectLostTimeout() != 0 {
-			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
+			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
 			rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
 			untainted = untainted.union(untaintedDisconnecting)
@@ -591,7 +593,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// * An alloc was lost
 	var place []allocPlaceResult
 	if len(lostLater) == 0 {
-		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
+		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying, informational)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -798,7 +800,7 @@ func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 // Placements will meet or exceed group count.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	nameIndex *allocNameIndex, untainted, migrate, reschedule, lost allocSet,
-	isCanarying bool) []allocPlaceResult {
+	isCanarying bool, informational []*structs.Allocation) []allocPlaceResult {
 
 	// Add rescheduled placement results
 	var place []allocPlaceResult
@@ -843,9 +845,18 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	// Add remaining placement results
 	if existing < group.Count {
 		for _, name := range nameIndex.Next(uint(group.Count - existing)) {
+
+			// if there are any informational allocs, pop and add them as previousAlloc to
+			// our new placement
+			var a *structs.Allocation
+			if len(informational) > 0 {
+				a, informational = informational[len(informational)-1], informational[:len(informational)-1]
+			}
+
 			place = append(place, allocPlaceResult{
 				name:               name,
 				taskGroup:          group,
+				previousAlloc:      a,
 				downgradeNonCanary: isCanarying,
 			})
 		}

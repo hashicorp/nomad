@@ -1875,6 +1875,8 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 	}
 	testJob.TaskGroups[0] = rescheduleTG
 
+	stickyDeploymentJob := mock.Job()
+
 	now := time.Now()
 
 	rt := &structs.RescheduleTracker{
@@ -1895,9 +1897,10 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 		deployment                  *structs.Deployment
 
 		// expected results
-		untainted allocSet
-		resNow    allocSet
-		resLater  []*delayedRescheduleInfo
+		untainted     allocSet
+		resNow        allocSet
+		resLater      []*delayedRescheduleInfo
+		informational []*structs.Allocation
 	}
 
 	testCases := []testCase{
@@ -1921,8 +1924,9 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					TaskGroup:    "noRescheduleTG",
 				},
 			},
-			resNow:   allocSet{},
-			resLater: []*delayedRescheduleInfo{},
+			resNow:        allocSet{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 		{
 			name:            "batch ignore unknown disconnecting allocs",
@@ -1935,9 +1939,10 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					Job:          testJob,
 				},
 			},
-			untainted: allocSet{},
-			resNow:    allocSet{},
-			resLater:  []*delayedRescheduleInfo{},
+			untainted:     allocSet{},
+			resNow:        allocSet{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 		{
 			name:            "batch disconnecting allocation reschedule",
@@ -1962,7 +1967,8 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					RescheduleTracker: rt,
 				},
 			},
-			resLater: []*delayedRescheduleInfo{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 
 		{
@@ -1991,8 +1997,9 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 						"task": {State: structs.TaskStateDead, Failed: false}},
 				},
 			},
-			resNow:   allocSet{},
-			resLater: []*delayedRescheduleInfo{},
+			resNow:        allocSet{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 		{
 			name:            "service disconnecting allocation no reschedule",
@@ -2014,8 +2021,9 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					TaskGroup:    "noRescheduleTG",
 				},
 			},
-			resNow:   allocSet{},
-			resLater: []*delayedRescheduleInfo{},
+			resNow:        allocSet{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 		{
 			name:            "service disconnecting allocation reschedule",
@@ -2040,7 +2048,8 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					RescheduleTracker: rt,
 				},
 			},
-			resLater: []*delayedRescheduleInfo{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 		{
 			name:            "service ignore unknown disconnecting allocs",
@@ -2053,9 +2062,10 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					Job:          testJob,
 				},
 			},
-			untainted: allocSet{},
-			resNow:    allocSet{},
-			resLater:  []*delayedRescheduleInfo{},
+			untainted:     allocSet{},
+			resNow:        allocSet{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 		{
 			name:            "service previously rescheduled alloc should not reschedule",
@@ -2070,9 +2080,10 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					TaskGroup:      "rescheduleTG",
 				},
 			},
-			untainted: allocSet{},
-			resNow:    allocSet{},
-			resLater:  []*delayedRescheduleInfo{},
+			untainted:     allocSet{},
+			resNow:        allocSet{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 		{
 			name:            "service complete should be ignored",
@@ -2087,9 +2098,10 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					TaskGroup:     "rescheduleTG",
 				},
 			},
-			untainted: allocSet{},
-			resNow:    allocSet{},
-			resLater:  []*delayedRescheduleInfo{},
+			untainted:     allocSet{},
+			resNow:        allocSet{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
 		},
 		{
 			name:            "service running allocation no reschedule",
@@ -2111,18 +2123,44 @@ func TestAllocSet_filterByRescheduleable(t *testing.T) {
 					TaskGroup:    "noRescheduleTG",
 				},
 			},
-			resNow:   allocSet{},
-			resLater: []*delayedRescheduleInfo{},
+			resNow:        allocSet{},
+			resLater:      []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{},
+		},
+		{
+			name:            "allocation with sticky volumes",
+			isDisconnecting: false,
+			isBatch:         false,
+			all: allocSet{
+				"sticky": {
+					ID:            "sticky",
+					DesiredStatus: structs.AllocDesiredStatusStop,
+					ClientStatus:  structs.AllocClientStatusComplete,
+					Job:           stickyDeploymentJob,
+					HostVolumeIDs: []string{"hostVolumeID1"},
+				},
+			},
+			untainted: allocSet{},
+			resNow:    allocSet{},
+			resLater:  []*delayedRescheduleInfo{},
+			informational: []*structs.Allocation{{
+				ID:            "sticky",
+				DesiredStatus: structs.AllocDesiredStatusStop,
+				ClientStatus:  structs.AllocClientStatusComplete,
+				Job:           stickyDeploymentJob,
+				HostVolumeIDs: []string{"hostVolumeID1"},
+			}},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			untainted, resNow, resLater := tc.all.filterByRescheduleable(tc.isBatch,
+			untainted, resNow, resLater, informational := tc.all.filterByRescheduleable(tc.isBatch,
 				tc.isDisconnecting, now, "evailID", tc.deployment)
 			must.Eq(t, tc.untainted, untainted, must.Sprintf("with-nodes: untainted"))
 			must.Eq(t, tc.resNow, resNow, must.Sprintf("with-nodes: reschedule-now"))
 			must.Eq(t, tc.resLater, resLater, must.Sprintf("with-nodes: rescheduleLater"))
+			must.Eq(t, tc.informational, informational, must.Sprintf("with-nodes: informational"))
 		})
 	}
 }

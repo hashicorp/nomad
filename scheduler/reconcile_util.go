@@ -218,8 +218,8 @@ func (a allocSet) fromKeys(keys ...[]string) allocSet {
 	return from
 }
 
-// filterByTainted takes a set of tainted nodes and filters the allocation set
-// into the following groups:
+// filterByTainted takes a set of tainted nodes and partitions the allocation
+// set into the following groups:
 // 1. Those that exist on untainted nodes
 // 2. Those exist on nodes that are draining
 // 3. Those that exist on lost nodes or have expired
@@ -385,14 +385,25 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 	return
 }
 
-// filterByRescheduleable filters the allocation set to return the set of allocations that are either
-// untainted or a set of allocations that must be rescheduled now. Allocations that can be rescheduled
-// at a future time are also returned so that we can create follow up evaluations for them. Allocs are
-// skipped or considered untainted according to logic defined in shouldFilter method.
-func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time.Time, evalID string, deployment *structs.Deployment) (allocSet, allocSet, []*delayedRescheduleInfo) {
+// filterByRescheduleable filters the allocation set to return the set of
+// allocations that are either untainted or a set of allocations that must be
+// rescheduled now. Allocations that can be rescheduled at a future time are
+// also returned so that we can create follow up evaluations for them. Allocs
+// are skipped or considered untainted according to logic defined in
+// shouldFilter method.
+//
+// filterByRescheduleable returns an extra slice of allocations as its last
+// output: these allocs are "informational." They will not be rescheduled now
+// or later, but they carry important information for future allocations that
+// might get rescheduled. An example of such allocations are stateful
+// deployments: allocs that require particular host volume IDs.
+func (a allocSet) filterByRescheduleable(
+	isBatch, isDisconnecting bool, now time.Time, evalID string, deployment *structs.Deployment,
+) (allocSet, allocSet, []*delayedRescheduleInfo, []*structs.Allocation) {
 	untainted := make(map[string]*structs.Allocation)
 	rescheduleNow := make(map[string]*structs.Allocation)
 	rescheduleLater := []*delayedRescheduleInfo{}
+	informational := []*structs.Allocation{}
 
 	for _, alloc := range a {
 		// Ignore disconnecting allocs that are already unknown. This can happen
@@ -409,6 +420,12 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		// Protects against a bug allowing rescheduling running allocs.
 		if alloc.NextAllocation != "" && alloc.TerminalStatus() {
 			continue
+		}
+
+		// Allocations with host volume IDs can be ignored, but we must keep
+		// the information they carry for future migrated allocs
+		if len(alloc.HostVolumeIDs) > 0 {
+			informational = append(informational, alloc)
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
@@ -436,7 +453,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		}
 
 	}
-	return untainted, rescheduleNow, rescheduleLater
+	return untainted, rescheduleNow, rescheduleLater, informational
 }
 
 // shouldFilter returns whether the alloc should be ignored or considered untainted.
