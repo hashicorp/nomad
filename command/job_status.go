@@ -406,6 +406,15 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 		return fmt.Errorf("Error querying latest job deployment: %s", err)
 	}
 
+	jobActions := make([]string, 0)
+	for _, tg := range job.TaskGroups {
+		for _, task := range tg.Tasks {
+			for _, action := range task.Actions {
+				jobActions = append(jobActions, fmt.Sprintf("%s|%s|%s", *tg.Name, task.Name, action.Name))
+			}
+		}
+	}
+
 	// Output the summary
 	if err := c.outputJobSummary(client, job); err != nil {
 		return err
@@ -459,6 +468,11 @@ func (c *JobStatusCommand) outputJobInfo(client *api.Client, job *api.Job) error
 		c.Ui.Output(c.Colorize().Color(c.formatDeployment(client, latestDeployment)))
 	}
 
+	if len(jobActions) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Actions[reset]"))
+		c.Ui.Output(formatJobActions(jobActions))
+	}
+
 	// Format the allocs
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	c.Ui.Output(formatAllocListStubs(jobAllocs, c.verbose, c.length))
@@ -491,6 +505,30 @@ func (c *JobStatusCommand) formatDeployment(client *api.Client, d *api.Deploymen
 	base += "\n\n[bold]Deployed[reset]\n"
 	base += formatDeploymentGroups(d, c.length)
 	return base
+}
+
+func formatJobActions(actions []string) string {
+	if len(actions) == 0 {
+		return "No actions configured"
+	}
+
+	actionsOut := make([]string, len(actions)+1)
+	actionsOut[0] = "Action Name|Task Group|Task"
+
+	for i, action := range actions {
+		parts := strings.Split(action, "|")
+		if len(parts) != 3 {
+			continue
+		}
+		group, task, actionName := parts[0], parts[1], parts[2]
+
+		actionsOut[i+1] = fmt.Sprintf("%s|%s|%s",
+			actionName,
+			group,
+			task)
+	}
+
+	return formatList(actionsOut)
 }
 
 func formatAllocListStubs(stubs []*api.AllocationListStub, verbose bool, uuidLength int) string {
