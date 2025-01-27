@@ -391,10 +391,17 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 // also returned so that we can create follow up evaluations for them. Allocs
 // are skipped or considered untainted according to logic defined in
 // shouldFilter method.
-func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time.Time, evalID string, deployment *structs.Deployment) (allocSet, allocSet, []*delayedRescheduleInfo) {
+//
+// filterByRescheduleable returns an extra slice of allocations as its last
+// output: these allocs are "informational." They will not be rescheduled now
+// or later, but they carry important information for future allocations that
+// might get rescheduled. An examplep of such allocations are stateful
+// deployments: allocs that require particular host volume IDs.
+func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time.Time, evalID string, deployment *structs.Deployment) (allocSet, allocSet, []*delayedRescheduleInfo, []*structs.Allocation) {
 	untainted := make(map[string]*structs.Allocation)
 	rescheduleNow := make(map[string]*structs.Allocation)
 	rescheduleLater := []*delayedRescheduleInfo{}
+	informational := []*structs.Allocation{}
 
 	for _, alloc := range a {
 		// Ignore disconnecting allocs that are already unknown. This can
@@ -410,19 +417,22 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		// failed or disconnecting allocs should be rescheduled. Protects
 		// against a bug allowing rescheduling running allocs.
 		if alloc.NextAllocation != "" && alloc.TerminalStatus() {
-			fmt.Println("this alloc is terminal status and has non-empty next alloc")
 			continue
+		}
+
+		// Allocations with host volume IDs can be ignored, but we must keep
+		// the information they carry for future migrated allocs
+		if len(alloc.HostVolumeIDs) > 0 {
+			informational = append(informational, alloc)
 		}
 
 		isUntainted, ignore := shouldFilter(alloc, isBatch)
 		if isUntainted && !isDisconnecting {
-			fmt.Println("this aloc is untainted and not disconnecting")
 			untainted[alloc.ID] = alloc
 			continue // these allocs can never be rescheduled, so skip checking
 		}
 
 		if ignore {
-			fmt.Println("this alloc is in the ignore bucket")
 			continue
 		}
 
@@ -441,7 +451,7 @@ func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time
 		}
 
 	}
-	return untainted, rescheduleNow, rescheduleLater
+	return untainted, rescheduleNow, rescheduleLater, informational
 }
 
 // shouldFilter returns whether the alloc should be ignored or considered untainted.
@@ -484,7 +494,6 @@ func shouldFilter(alloc *structs.Allocation, isBatch bool) (untainted, ignore bo
 	}
 
 	// Handle service jobs
-	fmt.Printf("desired status of alloc %v: %v\n", alloc.ID, alloc.DesiredStatus)
 	switch alloc.DesiredStatus {
 	case structs.AllocDesiredStatusStop, structs.AllocDesiredStatusEvict:
 		if alloc.LastRescheduleFailed() {

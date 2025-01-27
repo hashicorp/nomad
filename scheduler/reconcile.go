@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/armon/go-metrics"
-	"github.com/davecgh/go-spew/spew"
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/helper"
@@ -434,11 +433,6 @@ func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescr
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
 func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
-	fmt.Println("all allocations: ")
-	for _, a := range all {
-		fmt.Println(a.ID)
-	}
-
 	// Create the desired update object for the group
 	desiredChanges := new(structs.DesiredUpdates)
 	a.result.desiredTGUpdates[groupName] = desiredChanges
@@ -467,22 +461,10 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
 	desiredChanges.Ignore += uint64(len(ignore))
 
-	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
-
-	fmt.Println("alloc sets after filterByRescheduleable")
-	fmt.Println("untainted alloc IDs:")
-	for _, a := range untainted {
-		fmt.Println(a.ID)
-	}
-	fmt.Println("rescheduleNow alloc IDs:")
-	for _, a := range rescheduleNow {
-		fmt.Println(a.ID)
-	}
-	fmt.Println("rescheduleLater alloc IDs:")
-	for _, a := range rescheduleLater {
-		spew.Dump(a)
-	}
+	// Determine what set of terminal allocations need to be rescheduled and
+	// see that we don't discard allocations that carry important informations
+	// for future reschedules or deployments
+	untainted, rescheduleNow, rescheduleLater, informational := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
 
 	// If there are allocations reconnecting we need to reconcile them and
 	// their replacements first because there is specific logic when deciding
@@ -528,7 +510,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 		// the reschedule policy won't be enabled and the lost allocations
 		// wont be rescheduled, and PreventRescheduleOnLost is ignored.
 		if tg.GetDisconnectLostTimeout() != 0 {
-			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
+			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting, _ := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
 			rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
 			untainted = untainted.union(untaintedDisconnecting)
@@ -610,7 +592,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// * An alloc was lost
 	var place []allocPlaceResult
 	if len(lostLater) == 0 {
-		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
+		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying, informational)
 		if !existingDeployment {
 			dstate.DesiredTotal += len(place)
 		}
@@ -817,25 +799,7 @@ func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 // Placements will meet or exceed group count.
 func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	nameIndex *allocNameIndex, untainted, migrate, reschedule, lost allocSet,
-	isCanarying bool) []allocPlaceResult {
-
-	fmt.Println("alloc sets on top of computePlacements")
-	fmt.Println("untainted alloc IDs:")
-	for _, a := range untainted {
-		fmt.Println(a.ID)
-	}
-	fmt.Println("migrate alloc IDs:")
-	for _, a := range migrate {
-		fmt.Println(a.ID)
-	}
-	fmt.Println("reschedule alloc IDs:")
-	for _, a := range reschedule {
-		fmt.Println(a.ID)
-	}
-	fmt.Println("lost alloc IDs:")
-	for _, a := range lost {
-		fmt.Println(a.ID)
-	}
+	isCanarying bool, informational []*structs.Allocation) []allocPlaceResult {
 
 	// Add rescheduled placement results
 	var place []allocPlaceResult
@@ -851,23 +815,6 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 			minJobVersion:      alloc.Job.Version,
 			lost:               false,
 		})
-	}
-
-	// If there are allocations in the untainted set that contain host volume
-	// IDs, it means they use stateful deployements and were migrated off a
-	// node. Store them in order to add them as previous allocations to any new
-	// placements.
-	allocsWithHostVolumeIDs := []*structs.Allocation{}
-	for _, alloc := range untainted {
-		spew.Dump(alloc)
-		if len(alloc.HostVolumeIDs) > 0 {
-			allocsWithHostVolumeIDs = append(allocsWithHostVolumeIDs, alloc)
-		}
-	}
-
-	fmt.Println("these are allocsWithHostVolumeIDs: ")
-	for _, a := range allocsWithHostVolumeIDs {
-		fmt.Println(a.ID)
 	}
 
 	// Add replacements for disconnected and lost allocs up to group.Count
@@ -895,14 +842,11 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	}
 
 	// Add remaining placement results
-	fmt.Printf("existing < group.Count: %v\n", existing < group.Count)
 	if existing < group.Count {
 		for _, name := range nameIndex.Next(uint(group.Count - existing)) {
-			fmt.Printf("processing allocation %v\n", name)
 			var a *structs.Allocation
-			if len(allocsWithHostVolumeIDs) > 0 {
-				a, allocsWithHostVolumeIDs = allocsWithHostVolumeIDs[len(allocsWithHostVolumeIDs)-1], allocsWithHostVolumeIDs[:len(allocsWithHostVolumeIDs)-1]
-				fmt.Printf("adding previous allocation %v volume ids %v to a placement\n", a.ID, a.HostVolumeIDs)
+			if len(informational) > 0 {
+				a, informational = informational[len(informational)-1], informational[:len(informational)-1]
 			}
 
 			place = append(place, allocPlaceResult{
