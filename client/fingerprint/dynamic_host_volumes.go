@@ -44,7 +44,7 @@ func (h *DynamicHostVolumePluginFingerprint) Fingerprint(request *FingerprintReq
 		return nil
 	}
 
-	plugins, err := GetHostVolumePluginVersions(h.logger, pluginDir)
+	plugins, err := GetHostVolumePluginVersions(h.logger, pluginDir, request.Node.NodePool)
 	if err != nil {
 		if os.IsNotExist(err) {
 			h.logger.Debug("plugin dir does not exist", "dir", pluginDir)
@@ -74,10 +74,10 @@ func (h *DynamicHostVolumePluginFingerprint) Periodic() (bool, time.Duration) {
 	return false, 0
 }
 
-// GetHostVolumePluginVersions finds all the executable files on disk
-// that respond to a Version call (arg $1 = 'version' / env $OPERATION = 'version')
-// The return map's keys are plugin IDs, and the values are version strings.
-func GetHostVolumePluginVersions(log hclog.Logger, pluginDir string) (map[string]string, error) {
+// GetHostVolumePluginVersions finds all the executable files on disk that
+// respond to a `fingerprint` call. The return map's keys are plugin IDs,
+// and the values are version strings.
+func GetHostVolumePluginVersions(log hclog.Logger, pluginDir, nodePool string) (map[string]string, error) {
 	files, err := helper.FindExecutableFiles(pluginDir)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func GetHostVolumePluginVersions(log hclog.Logger, pluginDir string) (map[string
 
 			log := log.With("plugin_id", file)
 
-			p, err := hvm.NewHostVolumePluginExternal(log, pluginDir, file, "")
+			p, err := hvm.NewHostVolumePluginExternal(log, pluginDir, file, "", nodePool)
 			if err != nil {
 				log.Warn("error getting plugin", "error", err)
 				return

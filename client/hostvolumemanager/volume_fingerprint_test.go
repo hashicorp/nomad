@@ -4,6 +4,7 @@
 package hostvolumemanager
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/hashicorp/nomad/client/state"
@@ -106,11 +107,11 @@ func TestWaitForFirstFingerprint(t *testing.T) {
 	node := newFakeNode(t)
 	hvm := NewHostVolumeManager(log, Config{
 		PluginDir:      "",
-		SharedMountDir: tmp,
+		VolumesDir:     tmp,
 		StateMgr:       memDB,
 		UpdateNodeVols: node.updateVol,
 	})
-	plug := &fakePlugin{mountDir: tmp}
+	plug := &fakePlugin{volsDir: tmp}
 	hvm.builtIns = map[string]HostVolumePlugin{
 		"test-plugin": plug,
 	}
@@ -136,7 +137,7 @@ func TestWaitForFirstFingerprint(t *testing.T) {
 		"vol-name": &structs.ClientHostVolumeConfig{
 			Name:     "vol-name",
 			ID:       "vol-id",
-			Path:     tmp,
+			Path:     filepath.Join(tmp, "vol-id"),
 			ReadOnly: false,
 		},
 	}, node.vols)

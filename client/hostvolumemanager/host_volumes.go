@@ -35,9 +35,12 @@ type Config struct {
 	// PluginDir is where external plugins may be found.
 	PluginDir string
 
-	// SharedMountDir is where plugins should place the directory
-	// that will later become a volume HostPath
-	SharedMountDir string
+	// VolumesDir is where plugins should place the directory
+	// that will later become a volume's HostPath
+	VolumesDir string
+
+	// NodePool is passed into external plugin execution environment.
+	NodePool string
 
 	// StateMgr manages client state to restore on agent restarts.
 	StateMgr HostVolumeStateManager
@@ -51,7 +54,8 @@ type Config struct {
 // and registers volumes with the client node.
 type HostVolumeManager struct {
 	pluginDir      string
-	sharedMountDir string
+	volumesDir     string
+	nodePool       string
 	stateMgr       HostVolumeStateManager
 	updateNodeVols HostVolumeNodeUpdater
 	builtIns       map[string]HostVolumePlugin
@@ -64,13 +68,14 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 	logger = logger.Named("host_volume_manager")
 	return &HostVolumeManager{
 		pluginDir:      config.PluginDir,
-		sharedMountDir: config.SharedMountDir,
+		volumesDir:     config.VolumesDir,
+		nodePool:       config.NodePool,
 		stateMgr:       config.StateMgr,
 		updateNodeVols: config.UpdateNodeVols,
 		builtIns: map[string]HostVolumePlugin{
 			HostVolumePluginMkdirID: &HostVolumePluginMkdir{
 				ID:         HostVolumePluginMkdirID,
-				TargetPath: config.SharedMountDir,
+				VolumesDir: config.VolumesDir,
 				log:        logger.With("plugin_id", HostVolumePluginMkdirID),
 			},
 		},
@@ -84,13 +89,16 @@ func NewHostVolumeManager(logger hclog.Logger, config Config) *HostVolumeManager
 func (hvm *HostVolumeManager) Create(ctx context.Context,
 	req *cstructs.ClientHostVolumeCreateRequest) (*cstructs.ClientHostVolumeCreateResponse, error) {
 
+	log := hvm.log.With("volume_name", req.Name, "volume_id", req.ID)
+
 	plug, err := hvm.getPlugin(req.PluginID)
 	if err != nil {
 		return nil, err
 	}
 
 	// can't have two of the same volume name w/ different IDs per client node
-	if err := hvm.locker.lock(req.Name, req.ID); err != nil {
+	isNewVolume, err := hvm.locker.lock(req.Name, req.ID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -106,22 +114,26 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 		CreateReq: req,
 	}
 	if err := hvm.stateMgr.PutDynamicHostVolume(volState); err != nil {
-		// if we fail to write to state, delete the volume so it isn't left
-		// lying around without Nomad knowing about it.
-		hvm.log.Error("failed to save volume in state, so deleting", "volume_id", req.ID, "error", err)
-		delErr := plug.Delete(ctx, &cstructs.ClientHostVolumeDeleteRequest{
-			ID:         req.ID,
-			PluginID:   req.PluginID,
-			NodeID:     req.NodeID,
-			HostPath:   hvm.sharedMountDir,
-			Parameters: req.Parameters,
-		})
-		if delErr != nil {
-			hvm.log.Warn("error deleting volume after state store failure", "volume_id", req.ID, "error", delErr)
-			err = multierror.Append(err, delErr)
+		// if we fail to write to state on initial create,
+		// delete the volume so it isn't left lying around
+		// without Nomad knowing about it.
+		log.Error("failed to save volume in client state", "error", err)
+		if isNewVolume {
+			log.Error("initial create detected, running delete")
+			delErr := plug.Delete(ctx, &cstructs.ClientHostVolumeDeleteRequest{
+				ID:         req.ID,
+				PluginID:   req.PluginID,
+				NodeID:     req.NodeID,
+				HostPath:   hvm.volumesDir,
+				Parameters: req.Parameters,
+			})
+			if delErr != nil {
+				log.Warn("error deleting volume after state store failure", "error", delErr)
+				err = multierror.Append(err, delErr)
+			}
+			// free up the volume name whether delete succeeded or not.
+			hvm.locker.release(req.Name)
 		}
-		// free up the volume name whether delete succeeded or not.
-		hvm.locker.release(req.Name)
 		return nil, err
 	}
 
@@ -142,7 +154,7 @@ func (hvm *HostVolumeManager) Register(ctx context.Context,
 	req *cstructs.ClientHostVolumeRegisterRequest) error {
 
 	// can't have two of the same volume name w/ different IDs per client node
-	if err := hvm.locker.lock(req.Name, req.ID); err != nil {
+	if _, err := hvm.locker.lock(req.Name, req.ID); err != nil {
 		return err
 	}
 
@@ -216,7 +228,7 @@ func (hvm *HostVolumeManager) getPlugin(id string) (HostVolumePlugin, error) {
 		return plug, nil
 	}
 	log := hvm.log.With("plugin_id", id)
-	return NewHostVolumePluginExternal(log, hvm.pluginDir, id, hvm.sharedMountDir)
+	return NewHostVolumePluginExternal(log, hvm.pluginDir, id, hvm.volumesDir, hvm.nodePool)
 }
 
 // restoreFromState loads all volumes from client state and runs Create for
@@ -270,7 +282,7 @@ func (hvm *HostVolumeManager) restoreForCreate(ctx context.Context, vol *cstruct
 	}
 
 	// lock the name so future creates can't produce duplicates.
-	err = hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
+	_, err = hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
 	// state should never have duplicate vol names, and restore happens
 	// prior to node registration, so new creates shouldn't come in
 	// concurrently, but check for error just in case.
@@ -299,7 +311,7 @@ func (hvm *HostVolumeManager) restoreForCreate(ctx context.Context, vol *cstruct
 // Register, by converting the stored struct. It otherwise behaves the same as
 // restoreForCreate.
 func (hvm *HostVolumeManager) restoreForRegister(vol *cstructs.HostVolumeState) (*structs.ClientHostVolumeConfig, error) {
-	err := hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
+	_, err := hvm.locker.lock(vol.CreateReq.Name, vol.CreateReq.ID)
 	if err != nil {
 		hvm.log.Error("error during restore",
 			"volume_name", vol.CreateReq.Name,
@@ -340,20 +352,20 @@ type volLocker struct {
 	locks sync.Map
 }
 
-// lock the provided name, error if it was already locked with a different ID
-func (l *volLocker) lock(name, id string) error {
+// lock the provided name, return true if it was not already locked,
+// and error if it was already locked with a different ID.
+func (l *volLocker) lock(name, id string) (bool, error) {
 	current, exists := l.locks.LoadOrStore(name, id)
 	if exists && id != current.(string) {
-		return ErrVolumeNameExists
+		return false, ErrVolumeNameExists
 	}
-	return nil
+	return !exists, nil
 }
 
 func (l *volLocker) release(name string) {
 	l.locks.Delete(name)
 }
 
-// only used in tests to assert lock state
 func (l *volLocker) isLocked(name string) bool {
 	_, locked := l.locks.Load(name)
 	return locked
