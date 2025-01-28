@@ -28,10 +28,10 @@ resource "enos_file" "copy_upgraded_binary" {
   }
 }
 
-
 resource "enos_remote_exec" "restart_linux_services" {
   count      = var.platform == "linux" ? 1 : 0
   depends_on = [ enos_file.copy_upgraded_binary ]
+
 
 
   transport = {

@@ -31,7 +31,6 @@ scenario "upgrade" {
     windows_count = matrix.os == "windows" ? "4" : "0"
     arch          = matrix.arch
     clients_count = local.linux_count + local.windows_count
-
   }
 
   step "copy_initial_binary" {
@@ -163,18 +162,24 @@ scenario "upgrade" {
     ]
 
     variables {
-      nomad_addr                 = step.provision_cluster.nomad_addr
-      ca_file                    = step.provision_cluster.ca_file
-      cert_file                  = step.provision_cluster.cert_file
-      key_file                   = step.provision_cluster.key_file
-      nomad_token                = step.provision_cluster.nomad_token
-      platform                   = matrix.os
-      servers                    = step.provision_cluster.servers
-      nomad_local_upgrade_binary = step.copy_upgrade_binary.nomad_local_binary
-      ssh_key_path               = step.provision_cluster.ssh_key_file
+      nomad_addr   = step.provision_cluster.nomad_addr
+      ca_file      = step.provision_cluster.ca_file
+      cert_file    = step.provision_cluster.cert_file
+      key_file     = step.provision_cluster.key_file
+      nomad_token  = step.provision_cluster.nomad_token
+      servers               = step.provision_cluster.servers
+      nomad_upgraded_binary = step.copy_upgrade_binary.nomad_local_binary
+      ssh_key_path = step.provision_cluster.
+      server_count = var.server_count
+      client_count = local.clients_count
+      jobs_count   = step.run_initial_workloads.jobs_count
+      alloc_count  = step.run_initial_workloads.allocs_count
     }
+  } 
+  /*
+  step "run_servers_workloads" {
+   // ...
   }
-
 
   step "server_upgrade_test_cluster_health" {
     depends_on  = [step.run_initial_workloads]
