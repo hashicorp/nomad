@@ -4,18 +4,75 @@
 package nomad
 
 import (
+	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
 
+type traceLevelConstraintAttributeCollector struct {
+	constraints []string
+}
+
+// Accept implements hclog.SinkAdapter.
+func (l *traceLevelConstraintAttributeCollector) Accept(name string, level hclog.Level, msg string, args ...interface{}) {
+	if level == hclog.Trace {
+		if len(args)%2 != 0 {
+			panic(errors.New("args must contains an even number of elements"))
+		}
+		idx := slices.IndexFunc(args, func(a interface{}) bool {
+			v, ok := a.(string)
+			if !ok {
+				return false
+			}
+			return v == "constraint"
+		})
+		if idx != -1 {
+			if len(args) < idx+1 {
+				panic(errors.New("in logging args, after the arg constraint must follow another arg"))
+			}
+			constraintInNextArg := args[idx+1]
+			l.constraints = append(l.constraints, constraintInNextArg.(string))
+		}
+	}
+}
+
+var _ hclog.SinkAdapter = &traceLevelConstraintAttributeCollector{}
+
+func TestTraceConstraints(t *testing.T) {
+	ci.Parallel(t)
+	collector := &traceLevelConstraintAttributeCollector{}
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	srv.logger.RegisterSink(collector)
+
+	t.Cleanup(cleanup)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	jobEndpoint := NewJobEndpoints(srv, nil)
+
+	j := mock.ConnectJob()
+	j.TaskGroups[0].Services[0].Name = "${JOB}-api"
+	j, warnings, err := jobEndpoint.admissionMutators(j)
+	must.NoError(t, err)
+	must.Nil(t, warnings)
+
+	constraints := j.CollectConstraints()
+	//all Constraints found in structs.Job are printed to logger with level trace
+	must.Eq(t, 10, len(constraints))
+	must.SliceEqOp(t, constraints, collector.constraints)
+}
 func Test_jobValidate_Validate_consul_service(t *testing.T) {
 	ci.Parallel(t)
 
@@ -131,14 +188,14 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 func Test_jobValidate_Validate_vault(t *testing.T) {
 	ci.Parallel(t)
 
-	testCases := []struct {
+/* 	testCases := []struct {
 		name                string
 		inputTaskVault      *structs.Vault
 		inputTaskIdentities []*structs.WorkloadIdentity
 		inputConfig         map[string]*config.VaultConfig
 		expectedWarns       []string
 		expectedErr         string
-	}{
+	}{ */
 		{
 			name: "no error when vault identity is provided via config",
 			inputTaskVault: &structs.Vault{

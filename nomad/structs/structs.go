@@ -6521,6 +6521,29 @@ func (j *Job) UsesDeployments() bool {
 	}
 }
 
+type constraintCollectors struct {
+	constraints []string
+}
+
+func (cc *constraintCollectors) append(constraints []*Constraint) {
+	for _, c := range constraints {
+		cc.constraints = append(cc.constraints, c.String())
+	}
+
+}
+
+func (j *Job) CollectConstraints() []string {
+	cc := constraintCollectors{}
+	cc.append(j.Constraints)
+	for _, tg := range j.TaskGroups {
+		cc.append(tg.GetConstraints())
+		for _, t := range tg.Tasks {
+			cc.append(t.GetConstraints())
+		}
+	}
+	return cc.constraints
+}
+
 // ScalingPolicyListStub is used to return a subset of scaling policy information
 // for the scaling policy list
 type ScalingPolicyListStub struct {
