@@ -141,8 +141,8 @@ NFS/CIFS volume from a NAS or a public cloud service such as AWS EFS. Therefore
 you can use host volumes for both local somewhat persistent storage and for
 highly persistent networked storage.
 
-Host volumes may be dynamic or static. Dynamic host volumes are provisioned by
-via the [`volume create`](/nomad/docs/commands/volume/create) command or
+Host volumes may be dynamic or static. Provision dynamic host volumes 
+with the [`volume create`](/nomad/docs/commands/volume/create) command or
 API. [ACL policies](/nomad/docs/other-specifications/acl-policy#namespace-rules)
 allow delegation of control for storage within a namespace to Nomad
 Operators. The dynamic host volume [plugin
@@ -150,22 +150,22 @@ specification](/nomad/docs/concepts/plugins/storage/host-volumes) allows you to
 develop plugins specific to your local storage environment. For example, in an
 on-prem cluster you could write a plugin to perform LVM thin-provisioning.
 
-Static host volumes are declared in the Nomad agent's configuration file, and
+You declare static host volumes in the Nomad agent's configuration file, and
 you must restart the Nomad client to reconfigure them. This makes static host
 volumes impractical if you frequently change your storage
 configuration. Furthermore, it might require coordination between different
 [personas](/nomad/docs/concepts/security#personas) to configure and consume host
 volumes. For example, a Nomad Administrator must modify Nomad's configuration
-file to add/update/remove host volumes to make them available for consumption by
-Nomad Operators. Or, with networked host volumes, a Storage Administrator will
-need to provision the volumes and make them available to the Nomad clients. A
-System Administrator will then mount them on the Nomad clients.
+file to add, update, and remove host volumes to make them available for consumption by
+Nomad Operators. Or, with networked host volumes, a Storage Administrator
+needs to provision the volumes and makes them available to the Nomad clients. A
+System Administrator then mounts them on the Nomad clients.
 
 Host volumes backed by local storage help persist data that is not critical or
 can be readily restored. For example, an on-disk cache that can be rebuilt, or a
 clustered application where a single node can rebuild its state from the rest
 of the cluster. When backed by networked storage such as NFS/CIFS-mounted
-volumes or distributed storage via GlusterFS/Ceph, host volumes provide a quick
+volumes or distributed storage with GlusterFS or Ceph, host volumes provide a quick
 option to consume highly available and reliable storage.
 
 Refer to the [Stateful workloads with Nomad host
