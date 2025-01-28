@@ -388,6 +388,9 @@ func TestReconciler_Place_Existing(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -429,6 +432,9 @@ func TestReconciler_ScaleDown_Partial(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -471,6 +477,9 @@ func TestReconciler_ScaleDown_Zero(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -514,6 +523,9 @@ func TestReconciler_ScaleDown_Zero_DuplicateNames(t *testing.T) {
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i%2))
 		allocs = append(allocs, alloc)
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		expectedStopped = append(expectedStopped, i%2)
 	}
 
@@ -552,6 +564,9 @@ func TestReconciler_Inplace(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -593,6 +608,9 @@ func TestReconciler_Inplace_ScaleUp(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -636,6 +654,9 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -686,6 +707,9 @@ func TestReconciler_Inplace_Rollback(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 	// allocs[0] is an allocation from version 0
@@ -746,6 +770,9 @@ func TestReconciler_Destructive(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -782,6 +809,9 @@ func TestReconciler_DestructiveMaxParallel(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -821,6 +851,9 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -863,6 +896,9 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 		alloc.JobID = job.ID
 		alloc.NodeID = uuid.Generate()
 		alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+		// set host volume IDs on running allocations to make sure their presence doesn't
+		// interfere with reconciler behavior
+		alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 		allocs = append(allocs, alloc)
 	}
 
@@ -1017,6 +1053,10 @@ func TestReconciler_LostNode_PreventRescheduleOnLost(t *testing.T) {
 				alloc.NodeID = uuid.Generate()
 				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 				alloc.DesiredStatus = structs.AllocDesiredStatusRun
+
+				// set host volume IDs on running allocations to make sure their presence doesn't
+				// interfere with reconciler behavior
+				alloc.HostVolumeIDs = []string{"host-volume1", "host-volume2"}
 
 				// Set one of the allocations to failed
 				if i == 4 {
