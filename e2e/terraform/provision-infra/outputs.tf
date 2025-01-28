@@ -26,16 +26,16 @@ Then you can run tests from the e2e directory with:
 ssh into servers with:
 
 %{for ip in aws_instance.server.*.public_ip~}
-   ssh -i keys/${local.random_name}/${local.random_name}.pem ubuntu@${ip}
+   ssh -i ${local.keys_dir}/${local.random_name}.pem ubuntu@${ip}
 %{endfor~}
 
 ssh into clients with:
 
 %{for ip in aws_instance.client_ubuntu_jammy.*.public_ip~}
-    ssh -i keys/${local.random_name}/${local.random_name}.pem ubuntu@${ip}
+    ssh -i ${local.keys_dir}/${local.random_name}.pem ubuntu@${ip}
 %{endfor~}
 %{for ip in aws_instance.client_windows_2016.*.public_ip~}
-    ssh -i keys/${local.random_name}/${local.random_name}.pem Administrator@${ip}
+    ssh -i ${local.keys_dir}/${local.random_name}.pem Administrator@${ip}
 %{endfor~}
 
 EOM
