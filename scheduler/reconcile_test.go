@@ -1103,6 +1103,126 @@ func TestReconciler_LostNode_PreventRescheduleOnLost(t *testing.T) {
 	}
 }
 
+func TestReconciler_InformationalAllocs(t *testing.T) {
+	disabledReschedulePolicy := &structs.ReschedulePolicy{
+		Attempts:  0,
+		Unlimited: false,
+	}
+
+	ci.Parallel(t)
+	now := time.Now()
+
+	testCases := []struct {
+		name             string
+		count            int
+		stoppedCount     int
+		failedCount      int
+		reschedulePolicy *structs.ReschedulePolicy
+		expectPlace      int
+		expectStop       int
+		expectIgnore     int
+	}{
+		{
+			name:             "Count 3, 2 allocs failed, 1 stopped, no reschedule",
+			count:            3,
+			stoppedCount:     1,
+			failedCount:      2,
+			reschedulePolicy: disabledReschedulePolicy,
+			expectPlace:      2,
+			expectStop:       1,
+			expectIgnore:     1,
+		},
+		{
+			name:         "Count 1, 1 alloc failed, 1 stopped, reschedule",
+			count:        1,
+			stoppedCount: 1,
+			failedCount:  1,
+			reschedulePolicy: &structs.ReschedulePolicy{
+				Attempts: 1,
+			},
+			expectPlace:  1,
+			expectStop:   2,
+			expectIgnore: 0,
+		},
+		{
+			name:             "Count 2, no allocs failed, 2 stopped, no reschedule",
+			count:            2,
+			stoppedCount:     2,
+			failedCount:      0,
+			reschedulePolicy: disabledReschedulePolicy,
+			expectPlace:      2,
+			expectStop:       1,
+			expectIgnore:     0,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			job := mock.Job()
+			job.TaskGroups[0].Count = tc.count
+			job.TaskGroups[0].ReschedulePolicy = tc.reschedulePolicy
+
+			var allocs []*structs.Allocation
+			for i := 0; i < tc.failedCount; i++ {
+				alloc := mock.Alloc()
+				alloc.Job = job
+				alloc.JobID = job.ID
+				alloc.NodeID = uuid.Generate()
+				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+				alloc.HostVolumeIDs = []string{"foo"}
+				alloc.DesiredStatus = structs.AllocDesiredStatusRun
+				alloc.ClientStatus = structs.AllocClientStatusFailed
+
+				allocs = append(allocs, alloc)
+			}
+
+			for i := 0; i < tc.stoppedCount; i++ {
+				alloc := mock.Alloc()
+				alloc.Job = job
+				alloc.JobID = job.ID
+				alloc.NodeID = uuid.Generate()
+				alloc.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
+				alloc.HostVolumeIDs = []string{"foo"}
+				alloc.DesiredStatus = structs.AllocDesiredStatusStop
+				alloc.ClientStatus = structs.AllocClientStatusComplete
+
+				allocs = append(allocs, alloc)
+			}
+
+			// Build a map of tainted nodes, one down one disconnected
+			tainted := make(map[string]*structs.Node, 2)
+			downNode := mock.Node()
+			downNode.ID = allocs[0].NodeID
+			downNode.Status = structs.NodeStatusDown
+			tainted[downNode.ID] = downNode
+
+			disconnected := mock.Node()
+			disconnected.ID = allocs[1].NodeID
+			disconnected.Status = structs.NodeStatusDisconnected
+			tainted[disconnected.ID] = disconnected
+
+			reconciler := NewAllocReconciler(testlog.HCLogger(t), allocUpdateFnIgnore, false, job.ID, job,
+				nil, allocs, tainted, "", 50, true, AllocRenconcilerWithNow(now))
+			r := reconciler.Compute()
+
+			// Assert the correct results
+			assertResults(t, r, &resultExpectation{
+				createDeployment:  nil,
+				deploymentUpdates: nil,
+				place:             tc.expectPlace,
+				stop:              tc.expectStop,
+				desiredTGUpdates: map[string]*structs.DesiredUpdates{
+					job.TaskGroups[0].Name: {
+						Place:  uint64(tc.expectPlace),
+						Stop:   uint64(tc.expectStop),
+						Ignore: uint64(tc.expectIgnore),
+					},
+				},
+			})
+		})
+	}
+}
+
 // Tests the reconciler properly handles lost nodes with allocations
 func TestReconciler_LostNode(t *testing.T) {
 	ci.Parallel(t)
