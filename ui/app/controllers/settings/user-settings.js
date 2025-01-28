@@ -252,7 +252,7 @@ export default class SettingsUserSettingsController extends Controller {
 
   // You may be asking: why isn't there a clearDefaultRegion() action like there is for namespaces?
   // Your localStorage settings get an activeRegion/default region every time you change regions via the header switcher,
-  // but also when you load the application route, so at best you'd have "no default" until you refresh the page.
+  // but also when you load the application route (caveat: whenever there are 2+ regions), so at best you'd have "no default" until you refresh the page.
   // If we ever decide to get rid of "save your active region for when you load the app in the future" as a convention,
   // then we can add a clearDefaultRegion() action.
 }

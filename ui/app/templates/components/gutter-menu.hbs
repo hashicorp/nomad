@@ -24,7 +24,7 @@
       </span>
     </header>
     <aside class="menu">
-      {{#if this.system.shouldShowRegions}}
+      {{#if (or this.system.shouldShowRegions this.system.hasNonDefaultRegion)}}
         <div class="collapsed-only">
           <p class="menu-label">
             Region

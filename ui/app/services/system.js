@@ -110,17 +110,21 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed('defaults', 'token.selfToken', 'variableDefaults.Region')
+  @computed(
+    'defaults',
+    'token.selfToken',
+    'variableDefaults.Region',
+    'regions.[]'
+  )
   get defaultRegion() {
-    // // let variableDefaultRegion = this.variableDefaults.Region;
-    // let variableDefaultRegion = false;
-    // if (variableDefaultRegion) {
-    //   return { region: variableDefaultRegion };
+    // 1. If there is a defaults.region, and that region is within this.regions, return that region.
+    // 2. Otherwise, fallback to the agent/members' json.ServerRegion
+    const token = this.token;
+    const regions = this.regions;
     return this.defaults.then((defaults) => {
-      if (defaults.region) {
+      if (defaults.region && regions.includes(defaults.region)) {
         return { region: defaults.region };
       } else {
-        const token = this.token;
         return PromiseObject.create({
           promise: token
             .authorizedRawRequest(`/${namespace}/agent/members`)
@@ -131,19 +135,6 @@ export default class SystemService extends Service {
         });
       }
     });
-    // if (this.defaults.region) {
-    //   return { region: this.defaults.region };
-    // } else {
-    //   const token = this.token;
-    //   return PromiseObject.create({
-    //     promise: token
-    //       .authorizedRawRequest(`/${namespace}/agent/members`)
-    //       .then(jsonWithDefault({}))
-    //       .then((json) => {
-    //         return { region: json.ServerRegion };
-    //       }),
-    //   });
-    // }
   }
 
   defaultProperties = [
@@ -239,9 +230,9 @@ export default class SystemService extends Service {
     return new Promise((resolve) => {
       resolve({
         region:
-          this.userDefaultRegion ||
-          this.variableDefaults.Region ||
-          this.agentDefaults.Region,
+          this.userDefaultRegion || // from localStorage
+          this.variableDefaults.Region || // from variable defaults
+          this.agentDefaults.Region, // from agent config
         namespace: (
           this.userDefaultNamespace ||
           this.variableDefaults.Namespace || // TODO: probably have to split/map/trim variableDefaults, too.
@@ -260,15 +251,30 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed('regions.[]', 'userDefaultRegion')
-  get activeRegion() {
-    const regions = this.regions;
-    const region = this.userDefaultRegion;
+  @task(function* () {
+    const [regions, defaultRegion] = yield Promise.all([
+      this.regions,
+      this.defaultRegion,
+    ]);
+    if (regions.includes(defaultRegion.region)) {
+      if (regions.includes(defaultRegion.region)) {
+        return defaultRegion.region;
+      }
+    } else {
+      return null;
+    }
+  })
+  computeActiveRegion;
 
-    if (regions.includes(region)) {
-      return region;
+  @computed('computeActiveRegion.lastSuccessful.value')
+  get activeRegion() {
+    // Get the last successful run's value, if it exists
+    if (this.computeActiveRegion.lastSuccessful) {
+      return this.computeActiveRegion.lastSuccessful.value;
     }
 
+    // If we haven't run yet, kick off the task and return null for now
+    this.computeActiveRegion.perform();
     return null;
   }
 
@@ -278,6 +284,7 @@ export default class SystemService extends Service {
       return;
     } else {
       set(this, 'userDefaultRegion', value);
+      this.computeActiveRegion.perform();
     }
   }
 

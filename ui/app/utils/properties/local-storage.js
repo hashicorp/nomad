@@ -14,7 +14,13 @@ export default function localStorageProperty(localStorageKey, defaultValue) {
   return computed({
     get() {
       const persistedValue = window.localStorage.getItem(localStorageKey);
-      return persistedValue ? JSON.parse(persistedValue) : defaultValue;
+      if (!persistedValue) return defaultValue;
+      try {
+        return JSON.parse(persistedValue);
+      } catch (e) {
+        window.localStorage.removeItem(localStorageKey);
+        return defaultValue;
+      }
     },
     set(key, value) {
       if (value === null || value === undefined) {

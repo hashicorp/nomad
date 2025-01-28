@@ -203,7 +203,7 @@
         {{/if}}
       </Hds::Form::HelperText>
 
-      {{#if this.system.shouldShowRegions}}
+      {{#if (or this.system.shouldShowRegions this.system.hasNonDefaultRegion)}}
         <Hds::Separator />
         <Hds::Form::Label>
           Default Region
