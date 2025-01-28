@@ -82,7 +82,7 @@ output "key_file" {
 }
 
 output "ssh_key_file" {
-  value = "${abspath(local.keys_dir)}"
+  value = "${abspath(local.keys_dir)}/${local.random_name}.pem"
 }
 
 output "nomad_token" {
