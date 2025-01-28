@@ -81,6 +81,10 @@ output "key_file" {
   value = "${abspath(local.keys_dir)}/tls_api_client.key"
 }
 
+output "ssh_key_file" {
+  value = "${abspath(local.keys_dir)}"
+}
+
 output "nomad_token" {
   value     = "${data.local_sensitive_file.nomad_token.content}"
   sensitive = true
