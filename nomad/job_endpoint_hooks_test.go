@@ -30,6 +30,7 @@ func (l *traceLevelConstraintAttributeCollector) Accept(name string, level hclog
 		if len(args)%2 != 0 {
 			panic(errors.New("args must contains an even number of elements"))
 		}
+		//idx is the  index of the log argument `constraint`.
 		idx := slices.IndexFunc(args, func(a interface{}) bool {
 			v, ok := a.(string)
 			if !ok {
@@ -49,7 +50,7 @@ func (l *traceLevelConstraintAttributeCollector) Accept(name string, level hclog
 
 var _ hclog.SinkAdapter = &traceLevelConstraintAttributeCollector{}
 
-func TestTraceConstraints(t *testing.T) {
+func TestConstrainsAreWrittenToLogIfLoglevelIsTrace(t *testing.T) {
 	ci.Parallel(t)
 	collector := &traceLevelConstraintAttributeCollector{}
 	srv, cleanup := TestServer(t, func(c *Config) {
@@ -71,8 +72,22 @@ func TestTraceConstraints(t *testing.T) {
 	constraints := j.CollectConstraints()
 	//all Constraints found in structs.Job are printed to logger with level trace
 	must.Eq(t, 10, len(constraints))
+	expected := []string{
+		"${attr.kernel.name} = linux",
+		"${attr.consul.version} semver >= 1.8.0",
+		"${attr.plugins.cni.version.bridge} semver >= 0.4.0",
+		"${attr.plugins.cni.version.firewall} semver >= 0.4.0",
+		"${attr.plugins.cni.version.host-local} semver >= 0.4.0",
+		"${attr.plugins.cni.version.loopback} semver >= 0.4.0",
+		"${attr.plugins.cni.version.portmap} semver >= 0.4.0",
+		"${attr.consul.version} semver >= 1.8.0",
+		"${attr.consul.version} semver >= 1.8.0",
+		"${attr.consul.grpc} > 0",
+	}
 	must.SliceEqOp(t, constraints, collector.constraints)
+	must.SliceEqOp(t, expected, collector.constraints)
 }
+
 func Test_jobValidate_Validate_consul_service(t *testing.T) {
 	ci.Parallel(t)
 
@@ -188,14 +203,14 @@ func Test_jobValidate_Validate_consul_service(t *testing.T) {
 func Test_jobValidate_Validate_vault(t *testing.T) {
 	ci.Parallel(t)
 
-/* 	testCases := []struct {
+	testCases := []struct {
 		name                string
 		inputTaskVault      *structs.Vault
 		inputTaskIdentities []*structs.WorkloadIdentity
 		inputConfig         map[string]*config.VaultConfig
 		expectedWarns       []string
 		expectedErr         string
-	}{ */
+	}{
 		{
 			name: "no error when vault identity is provided via config",
 			inputTaskVault: &structs.Vault{
