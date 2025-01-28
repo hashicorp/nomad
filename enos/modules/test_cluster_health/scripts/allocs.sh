@@ -31,7 +31,7 @@ MAX_WAIT_TIME=30  # Maximum wait time in seconds
 POLL_INTERVAL=2    # Interval between status checks
 
 random_alloc_id=$(echo "$running_allocs" | jq -r ".[$((RANDOM % ($allocs_length + 1)))].ID")
-nomad alloc stop -detach "$random_alloc_id" || error_exit "Failed to stop allocation $random_alloc_id."
+nomad alloc stop "$random_alloc_id" || error_exit "Failed to stop allocation $random_alloc_id."
 
 echo "Waiting for allocation $random_alloc_id to reach 'complete' status..."
 elapsed_time=0

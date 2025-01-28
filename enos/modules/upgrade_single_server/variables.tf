@@ -33,7 +33,6 @@ variable "platform" {
 variable "server_address" {
   description = "IP address of the server tha will be updated"
   type        = string
-  default     = "107.21.82.251"
 }
 
 variable "nomad_local_upgrade_binary" {
@@ -49,4 +48,23 @@ variable "nomad_remote_binary" {
   description = "Path were the nomad binary will be placed to replace the old one on the server"
 }
 
+variable "server_count" {
+  description = "The number of servers to provision."
+  type = number
+}
+
+variable "client_count" {
+  description = "The number of Ubuntu clients to provision."
+  type = number
+}
+
+variable "jobs_count" {
+  description = "The number of jobs that should be running in the cluster"
+  type = number
+}
+
+variable "alloc_count" {
+  description = "Number of allocation that should be running in the cluster"
+  type = number
+}
 

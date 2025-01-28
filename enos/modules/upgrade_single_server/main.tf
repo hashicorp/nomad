@@ -30,7 +30,7 @@ resource "enos_file" "copy_upgraded_binary" {
   }
 }
 
-resource "enos_local_exec" "take_server_snapshot" {
+ resource "enos_local_exec" "take_server_snapshot" {
   environment = {
     NOMAD_ADDR        = var.nomad_addr
     NOMAD_CACERT      = var.ca_file
@@ -42,12 +42,12 @@ resource "enos_local_exec" "take_server_snapshot" {
   inline = [
     "nomad operator snapshot save -stale=true ${local.snap_file}",
   ]
-}
-
+ }
 
 resource "enos_remote_exec" "restart_linux_services" {
   count      = var.platform == "linux" ? 1 : 0
   depends_on = [enos_local_exec.take_server_snapshot, enos_file.copy_upgraded_binary]
+
 
   transport = {
     ssh = {
@@ -66,7 +66,7 @@ resource "enos_remote_exec" "restart_linux_services" {
 resource "enos_remote_exec" "restart_windows_services" {
   count      = var.platform == "windows" ? 1 : 0
   depends_on = [enos_local_exec.take_server_snapshot, enos_file.copy_upgraded_binary]
-
+ 
   transport = {
     ssh = {
       host             = var.server_address
@@ -80,8 +80,8 @@ resource "enos_remote_exec" "restart_windows_services" {
   ]
 }
 
-resource "enos_local_exec" "restore_server_snapshot" {
-  depends_on = [enos_local_exec.restart_windows_services, enos_local_exec.restart_linux_services]
+ resource "enos_local_exec" "restore_server_snapshot" {
+  depends_on = [enos_remote_exec.restart_windows_services, enos_remote_exec.restart_linux_services]
 
   environment = {
     NOMAD_ADDR        = var.nomad_addr
@@ -94,4 +94,19 @@ resource "enos_local_exec" "restore_server_snapshot" {
   inline = [
     "nomad operator snapshot restore ${local.snap_file}",
   ]
+} 
+
+ module "test_nodes_health" {
+  source = "../test_cluster_health"
+
+    nomad_addr   = var.nomad_addr
+    ca_file      = var.ca_file
+    cert_file    = var.cert_file
+    key_file     = var.key_file
+    nomad_token  = var.nomad_token
+    server_count = var.server_count
+    client_count = var.client_count
+    jobs_count   = var.jobs_count
+    alloc_count  = var.alloc_count
 }
+

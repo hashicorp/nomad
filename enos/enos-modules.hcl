@@ -17,6 +17,6 @@ module "test_cluster_health" {
   source = "./modules/test_cluster_health"
 }
 
-module "upgrade_server" {
-  source = "./modules/upgrade_server"
-}
+module "upgrade_servers" {
+  source = "./modules/upgrade_servers"
+} 
