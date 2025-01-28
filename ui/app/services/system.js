@@ -28,6 +28,7 @@ import { tracked } from '@glimmer/tracking';
 export default class SystemService extends Service {
   @service token;
   @service store;
+  @service can;
 
   /**
    * Iterates over all regions and returns a list of leaders' rpcAddrs
@@ -109,17 +110,86 @@ export default class SystemService extends Service {
     });
   }
 
-  @computed('token.selfToken')
+  @computed(
+    'defaults',
+    'token.selfToken',
+    'variableDefaults.Region',
+    'regions.[]'
+  )
   get defaultRegion() {
+    // 1. If there is a defaults.region, and that region is within this.regions, return that region.
+    // 2. Otherwise, fallback to the agent/members' json.ServerRegion
     const token = this.token;
-    return PromiseObject.create({
-      promise: token
-        .authorizedRawRequest(`/${namespace}/agent/members`)
-        .then(jsonWithDefault({}))
-        .then((json) => {
-          return { region: json.ServerRegion };
-        }),
+    const regions = this.regions;
+    return this.defaults.then((defaults) => {
+      if (defaults.region && regions.includes(defaults.region)) {
+        return { region: defaults.region };
+      } else {
+        return PromiseObject.create({
+          promise: token
+            .authorizedRawRequest(`/${namespace}/agent/members`)
+            .then(jsonWithDefault({}))
+            .then((json) => {
+              return { region: json.ServerRegion };
+            }),
+        });
+      }
     });
+  }
+
+  defaultProperties = [
+    'userDefaultRegion',
+    'userDefaultNamespace',
+    'userDefaultNodePool',
+  ];
+
+  async establishUIDefaults() {
+    // // First, check to see if there are localStorage properties set for each of the defaults.
+    // // If there are, we don't need to reach out to check the variable or agent config.
+    // if (this.defaultProperties.every((defaultString) => this[defaultString])) {
+    //   return;
+    // }
+
+    let agent = await this.agent;
+    this.agentDefaults = agent?.config?.UI?.Defaults || {};
+    let variableDefaults = await this.fetchVariableDefaults();
+    this.variableDefaults = variableDefaults || {};
+    return {
+      agentDefaults: this.agentDefaults,
+      variableDefaults: this.variableDefaults,
+    };
+  }
+
+  async fetchVariableDefaults() {
+    try {
+      // if (this.can.can('read variable', 'nomad/ui/defaults', '*')) { // TODO: is wildcard correctly handled by "can"?
+
+      // Get all variables in defaults across all namespaces
+      const variables = await this.store.query('variable', {
+        prefix: 'nomad/ui/defaults',
+        namespace: '*',
+      });
+      // If any exist, take the first one and read it
+      const firstVariable = variables.firstObject;
+      if (firstVariable) {
+        const variableDefaults = await this.store.findRecord(
+          'variable',
+          `${firstVariable.path}@${firstVariable.namespace}`,
+          { reload: true }
+        );
+        return {
+          Namespace: variableDefaults.items.namespace,
+          NodePool: variableDefaults.items.nodepool,
+          Region: variableDefaults.items.region,
+        };
+      } else {
+        return null;
+      }
+      // }
+    } catch (e) {
+      console.warn('Failed to load UI defaults:', e);
+      return null;
+    }
   }
 
   @computed
@@ -138,6 +208,7 @@ export default class SystemService extends Service {
   @localStorageProperty('nomadActiveRegion') userDefaultRegion;
 
   @tracked agentDefaults = {};
+  @tracked variableDefaults = {};
 
   /**
    * First read agent config for cluster-level defaults,
@@ -149,36 +220,61 @@ export default class SystemService extends Service {
     'agentDefaults.{Namespace,NodePool,Region}',
     'userDefaultNamespace',
     'userDefaultNodePool',
-    'userDefaultRegion'
+    'userDefaultRegion',
+    'variableDefaults.{Namespace,NodePool,Region}'
   )
   get defaults() {
-    return this.agent.then((agent) => {
-      /**
-       * @type {Defaults}
-       */
-      // eslint-disable-next-line ember/no-side-effects
-      this.agentDefaults = agent?.config?.UI?.Defaults || {};
-      return {
-        region: this.userDefaultRegion || this.agentDefaults.Region,
-        namespace: (this.userDefaultNamespace || this.agentDefaults.Namespace)
+    /**
+     * @type {Defaults}
+     */
+    return new Promise((resolve) => {
+      resolve({
+        region:
+          this.userDefaultRegion || // from localStorage
+          this.variableDefaults.Region || // from variable defaults
+          this.agentDefaults.Region, // from agent config
+        namespace: (
+          this.userDefaultNamespace ||
+          this.variableDefaults.Namespace || // TODO: probably have to split/map/trim variableDefaults, too.
+          this.agentDefaults.Namespace
+        )
           ?.split(',')
           .map((ns) => ns.trim()),
-        nodePool: (this.userDefaultNodePool || this.agentDefaults.NodePool)
+        nodePool: (
+          this.userDefaultNodePool ||
+          this.variableDefaults.NodePool ||
+          this.agentDefaults.NodePool
+        )
           ?.split(',')
           .map((np) => np.trim()),
-      };
+      });
     });
   }
 
-  @computed('regions.[]', 'userDefaultRegion')
-  get activeRegion() {
-    const regions = this.regions;
-    const region = this.userDefaultRegion;
+  @task(function* () {
+    const [regions, defaultRegion] = yield Promise.all([
+      this.regions,
+      this.defaultRegion,
+    ]);
+    if (regions.includes(defaultRegion.region)) {
+      if (regions.includes(defaultRegion.region)) {
+        return defaultRegion.region;
+      }
+    } else {
+      return null;
+    }
+  })
+  computeActiveRegion;
 
-    if (regions.includes(region)) {
-      return region;
+  @computed('computeActiveRegion.lastSuccessful.value')
+  get activeRegion() {
+    // Get the last successful run's value, if it exists
+    if (this.computeActiveRegion.lastSuccessful) {
+      return this.computeActiveRegion.lastSuccessful.value;
     }
 
+    // If we haven't run yet, kick off the task and return null for now
+    this.computeActiveRegion.perform();
     return null;
   }
 
@@ -188,6 +284,7 @@ export default class SystemService extends Service {
       return;
     } else {
       set(this, 'userDefaultRegion', value);
+      this.computeActiveRegion.perform();
     }
   }
 

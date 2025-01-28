@@ -440,9 +440,15 @@ func ValidatePath(path string) error {
 	case parts[1] == "job-templates":
 		// Disallow exactly nomad/job-templates with no further paths
 		return fmt.Errorf("\"nomad/job-templates\" is a reserved directory path, but you may write variables at the level below it, for example, \"nomad/job-templates/template-name\"")
+	case parts[1] == "ui" && parts[2] == "defaults" && len(parts) == 4:
+		// Paths including "nomad/ui/defaults" are valid, provided they have single further path part
+		return nil
+	case parts[1] == "ui" && parts[2] == "defaults":
+		// Disallow exactly nomad/ui/defaults with no further paths
+		return fmt.Errorf("\"nomad/ui/defaults\" is a reserved directory path, but you may write variables at the level below it, for example, \"nomad/ui/defaults/region\"")
 	default:
 		// Disallow arbitrary sub-paths beneath nomad/
-		return fmt.Errorf("only paths at \"nomad/jobs\" or \"nomad/job-templates\" and below are valid paths under the top-level \"nomad\" directory")
+		return fmt.Errorf("only paths at \"nomad/jobs\", \"nomad/ui/defaults\", or \"nomad/job-templates\" and below are valid paths under the top-level \"nomad\" directory")
 	}
 }
 

@@ -19,6 +19,7 @@ export default class ApplicationRoute extends Route {
   @service store;
   @service token;
   @service router;
+  @service can;
 
   queryParams = {
     region: {
@@ -72,17 +73,19 @@ export default class ApplicationRoute extends Route {
 
       promises = await RSVP.all([
         this.get('system.regions'),
-        this.get('system.defaultRegion'),
         fetchLicense,
         fetchSelfTokenAndPolicies,
         checkFuzzySearchPresence,
       ]);
     }
 
+    await this.system.establishUIDefaults();
+    const defaults = await this.system.defaults;
+
     if (!this.get('system.shouldShowRegions')) return promises;
 
     const queryParam = transition.to.queryParams.region;
-    const defaultRegion = this.get('system.defaultRegion.region');
+    const defaultRegion = defaults.region;
     const currentRegion = this.get('system.activeRegion') || defaultRegion;
 
     // Only reset the store if the region actually changed

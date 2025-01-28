@@ -85,10 +85,18 @@ export default class SettingsUserSettingsController extends Controller {
       ? this.system.agentDefaults.Namespace.split(',')
       : [];
 
+    let variableDefaultNamespaces = this.system.variableDefaults?.Namespace
+      ? this.system.variableDefaults.Namespace.split(',')
+      : [];
+
     if (userDefaultNamespaces.length) {
       return `${userDefaultNamespaces.length} default namespace${
         userDefaultNamespaces.length > 1 ? 's' : ''
       } (via localStorage)`;
+    } else if (variableDefaultNamespaces.length) {
+      return `${variableDefaultNamespaces.length} default namespace${
+        variableDefaultNamespaces.length > 1 ? 's' : ''
+      } (via variable defaults)`;
     } else if (agentDefaultNamespaces.length) {
       return `${agentDefaultNamespaces.length} default namespace${
         agentDefaultNamespaces.length > 1 ? 's' : ''
@@ -121,10 +129,18 @@ export default class SettingsUserSettingsController extends Controller {
       ? this.system.agentDefaults.NodePool.split(',')
       : [];
 
+    let variableDefaultNodePools = this.system.variableDefaults?.NodePool
+      ? this.system.variableDefaults.NodePool.split(',')
+      : [];
+
     if (userDefaultNodePools.length) {
       return `${userDefaultNodePools.length} default node pool${
         userDefaultNodePools.length > 1 ? 's' : ''
       } (via localStorage)`;
+    } else if (variableDefaultNodePools.length) {
+      return `${variableDefaultNodePools.length} default node pool${
+        variableDefaultNodePools.length > 1 ? 's' : ''
+      } (via variable defaults)`;
     } else if (agentDefaultNodePools.length) {
       return `${agentDefaultNodePools.length} default node pool${
         agentDefaultNodePools.length > 1 ? 's' : ''
@@ -171,7 +187,9 @@ export default class SettingsUserSettingsController extends Controller {
     set(this, 'system.userDefaultNamespace', null);
     this.notifications.add({
       title: 'Default Namespaces Cleared',
-      message: this.system.agentDefaults?.Namespace
+      message: this.system.variableDefaults?.Namespace
+        ? `Namespaces ${this.system.variableDefaults.Namespace} are now default via variable defaults`
+        : this.system.agentDefaults?.Namespace
         ? `Namespaces ${this.system.agentDefaults.Namespace} are now default via agent`
         : 'No default namespaces set',
       color: 'success',
@@ -203,7 +221,9 @@ export default class SettingsUserSettingsController extends Controller {
     set(this, 'system.userDefaultNodePool', null);
     this.notifications.add({
       title: 'Default Node Pools Cleared',
-      message: this.system.agentDefaults?.NodePool
+      message: this.system.variableDefaults?.NodePool
+        ? `Node Pools ${this.system.variableDefaults.NodePool} are now default via variable defaults`
+        : this.system.agentDefaults?.NodePool
         ? `Node Pools ${this.system.agentDefaults.NodePool} are now default via agent`
         : 'No default node pools set',
       color: 'success',
@@ -232,7 +252,7 @@ export default class SettingsUserSettingsController extends Controller {
 
   // You may be asking: why isn't there a clearDefaultRegion() action like there is for namespaces?
   // Your localStorage settings get an activeRegion/default region every time you change regions via the header switcher,
-  // but also when you load the application route, so at best you'd have "no default" until you refresh the page.
+  // but also when you load the application route (caveat: whenever there are 2+ regions), so at best you'd have "no default" until you refresh the page.
   // If we ever decide to get rid of "save your active region for when you load the app in the future" as a convention,
   // then we can add a clearDefaultRegion() action.
 }
