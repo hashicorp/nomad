@@ -7678,7 +7678,7 @@ func TestStateStore_SetJobStatus(t *testing.T) {
 	}
 }
 
-func TestStateStore_GetJobStatus_new(t *testing.T) {
+func TestStateStore_GetJobStatus(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
