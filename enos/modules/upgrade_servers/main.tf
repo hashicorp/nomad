@@ -22,8 +22,4 @@ module upgrade_single_cluster {
   server_address             = each.value
   nomad_local_upgrade_binary = var.nomad_local_upgrade_binary
   ssh_key_path               = var.ssh_key_path
-  server_count               = var.server_count
-  client_count               = var.client_count
-  jobs_count                 = var.jobs_count
-  alloc_count                = var.alloc_count
 }

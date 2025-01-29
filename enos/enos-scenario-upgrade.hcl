@@ -145,7 +145,7 @@ scenario "upgrade" {
 
     description = <<-EOF
     Takes the servers one by one, makes a snapshot, updates the binary with the
-    new one previously fetched, restarts the service and runs the health check.
+    new one previously fetched, restarts the servers from the snapshot.
 
     Important: The path where the binary will be placed is hardcoded, according 
     to Nomads best practices it will be: 
@@ -171,21 +171,14 @@ scenario "upgrade" {
       servers                    = step.provision_cluster.servers
       nomad_local_upgrade_binary = step.copy_upgrade_binary.nomad_local_binary
       ssh_key_path               = step.provision_cluster.ssh_key_file
-      server_count               = var.server_count
-      client_count               = local.clients_count
-      jobs_count                 = step.run_initial_workloads.jobs_count
-      alloc_count                = step.run_initial_workloads.allocs_count
     }
-  }
-  /*
-  step "run_servers_workloads" {
-   // ...
   }
 
   step "server_upgrade_test_cluster_health" {
-    depends_on  = [step.run_initial_workloads]
+    depends_on  = [step.upgrade_servers]
     description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs to check for correct reschedules"
+    Verify the health of the cluster by checking the status of all servers, nodes, 
+    jobs and allocs and stopping random allocs to check for correct reschedules
     EOF
 
     module = module.test_cluster_health
@@ -210,6 +203,13 @@ scenario "upgrade" {
       quality.nomad_reschedule_alloc,
     ]
   }
+  
+  /*
+  step "run_servers_workloads" {
+   // ...
+  }
+
+
 
   step "upgrade_client" {
     description = <<-EOF

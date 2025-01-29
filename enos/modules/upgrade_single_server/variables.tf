@@ -46,24 +46,3 @@ variable "ssh_key_path" {
   description = "Path to the ssh private key that can be used to connect to the instance where the server is running"
   type        = string
 }
-
-variable "server_count" {
-  description = "The number of servers to provision."
-  type        = number
-}
-
-variable "client_count" {
-  description = "The number of Ubuntu clients to provision."
-  type        = number
-}
-
-variable "jobs_count" {
-  description = "The number of jobs that should be running in the cluster"
-  type        = number
-}
-
-variable "alloc_count" {
-  description = "Number of allocation that should be running in the cluster"
-  type        = number
-}
-

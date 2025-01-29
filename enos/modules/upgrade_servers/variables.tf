@@ -1,6 +1,11 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+variable "name" {
+  description = "Used to name various infrastructure components, must be unique per cluster"
+  default     = "nomad-e2e"
+}
+
 variable "nomad_addr" {
   description = "The Nomad API HTTP address."
   type        = string
@@ -46,24 +51,3 @@ variable "servers" {
   description = "List of public IP address of the nomad servers that will be updated"
   type        = list
 }
-
-variable "server_count" {
-  description = "The number of servers to provision."
-  type        = number
-}
-
-variable "client_count" {
-  description = "The number of Ubuntu clients to provision."
-  type        = number
-}
-
-variable "jobs_count" {
-  description = "The number of jobs that should be running in the cluster"
-  type        = number
-}
-
-variable "alloc_count" {
-  description = "Number of allocation that should be running in the cluster"
-  type        = number
-}
-

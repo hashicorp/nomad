@@ -97,17 +97,3 @@ resource "enos_local_exec" "restore_server_snapshot" {
   ]
 }
 
-module "test_nodes_health" {
-  source = "../test_cluster_health"
-
-  nomad_addr   = var.nomad_addr
-  ca_file      = var.ca_file
-  cert_file    = var.cert_file
-  key_file     = var.key_file
-  nomad_token  = var.nomad_token
-  server_count = var.server_count
-  client_count = var.client_count
-  jobs_count   = var.jobs_count
-  alloc_count  = var.alloc_count
-}
-
