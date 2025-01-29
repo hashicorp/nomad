@@ -37,7 +37,7 @@ variable "workloads" {
   }))
 
   default = {
-    service_raw_exec = { template = "templates/raw-exec-service.nomad.hcl.tpl", alloc_count = 3 }
-    service_docker   = { template = "templates/docker-service.nomad.hcl.tpl", alloc_count = 3 }
+    service_raw_exec = { template = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3 }
+    service_docker   = { template = "jobs/docker-service.nomad.hcl", alloc_count = 3 }
   }
 }

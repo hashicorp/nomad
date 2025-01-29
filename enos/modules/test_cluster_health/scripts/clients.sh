@@ -9,7 +9,7 @@ error_exit() {
     exit 1
 }
 
-# Quality: "nomad_CLIENTS_status: A GET call to /v1/CLIENTS returns the correct number of clients and they are all eligible and ready"
+# Quality: "nomad_CLIENTS_status: A GET call to /v1/nodes returns the correct number of clients and they are all eligible and ready"
 
 clients=$(nomad node status -json)
 running_clients=$(echo $clients | jq '[.[] | select(.Status == "ready")]')

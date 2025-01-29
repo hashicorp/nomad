@@ -28,12 +28,12 @@ variable "nomad_token" {
 }
 
 variable "server_count" {
-  description = "The number of servers to provision."
+  description = "The expected number of servers."
   type        = number
 }
 
 variable "client_count" {
-  description = "The number of Ubuntu clients to provision."
+  description = "The expected number of Ubuntu clients."  
   type        = number
 }
 

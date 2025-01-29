@@ -4,7 +4,7 @@
 job "service-docker" {
 
   group "service-docker" {
-    count = "${alloc_count}"
+    count = var.alloc_count
     task "alpine" {
       driver = "docker"
 
