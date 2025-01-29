@@ -25,7 +25,7 @@ class MockAbortController {
 export default class TaskLog extends Component {
   @service token;
   @service userSettings;
-
+  @service can;
   allocation = null;
   task = null;
 
@@ -50,11 +50,13 @@ export default class TaskLog extends Component {
 
   @computed('allocation.{id,node.httpAddr}', 'useServer')
   get logUrl() {
-    const address = this.get('allocation.node.httpAddr');
+    let address;
     const allocation = this.get('allocation.id');
-
+    if (this.can.can('read client')) {
+      address = this.get('allocation.node.httpAddr');
+    }
     const url = `/v1/client/fs/logs/${allocation}`;
-    return this.useServer ? url : `//${address}${url}`;
+    return this.useServer ? url : address ? `//${address}${url}` : url;
   }
 
   @computed('task', 'mode')
