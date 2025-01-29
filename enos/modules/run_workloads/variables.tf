@@ -32,12 +32,12 @@ variable "workloads" {
   description = "A map of workloads to provision"
 
   type = map(object({
-    jobspec     = string
+    job_spec    = string
     alloc_count = number
   }))
 
   default = {
-    service_raw_exec = { jobspec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3 }
-    service_docker   = { jobspec = "jobs/docker-service.nomad.hcl", alloc_count = 3 }
+    service_raw_exec = { job_spec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3 }
+    service_docker   = { job_spec = "jobs/docker-service.nomad.hcl", alloc_count = 3 }
   }
 }
