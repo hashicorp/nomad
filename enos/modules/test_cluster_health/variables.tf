@@ -29,17 +29,17 @@ variable "nomad_token" {
 
 variable "server_count" {
   description = "The number of servers to provision."
-  default     = 3
+  type        = number
 }
 
 variable "client_count" {
   description = "The number of Ubuntu clients to provision."
-  default     = 4
+  type        = number
 }
 
 variable "jobs_count" {
   description = "The number of jobs that should be running in the cluster"
-  default     = 2
+  type        = number
 }
 
 variable "alloc_count" {

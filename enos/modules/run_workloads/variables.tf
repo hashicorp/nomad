@@ -25,14 +25,17 @@ variable "key_file" {
 variable "nomad_token" {
   description = "The Secret ID of an ACL token to make requests with, for ACL-enabled clusters."
   type        = string
+  sensitive   = true
 }
 
 variable "workloads" {
   description = "A map of workloads to provision"
+
   type = map(object({
     template    = string
     alloc_count = number
   }))
+
   default = {
     service_raw_exec = { template = "templates/raw-exec-service.nomad.hcl.tpl", alloc_count = 3 }
     service_docker   = { template = "templates/docker-service.nomad.hcl.tpl", alloc_count = 3 }

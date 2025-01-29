@@ -4,8 +4,6 @@
 
 set -xeuo pipefail
 
-LOCAL_ZIP="nomad.zip" 
-
 wget --header="X-JFrog-Art-Api:$TOKEN" -O "$LOCAL_ZIP" "$URL"
 
 if [ $? -eq 0 ]; then

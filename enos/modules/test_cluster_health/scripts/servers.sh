@@ -5,11 +5,12 @@
 set -euo pipefail
 
 error_exit() {
-    printf "Error: $1"
+    printf 'Error: %s' "${1}" 
     exit 1
 }
 
-# Quality: nomad_agent_info: A GET call to /v1/agent/members returns the correct number of running servers and they are all aliv
+# Quality: nomad_agent_info: A GET call to /v1/agent/members returns the correct number of running servers and they are all alive
+
 servers=$(nomad server members -json )
 running_servers=$(echo $servers | jq '[.[] | select(.Status == "alive")]')
 servers_length=$(echo "$running_servers" | jq 'length' )
@@ -18,7 +19,7 @@ if [ -z "$servers_length" ];  then
     error_exit "No servers found"
 fi
 
-if [ "$servers_length" -ne "$SERVERS" ]; then
+if [ "$servers_length" -ne "$SERVER_COUNT" ]; then
     error_exit "Unexpected number of servers are alive: $servers_length\n$(echo $servers | jq '.[] | select(.Status != "alive") | .Name')"
 fi
 

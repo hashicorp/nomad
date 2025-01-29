@@ -16,6 +16,7 @@ data "enos_artifactory_item" "nomad" {
   repo     = var.artifactory_repo
   path     = local.path
   name     = local.artifact_name
+  
   properties = tomap({
     "product-name" = var.edition == "ce" ? "nomad" : "nomad-enterprise"
   })

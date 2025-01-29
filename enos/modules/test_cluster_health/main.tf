@@ -20,10 +20,10 @@ resource "enos_local_exec" "run_tests" {
     NOMAD_CLIENT_CERT = var.cert_file
     NOMAD_CLIENT_KEY  = var.key_file
     NOMAD_TOKEN       = local.clean_token
-    SERVERS           = var.server_count
-    CLIENTS           = var.client_count
-    JOBS              = var.jobs_count
-    ALLOCS            = var.alloc_count
+    SERVER_COUNT      = var.server_count
+    CLIENT_COUNT      = var.client_count
+    JOB_COUNT         = var.jobs_count
+    ALLOC_COUNT       = var.alloc_count
   }
 
   scripts = [

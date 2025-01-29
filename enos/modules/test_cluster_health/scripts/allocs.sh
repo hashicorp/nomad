@@ -5,11 +5,12 @@
 set -euo pipefail
 
 error_exit() {
-    printf "Error: $1"
+    printf 'Error: %s' "${1}" 
     exit 1
 }
 
 # Quality: nomad_allocs_status: A GET call to /v1/allocs returns the correct number of allocations and they are all running
+
 allocs=$(nomad alloc status -json)
 running_allocs=$(echo $allocs | jq '[.[] | select(.ClientStatus == "running")]')
 allocs_length=$(echo "$running_allocs" | jq 'length' )
@@ -18,7 +19,7 @@ if [ -z "$allocs_length" ];  then
     error_exit "No allocs found"
 fi
 
-if [ "$allocs_length" -ne "$ALLOCS" ]; then
+if [ "$allocs_length" -ne "$ALLOC_COUNT" ]; then
     error_exit "Some allocs are not running:\n$(nomad alloc status -json | jq -r '.[] | select(.ClientStatus != "running") | .ID')"
 fi
 
