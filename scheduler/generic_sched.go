@@ -470,7 +470,8 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	return s.computePlacements(destructive, place, results.taskGroupAllocNameIndexes)
 }
 
-// downgradedJobForPlacement returns the job appropriate for non-canary placement replacement
+// downgradedJobForPlacement returns the previous stable version of the job for
+// downgrading a placement for non-canaries
 func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string, *structs.Job, error) {
 	ns, jobID := s.job.Namespace, s.job.ID
 	tgName := p.TaskGroup().Name
@@ -588,8 +589,8 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 			}
 
 			// Check if we should stop the previous allocation upon successful
-			// placement of its replacement. This allow atomic placements/stops. We
-			// stop the allocation before trying to find a replacement because this
+			// placement of the new alloc. This allow atomic placements/stops. We
+			// stop the allocation before trying to place the new alloc because this
 			// frees the resources currently used by the previous allocation.
 			stopPrevAlloc, stopPrevAllocDesc := missing.StopPreviousAlloc()
 			prevAllocation := missing.PreviousAllocation()
@@ -740,7 +741,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// Track the fact that we didn't find a placement
 				s.failedTGAllocs[tg.Name] = s.ctx.Metrics()
 
-				// If we weren't able to find a replacement for the allocation, back
+				// If we weren't able to find a placement for the allocation, back
 				// out the fact that we asked to stop the allocation.
 				if stopPrevAlloc {
 					s.plan.PopUpdate(prevAllocation)
@@ -802,10 +803,10 @@ func needsToSetNodes(a, b *structs.Job) bool {
 		a.NodePool != b.NodePool
 }
 
-// propagateTaskState copies task handles from previous allocations to
-// replacement allocations when the previous allocation is being drained or was
-// lost. Remote task drivers rely on this to reconnect to remote tasks when the
-// allocation managing them changes due to a down or draining node.
+// propagateTaskState copies task handles from previous allocations to migrated
+// or replacement allocations when the previous allocation is being drained or
+// was lost. Remote task drivers rely on this to reconnect to remote tasks when
+// the allocation managing them changes due to a down or draining node.
 //
 // The previous allocation will be marked as lost after task state has been
 // propagated (when the plan is applied), so its ClientStatus is not yet marked

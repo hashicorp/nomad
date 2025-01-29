@@ -31,6 +31,12 @@ Nomad will attempt to schedule the allocation on another node if any of its
 task statuses become `failed`. The scheduler prefers to create a replacement
 allocation on a node that was not used by a previous allocation.
 
+Rescheduling happens when the Nomad agent fails to setup the allocation or the
+tasks of an allocation fail more than their [`restart`][] block allows. When a
+node is drained, Nomad [migrates][] the allocations instead and the `reschedule`
+block does not apply. When a node is lost, Nomad [replaces][] the allocations
+instead and the `reschedule` block does not apply.
+
 
 ```hcl
 job "docs" {
@@ -131,3 +137,7 @@ job "docs" {
 ```
 
 [`progress_deadline`]: /nomad/docs/job-specification/update#progress_deadline
+[`restart`]: /nomad/docs/job-specification/restart
+[migrates]: /nomad/docs/job-specification/migrate
+[replaces]: /nomad/docs/job-specification/disconnect#replace
+[reschedules]: /nomad/docs/job-specification/reschedule

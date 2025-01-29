@@ -438,17 +438,17 @@ Nomad Clients periodically heartbeat to Nomad Servers to confirm they are
 operating as expected. Nomad Clients which do not heartbeat in the specified
 amount of time are considered `down` and their allocations are marked as `lost`
 or `disconnected` (if [`disconnect.lost_after`][disconnect.lost_after] is set)
-and rescheduled.
+and replaced.
 
 The various heartbeat related parameters allow you to tune the following
 tradeoffs:
 
 - The longer the heartbeat period, the longer a `down` Client's workload will
-  take to be rescheduled.
+  take to be replaced.
 - The shorter the heartbeat period, the more likely transient network issues,
   leader elections, and other temporary issues could cause a perfectly
   functional Client and its workloads to be marked as `down` and the work
-  rescheduled.
+  replaced.
 
 While Nomad Clients can connect to any Server, all heartbeats are forwarded to
 the leader for processing. Since this heartbeat processing consumes resources,
@@ -510,7 +510,7 @@ system has for a delay in noticing crashed Clients. For example a
 `failover_heartbeat_ttl` of 30 minutes may give even the slowest clients in the
 largest clusters ample time to heartbeat after an election. However if the
 election was due to a datacenter-wide failure affecting Clients, it will be 30
-minutes before Nomad recognizes that they are `down` and reschedules their
+minutes before Nomad recognizes that they are `down` and replaces their
 work.
 
 [encryption]: /nomad/tutorials/transport-security/security-gossip-encryption 'Nomad Encryption Overview'
