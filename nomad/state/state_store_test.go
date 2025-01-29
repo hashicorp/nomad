@@ -7678,232 +7678,100 @@ func TestStateStore_SetJobStatus(t *testing.T) {
 	}
 }
 
-func TestStateStore_GetJobStatus_NoEvalsOrAllocs(t *testing.T) {
+func TestStateStore_GetJobStatus_new(t *testing.T) {
 	ci.Parallel(t)
 
-	job := mock.Job()
-	state := testStateStore(t)
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
+	testCases := []struct {
+		name       string
+		hasAlloc   bool
+		allocSetup func(*structs.Allocation)
+		jobSetup   func(*structs.Job)
+		exp        string
+	}{
+		{
+			name:     "stopped job",
+			hasAlloc: false,
+			jobSetup: func(j *structs.Job) {
+				j.Stop = true
+			},
+			exp: structs.JobStatusDead,
+		},
+		{
+			name:     "parameterized job",
+			hasAlloc: false,
+			jobSetup: func(j *structs.Job) {
+				j.ParameterizedJob = &structs.ParameterizedJobConfig{}
+				j.Dispatched = false
+			},
+			exp: structs.JobStatusRunning,
+		},
+		{
+			name:     "periodic job",
+			hasAlloc: false,
+			jobSetup: func(j *structs.Job) {
+				j.Periodic = &structs.PeriodicConfig{}
+			},
+			exp: structs.JobStatusRunning,
+		},
+		{
+			name:     "no allocs",
+			hasAlloc: false,
+			jobSetup: func(j *structs.Job) {},
+			exp:      structs.JobStatusPending,
+		},
+		{
+			name:     "current job has running alloc",
+			hasAlloc: true,
+			jobSetup: func(j *structs.Job) {},
+			exp:      structs.JobStatusRunning,
+		},
+		{
+			name:     "current job with all terminal allocs",
+			hasAlloc: true,
+			allocSetup: func(a *structs.Allocation) {
+				a.ClientStatus = structs.AllocClientStatusComplete
+			},
+			jobSetup: func(j *structs.Job) {},
+			exp:      structs.JobStatusDead,
+		},
+		{
+			name:     "previous job version had allocs",
+			hasAlloc: true,
+			jobSetup: func(j *structs.Job) {
+				j.Version += 1
+			},
+			exp: structs.JobStatusPending,
+		},
 	}
 
-	if status != structs.JobStatusPending {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusPending)
-	}
-}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := testStateStore(t)
 
-func TestStateStore_GetJobStatus_NoEvalsOrAllocs_Periodic(t *testing.T) {
-	ci.Parallel(t)
+			txn := state.db.WriteTxn(0)
 
-	job := mock.PeriodicJob()
-	state := testStateStore(t)
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
+			var job structs.Job
+			if tc.hasAlloc {
+				a := mock.Alloc()
 
-	if status != structs.JobStatusRunning {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
-	}
-}
+				if tc.allocSetup != nil {
+					tc.allocSetup(a)
+				}
 
-func TestStateStore_GetJobStatus_NoEvalsOrAllocs_EvalDelete(t *testing.T) {
-	ci.Parallel(t)
+				err := txn.Insert("allocs", a)
+				require.NoError(t, err)
 
-	job := mock.Job()
-	state := testStateStore(t)
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
+				job = *a.Job
+			} else {
+				job = *structs.MockJob()
+			}
 
-	if status != structs.JobStatusDead {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
-	}
-}
+			tc.jobSetup(&job)
 
-func TestStateStore_GetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.Job()
-
-	// Create a mock alloc that is dead.
-	alloc := mock.Alloc()
-	alloc.JobID = job.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
-	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create a mock eval that is complete
-	eval := mock.Eval()
-	eval.JobID = job.ID
-	eval.Status = structs.EvalStatusComplete
-	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusDead {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
-	}
-}
-
-func TestStateStore_GetJobStatus_RunningAlloc(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.Job()
-
-	// Create a mock alloc that is running.
-	alloc := mock.Alloc()
-	alloc.JobID = job.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusRun
-	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusRunning {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
-	}
-}
-
-func TestStateStore_GetJobStatus_PeriodicJob(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.PeriodicJob()
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusRunning {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
-	}
-
-	// Mark it as stopped
-	job.Stop = true
-	status, err = state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusDead {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
-	}
-}
-
-func TestStateStore_GetJobStatus_ParameterizedJob(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.Job()
-	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusRunning {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
-	}
-
-	// Mark it as stopped
-	job.Stop = true
-	status, err = state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusDead {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
-	}
-}
-
-func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.Job()
-
-	// Create a mock eval that is pending.
-	eval := mock.Eval()
-	eval.JobID = job.ID
-	eval.Status = structs.EvalStatusPending
-	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusPending {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusPending)
-	}
-}
-
-// TestStateStore_SetJobStatus_SystemJob asserts that system jobs are still
-// considered running until explicitly stopped.
-func TestStateStore_SetJobStatus_SystemJob(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.SystemJob()
-
-	// Create a mock eval that is pending.
-	eval := mock.Eval()
-	eval.JobID = job.ID
-	eval.Type = job.Type
-	eval.Status = structs.EvalStatusComplete
-	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if expected := structs.JobStatusRunning; status != expected {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, expected)
-	}
-
-	// Stop the job
-	job.Stop = true
-	status, err = state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if expected := structs.JobStatusDead; status != expected {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, expected)
+			status, err := state.getJobStatus(txn, &job, false)
+			require.NoError(t, err)
+			require.Equal(t, tc.exp, status)
+		})
 	}
 }
 

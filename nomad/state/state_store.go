@@ -3716,6 +3716,7 @@ func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitia
 		}
 	}
 
+	// TODO: should we really be doing this here?  We don't do it for filtered evals.
 	// Set the job's status
 	if err := s.setJobStatuses(index, txn, jobs, true); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
@@ -4824,14 +4825,13 @@ func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index u
 		return err
 	}
 
-	// Upsert the job if necessary
+	// On failed deployments with auto_revert set to true, a new eval and job will be included on the request.
+	// We should upsert them both
 	if req.Job != nil {
 		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
 			return err
 		}
 	}
-
-	// Upsert the optional eval
 	if req.Eval != nil {
 		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
 			return err
@@ -5532,6 +5532,12 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 	if err := s.setJobSummary(txn, updated, index, oldStatus, newStatus); err != nil {
 		return fmt.Errorf("job summary update failed %w", err)
 	}
+
+	// Update the job version details
+	if err := s.upsertJobVersion(index, updated, txn); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -5599,14 +5605,16 @@ func (s *StateStore) setJobSummary(txn *txn, updated *structs.Job, index uint64,
 }
 
 func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (string, error) {
+	// If the job has been stopped, it's status is dead
+	if job.Stopped() {
+		return structs.JobStatusDead, nil
+	}
+
 	// System, Periodic and Parameterized jobs are running until explicitly
 	// stopped.
 	if job.Type == structs.JobTypeSystem ||
 		job.IsParameterized() ||
 		job.IsPeriodic() {
-		if job.Stop {
-			return structs.JobStatusDead, nil
-		}
 		return structs.JobStatusRunning, nil
 	}
 
@@ -5616,40 +5624,28 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	}
 
 	// If there is a non-terminal allocation, the job is running.
-	hasAlloc := false
+	terminalAllocs := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
-		hasAlloc = true
-		if !alloc.(*structs.Allocation).TerminalStatus() {
-			return structs.JobStatusRunning, nil
-		}
-	}
+		a := alloc.(*structs.Allocation)
 
-	evals, err := txn.Get("evals", "job_prefix", job.Namespace, job.ID)
-	if err != nil {
-		return "", err
-	}
-
-	hasEval := false
-	for raw := evals.Next(); raw != nil; raw = evals.Next() {
-		e := raw.(*structs.Evaluation)
-
-		// Filter non-exact matches
-		if e.JobID != job.ID {
+		if a.Job.Version < job.Version {
 			continue
 		}
 
-		hasEval = true
-		if !e.TerminalStatus() {
-			return structs.JobStatusPending, nil
+		if !a.TerminalStatus() {
+			return structs.JobStatusRunning, nil
 		}
+
+		terminalAllocs = true
 	}
 
-	// The job is dead if all the allocations and evals are terminal or if there
-	// are no evals because of garbage collection.
-	if evalDelete || hasEval || hasAlloc {
+	// The job is dead if all allocations for this version are terminal.
+	if terminalAllocs {
 		return structs.JobStatusDead, nil
 	}
 
+	// There are no allocs yet, which will happen for new job submissions,
+	// running new versions of a job, or reverting.
 	return structs.JobStatusPending, nil
 }
 

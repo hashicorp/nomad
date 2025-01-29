@@ -659,6 +659,10 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 	// Clear out the VersionTag to prevent tag duplication
 	revJob.VersionTag = nil
 
+	// Set the stable flag to false as this is functionally a new registration
+	// and should handle deployment updates
+	revJob.Stable = false
+
 	reg := &structs.JobRegisterRequest{
 		Job:          revJob,
 		WriteRequest: args.WriteRequest,
