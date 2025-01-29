@@ -47,27 +47,23 @@ variable "ssh_key_path" {
   type        = string
 }
 
-variable "nomad_remote_binary" {
-  description = "Path were the nomad binary will be placed to replace the old one on the server"
-}
-
 variable "server_count" {
   description = "The number of servers to provision."
-  type = number
+  type        = number
 }
 
 variable "client_count" {
   description = "The number of Ubuntu clients to provision."
-  type = number
+  type        = number
 }
 
 variable "jobs_count" {
   description = "The number of jobs that should be running in the cluster"
-  type = number
+  type        = number
 }
 
 variable "alloc_count" {
   description = "Number of allocation that should be running in the cluster"
-  type = number
+  type        = number
 }
 

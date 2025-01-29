@@ -141,35 +141,42 @@ scenario "upgrade" {
   }
 
   step "upgrade_servers" {
-    depends_on  = [step.copy_upgrade_binary]
-    #for_each = step.provision_cluster.servers
+    depends_on = [step.copy_upgrade_binary, step.provision_cluster]
 
     description = <<-EOF
-    Upgrade the cluster's servers by invoking nomad-cc ...
+    Takes the servers one by one, makes a snapshot, updates the binary with the
+    new one previously fetched, restarts the service and runs the health check.
+
+    Important: The path where the binary will be placed is hardcoded, according 
+    to Nomads best practices it will be: 
+
+     * "C:/opt/nomad.exe" for windows 
+     * "/usr/local/bin/nomad" for linux
    EOF
     module      = module.upgrade_servers
 
     verifies = [
-        quality.nomad_agent_info,
-        quality.nomad_agent_info_self,
-        quality.nomad_restore_snapshot
+      quality.nomad_agent_info,
+      quality.nomad_agent_info_self,
+      quality.nomad_restore_snapshot
     ]
 
     variables {
-      nomad_addr   = step.provision_cluster.nomad_addr
-      ca_file      = step.provision_cluster.ca_file
-      cert_file    = step.provision_cluster.cert_file
-      key_file     = step.provision_cluster.key_file
-      nomad_token  = step.provision_cluster.nomad_token
-      servers               = step.provision_cluster.servers
-      nomad_upgraded_binary = step.copy_upgrade_binary.nomad_local_binary
-      ssh_key_path = step.provision_cluster.
-      server_count = var.server_count
-      client_count = local.clients_count
-      jobs_count   = step.run_initial_workloads.jobs_count
-      alloc_count  = step.run_initial_workloads.allocs_count
+      nomad_addr                 = step.provision_cluster.nomad_addr
+      ca_file                    = step.provision_cluster.ca_file
+      cert_file                  = step.provision_cluster.cert_file
+      key_file                   = step.provision_cluster.key_file
+      nomad_token                = step.provision_cluster.nomad_token
+      platform                   = matrix.os
+      servers                    = step.provision_cluster.servers
+      nomad_local_upgrade_binary = step.copy_upgrade_binary.nomad_local_binary
+      ssh_key_path               = step.provision_cluster.ssh_key_file
+      server_count               = var.server_count
+      client_count               = local.clients_count
+      jobs_count                 = step.run_initial_workloads.jobs_count
+      alloc_count                = step.run_initial_workloads.allocs_count
     }
-  } 
+  }
   /*
   step "run_servers_workloads" {
    // ...

@@ -13,13 +13,14 @@ locals {
   clean_token        = trimspace(var.nomad_token) # Somewhere in the process, a newline is added to the token.
   binary_destination = var.platform == "windows" ? "C:/opt/nomad.exe" : "/usr/local/bin/nomad"
   ssh_user           = var.platform == "windows" ? "Administrator" : "ubuntu"
-  snap_file          = "${var.server_address}.snap"
+  tmp                = replace(var.server_address, ".", "_")
+  snap_file          = "server-${local.tmp}.snap"
 }
 
 resource "enos_file" "copy_upgraded_binary" {
   source      = var.nomad_local_upgrade_binary
   destination = local.binary_destination
-  chmod       = "0700"
+  chmod       = "0755"
 
   transport = {
     ssh = {
@@ -30,7 +31,7 @@ resource "enos_file" "copy_upgraded_binary" {
   }
 }
 
- resource "enos_local_exec" "take_server_snapshot" {
+resource "enos_local_exec" "take_server_snapshot" {
   environment = {
     NOMAD_ADDR        = var.nomad_addr
     NOMAD_CACERT      = var.ca_file
@@ -42,7 +43,7 @@ resource "enos_file" "copy_upgraded_binary" {
   inline = [
     "nomad operator snapshot save -stale=true ${local.snap_file}",
   ]
- }
+}
 
 resource "enos_remote_exec" "restart_linux_services" {
   count      = var.platform == "linux" ? 1 : 0
@@ -66,7 +67,7 @@ resource "enos_remote_exec" "restart_linux_services" {
 resource "enos_remote_exec" "restart_windows_services" {
   count      = var.platform == "windows" ? 1 : 0
   depends_on = [enos_local_exec.take_server_snapshot, enos_file.copy_upgraded_binary]
- 
+
   transport = {
     ssh = {
       host             = var.server_address
@@ -80,7 +81,7 @@ resource "enos_remote_exec" "restart_windows_services" {
   ]
 }
 
- resource "enos_local_exec" "restore_server_snapshot" {
+resource "enos_local_exec" "restore_server_snapshot" {
   depends_on = [enos_remote_exec.restart_windows_services, enos_remote_exec.restart_linux_services]
 
   environment = {
@@ -94,19 +95,19 @@ resource "enos_remote_exec" "restart_windows_services" {
   inline = [
     "nomad operator snapshot restore ${local.snap_file}",
   ]
-} 
+}
 
- module "test_nodes_health" {
+module "test_nodes_health" {
   source = "../test_cluster_health"
 
-    nomad_addr   = var.nomad_addr
-    ca_file      = var.ca_file
-    cert_file    = var.cert_file
-    key_file     = var.key_file
-    nomad_token  = var.nomad_token
-    server_count = var.server_count
-    client_count = var.client_count
-    jobs_count   = var.jobs_count
-    alloc_count  = var.alloc_count
+  nomad_addr   = var.nomad_addr
+  ca_file      = var.ca_file
+  cert_file    = var.cert_file
+  key_file     = var.key_file
+  nomad_token  = var.nomad_token
+  server_count = var.server_count
+  client_count = var.client_count
+  jobs_count   = var.jobs_count
+  alloc_count  = var.alloc_count
 }
 
