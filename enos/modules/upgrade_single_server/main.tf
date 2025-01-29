@@ -96,4 +96,3 @@ resource "enos_local_exec" "restore_server_snapshot" {
     "nomad operator snapshot restore ${local.snap_file}",
   ]
 }
-
