@@ -8,7 +8,7 @@ scenario "upgrade" {
     EOF
 
   matrix {
-    arch = ["amd64"]
+    arch    = ["amd64"]
     edition = ["ce"]
     os      = ["linux"]
     //service_discovery  = ["consul", "nomad"]
@@ -18,7 +18,7 @@ scenario "upgrade" {
     exclude {
       os   = ["windows"]
       arch = ["arm64"]
-    } 
+    }
   }
 
   providers = [
@@ -51,7 +51,7 @@ scenario "upgrade" {
     }
   }
 
- step "provision_cluster" {
+  step "provision_cluster" {
     depends_on  = [step.copy_initial_binary]
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
@@ -59,16 +59,16 @@ scenario "upgrade" {
 
     module = module.provision_cluster
     variables {
-      name                                   = local.cluster_name
-      nomad_local_binary                     = step.copy_initial_binary.nomad_local_binary
-      server_count                           = var.server_count
-      client_count_linux                     = local.linux_count
-      client_count_windows_2016              = local.windows_count
-      nomad_license                          = var.nomad_license
-      consul_license                         = var.consul_license
-      volumes                                = false
-      region                                 = var.aws_region
-      instance_arch                          = matrix.arch
+      name                      = local.cluster_name
+      nomad_local_binary        = step.copy_initial_binary.nomad_local_binary
+      server_count              = var.server_count
+      client_count_linux        = local.linux_count
+      client_count_windows_2016 = local.windows_count
+      nomad_license             = var.nomad_license
+      consul_license            = var.consul_license
+      volumes                   = false
+      region                    = var.aws_region
+      instance_arch             = matrix.arch
     }
   }
 
@@ -80,11 +80,11 @@ scenario "upgrade" {
 
     module = module.run_workloads
     variables {
-      nomad_addr   = step.provision_cluster.nomad_addr
-      ca_file      = step.provision_cluster.ca_file
-      cert_file    = step.provision_cluster.cert_file
-      key_file     = step.provision_cluster.key_file
-      nomad_token  = step.provision_cluster.nomad_token
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
     }
     verifies = [
       quality.nomad_register_job,
@@ -138,7 +138,7 @@ scenario "upgrade" {
       binary_path          = "${var.nomad_local_binary}/${matrix.os}-${matrix.arch}-${matrix.edition}-${var.upgrade_version}"
     }
   }
-/*
+  /*
   step "upgrade_servers" {
     description = <<-EOF
     Upgrade the cluster's servers by invoking nomad-cc ...
@@ -280,5 +280,5 @@ scenario "upgrade" {
     value     = step.provision_cluster.nomad_token
     sensitive = true
   }
- 
+
 }
