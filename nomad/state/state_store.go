@@ -3852,11 +3852,6 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*
 
 		e := raw.(*structs.Evaluation)
 
-		// Filter non-exact matches
-		if e.JobID != jobID {
-			continue
-		}
-
 		out = append(out, e)
 	}
 	return out, nil
@@ -5639,13 +5634,27 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		terminalAllocs = true
 	}
 
+	evals, err := txn.Get("evals", "job_prefix", job.Namespace, job.ID)
+	if err != nil {
+		return "", err
+	}
+
+	for raw := evals.Next(); raw != nil; raw = evals.Next() {
+		e := raw.(*structs.Evaluation)
+
+		if !e.TerminalStatus() {
+			return structs.JobStatusPending, nil
+		}
+	}
+
 	// The job is dead if all allocations for this version are terminal.
 	if terminalAllocs {
 		return structs.JobStatusDead, nil
 	}
 
 	// There are no allocs yet, which will happen for new job submissions,
-	// running new versions of a job, or reverting.
+	// running new versions of a job, or reverting. This will happen if
+	// the evaluation is persisted after the job is persisted
 	return structs.JobStatusPending, nil
 }
 
