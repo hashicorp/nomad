@@ -7682,63 +7682,116 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 	ci.Parallel(t)
 
 	testCases := []struct {
-		name       string
-		hasAlloc   bool
-		allocSetup func(*structs.Allocation)
-		jobSetup   func(*structs.Job)
-		exp        string
+		name  string
+		setup func(*txn) (*structs.Job, error)
+		exp   string
 	}{
 		{
-			name:     "stopped job",
-			hasAlloc: false,
-			jobSetup: func(j *structs.Job) {
+			name: "stopped job",
+			setup: func(txn *txn) (*structs.Job, error) {
+				j := mock.Job()
 				j.Stop = true
+				return j, nil
 			},
 			exp: structs.JobStatusDead,
 		},
 		{
-			name:     "parameterized job",
-			hasAlloc: false,
-			jobSetup: func(j *structs.Job) {
+			name: "parameterized job",
+			setup: func(txn *txn) (*structs.Job, error) {
+				j := mock.Job()
 				j.ParameterizedJob = &structs.ParameterizedJobConfig{}
 				j.Dispatched = false
+				return j, nil
 			},
 			exp: structs.JobStatusRunning,
 		},
 		{
-			name:     "periodic job",
-			hasAlloc: false,
-			jobSetup: func(j *structs.Job) {
+			name: "periodic job",
+			setup: func(txn *txn) (*structs.Job, error) {
+				j := mock.Job()
 				j.Periodic = &structs.PeriodicConfig{}
+				return j, nil
 			},
 			exp: structs.JobStatusRunning,
 		},
 		{
-			name:     "no allocs",
-			hasAlloc: false,
-			jobSetup: func(j *structs.Job) {},
-			exp:      structs.JobStatusPending,
-		},
-		{
-			name:     "current job has running alloc",
-			hasAlloc: true,
-			jobSetup: func(j *structs.Job) {},
-			exp:      structs.JobStatusRunning,
-		},
-		{
-			name:     "current job with all terminal allocs",
-			hasAlloc: true,
-			allocSetup: func(a *structs.Allocation) {
-				a.ClientStatus = structs.AllocClientStatusComplete
+			name: "no allocs",
+			setup: func(txn *txn) (*structs.Job, error) {
+				return mock.Job(), nil
 			},
-			jobSetup: func(j *structs.Job) {},
-			exp:      structs.JobStatusDead,
+			exp: structs.JobStatusPending,
 		},
 		{
-			name:     "previous job version had allocs",
-			hasAlloc: true,
-			jobSetup: func(j *structs.Job) {
+			name: "current job has running alloc",
+			setup: func(txn *txn) (*structs.Job, error) {
+				j := mock.Job()
+				a := mock.Alloc()
+
+				a.JobID = j.ID
+
+				if err := txn.Insert("allocs", a); err != nil {
+					return nil, err
+				}
+				return j, nil
+			},
+			exp: structs.JobStatusRunning,
+		},
+		{
+			name: "previous job version had allocs",
+			setup: func(txn *txn) (*structs.Job, error) {
+				j := mock.Job()
+				a := mock.Alloc()
+
+				a.JobID = j.ID
+				a.ClientStatus = structs.AllocClientStatusFailed
+
 				j.Version += 1
+
+				if err := txn.Insert("allocs", a); err != nil {
+					return nil, err
+				}
+				return j, nil
+			},
+			exp: structs.JobStatusPending,
+		},
+		{
+			name: "job has all terminal allocs, with no evals",
+			setup: func(txn *txn) (*structs.Job, error) {
+				j := mock.Job()
+				a := mock.Alloc()
+
+				a.ClientStatus = structs.AllocClientStatusFailed
+				a.JobID = j.ID
+
+				if err := txn.Insert("allocs", a); err != nil {
+					return nil, err
+				}
+				return j, nil
+			},
+			exp: structs.JobStatusDead,
+		},
+		{
+			name: "job has all terminal allocs, with pending eval",
+			setup: func(txn *txn) (*structs.Job, error) {
+				j := mock.Job()
+				a := mock.Alloc()
+
+				a.ClientStatus = structs.AllocClientStatusFailed
+				a.JobID = j.ID
+
+				e := mock.Eval()
+				e.JobID = j.ID
+				e.Status = structs.EvalStatusPending
+
+				if err := txn.Insert("allocs", a); err != nil {
+					return nil, err
+				}
+
+				if err := txn.Insert("evals", e); err != nil {
+					return nil, err
+				}
+				return j, nil
+
 			},
 			exp: structs.JobStatusPending,
 		},
@@ -7749,26 +7802,11 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			state := testStateStore(t)
 
 			txn := state.db.WriteTxn(0)
+			txn.Insert("allocs", mock.Alloc())
 
-			var job structs.Job
-			if tc.hasAlloc {
-				a := mock.Alloc()
+			job, err := tc.setup(txn)
 
-				if tc.allocSetup != nil {
-					tc.allocSetup(a)
-				}
-
-				err := txn.Insert("allocs", a)
-				require.NoError(t, err)
-
-				job = *a.Job
-			} else {
-				job = *structs.MockJob()
-			}
-
-			tc.jobSetup(&job)
-
-			status, err := state.getJobStatus(txn, &job, false)
+			status, err := state.getJobStatus(txn, job, false)
 			require.NoError(t, err)
 			require.Equal(t, tc.exp, status)
 		})
