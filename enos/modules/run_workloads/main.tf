@@ -32,5 +32,5 @@ resource "enos_local_exec" "workloads" {
     NOMAD_TOKEN       = var.nomad_token
   }
 
-  inline = ["nomad job run -var alloc_count=${each.value.alloc_count} ${path.module}/${each.value.job_spec}.nomad.hcl"] 
+  inline = ["nomad job run -var alloc_count=${each.value.alloc_count} ${path.module}/${each.value.job_spec}"]
 }

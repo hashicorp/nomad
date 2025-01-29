@@ -33,7 +33,7 @@ variable "server_count" {
 }
 
 variable "client_count" {
-  description = "The expected number of Ubuntu clients."  
+  description = "The expected number of Ubuntu clients."
   type        = number
 }
 
