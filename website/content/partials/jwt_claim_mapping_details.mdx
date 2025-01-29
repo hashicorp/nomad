@@ -1,22 +1,23 @@
 ## Trusted Identity Attributes via Claim Mappings
 
-Data from JWT claims can be returned from the authentication step as trusted
+The authentication step can return data from JWT claims as trusted
 identity attributes for use in binding rule selectors and bind name
 interpolation.
 
-Control of which claims are mapped to which identity attributes is governed by
-the `ClaimMappings` and
-`ListClaimMappings`. These are both maps of items to copy
-with elements of the form: `"<JWT claim>":"<attribute suffix>"`.
+The `ClaimMappings` and `ListClaimMappings` attributes control how Nomad maps claims
+to identity attributes. Both are maps of items to copy,
+with elements of the form `"<JWT claim>":"<attribute suffix>"`.
 
-The only difference between these two types of mappings is that `ClaimMappings`
-is used to map singular values (such as a name, department, or team) while
-`ListClaimMappings` is used to map lists of values.
+Use `ClaimMappings` to map singular values and `ListClaimMappings` to map lists of values.
 
-The singular values mapped by `ClaimMappings` can be interpolated in a binding
-rule, and the lists of values mapped by `ListClaimMappings` cannot.
+Nomad can interpolate the singular values mapped by `ClaimMappings` in a binding
+rule, but Nomad cannot interpolate the lists of values mapped by `ListClaimMappings`.
 
-Assume this is your config snippet:
+This examples contains `ClaimMappings` and `ListClaimMappings`. The configuration
+instructs Nomad to copy the values in the JWT claims `"givenName"` and `"surname"`
+to attributes named `"value.first_name"` and `"value.last_name"` respectively.
+Additionally, Nomad should copy the list of values in the JWT
+claim `"groups"`  to an attribute named `"list.groups"`.
 
 ```json
 {
@@ -35,15 +36,11 @@ Assume this is your config snippet:
 }
 ```
 
-This specifies that the values in the JWT claims `"givenName"` and `"surname"`
-should be copied to attributes named `"value.first_name"` and
-`"value.last_name"` respectively. Additionally the list of values in the JWT
-claim `"groups"` should be copied to an attribute named `"list.groups"`.
 
-The following table shows the resulting attributes that will be extracted, and
-the ways they may be used in Rule Bindings:
+The following table shows the resulting extracted attributes and
+the ways they may be used in rule bindings:
 
-| Attributes         | Supported Selector Operations                      | Can be Interpolated |
+| Attributes         | Supported selector operations                      | Can be interpolated |
 | ------------------ | -------------------------------------------------- | ------------------- |
 | `value.first_name` | Equal, Not Equal, In, Not In, Matches, Not Matches | yes                 |
 | `value.last_name`  | Equal, Not Equal, In, Not In, Matches, Not Matches | yes                 |
@@ -51,13 +48,12 @@ the ways they may be used in Rule Bindings:
 
 ### Claim Specifications and JSON Pointer
 
-The `ClaimMappings` and
-`ListClaimMappings` fields are used to point to data
-within the JWT. If the desired key is at the top of level of the JWT, the name
-can be provided directly. If it is nested at a lower level, a JSON Pointer may
-be used.
+Use the `ClaimMappings` and `ListClaimMappings` fields to point to data
+within the JWT. If the desired key is at the top of level of the JWT, you may
+provide the name directly. If it is nested at a lower level, you may use a JSON
+Pointer.
 
-Assume the following JWT claims are decoded:
+This example shows decoded JWT claims.
 
 ```json
 {
@@ -75,8 +71,11 @@ Assume the following JWT claims are decoded:
 }
 ```
 
-A parameter of `"division"` will reference `"North America"`, as this is a top
-level key. A parameter `"/groups/primary"` uses JSON Pointer syntax to
-reference `"Engineering"` at a lower level. Any valid JSON Pointer can be used
-as a selector. Refer to the [JSON Pointer
-RFC](https://tools.ietf.org/html/rfc6901) for a full description of the syntax
+
+Use the following syntax to reference data:
+
+- Top-level key: Use direct reference. For example, `"division"` refers to `"North America"`.
+- Nested key: Use JSON Pointer syntax. For example, `"/groups/primary"` refers to `"Engineering"`.
+
+You may use any valid JSON Pointer as a selector. Refer to the [JSON Pointer
+RFC](https://tools.ietf.org/html/rfc6901) for a full description of the syntax.

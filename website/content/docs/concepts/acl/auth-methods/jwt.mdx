@@ -7,31 +7,28 @@ description: >-
 
 # JSON Web Token (JWT) Auth Method
 
-The `jwt` auth method can be used to authenticate with Nomad by providing a
+Use the `jwt` auth method to authenticate with Nomad by providing a
 [JWT](https://en.wikipedia.org/wiki/JSON_Web_Token) directly. The JWT is
-cryptographically verified using locally-provided keys, or, if configured, an
-OIDC Discovery service can be used to fetch the appropriate keys.
+cryptographically verified using locally-provided keys, or, if configured, you may use an
+OIDC Discovery service to fetch the appropriate keys.
 
-See [auth-method create] for the parameters required to create a JWT auth-method with a given verification method.
+Refer to [auth-method create] for the parameters required to create a JWT auth-method with a given verification method.
 
 ## JWT Verification
 
-JWT signatures will be verified against public keys from the issuer. This
-process can be done one of three ways:
+Nomad verifies JWT signatures against public keys from the issuer. This
+process uses one of these methods:
 
 - **Static Keys** - A set of public keys is stored directly in the
   configuration.
 
-- **JWKS** - A JSON Web Key Set ([JWKS](https://tools.ietf.org/html/rfc7517))
-  URL (and optional certificate chain) is configured. Keys will be fetched from
+- **JWKS** - Configure a JSON Web Key Set ([JWKS](https://tools.ietf.org/html/rfc7517))
+  URL and optional certificate chain. Nomad fetches keys from
   this endpoint during authentication.
 
-- **OIDC Discovery** - An OIDC Discovery URL (and optional certificate chain)
-  is configured. Keys will be fetched from this URL during authentication. When
-  OIDC Discovery is used, OIDC validation criteria (e.g. `iss`, `aud`, etc.)
-  will be applied.
+- **OIDC Discovery** - Configure an OIDC Discovery URL and optional certificate chain. Nomad fetches keys from this URL during authentication. When you use OIDC Discovery, Nomad applies OIDC validation criteria such as `iss` and `aud`.
 
-If multiple methods are needed, another auth method of this type may be created
+If you need multiple methods, create another auth method of this type 
 with a different name.
 
 @include 'jwt_claim_mapping_details.mdx'

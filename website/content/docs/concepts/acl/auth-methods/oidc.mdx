@@ -2,28 +2,29 @@
 layout: docs
 page_title: OpenID Connect (OIDC) Auth Method
 description: >-
-  Use the OIDC auth method type to authenticate to nomad through a web browser with an OpenID Connect provider. Learn how to configure the auth method parameters using this reference page and example configuration.
+  Use the OIDC auth method type to authenticate to Nomad through a web browser with an OpenID Connect provider. Learn how to configure the auth method parameters using this reference page and example configuration.
 ---
 
 # OpenID Connect (OIDC) Auth Method
 
-The `oidc` auth method can be used to authenticate with Nomad using
+Use the `oidc` auth method to authenticate to Nomad with
 [OIDC](https://en.wikipedia.org/wiki/OpenID_Connect). This method allows
 authentication via a configured OIDC provider using the user's web browser.
-This method may be initiated from the nomad UI or the command line.
+Initiate this method from the Nomad UI or the command line.
 
-This page assumes general knowledge of [OIDC
-concepts](https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1) and
-the concepts described in the main [ACL Overview] documentation.
+## Prerequisites
 
-See [auth-method create] for the parameters required to create an OIDC auth-method.
+- General knowledge of [OIDC concepts](https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1)
+- [Nomad Access Control List fundamentals][ACL Overview].
+
+Refer to [auth-method create] for the parameters required to create an OIDC auth-method.
 
 ## JWT Verification
 
-JWT signatures will be verified against public keys from the issuer via OIDC
-discovery. Keys will be fetched from the OIDC Discovery URL during
-authentication and OIDC validation criteria (e.g. `iss`, `aud`, etc.) will be
-applied.
+Nomad uses OIDC discovery to verify JWT signatures against public
+keys from the issuer. Nomad first fetches keys from the OIDC
+Discovery URL during authentication and then applies OIDC
+validation criteria such as `iss` and `aud`.
 
 ## OIDC Authentication
 
@@ -32,38 +33,46 @@ Nomad includes two built-in OIDC login flows: the Nomad UI, and the CLI using
 
 ### Redirect URIs
 
-An important part of OIDC auth method configuration is properly setting
-redirect URIs. This must be done both in nomad and with the OIDC provider, and
-these configurations must align. The redirect URIs are specified for an auth
-method with the `AllowedRedirectURIs` parameter. There
-are different redirect URIs to configure the nomad UI and CLI flows, so one or
-both will need to be set up depending on the installation.
+Properly setting redirect URIs is an important part of OIDC auth method
+configuration. You must configure this in both Nomad and the OIDC
+provider, and these configurations must align. 
+
+Specify the redirect URIs for an auth method with the
+`AllowedRedirectURIs` parameter. The Nomad UI and CLI use different
+redirect URIs, so you need to configure one or both, depending on your
+installation.
 
 #### Nomad UI
 
-Logging in via the nomad UI requires a redirect URI of the form:
-`http://localhost:4649/ui/oidc/callback` or
-`https://{host:port}/ui/oidc/callback`
+Logging in with the Nomad UI requires a redirect URI in one of the following forms:
 
-The "host:port" must be correct for the nomad agent serving the Nomad UI.
+- `http://localhost:4649/ui/oidc/callback`
+- `https://{host:port}/ui/oidc/callback`
+
+The "host:port" must be correct for the Nomad agent serving the Nomad UI.
 
 #### CLI
 
-If you plan to support authentication via `nomad login -method=<name>`, a localhost redirect URI must be set (usually this is
-`http://localhost:4649/oidc/callback`). Logins via the CLI may specify a
-different host and/or listening port if needed, and a URI with this host/port
-must match one of the configured redirected URIs. These same "localhost" URIs
-must be added to the provider as well.
+If you plan to support authentication that uses the
+`nomad login -method=<name>` command, you must configure a 
+localhost redirect URI, which is usually
+`http://localhost:4649/oidc/callback`. Logins that use the CLI may
+specify a different host and listening port if needed. A URI with
+this host and port must match one of the configured redirected
+URIs. You must add these same "localhost" URIs to the provider
+as well.
 
 ### OIDC Login
 
 #### Nomad UI
 
-1. Select one of the provider links in the Nomad homepage, or navigate directly to `/ui/settings/tokens`.
-2. Click one of the buttons for your OIDC auth method of choice.
-3. Complete the authentication with the configured provider.
+1. Select one of the provider links in the Nomad homepage or navigate directly to `/ui/settings/tokens`.
+1. Click one of the buttons for your OIDC auth method of choice.
+1. Complete the authentication with the configured provider.
 
 #### CLI
+
+Execute the `nomad login -method=oidc` command to log in.
 
 ```shell-session
 $ nomad login -method=oidc
@@ -73,51 +82,51 @@ Complete the login via your OIDC provider. Launching browser to:
     https://myco.auth0.com/authorize?redirect_uri=http%3A%2F%2Flocalhost%3A4649%2Foidc%2Fcallback&client_id=r3qXc2bix9eF...
 ```
 
-The browser will open to the generated URL to complete the provider's login.
-The URL may be entered manually if the browser cannot be automatically opened.
+Your browser opens to the generated URL to complete the provider's login.
+Enter the URL manually if the browser does not automatically open.
 
-The callback listener may be customized with the following optional parameters.
-These are typically not required to be set:
+The callback listener defaults to `localhost:4649`. You may optionally
+pass a host and port to the callback listener with the
+`-oidc-callback-addr=<host:port>` flag. In this example, you specify custom host and port.
 
-The callback listener defaults to listen on `localhost:4649`. If you want to
-customize that use the optional flag
-[`-oidc-callback-addr=<host:port>`].
+```shell-session
+$ nomad login -method=oidc -oidc-callback-addr=https://custom.host:9080
 
 ## OIDC Configuration Troubleshooting
 
 The amount of configuration required for OIDC is relatively small, but it can
-be tricky to debug why things aren't working. Some tips for setting up OIDC:
+be tricky to debug why things aren't working. The following are tips for setting up OIDC:
 
-- Monitor the log output for the nomad servers. Important information about
-  OIDC validation failures will be emitted.
+- Monitor the log output for the Nomad servers for important
+information about OIDC validation failures.
 
-- Ensure Redirect URIs are correct in nomad and on the provider. They need to
-  match exactly. Check: http/https, 127.0.0.1/localhost, port numbers, whether
-  trailing slashes are present.
+- Ensure correct redirect URIs in Nmad and on the provider. URIs
+need to match exactly. Check http/https, 127.0.0.1/localhost,
+port numbers, and whether trailing slashes are present.
 
 - The `BoundAudiences` option is typically
-  not required. OIDC providers will use the `client_id` as the audience and
+  not required. OIDC providers use the `client_id` as the audience and
   OIDC validation expects this.
 
-- Check your provider for what scopes are required in order to receive all of
-  the information you need. The scopes "profile" and "groups" often need to be
-  requested, and can be added by setting
+- Check your provider for scopes that are required to receive all of
+  the information you need. You often need to request the scopes
+  `profile` and `groups`, which you may set with
   `OIDCScopes=["profile", "groups"]` in the auth method configuration.
 
 - If you're seeing claim-related errors in logs, review the provider's docs
   very carefully to see how they're naming and structuring their claims.
   Depending on the provider, you may be able to construct a simple `curl`
   [implicit grant](https://developer.okta.com/blog/2018/05/24/what-is-the-oauth2-implicit-grant-type)
-  request to obtain a JWT that you can inspect. An example of how to decode the
-  JWT (in this case located in the `access_token` field of a JSON response):
+  request to obtain a JWT that you can inspect. This example decodes the
+  JWT located in the `access_token` field of a JSON response.
 
       jq --raw-output '.access_token / "." | .[1] | @base64d' jwt.json
 
-- The `VerboseLogging` option is available which
-  will log the received OIDC token if debug level logging is enabled. This can
-  be helpful when debugging provider setup and verifying that the received
-  claims are what you expect. Since claims data is logged verbatim and may
-  contain sensitive information, this option should not be used in production.
+- With debug level logging, use the `VerboseLogging` option to log the
+  received OIDC token. This can be helpful when debugging provider setup
+  and verifying that the received claims are what you expect. Since claims
+  data is logged verbatim and may contain sensitive information, 
+  do not use this option in production.
 
 @include 'jwt_claim_mapping_details.mdx'
 
