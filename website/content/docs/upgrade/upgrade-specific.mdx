@@ -30,6 +30,13 @@ In Nomad 1.10.0, the Go API for quotas has a breaking change. The
 `Resources`. The `QuotaSpec.VariablesLimit` field is deprecated in lieu of
 `QuotaSpec.RegionLimit.Storage.Variables` and will be removed in Nomad 1.12.0.
 
+#### Remote task driver support removed
+
+All support for remote task driver capabilities has been removed in Nomad 1.10.0.
+Drivers with the `RemoteTasks` capability will no longer be detached in the event
+the allocation is lost, nor will remote tasks be detached when a node is drained.
+Workloads running as remote tasks should be migrated prior to upgrading.
+
 ## Nomad 1.9.5
 
 #### CNI plugins
