@@ -20,9 +20,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/golang/snappy"
 	consulapi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/hookstats"
