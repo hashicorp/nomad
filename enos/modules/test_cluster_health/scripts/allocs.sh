@@ -49,7 +49,6 @@ done
 echo "Waiting for all the allocations to be running again"
 elapsed_time=0
 
-
 while new_allocs=$(nomad alloc status -json | jq '[.[] | select(.ClientStatus == "running")]'); [ $(echo "$new_allocs" | jq 'length') != "$ALLOC_COUNT" ]; do
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
         error_exit "Allocation $random_alloc_id did not reach 'complete' status within $MAX_WAIT_TIME seconds."
