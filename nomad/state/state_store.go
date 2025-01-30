@@ -5600,16 +5600,12 @@ func (s *StateStore) setJobSummary(txn *txn, updated *structs.Job, index uint64,
 }
 
 func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (string, error) {
-	// If the job has been stopped, it's status is dead
-	if job.Stopped() {
-		return structs.JobStatusDead, nil
-	}
-
 	// System, Periodic and Parameterized jobs are running until explicitly
 	// stopped.
 	if job.Type == structs.JobTypeSystem ||
 		job.IsParameterized() ||
-		job.IsPeriodic() {
+		job.IsPeriodic() ||
+		job.Stopped() {
 		return structs.JobStatusRunning, nil
 	}
 
@@ -5639,16 +5635,28 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		return "", err
 	}
 
+	terminalEvals := false
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
 		e := raw.(*structs.Evaluation)
+
+		// Ignore evals created for previous jobs
+		if e.JobModifyIndex < job.ModifyIndex {
+			continue
+		}
 
 		if !e.TerminalStatus() {
 			return structs.JobStatusPending, nil
 		}
+
+		terminalEvals = true
 	}
 
-	// The job is dead if all allocations for this version are terminal.
-	if terminalAllocs {
+	// The job is dead if all allocations for this version are terminal,
+	// all evals are terminal
+	//
+	// Also, in the event a jobs allocs and evals are all GC'd, we don't
+	// want the job to be marked pending.
+	if terminalAllocs || terminalEvals || evalDelete {
 		return structs.JobStatusDead, nil
 	}
 

@@ -7781,6 +7781,7 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 
 				e := mock.Eval()
 				e.JobID = j.ID
+				e.JobModifyIndex = j.ModifyIndex
 				e.Status = structs.EvalStatusPending
 
 				if err := txn.Insert("allocs", a); err != nil {
