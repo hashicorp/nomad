@@ -86,6 +86,6 @@ output "ssh_key_file" {
 }
 
 output "nomad_token" {
-  value     = "${data.local_sensitive_file.nomad_token.content}"
+  value     = chomp(data.local_sensitive_file.nomad_token.content)
   sensitive = true
 }
