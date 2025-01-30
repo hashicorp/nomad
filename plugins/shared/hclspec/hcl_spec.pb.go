@@ -36,7 +36,7 @@
 //The following type names and type constructors are supported:
 //
 // `any` is a wildcard that accepts a value of any type. (In HCL terms, this
-// is the _dynamic pseudo-type_.)
+//is the _dynamic pseudo-type_.)
 // `string` is a Unicode string.
 // `number` is an arbitrary-precision floating point number.
 // `bool` is a boolean value (`true` or `false`)
@@ -44,11 +44,11 @@
 // `set(element_type)` constructs a set type with the given element type
 // `map(element_type)` constructs a map type with the given element type
 // `object({name1 = element_type, name2 = element_type, ...})` constructs
-// an object type with the given attribute types.
+//an object type with the given attribute types.
 // `tuple([element_type, element_type, ...])` constructs a tuple type with
-// the given element types. This can be used, for example, to require an
-// array with a particular number of elements, or with elements of different
-// types.
+//the given element types. This can be used, for example, to require an
+//array with a particular number of elements, or with elements of different
+//types.
 //
 //`null` is a valid value of any type, and not a type itself.
 
@@ -56,9 +56,8 @@ package hclspec
 
 import (
 	fmt "fmt"
-	math "math"
-
 	proto "github.com/golang/protobuf/proto"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.

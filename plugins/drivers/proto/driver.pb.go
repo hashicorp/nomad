@@ -6,16 +6,15 @@ package proto
 import (
 	context "context"
 	fmt "fmt"
-	math "math"
-
 	proto "github.com/golang/protobuf/proto"
-	duration "github.com/golang/protobuf/ptypes/duration"
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	hclspec "github.com/hashicorp/nomad/plugins/shared/hclspec"
 	proto1 "github.com/hashicorp/nomad/plugins/shared/structs/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -812,7 +811,7 @@ type StopTaskRequest struct {
 	// Timeout defines the amount of time to wait before forcefully killing
 	// the task. For example, on Unix clients, this means sending a SIGKILL to
 	// the process.
-	Timeout *duration.Duration `protobuf:"bytes,2,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	Timeout *durationpb.Duration `protobuf:"bytes,2,opt,name=timeout,proto3" json:"timeout,omitempty"`
 	// Signal can be set to override the Task's configured shutdown signal
 	Signal               string   `protobuf:"bytes,3,opt,name=signal,proto3" json:"signal,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
@@ -852,7 +851,7 @@ func (m *StopTaskRequest) GetTaskId() string {
 	return ""
 }
 
-func (m *StopTaskRequest) GetTimeout() *duration.Duration {
+func (m *StopTaskRequest) GetTimeout() *durationpb.Duration {
 	if m != nil {
 		return m.Timeout
 	}
@@ -1079,10 +1078,10 @@ type TaskStatsRequest struct {
 	// TaskId is the ID of the target task
 	TaskId string `protobuf:"bytes,1,opt,name=task_id,json=taskId,proto3" json:"task_id,omitempty"`
 	// CollectionInterval is the interval at which to stream stats to the caller
-	CollectionInterval   *duration.Duration `protobuf:"bytes,2,opt,name=collection_interval,json=collectionInterval,proto3" json:"collection_interval,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	CollectionInterval   *durationpb.Duration `protobuf:"bytes,2,opt,name=collection_interval,json=collectionInterval,proto3" json:"collection_interval,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *TaskStatsRequest) Reset()         { *m = TaskStatsRequest{} }
@@ -1117,7 +1116,7 @@ func (m *TaskStatsRequest) GetTaskId() string {
 	return ""
 }
 
-func (m *TaskStatsRequest) GetCollectionInterval() *duration.Duration {
+func (m *TaskStatsRequest) GetCollectionInterval() *durationpb.Duration {
 	if m != nil {
 		return m.CollectionInterval
 	}
@@ -1282,10 +1281,10 @@ type ExecTaskRequest struct {
 	Command []string `protobuf:"bytes,2,rep,name=command,proto3" json:"command,omitempty"`
 	// Timeout is the amount of time to wait for the command to stop.
 	// Defaults to 0 (run forever)
-	Timeout              *duration.Duration `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	Timeout              *durationpb.Duration `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *ExecTaskRequest) Reset()         { *m = ExecTaskRequest{} }
@@ -1327,7 +1326,7 @@ func (m *ExecTaskRequest) GetCommand() []string {
 	return nil
 }
 
-func (m *ExecTaskRequest) GetTimeout() *duration.Duration {
+func (m *ExecTaskRequest) GetTimeout() *durationpb.Duration {
 	if m != nil {
 		return m.Timeout
 	}
@@ -3172,10 +3171,10 @@ type TaskStatus struct {
 	// State is the state of the task's execution
 	State TaskState `protobuf:"varint,3,opt,name=state,proto3,enum=hashicorp.nomad.plugins.drivers.proto.TaskState" json:"state,omitempty"`
 	// StartedAt is the timestamp when the task was started
-	StartedAt *timestamp.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	StartedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// CompletedAt is the timestamp when the task exited.
 	// If the task is still running, CompletedAt will not be set
-	CompletedAt *timestamp.Timestamp `protobuf:"bytes,5,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
 	// Result is set when CompletedAt is set.
 	Result               *ExitResult `protobuf:"bytes,6,opt,name=result,proto3" json:"result,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
@@ -3229,14 +3228,14 @@ func (m *TaskStatus) GetState() TaskState {
 	return TaskState_UNKNOWN
 }
 
-func (m *TaskStatus) GetStartedAt() *timestamp.Timestamp {
+func (m *TaskStatus) GetStartedAt() *timestamppb.Timestamp {
 	if m != nil {
 		return m.StartedAt
 	}
 	return nil
 }
 
-func (m *TaskStatus) GetCompletedAt() *timestamp.Timestamp {
+func (m *TaskStatus) GetCompletedAt() *timestamppb.Timestamp {
 	if m != nil {
 		return m.CompletedAt
 	}
@@ -3295,7 +3294,7 @@ type TaskStats struct {
 	// Id of the task
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Timestamp for which the stats were collected
-	Timestamp *timestamp.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Timestamp *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// AggResourceUsage is the aggreate usage of all processes
 	AggResourceUsage *TaskResourceUsage `protobuf:"bytes,3,opt,name=agg_resource_usage,json=aggResourceUsage,proto3" json:"agg_resource_usage,omitempty"`
 	// ResourceUsageByPid breaks the usage stats by process
@@ -3337,7 +3336,7 @@ func (m *TaskStats) GetId() string {
 	return ""
 }
 
-func (m *TaskStats) GetTimestamp() *timestamp.Timestamp {
+func (m *TaskStats) GetTimestamp() *timestamppb.Timestamp {
 	if m != nil {
 		return m.Timestamp
 	}
@@ -3599,7 +3598,7 @@ type DriverTaskEvent struct {
 	// TaskName is the name of the task for the event
 	TaskName string `protobuf:"bytes,3,opt,name=task_name,json=taskName,proto3" json:"task_name,omitempty"`
 	// Timestamp when the event occurred
-	Timestamp *timestamp.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	Timestamp *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	// Message is the body of the event
 	Message string `protobuf:"bytes,5,opt,name=message,proto3" json:"message,omitempty"`
 	// Annotations allows for additional key/value data to be sent along with the event
@@ -3655,7 +3654,7 @@ func (m *DriverTaskEvent) GetTaskName() string {
 	return ""
 }
 
-func (m *DriverTaskEvent) GetTimestamp() *timestamp.Timestamp {
+func (m *DriverTaskEvent) GetTimestamp() *timestamppb.Timestamp {
 	if m != nil {
 		return m.Timestamp
 	}

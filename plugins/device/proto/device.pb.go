@@ -6,15 +6,14 @@ package proto
 import (
 	context "context"
 	fmt "fmt"
-	math "math"
-
 	proto "github.com/golang/protobuf/proto"
-	duration "github.com/golang/protobuf/ptypes/duration"
-	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	proto1 "github.com/hashicorp/nomad/plugins/shared/structs/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	durationpb "google.golang.org/protobuf/types/known/durationpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -566,10 +565,10 @@ func (m *DeviceSpec) GetPermissions() string {
 // StatsRequest is used to parameterize the retrieval of statistics.
 type StatsRequest struct {
 	// collection_interval is the duration in which to collect statistics.
-	CollectionInterval   *duration.Duration `protobuf:"bytes,1,opt,name=collection_interval,json=collectionInterval,proto3" json:"collection_interval,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
-	XXX_unrecognized     []byte             `json:"-"`
-	XXX_sizecache        int32              `json:"-"`
+	CollectionInterval   *durationpb.Duration `protobuf:"bytes,1,opt,name=collection_interval,json=collectionInterval,proto3" json:"collection_interval,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *StatsRequest) Reset()         { *m = StatsRequest{} }
@@ -597,7 +596,7 @@ func (m *StatsRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_StatsRequest proto.InternalMessageInfo
 
-func (m *StatsRequest) GetCollectionInterval() *duration.Duration {
+func (m *StatsRequest) GetCollectionInterval() *durationpb.Duration {
 	if m != nil {
 		return m.CollectionInterval
 	}
@@ -719,10 +718,10 @@ type DeviceStats struct {
 	// stats contains the verbose statistics for the device.
 	Stats *proto1.StatObject `protobuf:"bytes,2,opt,name=stats,proto3" json:"stats,omitempty"`
 	// timestamp is the time the statistics were collected.
-	Timestamp            *timestamp.Timestamp `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
+	Timestamp            *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
 func (m *DeviceStats) Reset()         { *m = DeviceStats{} }
@@ -764,7 +763,7 @@ func (m *DeviceStats) GetStats() *proto1.StatObject {
 	return nil
 }
 
-func (m *DeviceStats) GetTimestamp() *timestamp.Timestamp {
+func (m *DeviceStats) GetTimestamp() *timestamppb.Timestamp {
 	if m != nil {
 		return m.Timestamp
 	}

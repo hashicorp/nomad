@@ -5,10 +5,9 @@ package proto
 
 import (
 	fmt "fmt"
-	math "math"
-
 	proto "github.com/golang/protobuf/proto"
-	wrappers "github.com/golang/protobuf/ptypes/wrappers"
+	wrapperspb "google.golang.org/protobuf/types/known/wrapperspb"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -80,17 +79,17 @@ type StatValue struct {
 	// float_numerator_val exposes a floating point value. If denominator
 	// is set it is assumed to be a fractional value, otherwise it is a
 	// scalar.
-	FloatNumeratorVal   *wrappers.DoubleValue `protobuf:"bytes,1,opt,name=float_numerator_val,json=floatNumeratorVal,proto3" json:"float_numerator_val,omitempty"`
-	FloatDenominatorVal *wrappers.DoubleValue `protobuf:"bytes,2,opt,name=float_denominator_val,json=floatDenominatorVal,proto3" json:"float_denominator_val,omitempty"`
+	FloatNumeratorVal   *wrapperspb.DoubleValue `protobuf:"bytes,1,opt,name=float_numerator_val,json=floatNumeratorVal,proto3" json:"float_numerator_val,omitempty"`
+	FloatDenominatorVal *wrapperspb.DoubleValue `protobuf:"bytes,2,opt,name=float_denominator_val,json=floatDenominatorVal,proto3" json:"float_denominator_val,omitempty"`
 	// int_numerator_val exposes a int value. If denominator
 	// is set it is assumed to be a fractional value, otherwise it is a
 	// scalar.
-	IntNumeratorVal   *wrappers.Int64Value `protobuf:"bytes,3,opt,name=int_numerator_val,json=intNumeratorVal,proto3" json:"int_numerator_val,omitempty"`
-	IntDenominatorVal *wrappers.Int64Value `protobuf:"bytes,4,opt,name=int_denominator_val,json=intDenominatorVal,proto3" json:"int_denominator_val,omitempty"`
+	IntNumeratorVal   *wrapperspb.Int64Value `protobuf:"bytes,3,opt,name=int_numerator_val,json=intNumeratorVal,proto3" json:"int_numerator_val,omitempty"`
+	IntDenominatorVal *wrapperspb.Int64Value `protobuf:"bytes,4,opt,name=int_denominator_val,json=intDenominatorVal,proto3" json:"int_denominator_val,omitempty"`
 	// string_val exposes a string value. These are likely annotations.
-	StringVal *wrappers.StringValue `protobuf:"bytes,5,opt,name=string_val,json=stringVal,proto3" json:"string_val,omitempty"`
+	StringVal *wrapperspb.StringValue `protobuf:"bytes,5,opt,name=string_val,json=stringVal,proto3" json:"string_val,omitempty"`
 	// bool_val exposes a boolean statistic.
-	BoolVal *wrappers.BoolValue `protobuf:"bytes,6,opt,name=bool_val,json=boolVal,proto3" json:"bool_val,omitempty"`
+	BoolVal *wrapperspb.BoolValue `protobuf:"bytes,6,opt,name=bool_val,json=boolVal,proto3" json:"bool_val,omitempty"`
 	// unit gives the unit type: °F, %, MHz, MB, etc.
 	Unit string `protobuf:"bytes,7,opt,name=unit,proto3" json:"unit,omitempty"`
 	// desc provides a human readable description of the statistic.
@@ -125,42 +124,42 @@ func (m *StatValue) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_StatValue proto.InternalMessageInfo
 
-func (m *StatValue) GetFloatNumeratorVal() *wrappers.DoubleValue {
+func (m *StatValue) GetFloatNumeratorVal() *wrapperspb.DoubleValue {
 	if m != nil {
 		return m.FloatNumeratorVal
 	}
 	return nil
 }
 
-func (m *StatValue) GetFloatDenominatorVal() *wrappers.DoubleValue {
+func (m *StatValue) GetFloatDenominatorVal() *wrapperspb.DoubleValue {
 	if m != nil {
 		return m.FloatDenominatorVal
 	}
 	return nil
 }
 
-func (m *StatValue) GetIntNumeratorVal() *wrappers.Int64Value {
+func (m *StatValue) GetIntNumeratorVal() *wrapperspb.Int64Value {
 	if m != nil {
 		return m.IntNumeratorVal
 	}
 	return nil
 }
 
-func (m *StatValue) GetIntDenominatorVal() *wrappers.Int64Value {
+func (m *StatValue) GetIntDenominatorVal() *wrapperspb.Int64Value {
 	if m != nil {
 		return m.IntDenominatorVal
 	}
 	return nil
 }
 
-func (m *StatValue) GetStringVal() *wrappers.StringValue {
+func (m *StatValue) GetStringVal() *wrapperspb.StringValue {
 	if m != nil {
 		return m.StringVal
 	}
 	return nil
 }
 
-func (m *StatValue) GetBoolVal() *wrappers.BoolValue {
+func (m *StatValue) GetBoolVal() *wrapperspb.BoolValue {
 	if m != nil {
 		return m.BoolVal
 	}
