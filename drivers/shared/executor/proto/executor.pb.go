@@ -7,11 +7,11 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	timestamp "github.com/golang/protobuf/ptypes/timestamp"
 	proto1 "github.com/hashicorp/nomad/plugins/drivers/proto"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	math "math"
 )
 
@@ -718,12 +718,12 @@ func (m *SignalResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_SignalResponse proto.InternalMessageInfo
 
 type ExecRequest struct {
-	Deadline             *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=deadline,proto3" json:"deadline,omitempty"`
-	Cmd                  string                 `protobuf:"bytes,2,opt,name=cmd,proto3" json:"cmd,omitempty"`
-	Args                 []string               `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
-	XXX_unrecognized     []byte                 `json:"-"`
-	XXX_sizecache        int32                  `json:"-"`
+	Deadline             *timestamp.Timestamp `protobuf:"bytes,1,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	Cmd                  string               `protobuf:"bytes,2,opt,name=cmd,proto3" json:"cmd,omitempty"`
+	Args                 []string             `protobuf:"bytes,3,rep,name=args,proto3" json:"args,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *ExecRequest) Reset()         { *m = ExecRequest{} }
@@ -751,7 +751,7 @@ func (m *ExecRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ExecRequest proto.InternalMessageInfo
 
-func (m *ExecRequest) GetDeadline() *timestamppb.Timestamp {
+func (m *ExecRequest) GetDeadline() *timestamp.Timestamp {
 	if m != nil {
 		return m.Deadline
 	}
@@ -820,14 +820,14 @@ func (m *ExecResponse) GetExitCode() int32 {
 }
 
 type ProcessState struct {
-	Pid                  int32                  `protobuf:"varint,1,opt,name=pid,proto3" json:"pid,omitempty"`
-	ExitCode             int32                  `protobuf:"varint,2,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
-	Signal               int32                  `protobuf:"varint,3,opt,name=signal,proto3" json:"signal,omitempty"`
-	Time                 *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=time,proto3" json:"time,omitempty"`
-	OomKilled            bool                   `protobuf:"varint,5,opt,name=oom_killed,json=oomKilled,proto3" json:"oom_killed,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
-	XXX_unrecognized     []byte                 `json:"-"`
-	XXX_sizecache        int32                  `json:"-"`
+	Pid                  int32                `protobuf:"varint,1,opt,name=pid,proto3" json:"pid,omitempty"`
+	ExitCode             int32                `protobuf:"varint,2,opt,name=exit_code,json=exitCode,proto3" json:"exit_code,omitempty"`
+	Signal               int32                `protobuf:"varint,3,opt,name=signal,proto3" json:"signal,omitempty"`
+	Time                 *timestamp.Timestamp `protobuf:"bytes,4,opt,name=time,proto3" json:"time,omitempty"`
+	OomKilled            bool                 `protobuf:"varint,5,opt,name=oom_killed,json=oomKilled,proto3" json:"oom_killed,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
+	XXX_unrecognized     []byte               `json:"-"`
+	XXX_sizecache        int32                `json:"-"`
 }
 
 func (m *ProcessState) Reset()         { *m = ProcessState{} }
@@ -876,7 +876,7 @@ func (m *ProcessState) GetSignal() int32 {
 	return 0
 }
 
-func (m *ProcessState) GetTime() *timestamppb.Timestamp {
+func (m *ProcessState) GetTime() *timestamp.Timestamp {
 	if m != nil {
 		return m.Time
 	}
