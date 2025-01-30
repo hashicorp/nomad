@@ -203,7 +203,7 @@ scenario "upgrade" {
       quality.nomad_reschedule_alloc,
     ]
   }
-  
+
   /*
   step "run_servers_workloads" {
    // ...
