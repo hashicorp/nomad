@@ -29,6 +29,7 @@ const (
 	TableHostVolumes          = "host_volumes"
 	TableCSIVolumes           = "csi_volumes"
 	TableCSIPlugins           = "csi_plugins"
+	TableTaskVolumeAssignment = "task_volume"
 )
 
 const (
@@ -45,6 +46,7 @@ const (
 	indexSigningKey    = "signing_key"
 	indexAuthMethod    = "auth_method"
 	indexNodePool      = "node_pool"
+	indexTaskGroupName = "tg_name"
 )
 
 var (
@@ -102,6 +104,7 @@ func init() {
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
 		hostVolumeTableSchema,
+		taskVolumeAssignmentSchema,
 	}...)
 }
 
@@ -1701,6 +1704,30 @@ func hostVolumeTableSchema() *memdb.TableSchema {
 				Unique:       false,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "NodePool",
+				},
+			},
+		},
+	}
+}
+
+func taskVolumeAssignmentSchema() *memdb.TableSchema {
+	return &memdb.TableSchema{
+		Name: TableTaskVolumeAssignment,
+		Indexes: map[string]*memdb.IndexSchema{
+			indexID: {
+				Name:         indexID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
+				},
+			},
+			indexTaskGroupName: {
+				Name:         indexTaskGroupName,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "TaskGroupName",
 				},
 			},
 		},
