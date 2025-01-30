@@ -29,7 +29,7 @@ binary {
   triage {
     suppress {
       vulnerabilities = [
-        "GO-2022-0635", // github.com/aws/aws-sdk-go@v1.55.5 TODO(dduzgun-security): remove when deps is resolved
+        "GO-2025-3408", // github.com/hashicorp/yamux@v0.1.2 TODO(jrasell): remove when dep updated.
       ]
     }
   }
