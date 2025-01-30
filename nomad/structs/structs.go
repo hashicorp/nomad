@@ -133,8 +133,10 @@ const (
 	NamespaceDeleteRequestType                   MessageType = 65
 
 	// MessageTypes 66-74 are in Nomad Enterprise
-	HostVolumeRegisterRequestType MessageType = 75
-	HostVolumeDeleteRequestType   MessageType = 76
+	HostVolumeRegisterRequestType                 MessageType = 75
+	HostVolumeDeleteRequestType                   MessageType = 76
+	TaskGroupVolumeAssociationRegisterRequestType MessageType = 77
+	TaskGroupVolumeAssociationDeleteRequestType   MessageType = 78
 
 	// NOTE: MessageTypes are shared between CE and ENT. If you need to add a
 	// new type, check that ENT is not already using that value.
@@ -7772,6 +7774,80 @@ func (tg *TaskGroup) GetConstraints() []*Constraint {
 
 func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
 	tg.Constraints = newConstraints
+}
+
+// TaskGroupVolumeClaim associates a task group with a host volume ID. It's
+// used for stateful deployments, i.e., volume requests with "sticky" set to
+// true.
+type TaskGroupVolumeClaim struct {
+	ID            string
+	JobID         string
+	TaskGroupName string
+	AllocID       string // TODO: do we need this?
+
+	VolumeID string
+
+	// Hash is the hashed value of the claim and is generated using all fields
+	// from the full object except the create and modify times and indexes.
+	Hash []byte
+
+	CreateTime  time.Time
+	ModifyTime  time.Time
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// SetHash is used to compute and set the hash of the task group volume claim.
+// This should be called every time a user specified field on the method is
+// changed before updating the Nomad state store.
+func (tgvc *TaskGroupVolumeClaim) SetHash() []byte {
+
+	// Initialize a 256bit Blake2 hash (32 bytes).
+	hash, err := blake2b.New256(nil)
+	if err != nil {
+		panic(err)
+	}
+
+	_, _ = hash.Write([]byte(tgvc.ID))
+	_, _ = hash.Write([]byte(tgvc.JobID))
+	_, _ = hash.Write([]byte(tgvc.TaskGroupName))
+	_, _ = hash.Write([]byte(tgvc.AllocID))
+	_, _ = hash.Write([]byte(tgvc.VolumeID))
+
+	// Finalize the hash.
+	hashVal := hash.Sum(nil)
+
+	// Set and return the hash.
+	tgvc.Hash = hashVal
+	return hashVal
+}
+
+// func (a *ACLBindingRule) Equal(other *ACLBindingRule) bool {
+// 	if a == nil || other == nil {
+// 		return a == other
+// 	}
+// 	if len(a.Hash) == 0 {
+// 		a.SetHash()
+// 	}
+// 	if len(other.Hash) == 0 {
+// 		other.SetHash()
+// 	}
+// 	return bytes.Equal(a.Hash, other.Hash)
+// }
+
+func (tgvc *TaskGroupVolumeClaim) Equal(otherClaim *TaskGroupVolumeClaim) bool {
+	if tgvc == nil || otherClaim == nil {
+		return tgvc == otherClaim
+	}
+
+	if len(tgvc.Hash) == 0 {
+		tgvc.SetHash()
+	}
+	if len(otherClaim.Hash) == 0 {
+		otherClaim.SetHash()
+	}
+
+	return bytes.Equal(tgvc.Hash, otherClaim.Hash)
 }
 
 // CheckRestart describes if and when a task should be restarted based on
