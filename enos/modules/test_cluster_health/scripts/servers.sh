@@ -27,11 +27,15 @@ fi
 
 last_index=""
 
+INDEX_WINDOW=5 # All the servers should be within +5/-5 raft log indexes from one another.
+
 for ip in $SERVERS; do
     
     last_log_index=$(nomad agent-info -address "https://$ip:4646" -json | jq -r '.stats.raft.last_log_index')
-    if [ -n "$last_index" ] && [ "$last_log_index" -ne "$last_index" ]; then
-        error_exit "Servers not on the same index. $ip on  index: $last_index,  previous read index: $last_log_index"
+    if [ -n "$last_index" ]; then
+        if (( last_log_index < last_index - INDEX_WINDOW || last_log_index > last_index + INDEX_WINDOW )); then
+            error_exit "Servers not on the same index! $ip is at index: $last_log_index, previous index: $last_index"
+        fi
     fi
 
     last_index="$last_log_index"

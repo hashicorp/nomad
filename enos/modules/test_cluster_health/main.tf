@@ -35,7 +35,7 @@ resource "enos_local_exec" "run_tests" {
   ]
 }
 
- resource "enos_local_exec" "verify_versions" {
+resource "enos_local_exec" "verify_versions" {
   environment = {
     NOMAD_ADDR        = var.nomad_addr
     NOMAD_CACERT      = var.ca_file
@@ -49,5 +49,5 @@ resource "enos_local_exec" "run_tests" {
   scripts = [
     abspath("${path.module}/scripts/versions.sh"),
   ]
-} 
+}
 
