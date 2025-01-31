@@ -7820,20 +7820,6 @@ func (tgvc *TaskGroupVolumeClaim) SetHash() []byte {
 	// Set and return the hash.
 	tgvc.Hash = hashVal
 	return hashVal
-}
-
-// func (a *ACLBindingRule) Equal(other *ACLBindingRule) bool {
-// 	if a == nil || other == nil {
-// 		return a == other
-// 	}
-// 	if len(a.Hash) == 0 {
-// 		a.SetHash()
-// 	}
-// 	if len(other.Hash) == 0 {
-// 		other.SetHash()
-// 	}
-// 	return bytes.Equal(a.Hash, other.Hash)
-// }
 
 func (tgvc *TaskGroupVolumeClaim) Equal(otherClaim *TaskGroupVolumeClaim) bool {
 	if tgvc == nil || otherClaim == nil {
