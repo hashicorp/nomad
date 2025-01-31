@@ -29,7 +29,7 @@ const (
 	TableHostVolumes          = "host_volumes"
 	TableCSIVolumes           = "csi_volumes"
 	TableCSIPlugins           = "csi_plugins"
-	TableTaskVolumeAssignment = "task_volume"
+	TableTaskGroupVolumeClaim = "task_volume"
 )
 
 const (
@@ -104,7 +104,7 @@ func init() {
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
 		hostVolumeTableSchema,
-		taskVolumeAssignmentSchema,
+		taskVolumeClaimSchema,
 	}...)
 }
 
@@ -1710,9 +1710,9 @@ func hostVolumeTableSchema() *memdb.TableSchema {
 	}
 }
 
-func taskVolumeAssignmentSchema() *memdb.TableSchema {
+func taskVolumeClaimSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableTaskVolumeAssignment,
+		Name: TableTaskGroupVolumeClaim,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,

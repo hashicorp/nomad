@@ -4133,6 +4133,9 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// Keep the clients task states
 			alloc.TaskStates = exist.TaskStates
 
+			// Keep the volume info
+			alloc.HostVolumeIDs = exist.HostVolumeIDs
+
 			// If the scheduler is marking this allocation as lost or unknown we do not
 			// want to reuse the status of the existing allocation.
 			if alloc.ClientStatus != structs.AllocClientStatusLost &&
