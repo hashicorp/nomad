@@ -80,6 +80,13 @@ parameters {
 	got, _, err := client.HostVolumes().Get(id, &api.QueryOptions{Namespace: "prod"})
 	must.NoError(t, err)
 	must.NotNil(t, got)
+
+	// Verify we can update the volume without changes
+	args = []string{"-address", url, "-detach", "-id", got.ID, file.Name()}
+	code = cmd.Run(args)
+	must.Eq(t, 0, code, must.Sprintf("got error: %s", ui.ErrorWriter.String()))
+	list, _, err := client.HostVolumes().List(nil, &api.QueryOptions{Namespace: "prod"})
+	must.Len(t, 1, list, must.Sprintf("new volume should not be created on update"))
 }
 
 func TestHostVolume_HCLDecode(t *testing.T) {
