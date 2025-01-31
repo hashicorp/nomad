@@ -25,7 +25,6 @@ resource "enos_local_exec" "run_tests" {
     JOB_COUNT         = var.jobs_count
     ALLOC_COUNT       = var.alloc_count
     SERVERS           = local.servers_addr
-
   }
 
   scripts = [
