@@ -31,8 +31,6 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
       summary: this.watchSummary.perform(model.get('summary')),
       allocations: this.watchAllocations.perform(model),
       evaluations: this.watchEvaluations.perform(model),
-      // TODO: looks like this watcher is pushing me over the "Browser is freaking out" max connections limit
-      // versions: this.watchVersions.perform(model),
       latestDeployment:
         model.get('supportsDeployments') &&
         this.watchLatestDeployment.perform(model),
@@ -70,14 +68,12 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @watchRelationship('allocations') watchAllocations;
   @watchRelationship('evaluations') watchEvaluations;
   @watchRelationship('latestDeployment') watchLatestDeployment;
-  @watchRelationship('versions') watchVersions;
   @collect(
     'watchSummary',
     'watchAllocations',
     'watchEvaluations',
     'watchLatestDeployment',
-    'watchNodes',
-    'watchVersions'
+    'watchNodes'
   )
   watchers;
 
