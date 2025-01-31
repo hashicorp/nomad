@@ -3653,19 +3653,22 @@ func TestStateStore_JobsByGC(t *testing.T) {
 	}
 
 	for i := 0; i < 20; i += 2 {
+		idx := 2000 + uint64(i+1)
 		job := mock.Job()
 		job.Type = structs.JobTypeBatch
+		job.ModifyIndex = idx
 		gc[job.ID] = struct{}{}
 
-		if err := state.UpsertJob(structs.MsgTypeTestSetup, 2000+uint64(i), nil, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, job); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
 		// Create an eval for it
 		eval := mock.Eval()
 		eval.JobID = job.ID
+		eval.JobModifyIndex = job.ModifyIndex
 		eval.Status = structs.EvalStatusComplete
-		if err := state.UpsertEvals(structs.MsgTypeTestSetup, 2000+uint64(i+1), []*structs.Evaluation{eval}); err != nil {
+		if err := state.UpsertEvals(structs.MsgTypeTestSetup, idx, []*structs.Evaluation{eval}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -5084,6 +5087,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	require.Equal(t, uint64(1002), evalsIndex)
 }
 
+// This tests the evalDelete boolean by deleting a Pending eval and Pending Alloc.
 func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
 	ci.Parallel(t)
 
@@ -7687,10 +7691,35 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 		exp   string
 	}{
 		{
-			name: "stopped job",
+			name: "stopped job with running allocations is still running",
 			setup: func(txn *txn) (*structs.Job, error) {
 				j := mock.Job()
 				j.Stop = true
+
+				a := mock.Alloc()
+				a.JobID = j.ID
+				a.Job = j
+				a.ClientStatus = structs.AllocClientStatusRunning
+				if err := txn.Insert("allocs", a); err != nil {
+					return nil, err
+				}
+				return j, nil
+			},
+			exp: structs.JobStatusRunning,
+		},
+		{
+			name: "stopped job with terminal allocs is dead",
+			setup: func(txn *txn) (*structs.Job, error) {
+				j := mock.Job()
+				j.Stop = true
+
+				a := mock.Alloc()
+				a.JobID = j.ID
+				a.Job = j
+				a.ClientStatus = structs.AllocClientStatusComplete
+				if err := txn.Insert("allocs", a); err != nil {
+					return nil, err
+				}
 				return j, nil
 			},
 			exp: structs.JobStatusDead,

@@ -3716,7 +3716,9 @@ func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitia
 		}
 	}
 
-	// TODO: should we really be doing this here?  We don't do it for filtered evals.
+	// TODO: should we really be doing this here?  The only time this will affect the
+	// status of a job is if it's the last eval and alloc for a client, at which point
+	// the status of the job will already be "dead" from handling the alloc update.
 	// Set the job's status
 	if err := s.setJobStatuses(index, txn, jobs, true); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
@@ -5604,8 +5606,10 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	// stopped.
 	if job.Type == structs.JobTypeSystem ||
 		job.IsParameterized() ||
-		job.IsPeriodic() ||
-		job.Stopped() {
+		job.IsPeriodic() {
+		if job.Stopped() {
+			return structs.JobStatusDead, nil
+		}
 		return structs.JobStatusRunning, nil
 	}
 
