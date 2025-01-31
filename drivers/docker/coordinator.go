@@ -157,7 +157,10 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *registry.AuthCo
 		// Make the future
 		future = newPullFuture()
 		d.pullFutures[image] = future
-		go d.pullImageImpl(image, authOptions, pullTimeout, pullActivityTimeout, future)
+		go func() {
+			id, user, err := d.pullImageImpl(image, authOptions, pullTimeout, pullActivityTimeout)
+			future.set(id, user, err) // unblocks wait() to proceed below
+		}()
 	}
 	// We unlock while we wait since this can take a while
 	d.imageLock.Unlock()
@@ -181,11 +184,9 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *registry.AuthCo
 	return id, user, err
 }
 
-// pullImageImpl is the implementation of pulling an image. The results are
-// returned via the passed future
+// pullImageImpl is the implementation of pulling an image.
 func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.AuthConfig,
-	pullTimeout, pullActivityTimeout time.Duration, future *pullFuture) {
-
+	pullTimeout, pullActivityTimeout time.Duration) (string, string, error) {
 	defer d.clearPullLogger(imageID)
 	// Parse the repo and tag
 	repo, tag := parseDockerImage(imageID)
@@ -208,15 +209,13 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 
 	if errors.Is(err, context.DeadlineExceeded) {
 		d.logger.Error("timeout pulling container", "image_ref", dockerImageRef(repo, tag))
-		future.set("", "", recoverablePullError(err, imageID))
-		return
+		return "", "", recoverablePullError(err, imageID)
 	}
 
 	if err != nil {
 		d.logger.Error("failed pulling container", "image_ref", dockerImageRef(repo, tag),
 			"error", err)
-		future.set("", "", recoverablePullError(err, imageID))
-		return
+		return "", "", recoverablePullError(err, imageID)
 	}
 
 	if reader != nil {
@@ -224,8 +223,7 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 		_, err = io.Copy(pm, reader)
 		if err != nil && !errors.Is(err, io.EOF) {
 			d.logger.Error("error reading image pull progress", "error", err)
-			future.set("", "", recoverablePullError(err, imageID))
-			return
+			return "", "", recoverablePullError(err, imageID)
 		}
 	}
 
@@ -234,8 +232,7 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 	dockerImage, _, err := d.client.ImageInspectWithRaw(d.ctx, imageID)
 	if err != nil {
 		d.logger.Error("failed getting image id", "image_name", imageID, "error", err)
-		future.set("", "", recoverableErrTimeouts(err))
-		return
+		return "", "", recoverableErrTimeouts(err)
 	}
 
 	var imageUser string
@@ -243,7 +240,7 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 		imageUser = dockerImage.Config.User
 	}
 
-	future.set(dockerImage.ID, imageUser, err)
+	return dockerImage.ID, imageUser, err
 }
 
 // IncrementImageReference is used to increment an image reference count
