@@ -4870,6 +4870,7 @@ func TestStateStore_UpsertEvals_Eval_ChildJob(t *testing.T) {
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
 	eval.JobID = child.ID
+	eval.JobModifyIndex = child.ModifyIndex
 
 	// Create watchsets so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()

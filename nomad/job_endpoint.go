@@ -422,7 +422,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return nil
 	}
 
-	if eval != nil && !submittedEval {
+	if !submittedEval {
 		eval.JobModifyIndex = reply.JobModifyIndex
 		update := &structs.EvalUpdateRequest{
 			Evals:        []*structs.Evaluation{eval},
