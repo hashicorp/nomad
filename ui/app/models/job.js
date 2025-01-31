@@ -448,7 +448,6 @@ export default class Job extends Model {
 
   @computed('versions.@each.stable')
   get hasStableNonCurrentVersion() {
-    // console.log('versions', this.versions, this.versions.sortBy('version').slice(1).mapBy('number'));
     return this.versions
       .sortBy('number')
       .reverse()

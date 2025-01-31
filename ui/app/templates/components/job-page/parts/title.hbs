@@ -103,6 +103,7 @@
           />
         {{else}}
           <Hds::Button
+            data-test-edit-and-resubmit
             {{hds-tooltip "This job has failed and has no stable previous version to fall back to. You can edit and resubmit the job to try again." options=(hash placement="bottom")}}
             @color="primary" @isInline={{true}} @text="Edit and Resubmit job" @route={{"jobs.job.definition" this.job.id}} @query={{hash isEditing=true}} />
         {{/if}}
