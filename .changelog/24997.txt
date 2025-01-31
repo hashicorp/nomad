@@ -1,0 +1,3 @@
+```release-note:improvement
+csi: Accept ID prefixes and wildcard namespace for the volume delete command
+```

@@ -83,11 +83,17 @@ capability {
 	must.StrContains(t, ui.ErrorWriter.String(), "no such volume")
 	ui.ErrorWriter.Reset()
 
-	// fix the namespace
-	args = []string{"-address", url, "-type", "host", "-namespace", "prod", id}
+	// missing the namespace, but use a prefix
+	args = []string{"-address", url, "-type", "host", id[:12]}
+	code = cmd.Run(args)
+	must.Eq(t, 1, code)
+	must.StrContains(t, ui.ErrorWriter.String(), "no volumes with prefix")
+	ui.ErrorWriter.Reset()
+
+	// fix the namespace, and use a prefix
+	args = []string{"-address", url, "-type", "host", "-namespace", "prod", id[:12]}
 	code = cmd.Run(args)
 	must.Eq(t, 0, code, must.Sprintf("got error: %s", ui.ErrorWriter.String()))
 	out = ui.OutputWriter.String()
 	must.StrContains(t, out, fmt.Sprintf("Successfully deleted volume %q!", id))
-
 }
