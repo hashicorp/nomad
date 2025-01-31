@@ -133,10 +133,10 @@ const (
 	NamespaceDeleteRequestType                   MessageType = 65
 
 	// MessageTypes 66-74 are in Nomad Enterprise
-	HostVolumeRegisterRequestType                 MessageType = 75
-	HostVolumeDeleteRequestType                   MessageType = 76
-	TaskGroupVolumeAssociationRegisterRequestType MessageType = 77
-	TaskGroupVolumeAssociationDeleteRequestType   MessageType = 78
+	HostVolumeRegisterRequestType           MessageType = 75
+	HostVolumeDeleteRequestType             MessageType = 76
+	TaskGroupVolumeClaimRegisterRequestType MessageType = 77
+	TaskGroupVolumeClaimDeleteRequestType   MessageType = 78
 
 	// NOTE: MessageTypes are shared between CE and ENT. If you need to add a
 	// new type, check that ENT is not already using that value.
@@ -7785,7 +7785,8 @@ type TaskGroupVolumeClaim struct {
 	TaskGroupName string
 	AllocID       string // TODO: do we need this?
 
-	VolumeID string
+	VolumeID   string
+	VolumeName string
 
 	// Hash is the hashed value of the claim and is generated using all fields
 	// from the full object except the create and modify times and indexes.
@@ -7813,6 +7814,7 @@ func (tgvc *TaskGroupVolumeClaim) SetHash() []byte {
 	_, _ = hash.Write([]byte(tgvc.TaskGroupName))
 	_, _ = hash.Write([]byte(tgvc.AllocID))
 	_, _ = hash.Write([]byte(tgvc.VolumeID))
+	_, _ = hash.Write([]byte(tgvc.VolumeName))
 
 	// Finalize the hash.
 	hashVal := hash.Sum(nil)
@@ -7820,6 +7822,7 @@ func (tgvc *TaskGroupVolumeClaim) SetHash() []byte {
 	// Set and return the hash.
 	tgvc.Hash = hashVal
 	return hashVal
+}
 
 func (tgvc *TaskGroupVolumeClaim) Equal(otherClaim *TaskGroupVolumeClaim) bool {
 	if tgvc == nil || otherClaim == nil {

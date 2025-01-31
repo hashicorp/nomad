@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -4124,6 +4125,45 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// should solve this issue.
 			if alloc.Job == nil {
 				return fmt.Errorf("attempting to upsert allocation %q without a job", alloc.ID)
+			}
+
+			// Check if the alloc requires sticky volumes. If yes, find a node
+			// that has the right volume and update the task group volume
+			// claims table
+			stickyVolumes := []*structs.TaskGroupVolumeClaim{}
+			for _, tg := range alloc.Job.TaskGroups {
+				for _, v := range tg.Volumes {
+					if !v.Sticky {
+						continue
+					}
+					stickyVolumes = append(stickyVolumes, &structs.TaskGroupVolumeClaim{
+						ID:            uuid.Generate(),
+						JobID:         alloc.JobID,
+						TaskGroupName: tg.Name,
+						AllocID:       alloc.ID,
+						VolumeName:    v.Source,
+					})
+				}
+			}
+
+			if len(stickyVolumes) > 0 {
+				allocNode, err := s.NodeByID(nil, alloc.NodeID)
+				if err != nil {
+					return err
+				}
+
+				for _, v := range allocNode.HostVolumes {
+					// Record volumes that this allocation uses in the claims table
+					for _, sv := range stickyVolumes {
+						if sv.VolumeName != v.Name {
+							continue
+						}
+						sv.VolumeID = v.ID
+						if err := s.UpsertTaskGroupVolumeClaim(index, sv); err != nil {
+							return err
+						}
+					}
+				}
 			}
 		} else {
 			alloc.CreateIndex = exist.CreateIndex
