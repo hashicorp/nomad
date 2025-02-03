@@ -2,19 +2,17 @@
 layout: docs
 page_title: Security Model
 description: >-
-  Nomad relies on both a lightweight gossip mechanism and an RPC system to
-  provide various features. Both of the systems have different security
-  mechanisms that stem from their designs. However, the security mechanisms of
-  Nomad have a common goal: to provide confidentiality, integrity, and
-  authentication.
+  Nomad's security model provides mechanisms such as mTLS, namespace, access control list (ACL), Sentinel policies (Enterprise), and resource quotas (Enterprise) to enable fine-grained access within and between clusters. Learn how to secure your Nomad clusters with threat models for internal threats and external threats. Review the network ports used by the security model.
 ---
 
 ## Overview
 
-Nomad is a flexible workload orchestrator to deploy and manage any containerized
-or legacy application using a single, unified workflow. It can run diverse
-workloads including Docker, non-containerized, microservice, and batch
-applications.
+This page provides conceptual information on Nomad's security model, which
+provides mechanisms such as mTLS, namespace, access control list (ACL), Sentinel
+policies, and resource quotas to enable fine-grained access within and between
+clusters. Learn how to secure your Nomad clusters, threat models, internal
+threats, and external threats. Review the network ports used by the security
+model.
 
 Nomad utilizes a lightweight gossip and RPC system, [similar to
 Consul](/consul/docs/security/security-models/core), which provides
@@ -28,25 +26,23 @@ features for multi-tenant deployments are offered exclusively in the enterprise
 version. This documentation may need to be adapted to your deployment situation,
 but the general mechanisms for a secure Nomad deployment revolve around:
 
-- **[mTLS](/nomad/tutorials/transport-security/security-enable-tls)** -
-  Mutual authentication of both the TLS server and client x509 certificates
-  prevents internal abuse by preventing unauthenticated access to network
-  components within the cluster.
+- **[mTLS](/nomad/tutorials/transport-security/security-enable-tls)** Mutual
+  authentication of both the TLS server and client x509 certificates prevents
+  internal abuse by preventing unauthenticated access to network components
+  within the cluster.
 
-- **[ACLs](/nomad/tutorials/access-control)** - Enables
-  authorization for authenticated connections by granting capabilities to ACL
-  tokens.
+- **[ACLs](/nomad/tutorials/access-control)** Enables authorization for
+  authenticated connections by granting capabilities to ACL tokens.
 
-- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)** -
-  Access to read and write to a namespace can be
-  controlled to allow for granular access to job information managed within a
-  multi-tenant cluster.
+- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)** Access to read
+  and write to a namespace can be controlled to allow for granular access to job
+  information managed within a multi-tenant cluster.
 
-- **[Sentinel Policies](/nomad/tutorials/governance-and-policy/sentinel)**
-  (**Enterprise Only**) - Sentinel policies allow for granular control over
-  components such as task drivers within a cluster.
+- **[Sentinel Policies]**<EnterpriseAlert inline /> Sentinel
+  policies allow for granular control over components such as task drivers
+  within a cluster.
 
-### Personas
+## Personas
 
 When thinking about Nomad, it helps to consider the following types of base
 personas when managing the security requirements for the cluster deployment. The
@@ -84,7 +80,7 @@ within Nomad itself.
   internet such as a web server. This is someone who shouldn't have any
   network access to the Nomad server API.
 
-### Secure Configuration
+## Secure Configuration
 
 Nomad's security model is applicable only if all parts of the system are running
 with a secure configuration; **Nomad is not secure-by-default.** Without the following
@@ -93,9 +89,9 @@ to a cluster. Like all security considerations, one must appropriately determine
 what concerns they have for their environment and adapt to these security
 recommendations accordingly.
 
-#### Requirements
+### Requirements
 
-- **[mTLS enabled](/nomad/tutorials/transport-security/security-enable-tls)** -
+- [mTLS enabled](/nomad/tutorials/transport-security/security-enable-tls)
   Mutual TLS (mTLS) enables [mutual
   authentication](https://en.wikipedia.org/wiki/Mutual_authentication) with
   security properties to prevent the following problems:
@@ -139,35 +135,32 @@ recommendations accordingly.
     when using `tls.verify_https_client=false`. You can use a reverse proxy or
     other external means to restrict access to them.
 
-- **[ACLs enabled](/nomad/tutorials/access-control)** - The
+- [ACLs enabled](/nomad/tutorials/access-control) The
   access control list (ACL) system provides a capability-based control
   mechanism for Nomad administrators allowing for custom roles (typically
   within Vault) to be tied to an individual human or machine operator
   identity. This allows for access to capabilities within the cluster to be
   restricted to specific users.
 
-- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)**
+- [Namespaces](/nomad/tutorials/manage-clusters/namespaces) This feature
+    allows for a cluster to be shared by multiple teams within a company. Using
+    this logical separation is important for multi-tenant clusters to prevent
+    users without access to that namespace from conflicting with each other.
+    This requires ACLs to be enabled in order to be enforced.
 
-  - This feature allows for a cluster to be shared by
-    multiple teams within a company. Using this logical separation is important
-    for multi-tenant clusters to prevent users without access to that namespace
-    from conflicting with each other. This requires ACLs to be enabled in order
-    to be enforced.
-
-- **[Sentinel Policies](/nomad/tutorials/governance-and-policy/sentinel)**
-  (**Enterprise Only**) - [Sentinel](https://www.hashicorp.com/sentinel/) is
-  a feature which enables
+- [Sentinel Policies]<EnterpriseAlert inline />
+  [Sentinel](https://www.hashicorp.com/sentinel/) is a feature which enables
   [policy-as-code](https://docs.hashicorp.com/sentinel/concepts/policy-as-code)
   to enforce further restrictions on operators. This is used to augment the
   built-in ACL system for fine-grained control over jobs.
 
-- **[Resource Quotas](/nomad/tutorials/governance-and-policy/quotas)**
-  (**Enterprise Only**) - Can limit a namespace's access to the underlying
-  compute resources in the cluster by setting upper-limits for operators.
-  Access to these resource quotas can be managed via ACLs to ensure read-only
-  access for operators so they can't just change their quotas.
+- [Resource Quotas]<EnterpriseAlert inline /> Can limit a
+  namespace's access to the underlying compute resources in the cluster by
+  setting upper-limits for operators. Access to these resource quotas can be
+  managed via ACLs to ensure read-only access for operators so they can't just
+  change their quotas.
 
-#### Recommendations
+### Recommendations
 
 The following are security recommendations that can help significantly improve
 the security of your cluster depending on your use case. We recommend always
@@ -226,7 +219,7 @@ environment.
 - **[HTTP Headers](/nomad/docs/configuration#http_api_response_headers)** -
   Additional security [headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers), such as [`X-XSS-Protection`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection), can be [configured](/nomad/docs/configuration#http_api_response_headers) for HTTP API responses.
 
-### Threat Model
+## Threat Model
 
 The following are parts of the Nomad threat model:
 
@@ -292,7 +285,7 @@ The following are not part of the threat model for client agents:
   devices. Such privileges can be used to facilitate compromise other workloads,
   or cause denial-of-service attacks.
 
-#### Internal Threats
+### Internal Threats
 
 - **Job Operator** - Someone with a valid mTLS certificate and ACL token may still be a
   threat to your cluster in certain situations, especially in multi-team
@@ -316,7 +309,7 @@ The following are not part of the threat model for client agents:
   to an exposed Docker daemon API through other means such as the [`raw_exec`](/nomad/docs/drivers/raw_exec)
   driver.
 
-#### External Threats
+### External Threats
 
 There are two main components to consider to for external threats in a Nomad cluster:
 
@@ -331,7 +324,7 @@ There are two main components to consider to for external threats in a Nomad clu
   a client node is unencrypted in the agent's data and configuration
   directory.
 
-### Network Ports
+## Network Ports
 
 | **Port / Protocol**  | Agents  | Description                                                                                                                                                           |
 |----------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -345,3 +338,5 @@ There are two main components to consider to for external threats in a Nomad clu
 [Variables]: /nomad/docs/concepts/variables
 [verify_https_client]: /nomad/docs/configuration/tls#verify_https_client
 [serf]: https://github.com/hashicorp/serf
+[Sentinel Policies]: /nomad/tutorials/governance-and-policy/sentinel
+[Resource Quotas]: /nomad/tutorials/governance-and-policy/quotas
