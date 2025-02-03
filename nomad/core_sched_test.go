@@ -1704,7 +1704,6 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		mockJob1Alloc1 := mock.Alloc()
 		mockJob1Alloc1.EvalID = mockEval1.ID
 		mockJob1Alloc1.JobID = inputJob.ID
-		mockJob1Alloc1.Job.Version = inputJob.Version
 		mockJob1Alloc1.ClientStatus = structs.AllocClientStatusRunning
 		mockJob1Alloc1.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
 		mockJob1Alloc1.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
@@ -1712,7 +1711,6 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		mockJob1Alloc2 := mock.Alloc()
 		mockJob1Alloc2.EvalID = mockEval1.ID
 		mockJob1Alloc2.JobID = inputJob.ID
-		mockJob1Alloc2.Job.Version = inputJob.Version
 		mockJob1Alloc2.ClientStatus = structs.AllocClientStatusRunning
 		mockJob1Alloc2.CreateTime = time.Now().Add(-6 * time.Hour).UnixNano()
 		mockJob1Alloc2.ModifyTime = time.Now().Add(-5 * time.Hour).UnixNano()
@@ -1780,10 +1778,8 @@ func TestCoreScheduler_jobGC(t *testing.T) {
 		// Mark that the allocations have reached a terminal state.
 		mockJob1Alloc1.DesiredStatus = structs.AllocDesiredStatusStop
 		mockJob1Alloc1.ClientStatus = structs.AllocClientStatusComplete
-		mockJob1Alloc1.Job.Version = inputJob.Version
 		mockJob1Alloc2.DesiredStatus = structs.AllocDesiredStatusStop
 		mockJob1Alloc2.ClientStatus = structs.AllocClientStatusComplete
-		mockJob1Alloc2.Job.Version = inputJob.Version
 
 		must.NoError(t,
 			testServer.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 30, []*structs.Allocation{

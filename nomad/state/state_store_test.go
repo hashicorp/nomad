@@ -5,6 +5,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"sort"
@@ -7695,7 +7696,6 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			name: "stopped job with running allocations is still running",
 			setup: func(txn *txn) (*structs.Job, error) {
 				j := mock.Job()
-				j.Stop = true
 
 				a := mock.Alloc()
 				a.JobID = j.ID
@@ -7704,7 +7704,11 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 				if err := txn.Insert("allocs", a); err != nil {
 					return nil, err
 				}
-				return j, nil
+
+				stoppedJob := j.Copy()
+				stoppedJob.Stop = true
+				stoppedJob.Version += 1
+				return stoppedJob, nil
 			},
 			exp: structs.JobStatusRunning,
 		},
@@ -7758,7 +7762,6 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 				a := mock.Alloc()
 
 				a.JobID = j.ID
-
 				if err := txn.Insert("allocs", a); err != nil {
 					return nil, err
 				}
@@ -7771,13 +7774,21 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			setup: func(txn *txn) (*structs.Job, error) {
 				j := mock.Job()
 				a := mock.Alloc()
+				e := mock.Eval()
+
+				e.JobID = j.ID
+				e.JobModifyIndex = j.ModifyIndex
+				e.Status = structs.EvalStatusPending
 
 				a.JobID = j.ID
+				a.Job = j
 				a.ClientStatus = structs.AllocClientStatusFailed
 
 				j.Version += 1
-
 				if err := txn.Insert("allocs", a); err != nil {
+					return nil, err
+				}
+				if err := txn.Insert("evals", e); err != nil {
 					return nil, err
 				}
 				return j, nil
@@ -7801,7 +7812,7 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			exp: structs.JobStatusDead,
 		},
 		{
-			name: "job has all terminal allocs, with pending eval",
+			name: "job has all terminal allocs, but pending eval",
 			setup: func(txn *txn) (*structs.Job, error) {
 				j := mock.Job()
 				a := mock.Alloc()
@@ -7826,6 +7837,59 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			},
 			exp: structs.JobStatusPending,
 		},
+		{
+			name: "reschedulable alloc is pending waiting for replacement",
+			setup: func(t *txn) (*structs.Job, error) {
+				j := mock.Job()
+				if j.TaskGroups[0].ReschedulePolicy == nil {
+					return nil, errors.New("mock job doesn't have replacement policy")
+				}
+				a := mock.Alloc()
+				a.Job = j
+				a.JobID = j.ID
+				a.ClientStatus = structs.AllocClientStatusFailed
+				if err := t.Insert("allocs", a); err != nil {
+					return nil, err
+				}
+				return j, nil
+			},
+			exp: structs.JobStatusPending,
+		},
+		{
+			name: "reschedulable alloc is dead after replacement fails",
+			setup: func(t *txn) (*structs.Job, error) {
+				j := mock.Job()
+				// give job one reschedule attempt
+				j.TaskGroups[0].ReschedulePolicy.Attempts = 1
+				j.TaskGroups[0].ReschedulePolicy.Interval = time.Hour
+
+				// Replacement alloc
+				a := mock.Alloc()
+				a.Job = j
+				a.JobID = j.ID
+				a.ClientStatus = structs.AllocClientStatusFailed
+				a.RescheduleTracker = &structs.RescheduleTracker{
+					Events: []*structs.RescheduleEvent{
+						structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), "", "", time.Minute),
+					},
+				}
+				if err := t.Insert("allocs", a); err != nil {
+					return nil, err
+				}
+
+				// Original alloc
+				a2 := mock.Alloc()
+				a2.Job = j
+				a2.JobID = j.ID
+				a2.ClientStatus = structs.AllocClientStatusFailed
+				a2.NextAllocation = a.ID
+				if err := t.Insert("allocs", a2); err != nil {
+					return nil, err
+				}
+				return j, nil
+			},
+			exp: structs.JobStatusDead,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -7833,9 +7897,8 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			state := testStateStore(t)
 
 			txn := state.db.WriteTxn(0)
-			txn.Insert("allocs", mock.Alloc())
 
-			job, err := tc.setup(txn)
+			job, _ := tc.setup(txn)
 
 			status, err := state.getJobStatus(txn, job, false)
 			require.NoError(t, err)

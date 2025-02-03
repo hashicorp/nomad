@@ -1800,6 +1800,7 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 		// Compute the job status
 		var err error
 		job.Status, err = s.getJobStatus(txn, job, false)
+		s.logger.Info("setting job status", "status", job.Status)
 		if err != nil {
 			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
 		}
@@ -5618,20 +5619,26 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		return "", err
 	}
 
-	// If there is a non-terminal allocation, the job is running.
 	terminalAllocs := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
 		a := alloc.(*structs.Allocation)
 
-		if a.Job.Version < job.Version {
-			continue
-		}
-
+		// If there is a non-terminal allocation, the job is running.
 		if !a.TerminalStatus() {
 			return structs.JobStatusRunning, nil
 		}
 
-		terminalAllocs = true
+		// If all the allocs are terminal and any are not reschedulable
+		// mark this job as having terminal allocs, possibly dead
+		if !isReschedulable(a) {
+			terminalAllocs = true
+		}
+	}
+
+	// The job is dead if it is stopped and there are no allocs
+	// or all allocs are terminal
+	if job.Stopped() {
+		return structs.JobStatusDead, nil
 	}
 
 	evals, err := txn.Get("evals", "job_prefix", job.Namespace, job.ID)
@@ -5643,7 +5650,10 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
 		e := raw.(*structs.Evaluation)
 
-		// Ignore evals created for previous jobs
+		// This handles restarting stopped jobs, or else they are marked dead.
+		// We need to be careful with this, because an eval can technically
+		// still apply to a job with a greater modify index, i.e. during reschedule
+		// but we handle reschedule above.
 		if e.JobModifyIndex < job.ModifyIndex {
 			continue
 		}
@@ -5656,17 +5666,16 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	}
 
 	// The job is dead if all allocations for this version are terminal,
-	// all evals are terminal
-	//
+	// all evals are terminal.
 	// Also, in the event a jobs allocs and evals are all GC'd, we don't
 	// want the job to be marked pending.
 	if terminalAllocs || terminalEvals || evalDelete {
 		return structs.JobStatusDead, nil
 	}
 
-	// There are no allocs yet, which will happen for new job submissions,
+	// There are no allocs/evals yet, which can happen for new job submissions,
 	// running new versions of a job, or reverting. This will happen if
-	// the evaluation is persisted after the job is persisted
+	// the evaluation is persisted after the job is persisted.
 	return structs.JobStatusPending, nil
 }
 
@@ -7363,6 +7372,32 @@ func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace stri
 	iter = memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
 
 	return iter, nil
+}
+
+// RescheduleInfo is used to calculate remaining reschedule attempts
+// according to the given time and the task groups reschedule policy
+// This is modified from the API package
+func isReschedulable(a *structs.Allocation) bool {
+	if a.ReschedulePolicy() == nil {
+		return false
+	}
+	reschedulePolicy := a.ReschedulePolicy()
+	availableAttempts := reschedulePolicy.Attempts
+	interval := reschedulePolicy.Interval
+	attempted := 0
+	currTime := time.Now()
+
+	// Loop over reschedule tracker to find attempts within the restart policy's interval
+	if a.RescheduleTracker != nil && availableAttempts > 0 && interval > 0 {
+		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
+			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
+			timeDiff := currTime.UTC().UnixNano() - lastAttempt
+			if timeDiff < interval.Nanoseconds() {
+				attempted += 1
+			}
+		}
+	}
+	return attempted < availableAttempts
 }
 
 // scalingPolicyNamespaceFilter returns a filter function that filters all
