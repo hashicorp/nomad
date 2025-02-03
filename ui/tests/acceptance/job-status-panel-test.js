@@ -807,6 +807,70 @@ module('Acceptance | job status panel', function (hooks) {
         .dom('[data-test-history-search-no-match]')
         .exists('No match message is shown');
     });
+    test('Container images are shown in task events and can be searched', async function (assert) {
+      faker.seed(1);
+
+      this.store = this.owner.lookup('service:store');
+
+      let groupAllocCount = 10;
+
+      let job = server.create('job', {
+        status: 'running',
+        datacenters: ['*'],
+        type: 'service',
+        resourceSpec: ['M: 256, C: 500'], // a single group
+        createAllocations: true,
+        allocStatusDistribution: {
+          running: 1,
+          failed: 0,
+          unknown: 0,
+          lost: 0,
+        },
+        groupAllocCount,
+        shallow: true,
+        activeDeployment: true,
+        version: 0,
+      });
+
+      let state = server.create('task-state');
+      state.events = server.schema.taskEvents.where({ taskStateId: state.id });
+
+      server.schema.allocations.where({ jobId: job.id }).update({
+        taskStateIds: [state.id],
+        jobVersion: 0,
+      });
+
+      await visit(`/jobs/${job.id}`);
+
+      console.log("before long", job, this.store.peekAll('job'));
+
+      let firstEvent = this.store
+        .peekAll('job')
+        .objectAt(0)
+        .get('allocations')
+        .objectAt(0)
+        .get('states')
+        .objectAt(0)
+        .get('events')
+        .objectAt(0);
+
+      firstEvent.setProperties({
+        displayMessage: 'Downloading image',
+        details: { image: 'foo/bar:1.0.0' },
+      });
+
+      // await this.pauseTest();
+      assert.dom('.job-status-panel').exists();
+      assert.dom('.timeline-object').exists({ count: 10 });
+
+      await fillIn('[data-test-history-search] input', 'foo/bar:1.0.0');
+      assert.equal(
+        findAll('.timeline-object').length,
+        1,
+        'Only the single event matching image name is shown'
+      );
+      assert.ok(findAll('.timeline-object')[0].textContent.includes('Downloading image (foo/bar:1.0.0)'), 'The event contains the image name');
+    });
   });
 
   module('Batch jobs', function () {

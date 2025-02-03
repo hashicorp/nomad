@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Added the image name to task events where an image is downloaded
+```

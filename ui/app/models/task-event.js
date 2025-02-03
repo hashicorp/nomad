@@ -22,8 +22,10 @@ export default class TaskEvent extends Fragment {
   get message() {
     let message = simplifyTimeMessage(this.displayMessage);
 
-    if ('image' in this.details) message = `${message} ${this.details["image"]}`;
-    
+    if (message === 'Downloading image' && this.details?.image) {
+      message = `${message} (${this.details.image})`;
+    }
+
     return message;
   }
 }
