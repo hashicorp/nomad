@@ -14,11 +14,7 @@ import (
 // UpsertACLBindingRules is used to insert a task group volume assignment into
 // the state store.
 func (s *StateStore) UpsertTaskGroupVolumeClaim(
-	index uint64, claim *structs.TaskGroupVolumeClaim) error {
-
-	// Grab a write transaction.
-	txn := s.db.WriteTxnMsgT(structs.TaskGroupVolumeClaimRegisterRequestType, index)
-	defer txn.Abort()
+	index uint64, claim *structs.TaskGroupVolumeClaim, txn *txn) error {
 
 	existingRaw, err := txn.First(TableTaskGroupVolumeClaim, indexID, claim.ID)
 	if err != nil {
@@ -53,7 +49,7 @@ func (s *StateStore) UpsertTaskGroupVolumeClaim(
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
-	return txn.Commit()
+	return nil
 }
 
 // DeleteTaskGroupVolumeClaim is responsible for deleting volume claims.

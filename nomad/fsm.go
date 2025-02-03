@@ -389,8 +389,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyHostVolumeRegister(msgType, buf[1:], log.Index)
 	case structs.HostVolumeDeleteRequestType:
 		return n.applyHostVolumeDelete(msgType, buf[1:], log.Index)
-	case structs.TaskGroupVolumeClaimRegisterRequestType:
-		return n.applyTaskGroupVolumeClaim(msgType, buf[1:], log.Index)
+	case structs.TaskGroupVolumeClaimDeleteRequestType:
+		return n.applyTaskVolumeClaimDelete(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -2452,21 +2452,6 @@ func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte
 	return nil
 }
 
-func (n *nomadFSM) applyTaskVolumeClaimRegister(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_task_group_volume_claim_register"}, time.Now())
-
-	var req structs.TaskGroupVolumeClaimRegisterRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertTaskGroupVolumeClaim(index, req.Volume); err != nil {
-		n.logger.Error("UpsertTaskGroupVolumeClaim failed", "error", err)
-		return err
-	}
-	return nil
-}
-
 func (n *nomadFSM) applyTaskVolumeClaimDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_task_group_volume_claim_delete"}, time.Now())
 
@@ -2475,7 +2460,7 @@ func (n *nomadFSM) applyTaskVolumeClaimDelete(msgType structs.MessageType, buf [
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteTaskGroupVolumeClaim(index, req.RequestNamespace(), req.VolumeID); err != nil {
+	if err := n.state.DeleteTaskGroupVolumeClaim(index, req.ClaimID); err != nil {
 		n.logger.Error("DeleteTaskGroupVolumeClaim failed", "error", err)
 		return err
 	}
