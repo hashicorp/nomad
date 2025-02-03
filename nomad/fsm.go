@@ -389,8 +389,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyHostVolumeRegister(msgType, buf[1:], log.Index)
 	case structs.HostVolumeDeleteRequestType:
 		return n.applyHostVolumeDelete(msgType, buf[1:], log.Index)
-	case structs.TaskGroupVolumeClaimDeleteRequestType:
-		return n.applyTaskVolumeClaimDelete(msgType, buf[1:], log.Index)
+		// case structs.TaskGroupVolumeClaimDeleteRequestType:
+		// 	return n.applyTaskVolumeClaimDelete(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -2452,20 +2452,20 @@ func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte
 	return nil
 }
 
-func (n *nomadFSM) applyTaskVolumeClaimDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_task_group_volume_claim_delete"}, time.Now())
+// func (n *nomadFSM) applyTaskVolumeClaimDelete(buf []byte, index uint64) interface{} {
+// 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_task_group_volume_claim_delete"}, time.Now())
 
-	var req structs.TaskGroupVolumeClaimDeleteRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
+// 	var req structs.TaskGroupVolumeClaimDeleteRequest
+// 	if err := structs.Decode(buf, &req); err != nil {
+// 		panic(fmt.Errorf("failed to decode request: %v", err))
+// 	}
 
-	if err := n.state.DeleteTaskGroupVolumeClaim(index, req.ClaimID); err != nil {
-		n.logger.Error("DeleteTaskGroupVolumeClaim failed", "error", err)
-		return err
-	}
-	return nil
-}
+// 	if err := n.state.DeleteTaskGroupVolumeClaim(index, req.ClaimID); err != nil {
+// 		n.logger.Error("DeleteTaskGroupVolumeClaim failed", "error", err)
+// 		return err
+// 	}
+// 	return nil
+// }
 
 func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "persist"}, time.Now())

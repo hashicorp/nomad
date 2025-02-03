@@ -11,12 +11,12 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// UpsertACLBindingRules is used to insert a task group volume assignment into
+// upsertTaskGroupVolumeClaimImpl is used to insert a task group volume claim into
 // the state store.
-func (s *StateStore) UpsertTaskGroupVolumeClaim(
+func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 	index uint64, claim *structs.TaskGroupVolumeClaim, txn *txn) error {
 
-	existingRaw, err := txn.First(TableTaskGroupVolumeClaim, indexID, claim.ID)
+	existingRaw, err := txn.First(TableTaskGroupVolumeClaim, indexID, claim.Namespace, claim.JobID, claim.TaskGroupName)
 	if err != nil {
 		return fmt.Errorf("Task group volume association lookup failed: %v", err)
 	}
@@ -27,7 +27,9 @@ func (s *StateStore) UpsertTaskGroupVolumeClaim(
 	}
 
 	if existing != nil {
-		if existing.Equal(claim) {
+		// do allocation ID and volume ID match?
+		if existing.Claimed(claim) {
+			fmt.Println("bro this has been claimed already, chill")
 			return nil
 		}
 
@@ -53,11 +55,11 @@ func (s *StateStore) UpsertTaskGroupVolumeClaim(
 }
 
 // DeleteTaskGroupVolumeClaim is responsible for deleting volume claims.
-func (s *StateStore) DeleteTaskGroupVolumeClaim(index uint64, claimID string) error {
+func (s *StateStore) DeleteTaskGroupVolumeClaim(index uint64, namespace, jobID, taskGroupName string) error {
 	txn := s.db.WriteTxnMsgT(structs.TaskGroupVolumeClaimDeleteRequestType, index)
 	defer txn.Abort()
 
-	existing, err := txn.First(TableTaskGroupVolumeClaim, indexID, claimID)
+	existing, err := txn.First(TableTaskGroupVolumeClaim, indexID, namespace, jobID, taskGroupName)
 	if err != nil {
 		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
 	}
@@ -90,4 +92,36 @@ func (s *StateStore) GetTaskGroupVolumeClaims(ws memdb.WatchSet) (memdb.ResultIt
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+// GetTaskGroupVolumeClaimsByVolumeID gets an iterator that contains all task
+// group volume claims that claim a particular volume ID
+func (s *StateStore) GetTaskGroupVolumeClaimsByVolumeID(ws memdb.WatchSet, volID string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableTaskGroupVolumeClaim, indexVolumeID, volID)
+	if err != nil {
+		return nil, fmt.Errorf("Task group volume claims lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// GetTaskGroupVolumeClaim returns a volume claim that matches the namespace,
+// job id and task group name (there can be only one)
+func (s *StateStore) GetTaskGroupVolumeClaim(ws memdb.WatchSet, namespace, jobID, taskGroupName string) (*structs.TaskGroupVolumeClaim, error) {
+	txn := s.db.ReadTxn()
+
+	watchCh, existing, err := txn.FirstWatch(TableTaskGroupVolumeClaim, indexID, namespace, jobID, taskGroupName)
+	if err != nil {
+		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+	ws.Add(watchCh)
+
+	if existing != nil {
+		return existing.(*structs.TaskGroupVolumeClaim), nil
+	}
+
+	return nil, nil
 }

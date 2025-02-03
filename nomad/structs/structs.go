@@ -7780,10 +7780,10 @@ func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
 // used for stateful deployments, i.e., volume requests with "sticky" set to
 // true.
 type TaskGroupVolumeClaim struct {
-	ID            string
+	Namespace     string
 	JobID         string
 	TaskGroupName string
-	AllocID       string // TODO: do we need this?
+	AllocID       string // used for checks to make sure we don't insert duplicate claims for the same alloc
 
 	VolumeID   string
 	VolumeName string
@@ -7809,7 +7809,7 @@ func (tgvc *TaskGroupVolumeClaim) SetHash() []byte {
 		panic(err)
 	}
 
-	_, _ = hash.Write([]byte(tgvc.ID))
+	_, _ = hash.Write([]byte(tgvc.Namespace))
 	_, _ = hash.Write([]byte(tgvc.JobID))
 	_, _ = hash.Write([]byte(tgvc.TaskGroupName))
 	_, _ = hash.Write([]byte(tgvc.AllocID))
@@ -7837,6 +7837,33 @@ func (tgvc *TaskGroupVolumeClaim) Equal(otherClaim *TaskGroupVolumeClaim) bool {
 	}
 
 	return bytes.Equal(tgvc.Hash, otherClaim.Hash)
+}
+
+// Claimed checks if there's a match between allocation ID and volume ID
+func (tgvc *TaskGroupVolumeClaim) Claimed(otherClaim *TaskGroupVolumeClaim) bool {
+	if tgvc == nil || otherClaim == nil {
+		return tgvc == otherClaim
+	}
+
+	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
+}
+
+func (tgvc *TaskGroupVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupVolumeClaim) bool {
+	if tgvc == nil || otherClaim == nil {
+		return tgvc == otherClaim
+	}
+
+	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
+}
+
+func (tgvc *TaskGroupVolumeClaim) ClaimedByTaskGroup(otherClaim *TaskGroupVolumeClaim) bool {
+	if tgvc == nil || otherClaim == nil {
+		return tgvc == otherClaim
+	}
+
+	return tgvc.Namespace == otherClaim.Namespace &&
+		tgvc.TaskGroupName == otherClaim.TaskGroupName &&
+		tgvc.JobID == otherClaim.JobID
 }
 
 // CheckRestart describes if and when a task should be restarted based on
