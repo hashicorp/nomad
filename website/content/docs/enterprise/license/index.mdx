@@ -2,17 +2,26 @@
 layout: docs
 page_title: Nomad Enterprise Licensing
 description: >-
-  Learn about how Nomad Enterprise licensing works.
+  Learn how to configure, apply, and replace your Nomad Enterprise license. Use the `nomad license` command to review your license details.
 ---
 
-## Nomad Enterprise Licensing
+# Nomad Enterprise Licensing
 
-Licensing capabilities were added to Nomad Enterprise v0.12.0. Each server in
-the cluster must have a license to start. Nomad Enterprise can be downloaded from
-the [releases site].
+<EnterpriseAlert product="nomad"/>
 
-Click [here](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo of Nomad Enterprise
-or [here](/nomad/tutorials/enterprise/hashicorp-enterprise-license#request-a-trial-license)
+This page provides information on how to configure, apply, inspect, and replace
+your Nomad Enterprise license.
+
+Each server in a Nomad Enterprise cluster must have a license to start. Download
+Nomad Enterprise from the [releases site].
+
+[Contact sales](https://www.hashicorp.com/go/nomad-enterprise) to set up a demo
+of Nomad Enterprise.
+
+Refer to the Enterprise license
+[tutorial](/nomad/tutorials/enterprise/hashicorp-enterprise-license) for
+step-by-step license instructions. Review the [Request a trial license section
+](/nomad/tutorials/enterprise/hashicorp-enterprise-license#request-a-trial-license)
 for instructions on how to get a trial license.
 
 ~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
@@ -54,8 +63,6 @@ operations will return an error.
 See the server [license configuration] reference documentation on all the
 options to set an enterprise license. Nomad will load the license file from
 disk or environment when it starts.
-
-~> **Note:** An Enterprise license [tutorial](/nomad/tutorials/enterprise/hashicorp-enterprise-license) is available to help you install the license on the server.
 
 In order to immediately alert operators of a bad configuration setting, if a
 license configuration option is an invalid or expired license, the Nomad server

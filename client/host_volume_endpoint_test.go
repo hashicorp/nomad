@@ -31,7 +31,7 @@ func TestHostVolume(t *testing.T) {
 		StateMgr:       client.stateDB,
 		UpdateNodeVols: client.updateNodeFromHostVol,
 		PluginDir:      "/no/ext/plugins",
-		SharedMountDir: tmp,
+		VolumesDir:     tmp,
 	})
 	client.hostVolumeManager = manager
 	hostPathCreate := filepath.Join(tmp, "test-vol-id-1")
@@ -177,7 +177,7 @@ func TestHostVolume(t *testing.T) {
 			StateMgr:       client.stateDB,
 			UpdateNodeVols: client.updateNodeFromHostVol,
 			PluginDir:      "/no/ext/plugins",
-			SharedMountDir: "host_volume_endpoint_test.go",
+			VolumesDir:     "host_volume_endpoint_test.go",
 		})
 
 		req := &cstructs.ClientHostVolumeCreateRequest{

@@ -21,7 +21,7 @@ variable "instance_type" {
   default     = "t3a.medium"
 }
 
-variable "instance_architecture" {
+variable "instance_arch" {
   description = "The architecture for the AWS instance type to use for both clients and servers."
   default     = "amd64"
 }
@@ -36,7 +36,7 @@ variable "client_count_linux" {
   default     = "4"
 }
 
-variable "client_count_windows_2016_amd64" {
+variable "client_count_windows_2016" {
   description = "The number of windows 2016 clients to provision."
   default     = "0"
 }
@@ -109,13 +109,13 @@ variable "nomad_local_binary_server" {
   default     = []
 }
 
-variable "nomad_local_binary_client_ubuntu_jammy_amd64" {
+variable "nomad_local_binary_client_ubuntu_jammy" {
   description = "A list of nomad local binary paths to deploy to Ubuntu Jammy clients, to override nomad_local_binary"
   type        = list(string)
   default     = []
 }
 
-variable "nomad_local_binary_client_windows_2016_amd64" {
+variable "nomad_local_binary_client_windows_2016" {
   description = "A list of nomad local binary paths to deploy to Windows 2016 clients, to override nomad_local_binary"
   type        = list(string)
   default     = []

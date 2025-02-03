@@ -341,7 +341,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			FilterKeys: filterKeys,
 			Namespace:  after.Namespace,
 			Payload: &structs.AllocationEvent{
-				Allocation: alloc,
+				Allocation: alloc.Sanitize(),
 			},
 		}, true
 	case "jobs":

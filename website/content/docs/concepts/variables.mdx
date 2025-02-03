@@ -1,36 +1,40 @@
 ---
 layout: docs
-page_title: Variables
-description: Learn about the Nomad Variables feature
+page_title: Nomad Variables
+description: Nomad's variables feature lets you store and use encrypted configuration data in your job specifications. Learn how Access Control List (ACL) policies restrict access to variables within a namespace, how a job task's workload identity grants access to variables, and how locking a variable blocks access to that variable.
 ---
 
 # Nomad Variables
+
+This page contains conceptual information about the Nomad variables feature,
+which lets you store and use encrypted configuration data in your job
+specifications. Learn how Access Control List (ACL) policies restrict access to variables within a namespace, how a job task's workload identity grants access to variables, and how locking a variable blocks access to that variable.
 
 Most Nomad workloads need access to config values or secrets. Nomad has a
 `template` block to [provide such configuration to tasks](/nomad/docs/job-specification/template#nomad-variables),
 but prior to Nomad 1.4 has left the role of storing that configuration to
 external services such as [HashiCorp Consul] and [HashiCorp Vault].
 
-Nomad Variables provide the option to store configuration at file-like paths
-directly in Nomad's state store. You can [access these variables](/nomad/docs/job-specification/template#nomad-variables) directly from
-your task `template`s. The contents of these variables are encrypted
+Nomad variables provide the option to store configuration at file-like paths
+directly in Nomad's state store. [Access these variables](/nomad/docs/job-specification/template#nomad-variables) directly from
+your task templates. The contents of these variables are encrypted
 and replicated between servers via raft. Access to variables is controlled by
 ACL policies, and tasks have implicit ACL policies that allow them to access
 their own variables. You can create, read, update, or delete variables via the
 command line, the Nomad API, or in the Nomad web UI.
 
-Note that the Variables feature is intended for small pieces of configuration
+Note that the variables feature is intended for small pieces of configuration
 data needed by workloads. Because writing to the Nomad state store uses
 resources needed by Nomad, it is not well-suited for large or fast-changing
-data. For example, do not store batch job results as Variables - these should be
+data. For example, do not store batch job results as variables - these should be
 stored in an external database. Variables are also not intended to be a full
 replacement for HashiCorp Vault. Unlike Vault, Nomad stores the root encryption
 key on the servers. See [Key Management][] for details.
 
 ## ACL for Variables
 
-Every Variable belongs to a specific Nomad namespace. ACL policies can restrict
-access to Variables within a namespace on a per-path basis, using a list of
+Every variable belongs to a specific Nomad namespace. ACL policies can restrict
+access to variables within a namespace on a per-path basis, using a list of
 `path` blocks, located under `namespace.variables`. See the [ACL policy
 specification] docs for details about the syntax and structure of an ACL policy.
 
@@ -63,20 +67,20 @@ namespace "dev" {
 }
 ```
 
-The available capabilities for Variables are as follows:
+The available capabilities for variables are as follows:
 
 | Capability | Notes                                                                                                                 |
 |------------|-----------------------------------------------------------------------------------------------------------------------|
-| write      | Create or update Variables at this path. Includes the "list" capability but not the "read" or "destroy" capabilities. |
-| read       | Read the decrypted contents of Variables at this path. Also includes the "list" capability                            |
-| list       | List the metadata but not contents of Variables at this path.                                                         |
-| destroy    | Delete Variables at this path.                                                                                        |
+| write      | Create or update variables at this path. Includes the "list" capability but not the "read" or "destroy" capabilities. |
+| read       | Read the decrypted contents of variables at this path. Also includes the "list" capability                            |
+| list       | List the metadata but not contents of variables at this path.                                                         |
+| destroy    | Delete variables at this path.                                                                                        |
 
 ## Task Access to Variables
 
-Tasks can access Variables with the [`template`] block or using the [Task API].
+Tasks can access variables with the [`template`] block or using the [Task API].
 The [workload identity] for each task grants it automatic read and list access to
-Variables found at Nomad-owned paths with the prefix `nomad/jobs/`, followed by
+variables found at Nomad-owned paths with the prefix `nomad/jobs/`, followed by
 the job ID, task group name, and task name. This is equivalent to the following
 policy:
 
@@ -104,7 +108,7 @@ namespace "$namespace" {
 ```
 
 For example, a task named "redis", in a group named "cache", in a job named
-"example", will automatically have access to Variables as if it had the
+"example", will automatically have access to variables as if it had the
 following policy:
 
 ```hcl
@@ -222,16 +226,16 @@ As soon as any instance starts, it tries to lock the sync variable. If it succee
 it continues to execute while a secondary thread is in charge of keeping track of
 the lock and renewing it when necessary. If by any chance the renewal fails,
 the main process is forced to return, and the instance goes into standby until it
-attempts to acquire the lock over the sync variable. 
+attempts to acquire the lock over the sync variable.
 
-Only threads 1 and 3 or thread 2 are running at any given time, because every 
-instance is either executing as normal while renewing the lock or waiting for a 
+Only threads 1 and 3 or thread 2 are running at any given time, because every
+instance is either executing as normal while renewing the lock or waiting for a
 chance to acquire it and run.
 
-When the main process, or protected function, returns, the helper releases the 
+When the main process, or protected function, returns, the helper releases the
 lock, allowing a second instance to start running.
 
-To see it implemented live, look for the [`nomad var lock`][] command 
+To see it implemented live, look for the [`nomad var lock`][] command
 implementation or the [Nomad Autoscaler][] High Availability implementation.
 
 

@@ -709,10 +709,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					if len(prevAllocation.HostVolumeIDs) > 0 {
 						alloc.HostVolumeIDs = prevAllocation.HostVolumeIDs
 					}
-
-					// If the allocation has task handles,
-					// copy them to the new allocation
-					propagateTaskState(alloc, prevAllocation, missing.PreviousLost())
 				}
 
 				// If we are placing a canary and we found a match, add the canary
@@ -800,46 +796,6 @@ func (s *GenericScheduler) setNodes(job *structs.Job) ([]*structs.Node, map[stri
 func needsToSetNodes(a, b *structs.Job) bool {
 	return !helper.SliceSetEq(a.Datacenters, b.Datacenters) ||
 		a.NodePool != b.NodePool
-}
-
-// propagateTaskState copies task handles from previous allocations to
-// replacement allocations when the previous allocation is being drained or was
-// lost. Remote task drivers rely on this to reconnect to remote tasks when the
-// allocation managing them changes due to a down or draining node.
-//
-// The previous allocation will be marked as lost after task state has been
-// propagated (when the plan is applied), so its ClientStatus is not yet marked
-// as lost. Instead, we use the `prevLost` flag to track whether the previous
-// allocation will be marked lost.
-func propagateTaskState(newAlloc, prev *structs.Allocation, prevLost bool) {
-	// Don't transfer state from client terminal allocs
-	if prev.ClientTerminalStatus() {
-		return
-	}
-
-	// If previous allocation is not lost and not draining, do not copy
-	// task handles.
-	if !prevLost && !prev.DesiredTransition.ShouldMigrate() {
-		return
-	}
-
-	newAlloc.TaskStates = make(map[string]*structs.TaskState, len(newAlloc.AllocatedResources.Tasks))
-	for taskName, prevState := range prev.TaskStates {
-		if prevState.TaskHandle == nil {
-			// No task handle, skip
-			continue
-		}
-
-		if _, ok := newAlloc.AllocatedResources.Tasks[taskName]; !ok {
-			// Task dropped in update, skip
-			continue
-		}
-
-		// Copy state
-		newState := structs.NewTaskState()
-		newState.TaskHandle = prevState.TaskHandle.Copy()
-		newAlloc.TaskStates[taskName] = newState
-	}
 }
 
 // getSelectOptions sets up preferred nodes and penalty nodes

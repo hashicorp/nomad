@@ -122,15 +122,6 @@ type StateStore struct {
 	stopEventBroker func()
 }
 
-type streamACLDelegate struct {
-	s *StateStore
-}
-
-func (a *streamACLDelegate) TokenProvider() stream.ACLTokenProvider {
-	resolver, _ := a.s.Snapshot()
-	return resolver
-}
-
 // NewStateStore is used to create a new state store
 func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 	if err := config.Validate(); err != nil {
@@ -154,7 +145,7 @@ func NewStateStore(config *StateStoreConfig) (*StateStore, error) {
 
 	if config.EnablePublisher {
 		// Create new event publisher using provided config
-		broker, err := stream.NewEventBroker(ctx, &streamACLDelegate{s}, stream.EventBrokerCfg{
+		broker, err := stream.NewEventBroker(ctx, stream.EventBrokerCfg{
 			EventBufferSize: config.EventBufferSize,
 			Logger:          config.Logger,
 		})

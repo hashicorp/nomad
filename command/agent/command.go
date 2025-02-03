@@ -19,14 +19,14 @@ import (
 	"syscall"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	"github.com/armon/go-metrics/circonus"
-	"github.com/armon/go-metrics/datadog"
-	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/cli"
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-metrics/compat/circonus"
+	"github.com/hashicorp/go-metrics/compat/datadog"
+	"github.com/hashicorp/go-metrics/compat/prometheus"
 	gsyslog "github.com/hashicorp/go-syslog"
 	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
@@ -108,6 +108,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocMountsDir, "alloc-mounts-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.HostVolumesDir, "host-volumes-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.HostVolumePluginDir, "host-volume-plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
@@ -386,6 +387,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		"plugin-dir":             config.PluginDir,
 		"alloc-dir":              config.Client.AllocDir,
 		"alloc-mounts-dir":       config.Client.AllocMountsDir,
+		"host-volumes-dir":       config.Client.HostVolumesDir,
 		"host-volume-plugin-dir": config.Client.HostVolumePluginDir,
 		"state-dir":              config.Client.StateDir,
 	}
@@ -653,7 +655,7 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 
 	for _, vault := range config.Vaults {
 		if vault.Token != "" {
-			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.9. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
+			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.10. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
 		}
 	}
 
@@ -1562,6 +1564,10 @@ Client Options:
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+  -host-volumes-dir
+    Directory wherein host volume plugins should place volumes. The default is
+    <data-dir>/host_volumes.
 
   -host-volume-plugin-dir
     Directory containing dynamic host volume plugins. The default is

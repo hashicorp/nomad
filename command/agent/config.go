@@ -229,6 +229,10 @@ type ClientConfig struct {
 	// AllocMountsDir is the directory for storing mounts into allocation data
 	AllocMountsDir string `hcl:"alloc_mounts_dir"`
 
+	// HostVolumesDir is the suggested directory for plugins to put volumes.
+	// Volume plugins may ignore this suggestion, but we provide this default.
+	HostVolumesDir string `hcl:"host_volumes_dir"`
+
 	// HostVolumePluginDir directory contains dynamic host volume plugins
 	HostVolumePluginDir string `hcl:"host_volume_plugin_dir"`
 
@@ -2318,6 +2322,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.AllocMountsDir != "" {
 		result.AllocMountsDir = b.AllocMountsDir
+	}
+	if b.HostVolumesDir != "" {
+		result.HostVolumesDir = b.HostVolumesDir
 	}
 	if b.HostVolumePluginDir != "" {
 		result.HostVolumePluginDir = b.HostVolumePluginDir

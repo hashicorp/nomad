@@ -34,7 +34,7 @@ func (c *VolumeStatusCommand) hostVolumeStatus(client *api.Client, id, nodeID, n
 	// if an exact match is not found. note we can't use the shared getByPrefix
 	// helper here because the List API doesn't match the required signature
 
-	volStub, possible, err := c.getByPrefix(client, id)
+	volStub, possible, err := getHostVolumeByPrefix(client, id, c.namespace)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error listing volumes: %s", err))
 		return 1
@@ -91,10 +91,10 @@ func (c *VolumeStatusCommand) listHostVolumes(client *api.Client, nodeID, nodePo
 	return 0
 }
 
-func (c *VolumeStatusCommand) getByPrefix(client *api.Client, prefix string) (*api.HostVolumeStub, []*api.HostVolumeStub, error) {
+func getHostVolumeByPrefix(client *api.Client, prefix, ns string) (*api.HostVolumeStub, []*api.HostVolumeStub, error) {
 	vols, _, err := client.HostVolumes().List(nil, &api.QueryOptions{
 		Prefix:    prefix,
-		Namespace: c.namespace,
+		Namespace: ns,
 	})
 
 	if err != nil {

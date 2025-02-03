@@ -857,6 +857,9 @@ type ACLAuthMethodConfig struct {
 	// (value).
 	ClaimMappings     map[string]string
 	ListClaimMappings map[string]string
+	// Enables logging of claims and binding-rule evaluations when
+	// debug level logging is enabled.
+	VerboseLogging bool
 }
 
 // MarshalJSON implements the json.Marshaler interface and allows
