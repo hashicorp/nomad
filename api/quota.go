@@ -157,6 +157,11 @@ type QuotaStorageResources struct {
 	// Variable.EncryptedData, in megabytes (2^20 bytes). A value of zero is
 	// treated as unlimited and a negative value is treated as fully disallowed.
 	VariablesMB int `hcl:"variables"`
+
+	// HostVolumesMB is the maximum provisioned size of all dynamic host
+	// volumes, in megabytes (2^20 bytes). A value of zero is treated as
+	// unlimited and a negative value is treated as fully disallowed.
+	HostVolumesMB int `hcl:"host_volumes"`
 }
 
 // QuotaUsage is the resource usage of a Quota

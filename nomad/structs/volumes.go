@@ -111,8 +111,8 @@ type VolumeRequest struct {
 	Source         string
 	ReadOnly       bool
 	Sticky         bool
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
+	AccessMode     VolumeAccessMode
+	AttachmentMode VolumeAttachmentMode
 	MountOptions   *CSIMountOptions
 	PerAlloc       bool
 }
@@ -178,14 +178,19 @@ func (v *VolumeRequest) Validate(jobType string, taskGroupCount, canaries int) e
 		}
 
 		switch v.AccessMode {
-		case CSIVolumeAccessModeSingleNodeReader, CSIVolumeAccessModeMultiNodeReader:
+		case HostVolumeAccessModeSingleNodeReader:
 			if !v.ReadOnly {
 				addErr("%s volumes must be read-only", v.AccessMode)
 			}
-		default:
+		case HostVolumeAccessModeSingleNodeWriter,
+			HostVolumeAccessModeSingleNodeSingleWriter,
+			HostVolumeAccessModeSingleNodeMultiWriter,
+			HostVolumeAccessModeUnknown:
 			// dynamic host volumes are all "per node" so there's no way to
 			// validate that other access modes work for a given volume until we
 			// have access to other allocations (in the scheduler)
+		default:
+			addErr("host volumes cannot be mounted with %s access mode")
 		}
 
 	case VolumeTypeCSI:
@@ -264,6 +269,14 @@ func CopyMapVolumeRequest(s map[string]*VolumeRequest) map[string]*VolumeRequest
 	}
 	return c
 }
+
+// VolumeAttachmentMode chooses the type of storage api that will be used to
+// interact with the device.
+type VolumeAttachmentMode string
+
+// VolumeAccessMode indicates how a volume should be used in a storage topology
+// e.g whether the provider should make the volume available concurrently.
+type VolumeAccessMode string
 
 // VolumeMount represents the relationship between a destination path in a task
 // and the task group volume that should be mounted there.

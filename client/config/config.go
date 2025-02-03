@@ -314,6 +314,10 @@ type Config struct {
 	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig
 
+	// HostVolumesDir is the suggested directory for plugins to put volumes.
+	// Volume plugins may ignore this suggestion, but we provide this default.
+	HostVolumesDir string
+
 	// HostVolumePluginDir is the directory with dynamic host volume plugins.
 	HostVolumePluginDir string
 

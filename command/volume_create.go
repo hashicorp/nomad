@@ -42,6 +42,10 @@ Create Options:
     command. If -detach is omitted or false, the command will monitor the state
     of the volume until it is ready to be scheduled.
 
+  -id
+    Update a volume previously created with this ID prefix. Used for dynamic
+    host volumes only.
+
   -verbose
     Display full information when monitoring volume state. Used for dynamic host
     volumes only.
@@ -60,6 +64,7 @@ func (c *VolumeCreateCommand) AutocompleteFlags() complete.Flags {
 			"-detach":          complete.PredictNothing,
 			"-verbose":         complete.PredictNothing,
 			"-policy-override": complete.PredictNothing,
+			"-id":              complete.PredictNothing,
 		})
 }
 
@@ -75,10 +80,12 @@ func (c *VolumeCreateCommand) Name() string { return "volume create" }
 
 func (c *VolumeCreateCommand) Run(args []string) int {
 	var detach, verbose, override bool
+	var volID string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.BoolVar(&detach, "detach", false, "detach from monitor")
 	flags.BoolVar(&verbose, "verbose", false, "display full volume IDs")
 	flags.BoolVar(&override, "policy-override", false, "override soft mandatory Sentinel policies")
+	flags.StringVar(&volID, "id", "", "update an existing dynamic host volume")
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -129,7 +136,7 @@ func (c *VolumeCreateCommand) Run(args []string) int {
 	case "csi":
 		return c.csiCreate(client, ast)
 	case "host":
-		return c.hostVolumeCreate(client, ast, detach, verbose, override)
+		return c.hostVolumeCreate(client, ast, detach, verbose, override, volID)
 	default:
 		c.Ui.Error(fmt.Sprintf("Error unknown volume type: %s", volType))
 		return 1

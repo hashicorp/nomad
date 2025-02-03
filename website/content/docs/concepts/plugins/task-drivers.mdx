@@ -1,13 +1,15 @@
 ---
 layout: docs
 page_title: Task Driver Plugins
-description: Learn how to author a Nomad task driver plugin.
+description: Learn how to create a Nomad task driver plugin to extend Nomad's workload execution functionality.
 ---
 
-# Task Drivers
+# Task Driver Plugins
+
+This page provides conceptual information for creating a task driver plugin to extend Nomad's workload execution functionality.
 
 Task drivers in Nomad are the runtime components that execute workloads. For
-a real world example of a Nomad task driver plugin implementation, see the [exec2 driver][].
+a real world example of a Nomad task driver plugin implementation, refer to the [exec2 driver][].
 
 ## Authoring Task Driver Plugins
 
@@ -64,12 +66,6 @@ type Capabilities struct {
 
     // MountConfigs tells Nomad which mounting config options the driver supports.
     MountConfigs MountConfigSupport
-
-    // RemoteTasks indicates this driver runs tasks on remote systems
-    // instead of locally. The Nomad client can use this information to
-    // adjust behavior such as propagating task handles between allocations
-    // to avoid downtime when a client is lost.
-    RemoteTasks bool
 
     // DisableLogCollection indicates this driver has disabled log collection
     // and the client should not start a logmon process.

@@ -9117,44 +9117,6 @@ type AllocState struct {
 	Time  time.Time
 }
 
-// TaskHandle is  optional handle to a task propogated to the servers for use
-// by remote tasks. Since remote tasks are not implicitly lost when the node
-// they are assigned to is down, their state is migrated to the replacement
-// allocation.
-//
-// Minimal set of fields from plugins/drivers/task_handle.go:TaskHandle
-type TaskHandle struct {
-	// Version of driver state. Used by the driver to gracefully handle
-	// plugin upgrades.
-	Version int
-
-	// Driver-specific state containing a handle to the remote task.
-	DriverState []byte
-}
-
-func (h *TaskHandle) Copy() *TaskHandle {
-	if h == nil {
-		return nil
-	}
-
-	newTH := TaskHandle{
-		Version:     h.Version,
-		DriverState: make([]byte, len(h.DriverState)),
-	}
-	copy(newTH.DriverState, h.DriverState)
-	return &newTH
-}
-
-func (h *TaskHandle) Equal(o *TaskHandle) bool {
-	if h == nil || o == nil {
-		return h == o
-	}
-	if h.Version != o.Version {
-		return false
-	}
-	return bytes.Equal(h.DriverState, o.DriverState)
-}
-
 // Set of possible states for a task.
 const (
 	TaskStatePending = "pending" // The task is waiting to be run.
@@ -9189,9 +9151,9 @@ type TaskState struct {
 	// Series of task events that transition the state of the task.
 	Events []*TaskEvent
 
-	// Experimental -  TaskHandle is based on drivers.TaskHandle and used
-	// by remote task drivers to migrate task handles between allocations.
-	TaskHandle *TaskHandle
+	// // Experimental -  TaskHandle is based on drivers.TaskHandle and used
+	// // by remote task drivers to migrate task handles between allocations.
+	// TaskHandle *TaskHandle
 
 	// Enterprise Only - Paused is set to the paused state of the task. See
 	// task_sched.go
@@ -9227,7 +9189,6 @@ func (ts *TaskState) Copy() *TaskState {
 		}
 	}
 
-	newTS.TaskHandle = ts.TaskHandle.Copy()
 	return newTS
 }
 
@@ -9260,9 +9221,6 @@ func (ts *TaskState) Equal(o *TaskState) bool {
 	if !slices.EqualFunc(ts.Events, o.Events, func(ts, o *TaskEvent) bool {
 		return ts.Equal(o)
 	}) {
-		return false
-	}
-	if !ts.TaskHandle.Equal(o.TaskHandle) {
 		return false
 	}
 
@@ -11117,9 +11075,6 @@ type Allocation struct {
 	// HostVolumeIDs is a list of host volume IDs that this allocation
 	// has claimed.
 	HostVolumeIDs []string
-
-	// CSIVolumeIDs is a list of CSI volume IDs that this allocation has claimed.
-	CSIVolumeIDs []string
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric

@@ -117,33 +117,25 @@ func (t *TaskCSIPluginConfig) Copy() *TaskCSIPluginConfig {
 // CSIVolumeCapability is the requested attachment and access mode for a
 // volume
 type CSIVolumeCapability struct {
-	AttachmentMode CSIVolumeAttachmentMode
-	AccessMode     CSIVolumeAccessMode
+	AttachmentMode VolumeAttachmentMode
+	AccessMode     VolumeAccessMode
 }
 
-// CSIVolumeAttachmentMode chooses the type of storage api that will be used to
-// interact with the device.
-type CSIVolumeAttachmentMode string
-
 const (
-	CSIVolumeAttachmentModeUnknown     CSIVolumeAttachmentMode = ""
-	CSIVolumeAttachmentModeBlockDevice CSIVolumeAttachmentMode = "block-device"
-	CSIVolumeAttachmentModeFilesystem  CSIVolumeAttachmentMode = "file-system"
+	CSIVolumeAttachmentModeUnknown     VolumeAttachmentMode = ""
+	CSIVolumeAttachmentModeBlockDevice VolumeAttachmentMode = "block-device"
+	CSIVolumeAttachmentModeFilesystem  VolumeAttachmentMode = "file-system"
 )
 
-// CSIVolumeAccessMode indicates how a volume should be used in a storage topology
-// e.g whether the provider should make the volume available concurrently.
-type CSIVolumeAccessMode string
-
 const (
-	CSIVolumeAccessModeUnknown CSIVolumeAccessMode = ""
+	CSIVolumeAccessModeUnknown VolumeAccessMode = ""
 
-	CSIVolumeAccessModeSingleNodeReader CSIVolumeAccessMode = "single-node-reader-only"
-	CSIVolumeAccessModeSingleNodeWriter CSIVolumeAccessMode = "single-node-writer"
+	CSIVolumeAccessModeSingleNodeReader VolumeAccessMode = "single-node-reader-only"
+	CSIVolumeAccessModeSingleNodeWriter VolumeAccessMode = "single-node-writer"
 
-	CSIVolumeAccessModeMultiNodeReader       CSIVolumeAccessMode = "multi-node-reader-only"
-	CSIVolumeAccessModeMultiNodeSingleWriter CSIVolumeAccessMode = "multi-node-single-writer"
-	CSIVolumeAccessModeMultiNodeMultiWriter  CSIVolumeAccessMode = "multi-node-multi-writer"
+	CSIVolumeAccessModeMultiNodeReader       VolumeAccessMode = "multi-node-reader-only"
+	CSIVolumeAccessModeMultiNodeSingleWriter VolumeAccessMode = "multi-node-single-writer"
+	CSIVolumeAccessModeMultiNodeMultiWriter  VolumeAccessMode = "multi-node-multi-writer"
 )
 
 // CSIMountOptions contain optional additional configuration that can be used
@@ -238,8 +230,8 @@ type CSIVolumeClaim struct {
 	NodeID         string
 	ExternalNodeID string
 	Mode           CSIVolumeClaimMode
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
+	AccessMode     VolumeAccessMode
+	AttachmentMode VolumeAttachmentMode
 	State          CSIVolumeClaimState
 }
 
@@ -273,8 +265,8 @@ type CSIVolume struct {
 	// could support. This value cannot be set by the user.
 	Topologies []*CSITopology
 
-	AccessMode     CSIVolumeAccessMode     // *current* access mode
-	AttachmentMode CSIVolumeAttachmentMode // *current* attachment mode
+	AccessMode     VolumeAccessMode     // *current* access mode
+	AttachmentMode VolumeAttachmentMode // *current* attachment mode
 	MountOptions   *CSIMountOptions
 
 	Secrets    CSISecrets
@@ -352,8 +344,8 @@ type CSIVolListStub struct {
 	Name                string
 	ExternalID          string
 	Topologies          []*CSITopology
-	AccessMode          CSIVolumeAccessMode
-	AttachmentMode      CSIVolumeAttachmentMode
+	AccessMode          VolumeAccessMode
+	AttachmentMode      VolumeAttachmentMode
 	CurrentReaders      int
 	CurrentWriters      int
 	Schedulable         bool
@@ -846,9 +838,13 @@ func (v *CSIVolume) Merge(other *CSIVolume) error {
 			"volume parameters cannot be updated"))
 	}
 
-	// Context is mutable and will be used during controller
-	// validation
-	v.Context = other.Context
+	// Context is mutable and will be used during controller validation, but we
+	// need to ensure we don't remove context that's been previously stored
+	// server-side if the user has submitted an update without adding it to the
+	// spec manually (which we should not require)
+	if len(other.Context) != 0 {
+		v.Context = other.Context
+	}
 	return errs.ErrorOrNil()
 }
 
@@ -929,8 +925,8 @@ type CSIVolumeClaimRequest struct {
 	NodeID         string
 	ExternalNodeID string
 	Claim          CSIVolumeClaimMode
-	AccessMode     CSIVolumeAccessMode
-	AttachmentMode CSIVolumeAttachmentMode
+	AccessMode     VolumeAccessMode
+	AttachmentMode VolumeAttachmentMode
 	State          CSIVolumeClaimState
 	Timestamp      int64 // UnixNano
 	WriteRequest

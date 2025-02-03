@@ -127,7 +127,8 @@ limit {
       count = 1
     }
     storage {
-      variables = 1000
+      variables    = 1000   # in MB
+      host_volumes = 100000 # in MB
     }
   }
 }
@@ -151,9 +152,10 @@ var defaultJsonQuotaSpec = strings.TrimSpace(`
             "Count": 1
           }
         ],
-       "Storage": {
-       "Variables": 1000
-}
+        "Storage": {
+          "Variables": 1000,
+          "HostVolumes": 100000
+        }
       }
     }
   ]

@@ -206,6 +206,18 @@ client {
 - `host_volume` <code>([host_volume](#host_volume-block): nil)</code> - Exposes
   paths from the host as volumes that can be mounted into jobs.
 
+- `host_volumes_dir` `(string: "")` - Specifies the directory wherein
+  host volume plugins should place volumes. When this parameter is empty, Nomad
+  generates the path using the [top-level `data_dir`][top_level_data_dir]
+  suffixed with `host_volumes`, like `"/opt/nomad/host_volumes"`.
+  This must be an absolute path.
+
+- `host_volume_plugin_dir` `(string: "")` - Specifies the directory to find host
+  volume plugins. When this parameter is empty, Nomad generates the path
+  using the [top-level `data_dir`][top_level_data_dir] suffixed with
+  `host_volume_plugins`, like `"/opt/nomad/host_volume_plugins"`. This must be
+  an absolute path.
+
 - `host_network` <code>([host_network](#host_network-block): nil)</code> - Registers
   additional host networks with the node that can be selected when port mapping.
 

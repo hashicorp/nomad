@@ -295,4 +295,39 @@ func TestStateStore_UpdateHostVolumesFromFingerprint(t *testing.T) {
 		must.Sprint("node pool change should update pending volume"))
 	must.Eq(t, "new-node-pool", vol2.NodePool)
 	must.Eq(t, structs.HostVolumeStateReady, vol2.State)
+
+	// node restarts and fails to restore
+	node = node.Copy()
+	node.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"static-vol": {Name: "static-vol", Path: "/srv/static"},
+	}
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	vol0, err = store.HostVolumeByID(nil, ns, vols[0].ID, false)
+	must.NoError(t, err)
+	must.Eq(t, index, vol0.ModifyIndex,
+		must.Sprint("failed restore should update ready volume"))
+	must.Eq(t, structs.HostVolumeStateUnavailable, vol0.State)
+
+	vol1, err = store.HostVolumeByID(nil, ns, vols[1].ID, false)
+	must.NoError(t, err)
+	must.Eq(t, index, vol1.ModifyIndex,
+		must.Sprint("failed restore should update ready volume"))
+	must.Eq(t, structs.HostVolumeStateUnavailable, vol1.State)
+
+	// make sure we can go from unavailable to available
+
+	node.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"static-vol": {Name: "static-vol", Path: "/srv/static"},
+		"dhv-zero":   {Name: "dhv-zero", Path: "/var/nomad/alloc_mounts" + uuid.Generate()},
+	}
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	vol0, err = store.HostVolumeByID(nil, ns, vols[0].ID, false)
+	must.NoError(t, err)
+	must.Eq(t, index, vol0.ModifyIndex,
+		must.Sprint("recovered node should update unavailable volume"))
+	must.Eq(t, structs.HostVolumeStateReady, vol0.State)
 }

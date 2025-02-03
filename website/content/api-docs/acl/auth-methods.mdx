@@ -116,6 +116,10 @@ The table below shows this endpoint's support for
     copied to a metadata field (value). Use this if the claim you are capturing is
     list-like (such as groups).
 
+  - `VerboseLogging` `(bool: false)` - When set to `true`, Nomad will log token claims
+    and information related to binding-rule and role/policy evaluations. Not recommended
+    in production since sensitive information may be present.
+
 ### Sample payload
 
 ```json

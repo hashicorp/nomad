@@ -5,13 +5,13 @@ package fingerprint
 
 import (
 	"testing"
-	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 )
 
 func TestVaultFingerprint(t *testing.T) {
@@ -26,69 +26,29 @@ func TestVaultFingerprint(t *testing.T) {
 	}
 
 	p, period := fp.Periodic()
-	if !p {
-		t.Fatalf("expected fingerprint to be periodic")
-	}
-	if period != (15 * time.Second) {
-		t.Fatalf("expected period to be 15s but found: %s", period)
-	}
+	must.False(t, p)
+	must.Zero(t, period)
 
 	conf := config.DefaultConfig()
 	conf.VaultConfigs[structs.VaultDefaultCluster] = tv.Config
 
 	request := &FingerprintRequest{Config: conf, Node: node}
-	var response FingerprintResponse
-	err := fp.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("Failed to fingerprint: %s", err)
-	}
+	var response1 FingerprintResponse
+	err := fp.Fingerprint(request, &response1)
+	must.NoError(t, err)
+	must.True(t, response1.Detected)
 
-	if !response.Detected {
-		t.Fatalf("expected response to be applicable")
-	}
-
-	assertNodeAttributeContains(t, response.Attributes, "vault.accessible")
-	assertNodeAttributeContains(t, response.Attributes, "vault.version")
-	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_id")
-	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_name")
-
-	// Period should be longer after initial discovery
-	p, period = fp.Periodic()
-	if !p {
-		t.Fatalf("expected fingerprint to be periodic")
-	}
-	if period < (30*time.Second) || period > (2*time.Minute) {
-		t.Fatalf("expected period to be between 30s and 2m but found: %s", period)
-	}
+	assertNodeAttributeEquals(t, response1.Attributes, "vault.accessible", "true")
+	assertNodeAttributeContains(t, response1.Attributes, "vault.version")
+	assertNodeAttributeContains(t, response1.Attributes, "vault.cluster_id")
+	assertNodeAttributeContains(t, response1.Attributes, "vault.cluster_name")
 
 	// Stop Vault to simulate it being unavailable
 	tv.Stop()
 
-	// Reset the nextCheck time for testing purposes, or we won't pick up the
-	// change until the next period, up to 2min from now
-	vfp := fp.(*VaultFingerprint)
-	vfp.states[structs.VaultDefaultCluster].nextCheck = time.Now()
-
-	err = fp.Fingerprint(request, &response)
-	if err != nil {
-		t.Fatalf("Failed to fingerprint: %s", err)
-	}
-
-	if !response.Detected {
-		t.Fatalf("should still show as detected")
-	}
-
-	assertNodeAttributeContains(t, response.Attributes, "vault.accessible")
-	assertNodeAttributeContains(t, response.Attributes, "vault.version")
-	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_id")
-	assertNodeAttributeContains(t, response.Attributes, "vault.cluster_name")
-
-	// Period should be original once trying to discover Vault is available again
-	p, period = fp.Periodic()
-	if !p {
-		t.Fatalf("expected fingerprint to be periodic")
-	}
-	if period != (15 * time.Second) {
-		t.Fatalf("expected period to be 15s but found: %s", period)
-	}
+	// Not detected this time
+	var response2 FingerprintResponse
+	err = fp.Fingerprint(request, &response2)
+	must.NoError(t, err)
+	must.False(t, response2.Detected)
 }

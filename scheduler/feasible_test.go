@@ -218,7 +218,7 @@ func TestHostVolumeChecker_Dynamic(t *testing.T) {
 		Name:                  "foo",
 		NodeID:                nodes[2].ID,
 		RequestedCapabilities: hostVolCapsReadOnly,
-		State:                 structs.HostVolumeStateDeleted,
+		State:                 structs.HostVolumeStateUnavailable,
 	}
 	dhvReadOnly := &structs.HostVolume{
 		Namespace:             structs.DefaultNamespace,
@@ -247,9 +247,7 @@ func TestHostVolumeChecker_Dynamic(t *testing.T) {
 			ReadOnly: false,
 		},
 	}
-	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
-		"foo": {ID: dhvNotReady.ID},
-	}
+	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
 	nodes[3].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
 		"foo": {ID: dhvReadOnly.ID},
 	}
@@ -264,6 +262,10 @@ func TestHostVolumeChecker_Dynamic(t *testing.T) {
 	must.NoError(t, store.UpsertHostVolume(1000, dhvNotReady))
 	must.NoError(t, store.UpsertHostVolume(1000, dhvReadOnly))
 	must.NoError(t, store.UpsertHostVolume(1000, dhvReadWrite))
+
+	// reinsert unavailable node to set the correct state on the unavailable
+	// volume
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, nodes[2]))
 
 	readwriteRequest := map[string]*structs.VolumeRequest{
 		"foo": {
@@ -484,13 +486,13 @@ func TestDynamicHostVolumeIsAvailable(t *testing.T) {
 
 	allCaps := []*structs.HostVolumeCapability{}
 
-	for _, accessMode := range []structs.HostVolumeAccessMode{
+	for _, accessMode := range []structs.VolumeAccessMode{
 		structs.HostVolumeAccessModeSingleNodeReader,
 		structs.HostVolumeAccessModeSingleNodeWriter,
 		structs.HostVolumeAccessModeSingleNodeSingleWriter,
 		structs.HostVolumeAccessModeSingleNodeMultiWriter,
 	} {
-		for _, attachMode := range []structs.HostVolumeAttachmentMode{
+		for _, attachMode := range []structs.VolumeAttachmentMode{
 			structs.HostVolumeAttachmentModeFilesystem,
 			structs.HostVolumeAttachmentModeBlockDevice,
 		} {
@@ -537,8 +539,8 @@ func TestDynamicHostVolumeIsAvailable(t *testing.T) {
 		name        string
 		hasProposed []*structs.Allocation
 		hasCaps     []*structs.HostVolumeCapability
-		wantAccess  structs.HostVolumeAccessMode
-		wantAttach  structs.HostVolumeAttachmentMode
+		wantAccess  structs.VolumeAccessMode
+		wantAttach  structs.VolumeAttachmentMode
 		readOnly    bool
 		expect      bool
 	}{

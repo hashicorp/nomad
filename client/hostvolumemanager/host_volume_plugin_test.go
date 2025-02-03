@@ -21,7 +21,7 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 
 	plug := &HostVolumePluginMkdir{
 		ID:         "test-mkdir-plugin",
-		TargetPath: tmp,
+		VolumesDir: tmp,
 		log:        testlog.HCLogger(t),
 	}
 
@@ -58,7 +58,7 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 
 	t.Run("sad", func(t *testing.T) {
 		// can't mkdir inside a file
-		plug.TargetPath = "host_volume_plugin_test.go"
+		plug.VolumesDir = "host_volume_plugin_test.go"
 
 		resp, err := plug.Create(timeout(t),
 			&cstructs.ClientHostVolumeCreateRequest{
@@ -79,23 +79,25 @@ func TestNewHostVolumePluginExternal(t *testing.T) {
 	log := testlog.HCLogger(t)
 	var err error
 
-	_, err = NewHostVolumePluginExternal(log, ".", "non-existent", "target")
+	_, err = NewHostVolumePluginExternal(log, ".", "non-existent", "target", "")
 	must.ErrorIs(t, err, ErrPluginNotExists)
 
-	_, err = NewHostVolumePluginExternal(log, ".", "host_volume_plugin_test.go", "target")
+	_, err = NewHostVolumePluginExternal(log, ".", "host_volume_plugin_test.go", "target", "")
 	must.ErrorIs(t, err, ErrPluginNotExecutable)
 
 	t.Run("unix", func(t *testing.T) {
 		if runtime.GOOS == "windows" {
 			t.Skip("skipped because windows") // db TODO(1.10.0)
 		}
-		p, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin.sh", "test-target")
+		p, err := NewHostVolumePluginExternal(log,
+			"./test_fixtures", "test_plugin.sh", "test-target", "test-pool")
 		must.NoError(t, err)
 		must.Eq(t, &HostVolumePluginExternal{
 			ID:         "test_plugin.sh",
 			Executable: "test_fixtures/test_plugin.sh",
-			TargetPath: "test-target",
+			VolumesDir: "test-target",
 			PluginDir:  "./test_fixtures",
+			NodePool:   "test-pool",
 			log:        log,
 		}, p)
 	})
@@ -116,7 +118,8 @@ func TestHostVolumePluginExternal(t *testing.T) {
 	t.Run("happy", func(t *testing.T) {
 
 		log, getLogs := logRecorder(t)
-		plug, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin.sh", tmp)
+		plug, err := NewHostVolumePluginExternal(log,
+			"./test_fixtures", "test_plugin.sh", tmp, "test-node-pool")
 		must.NoError(t, err)
 
 		// fingerprint
@@ -130,6 +133,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			&cstructs.ClientHostVolumeCreateRequest{
 				Name:                      "test-vol-name",
 				ID:                        volID,
+				Namespace:                 "test-namespace",
 				NodeID:                    "test-node",
 				RequestedCapacityMinBytes: 5,
 				RequestedCapacityMaxBytes: 10,
@@ -151,6 +155,8 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			&cstructs.ClientHostVolumeDeleteRequest{
 				Name:       "test-vol-name",
 				ID:         volID,
+				HostPath:   resp.Path,
+				Namespace:  "test-namespace",
 				NodeID:     "test-node",
 				Parameters: map[string]string{"key": "val"},
 			})
@@ -164,7 +170,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 	t.Run("sad", func(t *testing.T) {
 
 		log, getLogs := logRecorder(t)
-		plug, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin_sad.sh", tmp)
+		plug, err := NewHostVolumePluginExternal(log, "./test_fixtures", "test_plugin_sad.sh", tmp, "")
 		must.NoError(t, err)
 
 		v, err := plug.Fingerprint(timeout(t))
@@ -180,11 +186,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 
 		resp, err := plug.Create(timeout(t),
 			&cstructs.ClientHostVolumeCreateRequest{
-				ID:                        volID,
-				NodeID:                    "test-node",
-				RequestedCapacityMinBytes: 5,
-				RequestedCapacityMaxBytes: 10,
-				Parameters:                map[string]string{"key": "val"},
+				ID: volID,
 			})
 		must.EqError(t, err, `error creating volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1`)
 		must.Nil(t, resp)
@@ -197,9 +199,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 
 		err = plug.Delete(timeout(t),
 			&cstructs.ClientHostVolumeDeleteRequest{
-				ID:         volID,
-				NodeID:     "test-node",
-				Parameters: map[string]string{"key": "val"},
+				ID: volID,
 			})
 		must.EqError(t, err, `error deleting volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1`)
 		logged = getLogs()

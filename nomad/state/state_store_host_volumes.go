@@ -66,12 +66,18 @@ func (s *StateStore) UpsertHostVolume(index uint64, vol *structs.HostVolume) err
 	if err != nil {
 		return err
 	}
+	var old *structs.HostVolume
 	if obj != nil {
-		old := obj.(*structs.HostVolume)
+		old = obj.(*structs.HostVolume)
 		vol.CreateIndex = old.CreateIndex
 		vol.CreateTime = old.CreateTime
 	} else {
 		vol.CreateIndex = index
+	}
+
+	err = s.enforceHostVolumeQuotaTxn(txn, index, vol, old, true)
+	if err != nil {
+		return err
 	}
 
 	// If the fingerprint is written from the node before the create RPC handler
@@ -84,15 +90,11 @@ func (s *StateStore) UpsertHostVolume(index uint64, vol *structs.HostVolume) err
 	if node == nil {
 		return fmt.Errorf("host volume %s has nonexistent node ID %s", vol.ID, vol.NodeID)
 	}
-	switch vol.State {
-	case structs.HostVolumeStateDeleted:
-	// no-op: don't allow soft-deletes to resurrect a previously fingerprinted volume
-	default:
-		// prevent a race between node fingerprint and create RPC that could
-		// switch a ready volume back to pending
-		if _, ok := node.HostVolumes[vol.Name]; ok {
-			vol.State = structs.HostVolumeStateReady
-		}
+
+	// prevent a race between node fingerprint and create RPC that could
+	// switch a ready volume back to pending
+	if _, ok := node.HostVolumes[vol.Name]; ok {
+		vol.State = structs.HostVolumeStateReady
 	}
 
 	// Register RPCs for new volumes may not have the node pool set
@@ -138,6 +140,11 @@ func (s *StateStore) DeleteHostVolume(index uint64, ns string, id string) error 
 						vol.ID, alloc.ID)
 				}
 			}
+		}
+
+		err = s.subtractVolumeFromQuotaUsageTxn(txn, index, vol)
+		if err != nil {
+			return err
 		}
 
 		err = txn.Delete(TableHostVolumes, vol)
@@ -229,7 +236,7 @@ func upsertHostVolumeForNode(txn *txn, node *structs.Node, index uint64) error {
 		return err
 	}
 
-	var dirty bool
+	var dirty bool // signals we need to update table index
 
 	for {
 		raw := iter.Next()
@@ -237,26 +244,37 @@ func upsertHostVolumeForNode(txn *txn, node *structs.Node, index uint64) error {
 			break
 		}
 		vol := raw.(*structs.HostVolume)
-		if _, ok := node.HostVolumes[vol.Name]; !ok {
+		volState := vol.State
+		_, ok := node.HostVolumes[vol.Name]
+
+		switch {
+		case ok && vol.State != structs.HostVolumeStateReady:
+			// the fingerprint has been updated on the client for this volume
+			volState = structs.HostVolumeStateReady
+
+		case !ok && vol.State == structs.HostVolumeStateReady:
+			// the volume was previously fingerprinted but is no longer showing
+			// up in the fingerprint; this will usually be because of a failed
+			// restore on the client
+			volState = structs.HostVolumeStateUnavailable
+
+		case ok && vol.NodePool != node.NodePool:
+			// the client's node pool has been changed
+
+		default:
+			// nothing has changed, skip updating this volume
 			continue
 		}
 
-		// the fingerprint has been written on the client for this volume, or
-		// the client's node pool has been changed
-		if vol.State == structs.HostVolumeStateUnknown ||
-			vol.State == structs.HostVolumeStatePending ||
-			vol.NodePool != node.NodePool {
-
-			vol = vol.Copy()
-			vol.State = structs.HostVolumeStateReady
-			vol.NodePool = node.NodePool
-			vol.ModifyIndex = index
-			err = txn.Insert(TableHostVolumes, vol)
-			if err != nil {
-				return fmt.Errorf("host volume insert: %w", err)
-			}
-			dirty = true
+		vol = vol.Copy()
+		vol.State = volState
+		vol.NodePool = node.NodePool
+		vol.ModifyIndex = index
+		err = txn.Insert(TableHostVolumes, vol)
+		if err != nil {
+			return fmt.Errorf("host volume insert: %w", err)
 		}
+		dirty = true
 	}
 
 	if dirty {

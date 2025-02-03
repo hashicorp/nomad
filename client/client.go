@@ -18,9 +18,9 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	hclog "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner"
@@ -539,8 +539,9 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 
 	// set up dynamic host volume manager
 	c.hostVolumeManager = hvm.NewHostVolumeManager(logger, hvm.Config{
-		PluginDir:      cfg.HostVolumePluginDir,
-		SharedMountDir: cfg.AllocMountsDir,
+		PluginDir:      c.GetConfig().HostVolumePluginDir,
+		VolumesDir:     c.GetConfig().HostVolumesDir,
+		NodePool:       c.Node().NodePool,
 		StateMgr:       c.stateDB,
 		UpdateNodeVols: c.batchNodeUpdates.updateNodeFromHostVolume,
 	})
@@ -701,6 +702,13 @@ func (c *Client) init() error {
 	}
 
 	c.stateDB = db
+
+	// Ensure host_volumes_dir config is not empty.
+	if conf.HostVolumesDir == "" {
+		conf = c.UpdateConfig(func(c *config.Config) {
+			c.HostVolumesDir = filepath.Join(conf.StateDir, "host_volumes")
+		})
+	}
 
 	// Ensure the alloc mounts dir exists if we are configured with a custom path.
 	if conf.AllocMountsDir != "" {
@@ -1568,14 +1576,12 @@ func (c *Client) setupNode() error {
 	}
 	node.CgroupParent = newConfig.CgroupParent
 	if node.HostVolumes == nil {
-		if l := len(newConfig.HostVolumes); l != 0 {
-			node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, l)
-			for k, v := range newConfig.HostVolumes {
-				if _, err := os.Stat(v.Path); err != nil {
-					return fmt.Errorf("failed to validate volume %s, err: %v", v.Name, err)
-				}
-				node.HostVolumes[k] = v.Copy()
+		node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig, len(newConfig.HostVolumes))
+		for k, v := range newConfig.HostVolumes {
+			if _, err := os.Stat(v.Path); err != nil {
+				return fmt.Errorf("failed to validate volume %s, err: %w", v.Name, err)
 			}
+			node.HostVolumes[k] = v.Copy()
 		}
 	}
 	if node.HostNetworks == nil {

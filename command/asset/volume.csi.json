@@ -14,7 +14,7 @@
       "attachment_mode": "file-system"
     },
     {
-      "access_mode": "single-node-reader",
+      "access_mode": "single-node-reader-only",
       "attachment_mode": "block-device"
     }
   ],
