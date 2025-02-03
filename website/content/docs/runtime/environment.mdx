@@ -1,17 +1,22 @@
 ---
 layout: docs
-page_title: Environment - Runtime
-description: Learn how to configure the Nomad runtime environment.
+page_title: Runtime Environment Settings
+description: Nomad provides runtime environment variables that you can use in your workloads. Learn about task identifiers, CPU and memory resources, IP addresses, task directories, and host variables. Review job, network, and Consul variables. Supply arbitrary configuration to a job task.
 ---
 
-# Runtime Environment
+# Runtime Environment Settings
+
+This page provides reference information for runtime environment settings in
+your Nomad job specification. Learn about task identifiers, CPU and memory resources, IP addresses, task directories, and host variables. Review job, network, and Consul variables. Supply arbitrary configuration to a job task.
+
+## Introduction
 
 Some settings you specify in your [job specification][jobspec] are passed
 to tasks when they start. Other settings are dynamically allocated when your job
 is scheduled. Both types of values are made available to your job through
 environment variables.
 
-## Summary
+## Variables Summary
 
 @include 'envvars.mdx'
 
@@ -87,14 +92,14 @@ directories can be read through the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, and
 
 For more details on the task directories, see the [Filesystem internals][].
 
-## Meta
+## Meta block for arbitrary configuration
 
 The job specification also allows you to specify a `meta` block to supply
 arbitrary configuration to a task. This allows you to easily provide
 job-specific configuration even if you use the same executable unit in multiple
 jobs. These key-value pairs are passed through to the job as
 `NOMAD_META_<key>=<value>` environment variables. Any character in a key other
-than `[A-Za-z0-9_.]` will be converted to `_`. Both the original case and an uppercased 
+than `[A-Za-z0-9_.]` will be converted to `_`. Both the original case and an uppercased
 version are injected. The uppercased version will be deprecated in a future release.
 
 Currently there is no enforcement that the meta keys be lowercase, but using
