@@ -5798,6 +5798,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, parent))
 
 	child := mock.Job()
+	child.Type = structs.JobTypeBatch
 	child.Status = ""
 	child.ParentID = parent.ID
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, child))
@@ -7796,13 +7797,15 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			exp: structs.JobStatusPending,
 		},
 		{
-			name: "job has all terminal allocs, with no evals",
+			name: "batch job has all terminal allocs, with no evals",
 			setup: func(txn *txn) (*structs.Job, error) {
 				j := mock.Job()
-				a := mock.Alloc()
+				j.Type = structs.JobTypeBatch
 
+				a := mock.Alloc()
 				a.ClientStatus = structs.AllocClientStatusFailed
 				a.JobID = j.ID
+				a.Job = j
 
 				if err := txn.Insert("allocs", a); err != nil {
 					return nil, err

@@ -1147,6 +1147,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 	// Insert two allocs, one terminal and one not
 	alloc := mock.Alloc()
 	alloc.JobID = job.ID
+	alloc.Job = job
 	alloc.EvalID = eval.ID
 	alloc.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc.ClientStatus = structs.AllocClientStatusComplete
@@ -1154,6 +1155,7 @@ func TestCoreScheduler_JobGC_OutstandingAllocs(t *testing.T) {
 
 	alloc2 := mock.Alloc()
 	alloc2.JobID = job.ID
+	alloc.Job = job
 	alloc2.EvalID = eval.ID
 	alloc2.DesiredStatus = structs.AllocDesiredStatusRun
 	alloc2.ClientStatus = structs.AllocClientStatusRunning

@@ -5628,8 +5628,9 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 			return structs.JobStatusRunning, nil
 		}
 
-		// If all the allocs are terminal and any are not reschedulable
-		// mark this job as having terminal allocs, possibly dead
+		// Check if the allocs are reschedulable before before
+		// marking the job dead.  If any of the allocs are terminal
+		// and not reschedulable, mark the job dead.
 		if !isReschedulable(a) {
 			terminalAllocs = true
 		}
@@ -7374,13 +7375,11 @@ func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace stri
 	return iter, nil
 }
 
-// RescheduleInfo is used to calculate remaining reschedule attempts
-// according to the given time and the task groups reschedule policy
-// This is modified from the API package
 func isReschedulable(a *structs.Allocation) bool {
-	if a.ReschedulePolicy() == nil {
+	if a.ReschedulePolicy() == nil || a.Job.Type != structs.JobTypeService {
 		return false
 	}
+
 	reschedulePolicy := a.ReschedulePolicy()
 	availableAttempts := reschedulePolicy.Attempts
 	interval := reschedulePolicy.Interval
