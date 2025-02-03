@@ -4,6 +4,71 @@
 ~}}
 
 <div class="boxed-section">
+  {{!-- http://localhost:4200/ui/jobs/sas-circuit-5@default/definition?isEditing=true&view=full-definition --}}
+  <Hds::CodeEditor
+    @value={{@data.job._newDefinition}}
+    @onChange={{@fns.onUpdate}}
+    @language={{if (eq @data.format "json") "javascript" "ruby"}}
+    {{!-- lineWrapping=@data.shouldWrap --}}
+    as |CE|
+  >
+    <CE.Title>Job Definition</CE.Title>
+    <CE.Generic style="display: flex;">
+      <span class="header-toggle">
+        <Hds::Form::Toggle::Field
+          {{keyboard-shortcut
+            label="Toggle word wrap"
+            action=(action @fns.onToggleWrap)
+            pattern=(array "w" "w")
+            menuLevel=true
+          }}
+          checked={{@data.shouldWrap}}
+          {{on "change" @fns.onToggleWrap}}
+          as |F|
+        >
+          <F.Label>Word Wrap</F.Label>
+        </Hds::Form::Toggle::Field>
+      </span>
+      <Tooltip
+        @condition={{unless @data.hasSpecification true false}}
+        @isFullText={{true}}
+        @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format."
+      >
+        <div
+          class="job-definition-select
+            {{unless @data.hasSpecification ' disabled'}}"
+          data-test-select={{@data.view}}
+        >
+          <button
+            class="button is-small is-borderless
+              {{if (eq @data.view 'job-spec') 'is-active'}}"
+            type="button"
+            {{on "click" (fn @fns.onSelect "job-spec")}}
+          >
+            Job Spec
+          </button>
+          <button
+            class="button is-small is-borderless
+              {{if (eq @data.view 'full-definition') 'is-active'}}"
+            type="button"
+            {{on "click" (fn @fns.onSelect "full-definition")}}
+            data-test-select-full
+          >
+            Full Definition
+          </button>
+        </div>
+      </Tooltip>
+      <button
+        class="button is-light is-compact pull-right"
+        onclick={{@fns.onCancel}}
+        type="button"
+        data-test-cancel-editing
+      >
+        Cancel
+      </button>
+    </CE.Generic>
+  </Hds::CodeEditor>
+
   <div class="boxed-section-head">
     Job Definition
     {{#if @data.cancelable}}
