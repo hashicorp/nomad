@@ -118,6 +118,14 @@ export default class Title extends Component {
   })
   startJob;
 
+  @task(function* (version) {
+    if (!version) {
+      return;
+    }
+    yield version.revertTo();
+  })
+  revertTo;
+
   get description() {
     if (!this.job.ui?.Description) {
       return null;
