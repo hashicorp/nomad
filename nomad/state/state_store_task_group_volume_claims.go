@@ -6,7 +6,6 @@ package state
 import (
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -27,8 +26,6 @@ func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 		existing = existingRaw.(*structs.TaskGroupVolumeClaim)
 	}
 
-	now := time.Now().UTC()
-
 	if existing != nil {
 		// do allocation ID and volume ID match?
 		if existing.ClaimedByAlloc(claim) {
@@ -37,13 +34,9 @@ func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 
 		claim.CreateIndex = existing.CreateIndex
 		claim.ModifyIndex = index
-		claim.CreateTime = existing.CreateTime
-		claim.ModifyTime = now
 	} else {
 		claim.CreateIndex = index
 		claim.ModifyIndex = index
-		claim.CreateTime = now
-		claim.ModifyTime = now
 	}
 
 	// Insert the claim into the table.
@@ -83,34 +76,6 @@ func (s *StateStore) DeleteTaskGroupVolumeClaim(index uint64, namespace, jobID, 
 	}
 
 	return txn.Commit()
-}
-
-// GetTaskGroupVolumeClaims returns an iterator that contains all task group
-// volume associations stored within state.
-func (s *StateStore) GetTaskGroupVolumeClaims(ws memdb.WatchSet) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableTaskGroupVolumeClaim, indexID)
-	if err != nil {
-		return nil, fmt.Errorf("Task group volume claims lookup failed: %v", err)
-	}
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-// GetTaskGroupVolumeClaimsByVolumeID gets an iterator that contains all task
-// group volume claims that claim a particular volume ID
-func (s *StateStore) GetTaskGroupVolumeClaimsByVolumeID(ws memdb.WatchSet, volID string) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableTaskGroupVolumeClaim, indexVolumeID, volID)
-	if err != nil {
-		return nil, fmt.Errorf("Task group volume claims lookup failed: %v", err)
-	}
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
 }
 
 // GetTaskGroupVolumeClaim returns a volume claim that matches the namespace,

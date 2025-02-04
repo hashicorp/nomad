@@ -7780,6 +7780,7 @@ func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
 // used for stateful deployments, i.e., volume requests with "sticky" set to
 // true.
 type TaskGroupVolumeClaim struct {
+	ID            string
 	Namespace     string
 	JobID         string
 	TaskGroupName string
@@ -7788,74 +7789,17 @@ type TaskGroupVolumeClaim struct {
 	VolumeID   string
 	VolumeName string
 
-	// Hash is the hashed value of the claim and is generated using all fields
-	// from the full object except the create and modify times and indexes.
-	Hash []byte
-
-	CreateTime  time.Time
-	ModifyTime  time.Time
 	CreateIndex uint64
 	ModifyIndex uint64
 }
 
-// SetHash is used to compute and set the hash of the task group volume claim.
-// This should be called every time a user specified field on the method is
-// changed before updating the Nomad state store.
-func (tgvc *TaskGroupVolumeClaim) SetHash() []byte {
-
-	// Initialize a 256bit Blake2 hash (32 bytes).
-	hash, err := blake2b.New256(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	_, _ = hash.Write([]byte(tgvc.Namespace))
-	_, _ = hash.Write([]byte(tgvc.JobID))
-	_, _ = hash.Write([]byte(tgvc.TaskGroupName))
-	_, _ = hash.Write([]byte(tgvc.AllocID))
-	_, _ = hash.Write([]byte(tgvc.VolumeID))
-	_, _ = hash.Write([]byte(tgvc.VolumeName))
-
-	// Finalize the hash.
-	hashVal := hash.Sum(nil)
-
-	// Set and return the hash.
-	tgvc.Hash = hashVal
-	return hashVal
-}
-
-func (tgvc *TaskGroupVolumeClaim) Equal(otherClaim *TaskGroupVolumeClaim) bool {
-	if tgvc == nil || otherClaim == nil {
-		return tgvc == otherClaim
-	}
-
-	if len(tgvc.Hash) == 0 {
-		tgvc.SetHash()
-	}
-	if len(otherClaim.Hash) == 0 {
-		otherClaim.SetHash()
-	}
-
-	return bytes.Equal(tgvc.Hash, otherClaim.Hash)
-}
-
-// Claimed checks if there's a match between allocation ID and volume ID
+// ClaimedByAlloc checks if there's a match between allocation ID and volume ID
 func (tgvc *TaskGroupVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupVolumeClaim) bool {
 	if tgvc == nil || otherClaim == nil {
 		return tgvc == otherClaim
 	}
 
 	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
-}
-
-func (tgvc *TaskGroupVolumeClaim) ClaimedByTaskGroup(otherClaim *TaskGroupVolumeClaim) bool {
-	if tgvc == nil || otherClaim == nil {
-		return tgvc == otherClaim
-	}
-
-	return tgvc.Namespace == otherClaim.Namespace &&
-		tgvc.TaskGroupName == otherClaim.TaskGroupName &&
-		tgvc.JobID == otherClaim.JobID
 }
 
 // CheckRestart describes if and when a task should be restarted based on

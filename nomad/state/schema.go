@@ -46,7 +46,6 @@ const (
 	indexSigningKey    = "signing_key"
 	indexAuthMethod    = "auth_method"
 	indexNodePool      = "node_pool"
-	indexVolumeID      = "volume_id"
 )
 
 var (
@@ -1719,8 +1718,8 @@ func taskVolumeClaimSchema() *memdb.TableSchema {
 				AllowMissing: false,
 				Unique:       true,
 
-				// Use a compound index so the combination of (Namespace, JobID, TaskGroupName)
-				// is uniquely identifying
+				// Use a compound index so the combination of (Namespace, JobID, TaskGroupName,
+				// VolumeID) is uniquely identifying
 				Indexer: &memdb.CompoundIndex{
 					Indexes: []memdb.Indexer{
 						&memdb.StringFieldIndex{
@@ -1734,15 +1733,11 @@ func taskVolumeClaimSchema() *memdb.TableSchema {
 						&memdb.StringFieldIndex{
 							Field: "TaskGroupName",
 						},
+
+						&memdb.StringFieldIndex{
+							Field: "VolumeID",
+						},
 					},
-				},
-			},
-			indexVolumeID: {
-				Name:         indexVolumeID,
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "VolumeID",
 				},
 			},
 		},

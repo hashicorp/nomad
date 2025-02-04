@@ -2027,10 +2027,8 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	}
 
 	// Delete task group volume claims
-	for _, tg := range job.TaskGroups {
-		if _, err = txn.DeleteAll(TableTaskGroupVolumeClaim, indexID, namespace, jobID, tg.Name); err != nil {
-			return fmt.Errorf("deleting job volume claims failed: %v", err)
-		}
+	if _, err = txn.DeletePrefix(TableTaskGroupVolumeClaim, indexID, jobID); err != nil {
+		return fmt.Errorf("deleting job volume claims failed: %v", err)
 	}
 
 	if err := txn.Insert("index", &IndexEntry{"scaling_event", index}); err != nil {
@@ -4137,46 +4135,45 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// Check if the alloc requires sticky volumes. If yes, find a node
 			// that has the right volume and update the task group volume
 			// claims table
-			stickyVolumes := []*structs.TaskGroupVolumeClaim{}
 			for _, tg := range alloc.Job.TaskGroups {
 				for _, v := range tg.Volumes {
 					if !v.Sticky {
 						continue
 					}
-					stickyVolumes = append(stickyVolumes, &structs.TaskGroupVolumeClaim{
+					sv := &structs.TaskGroupVolumeClaim{
 						Namespace:     alloc.Namespace,
 						JobID:         alloc.JobID,
 						TaskGroupName: tg.Name,
 						AllocID:       alloc.ID,
 						VolumeName:    v.Source,
-					})
-				}
-			}
+					}
 
-			if len(stickyVolumes) > 0 {
-				for _, sv := range stickyVolumes {
 					// has this volume been claimed already?
 					existingClaim, err := s.GetTaskGroupVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName)
 					if err != nil {
 						return err
 					}
 
-					if existingClaim == nil {
-						allocNode, err := s.NodeByID(nil, alloc.NodeID)
-						if err != nil {
-							return err
+					// if the volume has already been claimed, we don't have to do anything. The
+					// feasibility checker in the scheduler will verify alloc placement.
+					if existingClaim != nil {
+						continue
+					}
+
+					allocNode, err := s.NodeByID(nil, alloc.NodeID)
+					if err != nil {
+						return err
+					}
+
+					// since there's no existing claim, find a volume and register a claim
+					for _, v := range allocNode.HostVolumes {
+						if v.Name != sv.VolumeName {
+							continue
 						}
 
-						// since there's no existing claim, find a volume and register a claim
-						for _, v := range allocNode.HostVolumes {
-							if v.Name != sv.VolumeName {
-								continue
-							}
-
-							sv.VolumeID = v.ID
-							if err := s.upsertTaskGroupVolumeClaimImpl(index, sv, txn); err != nil {
-								return err
-							}
+						sv.VolumeID = v.ID
+						if err := s.upsertTaskGroupVolumeClaimImpl(index, sv, txn); err != nil {
+							return err
 						}
 					}
 				}
