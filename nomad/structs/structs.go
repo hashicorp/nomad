@@ -7840,14 +7840,6 @@ func (tgvc *TaskGroupVolumeClaim) Equal(otherClaim *TaskGroupVolumeClaim) bool {
 }
 
 // Claimed checks if there's a match between allocation ID and volume ID
-func (tgvc *TaskGroupVolumeClaim) Claimed(otherClaim *TaskGroupVolumeClaim) bool {
-	if tgvc == nil || otherClaim == nil {
-		return tgvc == otherClaim
-	}
-
-	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
-}
-
 func (tgvc *TaskGroupVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupVolumeClaim) bool {
 	if tgvc == nil || otherClaim == nil {
 		return tgvc == otherClaim
@@ -11163,10 +11155,6 @@ type Allocation struct {
 
 	// AllocatedResources is the total resources allocated for the task group.
 	AllocatedResources *AllocatedResources
-
-	// HostVolumeIDs is a list of host volume IDs that this allocation
-	// has claimed.
-	HostVolumeIDs []string
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric

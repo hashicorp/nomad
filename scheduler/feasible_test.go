@@ -177,7 +177,7 @@ func TestHostVolumeChecker_Static(t *testing.T) {
 	alloc.NodeID = nodes[2].ID
 
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, structs.DefaultNamespace, c.RequestedVolumes, alloc.HostVolumeIDs)
+		checker.SetVolumes(alloc.Name, structs.DefaultNamespace, c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -362,7 +362,7 @@ func TestHostVolumeChecker_Dynamic(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			checker.SetVolumes(alloc.Name, structs.DefaultNamespace, tc.requestedVolumes, alloc.HostVolumeIDs)
+			checker.SetVolumes(alloc.Name, structs.DefaultNamespace, tc.requestedVolumes)
 			actual := checker.Feasible(tc.node)
 			must.Eq(t, tc.expect, actual)
 		})
@@ -471,7 +471,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			checker.SetVolumes(tc.alloc.Name, structs.DefaultNamespace, stickyRequest, tc.alloc.HostVolumeIDs)
+			checker.SetVolumes(tc.alloc.Name, structs.DefaultNamespace, stickyRequest)
 			actual := checker.Feasible(tc.node)
 			must.Eq(t, tc.expect, actual)
 		})

@@ -4174,15 +4174,10 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 							}
 
 							sv.VolumeID = v.ID
-							// make sure we record the volume IDs in the allocation (important for scheduler
-							// feasibility checks)
-							alloc.HostVolumeIDs = append(alloc.HostVolumeIDs, v.ID)
 							if err := s.upsertTaskGroupVolumeClaimImpl(index, sv, txn); err != nil {
 								return err
 							}
 						}
-					} else {
-						alloc.HostVolumeIDs = append(alloc.HostVolumeIDs, existingClaim.VolumeID)
 					}
 				}
 			}
@@ -4193,9 +4188,6 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 
 			// Keep the clients task states
 			alloc.TaskStates = exist.TaskStates
-
-			// Keep the volume info
-			alloc.HostVolumeIDs = exist.HostVolumeIDs
 
 			// If the scheduler is marking this allocation as lost or unknown we do not
 			// want to reuse the status of the existing allocation.

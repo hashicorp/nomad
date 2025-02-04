@@ -28,8 +28,7 @@ func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 
 	if existing != nil {
 		// do allocation ID and volume ID match?
-		if existing.Claimed(claim) {
-			fmt.Println("bro this has been claimed already, chill")
+		if existing.ClaimedByAlloc(claim) {
 			return nil
 		}
 

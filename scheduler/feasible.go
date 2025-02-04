@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -140,26 +139,25 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 type HostVolumeChecker struct {
 	ctx           Context
 	volumeReqs    []*structs.VolumeRequest
-	hostVolumeIDs []string
 	namespace     string
+	jobID         string
+	taskGroupName string
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 	return &HostVolumeChecker{
-		ctx:           ctx,
-		volumeReqs:    []*structs.VolumeRequest{},
-		hostVolumeIDs: []string{},
+		ctx:        ctx,
+		volumeReqs: []*structs.VolumeRequest{},
 	}
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(
-	allocName, ns string, volumes map[string]*structs.VolumeRequest, allocHostVolumeIDs []string,
-) {
+func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName string, volumes map[string]*structs.VolumeRequest) {
 	h.namespace = ns
+	h.jobID = jobID
+	h.taskGroupName = taskGroupName
 	h.volumeReqs = []*structs.VolumeRequest{}
-	h.hostVolumeIDs = allocHostVolumeIDs
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {
 			continue // filter CSI volumes
@@ -223,7 +221,16 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			}
 
 			if req.Sticky {
-				if slices.Contains(h.hostVolumeIDs, vol.ID) || len(h.hostVolumeIDs) == 0 {
+				claim, err := h.ctx.State().GetTaskGroupVolumeClaim(nil, h.namespace, h.jobID, h.taskGroupName)
+				if err != nil {
+					return false
+				}
+
+				if claim == nil {
+					return true
+				}
+
+				if claim.Namespace == h.namespace && claim.JobID == h.jobID && claim.TaskGroupName == h.taskGroupName {
 					return true
 				}
 

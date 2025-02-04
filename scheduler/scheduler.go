@@ -125,6 +125,10 @@ type State interface {
 	// given node
 	HostVolumesByNodeID(memdb.WatchSet, string, state.SortOption) (memdb.ResultIterator, error)
 
+	// GetTaskGroupVolumeClaim gets a claim for a particular namespace, job ID and
+	// task group
+	GetTaskGroupVolumeClaim(memdb.WatchSet, string, string, string) (*structs.TaskGroupVolumeClaim, error)
+
 	// LatestIndex returns the greatest index value for all indexes.
 	LatestIndex() (uint64, error)
 }
