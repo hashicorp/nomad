@@ -1,0 +1,3 @@
+```release-note:bug
+state store: fix for setting correct job status in various scenarios
+```
