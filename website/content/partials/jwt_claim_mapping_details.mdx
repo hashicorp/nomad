@@ -17,7 +17,7 @@ This examples contains `ClaimMappings` and `ListClaimMappings`. The configuratio
 instructs Nomad to copy the values in the JWT claims `"givenName"` and `"surname"`
 to attributes named `"value.first_name"` and `"value.last_name"` respectively.
 Additionally, Nomad should copy the list of values in the JWT
-claim `"groups"`  to an attribute named `"list.groups"`.
+claim `"groups"`  to an attribute named `"list.roles"`.
 
 ```json
 {
@@ -30,7 +30,7 @@ claim `"groups"`  to an attribute named `"list.groups"`.
       "surname": "last_name"
     },
     "ListClaimMappings": {
-      "groups": "groups"
+      "groups": "roles"
     }
   }
 }
