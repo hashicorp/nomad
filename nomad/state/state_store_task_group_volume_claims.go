@@ -6,6 +6,7 @@ package state
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -26,6 +27,8 @@ func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 		existing = existingRaw.(*structs.TaskGroupVolumeClaim)
 	}
 
+	now := time.Now().UTC()
+
 	if existing != nil {
 		// do allocation ID and volume ID match?
 		if existing.ClaimedByAlloc(claim) {
@@ -35,9 +38,12 @@ func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 		claim.CreateIndex = existing.CreateIndex
 		claim.ModifyIndex = index
 		claim.CreateTime = existing.CreateTime
+		claim.ModifyTime = now
 	} else {
 		claim.CreateIndex = index
 		claim.ModifyIndex = index
+		claim.CreateTime = now
+		claim.ModifyTime = now
 	}
 
 	// Insert the claim into the table.

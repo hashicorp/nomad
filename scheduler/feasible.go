@@ -226,15 +226,16 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 					return false
 				}
 
+				// it's a feasible node if it hasn't been claimed yet...
 				if claim == nil {
 					return true
 				}
 
-				if claim.Namespace == h.namespace && claim.JobID == h.jobID && claim.TaskGroupName == h.taskGroupName {
-					return true
-				}
-
-				return false
+				// ...or when we have an exact match on namespace, job ID, task group name and volume ID
+				return claim.Namespace == h.namespace &&
+					claim.JobID == h.jobID &&
+					claim.TaskGroupName == h.taskGroupName &&
+					claim.VolumeID == vol.ID
 			}
 
 		} else if !req.ReadOnly {
