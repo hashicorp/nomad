@@ -948,19 +948,18 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 		}
 	}
 
-	// Update any evals first.  During a reschedule, we don't want to mark the job dead, which
-	// would happen if all the allocs were terminal and there wasn't a pending eval
+	// Update all the client allocations
+	if err := n.state.UpdateAllocsFromClient(msgType, index, req.Alloc); err != nil {
+		n.logger.Error("UpdateAllocFromClient failed", "error", err)
+		return err
+	}
+
+	// Update any evals
 	if len(req.Evals) > 0 {
 		if err := n.upsertEvals(msgType, index, req.Evals); err != nil {
 			n.logger.Error("applyAllocClientUpdate failed to update evaluations", "error", err)
 			return err
 		}
-	}
-
-	// Update all the client allocations
-	if err := n.state.UpdateAllocsFromClient(msgType, index, req.Alloc); err != nil {
-		n.logger.Error("UpdateAllocFromClient failed", "error", err)
-		return err
 	}
 
 	// Unblock evals for the nodes computed node class if the client has
