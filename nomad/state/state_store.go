@@ -1800,7 +1800,6 @@ func (s *StateStore) upsertJobImpl(index uint64, sub *structs.JobSubmission, job
 		// Compute the job status
 		var err error
 		job.Status, err = s.getJobStatus(txn, job, false)
-		s.logger.Info("setting job status", "status", job.Status)
 		if err != nil {
 			return fmt.Errorf("setting job status for %q failed: %v", job.ID, err)
 		}
