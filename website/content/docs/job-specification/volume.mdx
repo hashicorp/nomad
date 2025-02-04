@@ -2,9 +2,7 @@
 layout: docs
 page_title: volume Block - Job Specification
 description: >-
-  The "volume" block allows the group to specify that it requires a given
-  volume from the cluster. Nomad will automatically handle ensuring that the
-  volume is available and mounted into the task.
+  Configure storage volumes in the "volume" block of a Nomad job specification. Specify dynamic host or Container Storage Interface (CSI) volume type, node access mode, filesystem or block device attachment mode, and mount options. Enable read only access and mounting a unique volume per node. Learn about volume interpolation.
 ---
 
 # `volume` Block
@@ -96,23 +94,23 @@ host volumes with `type = "host"`:
   must exactly match one of the volume's `capability` blocks.
 
   - For CSI volumes the `access_mode` is required. Can be one of the following:
-  
+
     - `"single-node-reader-only"`
     - `"single-node-writer"`
     - `"multi-node-reader-only"`
     - `"multi-node-single-writer"`
     - `"multi-node-multi-writer"`
-    
-    Most CSI plugins support only single-node modes. 
+
+    Most CSI plugins support only single-node modes.
     Consult the documentation of the storage provider and CSI plugin.
 
   - For dynamic host volumes the `access_mode` is optional. Can be one of the following:
-  
+
     - `"single-node-writer"`
     - `"single-node-reader-only"`
     - `"single-node-single-writer"`
-    - `"single-node-multi-writer"` 
-    
+    - `"single-node-multi-writer"`
+
     Defaults to `single-node-writer` unless `read_only = true`, in which case it
     defaults to `single-node-reader-only`.
 
