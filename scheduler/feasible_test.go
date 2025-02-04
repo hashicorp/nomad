@@ -422,7 +422,6 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	// alloc0 wants a previously registered volume ID that's available on node1
 	alloc0 := mock.Alloc()
 	alloc0.NodeID = nodes[1].ID
-	alloc0.HostVolumeIDs = []string{dhv.ID}
 
 	// alloc1 wants a volume ID that's available on node1 but hasn't used it
 	// before
@@ -432,7 +431,6 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	// alloc2 wants a volume ID that's unrelated
 	alloc2 := mock.Alloc()
 	alloc2.NodeID = nodes[1].ID
-	alloc2.HostVolumeIDs = []string{uuid.Generate()}
 
 	// insert all the allocs into the state
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc0, alloc1, alloc2}))
