@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Contextualizes the Start Job button on whether it is startable, revertable, or not
+```
