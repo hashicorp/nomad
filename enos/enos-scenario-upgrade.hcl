@@ -36,7 +36,8 @@ scenario "upgrade" {
   step "copy_initial_binary" {
     description = <<-EOF
     Determine which Nomad artifact we want to use for the scenario, depending on the
-   'arch', 'edition' and 'os' and bring it from the artifactory to a local instance.
+    'arch', 'edition' and 'os' and bring it from the artifactory to the local instance
+    running enos.   
     EOF
 
     module = module.build_artifactory
@@ -53,9 +54,11 @@ scenario "upgrade" {
   }
 
   step "provision_cluster" {
-    depends_on  = [step.copy_initial_binary]
+    depends_on = [step.copy_initial_binary]
+
     description = <<-EOF
     Using the binary from the previous step, provision a Nomad cluster using the e2e
+    module.
     EOF
 
     module = module.provision_cluster
@@ -74,7 +77,8 @@ scenario "upgrade" {
   }
 
   step "run_initial_workloads" {
-    depends_on  = [step.provision_cluster]
+    depends_on = [step.provision_cluster]
+
     description = <<-EOF
     Verify the health of the cluster by running new workloads
     EOF
@@ -87,28 +91,34 @@ scenario "upgrade" {
       key_file    = step.provision_cluster.key_file
       nomad_token = step.provision_cluster.nomad_token
     }
+
     verifies = [
       quality.nomad_register_job,
     ]
   }
 
   step "initial_test_cluster_health" {
-    depends_on  = [step.run_initial_workloads]
+    depends_on = [step.run_initial_workloads]
+
     description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs to check for correct reschedules"
+    Verify the health of the cluster by checking the status of all servers, nodes, 
+    jobs and allocs and stopping random allocs to check for correct reschedules"
     EOF
 
     module = module.test_cluster_health
     variables {
-      nomad_addr   = step.provision_cluster.nomad_addr
-      ca_file      = step.provision_cluster.ca_file
-      cert_file    = step.provision_cluster.cert_file
-      key_file     = step.provision_cluster.key_file
-      nomad_token  = step.provision_cluster.nomad_token
-      server_count = var.server_count
-      client_count = local.clients_count
-      jobs_count   = step.run_initial_workloads.jobs_count
-      alloc_count  = step.run_initial_workloads.allocs_count
+      nomad_addr      = step.provision_cluster.nomad_addr
+      ca_file         = step.provision_cluster.ca_file
+      cert_file       = step.provision_cluster.cert_file
+      key_file        = step.provision_cluster.key_file
+      nomad_token     = step.provision_cluster.nomad_token
+      server_count    = var.server_count
+      client_count    = local.clients_count
+      jobs_count      = step.run_initial_workloads.jobs_count
+      alloc_count     = step.run_initial_workloads.allocs_count
+      servers         = step.provision_cluster.servers
+      clients_version = var.product_version
+      servers_version = var.product_version
     }
 
     verifies = [
@@ -122,9 +132,10 @@ scenario "upgrade" {
   }
 
   step "copy_upgrade_binary" {
-    depends_on  = [step.provision_cluster]
+    depends_on = [step.provision_cluster]
+
     description = <<-EOF
-    Bring the new upgraded binary from the artifactory
+    Bring the new upgraded binary from the artifactory to the instance running enos.
     EOF
 
     module = module.build_artifactory
@@ -152,6 +163,9 @@ scenario "upgrade" {
 
      * "C:/opt/nomad.exe" for windows 
      * "/usr/local/bin/nomad" for linux
+
+    To ensure the servers are upgraded one by one, they use the depends_on meta,
+    there are ONLY 3 SERVERS being upgraded in the module.
    EOF
     module      = module.upgrade_servers
 
@@ -162,42 +176,38 @@ scenario "upgrade" {
     ]
 
     variables {
-      nomad_addr   = step.provision_cluster.nomad_addr
-      ca_file      = step.provision_cluster.ca_file
-      cert_file    = step.provision_cluster.cert_file
-      key_file     = step.provision_cluster.key_file
-      nomad_token  = step.provision_cluster.nomad_token
+      nomad_addr            = step.provision_cluster.nomad_addr
+      ca_file               = step.provision_cluster.ca_file
+      cert_file             = step.provision_cluster.cert_file
+      key_file              = step.provision_cluster.key_file
+      nomad_token           = step.provision_cluster.nomad_token
       servers               = step.provision_cluster.servers
       nomad_upgraded_binary = step.copy_upgrade_binary.nomad_local_binary
-      ssh_key_path = step.provision_cluster.
-      server_count = var.server_count
-      client_count = local.clients_count
-      jobs_count   = step.run_initial_workloads.jobs_count
-      alloc_count  = step.run_initial_workloads.allocs_count
+      ssh_key_path          = step.provision_cluster.ssh_key_file
     }
-  } 
-  /*
-  step "run_servers_workloads" {
-   // ...
   }
 
   step "server_upgrade_test_cluster_health" {
-    depends_on  = [step.run_initial_workloads]
+    depends_on  = [step.upgrade_servers]
     description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs to check for correct reschedules"
+    Verify the health of the cluster by checking the status of all servers, nodes, 
+    jobs and allocs and stopping random allocs to check for correct reschedules"
     EOF
 
     module = module.test_cluster_health
     variables {
-      nomad_addr   = step.provision_cluster.nomad_addr
-      ca_file      = step.provision_cluster.ca_file
-      cert_file    = step.provision_cluster.cert_file
-      key_file     = step.provision_cluster.key_file
-      nomad_token  = step.provision_cluster.nomad_token
-      server_count = var.server_count
-      client_count = local.linux_count + local.windows_count
-      jobs_count   = step.run_initial_workloads.jobs_count
-      alloc_count  = step.run_initial_workloads.allocs_count
+      nomad_addr      = step.provision_cluster.nomad_addr
+      ca_file         = step.provision_cluster.ca_file
+      cert_file       = step.provision_cluster.cert_file
+      key_file        = step.provision_cluster.key_file
+      nomad_token     = step.provision_cluster.nomad_token
+      server_count    = var.server_count
+      client_count    = local.linux_count + local.windows_count
+      jobs_count      = step.run_initial_workloads.jobs_count
+      alloc_count     = step.run_initial_workloads.allocs_count
+      servers         = step.provision_cluster.servers
+      clients_version = var.product_version
+      servers_version = var.upgrade_version
     }
 
     verifies = [
@@ -208,6 +218,11 @@ scenario "upgrade" {
       quality.nomad_allocs_status,
       quality.nomad_reschedule_alloc,
     ]
+  }
+
+  /*
+  step "run_servers_workloads" {
+   // ...
   }
 /*
   step "upgrade_client" {

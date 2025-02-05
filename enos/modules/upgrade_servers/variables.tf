@@ -30,6 +30,7 @@ variable "key_file" {
 variable "nomad_token" {
   description = "The Secret ID of an ACL token to make requests with, for ACL-enabled clusters."
   type        = string
+  sensitive   = true
 }
 
 variable "platform" {
@@ -38,7 +39,7 @@ variable "platform" {
   default     = "linux"
 }
 
-variable "nomad_local_upgrade_binary" {
+variable "nomad_upgraded_binary" {
   description = "The path to a local binary to upgrade"
 }
 
