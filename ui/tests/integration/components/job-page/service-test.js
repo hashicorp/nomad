@@ -114,8 +114,6 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     const mirageJob = makeMirageJob(this.server, {
       status: 'dead',
-      // withPreviousStableVersion: true,
-      // stopped: true,
     });
     await this.store.findAll('job');
 
