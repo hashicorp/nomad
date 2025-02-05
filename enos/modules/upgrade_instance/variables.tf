@@ -34,7 +34,7 @@ variable "platform" {
 }
 
 variable "server_address" {
-  description = "IP address of the server tha will be updated"
+  description = "IP address of the server that will be updated"
   type        = string
 }
 
