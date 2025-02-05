@@ -158,8 +158,9 @@ scenario "upgrade" {
     Takes the servers one by one, makes a snapshot, updates the binary with the
     new one previously fetched, restarts the servers from the snapshot.
 
-    Important: The path where the binary will be placed is hardcoded, according 
-    to Nomads best practices it will be: 
+    Important: The path where the binary will be placed is hardcoded to match 
+    what the provision-cluster module does. It can be configurable in the future
+    but for now it is:
 
      * "C:/opt/nomad.exe" for windows 
      * "/usr/local/bin/nomad" for linux
@@ -220,11 +221,11 @@ scenario "upgrade" {
     ]
   }
 
-  /*
+/*
   step "run_servers_workloads" {
    // ...
   }
-/*
+
   step "upgrade_client" {
     description = <<-EOF
     Upgrade the cluster's clients by invoking nomad-cc ...
@@ -277,6 +278,7 @@ scenario "upgrade" {
     ]
   }
  */
+
   output "servers" {
     value = step.provision_cluster.servers
   }
@@ -313,5 +315,4 @@ scenario "upgrade" {
     value     = step.provision_cluster.nomad_token
     sensitive = true
   }
-
 }

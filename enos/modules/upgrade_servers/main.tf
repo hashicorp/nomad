@@ -43,7 +43,7 @@ resource "enos_local_exec" "take_first_cluster_snapshot" {
   }
 
   inline = [
-    "nomad operator snapshot save ${random_pet.upgrade.id}-0.snap",
+    "nomad operator snapshot save -stale -address https://${var.servers[0]}:4646 ${random_pet.upgrade.id}-0.snap",
   ]
 }
 
@@ -97,7 +97,7 @@ resource "enos_local_exec" "take_second_cluster_snapshot" {
   }
 
   inline = [
-    "nomad operator snapshot save ${random_pet.upgrade.id}-1.snap",
+    "nomad operator snapshot save -stale -address https://${var.servers[1]}:4646 ${random_pet.upgrade.id}-1.snap",
   ]
 }
 
@@ -151,7 +151,7 @@ resource "enos_local_exec" "take_third_cluster_snapshot" {
   }
 
   inline = [
-    "nomad operator snapshot save ${random_pet.upgrade.id}-2.snap",
+    "nomad operator snapshot save -stale -address https://${var.servers[2]}:4646 ${random_pet.upgrade.id}-2.snap",
   ]
 }
 
