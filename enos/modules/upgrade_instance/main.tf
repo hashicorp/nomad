@@ -14,8 +14,12 @@ locals {
   ssh_user           = var.platform == "windows" ? "Administrator" : "ubuntu"
 }
 
+resource enos_local_exec "make_source_unknown_until_apply" {
+  inline = ["echo ${ var.nomad_local_upgrade_binary }"]
+}
+
 resource "enos_file" "copy_upgraded_binary" {
-  source      = var.nomad_local_upgrade_binary
+  source      = enos_local_exec.make_source_unknown_until_apply.stdout
   destination = local.binary_destination
   chmod       = "0755"
 
@@ -27,7 +31,6 @@ resource "enos_file" "copy_upgraded_binary" {
     }
   }
 }
-
 
 resource "enos_remote_exec" "restart_linux_services" {
   count      = var.platform == "linux" ? 1 : 0
