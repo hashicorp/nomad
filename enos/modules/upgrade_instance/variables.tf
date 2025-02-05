@@ -28,7 +28,7 @@ variable "nomad_token" {
 }
 
 variable "platform" {
-  description = "Operative system of the instance to upgrade"
+  description = "Operating system of the instance to upgrade"
   type        = string
   default     = "linux"
 }
