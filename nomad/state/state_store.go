@@ -4118,11 +4118,11 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			}
 
 			// Issue https://github.com/hashicorp/nomad/issues/2583 uncovered
-			// the a race between a forced garbage collection and the scheduler
+			// a race between a forced garbage collection and the scheduler
 			// marking an allocation as terminal. The issue is that the
 			// allocation from the scheduler has its job normalized and the FSM
-			// will only denormalize if the allocation is not terminal.  However
-			// if the allocation is garbage collected, that will result in a
+			// will only denormalize if the allocation is not terminal. However
+			// if the allocation is garbage collected, that will result in an
 			// allocation being upserted for the first time without a job
 			// attached. By returning an error here, it will cause the FSM to
 			// error, causing the plan_apply to error and thus causing the
@@ -4148,18 +4148,6 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 						VolumeName:    v.Source,
 					}
 
-					// has this volume been claimed already?
-					existingClaim, err := s.GetTaskGroupVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName)
-					if err != nil {
-						return err
-					}
-
-					// if the volume has already been claimed, we don't have to do anything. The
-					// feasibility checker in the scheduler will verify alloc placement.
-					if existingClaim != nil {
-						continue
-					}
-
 					allocNode, err := s.NodeByID(nil, alloc.NodeID)
 					if err != nil {
 						return err
@@ -4172,6 +4160,19 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 						}
 
 						sv.VolumeID = v.ID
+
+						// has this volume been claimed already?
+						existingClaim, err := s.GetTaskGroupVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName, v.ID)
+						if err != nil {
+							return err
+						}
+
+						// if the volume has already been claimed, we don't have to do anything. The
+						// feasibility checker in the scheduler will verify alloc placement.
+						if existingClaim != nil {
+							continue
+						}
+
 						if err := s.upsertTaskGroupVolumeClaimImpl(index, sv, txn); err != nil {
 							return err
 						}

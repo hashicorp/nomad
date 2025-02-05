@@ -6426,6 +6426,75 @@ func TestStateStore_UpsertAlloc_No_Job(t *testing.T) {
 	}
 }
 
+func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	store := testStateStore(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
+		},
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+		},
+	}
+	dhv := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[1].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
+	}
+
+	stickyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:           "host",
+			Source:         "foo",
+			Sticky:         true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
+	}
+
+	for _, node := range nodes {
+		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	}
+
+	stickyJob := mock.Job()
+	stickyJob.TaskGroups[0].Volumes = stickyRequest
+
+	existingClaim := &structs.TaskGroupVolumeClaim{
+		Namespace:     structs.DefaultNamespace,
+		JobID:         stickyJob.ID,
+		TaskGroupName: stickyJob.TaskGroups[0].Name,
+		VolumeID:      dhv.ID,
+		VolumeName:    dhv.Name,
+	}
+	must.NoError(t, store.UpsertTaskGroupVolumeClaim(1000, existingClaim))
+
+	allocWithClaimedVol := mock.AllocForNode(nodes[1])
+	allocWithClaimedVol.Namespace = structs.DefaultNamespace
+	allocWithClaimedVol.JobID = stickyJob.ID
+	allocWithClaimedVol.Job = stickyJob
+	allocWithClaimedVol.NodeID = nodes[1].ID
+
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocWithClaimedVol}))
+
+	// make sure we recorded a claim
+	claim, err := store.GetTaskGroupVolumeClaim(nil, structs.DefaultNamespace, stickyJob.ID, stickyJob.TaskGroups[0].Name, dhv.ID)
+	must.NoError(t, err)
+	must.Eq(t, claim, existingClaim)
+}
+
 func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
 	ci.Parallel(t)
 
