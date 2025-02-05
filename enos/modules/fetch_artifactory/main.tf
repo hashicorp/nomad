@@ -23,6 +23,8 @@ data "enos_artifactory_item" "nomad" {
 }
 
 resource "enos_local_exec" "install_binary" {
+  count = var.download_binary ? 1 : 0
+
   environment = {
     URL         = data.enos_artifactory_item.nomad.results[0].url
     BINARY_PATH = var.binary_path

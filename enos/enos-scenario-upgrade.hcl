@@ -131,7 +131,7 @@ scenario "upgrade" {
     ]
   }
 
-  step "copy_upgrade_binary" {
+  step "fetch_upgrade_binary" {
     depends_on = [step.provision_cluster]
 
     description = <<-EOF
@@ -147,16 +147,16 @@ scenario "upgrade" {
       edition              = matrix.edition
       product_version      = var.upgrade_version
       os                   = matrix.os
-      binary_path          = "${var.nomad_local_binary}/${matrix.os}-${matrix.arch}-${matrix.edition}-${var.upgrade_version}"
+      download_binary      = false
     }
   }
 
   step "upgrade_servers" {
-    depends_on = [step.copy_upgrade_binary]
+    depends_on = [step.fetch_upgrade_binary]
 
     description = <<-EOF
     Takes the servers one by one, makes a snapshot, updates the binary with the
-    new one previously fetched, restarts the servers from the snapshot.
+    new one previously fetched and restarts the servers.
 
     Important: The path where the binary will be placed is hardcoded to match 
     what the provision-cluster module does. It can be configurable in the future
@@ -177,14 +177,17 @@ scenario "upgrade" {
     ]
 
     variables {
-      nomad_addr            = step.provision_cluster.nomad_addr
-      ca_file               = step.provision_cluster.ca_file
-      cert_file             = step.provision_cluster.cert_file
-      key_file              = step.provision_cluster.key_file
-      nomad_token           = step.provision_cluster.nomad_token
-      servers               = step.provision_cluster.servers
-      nomad_upgraded_binary = step.copy_upgrade_binary.nomad_local_binary
-      ssh_key_path          = step.provision_cluster.ssh_key_file
+      nomad_addr           = step.provision_cluster.nomad_addr
+      ca_file              = step.provision_cluster.ca_file
+      cert_file            = step.provision_cluster.cert_file
+      key_file             = step.provision_cluster.key_file
+      nomad_token          = step.provision_cluster.nomad_token
+      servers              = step.provision_cluster.servers
+      ssh_key_path         = step.provision_cluster.ssh_key_file
+      artifactory_username = var.artifactory_username
+      artifactory_token    = var.artifactory_token
+      artifact_url         = step.fetch_upgrade_binary.artifact_url
+      artifact_sha         = step.fetch_upgrade_binary.artifact_sha
     }
   }
 

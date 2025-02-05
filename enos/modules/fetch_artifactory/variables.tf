@@ -53,3 +53,8 @@ variable "binary_path" {
   type        = string
   default     = "/home/ubuntu/nomad"
 }
+
+variable "download_binary" {
+  description = "Used to control if the artifact should be downloaded to the local instance or not"
+  default     = true
+}

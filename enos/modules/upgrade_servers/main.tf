@@ -9,18 +9,34 @@ terraform {
   }
 }
 
-resource "random_pet" "upgrade" {
-}
-
-resource "enos_local_exec" "wait_for_nomad_api" {
-  environment = {
+locals {
+  nomad_env = {
     NOMAD_ADDR        = var.nomad_addr
     NOMAD_CACERT      = var.ca_file
     NOMAD_CLIENT_CERT = var.cert_file
     NOMAD_CLIENT_KEY  = var.key_file
     NOMAD_TOKEN       = var.nomad_token
-
   }
+
+  artifactory = {
+    username = var.artifactory_username
+    token    = var.artifactory_token
+    url      = var.artifact_url
+    sha256   = var.artifact_sha
+  }
+
+  tls = {
+    ca_file   = var.ca_file
+    cert_file = var.cert_file
+    key_file  = var.key_file
+  }
+}
+
+resource "random_pet" "upgrade" {
+}
+
+resource "enos_local_exec" "wait_for_nomad_api" {
+  environment = local.nomad_env
 
   scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
 }
@@ -34,13 +50,7 @@ resource "enos_local_exec" "wait_for_nomad_api" {
 resource "enos_local_exec" "take_first_cluster_snapshot" {
   depends_on = [enos_local_exec.wait_for_nomad_api]
 
-  environment = {
-    NOMAD_ADDR        = var.nomad_addr
-    NOMAD_CACERT      = var.ca_file
-    NOMAD_CLIENT_CERT = var.cert_file
-    NOMAD_CLIENT_KEY  = var.key_file
-    NOMAD_TOKEN       = var.nomad_token
-  }
+  environment = local.nomad_env
 
   inline = [
     "nomad operator snapshot save -stale -address https://${var.servers[0]}:4646 ${random_pet.upgrade.id}-0.snap",
@@ -52,15 +62,13 @@ module upgrade_first_server {
 
   source = "../upgrade_instance"
 
-  nomad_addr                 = var.nomad_addr
-  ca_file                    = var.ca_file
-  cert_file                  = var.cert_file
-  key_file                   = var.key_file
-  nomad_token                = var.nomad_token
-  platform                   = var.platform
-  server_address             = var.servers[0]
-  nomad_local_upgrade_binary = var.nomad_upgraded_binary
-  ssh_key_path               = var.ssh_key_path
+  nomad_addr          = var.nomad_addr
+  tls                 = local.tls
+  nomad_token         = var.nomad_token
+  platform            = var.platform
+  server_address      = var.servers[0]
+  ssh_key_path        = var.ssh_key_path
+  artifactory_release = local.artifactory
 }
 
 // This script calls `nomad server members` which returns an error if there 
@@ -68,13 +76,7 @@ module upgrade_first_server {
 resource "enos_local_exec" "first_leader_verification" {
   depends_on = [module.upgrade_first_server]
 
-  environment = {
-    NOMAD_ADDR        = var.nomad_addr
-    NOMAD_CACERT      = var.ca_file
-    NOMAD_CLIENT_CERT = var.cert_file
-    NOMAD_CLIENT_KEY  = var.key_file
-    NOMAD_TOKEN       = var.nomad_token
-  }
+  environment = local.nomad_env
 
   scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
 }
@@ -88,13 +90,7 @@ resource "enos_local_exec" "first_leader_verification" {
 resource "enos_local_exec" "take_second_cluster_snapshot" {
   depends_on = [enos_local_exec.first_leader_verification]
 
-  environment = {
-    NOMAD_ADDR        = var.nomad_addr
-    NOMAD_CACERT      = var.ca_file
-    NOMAD_CLIENT_CERT = var.cert_file
-    NOMAD_CLIENT_KEY  = var.key_file
-    NOMAD_TOKEN       = var.nomad_token
-  }
+  environment = local.nomad_env
 
   inline = [
     "nomad operator snapshot save -stale -address https://${var.servers[1]}:4646 ${random_pet.upgrade.id}-1.snap",
@@ -106,15 +102,13 @@ module upgrade_second_server {
 
   source = "../upgrade_instance"
 
-  nomad_addr                 = var.nomad_addr
-  ca_file                    = var.ca_file
-  cert_file                  = var.cert_file
-  key_file                   = var.key_file
-  nomad_token                = var.nomad_token
-  platform                   = var.platform
-  server_address             = var.servers[1]
-  nomad_local_upgrade_binary = var.nomad_upgraded_binary
-  ssh_key_path               = var.ssh_key_path
+  nomad_addr          = var.nomad_addr
+  tls                 = local.tls
+  nomad_token         = var.nomad_token
+  platform            = var.platform
+  server_address      = var.servers[1]
+  ssh_key_path        = var.ssh_key_path
+  artifactory_release = local.artifactory
 }
 
 // This script calls `nomad server members` which returns an error if there 
@@ -122,13 +116,7 @@ module upgrade_second_server {
 resource "enos_local_exec" "second_leader_verification" {
   depends_on = [module.upgrade_second_server]
 
-  environment = {
-    NOMAD_ADDR        = var.nomad_addr
-    NOMAD_CACERT      = var.ca_file
-    NOMAD_CLIENT_CERT = var.cert_file
-    NOMAD_CLIENT_KEY  = var.key_file
-    NOMAD_TOKEN       = var.nomad_token
-  }
+  environment = local.nomad_env
 
   scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
 }
@@ -142,13 +130,7 @@ resource "enos_local_exec" "second_leader_verification" {
 resource "enos_local_exec" "take_third_cluster_snapshot" {
   depends_on = [enos_local_exec.second_leader_verification]
 
-  environment = {
-    NOMAD_ADDR        = var.nomad_addr
-    NOMAD_CACERT      = var.ca_file
-    NOMAD_CLIENT_CERT = var.cert_file
-    NOMAD_CLIENT_KEY  = var.key_file
-    NOMAD_TOKEN       = var.nomad_token
-  }
+  environment = local.nomad_env
 
   inline = [
     "nomad operator snapshot save -stale -address https://${var.servers[2]}:4646 ${random_pet.upgrade.id}-2.snap",
@@ -160,15 +142,13 @@ module upgrade_third_server {
 
   source = "../upgrade_instance"
 
-  nomad_addr                 = var.nomad_addr
-  ca_file                    = var.ca_file
-  cert_file                  = var.cert_file
-  key_file                   = var.key_file
-  nomad_token                = var.nomad_token
-  platform                   = var.platform
-  server_address             = var.servers[2]
-  nomad_local_upgrade_binary = var.nomad_upgraded_binary
-  ssh_key_path               = var.ssh_key_path
+  nomad_addr          = var.nomad_addr
+  tls                 = local.tls
+  nomad_token         = var.nomad_token
+  platform            = var.platform
+  server_address      = var.servers[2]
+  ssh_key_path        = var.ssh_key_path
+  artifactory_release = local.artifactory
 }
 
 // This script calls `nomad server members` which returns an error if there 
@@ -176,13 +156,7 @@ module upgrade_third_server {
 resource "enos_local_exec" "third_leader_verification" {
   depends_on = [module.upgrade_third_server]
 
-  environment = {
-    NOMAD_ADDR        = var.nomad_addr
-    NOMAD_CACERT      = var.ca_file
-    NOMAD_CLIENT_CERT = var.cert_file
-    NOMAD_CLIENT_KEY  = var.key_file
-    NOMAD_TOKEN       = var.nomad_token
-  }
+  environment = local.nomad_env
 
   scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
 }

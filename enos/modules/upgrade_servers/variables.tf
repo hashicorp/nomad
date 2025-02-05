@@ -39,10 +39,6 @@ variable "platform" {
   default     = "linux"
 }
 
-variable "nomad_upgraded_binary" {
-  description = "The path to a local binary to upgrade"
-}
-
 variable "ssh_key_path" {
   description = "Path to the ssh private key that can be used to connect to the instance where the server is running"
   type        = string
@@ -51,4 +47,28 @@ variable "ssh_key_path" {
 variable "servers" {
   description = "List of public IP address of the nomad servers that will be updated"
   type        = list
+}
+
+
+variable "artifactory_username" {
+  type        = string
+  description = "The username to use when connecting to artifactory"
+  default     = null
+}
+
+variable "artifactory_token" {
+  type        = string
+  description = "The token to use when connecting to artifactory"
+  default     = null
+  sensitive   = true
+}
+
+variable "artifact_url" {
+  type        = string
+  description = "The fully qualified Artifactory item URL"
+}
+
+variable "artifact_sha" {
+  type        = string
+  description = "The Artifactory item SHA 256 sum"
 }
