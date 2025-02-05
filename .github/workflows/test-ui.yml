@@ -40,6 +40,7 @@ jobs:
       run:
         working-directory: ui
     strategy:
+      fail-fast: false
       matrix:
         partition: [1, 2, 3, 4]
         split: [4]
