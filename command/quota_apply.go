@@ -355,6 +355,8 @@ func parseQuotaMegabytes(raw any) (int, error) {
 		return int(b >> 20), nil
 	case int:
 		return val, nil
+	case nil:
+		return 0, nil
 	default:
 		return 0, fmt.Errorf("invalid type %T", raw)
 	}

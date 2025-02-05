@@ -31,6 +31,7 @@ scenario "upgrade" {
     windows_count = matrix.os == "windows" ? "4" : "0"
     arch          = matrix.arch
     clients_count = local.linux_count + local.windows_count
+
   }
 
   step "copy_initial_binary" {
@@ -174,11 +175,11 @@ scenario "upgrade" {
     }
   }
 
+
   step "server_upgrade_test_cluster_health" {
-    depends_on  = [step.upgrade_servers]
+    depends_on  = [step.run_initial_workloads]
     description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, 
-    jobs and allocs and stopping random allocs to check for correct reschedules
+    Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs to check for correct reschedules"
     EOF
 
     module = module.test_cluster_health
@@ -203,14 +204,7 @@ scenario "upgrade" {
       quality.nomad_reschedule_alloc,
     ]
   }
-
-  /*
-  step "run_servers_workloads" {
-   // ...
-  }
-
-
-
+/*
   step "upgrade_client" {
     description = <<-EOF
     Upgrade the cluster's clients by invoking nomad-cc ...

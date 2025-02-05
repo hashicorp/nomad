@@ -68,7 +68,6 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @watchRelationship('allocations') watchAllocations;
   @watchRelationship('evaluations') watchEvaluations;
   @watchRelationship('latestDeployment') watchLatestDeployment;
-
   @collect(
     'watchSummary',
     'watchAllocations',

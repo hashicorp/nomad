@@ -187,12 +187,6 @@ func (tr *TaskRunner) initHooks() {
 		logger: hookLogger,
 	}))
 
-	// If this task driver has remote capabilities, add the remote task
-	// hook.
-	if tr.driverCapabilities.RemoteTasks {
-		tr.runnerHooks = append(tr.runnerHooks, newRemoteTaskHook(tr, hookLogger))
-	}
-
 	// If this task has a pause schedule, initialize the pause (Enterprise)
 	if task.Schedule != nil {
 		tr.runnerHooks = append(tr.runnerHooks, newPauseHook(tr, hookLogger))

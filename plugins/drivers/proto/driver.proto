@@ -390,9 +390,9 @@ message DriverCapabilities {
     // MountConfigs indicates whether the driver supports mount configurations.
     MountConfigs mount_configs = 6;
 
-    // remote_tasks indicates whether the driver executes tasks remotely such
-    // on cloud runtimes like AWS ECS.
-    bool remote_tasks = 7 [deprecated=true];
+    // previous remote_tasks field no longer used by nomad clients
+    reserved 7;
+    reserved "remote_tasks";
 
     // disable_log_collection indicates whether the driver has the capability of
     // disabling log collection

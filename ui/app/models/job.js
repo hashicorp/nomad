@@ -446,6 +446,21 @@ export default class Job extends Model {
 
   @hasMany('recommendation-summary') recommendationSummaries;
 
+  @computed('versions.@each.stable')
+  get hasStableNonCurrentVersion() {
+    return this.versions
+      .sortBy('number')
+      .reverse()
+      .slice(1)
+      .any((version) => version.get('stable'));
+  }
+
+  @computed('versions.@each.stable')
+  get latestStableVersion() {
+    return this.versions.filterBy('stable').sortBy('number').reverse().slice(1)
+      .firstObject;
+  }
+
   get actions() {
     return this.taskGroups.reduce((acc, taskGroup) => {
       return acc.concat(

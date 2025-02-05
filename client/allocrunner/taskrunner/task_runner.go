@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/nomad/client/allocdir"
@@ -1362,12 +1362,6 @@ func (tr *TaskRunner) UpdateState(state string, event *structs.TaskEvent) {
 		// Only log the error as we persistence errors should not
 		// affect task state.
 		tr.logger.Error("error persisting task state", "error", err, "event", event, "state", state)
-	}
-
-	// Store task handle for remote tasks
-	if tr.driverCapabilities != nil && tr.driverCapabilities.RemoteTasks {
-		tr.logger.Trace("storing remote task handle state")
-		tr.localState.TaskHandle.Store(tr.state)
 	}
 
 	// Notify the alloc runner of the transition
