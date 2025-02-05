@@ -112,7 +112,11 @@ module('Integration | Component | job-page/service', function (hooks) {
   test('Starting a job sends a post request for the job using the current definition', async function (assert) {
     assert.expect(1);
 
-    const mirageJob = makeMirageJob(this.server, { status: 'dead' });
+    const mirageJob = makeMirageJob(this.server, {
+      status: 'dead',
+      withPreviousStableVersion: true,
+      stopped: true,
+    });
     await this.store.findAll('job');
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
@@ -129,7 +133,11 @@ module('Integration | Component | job-page/service', function (hooks) {
 
     this.server.pretender.post('/v1/job/:id', () => [403, {}, '']);
 
-    const mirageJob = makeMirageJob(this.server, { status: 'dead' });
+    const mirageJob = makeMirageJob(this.server, {
+      status: 'dead',
+      withPreviousStableVersion: true,
+      stopped: true,
+    });
     await this.store.findAll('job');
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
@@ -144,7 +152,10 @@ module('Integration | Component | job-page/service', function (hooks) {
   test('Purging a job sends a purge request for the job', async function (assert) {
     assert.expect(1);
 
-    const mirageJob = makeMirageJob(this.server, { status: 'dead' });
+    const mirageJob = makeMirageJob(this.server, {
+      status: 'dead',
+      withPreviousStableVersion: true,
+    });
     await this.store.findAll('job');
 
     const job = this.store.peekAll('job').findBy('plainId', mirageJob.id);
