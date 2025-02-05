@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 variable "nomad_addr" {
-  description = "The Nomad API HTTP address."
+  description = "The Nomad API HTTP address of the instance being upgraded."
   type        = string
   default     = "http://localhost:4646"
 }
