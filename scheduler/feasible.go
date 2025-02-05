@@ -242,10 +242,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 				}
 
 				for _, c := range h.claims {
-					// an exact match means the claim has the same namespace,
-					// job ID, tg name or volume ID
-					if c.Namespace == h.namespace && c.JobID == h.jobID &&
-						c.TaskGroupName == h.taskGroupName && c.VolumeID == vol.ID {
+					if c.VolumeID == vol.ID {
 						return true
 					}
 				}
