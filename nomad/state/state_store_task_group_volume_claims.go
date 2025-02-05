@@ -4,7 +4,6 @@
 package state
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
@@ -70,32 +69,6 @@ func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 	return nil
 }
 
-// DeleteTaskGroupVolumeClaim is responsible for deleting volume claims.
-func (s *StateStore) DeleteTaskGroupVolumeClaim(index uint64, namespace, jobID, taskGroupName string) error {
-	txn := s.db.WriteTxnMsgT(structs.TaskGroupVolumeClaimDeleteRequestType, index)
-	defer txn.Abort()
-
-	existing, err := txn.First(TableTaskGroupVolumeClaim, indexID, namespace, jobID, taskGroupName)
-	if err != nil {
-		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
-	}
-	if existing == nil {
-		return errors.New("ACL binding rule not found")
-	}
-
-	// Delete the existing entry from the table.
-	if err := txn.Delete(TableTaskGroupVolumeClaim, existing); err != nil {
-		return fmt.Errorf("Task group volume claim deletion failed: %v", err)
-	}
-
-	// Update the index table to indicate an update has occurred.
-	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupVolumeClaim, index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
-	}
-
-	return txn.Commit()
-}
-
 // GetTaskGroupVolumeClaim returns a volume claim that matches the namespace,
 // job id and task group name (there can be only one)
 func (s *StateStore) GetTaskGroupVolumeClaim(ws memdb.WatchSet, namespace, jobID, taskGroupName, volumeID string) (*structs.TaskGroupVolumeClaim, error) {
@@ -112,4 +85,17 @@ func (s *StateStore) GetTaskGroupVolumeClaim(ws memdb.WatchSet, namespace, jobID
 	}
 
 	return nil, nil
+}
+
+// GetTaskGroupVolumeClaims returns all volume claims
+func (s *StateStore) GetTaskGroupVolumeClaims(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableTaskGroupVolumeClaim, indexID)
+	if err != nil {
+		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
 }

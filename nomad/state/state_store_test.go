@@ -6455,6 +6455,9 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 		State:                 structs.HostVolumeStateReady,
 	}
 
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {ID: dhv.ID, Name: dhv.Name}}
+
 	stickyRequest := map[string]*structs.VolumeRequest{
 		"foo": {
 			Type:           "host",
@@ -6489,10 +6492,47 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocWithClaimedVol}))
 
+	// there must be exactly one claim in the state
+	claims := []*structs.TaskGroupVolumeClaim{}
+	iter, err := store.GetTaskGroupVolumeClaims(nil)
+	must.Nil(t, err)
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		claim := raw.(*structs.TaskGroupVolumeClaim)
+		claims = append(claims, claim)
+	}
+	must.Len(t, 1, claims)
+
+	// clean up the state
+	txn := store.db.WriteTxn(1000)
+	_, err = txn.DeletePrefix(TableTaskGroupVolumeClaim, "id_prefix", stickyJob.ID)
+	must.Nil(t, err)
+	must.NoError(t, store.deleteAllocsForJobTxn(txn, 1000, structs.DefaultNamespace, stickyJob.ID))
+	txn.Abort()
+
+	// try to upsert an alloc for which there is no claim
+	stickyJob2 := mock.Job()
+	stickyJob2.TaskGroups[0].Volumes = stickyRequest
+	allocWithNoClaimedVol := mock.AllocForNode(nodes[1])
+	allocWithNoClaimedVol.Namespace = structs.DefaultNamespace
+	allocWithNoClaimedVol.JobID = stickyJob2.ID
+	allocWithNoClaimedVol.Job = stickyJob2
+	allocWithNoClaimedVol.NodeID = nodes[1].ID
+
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{allocWithNoClaimedVol}))
+
 	// make sure we recorded a claim
-	claim, err := store.GetTaskGroupVolumeClaim(nil, structs.DefaultNamespace, stickyJob.ID, stickyJob.TaskGroups[0].Name, dhv.ID)
+	claim, err := store.GetTaskGroupVolumeClaim(nil, structs.DefaultNamespace, stickyJob2.ID, stickyJob2.TaskGroups[0].Name, dhv.ID)
 	must.NoError(t, err)
-	must.Eq(t, claim, existingClaim)
+	must.Eq(t, claim, &structs.TaskGroupVolumeClaim{
+		Namespace:     structs.DefaultNamespace,
+		JobID:         stickyJob2.ID,
+		TaskGroupName: stickyJob2.TaskGroups[0].Name,
+		AllocID:       allocWithNoClaimedVol.ID,
+		VolumeID:      dhv.ID,
+		VolumeName:    dhv.Name,
+		CreateIndex:   1001,
+		ModifyIndex:   1001,
+	})
 }
 
 func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
