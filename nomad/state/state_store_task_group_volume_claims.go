@@ -11,11 +11,9 @@ import (
 )
 
 func (s *StateStore) UpsertTaskGroupVolumeClaim(index uint64, claim *structs.TaskGroupVolumeClaim) error {
-
 	// Grab a write transaction.
 	txn := s.db.WriteTxnMsgT(structs.TaskGroupVolumeClaimRegisterRequestType, index)
 	defer txn.Abort()
-
 	if err := s.upsertTaskGroupVolumeClaimImpl(index, claim, txn); err != nil {
 		return err
 	}
@@ -98,4 +96,23 @@ func (s *StateStore) GetTaskGroupVolumeClaims(ws memdb.WatchSet) (memdb.ResultIt
 	ws.Add(iter.WatchCh())
 
 	return iter, nil
+}
+
+// deleteTaskGroupVolumeClaim deletes all claims for a given namespace and job ID
+func (s *StateStore) deleteTaskGroupVolumeClaim(index uint64, txn *txn, namespace, jobID string) error {
+	iter, err := txn.Get(TableTaskGroupVolumeClaim, indexID)
+	if err != nil {
+		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		claim := raw.(*structs.TaskGroupVolumeClaim)
+		if claim.JobID == jobID && claim.Namespace == namespace {
+			if err := txn.Delete(TableTaskGroupVolumeClaim, claim); err != nil {
+				return fmt.Errorf("Task group volume claim deletion failed: %v", err)
+			}
+		}
+	}
+
+	return nil
 }
