@@ -5607,7 +5607,7 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	if job.Type == structs.JobTypeSystem ||
 		job.IsParameterized() ||
 		job.IsPeriodic() {
-		if job.Stopped() {
+		if job.Stop {
 			return structs.JobStatusDead, nil
 		}
 		return structs.JobStatusRunning, nil
@@ -5618,27 +5618,18 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		return "", err
 	}
 
-	terminalAllocs := false
+	// If there is a non-terminal allocation, the job is running.
+	hasAlloc := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
 		a := alloc.(*structs.Allocation)
-
-		// If there is a non-terminal allocation, the job is running.
 		if !a.TerminalStatus() {
 			return structs.JobStatusRunning, nil
 		}
-
-		// Check if the allocs are reschedulable before before
-		// marking the job dead.  If any of the allocs are terminal
-		// and not reschedulable, mark the job dead.
+		// if there exists a terminal, non-reschedulable alloc,
+		// mark this job as possibly dead
 		if !isReschedulable(a) {
-			terminalAllocs = true
+			hasAlloc = true
 		}
-	}
-
-	// The job is dead if it is stopped and there are no allocs
-	// or all allocs are terminal
-	if job.Stopped() {
-		return structs.JobStatusDead, nil
 	}
 
 	evals, err := txn.Get("evals", "job_prefix", job.Namespace, job.ID)
@@ -5646,30 +5637,28 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		return "", err
 	}
 
-	terminalEvals := false
+	hasEval := false
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
 		e := raw.(*structs.Evaluation)
 
-		// This handles restarting stopped jobs, or else they are marked dead.
-		// We need to be careful with this, because an eval can technically
-		// still apply to a job with a greater modify index, i.e. during reschedule
-		// but we handle reschedule above.
+		// Handles restarting stopped jobs and rescheduled allocs, or else they
+		// are briefly marked dead. We don't always want to skip these evaluations,
+		// like in the case of rescheduled or stopped jobs, but we handle both
+		// those cases in elsewhere in this function.
 		if e.JobModifyIndex < job.ModifyIndex {
 			continue
 		}
 
+		hasEval = true
 		if !e.TerminalStatus() {
 			return structs.JobStatusPending, nil
 		}
-
-		terminalEvals = true
 	}
 
 	// The job is dead if all allocations for this version are terminal,
-	// all evals are terminal.
-	// Also, in the event a jobs allocs and evals are all GC'd, we don't
-	// want the job to be marked pending.
-	if terminalAllocs || terminalEvals || evalDelete {
+	// all evals are terminal. In the event a jobs allocs and evals
+	// are all GC'd, we don't want the job to be marked pending.
+	if evalDelete || hasEval || hasAlloc || job.Stop {
 		return structs.JobStatusDead, nil
 	}
 
