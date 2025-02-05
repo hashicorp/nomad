@@ -45,3 +45,18 @@ variable "jobs_count" {
 variable "alloc_count" {
   description = "Number of allocation that should be running in the cluster"
 }
+
+variable "clients_version" {
+  description = "Binary version running on the clients"
+  type        = string
+}
+
+variable "servers_version" {
+  description = "Binary version running on the servers"
+  type        = string
+}
+
+variable "servers" {
+  description = "List of public IP address of the nomad servers"
+  type        = list
+}
