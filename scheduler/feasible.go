@@ -142,14 +142,27 @@ type HostVolumeChecker struct {
 	namespace     string
 	jobID         string
 	taskGroupName string
+	claims        []*structs.TaskGroupVolumeClaim
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
-	return &HostVolumeChecker{
+	hostVolumeChecker := &HostVolumeChecker{
 		ctx:        ctx,
+		claims:     []*structs.TaskGroupVolumeClaim{},
 		volumeReqs: []*structs.VolumeRequest{},
 	}
+
+	storedClaims, err := ctx.State().GetTaskGroupVolumeClaims(nil)
+	if err != nil {
+		return hostVolumeChecker
+	}
+
+	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
+		claim := raw.(*structs.TaskGroupVolumeClaim)
+		hostVolumeChecker.claims = append(hostVolumeChecker.claims, claim)
+	}
+	return hostVolumeChecker
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
@@ -158,6 +171,7 @@ func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName strin
 	h.jobID = jobID
 	h.taskGroupName = taskGroupName
 	h.volumeReqs = []*structs.VolumeRequest{}
+
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {
 			continue // filter CSI volumes
@@ -221,21 +235,20 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			}
 
 			if req.Sticky {
-				claim, err := h.ctx.State().GetTaskGroupVolumeClaim(nil, h.namespace, h.jobID, h.taskGroupName, vol.ID)
-				if err != nil {
-					return false
-				}
-
-				// it's a feasible node if it hasn't been claimed yet...
-				if claim == nil {
+				// the node is feasible if there are no claims or if there's an
+				// exact match
+				if len(h.claims) == 0 {
 					return true
 				}
 
-				// ...or when we have an exact match on namespace, job ID, task group name and volume ID
-				return claim.Namespace == h.namespace &&
-					claim.JobID == h.jobID &&
-					claim.TaskGroupName == h.taskGroupName &&
-					claim.VolumeID == vol.ID
+				for _, c := range h.claims {
+					// an exact match means the claim has the same namespace,
+					// job ID, tg name or volume ID
+					if c.Namespace == h.namespace && c.JobID == h.jobID &&
+						c.TaskGroupName == h.taskGroupName && c.VolumeID == vol.ID {
+						return true
+					}
+				}
 			}
 
 		} else if !req.ReadOnly {
