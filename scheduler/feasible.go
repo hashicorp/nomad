@@ -221,7 +221,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			}
 
 			if req.Sticky {
-				claim, err := h.ctx.State().GetTaskGroupVolumeClaim(nil, h.namespace, h.jobID, h.taskGroupName)
+				claim, err := h.ctx.State().GetTaskGroupVolumeClaim(nil, h.namespace, h.jobID, h.taskGroupName, vol.ID)
 				if err != nil {
 					return false
 				}
