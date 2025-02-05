@@ -152,7 +152,7 @@ scenario "upgrade" {
   }
 
   step "upgrade_servers" {
-    depends_on = [step.copy_upgrade_binary, step.provision_cluster]
+    depends_on = [step.copy_upgrade_binary]
 
     description = <<-EOF
     Takes the servers one by one, makes a snapshot, updates the binary with the
@@ -221,7 +221,7 @@ scenario "upgrade" {
     ]
   }
 
-/*
+  /*
   step "run_servers_workloads" {
    // ...
   }
