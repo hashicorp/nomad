@@ -72,7 +72,7 @@ jobs:
       - name: Express failure
         if: steps.ember_exam.outcome == 'failure'
         run: |
-          echo "Tests failed in partition ${{ matrix.partition }}"
+          echo "Tests failed in ember-exam for partition ${{ matrix.partition }}"
           exit 1
       - name: Upload partition test results
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
