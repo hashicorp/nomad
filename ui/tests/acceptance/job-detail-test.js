@@ -300,7 +300,12 @@ moduleForJob(
 moduleForJob(
   'Acceptance | job detail (service)',
   'allocations',
-  () => server.create('job', { type: 'service', noActiveDeployment: true, withPreviousStableVersion: true }),
+  () =>
+    server.create('job', {
+      type: 'service',
+      noActiveDeployment: true,
+      withPreviousStableVersion: true,
+    }),
   {
     'the subnav links to deployment': async (job, assert) => {
       await JobDetail.tabFor('deployments').visit();
