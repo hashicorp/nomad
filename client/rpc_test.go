@@ -6,6 +6,7 @@ package client
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
@@ -190,4 +191,58 @@ func Test_resolveServer(t *testing.T) {
 		})
 	}
 
+}
+
+func TestRpc_RetryBlockTime(t *testing.T) {
+	ci.Parallel(t)
+
+	// Timeouts have to allow for multiple passes thru the recursive c.rpc
+	// call. Unconfigurable internal timeouts prevent us from using a shorter
+	// MaxQueryTime base for this test
+	expectMaxQueryTime := time.Second
+	rpcHoldTimeout := 5 * time.Second
+	unblockTimeout := 7 * time.Second
+
+	srv, cleanupSrv := nomad.TestServer(t, func(c *nomad.Config) {
+		c.NumSchedulers = 0
+		c.BootstrapExpect = 3 // we intentionally don't want a leader
+	})
+	t.Cleanup(func() { cleanupSrv() })
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.Servers = []string{srv.GetConfig().RPCAddr.String()}
+		c.RPCHoldTimeout = rpcHoldTimeout
+	})
+	t.Cleanup(func() { cleanupC() })
+
+	req := structs.NodeSpecificRequest{
+		NodeID:   c.NodeID(),
+		SecretID: c.secretNodeID(),
+		QueryOptions: structs.QueryOptions{
+			Region:        c.Region(),
+			AuthToken:     c.secretNodeID(),
+			MinQueryIndex: 10000, // some far-flung index we know won't exist yet
+			MaxQueryTime:  expectMaxQueryTime,
+		},
+	}
+
+	resp := structs.NodeClientAllocsResponse{}
+	errCh := make(chan error)
+
+	go func() {
+		err := c.rpc("Node.GetClientAllocs", &req, &resp)
+		errCh <- err
+	}()
+
+	// wait for the blocking query to run long enough for 2 passes thru,
+	// including jitter
+	select {
+	case err := <-errCh:
+		must.NoError(t, err)
+	case <-time.After(unblockTimeout):
+		cleanupC() // force unblock
+	}
+
+	must.Eq(t, expectMaxQueryTime, req.MaxQueryTime,
+		must.Sprintf("MaxQueryTime was changed during retries but not reset"))
 }
