@@ -396,7 +396,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 		},
 	}
 
-	dhv := &structs.HostVolume{
+	dhv1 := &structs.HostVolume{
 		Namespace:             structs.DefaultNamespace,
 		ID:                    uuid.Generate(),
 		Name:                  "foo",
@@ -404,16 +404,27 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 		RequestedCapabilities: hostVolCapsReadWrite,
 		State:                 structs.HostVolumeStateReady,
 	}
+	dhv2 := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foobar",
+		NodeID:                nodes[1].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
+	}
 
 	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
-	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {ID: dhv.ID}}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo":    {ID: dhv1.ID},
+		"foobar": {ID: dhv2.ID},
+	}
 
 	for _, node := range nodes {
 		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 	}
-	must.NoError(t, store.UpsertHostVolume(1000, dhv))
+	must.NoError(t, store.UpsertHostVolume(1000, dhv1))
 
-	stickyRequest := map[string]*structs.VolumeRequest{
+	stickyRequests := map[string]*structs.VolumeRequest{
 		"foo": {
 			Type:           "host",
 			Source:         "foo",
@@ -421,18 +432,30 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		},
+		"foobar": {
+			Type:           "host",
+			Source:         "foobar",
+			Sticky:         true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
 	}
 	stickyJob := mock.Job()
-	stickyJob.TaskGroups[0].Volumes = stickyRequest
+	stickyJob.TaskGroups[0].Volumes = stickyRequests
 
-	existingClaim := &structs.TaskGroupVolumeClaim{
-		Namespace:     structs.DefaultNamespace,
-		JobID:         stickyJob.ID,
-		TaskGroupName: stickyJob.TaskGroups[0].Name,
-		VolumeID:      dhv.ID,
-		VolumeName:    dhv.Name,
+	existingClaims := []*structs.TaskGroupVolumeClaim{
+		{
+			Namespace:     structs.DefaultNamespace,
+			JobID:         stickyJob.ID,
+			TaskGroupName: stickyJob.TaskGroups[0].Name,
+			VolumeID:      dhv1.ID,
+			VolumeName:    dhv1.Name,
+		},
 	}
-	must.NoError(t, store.UpsertTaskGroupVolumeClaim(1000, existingClaim))
+
+	for _, claim := range existingClaims {
+		must.NoError(t, store.UpsertTaskGroupVolumeClaim(1000, claim))
+	}
 
 	checker := NewHostVolumeChecker(ctx)
 
@@ -443,25 +466,25 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 		expect bool
 	}{
 		{
-			"asking for a sticky volume on an infeasible node",
+			"requesting a sticky volume on an infeasible node",
 			nodes[0],
 			stickyJob,
 			false,
 		},
 		{
-			"asking for a sticky volume on a feasible node, existing claim",
+			"requesting a sticky volume on a feasible node, existing claim",
 			nodes[1],
 			stickyJob,
 			true,
 		},
 		{
-			"asking for a sticky volume on a feasible node, new claim",
+			"requesting a sticky volume on a feasible node, new claim",
 			nodes[1],
 			mock.Job(),
 			true,
 		},
 		{
-			"asking for a sticky volume on a feasible node, but there is an existing claim for another vol ID on a different node",
+			"requesting a sticky volume on a feasible node, but there is an existing claim for another vol ID on a different node",
 			nodes[0],
 			stickyJob,
 			false,
@@ -470,7 +493,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			checker.SetVolumes(mock.Alloc().Name, structs.DefaultNamespace, tc.job.ID, tc.job.TaskGroups[0].Name, stickyRequest)
+			checker.SetVolumes(mock.Alloc().Name, structs.DefaultNamespace, tc.job.ID, tc.job.TaskGroups[0].Name, stickyRequests)
 			actual := checker.Feasible(tc.node)
 			must.Eq(t, tc.expect, actual)
 		})
