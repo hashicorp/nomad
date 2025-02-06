@@ -133,10 +133,10 @@ const (
 	NamespaceDeleteRequestType                   MessageType = 65
 
 	// MessageTypes 66-74 are in Nomad Enterprise
-	HostVolumeRegisterRequestType           MessageType = 75
-	HostVolumeDeleteRequestType             MessageType = 76
-	TaskGroupVolumeClaimRegisterRequestType MessageType = 77
-	TaskGroupVolumeClaimDeleteRequestType   MessageType = 78
+	HostVolumeRegisterRequestType               MessageType = 75
+	HostVolumeDeleteRequestType                 MessageType = 76
+	TaskGroupHostVolumeClaimRegisterRequestType MessageType = 77
+	TaskGroupHostVolumeClaimDeleteRequestType   MessageType = 78
 
 	// NOTE: MessageTypes are shared between CE and ENT. If you need to add a
 	// new type, check that ENT is not already using that value.
@@ -7776,10 +7776,10 @@ func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
 	tg.Constraints = newConstraints
 }
 
-// TaskGroupVolumeClaim associates a task group with a host volume ID. It's
+// TaskGroupHostVolumeClaim associates a task group with a host volume ID. It's
 // used for stateful deployments, i.e., volume requests with "sticky" set to
 // true.
-type TaskGroupVolumeClaim struct {
+type TaskGroupHostVolumeClaim struct {
 	ID            string
 	Namespace     string
 	JobID         string
@@ -7794,7 +7794,7 @@ type TaskGroupVolumeClaim struct {
 }
 
 // ClaimedByAlloc checks if there's a match between allocation ID and volume ID
-func (tgvc *TaskGroupVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupVolumeClaim) bool {
+func (tgvc *TaskGroupHostVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupHostVolumeClaim) bool {
 	if tgvc == nil || otherClaim == nil {
 		return tgvc == otherClaim
 	}

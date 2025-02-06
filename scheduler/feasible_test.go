@@ -443,7 +443,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	stickyJob := mock.Job()
 	stickyJob.TaskGroups[0].Volumes = stickyRequests
 
-	existingClaims := []*structs.TaskGroupVolumeClaim{
+	existingClaims := []*structs.TaskGroupHostVolumeClaim{
 		{
 			Namespace:     structs.DefaultNamespace,
 			JobID:         stickyJob.ID,
@@ -454,7 +454,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	}
 
 	for _, claim := range existingClaims {
-		must.NoError(t, store.UpsertTaskGroupVolumeClaim(1000, claim))
+		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(1000, claim))
 	}
 
 	checker := NewHostVolumeChecker(ctx)

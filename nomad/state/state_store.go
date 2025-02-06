@@ -2027,7 +2027,7 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	}
 
 	// Delete task group volume claims
-	if err = s.deleteTaskGroupVolumeClaim(index, txn, namespace, jobID); err != nil {
+	if err = s.deleteTaskGroupHostVolumeClaim(index, txn, namespace, jobID); err != nil {
 		return fmt.Errorf("deleting job volume claims failed: %v", err)
 	}
 
@@ -4140,7 +4140,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 					if !v.Sticky {
 						continue
 					}
-					sv := &structs.TaskGroupVolumeClaim{
+					sv := &structs.TaskGroupHostVolumeClaim{
 						Namespace:     alloc.Namespace,
 						JobID:         alloc.JobID,
 						TaskGroupName: tg.Name,
@@ -4173,7 +4173,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 							continue
 						}
 
-						if err := s.upsertTaskGroupVolumeClaimImpl(index, sv, txn); err != nil {
+						if err := s.upsertTaskGroupHostVolumeClaimImpl(index, sv, txn); err != nil {
 							return err
 						}
 					}

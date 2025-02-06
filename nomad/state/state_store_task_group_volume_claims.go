@@ -10,35 +10,35 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *StateStore) UpsertTaskGroupVolumeClaim(index uint64, claim *structs.TaskGroupVolumeClaim) error {
+func (s *StateStore) UpsertTaskGroupHostVolumeClaim(index uint64, claim *structs.TaskGroupHostVolumeClaim) error {
 	// Grab a write transaction.
-	txn := s.db.WriteTxnMsgT(structs.TaskGroupVolumeClaimRegisterRequestType, index)
+	txn := s.db.WriteTxnMsgT(structs.TaskGroupHostVolumeClaimRegisterRequestType, index)
 	defer txn.Abort()
-	if err := s.upsertTaskGroupVolumeClaimImpl(index, claim, txn); err != nil {
+	if err := s.upsertTaskGroupHostVolumeClaimImpl(index, claim, txn); err != nil {
 		return err
 	}
 
 	// Perform the index table update to mark the new insert.
-	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupVolumeClaim, index}); err != nil {
+	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupHostVolumeClaim, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
 	return txn.Commit()
 }
 
-// upsertTaskGroupVolumeClaimImpl is used to insert a task group volume claim into
+// upsertTaskGroupHostVolumeClaimImpl is used to insert a task group volume claim into
 // the state store.
-func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
-	index uint64, claim *structs.TaskGroupVolumeClaim, txn *txn) error {
+func (s *StateStore) upsertTaskGroupHostVolumeClaimImpl(
+	index uint64, claim *structs.TaskGroupHostVolumeClaim, txn *txn) error {
 
-	existingRaw, err := txn.First(TableTaskGroupVolumeClaim, indexID, claim.Namespace, claim.JobID, claim.TaskGroupName, claim.VolumeID)
+	existingRaw, err := txn.First(TableTaskGroupHostVolumeClaim, indexID, claim.Namespace, claim.JobID, claim.TaskGroupName, claim.VolumeID)
 	if err != nil {
 		return fmt.Errorf("Task group volume association lookup failed: %v", err)
 	}
 
-	var existing *structs.TaskGroupVolumeClaim
+	var existing *structs.TaskGroupHostVolumeClaim
 	if existingRaw != nil {
-		existing = existingRaw.(*structs.TaskGroupVolumeClaim)
+		existing = existingRaw.(*structs.TaskGroupHostVolumeClaim)
 	}
 
 	if existing != nil {
@@ -55,12 +55,12 @@ func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 	}
 
 	// Insert the claim into the table.
-	if err := txn.Insert(TableTaskGroupVolumeClaim, claim); err != nil {
+	if err := txn.Insert(TableTaskGroupHostVolumeClaim, claim); err != nil {
 		return fmt.Errorf("Task group volume claim insert failed: %v", err)
 	}
 
 	// Perform the index table update to mark the new insert.
-	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupVolumeClaim, index}); err != nil {
+	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupHostVolumeClaim, index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
 
@@ -69,27 +69,27 @@ func (s *StateStore) upsertTaskGroupVolumeClaimImpl(
 
 // GetTaskGroupVolumeClaim returns a volume claim that matches the namespace,
 // job id and task group name (there can be only one)
-func (s *StateStore) GetTaskGroupVolumeClaim(ws memdb.WatchSet, namespace, jobID, taskGroupName, volumeID string) (*structs.TaskGroupVolumeClaim, error) {
+func (s *StateStore) GetTaskGroupVolumeClaim(ws memdb.WatchSet, namespace, jobID, taskGroupName, volumeID string) (*structs.TaskGroupHostVolumeClaim, error) {
 	txn := s.db.ReadTxn()
 
-	watchCh, existing, err := txn.FirstWatch(TableTaskGroupVolumeClaim, indexID, namespace, jobID, taskGroupName, volumeID)
+	watchCh, existing, err := txn.FirstWatch(TableTaskGroupHostVolumeClaim, indexID, namespace, jobID, taskGroupName, volumeID)
 	if err != nil {
 		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
 	}
 	ws.Add(watchCh)
 
 	if existing != nil {
-		return existing.(*structs.TaskGroupVolumeClaim), nil
+		return existing.(*structs.TaskGroupHostVolumeClaim), nil
 	}
 
 	return nil, nil
 }
 
 // GetTaskGroupVolumeClaims returns all volume claims
-func (s *StateStore) GetTaskGroupVolumeClaims(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) GetTaskGroupHostVolumeClaims(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableTaskGroupVolumeClaim, indexID)
+	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
 	if err != nil {
 		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
 	}
@@ -98,17 +98,17 @@ func (s *StateStore) GetTaskGroupVolumeClaims(ws memdb.WatchSet) (memdb.ResultIt
 	return iter, nil
 }
 
-// deleteTaskGroupVolumeClaim deletes all claims for a given namespace and job ID
-func (s *StateStore) deleteTaskGroupVolumeClaim(index uint64, txn *txn, namespace, jobID string) error {
-	iter, err := txn.Get(TableTaskGroupVolumeClaim, indexID)
+// deleteTaskGroupHostVolumeClaim deletes all claims for a given namespace and job ID
+func (s *StateStore) deleteTaskGroupHostVolumeClaim(index uint64, txn *txn, namespace, jobID string) error {
+	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
 	if err != nil {
 		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
 	}
 
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		claim := raw.(*structs.TaskGroupVolumeClaim)
+		claim := raw.(*structs.TaskGroupHostVolumeClaim)
 		if claim.JobID == jobID && claim.Namespace == namespace {
-			if err := txn.Delete(TableTaskGroupVolumeClaim, claim); err != nil {
+			if err := txn.Delete(TableTaskGroupHostVolumeClaim, claim); err != nil {
 				return fmt.Errorf("Task group volume claim deletion failed: %v", err)
 			}
 		}

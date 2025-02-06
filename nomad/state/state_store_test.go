@@ -6475,14 +6475,14 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	stickyJob := mock.Job()
 	stickyJob.TaskGroups[0].Volumes = stickyRequest
 
-	existingClaim := &structs.TaskGroupVolumeClaim{
+	existingClaim := &structs.TaskGroupHostVolumeClaim{
 		Namespace:     structs.DefaultNamespace,
 		JobID:         stickyJob.ID,
 		TaskGroupName: stickyJob.TaskGroups[0].Name,
 		VolumeID:      dhv.ID,
 		VolumeName:    dhv.Name,
 	}
-	must.NoError(t, store.UpsertTaskGroupVolumeClaim(1000, existingClaim))
+	must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(1000, existingClaim))
 
 	allocWithClaimedVol := mock.AllocForNode(nodes[1])
 	allocWithClaimedVol.Namespace = structs.DefaultNamespace
@@ -6493,18 +6493,18 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocWithClaimedVol}))
 
 	// there must be exactly one claim in the state
-	claims := []*structs.TaskGroupVolumeClaim{}
-	iter, err := store.GetTaskGroupVolumeClaims(nil)
+	claims := []*structs.TaskGroupHostVolumeClaim{}
+	iter, err := store.GetTaskGroupHostVolumeClaims(nil)
 	must.Nil(t, err)
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		claim := raw.(*structs.TaskGroupVolumeClaim)
+		claim := raw.(*structs.TaskGroupHostVolumeClaim)
 		claims = append(claims, claim)
 	}
 	must.Len(t, 1, claims)
 
 	// clean up the state
 	txn := store.db.WriteTxn(1000)
-	_, err = txn.DeletePrefix(TableTaskGroupVolumeClaim, "id_prefix", stickyJob.ID)
+	_, err = txn.DeletePrefix(TableTaskGroupHostVolumeClaim, "id_prefix", stickyJob.ID)
 	must.Nil(t, err)
 	must.NoError(t, store.deleteAllocsForJobTxn(txn, 1000, structs.DefaultNamespace, stickyJob.ID))
 	txn.Abort()
@@ -6523,7 +6523,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	// make sure we recorded a claim
 	claim, err := store.GetTaskGroupVolumeClaim(nil, structs.DefaultNamespace, stickyJob2.ID, stickyJob2.TaskGroups[0].Name, dhv.ID)
 	must.NoError(t, err)
-	must.Eq(t, claim, &structs.TaskGroupVolumeClaim{
+	must.Eq(t, claim, &structs.TaskGroupHostVolumeClaim{
 		Namespace:     structs.DefaultNamespace,
 		JobID:         stickyJob2.ID,
 		TaskGroupName: stickyJob2.TaskGroups[0].Name,

@@ -142,24 +142,24 @@ type HostVolumeChecker struct {
 	namespace     string
 	jobID         string
 	taskGroupName string
-	claims        []*structs.TaskGroupVolumeClaim
+	claims        []*structs.TaskGroupHostVolumeClaim
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 	hostVolumeChecker := &HostVolumeChecker{
 		ctx:        ctx,
-		claims:     []*structs.TaskGroupVolumeClaim{},
+		claims:     []*structs.TaskGroupHostVolumeClaim{},
 		volumeReqs: []*structs.VolumeRequest{},
 	}
 
-	storedClaims, err := ctx.State().GetTaskGroupVolumeClaims(nil)
+	storedClaims, err := ctx.State().GetTaskGroupHostVolumeClaims(nil)
 	if err != nil {
 		return hostVolumeChecker
 	}
 
 	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
-		claim := raw.(*structs.TaskGroupVolumeClaim)
+		claim := raw.(*structs.TaskGroupHostVolumeClaim)
 		hostVolumeChecker.claims = append(hostVolumeChecker.claims, claim)
 	}
 	return hostVolumeChecker

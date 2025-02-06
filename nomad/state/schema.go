@@ -15,21 +15,21 @@ import (
 const (
 	tableIndex = "index"
 
-	TableNamespaces           = "namespaces"
-	TableNodePools            = "node_pools"
-	TableServiceRegistrations = "service_registrations"
-	TableVariables            = "variables"
-	TableVariablesQuotas      = "variables_quota"
-	TableRootKeys             = "root_keys"
-	TableACLRoles             = "acl_roles"
-	TableACLAuthMethods       = "acl_auth_methods"
-	TableACLBindingRules      = "acl_binding_rules"
-	TableAllocs               = "allocs"
-	TableJobSubmission        = "job_submission"
-	TableHostVolumes          = "host_volumes"
-	TableCSIVolumes           = "csi_volumes"
-	TableCSIPlugins           = "csi_plugins"
-	TableTaskGroupVolumeClaim = "task_volume"
+	TableNamespaces               = "namespaces"
+	TableNodePools                = "node_pools"
+	TableServiceRegistrations     = "service_registrations"
+	TableVariables                = "variables"
+	TableVariablesQuotas          = "variables_quota"
+	TableRootKeys                 = "root_keys"
+	TableACLRoles                 = "acl_roles"
+	TableACLAuthMethods           = "acl_auth_methods"
+	TableACLBindingRules          = "acl_binding_rules"
+	TableAllocs                   = "allocs"
+	TableJobSubmission            = "job_submission"
+	TableHostVolumes              = "host_volumes"
+	TableCSIVolumes               = "csi_volumes"
+	TableCSIPlugins               = "csi_plugins"
+	TableTaskGroupHostVolumeClaim = "task_volume"
 )
 
 const (
@@ -103,7 +103,7 @@ func init() {
 		aclAuthMethodsTableSchema,
 		bindingRulesTableSchema,
 		hostVolumeTableSchema,
-		taskVolumeClaimSchema,
+		taskGroupHostVolumeClaimSchema,
 	}...)
 }
 
@@ -1709,9 +1709,9 @@ func hostVolumeTableSchema() *memdb.TableSchema {
 	}
 }
 
-func taskVolumeClaimSchema() *memdb.TableSchema {
+func taskGroupHostVolumeClaimSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
-		Name: TableTaskGroupVolumeClaim,
+		Name: TableTaskGroupHostVolumeClaim,
 		Indexes: map[string]*memdb.IndexSchema{
 			indexID: {
 				Name:         indexID,
