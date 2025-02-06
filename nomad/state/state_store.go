@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -4141,6 +4142,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 						continue
 					}
 					sv := &structs.TaskGroupHostVolumeClaim{
+						ID:            uuid.Generate(),
 						Namespace:     alloc.Namespace,
 						JobID:         alloc.JobID,
 						TaskGroupName: tg.Name,

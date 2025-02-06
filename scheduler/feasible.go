@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -182,7 +183,6 @@ func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName strin
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
 			h.volumeReqs = append(h.volumeReqs, copied)
-
 		} else {
 			h.volumeReqs = append(h.volumeReqs, req)
 		}
@@ -241,11 +241,22 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 					return true
 				}
 
+				claimed := []string{}
 				for _, c := range h.claims {
 					if c.VolumeID == vol.ID {
+						// keep track of claims that we "used"
+						claimed = append(claimed, c.ID)
 						return true
 					}
 				}
+
+				// if we have a match for a volume claim, delete this claim
+				// from the claims list in the feasibility checker. This is
+				// needed for situations when jobs get scaled up and new
+				// allocations need to be placed on the same node.
+				h.claims = slices.DeleteFunc(h.claims, func(c *structs.TaskGroupHostVolumeClaim) bool {
+					return slices.Contains(claimed, c.ID)
+				})
 			}
 
 		} else if !req.ReadOnly {
