@@ -70,6 +70,5 @@ var msgTypeNames = map[structs.MessageType]string{
 	structs.NamespaceDeleteRequestType:                   "NamespaceDeleteRequestType",
 	structs.HostVolumeRegisterRequestType:                "HostVolumeRegisterRequestType",
 	structs.HostVolumeDeleteRequestType:                  "HostVolumeDeleteRequestType",
-	structs.TaskGroupHostVolumeClaimRegisterRequestType:  "TaskGroupHostVolumeClaimRegisterRequestType",
 	structs.TaskGroupHostVolumeClaimDeleteRequestType:    "TaskGroupHostVolumeClaimDeleteRequestType",
 }
