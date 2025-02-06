@@ -73,6 +73,14 @@ jobs:
         if: steps.ember_exam.outcome == 'failure'
         run: |
           echo "Tests failed in ember-exam for partition ${{ matrix.partition }}"
+          echo "Failed tests:"
+          node -e "
+            const results = JSON.parse(require('fs').readFileSync('test-results/test-results.json'));
+            results.tests.filter(t => !t.passed).forEach(test => {
+              console.error('\n❌ ' + test.name);
+              if (test.error) console.error(test.error);
+            });
+          "
           exit 1
       - name: Upload partition test results
         if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
