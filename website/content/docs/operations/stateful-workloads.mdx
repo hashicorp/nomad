@@ -2,7 +2,7 @@
 layout: docs
 page_title: Considerations for Stateful Workloads
 description: |-
-  Learn about persistent storage options for stateful workloads on Nomad.
+  Learn about persistent storage options for stateful workloads on Nomad. Compare AWS, Azure, and Google Cloud Platform (GCP) storage services. Review the advantages and disadvantages of using Container Storage Interface (CSI) volumes, dynamic host volumes, static host volumes, and ephemeral disks.
 ---
 
 # Considerations for Stateful Workloads
@@ -141,7 +141,7 @@ NFS/CIFS volume from a NAS or a public cloud service such as AWS EFS. Therefore
 you can use host volumes for both local somewhat persistent storage and for
 highly persistent networked storage.
 
-Host volumes may be dynamic or static. Provision dynamic host volumes 
+Host volumes may be dynamic or static. Provision dynamic host volumes
 with the [`volume create`](/nomad/docs/commands/volume/create) command or
 API. [ACL policies](/nomad/docs/other-specifications/acl-policy#namespace-rules)
 allow delegation of control for storage within a namespace to Nomad

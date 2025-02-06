@@ -1,10 +1,20 @@
 ---
 layout: docs
-page_title: CSI Plugins
-description: Learn how Nomad manages CSI plugins.
+page_title: Container Storage Interface (CSI) Plugins
+description: |-
+  Nomad's Container Storage Interface (CSI) plugin support enables scheduling tasks with external storage volumes that conform to the CSI specification, including AWS Elastic Block Storage (EBS) volumes, Google Cloud Platform (GCP) persistent disks, Ceph, and Portworx. Learn about controller, node, and monolith storage plugins, as well as storage volume lifecycle and state.
 ---
 
-# CSI plugins
+# Container Storage Interface (CSI) Plugins
+
+This page provides conceptual information on Nomad's storage plugin support,
+which enables scheduling tasks with external storage volumes that conform to the
+Container Storage Interface (CSI), including AWS Elastic Block Storage (EBS)
+volumes, Google Cloud Platform (GCP) persistent disks, Ceph, and Portworx. Learn
+about controller, node, and monolith storage plugins, as well as storage volume
+lifecycle and state.
+
+## Introduction
 
 Every storage vendor has its own APIs and workflows, and the industry-standard
 [Container Storage Interface][csi-spec] specification unifies these APIs in a
