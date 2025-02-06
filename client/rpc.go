@@ -91,7 +91,9 @@ func (c *Client) rpc(method string, args any, reply any) error {
 
 	// If its a blocking query, allow the time specified by the request
 	if info, ok := args.(structs.RPCInfo); ok {
-		deadline = deadline.Add(info.TimeToBlock())
+		oldBlockTime := info.TimeToBlock()
+		deadline = deadline.Add(oldBlockTime)
+		defer info.SetTimeToBlock(oldBlockTime)
 	}
 
 TRY:
@@ -134,8 +136,6 @@ TRY:
 		// dies at t=7s we still want to retry so before we give up on blocking
 		// queries make one last attempt for an immediate answer
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
-			oldBlockTime := info.TimeToBlock()
-			defer info.SetTimeToBlock(oldBlockTime)
 			info.SetTimeToBlock(0)
 			return c.RPC(method, args, reply)
 		}
@@ -159,8 +159,6 @@ TRY:
 			if newBlockTime < 0 {
 				newBlockTime = 0
 			}
-			oldBlockTime := info.TimeToBlock()
-			defer info.SetTimeToBlock(oldBlockTime)
 			info.SetTimeToBlock(newBlockTime)
 			return c.RPC(method, args, reply)
 		}
