@@ -34,33 +34,21 @@ Nomad includes two built-in OIDC login flows: the Nomad UI, and the CLI using
 ### Redirect URIs
 
 Properly setting redirect URIs is an important part of OIDC auth method
-configuration. You must configure this in both Nomad and the OIDC
+configuration. You must configure these in both Nomad and the OIDC
 provider, and these configurations must align.
 
 Specify the redirect URIs for an auth method with the
-`AllowedRedirectURIs` parameter. The Nomad UI and CLI use different
-redirect URIs, so you need to configure one or both, depending on your
-installation.
+`AllowedRedirectURIs` parameter in the auth method config. The Nomad UI
+and CLI use different redirect URIs, so you need to configure one or both,
+depending on your installation.
 
-#### Nomad UI
+**Note:** Redirect URI is used interchangebly with callback address.
 
-Logging in with the Nomad UI requires a redirect URI in one of the following forms:
+Logging in via the UI requires the redirect URI
+`http://{host:port}/ui/settings/tokens`.
 
-- `http://localhost:4649/ui/oidc/callback`
-- `https://{host:port}/ui/oidc/callback`
-
-The "host:port" must be correct for the Nomad agent serving the Nomad UI.
-
-#### CLI
-
-If you plan to support authentication that uses the
-`nomad login -method=<name>` command, you must configure a
-localhost redirect URI, which is usually
-`http://localhost:4649/oidc/callback`. Logins that use the CLI may
-specify a different host and listening port if needed. A URI with
-this host and port must match one of the configured redirected
-URIs. You must add these same "localhost" URIs to the provider
-as well.
+Logging in via the CLI requires the redirect
+URI `http://{host:port}/oidc/callback`.
 
 ### OIDC Login
 
@@ -73,9 +61,10 @@ as well.
 #### CLI
 
 Execute the `nomad login -method=oidc` command to log in.
+If the `-oidc-callback-addr` flag is not specified, it will default to `localhost:4649`.
 
 ```shell-session
-$ nomad login -method=oidc
+$ nomad login -method=oidc -oidc-callback-addr=<host:port>
 
 Complete the login via your OIDC provider. Launching browser to:
 
@@ -85,14 +74,6 @@ Complete the login via your OIDC provider. Launching browser to:
 Your browser opens to the generated URL to complete the provider's login.
 Enter the URL manually if the browser does not automatically open.
 
-The callback listener defaults to `localhost:4649`. You may optionally
-pass a host and port to the callback listener with the
-`-oidc-callback-addr=<host:port>` flag. In this example, you specify custom host and port.
-
-```shell-session
-$ nomad login -method=oidc -oidc-callback-addr=https://custom.host:9080
-```
-
 ## OIDC Configuration Troubleshooting
 
 The amount of configuration required for OIDC is relatively small, but it can
@@ -101,7 +82,7 @@ be tricky to debug why things aren't working. The following are tips for setting
 - Monitor the log output for the Nomad servers for important
 information about OIDC validation failures.
 
-- Ensure correct redirect URIs in Nmad and on the provider. URIs
+- Ensure correct redirect URIs in Nomad and on the provider. URIs
 need to match exactly. Check http/https, 127.0.0.1/localhost,
 port numbers, and whether trailing slashes are present.
 
@@ -123,7 +104,7 @@ port numbers, and whether trailing slashes are present.
 
       jq --raw-output '.access_token / "." | .[1] | @base64d' jwt.json
 
-- With debug level logging, use the `VerboseLogging` option to log the
+- With debug level logging, use the [VerboseLogging] option to log the
   received OIDC token. This can be helpful when debugging provider setup
   and verifying that the received claims are what you expect. Since claims
   data is logged verbatim and may contain sensitive information,
@@ -133,3 +114,4 @@ port numbers, and whether trailing slashes are present.
 
 [ACL Overview]: /nomad/docs/concepts/acl
 [auth-method create]: /nomad/docs/commands/acl/auth-method/create
+[VerboseLogging]: /nomad/api-docs/acl/auth-methods#verboselogging

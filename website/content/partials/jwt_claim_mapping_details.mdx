@@ -10,9 +10,6 @@ with elements of the form `"<JWT claim>":"<attribute suffix>"`.
 
 Use `ClaimMappings` to map singular values and `ListClaimMappings` to map lists of values.
 
-Nomad can interpolate the singular values mapped by `ClaimMappings` in a binding
-rule, but Nomad cannot interpolate the lists of values mapped by `ListClaimMappings`.
-
 This examples contains `ClaimMappings` and `ListClaimMappings`. The configuration
 instructs Nomad to copy the values in the JWT claims `"givenName"` and `"surname"`
 to attributes named `"value.first_name"` and `"value.last_name"` respectively.
@@ -44,6 +41,8 @@ the ways they may be used in rule bindings:
 | `value.first_name` | Equal, Not Equal, In, Not In, Matches, Not Matches | yes                 |
 | `value.last_name`  | Equal, Not Equal, In, Not In, Matches, Not Matches | yes                 |
 | `list.groups`      | In, Not In, Is Empty, Is Not Empty                 | no                  |
+
+Refer to the [binding-rule] documentation for more examples on using selectors.
 
 ### Claim Specifications and JSON Pointer
 
@@ -77,3 +76,5 @@ Use the following syntax to reference data:
 
 You may use any valid JSON Pointer as a selector. Refer to the [JSON Pointer
 RFC](https://tools.ietf.org/html/rfc6901) for a full description of the syntax.
+
+[binding-rule]: /nomad/docs/commands/acl/binding-rule/create#examples
