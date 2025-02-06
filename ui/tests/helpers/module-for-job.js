@@ -168,7 +168,9 @@ export default function moduleForJob(
           await switchToHistorical(job);
         }
 
-        await percySnapshot(`TODO: TEMP: legend item? ${job.type}`);
+        if (percySnapshot) {
+          await percySnapshot(`TODO: TEMP: legend item? ${job.type}`);
+        }
 
         // explicitly setting allocationStatusDistribution when creating the job that gets passed here
         // is the best way to ensure we don't end up with an unlinkable "queued" allocation status,
@@ -177,7 +179,6 @@ export default function moduleForJob(
           '.legend li.is-clickable:not([data-test-legend-label="queued"]) a'
         );
         console.log(`legend item ${job.type}`, legendItem);
-        await this.pauseTest();
 
         const status = legendItem.parentElement.getAttribute(
           'data-test-legend-label'
