@@ -5530,7 +5530,9 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 		return fmt.Errorf("job summary update failed %w", err)
 	}
 
-	// Update the job version details
+	// Update the job version details. We need to make sure whenever the job summary
+	// is updated, we also update the job's specific version. That way they do not
+	// show different statuses.
 	if err := s.upsertJobVersion(index, updated, txn); err != nil {
 		return err
 	}
@@ -7364,27 +7366,10 @@ func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace stri
 }
 
 func isReschedulable(a *structs.Allocation) bool {
-	if a.ReschedulePolicy() == nil || a.Job.Type != structs.JobTypeService {
+	if a.Job.Type != structs.JobTypeService {
 		return false
 	}
-
-	reschedulePolicy := a.ReschedulePolicy()
-	availableAttempts := reschedulePolicy.Attempts
-	interval := reschedulePolicy.Interval
-	attempted := 0
-	currTime := time.Now()
-
-	// Loop over reschedule tracker to find attempts within the restart policy's interval
-	if a.RescheduleTracker != nil && availableAttempts > 0 && interval > 0 {
-		for j := len(a.RescheduleTracker.Events) - 1; j >= 0; j-- {
-			lastAttempt := a.RescheduleTracker.Events[j].RescheduleTime
-			timeDiff := currTime.UTC().UnixNano() - lastAttempt
-			if timeDiff < interval.Nanoseconds() {
-				attempted += 1
-			}
-		}
-	}
-	return attempted < availableAttempts
+	return a.RescheduleTracker.RescheduleEligible(a.ReschedulePolicy(), time.Now())
 }
 
 // scalingPolicyNamespaceFilter returns a filter function that filters all
