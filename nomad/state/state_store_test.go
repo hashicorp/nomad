@@ -6482,7 +6482,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 		VolumeID:      dhv.ID,
 		VolumeName:    dhv.Name,
 	}
-	must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(1000, existingClaim))
+	must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(structs.MsgTypeTestSetup, 1000, existingClaim))
 
 	allocWithClaimedVol := mock.AllocForNode(nodes[1])
 	allocWithClaimedVol.Namespace = structs.DefaultNamespace
@@ -6507,7 +6507,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	_, err = txn.DeletePrefix(TableTaskGroupHostVolumeClaim, "id_prefix", stickyJob.ID)
 	must.Nil(t, err)
 	must.NoError(t, store.deleteAllocsForJobTxn(txn, 1000, structs.DefaultNamespace, stickyJob.ID))
-	txn.Abort()
+	must.NoError(t, txn.Commit())
 
 	// try to upsert an alloc for which there is no claim
 	stickyJob2 := mock.Job()
@@ -6521,7 +6521,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{allocWithNoClaimedVol}))
 
 	// make sure we recorded a claim
-	claim, err := store.GetTaskGroupVolumeClaim(nil, structs.DefaultNamespace, stickyJob2.ID, stickyJob2.TaskGroups[0].Name, dhv.ID)
+	claim, err := store.GetTaskGroupHostVolumeClaim(nil, structs.DefaultNamespace, stickyJob2.ID, stickyJob2.TaskGroups[0].Name, dhv.ID)
 	must.NoError(t, err)
 	must.Eq(t, claim, &structs.TaskGroupHostVolumeClaim{
 		Namespace:     structs.DefaultNamespace,

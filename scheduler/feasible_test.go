@@ -454,7 +454,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	}
 
 	for _, claim := range existingClaims {
-		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(1000, claim))
+		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(structs.MsgTypeTestSetup, 1000, claim))
 	}
 
 	checker := NewHostVolumeChecker(ctx)

@@ -10,9 +10,11 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-func (s *StateStore) UpsertTaskGroupHostVolumeClaim(index uint64, claim *structs.TaskGroupHostVolumeClaim) error {
+// UpsertTaskGroupHostVolumeClaim is used to upsert claims into the state store.
+// This method is only used in unit tests.
+func (s *StateStore) UpsertTaskGroupHostVolumeClaim(msgType structs.MessageType, index uint64, claim *structs.TaskGroupHostVolumeClaim) error {
 	// Grab a write transaction.
-	txn := s.db.WriteTxnMsgT(structs.TaskGroupHostVolumeClaimRegisterRequestType, index)
+	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 	if err := s.upsertTaskGroupHostVolumeClaimImpl(index, claim, txn); err != nil {
 		return err
@@ -67,9 +69,9 @@ func (s *StateStore) upsertTaskGroupHostVolumeClaimImpl(
 	return nil
 }
 
-// GetTaskGroupVolumeClaim returns a volume claim that matches the namespace,
+// GetTaskGroupHostVolumeClaim returns a volume claim that matches the namespace,
 // job id and task group name (there can be only one)
-func (s *StateStore) GetTaskGroupVolumeClaim(ws memdb.WatchSet, namespace, jobID, taskGroupName, volumeID string) (*structs.TaskGroupHostVolumeClaim, error) {
+func (s *StateStore) GetTaskGroupHostVolumeClaim(ws memdb.WatchSet, namespace, jobID, taskGroupName, volumeID string) (*structs.TaskGroupHostVolumeClaim, error) {
 	txn := s.db.ReadTxn()
 
 	watchCh, existing, err := txn.FirstWatch(TableTaskGroupHostVolumeClaim, indexID, namespace, jobID, taskGroupName, volumeID)
@@ -85,7 +87,7 @@ func (s *StateStore) GetTaskGroupVolumeClaim(ws memdb.WatchSet, namespace, jobID
 	return nil, nil
 }
 
-// GetTaskGroupVolumeClaims returns all volume claims
+// GetTaskGroupHostVolumeClaims returns all volume claims
 func (s *StateStore) GetTaskGroupHostVolumeClaims(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 

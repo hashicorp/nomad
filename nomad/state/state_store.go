@@ -4162,7 +4162,7 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 						sv.VolumeID = v.ID
 
 						// has this volume been claimed already?
-						existingClaim, err := s.GetTaskGroupVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName, v.ID)
+						existingClaim, err := s.GetTaskGroupHostVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName, v.ID)
 						if err != nil {
 							return err
 						}
