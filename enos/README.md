@@ -105,5 +105,5 @@ $ open /tmp/outline.html
 Run the Enos scenario end-to-end:
 
 ```
-$ eno scenario run upgrade --var-file /tmp/enos.vars
+$ eno scenario run upgrade --var-file /tmp/enos.vars --timeout 2h
 ```
