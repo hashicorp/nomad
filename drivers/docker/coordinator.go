@@ -216,6 +216,7 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 		_, err = io.Copy(pm, reader)
 		if err != nil && !errors.Is(err, io.EOF) {
 			d.logger.Error("error reading image pull progress", "error", err)
+			future.set("", "", recoverablePullError(err, imageID))
 			return
 		}
 	}
@@ -420,5 +421,5 @@ func recoverablePullError(err error, image string) error {
 	if imageNotFoundMatcher.MatchString(err.Error()) {
 		recoverable = false
 	}
-	return structs.NewRecoverableError(fmt.Errorf("Failed to pull `%s`: %s", image, err), recoverable)
+	return structs.NewRecoverableError(fmt.Errorf("Failed to pull `%s`: %w", image, err), recoverable)
 }
