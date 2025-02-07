@@ -422,7 +422,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return nil
 	}
 
-	if eval != nil && !submittedEval {
+	if !submittedEval {
 		eval.JobModifyIndex = reply.JobModifyIndex
 		update := &structs.EvalUpdateRequest{
 			Evals:        []*structs.Evaluation{eval},
@@ -658,6 +658,10 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Clear out the VersionTag to prevent tag duplication
 	revJob.VersionTag = nil
+
+	// Set the stable flag to false as this is functionally a new registration
+	// and should handle deployment updates
+	revJob.Stable = false
 
 	reg := &structs.JobRegisterRequest{
 		Job:          revJob,
