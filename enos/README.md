@@ -105,5 +105,9 @@ $ open /tmp/outline.html
 Run the Enos scenario end-to-end:
 
 ```
-$ eno scenario run upgrade --var-file /tmp/enos.vars --timeout 2h
+$ enos scenario run upgrade --var-file /tmp/enos.vars --timeout 2h
 ```
+
+Enos will not clean up after itself automatically if interrupted. If you have to
+interrupt it, you may need to run `enos scenario destroy upgrade --var-file
+/tmp/enos.vars `
