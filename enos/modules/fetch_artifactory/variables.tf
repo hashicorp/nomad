@@ -28,7 +28,12 @@ variable "artifactory_repo" {
 
 variable "edition" {
   type        = string
-  description = "The edition of the binary to search, it can be either \"ce\" or \"ent\""
+  description = "The edition of the binary to search (one of ce or ent)"
+
+  validation {
+    condition     = contains(["ent", "ce"], var.edition)
+    error_message = "must be one of ent or ce"
+  }
 }
 
 variable "os" {
