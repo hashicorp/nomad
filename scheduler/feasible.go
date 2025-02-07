@@ -154,15 +154,6 @@ func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
 		volumeReqs: []*structs.VolumeRequest{},
 	}
 
-	storedClaims, err := ctx.State().GetTaskGroupHostVolumeClaims(nil)
-	if err != nil {
-		return hostVolumeChecker
-	}
-
-	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
-		hostVolumeChecker.claims = append(hostVolumeChecker.claims, claim)
-	}
 	return hostVolumeChecker
 }
 
@@ -172,6 +163,13 @@ func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName strin
 	h.jobID = jobID
 	h.taskGroupName = taskGroupName
 	h.volumeReqs = []*structs.VolumeRequest{}
+
+	storedClaims, _ := h.ctx.State().GetTaskGroupHostVolumeClaimsForTaskGroup(nil, taskGroupName)
+
+	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
+		claim := raw.(*structs.TaskGroupHostVolumeClaim)
+		h.claims = append(h.claims, claim)
+	}
 
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {

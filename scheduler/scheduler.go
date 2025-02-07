@@ -125,8 +125,9 @@ type State interface {
 	// given node
 	HostVolumesByNodeID(memdb.WatchSet, string, state.SortOption) (memdb.ResultIterator, error)
 
-	// GetTaskGroupHostVolumeClaims gets all host volume claims
-	GetTaskGroupHostVolumeClaims(memdb.WatchSet) (memdb.ResultIterator, error)
+	// GetTaskGroupHostVolumeClaimsForTaskGroup gets all host volume claims for
+	// a given task group name
+	GetTaskGroupHostVolumeClaimsForTaskGroup(memdb.WatchSet, string) (memdb.ResultIterator, error)
 
 	// LatestIndex returns the greatest index value for all indexes.
 	LatestIndex() (uint64, error)
