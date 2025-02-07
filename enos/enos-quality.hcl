@@ -18,7 +18,7 @@ quality "nomad_node_eligibility" {
 }
 
 quality "nomad_node_metadata" {
-  description = "A GET call to /v1/node/:node-id returns the same  node.Meta for each server before and after a server upgrade"
+  description = "A GET call to /v1/node/:node-id returns the same  node.Meta for each client before and after a client upgrade"
 }
 
 quality "nomad_job_status" {

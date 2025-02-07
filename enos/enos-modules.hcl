@@ -20,3 +20,7 @@ module "test_cluster_health" {
 module "upgrade_servers" {
   source = "./modules/upgrade_servers"
 }
+
+module "upgrade_clients" {
+  source = "./modules/upgrade_clients"
+}

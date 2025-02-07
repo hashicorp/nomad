@@ -66,7 +66,7 @@ module upgrade_first_server {
   tls                 = local.tls
   nomad_token         = var.nomad_token
   platform            = var.platform
-  server_address      = var.servers[0]
+  instance_address    = var.servers[0]
   ssh_key_path        = var.ssh_key_path
   artifactory_release = local.artifactory
 }
@@ -106,7 +106,7 @@ module upgrade_second_server {
   tls                 = local.tls
   nomad_token         = var.nomad_token
   platform            = var.platform
-  server_address      = var.servers[1]
+  instance_address    = var.servers[1]
   ssh_key_path        = var.ssh_key_path
   artifactory_release = local.artifactory
 }
@@ -146,7 +146,7 @@ module upgrade_third_server {
   tls                 = local.tls
   nomad_token         = var.nomad_token
   platform            = var.platform
-  server_address      = var.servers[2]
+  instance_address    = var.servers[2]
   ssh_key_path        = var.ssh_key_path
   artifactory_release = local.artifactory
 }
