@@ -20,11 +20,6 @@ func (s *StateStore) UpsertTaskGroupHostVolumeClaim(msgType structs.MessageType,
 		return err
 	}
 
-	// Perform the index table update to mark the new insert.
-	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupHostVolumeClaim, index}); err != nil {
-		return fmt.Errorf("index update failed: %v", err)
-	}
-
 	return txn.Commit()
 }
 
@@ -92,6 +87,20 @@ func (s *StateStore) GetTaskGroupHostVolumeClaims(ws memdb.WatchSet) (memdb.Resu
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
+	if err != nil {
+		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// GetTaskGroupHostVolumeClaimsForTaskGroup returns all volume claims for a given
+// task group
+func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet, tg string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexTaskGroup, tg)
 	if err != nil {
 		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
 	}
