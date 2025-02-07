@@ -6494,7 +6494,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 
 	// there must be exactly one claim in the state
 	claims := []*structs.TaskGroupHostVolumeClaim{}
-	iter, err := store.GetTaskGroupHostVolumeClaimsForTaskGroup(nil, stickyJob.TaskGroups[0].Name)
+	iter, err := store.GetTaskGroupHostVolumeClaimsForTaskGroup(nil, structs.DefaultNamespace, stickyJob.ID, stickyJob.TaskGroups[0].Name)
 	must.Nil(t, err)
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		claim := raw.(*structs.TaskGroupHostVolumeClaim)
@@ -6509,7 +6509,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	must.NoError(t, store.deleteAllocsForJobTxn(txn, 1000, structs.DefaultNamespace, stickyJob.ID))
 	must.NoError(t, txn.Commit())
 
-	// try to upsert an alloc for which there is no claim
+	// try to upsert an alloc for which there is no existing claim
 	stickyJob2 := mock.Job()
 	stickyJob2.TaskGroups[0].Volumes = stickyRequest
 	allocWithNoClaimedVol := mock.AllocForNode(nodes[1])

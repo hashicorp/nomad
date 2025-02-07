@@ -444,13 +444,25 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 			VolumeID:      dhv1.ID,
 			VolumeName:    dhv1.Name,
 		},
+		{
+			Namespace:     "foo", // make sure we filter by ns correctly
+			JobID:         stickyJob.ID,
+			TaskGroupName: stickyJob.TaskGroups[0].Name,
+			VolumeID:      dhv1.ID,
+			VolumeName:    dhv1.Name,
+		},
+		{
+			Namespace:     structs.DefaultNamespace,
+			JobID:         "fooooo", // make sure we filter by jobID correctly
+			TaskGroupName: stickyJob.TaskGroups[0].Name,
+			VolumeID:      dhv1.ID,
+			VolumeName:    dhv1.Name,
+		},
 	}
 
 	for _, claim := range existingClaims {
 		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(structs.MsgTypeTestSetup, 1000, claim))
 	}
-
-	checker := NewHostVolumeChecker(ctx)
 
 	cases := []struct {
 		name                             string
@@ -491,6 +503,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			checker := NewHostVolumeChecker(ctx)
 			checker.SetVolumes(mock.Alloc().Name, structs.DefaultNamespace, tc.job.ID, tc.job.TaskGroups[0].Name, stickyRequests)
 			actual := checker.Feasible(tc.node)
 			must.Eq(t, tc.expect, actual)

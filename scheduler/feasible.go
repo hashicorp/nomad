@@ -164,7 +164,7 @@ func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName strin
 	h.taskGroupName = taskGroupName
 	h.volumeReqs = []*structs.VolumeRequest{}
 
-	storedClaims, _ := h.ctx.State().GetTaskGroupHostVolumeClaimsForTaskGroup(nil, taskGroupName)
+	storedClaims, _ := h.ctx.State().GetTaskGroupHostVolumeClaimsForTaskGroup(nil, ns, jobID, taskGroupName)
 
 	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
 		claim := raw.(*structs.TaskGroupHostVolumeClaim)
@@ -233,8 +233,8 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			}
 
 			if req.Sticky {
-				// the node is feasible if there are no claims or if there's an
-				// exact match
+				// the node is feasible if there are no remaining claims to
+				// fulfill or if there's an exact match
 				if len(h.claims) == 0 {
 					return true
 				}

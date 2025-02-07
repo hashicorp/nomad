@@ -97,16 +97,25 @@ func (s *StateStore) GetTaskGroupHostVolumeClaims(ws memdb.WatchSet) (memdb.Resu
 
 // GetTaskGroupHostVolumeClaimsForTaskGroup returns all volume claims for a given
 // task group
-func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet, tg string) (memdb.ResultIterator, error) {
+func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet, ns, jobID, tg string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexTaskGroup, tg)
+	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
 	if err != nil {
 		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
 	}
 	ws.Add(iter.WatchCh())
 
-	return iter, nil
+	// Filter out by ns, jobID and tg
+	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
+		claim, ok := raw.(*structs.TaskGroupHostVolumeClaim)
+		if !ok {
+			return true
+		}
+		return claim.Namespace != ns || claim.JobID != jobID || claim.TaskGroupName != tg
+	})
+
+	return filter, nil
 }
 
 // deleteTaskGroupHostVolumeClaim deletes all claims for a given namespace and job ID
