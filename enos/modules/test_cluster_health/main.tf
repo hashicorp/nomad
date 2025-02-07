@@ -51,3 +51,4 @@ resource "enos_local_exec" "verify_versions" {
   ]
 }
 
+

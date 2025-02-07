@@ -44,6 +44,7 @@ variable "jobs_count" {
 
 variable "alloc_count" {
   description = "Number of allocation that should be running in the cluster"
+  type        = number
 }
 
 variable "clients_version" {
