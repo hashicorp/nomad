@@ -48,19 +48,3 @@ variable "tls" {
   description = "Paths to tls keys and certificates for Nomad CLI"
   default     = null
 }
-
-/* variable "ca_file" {
-  description = "A local file path to a PEM-encoded certificate authority used to verify the remote agent's certificate"
-  type        = string
-}
-
-variable "cert_file" {
-  description = "A local file path to a PEM-encoded certificate provided to the remote agent. If this is specified, key_file or key_pem is also required"
-  type        = string
-}
-
-variable "key_file" {
-  description = "A local file path to a PEM-encoded private key. This is required if cert_file or cert_pem is specified."
-  type        = string
-}
- */

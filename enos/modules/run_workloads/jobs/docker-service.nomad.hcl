@@ -15,7 +15,7 @@ job "service-docker" {
       config {
         image   = "alpine:latest"
         command = "sh"
-        args    = ["-c", "while true; do sleep 300; done"]
+        args    = ["-c", "while true; do sleep 30000; done"]
 
       }
 

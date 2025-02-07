@@ -12,6 +12,11 @@ terraform {
 locals {
   binary_destination = var.platform == "windows" ? "C:/opt/" : "/usr/local/bin/"
   ssh_user           = var.platform == "windows" ? "Administrator" : "ubuntu"
+  ssh_config = {
+    host             = var.server_address
+    private_key_path = var.ssh_key_path
+    user             = local.ssh_user
+  }
 }
 
 resource "enos_bundle_install" "nomad" {
@@ -20,11 +25,7 @@ resource "enos_bundle_install" "nomad" {
   artifactory = var.artifactory_release
 
   transport = {
-    ssh = {
-      host             = var.server_address
-      private_key_path = var.ssh_key_path
-      user             = local.ssh_user
-    }
+    ssh = local.ssh_config
   }
 }
 
@@ -34,11 +35,7 @@ resource "enos_remote_exec" "restart_linux_services" {
 
 
   transport = {
-    ssh = {
-      host             = var.server_address
-      private_key_path = var.ssh_key_path
-      user             = local.ssh_user
-    }
+    ssh = local.ssh_config
   }
 
   inline = [
@@ -51,11 +48,7 @@ resource "enos_remote_exec" "restart_windows_services" {
   depends_on = [enos_bundle_install.nomad]
 
   transport = {
-    ssh = {
-      host             = var.server_address
-      private_key_path = var.ssh_key_path
-      user             = local.ssh_user
-    }
+    ssh = local.ssh_config
   }
 
   inline = [
