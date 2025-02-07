@@ -43,9 +43,14 @@ func newPullFuture() *pullFuture {
 	}
 }
 
-// wait waits till the future has a result
-func (p *pullFuture) wait() *pullFuture {
-	<-p.waitCh
+// wait waits till the future has a result or the context is canceled
+func (p *pullFuture) wait(ctx context.Context) *pullFuture {
+	select {
+	case <-ctx.Done():
+		p.err = fmt.Errorf("wait aborted: %w", ctx.Err())
+	case <-p.waitCh:
+		// all good
+	}
 	return p
 }
 
@@ -80,6 +85,7 @@ func noopLogEventFn(string, map[string]string) {}
 
 // dockerCoordinatorConfig is used to configure the Docker coordinator.
 type dockerCoordinatorConfig struct {
+	// ctx should be the driver context to handle shutdowns
 	ctx context.Context
 
 	// logger is the logger the coordinator should use
@@ -153,10 +159,11 @@ func (d *dockerCoordinator) PullImage(image string, authOptions *registry.AuthCo
 		d.pullFutures[image] = future
 		go d.pullImageImpl(image, authOptions, pullTimeout, pullActivityTimeout, future)
 	}
+	// We unlock while we wait since this can take a while
 	d.imageLock.Unlock()
 
-	// We unlock while we wait since this can take a while
-	id, user, err := future.wait().result()
+	// passing driver context here to stop waiting at driver shutdown
+	id, user, err := future.wait(d.ctx).result()
 
 	d.imageLock.Lock()
 	defer d.imageLock.Unlock()
@@ -182,7 +189,8 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 	defer d.clearPullLogger(imageID)
 	// Parse the repo and tag
 	repo, tag := parseDockerImage(imageID)
-	ctx, cancel := context.WithTimeout(context.Background(), pullTimeout)
+
+	pullCtx, cancel := context.WithTimeout(d.ctx, pullTimeout)
 	defer cancel()
 
 	pm := newImageProgressManager(imageID, cancel, pullActivityTimeout, d.handlePullInactivity,
@@ -196,11 +204,11 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 	}
 
 	pullOptions := image.PullOptions{RegistryAuth: auth.Auth}
-	reader, err := d.client.ImagePull(d.ctx, dockerImageRef(repo, tag), pullOptions)
+	reader, err := d.client.ImagePull(pullCtx, dockerImageRef(repo, tag), pullOptions)
 
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+	if errors.Is(err, context.DeadlineExceeded) {
 		d.logger.Error("timeout pulling container", "image_ref", dockerImageRef(repo, tag))
-		future.set("", "", recoverablePullError(ctx.Err(), imageID))
+		future.set("", "", recoverablePullError(err, imageID))
 		return
 	}
 
