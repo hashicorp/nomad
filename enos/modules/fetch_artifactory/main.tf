@@ -27,7 +27,7 @@ resource "enos_local_exec" "install_binary" {
 
   environment = {
     URL         = data.enos_artifactory_item.nomad.results[0].url
-    BINARY_PATH = var.binary_path
+    BINARY_PATH = var.download_binary_path
     TOKEN       = var.artifactory_token
     LOCAL_ZIP   = local.artifact_zip
   }

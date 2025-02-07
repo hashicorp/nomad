@@ -28,7 +28,7 @@ variable "artifactory_repo" {
 
 variable "edition" {
   type        = string
-  description = "The edition of the binary to search, it can be either CE or ENT"
+  description = "The edition of the binary to search, it can be either \"ce\" or \"ent\""
 }
 
 variable "os" {
@@ -48,13 +48,13 @@ variable "arch" {
   type        = string
 }
 
-variable "binary_path" {
-  description = "The path to donwload and unzip the binary"
-  type        = string
-  default     = "/home/ubuntu/nomad"
-}
-
 variable "download_binary" {
   description = "Used to control if the artifact should be downloaded to the local instance or not"
   default     = true
+}
+
+variable "download_binary_path" {
+  description = "A directory path on the local instance where the artifacts will be installed (requires download_binary is true)"
+  type        = string
+  default     = "/home/ubuntu/nomad"
 }

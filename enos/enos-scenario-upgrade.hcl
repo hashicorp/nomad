@@ -4,7 +4,7 @@
 scenario "upgrade" {
   description = <<-EOF
     The upgrade scenario verifies in-place upgrades between previously released versions of Nomad
-    against another candidate build. 
+    against another candidate build.
     EOF
 
   matrix {
@@ -37,7 +37,7 @@ scenario "upgrade" {
     description = <<-EOF
     Determine which Nomad artifact we want to use for the scenario, depending on the
     'arch', 'edition' and 'os' and bring it from the artifactory to the local instance
-    running enos.   
+    running enos.
     EOF
 
     module = module.build_artifactory
@@ -49,7 +49,7 @@ scenario "upgrade" {
       edition              = matrix.edition
       product_version      = var.product_version
       os                   = matrix.os
-      binary_path          = "${var.nomad_local_binary}/${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
+      download_binary_path = "${var.download_binary_path}/${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
     }
   }
 
@@ -101,7 +101,7 @@ scenario "upgrade" {
     depends_on = [step.run_initial_workloads]
 
     description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, 
+    Verify the health of the cluster by checking the status of all servers, nodes,
     jobs and allocs and stopping random allocs to check for correct reschedules"
     EOF
 
@@ -158,11 +158,11 @@ scenario "upgrade" {
     Takes the servers one by one, makes a snapshot, updates the binary with the
     new one previously fetched and restarts the servers.
 
-    Important: The path where the binary will be placed is hardcoded to match 
+    Important: The path where the binary will be placed is hardcoded to match
     what the provision-cluster module does. It can be configurable in the future
     but for now it is:
 
-     * "C:/opt/nomad.exe" for windows 
+     * "C:/opt/nomad.exe" for windows
      * "/usr/local/bin/nomad" for linux
 
     To ensure the servers are upgraded one by one, they use the depends_on meta,
@@ -194,7 +194,7 @@ scenario "upgrade" {
   step "server_upgrade_test_cluster_health" {
     depends_on  = [step.upgrade_servers]
     description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, 
+    Verify the health of the cluster by checking the status of all servers, nodes,
     jobs and allocs and stopping random allocs to check for correct reschedules"
     EOF
 
@@ -242,7 +242,7 @@ scenario "upgrade" {
     ]
 
     variables {
-        cc_update_type = "client"  
+        cc_update_type = "client"
         nomad_upgraded_binary             = step.copy_initial_binary.nomad_local_binary
         // ...
     }
@@ -250,7 +250,7 @@ scenario "upgrade" {
 
   step "run_clients_workloads" {
      // ...
-  } 
+  }
 
   step "client_upgrade_test_cluster_health" {
     depends_on  = [step.run_initial_workloads]
