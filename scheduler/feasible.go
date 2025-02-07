@@ -239,24 +239,20 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 					return true
 				}
 
-				claimed := []string{}
 				for _, c := range h.claims {
 					if c.VolumeID == vol.ID {
-						// keep track of claims that we "used"
-						claimed = append(claimed, c.ID)
+						// if we have a match for a volume claim, delete this
+						// claim from the claims list in the feasibility
+						// checker. This is needed for situations when jobs get
+						// scaled up and new allocations need to be placed on
+						// the same node.
+						h.claims = slices.DeleteFunc(h.claims, func(c *structs.TaskGroupHostVolumeClaim) bool {
+							return c.VolumeID == vol.ID
+						})
 						return true
 					}
 				}
-
-				// if we have a match for a volume claim, delete this claim
-				// from the claims list in the feasibility checker. This is
-				// needed for situations when jobs get scaled up and new
-				// allocations need to be placed on the same node.
-				h.claims = slices.DeleteFunc(h.claims, func(c *structs.TaskGroupHostVolumeClaim) bool {
-					return slices.Contains(claimed, c.ID)
-				})
 			}
-
 		} else if !req.ReadOnly {
 			// this is a static host volume and can only be mounted ReadOnly,
 			// validate that no requests for it are ReadWrite.

@@ -432,13 +432,6 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		},
-		"foobar": {
-			Type:           "host",
-			Source:         "foobar",
-			Sticky:         true,
-			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
-			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
-		},
 	}
 	stickyJob := mock.Job()
 	stickyJob.TaskGroups[0].Volumes = stickyRequests
@@ -460,34 +453,39 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	checker := NewHostVolumeChecker(ctx)
 
 	cases := []struct {
-		name   string
-		node   *structs.Node
-		job    *structs.Job
-		expect bool
+		name                             string
+		node                             *structs.Node
+		job                              *structs.Job
+		expect                           bool
+		expectedClaimsInTheVolumeChecker int
 	}{
 		{
 			"requesting a sticky volume on an infeasible node",
 			nodes[0],
 			stickyJob,
 			false,
+			1,
 		},
 		{
 			"requesting a sticky volume on a feasible node, existing claim",
 			nodes[1],
 			stickyJob,
 			true,
+			0,
 		},
 		{
 			"requesting a sticky volume on a feasible node, new claim",
 			nodes[1],
 			mock.Job(),
 			true,
+			0,
 		},
 		{
 			"requesting a sticky volume on a feasible node, but there is an existing claim for another vol ID on a different node",
 			nodes[0],
 			stickyJob,
 			false,
+			1,
 		},
 	}
 
@@ -496,6 +494,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 			checker.SetVolumes(mock.Alloc().Name, structs.DefaultNamespace, tc.job.ID, tc.job.TaskGroups[0].Name, stickyRequests)
 			actual := checker.Feasible(tc.node)
 			must.Eq(t, tc.expect, actual)
+			must.Eq(t, tc.expectedClaimsInTheVolumeChecker, len(checker.claims))
 		})
 	}
 }
