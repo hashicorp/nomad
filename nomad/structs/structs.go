@@ -133,8 +133,9 @@ const (
 	NamespaceDeleteRequestType                   MessageType = 65
 
 	// MessageTypes 66-74 are in Nomad Enterprise
-	HostVolumeRegisterRequestType MessageType = 75
-	HostVolumeDeleteRequestType   MessageType = 76
+	HostVolumeRegisterRequestType             MessageType = 75
+	HostVolumeDeleteRequestType               MessageType = 76
+	TaskGroupHostVolumeClaimDeleteRequestType MessageType = 77
 
 	// NOTE: MessageTypes are shared between CE and ENT. If you need to add a
 	// new type, check that ENT is not already using that value.
@@ -7774,6 +7775,32 @@ func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
 	tg.Constraints = newConstraints
 }
 
+// TaskGroupHostVolumeClaim associates a task group with a host volume ID. It's
+// used for stateful deployments, i.e., volume requests with "sticky" set to
+// true.
+type TaskGroupHostVolumeClaim struct {
+	ID            string
+	Namespace     string
+	JobID         string
+	TaskGroupName string
+	AllocID       string // used for checks to make sure we don't insert duplicate claims for the same alloc
+
+	VolumeID   string
+	VolumeName string
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ClaimedByAlloc checks if there's a match between allocation ID and volume ID
+func (tgvc *TaskGroupHostVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupHostVolumeClaim) bool {
+	if tgvc == nil || otherClaim == nil {
+		return tgvc == otherClaim
+	}
+
+	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
+}
+
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
@@ -11071,10 +11098,6 @@ type Allocation struct {
 
 	// AllocatedResources is the total resources allocated for the task group.
 	AllocatedResources *AllocatedResources
-
-	// HostVolumeIDs is a list of host volume IDs that this allocation
-	// has claimed.
-	HostVolumeIDs []string
 
 	// Metrics associated with this allocation
 	Metrics *AllocMetric

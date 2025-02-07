@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -2025,6 +2026,12 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	if _, err = txn.DeleteAll("scaling_event", "id", namespace, jobID); err != nil {
 		return fmt.Errorf("deleting job scaling events failed: %v", err)
 	}
+
+	// Delete task group volume claims
+	if err = s.deleteTaskGroupHostVolumeClaim(index, txn, namespace, jobID); err != nil {
+		return fmt.Errorf("deleting job volume claims failed: %v", err)
+	}
+
 	if err := txn.Insert("index", &IndexEntry{"scaling_event", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
@@ -4112,11 +4119,11 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			}
 
 			// Issue https://github.com/hashicorp/nomad/issues/2583 uncovered
-			// the a race between a forced garbage collection and the scheduler
+			// a race between a forced garbage collection and the scheduler
 			// marking an allocation as terminal. The issue is that the
 			// allocation from the scheduler has its job normalized and the FSM
-			// will only denormalize if the allocation is not terminal.  However
-			// if the allocation is garbage collected, that will result in a
+			// will only denormalize if the allocation is not terminal. However
+			// if the allocation is garbage collected, that will result in an
 			// allocation being upserted for the first time without a job
 			// attached. By returning an error here, it will cause the FSM to
 			// error, causing the plan_apply to error and thus causing the
@@ -4124,6 +4131,55 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// should solve this issue.
 			if alloc.Job == nil {
 				return fmt.Errorf("attempting to upsert allocation %q without a job", alloc.ID)
+			}
+
+			// Check if the alloc requires sticky volumes. If yes, find a node
+			// that has the right volume and update the task group volume
+			// claims table
+			for _, tg := range alloc.Job.TaskGroups {
+				for _, v := range tg.Volumes {
+					if !v.Sticky {
+						continue
+					}
+					sv := &structs.TaskGroupHostVolumeClaim{
+						ID:            uuid.Generate(),
+						Namespace:     alloc.Namespace,
+						JobID:         alloc.JobID,
+						TaskGroupName: tg.Name,
+						AllocID:       alloc.ID,
+						VolumeName:    v.Source,
+					}
+
+					allocNode, err := s.NodeByID(nil, alloc.NodeID)
+					if err != nil {
+						return err
+					}
+
+					// since there's no existing claim, find a volume and register a claim
+					for _, v := range allocNode.HostVolumes {
+						if v.Name != sv.VolumeName {
+							continue
+						}
+
+						sv.VolumeID = v.ID
+
+						// has this volume been claimed already?
+						existingClaim, err := s.GetTaskGroupHostVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName, v.ID)
+						if err != nil {
+							return err
+						}
+
+						// if the volume has already been claimed, we don't have to do anything. The
+						// feasibility checker in the scheduler will verify alloc placement.
+						if existingClaim != nil {
+							continue
+						}
+
+						if err := s.upsertTaskGroupHostVolumeClaimImpl(index, sv, txn); err != nil {
+							return err
+						}
+					}
+				}
 			}
 		} else {
 			alloc.CreateIndex = exist.CreateIndex

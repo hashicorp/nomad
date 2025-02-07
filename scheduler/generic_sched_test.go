@@ -298,7 +298,6 @@ func TestServiceSched_JobRegister_StickyHostVolumes(t *testing.T) {
 	// Ensure that the allocations got the host volume ID added
 	for _, p := range planned {
 		must.Eq(t, p.PreviousAllocation, "")
-		must.Eq(t, p.HostVolumeIDs[0], dhv.ID)
 	}
 
 	// Update the job to force a rolling upgrade
@@ -326,11 +325,6 @@ func TestServiceSched_JobRegister_StickyHostVolumes(t *testing.T) {
 		newPlanned = append(newPlanned, allocList...)
 	}
 	must.SliceLen(t, 10, newPlanned)
-
-	// Ensure that the new allocations retain the host volume ID
-	for _, new := range newPlanned {
-		must.Eq(t, new.HostVolumeIDs[0], dhv.ID)
-	}
 }
 
 func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {

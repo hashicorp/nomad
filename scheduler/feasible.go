@@ -140,26 +140,37 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 type HostVolumeChecker struct {
 	ctx           Context
 	volumeReqs    []*structs.VolumeRequest
-	hostVolumeIDs []string
 	namespace     string
+	jobID         string
+	taskGroupName string
+	claims        []*structs.TaskGroupHostVolumeClaim
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
-	return &HostVolumeChecker{
-		ctx:           ctx,
-		volumeReqs:    []*structs.VolumeRequest{},
-		hostVolumeIDs: []string{},
+	hostVolumeChecker := &HostVolumeChecker{
+		ctx:        ctx,
+		claims:     []*structs.TaskGroupHostVolumeClaim{},
+		volumeReqs: []*structs.VolumeRequest{},
 	}
+
+	return hostVolumeChecker
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(
-	allocName, ns string, volumes map[string]*structs.VolumeRequest, allocHostVolumeIDs []string,
-) {
+func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName string, volumes map[string]*structs.VolumeRequest) {
 	h.namespace = ns
+	h.jobID = jobID
+	h.taskGroupName = taskGroupName
 	h.volumeReqs = []*structs.VolumeRequest{}
-	h.hostVolumeIDs = allocHostVolumeIDs
+
+	storedClaims, _ := h.ctx.State().GetTaskGroupHostVolumeClaimsForTaskGroup(nil, ns, jobID, taskGroupName)
+
+	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
+		claim := raw.(*structs.TaskGroupHostVolumeClaim)
+		h.claims = append(h.claims, claim)
+	}
+
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {
 			continue // filter CSI volumes
@@ -170,7 +181,6 @@ func (h *HostVolumeChecker) SetVolumes(
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
 			h.volumeReqs = append(h.volumeReqs, copied)
-
 		} else {
 			h.volumeReqs = append(h.volumeReqs, req)
 		}
@@ -223,13 +233,26 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 			}
 
 			if req.Sticky {
-				if slices.Contains(h.hostVolumeIDs, vol.ID) || len(h.hostVolumeIDs) == 0 {
+				// the node is feasible if there are no remaining claims to
+				// fulfill or if there's an exact match
+				if len(h.claims) == 0 {
 					return true
 				}
 
-				return false
+				for _, c := range h.claims {
+					if c.VolumeID == vol.ID {
+						// if we have a match for a volume claim, delete this
+						// claim from the claims list in the feasibility
+						// checker. This is needed for situations when jobs get
+						// scaled up and new allocations need to be placed on
+						// the same node.
+						h.claims = slices.DeleteFunc(h.claims, func(c *structs.TaskGroupHostVolumeClaim) bool {
+							return c.VolumeID == vol.ID
+						})
+						return true
+					}
+				}
 			}
-
 		} else if !req.ReadOnly {
 			// this is a static host volume and can only be mounted ReadOnly,
 			// validate that no requests for it are ReadWrite.
