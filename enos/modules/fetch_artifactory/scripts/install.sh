@@ -4,7 +4,7 @@
 
 set -xeuo pipefail
 
-wget --header="X-JFrog-Art-Api:$TOKEN" -O "$LOCAL_ZIP" "$URL"
+wget --header="Authorization: Bearer $TOKEN" -O "$LOCAL_ZIP" "$URL"
 
 if [ $? -eq 0 ]; then
     echo "File downloaded successfully: $LOCAL_ZIP"
