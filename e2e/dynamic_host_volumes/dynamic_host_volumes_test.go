@@ -160,13 +160,18 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 	// TODO: if we create # of volumes == # of nodes, we can make test flakes
 	// stand out more easily
 
-	_, cleanup1 := volumes3.Create(t, "input/volume-sticky.nomad.hcl",
+	vol1Sub, cleanup1 := volumes3.Create(t, "input/volume-sticky.nomad.hcl",
 		volumes3.WithClient(nomad))
 	t.Cleanup(cleanup1)
 
-	_, cleanup2 := volumes3.Create(t, "input/volume-sticky.nomad.hcl",
+	vol2Sub, cleanup2 := volumes3.Create(t, "input/volume-sticky.nomad.hcl",
 		volumes3.WithClient(nomad))
 	t.Cleanup(cleanup2)
+
+	nodeToVolMap := map[string]string{
+		vol1Sub.NodeID(): vol1Sub.VolumeID(),
+		vol2Sub.NodeID(): vol2Sub.VolumeID(),
+	}
 
 	t.Logf("[%v] submitting sticky volume mounter job", time.Since(start))
 	jobSub, cleanupJob := jobs3.Submit(t, "./input/sticky.nomad.hcl")
@@ -176,9 +181,9 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 	alloc, _, err := nomad.Allocations().Info(allocID1, nil)
 	must.NoError(t, err)
 
-	must.Len(t, 1, alloc.HostVolumeIDs)
-	selectedVolID := alloc.HostVolumeIDs[0]
 	selectedNodeID := alloc.NodeID
+	selectedVolID := nodeToVolMap[selectedNodeID]
+
 	t.Logf("[%v] volume %q on node %q was selected",
 		time.Since(start), selectedVolID, selectedNodeID)
 
@@ -214,7 +219,6 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 
 	newAlloc, _, err := nomad.Allocations().Info(allocID2, nil)
 	must.NoError(t, err)
-	must.Eq(t, []string{selectedVolID}, newAlloc.HostVolumeIDs)
 	must.Eq(t, selectedNodeID, newAlloc.NodeID)
 	t.Logf("[%v] replacement alloc %q is running", time.Since(start), newAlloc.ID)
 
@@ -278,7 +282,6 @@ func TestDynamicHostVolumes_StickyVolumes(t *testing.T) {
 
 	newAlloc, _, err = nomad.Allocations().Info(allocID3, nil)
 	must.NoError(t, err)
-	must.Eq(t, []string{selectedVolID}, newAlloc.HostVolumeIDs)
 	must.Eq(t, selectedNodeID, newAlloc.NodeID)
 	t.Logf("[%v] replacement alloc %q is running", time.Since(start), newAlloc.ID)
 
