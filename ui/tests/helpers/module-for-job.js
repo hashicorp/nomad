@@ -11,7 +11,6 @@ import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import setPolicy from 'nomad-ui/tests/utils/set-policy';
-import { percySnapshot } from '@percy/ember';
 
 const jobTypesWithStatusPanel = ['service', 'system', 'batch', 'sysbatch'];
 async function switchToHistorical() {
@@ -168,17 +167,12 @@ export default function moduleForJob(
           await switchToHistorical(job);
         }
 
-        if (percySnapshot) {
-          await percySnapshot(`TODO: TEMP: legend item? ${job.type}`);
-        }
-
         // explicitly setting allocationStatusDistribution when creating the job that gets passed here
         // is the best way to ensure we don't end up with an unlinkable "queued" allocation status,
         // but we can be redundant for the sake of future-proofing this here.
         const legendItem = find(
           '.legend li.is-clickable:not([data-test-legend-label="queued"]) a'
         );
-        console.log(`legend item ${job.type}`, legendItem);
 
         const status = legendItem.parentElement.getAttribute(
           'data-test-legend-label'

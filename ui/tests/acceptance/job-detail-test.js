@@ -305,6 +305,9 @@ moduleForJob(
       type: 'service',
       noActiveDeployment: true,
       withPreviousStableVersion: true,
+      allocStatusDistribution: {
+        running: 1,
+      },
     }),
   {
     'the subnav links to deployment': async (job, assert) => {
