@@ -73,7 +73,7 @@ product_version      = "1.8.9"                        # starting version
 upgrade_version      = "1.9.4"                        # version to upgrade to
 download_binary_path = "/home/foo/Downloads/nomad"    # directory on your machine to download binaries
 nomad_license        = "<your Nomad Enterprise license, when running Nomad ENT>"
-consul_license       = "<your Consul Enterprise license, when running Consul ENT>"
+consul_license       = "<your Consul Enterprise license, currently always required>"
 server_count         = 3
 aws_region           = "us-east-1"
 ```
