@@ -16,7 +16,7 @@ variable "artifactory_token" {
 }
 
 variable "product_version" {
-  description = "The version of Nomad we are testing"
+  description = "The version of Nomad we are starting from"
   type        = string
   default     = null
 }
@@ -27,15 +27,11 @@ variable "upgrade_version" {
   default     = null
 }
 
-variable "binary_local_path" {
-  description = "The path to donwload and unzip the binary"
-  type        = string
+variable "download_binary_path" {
+  description = "The path to a local directory where binaries will be downloaded to provision"
 }
 
 # Variables for the provision_cluster module
-variable "nomad_local_binary" {
-  description = "The path to a local binary to provision"
-}
 
 variable "nomad_license" {
   type        = string
@@ -47,11 +43,6 @@ variable "consul_license" {
   type        = string
   description = "If consul_license is set, deploy a license"
   default     = ""
-}
-
-variable "nomad_region" {
-  description = "The AWS region to deploy to."
-  default     = "us-east-1"
 }
 
 variable "server_count" {
