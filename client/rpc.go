@@ -91,7 +91,9 @@ func (c *Client) rpc(method string, args any, reply any) error {
 
 	// If its a blocking query, allow the time specified by the request
 	if info, ok := args.(structs.RPCInfo); ok {
-		deadline = deadline.Add(info.TimeToBlock())
+		oldBlockTime := info.TimeToBlock()
+		deadline = deadline.Add(oldBlockTime)
+		defer info.SetTimeToBlock(oldBlockTime)
 	}
 
 TRY:
@@ -127,9 +129,12 @@ TRY:
 	}
 
 	if time.Now().After(deadline) {
-		// Blocking queries are tricky.  jitters and rpcholdtimes in multiple places can result in our server call taking longer than we wanted it to. For example:
-		// a block time of 5s may easily turn into the server blocking for 10s since it applies its own RPCHoldTime. If the server dies at t=7s we still want to retry
-		// so before we give up on blocking queries make one last attempt for an immediate answer
+		// Blocking queries are tricky.  jitters and rpcholdtimes in multiple
+		// places can result in our server call taking longer than we wanted it
+		// to. For example: a block time of 5s may easily turn into the server
+		// blocking for 10s since it applies its own RPCHoldTime. If the server
+		// dies at t=7s we still want to retry so before we give up on blocking
+		// queries make one last attempt for an immediate answer
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
 			info.SetTimeToBlock(0)
 			return c.RPC(method, args, reply)
@@ -144,10 +149,13 @@ TRY:
 
 	select {
 	case <-timer.C:
-		// If we are going to retry a blocking query we need to update the time to block so it finishes by our deadline.
+		// If we are going to retry a blocking query we need to update the time
+		// to block so it finishes by our deadline.
+
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
 			newBlockTime := time.Until(deadline)
-			// We can get below 0 here on slow computers because we slept for jitter so at least try to get an immediate response
+			// We can get below 0 here on slow computers because we slept for
+			// jitter so at least try to get an immediate response
 			if newBlockTime < 0 {
 				newBlockTime = 0
 			}
