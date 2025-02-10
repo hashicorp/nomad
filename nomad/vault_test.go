@@ -18,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -29,7 +28,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	vapi "github.com/hashicorp/vault/api"
-	vaultconsts "github.com/hashicorp/vault/sdk/helper/consts"
 )
 
 const (
@@ -202,8 +200,8 @@ func TestVaultClient_WithNamespaceSupport(t *testing.T) {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
 
-	require.Equal(testNs, c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
-	require.Equal("", c.clientSys.Headers().Get(vaultconsts.NamespaceHeaderName))
+	require.Equal(testNs, c.client.Headers().Get(structs.VaultNamespaceHeaderName))
+	require.Equal("", c.clientSys.Headers().Get(structs.VaultNamespaceHeaderName))
 	require.NotEqual(c.clientSys, c.client)
 }
 
@@ -227,8 +225,8 @@ func TestVaultClient_WithoutNamespaceSupport(t *testing.T) {
 		t.Fatalf("failed to build vault client: %v", err)
 	}
 
-	require.Equal("", c.client.Headers().Get(vaultconsts.NamespaceHeaderName))
-	require.Equal("", c.clientSys.Headers().Get(vaultconsts.NamespaceHeaderName))
+	require.Equal("", c.client.Headers().Get(structs.VaultNamespaceHeaderName))
+	require.Equal("", c.clientSys.Headers().Get(structs.VaultNamespaceHeaderName))
 	require.Equal(c.clientSys, c.client)
 }
 
@@ -1171,6 +1169,9 @@ func TestVaultClient_CreateToken_Root_Target_Role(t *testing.T) {
 func TestVaultClient_CreateToken_Denylist_Role(t *testing.T) {
 	ci.Parallel(t)
 
+	v := testutil.NewTestVault(t)
+	defer v.Stop()
+
 	// Need to skip if test is 0.6.4
 	version, err := testutil.VaultVersion()
 	if err != nil {
@@ -1180,9 +1181,6 @@ func TestVaultClient_CreateToken_Denylist_Role(t *testing.T) {
 	if strings.Contains(version, "v0.6.4") {
 		t.Skipf("Vault has a regression in v0.6.4 that this test hits")
 	}
-
-	v := testutil.NewTestVault(t)
-	defer v.Stop()
 
 	// Set the configs token in a new test role
 	v.Config.Token = defaultTestVaultDenylistRoleAndToken(v, t, 5)

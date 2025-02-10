@@ -1,0 +1,3 @@
+```release-note:bug
+cni: Fixed a regression where default DNS set by `dockerd` or other task drivers was not respected
+```

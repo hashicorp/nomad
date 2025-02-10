@@ -807,21 +807,27 @@ module('Unit | Ability | variable', function (hooks) {
       this.owner.register('service:token', mockToken);
       this.ability.namespace = 'bar';
 
-      const allPaths = this.ability.allPaths;
+      const allPaths = this.ability.allVariablePathRules;
 
       assert.deepEqual(
         allPaths,
         [
           {
+            capabilities: ['write'],
+            name: 'foo',
+            namespace: 'default',
+          },
+          {
             capabilities: ['read', 'write'],
             name: 'foo',
+            namespace: 'bar',
           },
         ],
         'It should return the exact path match.'
       );
     });
 
-    test('it matches on default if no namespace is selected', function (assert) {
+    test('it matches if no namespace is selected', function (assert) {
       const mockToken = Service.extend({
         aclEnabled: true,
         selfToken: { type: 'client' },
@@ -854,7 +860,7 @@ module('Unit | Ability | variable', function (hooks) {
       this.owner.register('service:token', mockToken);
       this.ability.namespace = undefined;
 
-      const allPaths = this.ability.allPaths;
+      const allPaths = this.ability.allVariablePathRules;
 
       assert.deepEqual(
         allPaths,
@@ -862,9 +868,15 @@ module('Unit | Ability | variable', function (hooks) {
           {
             capabilities: ['write'],
             name: 'foo',
+            namespace: 'default',
+          },
+          {
+            capabilities: ['read', 'write'],
+            name: 'foo',
+            namespace: 'bar',
           },
         ],
-        'It should return the exact path match.'
+        'It should return both matches separated by namespace.'
       );
     });
 
@@ -925,7 +937,7 @@ module('Unit | Ability | variable', function (hooks) {
       this.owner.register('service:token', mockToken);
       this.ability.namespace = 'pablo';
 
-      const allPaths = this.ability.allPaths;
+      const allPaths = this.ability.allVariablePathRules;
 
       assert.deepEqual(
         allPaths,
@@ -933,6 +945,22 @@ module('Unit | Ability | variable', function (hooks) {
           {
             capabilities: ['list'],
             name: '*',
+            namespace: '*',
+          },
+          {
+            capabilities: ['list', 'read', 'destroy', 'create'],
+            name: '*',
+            namespace: 'namespace-1',
+          },
+          {
+            capabilities: ['list', 'read', 'destroy', 'create'],
+            name: 'blue/*',
+            namespace: 'namespace-2',
+          },
+          {
+            capabilities: ['list', 'read', 'create'],
+            name: 'nomad/jobs/*',
+            namespace: 'namespace-2',
           },
         ],
         'It should return the glob matching namespace match.'

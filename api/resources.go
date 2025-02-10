@@ -4,6 +4,7 @@
 package api
 
 import (
+	"slices"
 	"strconv"
 )
 
@@ -17,6 +18,8 @@ type Resources struct {
 	DiskMB      *int               `mapstructure:"disk" hcl:"disk,optional"`
 	Networks    []*NetworkResource `hcl:"network,block"`
 	Devices     []*RequestedDevice `hcl:"device,block"`
+	NUMA        *NUMAResource      `hcl:"numa,block"`
+	SecretsMB   *int               `mapstructure:"secrets" hcl:"secrets,optional"`
 
 	// COMPAT(0.10)
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
@@ -50,6 +53,8 @@ func (r *Resources) Canonicalize() {
 	for _, d := range r.Devices {
 		d.Canonicalize()
 	}
+
+	r.NUMA.Canonicalize()
 }
 
 // DefaultResources is a small resources object that contains the
@@ -97,19 +102,63 @@ func (r *Resources) Merge(other *Resources) {
 	if len(other.Devices) != 0 {
 		r.Devices = other.Devices
 	}
+	if other.NUMA != nil {
+		r.NUMA = other.NUMA.Copy()
+	}
+	if other.SecretsMB != nil {
+		r.SecretsMB = other.SecretsMB
+	}
+}
+
+// NUMAResource contains the NUMA affinity request for scheduling purposes.
+//
+// Applies only to Nomad Enterprise.
+type NUMAResource struct {
+	// Affinity must be one of "none", "prefer", "require".
+	Affinity string `hcl:"affinity,optional"`
+
+	// Devices is the subset of devices requested by the task that must share
+	// the same numa node, along with the tasks reserved cpu cores.
+	Devices []string `hcl:"devices,optional"`
+}
+
+func (n *NUMAResource) Copy() *NUMAResource {
+	if n == nil {
+		return nil
+	}
+	return &NUMAResource{
+		Affinity: n.Affinity,
+		Devices:  slices.Clone(n.Devices),
+	}
+}
+
+func (n *NUMAResource) Canonicalize() {
+	if n == nil {
+		return
+	}
+	if n.Affinity == "" {
+		n.Affinity = "none"
+	}
+	if len(n.Devices) == 0 {
+		n.Devices = nil
+	}
 }
 
 type Port struct {
-	Label       string `hcl:",label"`
-	Value       int    `hcl:"static,optional"`
-	To          int    `hcl:"to,optional"`
-	HostNetwork string `hcl:"host_network,optional"`
+	Label           string `hcl:",label"`
+	Value           int    `hcl:"static,optional"`
+	To              int    `hcl:"to,optional"`
+	HostNetwork     string `hcl:"host_network,optional"`
+	IgnoreCollision bool   `hcl:"ignore_collision,optional"`
 }
 
 type DNSConfig struct {
 	Servers  []string `mapstructure:"servers" hcl:"servers,optional"`
 	Searches []string `mapstructure:"searches" hcl:"searches,optional"`
 	Options  []string `mapstructure:"options" hcl:"options,optional"`
+}
+type CNIConfig struct {
+	Args map[string]string `hcl:"args,optional"`
 }
 
 // NetworkResource is used to describe required network
@@ -128,7 +177,8 @@ type NetworkResource struct {
 	// XXX Deprecated. Please do not use. The field will be removed in Nomad
 	// 0.13 and is only being kept to allow any references to be removed before
 	// then.
-	MBits *int `hcl:"mbits,optional"`
+	MBits *int       `hcl:"mbits,optional"`
+	CNI   *CNIConfig `hcl:"cni,block"`
 }
 
 // COMPAT(0.13)

@@ -19,7 +19,7 @@ type JobRevertCommand struct {
 
 func (c *JobRevertCommand) Help() string {
 	helpText := `
-Usage: nomad job revert [options] <job> <version>
+Usage: nomad job revert [options] <job> <version|tag>
 
   Revert is used to revert a job to a prior version of the job. The available
   versions to revert to can be found using "nomad job history" command.
@@ -29,6 +29,10 @@ Usage: nomad job revert [options] <job> <version>
   run the command with a job prefix instead of the exact job ID. The 'read-job'
   capability is required to monitor the resulting evaluation when -detach is
   not used.
+
+  If the version number is specified, the job will be reverted to the exact
+  version number. If a version tag is specified, the job will be reverted to
+  the version with the given tag.
 
 General Options:
 
@@ -108,7 +112,7 @@ func (c *JobRevertCommand) Run(args []string) int {
 	// Check that we got two args
 	args = flags.Args()
 	if l := len(args); l != 2 {
-		c.Ui.Error("This command takes two arguments: <job> <version>")
+		c.Ui.Error("This command takes two arguments: <job> <version|tag>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -132,15 +136,19 @@ func (c *JobRevertCommand) Run(args []string) int {
 		vaultToken = os.Getenv("VAULT_TOKEN")
 	}
 
-	// Parse the job version
-	revertVersion, ok, err := parseVersion(args[1])
-	if !ok {
-		c.Ui.Error("The job version to revert to must be specified using the -job-version flag")
-		return 1
-	}
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Failed to parse job-version flag: %v", err))
-		return 1
+	// Parse the job version or version tag
+	var revertVersion uint64
+
+	parsedVersion, ok, err := parseVersion(args[1])
+	if ok && err == nil {
+		revertVersion = parsedVersion
+	} else {
+		foundTaggedVersion, _, err := client.Jobs().VersionByTag(args[0], args[1], nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
+			return 1
+		}
+		revertVersion = *foundTaggedVersion.Version
 	}
 
 	// Check if the job exists

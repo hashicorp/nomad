@@ -43,7 +43,7 @@ func (c *OperatorSnapshotStateCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *OperatorSnapshotStateCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return complete.PredictFiles("*.snap")
 }
 
 func (c *OperatorSnapshotStateCommand) Synopsis() string {
@@ -85,7 +85,7 @@ func (c *OperatorSnapshotStateCommand) Run(args []string) int {
 	}
 	defer f.Close()
 
-	state, meta, err := raftutil.RestoreFromArchive(f, filter)
+	_, state, meta, err := raftutil.RestoreFromArchive(f, filter)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to read archive file: %s", err))
 		return 1

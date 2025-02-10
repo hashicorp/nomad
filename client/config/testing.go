@@ -68,8 +68,7 @@ func TestClientConfig(t testing.T) (*Config, func()) {
 	// Helps make sure we are respecting configured parent
 	conf.CgroupParent = "testing.slice"
 
-	conf.VaultConfig.Enabled = pointer.Of(false)
-	conf.VaultConfigs["default"].Enabled = pointer.Of(false)
+	conf.GetDefaultVault().Enabled = pointer.Of(false)
 	conf.DevMode = true
 
 	// Loosen GC threshold

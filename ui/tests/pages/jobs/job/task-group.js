@@ -54,6 +54,8 @@ export default create({
     permissions: text('[data-test-volume-permissions]'),
   }),
 
+  hasMeta: isPresent('[data-test-meta]'),
+
   hasScaleEvents: isPresent('[data-test-scale-events]'),
   scaleEvents: collection(
     '[data-test-scale-events] [data-test-accordion-head]',

@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: nicer comment styles in UI example jobs
+```

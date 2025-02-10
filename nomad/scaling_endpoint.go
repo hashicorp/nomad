@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -45,7 +45,7 @@ func (p *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest, reply *st
 
 	if aclObj, err := p.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil {
+	} else {
 		hasListScalingPolicies := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListScalingPolicies)
 		hasListAndReadJobs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) &&
 			aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
@@ -114,7 +114,7 @@ func (p *Scaling) GetPolicy(args *structs.ScalingPolicySpecificRequest,
 	// Check for list-job permissions
 	if aclObj, err := p.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil {
+	} else {
 		hasReadScalingPolicy := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadScalingPolicy)
 		hasListAndReadJobs := aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityListJobs) &&
 			aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)

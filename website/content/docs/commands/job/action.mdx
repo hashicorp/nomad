@@ -1,0 +1,107 @@
+---
+layout: docs
+page_title: 'Commands: job action'
+description: |
+  The job action command is used to execute predefined actions from a job
+  specification in a running task context
+---
+
+# Command: job action
+
+**Alias: `nomad action`**
+
+The `job action` command allows operators to execute predefined actions declared
+in Nomad job specifications. These actions can be defined at task level and are
+intended for specific operational tasks, such as clearing a cache, or migrating
+a database.
+
+An action may self-terminate upon completion (for example, echoing a string),
+or run for an indeterminate amount of time (for example, watching a blocking
+query). In the latter case, an action can be terminated via escape character
+(such as cmd+c / ctrl+c)
+
+When ACLs are enabled, this command requires a token with the `alloc-exec`,
+`read-job`, and `list-jobs` capabilities for the allocation's namespace. If
+the task driver does not have file system isolation (as with `raw_exec`),
+this command requires the `alloc-node-exec`, `alloc-exec`, `read-job`, and
+`list-jobs` capabilities for the allocation's namespace.
+
+## Usage
+
+```plaintext
+nomad job action [options] <action>
+```
+
+The `job action` command requires an action name and accepts two ways of
+specifying where it should run:
+- by passing the job name and known allocation ID along with the name of the action
+- by passing the job, task group, and task name along with the name of the action
+(when the allocation ID is not known). A random allocation will be selected if
+multiple are available.
+
+The action name provided must be defined within a task in the [job specification]
+provided. With sufficient privileges, an execution context will be opened and
+the defined action command will be run. No further input is possible, save for
+the escape character to terminate execution, so interactive commands are not
+supported.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Action Options
+
+- `-job`: (Required) Specifies the job containing the predefined action.
+
+- `-alloc`: Specifies the allocation within which the action is to be executed.
+  If omitted, `-group` and `-task` must be provided, and a random
+  allocation for the group will be selected.
+
+- `-task`: Specifies the task within the job where the action is defined. This
+  is required either if `-alloc` provided and your group has multiple tasks,
+  or if you specify a `-group`.
+
+- `-group`: Specifies the task group within the job. If present, a random
+  allocation is selected. If omitted, `-alloc` must be provided.
+
+- `-i`: Pass stdin to the action, defaults to `true`. Pass `-i=false` to
+  disable explicitly.
+
+- `-t`: Allocate a pseudo-tty, defaults to `true` if stdin is detected to be a tty
+  session. Pass `-t=false` to disable explicitly.
+
+- `-e` <escape_char>: Sets the escape character for sessions with a pty,
+  defaults to '~'. The escape character is only recognized at the beginning of a
+  line. The escape character followed by a dot (`.`) closes the connection.
+  Setting the character to `none` disables any escapes and makes the session
+  fully transparent.
+
+## Examples
+
+Execute an action within a specific task in a job:
+
+```shell-session
+$ nomad action \
+  -group=my-group \
+  -task=my-task \
+  -job=my-job \
+  weather
+
+Toronto: ☁️   +3°C
+```
+
+Execute an action within a specific allocation:
+
+```shell-session
+$ nomad action \
+  -alloc=f200a789-6da4-504c-d131-6181764f101e \
+  -job=actions-demo \
+  echo-time
+
+Running for 0 seconds
+Running for 1 seconds
+Running for 2 seconds
+Running for 3 seconds
+```
+
+[job specification]: /nomad/docs/job-specification

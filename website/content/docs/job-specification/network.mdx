@@ -75,7 +75,7 @@ All other operating systems use the `host` networking mode.
     currently supported for the `docker`, `exec`, `raw_exec`, and `java` task
     drivers.
   - `host` - Each task will join the host network namespace and a shared network
-    namespace is not created. This matches the current behavior in Nomad 0.9.
+    namespace is not created.
   - `cni/<cni network name>` - Task group will have an isolated network namespace
     with the network configured by CNI.
 
@@ -84,9 +84,13 @@ All other operating systems use the `host` networking mode.
   [mode](#mode) is set to [`bridge`](#bridge). This parameter supports
   [interpolation](/nomad/docs/runtime/interpolation).
 
-- `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS configuration
-  for the allocations. By default all DNS configuration is inherited from the client host.
-  DNS configuration is only supported on Linux clients at this time.
+- `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS
+  configuration for the allocations. By default all task drivers will inherit
+  DNS configuration from the client host. DNS configuration is only supported on
+  Linux clients at this time. Note that if you are using a `mode="cni/*`, these
+  values will override any DNS configuration the CNI plugins return.
+- `cni` <code>([CNIConfig](#cni-parameters): nil)</code> - Sets the custom CNI
+  arguments for a network configuration per allocation, for use with `mode="cni/*`.
 
 ### `port` Parameters
 
@@ -101,6 +105,12 @@ All other operating systems use the `host` networking mode.
 - `host_network` `(string:nil)` - Designates the host network name to use when allocating
   the port. When port mapping the host port will only forward traffic to the matched host
   network address.
+- `ignore_collision` `(bool: false)` - Allows the group to be placed on a node
+  where the port may already be reserved. Intended for programs that support
+  `SO_REUSEPORT` unix socket option, so more than one instance of the program
+  may bind to the same port. Only compatible with [`host`](#host) network mode
+  and `static` ports. Some task drivers (e.g. docker) may also require setting
+  `network_mode = "host"` (or similar) to avoid runtime errors after placement.
 
 The label assigned to the port is used to identify the port in service
 discovery, and used in the name of the environment variable that indicates
@@ -123,6 +133,14 @@ The label of the port is just text - it has no special meaning to Nomad.
 - `servers` `(array<string>: nil)` - Sets the DNS nameservers the allocation uses for name resolution.
 - `searches` `(array<string>: nil)` - Sets the search list for hostname lookup
 - `options` `(array<string>: nil)` - Sets internal resolver variables.
+
+These parameters support [interpolation](/nomad/docs/runtime/interpolation).
+
+## `cni` Parameters
+
+- `args` `(map<string><string>: nil)` - Sets CNI arguments for network configuration.
+   These get turned into `CNI_ARGS` per the
+   [CNI spec](https://www.cni.dev/docs/spec/#parameters).
 
 These parameters support [interpolation](/nomad/docs/runtime/interpolation).
 
@@ -157,10 +175,10 @@ network {
 
 ### Static Ports
 
-This example specifies a static port allocation for the port labeled "lb". Static
-ports bind your job to a specific port on the host they' are placed on. Since
-multiple services cannot share a port, the port must be open in order to place
-your task.
+Static ports place your job on a host where the port is not already reserved
+by another job with the same port.
+
+This example specifies a static port allocation for the port labeled "lb".
 
 ```hcl
 network {
@@ -169,6 +187,9 @@ network {
   }
 }
 ```
+
+For programs that support the `SO_REUSEPORT` unix socket option,
+you may set `ignore_collision = true` to place multiple copies on a single node.
 
 ### Mapped Ports
 
@@ -232,7 +253,7 @@ $ sudo firewall-cmd --zone=trusted --add-interface=nomad
 $ sudo firewall-cmd --zone=trusted --add-interface=nomad --permanent
 ```
 
-It is neccessary to restart the affected jobs afterwards for them to be able to access
+It is necessary to restart the affected jobs afterwards for them to be able to access
 the network. Further details can be found in Docker's documentation under [Docker and iptables](https://docs.docker.com/network/iptables/#integration-with-firewalld).
 
 ### DNS
@@ -291,6 +312,24 @@ network {
 ```
 
 The Nomad client will build the correct [capabilities arguments](https://github.com/containernetworking/cni/blob/v0.8.0/CONVENTIONS.md#well-known-capabilities) for the portmap plugin based on the defined port blocks.
+
+### CNI Args
+
+The following example specifies CNI args for the custom CNI plugin specified above.
+
+```hcl
+network {
+  mode = "cni/mynet"
+  port "http" {
+    to = 8080
+  }
+  cni {
+    args = {
+     "nomad.region" : "${node.region}"
+    }
+  }
+}
+```
 
 ### Host Networks
 

@@ -16,13 +16,12 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestLogmon_Start_rotate(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
 	dir := t.TempDir()
@@ -46,35 +45,35 @@ func TestLogmon_Start_rotate(t *testing.T) {
 	}
 
 	lm := NewLogMon(testlog.HCLogger(t))
-	require.NoError(lm.Start(cfg))
+	must.NoError(t, lm.Start(cfg))
 
 	stdout, err := fifo.OpenWriter(stdoutFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Write enough bytes such that the log is rotated
 	bytes1MB := make([]byte, 1024*1024)
 	_, err = rand.Read(bytes1MB)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	_, err = stdout.Write(bytes1MB)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		_, err = os.Stat(filepath.Join(dir, "stdout.0"))
 		return err == nil, err
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 	testutil.WaitForResult(func() (bool, error) {
 		_, err = os.Stat(filepath.Join(dir, "stdout.1"))
 		return err == nil, err
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 	_, err = os.Stat(filepath.Join(dir, "stdout.2"))
-	require.Error(err)
-	require.NoError(lm.Stop())
-	require.NoError(lm.Stop())
+	must.Error(t, err)
+	must.NoError(t, lm.Stop())
+	must.NoError(t, lm.Stop())
 }
 
 // asserts that calling Start twice restarts the log rotator and that any logs
@@ -86,7 +85,6 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 		t.Skip("windows does not support pushing data to a pipe with no servers")
 	}
 
-	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
 	dir := t.TempDir()
@@ -111,17 +109,17 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 
 	lm := NewLogMon(testlog.HCLogger(t))
 	impl, ok := lm.(*logmonImpl)
-	require.True(ok)
-	require.NoError(lm.Start(cfg))
+	must.True(t, ok)
+	must.NoError(t, lm.Start(cfg))
 
 	stdout, err := fifo.OpenWriter(stdoutFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 	stderr, err := fifo.OpenWriter(stderrFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Write a string and assert it was written to the file
 	_, err = stdout.Write([]byte("test\n"))
-	require.NoError(err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
@@ -130,27 +128,27 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 		}
 		return "test\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
-	require.True(impl.tl.IsRunning())
+	must.True(t, impl.tl.IsRunning())
 
 	// Close stdout and assert that logmon no longer writes to the file
-	require.NoError(stdout.Close())
-	require.NoError(stderr.Close())
+	must.NoError(t, stdout.Close())
+	must.NoError(t, stderr.Close())
 
 	testutil.WaitForResult(func() (bool, error) {
 		return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 	stderr, err = fifo.OpenWriter(stderrFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	_, err = stdout.Write([]byte("te"))
-	require.NoError(err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
@@ -159,19 +157,19 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 		}
 		return "test\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 
 	// Start logmon again and assert that it appended to the file
-	require.NoError(lm.Start(cfg))
+	must.NoError(t, lm.Start(cfg))
 
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 	stderr, err = fifo.OpenWriter(stderrFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	_, err = stdout.Write([]byte("st\n"))
-	require.NoError(err)
+	must.NoError(t, err)
 	testutil.WaitForResult(func() (bool, error) {
 		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
 		if err != nil {
@@ -181,7 +179,7 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 		expected := "test\ntest\n" == string(raw)
 		return expected, fmt.Errorf("unexpected stdout %q", string(raw))
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 }
 
@@ -189,7 +187,6 @@ func TestLogmon_Start_restart_flusheslogs(t *testing.T) {
 func TestLogmon_Start_restart(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	var stdoutFifoPath, stderrFifoPath string
 
 	dir := t.TempDir()
@@ -214,20 +211,20 @@ func TestLogmon_Start_restart(t *testing.T) {
 
 	lm := NewLogMon(testlog.HCLogger(t))
 	impl, ok := lm.(*logmonImpl)
-	require.True(ok)
-	require.NoError(lm.Start(cfg))
+	must.True(t, ok)
+	must.NoError(t, lm.Start(cfg))
 	t.Cleanup(func() {
-		require.NoError(lm.Stop())
+		must.NoError(t, lm.Stop())
 	})
 
 	stdout, err := fifo.OpenWriter(stdoutFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 	stderr, err := fifo.OpenWriter(stderrFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Write a string and assert it was written to the file
 	_, err = stdout.Write([]byte("test\n"))
-	require.NoError(err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
@@ -236,37 +233,37 @@ func TestLogmon_Start_restart(t *testing.T) {
 		}
 		return "test\n" == string(raw), fmt.Errorf("unexpected stdout %q", string(raw))
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
-	require.True(impl.tl.IsRunning())
+	must.True(t, impl.tl.IsRunning())
 
 	// Close stderr and assert that logmon no longer writes to the file
 	// Keep stdout open to ensure that IsRunning requires both
-	require.NoError(stderr.Close())
+	must.NoError(t, stderr.Close())
 
 	testutil.WaitForResult(func() (bool, error) {
 		return !impl.tl.IsRunning(), fmt.Errorf("logmon is still running")
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 
 	// Start logmon again and assert that it can receive logs again
-	require.NoError(lm.Start(cfg))
+	must.NoError(t, lm.Start(cfg))
 
 	stdout, err = fifo.OpenWriter(stdoutFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 	t.Cleanup(func() {
-		require.NoError(stdout.Close())
+		must.NoError(t, stdout.Close())
 	})
 
 	stderr, err = fifo.OpenWriter(stderrFifoPath)
-	require.NoError(err)
+	must.NoError(t, err)
 	t.Cleanup(func() {
-		require.NoError(stderr.Close())
+		must.NoError(t, stderr.Close())
 	})
 
 	_, err = stdout.Write([]byte("test\n"))
-	require.NoError(err)
+	must.NoError(t, err)
 	testutil.WaitForResult(func() (bool, error) {
 		raw, err := os.ReadFile(filepath.Join(dir, "stdout.0"))
 		if err != nil {
@@ -276,7 +273,7 @@ func TestLogmon_Start_restart(t *testing.T) {
 		expected := "test\ntest\n" == string(raw)
 		return expected, fmt.Errorf("unexpected stdout %q", string(raw))
 	}, func(err error) {
-		require.NoError(err)
+		must.NoError(t, err)
 	})
 }
 
@@ -304,6 +301,6 @@ func TestLogmon_NewError(t *testing.T) {
 	rotator := panicWriter{}
 
 	w, err := newLogRotatorWrapper(path, logger, rotator)
-	require.Error(t, err)
-	require.Nil(t, w)
+	must.Error(t, err)
+	must.Nil(t, w)
 }

@@ -37,6 +37,7 @@ module.exports = {
     'ember/no-classic-components': 'off',
     'ember/no-component-lifecycle-hooks': 'off',
     'ember/require-tagless-components': 'off',
+    'no-control-regex': 'off',
   },
   overrides: [
     // node files
@@ -67,17 +68,6 @@ module.exports = {
         // https://github.com/mysticatea/eslint-plugin-node/issues/77
         'node/no-unpublished-require': 'off',
       },
-    },
-    {
-      files: ['stories/**/*.js'],
-      parserOptions: {
-        sourceType: 'module',
-      },
-      env: {
-        browser: false,
-        node: true,
-      },
-      plugins: ['node'],
     },
     {
       // Test files:

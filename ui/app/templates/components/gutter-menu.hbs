@@ -14,6 +14,7 @@
         data-test-gutter-gutter-toggle
         class="gutter-toggle"
         aria-label="menu"
+        role="img"
         onclick={{action this.onHamburgerClick}}
       >
         <HamburgerMenu />
@@ -135,16 +136,16 @@
           <li
             {{keyboard-shortcut
               menuLevel=true
-              pattern=(array "g" "l")
-              action=(action this.transitionTo 'policies')
+              pattern=(array "g" "a")
+              action=(action this.transitionTo 'administration')
             }}
           >
             <LinkTo
-              @route="policies"
+              @route="administration"
               @activeClass="is-active"
-              data-test-gutter-link="policies"
+              data-test-gutter-link="administration"
             >
-              Policies
+              Administration
             </LinkTo>
           </li>
         {{/if}}

@@ -28,8 +28,8 @@ The `acl token create` command requires no arguments.
 - `-type`: Sets the type of token. Must be one of "client" (default), or
   "management".
 
-- `-global`: Toggles the global mode of the token. Global tokens are replicated
-  to all regions. Defaults false.
+- `-global`: Sets the global mode of the token. Global tokens are replicated
+  to all regions. This can not be changed after creation. Defaults to false.
 
 - `-policy`: Specifies a policy to associate with the token. Can be specified
   multiple times, but only with client type tokens.

@@ -7,15 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestInspectCommand_Implements(t *testing.T) {
@@ -69,7 +68,6 @@ func TestInspectCommand_Fails(t *testing.T) {
 
 func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	srv, _, url := testServer(t, true, nil)
 	defer srv.Shutdown()
@@ -79,15 +77,15 @@ func TestInspectCommand_AutocompleteArgs(t *testing.T) {
 
 	state := srv.Agent.Server().State()
 	j := mock.Job()
-	assert.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1000, nil, j))
 
 	prefix := j.ID[:len(j.ID)-5]
 	args := complete.Args{Last: prefix}
 	predictor := cmd.AutocompleteArgs()
 
 	res := predictor.Predict(args)
-	assert.Equal(1, len(res))
-	assert.Equal(j.ID, res[0])
+	must.SliceLen(t, 1, res)
+	must.Eq(t, j.ID, res[0])
 }
 
 func TestJobInspectCommand_ACL(t *testing.T) {
@@ -187,4 +185,38 @@ namespace "default" {
 			}
 		})
 	}
+}
+
+func TestInspectCommand_HCLVars(t *testing.T) {
+	ci.Parallel(t)
+
+	// no vars
+	out := getWithVarsOutput("default", "example", "", map[string]string{})
+	must.Eq(t, `
+To run this job as originally submitted:
+
+$ nomad job inspect -namespace default -hcl example |
+    nomad job run -namespace default example
+`, out)
+
+	// vars from the UI, erratic extra spaces
+	out = getWithVarsOutput("default", "example", "\n  http_port=foo  \n \nbar=baz ",
+		map[string]string{})
+	must.Eq(t, `
+To run this job as originally submitted:
+
+$ nomad job inspect -namespace default -hcl example |
+    nomad job run -namespace default -var http_port=foo -var bar=baz example
+`, out)
+
+	// same vars from the CLI
+	out = getWithVarsOutput("default", "example", "",
+		map[string]string{"http_port": "foo", "bar": "baz"})
+	must.Eq(t, `
+To run this job as originally submitted:
+
+$ nomad job inspect -namespace default -hcl example |
+    nomad job run -namespace default -var http_port=foo -var bar=baz example
+`, out)
+
 }

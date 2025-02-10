@@ -147,9 +147,9 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.Var(&c.additionalDomain, "additional-domain", "")
-	flagSet.IntVar(&c.days, "days", 0, "")
+	flagSet.IntVar(&c.days, "days", 1825, "")
 	flagSet.BoolVar(&c.constraint, "name-constraint", false, "")
-	flagSet.StringVar(&c.domain, "domain", "", "")
+	flagSet.StringVar(&c.domain, "domain", "nomad", "")
 	flagSet.StringVar(&c.commonName, "common-name", "", "")
 	flagSet.StringVar(&c.country, "country", "", "")
 	flagSet.StringVar(&c.postalCode, "postal-code", "", "")
@@ -169,9 +169,7 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
-	if c.IsCustom() && c.days != 0 || c.IsCustom() {
-		c.domain = "nomad"
-	} else {
+	if c.IsCustom() {
 		if c.commonName == "" {
 			c.Ui.Error("Please provide the -common-name flag when customizing the CA")
 			c.Ui.Error(commandErrorText(c))
@@ -261,13 +259,12 @@ func (c *TLSCACreateCommand) Run(args []string) int {
 // IsCustom checks whether any of TLSCACreateCommand parameters have been populated with
 // non-default values.
 func (c *TLSCACreateCommand) IsCustom() bool {
-	return c.commonName == "" &&
-		c.country == "" &&
-		c.postalCode == "" &&
-		c.province == "" &&
-		c.locality == "" &&
-		c.streetAddress == "" &&
-		c.organization == "" &&
-		c.organizationalUnit == ""
-
+	return c.commonName != "" ||
+		c.country != "" ||
+		c.postalCode != "" ||
+		c.province != "" ||
+		c.locality != "" ||
+		c.streetAddress != "" ||
+		c.organization != "" ||
+		c.organizationalUnit != ""
 }

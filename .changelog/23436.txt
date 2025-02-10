@@ -1,0 +1,7 @@
+```release-note:improvement
+deps: Updated consul-template to 0.39 to allow admin partition and sameness groups queries.
+```
+
+```release-note:improvement
+deps: Updated Consul API to 1.29.1.
+```

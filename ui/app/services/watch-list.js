@@ -30,4 +30,7 @@ export default class WatchListService extends Service {
   setIndexFor(url, value) {
     list[url] = +value;
   }
+
+  jobsIndexIDsController = new AbortController();
+  jobsIndexDetailsController = new AbortController();
 }

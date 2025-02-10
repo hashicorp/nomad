@@ -4,9 +4,11 @@
 package scheduler
 
 import (
+	"cmp"
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -15,7 +17,6 @@ import (
 	"github.com/hashicorp/nomad/helper/constraints/semver"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"golang.org/x/exp/constraints"
 )
 
 const (
@@ -137,40 +138,53 @@ func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 // HostVolumeChecker is a FeasibilityChecker which returns whether a node has
 // the host volumes necessary to schedule a task group.
 type HostVolumeChecker struct {
-	ctx Context
-
-	// volumes is a map[HostVolumeName][]RequestedVolume. The requested volumes are
-	// a slice because a single task group may request the same volume multiple times.
-	volumes map[string][]*structs.VolumeRequest
+	ctx           Context
+	volumeReqs    []*structs.VolumeRequest
+	namespace     string
+	jobID         string
+	taskGroupName string
+	claims        []*structs.TaskGroupHostVolumeClaim
 }
 
 // NewHostVolumeChecker creates a HostVolumeChecker from a set of volumes
 func NewHostVolumeChecker(ctx Context) *HostVolumeChecker {
-	return &HostVolumeChecker{
-		ctx: ctx,
+	hostVolumeChecker := &HostVolumeChecker{
+		ctx:        ctx,
+		claims:     []*structs.TaskGroupHostVolumeClaim{},
+		volumeReqs: []*structs.VolumeRequest{},
 	}
+
+	return hostVolumeChecker
 }
 
 // SetVolumes takes the volumes required by a task group and updates the checker.
-func (h *HostVolumeChecker) SetVolumes(allocName string, volumes map[string]*structs.VolumeRequest) {
-	lookupMap := make(map[string][]*structs.VolumeRequest)
-	// Convert the map from map[DesiredName]Request to map[Source][]Request to improve
-	// lookup performance. Also filter non-host volumes.
+func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName string, volumes map[string]*structs.VolumeRequest) {
+	h.namespace = ns
+	h.jobID = jobID
+	h.taskGroupName = taskGroupName
+	h.volumeReqs = []*structs.VolumeRequest{}
+
+	storedClaims, _ := h.ctx.State().GetTaskGroupHostVolumeClaimsForTaskGroup(nil, ns, jobID, taskGroupName)
+
+	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
+		claim := raw.(*structs.TaskGroupHostVolumeClaim)
+		h.claims = append(h.claims, claim)
+	}
+
 	for _, req := range volumes {
 		if req.Type != structs.VolumeTypeHost {
-			continue
+			continue // filter CSI volumes
 		}
 
 		if req.PerAlloc {
 			// provide a unique volume source per allocation
 			copied := req.Copy()
 			copied.Source = copied.Source + structs.AllocSuffix(allocName)
-			lookupMap[copied.Source] = append(lookupMap[copied.Source], copied)
+			h.volumeReqs = append(h.volumeReqs, copied)
 		} else {
-			lookupMap[req.Source] = append(lookupMap[req.Source], req)
+			h.volumeReqs = append(h.volumeReqs, req)
 		}
 	}
-	h.volumes = lookupMap
 }
 
 func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
@@ -183,38 +197,149 @@ func (h *HostVolumeChecker) Feasible(candidate *structs.Node) bool {
 }
 
 func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
-	rLen := len(h.volumes)
-	hLen := len(n.HostVolumes)
-
 	// Fast path: Requested no volumes. No need to check further.
-	if rLen == 0 {
+	if len(h.volumeReqs) == 0 {
 		return true
 	}
 
-	// Fast path: Requesting more volumes than the node has, can't meet the criteria.
-	if rLen > hLen {
-		return false
+	proposed, err := h.ctx.ProposedAllocs(n.ID)
+	if err != nil {
+		return false // only hit this on state store invariant failure
 	}
 
-	for source, requests := range h.volumes {
-		nodeVolume, ok := n.HostVolumes[source]
+	for _, req := range h.volumeReqs {
+		volCfg, ok := n.HostVolumes[req.Source]
 		if !ok {
 			return false
 		}
 
-		// If the volume supports being mounted as ReadWrite, we do not need to
-		// do further validation for readonly placement.
-		if !nodeVolume.ReadOnly {
-			continue
-		}
+		if volCfg.ID != "" { // dynamic host volume
+			vol, err := h.ctx.State().HostVolumeByID(nil, h.namespace, volCfg.ID, false)
+			if err != nil || vol == nil {
+				// the dynamic host volume in the node fingerprint does not
+				// belong to the namespace we need. or the volume is no longer
+				// in the state store because the batched fingerprint update
+				// from a delete RPC is written before the delete RPC's raft
+				// entry completes
+				return false
+			}
+			if !h.hostVolumeIsAvailable(vol,
+				req.AccessMode,
+				req.AttachmentMode,
+				req.ReadOnly,
+				proposed,
+			) {
+				return false
+			}
 
-		// The Volume can only be mounted ReadOnly, validate that no requests for
-		// it are ReadWrite.
-		for _, req := range requests {
-			if !req.ReadOnly {
+			if req.Sticky {
+				// the node is feasible if there are no remaining claims to
+				// fulfill or if there's an exact match
+				if len(h.claims) == 0 {
+					return true
+				}
+
+				for _, c := range h.claims {
+					if c.VolumeID == vol.ID {
+						// if we have a match for a volume claim, delete this
+						// claim from the claims list in the feasibility
+						// checker. This is needed for situations when jobs get
+						// scaled up and new allocations need to be placed on
+						// the same node.
+						h.claims = slices.DeleteFunc(h.claims, func(c *structs.TaskGroupHostVolumeClaim) bool {
+							return c.VolumeID == vol.ID
+						})
+						return true
+					}
+				}
+			}
+		} else if !req.ReadOnly {
+			// this is a static host volume and can only be mounted ReadOnly,
+			// validate that no requests for it are ReadWrite.
+			if volCfg.ReadOnly {
 				return false
 			}
 		}
+	}
+
+	return true
+}
+
+// hostVolumeIsAvailable determines if a dynamic host volume is available for a request
+func (h *HostVolumeChecker) hostVolumeIsAvailable(
+	vol *structs.HostVolume,
+	reqAccess structs.VolumeAccessMode,
+	reqAttach structs.VolumeAttachmentMode,
+	readOnly bool,
+	proposed []*structs.Allocation) bool {
+
+	if vol.State != structs.HostVolumeStateReady {
+		return false
+	}
+
+	// pick a default capability based on the read-only flag. this happens here
+	// in the scheduler rather than job submit because we don't know whether a
+	// host volume is dynamic or not until we try to schedule it (ex. the same
+	// name could be static on one node and dynamic on another)
+	if reqAccess == structs.HostVolumeAccessModeUnknown {
+		if readOnly {
+			reqAccess = structs.HostVolumeAccessModeSingleNodeReader
+		} else {
+			reqAccess = structs.HostVolumeAccessModeSingleNodeWriter
+		}
+	}
+	if reqAttach == structs.HostVolumeAttachmentModeUnknown {
+		reqAttach = structs.HostVolumeAttachmentModeFilesystem
+	}
+
+	// check that the volume has the requested capability at all
+	var capOk bool
+	for _, cap := range vol.RequestedCapabilities {
+		if reqAccess == cap.AccessMode &&
+			reqAttach == cap.AttachmentMode {
+			capOk = true
+			break
+		}
+	}
+	if !capOk {
+		return false
+	}
+
+	switch reqAccess {
+	case structs.HostVolumeAccessModeSingleNodeReader:
+		return readOnly
+	case structs.HostVolumeAccessModeSingleNodeWriter:
+		return !readOnly
+	case structs.HostVolumeAccessModeSingleNodeSingleWriter:
+		// examine all proposed allocs on the node, including those that might
+		// not have yet been persisted. they have nil pointers to their Job, so
+		// we have to go back to the state store to get them
+		seen := map[string]struct{}{}
+		for _, alloc := range proposed {
+			uniqueGroup := alloc.JobNamespacedID().String() + alloc.TaskGroup
+			if _, ok := seen[uniqueGroup]; ok {
+				// all allocs for the same group will have the same read-only
+				// flag and capabilities, so we only need to check a given group
+				// once
+				continue
+			}
+			seen[uniqueGroup] = struct{}{}
+			job, err := h.ctx.State().JobByID(nil, alloc.Namespace, alloc.JobID)
+			if err != nil {
+				return false
+			}
+			tg := job.LookupTaskGroup(alloc.TaskGroup)
+			for _, req := range tg.Volumes {
+				if req.Type == structs.VolumeTypeHost && req.Source == vol.Name {
+					if !req.ReadOnly {
+						return false
+					}
+				}
+			}
+		}
+
+	case structs.HostVolumeAccessModeSingleNodeMultiWriter:
+		// no contraint
 	}
 
 	return true
@@ -625,11 +750,12 @@ func (iter *DistinctHostsIterator) satisfiesDistinctHosts(option *structs.Node) 
 
 	// Skip the node if the task group has already been allocated on it.
 	for _, alloc := range proposed {
-		// If the job has a distinct_hosts constraint we only need an alloc
-		// collision on the JobID but if the constraint is on the TaskGroup then
+		// If the job has a distinct_hosts constraint we need an alloc collision
+		// on the Namespace,JobID but if the constraint is on the TaskGroup then
 		// we need both a job and TaskGroup collision.
-		jobCollision := alloc.JobID == iter.job.ID
+		jobCollision := alloc.JobID == iter.job.ID && alloc.Namespace == iter.job.Namespace
 		taskCollision := alloc.TaskGroup == iter.tg.Name
+
 		if iter.jobDistinctHosts && jobCollision || jobCollision && taskCollision {
 			return false
 		}
@@ -751,12 +877,12 @@ func (iter *DistinctPropertyIterator) Reset() {
 // given set of constraints. This is used to filter on job, task group, and task
 // constraints.
 type ConstraintChecker struct {
-	ctx         Context
+	ctx         ConstraintContext
 	constraints []*structs.Constraint
 }
 
 // NewConstraintChecker creates a ConstraintChecker for a set of constraints
-func NewConstraintChecker(ctx Context, constraints []*structs.Constraint) *ConstraintChecker {
+func NewConstraintChecker(ctx ConstraintContext, constraints []*structs.Constraint) *ConstraintChecker {
 	return &ConstraintChecker{
 		ctx:         ctx,
 		constraints: constraints,
@@ -829,7 +955,7 @@ func resolveTarget(target string, node *structs.Node) (string, bool) {
 
 // checkConstraint checks if a constraint is satisfied. The lVal and rVal
 // interfaces may be nil.
-func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
+func checkConstraint(ctx ConstraintContext, operand string, lVal, rVal interface{}, lFound, rFound bool) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
@@ -851,14 +977,14 @@ func checkConstraint(ctx Context, operand string, lVal, rVal interface{}, lFound
 		return !lFound
 	case structs.ConstraintVersion:
 		parser := newVersionConstraintParser(ctx)
-		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
+		return lFound && rFound && checkVersionMatch(parser, lVal, rVal)
 	case structs.ConstraintSemver:
 		parser := newSemverConstraintParser(ctx)
-		return lFound && rFound && checkVersionMatch(ctx, parser, lVal, rVal)
+		return lFound && rFound && checkVersionMatch(parser, lVal, rVal)
 	case structs.ConstraintRegex:
 		return lFound && rFound && checkRegexpMatch(ctx, lVal, rVal)
 	case structs.ConstraintSetContains, structs.ConstraintSetContainsAll:
-		return lFound && rFound && checkSetContainsAll(ctx, lVal, rVal)
+		return lFound && rFound && checkSetContainsAll(lVal, rVal)
 	case structs.ConstraintSetContainsAny:
 		return lFound && rFound && checkSetContainsAny(lVal, rVal)
 	default:
@@ -925,7 +1051,7 @@ func checkLexicalOrder(op string, lVal, rVal string) bool {
 }
 
 // compareOrder returns the result of the expression (left op right)
-func compareOrder[T constraints.Ordered](op string, left, right T) bool {
+func compareOrder[T cmp.Ordered](op string, left, right T) bool {
 	switch op {
 	case "<":
 		return left < right
@@ -942,7 +1068,7 @@ func compareOrder[T constraints.Ordered](op string, left, right T) bool {
 
 // checkVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkVersionMatch(_ Context, parse verConstraintParser, lVal, rVal interface{}) bool {
+func checkVersionMatch(parse verConstraintParser, lVal, rVal interface{}) bool {
 	// Parse the version
 	var versionStr string
 	switch v := lVal.(type) {
@@ -978,7 +1104,7 @@ func checkVersionMatch(_ Context, parse verConstraintParser, lVal, rVal interfac
 
 // checkAttributeVersionMatch is used to compare a version on the
 // left hand side with a set of constraints on the right hand side
-func checkAttributeVersionMatch(_ Context, parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
+func checkAttributeVersionMatch(parse verConstraintParser, lVal, rVal *psstructs.Attribute) bool {
 	// Parse the version
 	var versionStr string
 	if s, ok := lVal.GetString(); ok {
@@ -1013,7 +1139,7 @@ func checkAttributeVersionMatch(_ Context, parse verConstraintParser, lVal, rVal
 
 // checkRegexpMatch is used to compare a value on the
 // left hand side with a regexp on the right hand side
-func checkRegexpMatch(ctx Context, lVal, rVal interface{}) bool {
+func checkRegexpMatch(ctx ConstraintContext, lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1046,7 +1172,7 @@ func checkRegexpMatch(ctx Context, lVal, rVal interface{}) bool {
 
 // checkSetContainsAll is used to see if the left hand side contains the
 // string on the right hand side
-func checkSetContainsAll(_ Context, lVal, rVal interface{}) bool {
+func checkSetContainsAll(lVal, rVal interface{}) bool {
 	// Ensure left-hand is string
 	lStr, ok := lVal.(string)
 	if !ok {
@@ -1237,7 +1363,8 @@ OUTER:
 }
 
 // available checks transient feasibility checkers which depend on changing conditions,
-// e.g. the health status of a plugin or driver
+// e.g. the health status of a plugin or driver, or that are not considered in node
+// computed class, e.g. host volumes.
 func (w *FeasibilityWrapper) available(option *structs.Node) bool {
 	// If we don't have any availability checks, we're available
 	if len(w.tgAvailable) == 0 {
@@ -1422,7 +1549,7 @@ func resolveDeviceTarget(target string, d *structs.NodeDeviceResource) (*psstruc
 
 // checkAttributeConstraint checks if a constraint is satisfied. nil equality
 // comparisons are considered to be false.
-func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs.Attribute, lFound, rFound bool) bool {
+func checkAttributeConstraint(ctx ConstraintContext, operand string, lVal, rVal *psstructs.Attribute, lFound, rFound bool) bool {
 	// Check for constraints not handled by this checker.
 	switch operand {
 	case structs.ConstraintDistinctHosts, structs.ConstraintDistinctProperty:
@@ -1482,7 +1609,7 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		}
 
 		parser := newVersionConstraintParser(ctx)
-		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+		return checkAttributeVersionMatch(parser, lVal, rVal)
 
 	case structs.ConstraintSemver:
 		if !(lFound && rFound) {
@@ -1490,7 +1617,7 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 		}
 
 		parser := newSemverConstraintParser(ctx)
-		return checkAttributeVersionMatch(ctx, parser, lVal, rVal)
+		return checkAttributeVersionMatch(parser, lVal, rVal)
 
 	case structs.ConstraintRegex:
 		if !(lFound && rFound) {
@@ -1514,7 +1641,7 @@ func checkAttributeConstraint(ctx Context, operand string, lVal, rVal *psstructs
 			return false
 		}
 
-		return checkSetContainsAll(ctx, ls, rs)
+		return checkSetContainsAll(ls, rs)
 	case structs.ConstraintSetContainsAny:
 		if !(lFound && rFound) {
 			return false
@@ -1548,7 +1675,7 @@ type VerConstraints interface {
 // or semver).
 type verConstraintParser func(verConstraint string) VerConstraints
 
-func newVersionConstraintParser(ctx Context) verConstraintParser {
+func newVersionConstraintParser(ctx ConstraintContext) verConstraintParser {
 	cache := ctx.VersionConstraintCache()
 
 	return func(cstr string) VerConstraints {
@@ -1566,7 +1693,7 @@ func newVersionConstraintParser(ctx Context) verConstraintParser {
 	}
 }
 
-func newSemverConstraintParser(ctx Context) verConstraintParser {
+func newSemverConstraintParser(ctx ConstraintContext) verConstraintParser {
 	cache := ctx.SemverConstraintCache()
 
 	return func(cstr string) VerConstraints {

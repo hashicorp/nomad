@@ -1,0 +1,3 @@
+```release-note:bug
+client: Prevent client from starting if cgroup initialization fails
+```

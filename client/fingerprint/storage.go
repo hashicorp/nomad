@@ -60,10 +60,6 @@ func (f *StorageFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpr
 	resp.AddAttribute("unique.storage.bytesfree", strconv.FormatUint(free, 10))
 
 	// set the disk size for the response
-	// COMPAT(0.10): Remove in 0.10
-	resp.Resources = &structs.Resources{
-		DiskMB: int(free / bytesPerMegabyte),
-	}
 	resp.NodeResources = &structs.NodeResources{
 		Disk: structs.NodeDiskResources{
 			DiskMB: int64(free / bytesPerMegabyte),

@@ -1,0 +1,25 @@
+---
+layout: docs
+page_title: 'Drivers: virt'
+description: >-
+  The virt task driver leverages Linux capabilities and libvirt to run virtual
+  machines.
+---
+
+# Virt task driver
+
+@include 'virt-beta-callout.mdx'
+
+Name: `virt`
+
+The `virt` driver utilises the [libvirt][] API to run and manage virtual machines (VMs) via
+hypervisors such as [QEMU][]. It supports a wide variety of Nomad features including
+[workload identity][], [task templates][], and [service discovery][].
+
+
+[libvirt]: https://libvirt.org/
+[QEMU]: https://www.qemu.org/
+[workload identity]: https://developer.hashicorp.com/nomad/docs/concepts/workload-identity
+[task templates]: https://developer.hashicorp.com/nomad/docs/job-specification/template
+[service discovery]: https://developer.hashicorp.com/nomad/docs/networking/service-discovery
+[github]: https://github.com/hashicorp/nomad-driver-virt

@@ -5,6 +5,7 @@ package command
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,15 +16,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/flatmap"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/kr/pretty"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestHelpers_FormatKV(t *testing.T) {
@@ -288,54 +288,6 @@ func TestJobGetter_LocalFile(t *testing.T) {
 	}
 }
 
-// TestJobGetter_LocalFile_InvalidHCL2 asserts that a custom message is emited
-// if the file is a valid HCL1 but not HCL2
-func TestJobGetter_LocalFile_InvalidHCL2(t *testing.T) {
-	ci.Parallel(t)
-
-	cases := []struct {
-		name              string
-		hcl               string
-		expectHCL1Message bool
-	}{
-		{
-			"invalid HCL",
-			"nothing",
-			false,
-		},
-		{
-			"invalid HCL2",
-			`job "example" {
-  meta { "key.with.dot" = "b" }
-}`,
-			true,
-		},
-	}
-
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			fh, err := os.CreateTemp("", "nomad")
-			require.NoError(t, err)
-			defer os.Remove(fh.Name())
-			defer fh.Close()
-
-			_, err = fh.WriteString(c.hcl)
-			require.NoError(t, err)
-
-			j := &JobGetter{}
-			_, _, err = j.ApiJob(fh.Name())
-			require.Error(t, err)
-
-			exptMessage := "Failed to parse using HCL 2. Use the HCL 1"
-			if c.expectHCL1Message {
-				require.Contains(t, err.Error(), exptMessage)
-			} else {
-				require.NotContains(t, err.Error(), exptMessage)
-			}
-		})
-	}
-}
-
 // TestJobGetter_HCL2_Variables asserts variable arguments from CLI
 // and varfiles are both honored
 func TestJobGetter_HCL2_Variables(t *testing.T) {
@@ -359,20 +311,20 @@ job "example" {
 	expected := []string{"default-val", "from-cli", "from-varfile", "from-envvar"}
 
 	hclf, err := os.CreateTemp("", "hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Remove(hclf.Name())
 	defer hclf.Close()
 
 	_, err = hclf.WriteString(hcl)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	vf, err := os.CreateTemp("", "var.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Remove(vf.Name())
 	defer vf.Close()
 
 	_, err = vf.WriteString(fileVars + "\n")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	jg := &JobGetter{
 		Vars:     cliArgs,
@@ -381,10 +333,10 @@ job "example" {
 	}
 
 	_, j, err := jg.Get(hclf.Name())
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.NotNil(t, j)
-	require.Equal(t, expected, j.Datacenters)
+	must.NotNil(t, j)
+	must.Eq(t, expected, j.Datacenters)
 }
 
 func TestJobGetter_HCL2_Variables_StrictFalse(t *testing.T) {
@@ -414,20 +366,20 @@ unsedVar2 = "from-varfile"
 	expected := []string{"default-val", "from-cli", "from-varfile", "from-envvar"}
 
 	hclf, err := os.CreateTemp("", "hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Remove(hclf.Name())
 	defer hclf.Close()
 
 	_, err = hclf.WriteString(hcl)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	vf, err := os.CreateTemp("", "var.hcl")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	defer os.Remove(vf.Name())
 	defer vf.Close()
 
 	_, err = vf.WriteString(fileVars + "\n")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	jg := &JobGetter{
 		Vars:     cliArgs,
@@ -436,10 +388,9 @@ unsedVar2 = "from-varfile"
 	}
 
 	_, j, err := jg.Get(hclf.Name())
-	require.NoError(t, err)
-
-	require.NotNil(t, j)
-	require.Equal(t, expected, j.Datacenters)
+	must.NoError(t, err)
+	must.NotNil(t, j)
+	must.Eq(t, expected, j.Datacenters)
 }
 
 // Test StructJob with jobfile from HTTP Server
@@ -473,38 +424,6 @@ func TestJobGetter_Validate(t *testing.T) {
 		errContains string
 	}{
 		{
-			"StrictAndHCL1",
-			JobGetter{
-				HCL1:   true,
-				Strict: true,
-			},
-			"HCLv1 and HCLv2 strict",
-		},
-		{
-			"JSONandHCL1",
-			JobGetter{
-				HCL1: true,
-				JSON: true,
-			},
-			"HCL and JSON",
-		},
-		{
-			"VarsAndHCL1",
-			JobGetter{
-				HCL1: true,
-				Vars: []string{"foo"},
-			},
-			"variables with HCLv1",
-		},
-		{
-			"VarFilesAndHCL1",
-			JobGetter{
-				HCL1:     true,
-				VarFiles: []string{"foo.var"},
-			},
-			"variables with HCLv1",
-		},
-		{
 			"VarsAndJSON",
 			JobGetter{
 				JSON: true,
@@ -535,9 +454,9 @@ func TestJobGetter_Validate(t *testing.T) {
 
 			switch tc.errContains {
 			case "":
-				require.NoError(t, err)
+				must.NoError(t, err)
 			default:
-				require.ErrorContains(t, err, tc.errContains)
+				must.ErrorContains(t, err, tc.errContains)
 			}
 
 		})
@@ -610,27 +529,27 @@ func TestUiErrorWriter(t *testing.T) {
 	partialAcc := ""
 	for _, in := range inputs {
 		n, err := w.Write([]byte(in))
-		require.NoError(t, err)
-		require.Equal(t, len(in), n)
+		must.NoError(t, err)
+		must.Eq(t, len(in), n)
 
 		// assert that writer emits partial result until last new line
 		partialAcc += strings.ReplaceAll(in, "\r\n", "\n")
 		lastNL := strings.LastIndex(partialAcc, "\n")
-		require.Equal(t, partialAcc[:lastNL+1], errBuf.String())
+		must.Eq(t, partialAcc[:lastNL+1], errBuf.String())
 	}
 
-	require.Empty(t, outBuf.String())
+	must.Eq(t, "", outBuf.String())
 
 	// note that the \r\n got replaced by \n
 	expectedErr := "some line\nmultiple\nlines\nhere with  followup\nand more lines  without new line until here\n"
-	require.Equal(t, expectedErr, errBuf.String())
+	must.Eq(t, expectedErr, errBuf.String())
 
 	// close emits the final line
 	err := w.Close()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	expectedErr += "and thensome more\n"
-	require.Equal(t, expectedErr, errBuf.String())
+	must.Eq(t, expectedErr, errBuf.String())
 }
 
 func Test_extractVarFiles(t *testing.T) {
@@ -684,4 +603,122 @@ func Test_extractVarFlags(t *testing.T) {
 			"three": "",
 		}, result)
 	})
+}
+
+func Test_extractJobSpecEnvVars(t *testing.T) {
+	ci.Parallel(t)
+
+	t.Run("nil", func(t *testing.T) {
+		must.MapEmpty(t, extractJobSpecEnvVars(nil))
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count=13",
+			"GOPATH=/Users/jrasell/go",
+			"NOMAD_VAR_image=redis:7",
+		})
+		must.Eq(t, map[string]string{
+			"count": "13",
+			"image": "redis:7",
+		}, result)
+	})
+
+	t.Run("whitespace", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count = 13",
+			"GOPATH = /Users/jrasell/go",
+		})
+		must.Eq(t, map[string]string{
+			"count ": " 13",
+		}, result)
+	})
+
+	t.Run("empty key", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_=13",
+			"=/Users/jrasell/go",
+		})
+		must.Eq(t, map[string]string{}, result)
+	})
+
+	t.Run("empty value", func(t *testing.T) {
+		result := extractJobSpecEnvVars([]string{
+			"NOMAD_VAR_count=",
+			"GOPATH=",
+		})
+		must.Eq(t, map[string]string{
+			"count": "",
+		}, result)
+	})
+}
+
+// TestHelperGetByPrefix exercises the generic getByPrefix function used by
+// commands to find a single match by prefix or return matching results if there
+// are multiple
+func TestHelperGetByPrefix(t *testing.T) {
+
+	type testStub struct{ ID string }
+
+	testCases := []struct {
+		name        string
+		queryObjs   []*testStub
+		queryErr    error
+		queryPrefix string
+
+		expectMatch    *testStub
+		expectPossible []*testStub
+		expectErr      string
+	}{
+		{
+			name:      "query error",
+			queryErr:  errors.New("foo"),
+			expectErr: "Error querying stubs: foo",
+		},
+		{
+			name: "multiple prefix matches with exact match",
+			queryObjs: []*testStub{
+				{ID: "testing"},
+				{ID: "testing123"},
+			},
+			queryPrefix: "testing",
+			expectMatch: &testStub{ID: "testing"},
+		},
+		{
+			name: "multiple prefix matches no exact match",
+			queryObjs: []*testStub{
+				{ID: "testing"},
+				{ID: "testing123"},
+			},
+			queryPrefix:    "test",
+			expectPossible: []*testStub{{ID: "testing"}, {ID: "testing123"}},
+		},
+		{
+			name:        "no matches",
+			queryObjs:   []*testStub{},
+			queryPrefix: "test",
+			expectErr:   "No stubs with prefix or ID \"test\" found",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			match, possible, err := getByPrefix[testStub]("stubs",
+				func(*api.QueryOptions) ([]*testStub, *api.QueryMeta, error) {
+					return tc.queryObjs, nil, tc.queryErr
+				},
+				func(stub *testStub, prefix string) bool { return stub.ID == prefix },
+				&api.QueryOptions{Prefix: tc.queryPrefix})
+
+			if tc.expectErr != "" {
+				must.EqError(t, err, tc.expectErr)
+			} else {
+				must.NoError(t, err)
+				must.Eq(t, tc.expectMatch, match, must.Sprint("expected exact match"))
+				must.Eq(t, tc.expectPossible, possible, must.Sprint("expected prefix matches"))
+			}
+		})
+	}
+
 }

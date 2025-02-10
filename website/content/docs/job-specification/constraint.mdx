@@ -22,10 +22,14 @@ filter on [attributes][interpolation] or [client metadata][client-meta].
 Additionally constraints may be specified at the [job][job], [group][group], or
 [task][task] levels for ultimate flexibility.
 
-~> **It is possible to define irreconcilable constraints in a job.**
-For example, because all [tasks within a group are scheduled on the same client node][group],
-specifying different [`${attr.unique.hostname}`][node-variables] constraints at
-the task level will cause a job to be unplaceable.
+<Warning>
+
+**It is possible to define irreconcilable constraints in a job.**
+
+For example, specifying different [`${attr.unique.hostname}`][node-variables]
+constraints at the task level will cause a job to be unplaceable because all
+[tasks within a group are scheduled on the same client node][group].
+</Warning>
 
 ```hcl
 job "docs" {
@@ -314,5 +318,5 @@ constraint {
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [interpolation]: /nomad/docs/runtime/interpolation 'Nomad interpolation'
 [node-variables]: /nomad/docs/runtime/interpolation#node-variables- 'Nomad interpolation-Node variables'
-[client-meta]: /nomad/docs/configuration/client#custom-metadata-network-speed-and-node-class 'Nomad Custom Metadata, Network Speed, and Node Class'
+[client-meta]: /nomad/docs/configuration/client#custom-metadata-and-node-class 'Nomad Custom Metadata and Node Class'
 [semver2]: https://semver.org/spec/v2.0.0.html 'Semantic Versioning 2.0'

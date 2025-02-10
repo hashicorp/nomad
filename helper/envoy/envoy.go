@@ -47,6 +47,44 @@ const (
 	// VersionVar will be replaced with the Envoy version string when
 	// used in the meta.connect.sidecar_image variable.
 	VersionVar = "${NOMAD_envoy_version}"
+
+	// DefaultConnectLogLevel is the log level set in the node meta by default
+	// to be used by Consul Connect sidecar tasks.
+	DefaultConnectLogLevel = "info"
+
+	// DefaultConnectLogLevel is the node attribute for the DefaultConnectLogLevel
+	DefaultConnectLogLevelParam = "connect.log_level"
+
+	// DefaultConnectProxyConcurrency is the default number of worker threads the
+	// connect sidecar should be configured to use.
+	//
+	// https://www.envoyproxy.io/docs/envoy/latest/operations/cli#cmdoption-concurrency
+	DefaultConnectProxyConcurrency = "1"
+
+	// DefaultConnectProxyConcurrencyParam is the node attribute for the
+	// DefaultConnectProxyConcurrency
+	DefaultConnectProxyConcurrencyParam = "connect.proxy_concurrency"
+
+	// DefaultTransparentProxyUID is the default UID of the Envoy proxy
+	// container user, for use with transparent proxy
+	DefaultTransparentProxyUID = "101"
+
+	// DefaultTransparentProxyUIDParam is the node attribute for the
+	// DefaultTransparentProxyUID
+	DefaultTransparentProxyUIDParam = "connect.transparent_proxy.default_uid"
+
+	// DefaultTransparentProxyOutboundPort is the default outbound port for the
+	// Envoy proxy, for use with transparent proxy. Note the default value
+	// patches the default TransparentProxy service default for
+	// OutboundListenerPort. If the cluster admin sets this value to something
+	// non-default, they'll need to update the metadata on all the nodes to
+	// match. See also:
+	// https://developer.hashicorp.com/consul/docs/connect/config-entries/service-defaults#transparentproxy
+	DefaultTransparentProxyOutboundPort = "15001"
+
+	// DefaultTransparentProxyOutboundPortParam is the node attribute for the
+	// DefaultTransparentProxyOutboundPort
+	DefaultTransparentProxyOutboundPortParam = "connect.transparent_proxy.default_outbound_port"
 )
 
 // PortLabel creates a consistent port label using the inputs of a prefix,

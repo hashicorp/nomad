@@ -19,6 +19,10 @@ namespace apply`][cli_ns_apply] CLI command.
 Unlike [Job specifications][jobspecs], Namespace specifications do *not*
 support [HCL2][hcl2] features like functions.
 
+In [federated][] clusters, all updates to namespaces are forwarded to the
+[`authoritative_region`][] and replicated to non-authoritative regions. This
+requires that ACLs have been bootstrapped in the authoritative region.
+
 Example namespace specification:
 
 ```hcl
@@ -33,8 +37,10 @@ meta {
 }
 
 capabilities {
-  enabled_task_drivers  = ["java", "docker"]
-  disabled_task_drivers = ["raw_exec"]
+  enabled_task_drivers   = ["java", "docker"]
+  disabled_task_drivers  = ["raw_exec"]
+  enabled_network_modes  = ["bridge", "cni/custom"]
+  disabled_network_modes = ["host"]
 }
 
 # Node Pool configuration is a Nomad Enterprise feature.
@@ -94,6 +100,12 @@ consul {
 - `disabled_task_drivers` `(array<string>: [])` - List of task drivers disabled
   in the namespace.
 
+- `enabled_network_modes` `(array<string>: [])` - List of network modes allowed
+  in the namespace. If empty all network modes are allowed.
+
+- `disabled_network_modes` `(array<string>: [])` - List of network modes disabled
+  in the namespace.
+
 ### `node_pool_config` Parameters <EnterpriseAlert inline />
 
 - `default` `(string: "default")` - Specifies the node pool to use for jobs in
@@ -148,3 +160,5 @@ consul {
 [cli_ns_apply]: /nomad/docs/commands/namespace/apply
 [hcl2]: /nomad/docs/job-specification/hcl2
 [jobspecs]: /nomad/docs/job-specification
+[federated]: /nomad/tutorials/manage-clusters/federation
+[`authoritative_region`]: /nomad/docs/configuration/server#authoritative_region

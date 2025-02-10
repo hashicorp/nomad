@@ -4,26 +4,15 @@
 ~}}
 
 <label class="value-label">
-  <span>
-    Value
-  </span>
-  <Input
-    @type={{this.inputType}}
-    @value={{@entry.value}}
-    class="input value-input"
-    {{! prevent auto-fill }}
-    autocomplete="new-password"
-    data-test-var-value
-  />
-  <button
-    class="show-hide-values button is-light"
-    type="button"
-    tabindex="-1"
-    {{on "click" this.toggleInputType}}
-  >
-    <FlightIcon
-      @name={{if this.isObscured "eye-off" "eye"}}
-      @title={{if this.isObscured "Show Value" "Hide Value"}}
-    />
-  </button>
+<Hds::Form::MaskedInput::Field
+  @isMultiline={{true}}
+  @value={{@entry.value}}
+  rows="1"
+  class="hds-typography-code-200"
+  {{! prevent auto-fill }}
+  autocomplete="new-password"
+  data-test-var-value
+as |F|>
+  <F.Label>Value</F.Label>
+</Hds::Form::MaskedInput::Field>
 </label>

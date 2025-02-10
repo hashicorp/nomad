@@ -49,6 +49,8 @@ export default class AllocationSerializer extends ApplicationSerializer {
       .sort()
       .map((key) => {
         const state = states[key] || {};
+        // make sure events, if null, is an empty array
+        state.Events = state.Events || [];
         const summary = { Name: key };
         Object.keys(state).forEach(
           (stateKey) => (summary[stateKey] = state[stateKey])

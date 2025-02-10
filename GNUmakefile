@@ -23,7 +23,7 @@ ifndef BIN
 BIN := $(GOPATH)/bin
 endif
 
-GO_TAGS := $(GO_TAGS)
+GO_TAGS := hashicorpmetrics $(GO_TAGS)
 
 ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
@@ -42,19 +42,18 @@ endif
 # tag corresponding to latest release we maintain backward compatibility with
 PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 
-# LAST_RELEASE is the git sha of the latest release corresponding to this branch. main should have the latest
-# published release, and release branches should point to the latest published release in the X.Y release line.
-LAST_RELEASE ?= v1.6.2
+# LAST_RELEASE is used for generating the changelog. It is the last released GA
+# or backport version, without the leading "v". main should have the latest
+# published release here, and release branches should point to the latest
+# published release in their X.Y release line.
+LAST_RELEASE ?= 1.9.5
 
 default: help
 
 ifeq (Linux,$(THIS_OS))
-ALL_TARGETS = linux_386 \
-	linux_amd64 \
-	linux_arm \
+ALL_TARGETS = linux_amd64 \
 	linux_arm64 \
 	linux_s390x \
-	windows_386 \
 	windows_amd64
 endif
 
@@ -96,10 +95,6 @@ endif
 		CC=$(CC) \
 		go build -trimpath -ldflags "$(GO_LDFLAGS)" -tags "$(GO_TAGS)" -o $(GO_OUT)
 
-ifneq (armv7l,$(THIS_ARCH))
-pkg/linux_arm/nomad: CC = arm-linux-gnueabihf-gcc
-endif
-
 ifneq (aarch64,$(THIS_ARCH))
 pkg/linux_arm64/nomad: CC = aarch64-linux-gnu-gcc
 endif
@@ -109,11 +104,15 @@ pkg/linux_%/nomad: CGO_ENABLED = 0
 endif
 
 pkg/windows_%/nomad: GO_OUT = $@.exe
+pkg/windows_%/nomad: GO_TAGS += timetzdata
 
 # Define package targets for each of the build targets we actually have on this system
 define makePackageTarget
 
-pkg/$(1).zip: pkg/$(1)/nomad
+pkg/$(1)/LICENSE.txt:
+	@cp LICENSE pkg/$(1)/LICENSE.txt
+
+pkg/$(1).zip: pkg/$(1)/nomad pkg/$(1)/LICENSE.txt
 	@echo "==> Packaging for $(1)..."
 	@zip -j pkg/$(1).zip pkg/$(1)/*
 
@@ -134,19 +133,19 @@ deps:  ## Install build and development dependencies
 	go install gotest.tools/gotestsum@v1.10.0
 	go install github.com/hashicorp/hcl/v2/cmd/hclfmt@d0c4fa8b0bbc2e4eeccd1ed2a32c2089ed8c5cf1
 	go install github.com/golang/protobuf/protoc-gen-go@v1.3.4
-	go install github.com/hashicorp/go-msgpack/codec/codecgen@v1.1.5
+	go install github.com/hashicorp/go-msgpack/v2/codec/codecgen@v2.1.2
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
-	go install golang.org/x/tools/cmd/stringer@v0.1.12
-	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.5.0
-	go install github.com/shoenig/go-modtool@v0.1.1
+	go install golang.org/x/tools/cmd/stringer@v0.18.0
+	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.9.0
+	go install github.com/shoenig/go-modtool@v0.2.0
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.54.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
-	go install github.com/hashicorp/go-hclog/hclogvet@v0.1.6
+	go install github.com/hashicorp/go-hclog/hclogvet@v0.2.0
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
@@ -158,13 +157,16 @@ $(git-dir)/hooks/%: dev/hooks/%
 .PHONY: check
 check: ## Lint the source code
 	@echo "==> Linting source code..."
-	@golangci-lint run
+	@golangci-lint run --build-tags "$(GO_TAGS)"
+
+	@echo "==> Linting ./api source code..."
+	@cd ./api && golangci-lint run --config ../.golangci.yml --build-tags "$(GO_TAGS)"
 
 	@echo "==> Linting hclog statements..."
 	@hclogvet .
 
 	@echo "==> Spell checking website..."
-	@misspell -error -source=text website/pages/
+	@misspell -error -source=text website/content/
 
 	@echo "==> Checking for breaking changes in protos..."
 	@buf breaking --config tools/buf/buf.yaml --against-config tools/buf/buf.yaml --against .git#tag=$(PROTO_COMPARE_TAG)
@@ -177,13 +179,21 @@ check: ## Lint the source code
 	@$(MAKE) hclfmt
 	@if (git status -s | grep -q -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'); then echo the following HCL files are out of sync; git status -s | grep -e '\.hcl$$' -e '\.nomad$$' -e '\.tf$$'; exit 1; fi
 
-	@echo "==> Check API package is isolated from rest"
+	@echo "==> Check API package is isolated from rest..."
 	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
-	@echo "==> Check command package does not import structs"
+	@echo "==> Check jobspec2 package is isolated from Nomad core..."
+	@cd ./jobspec2 && \
+		if go list --test -f '{{ join .Deps "\n" }}' . | \
+		grep github.com/hashicorp/nomad/ | \
+		grep -v -e /nomad/jobspec2/ -e nomad/jobspec2.test | \
+		grep -v -e /nomad/api ; then echo \
+		"  /jobspec2 package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
+
+	@echo "==> Check command package does not import structs..."
 	@cd ./command && if go list -f '{{ join .Imports "\n" }}' . | grep github.com/hashicorp/nomad/nomad/structs; then echo "  /command package imports the structs pkg. Remove such import"; exit 1; fi
 
-	@echo "==> Checking Go mod.."
+	@echo "==> Checking Go mod..."
 	@GO111MODULE=on $(MAKE) tidy
 	@if (git status --porcelain | grep -Eq "go\.(mod|sum)"); then \
 		echo go.mod or go.sum needs updating; \
@@ -223,7 +233,7 @@ proto: ## Generate protobuf bindings
 	@buf --config tools/buf/buf.yaml --template tools/buf/buf.gen.yaml generate
 
 changelog: ## Generate changelog from entries
-	@changelog-build -last-release $(LAST_RELEASE) -this-release HEAD \
+	@changelog-build -last-release v$(LAST_RELEASE) -this-release HEAD \
 		-entries-dir .changelog/ -changelog-template ./.changelog/changelog.tmpl -note-template ./.changelog/note.tmpl
 
 ## We skip the terraform directory as there are templated hcl configurations
@@ -248,10 +258,7 @@ tidy: ## Tidy up the go mod files
 	@cd tools && go mod tidy
 	@cd api && go mod tidy
 	@echo "==> Tidy nomad module"
-	@go-modtool \
-		--replace-comment="Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826." \
-		--subs-comment="Nomad is built using the current source of the API module." \
-		-w fmt go.mod
+	@go-modtool -config=ci/modtool.toml fmt go.mod
 	@go mod tidy
 
 .PHONY: dev
@@ -324,6 +331,17 @@ integration-test: dev ## Run Nomad integration tests
 		-count=1 \
 		-tags "$(GO_TAGS)" \
 		github.com/hashicorp/nomad/e2e/vaultcompat
+
+.PHONY: integration-test-consul
+integration-test-consul: dev ## Run Nomad integration tests
+	@echo "==> Running Nomad integration test suite for Consul:"
+	NOMAD_E2E_CONSULCOMPAT=1 go test \
+		-v \
+		-race \
+		-timeout=900s \
+		-count=1 \
+		-tags "$(GO_TAGS)" \
+		github.com/hashicorp/nomad/e2e/consulcompat
 
 .PHONY: clean
 clean: GOPATH=$(shell go env GOPATH)
@@ -427,3 +445,19 @@ test: ## Use this target as a smoke test
 		-count=1 \
 		-tags "$(GO_TAGS)" \
 		$(GOTEST_PKGS)
+
+.PHONY: copywriteheaders
+copywriteheaders:
+	copywrite headers --plan
+	# Special case for MPL headers in /api, /drivers/shared, /plugins, /jobspec, /jobspec2, and /demo
+	cd api && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd drivers/shared && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd plugins && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd jobspec2 && $(CURDIR)/scripts/copywrite-exceptions.sh
+	cd demo && $(CURDIR)/scripts/copywrite-exceptions.sh
+
+.PHONY: cni
+cni: ## Install CNI plugins. Run this as root.
+	mkdir -p /opt/cni/bin
+	curl --fail -LsO "https://github.com/containernetworking/plugins/releases/download/v1.3.0/cni-plugins-linux-amd64-v1.3.0.tgz"
+	tar -C /opt/cni/bin -xf cni-plugins-linux-amd64-v1.3.0.tgz

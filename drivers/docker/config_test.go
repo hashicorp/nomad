@@ -215,6 +215,7 @@ config {
   cap_add = ["CAP_SYS_NICE"]
   cap_drop = ["CAP_SYS_ADMIN", "CAP_SYS_TIME"]
   command = "/bin/bash"
+  container_exists_attempts = 10
   cpu_hard_limit = true
   cpu_cfs_period = 20
   devices = [
@@ -313,6 +314,7 @@ config {
   ]
   network_aliases = ["redis"]
   network_mode = "host"
+  oom_score_adj = 1000
   pids_limit = 2000
 	pid_mode = "host"
 	ports = ["http", "https"]
@@ -351,8 +353,6 @@ config {
 }`
 
 	expected := &TaskConfig{
-		Image:             "redis:7",
-		ImagePullTimeout:  "15m",
 		AdvertiseIPv6Addr: true,
 		Args:              []string{"command_arg1", "command_arg2"},
 		Auth: DockerAuth{
@@ -361,12 +361,13 @@ config {
 			Email:      "myemail@example.com",
 			ServerAddr: "https://example.com",
 		},
-		AuthSoftFail: true,
-		CapAdd:       []string{"CAP_SYS_NICE"},
-		CapDrop:      []string{"CAP_SYS_ADMIN", "CAP_SYS_TIME"},
-		Command:      "/bin/bash",
-		CPUHardLimit: true,
-		CPUCFSPeriod: 20,
+		AuthSoftFail:            true,
+		CapAdd:                  []string{"CAP_SYS_NICE"},
+		CapDrop:                 []string{"CAP_SYS_ADMIN", "CAP_SYS_TIME"},
+		Command:                 "/bin/bash",
+		ContainerExistsAttempts: 10,
+		CPUHardLimit:            true,
+		CPUCFSPeriod:            20,
 		Devices: []DockerDevice{
 			{
 				HostPath:          "/dev/null",
@@ -393,6 +394,8 @@ config {
 		GroupAdd:         []string{"group1", "group2"},
 		Healthchecks:     DockerHealthchecks{Disable: true},
 		Hostname:         "self.example.com",
+		Image:            "redis:7",
+		ImagePullTimeout: "15m",
 		Interactive:      true,
 		IPCMode:          "host",
 		IPv4Address:      "10.0.2.1",
@@ -473,6 +476,7 @@ config {
 		},
 		NetworkAliases: []string{"redis"},
 		NetworkMode:    "host",
+		OOMScoreAdj:    1000,
 		PidsLimit:      2000,
 		PidMode:        "host",
 		Ports:          []string{"http", "https"},
@@ -642,7 +646,6 @@ func TestConfig_Capabilities(t *testing.T) {
 				NetIsolationModes:    []drivers.NetIsolationMode{"host", "group", "task"},
 				MustInitiateNetwork:  true,
 				MountConfigs:         0,
-				RemoteTasks:          false,
 				DisableLogCollection: false,
 			},
 		},
@@ -656,7 +659,6 @@ func TestConfig_Capabilities(t *testing.T) {
 				NetIsolationModes:    []drivers.NetIsolationMode{"host", "group", "task"},
 				MustInitiateNetwork:  true,
 				MountConfigs:         0,
-				RemoteTasks:          false,
 				DisableLogCollection: true,
 			},
 		},
@@ -670,7 +672,6 @@ func TestConfig_Capabilities(t *testing.T) {
 				NetIsolationModes:    []drivers.NetIsolationMode{"host", "group", "task"},
 				MustInitiateNetwork:  true,
 				MountConfigs:         0,
-				RemoteTasks:          false,
 				DisableLogCollection: false,
 			},
 		},
@@ -685,6 +686,93 @@ func TestConfig_Capabilities(t *testing.T) {
 			caps, err := d.Capabilities()
 			must.NoError(t, err)
 			must.Eq(t, c.expected, caps)
+		})
+	}
+}
+
+func TestConfig_DriverConfig_ContainerExistsAttempts(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		config   string
+		expected uint64
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: 5,
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ container_exists_attempts = 10 }`,
+			expected: 10,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			must.Eq(t, c.expected, tc.ContainerExistsAttempts)
+		})
+	}
+}
+
+func TestConfig_DriverConfig_OOMScoreAdj(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		config   string
+		expected int
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: 0,
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ oom_score_adj = 1001 }`,
+			expected: 1001,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			must.Eq(t, c.expected, tc.OOMScoreAdj)
+		})
+	}
+}
+
+func TestConfig_DriverConfig_WindowsAllowInsecureContainerAdmin(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		config   string
+		expected bool
+	}{
+		{
+			name:     "default",
+			config:   `{}`,
+			expected: false,
+		},
+		{
+			name:     "set explicitly",
+			config:   `{ windows_allow_insecure_container_admin = true }`,
+			expected: true,
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var tc DriverConfig
+			hclutils.NewConfigParser(configSpec).ParseHCL(t, "config "+c.config, &tc)
+			must.Eq(t, c.expected, tc.WindowsAllowInsecureContainerAdmin)
 		})
 	}
 }

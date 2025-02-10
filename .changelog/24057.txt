@@ -1,0 +1,3 @@
+```release-note:bug
+template: Fixed a panic on client restart when using change_mode=script
+```

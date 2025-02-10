@@ -8,6 +8,9 @@
       <Hds::Alert @type="inline" @color="critical" data-test-error={{@data.error.type}} as |A|>
           <A.Title data-test-error-title>{{conditionally-capitalize @data.error.type true}}</A.Title>
           <A.Description data-test-error-message>{{@data.error.message}}</A.Description>
+          {{#if (eq @data.error.message "Job ID does not match")}}
+            <A.Button @text="Run as a new job instead" @color="primary" @route="jobs.run" @query={{hash sourceString=@data.job._newDefinition disregardNameWarning=true}} />
+          {{/if}}
       </Hds::Alert>
     {{/if}}
     {{#if (and (eq @data.stage "read") @data.hasVariables (eq @data.view "job-spec"))}}
@@ -31,4 +34,3 @@
       </Hds::Alert>
     {{/if}}
   </div>
-  

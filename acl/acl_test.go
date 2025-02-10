@@ -79,10 +79,12 @@ func TestACLManagement(t *testing.T) {
 	// Check default namespace rights
 	must.True(t, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
 	must.True(t, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	must.True(t, acl.AllowNamespaceOperation("default", NamespaceCapabilityHostVolumeCreate))
 	must.True(t, acl.AllowNamespace("default"))
 
 	// Check non-specified namespace
 	must.True(t, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	must.True(t, acl.AllowNamespaceOperation("foo", NamespaceCapabilityHostVolumeCreate))
 	must.True(t, acl.AllowNamespace("foo"))
 
 	// Check node pool rights.
@@ -99,6 +101,8 @@ func TestACLManagement(t *testing.T) {
 	must.True(t, acl.AllowOperatorWrite())
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
+	must.True(t, acl.AllowServerOp())
+	must.True(t, acl.AllowClientOp())
 }
 
 func TestACLMerge(t *testing.T) {
@@ -141,6 +145,8 @@ func TestACLMerge(t *testing.T) {
 	must.True(t, acl.AllowOperatorWrite())
 	must.True(t, acl.AllowQuotaRead())
 	must.True(t, acl.AllowQuotaWrite())
+	must.False(t, acl.AllowServerOp())
+	must.False(t, acl.AllowClientOp())
 
 	// Merge read + blank
 	p3, err := Parse("")
@@ -151,9 +157,11 @@ func TestACLMerge(t *testing.T) {
 	// Check default namespace rights
 	must.True(t, acl.AllowNamespaceOperation("default", NamespaceCapabilityListJobs))
 	must.False(t, acl.AllowNamespaceOperation("default", NamespaceCapabilitySubmitJob))
+	must.False(t, acl.AllowNamespaceOperation("default", NamespaceCapabilityHostVolumeRegister))
 
 	// Check non-specified namespace
 	must.False(t, acl.AllowNamespaceOperation("foo", NamespaceCapabilityListJobs))
+	must.False(t, acl.AllowNamespaceOperation("foo", NamespaceCapabilityHostVolumeCreate))
 
 	// Check rights in the node pool specified in policies.
 	must.True(t, acl.AllowNodePoolOperation("my-pool", NodePoolCapabilityRead))
@@ -175,6 +183,8 @@ func TestACLMerge(t *testing.T) {
 	must.False(t, acl.AllowOperatorWrite())
 	must.True(t, acl.AllowQuotaRead())
 	must.False(t, acl.AllowQuotaWrite())
+	must.False(t, acl.AllowServerOp())
+	must.False(t, acl.AllowClientOp())
 
 	// Merge read + deny
 	p4, err := Parse(denyAll)
@@ -209,6 +219,7 @@ func TestACLMerge(t *testing.T) {
 	must.False(t, acl.AllowOperatorWrite())
 	must.False(t, acl.AllowQuotaRead())
 	must.False(t, acl.AllowQuotaWrite())
+	must.False(t, acl.AllowServerOp())
 }
 
 var readAll = `
@@ -1022,4 +1033,69 @@ func TestACL_matchingCapabilitySet_difference(t *testing.T) {
 		})
 	}
 
+}
+
+func TestAgentDebug(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name           string
+		policy         string
+		aclsDisabled   bool
+		isDebugEnabled bool
+		expect         bool
+	}{
+		{
+			name:           "policy read debug not enabled",
+			policy:         `agent { policy = "read" }`,
+			isDebugEnabled: false,
+			expect:         true,
+		},
+		{
+			name:           "policy read debug enabled",
+			policy:         `agent { policy = "read" }`,
+			isDebugEnabled: true,
+			expect:         true,
+		},
+		{
+			name:           "policy no read debug enabled",
+			policy:         `node { policy = "read" }`,
+			isDebugEnabled: true,
+			expect:         false,
+		},
+		{
+			name:           "policy no read debug not enabled",
+			policy:         `node { policy = "read" }`,
+			isDebugEnabled: false,
+			expect:         false,
+		},
+		{
+			name:           "no acls debug enabled",
+			aclsDisabled:   true,
+			isDebugEnabled: true,
+			expect:         true,
+		},
+		{
+			name:           "no acls debug not enabled",
+			aclsDisabled:   true,
+			isDebugEnabled: false,
+			expect:         false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			acl := ACLsDisabledACL
+			if !tc.aclsDisabled {
+				policy, err := Parse(tc.policy)
+				must.NoError(t, err)
+
+				acl, err = NewACL(false, []*Policy{policy})
+				must.NoError(t, err)
+			}
+
+			must.Eq(t, tc.expect, acl.AllowAgentDebug(tc.isDebugEnabled))
+		})
+	}
 }

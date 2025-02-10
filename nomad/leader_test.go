@@ -12,8 +12,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	memdb "github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/go-memdb"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
@@ -819,6 +818,31 @@ func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
 	}
 }
 
+func TestLeader_revokeVaultAccessorsOnRestore_workloadIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanupS1()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Insert a Vault accessor that should be revoked
+	fsmState := s1.fsm.State()
+	va := mock.VaultAccessor()
+	err := fsmState.UpsertVaultAccessor(100, []*structs.VaultAccessor{va})
+	must.NoError(t, err)
+
+	// Do a restore
+	err = s1.revokeVaultAccessorsOnRestore()
+	must.NoError(t, err)
+
+	// Verify accessor was removed from state.
+	got, err := fsmState.VaultAccessor(nil, va.Accessor)
+	must.NoError(t, err)
+	must.Nil(t, got)
+}
+
 func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 	ci.Parallel(t)
 	r := require.New(t)
@@ -861,115 +885,10 @@ func TestLeader_ClusterID(t *testing.T) {
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
 
-	clusterID, err := s1.ClusterID()
+	clusterMD, err := s1.ClusterMetadata()
 
 	require.NoError(t, err)
-	require.True(t, helper.IsUUID(clusterID))
-}
-
-func TestLeader_ClusterID_upgradePath(t *testing.T) {
-	ci.Parallel(t)
-
-	before := version.Must(version.NewVersion("0.10.1")).String()
-	after := minClusterIDVersion.String()
-
-	type server struct {
-		s       *Server
-		cleanup func()
-	}
-
-	outdated := func() server {
-		s, cleanup := TestServer(t, func(c *Config) {
-			c.NumSchedulers = 0
-			c.Build = before
-			c.BootstrapExpect = 3
-			c.Logger.SetLevel(hclog.Trace)
-		})
-		return server{s: s, cleanup: cleanup}
-	}
-
-	upgraded := func() server {
-		s, cleanup := TestServer(t, func(c *Config) {
-			c.NumSchedulers = 0
-			c.Build = after
-			c.BootstrapExpect = 0
-			c.Logger.SetLevel(hclog.Trace)
-		})
-		return server{s: s, cleanup: cleanup}
-	}
-
-	servers := []server{outdated(), outdated(), outdated()}
-	// fallback shutdown attempt in case testing fails
-	defer servers[0].cleanup()
-	defer servers[1].cleanup()
-	defer servers[2].cleanup()
-
-	upgrade := func(i int) {
-		previous := servers[i]
-
-		servers[i] = upgraded()
-		TestJoin(t, servers[i].s, servers[(i+1)%3].s, servers[(i+2)%3].s)
-		testutil.WaitForLeader(t, servers[i].s.RPC)
-
-		require.NoError(t, previous.s.Leave())
-		require.NoError(t, previous.s.Shutdown())
-	}
-
-	// Join the servers before doing anything
-	TestJoin(t, servers[0].s, servers[1].s, servers[2].s)
-
-	// Wait for servers to settle
-	for i := 0; i < len(servers); i++ {
-		testutil.WaitForLeader(t, servers[i].s.RPC)
-	}
-
-	// A check that ClusterID is not available yet
-	noIDYet := func() {
-		for _, s := range servers {
-			_, err := s.s.ClusterID()
-			must.Error(t, err)
-		}
-	}
-
-	// Replace first old server with new server
-	upgrade(0)
-	defer servers[0].cleanup()
-	noIDYet() // ClusterID should not work yet, servers: [new, old, old]
-
-	// Replace second old server with new server
-	upgrade(1)
-	defer servers[1].cleanup()
-	noIDYet() // ClusterID should not work yet, servers: [new, new, old]
-
-	// Replace third / final old server with new server
-	upgrade(2)
-	defer servers[2].cleanup()
-
-	// Wait for old servers to really be gone
-	for _, s := range servers {
-		testutil.WaitForResult(func() (bool, error) {
-			peers, _ := s.s.numPeers()
-			return peers == 3, nil
-		}, func(_ error) {
-			t.Fatalf("should have 3 peers")
-		})
-	}
-
-	// Now we can tickle the leader into making a cluster ID
-	leaderID := ""
-	for _, s := range servers {
-		if s.s.IsLeader() {
-			id, err := s.s.ClusterID()
-			require.NoError(t, err)
-			leaderID = id
-			break
-		}
-	}
-	require.True(t, helper.IsUUID(leaderID))
-
-	// Now every participating server has been upgraded, each one should be
-	// able to get the cluster ID, having been plumbed all the way through.
-	agreeClusterID(t, []*Server{servers[0].s, servers[1].s, servers[2].s})
+	require.True(t, helper.IsUUID(clusterMD.ClusterID))
 }
 
 func TestLeader_ClusterID_noUpgrade(t *testing.T) {
@@ -1021,20 +940,20 @@ func agreeClusterID(t *testing.T, servers []*Server) {
 	must.Len(t, 3, servers)
 
 	f := func() error {
-		id1, err1 := servers[0].ClusterID()
+		id1, err1 := servers[0].ClusterMetadata()
 		if err1 != nil {
 			return err1
 		}
-		id2, err2 := servers[1].ClusterID()
+		id2, err2 := servers[1].ClusterMetadata()
 		if err2 != nil {
 			return err2
 		}
-		id3, err3 := servers[2].ClusterID()
+		id3, err3 := servers[2].ClusterMetadata()
 		if err3 != nil {
 			return err3
 		}
-		if id1 != id2 || id2 != id3 {
-			return fmt.Errorf("ids do not match, id1: %s, id2: %s, id3: %s", id1, id2, id3)
+		if id1.ClusterID != id2.ClusterID || id2.ClusterID != id3.ClusterID {
+			return fmt.Errorf("ids do not match, id1: %s, id2: %s, id3: %s", id1.ClusterID, id2.ClusterID, id3.ClusterID)
 		}
 		return nil
 	}

@@ -4,17 +4,21 @@
 package nomad
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	capOIDC "github.com/hashicorp/cap/oidc"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -271,11 +275,11 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	// Create the register request
 	policy := mock.ACLPolicy()
 	policy2 := mock.ACLPolicy()
-	s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2})
+	must.NoError(t, s1.fsm.State().UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy2}))
 
 	token := mock.ACLToken()
 	token.Policies = []string{policy.Name}
-	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
+	must.NoError(t, s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token}))
 
 	// Lookup the policy which is a subset of our tokens
 	get := &structs.ACLPolicySetRequest{
@@ -286,19 +290,15 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 		},
 	}
 	var resp structs.ACLPolicySetResponse
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.Equal(t, uint64(1000), resp.Index)
-	assert.Equal(t, 1, len(resp.Policies))
-	assert.Equal(t, policy, resp.Policies[policy.Name])
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp))
+	must.Eq(t, uint64(1000), resp.Index)
+	must.Eq(t, 1, len(resp.Policies))
+	must.Eq(t, policy, resp.Policies[policy.Name])
 
 	// Lookup non-associated policy
 	get.Names = []string{policy2.Name}
 	resp = structs.ACLPolicySetResponse{}
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp); err == nil {
-		t.Fatalf("expected error")
-	}
+	must.Error(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", get, &resp))
 
 	// Generate and upsert an ACL role which links to the previously created
 	// policy.
@@ -352,6 +352,27 @@ func TestACLEndpoint_GetPolicies_TokenSubset(t *testing.T) {
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req2, &resp2))
 	must.Eq(t, 1000, resp2.Index)
 	must.Eq(t, 2, len(resp2.Policies))
+
+	// Delete one of the policies, which means the ACL token has a dangling
+	// policy. When a Nomad client perform an ACL lookup, it adds the policies
+	// attached to the token within the request arguments. This test section
+	// mimics the behaviour when a token is being used that contains dangling
+	// policies.
+	must.NoError(t, s1.fsm.State().DeleteACLPolicies(structs.MsgTypeTestSetup, 1040, []string{policy.Name}))
+
+	req3 := &structs.ACLPolicySetRequest{
+		Names: []string{policy.Name, policy2.Name},
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: mockTokenWithRolePolicy.SecretID,
+		},
+	}
+
+	var resp3 structs.ACLPolicySetResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "ACL.GetPolicies", req3, &resp3))
+	must.Eq(t, 1040, resp3.Index)
+	must.MapLen(t, 1, resp3.Policies)
+	must.MapContainsKey(t, resp3.Policies, policy2.Name)
 }
 
 func TestACLEndpoint_GetPolicies_Blocking(t *testing.T) {
@@ -1894,6 +1915,54 @@ func TestACLEndpoint_ResolveToken(t *testing.T) {
 	}
 	assert.Equal(t, uint64(1000), resp.Index)
 	assert.Nil(t, resp.Token)
+}
+
+func TestACLEndpoint_WhoAmI(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS1 := TestACLServer(t, nil)
+	t.Cleanup(cleanupS1)
+	codec := rpcClient(t, s1)
+	testutil.WaitForKeyring(t, s1.RPC, "global")
+
+	// Create the register request
+	token := mock.ACLToken()
+	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
+
+	// Lookup via token
+	get := &structs.GenericRequest{
+		QueryOptions: structs.QueryOptions{Region: "global", AuthToken: token.SecretID},
+	}
+	var resp structs.ACLWhoAmIResponse
+	err := msgpackrpc.CallWithCodec(codec, "ACL.WhoAmI", get, &resp)
+	must.NoError(t, err)
+	must.Eq(t, token, resp.Identity.ACLToken)
+
+	// Lookup non-existing token
+	get.AuthToken = uuid.Generate()
+	var resp2 structs.ACLWhoAmIResponse
+	err = msgpackrpc.CallWithCodec(codec, "ACL.WhoAmI", get, &resp2)
+	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+	must.Nil(t, resp2.Identity)
+
+	// Lookup identity claim
+	alloc := mock.Alloc()
+	s1.fsm.State().UpsertAllocs(structs.MsgTypeTestSetup, 1500, []*structs.Allocation{alloc})
+	task := alloc.LookupTask("web")
+	claims := structs.NewIdentityClaimsBuilder(alloc.Job, alloc,
+		wiHandle, // see encrypter_test.go
+		task.Identity).
+		WithTask(task).
+		Build(time.Now().Add(-10 * time.Minute))
+	jwtToken, _, err := s1.encrypter.SignClaims(claims)
+	must.NoError(t, err)
+
+	get.AuthToken = jwtToken
+	var resp3 structs.ACLWhoAmIResponse
+	err = msgpackrpc.CallWithCodec(codec, "ACL.WhoAmI", get, &resp3)
+	must.NoError(t, err)
+	must.NotNil(t, resp3.Identity.Claims)
+	must.Eq(t, alloc.ID, resp3.Identity.Claims.AllocationID)
 }
 
 func TestACLEndpoint_OneTimeToken(t *testing.T) {
@@ -3566,7 +3635,14 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 func TestACL_OIDCCompleteAuth(t *testing.T) {
 	ci.Parallel(t)
 
-	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
+	// setup logging output to test verbose logging
+	var buf bytes.Buffer
+	testServer, _, testServerCleanupFn := TestACLServer(t, func(c *Config) {
+		c.Logger = hclog.NewInterceptLogger(&hclog.LoggerOptions{
+			Level:  hclog.Debug,
+			Output: io.MultiWriter(&buf, os.Stderr),
+		})
+	})
 	defer testServerCleanupFn()
 	codec := rpcClient(t, testServer)
 	testutil.WaitForLeader(t, testServer.RPC)
@@ -3655,6 +3731,12 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
 	must.ErrorContains(t, err, "no role or policy bindings matched")
+	must.False(t, strings.Contains(buf.String(), verboseLoggingMessage))
+
+	// Reset buf and enable verbose logging
+	buf.Reset()
+	mockedAuthMethod.Config.VerboseLogging = true
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(11, []*structs.ACLAuthMethod{mockedAuthMethod}))
 
 	// Upsert an ACL policy and role, so that we can reference this within our
 	// OIDC claims.
@@ -3702,6 +3784,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	must.Len(t, 1, completeAuthResp4.ACLToken.Roles)
 	must.Eq(t, mockACLRole.Name, completeAuthResp4.ACLToken.Roles[0].Name)
 	must.Eq(t, mockACLRole.ID, completeAuthResp4.ACLToken.Roles[0].ID)
+	must.True(t, strings.Contains(buf.String(), verboseLoggingMessage))
 
 	// Create a binding rule which generates management tokens. This should
 	// override the other rules, giving us a management token when we next
@@ -3738,7 +3821,14 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 func TestACL_Login(t *testing.T) {
 	ci.Parallel(t)
 
-	testServer, _, testServerCleanupFn := TestACLServer(t, nil)
+	// setup logging output to test verbose logging
+	var buf bytes.Buffer
+	testServer, _, testServerCleanupFn := TestACLServer(t, func(c *Config) {
+		c.Logger = hclog.NewInterceptLogger(&hclog.LoggerOptions{
+			Level:  hclog.Debug,
+			Output: io.MultiWriter(&buf, os.Stderr),
+		})
+	})
 	defer testServerCleanupFn()
 	codec := rpcClient(t, testServer)
 	testutil.WaitForLeader(t, testServer.RPC)
@@ -3747,12 +3837,14 @@ func TestACL_Login(t *testing.T) {
 	iat := time.Now().Unix()
 	nbf := time.Now().Unix()
 	exp := time.Now().Add(time.Hour).Unix()
+	user := "John"
 	testToken, testPubKey, err := mock.SampleJWTokenWithKeys(jwt.MapClaims{
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
 		"iat":                            iat,
 		"nbf":                            nbf,
 		"exp":                            exp,
+		"sub":                            user,
 		"iss":                            "nomad test suite",
 		"aud":                            []string{"sales", "engineering"},
 	}, nil)
@@ -3793,7 +3885,9 @@ func TestACL_Login(t *testing.T) {
 	mockedAuthMethod.Config.BoundIssuer = []string{"nomad test suite"}
 	mockedAuthMethod.Config.ExpirationLeeway = time.Duration(3600)
 	mockedAuthMethod.Config.ClockSkewLeeway = time.Duration(3600)
-	mockedAuthMethod.Config.ClaimMappings = map[string]string{}
+	mockedAuthMethod.Config.ClaimMappings = map[string]string{
+		"sub": "user",
+	}
 	mockedAuthMethod.Config.ListClaimMappings = map[string]string{
 		"http://nomad.internal/roles":    "roles",
 		"http://nomad.internal/policies": "policies",
@@ -3816,6 +3910,12 @@ func TestACL_Login(t *testing.T) {
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
 	must.ErrorContains(t, err, "no role or policy bindings matched")
+	must.False(t, strings.Contains(buf.String(), verboseLoggingMessage))
+
+	// Reset buf and enable verbose logging
+	buf.Reset()
+	mockedAuthMethod.Config.VerboseLogging = true
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(11, []*structs.ACLAuthMethod{mockedAuthMethod}))
 
 	// Upsert an ACL policy and role, so that we can reference this within our
 	// JWT claims.
@@ -3860,6 +3960,8 @@ func TestACL_Login(t *testing.T) {
 	must.Len(t, 1, completeAuthResp4.ACLToken.Roles)
 	must.Eq(t, mockACLRole.Name, completeAuthResp4.ACLToken.Roles[0].Name)
 	must.Eq(t, mockACLRole.ID, completeAuthResp4.ACLToken.Roles[0].ID)
+	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name, completeAuthResp4.ACLToken.Name)
+	must.True(t, strings.Contains(buf.String(), verboseLoggingMessage))
 
 	// Create a binding rule which generates management tokens. This should
 	// override the other rules, giving us a management token when we next
@@ -3884,8 +3986,26 @@ func TestACL_Login(t *testing.T) {
 	var completeAuthResp5 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq5, &completeAuthResp5)
 	must.NoError(t, err)
-	must.NotNil(t, completeAuthResp4.ACLToken)
+	must.NotNil(t, completeAuthResp5.ACLToken)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Roles)
 	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
+
+	// Change the token name format
+	mockedAuthMethod.TokenNameFormat = "${auth_method_type}-${auth_method_name}-${value.user}"
+	must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(60, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+	loginReq6 := structs.ACLLoginRequest{
+		AuthMethodName: mockedAuthMethod.Name,
+		LoginToken:     testToken,
+		WriteRequest: structs.WriteRequest{
+			Region: DefaultRegion,
+		},
+	}
+
+	var completeAuthResp6 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLLoginRPCMethod, &loginReq6, &completeAuthResp6)
+	must.NoError(t, err)
+	must.NotNil(t, completeAuthResp6.ACLToken)
+	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name+"-"+user, completeAuthResp6.ACLToken.Name)
 }

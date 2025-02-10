@@ -69,9 +69,10 @@ Specification][volume_specification] page.
 
 Not all fields can be updated after the volume is registered:
 
-* The `capacity_min` and `capacity_max` fields can be updated, so long as the
-  volumes existing capacity fits within that range. The actual capacity of the
-  volume is unchanged.
+* The `capacity_min` and `capacity_max` fields can be updated, and may increase
+  the volume size if the CSI plugin supports it. Expansion may or may not be
+  possible while the volume is in use, again depending on the plugin.
+  Reducing volume capacity is not allowed per the CSI spec.
 * The `capability` blocks can be added or removed, but only if the capability is
   not currently in use by a mounted volume.
 * The `mount_options` block can be updated if the volume is not in use.

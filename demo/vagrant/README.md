@@ -2,7 +2,7 @@
 
 This Vagrantfile and associated Nomad configuration files are meant
 to be used along with the
-[getting started guide](https://nomadproject.io/intro/getting-started/install.html).
+[getting started guide](https://developer.hashicorp.com/nomad/intro/getting-started/install.html).
 
 Follow along with the guide, or just start the Vagrant box with:
 
@@ -20,5 +20,5 @@ Once it is finished, you should be able to SSH in and interact with Nomad:
         agent-info            Display status information about the local agent
     ...
 
-To learn more about starting Nomad see the [official site](https://nomadproject.io).
+To learn more about starting Nomad see the [official site](https://developer.hashicorp.com/nomad).
 

@@ -15,7 +15,7 @@ import (
 
 	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v3"
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -213,6 +213,8 @@ const (
 	// ACLAuthMethodTypeJWT the ACLAuthMethod.Type and represents an auth-method
 	// which uses the JWT type.
 	ACLAuthMethodTypeJWT = "JWT"
+
+	DefaultACLAuthMethodTokenNameFormat = "${auth_method_type}-${auth_method_name}"
 )
 
 var (
@@ -222,7 +224,7 @@ var (
 	// ValidACLAuthMethod is used to validate an ACL auth method name.
 	ValidACLAuthMethod = regexp.MustCompile("^[a-zA-Z0-9-]{1,128}$")
 
-	// ValitACLAuthMethodTypes lists supported auth method types.
+	// ValidACLAuthMethodTypes lists supported auth method types.
 	ValidACLAuthMethodTypes = []string{ACLAuthMethodTypeOIDC, ACLAuthMethodTypeJWT}
 )
 
@@ -363,9 +365,12 @@ func (a *ACLToken) Validate(minTTL, maxTTL time.Duration, existing *ACLToken) er
 		if existing.ExpirationTTL != a.ExpirationTTL {
 			mErr.Errors = append(mErr.Errors, errors.New("cannot update expiration TTL"))
 		}
-		if existing.ExpirationTime != a.ExpirationTime {
-			mErr.Errors = append(mErr.Errors, errors.New("cannot update expiration time"))
+		if a.ExpirationTime != nil {
+			if !existing.ExpirationTime.Equal(*a.ExpirationTime) {
+				mErr.Errors = append(mErr.Errors, errors.New("cannot update expiration time"))
+			}
 		}
+
 	}
 
 	return mErr.ErrorOrNil()
@@ -467,6 +472,16 @@ func (a *ACLToken) UnmarshalJSON(data []byte) (err error) {
 		a.Hash = []byte(aux.Hash)
 	}
 	return nil
+}
+
+func (a *ACLToken) Sanitize() *ACLToken {
+	if a == nil {
+		return nil
+	}
+
+	out := a.Copy()
+	out.SecretID = ""
+	return out
 }
 
 // ACLRole is an abstraction for the ACL system which allows the grouping of
@@ -739,12 +754,13 @@ type ACLRoleByNameResponse struct {
 // ACLAuthMethod is used to capture the properties of an authentication method
 // used for single sing-on
 type ACLAuthMethod struct {
-	Name          string
-	Type          string
-	TokenLocality string // is the token valid locally or globally?
-	MaxTokenTTL   time.Duration
-	Default       bool
-	Config        *ACLAuthMethodConfig
+	Name            string
+	Type            string
+	TokenLocality   string // is the token valid locally or globally?
+	TokenNameFormat string
+	MaxTokenTTL     time.Duration
+	Default         bool
+	Config          *ACLAuthMethodConfig
 
 	Hash []byte
 
@@ -768,15 +784,26 @@ func (a *ACLAuthMethod) SetHash() []byte {
 	_, _ = hash.Write([]byte(a.Name))
 	_, _ = hash.Write([]byte(a.Type))
 	_, _ = hash.Write([]byte(a.TokenLocality))
+	_, _ = hash.Write([]byte(a.TokenNameFormat))
 	_, _ = hash.Write([]byte(a.MaxTokenTTL.String()))
 	_, _ = hash.Write([]byte(strconv.FormatBool(a.Default)))
 
 	if a.Config != nil {
+		_, _ = hash.Write([]byte(a.Config.JWKSURL))
+		_, _ = hash.Write([]byte(a.Config.JWKSCACert))
 		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
+		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCDisableUserInfo)))
+		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.VerboseLogging)))
+		_, _ = hash.Write([]byte(a.Config.ExpirationLeeway.String()))
+		_, _ = hash.Write([]byte(a.Config.NotBeforeLeeway.String()))
+		_, _ = hash.Write([]byte(a.Config.ClockSkewLeeway.String()))
 		for _, ba := range a.Config.BoundAudiences {
 			_, _ = hash.Write([]byte(ba))
+		}
+		for _, bi := range a.Config.BoundIssuer {
+			_, _ = hash.Write([]byte(bi))
 		}
 		for _, uri := range a.Config.AllowedRedirectURIs {
 			_, _ = hash.Write([]byte(uri))
@@ -784,8 +811,14 @@ func (a *ACLAuthMethod) SetHash() []byte {
 		for _, pem := range a.Config.DiscoveryCaPem {
 			_, _ = hash.Write([]byte(pem))
 		}
+		for _, scope := range a.Config.OIDCScopes {
+			_, _ = hash.Write([]byte(scope))
+		}
 		for _, sa := range a.Config.SigningAlgs {
 			_, _ = hash.Write([]byte(sa))
+		}
+		for _, key := range a.Config.JWTValidationPubKeys {
+			_, _ = hash.Write([]byte(key))
 		}
 		for k, v := range a.Config.ClaimMappings {
 			_, _ = hash.Write([]byte(k))
@@ -897,6 +930,10 @@ func (a *ACLAuthMethod) Canonicalize() {
 		a.CreateTime = t
 	}
 	a.ModifyTime = t
+
+	if a.TokenNameFormat == "" {
+		a.TokenNameFormat = DefaultACLAuthMethodTokenNameFormat
+	}
 }
 
 // Merge merges auth method a with method b. It sets all required empty fields
@@ -906,6 +943,7 @@ func (a *ACLAuthMethod) Merge(b *ACLAuthMethod) {
 	if b != nil {
 		a.Type = helper.Merge(a.Type, b.Type)
 		a.TokenLocality = helper.Merge(a.TokenLocality, b.TokenLocality)
+		a.TokenNameFormat = helper.Merge(a.TokenNameFormat, b.TokenNameFormat)
 		a.MaxTokenTTL = helper.Merge(a.MaxTokenTTL, b.MaxTokenTTL)
 		a.Config = helper.Merge(a.Config, b.Config)
 	}
@@ -921,7 +959,7 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid name '%s'", a.Name))
 	}
 
-	if !slices.Contains([]string{"local", "global"}, a.TokenLocality) {
+	if !slices.Contains([]string{ACLAuthMethodTokenLocalityLocal, ACLAuthMethodTokenLocalityGlobal}, a.TokenLocality) {
 		mErr.Errors = append(
 			mErr.Errors, fmt.Errorf("invalid token locality '%s'", a.TokenLocality))
 	}
@@ -942,7 +980,9 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 
 // TokenLocalityIsGlobal returns whether the auth method creates global ACL
 // tokens or not.
-func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool { return a.TokenLocality == "global" }
+func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool {
+	return a.TokenLocality == ACLAuthMethodTokenLocalityGlobal
+}
 
 // ACLAuthMethodConfig is used to store configuration of an auth method
 type ACLAuthMethodConfig struct {
@@ -961,6 +1001,9 @@ type ACLAuthMethodConfig struct {
 
 	// The OAuth Client Secret configured with the OIDC provider
 	OIDCClientSecret string
+
+	// Disable claims from the OIDC UserInfo endpoint
+	OIDCDisableUserInfo bool
 
 	// List of OIDC scopes
 	OIDCScopes []string
@@ -1001,6 +1044,10 @@ type ACLAuthMethodConfig struct {
 	// (value).
 	ClaimMappings     map[string]string
 	ListClaimMappings map[string]string
+
+	// Enables logging of claims and binding-rule evaluations when
+	// debug level logging is enabled.
+	VerboseLogging bool
 }
 
 func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {

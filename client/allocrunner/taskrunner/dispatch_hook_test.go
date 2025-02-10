@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,10 +36,10 @@ func TestTaskRunner_DispatchHook_NoPayload(t *testing.T) {
 	alloc := mock.BatchAlloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_nopayload", alloc.ID)
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_nopayload", "nomadtest_nopayload", alloc.ID)
 	defer allocDir.Destroy()
-	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil))
+	taskDir := allocDir.NewTaskDir(task)
+	require.NoError(taskDir.Build(fsisolation.None, nil, task.User))
 
 	h := newDispatchHook(alloc, logger)
 
@@ -81,10 +82,10 @@ func TestTaskRunner_DispatchHook_Ok(t *testing.T) {
 		File: "out",
 	}
 
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatchok", alloc.ID)
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatchok", "nomadtest_dispatchok", alloc.ID)
 	defer allocDir.Destroy()
-	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil))
+	taskDir := allocDir.NewTaskDir(task)
+	require.NoError(taskDir.Build(fsisolation.None, nil, task.User))
 
 	h := newDispatchHook(alloc, logger)
 
@@ -126,10 +127,10 @@ func TestTaskRunner_DispatchHook_Error(t *testing.T) {
 		File: "out",
 	}
 
-	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatcherr", alloc.ID)
+	allocDir := allocdir.NewAllocDir(logger, "nomadtest_dispatcherr", "nomadtest_dispatcherr", alloc.ID)
 	defer allocDir.Destroy()
-	taskDir := allocDir.NewTaskDir(task.Name)
-	require.NoError(taskDir.Build(false, nil))
+	taskDir := allocDir.NewTaskDir(task)
+	require.NoError(taskDir.Build(fsisolation.None, nil, task.User))
 
 	h := newDispatchHook(alloc, logger)
 

@@ -40,7 +40,18 @@ General Options:
 History Options:
 
   -p
-    Display the difference between each job and its predecessor.
+    Display the difference between each version of the job and a reference
+    version. The reference version can be specified using the -diff-tag or
+    -diff-version flags. If neither flag is set, the most recent version is used.
+
+  -diff-tag
+    Specifies the version of the job to compare against, referenced by
+    tag name (defaults to latest). Mutually exclusive with -diff-version.
+    This tag can be set using the "nomad job tag" command.
+
+  -diff-version
+    Specifies the version number of the job to compare against.
+    Mutually exclusive with -diff-tag.
 
   -full
     Display the full job definition for each version.
@@ -64,11 +75,13 @@ func (c *JobHistoryCommand) Synopsis() string {
 func (c *JobHistoryCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-p":       complete.PredictNothing,
-			"-full":    complete.PredictNothing,
-			"-version": complete.PredictAnything,
-			"-json":    complete.PredictNothing,
-			"-t":       complete.PredictAnything,
+			"-p":            complete.PredictNothing,
+			"-full":         complete.PredictNothing,
+			"-version":      complete.PredictAnything,
+			"-json":         complete.PredictNothing,
+			"-t":            complete.PredictAnything,
+			"-diff-tag":     complete.PredictNothing,
+			"-diff-version": complete.PredictNothing,
 		})
 }
 
@@ -91,7 +104,8 @@ func (c *JobHistoryCommand) Name() string { return "job history" }
 
 func (c *JobHistoryCommand) Run(args []string) int {
 	var json, diff, full bool
-	var tmpl, versionStr string
+	var tmpl, versionStr, diffTag, diffVersionFlag string
+	var diffVersion *uint64
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -100,6 +114,8 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	flags.BoolVar(&json, "json", false, "")
 	flags.StringVar(&versionStr, "version", "", "")
 	flags.StringVar(&tmpl, "t", "", "")
+	flags.StringVar(&diffTag, "diff-tag", "", "")
+	flags.StringVar(&diffVersionFlag, "diff-version", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -116,6 +132,25 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	if (json || len(tmpl) != 0) && (diff || full) {
 		c.Ui.Error("-json and -t are exclusive with -p and -full")
 		return 1
+	}
+
+	if (diffTag != "" && !diff) || (diffVersionFlag != "" && !diff) {
+		c.Ui.Error("-diff-tag and -diff-version can only be used with -p")
+		return 1
+	}
+
+	if diffTag != "" && diffVersionFlag != "" {
+		c.Ui.Error("-diff-tag and -diff-version are mutually exclusive")
+		return 1
+	}
+
+	if diffVersionFlag != "" {
+		parsedDiffVersion, err := strconv.ParseUint(diffVersionFlag, 10, 64)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error parsing -diff-version: %s", err))
+			return 1
+		}
+		diffVersion = &parsedDiffVersion
 	}
 
 	// Get the HTTP client
@@ -136,7 +171,12 @@ func (c *JobHistoryCommand) Run(args []string) int {
 	q := &api.QueryOptions{Namespace: namespace}
 
 	// Prefix lookup matched a single job
-	versions, diffs, _, err := client.Jobs().Versions(jobID, diff, q)
+	versionOptions := &api.VersionsOptions{
+		Diffs:       diff,
+		DiffTag:     diffTag,
+		DiffVersion: diffVersion,
+	}
+	versions, diffs, _, err := client.Jobs().VersionsOpts(jobID, versionOptions, q)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1
@@ -158,7 +198,6 @@ func (c *JobHistoryCommand) Run(args []string) int {
 
 		var job *api.Job
 		var diff *api.JobDiff
-		var nextVersion uint64
 		for i, v := range versions {
 			if *v.Version != version {
 				continue
@@ -167,7 +206,6 @@ func (c *JobHistoryCommand) Run(args []string) int {
 			job = v
 			if i+1 <= len(diffs) {
 				diff = diffs[i]
-				nextVersion = *versions[i+1].Version
 			}
 		}
 
@@ -182,7 +220,7 @@ func (c *JobHistoryCommand) Run(args []string) int {
 			return 0
 		}
 
-		if err := c.formatJobVersion(job, diff, nextVersion, full); err != nil {
+		if err := c.formatJobVersion(job, diff, full); err != nil {
 			c.Ui.Error(err.Error())
 			return 1
 		}
@@ -222,19 +260,14 @@ func parseVersion(input string) (uint64, bool, error) {
 func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.JobDiff, full bool) error {
 	vLen := len(versions)
 	dLen := len(diffs)
-	if dLen != 0 && vLen != dLen+1 {
-		return fmt.Errorf("Number of job versions %d doesn't match number of diffs %d", vLen, dLen)
-	}
 
 	for i, version := range versions {
 		var diff *api.JobDiff
-		var nextVersion uint64
 		if i+1 <= dLen {
 			diff = diffs[i]
-			nextVersion = *versions[i+1].Version
 		}
 
-		if err := c.formatJobVersion(version, diff, nextVersion, full); err != nil {
+		if err := c.formatJobVersion(version, diff, full); err != nil {
 			return err
 		}
 
@@ -247,7 +280,7 @@ func (c *JobHistoryCommand) formatJobVersions(versions []*api.Job, diffs []*api.
 	return nil
 }
 
-func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, nextVersion uint64, full bool) error {
+func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, full bool) error {
 	if job == nil {
 		return fmt.Errorf("Error printing job history for non-existing job or job version")
 	}
@@ -257,9 +290,15 @@ func (c *JobHistoryCommand) formatJobVersion(job *api.Job, diff *api.JobDiff, ne
 		fmt.Sprintf("Stable|%v", *job.Stable),
 		fmt.Sprintf("Submit Date|%v", formatTime(time.Unix(0, *job.SubmitTime))),
 	}
+	// if tagged version is not nil
+	if job.VersionTag != nil {
+		basic = append(basic, fmt.Sprintf("Tag Name|%v", *&job.VersionTag.Name))
+		if job.VersionTag.Description != "" {
+			basic = append(basic, fmt.Sprintf("Tag Description|%v", *&job.VersionTag.Description))
+		}
+	}
 
-	if diff != nil {
-		//diffStr := fmt.Sprintf("Difference between version %d and %d:", *job.Version, nextVersion)
+	if diff != nil && diff.Type != "None" {
 		basic = append(basic, fmt.Sprintf("Diff|\n%s", strings.TrimSpace(formatJobDiff(diff, false))))
 	}
 

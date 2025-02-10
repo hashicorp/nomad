@@ -6,6 +6,7 @@ package api
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // Keyring is used to access the Variables keyring.
@@ -34,16 +35,18 @@ type RootKeyMeta struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 	State       RootKeyState
+	PublishTime int64
 }
 
 // RootKeyState enum describes the lifecycle of a root key.
 type RootKeyState string
 
 const (
-	RootKeyStateInactive   RootKeyState = "inactive"
-	RootKeyStateActive                  = "active"
-	RootKeyStateRekeying                = "rekeying"
-	RootKeyStateDeprecated              = "deprecated"
+	RootKeyStateInactive     RootKeyState = "inactive"
+	RootKeyStateActive                    = "active"
+	RootKeyStateRekeying                  = "rekeying"
+	RootKeyStateDeprecated                = "deprecated"
+	RootKeyStatePrepublished              = "prepublished"
 )
 
 // List lists all the keyring metadata
@@ -58,14 +61,17 @@ func (k *Keyring) List(q *QueryOptions) ([]*RootKeyMeta, *QueryMeta, error) {
 
 // Delete deletes a specific inactive key from the keyring
 func (k *Keyring) Delete(opts *KeyringDeleteOptions, w *WriteOptions) (*WriteMeta, error) {
-	wm, err := k.client.delete(fmt.Sprintf("/v1/operator/keyring/key/%v",
-		url.PathEscape(opts.KeyID)), nil, nil, w)
+	wm, err := k.client.delete(fmt.Sprintf("/v1/operator/keyring/key/%v?force=%v",
+		url.PathEscape(opts.KeyID), strconv.FormatBool(opts.Force)), nil, nil, w)
 	return wm, err
 }
 
 // KeyringDeleteOptions are parameters for the Delete API
 type KeyringDeleteOptions struct {
 	KeyID string // UUID
+	// Force can be used to force deletion of a root keyring that was used to encrypt
+	// an existing variable or to sign a workload identity
+	Force bool
 }
 
 // Rotate requests a key rotation
@@ -78,6 +84,9 @@ func (k *Keyring) Rotate(opts *KeyringRotateOptions, w *WriteOptions) (*RootKeyM
 		if opts.Full {
 			qp.Set("full", "true")
 		}
+		if opts.PublishTime > 0 {
+			qp.Set("publish_time", fmt.Sprintf("%d", opts.PublishTime))
+		}
 	}
 	resp := &struct{ Key *RootKeyMeta }{}
 	wm, err := k.client.put("/v1/operator/keyring/rotate?"+qp.Encode(), nil, resp, w)
@@ -86,6 +95,7 @@ func (k *Keyring) Rotate(opts *KeyringRotateOptions, w *WriteOptions) (*RootKeyM
 
 // KeyringRotateOptions are parameters for the Rotate API
 type KeyringRotateOptions struct {
-	Full      bool
-	Algorithm EncryptionAlgorithm
+	Full        bool
+	Algorithm   EncryptionAlgorithm
+	PublishTime int64
 }

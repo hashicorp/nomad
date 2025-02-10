@@ -92,3 +92,21 @@ func TestOperator_SchedulerSetConfiguration(t *testing.T) {
 	must.True(t, schedulerConfig.SchedulerConfig.MemoryOversubscriptionEnabled)
 	must.Eq(t, schedulerConfig.SchedulerConfig.PreemptionConfig, newSchedulerConfig.PreemptionConfig)
 }
+
+func TestOperator_AutopilotState(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s, _ := makeACLClient(t, nil, nil)
+	defer s.Stop()
+
+	operator := c.Operator()
+
+	// Make authenticated request.
+	_, _, err := operator.AutopilotServerHealth(nil)
+	must.NoError(t, err)
+
+	// Make unauthenticated request.
+	c.SetSecretID("")
+	_, _, err = operator.AutopilotServerHealth(nil)
+	must.ErrorContains(t, err, "403")
+}

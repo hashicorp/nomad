@@ -10,6 +10,10 @@ import { inject as service } from '@ember/service';
 import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 import { tagName } from '@ember-decorators/component';
 import classic from 'ember-classic-decorator';
+import jsonToHcl from 'nomad-ui/utils/json-to-hcl';
+import { marked } from 'marked';
+import { htmlSafe } from '@ember/template';
+import DOMPurify from 'dompurify';
 
 @classic
 @tagName('')
@@ -71,8 +75,27 @@ export default class Title extends Component {
    */
   @task(function* (withNotifications = false) {
     const job = this.job;
-    const specification = yield job.fetchRawSpecification();
-    job.set('_newDefinition', specification.Source);
+
+    // Try to get the submission/hcl sourced specification first.
+    // In the event that this fails, fall back to the raw definition.
+    try {
+      const specification = yield job.fetchRawSpecification();
+
+      let _newDefinitionVariables = job.get('_newDefinitionVariables') || '';
+      if (specification.VariableFlags) {
+        _newDefinitionVariables += jsonToHcl(specification.VariableFlags);
+      }
+      if (specification.Variables) {
+        _newDefinitionVariables += specification.Variables;
+      }
+      job.set('_newDefinitionVariables', _newDefinitionVariables);
+
+      job.set('_newDefinition', specification.Source);
+    } catch {
+      const definition = yield job.fetchRawDefinition();
+      delete definition.Stop;
+      job.set('_newDefinition', JSON.stringify(definition));
+    }
 
     try {
       yield job.parse();
@@ -94,4 +117,43 @@ export default class Title extends Component {
     }
   })
   startJob;
+
+  @task(function* (version) {
+    if (!version) {
+      return;
+    }
+    yield version.revertTo();
+  })
+  revertTo;
+
+  get description() {
+    if (!this.job.ui?.Description) {
+      return null;
+    }
+
+    // Put <br /> on newlines, use github-flavoured-markdown.
+    marked.use({
+      gfm: true,
+      breaks: true,
+    });
+
+    const purifyConfig = {
+      FORBID_TAGS: ['script', 'style'],
+      FORBID_ATTR: ['onerror', 'onload'],
+    };
+    const rawDescription = marked.parse(this.job.ui.Description);
+    if (typeof rawDescription !== 'string') {
+      console.error(
+        'Expected a string from marked.parse(), received:',
+        typeof rawDescription
+      );
+      return null;
+    }
+    const cleanDescription = DOMPurify.sanitize(rawDescription, purifyConfig);
+    return htmlSafe(cleanDescription);
+  }
+
+  get links() {
+    return this.job.ui?.Links;
+  }
 }

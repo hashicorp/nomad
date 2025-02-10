@@ -44,8 +44,22 @@ job "docs" {
   maximum memory the task may use, if the client has excess memory capacity, in MB.
   See [Memory Oversubscription](#memory-oversubscription) for more details.
 
+- `numa` <code>([Numa][]: &lt;optional&gt;)</code> - Specifies the
+  NUMA scheduling preference for the task. Requires the use of `cores`.
+
 - `device` <code>([Device][]: &lt;optional&gt;)</code> - Specifies the device
   requirements. This may be repeated to request multiple device types.
+
+- `secrets` <code>(`int`: &lt;optional&gt;)</code> - Specifies the size of the
+  [`secrets/`][] directory in MB, on platforms where the directory is a
+  tmpfs. If set, the scheduler adds the `secrets` value to the `memory` value
+  when allocating resources on a client, and this value will be included in the
+  allocated resources shown by the `nomad alloc status` and `nomad node status`
+  commands. If unset, the client will allocate 1 MB of tmpfs space and it will
+  not be counted for scheduling purposes or included in allocated resources. You
+  should not set this value if the workload will be placed on a platform where
+  tmpfs is unsupported, because it will still be counted for scheduling
+  purposes.
 
 ## `resources` Examples
 
@@ -69,11 +83,11 @@ If `cores` and `cpu` are both defined in the same resource block, validation of 
 ### Memory
 
 This example specifies the task requires 2 GB of RAM to operate. 2 GB is the
-equivalent of 2000 MB:
+equivalent of 2048 MB:
 
 ```hcl
 resources {
-  memory = 2000
+  memory = 2048
 }
 ```
 
@@ -113,12 +127,13 @@ mechanism for memory pressure is specific to the task driver, operating system,
 and application runtime.
 
 The `memory_max` limit attribute is currently supported by the official
-`docker`, `exec`, and `java` task drivers.  Consult the documentation of
-community-supported task drivers for their memory oversubscription support.
+`raw_exec`, `exec2`, `exec`, `docker`, `podman`, and `java` task drivers.  Consult the
+documentation of community-supported task drivers for their memory
+oversubscription support.
 
 Memory oversubscription is opt-in. Nomad operators can enable [Memory
 Oversubscription in the scheduler configuration][api_sched_config]. Enterprise
-customers can use [Resource Quotas][tutorial_quota] to limit the memory
+customers can use [Resource Quotas][quota_spec] to limit the memory
 oversubscription and enable or disable memory oversubscription per [node
 pool][np_sched_config].
 
@@ -142,4 +157,6 @@ resource utilization and considering the following suggestions:
 [docker_cpu]: /nomad/docs/drivers/docker#cpu
 [exec_cpu]: /nomad/docs/drivers/exec#cpu
 [np_sched_config]: /nomad/docs/other-specifications/node-pool#memory_oversubscription_enabled
-[tutorial_quota]: /nomad/tutorials/governance-and-policy/quotas
+[quota_spec]: /nomad/docs/other-specifications/quota
+[numa]: /nomad/docs/job-specification/numa 'Nomad NUMA Job Specification'
+[`secrets/`]: /nomad/docs/runtime/environment#secrets

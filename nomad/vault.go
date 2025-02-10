@@ -18,8 +18,8 @@ import (
 	"github.com/hashicorp/nomad/helper/useragent"
 	tomb "gopkg.in/tomb.v2"
 
-	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -76,7 +76,7 @@ const (
 
 var (
 	// vaultCapabilitiesCapability is the expected capability of Nomad's Vault
-	// token on the the path. The token must have at least one of the
+	// token on the path. The token must have at least one of the
 	// capabilities.
 	vaultCapabilitiesCapability = []string{"update", "root"}
 
@@ -95,12 +95,12 @@ var (
 	// the capabilities.
 	vaultTokenRevokeCapability = []string{"update", "root"}
 
-	// vaultRoleLookupCapability is the the expected capability Nomad's Vault
+	// vaultRoleLookupCapability is the expected capability Nomad's Vault
 	// token should have on the path. The token must have at least one of the
 	// capabilities.
 	vaultRoleLookupCapability = []string{"read", "root"}
 
-	// vaultTokenRoleCreateCapability is the the expected capability Nomad's Vault
+	// vaultTokenRoleCreateCapability is the expected capability Nomad's Vault
 	// token should have on the path. The token must have at least one of the
 	// capabilities.
 	vaultTokenRoleCreateCapability = []string{"update", "root"}

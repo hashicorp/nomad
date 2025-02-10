@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "periodic" {
-  datacenters = ["dc1"]
-  type        = "batch"
+  type = "batch"
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -11,10 +10,10 @@ job "periodic" {
     value     = "darwin,linux"
   }
 
-
-
   periodic {
-    cron             = "* * * * *"
+    # run on Jan 31st at 13:13, only if it's Sunday, to ensure no collisions
+    # with our test forcing a dispatch
+    cron             = "13 13 31 1 7"
     prohibit_overlap = true
   }
 

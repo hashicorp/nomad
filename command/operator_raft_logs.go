@@ -45,7 +45,7 @@ func (c *OperatorRaftLogsCommand) AutocompleteFlags() complete.Flags {
 }
 
 func (c *OperatorRaftLogsCommand) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
+	return complete.PredictFiles("*")
 }
 
 func (c *OperatorRaftLogsCommand) Synopsis() string {

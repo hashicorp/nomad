@@ -11,7 +11,7 @@ import { inject as service } from '@ember/service';
 export default class RunController extends Controller {
   @service router;
 
-  queryParams = ['template'];
+  queryParams = ['template', 'sourceString', 'disregardNameWarning'];
 
   @action
   handleSaveAsTemplate() {

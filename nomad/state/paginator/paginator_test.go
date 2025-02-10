@@ -9,17 +9,18 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestPaginator(t *testing.T) {
 	ci.Parallel(t)
-	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
+	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"}
 
 	cases := []struct {
 		name              string
 		perPage           int32
 		nextToken         string
+		tokenizer         testTokenizer
 		expected          []string
 		expectedNextToken string
 		expectedError     string
@@ -41,8 +42,34 @@ func TestPaginator(t *testing.T) {
 			name:              "page-2 reading off the end",
 			perPage:           10,
 			nextToken:         "5",
-			expected:          []string{"5", "6", "7", "8", "9"},
+			expected:          []string{"5", "6", "7", "8", "9", "10", "11"},
 			expectedNextToken: "",
+		},
+		{
+			name:    "when numbers are strings",
+			perPage: 2,
+			// lexicographically, "10" < "2"
+			nextToken:         "10",
+			expected:          []string{"2", "3"},
+			expectedNextToken: "4",
+		},
+		{
+			name:    "when numbers are numbers",
+			perPage: 2,
+			// "10" is converted to uint64(10) and compared with uint64 index
+			nextToken:         "10",
+			tokenizer:         testTokenizer{field: "index"},
+			expected:          []string{"10", "11"},
+			expectedNextToken: "",
+		},
+		{
+			name:    "when zero is a number",
+			perPage: 2,
+			// "" is converted to uint64(0) and compared with uint64 index
+			nextToken:         "",
+			tokenizer:         testTokenizer{field: "index"},
+			expected:          []string{"0", "1"},
+			expectedNextToken: "2",
 		},
 		{
 			name:              "starting off the end",
@@ -61,14 +88,13 @@ func TestPaginator(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			iter := newTestIterator(ids)
-			tokenizer := testTokenizer{}
 			opts := structs.QueryOptions{
 				PerPage:   tc.perPage,
 				NextToken: tc.nextToken,
 			}
 
 			results := []string{}
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts,
+			paginator, err := NewPaginator(iter, tc.tokenizer, nil, opts,
 				func(raw interface{}) error {
 					if tc.expectedError != "" {
 						return errors.New(tc.expectedError)
@@ -79,16 +105,16 @@ func TestPaginator(t *testing.T) {
 					return nil
 				},
 			)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			nextToken, err := paginator.Page()
 			if tc.expectedError == "" {
-				require.NoError(t, err)
-				require.Equal(t, tc.expected, results)
-				require.Equal(t, tc.expectedNextToken, nextToken)
+				must.NoError(t, err)
+				must.Eq(t, tc.expected, results)
+				must.Eq(t, tc.expectedNextToken, nextToken)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.expectedError)
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expectedError)
 			}
 		})
 	}
@@ -117,6 +143,7 @@ func (i testResultIterator) Next() interface{} {
 }
 
 type mockObject struct {
+	index     uint64
 	id        string
 	namespace string
 }
@@ -127,8 +154,11 @@ func (m *mockObject) GetNamespace() string {
 
 func newTestIterator(ids []string) testResultIterator {
 	iter := testResultIterator{results: make(chan interface{}, 20)}
-	for _, id := range ids {
-		iter.results <- &mockObject{id: id}
+	for x, id := range ids {
+		iter.results <- &mockObject{
+			index: uint64(x),
+			id:    id,
+		}
 	}
 	return iter
 }
@@ -142,8 +172,16 @@ func newTestIteratorWithMocks(mocks []*mockObject) testResultIterator {
 }
 
 // implements Tokenizer interface
-type testTokenizer struct{}
+type testTokenizer struct {
+	field string
+}
 
-func (t testTokenizer) GetToken(raw interface{}) string {
-	return raw.(*mockObject).id
+func (t testTokenizer) GetToken(raw interface{}) any {
+	obj := raw.(*mockObject)
+	switch t.field {
+	case "index":
+		return obj.index
+	default:
+	}
+	return obj.id
 }

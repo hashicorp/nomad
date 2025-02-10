@@ -1,0 +1,3 @@
+```release-note:improvement
+identity: Add support for multiple workload identities
+```

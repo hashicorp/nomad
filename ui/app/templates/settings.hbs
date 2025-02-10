@@ -3,6 +3,21 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
+<Breadcrumb @crumb={{hash label="Settings" args=(array "settings.tokens")}} />
 <PageLayout>
+  <div class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
+    <ul>
+      {{#if this.shouldShowProfileLink}}
+        <li><LinkTo @route="settings.tokens" @activeClass="is-active">
+          {{#if this.tokenRecord}}
+            Profile
+          {{else}}
+            Sign In
+          {{/if}}
+        </LinkTo></li>
+      {{/if}}
+      <li><LinkTo @route="settings.user-settings" @activeClass="is-active">User Settings</LinkTo></li>
+    </ul>
+  </div>
   {{outlet}}
 </PageLayout>

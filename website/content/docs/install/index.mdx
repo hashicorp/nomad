@@ -1,78 +1,23 @@
 ---
 layout: docs
-page_title: Installing Nomad
-description: Learn how to install Nomad.
+page_title: Install Nomad
+description: Learn how to install Nomad on Linux, Mac, and Windows.
 ---
 
-# Installing Nomad
+# Install Nomad
 
 Nomad is available as a pre-compiled binary or as a package for several
 operating systems. You can also [build Nomad from source](#from-source).
 
--> If you are interested in trialing Nomad without installing it locally, see the
-[Quickstart](/nomad/docs/install/quickstart) for options to get started with Nomad.
+-> If you are interested in trialing Nomad without installing it locally, see
+the [Quickstart](/nomad/docs/install/quickstart) for options to get started with
+Nomad.
 
 <Tabs>
-<Tab heading="Manual installation" group="manual">
-
-You can download a [precompiled binary](/nomad/downloads) and
-run it on your machine locally. You can also verify the binary using the
-available SHA-256 sums. After downloading Nomad, unzip the package. Make sure
-that the `nomad` binary is available on your `PATH` before continuing with the
-other guides.
-
-</Tab>
-<Tab heading="Homebrew on macOS" group="homebrew">
-
-[Homebrew](https://brew.sh) is a free and open source package management system
-for Mac OS X. Install the official [Nomad
-formula](https://github.com/hashicorp/homebrew-tap) from the terminal.
-
-First, install the HashiCorp tap, a repository of all of the HashiCorp Homebrew
-packages.
-
-```shell-session
-$ brew tap hashicorp/tap
-```
-
-Now, install Nomad with `hashicorp/tap/nomad`.
-
-```shell-session
-$ brew install hashicorp/tap/nomad
-```
-
-~> **NOTE:** This installs a signed binary and is automatically updated with
-every new official release.
-
-To update to the latest, run
-
-```shell-session
-$ brew upgrade hashicorp/tap/nomad
-```
-
-</Tab>
-<Tab heading="Chocolatey on Windows" group="chocolatey">
-
-[Chocolatey](https://chocolatey.org/) is a free and open-source package
-management system for Windows. Install the [Nomad
-package](https://chocolatey.org/packages/nomad) from the command-line.
-
-```shell-session
-$ choco install nomad
-```
-
-~> **NOTE:** Chocolatey and the Nomad package are **NOT** directly maintained
-by HashiCorp. The latest version of Nomad is always available by manual
-installation.
-
-</Tab>
-<Tab heading="Linux Packages" group="linux">
-
-HashiCorp officially maintains and signs packages for the following Linux
-distributions.
+<Tab heading="Linux" group="linux">
 
 <Tabs>
-<Tab heading="Ubuntu/Debian">
+<Tab heading="Ubuntu/Debian" group="ubuntu">
 
 Install the required packages.
 
@@ -84,13 +29,15 @@ $ sudo apt-get update && \
 Add the HashiCorp [GPG key][gpg-key].
 
 ```shell-session
-$ wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+$ wget -O- https://apt.releases.hashicorp.com/gpg | \
+  sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 ```
 
 Add the official HashiCorp Linux repository.
 
 ```shell-session
-$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
+| sudo tee /etc/apt/sources.list.d/hashicorp.list
 ```
 
 Update and install.
@@ -100,7 +47,7 @@ $ sudo apt-get update && sudo apt-get install nomad
 ```
 
 </Tab>
-<Tab heading="CentOS/RHEL">
+<Tab heading="RHEL/CentOS" group="rhel">
 
 Install `yum-config-manager` to manage your repositories.
 
@@ -121,7 +68,7 @@ $ sudo yum -y install nomad
 ```
 
 </Tab>
-<Tab heading="Fedora">
+<Tab heading="Fedora" group="fedora">
 
 Install `dnf config-manager` to manage your repositories.
 
@@ -132,7 +79,7 @@ $ sudo dnf install -y dnf-plugins-core
 Use `dnf config-manager` to add the official HashiCorp Linux repository.
 
 ```shell-session
-$ sudo dnf config-manager --add-repo https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
+$ sudo dnf config-manager addrepo --from-repofile=https://rpm.releases.hashicorp.com/fedora/hashicorp.repo
 ```
 
 Install.
@@ -142,7 +89,7 @@ $ sudo dnf -y install nomad
 ```
 
 </Tab>
-<Tab heading="Amazon Linux">
+<Tab heading="Amazon Linux" group="amazonlinux">
 
 Install `yum-config-manager` to manage your repositories.
 
@@ -153,7 +100,8 @@ $ sudo yum install -y yum-utils
 Use `yum-config-manager` to add the official HashiCorp Linux repository.
 
 ```shell-session
-$ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
+$ sudo yum-config-manager \
+  --add-repo https://rpm.releases.hashicorp.com/AmazonLinux/hashicorp.repo
 ```
 
 Install.
@@ -163,151 +111,114 @@ $ sudo yum -y install nomad
 ```
 
 </Tab>
-</Tabs>
+<Tab heading="Manual" group="linux-manual">
 
--> **TIP:** Now that you have added the HashiCorp repository, you can install
-[Consul](/consul/tutorials) and
-[Vault](/vault/tutorials) with the same command.
+@include 'install/manual-install.mdx'
 
 </Tab>
 </Tabs>
 
-## Post-installation steps
+</Tab>
 
-These steps are considered optional but can be helpful for running Nomad and to
+<Tab heading="Mac" group="mac">
+
+<Tabs>
+<Tab heading="Homebrew" group="mac-homebrew">
+
+[Homebrew](https://brew.sh) is a free and open source package management system
+for Mac OS X. Install the official [Nomad
+formula](https://github.com/hashicorp/homebrew-tap) from the terminal.
+
+First, install the HashiCorp tap, a repository of all of the HashiCorp Homebrew
+packages.
+
+```shell-session
+$ brew tap hashicorp/tap
+```
+
+Now, install Nomad with `hashicorp/tap/nomad`.
+
+```shell-session
+$ brew install hashicorp/tap/nomad
+```
+
+-> This installs a signed binary and is automatically updated with
+every new official release.
+
+To update to the latest, run
+
+```shell-session
+$ brew upgrade hashicorp/tap/nomad
+```
+</Tab>
+<Tab heading="Manual" group="mac-manual">
+
+@include 'install/manual-install.mdx'
+
+</Tab>
+</Tabs>
+
+</Tab>
+
+<Tab heading="Windows" group="windows">
+
+<Tabs>
+<Tab heading="Chocolatey" group="windows-chocolatey">
+
+[Chocolatey](https://chocolatey.org/) is a free and open-source package
+management system for Windows. Install the [Nomad
+package](https://chocolatey.org/packages/nomad) from the command-line.
+
+```shell-session
+$ choco install nomad
+```
+
+-> Chocolatey and the Nomad package are **NOT** directly maintained
+by HashiCorp. The latest version of Nomad is always available by manual
+installation.
+
+</Tab>
+<Tab heading="Manual" group="windows-manual">
+
+@include 'install/manual-install.mdx'
+
+</Tab>
+</Tabs>
+
+</Tab>
+
+</Tabs>
+
+
+## Linux post-installation steps
+
+These steps are optional but can be helpful for running Nomad and to
 take advantage of additional Nomad functionalities.
 
-<Tabs>
-<Tab heading="Manual installation" group="manual">
+-> You need to run client agents as root (or with `sudo`) so that cpuset accounting and network namespaces work correctly.
 
-<Tabs>
-<Tab heading="Linux Packages">
-<h3>Add the Nomad binary to your system path</h3>
+### Install CNI reference plugins
 
-Permanently add a new location to your path by editing your shell's settings
-file (usually called something like `~/.bashrc`, where the part of the filename
-after the `.` and before `rc` is the name of your shell). In that file you
-should see a line that starts with `export PATH=`, followed by a
-colon-separated list of locations. Add the location of the Nomad binary to that
-list and save the file. Then reload your shell's configuration with the command
-`source ~/.bashrc`, replacing `bash` with the name of your shell.
+@include 'install/install-cni-plugins.mdx'
 
-<h3>Install CNI plugins</h3>
+### Install consul-cni plugin
 
-Nomad uses CNI plugins to configure network namespaces when using the `bridge`
-network mode. All Linux Nomad client nodes using network namespaces must have
-CNI plugins installed.
+@include 'install/install-consul-cni-plugin.mdx'
 
-The following commands install the CNI reference plugins.
+### Install dmidecode
 
-```shell-session
-$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.0.0.tgz && \
-  sudo mkdir -p /opt/cni/bin && \
-  sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
-```
+When running on a virtualized host such as Amazon EC2, Nomad makes use of the
+`dmidecode` tool to detect CPU performance data. Some Linux distributions
+require installing the dmidecode package manually.
 
-Ensure your Linux operating system distribution has been configured to allow
-container traffic through the bridge network to be routed via iptables. These
-tunables can be set as follows.
+### Configure bridge network to route traffic through iptables
 
-```shell-session
-$ echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables && \
-  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables && \
-  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
-```
+@include 'install/bridge-iptables.mdx'
 
-To preserve these settings on startup of a client node, add a file including the
-following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
-that directory.
+### Verify cgroup controllers
 
-<CodeBlockConfig filename="/etc/sysctl.d/bridge.conf">
+@include 'install/cgroup-controllers.mdx'
 
-```ini
-net.bridge.bridge-nf-call-arptables = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables = 1
-```
-
-</CodeBlockConfig>
-</Tab>
-
-<Tab heading="macOS">
-<h3>Add the Nomad binary to your system path</h3>
-
-Permanently add a new location to your path by editing your shell's settings
-file (usually called something like `~/.bashrc`, where the part of the filename
-after the `.` and before `rc` is the name of your shell). In that file you
-should see a line that starts with `export PATH=`, followed by a
-colon-separated list of locations. Add the location of the Nomad binary to that
-list and save the file. Then reload your shell's configuration with the command
-`source ~/.bashrc`, replacing `bash` with the name of your shell.
-</Tab>
-
-<Tab heading="Windows">
-
-<h3>Add the Nomad binary to your system path</h3>
-
-Add a location to your path via the GUI by navigating to `Environment
-Variables` in your system settings, and looking for the variable called `PATH`.
-You should see a semicolon-separated list of locations. Add the Nomad binary's
-location to that list and then launch a new console window.
-</Tab>
-</Tabs>
-</Tab>
-
-<Tab heading="Homebrew on macOS" group="homebrew">
-No additional steps necessary after installing Nomad using Homebrew.
-</Tab>
-
-<Tab heading="Chocolatey on Windows" group="chocolatey">
-No additional steps necessary after installing Nomad using Chocolatey.
-</Tab>
-
-<Tab heading="Linux" group="linux">
-
-Note that if you are running Nomad on Linux, you'll need to run client agents as
-root (or with `sudo`) so that cpuset accounting and network namespaces work
-correctly.
-
-<h3>Install CNI plugins</h3>
-
-Nomad uses CNI plugins to configure network namespaces when using the `bridge`
-network mode. All Linux Nomad client nodes using network namespaces must have
-CNI plugins installed.
-
-The following commands install the CNI reference plugins.
-
-```shell-session
-$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/v1.0.0/cni-plugins-linux-$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)"-v1.0.0.tgz && \
-  sudo mkdir -p /opt/cni/bin && \
-  sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
-```
-
-Ensure your Linux operating system distribution has been configured to allow
-container traffic through the bridge network to be routed via iptables. These
-tunables can be set as follows.
-
-```shell-session
-$ echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-arptables && \
-  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-ip6tables && \
-  echo 1 | sudo tee /proc/sys/net/bridge/bridge-nf-call-iptables
-```
-
-To preserve these settings on startup of a client node, add a file including the
-following to `/etc/sysctl.d/` or remove the file your Linux distribution puts in
-that directory.
-
-<CodeBlockConfig filename="/etc/sysctl.d/bridge.conf">
-
-```ini
-net.bridge.bridge-nf-call-arptables = 1
-net.bridge.bridge-nf-call-ip6tables = 1
-net.bridge.bridge-nf-call-iptables = 1
-```
-
-</CodeBlockConfig>
-</Tab>
-</Tabs>
 
 ## Verify the Installation
 
@@ -403,3 +314,4 @@ and ensuring `GOPATH/bin` is within your `PATH`. A copy of
 
 [gpg-key]: https://apt.releases.hashicorp.com/gpg "HashiCorp GPG key"
 [go-version]: https://github.com/hashicorp/nomad/blob/main/.go-version
+

@@ -1,0 +1,54 @@
+---
+layout: docs
+page_title: high_availability Block - Nomad Autoscaler Agent Configuration
+description: >-
+  The "high_availability" block is used to configure the Nomad Autoscaler agent
+  in high availability (HA) mode. In this mode, multiple agents participate in
+  leadership election, with only the leader conducting autoscaling calculations
+  and actions.
+---
+
+# `high_availability` Block
+
+<Placement groups={['high_availability']} />
+
+The `high_availability` block is used to configure the Nomad Autoscaler agent
+in high availability (HA) mode. In this mode, multiple agents participate in
+leadership election, with only the leader conducting autoscaling calculations
+and actions.
+
+```hcl
+high_availability {
+  enabled        = true
+  lock_namespace = "prod"
+  lock_path      = "custom/lock/path"
+  lock_ttl       = "30s"
+  lock_delay     = "15s"
+}
+```
+
+## `high_availability` Parameters
+
+- `enabled` `(bool: false)` - Specifies whether the Nomad Autoscaler agent will
+  start in high availability mode. If enabled, the agent instance attempts to
+  hold a lock over a Nomad variable and will only execute if the lock is
+  successfully acquired.
+
+- `lock_namespace` `(string: "default")` - Defines the namespace of the Nomad
+  variable that will be used to sync the leader when running in high
+  availability mode. This parameter needs to be the same on all Nomad
+  Autoscaler agents expected to take part in the same leadership election
+  process.
+
+- `lock_path` `(string: "nomad-autoscaler/lock")` - Defines the path of the Nomad
+  variable that will be used to sync the leader when running in high
+  availability mode. This parameter needs to be the same on all Nomad Autoscaler
+  agents expected to take part in the same leadership election process.
+
+- `lock_ttl` `(string: "60s")` - Defines the lease period or TTL of the lock used
+  to sync the leader when running in high availability mode. If the Nomad Autoscaler
+  agent does not renew the lock within this period, the lock is considered lost.
+
+- `lock_delay` `(string: "30s")` - Defines the period that the lock will be blocked
+  after the TTL expired without being renewed. This helps prevent split brain
+  situations.

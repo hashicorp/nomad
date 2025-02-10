@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Prompt a user before they close an exec window to prevent accidental close-browser-tab shortcuts that overlap with terminal ones
+```

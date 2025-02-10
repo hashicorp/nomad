@@ -127,15 +127,41 @@ type QuotaLimit struct {
 	// referencing namespace in the region. A value of zero is treated as
 	// unlimited and a negative value is treated as fully disallowed. This is
 	// useful for once we support GPUs
-	RegionLimit *Resources
+	RegionLimit *QuotaResources
 
 	// VariablesLimit is the maximum total size of all variables
 	// Variable.EncryptedData. A value of zero is treated as unlimited and a
 	// negative value is treated as fully disallowed.
+	//
+	// DEPRECATED: use RegionLimit.Storage.VariablesMB instead. This field will
+	// be removed in Nomad 1.12.0.
 	VariablesLimit *int `mapstructure:"variables_limit" hcl:"variables_limit,optional"`
 
 	// Hash is the hash of the object and is used to make replication efficient.
 	Hash []byte
+}
+
+type QuotaResources struct {
+	CPU         *int                   `hcl:"cpu,optional"`
+	Cores       *int                   `hcl:"cores,optional"`
+	MemoryMB    *int                   `mapstructure:"memory" hcl:"memory,optional"`
+	MemoryMaxMB *int                   `mapstructure:"memory_max" hcl:"memory_max,optional"`
+	Devices     []*RequestedDevice     `hcl:"device,block"`
+	NUMA        *NUMAResource          `hcl:"numa,block"`
+	SecretsMB   *int                   `mapstructure:"secrets" hcl:"secrets,optional"`
+	Storage     *QuotaStorageResources `mapstructure:"storage" hcl:"storage,block"`
+}
+
+type QuotaStorageResources struct {
+	// VariablesMB is the maximum total size of all variables
+	// Variable.EncryptedData, in megabytes (2^20 bytes). A value of zero is
+	// treated as unlimited and a negative value is treated as fully disallowed.
+	VariablesMB int `hcl:"variables"`
+
+	// HostVolumesMB is the maximum provisioned size of all dynamic host
+	// volumes, in megabytes (2^20 bytes). A value of zero is treated as
+	// unlimited and a negative value is treated as fully disallowed.
+	HostVolumesMB int `hcl:"host_volumes"`
 }
 
 // QuotaUsage is the resource usage of a Quota

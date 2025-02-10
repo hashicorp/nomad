@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/serviceregistration"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"oss.indeed.com/go/libtime/decay"
 )
 
 type ServiceRegistrationHandler struct {
@@ -34,6 +36,9 @@ type ServiceRegistrationHandler struct {
 	// shutDownCh coordinates shutting down the handler and any long-running
 	// processes, such as the RPC retry.
 	shutDownCh chan struct{}
+
+	backoffMax     time.Duration
+	backoffInitial time.Duration
 }
 
 // ServiceRegistrationHandlerCfg holds critical information used during the
@@ -62,6 +67,15 @@ type ServiceRegistrationHandlerCfg struct {
 	// CheckWatcher watches checks of services in the Nomad service provider,
 	// and restarts associated tasks in accordance with their check_restart block.
 	CheckWatcher serviceregistration.CheckWatcher
+
+	// BackoffMax is the maximum amont of time failed RemoveWorkload RPCs will
+	// be retried, defaults to 1s
+	BackoffMax time.Duration
+
+	// BackoffInitial is the initial gap before retrying failed RemoveWorkload
+	// RPCs, defaults to 100ms. This will double each attempt until BackoffMax
+	// is reached
+	BackoffInitial time.Duration
 }
 
 // NewServiceRegistrationHandler returns a ready to use
@@ -69,13 +83,23 @@ type ServiceRegistrationHandlerCfg struct {
 // interface.
 func NewServiceRegistrationHandler(log hclog.Logger, cfg *ServiceRegistrationHandlerCfg) serviceregistration.Handler {
 	go cfg.CheckWatcher.Run(context.TODO())
-	return &ServiceRegistrationHandler{
+
+	s := &ServiceRegistrationHandler{
 		cfg:                 cfg,
 		log:                 log.Named("service_registration.nomad"),
 		registrationEnabled: cfg.Enabled,
 		checkWatcher:        cfg.CheckWatcher,
 		shutDownCh:          make(chan struct{}),
+		backoffMax:          cfg.BackoffMax,
+		backoffInitial:      cfg.BackoffInitial,
 	}
+	if s.backoffInitial == 0 {
+		s.backoffInitial = 100 * time.Millisecond
+	}
+	if s.backoffMax == 0 {
+		s.backoffMax = time.Second
+	}
+	return s
 }
 
 func (s *ServiceRegistrationHandler) RegisterWorkload(workload *serviceregistration.WorkloadServices) error {
@@ -183,26 +207,44 @@ func (s *ServiceRegistrationHandler) removeWorkload(
 
 	var deleteResp structs.ServiceRegistrationDeleteByIDResponse
 
-	err := s.cfg.RPCFn(structs.ServiceRegistrationDeleteByIDRPCMethod, &deleteArgs, &deleteResp)
-	if err == nil {
-		return
+	backoffOpts := decay.BackoffOptions{
+		MaxSleepTime:   s.backoffMax,
+		InitialGapSize: s.backoffInitial,
 	}
+	backoffErr := decay.Backoff(func() (bool, error) {
 
-	// The Nomad API exposes service registration deletion to handle
-	// orphaned service registrations. In the event a service is removed
-	// accidentally that is still running, we will hit this error when we
-	// eventually want to remove it. We therefore want to handle this,
-	// while ensuring the operator can see.
-	if strings.Contains(err.Error(), "service registration not found") {
-		s.log.Info("attempted to delete non-existent service registration",
-			"service_id", id, "namespace", workload.ProviderNamespace)
-		return
+		select {
+		case <-s.shutDownCh:
+			return true, nil
+		default:
+		}
+
+		err := s.cfg.RPCFn(structs.ServiceRegistrationDeleteByIDRPCMethod,
+			&deleteArgs, &deleteResp)
+		if err == nil {
+			return false, nil
+		}
+
+		// The Nomad API exposes service registration deletion to handle
+		// orphaned service registrations. In the event a service is removed
+		// accidentally that is still running, we will hit this error when we
+		// eventually want to remove it. We therefore want to handle this,
+		// while ensuring the operator can see.
+		if strings.Contains(err.Error(), "service registration not found") {
+			s.log.Info("attempted to delete non-existent service registration",
+				"service_id", id, "namespace", workload.ProviderNamespace)
+			return false, nil
+		}
+
+		return true, err
+	}, backoffOpts)
+
+	if backoffErr != nil {
+		// Log the error as there is nothing left to do, so the operator can see
+		// it and identify any problems.
+		s.log.Error("failed to delete service registration",
+			"error", backoffErr, "service_id", id, "namespace", workload.ProviderNamespace)
 	}
-
-	// Log the error as there is nothing left to do, so the operator can see it
-	// and identify any problems.
-	s.log.Error("failed to delete service registration",
-		"error", err, "service_id", id, "namespace", workload.ProviderNamespace)
 }
 
 func (s *ServiceRegistrationHandler) UpdateWorkload(old, new *serviceregistration.WorkloadServices) error {

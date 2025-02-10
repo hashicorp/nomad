@@ -106,7 +106,9 @@ parameters {
   the exact behavior is up to the storage provider. If you want to specify an
   exact size, you should set `capacity_min` and `capacity_max` to the same
   value. Accepts human-friendly suffixes such as `"100GiB"`. This field may not
-  be supported by all storage providers. Only allowed on **volume creation**.
+  be supported by all storage providers. Increasing this value and re-issuing
+  `volume create` or `volume register` may expand the volume, if the CSI plugin
+  supports it.
 
 - `capacity_max` `(string: <optional>)` - Option for requesting a maximum
   capacity, in bytes. The capacity of a volume may be the physical size of a
@@ -115,7 +117,7 @@ parameters {
   the exact behavior is up to the storage provider. If you want to specify an
   exact size, you should set `capacity_min` and `capacity_max` to the same
   value. Accepts human-friendly suffixes such as `"100GiB"`. This field may not
-  be supported by all storage providers. Only allowed on **volume creation**.
+  be supported by all storage providers.
 
 - `capability` <code>([Capability][capability]: &lt;required&gt;)</code> -
   Option for validating the capability of a volume.
@@ -142,7 +144,9 @@ parameters {
   of strings passed directly to the CSI plugin to validate the volume. The
   details of these parameters are specific to each storage provider, so consult
   the specific plugin documentation for more information. Only allowed on
-  **volume registration**.
+  **volume registration**. Note that, like the rest of the volume specification, 
+  this block is declarative, and an update replaces it in its entirety, therefore 
+  all parameters need to be specified.
 
 ## Differences Between Create and Register
 
@@ -150,9 +154,8 @@ Several fields are set automatically by the plugin when `volume create` or
 `volume register` commands are successful and you should not set their values
 if they are not supported by the operation.
 
-You should not set the [`snapshot_id`](#snapshot_id), [`clone_id`](#clone_id),
-[`capacity_min`](#capacity_min), or [`capacity_max`](#capacity_max) fields on
-**volume registration**.
+You should not set the [`snapshot_id`](#snapshot_id), or [`clone_id`](#clone_id)
+fields on **volume registration**.
 
 And you should not set the [`external_id`](#external_id) or
 [`context`](#context) fields on **volume creation**.
@@ -162,9 +165,10 @@ And you should not set the [`external_id`](#external_id) or
 The `volume register` command allows updating a volume definition. But not all
 fields can be updated after the volume is registered:
 
-* The `capacity_min` and `capacity_max` fields can be updated, so long as the
-  volumes existing capacity fits within that range. The actual capacity of the
-  volume is unchanged.
+* The `capacity_min` and `capacity_max` fields can be updated, and may increase
+  the volume size if the CSI plugin supports it. Expansion may or may not be
+  possible while the volume is in use, again depending on the plugin.
+  Reducing volume capacity is not allowed per the CSI spec.
 * The `capability` blocks can be added or removed, but only if the capability is
   not currently in use by a mounted volume.
 * The `mount_options` block can be updated if the volume is not in use.
@@ -172,6 +176,20 @@ fields can be updated after the volume is registered:
 * The `context` block can be updated. The values for this field are typically
   provided by the CSI plugin, and should not be updated unless recommended by
   the CSI plugin's documentation.
+
+## Volume Expansion
+
+CSI Volumes may be expanded (increased in size) if the CSI controller plugin
+(and node plugin, if required) has the `EXPAND_VOLUME` capability.
+
+To trigger a volume expansion, increase [`capacity_min`](#capacity_min)
+above the current real capacity of the volume (as seen with the
+[`volume status`][] command), and re-issue either [`volume create`][]
+or [`volume register`][].
+
+Nomad will reconcile the requested capacity by issuing expand volume requests
+to the controller plugin, and if required by the controller, also to the
+node plugins for each allocation that has a claim on the volume.
 
 ## Examples
 
@@ -221,6 +239,73 @@ context {
 }
 ```
 
+
+### Example Volume Expansion
+
+Either [`volume create`][] or [`volume register`][] commands can trigger
+an expand to occur, after the volume has already been created or registered.
+
+Example using `volume create`, with a `volume.hcl` file:
+
+```hcl
+id        = "ebs_prod_db1"
+name      = "database"
+type      = "csi"
+plugin_id = "ebs-prod"
+
+capacity_min = "50gib"
+capacity_max = "50gib"
+
+# ... etc ...
+```
+
+Create the volume:
+
+```shell-session
+$ nomad volume create volume.hcl
+Created external volume vol-asdf1234 with ID ebs_prod_db1
+```
+
+See its current capacity with [`volume status`][]:
+
+```shell-session
+$ nomad volume status ebs_prod_db1 | grep Capacity
+Capacity             = 50 GiB
+```
+
+Update `volume.hcl`:
+
+```hcl
+id        = "ebs_prod_db1"
+name      = "database"
+type      = "csi"
+plugin_id = "ebs-prod"
+# all of the above must remain the same
+
+capacity_min = "100gib" # double
+capacity_max = "100gib" # increased to match
+
+# ... etc ...
+```
+
+Run `volume create` again:
+
+```shell-session
+$ nomad volume create volume.hcl
+Created external volume vol-asdf1234 with ID ebs_prod_db1
+```
+
+Check the volume capacity again:
+
+```shell-session
+$ nomad volume status ebs_prod_db1 | grep Capacity
+Capacity             = 100 GiB
+```
+
+If you encounter errors that are not clear from the command output,
+the CSI plugin allocation logs and/or Nomad leader server logs may be
+helpful.
+
 [api_volume_create]: /nomad/api-docs/volumes#create-volume
 [api_volume_register]: /nomad/api-docs/volumes#register-volume
 [capability]: /nomad/docs/other-specifications/volume/capability
@@ -230,3 +315,4 @@ context {
 [topology_request]: /nomad/docs/other-specifications/volume/topology_request
 [`volume create`]: /nomad/docs/commands/volume/create
 [`volume register`]: /nomad/docs/commands/volume/register
+[`volume status`]: /nomad/docs/commands/volume/status

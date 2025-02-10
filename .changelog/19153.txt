@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Added a new example template with Task Actions
+```

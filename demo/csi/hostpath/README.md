@@ -15,9 +15,10 @@ works on Nomad in a Vagrant environment, this demo is a good option.
 
 ## Requirements
 
-* A running Nomad cluster with `docker.privileged.enabled = true`. The Nomad
+* A running Nomad client with `docker.privileged.enabled = true`. The Nomad
   developer [Vagrantfile](https://github.com/hashicorp/nomad/blob/main/Vagrantfile)
-  in this repo is suitable.
+  in this repo is suitable. Note: this demo only supports a Nomad cluster with
+  a single client due to limitations with the hostpath plugin and CSI.
 
 Running the `run.sh` script in this directory will output the Nomad command
 used to run the demo, as well as their outputs:

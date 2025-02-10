@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/mitchellh/cli"
 )
 
 var _ cli.Command = &LicenseCommand{}
@@ -24,7 +24,7 @@ Usage: nomad license <subcommand> [options] [args]
 
 This command has subcommands for managing the Nomad Enterprise license.
 For more detailed examples see:
-https://www.nomadproject.io/docs/commands/license/
+https://developer.hashicorp.com/nomad/docs/commands/license
 
 Retrieve the server's license:
 

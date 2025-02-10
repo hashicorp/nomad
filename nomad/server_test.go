@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -205,32 +205,31 @@ func TestServer_Regions(t *testing.T) {
 func TestServer_Reload_Vault(t *testing.T) {
 	ci.Parallel(t)
 
+	token := uuid.Generate()
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.Region = "global"
+		c.GetDefaultVault().Token = token
 	})
 	defer cleanupS1()
 
-	if s1.vault.Running() {
-		t.Fatalf("Vault client should not be running")
-	}
+	must.False(t, s1.vault.Running())
 
 	tr := true
 	config := DefaultConfig()
-	config.VaultConfig.Enabled = &tr
-	config.VaultConfig.Token = uuid.Generate()
-	config.VaultConfig.Namespace = "nondefault"
+	config.GetDefaultVault().Enabled = &tr
+	config.GetDefaultVault().Token = token
+	config.GetDefaultVault().Namespace = "nondefault"
 
-	if err := s1.Reload(config); err != nil {
-		t.Fatalf("Reload failed: %v", err)
-	}
+	err := s1.Reload(config)
+	must.NoError(t, err)
 
-	if !s1.vault.Running() {
-		t.Fatalf("Vault client should be running")
-	}
+	must.True(t, s1.vault.Running())
+	must.Eq(t, "nondefault", s1.vault.GetConfig().Namespace)
 
-	if s1.vault.GetConfig().Namespace != "nondefault" {
-		t.Fatalf("Vault client did not get new namespace")
-	}
+	// Removing the token requires agent restart.
+	config.GetDefaultVault().Token = ""
+	err = s1.Reload(config)
+	must.ErrorContains(t, err, "requires restarting the Nomad agent")
 }
 
 func connectionReset(msg string) bool {

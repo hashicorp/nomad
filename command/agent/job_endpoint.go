@@ -5,16 +5,20 @@ package agent
 
 import (
 	"fmt"
+	"io"
 	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/golang/snappy"
+	"github.com/gorilla/websocket"
 	"github.com/hashicorp/nomad/acl"
 	api "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/jobspec"
+	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -86,6 +90,9 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/dispatch"):
 		jobID := strings.TrimSuffix(path, "/dispatch")
 		return s.jobDispatchRequest(resp, req, jobID)
+	case strings.HasSuffix(path, "/dispatch/payload"):
+		jobID := strings.TrimSuffix(path, "/dispatch/payload")
+		return s.jobDispatchPayloadRequest(resp, req, jobID)
 	case strings.HasSuffix(path, "/versions"):
 		jobID := strings.TrimSuffix(path, "/versions")
 		return s.jobVersions(resp, req, jobID)
@@ -110,13 +117,27 @@ func (s *HTTPServer) JobSpecificRequest(resp http.ResponseWriter, req *http.Requ
 	case strings.HasSuffix(path, "/submission"):
 		jobID := strings.TrimSuffix(path, "/submission")
 		return s.jobSubmissionCRUD(resp, req, jobID)
+	case strings.HasSuffix(path, "/actions"):
+		jobID := strings.TrimSuffix(path, "/actions")
+		return s.jobActions(resp, req, jobID)
+	case strings.HasSuffix(path, "/action"):
+		jobID := strings.TrimSuffix(path, "/action")
+		return s.jobRunAction(resp, req, jobID)
+	case strings.HasSuffix(path, "/tag"):
+		parts := strings.Split(path, "/")
+		if len(parts) != 4 {
+			return nil, CodedError(404, "invalid job tag endpoint")
+		}
+		jobID := parts[0]
+		name := parts[2] // job/<jobID>/tag/<name>
+		return s.jobTagVersion(resp, req, jobID, name)
 	default:
 		return s.jobCRUD(resp, req, path)
 	}
 }
 
 func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	var args structs.JobEvaluateRequest
@@ -151,7 +172,7 @@ func (s *HTTPServer) jobForceEvaluate(resp http.ResponseWriter, req *http.Reques
 
 func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -187,7 +208,7 @@ func (s *HTTPServer) jobPlan(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Ensure request method is POST or PUT
-	if !(req.Method == "POST" || req.Method == "PUT") {
+	if !(req.Method == http.MethodPost || req.Method == http.MethodPut) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -219,7 +240,7 @@ func (s *HTTPServer) ValidateJobRequest(resp http.ResponseWriter, req *http.Requ
 
 func (s *HTTPServer) periodicForceRequest(resp http.ResponseWriter, req *http.Request,
 	jobName string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -333,6 +354,122 @@ func (s *HTTPServer) jobLatestDeployment(resp http.ResponseWriter, req *http.Req
 	return out.Deployment, nil
 }
 
+func (s *HTTPServer) jobActions(resp http.ResponseWriter, req *http.Request, jobID string) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	args := structs.JobActionListRequest{
+		JobID: jobID,
+	}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+
+	var out structs.JobActionListResponse
+	if err := s.agent.RPC(structs.JobGetActionsRPCMethod, &args, &out); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &structs.QueryMeta{})
+
+	return out.Actions, nil
+}
+
+func (s *HTTPServer) jobRunAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+	task := req.URL.Query().Get("task")
+	action := req.URL.Query().Get("action")
+	allocID := req.URL.Query().Get("allocID")
+
+	// Build the request and parse the ACL token
+	var err error
+	isTTY := false
+	if tty := req.URL.Query().Get("tty"); tty != "" {
+		isTTY, err = strconv.ParseBool(tty)
+		if err != nil {
+			return nil, fmt.Errorf("tty value is not a boolean: %v", err)
+		}
+	}
+
+	args := cstructs.AllocExecRequest{
+		JobID:   jobID,
+		Task:    task,
+		Action:  action,
+		AllocID: allocID,
+		Tty:     isTTY,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	conn, err := s.wsUpgrader.Upgrade(resp, req, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upgrade connection: %v", err)
+	}
+
+	if err := readWsHandshake(conn.ReadJSON, req, &args.QueryOptions); err != nil {
+		conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(toWsCode(400), err.Error()))
+		return nil, err
+	}
+
+	return s.execStream(conn, &args)
+}
+
+func (s *HTTPServer) jobTagVersion(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+	switch req.Method {
+	case http.MethodPut, http.MethodPost:
+		return s.jobVersionApplyTag(resp, req, jobID, name)
+	case http.MethodDelete:
+		return s.jobVersionUnsetTag(resp, req, jobID, name)
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) jobVersionApplyTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+	var args api.TagVersionRequest
+
+	if err := decodeBody(req, &args); err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	rpcArgs := structs.JobApplyTagRequest{
+		JobID:   jobID,
+		Version: args.Version,
+		Name:    name,
+		Tag: &structs.JobVersionTag{
+			Name:        name,
+			Description: args.Description,
+		},
+	}
+
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
+	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
+
+	var out structs.JobTagResponse
+	if err := s.agent.RPC("Job.TagVersion", &rpcArgs, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (s *HTTPServer) jobVersionUnsetTag(resp http.ResponseWriter, req *http.Request, jobID string, name string) (interface{}, error) {
+	rpcArgs := structs.JobApplyTagRequest{
+		JobID: jobID,
+		Name:  name,
+	}
+
+	// parseWriteRequest overrides Namespace, Region and AuthToken
+	// based on values from the original http request
+	s.parseWriteRequest(req, &rpcArgs.WriteRequest)
+
+	var out structs.JobTagResponse
+	if err := s.agent.RPC("Job.TagVersion", &rpcArgs, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (s *HTTPServer) jobSubmissionCRUD(resp http.ResponseWriter, req *http.Request, jobID string) (*structs.JobSubmission, error) {
 	version, err := strconv.ParseUint(req.URL.Query().Get("version"), 10, 64)
 	if err != nil {
@@ -357,13 +494,21 @@ func (s *HTTPServer) jobSubmissionQuery(resp http.ResponseWriter, req *http.Requ
 	}
 
 	var out structs.JobSubmissionResponse
-	if err := s.agent.RPC("Job.GetJobSubmission", &args, &out); err != nil {
+	err := s.agent.RPC("Job.GetJobSubmission", &args, &out)
+	if err != nil {
 		return nil, err
 	}
 
 	setMeta(resp, &out.QueryMeta)
 	if out.Submission == nil {
 		return nil, CodedError(404, "job source not found")
+	}
+
+	for k, v := range out.Submission.VariableFlags {
+		out.Submission.VariableFlags[k], err = url.QueryUnescape(v)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return out.Submission, nil
@@ -578,7 +723,7 @@ func (s *HTTPServer) jobScaleStatus(resp http.ResponseWriter, req *http.Request,
 
 func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -600,6 +745,7 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 		Message:        args.Message,
 		Error:          args.Error,
 		Meta:           args.Meta,
+		JobModifyIndex: args.JobModifyIndex,
 	}
 	// parseWriteRequest overrides Namespace, Region and AuthToken
 	// based on values from the original http request
@@ -616,6 +762,9 @@ func (s *HTTPServer) jobScaleAction(resp http.ResponseWriter, req *http.Request,
 func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
 	diffsStr := req.URL.Query().Get("diffs")
+	diffTagName := req.URL.Query().Get("diff_tag")
+	diffVersion := req.URL.Query().Get("diff_version")
+
 	var diffsBool bool
 	if diffsStr != "" {
 		var err error
@@ -625,9 +774,21 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jo
 		}
 	}
 
+	var diffVersionInt *uint64
+
+	if diffVersion != "" {
+		parsedDiffVersion, err := strconv.ParseUint(diffVersion, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse value of %q (%v) as a uint64: %v", "diff_version", diffVersion, err)
+		}
+		diffVersionInt = &parsedDiffVersion
+	}
+
 	args := structs.JobVersionsRequest{
-		JobID: jobID,
-		Diffs: diffsBool,
+		JobID:       jobID,
+		Diffs:       diffsBool,
+		DiffVersion: diffVersionInt,
+		DiffTagName: diffTagName,
 	}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
@@ -648,7 +809,7 @@ func (s *HTTPServer) jobVersions(resp http.ResponseWriter, req *http.Request, jo
 
 func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -676,7 +837,7 @@ func (s *HTTPServer) jobRevert(resp http.ResponseWriter, req *http.Request, jobI
 
 func (s *HTTPServer) jobStable(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
 
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -724,7 +885,7 @@ func (s *HTTPServer) jobSummaryRequest(resp http.ResponseWriter, req *http.Reque
 }
 
 func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
-	if req.Method != "PUT" && req.Method != "POST" {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 	args := structs.JobDispatchRequest{}
@@ -738,6 +899,30 @@ func (s *HTTPServer) jobDispatchRequest(resp http.ResponseWriter, req *http.Requ
 		args.JobID = jobID
 	}
 
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var out structs.JobDispatchResponse
+	if err := s.agent.RPC("Job.Dispatch", &args, &out); err != nil {
+		return nil, err
+	}
+	setIndex(resp, out.Index)
+	return out, nil
+}
+
+func (s *HTTPServer) jobDispatchPayloadRequest(resp http.ResponseWriter, req *http.Request, jobID string) (interface{}, error) {
+	if req.Method != http.MethodPut && req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+
+	args := structs.JobDispatchRequest{}
+	var err error
+	args.JobID = jobID
+	args.Payload, err = io.ReadAll(req.Body)
+	if err != nil {
+		return nil, CodedError(400, err.Error())
+	}
+
+	// this only parses query args and headers (not request body)
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.JobDispatchResponse
@@ -763,14 +948,12 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 	}
 
 	// Check job parse permissions
-	if aclObj != nil {
-		hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
-		hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
+	hasParseJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilityParseJob)
+	hasSubmitJob := aclObj.AllowNsOp(namespace, acl.NamespaceCapabilitySubmitJob)
 
-		allowed := hasParseJob || hasSubmitJob
-		if !allowed {
-			return nil, structs.ErrPermissionDenied
-		}
+	allowed := hasParseJob || hasSubmitJob
+	if !allowed {
+		return nil, structs.ErrPermissionDenied
 	}
 
 	args := &api.JobsParseRequest{}
@@ -781,22 +964,14 @@ func (s *HTTPServer) JobsParseRequest(resp http.ResponseWriter, req *http.Reques
 		return nil, CodedError(400, "Job spec is empty")
 	}
 
-	var jobStruct *api.Job
-	if args.HCLv1 {
-		jobStruct, err = jobspec.Parse(strings.NewReader(args.JobHCL))
-	} else {
-		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
-			Path:       "input.hcl",
-			Body:       []byte(args.JobHCL),
-			AllowFS:    false,
-			VarContent: args.Variables,
-		})
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Failed to parse job: %v", err))
-		}
-	}
+	jobStruct, err := jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
+		Path:       "input.hcl",
+		Body:       []byte(args.JobHCL),
+		AllowFS:    false,
+		VarContent: args.Variables,
+	})
 	if err != nil {
-		return nil, CodedError(400, err.Error())
+		return nil, CodedError(400, fmt.Sprintf("Failed to parse job: %v", err))
 	}
 
 	if args.Canonicalize {
@@ -841,6 +1016,8 @@ func apiJobSubmissionToStructs(submission *api.JobSubmission) *structs.JobSubmis
 	if submission == nil {
 		return nil
 	}
+
+	submission.Canonicalize()
 	return &structs.JobSubmission{
 		Source:        submission.Source,
 		Format:        submission.Format,
@@ -869,14 +1046,16 @@ func (s *HTTPServer) apiJobAndRequestToStructs(job *api.Job, req *http.Request, 
 		job, queryRegion, writeReq.Region, s.agent.GetConfig().Region,
 	)
 
+	// mutate the namespace before we convert just in case anything is expecting
+	// the namespace to be correct
+	queryNamespace := req.URL.Query().Get("namespace")
+	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)
+	job.Namespace = pointer.Of(namespace)
+	writeReq.Namespace = namespace
+
 	sJob := ApiJobToStructJob(job)
 	sJob.Region = jobRegion
 	writeReq.Region = requestRegion
-
-	queryNamespace := req.URL.Query().Get("namespace")
-	namespace := namespaceForJob(job.Namespace, queryNamespace, writeReq.Namespace)
-	sJob.Namespace = namespace
-	writeReq.Namespace = namespace
 
 	return sJob, writeReq
 }
@@ -973,6 +1152,8 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		VaultNamespace: *job.VaultNamespace,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
+		UI:             ApiJobUIConfigToStructs(job.UI),
+		VersionTag:     ApiJobVersionTagToStructs(job.VersionTag),
 	}
 
 	// Update has been pushed into the task groups. stagger and max_parallel are
@@ -1069,6 +1250,12 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		RenderTemplates: *taskGroup.RestartPolicy.RenderTemplates,
 	}
 
+	if taskGroup.PreventRescheduleOnLost == nil {
+		tg.PreventRescheduleOnLost = false
+	} else {
+		tg.PreventRescheduleOnLost = *taskGroup.PreventRescheduleOnLost
+	}
+
 	if taskGroup.ShutdownDelay != nil {
 		tg.ShutdownDelay = taskGroup.ShutdownDelay
 	}
@@ -1092,6 +1279,21 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		}
 	}
 
+	if taskGroup.Disconnect != nil {
+		tg.Disconnect = &structs.DisconnectStrategy{
+			StopOnClientAfter: taskGroup.Disconnect.StopOnClientAfter,
+			Replace:           taskGroup.Disconnect.Replace,
+		}
+
+		if taskGroup.Disconnect.Reconcile != nil {
+			tg.Disconnect.Reconcile = *taskGroup.Disconnect.Reconcile
+		}
+
+		if taskGroup.Disconnect.LostAfter != nil {
+			tg.Disconnect.LostAfter = *taskGroup.Disconnect.LostAfter
+		}
+	}
+
 	if taskGroup.Migrate != nil {
 		tg.Migrate = &structs.MigrateStrategy{
 			MaxParallel:     *taskGroup.Migrate.MaxParallel,
@@ -1102,7 +1304,8 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 	}
 
 	if taskGroup.Scaling != nil {
-		tg.Scaling = ApiScalingPolicyToStructs(tg.Count, taskGroup.Scaling).TargetTaskGroup(job, tg)
+		tg.Scaling = ApiScalingPolicyToStructs(
+			job, tg, nil, tg.Count, taskGroup.Scaling)
 	}
 
 	tg.EphemeralDisk = &structs.EphemeralDisk{
@@ -1131,9 +1334,10 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 				Name:           v.Name,
 				Type:           v.Type,
 				ReadOnly:       v.ReadOnly,
+				Sticky:         v.Sticky,
 				Source:         v.Source,
-				AttachmentMode: structs.CSIVolumeAttachmentMode(v.AttachmentMode),
-				AccessMode:     structs.CSIVolumeAccessMode(v.AccessMode),
+				AttachmentMode: structs.VolumeAttachmentMode(v.AttachmentMode),
+				AccessMode:     structs.VolumeAccessMode(v.AccessMode),
 				PerAlloc:       v.PerAlloc,
 			}
 
@@ -1208,30 +1412,17 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	// Nomad 1.5 CLIs and JSON jobs may set the default identity parameters in
 	// the Task.Identity field, so if it is non-nil use it.
 	if id := apiTask.Identity; id != nil {
-		structsTask.Identity = &structs.WorkloadIdentity{
-			Name:     id.Name,
-			Audience: slices.Clone(id.Audience),
-			Env:      id.Env,
-			File:     id.File,
-			TTL:      id.TTL,
-		}
+		structsTask.Identity = apiWorkloadIdentityToStructs(id)
 	}
 
 	if ids := apiTask.Identities; len(ids) > 0 {
-		structsTask.Identities = make([]*structs.WorkloadIdentity, len(ids))
-		for i, id := range ids {
+		structsTask.Identities = make([]*structs.WorkloadIdentity, 0, len(ids))
+		for _, id := range ids {
 			if id == nil {
 				continue
 			}
 
-			structsTask.Identities[i] = &structs.WorkloadIdentity{
-				Name:     id.Name,
-				Audience: slices.Clone(id.Audience),
-				Env:      id.Env,
-				File:     id.File,
-				TTL:      id.TTL,
-			}
-
+			structsTask.Identities = append(structsTask.Identities, apiWorkloadIdentityToStructs(id))
 		}
 	}
 
@@ -1245,27 +1436,14 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
-	if len(apiTask.VolumeMounts) > 0 {
-		structsTask.VolumeMounts = []*structs.VolumeMount{}
-		for _, mount := range apiTask.VolumeMounts {
-			if mount != nil && mount.Volume != nil {
-				structsTask.VolumeMounts = append(structsTask.VolumeMounts,
-					&structs.VolumeMount{
-						Volume:          *mount.Volume,
-						Destination:     *mount.Destination,
-						ReadOnly:        *mount.ReadOnly,
-						PropagationMode: *mount.PropagationMode,
-					})
-			}
-		}
-	}
+	structsTask.VolumeMounts = apiVolumeMountsToStructs(apiTask.VolumeMounts)
 
 	if len(apiTask.ScalingPolicies) > 0 {
 		structsTask.ScalingPolicies = []*structs.ScalingPolicy{}
 		for _, policy := range apiTask.ScalingPolicies {
 			structsTask.ScalingPolicies = append(
 				structsTask.ScalingPolicies,
-				ApiScalingPolicyToStructs(0, policy).TargetTask(job, group, structsTask))
+				ApiScalingPolicyToStructs(job, group, structsTask, 0, policy))
 		}
 	}
 
@@ -1280,26 +1458,33 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		for _, ta := range apiTask.Artifacts {
 			structsTask.Artifacts = append(structsTask.Artifacts,
 				&structs.TaskArtifact{
-					GetterSource:  *ta.GetterSource,
-					GetterOptions: maps.Clone(ta.GetterOptions),
-					GetterHeaders: maps.Clone(ta.GetterHeaders),
-					GetterMode:    *ta.GetterMode,
-					RelativeDest:  *ta.RelativeDest,
+					GetterSource:   *ta.GetterSource,
+					GetterOptions:  maps.Clone(ta.GetterOptions),
+					GetterHeaders:  maps.Clone(ta.GetterHeaders),
+					GetterMode:     *ta.GetterMode,
+					GetterInsecure: *ta.GetterInsecure,
+					RelativeDest:   *ta.RelativeDest,
+					Chown:          ta.Chown,
 				})
 		}
 	}
 
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
-			Role:         apiTask.Vault.Role,
-			Policies:     apiTask.Vault.Policies,
-			Namespace:    *apiTask.Vault.Namespace,
-			Cluster:      apiTask.Vault.Cluster,
-			Env:          *apiTask.Vault.Env,
-			DisableFile:  *apiTask.Vault.DisableFile,
-			ChangeMode:   *apiTask.Vault.ChangeMode,
-			ChangeSignal: *apiTask.Vault.ChangeSignal,
+			Role:                 apiTask.Vault.Role,
+			Policies:             apiTask.Vault.Policies,
+			Namespace:            *apiTask.Vault.Namespace,
+			Cluster:              apiTask.Vault.Cluster,
+			Env:                  *apiTask.Vault.Env,
+			DisableFile:          *apiTask.Vault.DisableFile,
+			ChangeMode:           *apiTask.Vault.ChangeMode,
+			ChangeSignal:         *apiTask.Vault.ChangeSignal,
+			AllowTokenExpiration: *apiTask.Vault.AllowTokenExpiration,
 		}
+	}
+
+	if apiTask.Consul != nil {
+		structsTask.Consul = apiConsulToStructs(apiTask.Consul)
 	}
 
 	if len(apiTask.Templates) > 0 {
@@ -1338,6 +1523,16 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 			Hook:    apiTask.Lifecycle.Hook,
 			Sidecar: apiTask.Lifecycle.Sidecar,
 		}
+	}
+
+	for _, action := range apiTask.Actions {
+		act := ApiActionToStructsAction(job, action)
+		structsTask.Actions = append(structsTask.Actions, act)
+	}
+
+	if apiTask.Schedule != nil {
+		sched := apiScheduleToStructsSchedule(apiTask.Schedule)
+		structsTask.Schedule = sched
 	}
 }
 
@@ -1381,6 +1576,29 @@ func ApiCSIPluginConfigToStructsCSIPluginConfig(apiConfig *api.TaskCSIPluginConf
 	return sc
 }
 
+func ApiActionToStructsAction(job *structs.Job, action *api.Action) *structs.Action {
+	return &structs.Action{
+		Name:    action.Name,
+		Args:    slices.Clone(action.Args),
+		Command: action.Command,
+	}
+}
+
+func apiScheduleToStructsSchedule(s *api.TaskSchedule) *structs.TaskSchedule {
+	if s.Cron == nil {
+		return nil
+	}
+
+	sched := &structs.TaskSchedule{
+		Cron: &structs.TaskScheduleCron{
+			Start:    s.Cron.Start,
+			End:      s.Cron.End,
+			Timezone: s.Cron.Timezone,
+		},
+	}
+	return sched
+}
+
 func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 	if in == nil {
 		return nil
@@ -1420,6 +1638,16 @@ func ApiResourcesToStructs(in *api.Resources) *structs.Resources {
 		}
 	}
 
+	if in.NUMA != nil {
+		out.NUMA = &structs.NUMA{
+			Affinity: in.NUMA.Affinity,
+		}
+	}
+
+	if in.SecretsMB != nil {
+		out.SecretsMB = *in.SecretsMB
+	}
+
 	return out
 }
 
@@ -1445,6 +1673,11 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 				Options:  nw.DNS.Options,
 			}
 		}
+		if nw.CNI != nil {
+			out[i].CNI = &structs.CNIConfig{
+				Args: nw.CNI.Args,
+			}
+		}
 
 		if l := len(nw.DynamicPorts); l != 0 {
 			out[i].DynamicPorts = make([]structs.Port, l)
@@ -1466,10 +1699,11 @@ func ApiNetworkResourceToStructs(in []*api.NetworkResource) []*structs.NetworkRe
 
 func ApiPortToStructs(in api.Port) structs.Port {
 	return structs.Port{
-		Label:       in.Label,
-		Value:       in.Value,
-		To:          in.To,
-		HostNetwork: in.HostNetwork,
+		Label:           in.Label,
+		Value:           in.Value,
+		To:              in.To,
+		HostNetwork:     in.HostNetwork,
+		IgnoreCollision: in.IgnoreCollision,
 	}
 }
 
@@ -1517,6 +1751,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 					Interval:               check.Interval,
 					Timeout:                check.Timeout,
 					InitialStatus:          check.InitialStatus,
+					Notes:                  check.Notes,
 					TLSServerName:          check.TLSServerName,
 					TLSSkipVerify:          check.TLSSkipVerify,
 					Header:                 check.Header,
@@ -1526,6 +1761,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 					GRPCUseTLS:             check.GRPCUseTLS,
 					SuccessBeforePassing:   check.SuccessBeforePassing,
 					FailuresBeforeCritical: check.FailuresBeforeCritical,
+					FailuresBeforeWarning:  check.FailuresBeforeWarning,
 					OnUpdate:               onUpdate,
 				}
 
@@ -1552,6 +1788,8 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			out[i].Identity = apiWorkloadIdentityToStructs(s.Identity)
 		}
 
+		out[i].Weights = apiWorkloadWeightsToStructs(s.Weights)
+
 	}
 
 	return out
@@ -1562,11 +1800,25 @@ func apiWorkloadIdentityToStructs(in *api.WorkloadIdentity) *structs.WorkloadIde
 		return nil
 	}
 	return &structs.WorkloadIdentity{
-		Name:        in.Name,
-		Audience:    in.Audience,
-		Env:         in.Env,
-		File:        in.File,
-		ServiceName: in.ServiceName,
+		Name:         in.Name,
+		Audience:     slices.Clone(in.Audience),
+		ChangeMode:   in.ChangeMode,
+		ChangeSignal: in.ChangeSignal,
+		Env:          in.Env,
+		File:         in.File,
+		Filepath:     in.Filepath,
+		ServiceName:  in.ServiceName,
+		TTL:          in.TTL,
+	}
+}
+
+func apiWorkloadWeightsToStructs(in *api.ServiceWeights) *structs.ServiceWeights {
+	if in == nil {
+		return nil
+	}
+	return &structs.ServiceWeights{
+		Passing: in.Passing,
+		Warning: in.Warning,
 	}
 }
 
@@ -1641,6 +1893,18 @@ func apiConnectGatewayTLSConfig(in *api.ConsulGatewayTLSConfig) *structs.ConsulG
 		TLSMinVersion: in.TLSMinVersion,
 		TLSMaxVersion: in.TLSMaxVersion,
 		CipherSuites:  slices.Clone(in.CipherSuites),
+		SDS:           apiConnectGatewayTLSSDSConfig(in.SDS),
+	}
+}
+
+func apiConnectGatewayTLSSDSConfig(in *api.ConsulGatewayTLSSDSConfig) *structs.ConsulGatewayTLSSDSConfig {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulGatewayTLSSDSConfig{
+		ClusterName:  in.ClusterName,
+		CertResource: in.CertResource,
 	}
 }
 
@@ -1686,8 +1950,26 @@ func apiConnectIngressServiceToStructs(in *api.ConsulIngressService) *structs.Co
 	}
 
 	return &structs.ConsulIngressService{
-		Name:  in.Name,
-		Hosts: slices.Clone(in.Hosts),
+		Name:                  in.Name,
+		Hosts:                 slices.Clone(in.Hosts),
+		TLS:                   apiConnectGatewayTLSConfig(in.TLS),
+		RequestHeaders:        apiConsulHTTPHeaderModifiersToStructs(in.RequestHeaders),
+		ResponseHeaders:       apiConsulHTTPHeaderModifiersToStructs(in.ResponseHeaders),
+		MaxConnections:        in.MaxConnections,
+		MaxPendingRequests:    in.MaxPendingRequests,
+		MaxConcurrentRequests: in.MaxConcurrentRequests,
+	}
+}
+
+func apiConsulHTTPHeaderModifiersToStructs(in *api.ConsulHTTPHeaderModifiers) *structs.ConsulHTTPHeaderModifiers {
+	if in == nil {
+		return nil
+	}
+
+	return &structs.ConsulHTTPHeaderModifiers{
+		Add:    maps.Clone(in.Add),
+		Set:    maps.Clone(in.Set),
+		Remove: slices.Clone(in.Remove),
 	}
 }
 
@@ -1763,6 +2045,7 @@ func apiConnectSidecarServiceProxyToStructs(in *api.ConsulProxy) *structs.Consul
 		LocalServicePort:    in.LocalServicePort,
 		Upstreams:           apiUpstreamsToStructs(in.Upstreams),
 		Expose:              apiConsulExposeConfigToStructs(expose),
+		TransparentProxy:    apiConnectTransparentProxyToStructs(in.TransparentProxy),
 		Config:              maps.Clone(in.Config),
 	}
 }
@@ -1777,6 +2060,7 @@ func apiUpstreamsToStructs(in []*api.ConsulUpstream) []structs.ConsulUpstream {
 			DestinationName:      upstream.DestinationName,
 			DestinationNamespace: upstream.DestinationNamespace,
 			DestinationPeer:      upstream.DestinationPeer,
+			DestinationPartition: upstream.DestinationPartition,
 			DestinationType:      upstream.DestinationType,
 			LocalBindPort:        upstream.LocalBindPort,
 			LocalBindSocketPath:  upstream.LocalBindSocketPath,
@@ -1814,6 +2098,21 @@ func apiConsulExposeConfigToStructs(in *api.ConsulExposeConfig) *structs.ConsulE
 	}
 }
 
+func apiConnectTransparentProxyToStructs(in *api.ConsulTransparentProxy) *structs.ConsulTransparentProxy {
+	if in == nil {
+		return nil
+	}
+	return &structs.ConsulTransparentProxy{
+		UID:                  in.UID,
+		OutboundPort:         in.OutboundPort,
+		ExcludeInboundPorts:  in.ExcludeInboundPorts,
+		ExcludeOutboundPorts: in.ExcludeOutboundPorts,
+		ExcludeOutboundCIDRs: in.ExcludeOutboundCIDRs,
+		ExcludeUIDs:          in.ExcludeUIDs,
+		NoDNS:                in.NoDNS,
+	}
+}
+
 func apiConsulExposePathsToStructs(in []*api.ConsulExposePath) []structs.ConsulExposePath {
 	if len(in) == 0 {
 		return nil
@@ -1834,6 +2133,7 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 	if in == nil {
 		return nil
 	}
+
 	return &structs.SidecarTask{
 		Name:          in.Name,
 		Driver:        in.Driver,
@@ -1846,7 +2146,32 @@ func apiConnectSidecarTaskToStructs(in *api.SidecarTask) *structs.SidecarTask {
 		KillSignal:    in.KillSignal,
 		KillTimeout:   in.KillTimeout,
 		LogConfig:     apiLogConfigToStructs(in.LogConfig),
+		VolumeMounts:  apiVolumeMountsToStructs(in.VolumeMounts),
 	}
+}
+
+func apiVolumeMountsToStructs(in []*api.VolumeMount) []*structs.VolumeMount {
+	if in == nil {
+		return nil
+	}
+	if len(in) == 0 {
+		return []*structs.VolumeMount{}
+	}
+
+	out := []*structs.VolumeMount{}
+	for _, mount := range in {
+		if mount != nil && mount.Volume != nil {
+			out = append(out,
+				&structs.VolumeMount{
+					Volume:          *mount.Volume,
+					Destination:     *mount.Destination,
+					ReadOnly:        *mount.ReadOnly,
+					PropagationMode: *mount.PropagationMode,
+					SELinuxLabel:    *mount.SELinuxLabel,
+				})
+		}
+	}
+	return out
 }
 
 func apiConsulToStructs(in *api.Consul) *structs.Consul {
@@ -1856,6 +2181,7 @@ func apiConsulToStructs(in *api.Consul) *structs.Consul {
 	return &structs.Consul{
 		Namespace: in.Namespace,
 		Cluster:   in.Cluster,
+		Partition: in.Partition,
 	}
 }
 
@@ -1921,6 +2247,42 @@ func ApiAffinitiesToStructs(in []*api.Affinity) []*structs.Affinity {
 	}
 
 	return out
+}
+
+func ApiJobUIConfigToStructs(jobUI *api.JobUIConfig) *structs.JobUIConfig {
+	if jobUI == nil {
+		return nil
+	}
+
+	var links []*structs.JobUILink
+	if len(jobUI.Links) > 0 {
+		links = make([]*structs.JobUILink, len(jobUI.Links))
+		for i, link := range jobUI.Links {
+			links[i] = &structs.JobUILink{
+				Label: link.Label,
+				Url:   link.URL,
+			}
+		}
+	} else {
+		links = nil
+	}
+
+	return &structs.JobUIConfig{
+		Description: jobUI.Description,
+		Links:       links,
+	}
+}
+
+func ApiJobVersionTagToStructs(jobVersionTag *api.JobVersionTag) *structs.JobVersionTag {
+	if jobVersionTag == nil {
+		return nil
+	}
+
+	return &structs.JobVersionTag{
+		Name:        jobVersionTag.Name,
+		Description: jobVersionTag.Description,
+		TaggedTime:  jobVersionTag.TaggedTime,
+	}
 }
 
 func ApiAffinityToStructs(a1 *api.Affinity) *structs.Affinity {

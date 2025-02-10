@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
@@ -31,6 +31,7 @@ func RaftStateInfo(p string) (store *raftboltdb.BoltStore, firstIdx uint64, last
 			ReadOnly: true,
 			Timeout:  1 * time.Second,
 		},
+		MsgpackUseNewTimeFormat: true,
 	}
 	s, err := raftboltdb.New(opts)
 	if err != nil {
@@ -164,7 +165,6 @@ func jsonifyJobBatchDeregisterRequest(v *structs.JobBatchDeregisterRequest) inte
 		Evals []*structs.Evaluation
 		structs.WriteRequest
 	}
-	data.Evals = v.Evals
 	data.WriteRequest = v.WriteRequest
 
 	data.Jobs = make(map[string]*structs.JobDeregisterOptions, len(v.Jobs))

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -226,6 +227,58 @@ func TestPathEscapesSandbox(t *testing.T) {
 			caseMsg := fmt.Sprintf("path: %v\ndir: %v", tc.path, tc.dir)
 			escapes := PathEscapesSandbox(tc.dir, tc.path)
 			require.Equal(t, tc.expected, escapes, caseMsg)
+		})
+	}
+}
+
+func TestHasPrefixCaseInsensitive(t *testing.T) {
+	cases := []struct {
+		name     string
+		path     string
+		prefix   string
+		expected bool
+	}{
+		{
+			name:     "has prefix",
+			path:     "/foo/bar",
+			prefix:   "/foo",
+			expected: true,
+		},
+		{
+			name:     "has prefix different case",
+			path:     "/FOO/bar",
+			prefix:   "/foo",
+			expected: true,
+		},
+		{
+			name:     "short path",
+			path:     "/foo",
+			prefix:   "/foo/bar",
+			expected: false,
+		},
+		{
+			name:     "exact match",
+			path:     "/foo",
+			prefix:   "/foo",
+			expected: true,
+		},
+		{
+			name:     "no prefix",
+			path:     "/baz/bar",
+			prefix:   "/foo",
+			expected: false,
+		},
+		{
+			name:     "no prefix different case",
+			path:     "/BAZ/bar",
+			prefix:   "/foo",
+			expected: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := hasPrefixCaseInsensitive(tc.path, tc.prefix)
+			must.Eq(t, tc.expected, got)
 		})
 	}
 }

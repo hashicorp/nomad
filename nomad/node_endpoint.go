@@ -13,9 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-multierror"
 	vapi "github.com/hashicorp/vault/api"
 	"golang.org/x/sync/errgroup"
@@ -383,6 +383,12 @@ func (n *Node) Deregister(args *structs.NodeDeregisterRequest, reply *structs.No
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "deregister"}, time.Now())
 
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+		return structs.ErrPermissionDenied
+	} else if !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	if args.NodeID == "" {
 		return fmt.Errorf("missing node ID for client deregistration")
 	}
@@ -410,6 +416,12 @@ func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "batch_deregister"}, time.Now())
 
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+		return structs.ErrPermissionDenied
+	} else if !aclObj.AllowNodeWrite() {
+		return structs.ErrPermissionDenied
+	}
+
 	if len(args.NodeIDs) == 0 {
 		return fmt.Errorf("missing node IDs for client deregistration")
 	}
@@ -419,18 +431,12 @@ func (n *Node) BatchDeregister(args *structs.NodeBatchDeregisterRequest, reply *
 	})
 }
 
-// deregister takes a raftMessage closure, to support both Deregister and BatchDeregister
+// deregister takes a raftMessage closure, to support both Deregister and
+// BatchDeregister. The caller should have already authorized the request.
 func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 	reply *structs.NodeUpdateResponse,
 	raftApplyFn func() (interface{}, uint64, error),
 ) error {
-	// Check request permissions
-	if aclObj, err := n.srv.ResolveACL(args); err != nil {
-		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
-		return structs.ErrPermissionDenied
-	}
-
 	// Look for the node
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
@@ -533,6 +539,8 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 //	                                             │                │
 //	                                             └──── ready ─────┘
 func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *structs.NodeUpdateResponse) error {
+	// UpdateStatus receives requests from client and servers that mark failed
+	// heartbeats, so we can't use AuthenticateClientOnly
 	authErr := n.srv.Authenticate(n.ctx, args)
 
 	isForwarded := args.IsForwarded()
@@ -553,6 +561,12 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	}
 
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_status"}, time.Now())
+
+	if aclObj, err := n.srv.ResolveACL(args); err != nil {
+		return structs.ErrPermissionDenied
+	} else if !(aclObj.AllowClientOp() || aclObj.AllowServerOp()) {
+		return structs.ErrPermissionDenied
+	}
 
 	// Verify the arguments
 	if args.NodeID == "" {
@@ -686,31 +700,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 			_ = n.srv.consulACLs.RevokeTokens(context.Background(), accessors, true)
 		}
 
-		// Identify the service registrations current placed on the downed
-		// node.
-		serviceRegistrations, err := n.srv.State().GetServiceRegistrationsByNodeID(ws, args.NodeID)
-		if err != nil {
-			n.logger.Error("looking up service registrations for node failed",
-				"node_id", args.NodeID, "error", err)
-			return err
-		}
-
-		// If the node has service registrations assigned to it, delete these
-		// via Raft.
-		if l := len(serviceRegistrations); l > 0 {
-			n.logger.Debug("deleting service registrations on node due to down state",
-				"num_service_registrations", l, "node_id", args.NodeID)
-
-			deleteRegReq := structs.ServiceRegistrationDeleteByNodeIDRequest{NodeID: args.NodeID}
-
-			_, index, err = n.srv.raftApply(structs.ServiceRegistrationDeleteByNodeIDRequestType, &deleteRegReq)
-			if err != nil {
-				n.logger.Error("failed to delete service registrations for node",
-					"node_id", args.NodeID, "error", err)
-				return err
-			}
-		}
-
 	default:
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
@@ -759,7 +748,8 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() &&
+		!(aclObj.AllowClientOp() && args.GetIdentity().ClientID == args.NodeID) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -771,7 +761,10 @@ func (n *Node) UpdateDrain(args *structs.NodeUpdateDrainRequest,
 		return fmt.Errorf("node event must not be set")
 	}
 
-	// Look for the node
+	// The AuthenticatedIdentity is unexported so won't be written via
+	// Raft. Record the identity string so it can be written to LastDrain
+	args.UpdatedBy = args.GetIdentity().String()
+
 	snap, err := n.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
@@ -859,7 +852,7 @@ func (n *Node) UpdateEligibility(args *structs.NodeUpdateEligibilityRequest,
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -962,7 +955,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 	// Check node write permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeWrite() {
+	} else if !aclObj.AllowNodeWrite() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1007,8 +1000,7 @@ func (n *Node) Evaluate(args *structs.NodeEvaluateRequest, reply *structs.NodeUp
 }
 
 // GetNode is used to request information about a specific node
-func (n *Node) GetNode(args *structs.NodeSpecificRequest,
-	reply *structs.SingleNodeResponse) error {
+func (n *Node) GetNode(args *structs.NodeSpecificRequest, reply *structs.SingleNodeResponse) error {
 
 	authErr := n.srv.Authenticate(n.ctx, args)
 	if done, err := n.srv.forward("Node.GetNode", args, args, reply); done {
@@ -1021,11 +1013,11 @@ func (n *Node) GetNode(args *structs.NodeSpecificRequest,
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_node"}, time.Now())
 
 	// Check node read permissions
-	aclObj, err := n.srv.ResolveClientOrACL(args)
+	aclObj, err := n.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if aclObj != nil && !aclObj.AllowNodeRead() {
+	if !aclObj.AllowClientOp() && !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1086,7 +1078,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 	if err != nil {
 		return err
 	}
-	if aclObj != nil && !aclObj.AllowNodeRead() {
+	if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1095,11 +1087,6 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 
 	// readNS is a caching namespace read-job helper
 	readNS := func(ns string) bool {
-		if aclObj == nil {
-			// ACLs are disabled; everything is readable
-			return true
-		}
-
 		if readable, ok := readableNamespaces[ns]; ok {
 			// cache hit
 			return readable
@@ -1317,23 +1304,20 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 //   - The node status is down or disconnected. Clients must call the
 //     UpdateStatus method to update its status in the server.
 func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.GenericResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
-
-	// Ensure the connection was initiated by another client if TLS is used.
-	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
-	if err != nil {
-		return err
-	}
-	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
-		return err
-	}
+	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
 	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if authErr != nil {
+	if err != nil {
 		return structs.ErrPermissionDenied
 	}
 
+	if done, err := n.srv.forward("Node.UpdateAlloc", args, args, reply); done {
+		return err
+	}
+
 	defer metrics.MeasureSince([]string{"nomad", "client", "update_alloc"}, time.Now())
+	if !aclObj.AllowClientOp() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Ensure at least a single alloc
 	if len(args.Alloc) == 0 {
@@ -1600,7 +1584,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 	// Check node read permissions
 	if aclObj, err := n.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1717,6 +1701,15 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 			continue
 		}
 		jobIDs[alloc.JobNamespacedID()] = struct{}{}
+
+		// If it's a sysbatch job, skip it. Sysbatch job evals should only ever
+		// be created by periodic-job if they are periodic, and job-register or
+		// job-scaling if they are not. Calling the system scheduler by
+		// node-update trigger can cause unnecessary or premature allocations
+		// to be created.
+		if alloc.Job.Type == structs.JobTypeSysBatch {
+			continue
+		}
 
 		// Create a new eval
 		eval := &structs.Evaluation{
@@ -1862,7 +1855,7 @@ func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *st
 		setError(fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID), false)
 		return nil
 	}
-	if alloc.TerminalStatus() {
+	if alloc.ClientTerminalStatus() {
 		setError(fmt.Errorf("Can't request Vault token for terminal allocation"), false)
 		return nil
 	}
@@ -2042,11 +2035,13 @@ func (n *Node) DeriveSIToken(args *structs.DeriveSITokenRequest, reply *structs.
 	}
 
 	// Get the ClusterID
-	clusterID, err := n.srv.ClusterID()
+	clusterMD, err := n.srv.ClusterMetadata()
 	if err != nil {
 		setError(err, false)
 		return nil
 	}
+
+	clusterID := clusterMD.ClusterID
 
 	// Verify the following:
 	// * The Node exists and has the correct SecretID.
@@ -2251,22 +2246,20 @@ func taskUsesConnect(task *structs.Task) bool {
 }
 
 func (n *Node) EmitEvents(args *structs.EmitNodeEventsRequest, reply *structs.EmitNodeEventsResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
-
-	// Ensure the connection was initiated by another client if TLS is used.
-	err := validateTLSCertificateLevel(n.srv, n.ctx, tlsCertificateLevelClient)
+	aclObj, err := n.srv.AuthenticateClientOnly(n.ctx, args)
+	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
 	if err != nil {
-		return err
+		return structs.ErrPermissionDenied
 	}
+
 	if done, err := n.srv.forward("Node.EmitEvents", args, args, reply); done {
 		return err
 	}
-	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if authErr != nil {
+	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
 		return structs.ErrPermissionDenied
 	}
-	defer metrics.MeasureSince([]string{"nomad", "client", "emit_events"}, time.Now())
 
 	if len(args.NodeEvents) == 0 {
 		return fmt.Errorf("no node events given")

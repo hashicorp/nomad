@@ -268,13 +268,14 @@ func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 	method := structs.ACLAuthMethod{
 		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
 		Type:          "OIDC",
-		TokenLocality: "local",
+		TokenLocality: structs.ACLAuthMethodTokenLocalityLocal,
 		MaxTokenTTL:   maxTokenTTL,
 		Default:       false,
 		Config: &structs.ACLAuthMethodConfig{
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCDisableUserInfo: false,
 			OIDCScopes:          []string{"groups"},
 			BoundAudiences:      []string{"sales", "engineering"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
@@ -282,6 +283,7 @@ func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 			SigningAlgs:         []string{"RS256"},
 			ClaimMappings:       map[string]string{"foo": "bar"},
 			ListClaimMappings:   map[string]string{"foo": "bar"},
+			VerboseLogging:      false,
 		},
 		CreateTime:  time.Now().UTC(),
 		CreateIndex: 10,
@@ -297,7 +299,7 @@ func ACLJWTAuthMethod() *structs.ACLAuthMethod {
 	method := structs.ACLAuthMethod{
 		Name:          fmt.Sprintf("acl-auth-method-%s", uuid.Short()),
 		Type:          "JWT",
-		TokenLocality: "local",
+		TokenLocality: structs.ACLAuthMethodTokenLocalityLocal,
 		MaxTokenTTL:   maxTokenTTL,
 		Default:       false,
 		Config: &structs.ACLAuthMethodConfig{

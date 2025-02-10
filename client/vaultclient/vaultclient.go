@@ -5,24 +5,46 @@ package vaultclient
 
 import (
 	"container/heap"
+	"context"
+	"errors"
 	"fmt"
 	"math/rand"
 	"strings"
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vaultapi "github.com/hashicorp/vault/api"
 )
 
+// VaultClientFunc is the interface of a function that retreives the VaultClient
+// by cluster name. This function is injected into the allocrunner/taskrunner
+type VaultClientFunc func(string) (VaultClient, error)
+
 // TokenDeriverFunc takes in an allocation and a set of tasks and derives a
 // wrapped token for all the tasks, from the nomad server. All the derived
 // wrapped tokens will be unwrapped using the vault API client.
 type TokenDeriverFunc func(*structs.Allocation, []string, *vaultapi.Client) (map[string]string, error)
+
+// JWTLoginRequest is used to derive a Vault ACL token using a JWT login
+// request.
+type JWTLoginRequest struct {
+	// JWT is the signed JWT to be used for the login request.
+	JWT string
+
+	// Role is Vault ACL role to use for the login request. If empty, the
+	// Nomad client's create_from_role value is used, or the Vault cluster
+	// default role.
+	Role string
+
+	// Namespace is the Vault namespace to use for the login request. If empty,
+	// the Nomad client's Vault configuration namespace will be used.
+	Namespace string
+}
 
 // VaultClient is the interface which nomad client uses to interact with vault and
 // periodically renews the tokens and secrets.
@@ -38,8 +60,9 @@ type VaultClient interface {
 	// returned.
 	DeriveToken(*structs.Allocation, []string) (map[string]string, error)
 
-	// GetConsulACL fetches the Consul ACL token required for the task
-	GetConsulACL(string, string) (*vaultapi.Secret, error)
+	// DeriveTokenWithJWT returns a Vault ACL token using the JWT login
+	// endpoint, along with whether or not the token is renewable.
+	DeriveTokenWithJWT(context.Context, JWTLoginRequest) (string, bool, error)
 
 	// RenewToken renews a token with the given increment and adds it to
 	// the min-heap for periodic renewal.
@@ -124,7 +147,7 @@ func NewVaultClient(config *config.VaultConfig, logger hclog.Logger, tokenDerive
 		return nil, fmt.Errorf("nil vault config")
 	}
 
-	logger = logger.Named("vault")
+	logger = logger.Named("vault").With("name", config.Name)
 
 	c := &vaultClient{
 		config: config,
@@ -222,10 +245,12 @@ func (c *vaultClient) Stop() {
 	close(c.stopCh)
 }
 
-// unlockAndUnset is used to unset the vault token on the client and release the
-// lock. Helper method for deferring a call that does both.
+// unlockAndUnset is used to unset the vault token on the client, restore the
+// client's default configured namespace, and release the lock. Helper method
+// for deferring a call that does both.
 func (c *vaultClient) unlockAndUnset() {
 	c.client.SetToken("")
+	c.client.SetNamespace(c.config.Namespace)
 	c.lock.Unlock()
 }
 
@@ -256,27 +281,47 @@ func (c *vaultClient) DeriveToken(alloc *structs.Allocation, taskNames []string)
 	return tokens, nil
 }
 
-// GetConsulACL creates a vault API client and reads from vault a consul ACL
-// token used by the task.
-func (c *vaultClient) GetConsulACL(token, path string) (*vaultapi.Secret, error) {
+// DeriveTokenWithJWT returns a Vault ACL token using the JWT login endpoint.
+func (c *vaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, error) {
 	if !c.config.IsEnabled() {
-		return nil, fmt.Errorf("vault client not enabled")
+		return "", false, fmt.Errorf("vault client not enabled")
 	}
-	if token == "" {
-		return nil, fmt.Errorf("missing token")
-	}
-	if path == "" {
-		return nil, fmt.Errorf("missing consul ACL token vault path")
+	if !c.isRunning() {
+		return "", false, fmt.Errorf("vault client is not running")
 	}
 
 	c.lock.Lock()
 	defer c.unlockAndUnset()
 
-	// Use the token supplied to interact with vault
-	c.client.SetToken(token)
+	// Make sure the login request is not passing any token and that we're using
+	// the expected namespace to login
+	c.client.SetToken("")
+	if req.Namespace != "" {
+		c.client.SetNamespace(req.Namespace)
+	}
 
-	// Read the consul ACL token and return the secret directly
-	return c.client.Logical().Read(path)
+	jwtLoginPath := fmt.Sprintf("auth/%s/login", c.config.JWTAuthBackendPath)
+	s, err := c.client.Logical().WriteWithContext(ctx, jwtLoginPath,
+		map[string]any{
+			"role": req.Role,
+			"jwt":  req.JWT,
+		},
+	)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to login with JWT: %v", err)
+	}
+	if s == nil {
+		return "", false, errors.New("JWT login returned an empty secret")
+	}
+	if s.Auth == nil {
+		return "", false, errors.New("JWT login did not return a token")
+	}
+
+	for _, w := range s.Warnings {
+		c.logger.Warn("JWT login warning", "warning", w)
+	}
+
+	return s.Auth.ClientToken, s.Auth.Renewable, nil
 }
 
 // RenewToken renews the supplied token for a given duration (in seconds) and
@@ -354,6 +399,7 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 
 	var renewalErr error
 	leaseDuration := req.increment
+
 	if req.isToken {
 		// Set the token in the API client to the one that needs renewal
 		c.client.SetToken(req.id)
@@ -389,16 +435,27 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 	next := time.Now().Add(renewalDuration)
 
 	fatal := false
-	if renewalErr != nil &&
-		(strings.Contains(renewalErr.Error(), "lease not found or lease is not renewable") ||
-			strings.Contains(renewalErr.Error(), "lease is not renewable") ||
-			strings.Contains(renewalErr.Error(), "token not found") ||
-			strings.Contains(renewalErr.Error(), "permission denied")) {
-		fatal = true
-	} else if renewalErr != nil {
-		c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "renewal_duration", renewalDuration)
-		c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
-			"error", renewalErr, "period", next)
+	if renewalErr != nil {
+		// These errors aren't wrapped by the Vault SDK, so we have to read the
+		// error messages. Unfortunately we can't easily enumerate non-fatal
+		// errors so we have a large set here. These can be found at in
+		// vault/expiration.go.
+		// Current as of vault commit 52ba156d47da170bf40471fe57d72522030bdc7e
+		errMsg := renewalErr.Error()
+		if strings.Contains(errMsg, "no namespace") ||
+			strings.Contains(errMsg, "cannot renew a token across namespaces") ||
+			strings.Contains(errMsg, "invalid lease ID") ||
+			strings.Contains(errMsg, "lease expired") ||
+			strings.Contains(errMsg, "lease is not renewable") ||
+			strings.Contains(errMsg, "lease not found") ||
+			strings.Contains(errMsg, "permission denied") ||
+			strings.Contains(errMsg, "token not found") {
+			fatal = true
+		} else {
+			c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "renewal_duration", renewalDuration)
+			c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
+				"error", renewalErr, "period", next)
+		}
 	}
 
 	if c.isTracked(req.id) {

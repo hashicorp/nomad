@@ -1,0 +1,76 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+on:
+  issues:
+    types: [labeled, opened, closed, deleted, reopened]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+
+name: Jira Issue Sync
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    name: Jira Issue sync
+    steps:    
+      - name: Login
+        uses: atlassian/gajira-login@45fd029b9f1d6d8926c6f04175aa80c0e42c9026 # v3.0.1
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Set ticket type
+        id: set-ticket-type
+        run: |
+          echo "TYPE=GH Issue" >> "$GITHUB_OUTPUT"
+          
+      - name: Create ticket if an issue is labeled with hcc/jira
+        if: github.event.action == 'labeled' && github.event.label.name == 'hcc/jira'
+        uses: tomhjp/gh-action-jira-create@3ed1789cad3521292e591a7cfa703215ec1348bf # v0.2.1
+        with:
+          project: NET
+          issuetype: "${{ steps.set-ticket-type.outputs.TYPE }}"
+          summary: "${{ github.event.repository.name }} [${{ steps.set-ticket-type.outputs.TYPE }} #${{ github.event.issue.number }}]: ${{ github.event.issue.title }}"
+          description: "${{ github.event.issue.body || github.event.pull_request.body }}\n\n_Created in GitHub by ${{ github.actor }}._"
+          # customfield_10089 is "Issue Link", customfield_10371 is "Source" (use JIRA API to retrieve), customerfield_10091 is "Team (R&D) 
+          extraFields: '{ "customfield_10089": "${{ github.event.issue.html_url || github.event.pull_request.html_url }}",
+                          "customfield_10371": { "value": "GitHub" },
+                          "customfield_10091": ["NomadMinor"],
+                          "components": [{ "name": "nomad" }],
+                          "labels": ["community"] }'
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Search
+        if: github.event.action != 'opened'
+        id: search
+        uses: tomhjp/gh-action-jira-search@04700b457f317c3e341ce90da5a3ff4ce058f2fa # v0.2.2
+        with:
+          # cf[10089] is Issue Link (use JIRA API to retrieve)
+          jql: 'cf[10089] = "${{ github.event.issue.html_url || github.event.pull_request.html_url }}"'
+
+      - name: Sync comment
+        if: github.event.action == 'created' && steps.search.outputs.issue
+        uses: tomhjp/gh-action-jira-comment@6eb6b9ead70221916b6badd118c24535ed220bd9 # v0.2.0
+        with:
+          issue: ${{ steps.search.outputs.issue }}
+          comment: "${{ github.actor }} ${{ github.event.review.state || 'commented' }}:\n\n${{ github.event.comment.body || github.event.review.body }}\n\n${{ github.event.comment.html_url || github.event.review.html_url }}"
+
+      - name: Close ticket
+        if: ( github.event.action == 'closed' || github.event.action == 'deleted' ) && steps.search.outputs.issue
+        uses: atlassian/gajira-transition@38fc9cd61b03d6a53dd35fcccda172fe04b36de3 # v3.0.1
+        with:
+          issue: ${{ steps.search.outputs.issue }}
+          transition: "Closed"
+
+      - name: Reopen ticket
+        if: github.event.action == 'reopened' && steps.search.outputs.issue
+        uses: atlassian/gajira-transition@38fc9cd61b03d6a53dd35fcccda172fe04b36de3 # v3.0.1
+        with:
+          issue: ${{ steps.search.outputs.issue }}
+          transition: "To Do"

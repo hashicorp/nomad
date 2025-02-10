@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
@@ -15,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
 )
 
@@ -130,6 +130,44 @@ func TestJobScaleCommand_MultiGroup(t *testing.T) {
 	}
 }
 
+func TestJobScaleCommand_Parameterized(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, client, url := testServer(t, true, nil)
+	defer srv.Shutdown()
+	testutil.WaitForResult(func() (bool, error) {
+		nodes, _, err := client.Nodes().List(nil)
+		if err != nil {
+			return false, err
+		}
+		if len(nodes) == 0 {
+			return false, fmt.Errorf("missing node")
+		}
+		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
+			return false, fmt.Errorf("mock_driver not ready")
+		}
+		return true, nil
+	}, func(err error) {
+		t.Fatalf("err: %s", err)
+	})
+
+	ui := cli.NewMockUi()
+	cmd := &JobScaleCommand{Meta: Meta{Ui: ui}}
+
+	// Create and register a parameterized job. The parent jobs do not create
+	// evaluations, even when scaled.
+	job := testJob("parameterized_job")
+	job.ParameterizedJob = &api.ParameterizedJobConfig{}
+
+	_, _, err := client.Jobs().Register(job, nil)
+	must.NoError(t, err)
+
+	// Scale the parent job and ensure the output matches what we expect.
+	code := cmd.Run([]string{"-address=" + url, "parameterized_job", "2"})
+	must.Eq(t, 0, code)
+	must.StrContains(t, ui.OutputWriter.String(), "Job scale successful")
+}
+
 func TestJobScaleCommand_ACL(t *testing.T) {
 	ci.Parallel(t)
 
@@ -175,7 +213,7 @@ namespace "default" {
 	capabilities = ["read-job-scaling", "scale-job"]
 }
 `,
-			expectedErr: "No evaluation with id",
+			expectedErr: "Error looking up job",
 		},
 		{
 			name: "read-job-scaling and submit-job allowed but can't monitor eval without read-job",
@@ -184,7 +222,7 @@ namespace "default" {
 	capabilities = ["read-job-scaling", "submit-job"]
 }
 `,
-			expectedErr: "No evaluation with id",
+			expectedErr: "Error looking up job",
 		},
 		{
 			name: "read-job-scaling and scale-job allowed and can monitor eval with read-job",
@@ -220,7 +258,7 @@ namespace "default" {
 	capabilities = ["read-job-scaling", "scale-job", "list-jobs"]
 }
 `,
-			expectedErr: "No evaluation with id",
+			expectedErr: "Error looking up job",
 		},
 		{
 			name:      "job prefix works with list-job and can monitor eval with read-job",

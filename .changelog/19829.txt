@@ -1,0 +1,3 @@
+```release-note:bug
+driver/rawexec: Ensure the OOM killed response is populated when the task exits
+```

@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -318,6 +319,33 @@ func TestBlockedEvals_UnblockEligible_Quota(t *testing.T) {
 	require.Equal(1, blockedStats.TotalQuotaLimit)
 	require.Len(blockedStats.BlockedResources.ByJob, 1)
 
+	blocked.UnblockQuota("foo", 1000)
+	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
+}
+
+// The quota here is incidental. The eval is blocked due to something else,
+// e.g. cpu exhausted, but there happens to also be a quota on the namespace.
+func TestBlockedEvals_UnblockEligible_IncidentalQuota(t *testing.T) {
+	ci.Parallel(t)
+
+	blocked, broker := testBlockedEvals(t)
+
+	e := mock.BlockedEval()
+	e.Status = structs.EvalStatusBlocked
+	e.QuotaLimitReached = "" // explicitly not blocked due to quota limit
+	blocked.Block(e)
+
+	// Verify block caused the eval to be tracked.
+	blockedStats := blocked.Stats()
+	must.Eq(t, 1, blockedStats.TotalBlocked)
+	must.MapLen(t, 1, blockedStats.BlockedResources.ByJob)
+	// but not due to quota.
+	must.Eq(t, 0, blockedStats.TotalQuotaLimit)
+
+	// When unblocking, the quota name from the alloc is passed in,
+	// regardless of the cause of the initial blockage.
+	// Since the initial block in this test was due to something else,
+	// it should be unblocked without regard to quota.
 	blocked.UnblockQuota("foo", 1000)
 	requireBlockedEvalsEnqueued(t, blocked, broker, 1)
 }

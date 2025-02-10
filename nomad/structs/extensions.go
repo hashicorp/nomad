@@ -5,18 +5,51 @@ package structs
 
 import (
 	"reflect"
+
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/helper"
 )
 
 var (
 	// extendedTypes is a mapping of extended types to their extension function
 	// TODO: the duplicates could be simplified by looking up the base type in the case of a pointer type in ConvertExt
 	extendedTypes = map[reflect.Type]extendFunc{
-		reflect.TypeOf(Node{}):       nodeExt,
-		reflect.TypeOf(&Node{}):      nodeExt,
-		reflect.TypeOf(CSIVolume{}):  csiVolumeExt,
-		reflect.TypeOf(&CSIVolume{}): csiVolumeExt,
+		reflect.TypeOf(Node{}):              nodeExt,
+		reflect.TypeOf(&Node{}):             nodeExt,
+		reflect.TypeOf(CSIVolume{}):         csiVolumeExt,
+		reflect.TypeOf(&CSIVolume{}):        csiVolumeExt,
+		reflect.TypeOf(&numalib.Topology{}): numaTopoExt,
 	}
 )
+
+// numaTopoExt is used to JSON encode topology to correctly handle the private
+// idset.Set fields and so that NUMA NodeIDs are encoded as []int because
+// go-msgpack will further JSON encode []uint8 into a base64-encoded bytestring,
+// rather than an array
+func numaTopoExt(v interface{}) interface{} {
+	topo := v.(*numalib.Topology)
+
+	var nodes []int
+	if topo.GetNodes() != nil {
+		nodes = helper.ConvertSlice(
+			topo.GetNodes().Slice(), func(n uint8) int { return int(n) })
+	}
+
+	return &struct {
+		Nodes                  []int
+		Distances              numalib.SLIT
+		Cores                  []numalib.Core
+		OverrideTotalCompute   hw.MHz
+		OverrideWitholdCompute hw.MHz
+	}{
+		Nodes:                  nodes,
+		Distances:              topo.Distances,
+		Cores:                  topo.Cores,
+		OverrideTotalCompute:   topo.OverrideTotalCompute,
+		OverrideWitholdCompute: topo.OverrideWitholdCompute,
+	}
+}
 
 // nodeExt ensures the node is sanitized and adds the legacy field .Drain back to encoded Node objects
 func nodeExt(v interface{}) interface{} {

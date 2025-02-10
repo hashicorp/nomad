@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -216,6 +216,115 @@ func TestServiceSched_JobRegister_StickyAllocs(t *testing.T) {
 			t.Fatalf("new alloc and old alloc node doesn't match; got %q; want %q", new.NodeID, old.NodeID)
 		}
 	}
+}
+
+func TestServiceSched_JobRegister_StickyHostVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
+		},
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+		},
+	}
+
+	dhv := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[1].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {ID: dhv.ID}}
+
+	for _, node := range nodes {
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	}
+	must.NoError(t, h.State.UpsertHostVolume(1000, dhv))
+
+	stickyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:           "host",
+			Source:         "foo",
+			Sticky:         true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
+	}
+
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Volumes = stickyRequest
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// Ensure the plan allocated
+	plan := h.Plans[0]
+	planned := make(map[string]*structs.Allocation)
+	for _, allocList := range plan.NodeAllocation {
+		for _, alloc := range allocList {
+			planned[alloc.ID] = alloc
+		}
+	}
+	must.MapLen(t, 10, planned)
+
+	// Ensure that the allocations got the host volume ID added
+	for _, p := range planned {
+		must.Eq(t, p.PreviousAllocation, "")
+	}
+
+	// Update the job to force a rolling upgrade
+	updated := job.Copy()
+	updated.TaskGroups[0].Tasks[0].Resources.CPU += 10
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, updated))
+
+	// Create a mock evaluation to handle the update
+	eval = &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerNodeUpdate,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+
+	// Ensure we have created only one new allocation
+	must.SliceLen(t, 2, h.Plans)
+	plan = h.Plans[0]
+	var newPlanned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		newPlanned = append(newPlanned, allocList...)
+	}
+	must.SliceLen(t, 10, newPlanned)
 }
 
 func TestServiceSched_JobRegister_DiskConstraints(t *testing.T) {
@@ -1673,16 +1782,19 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 
 	h := NewHarness(t)
 
-	// Create a node
+	// Create a node of limited resources
+	legacyCpuResources4000, processorResources4000 := cpuResources(4000)
 	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	node.NodeResources.Processors = processorResources4000
+	node.NodeResources.Cpu = legacyCpuResources4000
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create a job with a high resource ask so that all the allocations can't
 	// be placed on a single node.
 	job := mock.Job()
 	job.TaskGroups[0].Count = 3
 	job.TaskGroups[0].Tasks[0].Resources.CPU = 3600
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -1694,33 +1806,24 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
+	must.SliceLen(t, 1, h.Plans)
 	plan := h.Plans[0]
 
 	// Ensure the plan doesn't have annotations.
-	if plan.Annotations != nil {
-		t.Fatalf("expected no annotations")
-	}
+	must.Nil(t, plan.Annotations)
 
 	// Ensure the plan allocated
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 1 {
-		t.Fatalf("bad: %#v", plan)
-	}
+	must.SliceLen(t, 1, planned)
 
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
@@ -1728,14 +1831,11 @@ func TestServiceSched_Plan_Partial_Progress(t *testing.T) {
 	require.NoError(t, err)
 
 	// Ensure only one allocations placed
-	if len(out) != 1 {
-		t.Fatalf("bad: %#v", out)
-	}
+	must.SliceLen(t, 1, out)
 
+	// Ensure 2 queued
 	queued := h.Evals[0].QueuedAllocations["web"]
-	if queued != 2 {
-		t.Fatalf("expected: %v, actual: %v", 2, queued)
-	}
+	must.Eq(t, 2, queued, must.Sprintf("exp: 2, got: %#v", h.Evals[0].QueuedAllocations))
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
@@ -1977,6 +2077,305 @@ func TestServiceSched_JobModify(t *testing.T) {
 	}
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobModify_ExistingDuplicateAllocIndex(t *testing.T) {
+	ci.Parallel(t)
+
+	testHarness := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations
+	mockJob := mock.Job()
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+
+	// Generate some allocations which will represent our pre-existing
+	// allocations. These have aggressive duplicate names.
+	var allocs []*structs.Allocation
+	for i := 0; i < 10; i++ {
+		alloc := mock.Alloc()
+		alloc.Job = mockJob
+		alloc.JobID = mockJob.ID
+		alloc.NodeID = nodes[i].ID
+
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+
+		if i%2 == 0 {
+			alloc.Name = "my-job.web[0]"
+		}
+		allocs = append(allocs, alloc)
+	}
+	must.NoError(t, testHarness.State.UpsertAllocs(structs.MsgTypeTestSetup, testHarness.NextIndex(), allocs))
+
+	// Generate a job modification which will force a destructive update.
+	mockJob2 := mock.Job()
+	mockJob2.ID = mockJob.ID
+	mockJob2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+
+	// Create a mock evaluation which represents work to reconcile the job
+	// update.
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       mockJob2.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, testHarness.State.UpsertEvals(structs.MsgTypeTestSetup, testHarness.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and ensure we get a single plan as a result.
+	must.NoError(t, testHarness.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, testHarness.Plans)
+
+	// Iterate and track the node allocations to ensure we have the correct
+	// amount, and that there a now no duplicate names.
+	totalNodeAllocations := 0
+	allocIndexNames := make(map[string]int)
+
+	for _, planNodeAlloc := range testHarness.Plans[0].NodeAllocation {
+		for _, nodeAlloc := range planNodeAlloc {
+			totalNodeAllocations++
+			allocIndexNames[nodeAlloc.Name]++
+
+			if val, ok := allocIndexNames[nodeAlloc.Name]; ok && val > 1 {
+				t.Fatalf("found duplicate alloc name %q found", nodeAlloc.Name)
+			}
+		}
+	}
+	must.Eq(t, 10, totalNodeAllocations)
+
+	testHarness.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobModify_ProposedDuplicateAllocIndex(t *testing.T) {
+	ci.Parallel(t)
+
+	testHarness := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
+	}
+
+	// Generate a job which includes a canary update strategy.
+	mockJob := mock.MinJob()
+	mockJob.TaskGroups[0].Count = 3
+	mockJob.Update = structs.UpdateStrategy{
+		Canary:      1,
+		MaxParallel: 3,
+	}
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+
+	// Generate some allocations which will represent our pre-existing
+	// allocations.
+	var allocs []*structs.Allocation
+	for i := 0; i < 3; i++ {
+		alloc := mock.MinAlloc()
+		alloc.Namespace = structs.DefaultNamespace
+		alloc.Job = mockJob
+		alloc.JobID = mockJob.ID
+		alloc.NodeID = nodes[i].ID
+		alloc.Name = structs.AllocName(mockJob.ID, mockJob.TaskGroups[0].Name, uint(i))
+		allocs = append(allocs, alloc)
+	}
+	must.NoError(t, testHarness.State.UpsertAllocs(structs.MsgTypeTestSetup, testHarness.NextIndex(), allocs))
+
+	// Generate a job modification which will force a destructive update as
+	// well as a scaling.
+	mockJob2 := mockJob.Copy()
+	mockJob2.Version++
+	mockJob2.TaskGroups[0].Tasks[0].Config["command"] = "/bin/other"
+	mockJob2.TaskGroups[0].Count++
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+
+	nextRaftIndex := testHarness.NextIndex()
+	deploymentID := uuid.Generate()
+
+	// Upsert a canary into state, this represents the first stage of the
+	// deployment process and jumps us to the point where duplicate allocation
+	// indexes could be produced.
+	canaryAlloc := mock.MinAlloc()
+	canaryAlloc.Namespace = structs.DefaultNamespace
+	canaryAlloc.Job = mockJob2
+	canaryAlloc.JobID = mockJob2.ID
+	canaryAlloc.NodeID = nodes[1].ID
+	canaryAlloc.Name = structs.AllocName(mockJob2.ID, mockJob2.TaskGroups[0].Name, uint(0))
+	canaryAlloc.DeploymentID = deploymentID
+	canaryAlloc.ClientStatus = structs.AllocClientStatusRunning
+	must.NoError(t, testHarness.State.UpsertAllocs(structs.MsgTypeTestSetup, nextRaftIndex, []*structs.Allocation{
+		canaryAlloc,
+	}))
+
+	// Craft our deployment object which represents the post-canary state. This
+	// unblocks the rest of the deployment process, where we replace the old
+	// job version allocations.
+	canaryDeployment := structs.Deployment{
+		ID:         deploymentID,
+		Namespace:  mockJob2.Namespace,
+		JobID:      mockJob2.ID,
+		JobVersion: mockJob2.Version,
+		TaskGroups: map[string]*structs.DeploymentState{
+			mockJob2.TaskGroups[0].Name: {
+				Promoted:       true,
+				DesiredTotal:   4,
+				HealthyAllocs:  1,
+				PlacedAllocs:   1,
+				PlacedCanaries: []string{canaryAlloc.ID},
+			},
+		},
+		Status:            structs.DeploymentStatusRunning,
+		StatusDescription: structs.DeploymentStatusDescriptionRunning,
+		EvalPriority:      50,
+		JobCreateIndex:    mockJob2.CreateIndex,
+	}
+	must.NoError(t, testHarness.State.UpsertDeployment(nextRaftIndex, &canaryDeployment))
+
+	// Create a mock evaluation which represents work to reconcile the job
+	// update.
+	eval := &structs.Evaluation{
+		Namespace:    structs.DefaultNamespace,
+		ID:           uuid.Generate(),
+		Priority:     50,
+		TriggeredBy:  structs.EvalTriggerJobRegister,
+		JobID:        mockJob2.ID,
+		Status:       structs.EvalStatusPending,
+		DeploymentID: deploymentID,
+	}
+	must.NoError(t, testHarness.State.UpsertEvals(structs.MsgTypeTestSetup, testHarness.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and ensure we get a single plan as a result.
+	must.NoError(t, testHarness.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, testHarness.Plans)
+
+	// Iterate and track the node allocations to ensure we have the correct
+	// amount, and that there a now no duplicate names. Before the duplicate
+	// allocation name fix, this section of testing would fail.
+	totalNodeAllocations := 0
+	allocIndexNames := map[string]int{canaryAlloc.Name: 1}
+
+	for _, planNodeAlloc := range testHarness.Plans[0].NodeAllocation {
+		for _, nodeAlloc := range planNodeAlloc {
+			totalNodeAllocations++
+			allocIndexNames[nodeAlloc.Name]++
+
+			if val, ok := allocIndexNames[nodeAlloc.Name]; ok && val > 1 {
+				t.Fatalf("found duplicate alloc name %q found", nodeAlloc.Name)
+			}
+		}
+	}
+	must.Eq(t, 3, totalNodeAllocations)
+
+	// Ensure the correct number of destructive node updates.
+	totalNodeUpdates := 0
+
+	for _, planNodeUpdate := range testHarness.Plans[0].NodeUpdate {
+		totalNodeUpdates += len(planNodeUpdate)
+	}
+	must.Eq(t, 3, totalNodeUpdates)
+
+	testHarness.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_JobModify_ExistingDuplicateAllocIndexNonDestructive(t *testing.T) {
+	ci.Parallel(t)
+
+	testHarness := NewHarness(t)
+
+	// Create some nodes
+	var nodes []*structs.Node
+	for i := 0; i < 10; i++ {
+		node := mock.Node()
+		nodes = append(nodes, node)
+		must.NoError(t, testHarness.State.UpsertNode(structs.MsgTypeTestSetup, testHarness.NextIndex(), node))
+	}
+
+	// Generate a fake job with allocations
+	mockJob := mock.MinJob()
+	mockJob.TaskGroups[0].Count = 10
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob))
+
+	// Generate some allocations which will represent our pre-existing
+	// allocations. These have aggressive duplicate names.
+	var (
+		allocs   []*structs.Allocation
+		allocIDs []string
+	)
+	for i := 0; i < 10; i++ {
+		alloc := mock.MinAlloc()
+		alloc.Namespace = structs.DefaultNamespace
+		alloc.Job = mockJob
+		alloc.JobID = mockJob.ID
+		alloc.NodeID = nodes[i].ID
+
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+
+		if i%2 == 0 {
+			alloc.Name = "my-job.web[0]"
+		}
+		allocs = append(allocs, alloc)
+		allocIDs = append(allocIDs, alloc.ID)
+	}
+	must.NoError(t, testHarness.State.UpsertAllocs(structs.MsgTypeTestSetup, testHarness.NextIndex(), allocs))
+
+	// Generate a job modification which will be an in-place update.
+	mockJob2 := mockJob.Copy()
+	mockJob2.ID = mockJob.ID
+	mockJob2.Update.MaxParallel = 2
+	must.NoError(t, testHarness.State.UpsertJob(structs.MsgTypeTestSetup, testHarness.NextIndex(), nil, mockJob2))
+
+	// Create a mock evaluation which represents work to reconcile the job
+	// update.
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       mockJob2.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, testHarness.State.UpsertEvals(structs.MsgTypeTestSetup, testHarness.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and ensure we get a single plan as a result.
+	must.NoError(t, testHarness.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, testHarness.Plans)
+
+	// Ensure the plan did not want to perform any destructive updates.
+	var nodeUpdateCount int
+
+	for _, nodeUpdateAllocs := range testHarness.Plans[0].NodeUpdate {
+		nodeUpdateCount += len(nodeUpdateAllocs)
+	}
+	must.Zero(t, nodeUpdateCount)
+
+	// Ensure the plan updated the existing allocs by checking the count, the
+	// job object, and the allocation IDs.
+	var (
+		nodeAllocationCount int
+		nodeAllocationIDs   []string
+	)
+
+	for _, nodeAllocs := range testHarness.Plans[0].NodeAllocation {
+		nodeAllocationCount += len(nodeAllocs)
+
+		for _, nodeAlloc := range nodeAllocs {
+			must.Eq(t, mockJob2, nodeAlloc.Job)
+			nodeAllocationIDs = append(nodeAllocationIDs, nodeAlloc.ID)
+		}
+	}
+	must.Eq(t, 10, nodeAllocationCount)
+	must.SliceContainsAll(t, allocIDs, nodeAllocationIDs)
 }
 
 func TestServiceSched_JobModify_Datacenters(t *testing.T) {
@@ -3235,6 +3634,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
+		name       string
 		desired    string
 		client     string
 		migrate    bool
@@ -3243,36 +3643,43 @@ func TestServiceSched_NodeDown(t *testing.T) {
 		lost       bool
 	}{
 		{
+			name:    "should stop is running should be lost",
 			desired: structs.AllocDesiredStatusStop,
 			client:  structs.AllocClientStatusRunning,
 			lost:    true,
 		},
 		{
+			name:    "should run is pending should be migrate",
 			desired: structs.AllocDesiredStatusRun,
 			client:  structs.AllocClientStatusPending,
 			migrate: true,
 		},
 		{
+			name:    "should run is running should be migrate",
 			desired: structs.AllocDesiredStatusRun,
 			client:  structs.AllocClientStatusRunning,
 			migrate: true,
 		},
 		{
+			name:     "should run is lost should be terminal",
 			desired:  structs.AllocDesiredStatusRun,
 			client:   structs.AllocClientStatusLost,
 			terminal: true,
 		},
 		{
+			name:     "should run is complete should be terminal",
 			desired:  structs.AllocDesiredStatusRun,
 			client:   structs.AllocClientStatusComplete,
 			terminal: true,
 		},
 		{
+			name:       "should run is failed should be rescheduled",
 			desired:    structs.AllocDesiredStatusRun,
 			client:     structs.AllocClientStatusFailed,
 			reschedule: true,
 		},
 		{
+			name:    "should evict is running should be lost",
 			desired: structs.AllocDesiredStatusEvict,
 			client:  structs.AllocClientStatusRunning,
 			lost:    true,
@@ -3280,17 +3687,17 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	}
 
 	for i, tc := range cases {
-		t.Run(fmt.Sprintf(""), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			h := NewHarness(t)
 
 			// Register a node
 			node := mock.Node()
 			node.Status = structs.NodeStatusDown
-			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 			// Generate a fake job with allocations and an update policy.
 			job := mock.Job()
-			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 			alloc := mock.Alloc()
 			alloc.Job = job
@@ -3305,7 +3712,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 			alloc.DesiredTransition.Migrate = pointer.Of(tc.migrate)
 
 			allocs := []*structs.Allocation{alloc}
-			require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+			must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 			// Create a mock evaluation to deal with drain
 			eval := &structs.Evaluation{
@@ -3317,31 +3724,30 @@ func TestServiceSched_NodeDown(t *testing.T) {
 				NodeID:      node.ID,
 				Status:      structs.EvalStatusPending,
 			}
-			require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 			// Process the evaluation
 			err := h.Process(NewServiceScheduler, eval)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			if tc.terminal {
-				// No plan for terminal state allocs
-				require.Len(t, h.Plans, 0)
+				must.Len(t, 0, h.Plans, must.Sprint("expected no plan"))
 			} else {
-				require.Len(t, h.Plans, 1)
+				must.Len(t, 1, h.Plans, must.Sprint("expected plan"))
 
 				plan := h.Plans[0]
 				out := plan.NodeUpdate[node.ID]
-				require.Len(t, out, 1)
+				must.Len(t, 1, out)
 
 				outAlloc := out[0]
 				if tc.migrate {
-					require.NotEqual(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
+					must.NotEq(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
 				} else if tc.reschedule {
-					require.Equal(t, structs.AllocClientStatusFailed, outAlloc.ClientStatus)
+					must.Eq(t, structs.AllocClientStatusFailed, outAlloc.ClientStatus)
 				} else if tc.lost {
-					require.Equal(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
+					must.Eq(t, structs.AllocClientStatusLost, outAlloc.ClientStatus)
 				} else {
-					require.Fail(t, "unexpected alloc update")
+					t.Fatal("unexpected alloc update")
 				}
 			}
 
@@ -3354,43 +3760,95 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		stop        time.Duration
-		when        time.Time
-		rescheduled bool
+		name                string
+		jobSpecFn           func(*structs.Job)
+		previousStopWhen    time.Time
+		expectBlockedEval   bool
+		expectUpdate        bool
+		expectedAllocStates int
 	}{
+		// Test using stop_after_client_disconnect, remove after its deprecated  in favor
+		// of Disconnect.StopOnClientAfter introduced in 1.8.0.
 		{
-			rescheduled: true,
+			name: "legacy no stop_after_client_disconnect",
+			jobSpecFn: func(job *structs.Job) {
+				job.TaskGroups[0].Count = 1
+				job.TaskGroups[0].StopAfterClientDisconnect = nil
+			},
+			expectBlockedEval:   true,
+			expectedAllocStates: 1,
 		},
 		{
-			stop:        1 * time.Second,
-			rescheduled: false,
+			name: "legacy stop_after_client_disconnect reschedule now",
+			jobSpecFn: func(job *structs.Job) {
+				job.TaskGroups[0].Count = 1
+				job.TaskGroups[0].StopAfterClientDisconnect = pointer.Of(1 * time.Second)
+			},
+			previousStopWhen:    time.Now().UTC().Add(-10 * time.Second),
+			expectBlockedEval:   true,
+			expectedAllocStates: 2,
 		},
 		{
-			stop:        1 * time.Second,
-			when:        time.Now().UTC().Add(-10 * time.Second),
-			rescheduled: true,
+			name: "legacy stop_after_client_disconnect reschedule later",
+			jobSpecFn: func(job *structs.Job) {
+				job.TaskGroups[0].Count = 1
+				job.TaskGroups[0].StopAfterClientDisconnect = pointer.Of(1 * time.Second)
+			},
+			expectBlockedEval:   false,
+			expectUpdate:        true,
+			expectedAllocStates: 1,
+		},
+		// Tests using the new disconnect block
+		{
+			name: "no StopOnClientAfter reschedule now",
+			jobSpecFn: func(job *structs.Job) {
+				job.TaskGroups[0].Count = 1
+				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+					StopOnClientAfter: nil,
+				}
+			},
+			expectBlockedEval:   true,
+			expectedAllocStates: 1,
 		},
 		{
-			stop:        1 * time.Second,
-			when:        time.Now().UTC().Add(10 * time.Minute),
-			rescheduled: false,
+			name: "StopOnClientAfter reschedule now",
+			jobSpecFn: func(job *structs.Job) {
+				job.TaskGroups[0].Count = 1
+				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				}
+			},
+			previousStopWhen:    time.Now().UTC().Add(-10 * time.Second),
+			expectBlockedEval:   true,
+			expectedAllocStates: 2,
+		},
+		{
+			name: "StopOnClientAfter reschedule later",
+			jobSpecFn: func(job *structs.Job) {
+				job.TaskGroups[0].Count = 1
+				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+					StopOnClientAfter: pointer.Of(1 * time.Second),
+				}
+			},
+			expectBlockedEval:   false,
+			expectUpdate:        true,
+			expectedAllocStates: 1,
 		},
 	}
 
 	for i, tc := range cases {
-		t.Run(fmt.Sprintf(""), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			h := NewHarness(t)
 
 			// Node, which is down
 			node := mock.Node()
 			node.Status = structs.NodeStatusDown
-			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
-			// Job with allocations and stop_after_client_disconnect
 			job := mock.Job()
-			job.TaskGroups[0].Count = 1
-			job.TaskGroups[0].StopAfterClientDisconnect = &tc.stop
-			require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+			tc.jobSpecFn(job)
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 			// Alloc for the running group
 			alloc := mock.Alloc()
@@ -3400,115 +3858,96 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 			alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 			alloc.DesiredStatus = structs.AllocDesiredStatusRun
 			alloc.ClientStatus = structs.AllocClientStatusRunning
-			if !tc.when.IsZero() {
+			if !tc.previousStopWhen.IsZero() {
 				alloc.AllocStates = []*structs.AllocState{{
 					Field: structs.AllocStateFieldClientStatus,
 					Value: structs.AllocClientStatusLost,
-					Time:  tc.when,
+					Time:  tc.previousStopWhen,
 				}}
 			}
-			allocs := []*structs.Allocation{alloc}
-			require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+			must.NoError(t, h.State.UpsertAllocs(
+				structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
-			// Create a mock evaluation to deal with drain
+			// Create a mock evaluation to deal with node going down
 			evals := []*structs.Evaluation{{
 				Namespace:   structs.DefaultNamespace,
 				ID:          uuid.Generate(),
 				Priority:    50,
-				TriggeredBy: structs.EvalTriggerNodeDrain,
+				TriggeredBy: structs.EvalTriggerNodeUpdate,
 				JobID:       job.ID,
 				NodeID:      node.ID,
 				Status:      structs.EvalStatusPending,
 			}}
 			eval := evals[0]
-			require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), evals))
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), evals))
 
 			// Process the evaluation
 			err := h.Process(NewServiceScheduler, eval)
-			require.NoError(t, err)
-			require.Equal(t, h.Evals[0].Status, structs.EvalStatusComplete)
-			require.Len(t, h.Plans, 1, "plan")
+			must.NoError(t, err)
+			must.Eq(t, h.Evals[0].Status, structs.EvalStatusComplete)
+			must.Len(t, 1, h.Plans, must.Sprint("expected a plan"))
 
 			// One followup eval created, either delayed or blocked
-			require.Len(t, h.CreateEvals, 1)
-			e := h.CreateEvals[0]
-			require.Equal(t, eval.ID, e.PreviousEval)
+			must.Len(t, 1, h.CreateEvals)
+			followupEval := h.CreateEvals[0]
+			must.Eq(t, eval.ID, followupEval.PreviousEval)
 
-			if tc.rescheduled {
-				require.Equal(t, "blocked", e.Status)
-			} else {
-				require.Equal(t, "pending", e.Status)
-				require.NotEmpty(t, e.WaitUntil)
-			}
-
-			// This eval is still being inserted in the state store
-			ws := memdb.NewWatchSet()
-			testutil.WaitForResult(func() (bool, error) {
-				found, err := h.State.EvalByID(ws, e.ID)
-				if err != nil {
-					return false, err
-				}
-				if found == nil {
-					return false, nil
-				}
-				return true, nil
-			}, func(err error) {
-				require.NoError(t, err)
-			})
-
-			alloc, err = h.State.AllocByID(ws, alloc.ID)
-			require.NoError(t, err)
+			// Either way, no new alloc was created
+			allocs, err := h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
+			must.NoError(t, err)
+			must.Len(t, 1, allocs)
+			must.Eq(t, alloc.ID, allocs[0].ID)
+			alloc = allocs[0]
 
 			// Allocations have been transitioned to lost
-			require.Equal(t, structs.AllocDesiredStatusStop, alloc.DesiredStatus)
-			require.Equal(t, structs.AllocClientStatusLost, alloc.ClientStatus)
-			// At least 1, 2 if we manually set the tc.when
-			require.NotEmpty(t, alloc.AllocStates)
+			must.Eq(t, structs.AllocDesiredStatusStop, alloc.DesiredStatus)
+			must.Eq(t, structs.AllocClientStatusLost, alloc.ClientStatus)
 
-			if tc.rescheduled {
-				// Register a new node, leave it up, process the followup eval
-				node = mock.Node()
-				require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
-				require.NoError(t, h.Process(NewServiceScheduler, eval))
+			// 1 if rescheduled, 2 for rescheduled later
+			test.Len(t, tc.expectedAllocStates, alloc.AllocStates)
 
-				as, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-				require.NoError(t, err)
+			if tc.expectBlockedEval {
+				must.Eq(t, structs.EvalStatusBlocked, followupEval.Status)
 
-				testutil.WaitForResult(func() (bool, error) {
-					as, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-					if err != nil {
-						return false, err
-					}
-					return len(as) == 2, nil
-				}, func(err error) {
-					require.NoError(t, err)
-				})
-
-				a2 := as[0]
-				if a2.ID == alloc.ID {
-					a2 = as[1]
-				}
-
-				require.Equal(t, structs.AllocClientStatusPending, a2.ClientStatus)
-				require.Equal(t, structs.AllocDesiredStatusRun, a2.DesiredStatus)
-				require.Equal(t, node.ID, a2.NodeID)
-
-				// No blocked evals
-				require.Empty(t, h.ReblockEvals)
-				require.Len(t, h.CreateEvals, 1)
-				require.Equal(t, h.CreateEvals[0].ID, e.ID)
 			} else {
-				// No new alloc was created
-				as, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-				require.NoError(t, err)
+				must.Eq(t, structs.EvalStatusPending, followupEval.Status)
+				must.NotEq(t, time.Time{}, followupEval.WaitUntil)
 
-				require.Len(t, as, 1)
-				old := as[0]
-
-				require.Equal(t, alloc.ID, old.ID)
-				require.Equal(t, structs.AllocClientStatusLost, old.ClientStatus)
-				require.Equal(t, structs.AllocDesiredStatusStop, old.DesiredStatus)
+				if tc.expectUpdate {
+					must.Len(t, 1, h.Plans[0].NodeUpdate[node.ID])
+					must.Eq(t, structs.AllocClientStatusLost,
+						h.Plans[0].NodeUpdate[node.ID][0].ClientStatus)
+					must.MapLen(t, 0, h.Plans[0].NodeAllocation)
+				} else {
+					must.Len(t, 0, h.Plans[0].NodeUpdate[node.ID])
+					must.MapLen(t, 1, h.Plans[0].NodeAllocation)
+				}
 			}
+
+			// Register a new node, leave it up, process the followup eval
+			node = mock.Node()
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(),
+				[]*structs.Evaluation{followupEval}))
+			must.NoError(t, h.Process(NewServiceScheduler, followupEval))
+
+			allocs, err = h.State.AllocsByJob(nil, job.Namespace, job.ID, false)
+			must.NoError(t, err)
+			must.Len(t, 2, allocs)
+
+			alloc2 := allocs[0]
+			if alloc2.ID == alloc.ID {
+				alloc2 = allocs[1]
+			}
+
+			must.Eq(t, structs.AllocClientStatusPending, alloc2.ClientStatus)
+			must.Eq(t, structs.AllocDesiredStatusRun, alloc2.DesiredStatus)
+			must.Eq(t, node.ID, alloc2.NodeID)
+
+			// No more follow-up evals
+			must.SliceEmpty(t, h.ReblockEvals)
+			must.Len(t, 1, h.CreateEvals)
+			must.Eq(t, h.CreateEvals[0].ID, followupEval.ID)
 		})
 	}
 }
@@ -3817,100 +4256,6 @@ func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
 	if queued != 2 {
 		t.Fatalf("expected: %v, actual: %v", 2, queued)
 	}
-}
-
-// TestServiceSched_NodeDrain_TaskHandle asserts that allocations with task
-// handles have them propagated to replacement allocations when drained.
-func TestServiceSched_NodeDrain_TaskHandle(t *testing.T) {
-	ci.Parallel(t)
-
-	h := NewHarness(t)
-
-	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
-
-	// Create some nodes
-	for i := 0; i < 10; i++ {
-		node := mock.Node()
-		require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
-	}
-
-	// Generate a fake job with allocations and an update policy.
-	job := mock.Job()
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
-
-	var allocs []*structs.Allocation
-	for i := 0; i < 10; i++ {
-		alloc := mock.Alloc()
-		alloc.Job = job
-		alloc.JobID = job.ID
-		alloc.NodeID = node.ID
-		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
-		alloc.DesiredTransition.Migrate = pointer.Of(true)
-		alloc.TaskStates = map[string]*structs.TaskState{
-			"web": {
-				TaskHandle: &structs.TaskHandle{
-					Version:     1,
-					DriverState: []byte("test-driver-state"),
-				},
-			},
-		}
-		allocs = append(allocs, alloc)
-	}
-	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
-
-	node.DrainStrategy = mock.DrainNode().DrainStrategy
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
-
-	// Create a mock evaluation to deal with drain
-	eval := &structs.Evaluation{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    50,
-		TriggeredBy: structs.EvalTriggerNodeUpdate,
-		JobID:       job.ID,
-		NodeID:      node.ID,
-		Status:      structs.EvalStatusPending,
-	}
-	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-
-	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	require.NoError(t, err)
-
-	// Ensure a single plan
-	require.Len(t, h.Plans, 1)
-	plan := h.Plans[0]
-
-	// Ensure the plan evicted all allocs
-	require.Len(t, plan.NodeUpdate[node.ID], len(allocs))
-
-	// Ensure the plan allocated
-	var planned []*structs.Allocation
-	for _, allocList := range plan.NodeAllocation {
-		planned = append(planned, allocList...)
-	}
-	require.Len(t, planned, len(allocs))
-
-	// Lookup the allocations by JobID
-	ws := memdb.NewWatchSet()
-	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	require.NoError(t, err)
-
-	// Ensure all allocations placed
-	out, _ = structs.FilterTerminalAllocs(out)
-	require.Len(t, out, len(allocs))
-
-	// Ensure task states were propagated
-	for _, a := range out {
-		require.NotEmpty(t, a.TaskStates)
-		require.NotEmpty(t, a.TaskStates["web"])
-		require.NotNil(t, a.TaskStates["web"].TaskHandle)
-		assert.Equal(t, 1, a.TaskStates["web"].TaskHandle.Version)
-		assert.Equal(t, []byte("test-driver-state"), a.TaskStates["web"].TaskHandle.DriverState)
-	}
-
-	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
 
 func TestServiceSched_RetryLimit(t *testing.T) {
@@ -4309,6 +4654,202 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
 	require.NoError(t, err)
 	assert.Equal(5, len(out)) // 2 original, plus 3 reschedule attempts
+}
+
+func TestServiceSched_BlockedReschedule(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+	node := mock.Node()
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Generate a fake job with an allocation and an update policy.
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	delayDuration := 15 * time.Second
+	job.TaskGroups[0].ReschedulePolicy = &structs.ReschedulePolicy{
+		Attempts:      3,
+		Interval:      15 * time.Minute,
+		Delay:         delayDuration,
+		MaxDelay:      1 * time.Minute,
+		DelayFunction: "constant",
+	}
+	tgName := job.TaskGroups[0].Name
+	now := time.Now()
+
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	alloc := mock.Alloc()
+	alloc.Job = job
+	alloc.JobID = job.ID
+	alloc.NodeID = node.ID
+	alloc.Name = "my-job.web[0]"
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now}}
+	failedAllocID := alloc.ID
+
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation for the allocation failure
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    50,
+		TriggeredBy: structs.EvalTriggerRetryFailedAlloc,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// -----------------------------------
+	// first reschedule which works with delay as expected
+
+	// Process the evaluation and assert we have a plan
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, h.Plans)
+	must.MapLen(t, 0, h.Plans[0].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[0].NodeAllocation) // place
+
+	// Lookup the allocations by JobID and verify no new allocs created
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 1, out)
+
+	// Verify follow-up eval was created for the failed alloc
+	// and write the eval to the state store
+	alloc, err = h.State.AllocByID(ws, failedAllocID)
+	must.NoError(t, err)
+	must.NotEq(t, "", alloc.FollowupEvalID)
+	must.Len(t, 1, h.CreateEvals)
+	followupEval := h.CreateEvals[0]
+	must.Eq(t, structs.EvalStatusPending, followupEval.Status)
+	must.Eq(t, now.Add(delayDuration), followupEval.WaitUntil)
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{followupEval}))
+
+	// Follow-up delay "expires", so process the follow-up eval, which results
+	// in a replacement and stop
+	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
+	must.Len(t, 2, h.Plans)
+	must.MapLen(t, 1, h.Plans[1].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[1].NodeAllocation) // place
+
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 2, out)
+
+	var replacementAllocID string
+	for _, alloc := range out {
+		if alloc.ID != failedAllocID {
+			must.NotNil(t, alloc.RescheduleTracker,
+				must.Sprint("replacement alloc should have reschedule tracker"))
+			must.Len(t, 1, alloc.RescheduleTracker.Events)
+			replacementAllocID = alloc.ID
+			break
+		}
+	}
+
+	// -----------------------------------
+	// Replacement alloc fails, second reschedule but it blocks because of delay
+
+	alloc, err = h.State.AllocByID(ws, replacementAllocID)
+	must.NoError(t, err)
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	alloc.TaskStates = map[string]*structs.TaskState{tgName: {State: "dead",
+		StartedAt:  now.Add(-1 * time.Hour),
+		FinishedAt: now}}
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Allocation{alloc}))
+
+	// Create a mock evaluation for the allocation failure
+	eval.ID = uuid.Generate()
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation and assert we have a plan
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+	must.Len(t, 3, h.Plans)
+	must.MapLen(t, 0, h.Plans[2].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[2].NodeAllocation) // place
+
+	// Lookup the allocations by JobID and verify no new allocs created
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 2, out)
+
+	// Verify follow-up eval was created for the failed alloc
+	// and write the eval to the state store
+	alloc, err = h.State.AllocByID(ws, replacementAllocID)
+	must.NoError(t, err)
+	must.NotEq(t, "", alloc.FollowupEvalID)
+	must.Len(t, 2, h.CreateEvals)
+	followupEval = h.CreateEvals[1]
+	must.Eq(t, structs.EvalStatusPending, followupEval.Status)
+	must.Eq(t, now.Add(delayDuration), followupEval.WaitUntil)
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{followupEval}))
+
+	// "use up" resources on the node so the follow-up will block
+	node.NodeResources.Memory.MemoryMB = 200
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Process the follow-up eval, which results in a stop but not a replacement
+	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
+	must.Len(t, 4, h.Plans)
+	must.MapLen(t, 1, h.Plans[3].NodeUpdate)     // stop
+	must.MapLen(t, 0, h.Plans[3].NodeAllocation) // place
+
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 2, out)
+
+	// Verify blocked eval was created and write it to state
+	must.Len(t, 3, h.CreateEvals)
+	blockedEval := h.CreateEvals[2]
+	must.Eq(t, structs.EvalTriggerQueuedAllocs, blockedEval.TriggeredBy)
+	must.Eq(t, structs.EvalStatusBlocked, blockedEval.Status)
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Evaluation{blockedEval}))
+
+	// "free up" resources on the node so the blocked eval will succeed
+	node.NodeResources.Memory.MemoryMB = 8000
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// if we process the blocked eval, the task state of the replacement alloc
+	// will not be old enough to be rescheduled yet and we'll get a no-op
+	must.NoError(t, h.Process(NewServiceScheduler, blockedEval))
+	must.Len(t, 4, h.Plans, must.Sprint("expected no new plan"))
+
+	// bypass the timer check by setting the alloc's follow-up eval ID to be the
+	// blocked eval
+	alloc, err = h.State.AllocByID(ws, replacementAllocID)
+	must.NoError(t, err)
+	alloc = alloc.Copy()
+	alloc.FollowupEvalID = blockedEval.ID
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
+		h.NextIndex(), []*structs.Allocation{alloc}))
+
+	must.NoError(t, h.Process(NewServiceScheduler, blockedEval))
+	must.Len(t, 5, h.Plans)
+	must.MapLen(t, 1, h.Plans[4].NodeUpdate)     // stop
+	must.MapLen(t, 1, h.Plans[4].NodeAllocation) // place
+
+	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	must.NoError(t, err)
+	must.Len(t, 3, out)
+
+	for _, alloc := range out {
+		if alloc.ID != failedAllocID && alloc.ID != replacementAllocID {
+			must.NotNil(t, alloc.RescheduleTracker,
+				must.Sprint("replacement alloc should have reschedule tracker"))
+			must.Len(t, 2, alloc.RescheduleTracker.Events)
+		}
+	}
 }
 
 // Tests that old reschedule attempts are pruned
@@ -5249,7 +5790,7 @@ func TestGenericSched_AllocFit_Lifecycle(t *testing.T) {
 
 	testCases := []struct {
 		Name             string
-		NodeCpu          int64
+		NodeCpu          int
 		TaskResources    structs.Resources
 		MainTaskCount    int
 		InitTaskCount    int
@@ -5320,8 +5861,11 @@ func TestGenericSched_AllocFit_Lifecycle(t *testing.T) {
 	for _, testCase := range testCases {
 		t.Run(testCase.Name, func(t *testing.T) {
 			h := NewHarness(t)
+
+			legacyCpuResources, processorResources := cpuResources(testCase.NodeCpu)
 			node := mock.Node()
-			node.NodeResources.Cpu.CpuShares = testCase.NodeCpu
+			node.NodeResources.Processors = processorResources
+			node.NodeResources.Cpu = legacyCpuResources
 			require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 			// Create a job with sidecar & init tasks
@@ -5509,7 +6053,7 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 
 	// Register a draining node
 	node := mock.DrainNode()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create an alloc on the draining node
 	alloc := mock.Alloc()
@@ -5518,8 +6062,8 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 	alloc.Job.TaskGroups[0].Count = 1
 	alloc.Job.TaskGroups[0].EphemeralDisk.Sticky = true
 	alloc.DesiredTransition.Migrate = pointer.Of(true)
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, alloc.Job))
-	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, alloc.Job))
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Allocation{alloc}))
 
 	// Create a mock evaluation to deal with drain
 	eval := &structs.Evaluation{
@@ -5532,33 +6076,25 @@ func TestServiceSched_NodeDrain_Sticky(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
+	must.Len(t, 1, h.Plans, must.Sprint("expected plan"))
 	plan := h.Plans[0]
 
 	// Ensure the plan evicted all allocs
-	if len(plan.NodeUpdate[node.ID]) != 1 {
-		t.Fatalf("bad: %#v", plan)
-	}
+	must.Eq(t, 1, len(plan.NodeUpdate[node.ID]),
+		must.Sprint("expected alloc to be evicted"))
 
 	// Ensure the plan didn't create any new allocations
 	var planned []*structs.Allocation
 	for _, allocList := range plan.NodeAllocation {
 		planned = append(planned, allocList...)
 	}
-	if len(planned) != 0 {
-		t.Fatalf("bad: %#v", plan)
-	}
+	must.Eq(t, 0, len(planned))
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
@@ -5956,14 +6492,15 @@ func TestServiceSched_Preemption(t *testing.T) {
 	require := require.New(t)
 	h := NewHarness(t)
 
+	legacyCpuResources, processorResources := cpuResources(1000)
+
 	// Create a node
 	node := mock.Node()
 	node.Resources = nil
 	node.ReservedResources = nil
 	node.NodeResources = &structs.NodeResources{
-		Cpu: structs.NodeCpuResources{
-			CpuShares: 1000,
-		},
+		Processors: processorResources,
+		Cpu:        legacyCpuResources,
 		Memory: structs.NodeMemoryResources{
 			MemoryMB: 2048,
 		},
@@ -6803,220 +7340,123 @@ func TestServiceSched_CSITopology(t *testing.T) {
 
 }
 
-// TestPropagateTaskState asserts that propagateTaskState only copies state
-// when the previous allocation is lost or draining.
-func TestPropagateTaskState(t *testing.T) {
-	ci.Parallel(t)
+// Tests that a client disconnect generates attribute updates and follow up evals.
+func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) {
 
-	const taskName = "web"
-	taskHandle := &structs.TaskHandle{
-		Version:     1,
-		DriverState: []byte("driver-state"),
-	}
-
-	cases := []struct {
-		name      string
-		prevAlloc *structs.Allocation
-		prevLost  bool
-		copied    bool
+	jobVersions := []struct {
+		name    string
+		jobSpec func(time.Duration) *structs.Job
 	}{
+		// Test using max_client_disconnect, remove after its deprecated  in favor
+		// of Disconnect.LostAfter introduced in 1.8.0.
 		{
-			name: "LostWithState",
-			prevAlloc: &structs.Allocation{
-				ClientStatus:      structs.AllocClientStatusRunning,
-				DesiredTransition: structs.DesiredTransition{},
-				TaskStates: map[string]*structs.TaskState{
-					taskName: {
-						TaskHandle: taskHandle,
-					},
-				},
+			name: "job-with-max-client-disconnect-deprecated",
+			jobSpec: func(maxClientDisconnect time.Duration) *structs.Job {
+				job := mock.Job()
+				job.TaskGroups[0].MaxClientDisconnect = &maxClientDisconnect
+
+				return job
 			},
-			prevLost: true,
-			copied:   true,
 		},
 		{
-			name: "DrainedWithState",
-			prevAlloc: &structs.Allocation{
-				ClientStatus: structs.AllocClientStatusRunning,
-				DesiredTransition: structs.DesiredTransition{
-					Migrate: pointer.Of(true),
-				},
-				TaskStates: map[string]*structs.TaskState{
-					taskName: {
-						TaskHandle: taskHandle,
-					},
-				},
+			name: "job-with-disconnect-block",
+			jobSpec: func(lostAfter time.Duration) *structs.Job {
+				job := mock.Job()
+				job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+					LostAfter: lostAfter,
+				}
+				return job
 			},
-			prevLost: false,
-			copied:   true,
-		},
-		{
-			name: "LostWithoutState",
-			prevAlloc: &structs.Allocation{
-				ClientStatus:      structs.AllocClientStatusRunning,
-				DesiredTransition: structs.DesiredTransition{},
-				TaskStates: map[string]*structs.TaskState{
-					taskName: {},
-				},
-			},
-			prevLost: true,
-			copied:   false,
-		},
-		{
-			name: "DrainedWithoutState",
-			prevAlloc: &structs.Allocation{
-				ClientStatus: structs.AllocClientStatusRunning,
-				DesiredTransition: structs.DesiredTransition{
-					Migrate: pointer.Of(true),
-				},
-				TaskStates: map[string]*structs.TaskState{
-					taskName: {},
-				},
-			},
-			prevLost: false,
-			copied:   false,
-		},
-		{
-			name: "TerminalWithState",
-			prevAlloc: &structs.Allocation{
-				ClientStatus:      structs.AllocClientStatusComplete,
-				DesiredTransition: structs.DesiredTransition{},
-				TaskStates: map[string]*structs.TaskState{
-					taskName: {
-						TaskHandle: taskHandle,
-					},
-				},
-			},
-			prevLost: false,
-			copied:   false,
 		},
 	}
 
-	for i := range cases {
-		tc := cases[i]
-		t.Run(tc.name, func(t *testing.T) {
-			newAlloc := &structs.Allocation{
-				// Required by propagateTaskState and populated
-				// by the scheduler's node iterator.
-				AllocatedResources: &structs.AllocatedResources{
-					Tasks: map[string]*structs.AllocatedTaskResources{
-						taskName: nil, // value isn't used
-					},
-				},
+	for _, version := range jobVersions {
+		t.Run(version.name, func(t *testing.T) {
+
+			h := NewHarness(t)
+			count := 1
+			maxClientDisconnect := 10 * time.Minute
+
+			job := version.jobSpec(maxClientDisconnect)
+			job.TaskGroups[0].Count = count
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+			disconnectedNode, job, unknownAllocs := initNodeAndAllocs(t, h, job,
+				structs.NodeStatusReady, structs.AllocClientStatusRunning)
+
+			// Now disconnect the node
+			disconnectedNode.Status = structs.NodeStatusDisconnected
+			must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), disconnectedNode))
+
+			// Create an evaluation triggered by the disconnect
+			evals := []*structs.Evaluation{{
+				Namespace:   structs.DefaultNamespace,
+				ID:          uuid.Generate(),
+				Priority:    50,
+				TriggeredBy: structs.EvalTriggerNodeUpdate,
+				JobID:       job.ID,
+				NodeID:      disconnectedNode.ID,
+				Status:      structs.EvalStatusPending,
+			}}
+
+			nodeStatusUpdateEval := evals[0]
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), evals))
+
+			// Process the evaluation
+			err := h.Process(NewServiceScheduler, nodeStatusUpdateEval)
+			must.NoError(t, err)
+			must.Eq(t, structs.EvalStatusComplete, h.Evals[0].Status)
+			must.Len(t, 1, h.Plans, must.Sprint("expected a plan"))
+
+			// Two followup delayed eval created
+			must.Len(t, 2, h.CreateEvals)
+			followUpEval1 := h.CreateEvals[0]
+			must.Eq(t, nodeStatusUpdateEval.ID, followUpEval1.PreviousEval)
+			must.Eq(t, "pending", followUpEval1.Status)
+			must.NotEq(t, time.Time{}, followUpEval1.WaitUntil)
+
+			followUpEval2 := h.CreateEvals[1]
+			must.Eq(t, nodeStatusUpdateEval.ID, followUpEval2.PreviousEval)
+			must.Eq(t, "pending", followUpEval2.Status)
+			must.NotEq(t, time.Time{}, followUpEval2.WaitUntil)
+
+			// Validate that the ClientStatus updates are part of the plan.
+			must.Len(t, count, h.Plans[0].NodeAllocation[disconnectedNode.ID])
+
+			// Pending update should have unknown status.
+			for _, nodeAlloc := range h.Plans[0].NodeAllocation[disconnectedNode.ID] {
+				require.Equal(t, nodeAlloc.ClientStatus, structs.AllocClientStatusUnknown)
 			}
 
-			propagateTaskState(newAlloc, tc.prevAlloc, tc.prevLost)
+			// Simulate that NodeAllocation got processed.
+			must.NoError(t, h.State.UpsertAllocs(
+				structs.MsgTypeTestSetup, h.NextIndex(),
+				h.Plans[0].NodeAllocation[disconnectedNode.ID]))
 
-			if tc.copied {
-				// Assert state was copied
-				require.NotNil(t, newAlloc.TaskStates)
-				require.Contains(t, newAlloc.TaskStates, taskName)
-				require.Equal(t, taskHandle, newAlloc.TaskStates[taskName].TaskHandle)
-			} else {
-				// Assert state was *not* copied
-				require.Empty(t, newAlloc.TaskStates,
-					"expected task states not to be copied")
+			// Validate that the StateStore Upsert applied the ClientStatus we specified.
+
+			for _, alloc := range unknownAllocs {
+				alloc, err = h.State.AllocByID(nil, alloc.ID)
+				must.NoError(t, err)
+				must.Eq(t, alloc.ClientStatus, structs.AllocClientStatusUnknown)
+
+				// Allocations have been transitioned to unknown
+				must.Eq(t, structs.AllocDesiredStatusRun, alloc.DesiredStatus)
+				must.Eq(t, structs.AllocClientStatusUnknown, alloc.ClientStatus)
 			}
 		})
 	}
 }
 
-// Tests that a client disconnect generates attribute updates and follow up evals.
-func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) {
-	h := NewHarness(t)
-	count := 1
-	maxClientDisconnect := 10 * time.Minute
-
-	disconnectedNode, job, unknownAllocs := initNodeAndAllocs(t, h, count, maxClientDisconnect,
-		structs.NodeStatusReady, structs.AllocClientStatusRunning)
-
-	// Now disconnect the node
-	disconnectedNode.Status = structs.NodeStatusDisconnected
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), disconnectedNode))
-
-	// Create an evaluation triggered by the disconnect
-	evals := []*structs.Evaluation{{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    50,
-		TriggeredBy: structs.EvalTriggerNodeUpdate,
-		JobID:       job.ID,
-		NodeID:      disconnectedNode.ID,
-		Status:      structs.EvalStatusPending,
-	}}
-	nodeStatusUpdateEval := evals[0]
-	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), evals))
-
-	// Process the evaluation
-	err := h.Process(NewServiceScheduler, nodeStatusUpdateEval)
-	require.NoError(t, err)
-	require.Equal(t, structs.EvalStatusComplete, h.Evals[0].Status)
-	require.Len(t, h.Plans, 1, "plan")
-
-	// One followup delayed eval created
-	require.Len(t, h.CreateEvals, 1)
-	followUpEval := h.CreateEvals[0]
-	require.Equal(t, nodeStatusUpdateEval.ID, followUpEval.PreviousEval)
-	require.Equal(t, "pending", followUpEval.Status)
-	require.NotEmpty(t, followUpEval.WaitUntil)
-
-	// Insert eval in the state store
-	testutil.WaitForResult(func() (bool, error) {
-		found, err := h.State.EvalByID(nil, followUpEval.ID)
-		if err != nil {
-			return false, err
-		}
-		if found == nil {
-			return false, nil
-		}
-
-		require.Equal(t, nodeStatusUpdateEval.ID, found.PreviousEval)
-		require.Equal(t, "pending", found.Status)
-		require.NotEmpty(t, found.WaitUntil)
-
-		return true, nil
-	}, func(err error) {
-		require.NoError(t, err)
-	})
-
-	// Validate that the ClientStatus updates are part of the plan.
-	require.Len(t, h.Plans[0].NodeAllocation[disconnectedNode.ID], count)
-	// Pending update should have unknown status.
-	for _, nodeAlloc := range h.Plans[0].NodeAllocation[disconnectedNode.ID] {
-		require.Equal(t, nodeAlloc.ClientStatus, structs.AllocClientStatusUnknown)
-	}
-
-	// Simulate that NodeAllocation got processed.
-	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), h.Plans[0].NodeAllocation[disconnectedNode.ID])
-	require.NoError(t, err, "plan.NodeUpdate")
-
-	// Validate that the StateStore Upsert applied the ClientStatus we specified.
-	for _, alloc := range unknownAllocs {
-		alloc, err = h.State.AllocByID(nil, alloc.ID)
-		require.NoError(t, err)
-		require.Equal(t, alloc.ClientStatus, structs.AllocClientStatusUnknown)
-
-		// Allocations have been transitioned to unknown
-		require.Equal(t, structs.AllocDesiredStatusRun, alloc.DesiredStatus)
-		require.Equal(t, structs.AllocClientStatusUnknown, alloc.ClientStatus)
-	}
-}
-
-func initNodeAndAllocs(t *testing.T, h *Harness, allocCount int,
-	maxClientDisconnect time.Duration, nodeStatus, clientStatus string) (*structs.Node, *structs.Job, []*structs.Allocation) {
+func initNodeAndAllocs(t *testing.T, h *Harness, job *structs.Job,
+	nodeStatus, clientStatus string) (*structs.Node, *structs.Job, []*structs.Allocation) {
 	// Node, which is ready
 	node := mock.Node()
 	node.Status = nodeStatus
 	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
-	// Job with allocations and max_client_disconnect
-	job := mock.Job()
-	job.TaskGroups[0].Count = allocCount
-	job.TaskGroups[0].MaxClientDisconnect = &maxClientDisconnect
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
-
-	allocs := make([]*structs.Allocation, allocCount)
-	for i := 0; i < allocCount; i++ {
+	allocs := make([]*structs.Allocation, job.TaskGroups[0].Count)
+	for i := 0; i < job.TaskGroups[0].Count; i++ {
 		// Alloc for the running group
 		alloc := mock.Alloc()
 		alloc.Job = job
@@ -7031,4 +7471,5 @@ func initNodeAndAllocs(t *testing.T, h *Harness, allocCount int,
 
 	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 	return node, job, allocs
+
 }

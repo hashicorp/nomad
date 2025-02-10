@@ -5,7 +5,6 @@ package command
 
 import (
 	"bytes"
-	"crypto/tls"
 	"fmt"
 	"io"
 	"net"
@@ -13,9 +12,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
@@ -138,10 +135,17 @@ func (c *OperatorAPICommand) Run(args []string) int {
 
 	// By default verbose func is a noop
 	verbose := func(string, ...interface{}) {}
+	verboseSocket := func(*api.Config, string, ...interface{}) {}
+
 	if c.verboseFlag {
 		verbose = func(format string, a ...interface{}) {
 			// Use Warn instead of Info because Info goes to stdout
 			c.Ui.Warn(fmt.Sprintf(format, a...))
+		}
+		verboseSocket = func(cfg *api.Config, format string, a ...interface{}) {
+			if cfg.URL() != nil && cfg.URL().Scheme == "unix" {
+				c.Ui.Warn(fmt.Sprintf(format, a...))
+			}
 		}
 	}
 
@@ -166,11 +170,13 @@ func (c *OperatorAPICommand) Run(args []string) int {
 		c.method = "GET"
 	}
 
-	config := c.clientConfig()
-
 	// NewClient mutates or validates Config.Address, so call it to match
-	// the behavior of other commands.
-	_, err := api.NewClient(config)
+	// the behavior of other commands. Typically these are called as a combination
+	// using c.Client(); however, we need access to the client configuration
+	// to build the corresponding curl output.
+	config := c.clientConfig()
+	apiC, err := api.NewClient(config)
+
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %v", err))
 		return 1
@@ -198,29 +204,20 @@ func (c *OperatorAPICommand) Run(args []string) int {
 		c.Ui.Output(out)
 		return 0
 	}
-
-	// Re-implement a big chunk of api/api.go since we don't export it.
-	client := cleanhttp.DefaultClient()
-	transport := client.Transport.(*http.Transport)
-	transport.TLSHandshakeTimeout = 10 * time.Second
-	transport.TLSClientConfig = &tls.Config{
-		MinVersion: tls.VersionTLS12,
-	}
-
-	if err := api.ConfigureTLS(client, config.TLSConfig); err != nil {
-		c.Ui.Error(fmt.Sprintf("Error configuring TLS: %v", err))
-		return 1
-	}
+	apiR := apiC.Raw()
 
 	setQueryParams(config, path)
-
-	verbose("> %s %s", c.method, path)
+	verboseSocket(config, fmt.Sprintf("* Trying %s...", config.URL().EscapedPath()))
 
 	req, err := http.NewRequest(c.method, path.String(), c.body)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error making request: %v", err))
 		return 1
 	}
+
+	h := req.URL.Hostname()
+	verboseSocket(config, fmt.Sprintf("* Connected to %s (%s)", h, config.URL().EscapedPath()))
+	verbose("> %s %s %s", c.method, req.URL.Path, req.Proto)
 
 	// Set headers from command line
 	req.Header = headerFlags.headers
@@ -244,11 +241,11 @@ func (c *OperatorAPICommand) Run(args []string) int {
 			verbose("> %s: %s", k, v)
 		}
 	}
-
+	verbose(">")
 	verbose("* Sending request and receiving response...")
 
 	// Do the request!
-	resp, err := client.Do(req)
+	resp, err := apiR.Do(req)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error performing request: %v", err))
 		return 1
@@ -310,12 +307,17 @@ func (c *OperatorAPICommand) apiToCurl(config *api.Config, headers http.Header, 
 		parts = append(parts, "--verbose")
 	}
 
-	if c.method != "" {
+	// add method flags. Note: curl output complains about `-X GET`
+	if c.method != "" && c.method != http.MethodGet {
 		parts = append(parts, "-X "+c.method)
 	}
 
 	if c.body != nil {
 		parts = append(parts, "--data-binary @-")
+	}
+
+	if config.URL().EscapedPath() != "" {
+		parts = append(parts, fmt.Sprintf("--unix-socket %q", config.URL().EscapedPath()))
 	}
 
 	if config.TLSConfig != nil {
@@ -412,7 +414,9 @@ func pathToURL(config *api.Config, path string) (*url.URL, error) {
 
 	// If the scheme is missing from the path, it likely means the path is just
 	// the HTTP handler path. Attempt to infer this.
-	if !strings.HasPrefix(path, "http://") && !strings.HasPrefix(path, "https://") {
+	if !strings.HasPrefix(path, "http://") &&
+		!strings.HasPrefix(path, "https://") &&
+		!strings.HasPrefix(path, "unix://") {
 		scheme := "http"
 
 		// If the user has set any TLS configuration value, this is a good sign

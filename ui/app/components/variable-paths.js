@@ -26,13 +26,27 @@ export default class VariablePathsComponent extends Component {
   }
 
   @action
-  async handleFolderClick(path) {
+  async handleFolderClick(path, trigger) {
+    // Don't navigate if the user clicked on a link; this will happen with modifier keys like cmd/ctrl on the link itself
+    if (
+      trigger instanceof PointerEvent &&
+      /** @type {HTMLElement} */ (trigger.target).tagName === 'A'
+    ) {
+      return;
+    }
     this.router.transitionTo('variables.path', path);
   }
 
   @action
-  async handleFileClick({ path, variable: { id, namespace } }) {
+  async handleFileClick({ path, variable: { id, namespace } }, trigger) {
     if (this.can.can('read variable', null, { path, namespace })) {
+      // Don't navigate if the user clicked on a link; this will happen with modifier keys like cmd/ctrl on the link itself
+      if (
+        trigger instanceof PointerEvent &&
+        /** @type {HTMLElement} */ (trigger.target).tagName === 'A'
+      ) {
+        return;
+      }
       this.router.transitionTo('variables.variable', id);
     }
   }

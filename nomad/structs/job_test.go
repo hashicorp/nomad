@@ -6,7 +6,7 @@ package structs
 import (
 	"testing"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -337,4 +337,180 @@ func TestJob_RequiredConsulServiceDiscovery(t *testing.T) {
 			require.Equal(t, tc.expectedOutput, actualOutput)
 		})
 	}
+}
+
+func TestJob_RequiredNUMA(t *testing.T) {
+	cases := []struct {
+		name     string
+		inputJob *Job
+		exp      []string
+	}{
+		{
+			name: "no numa blocks",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{},
+		},
+		{
+			name: "two numa blocks one none",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "none",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{"group1"},
+		},
+		{
+			name: "three numa blocks one none",
+			inputJob: &Job{
+				TaskGroups: []*TaskGroup{
+					{
+						Name: "group1",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									// empty
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "require",
+									},
+								},
+							},
+						},
+					},
+					{
+						Name: "group2",
+						Tasks: []*Task{
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "none",
+									},
+								},
+							},
+							{
+								Resources: &Resources{
+									NUMA: &NUMA{
+										Affinity: "prefer",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			exp: []string{"group1", "group2"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputJob.Canonicalize()
+			result := tc.inputJob.RequiredNUMA()
+			must.SliceContainsAll(t, tc.exp, result.Slice())
+		})
+	}
+}
+
+func TestJob_RequiredTproxy(t *testing.T) {
+	job := &Job{
+		TaskGroups: []*TaskGroup{
+			{Name: "no services"},
+			{Name: "services-without-connect",
+				Services: []*Service{{Name: "foo"}},
+			},
+			{Name: "services-with-connect-but-no-tproxy",
+				Services: []*Service{
+					{Name: "foo", Connect: &ConsulConnect{}},
+					{Name: "bar", Connect: &ConsulConnect{}}},
+			},
+			{Name: "has-tproxy-1",
+				Services: []*Service{
+					{Name: "foo", Connect: &ConsulConnect{}},
+					{Name: "bar", Connect: &ConsulConnect{
+						SidecarService: &ConsulSidecarService{
+							Proxy: &ConsulProxy{
+								TransparentProxy: &ConsulTransparentProxy{},
+							},
+						},
+					}}},
+			},
+			{Name: "has-tproxy-2",
+				Services: []*Service{
+					{Name: "baz", Connect: &ConsulConnect{
+						SidecarService: &ConsulSidecarService{
+							Proxy: &ConsulProxy{
+								TransparentProxy: &ConsulTransparentProxy{},
+							},
+						},
+					}}},
+			},
+		},
+	}
+
+	expect := []string{"has-tproxy-1", "has-tproxy-2"}
+
+	job.Canonicalize()
+	result := job.RequiredTransparentProxy()
+	must.SliceContainsAll(t, expect, result.Slice())
 }

@@ -35,8 +35,8 @@ context from the local environment of the CLI (e.g., files, environment variable
 
 Since HCL is a superset of JSON, `nomad job run example.json` will attempt to
 parse a JSON job using the HCL parser. However, the JSON format accepted by
-the HCL parser is not the same as the [API's JSON format][json-jobs-api]. The 
-HCL parser's JSON format is unspecified, so the API format is preferred. You can 
+the HCL parser is not the same as the [API's JSON format][json-jobs-api]. The
+HCL parser's JSON format is unspecified, so the API format is preferred. You can
 use the API format with the [`-json` command line flag][run-json]:
 
 ```shell-session
@@ -83,31 +83,9 @@ For full details about Nomad's syntax, see:
 - [Configuration Syntax](/nomad/docs/job-specification/hcl2/syntax)
 - [Expressions](/nomad/docs/job-specification/hcl2/expressions)
 
-## Backward Compatibilities
-
-HCL2 syntax closely mirrors HCL1, but has some minor changes. Most existing
-Nomad job specifications will not require any changes.
-
-When you run `nomad job run` or `nomad job plan`, the CLI will report any
-required changes. Also, you can activate a backwards compatibility mode by
-passing `-hcl1` to use Nomad's HCL1 parser instead.
-
 ### Blocks
 
-Nomad 0.12 and earlier allowed a few variations for defining blocks. For example, the following variations of `meta` were accepted:
-
-```hcl
-meta {
-  # meta attributes can be quoted or not
-  "team"       = "..."
-  organization = "..."
-}
-
-# meta can be an assignment to a map
-meta = { "team" = "...", organization = "..." }
-```
-
-Starting with Nomad 1.0 and the HCL2 parser, only the block syntax with unquoted attributes is accepted:
+Block syntax is as follows, using unquoted attributes and quoted values:
 
 ```hcl
 meta {
@@ -191,6 +169,4 @@ above example, `data` is read as `"hello\n world\n "` in HCL1, but `"hello\n wor
 
 ### Decimals
 
-Nomad 0.12 and earlier accepted small decimal values without a leading zero
-(e.g. `.3`, `.59`, `.9`). In such case, Nomad 1.0 requires a leading zero (e.g.
-`0.3`, `0.59`, `0.9`).
+HCL2 requires a leading zero for decimal values lower than 1 (e.g. `0.3`, `0.59`, `0.9`).

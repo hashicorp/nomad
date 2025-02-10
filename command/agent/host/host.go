@@ -93,15 +93,19 @@ func environment() map[string]string {
 // DefaultEnvDenyList is the default set of environment variables that are
 // filtered when passing the environment variables of the host to the task.
 //
-// Update https://www.nomadproject.io/docs/configuration/client#env-denylist
+// Update https://developer.hashicorp.com/nomad/docs/configuration/client#env-denylist
 // whenever this is changed.
 var DefaultEnvDenyList = []string{
-	"CONSUL_TOKEN",
-	"CONSUL_HTTP_TOKEN",
-	"VAULT_TOKEN",
-	"NOMAD_LICENSE",
-	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
-	"GOOGLE_APPLICATION_CREDENTIALS",
+	// product tokens
+	"CONSUL_TOKEN", "CONSUL_HTTP_TOKEN", "CONSUL_HTTP_TOKEN_FILE", "NOMAD_TOKEN", "VAULT_TOKEN",
+	// licenses
+	"CONSUL_LICENSE", "NOMAD_LICENSE", "VAULT_LICENSE",
+	// license paths
+	"CONSUL_LICENSE_PATH", "NOMAD_LICENSE_PATH", "VAULT_LICENSE_PATH",
+	// AWS sensitive variables
+	"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_METADATA_URL",
+	// GCP sensitive variables
+	"GOOGLE_APPLICATION_CREDENTIALS", "GOOGLE_OAUTH_ACCESS_TOKEN",
 }
 
 // makeEnvRedactSet creates a set of well known environment variables that should be

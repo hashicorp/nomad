@@ -4,8 +4,45 @@
 ~}}
 
 {{page-title "Job " this.job.name " versions"}}
+{{did-update this.versionsDidUpdate this.job.versions}}
 <JobSubnav @job={{this.job}} />
 <section class="section">
+
+  <Hds::PageHeader class="versions-page-header" as |PH|>
+    <PH.Actions>
+      <Hds::Dropdown data-test-diff-facet as |dd|>
+        <dd.ToggleButton
+          @text={{if this.diffVersion (concat "Diff against version " this.diffVersion) "Diff against previous version" }}
+          @color="secondary"
+        />
+        <dd.Radio
+          name="diff"
+          checked={{eq this.diffVersion ""}}
+          {{on "change" (action this.setDiffVersion "")}}
+        >
+          previous version
+        </dd.Radio>
+        {{#each this.optionsDiff key="label" as |option|}}
+          <dd.Radio
+            name="diff"
+            {{on "change" (action this.setDiffVersion
+              option.value
+            )}}
+            @value={{option.label}}
+            checked={{eq this.diffVersion option.value}}
+            data-test-dropdown-option={{option.label}}
+        >
+            {{option.label}}
+          </dd.Radio>
+        {{else}}
+          <dd.Generic data-test-dropdown-empty>
+            No versions
+          </dd.Generic>
+        {{/each}}
+      </Hds::Dropdown>
+    </PH.Actions>
+  </Hds::PageHeader>
+
   {{#if this.error}}
     <div data-test-inline-error class="notification {{this.errorLevelClass}}">
       <div class="columns">
@@ -20,5 +57,5 @@
     </div>
   {{/if}}
 
-  <JobVersionsStream @versions={{this.model.versions}} @verbose={{true}} @handleError={{action this.handleError}} />
+  <JobVersionsStream @versions={{this.model.versions}} @diffs={{this.diffs}} @verbose={{true}} @handleError={{action this.handleError}} @diffsExpanded={{this.diffsExpanded}} />
 </section>

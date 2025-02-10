@@ -7,9 +7,7 @@ import { set } from '@ember/object';
 import { get, computed } from '@ember/object';
 import { attr } from '@ember-data/model';
 import Fragment from 'ember-data-model-fragments/fragment';
-import flat from 'flat';
-
-const { unflatten } = flat;
+import PathTree from 'nomad-ui/utils/path-tree';
 
 export default class StructuredAttributes extends Fragment {
   @attr() raw;
@@ -26,14 +24,17 @@ export default class StructuredAttributes extends Fragment {
       return undefined;
     }
 
-    // `unflatten` doesn't sort keys before unflattening, so manual preprocessing is necessary.
     const attrs = Object.keys(original)
       .sort()
       .reduce((obj, key) => {
         obj[key] = original[key];
         return obj;
       }, {});
-    return unflatten(attrs, { overwrite: true });
+    let pathValueArray = Object.entries(attrs).map(([path, value]) => {
+      return { path, value };
+    });
+    let pathTree = new PathTree(pathValueArray, { delimiter: '.' });
+    return pathTree;
   }
 
   unknownProperty(key) {

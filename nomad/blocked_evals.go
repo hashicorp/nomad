@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -60,11 +60,11 @@ type BlockedEvals struct {
 	// blocked eval exists for each job. The value is the blocked evaluation ID.
 	jobs map[structs.NamespacedID]string
 
-	// unblockIndexes maps computed node classes or quota name to the index in
-	// which they were unblocked. This is used to check if an evaluation could
-	// have been unblocked between the time they were in the scheduler and the
-	// time they are being blocked.
-	unblockIndexes map[string]uint64
+	// unblockIndexes maps computed node classes or quota name to the index and
+	// time at which they were unblocked. This is used to check if an
+	// evaluation could have been unblocked between the time they were in the
+	// scheduler and the time they are being blocked.
+	unblockIndexes map[string]unblockEvent
 
 	// duplicates is the set of evaluations for jobs that had pre-existing
 	// blocked evaluations. These should be marked as cancelled since only one
@@ -76,12 +76,14 @@ type BlockedEvals struct {
 	// duplicates.
 	duplicateCh chan struct{}
 
-	// timetable is used to correlate indexes with their insertion time. This
-	// allows us to prune based on time.
-	timetable *TimeTable
-
 	// stopCh is used to stop any created goroutines.
 	stopCh chan struct{}
+}
+
+// unblockEvent keeps a record of the index and time of the unblock
+type unblockEvent struct {
+	index     uint64
+	timestamp time.Time
 }
 
 // capacityUpdate stores unblock data.
@@ -107,7 +109,7 @@ func NewBlockedEvals(evalBroker *EvalBroker, logger hclog.Logger) *BlockedEvals 
 		escaped:          make(map[string]wrappedEval),
 		system:           newSystemEvals(),
 		jobs:             make(map[structs.NamespacedID]string),
-		unblockIndexes:   make(map[string]uint64),
+		unblockIndexes:   make(map[string]unblockEvent),
 		capacityChangeCh: make(chan *capacityUpdate, unblockBuffer),
 		duplicateCh:      make(chan struct{}, 1),
 		stopCh:           make(chan struct{}),
@@ -141,12 +143,6 @@ func (b *BlockedEvals) SetEnabled(enabled bool) {
 	if !enabled {
 		b.Flush()
 	}
-}
-
-func (b *BlockedEvals) SetTimetable(timetable *TimeTable) {
-	b.l.Lock()
-	b.timetable = timetable
-	b.l.Unlock()
 }
 
 // Block tracks the passed evaluation and enqueues it into the eval broker when
@@ -303,10 +299,10 @@ func latestEvalIndex(eval *structs.Evaluation) uint64 {
 // the lock held.
 func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 	var max uint64 = 0
-	for id, index := range b.unblockIndexes {
+	for id, u := range b.unblockIndexes {
 		// Calculate the max unblock index
-		if max < index {
-			max = index
+		if max < u.index {
+			max = u.index
 		}
 
 		// The evaluation is blocked because it has hit a quota limit not class
@@ -315,7 +311,7 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 			if eval.QuotaLimitReached != id {
 				// Not a match
 				continue
-			} else if eval.SnapshotIndex < index {
+			} else if eval.SnapshotIndex < u.index {
 				// The evaluation was processed before the quota specification was
 				// updated, so unblock the evaluation.
 				return true
@@ -326,7 +322,7 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 		}
 
 		elig, ok := eval.ClassEligibility[id]
-		if !ok && eval.SnapshotIndex < index {
+		if !ok && eval.SnapshotIndex < u.index {
 			// The evaluation was processed and did not encounter this class
 			// because it was added after it was processed. Thus for correctness
 			// we need to unblock it.
@@ -335,7 +331,7 @@ func (b *BlockedEvals) missedUnblock(eval *structs.Evaluation) bool {
 
 		// The evaluation could use the computed node class and the eval was
 		// processed before the last unblock.
-		if elig && eval.SnapshotIndex < index {
+		if elig && eval.SnapshotIndex < u.index {
 			return true
 		}
 	}
@@ -415,7 +411,7 @@ func (b *BlockedEvals) Unblock(computedClass string, index uint64) {
 	// Store the index in which the unblock happened. We use this on subsequent
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
-	b.unblockIndexes[computedClass] = index
+	b.unblockIndexes[computedClass] = unblockEvent{index, time.Now().UTC()}
 
 	// Capture chan in lock as Flush overwrites it
 	ch := b.capacityChangeCh
@@ -450,7 +446,7 @@ func (b *BlockedEvals) UnblockQuota(quota string, index uint64) {
 	// Store the index in which the unblock happened. We use this on subsequent
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
-	b.unblockIndexes[quota] = index
+	b.unblockIndexes[quota] = unblockEvent{index, time.Now().UTC()}
 	ch := b.capacityChangeCh
 	done := b.stopCh
 	b.l.Unlock()
@@ -479,10 +475,11 @@ func (b *BlockedEvals) UnblockClassAndQuota(class, quota string, index uint64) {
 	// Store the index in which the unblock happened. We use this on subsequent
 	// block calls in case the evaluation was in the scheduler when a trigger
 	// occurred.
+	now := time.Now().UTC()
 	if quota != "" {
-		b.unblockIndexes[quota] = index
+		b.unblockIndexes[quota] = unblockEvent{index, now}
 	}
-	b.unblockIndexes[class] = index
+	b.unblockIndexes[class] = unblockEvent{index, now}
 
 	// Capture chan inside the lock to prevent a race with it getting reset
 	// in Flush.
@@ -567,10 +564,13 @@ func (b *BlockedEvals) unblock(computedClass, quota string, index uint64) {
 	// never saw a node with the given computed class and thus needs to be
 	// unblocked for correctness.
 	for id, wrapped := range b.captured {
-		if quota != "" && wrapped.eval.QuotaLimitReached != quota {
+		if quota != "" &&
+			wrapped.eval.QuotaLimitReached != "" &&
+			wrapped.eval.QuotaLimitReached != quota {
 			// We are unblocking based on quota and this eval doesn't match
 			continue
-		} else if elig, ok := wrapped.eval.ClassEligibility[computedClass]; ok && !elig {
+		}
+		if elig, ok := wrapped.eval.ClassEligibility[computedClass]; ok && !elig {
 			// Can skip because the eval has explicitly marked the node class
 			// as ineligible.
 			continue
@@ -696,8 +696,7 @@ func (b *BlockedEvals) Flush() {
 	b.captured = make(map[string]wrappedEval)
 	b.escaped = make(map[string]wrappedEval)
 	b.jobs = make(map[structs.NamespacedID]string)
-	b.unblockIndexes = make(map[string]uint64)
-	b.timetable = nil
+	b.unblockIndexes = make(map[string]unblockEvent)
 	b.duplicates = nil
 	b.capacityChangeCh = make(chan *capacityUpdate, unblockBuffer)
 	b.stopCh = make(chan struct{})
@@ -778,18 +777,13 @@ func (b *BlockedEvals) prune(stopCh <-chan struct{}) {
 }
 
 // pruneUnblockIndexes is used to prune any tracked entry that is excessively
-// old. This protects againsts unbounded growth of the map.
+// old. This protects against unbounded growth of the map.
 func (b *BlockedEvals) pruneUnblockIndexes(cutoff time.Time) {
 	b.l.Lock()
 	defer b.l.Unlock()
 
-	if b.timetable == nil {
-		return
-	}
-
-	oldThreshold := b.timetable.NearestIndex(cutoff)
-	for key, index := range b.unblockIndexes {
-		if index < oldThreshold {
+	for key, u := range b.unblockIndexes {
+		if u.timestamp.Before(cutoff) {
 			delete(b.unblockIndexes, key)
 		}
 	}

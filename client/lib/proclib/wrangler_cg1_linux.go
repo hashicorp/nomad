@@ -23,16 +23,20 @@ type LinuxWranglerCG1 struct {
 	cg   cgroupslib.Lifecycle
 }
 
-func newCG1(c *Configs) create {
+func newCG1(c *Configs) (create, error) {
 	logger := c.Logger.Named("cg1")
-	cgroupslib.Init(logger, c.UsableCores.String())
+	err := cgroupslib.Init(logger, c.UsableCores.String())
+	if err != nil {
+		return nil, err
+	}
+
 	return func(task Task) ProcessWrangler {
 		return &LinuxWranglerCG1{
 			task: task,
 			log:  logger,
 			cg:   cgroupslib.Factory(task.AllocID, task.Task, task.Cores),
 		}
-	}
+	}, nil
 }
 
 func (w *LinuxWranglerCG1) Initialize() error {

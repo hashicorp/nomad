@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where client API calls would fail incorrectly with permission denied errors when using ACL tokens with dangling policies
+```

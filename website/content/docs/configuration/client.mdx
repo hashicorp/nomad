@@ -1,17 +1,23 @@
 ---
 layout: docs
-page_title: client Block - Agent Configuration
+page_title: client Block in Agent Configuration
 description: |-
-  The "client" block configures the Nomad agent to accept jobs as assigned by
-  the Nomad server, join the cluster, and specify driver-specific configuration.
+  Configure a Nomad client in the `client` block of a Nomad agent configuration. Enable a client, configure allocation directories, artifact and template behavior, networking, node pools, servers to join, garbage collection, workload behavior, client resources, chroot, host volumes, host network, and driver-specific behavior.
 ---
 
-# `client` Block
+# `client` Block in Agent Configuration
 
 <Placement groups={['client']} />
 
-The `client` block configures the Nomad agent to accept jobs as assigned by
-the Nomad server, join the cluster, and specify driver-specific configuration.
+This page provides reference information for configuring a Nomad client in the
+`client` block of a Nomad agent configuration. Enable a client, configure
+allocation directories, artifact and template behavior, networking, node pools,
+servers to join, garbage collection, workload behavior, client resources,
+chroot, host volumes, host network, and driver-specific behavior.
+
+Refer to the [Set Server and Client Nodes](/nomad/docs/operations/nomad-agent)
+and [Nomad Agent](/nomad/docs/commands/agent) pages to learn about the Nomad
+agent process and how to configure the server and client nodes in your cluster.
 
 ```hcl
 client {
@@ -22,10 +28,20 @@ client {
 
 ## `client` Parameters
 
-- `alloc_dir` `(string: "[data_dir]/alloc")` - Specifies the directory to use
-  for allocation data. By default, this is the top-level
-  [data_dir](/nomad/docs/configuration#data_dir) suffixed with
-  "alloc", like `"/opt/nomad/alloc"`. This must be an absolute path.
+- `alloc_dir` `(string: "")` - Specifies the directory to use for allocation
+  data. When this parameter is empty, Nomad will generate the path using the
+  [top-level `data_dir`][top_level_data_dir] suffixed with `alloc`, like
+  `"/opt/nomad/alloc"`. This must be an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
+
+- `alloc_mounts_dir` `(string: "")` - Specifies the directory to use for binding
+  mounts for the [unveil file isolation mode][unveil]. When this parameter is
+  empty, Nomad generates the path as a sibling of the [top-level
+  `data_dir`][top_level_data_dir], with the name `alloc_mounts`. For example, if
+  the `data_dir` is `/opt/nomad/data`, then the alloc mounts directory is
+  `/opt/nomad/alloc_mounts`. This must be an absolute path and should not be
+  inside the Nomad data directory. Nomad creates the directory on the host,
+  if it does not exist when the agent process starts.
 
 - `chroot_env` <code>([ChrootEnv](#chroot_env-parameters): nil)</code> -
   Specifies a key-value mapping that defines the chroot environment for jobs
@@ -55,6 +71,12 @@ client {
   addresses depending on the client's
   [`"fingerprint.network.disallow_link_local"`](#fingerprint-network-disallow_link_local)
   configuration value.
+
+- `preferred_address_family` `(string: "")` - Specifies the preferred address family
+  for the network interface. The value can be `ipv4` or `ipv6`. If the selected network
+  interface has both IPv4 and IPv6 addresses, this option will select an IP address of
+  the preferred family. When the option is not specified, the current behavior is conserved:
+  the first IP address is selected no matter the family.
 
 - `cpu_total_compute` `(int: 0)` - Specifies an override for the total CPU
   compute. This value should be set to `# Cores * Core MHz`. For example, a
@@ -107,18 +129,20 @@ client {
   servers this client should join. This list is used to register the client with
   the server nodes and advertise the available resources so that the agent can
   receive work. This may be specified as an IP address or DNS, with or without
-  the port. If the port is omitted, the default port of `4647` is used.
+  the port. If the port is omitted, the default port of `4647` is used. If you
+  are specifying IPv6 addresses, they must be in URL format with brackets
+  (ex. `"[2001:db8::1]"`).
 
 - `server_join` <code>([server_join][server-join]: nil)</code> - Specifies
   how the Nomad client will connect to Nomad servers. The `start_join` field
   is not supported on the client. The retry_join fields may directly specify
-  the server address or use go-discover syntax for auto-discovery. See the
-  documentation for more detail.
+  the server address or use go-discover syntax for auto-discovery.
 
-- `state_dir` `(string: "[data_dir]/client")` - Specifies the directory to use
-  to store client state. By default, this is - the top-level
-  [data_dir](/nomad/docs/configuration#data_dir) suffixed with
-  "client", like `"/opt/nomad/client"`. This must be an absolute path.
+- `state_dir` `(string: "")` - Specifies the directory to use to store client
+  state. When this parameter is empty, Nomad will generate the path using the
+  [top-level `data_dir`][top_level_data_dir] suffixed with `client`, like
+  `"/opt/nomad/client"`. This must be an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `gc_interval` `(string: "1m")` - Specifies the interval at which Nomad
   attempts to garbage collect terminal allocation directories.
@@ -140,8 +164,7 @@ client {
   relatively low to avoid high resource usage during garbage collections.
 
 - `no_host_uuid` `(bool: true)` - By default a random node UUID will be
-  generated, but setting this to `false` will use the system's UUID. Before
-  Nomad 0.6 the default was to use the system UUID.
+  generated, but setting this to `false` will use the system's UUID.
 
 - `cni_path` `(string: "/opt/cni/bin")` - Sets the search path that is used for
   CNI plugin discovery. Multiple paths can be searched using colon delimited
@@ -160,10 +183,17 @@ client {
 - `bridge_network_subnet` `(string: "172.26.64.0/20")` - Specifies the subnet
   which the client will use to allocate IP addresses from.
 
+- `bridge_network_subnet_ipv6` `(string: "")` - Enables IPv6 on Nomad's bridge
+  network by specifying the subnet which the client will use to allocate IPv6
+  addresses.
+
 - `bridge_network_hairpin_mode` `(bool: false)` - Specifies if hairpin mode
   is enabled on the network bridge created by Nomad for allocations running
   with bridge networking mode on this client. You may use the corresponding
-  node attribute `nomad.bridge.hairpin_mode` in constraints.
+  node attribute `nomad.bridge.hairpin_mode` in constraints. When hairpin mode
+  is enabled, allocations are able to reach their own IP and **all ports** bound
+  to it. Changing this value requires a reboot of the client host to take
+  effect.
 
 - `artifact` <code>([Artifact](#artifact-parameters): varied)</code> -
   Specifies controls on the behavior of task
@@ -175,6 +205,18 @@ client {
 
 - `host_volume` <code>([host_volume](#host_volume-block): nil)</code> - Exposes
   paths from the host as volumes that can be mounted into jobs.
+
+- `host_volumes_dir` `(string: "")` - Specifies the directory wherein
+  host volume plugins should place volumes. When this parameter is empty, Nomad
+  generates the path using the [top-level `data_dir`][top_level_data_dir]
+  suffixed with `host_volumes`, like `"/opt/nomad/host_volumes"`.
+  This must be an absolute path.
+
+- `host_volume_plugin_dir` `(string: "")` - Specifies the directory to find host
+  volume plugins. When this parameter is empty, Nomad generates the path
+  using the [top-level `data_dir`][top_level_data_dir] suffixed with
+  `host_volume_plugins`, like `"/opt/nomad/host_volume_plugins"`. This must be
+  an absolute path.
 
 - `host_network` <code>([host_network](#host_network-block): nil)</code> - Registers
   additional host networks with the node that can be selected when port mapping.
@@ -188,11 +230,13 @@ client {
   subsystems managed by Nomad will be mounted under. Currently this only applies to the
   `cpuset` subsystems. This field is ignored on non Linux platforms.
 
+- `users` <code>([Users](#users-block): nil)</code> - Specifies options
+  concerning Nomad client's use of operating system users.
+
 ### `chroot_env` Parameters
 
-Drivers based on [isolated fork/exec](/nomad/docs/drivers/exec) implement file
-system isolation using chroot on Linux. The `chroot_env` map allows the chroot
-environment to be configured using source paths on the host operating system.
+On Linux, drivers based on [isolated fork/exec](/nomad/docs/drivers/exec) implement file system isolation using chroot. The `chroot_env` map lets you configure the chroot environment using source paths on the host operating system.
+
 The mapping format is:
 
 ```text
@@ -216,25 +260,25 @@ client {
 }
 ```
 
-When `chroot_env` is unspecified, the `exec` driver will use a default chroot
-environment with the most commonly used parts of the operating system. Please
-see the [Nomad `exec` driver documentation](/nomad/docs/drivers/exec#chroot) for
+@include 'chroot-limitations.mdx'
+
+When `chroot_env` is unspecified, the `exec` driver uses a default chroot
+environment with the most commonly used parts of the operating system. Refer to the [Nomad `exec` driver documentation](/nomad/docs/drivers/exec#chroot) for
 the full list.
 
-As of Nomad 1.2, Nomad will never attempt to embed the `alloc_dir` in the
-chroot as doing so would cause infinite recursion.
+Nomad never attempts to embed the `alloc_dir` in the chroot as doing so would cause infinite recursion.
 
 ### `options` Parameters
 
 ~> Note: In Nomad 0.9 client configuration options for drivers were deprecated.
-See the [plugin block][plugin-block] documentation for more information.
+Refer to the [plugin block][plugin-block] documentation for more information.
 
 The following is not an exhaustive list of options for only the Nomad
-client. To find the options supported by each individual Nomad driver, please
-see the [drivers documentation](/nomad/docs/drivers).
+client. To find the options supported by each individual Nomad driver,
+refer to the [drivers documentation](/nomad/docs/drivers).
 
 - `"driver.allowlist"` `(string: "")` - Specifies a comma-separated list of
-  allowlisted drivers . If specified, drivers not in the allowlist will be
+  allowlisted drivers. If specified, drivers not in the allowlist will be
   disabled. If the allowlist is empty, all drivers are fingerprinted and enabled
   where applicable.
 
@@ -247,7 +291,7 @@ see the [drivers documentation](/nomad/docs/drivers).
   ```
 
 - `"driver.denylist"` `(string: "")` - Specifies a comma-separated list of
-  denylisted drivers . If specified, drivers in the denylist will be
+  denylisted drivers. If specified, drivers in the denylist will be
   disabled.
 
   ```hcl
@@ -258,11 +302,11 @@ see the [drivers documentation](/nomad/docs/drivers).
   }
   ```
 
-- `"env.denylist"` `(string: see below)` - Specifies a comma-separated list of
-  environment variable keys not to pass to these tasks. Nomad passes the host
-  environment variables to `exec`, `raw_exec` and `java` tasks. If specified,
-  the defaults are overridden. If a value is provided, **all** defaults are
-  overridden (they are not merged).
+- `"env.denylist"` `(string: refer to explanation)` - Specifies a
+  comma-separated list of environment variable keys not to pass to these tasks.
+  Nomad passes the host environment variables to `exec`, `raw_exec` and `java`
+  tasks. If specified, the defaults are overridden. If a value is provided,
+  **all** defaults are overridden (they are not merged).
 
   ```hcl
   client {
@@ -277,18 +321,27 @@ see the [drivers documentation](/nomad/docs/drivers).
   ```text
   CONSUL_TOKEN
   CONSUL_HTTP_TOKEN
+  CONSUL_HTTP_TOKEN_FILE
+  NOMAD_TOKEN
   VAULT_TOKEN
+  CONSUL_LICENSE
   NOMAD_LICENSE
+  VAULT_LICENSE
+  CONSUL_LICENSE_PATH
+  NOMAD_LICENSE_PATH
+  VAULT_LICENSE_PATH
   AWS_ACCESS_KEY_ID
   AWS_SECRET_ACCESS_KEY
   AWS_SESSION_TOKEN
+  AWS_METADATA_URL
   GOOGLE_APPLICATION_CREDENTIALS
+  GOOGLE_OAUTH_ACCESS_TOKEN
   ```
 
-- `"user.denylist"` `(string: see below)` - Specifies a comma-separated
-  denylist of usernames for which a task is not allowed to run. This only
-  applies if the driver is included in `"user.checked_drivers"`. If a value is
-  provided, **all** defaults are overridden (they are not merged).
+- `"user.denylist"` `(string: refer to explanation)` - Specifies a
+  comma-separated denylist of usernames for which a task is not allowed to run.
+  This only applies if the driver is included in `"user.checked_drivers"`. If a
+  value is provided, **all** defaults are overridden (they are not merged).
 
   ```hcl
   client {
@@ -305,10 +358,10 @@ see the [drivers documentation](/nomad/docs/drivers).
   Administrator
   ```
 
-- `"user.checked_drivers"` `(string: see below)` - Specifies a comma-separated
-  list of drivers for which to enforce the `"user.denylist"`. For drivers using
-  containers, this enforcement is usually unnecessary. If a value is provided,
-  **all** defaults are overridden (they are not merged).
+- `"user.checked_drivers"` `(string: refer to explanation)` - Specifies a
+  comma-separated list of drivers for which to enforce the `"user.denylist"`.
+  For drivers using containers, this enforcement is usually unnecessary. If a
+  value is provided, **all** defaults are overridden (they are not merged).
 
   ```hcl
   client {
@@ -341,12 +394,14 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `"fingerprint.denylist"` `(string: "")` - Specifies a comma-separated list of
   denylisted fingerprinters. If specified, any fingerprinters in the denylist
-  will be disabled.
+  will be disabled. A common use-case for the fingerprint denylist is to disable
+  fingerprinters of irrelevant cloud environments, which can slow down client
+  agent startup time.
 
   ```hcl
   client {
     options = {
-      "fingerprint.denylist" = "network"
+      "fingerprint.denylist" = "env_aws,env_gce,env_azure,env_digitalocean"
     }
   }
   ```
@@ -368,15 +423,24 @@ see the [drivers documentation](/nomad/docs/drivers).
 
 - `cpu` `(int: 0)` - Specifies the amount of CPU to reserve, in MHz.
 
-- `cores` `(int: 0)` - Specifies the number of CPU cores to reserve.
+- `cores` `(string: "")` - Specifies the cpuset of CPU cores to reserve. Only
+  supported on Linux.
+
+  ```hcl
+    client {
+      reserved {
+        cores = "0-4"
+      }
+    }
+  ```
 
 - `memory` `(int: 0)` - Specifies the amount of memory to reserve, in MB.
 
 - `disk` `(int: 0)` - Specifies the amount of disk to reserve, in MB.
 
-- `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports
-  to reserve on all fingerprinted network devices. Ranges can be specified by
-  using a hyphen separating the two inclusive ends. See also
+- `reserved_ports` `(string: "")` - Specifies a comma-separated list of ports to
+  reserve on all fingerprinted network devices. Ranges can be specified by using
+  a hyphen separating the two inclusive ends. Refer to
   [`host_network`](#host_network-block) for reserving ports on specific host
   networks.
 
@@ -417,6 +481,13 @@ see the [drivers documentation](/nomad/docs/drivers).
 - `disable_filesystem_isolation` `(bool: false)` - Specifies whether filesystem
   isolation should be disabled for artifact downloads. Applies only to systems
   where filesystem isolation via [landlock] is possible (Linux kernel 5.13+).
+
+- `filesystem_isolation_extra_paths` `([]string: nil)` - Allow extra paths
+  in the filesystem isolation. Paths are specified in the form `[kind]:[mode]:[path]`
+  where `kind` must be either `f` or `d` (file or directory) and
+  `mode` must be zero or more of `r`, `w`, `c`, `x` (read, write, create, execute) e.g.
+  `f:r:/dev/urandom` would enable reading the /dev/urandom file,
+  `d:rx:/opt/bin` would enable reading and executing from the /opt/bin directory
 
 - `set_environment_variables` `(string:"")` - Specifies a comma separated list
   of environment variables that should be inherited by the artifact sandbox from
@@ -568,7 +639,7 @@ and ACLs.
 ```hcl
 client {
   host_volume "ca-certificates" {
-    path = "/etc/ssl/certs"
+    path      = "/etc/ssl/certs"
     read_only = true
   }
 }
@@ -594,7 +665,7 @@ The key of the block corresponds to the name of the network used in the
 ```hcl
 client {
   host_network "public" {
-    cidr = "203.0.113.0/24"
+    cidr           = "203.0.113.0/24"
     reserved_ports = "22,80"
   }
 }
@@ -658,6 +729,27 @@ client {
   complete without stopping system job allocations. By default system jobs (and
   CSI plugins) are stopped last.
 
+### `users` Block
+
+The `users` block controls aspects of Nomad client's use of operating system
+users.
+
+```hcl
+client {
+  users {
+    dynamic_user_min = 80000
+    dynamic_user_max = 89999
+  }
+}
+```
+
+- `dynamic_user_min` `(int: 80000)` - The lowest UID/GID to allocate for task
+  drivers capable of making use of dynamic workload users.
+
+- `dynamic_user_max` `(int: 89999)` - The highest UID/GID to allocate for task
+  drivers capable of making use of dynamic workload users.
+
+
 ## `client` Examples
 
 ### Common Setup
@@ -669,8 +761,8 @@ cluster.
 client {
   enabled = true
   server_join {
-    retry_join = [ "1.1.1.1", "2.2.2.2" ]
-    retry_max = 3
+    retry_join     = [ "1.1.1.1", "2.2.2.2" ]
+    retry_max      = 3
     retry_interval = "15s"
   }
 }
@@ -695,12 +787,12 @@ client {
 }
 ```
 
-### Custom Metadata, Network Speed, and Node Class
+### Custom Metadata and Node Class
 
-This example shows a client configuration which customizes the metadata, network
-speed, and node class. The scheduler can use this information while processing
+This example shows a client configuration which customizes the metadata
+and node class. The scheduler can use this information while processing
 [constraints][metadata_constraint]. The metadata is completely user configurable;
-the values below are for illustrative purposes only.
+the values in the example are for illustrative purposes only.
 
 ```hcl
 client {
@@ -723,10 +815,12 @@ client {
 [metadata_constraint]: /nomad/docs/job-specification/constraint#user-specified-metadata 'Nomad User-Specified Metadata Constraint Example'
 [runtime_var_interpolation]: /nomad/docs/runtime/interpolation
 [task working directory]: /nomad/docs/runtime/environment#task-directories 'Task directories'
-[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
+[go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [landlock]: https://docs.kernel.org/userspace-api/landlock.html
 [`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
 [`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate
 [migrate]: /nomad/docs/job-specification/migrate
 [`nomad node drain -self -no-deadline`]: /nomad/docs/commands/node/drain
 [`TimeoutStopSec`]: https://www.freedesktop.org/software/systemd/man/systemd.service.html#TimeoutStopSec=
+[top_level_data_dir]: /nomad/docs/configuration#data_dir
+[unveil]: /nomad/docs/concepts/plugins/task-drivers#fsisolation-unveil

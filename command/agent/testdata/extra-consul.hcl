@@ -9,7 +9,7 @@ consul {
   timeout               = "20s"
 }
 
-# this alternate config should be added as an extra consul config
+# these alternate configs should be added as an extra consul configs
 consul {
   name                   = "alternate"
   server_service_name    = "nomad"
@@ -22,4 +22,18 @@ consul {
   allow_unauthenticated  = true
   token                  = "xyzzy"
   auth                   = "username:pass"
+}
+
+consul {
+  name = "other"
+
+  service_identity {
+    aud = ["consul-other.io"]
+    ttl = "3h"
+  }
+
+  task_identity {
+    aud = ["consul-other.io"]
+    ttl = "5h"
+  }
 }

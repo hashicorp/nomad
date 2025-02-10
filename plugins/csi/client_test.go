@@ -14,7 +14,6 @@ import (
 	csipbv1 "github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -102,10 +101,10 @@ func TestClient_RPC_PluginProbe(t *testing.T) {
 
 			resp, err := client.PluginProbe(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 
@@ -156,11 +155,11 @@ func TestClient_RPC_PluginInfo(t *testing.T) {
 
 			name, version, err := client.PluginGetInfo(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponseName, name)
-			require.Equal(t, tc.ExpectedResponseVersion, version)
+			must.Eq(t, tc.ExpectedResponseName, name)
+			must.Eq(t, tc.ExpectedResponseVersion, version)
 		})
 	}
 
@@ -223,10 +222,10 @@ func TestClient_RPC_PluginGetCapabilities(t *testing.T) {
 
 			resp, err := client.PluginGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -323,10 +322,10 @@ func TestClient_RPC_ControllerGetCapabilities(t *testing.T) {
 
 			resp, err := client.ControllerGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -383,10 +382,10 @@ func TestClient_RPC_NodeGetCapabilities(t *testing.T) {
 
 			resp, err := client.NodeGetCapabilities(context.TODO())
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -450,10 +449,10 @@ func TestClient_RPC_ControllerPublishVolume(t *testing.T) {
 
 			resp, err := client.ControllerPublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -498,10 +497,10 @@ func TestClient_RPC_ControllerUnpublishVolume(t *testing.T) {
 
 			resp, err := client.ControllerUnpublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			}
 
-			require.Equal(t, tc.ExpectedResponse, resp)
+			must.Eq(t, tc.ExpectedResponse, resp)
 		})
 	}
 }
@@ -723,9 +722,9 @@ func TestClient_RPC_ControllerValidateVolume(t *testing.T) {
 
 			err := client.ControllerValidateCapabilities(context.TODO(), req)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.NoError(t, err, tc.Name)
+				must.NoError(t, err, must.Sprint("name", tc.Name))
 			}
 		})
 	}
@@ -832,24 +831,24 @@ func TestClient_RPC_ControllerCreateVolume(t *testing.T) {
 
 			resp, err := client.ControllerCreateVolume(context.TODO(), req)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
+			must.NoError(t, err, must.Sprint("name", tc.Name))
 			if tc.Response == nil {
-				require.Nil(t, resp)
+				must.Nil(t, resp)
 				return
 			}
 			if tc.CapacityRange != nil {
-				require.Greater(t, resp.Volume.CapacityBytes, int64(0))
+				must.Greater(t, 0, resp.Volume.CapacityBytes)
 			}
 			if tc.ContentSource != nil {
-				require.Equal(t, tc.ContentSource.CloneID, resp.Volume.ContentSource.CloneID)
-				require.Equal(t, tc.ContentSource.SnapshotID, resp.Volume.ContentSource.SnapshotID)
+				must.Eq(t, tc.ContentSource.CloneID, resp.Volume.ContentSource.CloneID)
+				must.Eq(t, tc.ContentSource.SnapshotID, resp.Volume.ContentSource.SnapshotID)
 			}
 			if tc.Response != nil && tc.Response.Volume != nil {
-				require.Len(t, resp.Volume.AccessibleTopology, 1)
-				require.Equal(t,
+				must.SliceLen(t, 1, resp.Volume.AccessibleTopology)
+				must.Eq(t,
 					req.AccessibilityRequirements.Requisite[0].Segments,
 					resp.Volume.AccessibleTopology[0].Segments,
 				)
@@ -894,10 +893,10 @@ func TestClient_RPC_ControllerDeleteVolume(t *testing.T) {
 			cc.NextErr = tc.ResponseErr
 			err := client.ControllerDeleteVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
+			must.NoError(t, err, must.Sprint("name", tc.Name))
 		})
 	}
 }
@@ -987,11 +986,11 @@ func TestClient_RPC_ControllerListVolume(t *testing.T) {
 
 			resp, err := client.ControllerListVolumes(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
-			require.NotNil(t, resp)
+			must.NoError(t, err, must.Sprint("name", tc.Name))
+			must.NotNil(t, resp)
 
 		})
 	}
@@ -1054,11 +1053,11 @@ func TestClient_RPC_ControllerCreateSnapshot(t *testing.T) {
 			// from protobuf to our struct
 			resp, err := client.ControllerCreateSnapshot(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.NoError(t, err, tc.Name)
-				require.NotZero(t, resp.Snapshot.CreateTime)
-				require.Equal(t, now.Second(), time.Unix(resp.Snapshot.CreateTime, 0).Second())
+				must.NoError(t, err, must.Sprint("name", tc.Name))
+				must.Positive(t, resp.Snapshot.CreateTime)
+				must.Eq(t, now.Second(), time.Unix(resp.Snapshot.CreateTime, 0).Second())
 			}
 		})
 	}
@@ -1099,10 +1098,10 @@ func TestClient_RPC_ControllerDeleteSnapshot(t *testing.T) {
 			cc.NextErr = tc.ResponseErr
 			err := client.ControllerDeleteSnapshot(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
+			must.NoError(t, err, must.Sprint("name", tc.Name))
 		})
 	}
 }
@@ -1162,14 +1161,14 @@ func TestClient_RPC_ControllerListSnapshots(t *testing.T) {
 
 			resp, err := client.ControllerListSnapshots(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 				return
 			}
-			require.NoError(t, err, tc.Name)
-			require.NotNil(t, resp)
-			require.Len(t, resp.Entries, 1)
-			require.NotZero(t, resp.Entries[0].Snapshot.CreateTime)
-			require.Equal(t, now.Second(),
+			must.NoError(t, err, must.Sprint("name", tc.Name))
+			must.NotNil(t, resp)
+			must.Len(t, 1, resp.Entries)
+			must.Positive(t, resp.Entries[0].Snapshot.CreateTime)
+			must.Eq(t, now.Second(),
 				time.Unix(resp.Entries[0].Snapshot.CreateTime, 0).Second())
 		})
 	}
@@ -1359,9 +1358,9 @@ func TestClient_RPC_NodeStageVolume(t *testing.T) {
 				VolumeCapability:  &VolumeCapability{},
 			})
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.Nil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
@@ -1398,9 +1397,9 @@ func TestClient_RPC_NodeUnstageVolume(t *testing.T) {
 
 			err := client.NodeUnstageVolume(context.TODO(), "foo", "/foo")
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.Nil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
@@ -1456,9 +1455,9 @@ func TestClient_RPC_NodePublishVolume(t *testing.T) {
 
 			err := client.NodePublishVolume(context.TODO(), tc.Request)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.Nil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
@@ -1511,10 +1510,170 @@ func TestClient_RPC_NodeUnpublishVolume(t *testing.T) {
 
 			err := client.NodeUnpublishVolume(context.TODO(), tc.ExternalID, tc.TargetPath)
 			if tc.ExpectedErr != nil {
-				require.EqualError(t, err, tc.ExpectedErr.Error())
+				must.EqError(t, err, tc.ExpectedErr.Error())
 			} else {
-				require.Nil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}
+}
+
+func TestClient_RPC_NodeExpandVolume(t *testing.T) {
+	// minimum valid request
+	minRequest := &NodeExpandVolumeRequest{
+		ExternalVolumeID: "test-vol",
+		TargetPath:       "/test-path",
+	}
+
+	cases := []struct {
+		Name        string
+		Request     *NodeExpandVolumeRequest
+		ExpectCall  *csipbv1.NodeExpandVolumeRequest
+		ResponseErr error
+		ExpectedErr error
+	}{
+		{
+			Name:    "success min",
+			Request: minRequest,
+			ExpectCall: &csipbv1.NodeExpandVolumeRequest{
+				VolumeId:   "test-vol",
+				VolumePath: "/test-path",
+			},
+		},
+		{
+			Name: "success full",
+			Request: &NodeExpandVolumeRequest{
+				ExternalVolumeID: "test-vol",
+				TargetPath:       "/test-path",
+				StagingPath:      "/test-staging-path",
+				CapacityRange: &CapacityRange{
+					RequiredBytes: 5,
+					LimitBytes:    10,
+				},
+				Capability: &VolumeCapability{
+					AccessType: VolumeAccessTypeMount,
+					AccessMode: VolumeAccessModeMultiNodeSingleWriter,
+					MountVolume: &structs.CSIMountOptions{
+						FSType:     "test-fstype",
+						MountFlags: []string{"test-flags"},
+					},
+				},
+			},
+			ExpectCall: &csipbv1.NodeExpandVolumeRequest{
+				VolumeId:          "test-vol",
+				VolumePath:        "/test-path",
+				StagingTargetPath: "/test-staging-path",
+				CapacityRange: &csipbv1.CapacityRange{
+					RequiredBytes: 5,
+					LimitBytes:    10,
+				},
+				VolumeCapability: &csipbv1.VolumeCapability{
+					AccessType: &csipbv1.VolumeCapability_Mount{
+						Mount: &csipbv1.VolumeCapability_MountVolume{
+							FsType:           "test-fstype",
+							MountFlags:       []string{"test-flags"},
+							VolumeMountGroup: "",
+						}},
+					AccessMode: &csipbv1.VolumeCapability_AccessMode{
+						Mode: csipbv1.VolumeCapability_AccessMode_MULTI_NODE_SINGLE_WRITER},
+				},
+			},
+		},
+
+		{
+			Name: "validate missing volume id",
+			Request: &NodeExpandVolumeRequest{
+				TargetPath: "/test-path",
+			},
+			ExpectedErr: errors.New("ExternalVolumeID is required"),
+		},
+		{
+			Name: "validate missing target path",
+			Request: &NodeExpandVolumeRequest{
+				ExternalVolumeID: "test-volume",
+			},
+			ExpectedErr: errors.New("TargetPath is required"),
+		},
+		{
+			Name: "validate min greater than max",
+			Request: &NodeExpandVolumeRequest{
+				ExternalVolumeID: "test-vol",
+				TargetPath:       "/test-path",
+				CapacityRange: &CapacityRange{
+					RequiredBytes: 4,
+					LimitBytes:    2,
+				},
+			},
+			ExpectedErr: errors.New("LimitBytes cannot be less than RequiredBytes"),
+		},
+
+		{
+			Name:        "grpc error default case",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.DataLoss, "misc unspecified error"),
+			ExpectedErr: errors.New("node plugin returned an error: rpc error: code = DataLoss desc = misc unspecified error"),
+		},
+		{
+			Name:        "grpc error invalid argument",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.InvalidArgument, "sad args"),
+			ExpectedErr: errors.New("requested capabilities not compatible with volume \"test-vol\": rpc error: code = InvalidArgument desc = sad args"),
+		},
+		{
+			Name:        "grpc error NotFound",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.NotFound, "does not exist"),
+			ExpectedErr: errors.New("CSI client error (ignorable): volume \"test-vol\" could not be found: rpc error: code = NotFound desc = does not exist"),
+		},
+		{
+			Name:        "grpc error FailedPrecondition",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.FailedPrecondition, "unsupported"),
+			ExpectedErr: errors.New("volume \"test-vol\" cannot be expanded while in use: rpc error: code = FailedPrecondition desc = unsupported"),
+		},
+		{
+			Name:        "grpc error OutOfRange",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.OutOfRange, "too small"),
+			ExpectedErr: errors.New("unsupported capacity_range for volume \"test-vol\": rpc error: code = OutOfRange desc = too small"),
+		},
+		{
+			Name:        "grpc error Internal",
+			Request:     minRequest,
+			ResponseErr: status.Errorf(codes.Internal, "some grpc error"),
+			ExpectedErr: errors.New("node plugin returned an internal error, check the plugin allocation logs for more information: rpc error: code = Internal desc = some grpc error"),
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			_, _, nc, client := newTestClient(t)
+
+			nc.NextErr = tc.ResponseErr
+			// the fake client should take ~no time, but set a timeout just in case
+			ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+			defer cancel()
+			resp, err := client.NodeExpandVolume(ctx, tc.Request)
+			if tc.ExpectedErr != nil {
+				must.EqError(t, err, tc.ExpectedErr.Error())
+				return
+			}
+			must.NoError(t, err)
+			must.NotNil(t, resp)
+			must.Eq(t, tc.ExpectCall, nc.LastExpandVolumeRequest)
+
+		})
+	}
+
+	t.Run("connection error", func(t *testing.T) {
+		c := &client{} // induce c.ensureConnected() error
+		ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*50)
+		defer cancel()
+		resp, err := c.NodeExpandVolume(ctx, &NodeExpandVolumeRequest{
+			ExternalVolumeID: "valid-id",
+			TargetPath:       "/some-path",
+		})
+		must.Nil(t, resp)
+		must.EqError(t, err, "address is empty")
+	})
 }

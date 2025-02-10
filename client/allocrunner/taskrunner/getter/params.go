@@ -13,8 +13,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-getter"
+	"github.com/hashicorp/nomad/helper"
 )
 
 // parameters is encoded by the Nomad client and decoded by the getter sub-process
@@ -23,19 +23,21 @@ import (
 // e.g. https://www.opencve.io/cve/CVE-2022-41716
 type parameters struct {
 	// Config
-	HTTPReadTimeout             time.Duration `json:"http_read_timeout"`
-	HTTPMaxBytes                int64         `json:"http_max_bytes"`
-	GCSTimeout                  time.Duration `json:"gcs_timeout"`
-	GitTimeout                  time.Duration `json:"git_timeout"`
-	HgTimeout                   time.Duration `json:"hg_timeout"`
-	S3Timeout                   time.Duration `json:"s3_timeout"`
-	DecompressionLimitFileCount int           `json:"decompression_limit_file_count"`
-	DecompressionLimitSize      int64         `json:"decompression_limit_size"`
-	DisableFilesystemIsolation  bool          `json:"disable_filesystem_isolation"`
-	SetEnvironmentVariables     string        `json:"set_environment_variables"`
+	HTTPReadTimeout               time.Duration `json:"http_read_timeout"`
+	HTTPMaxBytes                  int64         `json:"http_max_bytes"`
+	GCSTimeout                    time.Duration `json:"gcs_timeout"`
+	GitTimeout                    time.Duration `json:"git_timeout"`
+	HgTimeout                     time.Duration `json:"hg_timeout"`
+	S3Timeout                     time.Duration `json:"s3_timeout"`
+	DecompressionLimitFileCount   int           `json:"decompression_limit_file_count"`
+	DecompressionLimitSize        int64         `json:"decompression_limit_size"`
+	DisableFilesystemIsolation    bool          `json:"disable_filesystem_isolation"`
+	FilesystemIsolationExtraPaths []string      `json:"filesystem_isolation_extra_paths"`
+	SetEnvironmentVariables       string        `json:"set_environment_variables"`
 
 	// Artifact
 	Mode        getter.ClientMode   `json:"artifact_mode"`
+	Insecure    bool                `json:"artifact_insecure"`
 	Source      string              `json:"artifact_source"`
 	Destination string              `json:"artifact_destination"`
 	Headers     map[string][]string `json:"artifact_headers"`
@@ -43,6 +45,8 @@ type parameters struct {
 	// Task Filesystem
 	AllocDir string `json:"alloc_dir"`
 	TaskDir  string `json:"task_dir"`
+	User     string `json:"user"`
+	Chown    bool   `json:"chown"`
 }
 
 func (p *parameters) reader() io.Reader {
@@ -98,9 +102,13 @@ func (p *parameters) Equal(o *parameters) bool {
 		return false
 	case p.DisableFilesystemIsolation != o.DisableFilesystemIsolation:
 		return false
+	case !helper.SliceSetEq(p.FilesystemIsolationExtraPaths, o.FilesystemIsolationExtraPaths):
+		return false
 	case p.SetEnvironmentVariables != o.SetEnvironmentVariables:
 		return false
 	case p.Mode != o.Mode:
+		return false
+	case p.Insecure != o.Insecure:
 		return false
 	case p.Source != o.Source:
 		return false
@@ -130,7 +138,6 @@ const (
 func (p *parameters) client(ctx context.Context) *getter.Client {
 	httpGetter := &getter.HttpGetter{
 		Netrc:  true,
-		Client: cleanhttp.DefaultClient(),
 		Header: p.Headers,
 
 		// Do not support the custom X-Terraform-Get header and
@@ -162,8 +169,8 @@ func (p *parameters) client(ctx context.Context) *getter.Client {
 		Src:             p.Source,
 		Dst:             p.Destination,
 		Mode:            p.Mode,
+		Insecure:        p.Insecure,
 		Umask:           umask,
-		Insecure:        false,
 		DisableSymlinks: true,
 		Decompressors:   decompressors,
 		Getters: map[string]getter.Getter{

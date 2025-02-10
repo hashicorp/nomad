@@ -27,7 +27,7 @@ func testNode() *Node {
 			"driver.exec": "1",
 		},
 		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
+			Cpu: LegacyNodeCpuResources{
 				CpuShares: 4000,
 			},
 			Memory: NodeMemoryResources{

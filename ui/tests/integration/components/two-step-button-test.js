@@ -138,8 +138,10 @@ module('Integration | Component | two step button', function (hooks) {
       TwoStepButton.confirmIsDisabled,
       'The confirm button is disabled'
     );
-    assert.ok(
-      TwoStepButton.isRunning,
+
+    assert.equal(
+      TwoStepButton.confirmText,
+      'Loading...',
       'The confirm button is in a loading state'
     );
 

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,12 +20,14 @@ import (
 	"github.com/hashicorp/consul-template/manager"
 	"github.com/hashicorp/consul-template/signals"
 	envparse "github.com/hashicorp/go-envparse"
+	"github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
+	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -56,10 +59,6 @@ type TaskTemplateManager struct {
 
 	// runner is the consul-template runner
 	runner *manager.Runner
-
-	// handle is used to execute scripts
-	handle     interfaces.ScriptExecutor
-	handleLock sync.Mutex
 
 	// signals is a lookup map from the string representation of a signal to its
 	// actual signal
@@ -95,8 +94,20 @@ type TaskTemplateManagerConfig struct {
 	// ConsulNamespace is the Consul namespace for the task
 	ConsulNamespace string
 
+	// ConsulToken is the Consul ACL token fetched by consul_hook using
+	// workload identity
+	ConsulToken string
+
+	// ConsulConfig is the Consul configuration to use for this template. It may
+	// be nil if Nomad has no Consul cofiguration
+	ConsulConfig *structsc.ConsulConfig
+
 	// VaultToken is the Vault token for the task.
 	VaultToken string
+
+	// VaultConfig is the Vault configuration to use for this template. It may
+	// be nil if the task does not use Vault.
+	VaultConfig *structsc.VaultConfig
 
 	// VaultNamespace is the Vault namespace for the task
 	VaultNamespace string
@@ -115,6 +126,12 @@ type TaskTemplateManagerConfig struct {
 
 	// NomadToken is the Nomad token or identity claim for the task
 	NomadToken string
+
+	// TaskID is a unique identifier for this task's template manager, for use
+	// in downstream platform-specific template runner consumers
+	TaskID string
+
+	Logger hclog.Logger
 }
 
 // Validate validates the configuration.
@@ -199,14 +216,6 @@ func (tm *TaskTemplateManager) Stop() {
 	}
 }
 
-// SetDriverHandle sets the executor
-func (tm *TaskTemplateManager) SetDriverHandle(executor interfaces.ScriptExecutor) {
-	tm.handleLock.Lock()
-	defer tm.handleLock.Unlock()
-	tm.handle = executor
-
-}
-
 // run is the long lived loop that handles errors and templates being rendered
 func (tm *TaskTemplateManager) run() {
 	// Runner is nil if there are no templates
@@ -216,10 +225,14 @@ func (tm *TaskTemplateManager) run() {
 		return
 	}
 
-	// Start the runner
+	// Start the runner. We don't defer a call to tm.runner.Stop here so that
+	// the runner can keep dynamic secrets alive during the task's
+	// kill_timeout. We stop the runner in the Stop hook, which is guaranteed to
+	// be called during task kill.
 	go tm.runner.Start()
 
-	// Block till all the templates have been rendered
+	// Block till all the templates have been rendered or until an error has
+	// triggered taskrunner Kill, which closes tm.shutdownCh before we return
 	tm.handleFirstRender()
 
 	// Detect if there was a shutdown.
@@ -264,6 +277,10 @@ func (tm *TaskTemplateManager) handleFirstRender() {
 		<-eventTimer.C
 	}
 
+	// dirtyEvents are events that actually rendered to disk and need to trigger
+	// their respective change_mode operation
+	dirtyEvents := map[string]*manager.RenderEvent{}
+
 	// outstandingEvent tracks whether there is an outstanding event that should
 	// be fired.
 	outstandingEvent := false
@@ -279,6 +296,9 @@ WAIT:
 				continue
 			}
 
+			// we don't return here so that we wait for tm.shutdownCh in the
+			// next pass thru the loop; this ensures the callers doesn't unblock
+			// prematurely
 			tm.config.Lifecycle.Kill(context.Background(),
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
@@ -292,22 +312,25 @@ WAIT:
 				continue
 			}
 
-			dirty := false
 			for _, event := range events {
 				// This template hasn't been rendered
 				if event.LastWouldRender.IsZero() {
 					continue WAIT
 				}
-				if event.WouldRender && event.DidRender {
-					dirty = true
+				// If the template _actually_ rendered to disk, mark it
+				// dirty. We track events here so that onTemplateRendered
+				// doesn't go back to the runner's RenderedEvents and process
+				// events that don't make us dirty.
+				if !event.LastDidRender.IsZero() {
+					dirtyEvents[event.Template.ID()] = event
 				}
 			}
 
 			// if there's a driver handle then the task is already running and
 			// that changes how we want to behave on first render
-			if dirty && tm.config.Lifecycle.IsRunning() {
+			if len(dirtyEvents) > 0 && tm.config.Lifecycle.IsRunning() {
 				handledRenders := make(map[string]time.Time, len(tm.config.Templates))
-				tm.onTemplateRendered(handledRenders, time.Time{})
+				tm.onTemplateRendered(handledRenders, time.Time{}, dirtyEvents)
 			}
 
 			break WAIT
@@ -393,17 +416,21 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 				continue
 			}
 
+			// we don't return here so that we wait for tm.shutdownCh in the
+			// next pass thru the loop; this ensures the callers doesn't unblock
+			// prematurely
 			tm.config.Lifecycle.Kill(context.Background(),
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Template failed: %v", err)))
 		case <-tm.runner.TemplateRenderedCh():
-			tm.onTemplateRendered(handledRenders, allRenderedTime)
+			events := tm.runner.RenderEvents()
+			tm.onTemplateRendered(handledRenders, allRenderedTime, events)
 		}
 	}
 }
 
-func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time) {
+func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time.Time, allRenderedTime time.Time, events map[string]*manager.RenderEvent) {
 
 	var handling []string
 	signals := make(map[string]struct{})
@@ -411,7 +438,6 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 	restart := false
 	var splay time.Duration
 
-	events := tm.runner.RenderEvents()
 	for id, event := range events {
 
 		// First time through
@@ -552,19 +578,10 @@ func (tm *TaskTemplateManager) handleScriptError(script *structs.ChangeScript, m
 func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	if tm.handle == nil {
-		failureMsg := fmt.Sprintf(
-			"Template failed to run script %v with arguments %v because task driver doesn't support the exec operation",
-			script.Command,
-			script.Args,
-		)
-		tm.handleScriptError(script, failureMsg)
-		return
-	}
-	_, exitCode, err := tm.handle.Exec(script.Timeout, script.Command, script.Args)
+	_, exitCode, err := tm.config.Lifecycle.Exec(script.Timeout, script.Command, script.Args)
 	if err != nil {
 		failureMsg := fmt.Sprintf(
-			"Template failed to run script %v with arguments %v on change: %v Exit code: %v",
+			"Template failed to run script %v with arguments %v on change: %v. Exit code: %v",
 			script.Command,
 			script.Args,
 			err,
@@ -575,7 +592,7 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 	}
 	if exitCode != 0 {
 		failureMsg := fmt.Sprintf(
-			"Template ran script %v with arguments %v on change but it exited with code code: %v",
+			"Template ran script %v with arguments %v on change but it exited with code: %v",
 			script.Command,
 			script.Args,
 			exitCode,
@@ -586,10 +603,9 @@ func (tm *TaskTemplateManager) processScript(script *structs.ChangeScript, wg *s
 	tm.config.Events.EmitEvent(structs.NewTaskEvent(structs.TaskHookMessage).
 		SetDisplayMessage(
 			fmt.Sprintf(
-				"Template successfully ran script %v with arguments: %v. Exit code: %v",
+				"Template successfully ran script %v with arguments: %v. Exit code: 0",
 				script.Command,
 				script.Args,
-				exitCode,
 			)))
 }
 
@@ -810,29 +826,37 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	}
 
 	// Set up the Consul config
-	if cc.ConsulConfig != nil {
-		conf.Consul.Address = &cc.ConsulConfig.Addr
-		conf.Consul.Token = &cc.ConsulConfig.Token
+	if config.ConsulConfig != nil {
+		conf.Consul.Address = &config.ConsulConfig.Addr
+
+		// if we're using WI, use the token from consul_hook
+		// NOTE: from Nomad 1.9 on, WI will be the only supported way of
+		// getting Consul tokens
+		if config.ConsulToken != "" {
+			conf.Consul.Token = &config.ConsulToken
+		} else {
+			conf.Consul.Token = &config.ConsulConfig.Token
+		}
 
 		// Get the Consul namespace from agent config. This is the lower level
 		// of precedence (beyond default).
-		if cc.ConsulConfig.Namespace != "" {
-			conf.Consul.Namespace = &cc.ConsulConfig.Namespace
+		if config.ConsulConfig.Namespace != "" {
+			conf.Consul.Namespace = &config.ConsulConfig.Namespace
 		}
 
-		if cc.ConsulConfig.EnableSSL != nil && *cc.ConsulConfig.EnableSSL {
-			verify := cc.ConsulConfig.VerifySSL != nil && *cc.ConsulConfig.VerifySSL
+		if config.ConsulConfig.EnableSSL != nil && *config.ConsulConfig.EnableSSL {
+			verify := config.ConsulConfig.VerifySSL != nil && *config.ConsulConfig.VerifySSL
 			conf.Consul.SSL = &ctconf.SSLConfig{
 				Enabled: pointer.Of(true),
 				Verify:  &verify,
-				Cert:    &cc.ConsulConfig.CertFile,
-				Key:     &cc.ConsulConfig.KeyFile,
-				CaCert:  &cc.ConsulConfig.CAFile,
+				Cert:    &config.ConsulConfig.CertFile,
+				Key:     &config.ConsulConfig.KeyFile,
+				CaCert:  &config.ConsulConfig.CAFile,
 			}
 		}
 
-		if cc.ConsulConfig.Auth != "" {
-			parts := strings.SplitN(cc.ConsulConfig.Auth, ":", 2)
+		if config.ConsulConfig.Auth != "" {
+			parts := strings.SplitN(config.ConsulConfig.Auth, ":", 2)
 			if len(parts) != 2 {
 				return nil, fmt.Errorf("Failed to parse Consul Auth config")
 			}
@@ -869,30 +893,30 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	emptyStr := ""
 	conf.Vault.RenewToken = pointer.Of(false)
 	conf.Vault.Token = &emptyStr
-	if cc.VaultConfig != nil && cc.VaultConfig.IsEnabled() {
-		conf.Vault.Address = &cc.VaultConfig.Addr
+	if config.VaultConfig != nil && config.VaultConfig.IsEnabled() {
+		conf.Vault.Address = &config.VaultConfig.Addr
 		conf.Vault.Token = &config.VaultToken
 
 		// Set the Vault Namespace. Passed in Task config has
 		// highest precedence.
-		if config.ClientConfig.VaultConfig.Namespace != "" {
-			conf.Vault.Namespace = &config.ClientConfig.VaultConfig.Namespace
+		if config.VaultConfig.Namespace != "" {
+			conf.Vault.Namespace = &config.VaultConfig.Namespace
 		}
 		if config.VaultNamespace != "" {
 			conf.Vault.Namespace = &config.VaultNamespace
 		}
 
-		if strings.HasPrefix(cc.VaultConfig.Addr, "https") || cc.VaultConfig.TLSCertFile != "" {
-			skipVerify := cc.VaultConfig.TLSSkipVerify != nil && *cc.VaultConfig.TLSSkipVerify
+		if strings.HasPrefix(config.VaultConfig.Addr, "https") || config.VaultConfig.TLSCertFile != "" {
+			skipVerify := config.VaultConfig.TLSSkipVerify != nil && *config.VaultConfig.TLSSkipVerify
 			verify := !skipVerify
 			conf.Vault.SSL = &ctconf.SSLConfig{
 				Enabled:    pointer.Of(true),
 				Verify:     &verify,
-				Cert:       &cc.VaultConfig.TLSCertFile,
-				Key:        &cc.VaultConfig.TLSKeyFile,
-				CaCert:     &cc.VaultConfig.TLSCaFile,
-				CaPath:     &cc.VaultConfig.TLSCaPath,
-				ServerName: &cc.VaultConfig.TLSServerName,
+				Cert:       &config.VaultConfig.TLSCertFile,
+				Key:        &config.VaultConfig.TLSKeyFile,
+				CaCert:     &config.VaultConfig.TLSCaFile,
+				CaPath:     &config.VaultConfig.TLSCaPath,
+				ServerName: &config.VaultConfig.TLSServerName,
 			}
 		} else {
 			conf.Vault.SSL = &ctconf.SSLConfig{
@@ -935,8 +959,31 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 		}
 	}
 
+	sandboxEnabled := isSandboxEnabled(config)
+	sandboxDir := filepath.Dir(config.TaskDir) // alloc working directory
+	conf.ReaderFunc = ReaderFn(config.TaskID, sandboxDir, sandboxEnabled)
+	conf.RendererFunc = RenderFn(config.TaskID, sandboxDir, sandboxEnabled)
 	conf.Finalize()
 	return conf, nil
+}
+
+func isSandboxEnabled(cfg *TaskTemplateManagerConfig) bool {
+	if cfg.ClientConfig != nil && cfg.ClientConfig.TemplateConfig != nil && cfg.ClientConfig.TemplateConfig.DisableSandbox {
+		return false
+	}
+	return true
+}
+
+type sandboxConfig struct {
+	thisBin     string
+	sandboxPath string
+	destPath    string
+	sourcePath  string
+	perms       string
+	user        string
+	group       string
+	taskID      string
+	contents    []byte
 }
 
 // loadTemplateEnv loads task environment variables from all templates.

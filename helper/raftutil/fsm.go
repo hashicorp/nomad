@@ -4,6 +4,7 @@
 package raftutil
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 )
@@ -79,7 +81,7 @@ func dummyFSM(logger hclog.Logger) (nomadFSM, error) {
 	// use dummy non-enabled FSM dependencies
 	periodicDispatch := nomad.NewPeriodicDispatch(logger, nil)
 	blockedEvals := nomad.NewBlockedEvals(nil, logger)
-	evalBroker, err := nomad.NewEvalBroker(1, 1, 1, 1)
+	evalBroker, err := nomad.NewEvalBroker(context.Background(), 1, 1, 1, 1)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +92,10 @@ func dummyFSM(logger hclog.Logger) (nomadFSM, error) {
 		Blocked:    blockedEvals,
 		Logger:     logger,
 		Region:     "default",
+		// This is the copied default value, and while this is configurable on
+		// running agents, it does not impact the creation of the FSM for this
+		// dummy implementation.
+		JobTrackedVersions: 6,
 	}
 
 	return nomad.NewFSM(fsmConfig)
@@ -201,9 +207,10 @@ func StateAsMap(store *state.StateStore) map[string][]interface{} {
 		"Indexes":          toArray(store.Indexes()),
 		"JobSummaries":     toArray(store.JobSummaries(nil)),
 		"JobVersions":      toArray(store.JobVersions(nil)),
-		"Jobs":             toArray(store.Jobs(nil)),
+		"Jobs":             toArray(store.Jobs(nil, state.SortDefault)),
 		"Nodes":            toArray(store.Nodes(nil)),
 		"PeriodicLaunches": toArray(store.PeriodicLaunches(nil)),
+		"RootKeys":         rootKeyMeta(store),
 		"SITokenAccessors": toArray(store.SITokenAccessors(nil)),
 		"ScalingEvents":    toArray(store.ScalingEvents(nil)),
 		"ScalingPolicies":  toArray(store.ScalingPolicies(nil)),
@@ -259,4 +266,28 @@ func toArray(iter memdb.ResultIterator, err error) []interface{} {
 	}
 
 	return r
+}
+
+// rootKeyMeta allows displaying keys without their key material
+func rootKeyMeta(store *state.StateStore) []any {
+
+	iter, err := store.RootKeys(nil)
+	if err != nil {
+		return []any{err}
+	}
+
+	keyMeta := []any{}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		k := raw.(*structs.RootKey)
+		if k == nil {
+			break
+		}
+		keyMeta = append(keyMeta, k.Meta())
+	}
+
+	return keyMeta
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/client/pluginmanager"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/plugins/csi"
 )
 
 type MountInfo struct {
@@ -28,8 +29,8 @@ func (mi *MountInfo) Copy() *MountInfo {
 
 type UsageOptions struct {
 	ReadOnly       bool
-	AttachmentMode structs.CSIVolumeAttachmentMode
-	AccessMode     structs.CSIVolumeAccessMode
+	AttachmentMode structs.VolumeAttachmentMode
+	AccessMode     structs.VolumeAccessMode
 	MountOptions   *structs.CSIMountOptions
 }
 
@@ -55,8 +56,9 @@ func (u *UsageOptions) ToFS() string {
 
 type VolumeManager interface {
 	MountVolume(ctx context.Context, vol *structs.CSIVolume, alloc *structs.Allocation, usageOpts *UsageOptions, publishContext map[string]string) (*MountInfo, error)
-	UnmountVolume(ctx context.Context, volID, remoteID, allocID string, usageOpts *UsageOptions) error
+	UnmountVolume(ctx context.Context, volNS, volID, remoteID, allocID string, usageOpts *UsageOptions) error
 	HasMount(ctx context.Context, mountInfo *MountInfo) (bool, error)
+	ExpandVolume(ctx context.Context, volNS, volID, remoteID, allocID string, usageOpts *UsageOptions, capacity *csi.CapacityRange) (int64, error)
 	ExternalID() string
 }
 

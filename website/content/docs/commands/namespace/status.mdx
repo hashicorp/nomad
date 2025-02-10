@@ -41,11 +41,13 @@ View the status of a namespace:
 
 ```shell-session
 $ nomad namespace status default
-Name            = api-prod
-Description     = Prod API servers
-Quota           = prod
-EnabledDrivers  = docker,exec
-DisabledDrivers = raw_exec
+Name                 = api-prod
+Description          = Prod API servers
+Quota                = prod
+EnabledDrivers       = docker,exec
+DisabledDrivers      = raw_exec
+EnabledNetworkModes  = bridge,cni/custom
+DisabledNetworkModes = host
 
 Metadata
 contact = platform-eng@example.com

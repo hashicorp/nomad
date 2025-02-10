@@ -4,12 +4,13 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -43,40 +44,60 @@ func (k *Keyring) Rotate(args *structs.KeyringRotateRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
 	if args.Algorithm == "" {
 		args.Algorithm = structs.EncryptionAlgorithmAES256GCM
 	}
+	if args.Full && args.PublishTime > 0 {
+		return fmt.Errorf("keyring cannot be prepublished and full rotated at the same time")
+	}
 
-	rootKey, err := structs.NewRootKey(args.Algorithm)
+	unwrappedKey, err := structs.NewUnwrappedRootKey(args.Algorithm)
 	if err != nil {
 		return err
 	}
 
-	rootKey.Meta.SetActive()
+	if args.PublishTime != 0 {
+		unwrappedKey.Meta.State = structs.RootKeyStatePrepublished
+		unwrappedKey.Meta.PublishTime = args.PublishTime
+	} else {
+		unwrappedKey.Meta.State = structs.RootKeyStateActive
+	}
 
-	// make sure it's been added to the local keystore before we write
-	// it to raft, so that followers don't try to Get a key that
-	// hasn't yet been written to disk
-	err = k.encrypter.AddKey(rootKey)
+	isClusterUpgraded := ServersMeetMinimumVersion(
+		k.srv.serf.Members(), k.srv.Region(), minVersionKeyringInRaft, true)
+
+	// wrap/encrypt the key before we write it to Raft
+	wrappedKey, err := k.encrypter.AddUnwrappedKey(unwrappedKey, isClusterUpgraded)
 	if err != nil {
 		return err
 	}
 
-	// Update metadata via Raft so followers can retrieve this key
-	req := structs.KeyringUpdateRootKeyMetaRequest{
-		RootKeyMeta:  rootKey.Meta,
-		Rekey:        args.Full,
-		WriteRequest: args.WriteRequest,
+	var index uint64
+	if isClusterUpgraded {
+		_, index, err = k.srv.raftApply(structs.WrappedRootKeysUpsertRequestType,
+			structs.KeyringUpsertWrappedRootKeyRequest{
+				WrappedRootKeys: wrappedKey,
+				Rekey:           args.Full,
+				WriteRequest:    args.WriteRequest,
+			})
+	} else {
+		// COMPAT(1.12.0): remove the version check and this code path
+		_, index, err = k.srv.raftApply(structs.RootKeyMetaUpsertRequestType,
+			structs.KeyringUpdateRootKeyMetaRequest{
+				RootKeyMeta:  wrappedKey.Meta(),
+				Rekey:        args.Full,
+				WriteRequest: args.WriteRequest,
+			})
 	}
-	_, index, err := k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, req)
 	if err != nil {
 		return err
 	}
-	reply.Key = rootKey.Meta
+
+	reply.Key = unwrappedKey.Meta
 	reply.Index = index
 
 	if args.Full {
@@ -112,45 +133,33 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "list"}, time.Now())
 
-	// we need to allow both humans with management tokens and
-	// non-leader servers to list keys, in order to support
-	// replication
-	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
-	if err != nil {
-		if aclObj, err := k.srv.ResolveACL(args); err != nil {
-			return err
-		} else if aclObj != nil && !aclObj.IsManagement() {
-			return structs.ErrPermissionDenied
-		}
+	if aclObj, err := k.srv.ResolveACL(args); err != nil {
+		return err
+	} else if !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
 	}
 
 	// Setup the blocking query
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, s *state.StateStore) error {
-
-			// retrieve all the key metadata
-			snap, err := k.srv.fsm.State().Snapshot()
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			iter, err := store.RootKeys(ws)
 			if err != nil {
 				return err
 			}
-			iter, err := snap.RootKeyMetas(ws)
-			if err != nil {
-				return err
-			}
-
 			keys := []*structs.RootKeyMeta{}
 			for {
 				raw := iter.Next()
 				if raw == nil {
 					break
 				}
-				keyMeta := raw.(*structs.RootKeyMeta)
-				keys = append(keys, keyMeta)
+				rootKey := raw.(*structs.RootKey)
+				keys = append(keys, rootKey.Meta())
 			}
+
 			reply.Keys = keys
-			return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+			return k.srv.replySetIndex(state.TableRootKeys, &reply.QueryMeta)
 		},
 	}
 	return k.srv.blockingRPC(&opts)
@@ -173,7 +182,7 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -182,22 +191,35 @@ func (k *Keyring) Update(args *structs.KeyringUpdateRootKeyRequest, reply *struc
 		return err
 	}
 
+	isClusterUpgraded := ServersMeetMinimumVersion(
+		k.srv.serf.Members(), k.srv.Region(), minVersionKeyringInRaft, true)
+
 	// make sure it's been added to the local keystore before we write
 	// it to raft, so that followers don't try to Get a key that
 	// hasn't yet been written to disk
-	err = k.encrypter.AddKey(args.RootKey)
+	wrappedKey, err := k.encrypter.AddUnwrappedKey(args.RootKey, isClusterUpgraded)
 	if err != nil {
 		return err
 	}
 
-	// unwrap the request to turn it into a meta update only
-	metaReq := &structs.KeyringUpdateRootKeyMetaRequest{
-		RootKeyMeta:  args.RootKey.Meta,
-		WriteRequest: args.WriteRequest,
-	}
+	var index uint64
+	if isClusterUpgraded {
+		_, index, err = k.srv.raftApply(structs.WrappedRootKeysUpsertRequestType,
+			structs.KeyringUpsertWrappedRootKeyRequest{
+				WrappedRootKeys: wrappedKey,
+				WriteRequest:    args.WriteRequest,
+			})
+	} else {
+		// COMPAT(1.12.0): remove the version check and this code path
+		// unwrap the request to turn it into a meta update only
+		metaReq := &structs.KeyringUpdateRootKeyMetaRequest{
+			RootKeyMeta:  args.RootKey.Meta,
+			WriteRequest: args.WriteRequest,
+		}
 
-	// update the metadata via Raft
-	_, index, err := k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, metaReq)
+		// update the metadata via Raft
+		_, index, err = k.srv.raftApply(structs.RootKeyMetaUpsertRequestType, metaReq)
+	}
 	if err != nil {
 		return err
 	}
@@ -224,11 +246,11 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	keyMeta, err := snap.RootKeyMetaByID(ws, args.RootKey.Meta.KeyID)
+	rootKey, err := snap.RootKeyByID(ws, args.RootKey.Meta.KeyID)
 	if err != nil {
 		return err
 	}
-	if keyMeta != nil && keyMeta.Algorithm != args.RootKey.Meta.Algorithm {
+	if rootKey != nil && rootKey.Algorithm != args.RootKey.Meta.Algorithm {
 		return fmt.Errorf("root key algorithm cannot be changed after a key is created")
 	}
 
@@ -238,20 +260,15 @@ func (k *Keyring) validateUpdate(args *structs.KeyringUpdateRootKeyRequest) erro
 // Get retrieves an existing key from the keyring, including both the
 // key material and metadata. It is used only for replication.
 func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.KeyringGetRootKeyResponse) error {
+	aclObj, err := k.srv.AuthenticateServerOnly(k.ctx, args)
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
 
-	authErr := k.srv.Authenticate(k.ctx, args)
-
-	// ensure that only another server can make this request
-	err := validateTLSCertificateLevel(k.srv, k.ctx, tlsCertificateLevelServer)
-	if err != nil {
-		return err
+	if err != nil || !aclObj.AllowServerOp() {
+		return structs.ErrPermissionDenied
 	}
+
 	if done, err := k.srv.forward("Keyring.Get", args, args, reply); done {
 		return err
-	}
-	k.srv.MeasureRPCRate("keyring", structs.RateMetricRead, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "keyring", "get"}, time.Now())
 
@@ -265,43 +282,29 @@ func (k *Keyring) Get(args *structs.KeyringGetRootKeyRequest, reply *structs.Key
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
 
-			// retrieve the key metadata
 			snap, err := k.srv.fsm.State().Snapshot()
 			if err != nil {
 				return err
 			}
-			keyMeta, err := snap.RootKeyMetaByID(ws, args.KeyID)
+			wrappedKey, err := snap.RootKeyByID(ws, args.KeyID)
 			if err != nil {
 				return err
 			}
-			if keyMeta == nil {
-				return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+			if wrappedKey == nil {
+				return k.srv.replySetIndex(state.TableRootKeys, &reply.QueryMeta)
 			}
 
 			// retrieve the key material from the keyring
-			key, err := k.encrypter.GetKey(keyMeta.KeyID)
+			unwrappedKey, err := k.encrypter.GetKey(wrappedKey.KeyID)
 			if err != nil {
 				return err
 			}
-			rootKey := &structs.RootKey{
-				Meta: keyMeta,
-				Key:  key,
-			}
-			reply.Key = rootKey
-
-			// Use the last index that affected the policy table
-			index, err := s.Index(state.TableRootKeyMeta)
+			reply.Key = unwrappedKey
+			err = k.srv.replySetIndex(state.TableRootKeys, &reply.QueryMeta)
 			if err != nil {
 				return err
 			}
 
-			// Ensure we never set the index to zero, otherwise a blocking query
-			// cannot be used.  We floor the index at one, since realistically
-			// the first write must have a higher index.
-			if index == 0 {
-				index = 1
-			}
-			reply.Index = index
 			return nil
 		},
 	}
@@ -323,7 +326,7 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 
 	if aclObj, err := k.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -332,24 +335,35 @@ func (k *Keyring) Delete(args *structs.KeyringDeleteRootKeyRequest, reply *struc
 	}
 
 	// lookup any existing key and validate the delete
+	var index uint64
 	snap, err := k.srv.fsm.State().Snapshot()
 	if err != nil {
 		return err
 	}
 	ws := memdb.NewWatchSet()
-	keyMeta, err := snap.RootKeyMetaByID(ws, args.KeyID)
+	rootKey, err := snap.RootKeyByID(ws, args.KeyID)
 	if err != nil {
 		return err
 	}
-	if keyMeta == nil {
-		return nil // safe to bail out early
+
+	if rootKey == nil {
+		return errors.New("root key not found")
 	}
-	if keyMeta.Active() {
+
+	if rootKey != nil && rootKey.IsActive() {
 		return fmt.Errorf("active root key cannot be deleted - call rotate first")
 	}
 
-	// update via Raft
-	_, index, err := k.srv.raftApply(structs.RootKeyMetaDeleteRequestType, args)
+	// make sure the key was used to encrypt an existing variable
+	rootKeyInUse, err := snap.IsRootKeyInUse(args.KeyID)
+	if err != nil {
+		return err
+	}
+	if rootKeyInUse && !args.Force {
+		return errors.New("root key in use, cannot delete")
+	}
+
+	_, index, err = k.srv.raftApply(structs.WrappedRootKeysDeleteRequestType, args)
 	if err != nil {
 		return err
 	}
@@ -385,41 +399,55 @@ func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.Keyrin
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, s *state.StateStore) error {
-
-			// retrieve all the key metadata
-			snap, err := k.srv.fsm.State().Snapshot()
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			iter, err := store.RootKeys(ws)
 			if err != nil {
 				return err
 			}
-			iter, err := snap.RootKeyMetas(ws)
-			if err != nil {
-				return err
-			}
-
 			pubKeys := []*structs.KeyringPublicKey{}
 			for {
 				raw := iter.Next()
 				if raw == nil {
 					break
 				}
-
-				keyMeta := raw.(*structs.RootKeyMeta)
-				if keyMeta.State == structs.RootKeyStateDeprecated {
+				wrappedKeys := raw.(*structs.RootKey)
+				if wrappedKeys.State == structs.RootKeyStateDeprecated {
 					// Only include valid keys
 					continue
 				}
 
-				pubKey, err := k.encrypter.GetPublicKey(keyMeta.KeyID)
+				pubKey, err := k.encrypter.GetPublicKey(wrappedKeys.KeyID)
 				if err != nil {
 					return err
 				}
 
 				pubKeys = append(pubKeys, pubKey)
+
 			}
 			reply.PublicKeys = pubKeys
-			return k.srv.replySetIndex(state.TableRootKeyMeta, &reply.QueryMeta)
+			return k.srv.replySetIndex(state.TableRootKeys, &reply.QueryMeta)
 		},
 	}
 	return k.srv.blockingRPC(&opts)
+}
+
+// GetConfig for workload identities. This RPC is used to back an OIDC
+// Discovery endpoint.
+//
+// Unauthenticated because OIDC Discovery endpoints must be publically
+// available.
+func (k *Keyring) GetConfig(args *structs.GenericRequest, reply *structs.KeyringGetConfigResponse) error {
+
+	// JWKS is a public endpoint: intentionally ignore auth errors and only
+	// authenticate to measure rate metrics.
+	k.srv.Authenticate(k.ctx, args)
+	if done, err := k.srv.forward("Keyring.GetConfig", args, args, reply); done {
+		return err
+	}
+	k.srv.MeasureRPCRate("keyring", structs.RateMetricList, args)
+
+	defer metrics.MeasureSince([]string{"nomad", "keyring", "get_config"}, time.Now())
+
+	reply.OIDCDiscovery = k.srv.oidcDisco
+	return nil
 }

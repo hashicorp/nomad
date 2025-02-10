@@ -11,7 +11,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 
@@ -30,7 +30,7 @@ import (
 // healthy deployments, and service allocations that are DesiredStatus=stop on
 // the server get updates with terminal client status.
 func allocClientStateSimulator(t *testing.T, errCh chan<- error, ctx context.Context,
-	srv *Server, nodeID string, logger log.Logger) {
+	srv *Server, nodeID, nodeSecret string, logger log.Logger) {
 
 	codec := rpcClient(t, srv)
 	store := srv.State()
@@ -88,7 +88,7 @@ func allocClientStateSimulator(t *testing.T, errCh chan<- error, ctx context.Con
 		// Send the update
 		req := &structs.AllocUpdateRequest{
 			Alloc:        updates,
-			WriteRequest: structs.WriteRequest{Region: "global"},
+			WriteRequest: structs.WriteRequest{Region: "global", AuthToken: nodeSecret},
 		}
 		var resp structs.GenericResponse
 		if err := msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", req, &resp); err != nil {
@@ -202,8 +202,8 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, srv.logger)
-	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
 	// Wait for the allocs to be replaced
 	waitForAllocsStop(t, store, n1.ID, nil)
@@ -390,8 +390,8 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, srv.logger)
-	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n2.SecretID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
 	// Wait for allocs to be replaced
 	finalAllocs := waitForAllocsStop(t, store, n1.ID, nil)
@@ -498,8 +498,8 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, srv.logger)
-	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
 	// Wait for the service allocs (only) to be stopped on the draining node
 	must.Wait(t, wait.InitialSuccess(wait.ErrorFunc(func() error {
@@ -532,7 +532,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 
 	batchDoneReq := &structs.AllocUpdateRequest{
 		Alloc:        updates,
-		WriteRequest: structs.WriteRequest{Region: "global"},
+		WriteRequest: structs.WriteRequest{Region: "global", AuthToken: n1.SecretID},
 	}
 	err = msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", batchDoneReq, &resp)
 	must.NoError(t, err)
@@ -648,8 +648,8 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, srv.logger)
-	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
 	// Wait for the allocs to be replaced
 	waitForAllocsStop(t, store, n1.ID, errCh)
@@ -737,8 +737,8 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	errCh := make(chan error, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, srv.logger)
-	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
+	go allocClientStateSimulator(t, errCh, ctx, srv, n2.ID, n2.SecretID, srv.logger)
 
 	// Wait for the allocs to be replaced
 	waitForAllocsStop(t, store, n1.ID, errCh)
@@ -815,7 +815,7 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 			errCh := make(chan error, 1)
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, srv.logger)
+			go allocClientStateSimulator(t, errCh, ctx, srv, n1.ID, n1.SecretID, srv.logger)
 
 			// Make sure the batch job isn't affected
 			must.Wait(t, wait.ContinualSuccess(wait.ErrorFunc(func() error {

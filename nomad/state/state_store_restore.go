@@ -181,7 +181,7 @@ func (r *StateRestore) ScalingPolicyRestore(scalingPolicy *structs.ScalingPolicy
 
 // CSIPluginRestore is used to restore a CSI plugin
 func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
-	if err := r.txn.Insert("csi_plugins", plugin); err != nil {
+	if err := r.txn.Insert(TableCSIPlugins, plugin); err != nil {
 		return fmt.Errorf("csi plugin insert failed: %v", err)
 	}
 	return nil
@@ -189,7 +189,7 @@ func (r *StateRestore) CSIPluginRestore(plugin *structs.CSIPlugin) error {
 
 // CSIVolumeRestore is used to restore a CSI volume
 func (r *StateRestore) CSIVolumeRestore(volume *structs.CSIVolume) error {
-	if err := r.txn.Insert("csi_volumes", volume); err != nil {
+	if err := r.txn.Insert(TableCSIVolumes, volume); err != nil {
 		return fmt.Errorf("csi volume insert failed: %v", err)
 	}
 	return nil
@@ -240,11 +240,18 @@ func (r *StateRestore) VariablesQuotaRestore(quota *structs.VariablesQuota) erro
 	return nil
 }
 
-// RootKeyMetaQuotaRestore is used to restore a single root key meta into the
-// root_key_meta table.
-func (r *StateRestore) RootKeyMetaRestore(quota *structs.RootKeyMeta) error {
-	if err := r.txn.Insert(TableRootKeyMeta, quota); err != nil {
-		return fmt.Errorf("root key meta insert failed: %v", err)
+// RootKeyMetaRestore is used to restore a legacy root key meta entry into the
+// wrapped_root_keys table.
+func (r *StateRestore) RootKeyMetaRestore(meta *structs.RootKeyMeta) error {
+	wrappedRootKeys := structs.NewRootKey(meta)
+	return r.RootKeyRestore(wrappedRootKeys)
+}
+
+// RootKeyRestore is used to restore a single wrapped root key into the
+// wrapped_root_keys table.
+func (r *StateRestore) RootKeyRestore(wrappedKeys *structs.RootKey) error {
+	if err := r.txn.Insert(TableRootKeys, wrappedKeys); err != nil {
+		return fmt.Errorf("wrapped root keys insert failed: %v", err)
 	}
 	return nil
 }
@@ -272,6 +279,23 @@ func (r *StateRestore) ACLAuthMethodRestore(aclAuthMethod *structs.ACLAuthMethod
 func (r *StateRestore) ACLBindingRuleRestore(aclBindingRule *structs.ACLBindingRule) error {
 	if err := r.txn.Insert(TableACLBindingRules, aclBindingRule); err != nil {
 		return fmt.Errorf("ACL binding rule insert failed: %v", err)
+	}
+	return nil
+}
+
+// JobSubmissionRestore is used to restore a single job submission into the
+// job_submission table.
+func (r *StateRestore) JobSubmissionRestore(jobSubmission *structs.JobSubmission) error {
+	if err := r.txn.Insert(TableJobSubmission, jobSubmission); err != nil {
+		return fmt.Errorf("job submission insert failed: %v", err)
+	}
+	return nil
+}
+
+// HostVolumeRestore restores a single host volume into the host_volumes table
+func (r *StateRestore) HostVolumeRestore(vol *structs.HostVolume) error {
+	if err := r.txn.Insert(TableHostVolumes, vol); err != nil {
+		return fmt.Errorf("host volume insert failed: %w", err)
 	}
 	return nil
 }

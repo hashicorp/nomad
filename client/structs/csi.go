@@ -4,6 +4,8 @@
 package structs
 
 import (
+	"errors"
+
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/csi"
 )
@@ -63,8 +65,8 @@ type ClientCSIControllerValidateVolumeRequest struct {
 
 	// COMPAT(1.1.1): the AttachmentMode and AccessMode fields are deprecated
 	// and replaced by the VolumeCapabilities field above
-	AttachmentMode structs.CSIVolumeAttachmentMode
-	AccessMode     structs.CSIVolumeAccessMode
+	AttachmentMode structs.VolumeAttachmentMode
+	AccessMode     structs.VolumeAccessMode
 
 	// Parameters as returned by storage provider in CreateVolumeResponse.
 	// This field is optional.
@@ -115,10 +117,10 @@ type ClientCSIControllerAttachVolumeRequest struct {
 
 	// AttachmentMode indicates how the volume should be attached and mounted into
 	// a task.
-	AttachmentMode structs.CSIVolumeAttachmentMode
+	AttachmentMode structs.VolumeAttachmentMode
 
 	// AccessMode indicates the desired concurrent access model for the volume
-	AccessMode structs.CSIVolumeAccessMode
+	AccessMode structs.VolumeAccessMode
 
 	// MountOptions is an optional field that contains additional configuration
 	// when providing an AttachmentMode of CSIVolumeAttachmentModeFilesystem
@@ -438,17 +440,60 @@ type ClientCSIControllerListSnapshotsResponse struct {
 // a Nomad client to tell a CSI node plugin on that client to perform
 // NodeUnpublish and NodeUnstage.
 type ClientCSINodeDetachVolumeRequest struct {
-	PluginID   string // ID of the plugin that manages the volume (required)
-	VolumeID   string // ID of the volume to be unpublished (required)
-	AllocID    string // ID of the allocation we're unpublishing for (required)
-	NodeID     string // ID of the Nomad client targeted
-	ExternalID string // External ID of the volume to be unpublished (required)
+	PluginID        string // ID of the plugin that manages the volume (required)
+	VolumeID        string // ID of the volume to be unpublished (required)
+	VolumeNamespace string // Namespace of the volume to be unpublished (required)
+	AllocID         string // ID of the allocation we're unpublishing for (required)
+	NodeID          string // ID of the Nomad client targeted
+	ExternalID      string // External ID of the volume to be unpublished (required)
 
 	// These fields should match the original volume request so that
 	// we can find the mount points on the client
-	AttachmentMode structs.CSIVolumeAttachmentMode
-	AccessMode     structs.CSIVolumeAccessMode
+	AttachmentMode structs.VolumeAttachmentMode
+	AccessMode     structs.VolumeAccessMode
 	ReadOnly       bool
 }
 
 type ClientCSINodeDetachVolumeResponse struct{}
+
+// ClientCSINodeExpandVolumeRequest is the RPC made from the server to
+// a Nomad client to tell a CSI node plugin on that client to perform
+// NodeExpandVolume.
+type ClientCSINodeExpandVolumeRequest struct {
+	PluginID        string // ID of the plugin that manages the volume (required)
+	VolumeID        string // ID of the volume to be expanded (required)
+	VolumeNamespace string // Namespace of the volume to be expanded (required)
+	ExternalID      string // External ID of the volume to be expanded (required)
+
+	// Capacity range (required) to be sent to the node plugin
+	Capacity *csi.CapacityRange
+
+	// Claim currently held for the allocation (required)
+	// used to determine capabilities and the mount point on the client
+	Claim *structs.CSIVolumeClaim
+}
+
+func (req *ClientCSINodeExpandVolumeRequest) Validate() error {
+	var err error
+	// These should not occur during normal operations; they're here
+	// mainly to catch potential programmer error.
+	if req.PluginID == "" {
+		err = errors.Join(err, errors.New("PluginID is required"))
+	}
+	if req.VolumeID == "" {
+		err = errors.Join(err, errors.New("VolumeID is required"))
+	}
+	if req.ExternalID == "" {
+		err = errors.Join(err, errors.New("ExternalID is required"))
+	}
+	if req.Claim == nil {
+		err = errors.Join(err, errors.New("Claim is required"))
+	} else if req.Claim.AllocationID == "" {
+		err = errors.Join(err, errors.New("Claim.AllocationID is required"))
+	}
+	return err
+}
+
+type ClientCSINodeExpandVolumeResponse struct {
+	CapacityBytes int64
+}

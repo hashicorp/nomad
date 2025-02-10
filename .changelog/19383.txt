@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fix a panic in building CPU topology when inaccurate CPU data is provided
+```

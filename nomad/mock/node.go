@@ -34,12 +34,6 @@ func Node() *structs.Node {
 			"consul.version":     "1.11.4",
 		},
 
-		// TODO Remove once clientv2 gets merged
-		Resources: &structs.Resources{
-			CPU:      4000,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-		},
 		Reserved: &structs.Resources{
 			CPU:      100,
 			MemoryMB: 256,
@@ -55,8 +49,8 @@ func Node() *structs.Node {
 		},
 
 		NodeResources: &structs.NodeResources{
-			Cpu: structs.NodeCpuResources{
-				CpuShares: 4000,
+			Processors: structs.NodeProcessorResources{
+				Topology: structs.MockBasicTopology(),
 			},
 			Memory: structs.NodeMemoryResources{
 				MemoryMB: 8192,
@@ -114,7 +108,13 @@ func Node() *structs.Node {
 		Status:                structs.NodeStatusReady,
 		SchedulingEligibility: structs.NodeSchedulingEligible,
 	}
+
+	// compute and assign node class
 	_ = node.ComputeClass()
+
+	// generate legacy things
+	node.NodeResources.Compatibility()
+
 	return node
 }
 
@@ -130,6 +130,7 @@ func DrainNode() *structs.Node {
 // NvidiaNode returns a node with two instances of an Nvidia GPU
 func NvidiaNode() *structs.Node {
 	n := Node()
+	n.NodeResources.Processors.Topology = structs.MockWorkstationTopology()
 	n.NodeResources.Devices = []*structs.NodeDeviceResource{
 		{
 			Type:   "gpu",
@@ -145,10 +146,16 @@ func NvidiaNode() *structs.Node {
 				{
 					ID:      uuid.Generate(),
 					Healthy: true,
+					Locality: &structs.NodeDeviceLocality{
+						PciBusID: "0000:02:00.1", // node 0
+					},
 				},
 				{
 					ID:      uuid.Generate(),
 					Healthy: true,
+					Locality: &structs.NodeDeviceLocality{
+						PciBusID: "0000:02:01.1", // node 0
+					},
 				},
 			},
 		},

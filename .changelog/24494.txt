@@ -1,0 +1,3 @@
+```release-note:bug
+windows: Restore process accounting logic from Nomad 1.6.x
+```

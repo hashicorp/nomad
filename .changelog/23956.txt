@@ -1,0 +1,3 @@
+```release-note:improvement
+networking: Added an option to ignore static port collisions when scheduling, for programs that use the SO_REUSEPORT unix socket option
+```

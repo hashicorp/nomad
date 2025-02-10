@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: change the State filter on clients page to split out eligibility and drain status
+```

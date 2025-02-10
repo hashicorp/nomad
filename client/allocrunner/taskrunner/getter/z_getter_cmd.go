@@ -34,7 +34,7 @@ func init() {
 
 		// sandbox the host filesystem for this process
 		if !env.DisableFilesystemIsolation {
-			if err := lockdown(env.AllocDir, env.TaskDir); err != nil {
+			if err := lockdown(env.AllocDir, env.TaskDir, env.FilesystemIsolationExtraPaths); err != nil {
 				subproc.Print("failed to sandbox %s process: %v", SubCommand, err)
 				return subproc.ExitFailure
 			}
@@ -49,6 +49,16 @@ func init() {
 		if err := c.Get(); err != nil {
 			subproc.Print("failed to download artifact: %v", err)
 			return subproc.ExitFailure
+		}
+
+		// chown the resulting artifact to the task user, but only if configured
+		// to do so in the artifact block (for compatibility)
+		if env.Chown {
+			err := chownDestination(env.Destination, env.User)
+			if err != nil {
+				subproc.Print("failed to chown artifact: %v", err)
+				return subproc.ExitFailure
+			}
 		}
 
 		subproc.Print("artifact download was a success")

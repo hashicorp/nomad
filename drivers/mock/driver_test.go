@@ -24,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 )
 
@@ -132,18 +133,19 @@ func mkTestAllocDir(t *testing.T, h *dtestutil.DriverHarness, logger hclog.Logge
 	dir, err := os.MkdirTemp("", "nomad_driver_harness-")
 	must.NoError(t, err)
 
-	allocDir := allocdir.NewAllocDir(logger, dir, tc.AllocID)
+	allocDir := allocdir.NewAllocDir(logger, dir, dir, tc.AllocID)
 	must.NoError(t, allocDir.Build())
 
 	tc.AllocDir = allocDir.AllocDir
 
-	taskDir := allocDir.NewTaskDir(tc.Name)
-	must.NoError(t, taskDir.Build(false, ci.TinyChroot))
-
 	task := &structs.Task{
-		Name: tc.Name,
-		Env:  tc.Env,
+		Name:      tc.Name,
+		Env:       tc.Env,
+		Resources: structs.MinResources(),
 	}
+
+	taskDir := allocDir.NewTaskDir(task)
+	must.NoError(t, taskDir.Build(fsisolation.None, ci.TinyChroot, tc.User))
 
 	// no logging
 	tc.StdoutPath = os.DevNull

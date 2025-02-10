@@ -40,10 +40,9 @@ func TestCPUFingerprint_Classic(t *testing.T) {
 	must.MapContainsKey(t, attributes, "cpu.numcores")
 	must.MapContainsKey(t, attributes, "cpu.modelname")
 	must.MapContainsKey(t, attributes, "cpu.totalcompute")
-	must.Positive(t, response.Resources.CPU)
-	must.Positive(t, response.NodeResources.Cpu.CpuShares)
-	must.Positive(t, response.NodeResources.Cpu.SharesPerCore())
-	must.SliceNotEmpty(t, response.NodeResources.Cpu.ReservableCpuCores)
+	must.Positive(t, response.NodeResources.Processors.Topology.UsableCompute())
+	must.Positive(t, response.NodeResources.Processors.Topology.NumCores())
+	must.NotEmpty(t, response.NodeResources.Processors.Topology.UsableCores())
 
 	_, frequencyPresent := attributes["cpu.frequency"]
 	_, performancePresent := attributes["cpu.frequency.performance"]
@@ -65,7 +64,7 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 	cfg := &config.Config{
 		ReservableCores: []hw.CoreID{0, 1, 2},
 	}
-	var originalCPU int
+	var originalCompute int
 
 	{
 		request := &FingerprintRequest{Config: cfg, Node: node}
@@ -75,13 +74,13 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 
 		must.True(t, response.Detected)
 		must.Eq(t, "3", response.Attributes["cpu.reservablecores"], must.Sprint("override of cpu.reservablecores is incorrect"))
-		must.Positive(t, response.Resources.CPU)
-		originalCPU = response.Resources.CPU
+		originalCompute := response.NodeResources.Processors.Topology.UsableCompute()
+		must.Positive(t, originalCompute)
 	}
 
 	{
 		// Override it with a setting
-		cfg.CpuCompute = originalCPU + 123
+		cfg.CpuCompute = originalCompute + 123
 
 		// Make sure the Fingerprinter applies the override to the node resources
 		request := &FingerprintRequest{Config: cfg, Node: node}
@@ -89,8 +88,10 @@ func TestCPUFingerprint_OverrideCompute(t *testing.T) {
 		err := f.Fingerprint(request, &response)
 		must.NoError(t, err)
 
-		// COMPAT(0.10): Remove in 0.10
-		must.Eq(t, cfg.CpuCompute, response.Resources.CPU, must.Sprint("cpu override did not take affect"))
+		// topology struct
+		must.Eq(t, hw.MHz(cfg.CpuCompute), response.NodeResources.Processors.Topology.UsableCompute(), must.Sprint("cpu override did not take affect"))
+
+		// legacy struct
 		must.Eq(t, int64(cfg.CpuCompute), response.NodeResources.Cpu.CpuShares, must.Sprint("cpu override did not take affect"))
 		must.Eq(t, strconv.Itoa(cfg.CpuCompute), response.Attributes["cpu.totalcompute"], must.Sprint("cpu override did not take affect"))
 		must.Eq(t, "3", response.Attributes["cpu.reservablecores"], must.Sprint("cpu override did not take affect"))

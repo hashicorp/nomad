@@ -1,0 +1,3 @@
+```release-note:bug
+client: terminate old exec task processes before starting new ones, to avoid accidentally leaving running processes in case of an error
+```

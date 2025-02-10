@@ -15,9 +15,30 @@ export default class TokenAdapter extends ApplicationAdapter {
 
   namespace = namespace + '/acl';
 
+  methodForRequest(params) {
+    if (params.requestType === 'updateRecord') {
+      return 'POST';
+    }
+    return super.methodForRequest(params);
+  }
+
+  updateRecord(store, type, snapshot) {
+    let data = this.serialize(snapshot);
+    return this.ajax(`${this.buildURL()}/token/${snapshot.id}`, 'POST', {
+      data,
+    });
+  }
+
   createRecord(_store, type, snapshot) {
     let data = this.serialize(snapshot);
-    data.Policies = data.PolicyIDs;
+    if (snapshot.adapterOptions?.region) {
+      // ajaxOptions will try to append a particular region here.
+      // we want instead fo overwrite it with the token's region.
+      return this.ajax(`${this.buildURL()}/token`, 'POST', {
+        data,
+        regionOverride: snapshot.adapterOptions.region,
+      });
+    }
     return this.ajax(`${this.buildURL()}/token`, 'POST', { data });
   }
 
@@ -27,6 +48,11 @@ export default class TokenAdapter extends ApplicationAdapter {
   }
 
   async findSelf() {
+    // the application adapter automatically adds the region parameter to all requests,
+    // but only if the /regions endpoint has been resolved first. Since this request is async,
+    // we can ensure that the regions are loaded before making the token/self request.
+    await this.system.regions;
+
     const response = await this.ajax(`${this.buildURL()}/token/self`, 'GET');
     const normalized = this.store.normalize('token', response);
     const tokenRecord = this.store.push(normalized);

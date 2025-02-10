@@ -8,7 +8,7 @@ export default [
     name: 'Nomad',
     lang: 'golang',
     desc: 'Nomad is a flexible, enterprise-grade cluster scheduler designed to easily integrate into existing workflows. Nomad can run a diverse workload of micro-service, batch, containerized and non-containerized applications.',
-    link: 'https://www.nomadproject.io/',
+    link: 'https://developer.hashicorp.com/nomad/',
   },
   {
     name: 'Terraform',

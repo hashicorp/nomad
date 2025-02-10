@@ -7,6 +7,7 @@ package rawexec
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -21,11 +23,14 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/testtask"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/base"
+	basePlug "github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
@@ -148,7 +153,7 @@ func TestRawExecDriver_StartWaitStop(t *testing.T) {
 	harness := dtestutil.NewDriverHarness(t, d)
 	defer harness.Kill()
 
-	config := &Config{NoCgroups: false, Enabled: true}
+	config := &Config{Enabled: true}
 	var data []byte
 	require.NoError(base.MsgPackEncode(&data, config))
 	bconfig := &base.Config{
@@ -409,4 +414,169 @@ func TestRawExec_ExecTaskStreaming_User(t *testing.T) {
 	require.Zero(t, code)
 	require.Empty(t, stderr)
 	require.Contains(t, stdout, "nobody")
+}
+
+func TestRawExecDriver_StartWaitRecoverWaitStop(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	d := newEnabledRawExecDriver(t)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	config := &Config{Enabled: true}
+	var data []byte
+
+	require.NoError(basePlug.MsgPackEncode(&data, config))
+	bconfig := &basePlug.Config{
+		PluginConfig: data,
+		AgentConfig: &base.AgentConfig{
+			Driver: &base.ClientDriverConfig{
+				Topology: d.nomadConfig.Topology,
+			},
+		},
+	}
+	require.NoError(harness.SetConfig(bconfig))
+
+	allocID := uuid.Generate()
+	taskName := "sleep"
+	task := &drivers.TaskConfig{
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Env:       defaultEnv(),
+		Resources: testResources(allocID, taskName),
+	}
+
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"sleep", "100s"},
+	}
+	require.NoError(task.EncodeConcreteDriverConfig(&tc))
+
+	testtask.SetTaskConfigEnv(task)
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	harness.MakeTaskCgroup(allocID, taskName)
+
+	handle, _, err := harness.StartTask(task)
+	require.NoError(err)
+
+	ch, err := harness.WaitTask(context.Background(), task.ID)
+	require.NoError(err)
+
+	var waitDone bool
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		result := <-ch
+		require.Error(result.Err)
+		waitDone = true
+	}()
+
+	originalStatus, err := d.InspectTask(task.ID)
+	require.NoError(err)
+
+	d.tasks.Delete(task.ID)
+
+	wg.Wait()
+	require.True(waitDone)
+	_, err = d.InspectTask(task.ID)
+	require.Equal(drivers.ErrTaskNotFound, err)
+
+	err = d.RecoverTask(handle)
+	require.NoError(err)
+
+	status, err := d.InspectTask(task.ID)
+	require.NoError(err)
+	require.Exactly(originalStatus, status)
+
+	ch, err = harness.WaitTask(context.Background(), task.ID)
+	require.NoError(err)
+
+	wg.Add(1)
+	waitDone = false
+	go func() {
+		defer wg.Done()
+		result := <-ch
+		require.NoError(result.Err)
+		require.NotZero(result.ExitCode)
+		require.Equal(9, result.Signal)
+		waitDone = true
+	}()
+
+	time.Sleep(300 * time.Millisecond)
+	require.NoError(d.StopTask(task.ID, 0, "SIGKILL"))
+	wg.Wait()
+	require.NoError(d.DestroyTask(task.ID, false))
+	require.True(waitDone)
+}
+
+func TestRawExec_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	current, err := users.Current()
+	must.NoError(t, err)
+
+	currentUserErrStr := fmt.Sprintf("running as uid %s is disallowed", current.Uid)
+
+	allowAll := ""
+	denyCurrent := current.Uid
+
+	configAllowCurrent := Config{DeniedHostUids: allowAll}
+	configDenyCurrent := Config{DeniedHostUids: denyCurrent}
+
+	driverConfigNoUserSpecified := drivers.TaskConfig{}
+	driverTaskConfig := drivers.TaskConfig{User: current.Name}
+
+	for _, tc := range []struct {
+		config       Config
+		driverConfig drivers.TaskConfig
+		exp          error
+	}{
+		{
+			config:       configAllowCurrent,
+			driverConfig: driverTaskConfig,
+			exp:          nil,
+		},
+		{
+			config:       configDenyCurrent,
+			driverConfig: driverConfigNoUserSpecified,
+			exp:          errors.New(currentUserErrStr),
+		},
+		{
+			config:       configDenyCurrent,
+			driverConfig: driverTaskConfig,
+			exp:          errors.New(currentUserErrStr),
+		},
+	} {
+
+		d := newEnabledRawExecDriver(t)
+
+		// Force the creation of the validatior, the mock is used by newEnabledRawExecDriver by default
+		d.userIDValidator = nil
+
+		harness := dtestutil.NewDriverHarness(t, d)
+		defer harness.Kill()
+
+		config := tc.config
+
+		var data []byte
+
+		must.NoError(t, base.MsgPackEncode(&data, config))
+		bconfig := &base.Config{
+			PluginConfig: data,
+			AgentConfig: &base.AgentConfig{
+				Driver: &base.ClientDriverConfig{
+					Topology: d.nomadConfig.Topology,
+				},
+			},
+		}
+
+		must.NoError(t, harness.SetConfig(bconfig))
+		must.Eq(t, tc.exp, d.Validate(tc.driverConfig))
+	}
 }

@@ -175,7 +175,12 @@ $ curl \
       "Voter": false,
       "StableSince": "2017-03-06T22:18:26Z"
     }
-  ]
+  ],
+  "Leader": "e349749b-3303-3ddf-959c-b5885a0e1f6e",
+  "Voters": [
+    "e349749b-3303-3ddf-959c-b5885a0e1f6e",
+    "e36ee410-cc3c-0a0c-c724-63817ab30303"
+  ],
 }
 ```
 
@@ -211,5 +216,38 @@ $ curl \
 
   - `StableSince` is the time this server has been in its current `Healthy` state.
 
+
+
   The HTTP status code will indicate the health of the cluster. If `Healthy` is true, then a
   status of 200 will be returned. If `Healthy` is false, then a status of 429 will be returned.
+
+<EnterpriseAlert>
+  This API endpoint return with more information in Nomad Enterprise. This is
+  not present in Nomad Community Edition.
+</EnterpriseAlert>
+
+When using Nomad Enterprise this endpoint will return more information about the
+underlying actions and state of Autopilot.
+
+```json
+{
+  ...
+  "ReadReplicas": null,
+  "RedundancyZones": {},
+  "Upgrade": {
+    "Status": "idle",
+    "TargetVersion": "1.7.5+ent",
+    "TargetVersionVoters": [
+      "e349749b-3303-3ddf-959c-b5885a0e1f6e",
+      "e36ee410-cc3c-0a0c-c724-63817ab30303"
+    ],
+    "TargetVersionNonVoters": null,
+    "TargetVersionReadReplicas": null,
+    "OtherVersionVoters": null,
+    "OtherVersionNonVoters": null,
+    "OtherVersionReadReplicas": null,
+    "RedundancyZones": {}
+  },
+  "OptimisticFailureTolerance": 0
+}
+```

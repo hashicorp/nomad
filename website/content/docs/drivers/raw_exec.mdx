@@ -37,8 +37,25 @@ The `raw_exec` driver supports the following configuration in the job spec:
   variables](/nomad/docs/runtime/interpolation) will be interpreted before
   launching the task.
 
+- `cgroup_v1_override` - (Optional) A map of controller names to paths. The
+  task will be added to these cgroups. The task will fail if these cgroups do
+  not exist. **WARNING:** May conflict with other Nomad driver's cgroups and
+  have unintended side effects.
+
+- `cgroup_v2_override` - (Optional) Adds the task to a unified cgroup path.
+  Paths may be relative to the cgroupfs root or absolute.  **WARNING:** May
+  conflict with other Nomad driver's cgroups and have unintended side
+  effects.
+
 ~> The `task.user` field cannot be set on a Task using the `raw_exec` driver if
 the Nomad client has been hardened according to the [production][hardening] guide.
+
+- `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
+  the task being OOM killed (valid only for Linux). Defaults to 0.
+
+- `work_dir` - (Optional) Sets a custom working directory for the task. This must be an
+  absolute path. This will also change the working directory when using `nomad alloc exec`.
+
 
 ## Examples
 
@@ -117,13 +134,29 @@ client {
 - `enabled` - Specifies whether the driver should be enabled or disabled.
   Defaults to `false`.
 
-- `no_cgroups` - Specifies whether the driver should not use
-  cgroups to manage the process group launched by the driver. By default,
-  cgroups are used to manage the process tree to ensure full cleanup of all
-  processes started by the task. The driver uses cgroups by default on
-  Linux and when `/sys/fs/cgroup/freezer/nomad` is writable for the
-  Nomad process. Using a cgroup significantly reduces Nomad's CPU
-  usage when collecting process metrics.
+- `denied_host_uids` - (Optional) Specifies a comma-separated list of host uids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user has a user id in
+  the given ranges, the task will error before starting. This will not be checked on Windows
+  clients.
+
+```hcl
+config {
+  denied_host_uids = "0,10-15,22"
+}
+```
+
+- `denied_host_gids` - (Optional) Specifies a comma-separated list of host gids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user is part of
+  any groups with gid's in the specified ranges, the task will error before
+  starting. This will not be checked on Windows clients.
+
+```hcl
+config {
+  denied_host_gids = "2,4-8"
+}
+```
 
 ## Client Options
 
@@ -133,12 +166,6 @@ client {
 - `driver.raw_exec.enable` - Specifies whether the driver should be enabled or
   disabled. Defaults to `false`.
 
-- `driver.raw_exec.no_cgroups` - Specifies whether the driver should not use
-  cgroups to manage the process group launched by the driver. By default,
-  cgroups are used to manage the process tree to ensure full cleanup of all
-  processes started by the task. The driver only uses cgroups when Nomad is
-  launched as root, on Linux and when cgroups are detected.
-
 ## Client Attributes
 
 The `raw_exec` driver will set the following client attributes:
@@ -147,14 +174,25 @@ The `raw_exec` driver will set the following client attributes:
 
 ## Resource Isolation
 
-The `raw_exec` driver provides no isolation.
+The `raw_exec` driver provides no filesystem isolation.
 
-If the launched process creates a new process group, it is possible that Nomad
-will leak processes on shutdown unless the application forwards signals
-properly. Nomad will not leak any processes if cgroups are being used to manage
-the process tree. Cgroups are used on Linux when Nomad is being run with
-appropriate privileges, the cgroup system is mounted and the operator hasn't
-disabled cgroups for the driver.
+If the launched process creates a new process group, it is possible that
+Nomad will leak processes on shutdown unless the application forwards signals
+properly. Nomad will not leak any processes if cgroups are being used to
+manage the process tree. Cgroups are used on Linux when Nomad is being run with
+appropriate privileges, and the cgroup system is mounted.
+
+If the cluster is configured with memory oversubscription enabled, a task using
+the `raw_exec` driver can be configured to have no maximum memory limit by
+setting `memory_max = -1`.
+
+```hcl
+resources {
+  cpu        = 500
+  memory     = 128
+  memory_max = -1 # no limit
+}
+```
 
 [hardening]: /nomad/docs/install/production/requirements#user-permissions
 [plugin-options]: #plugin-options

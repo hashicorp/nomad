@@ -21,9 +21,27 @@ export default ApplicationSerializer.extend({
 });
 
 function serializeJob(job) {
-  job.TaskGroups.forEach(group => {
+  job.TaskGroups.forEach((group) => {
     if (group.Services.length === 0) {
       group.Services = null;
     }
+    if (group.Tasks) {
+      group.Tasks = group.Tasks.map((task) => serializeTaskFragment(task));
+    }
   });
+}
+
+function serializeTaskFragment(task) {
+  return {
+    ...task,
+    actions: task.Actions.map(serializeActionFragment),
+  };
+}
+
+function serializeActionFragment(action) {
+  return {
+    name: action.Name,
+    command: action.Command,
+    args: action.Args,
+  };
 }

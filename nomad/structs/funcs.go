@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/acl"
 	"golang.org/x/crypto/blake2b"
 )
@@ -145,6 +145,9 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	reservedCores := map[uint16]struct{}{}
 	var coreOverlap bool
 
+	hostVolumeClaims := map[string]int{}
+	exclusiveHostVolumeClaims := []string{}
+
 	// For each alloc, add the resources
 	for _, alloc := range allocs {
 		// Do not consider the resource impact of terminal allocations
@@ -152,7 +155,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 			continue
 		}
 
-		cr := alloc.ComparableResources()
+		cr := alloc.AllocatedResources.Comparable()
 		used.Add(cr)
 
 		// Adding the comparable resource unions reserved core sets, need to check if reserved cores overlap
@@ -163,6 +166,18 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 				reservedCores[core] = struct{}{}
 			}
 		}
+
+		// Job will be nil in the scheduler, where we're not performing this check anyways
+		if checkDevices && alloc.Job != nil {
+			group := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+			for _, volReq := range group.Volumes {
+				hostVolumeClaims[volReq.Source]++
+				if volReq.AccessMode ==
+					HostVolumeAccessModeSingleNodeSingleWriter {
+					exclusiveHostVolumeClaims = append(exclusiveHostVolumeClaims, volReq.Source)
+				}
+			}
+		}
 	}
 
 	if coreOverlap {
@@ -171,8 +186,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 
 	// Check that the node resources (after subtracting reserved) are a
 	// super set of those that are being allocated
-	available := node.ComparableResources()
-	available.Subtract(node.ComparableReservedResources())
+	available := node.NodeResources.Comparable()
+	available.Subtract(node.ReservedResources.Comparable())
 	if superset, dimension := available.Superset(used); !superset {
 		return false, dimension, used, nil
 	}
@@ -198,11 +213,17 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		return false, "bandwidth exceeded", used, nil
 	}
 
-	// Check devices
+	// Check devices and host volumes
 	if checkDevices {
 		accounter := NewDeviceAccounter(node)
 		if accounter.AddAllocs(allocs) {
 			return false, "device oversubscribed", used, nil
+		}
+
+		for _, exclusiveClaim := range exclusiveHostVolumeClaims {
+			if hostVolumeClaims[exclusiveClaim] > 1 {
+				return false, "conflicting claims for host volume with single-writer", used, nil
+			}
 		}
 	}
 
@@ -211,9 +232,8 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 }
 
 func computeFreePercentage(node *Node, util *ComparableResources) (freePctCpu, freePctRam float64) {
-	// COMPAT(0.11): Remove in 0.11
-	reserved := node.ComparableReservedResources()
-	res := node.ComparableResources()
+	reserved := node.ReservedResources.Comparable()
+	res := node.NodeResources.Comparable()
 
 	// Determine the node availability
 	nodeCpu := float64(res.Flattened.Cpu.CpuShares)
@@ -346,11 +366,11 @@ func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
 	for _, tgp := range policies {
 		for _, tp := range tgp {
 			if tp != nil {
-				s.InsertAll(tp.Policies)
+				s.InsertSlice(tp.Policies)
 			}
 		}
 	}
-	return s.List()
+	return s.Slice()
 }
 
 // VaultNamespaceSet takes the structure returned by VaultPolicies and
@@ -364,7 +384,7 @@ func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
 			}
 		}
 	}
-	return s.List()
+	return s.Slice()
 }
 
 // DenormalizeAllocationJobs is used to attach a job to all allocations that are

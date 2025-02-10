@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	"github.com/hashicorp/go-msgpack/codec"
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/helper"
 	inmem "github.com/hashicorp/nomad/helper/codec"
@@ -28,6 +28,7 @@ type rpcEndpoints struct {
 	Allocations *Allocations
 	Agent       *Agent
 	NodeMeta    *NodeMeta
+	HostVolume  *HostVolume
 }
 
 // ClientRPC is used to make a local, client only RPC call
@@ -90,7 +91,9 @@ func (c *Client) rpc(method string, args any, reply any) error {
 
 	// If its a blocking query, allow the time specified by the request
 	if info, ok := args.(structs.RPCInfo); ok {
-		deadline = deadline.Add(info.TimeToBlock())
+		oldBlockTime := info.TimeToBlock()
+		deadline = deadline.Add(oldBlockTime)
+		defer info.SetTimeToBlock(oldBlockTime)
 	}
 
 TRY:
@@ -126,9 +129,12 @@ TRY:
 	}
 
 	if time.Now().After(deadline) {
-		// Blocking queries are tricky.  jitters and rpcholdtimes in multiple places can result in our server call taking longer than we wanted it to. For example:
-		// a block time of 5s may easily turn into the server blocking for 10s since it applies its own RPCHoldTime. If the server dies at t=7s we still want to retry
-		// so before we give up on blocking queries make one last attempt for an immediate answer
+		// Blocking queries are tricky.  jitters and rpcholdtimes in multiple
+		// places can result in our server call taking longer than we wanted it
+		// to. For example: a block time of 5s may easily turn into the server
+		// blocking for 10s since it applies its own RPCHoldTime. If the server
+		// dies at t=7s we still want to retry so before we give up on blocking
+		// queries make one last attempt for an immediate answer
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
 			info.SetTimeToBlock(0)
 			return c.RPC(method, args, reply)
@@ -143,10 +149,13 @@ TRY:
 
 	select {
 	case <-timer.C:
-		// If we are going to retry a blocking query we need to update the time to block so it finishes by our deadline.
+		// If we are going to retry a blocking query we need to update the time
+		// to block so it finishes by our deadline.
+
 		if info, ok := args.(structs.RPCInfo); ok && info.TimeToBlock() > 0 {
 			newBlockTime := time.Until(deadline)
-			// We can get below 0 here on slow computers because we slept for jitter so at least try to get an immediate response
+			// We can get below 0 here on slow computers because we slept for
+			// jitter so at least try to get an immediate response
 			if newBlockTime < 0 {
 				newBlockTime = 0
 			}
@@ -293,6 +302,7 @@ func (c *Client) setupClientRpc(rpcs map[string]interface{}) {
 		c.endpoints.Allocations = NewAllocationsEndpoint(c)
 		c.endpoints.Agent = NewAgentEndpoint(c)
 		c.endpoints.NodeMeta = newNodeMetaEndpoint(c)
+		c.endpoints.HostVolume = newHostVolumesEndpoint(c)
 		c.setupClientRpcServer(c.rpcServer)
 	}
 
@@ -308,6 +318,7 @@ func (c *Client) setupClientRpcServer(server *rpc.Server) {
 	server.Register(c.endpoints.Allocations)
 	server.Register(c.endpoints.Agent)
 	server.Register(c.endpoints.NodeMeta)
+	server.Register(c.endpoints.HostVolume)
 }
 
 // rpcConnListener is a long lived function that listens for new connections
@@ -445,14 +456,34 @@ func (c *Client) handleStreamingConn(conn net.Conn) {
 // net.Addr or an error.
 func resolveServer(s string) (net.Addr, error) {
 	const defaultClientPort = "4647" // default client RPC port
+
 	host, port, err := net.SplitHostPort(s)
 	if err != nil {
-		if strings.Contains(err.Error(), "missing port") {
-			host = s
-			port = defaultClientPort
-		} else {
+		switch {
+		case strings.Contains(err.Error(), "missing port"):
+			// with IPv6 addresses the `host` variable will have brackets
+			// removed, so send the original value thru again with only the
+			// correct port suffix
+			return resolveServer(s + ":" + defaultClientPort)
+		case strings.Contains(err.Error(), "too many colons"):
+			// note: we expect IPv6 address strings to be RFC5952 compliant to
+			// disambiguate port numbers from the address. Because the port number
+			// is typically 4 decimal digits, the same size as an IPv6 address
+			// segment, there's no way to disambiguate this. See
+			// https://www.rfc-editor.org/rfc/rfc5952
+			ip := net.ParseIP(s)
+			if ip.To4() == nil && ip.To16() != nil {
+				if !strings.HasPrefix(s, "[") {
+					return resolveServer("[" + s + "]:" + defaultClientPort)
+				}
+			}
+			return nil, err
+
+		default:
 			return nil, err
 		}
+	} else if port == "" {
+		return resolveServer(s + defaultClientPort)
 	}
 	return net.ResolveTCPAddr("tcp", net.JoinHostPort(host, port))
 }

@@ -1,0 +1,3 @@
+```release-note:bug
+deployments: Fixed a goroutine leak when jobs are purged
+```

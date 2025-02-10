@@ -1,0 +1,3 @@
+```release-note:bug
+docker: Fixed a bug where plugin SELinux labels would conflict with read-only `volume` options
+```

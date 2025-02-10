@@ -1,0 +1,3 @@
+```release-note:improvement
+agent: Added config option to enable file and line log detail
+```

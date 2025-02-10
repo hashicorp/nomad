@@ -5,6 +5,7 @@ package client
 
 import (
 	"fmt"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -14,12 +15,7 @@ import (
 	"time"
 
 	memdb "github.com/hashicorp/go-memdb"
-	"github.com/shoenig/test"
-	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
@@ -28,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/client/fingerprint"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	cstate "github.com/hashicorp/nomad/client/state"
+	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pluginutils/catalog"
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
@@ -40,6 +37,11 @@ import (
 	"github.com/hashicorp/nomad/plugins/device"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test"
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testACLServer(t *testing.T, cb func(*nomad.Config)) (*nomad.Server, string, *structs.ACLToken, func()) {
@@ -62,30 +64,84 @@ func TestClient_StartStop(t *testing.T) {
 	}
 }
 
-// Certain labels for metrics are dependant on client initial setup. This tests
-// that the client has properly initialized before we assign values to labels
-func TestClient_BaseLabels(t *testing.T) {
+func TestClient_alloc_dirs(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
-	client, cleanup := TestClient(t, nil)
-	if err := client.Shutdown(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	parent := t.TempDir()
+	allocs := filepath.Join(parent, "allocs")
+	mounts := filepath.Join(parent, "mounts")
+
+	client, cleanup := TestClient(t, func(c *config.Config) {
+		c.AllocDir = allocs
+		c.AllocMountsDir = mounts
+	})
 	defer cleanup()
 
-	// directly invoke this function, as otherwise this will fail on a CI build
-	// due to a race condition
-	client.emitStats()
+	t.Cleanup(func() {
+		test.NoError(t, client.Shutdown())
+	})
 
-	baseLabels := client.baseLabels
-	assert.NotEqual(0, len(baseLabels))
+	// assert existence and permissions of alloc-dir
+	fi, err := os.Stat(allocs)
+	must.NoError(t, err)
+	must.Eq(t, 0o711|fs.ModeDir, fi.Mode())
 
-	nodeID := client.Node().ID
-	for _, e := range baseLabels {
-		if e.Name == "node_id" {
-			assert.Equal(nodeID, e.Value)
-		}
+	// assert existence and permissions of alloc-mounts-dir
+	fi, err = os.Stat(allocs)
+	must.NoError(t, err)
+	must.Eq(t, 0o711|fs.ModeDir, fi.Mode())
+}
+
+func TestClient_setupStatsLabels(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name           string
+		inputConfig    *config.Config
+		expectedLabels []metrics.Label
+	}{
+		{
+			name: "empty node class",
+			inputConfig: &config.Config{
+				Node: &structs.Node{
+					ID:         "f57156f9-19c6-4954-a96e-5abb0b47a8b2",
+					Datacenter: "dc1",
+					NodeClass:  "",
+					NodePool:   "default",
+				},
+			},
+			expectedLabels: []metrics.Label{
+				{Name: "node_id", Value: "f57156f9-19c6-4954-a96e-5abb0b47a8b2"},
+				{Name: "datacenter", Value: "dc1"},
+				{Name: "node_class", Value: "none"},
+				{Name: "node_pool", Value: "default"},
+			},
+		},
+		{
+			name: "non-empty node class",
+			inputConfig: &config.Config{
+				Node: &structs.Node{
+					ID:         "f57156f9-19c6-4954-a96e-5abb0b47a8b2",
+					Datacenter: "dc1",
+					NodeClass:  "high-memory",
+					NodePool:   "default",
+				},
+			},
+			expectedLabels: []metrics.Label{
+				{Name: "node_id", Value: "f57156f9-19c6-4954-a96e-5abb0b47a8b2"},
+				{Name: "datacenter", Value: "dc1"},
+				{Name: "node_class", Value: "high-memory"},
+				{Name: "node_pool", Value: "default"},
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			lightClient := &Client{config: tc.inputConfig}
+			lightClient.setupStatsLabels()
+			must.SliceContainsAll(t, lightClient.baseLabels, tc.expectedLabels)
+		})
 	}
 }
 
@@ -749,6 +805,10 @@ func TestClient_SaveRestoreState(t *testing.T) {
 		wait.Gap(time.Millisecond*30),
 	))
 
+	// Create a corrupted allocation that will be removed during restore
+	corruptAlloc := mock.Alloc()
+	c1.stateDB.PutAllocation(corruptAlloc)
+
 	t.Log("shutting down client")
 	must.NoError(t, c1.Shutdown()) // note: this saves the client state DB
 
@@ -863,6 +923,9 @@ func TestClient_SaveRestoreState(t *testing.T) {
 						return fmt.Errorf(
 							"alloc %s stopped during shutdown should have updated", a3.ID[:8])
 					}
+
+				case corruptAlloc.ID:
+					return fmt.Errorf("corrupted allocation should not have been restored")
 
 				default:
 					if ar.AllocState().ClientStatus != structs.AllocClientStatusComplete {
@@ -1358,8 +1421,11 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 	defer cleanup()
 
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
+		// overrides the detected hardware in TestClient
 		NodeResources: &structs.NodeResources{
-			Cpu: structs.NodeCpuResources{CpuShares: 123},
+			Processors: structs.NodeProcessorResources{
+				Topology: structs.MockBasicTopology(),
+			},
 		},
 	})
 
@@ -1385,8 +1451,11 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		Disk:         conf.Node.NodeResources.Disk,
 
 		// injected
-		Cpu: structs.NodeCpuResources{
-			CpuShares:          123,
+		Processors: structs.NodeProcessorResources{
+			Topology: structs.MockBasicTopology(),
+		},
+		Cpu: structs.LegacyNodeCpuResources{
+			CpuShares:          14_000, // mock has 4 cores * 3500 MHz
 			ReservableCpuCores: conf.Node.NodeResources.Cpu.ReservableCpuCores,
 			TotalCpuCores:      conf.Node.NodeResources.Cpu.TotalCpuCores,
 		},
@@ -1399,7 +1468,7 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		},
 	}
 
-	assert.EqualValues(t, expectedResources, conf.Node.NodeResources)
+	must.Eq(t, expectedResources, conf.Node.NodeResources)
 
 	// overrides of values
 
@@ -1429,8 +1498,11 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 		Disk:         conf.Node.NodeResources.Disk,
 
 		// injected
-		Cpu: structs.NodeCpuResources{
-			CpuShares:          123,
+		Processors: structs.NodeProcessorResources{
+			Topology: structs.MockBasicTopology(),
+		},
+		Cpu: structs.LegacyNodeCpuResources{
+			CpuShares:          14_000, // mock has 4 cores * 3500 MHz
 			ReservableCpuCores: conf.Node.NodeResources.Cpu.ReservableCpuCores,
 			TotalCpuCores:      conf.Node.NodeResources.Cpu.TotalCpuCores,
 		},
@@ -1454,10 +1526,8 @@ func TestClient_UpdateNodeFromDevicesAccumulates(t *testing.T) {
 // TestClient_UpdateNodeFromFingerprintKeepsConfig asserts manually configured
 // network interfaces take precedence over fingerprinted ones.
 func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
+	ctestutil.RequireLinux(t)
 	ci.Parallel(t)
-	if runtime.GOOS != "linux" {
-		t.Skip("assertions assume linux platform")
-	}
 
 	// Client without network configured updates to match fingerprint
 	client, cleanup := TestClient(t, nil)
@@ -1465,24 +1535,18 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu:      structs.NodeCpuResources{CpuShares: 123},
 			Networks: []*structs.NetworkResource{{Mode: "host", Device: "any-interface"}},
-		},
-		Resources: &structs.Resources{
-			CPU: 80,
 		},
 	})
 	idx := len(client.config.Node.NodeResources.Networks) - 1
-	require.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
-	require.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[idx].Device)
-	require.Equal(t, 80, client.config.Node.Resources.CPU)
+	must.Eq(t, "any-interface", client.config.Node.NodeResources.Networks[idx].Device)
 
 	// lookup an interface. client.Node starts with a hardcoded value, eth0,
 	// and is only updated async through fingerprinter.
 	// Let's just lookup network device; anyone will do for this test
 	interfaces, err := net.Interfaces()
-	require.NoError(t, err)
-	require.NotEmpty(t, interfaces)
+	must.NoError(t, err)
+	must.NotNil(t, interfaces)
 	dev := interfaces[0].Name
 
 	// Client with network interface configured keeps the config
@@ -1498,36 +1562,31 @@ func TestClient_UpdateNodeFromFingerprintKeepsConfig(t *testing.T) {
 	defer cleanup()
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu: structs.NodeCpuResources{CpuShares: 123},
 			Networks: []*structs.NetworkResource{
 				{Mode: "host", Device: "any-interface", MBits: 20},
 			},
 		},
 	})
-	require.Equal(t, int64(123), client.config.Node.NodeResources.Cpu.CpuShares)
+
 	// only the configured device is kept
-	require.Equal(t, 2, len(client.config.Node.NodeResources.Networks))
-	require.Equal(t, dev, client.config.Node.NodeResources.Networks[0].Device)
-	require.Equal(t, "bridge", client.config.Node.NodeResources.Networks[1].Mode)
+	must.Eq(t, 2, len(client.config.Node.NodeResources.Networks))
+	must.Eq(t, dev, client.config.Node.NodeResources.Networks[0].Device)
+	must.Eq(t, "bridge", client.config.Node.NodeResources.Networks[1].Mode)
 
 	// Network speed is applied to all NetworkResources
 	client.config.NetworkInterface = ""
 	client.config.NetworkSpeed = 100
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu: structs.NodeCpuResources{CpuShares: 123},
 			Networks: []*structs.NetworkResource{
 				{Mode: "host", Device: "any-interface", MBits: 20},
 			},
 		},
-		Resources: &structs.Resources{
-			CPU: 80,
-		},
 	})
-	assert.Equal(t, 3, len(client.config.Node.NodeResources.Networks))
-	assert.Equal(t, "any-interface", client.config.Node.NodeResources.Networks[2].Device)
-	assert.Equal(t, 100, client.config.Node.NodeResources.Networks[2].MBits)
-	assert.Equal(t, 0, client.config.Node.NodeResources.Networks[1].MBits)
+	must.Eq(t, 3, len(client.config.Node.NodeResources.Networks))
+	must.Eq(t, "any-interface", client.config.Node.NodeResources.Networks[2].Device)
+	must.Eq(t, 100, client.config.Node.NodeResources.Networks[2].MBits)
+	must.Eq(t, 0, client.config.Node.NodeResources.Networks[1].MBits)
 }
 
 // Support multiple IP addresses (ipv4 vs. 6, e.g.) on the configured network interface
@@ -1546,13 +1605,11 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 	client, cleanup := TestClient(t, func(c *config.Config) {
 		c.NetworkInterface = dev
 		c.Options["fingerprint.denylist"] = "network,cni,bridge"
-		c.Node.Resources.Networks = c.Node.NodeResources.Networks
 	})
 	defer cleanup()
 
 	client.updateNodeFromFingerprint(&fingerprint.FingerprintResponse{
 		NodeResources: &structs.NodeResources{
-			Cpu: structs.NodeCpuResources{CpuShares: 123},
 			Networks: []*structs.NetworkResource{
 				{Device: dev, IP: "127.0.0.1"},
 				{Device: dev, IP: "::1"},
@@ -1566,7 +1623,7 @@ func Test_UpdateNodeFromFingerprintMultiIP(t *testing.T) {
 		{Device: dev, IP: "::1"},
 	}
 
-	require.Equal(t, nets, client.config.Node.NodeResources.Networks)
+	must.Eq(t, nets, client.config.Node.NodeResources.Networks)
 }
 
 func TestClient_computeAllocatedDeviceStats(t *testing.T) {
@@ -1875,6 +1932,14 @@ func TestClient_hasLocalState(t *testing.T) {
 
 	c.stateDB = cstate.NewMemDB(c.logger)
 
+	t.Run("nil Job", func(t *testing.T) {
+		alloc := mock.BatchAlloc()
+		alloc.Job = nil
+		c.stateDB.PutAllocation(alloc)
+
+		must.False(t, c.hasLocalState(alloc))
+	})
+
 	t.Run("plain alloc", func(t *testing.T) {
 		alloc := mock.BatchAlloc()
 		c.stateDB.PutAllocation(alloc)
@@ -2108,7 +2173,7 @@ func TestClient_AllocPrerunErrorDuringRestore(t *testing.T) {
 		conf.PluginSingletonLoader = singleton.NewSingletonLoader(logger, c1.config.PluginLoader)
 
 		// actually make and start the client
-		c2, err := NewClient(conf, c1.consulCatalog, nil, c1.consulService, nil)
+		c2, err := NewClient(conf, c1.consulCatalog, nil, c1.consulServices, nil)
 		must.NoError(t, err)
 		t.Cleanup(func() {
 			test.NoError(t, c2.Shutdown())

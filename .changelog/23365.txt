@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Dont show keyboard nav hints when taking a screenshot
+```

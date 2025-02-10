@@ -174,10 +174,6 @@ func TestDriverManager_NodeAttributes_Run(t *testing.T) {
 			return false, fmt.Errorf("mock_driver driver is not marked as healthy: %+v", d)
 		}
 
-		if d.Attributes["driver.mock_driver"] != "" {
-			return false, fmt.Errorf("mock driver driver attributes contain duplicate health info: %#v", d.Attributes)
-		}
-
 		// check raw_exec
 		if node.Attributes["driver.raw_exec"] == "" {
 			return false, fmt.Errorf("raw_exec is not present in attributes: %#v", node.Attributes)

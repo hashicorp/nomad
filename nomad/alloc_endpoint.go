@@ -8,9 +8,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -155,7 +155,7 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 
 	// Check namespace read-job permissions before performing blocking query.
 	allowNsOp := acl.NamespaceValidator(acl.NamespaceCapabilityReadJob)
-	aclObj, err := a.srv.ResolveClientOrACL(args)
+	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -172,10 +172,11 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 			}
 
 			// Setup the output
-			reply.Alloc = out
 			if out != nil {
+				out = out.Sanitize()
+				reply.Alloc = out
 				// Re-check namespace in case it differs from request.
-				if !allowNsOp(aclObj, out.Namespace) {
+				if !aclObj.AllowClientOp() && !allowNsOp(aclObj, out.Namespace) {
 					return structs.NewErrUnknownAllocation(args.AllocID)
 				}
 
@@ -200,21 +201,20 @@ func (a *Alloc) GetAlloc(args *structs.AllocSpecificRequest,
 func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 	reply *structs.AllocsGetResponse) error {
 
-	authErr := a.srv.Authenticate(a.ctx, args)
-
-	// Ensure the connection was initiated by a client if TLS is used.
-	err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient)
+	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
+	a.srv.MeasureRPCRate("alloc", structs.RateMetricWrite, args)
 	if err != nil {
-		return err
+		return structs.ErrPermissionDenied
 	}
+
 	if done, err := a.srv.forward("Alloc.GetAllocs", args, args, reply); done {
 		return err
 	}
-	a.srv.MeasureRPCRate("alloc", structs.RateMetricList, args)
-	if authErr != nil {
+	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
 		return structs.ErrPermissionDenied
 	}
-	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_allocs"}, time.Now())
 
 	allocs := make([]*structs.Allocation, len(args.AllocIDs))
 
@@ -257,7 +257,7 @@ func (a *Alloc) GetAllocs(args *structs.AllocsGetRequest,
 				reply.Allocs = allocs
 				reply.Index = maxIndex
 			} else {
-				// Use the last index that affected the nodes table
+				// Use the last index that affected the allocs table
 				index, err := state.Index("allocs")
 				if err != nil {
 					return err
@@ -355,7 +355,7 @@ func (a *Alloc) UpdateDesiredTransition(args *structs.AllocUpdateDesiredTransiti
 	// Check that it is a management token.
 	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -393,15 +393,13 @@ func (a *Alloc) GetServiceRegistrations(
 
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "get_service_registrations"}, time.Now())
 
-	// If ACLs are enabled, ensure the caller has the read-job namespace
-	// capability.
+	// Ensure the caller has the read-job namespace capability.
 	aclObj, err := a.srv.ResolveACL(args)
 	if err != nil {
 		return err
-	} else if aclObj != nil {
-		if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
-			return structs.ErrPermissionDenied
-		}
+	}
+	if !aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob) {
+		return structs.ErrPermissionDenied
 	}
 
 	// Set up the blocking query.
@@ -452,21 +450,20 @@ func (a *Alloc) GetServiceRegistrations(
 // This is an internal-only RPC and not exposed via the HTTP API.
 func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *structs.AllocIdentitiesResponse) error {
 
-	authErr := a.srv.Authenticate(a.ctx, args)
-
-	// Ensure the connection was initiated by a client if TLS is used.
-	if err := validateTLSCertificateLevel(a.srv, a.ctx, tlsCertificateLevelClient); err != nil {
-		return err
-	}
-	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
-		return err
-	}
+	aclObj, err := a.srv.AuthenticateClientOnly(a.ctx, args)
 	a.srv.MeasureRPCRate("alloc", structs.RateMetricRead, args)
-	if authErr != nil {
+	if err != nil {
 		return structs.ErrPermissionDenied
 	}
 
+	if done, err := a.srv.forward("Alloc.SignIdentities", args, args, reply); done {
+		return err
+	}
 	defer metrics.MeasureSince([]string{"nomad", "alloc", "sign_identities"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
+		return structs.ErrPermissionDenied
+	}
 
 	if len(args.Identities) == 0 {
 		// Client bug. Fail loudly instead of letting clients waste time with
@@ -565,43 +562,139 @@ func (a *Alloc) SignIdentities(args *structs.AllocIdentitiesRequest, reply *stru
 			continue
 		}
 
-		task := out.LookupTask(idReq.TaskName)
-		if task == nil {
-			// Job has likely been updated to remove this task
-			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
-				WorkloadIdentityRequest: *idReq,
-				Reason:                  structs.WIRejectionReasonMissingTask,
-			})
-			continue
-		}
+		job := out.Job
 
-		widFound := false
-		for _, wid := range task.Identities {
-			if wid.Name != idReq.IdentityName {
+		switch idReq.WorkloadType {
+		case structs.WorkloadTypeTask:
+			task := out.LookupTask(idReq.WorkloadIdentifier)
+			if task == nil {
+				// Job has likely been updated to remove this task
+				reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
+					WorkloadIdentityRequest: *idReq,
+					Reason:                  structs.WIRejectionReasonMissingTask,
+				})
 				continue
 			}
 
-			widFound = true
-			claims := structs.NewIdentityClaims(out.Job, out, idReq.TaskName, wid, now)
-			token, _, err := a.srv.encrypter.SignClaims(claims)
+			widFound, err := a.signTasks(task, out, idReq, reply, now)
 			if err != nil {
 				return err
 			}
-			reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
-				WorkloadIdentityRequest: *idReq,
-				JWT:                     token,
-				Expiration:              claims.Expiry.Time(),
-			})
-			break
-		}
 
-		if !widFound {
-			reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
-				WorkloadIdentityRequest: *idReq,
-				Reason:                  structs.WIRejectionReasonMissingIdentity,
-			})
-			continue
+			if !widFound {
+				reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
+					WorkloadIdentityRequest: *idReq,
+					Reason:                  structs.WIRejectionReasonMissingIdentity,
+				})
+				continue
+			}
+
+		case structs.WorkloadTypeService:
+			widFound, err := a.signServices(job, out, idReq, reply, now)
+			if err != nil {
+				return err
+			}
+
+			if !widFound {
+				reply.Rejections = append(reply.Rejections, &structs.WorkloadIdentityRejection{
+					WorkloadIdentityRequest: *idReq,
+					Reason:                  structs.WIRejectionReasonMissingIdentity,
+				})
+				continue
+			}
 		}
 	}
+	return nil
+}
+
+func (a *Alloc) signTasks(
+	task *structs.Task,
+	alloc *structs.Allocation,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+	now time.Time,
+) (widFound bool, err error) {
+	for _, wid := range task.Identities {
+		if wid.Name != idReq.IdentityName {
+			continue
+		}
+
+		widFound = true
+		builder := structs.NewIdentityClaimsBuilder(alloc.Job, alloc, &idReq.WIHandle, wid).
+			WithTask(task).
+			WithConsul()
+
+		var node *structs.Node
+		node, err = a.srv.State().NodeByID(nil, alloc.NodeID)
+		if err != nil {
+			return
+		}
+		builder.WithNode(node)
+
+		vaultCfg := a.srv.GetConfig().GetVaultForIdentity(wid)
+		if vaultCfg != nil && vaultCfg.DefaultIdentity != nil {
+			builder.WithVault(vaultCfg.DefaultIdentity.ExtraClaims)
+		}
+
+		claims := builder.Build(now)
+		err = a.signClaims(claims, idReq, reply)
+		break
+	}
+	return
+}
+
+func (a *Alloc) signServices(
+	job *structs.Job,
+	alloc *structs.Allocation,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+	now time.Time,
+) (widFound bool, err error) {
+	wid := idReq.WIHandle
+
+	// services can be on the level of task groups or tasks
+	for _, tg := range job.TaskGroups {
+		for _, service := range tg.Services {
+			if service.IdentityHandle(nil).Equal(wid) {
+				claims := structs.NewIdentityClaimsBuilder(
+					alloc.Job, alloc, &idReq.WIHandle, service.Identity).
+					WithConsul().
+					WithService(service).
+					Build(now)
+				return true, a.signClaims(claims, idReq, reply)
+			}
+		}
+		for _, task := range tg.Tasks {
+			for _, service := range task.Services {
+				if service.IdentityHandle(nil).Equal(wid) {
+					claims := structs.NewIdentityClaimsBuilder(
+						alloc.Job, alloc, &idReq.WIHandle, service.Identity).
+						WithTask(task).
+						WithConsul().
+						WithService(service).
+						Build(now)
+					return true, a.signClaims(claims, idReq, reply)
+				}
+			}
+		}
+	}
+	return
+}
+
+func (a *Alloc) signClaims(
+	claims *structs.IdentityClaims,
+	idReq *structs.WorkloadIdentityRequest,
+	reply *structs.AllocIdentitiesResponse,
+) error {
+	token, _, err := a.srv.encrypter.SignClaims(claims)
+	if err != nil {
+		return err
+	}
+	reply.SignedIdentities = append(reply.SignedIdentities, &structs.SignedWorkloadIdentity{
+		WorkloadIdentityRequest: *idReq,
+		JWT:                     token,
+		Expiration:              claims.Expiry.Time(),
+	})
+
 	return nil
 }

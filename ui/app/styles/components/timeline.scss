@@ -61,5 +61,89 @@
     > .boxed-section {
       margin-bottom: 0;
     }
+
+    .job-version {
+      margin-bottom: 0;
+      & > .boxed-section {
+        box-shadow: var(--token-surface-high-box-shadow);
+        border-radius: 0.25rem;
+        header,
+        footer {
+          border: none;
+          padding: 0.75rem;
+        }
+
+        footer {
+          background-color: var(--token-color-surface-faint);
+          border-top: 1px solid var(--token-color-border-faint);
+          display: grid;
+          grid-template-columns: auto auto;
+          align-items: center;
+          gap: 0.5rem;
+          & > .tag-options {
+            justify-self: start;
+            display: grid;
+            grid-template-areas: 'name description save cancel delete';
+            grid-template-columns: auto 1fr auto auto auto;
+            gap: 0.5rem;
+            align-items: center;
+
+            // Match the height of HDS:Button's @size="small"
+            input {
+              padding: 0.375rem 0.6875rem;
+              line-height: 100%;
+            }
+
+            .tag-button-primary {
+              grid-area: name;
+              background-color: var(--token-color-surface-highlight);
+              color: var(--token-color-foreground-highlight-on-surface);
+              border-color: var(--token-color-foreground-highlight);
+              &:focus:before {
+                border-color: var(--token-color-foreground-highlight);
+              }
+              &:hover {
+                background-color: var(--token-color-border-highlight);
+              }
+            }
+            .tag-button-secondary {
+              grid-area: name;
+            }
+            .tag-description {
+              grid-area: description;
+              font-style: italic;
+              font-size: 0.875rem;
+              white-space: no-wrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              text-wrap: nowrap;
+              max-width: 100%;
+            }
+            & > .tag-name {
+              grid-area: name;
+            }
+          }
+          & > .version-options {
+            justify-self: end;
+          }
+
+          &.editing {
+            grid-template-columns: 1fr;
+            & > .tag-options {
+              width: 100%;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.versions-page-header {
+  z-index: $z-base + 1;
+  margin-bottom: 2rem;
+
+  .hds-page-header__main {
+    flex-direction: unset;
   }
 }

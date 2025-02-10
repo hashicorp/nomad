@@ -338,5 +338,5 @@ sequenceDiagram
 ```
 
 
-[Scheduling Concepts]: https://nomadproject.io/docs/concepts/scheduling/scheduling
-[`update`]: https://www.nomadproject.io/docs/job-specification/update
+[Scheduling Concepts]: https://developer.hashicorp.com/nomad/docs/concepts/scheduling/scheduling
+[`update`]: https://developer.hashicorp.com/nomad/docs/job-specification/update

@@ -4,13 +4,13 @@
 package agent
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,8 +45,6 @@ func TestConfig_Merge(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
 		Autopilot:      &config.AutopilotConfig{},
 	}
@@ -57,6 +56,7 @@ func TestConfig_Merge(t *testing.T) {
 		DataDir:                   "/tmp/dir1",
 		PluginDir:                 "/tmp/pluginDir1",
 		LogLevel:                  "INFO",
+		LogIncludeLocation:        false,
 		LogJson:                   false,
 		EnableDebug:               false,
 		LeaveOnInt:                false,
@@ -73,6 +73,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    false,
+			DisableAllocationHookMetrics:       pointer.Of(false),
 			CirconusAPIToken:                   "0",
 			CirconusAPIApp:                     "nomadic",
 			CirconusAPIURL:                     "http://api.circonus.com/v2",
@@ -159,6 +160,7 @@ func TestConfig_Merge(t *testing.T) {
 				NodeThreshold: 100,
 				NodeWindow:    11 * time.Minute,
 			},
+			OIDCIssuer: "https://oidc.test.nomadproject.io",
 		},
 		ACL: &ACLConfig{
 			Enabled:               true,
@@ -186,8 +188,8 @@ func TestConfig_Merge(t *testing.T) {
 		HTTPAPIResponseHeaders: map[string]string{
 			"Access-Control-Allow-Origin": "*",
 		},
-		Vault: &config.VaultConfig{
-			Name:                 "default",
+		Vaults: []*config.VaultConfig{{
+			Name:                 structs.VaultDefaultCluster,
 			Token:                "1",
 			AllowUnauthenticated: &falseValue,
 			TaskTokenTTL:         "1",
@@ -198,23 +200,8 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "1",
 			TLSSkipVerify:        &falseValue,
 			TLSServerName:        "1",
-		},
-		Vaults: map[string]*config.VaultConfig{
-			"default": {
-				Name:                 "default",
-				Token:                "1",
-				AllowUnauthenticated: &falseValue,
-				TaskTokenTTL:         "1",
-				Addr:                 "1",
-				TLSCaFile:            "1",
-				TLSCaPath:            "1",
-				TLSCertFile:          "1",
-				TLSKeyFile:           "1",
-				TLSSkipVerify:        &falseValue,
-				TLSServerName:        "1",
-			},
-		},
-		Consul: &config.ConsulConfig{
+		}},
+		Consuls: []*config.ConsulConfig{{
 			ServerServiceName:    "1",
 			ClientServiceName:    "1",
 			AutoAdvertise:        &falseValue,
@@ -231,27 +218,7 @@ func TestConfig_Merge(t *testing.T) {
 			ServerAutoJoin:       &falseValue,
 			ClientAutoJoin:       &falseValue,
 			ChecksUseAdvertise:   &falseValue,
-		},
-		Consuls: map[string]*config.ConsulConfig{
-			"default": {
-				ServerServiceName:    "1",
-				ClientServiceName:    "1",
-				AutoAdvertise:        &falseValue,
-				Addr:                 "1",
-				AllowUnauthenticated: &falseValue,
-				Timeout:              1 * time.Second,
-				Token:                "1",
-				Auth:                 "1",
-				EnableSSL:            &falseValue,
-				VerifySSL:            &falseValue,
-				CAFile:               "1",
-				CertFile:             "1",
-				KeyFile:              "1",
-				ServerAutoJoin:       &falseValue,
-				ClientAutoJoin:       &falseValue,
-				ChecksUseAdvertise:   &falseValue,
-			},
-		},
+		}},
 		Autopilot: &config.AutopilotConfig{
 			CleanupDeadServers:      &falseValue,
 			ServerStabilizationTime: 1 * time.Second,
@@ -280,6 +247,7 @@ func TestConfig_Merge(t *testing.T) {
 		DataDir:                   "/tmp/dir2",
 		PluginDir:                 "/tmp/pluginDir2",
 		LogLevel:                  "DEBUG",
+		LogIncludeLocation:        true,
 		LogJson:                   true,
 		EnableDebug:               true,
 		LeaveOnInt:                true,
@@ -312,6 +280,7 @@ func TestConfig_Merge(t *testing.T) {
 			DataDogTags:                        []string{"cat1:tag1", "cat2:tag2"},
 			PrometheusMetrics:                  true,
 			DisableHostname:                    true,
+			DisableAllocationHookMetrics:       pointer.Of(true),
 			PublishNodeMetrics:                 true,
 			PublishAllocationMetrics:           true,
 			CirconusAPIToken:                   "1",
@@ -329,6 +298,7 @@ func TestConfig_Merge(t *testing.T) {
 			CirconusBrokerSelectTag:            "dc:dc2",
 			PrefixFilter:                       []string{"prefix1", "prefix2"},
 			DisableDispatchedJobSummaryMetrics: true,
+			DisableQuotaUtilizationMetrics:     false,
 			DisableRPCRateMetricsLabels:        true,
 			FilterDefault:                      pointer.Of(false),
 		},
@@ -357,8 +327,17 @@ func TestConfig_Merge(t *testing.T) {
 			MaxKillTimeout:    "50s",
 			DisableRemoteExec: false,
 			TemplateConfig: &client.ClientTemplateConfig{
-				FunctionDenylist: client.DefaultTemplateFunctionDenylist,
-				DisableSandbox:   false,
+				FunctionDenylist:   client.DefaultTemplateFunctionDenylist,
+				DisableSandbox:     false,
+				BlockQueryWaitTime: pointer.Of(5 * time.Minute),
+				MaxStale:           pointer.Of(client.DefaultTemplateMaxStale),
+				Wait: &client.WaitConfig{
+					Min: pointer.Of(5 * time.Second),
+					Max: pointer.Of(4 * time.Minute),
+				},
+				ConsulRetry: &client.RetryConfig{Attempts: pointer.Of(0)},
+				VaultRetry:  &client.RetryConfig{Attempts: pointer.Of(0)},
+				NomadRetry:  &client.RetryConfig{Attempts: pointer.Of(0)},
 			},
 			Reserved: &Resources{
 				CPU:           15,
@@ -406,6 +385,7 @@ func TestConfig_Merge(t *testing.T) {
 			},
 			JobMaxPriority:     pointer.Of(200),
 			JobDefaultPriority: pointer.Of(100),
+			OIDCIssuer:         "https://oidc.test.nomadproject.io",
 		},
 		ACL: &ACLConfig{
 			Enabled:               true,
@@ -434,8 +414,8 @@ func TestConfig_Merge(t *testing.T) {
 			"Access-Control-Allow-Origin":  "*",
 			"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 		},
-		Vault: &config.VaultConfig{
-			Name:                 "default",
+		Vaults: []*config.VaultConfig{{
+			Name:                 structs.VaultDefaultCluster,
 			Token:                "2",
 			AllowUnauthenticated: &trueValue,
 			TaskTokenTTL:         "2",
@@ -446,60 +426,34 @@ func TestConfig_Merge(t *testing.T) {
 			TLSKeyFile:           "2",
 			TLSSkipVerify:        &trueValue,
 			TLSServerName:        "2",
-		},
-		Vaults: map[string]*config.VaultConfig{
-			"default": {
-				Name:                 "default",
-				Token:                "2",
-				AllowUnauthenticated: &trueValue,
-				TaskTokenTTL:         "2",
-				Addr:                 "2",
-				TLSCaFile:            "2",
-				TLSCaPath:            "2",
-				TLSCertFile:          "2",
-				TLSKeyFile:           "2",
-				TLSSkipVerify:        &trueValue,
-				TLSServerName:        "2",
-			},
-		},
-		Consul: &config.ConsulConfig{
-			ServerServiceName:    "2",
-			ClientServiceName:    "2",
-			AutoAdvertise:        &trueValue,
-			Addr:                 "2",
-			AllowUnauthenticated: &trueValue,
-			Timeout:              2 * time.Second,
-			Token:                "2",
-			Auth:                 "2",
-			EnableSSL:            &trueValue,
-			VerifySSL:            &trueValue,
-			CAFile:               "2",
-			CertFile:             "2",
-			KeyFile:              "2",
-			ServerAutoJoin:       &trueValue,
-			ClientAutoJoin:       &trueValue,
-			ChecksUseAdvertise:   &trueValue,
-		},
-		Consuls: map[string]*config.ConsulConfig{
-			"default": {
-				ServerServiceName:    "2",
-				ClientServiceName:    "2",
-				AutoAdvertise:        &trueValue,
-				Addr:                 "2",
-				AllowUnauthenticated: &trueValue,
-				Timeout:              2 * time.Second,
-				Token:                "2",
-				Auth:                 "2",
-				EnableSSL:            &trueValue,
-				VerifySSL:            &trueValue,
-				CAFile:               "2",
-				CertFile:             "2",
-				KeyFile:              "2",
-				ServerAutoJoin:       &trueValue,
-				ClientAutoJoin:       &trueValue,
-				ChecksUseAdvertise:   &trueValue,
-			},
-		},
+			ConnectionRetryIntv:  time.Duration(30000000000),
+			JWTAuthBackendPath:   "jwt",
+		}},
+		Consuls: []*config.ConsulConfig{{
+			Name:                      "default",
+			ServerServiceName:         "2",
+			ClientServiceName:         "2",
+			AutoAdvertise:             &trueValue,
+			Addr:                      "2",
+			AllowUnauthenticated:      &trueValue,
+			Timeout:                   2 * time.Second,
+			Token:                     "2",
+			Auth:                      "2",
+			EnableSSL:                 &trueValue,
+			VerifySSL:                 &trueValue,
+			CAFile:                    "2",
+			CertFile:                  "2",
+			KeyFile:                   "2",
+			ServerAutoJoin:            &trueValue,
+			ClientAutoJoin:            &trueValue,
+			ChecksUseAdvertise:        &trueValue,
+			ServerHTTPCheckName:       "Nomad Server HTTP Check",
+			ServerSerfCheckName:       "Nomad Server Serf Check",
+			ServerRPCCheckName:        "Nomad Server RPC Check",
+			ClientHTTPCheckName:       "Nomad Client HTTP Check",
+			ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
+			TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
+		}},
 		Sentinel: &config.SentinelConfig{
 			Imports: []*config.SentinelImport{
 				{
@@ -535,12 +489,19 @@ func TestConfig_Merge(t *testing.T) {
 				},
 			},
 		},
+		Reporting: &config.ReportingConfig{
+			License: &config.LicenseReportingConfig{
+				Enabled: pointer.Of(true),
+			},
+		},
 	}
 
 	result := c0.Merge(c1)
 	result = result.Merge(c2)
 	result = result.Merge(c3)
-	require.Equal(t, c3, result)
+	expected := c3.Copy()
+
+	must.Eq(t, expected, result)
 }
 
 func TestConfig_ParseConfigFile(t *testing.T) {
@@ -776,59 +737,61 @@ func TestConfig_Listener(t *testing.T) {
 	}
 }
 
-func TestConfig_DevModeFlag(t *testing.T) {
+func TestConfig_DevMode_validate(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
-		dev         bool
-		connect     bool
-		expected    *devModeConfig
+		devConfig   *devModeConfig
 		expectedErr string
 	}{}
 	if runtime.GOOS != "linux" {
 		cases = []struct {
-			dev         bool
-			connect     bool
-			expected    *devModeConfig
+			devConfig   *devModeConfig
 			expectedErr string
 		}{
-			{false, false, nil, ""},
-			{true, false, &devModeConfig{defaultMode: true, connectMode: false}, ""},
-			{true, true, nil, "-dev-connect is only supported on linux"},
-			{false, true, nil, "-dev-connect is only supported on linux"},
+			{
+				devConfig: &devModeConfig{
+					connectMode: true,
+				},
+				expectedErr: "-dev-connect is only supported on linux",
+			},
+			{
+				devConfig: &devModeConfig{
+					defaultMode: true,
+					connectMode: true,
+				},
+				expectedErr: "-dev-connect is only supported on linux",
+			},
 		}
 	}
 	if runtime.GOOS == "linux" {
 		testutil.RequireRoot(t)
 		cases = []struct {
-			dev         bool
-			connect     bool
-			expected    *devModeConfig
+			devConfig   *devModeConfig
 			expectedErr string
 		}{
-			{false, false, nil, ""},
-			{true, false, &devModeConfig{defaultMode: true, connectMode: false}, ""},
-			{true, true, &devModeConfig{defaultMode: true, connectMode: true}, ""},
-			{false, true, &devModeConfig{defaultMode: false, connectMode: true}, ""},
+			{
+				devConfig: &devModeConfig{
+					connectMode: true,
+				},
+				expectedErr: "",
+			},
+			{
+				devConfig: &devModeConfig{
+					defaultMode: true,
+					connectMode: true,
+				},
+				expectedErr: "",
+			},
 		}
 	}
 	for _, c := range cases {
 		t.Run("", func(t *testing.T) {
-			mode, err := newDevModeConfig(c.dev, c.connect)
-			if err != nil && c.expectedErr == "" {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if err != nil && !strings.Contains(err.Error(), c.expectedErr) {
-				t.Fatalf("expected %s; got %v", c.expectedErr, err)
-			}
-			if mode == nil && c.expected != nil {
-				t.Fatalf("expected %+v but got nil", c.expected)
-			}
-			if mode != nil {
-				if c.expected.defaultMode != mode.defaultMode ||
-					c.expected.connectMode != mode.connectMode {
-					t.Fatalf("expected %+v, got %+v", c.expected, mode)
-				}
+			err := c.devConfig.validate()
+			if c.expectedErr != "" {
+				must.Error(t, err)
+			} else {
+				must.NoError(t, err)
 			}
 		})
 	}
@@ -1426,10 +1389,66 @@ func TestTelemetry_PrefixFilters(t *testing.T) {
 	}
 }
 
+func TestTelemetry_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name           string
+		inputTelemetry *Telemetry
+		expectedError  error
+	}{
+		{
+			name:           "nil",
+			inputTelemetry: nil,
+			expectedError:  nil,
+		},
+		{
+			name: "invalid",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 10 * time.Second,
+				inMemoryRetentionPeriod:    1 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory collection interval cannot be greater than retention period"),
+		},
+		{
+			name: "valid",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 1 * time.Second,
+				inMemoryRetentionPeriod:    10 * time.Second,
+			},
+			expectedError: nil,
+		},
+		{
+			name: "missing in-memory interval",
+			inputTelemetry: &Telemetry{
+				inMemoryRetentionPeriod: 10 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory collection interval must be greater than zero"),
+		},
+		{
+			name: "missing in-memory collection",
+			inputTelemetry: &Telemetry{
+				inMemoryCollectionInterval: 10 * time.Second,
+			},
+			expectedError: errors.New("telemetry in-memory retention period must be greater than zero"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualError := tc.inputTelemetry.Validate()
+			if tc.expectedError != nil {
+				must.EqError(t, actualError, tc.expectedError.Error())
+			} else {
+				must.NoError(t, actualError)
+			}
+		})
+	}
+}
+
 func TestTelemetry_Parse(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	dir := t.TempDir()
 
 	file1 := filepath.Join(dir, "config1.hcl")
@@ -1437,18 +1456,20 @@ func TestTelemetry_Parse(t *testing.T) {
 		prefix_filter = ["+nomad.raft"]
 		filter_default = false
 		disable_dispatched_job_summary_metrics = true
+		disable_quota_utilization_metrics = true
 		disable_rpc_rate_metrics_labels = true
 	}`), 0600)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Works on config dir
 	config, err := LoadConfig(dir)
-	require.NoError(err)
+	must.NoError(t, err)
 
-	require.False(*config.Telemetry.FilterDefault)
-	require.Exactly([]string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
-	require.True(config.Telemetry.DisableDispatchedJobSummaryMetrics)
-	require.True(config.Telemetry.DisableRPCRateMetricsLabels)
+	must.False(t, *config.Telemetry.FilterDefault)
+	must.Eq(t, []string{"+nomad.raft"}, config.Telemetry.PrefixFilter)
+	must.True(t, config.Telemetry.DisableDispatchedJobSummaryMetrics)
+	must.True(t, config.Telemetry.DisableQuotaUtilizationMetrics)
+	must.True(t, config.Telemetry.DisableRPCRateMetricsLabels)
 }
 
 func TestEventBroker_Parse(t *testing.T) {
@@ -1501,56 +1522,121 @@ func TestEventBroker_Parse(t *testing.T) {
 func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 	ci.Parallel(t)
 
-	defaultConfig := DefaultConfig()
-	// Test that loading without template config didn't create load errors
-	agentConfig, err := LoadConfig("test-resources/minimal_client.hcl")
-	require.NoError(t, err)
+	t.Run("minimal client expect defaults", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+		agentConfig, err := LoadConfig("test-resources/minimal_client.hcl")
+		must.NoError(t, err)
+		agentConfig = defaultConfig.Merge(agentConfig)
+		must.Eq(t, defaultConfig.Client.TemplateConfig, agentConfig.Client.TemplateConfig)
+	})
 
-	// Test loading with this config didn't create load errors
-	agentConfig, err = LoadConfig("test-resources/client_with_template.hcl")
-	require.NoError(t, err)
+	t.Run("client config with nil function denylist", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+		agentConfig, err := LoadConfig("test-resources/client_with_function_denylist_nil.hcl")
+		must.NoError(t, err)
+		agentConfig = defaultConfig.Merge(agentConfig)
 
-	agentConfig = defaultConfig.Merge(agentConfig)
+		templateConfig := agentConfig.Client.TemplateConfig
+		must.Len(t, 3, templateConfig.FunctionDenylist)
+	})
 
-	clientAgent := Agent{config: agentConfig}
-	clientConfig, err := clientAgent.clientConfig()
-	require.NoError(t, err)
+	t.Run("client config with basic template", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+		agentConfig, err := LoadConfig("test-resources/client_with_basic_template.hcl")
+		must.NoError(t, err)
+		agentConfig = defaultConfig.Merge(agentConfig)
 
-	templateConfig := clientConfig.TemplateConfig
+		templateConfig := agentConfig.Client.TemplateConfig
 
-	// Make sure all fields to test are set
-	require.NotNil(t, templateConfig.BlockQueryWaitTime)
-	require.NotNil(t, templateConfig.MaxStale)
-	require.NotNil(t, templateConfig.Wait)
-	require.NotNil(t, templateConfig.WaitBounds)
-	require.NotNil(t, templateConfig.ConsulRetry)
-	require.NotNil(t, templateConfig.VaultRetry)
-	require.NotNil(t, templateConfig.NomadRetry)
+		// check explicit overrides
+		must.Eq(t, true, templateConfig.DisableSandbox)
+		must.Len(t, 0, templateConfig.FunctionDenylist)
 
-	// Direct properties
-	require.Equal(t, 300*time.Second, *templateConfig.MaxStale)
-	require.Equal(t, 90*time.Second, *templateConfig.BlockQueryWaitTime)
-	// Wait
-	require.Equal(t, 2*time.Second, *templateConfig.Wait.Min)
-	require.Equal(t, 60*time.Second, *templateConfig.Wait.Max)
-	// WaitBounds
-	require.Equal(t, 2*time.Second, *templateConfig.WaitBounds.Min)
-	require.Equal(t, 60*time.Second, *templateConfig.WaitBounds.Max)
-	// Consul Retry
-	require.NotNil(t, templateConfig.ConsulRetry)
-	require.Equal(t, 5, *templateConfig.ConsulRetry.Attempts)
-	require.Equal(t, 5*time.Second, *templateConfig.ConsulRetry.Backoff)
-	require.Equal(t, 10*time.Second, *templateConfig.ConsulRetry.MaxBackoff)
-	// Vault Retry
-	require.NotNil(t, templateConfig.VaultRetry)
-	require.Equal(t, 10, *templateConfig.VaultRetry.Attempts)
-	require.Equal(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
-	require.Equal(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
-	// Nomad Retry
-	require.NotNil(t, templateConfig.NomadRetry)
-	require.Equal(t, 15, *templateConfig.NomadRetry.Attempts)
-	require.Equal(t, 20*time.Second, *templateConfig.NomadRetry.Backoff)
-	require.Equal(t, 25*time.Second, *templateConfig.NomadRetry.MaxBackoff)
+		// check all the complex defaults
+		must.Eq(t, 87600*time.Hour, *templateConfig.MaxStale)
+		must.Eq(t, 5*time.Minute, *templateConfig.BlockQueryWaitTime)
+
+		// Wait
+		must.NotNil(t, templateConfig.Wait)
+		must.Eq(t, 5*time.Second, *templateConfig.Wait.Min)
+		must.Eq(t, 4*time.Minute, *templateConfig.Wait.Max)
+
+		// WaitBounds
+		must.Nil(t, templateConfig.WaitBounds)
+
+		// Consul Retry
+		must.NotNil(t, templateConfig.ConsulRetry)
+		must.Eq(t, 0, *templateConfig.ConsulRetry.Attempts)
+		must.Nil(t, templateConfig.ConsulRetry.Backoff)
+		must.Nil(t, templateConfig.ConsulRetry.MaxBackoff)
+
+		// Vault Retry
+		must.NotNil(t, templateConfig.VaultRetry)
+		must.Eq(t, 0, *templateConfig.VaultRetry.Attempts)
+		must.Nil(t, templateConfig.VaultRetry.Backoff)
+		must.Nil(t, templateConfig.VaultRetry.MaxBackoff)
+
+		// Nomad Retry
+		must.NotNil(t, templateConfig.NomadRetry)
+		must.Eq(t, 0, *templateConfig.NomadRetry.Attempts)
+		must.Nil(t, templateConfig.NomadRetry.Backoff)
+		must.Nil(t, templateConfig.NomadRetry.MaxBackoff)
+	})
+
+	t.Run("client config with full template block", func(t *testing.T) {
+		defaultConfig := DefaultConfig()
+
+		agentConfig, err := LoadConfig("test-resources/client_with_template.hcl")
+		must.NoError(t, err)
+
+		agentConfig = defaultConfig.Merge(agentConfig)
+
+		clientAgent := Agent{config: agentConfig}
+		clientConfig, err := clientAgent.clientConfig()
+		must.NoError(t, err)
+
+		templateConfig := clientConfig.TemplateConfig
+
+		// Make sure all fields to test are set
+		must.NotNil(t, templateConfig.BlockQueryWaitTime)
+		must.NotNil(t, templateConfig.MaxStale)
+		must.NotNil(t, templateConfig.Wait)
+		must.NotNil(t, templateConfig.WaitBounds)
+		must.NotNil(t, templateConfig.ConsulRetry)
+		must.NotNil(t, templateConfig.VaultRetry)
+		must.NotNil(t, templateConfig.NomadRetry)
+
+		// Direct properties
+		must.Eq(t, 300*time.Second, *templateConfig.MaxStale)
+		must.Eq(t, 90*time.Second, *templateConfig.BlockQueryWaitTime)
+
+		// Wait
+		must.Eq(t, 2*time.Second, *templateConfig.Wait.Min)
+		must.Eq(t, 60*time.Second, *templateConfig.Wait.Max)
+
+		// WaitBounds
+		must.Eq(t, 2*time.Second, *templateConfig.WaitBounds.Min)
+		must.Eq(t, 60*time.Second, *templateConfig.WaitBounds.Max)
+
+		// Consul Retry
+		must.NotNil(t, templateConfig.ConsulRetry)
+		must.Eq(t, 5, *templateConfig.ConsulRetry.Attempts)
+		must.Eq(t, 5*time.Second, *templateConfig.ConsulRetry.Backoff)
+		must.Eq(t, 10*time.Second, *templateConfig.ConsulRetry.MaxBackoff)
+
+		// Vault Retry
+		must.NotNil(t, templateConfig.VaultRetry)
+		must.Eq(t, 10, *templateConfig.VaultRetry.Attempts)
+		must.Eq(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
+		must.Eq(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
+
+		// Nomad Retry
+		must.NotNil(t, templateConfig.NomadRetry)
+		must.Eq(t, 15, *templateConfig.NomadRetry.Attempts)
+		must.Eq(t, 20*time.Second, *templateConfig.NomadRetry.Backoff)
+		must.Eq(t, 25*time.Second, *templateConfig.NomadRetry.MaxBackoff)
+	})
+
 }
 
 func TestConfig_LoadConsulTemplate_FunctionDenylist(t *testing.T) {
@@ -1657,4 +1743,112 @@ func TestParseMultipleIPTemplates(t *testing.T) {
 			require.Equal(t, tc.expectedOut, out)
 		})
 	}
+}
+
+// this test makes sure Consul configs with and without WI merging happens
+// correctly; here to assure we don't introduce regressions
+func Test_mergeConsulConfigs(t *testing.T) {
+	ci.Parallel(t)
+
+	c0 := &Config{
+		Consuls: []*config.ConsulConfig{
+			{
+				Token:                "foo",
+				AllowUnauthenticated: pointer.Of(true),
+			},
+		},
+	}
+
+	c1 := &Config{
+		Consuls: []*config.ConsulConfig{
+			{
+				ServiceIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"consul.io"},
+					TTL:      pointer.Of(time.Hour),
+				},
+				TaskIdentity: &config.WorkloadIdentityConfig{
+					Audience: []string{"consul.io"},
+					TTL:      pointer.Of(time.Hour),
+				},
+			},
+		},
+	}
+
+	result := c0.Merge(c1)
+
+	must.Eq(t, c1.Consuls[0].ServiceIdentity, result.Consuls[0].ServiceIdentity)
+	must.Eq(t, c1.Consuls[0].TaskIdentity, result.Consuls[0].TaskIdentity)
+	must.Eq(t, c0.Consuls[0].Token, result.Consuls[0].Token)
+	must.Eq(t, c0.Consuls[0].AllowUnauthenticated, result.Consuls[0].AllowUnauthenticated)
+}
+
+func Test_mergeKEKProviderConfigs(t *testing.T) {
+	ci.Parallel(t)
+
+	left := []*structs.KEKProviderConfig{
+		{
+			// incomplete config with name
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   true,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+		{
+			// empty config
+			Provider: "aead",
+		},
+	}
+	right := []*structs.KEKProviderConfig{
+		{
+			// same awskms.foo provider with fields to merge
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   false,
+			Config: map[string]string{
+				"access_key": "AKIAIOSXABCD7EXAMPLE",
+				"secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+				"kms_key_id": "19ec80b0-dfdd-4d97-8164-c6examplekey",
+			},
+		},
+		{
+			// same awskms provider, different name
+			Provider: "awskms",
+			Name:     "bar",
+			Active:   false,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+	}
+
+	result := mergeKEKProviderConfigs(left, right)
+	must.Eq(t, []*structs.KEKProviderConfig{
+		{
+			Provider: "aead",
+		},
+		{
+			Provider: "awskms",
+			Name:     "bar",
+			Active:   false,
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSFODNN7EXAMPLE",
+			},
+		},
+		{
+			Provider: "awskms",
+			Name:     "foo",
+			Active:   false, // should be flipped
+			Config: map[string]string{
+				"region":     "us-east-1",
+				"access_key": "AKIAIOSXABCD7EXAMPLE",                     // override
+				"secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY", // added
+				"kms_key_id": "19ec80b0-dfdd-4d97-8164-c6examplekey",     // added
+			},
+		},
+	}, result)
 }

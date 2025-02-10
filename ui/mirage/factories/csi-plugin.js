@@ -53,9 +53,13 @@ export default Factory.extend({
   afterCreate(plugin, server) {
     let storageNodes;
     let storageControllers;
+    server.create('namespace', { id: 'default' });
 
     if (plugin.isMonolith) {
-      const pluginJob = server.create('job', { type: 'service', createAllocations: false });
+      const pluginJob = server.create('job', {
+        type: 'service',
+        createAllocations: false,
+      });
       const count = plugin.nodesExpected;
       storageNodes = server.createList('storage-node', count, {
         job: pluginJob,

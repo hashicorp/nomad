@@ -12,6 +12,6 @@ Requirements:
 [Prometheus's instructions for Grafana](https://prometheus.io/docs/visualization/grafana/#creating-a-prometheus-data-source)
 for more information
 
-3. [Import](http://docs.grafana.org/features/export_import/) this Grafana
-dashboard as a new Grafana dashboard. Make sure the data source name matches
-the Prometheus data source in #2.
+3. [Import](https://grafana.com/docs/grafana/latest/dashboards/manage-dashboards/#import-a-dashboard)
+this Grafana dashboard as a new Grafana dashboard. Make sure the data
+source name matches the Prometheus data source in #2.

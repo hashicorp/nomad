@@ -1,0 +1,7 @@
+```release-note:bug
+drain: Fixed a bug where Workload Identity tokens could not be used to drain a node
+```
+
+```release-note:bug
+state: Fixed a bug where restarting a server could fail if the Raft logs include a drain update that used a now-expired token
+```

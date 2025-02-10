@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics: Added tracking of enqueue and dequeue times of evaluations to the broker
+```

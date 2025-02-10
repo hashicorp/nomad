@@ -406,7 +406,7 @@ module('Acceptance | task group detail', function (hooks) {
   test('/jobs/:id/:task-group should present task lifecycles', async function (assert) {
     job = server.create('job', {
       groupsCount: 2,
-      groupTaskCount: 3,
+      groupAllocCount: 3,
     });
 
     const taskGroups = server.db.taskGroups.where({ jobId: job.id });
@@ -451,6 +451,19 @@ module('Acceptance | task group detail', function (hooks) {
     await TaskGroup.visit({ id: job.id, name: taskGroup.name });
 
     assert.notOk(TaskGroup.hasVolumes);
+  });
+
+  test('when the task group has metadata, the metadata table is shown', async function (assert) {
+    job = server.create('job', {
+      meta: { raw: { a: 'b' } },
+    });
+    taskGroup = server.create('task-group', {
+      job,
+      meta: { raw: { foo: 'bar' } },
+    });
+    await TaskGroup.visit({ id: job.id, name: taskGroup.name });
+
+    assert.ok(TaskGroup.hasMeta);
   });
 
   test('each row in the volumes table lists information about the volume', async function (assert) {

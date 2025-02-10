@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	clientconfig "github.com/hashicorp/nomad/client/config"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -677,6 +678,111 @@ func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
 	}
 }
 
+func TestConvertClientConfig(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		name string
+		// modConfig modifies the agent config before passing to convertClientConfig()
+		modConfig func(*Config)
+		// assert makes assertions about the resulting client config
+		assert    func(*testing.T, *clientconfig.Config)
+		expectErr string
+	}{
+		{
+			name: "default",
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, "global", cc.Region)
+			},
+		},
+		{
+			name: "ipv4 bridge subnet",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnet = "10.0.0.0/24"
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, "10.0.0.0/24", cc.BridgeNetworkAllocSubnet)
+			},
+		},
+		{
+			name: "invalid ipv4 bridge subnet",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnet = "invalid-ip4"
+			},
+			expectErr: "invalid bridge_network_subnet: invalid CIDR address: invalid-ip4",
+		},
+		{
+			name: "invalid ipv4 bridge subnet is ipv6",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnet = "fd00:a110:c8::/120"
+			},
+			expectErr: "invalid bridge_network_subnet: not an IPv4 address: fd00:a110:c8::/120",
+		},
+		{
+			name: "ipv6 bridge subnet",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnetIPv6 = "fd00:a110:c8::/120"
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.Eq(t, "fd00:a110:c8::/120", cc.BridgeNetworkAllocSubnetIPv6)
+			},
+		},
+		{
+			name: "invalid ipv6 bridge subnet",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnetIPv6 = "invalid-ip6"
+			},
+			expectErr: "invalid bridge_network_subnet_ipv6: invalid CIDR address: invalid-ip6",
+		},
+		{
+			name: "invalid ipv6 bridge subnet is ipv4",
+			modConfig: func(c *Config) {
+				c.Client.BridgeNetworkSubnetIPv6 = "10.0.0.1/24"
+			},
+			expectErr: "invalid bridge_network_subnet_ipv6: not an IPv6 address: 10.0.0.1/24",
+		},
+		{
+			name: "hook metrics enabled (default value)",
+			modConfig: func(c *Config) {
+				c.Telemetry.DisableAllocationHookMetrics = pointer.Of(false)
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.False(t, cc.DisableAllocationHookMetrics)
+			},
+		},
+		{
+			name: "hook metrics disabled",
+			modConfig: func(c *Config) {
+				c.Telemetry.DisableAllocationHookMetrics = pointer.Of(true)
+			},
+			assert: func(t *testing.T, cc *clientconfig.Config) {
+				must.True(t, cc.DisableAllocationHookMetrics)
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := DefaultConfig()
+
+			if tc.modConfig != nil {
+				tc.modConfig(c)
+			}
+
+			// method under test
+			cc, err := convertClientConfig(c)
+
+			if tc.expectErr != "" {
+				must.ErrorContains(t, err, tc.expectErr)
+			} else {
+				must.NoError(t, err)
+			}
+
+			if tc.assert != nil {
+				tc.assert(t, cc)
+			}
+		})
+	}
+}
+
 func TestAgent_ClientConfig_discovery(t *testing.T) {
 	ci.Parallel(t)
 	conf := DefaultConfig()
@@ -774,9 +880,12 @@ func TestAgent_HTTPCheck(t *testing.T) {
 			config: &Config{
 				AdvertiseAddrs:  &AdvertiseAddrs{HTTP: "advertise:4646"},
 				normalizedAddrs: &NormalizedAddrs{HTTP: []string{"normalized:4646"}},
-				Consul: &config.ConsulConfig{
-					ChecksUseAdvertise: pointer.Of(false),
-				},
+				Consuls: []*config.ConsulConfig{{
+					Name:                         "default",
+					ChecksUseAdvertise:           pointer.Of(false),
+					ClientFailuresBeforeCritical: 2,
+					ClientFailuresBeforeWarning:  1,
+				}},
 				TLSConfig: &config.TLSConfig{EnableHTTP: false},
 			},
 		}
@@ -800,11 +909,17 @@ func TestAgent_HTTPCheck(t *testing.T) {
 		if expected := a.config.normalizedAddrs.HTTP[0]; check.PortLabel != expected {
 			t.Errorf("expected normalized addr not %q", check.PortLabel)
 		}
+		if expected := 2; check.FailuresBeforeCritical != expected {
+			t.Errorf("expected failured before critical count not: %q", expected)
+		}
+		if expected := 1; check.FailuresBeforeWarning != expected {
+			t.Errorf("expected failured before warning count not: %q", expected)
+		}
 	})
 
 	t.Run("Plain HTTP + ChecksUseAdvertise", func(t *testing.T) {
 		a := agent()
-		a.config.Consul.ChecksUseAdvertise = pointer.Of(true)
+		a.config.Consuls[0].ChecksUseAdvertise = pointer.Of(true)
 		check := a.agentHTTPCheck(false)
 		if check == nil {
 			t.Fatalf("expected non-nil check")
@@ -850,6 +965,10 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 		config: DevConfig(nil),
 		logger: testlog.HCLogger(t),
 	}
+	// setting to ensure this does not get set for the server
+	a.config.Consuls[0].ServerFailuresBeforeCritical = 4
+	a.config.Consuls[0].ServerFailuresBeforeWarning = 3
+
 	if err := a.config.normalizeAddrs(); err != nil {
 		t.Fatalf("error normalizing config: %v", err)
 	}
@@ -862,6 +981,13 @@ func TestAgent_HTTPCheckPath(t *testing.T) {
 	}
 	if expected := "/v1/agent/health?type=server"; check.Path != expected {
 		t.Errorf("expected server check path to be %q but found %q", expected, check.Path)
+	}
+	// ensure server failures before critical and warning are set
+	if expected := 4; check.FailuresBeforeCritical != expected {
+		t.Errorf("expected failured before critical count not: %q", expected)
+	}
+	if expected := 3; check.FailuresBeforeWarning != expected {
+		t.Errorf("expected failured before warning count not: %q", expected)
 	}
 
 	// Assert client check uses /v1/agent/health?type=client
@@ -1077,8 +1203,6 @@ func Test_GetConfig(t *testing.T) {
 		Ports:          &Ports{},
 		Addresses:      &Addresses{},
 		AdvertiseAddrs: &AdvertiseAddrs{},
-		Vault:          &config.VaultConfig{},
-		Consul:         &config.ConsulConfig{},
 		Sentinel:       &config.SentinelConfig{},
 	}
 
@@ -1193,7 +1317,8 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
 		c.Server.NumSchedulers = pointer.Of(0)
-		c.Vault = &config.VaultConfig{
+		c.Vaults[0] = &config.VaultConfig{
+			Name:      "default",
 			Enabled:   pointer.Of(true),
 			Token:     "vault-token",
 			Namespace: "vault-namespace",
@@ -1203,7 +1328,8 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 	defer agent.Shutdown()
 
 	newConfig := agent.GetConfig().Copy()
-	newConfig.Vault = &config.VaultConfig{
+	newConfig.Vaults[0] = &config.VaultConfig{
+		Name:      "default",
 		Enabled:   pointer.Of(true),
 		Token:     "vault-token",
 		Namespace: "another-namespace",

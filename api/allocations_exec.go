@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"strconv"
 	"sync"
 	"time"
@@ -25,9 +26,11 @@ const (
 type execSession struct {
 	client  *Client
 	alloc   *Allocation
+	job     string
 	task    string
 	tty     bool
 	command []string
+	action  string
 
 	stdin  io.Reader
 	stdout io.Writer
@@ -94,17 +97,23 @@ func (s *execSession) startConnection() (*websocket.Conn, error) {
 	q.Params["tty"] = strconv.FormatBool(s.tty)
 	q.Params["task"] = s.task
 	q.Params["command"] = string(commandBytes)
-
 	reqPath := fmt.Sprintf("/v1/client/allocation/%s/exec", s.alloc.ID)
+
+	if s.action != "" {
+		q.Params["action"] = s.action
+		q.Params["allocID"] = s.alloc.ID
+		q.Params["group"] = s.alloc.TaskGroup
+		reqPath = fmt.Sprintf("/v1/job/%s/action", url.PathEscape(s.job))
+	}
 
 	var conn *websocket.Conn
 
 	if nodeClient != nil {
-		conn, _, _ = nodeClient.websocket(reqPath, q)
+		conn, _, _ = nodeClient.websocket(reqPath, q) //nolint:bodyclose // gorilla/websocket Dialer.DialContext() does not require the body to be closed.
 	}
 
 	if conn == nil {
-		conn, _, err = s.client.websocket(reqPath, q)
+		conn, _, err = s.client.websocket(reqPath, q) //nolint:bodyclose // gorilla/websocket Dialer.DialContext() does not require the body to be closed.
 		if err != nil {
 			return nil, err
 		}

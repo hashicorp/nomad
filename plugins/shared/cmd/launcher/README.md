@@ -31,7 +31,6 @@ $ ./launcher device ./fs-device
 $ cat <<\EOF >fs-device.config
 > config {
 >   dir = "./plugins"
->   stats_period = "2s"
 > }
 > EOF
 

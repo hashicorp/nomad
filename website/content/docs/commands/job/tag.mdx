@@ -1,0 +1,101 @@
+---
+layout: docs
+page_title: 'Commands: job tag'
+description: |
+  Use the job tag commands to manage versions. The job tag apply command saves a job version tag, and the job tag unset command removes a job version tag.
+---
+
+
+# Command: job tag
+
+@include 'version/tag-reason.mdx'
+
+Use the `job tag` command to manage tags for job versions. `job tag` has the
+following subcommands:
+
+- [`job tag apply`](#apply): Save a job version tag.
+- [`job tag unset`](#unset): Remove a tag from a job version.
+
+## Usage
+
+```shell
+nomad job tag <subcommand> [options] [args]
+```
+
+## Apply
+
+Use `job tag apply` to create or modify a version tag.
+
+### Apply usage
+
+```shell-session
+nomad job tag apply [options] <job_id>
+```
+
+### General options
+
+<details>
+<summary>Expand for general options</summary>
+
+@include 'general_options.mdx'
+
+</details>
+
+### Apply options
+
+- `name`: Specifies the name of the tag. Must be unique per job.
+- `description`: If set, specifies a description for the tag.
+- `version`: If set, specifies the version of the job to tag. If not provided, Nomad tags the latest version of the job.
+
+### Apply examples
+
+This example tags the latest version of the job `hello-world`.
+
+```shell-session
+$ nomad job tag apply -name "golden-version" \
+		-description "The version we can roll back to." \
+    hello-world
+```
+
+This example tags version zero of the job `hello-world`.
+
+```shell-session
+$ nomad job tag apply -version 0 \
+      -name "golden-version" \
+      hello-world
+```
+
+## Unset
+
+Use `nomad job tag unset` to delete a tag from a version. This command requires a job name and a tag name.
+
+### Unset usage
+
+```shell-session
+nomad job tag unset [options] <job_id>
+```
+
+### General options
+
+<details>
+<summary>Expand for general options</summary>
+
+@include 'general_options.mdx'
+
+</details>
+
+### Unset options
+
+- `name`: Specifies the name of the tag to remove from the job version.
+
+### Examples
+
+This example removes the `golden-version` tag from the `hello-world` job.
+
+```shell-session
+$ nomad job tag unset -name "golden-version" hello-world
+```
+
+[diff]: /nomad/docs/commands/job/history/
+[revert]: /nomad/docs/commands/job/revert/
+

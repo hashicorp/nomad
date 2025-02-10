@@ -43,7 +43,7 @@ export default Mixin.create({
   frameMisses: 0,
 
   handleResponse(frame) {
-    if (frame.error) {
+    if (!frame || frame.error) {
       this.incrementProperty('frameMisses');
       if (this.frameMisses >= this.maxFrameMisses) {
         // Missing enough data consecutively is effectively a pause

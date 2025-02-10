@@ -21,15 +21,14 @@ func TestTLSConfig_Merge(t *testing.T) {
 	}
 
 	b := &TLSConfig{
-		EnableHTTP:                  true,
-		EnableRPC:                   true,
-		VerifyServerHostname:        true,
-		CAFile:                      "test-ca-file-2",
-		CertFile:                    "test-cert-file-2",
-		RPCUpgradeMode:              true,
-		TLSCipherSuites:             "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
-		TLSMinVersion:               "tls12",
-		TLSPreferServerCipherSuites: true,
+		EnableHTTP:           true,
+		EnableRPC:            true,
+		VerifyServerHostname: true,
+		CAFile:               "test-ca-file-2",
+		CertFile:             "test-cert-file-2",
+		RPCUpgradeMode:       true,
+		TLSCipherSuites:      "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
+		TLSMinVersion:        "tls12",
 	}
 
 	new := a.Merge(b)
@@ -188,12 +187,11 @@ func TestTLS_Copy(t *testing.T) {
 		fookey  = "../../../helper/tlsutil/testdata/regionFoo-client-nomad-key.pem"
 	)
 	a := &TLSConfig{
-		CAFile:                      cafile,
-		CertFile:                    foocert,
-		KeyFile:                     fookey,
-		TLSCipherSuites:             "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
-		TLSMinVersion:               "tls12",
-		TLSPreferServerCipherSuites: true,
+		CAFile:          cafile,
+		CertFile:        foocert,
+		KeyFile:         fookey,
+		TLSCipherSuites: "TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305",
+		TLSMinVersion:   "tls12",
 	}
 	a.SetChecksum()
 

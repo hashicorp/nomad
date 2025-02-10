@@ -10,7 +10,7 @@ import (
 )
 
 // lockdown is not implemented by default
-func lockdown(string, string) error {
+func lockdown(string, string, []string) error {
 	return nil
 }
 

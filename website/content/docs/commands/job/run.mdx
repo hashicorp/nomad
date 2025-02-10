@@ -78,12 +78,9 @@ that volume.
   such as from "nomad job inspect" or "nomad run -output", the value of the
   field is used as the job. See [JSON Jobs] for details.
 
-- `-hcl1`: If set, HCL1 parser is used for parsing the job spec. Takes
-  precedence over `-hcl2-strict`.
-
 - `-hcl2-strict`: Whether an error should be produced from the HCL2 parser where
   a variable has been supplied which is not defined within the root variables.
-  Defaults to true, but ignored if `-hcl1` is defined.
+  Defaults to true.
 
 - `-output`: Output the JSON that would be submitted to the HTTP API without
   submitting the job.

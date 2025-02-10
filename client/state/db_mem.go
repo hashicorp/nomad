@@ -4,6 +4,7 @@
 package state
 
 import (
+	"maps"
 	"sync"
 
 	"github.com/hashicorp/go-hclog"
@@ -15,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/client/serviceregistration/checks"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
 // MemDB implements a StateDB that stores data in memory and should only be
@@ -43,6 +43,9 @@ type MemDB struct {
 	// alloc_id -> check_id -> result
 	checks checks.ClientResults
 
+	// alloc_id -> []identities
+	identities map[string][]*structs.SignedWorkloadIdentity
+
 	// devicemanager -> plugin-state
 	devManagerPs *dmstate.PluginState
 
@@ -57,6 +60,8 @@ type MemDB struct {
 
 	nodeRegistration *cstructs.NodeRegistration
 
+	dynamicHostVolumes map[string]*cstructs.HostVolumeState
+
 	logger hclog.Logger
 
 	mu sync.RWMutex
@@ -65,14 +70,16 @@ type MemDB struct {
 func NewMemDB(logger hclog.Logger) *MemDB {
 	logger = logger.Named("memdb")
 	return &MemDB{
-		allocs:            make(map[string]*structs.Allocation),
-		deployStatus:      make(map[string]*structs.AllocDeploymentStatus),
-		networkStatus:     make(map[string]*structs.AllocNetworkStatus),
-		acknowledgedState: make(map[string]*arstate.State),
-		localTaskState:    make(map[string]map[string]*state.LocalState),
-		taskState:         make(map[string]map[string]*structs.TaskState),
-		checks:            make(checks.ClientResults),
-		logger:            logger,
+		allocs:             make(map[string]*structs.Allocation),
+		deployStatus:       make(map[string]*structs.AllocDeploymentStatus),
+		networkStatus:      make(map[string]*structs.AllocNetworkStatus),
+		acknowledgedState:  make(map[string]*arstate.State),
+		localTaskState:     make(map[string]map[string]*state.LocalState),
+		taskState:          make(map[string]map[string]*structs.TaskState),
+		checks:             make(checks.ClientResults),
+		identities:         make(map[string][]*structs.SignedWorkloadIdentity),
+		dynamicHostVolumes: make(map[string]*cstructs.HostVolumeState),
+		logger:             logger,
 	}
 }
 
@@ -155,6 +162,19 @@ func (m *MemDB) GetAllocVolumes(allocID string) (*arstate.AllocVolumes, error) {
 	return m.allocVolumeStates[allocID], nil
 }
 
+func (m *MemDB) PutAllocIdentities(allocID string, identities []*structs.SignedWorkloadIdentity, _ ...WriteOption) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.identities[allocID] = identities
+	return nil
+}
+
+func (m *MemDB) GetAllocIdentities(allocID string) ([]*structs.SignedWorkloadIdentity, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.identities[allocID], nil
+}
+
 func (m *MemDB) GetTaskRunnerState(allocID string, taskName string) (*state.LocalState, *structs.TaskState, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -231,6 +251,7 @@ func (m *MemDB) DeleteAllocationBucket(allocID string, _ ...WriteOption) error {
 	delete(m.allocs, allocID)
 	delete(m.taskState, allocID)
 	delete(m.localTaskState, allocID)
+	delete(m.identities, allocID)
 
 	return nil
 }
@@ -334,6 +355,28 @@ func (m *MemDB) GetNodeRegistration() (*cstructs.NodeRegistration, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.nodeRegistration, nil
+}
+
+func (m *MemDB) PutDynamicHostVolume(vol *cstructs.HostVolumeState) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.dynamicHostVolumes[vol.ID] = vol
+	return nil
+}
+func (m *MemDB) GetDynamicHostVolumes() ([]*cstructs.HostVolumeState, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	var vols []*cstructs.HostVolumeState
+	for _, vol := range m.dynamicHostVolumes {
+		vols = append(vols, vol)
+	}
+	return vols, nil
+}
+func (m *MemDB) DeleteDynamicHostVolume(s string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.dynamicHostVolumes, s)
+	return nil
 }
 
 func (m *MemDB) Close() error {

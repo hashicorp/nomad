@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Record exhausted node metrics for devices when preemption fails to find an allocation to evict
+```

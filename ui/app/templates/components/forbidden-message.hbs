@@ -13,12 +13,12 @@
       {{else}}
         required
       {{/if}}
-      <LinkTo @route="settings.tokens">permission</LinkTo> for this resource.<br /> Contact your administrator if this is an error.
+      <LinkTo data-test-permission-link @route="settings.tokens" {{on "click" (action (mut this.token.postExpiryPath) this.router.currentURL)}}>permission</LinkTo> for this resource.<br /> Contact your administrator if this is an error.
     {{else}}
       {{#if this.authMethods}}
         Sign in with
         {{#each this.authMethods as |authMethod|}}
-          <LinkTo @route="settings.tokens">{{authMethod.name}}</LinkTo>, 
+          <LinkTo @route="settings.tokens">{{authMethod.name}}</LinkTo>,
         {{/each}}
         or
       {{/if}}

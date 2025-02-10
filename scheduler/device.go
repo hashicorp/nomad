@@ -5,9 +5,12 @@ package scheduler
 
 import (
 	"fmt"
+	"strings"
 
 	"math"
 
+	"github.com/hashicorp/go-set/v3"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 )
@@ -30,10 +33,77 @@ func newDeviceAllocator(ctx Context, n *structs.Node) *deviceAllocator {
 	}
 }
 
-// AssignDevice takes a device request and returns an assignment as well as a
-// score for the assignment. If no assignment could be made, an error is
+func (da *deviceAllocator) Copy() *deviceAllocator {
+	accounter := da.DeviceAccounter.Copy()
+	allocator := &deviceAllocator{accounter, da.ctx}
+	return allocator
+}
+
+type memoryNodeMatcher struct {
+	memoryNode int               // the target memory node (-1 indicates don't care)
+	topology   *numalib.Topology // the topology of the candidate node
+	devices    *set.Set[string]  // the set of devices requiring numa associativity
+}
+
+// equalBusID will compare the instance specific device bus id values in a way
+// that handles non-uniform domain strings (e.g. "0000" vs "00000000").
+//
+// e.g. 0000:03:00.1 is equal to 00000000:03.00.1
+func equalBusID(a, b string) bool {
+	if a == b {
+		return true
+	}
+	noDomainA := strings.TrimLeft(a, "0")
+	noDomainB := strings.TrimLeft(b, "0")
+	return noDomainA == noDomainB
+}
+
+// Matches returns whether the given device instance is on a PCI bus that is
+// on the same NUMA node as the memory node of the matcher.
+//
+// instanceID is something like "GPU-6b5fa173-5fa6-2d38-54fe-d64c1fe4fe10"
+//
+// device is the grouping of device instance this instance belongs to and is
+// how we find the pci bus locality.
+func (m *memoryNodeMatcher) Matches(instanceID string, device *structs.NodeDeviceResource) bool {
+	// -1 is the sentinel value for not caring about the associated memory
+	// node, in which case we simply treat the device as a match
+	if m.memoryNode == -1 {
+		return true
+	}
+
+	// if the device is not listed in the numa block of the task resources then
+	// we do not care about what node is is on
+	if !m.devices.Contains(device.ID().String()) {
+		return true
+	}
+
+	// check if the hardware locality of the device matches the nume node of this
+	// memoryNodeMatcher instance. we do so by finding the specific device of
+	// the given instance id, looking at its locality, and comparing the locality
+	// using equalBusID because direct == equality does not work, due to
+	// differences in pci bus domain representations
+	for _, instance := range device.Instances {
+		if instance.ID == instanceID {
+			if instance.Locality != nil {
+				instanceBusID := instance.Locality.PciBusID
+				for busID, node := range m.topology.BusAssociativity {
+					if equalBusID(busID, instanceBusID) {
+						result := int(node) == m.memoryNode
+						return result
+					}
+				}
+			}
+		}
+	}
+
+	return false
+}
+
+// createOffer takes a device request and returns an assignment as well as a
+// score for the assignment. If no assignment is possible, an error is
 // returned explaining why.
-func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *structs.AllocatedDeviceResource, score float64, err error) {
+func (d *deviceAllocator) createOffer(mem *memoryNodeMatcher, ask *structs.RequestedDevice) (out *structs.AllocatedDeviceResource, score float64, err error) {
 	// Try to hot path
 	if len(d.Devices) == 0 {
 		return nil, 0.0, fmt.Errorf("no devices available")
@@ -52,10 +122,14 @@ func (d *deviceAllocator) AssignDevice(ask *structs.RequestedDevice) (out *struc
 	for id, devInst := range d.Devices {
 		// Check if we have enough unused instances to use this
 		assignable := uint64(0)
-		for _, v := range devInst.Instances {
-			if v == 0 {
-				assignable++
+		for instanceID, v := range devInst.Instances {
+			if v != 0 {
+				continue
 			}
+			if !mem.Matches(instanceID, devInst.Device) {
+				continue
+			}
+			assignable++
 		}
 
 		// This device doesn't have enough instances

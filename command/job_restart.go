@@ -18,7 +18,7 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/dustin/go-humanize/english"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
@@ -187,7 +187,8 @@ Restart Options:
     in-place. Since the group is not modified the restart does not create a new
     deployment, and so values defined in 'update' blocks, such as
     'max_parallel', are not taken into account. This option cannot be used with
-    '-task'.
+    '-task'. Only jobs of type 'batch', 'service', and 'system' can be
+    rescheduled.
 
   -task=<task-name>
     Specify the task to restart. Can be specified multiple times. If groups are
@@ -275,6 +276,27 @@ func (c *JobRestartCommand) Run(args []string) int {
 		c.client.SetNamespace(*job.Namespace)
 	}
 
+	// Handle SIGINT to prevent accidental cancellations of the long-lived
+	// restart loop. activeCh is blocked while a signal is being handled to
+	// prevent new work from starting while the user is deciding if they want
+	// to cancel the command or not.
+	activeCh := make(chan any)
+	c.sigsCh = make(chan os.Signal, 1)
+	signal.Notify(c.sigsCh, os.Interrupt)
+	defer signal.Stop(c.sigsCh)
+
+	go c.handleSignal(c.sigsCh, activeCh)
+
+	// Verify job type can be rescheduled.
+	if c.reschedule {
+		switch *job.Type {
+		case api.JobTypeBatch, api.JobTypeService, api.JobTypeSystem:
+		default:
+			c.Ui.Error(fmt.Sprintf("Jobs of type %q are not allowed to be rescheduled.", *job.Type))
+			return 1
+		}
+	}
+
 	// Confirm that we should restart a multi-region job in a single region.
 	if job.IsMultiregion() && !c.autoYes && !c.shouldRestartMultiregion() {
 		c.Ui.Output("\nJob restart canceled.")
@@ -328,17 +350,6 @@ func (c *JobRestartCommand) Run(args []string) int {
 		formatTime(time.Now()),
 		english.Plural(len(restartAllocs), "allocation", "allocations"),
 	)))
-
-	// Handle SIGINT to prevent accidental cancellations of the long-lived
-	// restart loop. activeCh is blocked while a signal is being handled to
-	// prevent new work from starting while the user is deciding if they want
-	// to cancel the command or not.
-	activeCh := make(chan any)
-	c.sigsCh = make(chan os.Signal, 1)
-	signal.Notify(c.sigsCh, os.Interrupt)
-	defer signal.Stop(c.sigsCh)
-
-	go c.handleSignal(c.sigsCh, activeCh)
 
 	// restartErr accumulates the errors that happen in each batch.
 	var restartErr *multierror.Error
@@ -633,6 +644,19 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 			continue
 		}
 
+		// Skip allocations that have already been replaced.
+		if stub.NextAllocation != "" {
+			if c.verbose {
+				c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
+					"[dark_gray]    %s: Skipping allocation %q because it has already been replaced by %q[reset]",
+					formatTime(time.Now()),
+					shortAllocID,
+					limit(stub.NextAllocation, c.length),
+				)))
+			}
+			continue
+		}
+
 		// Skip allocations for groups that were not requested.
 		if c.groups.Size() > 0 {
 			if !c.groups.Contains(stub.TaskGroup) {
@@ -650,7 +674,7 @@ func (c *JobRestartCommand) filterAllocs(stubs []AllocationListStubWithJob) []Al
 		// Skip allocations that don't have any of the requested tasks.
 		if c.tasks.Size() > 0 {
 			hasTask := false
-			for _, taskName := range c.tasks.Slice() {
+			for taskName := range c.tasks.Items() {
 				if stub.HasTask(taskName) {
 					hasTask = true
 					break
@@ -886,7 +910,7 @@ func (c *JobRestartCommand) restartAlloc(alloc AllocationListStubWithJob) error 
 
 	// Run restarts concurrently when specific tasks were requested.
 	var restarts multierror.Group
-	for _, task := range c.tasks.Slice() {
+	for task := range c.tasks.Items() {
 		if !alloc.HasTask(task) {
 			continue
 		}
@@ -937,6 +961,18 @@ func (c *JobRestartCommand) stopAlloc(alloc AllocationListStubWithJob) error {
 	resp, err := c.client.Allocations().Stop(&api.Allocation{ID: alloc.ID}, q)
 	if err != nil {
 		return fmt.Errorf("Failed to stop allocation: %w", err)
+	}
+
+	// Allocations for system jobs do not get replaced by the scheduler after
+	// being stopped, so an eval is needed to trigger the reconciler.
+	if alloc.isSystemJob() {
+		opts := api.EvalOptions{
+			ForceReschedule: true,
+		}
+		_, _, err := c.client.Jobs().EvaluateWithOpts(*alloc.Job.ID, opts, nil)
+		if err != nil {
+			return fmt.Errorf("Failed evaluate job: %w", err)
+		}
 	}
 
 	// errCh receives an error if anything goes wrong or nil when the
@@ -1204,4 +1240,10 @@ func (a *AllocationListStubWithJob) HasTask(name string) bool {
 func (a *AllocationListStubWithJob) IsRunning() bool {
 	return a.ClientStatus == api.AllocClientStatusRunning ||
 		a.DesiredStatus == api.AllocDesiredStatusRun
+}
+
+// isSystemJob returns true if allocation's job type
+// is "system", false otherwise
+func (a *AllocationListStubWithJob) isSystemJob() bool {
+	return a.Job != nil && a.Job.Type != nil && *a.Job.Type == api.JobTypeSystem
 }

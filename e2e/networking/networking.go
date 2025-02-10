@@ -95,3 +95,27 @@ func (tc *NetworkingE2ETest) TestNetworking_DockerBridgedHostnameInterpolation(f
 	f.NoError(err, "failed to run hostname exec command")
 	f.Contains(hostsOutput, "mylittlepony-0", "/etc/hosts doesn't contain hostname entry")
 }
+
+func (tc *NetworkingE2ETest) TestNetworking_DockerBridgedCNIEnvVars(f *framework.F) {
+
+	jobID := "test-networking-" + uuid.Generate()[0:8]
+	f.NoError(e2eutil.Register(jobID, "networking/inputs/docker_bridged_basic.nomad"))
+	tc.jobIDs = append(tc.jobIDs, jobID)
+	f.NoError(e2eutil.WaitForAllocStatusExpected(jobID, "default", []string{"running"}),
+		"job should be running with 1 alloc")
+
+	// Grab the allocations for the job.
+	allocs, _, err := tc.Nomad().Jobs().Allocations(jobID, false, nil)
+	f.NoError(err, "failed to get allocs for job")
+	f.Len(allocs, 1, "job should have one alloc")
+
+	// Run the env command within the allocation.
+	envOutput, err := e2eutil.AllocExec(allocs[0].ID, "sleep", "env", "default", nil)
+	f.NoError(err, "failed to run env exec command")
+
+	// Check all the network namespace env vars are present.
+	f.Contains(envOutput, "NOMAD_ALLOC_INTERFACE_dummy", "namespace interface env var not found")
+	f.Contains(envOutput, "NOMAD_ALLOC_IP_dummy", "namespace ip env var not found")
+	f.Contains(envOutput, "NOMAD_ALLOC_PORT_dummy", "namespace port env var not found")
+	f.Contains(envOutput, "NOMAD_ALLOC_ADDR_dummy", "namespace addr env var not found")
+}

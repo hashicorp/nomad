@@ -173,7 +173,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 			return 1
 		}
 
-		allocID, err = getRandomJobAllocID(client, jobID, ns)
+		allocID, err = getRandomJobAllocID(client, jobID, "", ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1
@@ -358,7 +358,7 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 	defer close(cancel)
 
 	stdoutFrames, stdoutErrCh := client.AllocFS().Logs(
-		alloc, true, l.task, api.FSLogNameStdout, api.OriginEnd, 1, cancel, nil)
+		alloc, true, l.task, api.FSLogNameStdout, api.OriginEnd, 0, cancel, nil)
 
 	// Setting up the logs stream can fail, therefore we need to check the
 	// error channel before continuing further.
@@ -369,7 +369,7 @@ func (l *AllocLogsCommand) tailMultipleFiles(client *api.Client, alloc *api.Allo
 	}
 
 	stderrFrames, stderrErrCh := client.AllocFS().Logs(
-		alloc, true, l.task, api.FSLogNameStderr, api.OriginEnd, 1, cancel, nil)
+		alloc, true, l.task, api.FSLogNameStderr, api.OriginEnd, 0, cancel, nil)
 
 	// Setting up the logs stream can fail, therefore we need to check the
 	// error channel before continuing further.

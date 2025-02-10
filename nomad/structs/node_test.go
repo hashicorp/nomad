@@ -163,3 +163,94 @@ func TestNodeMeta_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestCSITopology_Contains(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name     string
+		this     *CSITopology
+		other    *CSITopology
+		expected bool
+	}{
+		{
+			name: "AWS EBS pre 1.27 behavior",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.ebs.csi.aws.com/zone": "us-east-1a",
+				},
+			},
+			other: &CSITopology{
+				Segments: map[string]string{
+					"topology.ebs.csi.aws.com/zone": "us-east-1a",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "AWS EBS post 1.27 behavior",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone":   "us-east-1a",
+					"topology.ebs.csi.aws.com/zone": "us-east-1a",
+					"kubernetes.io/os":              "linux",
+				},
+			},
+			other: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "other contains invalid segment value for matched key",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone":   "us-east-1a",
+					"topology.ebs.csi.aws.com/zone": "us-east-1a",
+					"kubernetes.io/os":              "linux",
+				},
+			},
+			other: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+					"kubernetes.io/os":            "windows",
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "other contains invalid segment key",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+				},
+			},
+			other: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+					"kubernetes.io/os":            "linux",
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "other is nil",
+			this: &CSITopology{
+				Segments: map[string]string{
+					"topology.kubernetes.io/zone": "us-east-1a",
+				},
+			},
+			other:    nil,
+			expected: false,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.Eq(t, tc.expected, tc.this.Contains(tc.other))
+		})
+	}
+
+}

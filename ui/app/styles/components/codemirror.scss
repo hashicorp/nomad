@@ -13,6 +13,12 @@ $dark-bright: lighten($dark, 15%);
   min-height: 500px;
 }
 
+.namespace-editor {
+  .CodeMirror-scroll {
+    min-height: 204px;
+  }
+}
+
 .cm-s-hashi,
 .cm-s-hashi-read-only {
   &.CodeMirror {

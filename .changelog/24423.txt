@@ -1,0 +1,3 @@
+```release-note:improvement
+api: Sanitise hcl variables before storage on JobSubmission
+```

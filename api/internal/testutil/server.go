@@ -225,7 +225,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 
 	// Wait for the server to be ready
 	if nomadConfig.Server.Enabled && nomadConfig.Server.BootstrapExpect != 0 {
-		server.waitForLeader()
+		server.waitForServers()
 	} else {
 		server.waitForAPI()
 	}
@@ -296,20 +296,28 @@ func (s *TestServer) waitForAPI() {
 	)
 }
 
-// waitForLeader waits for the Nomad server's HTTP API to become
-// available, and then waits for a known leader and an index of
-// 1 or more to be observed to confirm leader election is done.
-func (s *TestServer) waitForLeader() {
+// waitForServers waits for the Nomad server's HTTP API to become available,
+// and then waits for the keyring to be intialized. This implies a leader has
+// been elected and Raft writes have occurred.
+func (s *TestServer) waitForServers() {
 	f := func() error {
-		// Query the API and check the status code
-		// Using this endpoint as it is does not have restricted access
-		resp, err := s.HTTPClient.Get(s.url("/v1/status/leader"))
+		resp, err := s.HTTPClient.Get(s.url("/.well-known/jwks.json"))
 		if err != nil {
-			return fmt.Errorf("failed to get leader: %w", err)
+			return fmt.Errorf("failed to contact leader: %w", err)
 		}
 		defer func() { _ = resp.Body.Close() }()
 		if err = s.requireOK(resp); err != nil {
 			return fmt.Errorf("leader response is not ok: %w", err)
+		}
+
+		jwks := struct {
+			Keys []interface{} `json:"keys"`
+		}{}
+		if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+			return fmt.Errorf("error decoding jwks response: %w", err)
+		}
+		if len(jwks.Keys) == 0 {
+			return fmt.Errorf("no keys found")
 		}
 		return nil
 	}
@@ -365,7 +373,7 @@ func (s *TestServer) url(path string) string {
 
 // requireOK checks the HTTP response code and ensures it is acceptable.
 func (s *TestServer) requireOK(resp *http.Response) error {
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status code: %d", resp.StatusCode)
 	}
 	return nil
@@ -373,7 +381,7 @@ func (s *TestServer) requireOK(resp *http.Response) error {
 
 // put performs a new HTTP PUT request.
 func (s *TestServer) put(path string, body io.Reader) *http.Response {
-	req, err := http.NewRequest("PUT", s.url(path), body)
+	req, err := http.NewRequest(http.MethodPut, s.url(path), body)
 	must.NoError(s.t, err)
 
 	resp, err := s.HTTPClient.Do(req)

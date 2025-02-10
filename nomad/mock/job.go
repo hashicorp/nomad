@@ -31,12 +31,13 @@ func Job() *structs.Job {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:  "web",
-				Count: 10,
+				Name:                    "web",
+				Count:                   10,
+				PreventRescheduleOnLost: false,
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "${attr.consul.version}",
-						RTarget: ">= 1.7.0",
+						RTarget: ">= 1.8.0",
 						Operand: structs.ConstraintSemver,
 					},
 				},
@@ -75,6 +76,25 @@ func Job() *structs.Job {
 						},
 						Env: map[string]string{
 							"FOO": "bar",
+						},
+						Actions: []*structs.Action{
+							{
+								Name:    "date-test",
+								Command: "/bin/date",
+								Args:    []string{"-u"},
+							},
+							{
+								Name:    "echo-test",
+								Command: "/bin/echo",
+								Args:    []string{"hello world"},
+							},
+						},
+						Constraints: []*structs.Constraint{
+							{
+								LTarget: "${attr.consul.version}",
+								RTarget: ">= 1.8.0",
+								Operand: structs.ConstraintSemver,
+							},
 						},
 						Services: []*structs.Service{
 							{
@@ -124,6 +144,7 @@ func Job() *structs.Job {
 		CreateIndex:    42,
 		ModifyIndex:    99,
 		JobModifyIndex: 99,
+		SubmitTime:     time.Now().UTC().Add(-6 * time.Hour).UnixNano(),
 	}
 	job.Canonicalize()
 	return job
@@ -169,7 +190,7 @@ func JobWithScalingPolicy() (*structs.Job, *structs.ScalingPolicy) {
 		Policy:  map[string]interface{}{},
 		Enabled: true,
 	}
-	policy.TargetTaskGroup(job, job.TaskGroups[0])
+	policy.Canonicalize(job, job.TaskGroups[0], nil)
 	job.TaskGroups[0].Scaling = policy
 	return job, policy
 }
@@ -691,5 +712,40 @@ func BigBenchmarkJob() *structs.Job {
 		Weight:  50,
 	}}
 
+	return job
+}
+
+// ActionsJob produces a multi-group, multi-task job with actions for testing.
+func ActionsJob() *structs.Job {
+	job := MinJob()
+
+	for i := 0; i < 2; i++ {
+		tg := job.TaskGroups[0].Copy()
+		tg.Name = fmt.Sprintf("g%d", i+1)
+		job.TaskGroups = append(job.TaskGroups, tg)
+	}
+
+	for i := 0; i < 2; i++ {
+		task := job.TaskGroups[0].Tasks[0].Copy()
+		task.Name = fmt.Sprintf("t%d", i+1)
+		job.TaskGroups[0].Tasks = append(job.TaskGroups[0].Tasks, task)
+	}
+
+	for _, tg := range job.TaskGroups {
+		for _, task := range tg.Tasks {
+			task.Actions = []*structs.Action{
+				{
+					Name:    "date-test",
+					Command: "/bin/date",
+					Args:    []string{"-u"},
+				},
+				{
+					Name:    "echo-test",
+					Command: "/bin/echo",
+					Args:    []string{"hello world"},
+				},
+			}
+		}
+	}
 	return job
 }

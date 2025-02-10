@@ -1,17 +1,22 @@
 ---
 layout: docs
-page_title: tls Block - Agent Configuration
+page_title: tls Block in Agent Configuration
 description: |-
-  The "tls" block configures Nomad's TLS communication via HTTP and RPC to
-  enforce secure cluster communication between servers and clients.
+  Configure secure communication in the `tls` block of a Nomad agent configuration. Enable TLS on Raft traffic and RFC and HTTP endpoints. Add TLS cipher suites and paths to certificates and key files. Specify the TLS version. Require client certificates for all incoming HTTPS requests and the server name on all outgoing TLS connections.
 ---
 
-# `tls` Block
+# `tls` Block in Agent Configuration
 
 <Placement groups={['tls']} />
 
-The `tls` block configures Nomad's TLS communication via HTTP and RPC to
-enforce secure cluster communication between servers, clients, and between.
+This page provides reference information for configuring secure communication in
+the `tls` block of a Nomad agent configuration. Enable TLS on Raft traffic and
+RFC and HTTP endpoints. Add TLS cipher suites and paths to certificates and key
+files. Specify the TLS version. Require client certificates for all incoming
+HTTPS requests and verifying the server name on all outgoing TLS connections.
+
+Note that he Nomad documentation uses "TLS" to refer to this communication
+except when it is potentially ambiguous between TLS and mTLS.
 
 ```hcl
 tls {
@@ -23,8 +28,7 @@ tls {
 ~> Incorrect configuration of the TLS configuration can result in failure to
 start the Nomad agent.
 
-This section of the documentation only covers the configuration options for
-`tls` block. To understand how to setup the certificates themselves, please see
+This section of the documentation only covers the configuration options for the `tls` block. To understand how to setup the certificates themselves, refer to
 the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-security/security-enable-tls).
 
 ## `tls` Parameters
@@ -38,19 +42,24 @@ the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-securi
 - `key_file` `(string: "")` - Specifies the path to the key file to use for
   Nomad's TLS communication.
 
-- `http` `(bool: false)` - Specifies if mTLS should be enabled on the HTTP
-  endpoints on the Nomad agent, including the API.
+- `http` `(bool: false)` - Specifies if TLS should be enabled on the HTTP
+  endpoints on the Nomad agent, including the API. By default this is non-mutual
+  TLS. You can upgrade this to mTLS by setting
+  [`verify_https_client=true`](#verify_https_client), but this can complicate
+  using the Nomad UI by requiring mTLS in your browser or running a proxy in
+  front of the Nomad UI.
 
-- `rpc` `(bool: false)` - Toggle the option to enable mTLS on the RPC endpoints 
-   and [Raft][raft] traffic. When this setting is activated, it establishes protection 
-   both between Nomad servers and from the clients back to the servers, ensuring 
-   mutual authentication.
+- `rpc` `(bool: false)` - Toggle the option to enable mTLS on the RPC endpoints
+  and [Raft][raft] traffic. When this setting is activated, it establishes
+  protection both between Nomad servers and from the clients back to the
+  servers, ensuring mutual authentication. Setting `rpc=true` is required for
+  secure operation of Nomad.
 
 - `rpc_upgrade_mode` `(bool: false)` - This option should be used only when the
   cluster is being upgraded to TLS, and removed after the migration is
   complete. This allows the agent to accept both TLS and plaintext traffic.
 
-- `tls_cipher_suites` `string: "")` - Specifies the TLS cipher suites that will
+- `tls_cipher_suites` `(string: "")` - Specifies the TLS cipher suites that will
   be used by the agent as a comma-separated string. Known insecure ciphers are
   disabled (3DES and RC4). By default, an agent is configured to use
   TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
@@ -64,15 +73,23 @@ the [Enable TLS Encryption for Nomad Tutorial](/nomad/tutorials/transport-securi
   TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 and
   TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256.
 
+  Nomad does not accept explicit ciphersuite configuration when for TLS 1.3
+  because the Go team has already designated a select set of ciphers that align
+  with the broadly-accepted Mozilla Security/Server Side TLS guidance for
+  [modern TLS configuration][modern-tls].
+
+~> **Warning:** the use of insecure cipher suites such as TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, and TLS_RSA_WITH_AES_128_CBC_SHA256 is now unsupported.
+
 - `tls_min_version` `(string: "tls12")`- Specifies the minimum supported version
-  of TLS. Accepted values are "tls10", "tls11", "tls12".
+  of TLS. Accepted values are "tls10", "tls11", "tls12", "tls13".
 
-- `tls_prefer_server_cipher_suites` `(bool: false)` - Specifies whether
-  TLS connections should prefer the server's ciphersuites over the client's.
-
-- `verify_https_client` `(bool: false)` - Specifies agents should require
-  client certificates for all incoming HTTPS requests. The client certificates
-  must be signed by the same CA as Nomad.
+- `verify_https_client` `(bool: false)` - Specifies agents should require client
+  certificates for all incoming HTTPS requests, effectively upgrading
+  [`tls.http=true`](#http) to mTLS. The client certificates must be signed by
+  the same CA as Nomad. By default, `verify_https_client` is set to `false`,
+  which is safe so long as ACLs are enabled. This is recommended if you are
+  using the Nomad web UI to avoid the difficulty of distributing client certs to
+  browsers.
 
 - `verify_server_hostname` `(bool: false)` - Specifies if outgoing TLS
   connections should verify the server's hostname.
@@ -84,7 +101,7 @@ The following examples only show the `tls` blocks. Remember that the
 
 ### Enabling TLS
 
-This example shows enabling TLS configuration. This enables TLS communication
+This example shows enabling TLS configuration. This enables mTLS communication
 between all servers and clients using the default system CA bundle and
 certificates.
 
@@ -103,9 +120,9 @@ tls {
 
 Nomad supports dynamically reloading both client and server TLS
 configuration. To reload an agent's TLS configuration, first update the TLS
-block in the agent's configuration file and then send the Nomad agent a
-`SIGHUP` signal. Note that this will only reload a subset of the configuration
-file, including the TLS configuration.
+block in the agent's configuration file and then send the Nomad agent a `SIGHUP`
+signal. Note that this will only reload a subset of the configuration file,
+including the TLS configuration.
 
 The agent reloads all its network connections when there are changes to its
 TLS configuration during a config reload via `SIGHUP`. Any new connections
@@ -114,3 +131,4 @@ connections will be closed. This process works when upgrading to TLS,
 downgrading from it, as well as rolling certificates.
 
 [raft]: https://github.com/hashicorp/serf 'Serf by HashiCorp'
+[modern-tls]: https://wiki.mozilla.org/Security/Server_Side_TLS#Modern_compatibility

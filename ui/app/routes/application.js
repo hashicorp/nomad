@@ -56,7 +56,7 @@ export default class ApplicationRoute extends Route {
         this.controllerFor('application').set('error', e);
       }
 
-      const fetchSelfTokenAndPolicies = this.get(
+      const fetchSelfTokenAndPolicies = await this.get(
         'token.fetchSelfTokenAndPolicies'
       )
         .perform()
@@ -153,6 +153,7 @@ export default class ApplicationRoute extends Route {
             e.detail === 'ACL token not found'
         )
       ) {
+        this.token.postExpiryPath = this.router.currentURL;
         this.router.transitionTo('settings.tokens');
       } else {
         this.controllerFor('application').set('error', error);

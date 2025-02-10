@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -207,6 +208,49 @@ func TestJavaDriver_Class_Start_Wait(t *testing.T) {
 	require.Contains(t, string(stdout), "Hello")
 
 	require.NoError(t, harness.DestroyTask(task.ID, true))
+}
+
+func TestJavaDriver_WorkDir(t *testing.T) {
+	ci.Parallel(t)
+	javaCompatible(t)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	d := newJavaDriverTest(t, ctx)
+
+	harness := dtestutil.NewDriverHarness(t, d)
+
+	tc := &TaskConfig{
+		JarPath: "../demoapp.jar",
+		Args:    []string{"1"},
+		JvmOpts: []string{"-Xmx64m", "-Xms32m"},
+		WorkDir: "/local",
+	}
+
+	task := basicTask(t, "demo-app", tc)
+
+	cleanup := harness.MkAllocDir(task, true)
+	defer cleanup()
+
+	copyFile("./test-resources/demoapp.jar", filepath.Join(task.TaskDir().Dir, "demoapp.jar"), t)
+
+	handle, _, err := harness.StartTask(task)
+	must.NoError(t, err)
+
+	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	must.NoError(t, err)
+	result := <-ch
+	must.Nil(t, result.Err)
+
+	must.Zero(t, result.ExitCode)
+
+	// Get the stdout of the process and assert that it's not empty
+	stdout, err := os.ReadFile(filepath.Join(task.TaskDir().LogDir, "demo-app.stdout.0"))
+	must.NoError(t, err)
+	must.Eq(t, string(stdout), "Hello, the current working directory is: /local\n")
+
+	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
 func TestJavaCmdArgs(t *testing.T) {
@@ -518,6 +562,20 @@ func TestDriver_TaskConfig_validate(t *testing.T) {
 		} {
 			require.Equal(t, tc.exp, (&TaskConfig{
 				CapDrop: tc.drops,
+			}).validate())
+		}
+	})
+
+	t.Run("work_dir", func(t *testing.T) {
+		for _, tc := range []struct {
+			workDir string
+			exp     error
+		}{
+			{workDir: "/goodpath", exp: nil},
+			{workDir: "badpath", exp: errors.New("work_dir must be an absolute path: badpath")},
+		} {
+			require.Equal(t, tc.exp, (&TaskConfig{
+				WorkDir: tc.workDir,
 			}).validate())
 		}
 	})

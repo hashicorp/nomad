@@ -129,9 +129,23 @@ func (s *StateStore) DeleteServiceRegistrationByNodeID(
 	txn := s.db.WriteTxnMsgT(msgType, index)
 	defer txn.Abort()
 
-	num, err := txn.DeleteAll(TableServiceRegistrations, indexNodeID, nodeID)
+	err := s.deleteServiceRegistrationByNodeIDTxn(txn, index, nodeID)
 	if err != nil {
 		return fmt.Errorf("deleting service registrations failed: %v", err)
+	}
+
+	return txn.Commit()
+}
+
+// deleteServiceRegistrationByNodeIDTxn deletes all service registrations that
+// belong on a single node, in an existing transaction. If there are no
+// registrations tied to the nodeID, the call will noop without an error.
+func (s *StateStore) deleteServiceRegistrationByNodeIDTxn(
+	txn *txn, index uint64, nodeID string) error {
+
+	num, err := txn.DeleteAll(TableServiceRegistrations, indexNodeID, nodeID)
+	if err != nil {
+		return err
 	}
 
 	// If we did not delete any entries, do not update the index table.
@@ -144,8 +158,31 @@ func (s *StateStore) DeleteServiceRegistrationByNodeID(
 			return fmt.Errorf("index update failed: %v", err)
 		}
 	}
+	return nil
+}
 
-	return txn.Commit()
+// deleteServiceRegistrationByAllocIDTxn deletes all service registrations that
+// belong to an allocation, in an existing transaction. If there are no
+// registrations tied to the alloc ID, the call will noop without an error.
+func (s *StateStore) deleteServiceRegistrationByAllocIDTxn(
+	txn *txn, index uint64, allocID string) error {
+
+	num, err := txn.DeleteAll(TableServiceRegistrations, indexAllocID, allocID)
+	if err != nil {
+		return err
+	}
+
+	// If we did not delete any entries, do not update the index table.
+	// Otherwise, update the table with the latest index.
+	switch num {
+	case 0:
+		return nil
+	default:
+		if err := txn.Insert(tableIndex, &IndexEntry{TableServiceRegistrations, index}); err != nil {
+			return fmt.Errorf("index update failed: %v", err)
+		}
+	}
+	return nil
 }
 
 // GetServiceRegistrations returns an iterator that contains all service

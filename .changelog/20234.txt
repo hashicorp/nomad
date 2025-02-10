@@ -1,0 +1,3 @@
+```release-note:bug
+deps: Updated consul-template dependency to 0.37.4 to fix a resource leak
+```

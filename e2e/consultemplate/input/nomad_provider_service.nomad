@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "nomad_provider_service" {
+
+  # note: this is required for the test assertion, not legacy leftover
   datacenters = ["dc1"]
-  type        = "service"
 
   constraint {
     attribute = "${attr.kernel.name}"
@@ -11,6 +12,8 @@ job "nomad_provider_service" {
   }
 
   group "nomad_provider_service" {
+
+    count = 1
 
     service {
       name     = "${NOMAD_NAMESPACE}-nomad-provider-service-primary"

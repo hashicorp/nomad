@@ -7,6 +7,17 @@ import ApplicationSerializer from './application';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class Namespace extends ApplicationSerializer {
+export default class NamespaceSerializer extends ApplicationSerializer {
   primaryKey = 'Name';
+
+  normalize(typeHash, hash) {
+    hash.ID = hash.Name;
+    return super.normalize(typeHash, hash);
+  }
+
+  serialize(snapshot, options) {
+    const hash = super.serialize(snapshot, options);
+    hash.ID = hash.Name;
+    return hash;
+  }
 }

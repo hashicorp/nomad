@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 func main() {
@@ -73,7 +72,7 @@ func main() {
 
 		running := 0
 		for _, alloc := range allocs {
-			if alloc.ClientStatus == structs.AllocClientStatusRunning {
+			if alloc.ClientStatus == api.AllocClientStatusRunning {
 				if !isRunning {
 					fmt.Printf("time to first running: %s\n", now.Sub(start))
 					isRunning = true

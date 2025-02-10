@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
 	agentconsul "github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -52,6 +53,7 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 		restarter:         agentconsul.NoopRestarter(),
 		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 	must.NoError(t, h.Prerun())
 
@@ -93,6 +95,7 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 		restarter:         agentconsul.NoopRestarter(),
 		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 	must.NoError(t, h.Prerun())
 
@@ -134,6 +137,7 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 		restarter:         agentconsul.NoopRestarter(),
 		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 	must.NoError(t, h.Prerun())
 
@@ -179,6 +183,7 @@ func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
 		restarter:         agentconsul.NoopRestarter(),
 		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 	must.NoError(t, h.Prerun())
 
@@ -233,6 +238,7 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 		restarter:         agentconsul.NoopRestarter(),
 		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 	must.NoError(t, h.Prerun())
 
@@ -281,6 +287,7 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 		restarter:         agentconsul.NoopRestarter(),
 		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
 		logger:            logger,
+		hookResources:     cstructs.NewAllocHookResources(),
 	})
 
 	services := h.getWorkloadServicesLocked()

@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !linux
+//go:build !linux && !windows
 
 package procstats
 
@@ -9,13 +9,13 @@ import (
 	"context"
 	"time"
 
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/shirou/gopsutil/v3/process"
 )
 
 // List the process tree starting at the given executorPID
-func List(executorPID int) *set.Set[ProcessID] {
+func List(executorPID int) set.Collection[ProcessID] {
 	result := set.New[ProcessID](10)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -32,7 +32,7 @@ func List(executorPID int) *set.Set[ProcessID] {
 		nextPPID := stack.Pop()
 		result.Insert(ProcessID(nextPPID))
 
-		p, err := process.NewProcessWithContext(ctx, int32(nextPPID))
+		p, err := process.NewProcessWithContext(ctx, nextPPID)
 		if err != nil {
 			continue
 		}

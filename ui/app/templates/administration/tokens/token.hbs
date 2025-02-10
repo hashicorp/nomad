@@ -1,0 +1,33 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+<Breadcrumb @crumb={{hash label=this.activeToken.name args=(array "administration.tokens.token" this.activeToken.id)}} />
+{{page-title "Token"}}
+<section class="section">
+  <Hds::PageHeader as |PH|>
+    <PH.Title data-test-title>
+      Edit Token
+    </PH.Title>
+    {{#if (can "destroy token")}}
+      <PH.Actions>
+        <TwoStepButton
+          data-test-delete-token
+          @alignRight={{true}}
+          @idleText="Delete Token"
+          @cancelText="Cancel"
+          @confirmText="Yes, Delete Token"
+          @confirmationMessage="Are you sure?"
+          @awaitingConfirmation={{this.deleteToken.isRunning}}
+          @disabled={{this.deleteToken.isRunning}}
+          @onConfirm={{perform this.deleteToken}}
+        />
+      </PH.Actions>
+    {{/if}}
+  </Hds::PageHeader>
+  <TokenEditor
+    @token={{this.activeToken}}
+    @policies={{this.policies}}
+    @roles={{this.roles}}
+  />
+</section>

@@ -6,8 +6,8 @@ package nomad
 import (
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 
 	"github.com/hashicorp/nomad/client/structs"
@@ -45,7 +45,7 @@ func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.C
 	// Check node read permissions
 	if aclObj, err := s.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return nstructs.ErrPermissionDenied
 	}
 

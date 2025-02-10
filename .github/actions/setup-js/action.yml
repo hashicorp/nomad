@@ -8,7 +8,7 @@ inputs:
     description: 'node version'
     # https://github.com/ember-cli/ember-cli/blob/master/docs/node-support.md
     # package.json has ember-cli at version ~3.28.5 currently
-    default: '16'
+    default: '18'
 runs:
   using: composite
   steps:
@@ -26,7 +26,7 @@ runs:
     # enforce node version (self-hosted default is not necessarily what we want)
     # after yarn, so we can use yarn for cache.
     - name: Setup node
-      uses: actions/setup-node@e33196f7422957bea03ed53f6fbb155025ffc7b8 # v3.7.0
+      uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4.0.2
       with:
         node-version: ${{ inputs.node-version }}
         cache: yarn

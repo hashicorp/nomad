@@ -49,6 +49,7 @@ export default class Allocation extends Model {
   @attr('string') desiredStatus;
   @attr() desiredTransition;
   @attr() deploymentStatus;
+  @attr() hasPausedTask;
 
   get isCanary() {
     return this.deploymentStatus?.Canary;
@@ -81,9 +82,9 @@ export default class Allocation extends Model {
 
   get hasBeenRestarted() {
     return this.states
-      .map((s) => s.events.content)
+      .map((s) => s.events?.content)
       .flat()
-      .find((e) => e.type === 'Restarting');
+      .find((e) => e?.type === 'Restarting');
   }
 
   @attr healthChecks;
@@ -224,5 +225,15 @@ export default class Allocation extends Model {
 
   stat(path) {
     return this.store.adapterFor('allocation').stat(this, path);
+  }
+
+  forcePause(taskName) {
+    return this.store.adapterFor('allocation').forcePause(this, taskName);
+  }
+  forceRun(taskName) {
+    return this.store.adapterFor('allocation').forceRun(this, taskName);
+  }
+  reEnableSchedule(taskName) {
+    return this.store.adapterFor('allocation').reEnableSchedule(this, taskName);
   }
 }

@@ -5,7 +5,7 @@
 
 import classic from 'ember-classic-decorator';
 import Fragment from 'ember-data-model-fragments/fragment';
-import { get, computed } from '@ember/object';
+import { computed } from '@ember/object';
 import { attr } from '@ember-data/model';
 import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 import { fragment } from 'ember-data-model-fragments/attributes';
@@ -18,8 +18,10 @@ export default class NodeDriver extends Fragment {
 
   @computed('name', 'attributes.structured')
   get attributesShort() {
-    const attributes = this.get('attributes.structured');
-    return get(attributes, `driver.${this.name}`);
+    const attributes = this.get(
+      `attributes.structured.root.children.driver.children.${this.name}`
+    );
+    return attributes;
   }
 
   @attr('string') name;

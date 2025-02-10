@@ -5,6 +5,7 @@ package interfaces
 
 import (
 	"context"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -19,6 +20,9 @@ type TaskLifecycle interface {
 
 	// Kill a task permanently.
 	Kill(ctx context.Context, event *structs.TaskEvent) error
+
+	// Exec into a running task.
+	Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error)
 
 	// IsRunning returns true if the task runner has a handle to the task
 	// driver, which is useful for distinguishing restored tasks during

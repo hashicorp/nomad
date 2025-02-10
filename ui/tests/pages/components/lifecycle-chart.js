@@ -23,6 +23,12 @@ export default {
     isActive: hasClass('is-active'),
     isFinished: hasClass('is-finished'),
 
+    child: {
+      scope: '.hds-alert',
+      failed: hasClass('hds-alert--color-critical'),
+      pending: hasClass('pending'),
+    },
+
     isMain: hasClass('main'),
     isPrestartEphemeral: hasClass('prestart-ephemeral'),
     isPrestartSidecar: hasClass('prestart-sidecar'),

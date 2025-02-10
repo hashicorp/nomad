@@ -3,19 +3,18 @@ layout: docs
 page_title: Nomad Enterprise
 description: >-
   Nomad Enterprise adds operations, collaboration, and governance capabilities
-  to Nomad.
-
-  Features include Resource Quotas, Sentinel Policies, and Advanced Autopilot.
+  such as resource quotas, Sentinel policies, audit logging, multi-region deployments, and advanced server management using Nomad Autopilot.
 ---
 
 # Nomad Enterprise
 
-Nomad Enterprise adds collaboration, operational, and governance capabilities
-to Nomad. Nomad Enterprise is available as a base Platform package with an
-optional Governance & Policy add-on module.
+This page provides an overview of Nomad Enterprise features that
+add operations, collaboration, and governance capabilities such as resource
+quotas, Sentinel policies, audit logging, multi-region deployments, and advanced
+server management using Nomad Autopilot.
 
-Please navigate the sub-sections for more information about each package and
-its features in detail.
+Nomad Enterprise is available as a base Platform package with an optional
+Governance & Policy add-on module.
 
 ~> **Note:** A Nomad Enterprise cluster cannot be downgraded to the open
 source version of Nomad. Servers running the open source version of Nomad will
@@ -27,6 +26,28 @@ relating to Enterprise features not being parseable by open source Nomad.
 Nomad Enterprise Platform enables operators to easily upgrade Nomad as well as
 enhances performance and availability through Advanced Autopilot features such
 as Automated Upgrades, Enhanced Read Scalability, and Redundancy Zones.
+
+### Long Term Support (LTS) Releases
+
+Nomad Enterprise initiated the Long-Term Support (LTS) release program with
+Nomad 1.8. Going forward, the first major release of each calendar year will be
+an LTS release.
+
+LTS releases have the following benefits for Nomad operators:
+
+- **Extended maintenance:** Two years of critical fixes provided through minor
+releases
+- **Efficient upgrades:** Support for direct upgrades from one LTS release
+to the next, reducing major-version upgrade risk and improving operational
+efficiency.
+
+LTS releases reduce operational overhead and risk by letting organizations
+receive critical fixes in minor releases without having to upgrade their major
+version more than once a year. Once you’ve upgraded to Nomad Enterprise 1.8,
+you will be running on a maintained LTS release that will allow you to easily
+upgrade to the next LTS major release when it's available. For more
+information, refer to HashiCorp’s multi-product LTS statement.
+
 
 ### Automated Upgrades
 
@@ -94,6 +115,17 @@ available for the specified Nomad task at hand.
 
 See the [Vault Integration documentation](/nomad/docs/integrations/vault-integration#enterprise-configuration) for more information.
 
+### Multiple Vault and Consul Clusters
+
+Nomad Enteprise allows sepcifying multiple integrations for Consul and Vault in
+the [vault](/nomad/docs/configuration/vault) and
+[consul](/nomad/docs/configuration/consul) portions of the Nomad agent
+configuration. After the agents are configured, Nomad jobspec writers can pick
+which Consul or Vault cluster to use in their job. Nomad administrators may
+also set default clusters for each in Nomad namespace configuration, as well as
+deny access to certain clusters by namespace.
+
+
 ## Governance & Policy
 
 Governance & Policy features are part of an add-on module that enables an
@@ -121,9 +153,10 @@ thorough overview.
 
 Resource Quotas enable an operator to limit resource consumption across teams
 or projects to reduce waste and align budgets. In Nomad Enterprise, operators
-can define quota specifications and apply them to namespaces. When a quota is
-attached to a namespace, the jobs within the namespace may not consume more
-resources than the quota specification allows.
+can define [quota specifications](/nomad/docs/other-specifications/quota)
+and apply them to namespaces. When a quota is attached to a namespace,
+the jobs within the namespace may not consume more resources than the quota
+specification allows.
 
 This allows operators to partition a shared cluster and ensure that no single
 actor can consume the whole resources of the cluster.
@@ -141,9 +174,9 @@ production on Fridays or only allowing users to run jobs that use
 pre-authorized Docker images. Sentinel policies are defined as code, giving
 operators considerable flexibility to meet compliance requirements.
 
-See the [Sentinel Policies
-Guide](/nomad/tutorials/governance-and-policy/sentinel) for a thorough
-overview.
+See the [Sentinel Policies Guide][] for a walk-through on deploying Sentinel
+policies and the [Nomad Sentinel policy reference][] for more information on
+what objects are available for policies.
 
 ## Multi-Cluster & Efficiency
 
@@ -175,3 +208,5 @@ request a trial of Nomad Enterprise.
 [multiregion deployments]: /nomad/docs/job-specification/multiregion
 [autoscaling capabilities]: /nomad/tools/autoscaling
 [scaling policies]: /nomad/tools/autoscaling/policy
+[Sentinel Policies Guide]: /nomad/tutorials/governance-and-policy/sentinel
+[Nomad Sentinel policy reference]: /nomad/docs/enterprise/sentinel

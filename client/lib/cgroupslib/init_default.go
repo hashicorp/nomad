@@ -9,3 +9,13 @@ package cgroupslib
 func PathCG1(allocID, taskName, iface string) string {
 	return ""
 }
+
+// CustomPathCG1 returns empty string on non-Linux systems
+func CustomPathCG1(controller, path string) string {
+	return ""
+}
+
+// CustomPathCG2 returns empty string on non-Linux systems
+func CustomPathCG2(path string) string {
+	return ""
+}

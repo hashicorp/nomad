@@ -6,8 +6,8 @@ package command
 import (
 	"strings"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -23,7 +23,7 @@ Usage: nomad quota <subcommand> [options] [args]
   quotas allow operators to restrict the aggregate resource usage of namespaces.
   Users can inspect existing quota specifications, create new quotas, delete and
   list existing quotas, and more. For a full guide on resource quotas see:
-  https://www.nomadproject.io/guides/quotas.html
+  https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/quotas
 
   Examine a quota's status:
 

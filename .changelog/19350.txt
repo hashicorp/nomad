@@ -1,0 +1,3 @@
+```release-note:bug
+keyring: Fixed a bug where RSA keys were not replicated to followers
+```

@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/consul-template/config"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestConfigRead(t *testing.T) {
@@ -19,16 +19,12 @@ func TestConfigRead(t *testing.T) {
 	config := Config{}
 
 	actual := config.Read("cake")
-	if actual != "" {
-		t.Errorf("Expected empty string; found %s", actual)
-	}
+	must.Eq(t, "", actual)
 
 	expected := "chocolate"
 	config.Options = map[string]string{"cake": expected}
 	actual = config.Read("cake")
-	if actual != expected {
-		t.Errorf("Expected %s, found %s", expected, actual)
-	}
+	must.Eq(t, expected, actual)
 }
 
 func TestConfigReadDefault(t *testing.T) {
@@ -38,16 +34,12 @@ func TestConfigReadDefault(t *testing.T) {
 
 	expected := "vanilla"
 	actual := config.ReadDefault("cake", expected)
-	if actual != expected {
-		t.Errorf("Expected %s, found %s", expected, actual)
-	}
+	must.Eq(t, expected, actual)
 
 	expected = "chocolate"
 	config.Options = map[string]string{"cake": expected}
 	actual = config.ReadDefault("cake", "vanilla")
-	if actual != expected {
-		t.Errorf("Expected %s, found %s", expected, actual)
-	}
+	must.Eq(t, expected, actual)
 }
 
 func mockWaitConfig() *WaitConfig {
@@ -93,13 +85,9 @@ func TestWaitConfig_Copy(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			result := _case.Expected.Equal(_case.Wait.Copy())
-			if !result {
-				t.Logf("\nExpected %v\n   Found %v", _case.Expected, result)
-			}
-			require.True(t, result)
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			must.Equal(t, tc.Expected, tc.Wait.Copy())
 		})
 	}
 }
@@ -131,9 +119,9 @@ func TestWaitConfig_IsEmpty(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			require.Equal(t, _case.Expected, _case.Wait.IsEmpty())
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			must.Eq(t, tc.Expected, tc.Wait.IsEmpty())
 		})
 	}
 }
@@ -176,9 +164,9 @@ func TestWaitConfig_IsEqual(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			require.Equal(t, _case.Expected, _case.Wait.Equal(_case.Other))
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			must.Eq(t, tc.Expected, tc.Wait.Equal(tc.Other))
 		})
 	}
 }
@@ -226,13 +214,13 @@ func TestWaitConfig_IsValid(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			if _case.Expected == "" {
-				require.Nil(t, _case.Retry.Validate())
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := tc.Retry.Validate()
+			if tc.Expected == "" {
+				must.NoError(t, err)
 			} else {
-				err := _case.Retry.Validate()
-				require.Contains(t, err.Error(), _case.Expected)
+				must.ErrorContains(t, err, tc.Expected)
 			}
 		})
 	}
@@ -285,14 +273,10 @@ func TestWaitConfig_Merge(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			merged := _case.Target.Merge(_case.Other)
-			result := _case.Expected.Equal(merged)
-			if !result {
-				t.Logf("\nExpected %v\n   Found %v", _case.Expected, merged)
-			}
-			require.True(t, result)
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			merged := tc.Target.Merge(tc.Other)
+			must.Equal(t, tc.Expected, merged)
 		})
 	}
 }
@@ -312,9 +296,9 @@ func TestWaitConfig_ToConsulTemplate(t *testing.T) {
 	}
 
 	actual, err := clientWaitConfig.ToConsulTemplate()
-	require.NoError(t, err)
-	require.Equal(t, *expected.Min, *actual.Min)
-	require.Equal(t, *expected.Max, *actual.Max)
+	must.NoError(t, err)
+	must.Eq(t, *expected.Min, *actual.Min)
+	must.Eq(t, *expected.Max, *actual.Max)
 }
 
 func mockRetryConfig() *RetryConfig {
@@ -392,13 +376,9 @@ func TestRetryConfig_Copy(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			result := _case.Expected.Equal(_case.Retry.Copy())
-			if !result {
-				t.Logf("\nExpected %v\n   Found %v", _case.Expected, result)
-			}
-			require.True(t, result)
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			must.Equal(t, tc.Expected, tc.Retry.Copy())
 		})
 	}
 }
@@ -430,9 +410,9 @@ func TestRetryConfig_IsEmpty(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			require.Equal(t, _case.Expected, _case.Retry.IsEmpty())
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			must.Eq(t, tc.Expected, tc.Retry.IsEmpty())
 		})
 	}
 }
@@ -520,9 +500,9 @@ func TestRetryConfig_IsEqual(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			require.Equal(t, _case.Expected, _case.Retry.Equal(_case.Other))
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			must.Eq(t, tc.Expected, tc.Retry.Equal(tc.Other))
 		})
 	}
 }
@@ -585,13 +565,13 @@ func TestRetryConfig_IsValid(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			if _case.Expected == "" {
-				require.Nil(t, _case.Retry.Validate())
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			err := tc.Retry.Validate()
+			if tc.Expected == "" {
+				must.NoError(t, err)
 			} else {
-				err := _case.Retry.Validate()
-				require.Contains(t, err.Error(), _case.Expected)
+				must.ErrorContains(t, err, tc.Expected)
 			}
 		})
 	}
@@ -662,14 +642,10 @@ func TestRetryConfig_Merge(t *testing.T) {
 		},
 	}
 
-	for _, _case := range cases {
-		t.Run(_case.Name, func(t *testing.T) {
-			merged := _case.Target.Merge(_case.Other)
-			result := _case.Expected.Equal(merged)
-			if !result {
-				t.Logf("\nExpected %v\n   Found %v", _case.Expected, merged)
-			}
-			require.True(t, result)
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			merged := tc.Target.Merge(tc.Other)
+			must.Equal(t, tc.Expected, merged)
 		})
 	}
 }
@@ -685,8 +661,7 @@ func TestRetryConfig_ToConsulTemplate(t *testing.T) {
 	}
 
 	actual := mockRetryConfig()
-
-	require.Equal(t, *expected.Attempts, *actual.Attempts)
-	require.Equal(t, *expected.Backoff, *actual.Backoff)
-	require.Equal(t, *expected.MaxBackoff, *actual.MaxBackoff)
+	must.Eq(t, *expected.Attempts, *actual.Attempts)
+	must.Eq(t, *expected.Backoff, *actual.Backoff)
+	must.Eq(t, *expected.MaxBackoff, *actual.MaxBackoff)
 }

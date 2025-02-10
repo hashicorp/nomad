@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-memdb"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -30,7 +30,7 @@ func TestJobEndpoint_Register_Connect_AllowUnauthenticatedFalse_oss(t *testing.T
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
 		c.NumSchedulers = 0 // Prevent automatic dequeue
-		c.ConsulConfig.AllowUnauthenticated = pointer.Of(false)
+		c.GetDefaultConsul().AllowUnauthenticated = pointer.Of(false)
 	})
 	defer cleanupS1()
 	codec := rpcClient(t, s1)

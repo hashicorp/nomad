@@ -21,20 +21,19 @@ import (
 )
 
 type testManager struct {
-	logger log.Logger
-	loader loader.PluginCatalog
+	logger   log.Logger
+	loader   loader.PluginCatalog
+	topology *numalib.Topology
 }
 
-var (
-	topology = numalib.Scan(numalib.PlatformScanners())
-)
-
 func TestDriverManager(t *testing.T) Manager {
+	topology := numalib.Scan(numalib.PlatformScanners())
 	logger := testlog.HCLogger(t).Named("driver_mgr")
 	pluginLoader := catalog.TestPluginLoader(t)
 	return &testManager{
-		logger: logger,
-		loader: singleton.NewSingletonLoader(logger, pluginLoader),
+		logger:   logger,
+		loader:   singleton.NewSingletonLoader(logger, pluginLoader),
+		topology: topology,
 	}
 }
 
@@ -45,7 +44,7 @@ func (m *testManager) PluginType() string { return base.PluginTypeDriver }
 func (m *testManager) Dispense(driver string) (drivers.DriverPlugin, error) {
 	baseConfig := &base.AgentConfig{
 		Driver: &base.ClientDriverConfig{
-			Topology: topology,
+			Topology: m.topology,
 		},
 	}
 	instance, err := m.loader.Dispense(driver, base.PluginTypeDriver, baseConfig, m.logger)

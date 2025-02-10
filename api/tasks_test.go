@@ -235,7 +235,7 @@ func TestTask_Require(t *testing.T) {
 			{
 				CIDR:          "0.0.0.0/0",
 				MBits:         pointerOf(100),
-				ReservedPorts: []Port{{"", 80, 0, ""}, {"", 443, 0, ""}},
+				ReservedPorts: []Port{{Label: "", Value: 80}, {Label: "", Value: 443}},
 			},
 		},
 	}
@@ -317,9 +317,11 @@ func TestTask_Artifact(t *testing.T) {
 	}
 	a.Canonicalize()
 	must.Eq(t, "file", *a.GetterMode)
+	must.Eq(t, false, *a.GetterInsecure)
 	must.Eq(t, "local/foo.txt", filepath.ToSlash(*a.RelativeDest))
 	must.Nil(t, a.GetterOptions)
 	must.Nil(t, a.GetterHeaders)
+	must.Eq(t, false, a.Chown)
 }
 
 func TestTask_VolumeMount(t *testing.T) {
@@ -459,12 +461,13 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 			name:  "empty",
 			input: &Vault{},
 			expected: &Vault{
-				Env:          pointerOf(true),
-				DisableFile:  pointerOf(false),
-				Namespace:    pointerOf(""),
-				Cluster:      "default",
-				ChangeMode:   pointerOf("restart"),
-				ChangeSignal: pointerOf("SIGHUP"),
+				Env:                  pointerOf(true),
+				DisableFile:          pointerOf(false),
+				Namespace:            pointerOf(""),
+				Cluster:              "default",
+				ChangeMode:           pointerOf("restart"),
+				ChangeSignal:         pointerOf("SIGHUP"),
+				AllowTokenExpiration: pointerOf(false),
 			},
 		},
 	}

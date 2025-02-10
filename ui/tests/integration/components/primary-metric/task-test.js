@@ -31,7 +31,7 @@ module('Integration | Component | PrimaryMetric::Task', function (hooks) {
     this.server.create('node');
     const job = this.server.create('job', {
       groupsCount: 1,
-      groupTaskCount: 3,
+      groupAllocCount: 3,
       createAllocations: false,
     });
 

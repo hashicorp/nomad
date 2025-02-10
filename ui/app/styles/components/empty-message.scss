@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-.empty-message {
+.empty-message,
+.hds-application-state {
   padding: 1.5rem;
   background: $white-ter;
   border-radius: $radius;
@@ -47,4 +48,8 @@
       color: $grey;
     }
   }
+}
+
+.section .hds-application-state {
+  width: 100%;
 }

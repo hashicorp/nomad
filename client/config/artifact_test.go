@@ -129,14 +129,15 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 
 	ac := &ArtifactConfig{
-		HTTPReadTimeout:            time.Minute,
-		HTTPMaxBytes:               1000,
-		GCSTimeout:                 2 * time.Minute,
-		GitTimeout:                 time.Second,
-		HgTimeout:                  time.Hour,
-		S3Timeout:                  5 * time.Minute,
-		DisableFilesystemIsolation: true,
-		SetEnvironmentVariables:    "FOO,BAR",
+		HTTPReadTimeout:               time.Minute,
+		HTTPMaxBytes:                  1000,
+		GCSTimeout:                    2 * time.Minute,
+		GitTimeout:                    time.Second,
+		HgTimeout:                     time.Hour,
+		S3Timeout:                     5 * time.Minute,
+		DisableFilesystemIsolation:    true,
+		FilesystemIsolationExtraPaths: []string{"f:r:/dev/urandom"},
+		SetEnvironmentVariables:       "FOO,BAR",
 	}
 
 	// make sure values are copied.
@@ -151,16 +152,18 @@ func TestArtifactConfig_Copy(t *testing.T) {
 	configCopy.HgTimeout = 2 * time.Hour
 	configCopy.S3Timeout = 10 * time.Minute
 	configCopy.DisableFilesystemIsolation = false
+	configCopy.FilesystemIsolationExtraPaths = []string{"f:rx:/opt/bin/runme"}
 	configCopy.SetEnvironmentVariables = "BAZ"
 
 	must.Eq(t, &ArtifactConfig{
-		HTTPReadTimeout:            time.Minute,
-		HTTPMaxBytes:               1000,
-		GCSTimeout:                 2 * time.Minute,
-		GitTimeout:                 time.Second,
-		HgTimeout:                  time.Hour,
-		S3Timeout:                  5 * time.Minute,
-		DisableFilesystemIsolation: true,
-		SetEnvironmentVariables:    "FOO,BAR",
+		HTTPReadTimeout:               time.Minute,
+		HTTPMaxBytes:                  1000,
+		GCSTimeout:                    2 * time.Minute,
+		GitTimeout:                    time.Second,
+		HgTimeout:                     time.Hour,
+		S3Timeout:                     5 * time.Minute,
+		DisableFilesystemIsolation:    true,
+		FilesystemIsolationExtraPaths: []string{"f:r:/dev/urandom"},
+		SetEnvironmentVariables:       "FOO,BAR",
 	}, ac)
 }

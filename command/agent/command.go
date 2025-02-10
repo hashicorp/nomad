@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -18,15 +19,15 @@ import (
 	"syscall"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
-	"github.com/armon/go-metrics/circonus"
-	"github.com/armon/go-metrics/datadog"
-	"github.com/armon/go-metrics/prometheus"
+	"github.com/hashicorp/cli"
 	checkpoint "github.com/hashicorp/go-checkpoint"
 	discover "github.com/hashicorp/go-discover"
 	hclog "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-metrics/compat/circonus"
+	"github.com/hashicorp/go-metrics/compat/datadog"
+	"github.com/hashicorp/go-metrics/compat/prometheus"
 	gsyslog "github.com/hashicorp/go-syslog"
-	"github.com/hashicorp/logutils"
 	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	gatedwriter "github.com/hashicorp/nomad/helper/gated-writer"
@@ -35,7 +36,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -54,31 +54,27 @@ type Command struct {
 	args           []string
 	agent          *Agent
 	httpServers    []*HTTPServer
-	logFilter      *logutils.LevelFilter
-	logOutput      io.Writer
 	retryJoinErrCh chan struct{}
 }
 
 func (c *Command) readConfig() *Config {
-	var dev *devModeConfig
 	var configPath []string
 	var servers string
 	var meta []string
 
 	// Make a new, empty config.
 	cmdConfig := &Config{
-		Client: &ClientConfig{},
-		Consul: &config.ConsulConfig{},
-		Ports:  &Ports{},
+		Client:  &ClientConfig{},
+		Consuls: []*config.ConsulConfig{{Name: structs.ConsulDefaultCluster}},
+		Ports:   &Ports{},
 		Server: &ServerConfig{
 			ServerJoin: &ServerJoin{},
 		},
-		Vault: &config.VaultConfig{},
-		ACL:   &ACLConfig{},
-		Audit: &config.AuditConfig{},
+		Vaults:    []*config.VaultConfig{{Name: structs.VaultDefaultCluster}},
+		ACL:       &ACLConfig{},
+		Audit:     &config.AuditConfig{},
+		Reporting: &config.ReportingConfig{},
 	}
-	cmdConfig.Vaults = map[string]*config.VaultConfig{"default": cmdConfig.Vault}
-	cmdConfig.Consuls = map[string]*config.ConsulConfig{"default": cmdConfig.Consul}
 
 	flags := flag.NewFlagSet("agent", flag.ContinueOnError)
 	flags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -86,8 +82,12 @@ func (c *Command) readConfig() *Config {
 	// Role options
 	var devMode bool
 	var devConnectMode bool
+	var devConsulMode bool
+	var devVaultMode bool
 	flags.BoolVar(&devMode, "dev", false, "")
 	flags.BoolVar(&devConnectMode, "dev-connect", false, "")
+	flags.BoolVar(&devConsulMode, "dev-consul", false, "")
+	flags.BoolVar(&devVaultMode, "dev-vault", false, "")
 	flags.BoolVar(&cmdConfig.Server.Enabled, "server", false, "")
 	flags.BoolVar(&cmdConfig.Client.Enabled, "client", false, "")
 
@@ -107,11 +107,15 @@ func (c *Command) readConfig() *Config {
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.AllocDir, "alloc-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.AllocMountsDir, "alloc-mounts-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.HostVolumesDir, "host-volumes-dir", "", "")
+	flags.StringVar(&cmdConfig.Client.HostVolumePluginDir, "host-volume-plugin-dir", "", "")
 	flags.StringVar(&cmdConfig.Client.NodeClass, "node-class", "", "")
 	flags.StringVar(&cmdConfig.Client.NodePool, "node-pool", "", "")
 	flags.StringVar(&servers, "servers", "", "")
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
+	flags.StringVar((*string)(&cmdConfig.Client.PreferredAddressFamily), "preferred-address-family", "", "ipv4 or ipv6")
 	flags.IntVar(&cmdConfig.Client.NetworkSpeed, "network-speed", 0, "")
 
 	// General options
@@ -123,72 +127,79 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Datacenter, "dc", "", "")
 	flags.StringVar(&cmdConfig.LogLevel, "log-level", "", "")
 	flags.BoolVar(&cmdConfig.LogJson, "log-json", false, "")
+	flags.BoolVar(&cmdConfig.LogIncludeLocation, "log-include-location", false, "")
 	flags.StringVar(&cmdConfig.NodeName, "node", "", "")
 
 	// Consul options
-	flags.StringVar(&cmdConfig.Consul.Auth, "consul-auth", "", "")
+	defaultConsul := cmdConfig.defaultConsul()
+	flags.StringVar(&defaultConsul.Auth, "consul-auth", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.AutoAdvertise = &b
+		defaultConsul.AutoAdvertise = &b
 		return nil
 	}), "consul-auto-advertise", "")
-	flags.StringVar(&cmdConfig.Consul.CAFile, "consul-ca-file", "", "")
-	flags.StringVar(&cmdConfig.Consul.CertFile, "consul-cert-file", "", "")
-	flags.StringVar(&cmdConfig.Consul.KeyFile, "consul-key-file", "", "")
+	flags.StringVar(&defaultConsul.CAFile, "consul-ca-file", "", "")
+	flags.StringVar(&defaultConsul.CertFile, "consul-cert-file", "", "")
+	flags.StringVar(&defaultConsul.KeyFile, "consul-key-file", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ChecksUseAdvertise = &b
+		defaultConsul.ChecksUseAdvertise = &b
 		return nil
 	}), "consul-checks-use-advertise", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ClientAutoJoin = &b
+		defaultConsul.ClientAutoJoin = &b
 		return nil
 	}), "consul-client-auto-join", "")
-	flags.StringVar(&cmdConfig.Consul.ClientServiceName, "consul-client-service-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerServiceName, "consul-server-service-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
-	flags.StringVar(&cmdConfig.Consul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
+	flags.StringVar(&defaultConsul.ClientServiceName, "consul-client-service-name", "", "")
+	flags.StringVar(&defaultConsul.ClientHTTPCheckName, "consul-client-http-check-name", "", "")
+	flags.IntVar(&defaultConsul.ClientFailuresBeforeCritical, "consul-client-failures-before-critical", 0, "")
+	flags.IntVar(&defaultConsul.ClientFailuresBeforeWarning, "consul-client-failures-before-warning", 0, "")
+	flags.StringVar(&defaultConsul.ServerServiceName, "consul-server-service-name", "", "")
+	flags.StringVar(&defaultConsul.ServerHTTPCheckName, "consul-server-http-check-name", "", "")
+	flags.StringVar(&defaultConsul.ServerSerfCheckName, "consul-server-serf-check-name", "", "")
+	flags.StringVar(&defaultConsul.ServerRPCCheckName, "consul-server-rpc-check-name", "", "")
+	flags.IntVar(&defaultConsul.ServerFailuresBeforeCritical, "consul-server-failures-before-critical", 0, "")
+	flags.IntVar(&defaultConsul.ServerFailuresBeforeWarning, "consul-server-failures-before-warning", 0, "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.ServerAutoJoin = &b
+		defaultConsul.ServerAutoJoin = &b
 		return nil
 	}), "consul-server-auto-join", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.EnableSSL = &b
+		defaultConsul.EnableSSL = &b
 		return nil
 	}), "consul-ssl", "")
-	flags.StringVar(&cmdConfig.Consul.Token, "consul-token", "", "")
+	flags.StringVar(&defaultConsul.Token, "consul-token", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.VerifySSL = &b
+		defaultConsul.VerifySSL = &b
 		return nil
 	}), "consul-verify-ssl", "")
-	flags.StringVar(&cmdConfig.Consul.Addr, "consul-address", "", "")
+	flags.StringVar(&defaultConsul.Addr, "consul-address", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Consul.AllowUnauthenticated = &b
+		defaultConsul.AllowUnauthenticated = &b
 		return nil
 	}), "consul-allow-unauthenticated", "")
 
 	// Vault options
+	defaultVault := cmdConfig.defaultVault()
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.Enabled = &b
+		defaultVault.Enabled = &b
 		return nil
 	}), "vault-enabled", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.AllowUnauthenticated = &b
+		defaultVault.AllowUnauthenticated = &b
 		return nil
 	}), "vault-allow-unauthenticated", "")
-	flags.StringVar(&cmdConfig.Vault.Token, "vault-token", "", "")
-	flags.StringVar(&cmdConfig.Vault.Addr, "vault-address", "", "")
-	flags.StringVar(&cmdConfig.Vault.Namespace, "vault-namespace", "", "")
-	flags.StringVar(&cmdConfig.Vault.Role, "vault-create-from-role", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCaFile, "vault-ca-file", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCaPath, "vault-ca-path", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSCertFile, "vault-cert-file", "", "")
-	flags.StringVar(&cmdConfig.Vault.TLSKeyFile, "vault-key-file", "", "")
+	flags.StringVar(&defaultVault.Token, "vault-token", "", "")
+	flags.StringVar(&defaultVault.Addr, "vault-address", "", "")
+	flags.StringVar(&defaultVault.Namespace, "vault-namespace", "", "")
+	flags.StringVar(&defaultVault.Role, "vault-create-from-role", "", "")
+	flags.StringVar(&defaultVault.TLSCaFile, "vault-ca-file", "", "")
+	flags.StringVar(&defaultVault.TLSCaPath, "vault-ca-path", "", "")
+	flags.StringVar(&defaultVault.TLSCertFile, "vault-cert-file", "", "")
+	flags.StringVar(&defaultVault.TLSKeyFile, "vault-key-file", "", "")
 	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		cmdConfig.Vault.TLSSkipVerify = &b
+		defaultVault.TLSSkipVerify = &b
 		return nil
 	}), "vault-tls-skip-verify", "")
-	flags.StringVar(&cmdConfig.Vault.TLSServerName, "vault-tls-server-name", "", "")
+	flags.StringVar(&defaultVault.TLSServerName, "vault-tls-server-name", "", "")
 
 	// ACL options
 	flags.BoolVar(&cmdConfig.ACL.Enabled, "acl-enabled", false, "")
@@ -218,14 +229,26 @@ func (c *Command) readConfig() *Config {
 	}
 
 	// Load the configuration
-	dev, err := newDevModeConfig(devMode, devConnectMode)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return nil
-	}
 	var config *Config
-	if dev != nil {
-		config = DevConfig(dev)
+
+	devConfig := &devModeConfig{
+		defaultMode: devMode,
+		connectMode: devConnectMode,
+		consulMode:  devConsulMode,
+		vaultMode:   devVaultMode,
+	}
+	if devConfig.enabled() {
+		err := devConfig.validate()
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return nil
+		}
+		err = devConfig.networkConfig()
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return nil
+		}
+		config = DevConfig(devConfig)
 	} else {
 		config = DefaultConfig()
 	}
@@ -275,14 +298,18 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}
 
+	// Read Vault configuration for the default cluster again after all
+	// configuration sources have been merged.
+	defaultVault = config.defaultVault()
+
 	// Check to see if we should read the Vault token from the environment
-	if config.Vault.Token == "" {
-		config.Vault.Token = os.Getenv("VAULT_TOKEN")
+	if defaultVault.Token == "" {
+		defaultVault.Token = os.Getenv("VAULT_TOKEN")
 	}
 
 	// Check to see if we should read the Vault namespace from the environment
-	if config.Vault.Namespace == "" {
-		config.Vault.Namespace = os.Getenv("VAULT_NAMESPACE")
+	if defaultVault.Namespace == "" {
+		defaultVault.Namespace = os.Getenv("VAULT_NAMESPACE")
 	}
 
 	// Default the plugin directory to be under that of the data directory if it
@@ -307,7 +334,6 @@ func (c *Command) readConfig() *Config {
 }
 
 func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
-
 	// Check that the server is running in at least one mode.
 	if !(config.Server.Enabled || config.Client.Enabled) {
 		c.Ui.Error("Must specify either server, client or dev mode for the agent.")
@@ -323,6 +349,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	// Check that the datacenter name does not contain invalid characters
 	if strings.ContainsAny(config.Datacenter, "\000*") {
 		c.Ui.Error("Datacenter contains invalid characters (null or '*')")
+		return false
+	}
+
+	if err := config.Telemetry.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("telemetry block invalid: %v", err))
 		return false
 	}
 
@@ -352,10 +383,13 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 
 	// Verify the paths are absolute.
 	dirs := map[string]string{
-		"data-dir":   config.DataDir,
-		"plugin-dir": config.PluginDir,
-		"alloc-dir":  config.Client.AllocDir,
-		"state-dir":  config.Client.StateDir,
+		"data-dir":               config.DataDir,
+		"plugin-dir":             config.PluginDir,
+		"alloc-dir":              config.Client.AllocDir,
+		"alloc-mounts-dir":       config.Client.AllocMountsDir,
+		"host-volumes-dir":       config.Client.HostVolumesDir,
+		"host-volume-plugin-dir": config.Client.HostVolumePluginDir,
+		"state-dir":              config.Client.StateDir,
 	}
 	for k, dir := range dirs {
 		if dir == "" {
@@ -453,6 +487,14 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		return false
 	}
 
+	if err := config.Client.PreferredAddressFamily.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("Invalid preferred-address-family value: %s (valid values: %s, %s)",
+			config.Client.PreferredAddressFamily,
+			structs.NodeNetworkAF_IPv4, structs.NodeNetworkAF_IPv6),
+		)
+		return false
+	}
+
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
 		if config.Server.Enabled && config.DataDir == "" {
@@ -463,8 +505,12 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		// The config is valid if the top-level data-dir is set or if both
 		// alloc-dir and state-dir are set.
 		if config.Client.Enabled && config.DataDir == "" {
-			if config.Client.AllocDir == "" || config.Client.StateDir == "" || config.PluginDir == "" {
-				c.Ui.Error("Must specify the state, alloc dir, and plugin dir if data-dir is omitted.")
+			missing := config.Client.AllocDir == "" ||
+				config.Client.AllocMountsDir == "" ||
+				config.Client.StateDir == "" ||
+				config.PluginDir == ""
+			if missing {
+				c.Ui.Error("Must specify the state, alloc-dir, alloc-mounts-dir and plugin-dir if data-dir is omitted.")
 				return false
 			}
 		}
@@ -481,6 +527,19 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		if config.Server.Enabled && config.Server.BootstrapExpect%2 == 0 {
 			c.Ui.Error("WARNING: Number of bootstrap servers should ideally be set to an odd number.")
 		}
+
+		// Check OIDC Issuer if set
+		if config.Server.Enabled && config.Server.OIDCIssuer != "" {
+			issuerURL, err := url.Parse(config.Server.OIDCIssuer)
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf(`Error using server.oidc_issuer = "%s" as a base URL: %s`, config.Server.OIDCIssuer, err))
+				return false
+			}
+
+			if issuerURL.Scheme != "https" {
+				c.Ui.Warn(fmt.Sprintf(`server.oidc_issuer = "%s" is not using https. Many OIDC implementations require https.`, config.Server.OIDCIssuer))
+			}
+		}
 	}
 
 	// ProtocolVersion has never been used. Warn if it is set as someone
@@ -492,47 +551,46 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 	return true
 }
 
-// SetupLoggers is used to set up the logGate, and our logOutput
-func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwriter.Writer, io.Writer) {
-	// Setup logging. First create the gated log writer, which will
-	// store logs until we're ready to show them. Then create the level
-	// filter, filtering logs of the specified level.
+// SetupLoggers is used to set up the logGate and our logOutput.
+//
+// The function needs to be public due to the way it is used within the Nomad
+// Enterprise codebase.
+func SetupLoggers(ui cli.Ui, config *Config) (*gatedwriter.Writer, io.Writer) {
+
+	// Pull the log level from the configuration, ensure it is titled and then
+	// perform validation. Do this before the gated writer, as this can
+	// generate an error, whereas the writer does not.
+	logLevel := strings.ToUpper(config.LogLevel)
+
+	if !isLogLevelValid(logLevel) {
+		ui.Error(fmt.Sprintf(
+			"Invalid log level: %s. Valid log levels are: %v",
+			logLevel, validLogLevels.Slice()))
+		return nil, nil
+	}
+
+	// Create a gated log writer, which will store logs until we're ready to
+	// output them.
 	logGate := &gatedwriter.Writer{
 		Writer: &cli.UiWriter{Ui: ui},
 	}
 
-	logFilter := LevelFilter()
-	logFilter.MinLevel = logutils.LogLevel(strings.ToUpper(config.LogLevel))
-	logFilter.Writer = logGate
-	if !ValidateLevelFilter(logFilter.MinLevel, logFilter) {
-		ui.Error(fmt.Sprintf(
-			"Invalid log level: %s. Valid log levels are: %v",
-			logFilter.MinLevel, logFilter.Levels))
-		return nil, nil, nil
-	}
+	// Initialize our array of log writers with the gated writer. Additional
+	// log writers will be appended if/when configured.
+	writers := []io.Writer{logGate}
 
-	// Create a log writer, and wrap a logOutput around it
-	writers := []io.Writer{logFilter}
-	logLevel := strings.ToUpper(config.LogLevel)
-	logLevelMap := map[string]gsyslog.Priority{
-		"ERROR": gsyslog.LOG_ERR,
-		"WARN":  gsyslog.LOG_WARNING,
-		"INFO":  gsyslog.LOG_INFO,
-		"DEBUG": gsyslog.LOG_DEBUG,
-		"TRACE": gsyslog.LOG_DEBUG,
-	}
 	if logLevel == "OFF" {
 		config.EnableSyslog = false
 	}
 	// Check if syslog is enabled
 	if config.EnableSyslog {
 		ui.Output(fmt.Sprintf("Config enable_syslog is `true` with log_level=%v", config.LogLevel))
-		l, err := gsyslog.NewLogger(logLevelMap[logLevel], config.SyslogFacility, "nomad")
+		l, err := gsyslog.NewLogger(getSysLogPriority(logLevel), config.SyslogFacility, "nomad")
 		if err != nil {
 			ui.Error(fmt.Sprintf("Syslog setup failed: %v", err))
-			return nil, nil, nil
+			return nil, nil
 		}
-		writers = append(writers, &SyslogWrapper{l, logFilter})
+		writers = append(writers, newSyslogWriter(l, config.LogJson))
 	}
 
 	// Check if file logging is enabled
@@ -550,7 +608,7 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 			duration, err := time.ParseDuration(config.LogRotateDuration)
 			if err != nil {
 				ui.Error(fmt.Sprintf("Failed to parse log rotation duration: %v", err))
-				return nil, nil, nil
+				return nil, nil
 			}
 			logRotateDuration = duration
 		} else {
@@ -559,19 +617,18 @@ func SetupLoggers(ui cli.Ui, config *Config) (*logutils.LevelFilter, *gatedwrite
 		}
 
 		logFile := &logFile{
-			logFilter: logFilter,
-			fileName:  fileName,
-			logPath:   dir,
-			duration:  logRotateDuration,
-			MaxBytes:  config.LogRotateBytes,
-			MaxFiles:  config.LogRotateMaxFiles,
+			fileName: fileName,
+			logPath:  dir,
+			duration: logRotateDuration,
+			MaxBytes: config.LogRotateBytes,
+			MaxFiles: config.LogRotateMaxFiles,
 		}
 
 		writers = append(writers, logFile)
 	}
 
 	logOutput := io.MultiWriter(writers...)
-	return logFilter, logGate, logOutput
+	return logGate, logOutput
 }
 
 // setupAgent is used to start the agent and various interfaces
@@ -595,6 +652,12 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 		return err
 	}
 	c.httpServers = httpServers
+
+	for _, vault := range config.Vaults {
+		if vault.Token != "" {
+			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.10. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
+		}
+	}
 
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)
@@ -649,63 +712,68 @@ func (c *Command) AutocompleteFlags() complete.Flags {
 		complete.PredictFiles("*.hcl"))
 
 	return map[string]complete.Predictor{
-		"-dev":                           complete.PredictNothing,
-		"-dev-connect":                   complete.PredictNothing,
-		"-server":                        complete.PredictNothing,
-		"-client":                        complete.PredictNothing,
-		"-bootstrap-expect":              complete.PredictAnything,
-		"-encrypt":                       complete.PredictAnything,
-		"-raft-protocol":                 complete.PredictAnything,
-		"-rejoin":                        complete.PredictNothing,
-		"-join":                          complete.PredictAnything,
-		"-retry-join":                    complete.PredictAnything,
-		"-retry-max":                     complete.PredictAnything,
-		"-state-dir":                     complete.PredictDirs("*"),
-		"-alloc-dir":                     complete.PredictDirs("*"),
-		"-node-class":                    complete.PredictAnything,
-		"-node-pool":                     complete.PredictAnything,
-		"-servers":                       complete.PredictAnything,
-		"-meta":                          complete.PredictAnything,
-		"-config":                        configFilePredictor,
-		"-bind":                          complete.PredictAnything,
-		"-region":                        complete.PredictAnything,
-		"-data-dir":                      complete.PredictDirs("*"),
-		"-plugin-dir":                    complete.PredictDirs("*"),
-		"-dc":                            complete.PredictAnything,
-		"-log-level":                     complete.PredictAnything,
-		"-json-logs":                     complete.PredictNothing,
-		"-node":                          complete.PredictAnything,
-		"-consul-auth":                   complete.PredictAnything,
-		"-consul-auto-advertise":         complete.PredictNothing,
-		"-consul-ca-file":                complete.PredictAnything,
-		"-consul-cert-file":              complete.PredictAnything,
-		"-consul-key-file":               complete.PredictAnything,
-		"-consul-checks-use-advertise":   complete.PredictNothing,
-		"-consul-client-auto-join":       complete.PredictNothing,
-		"-consul-client-service-name":    complete.PredictAnything,
-		"-consul-client-http-check-name": complete.PredictAnything,
-		"-consul-server-service-name":    complete.PredictAnything,
-		"-consul-server-http-check-name": complete.PredictAnything,
-		"-consul-server-serf-check-name": complete.PredictAnything,
-		"-consul-server-rpc-check-name":  complete.PredictAnything,
-		"-consul-server-auto-join":       complete.PredictNothing,
-		"-consul-ssl":                    complete.PredictNothing,
-		"-consul-verify-ssl":             complete.PredictNothing,
-		"-consul-address":                complete.PredictAnything,
-		"-consul-token":                  complete.PredictAnything,
-		"-vault-enabled":                 complete.PredictNothing,
-		"-vault-allow-unauthenticated":   complete.PredictNothing,
-		"-vault-token":                   complete.PredictAnything,
-		"-vault-address":                 complete.PredictAnything,
-		"-vault-create-from-role":        complete.PredictAnything,
-		"-vault-ca-file":                 complete.PredictAnything,
-		"-vault-ca-path":                 complete.PredictAnything,
-		"-vault-cert-file":               complete.PredictAnything,
-		"-vault-key-file":                complete.PredictAnything,
-		"-vault-tls-skip-verify":         complete.PredictNothing,
-		"-vault-tls-server-name":         complete.PredictAnything,
-		"-acl-enabled":                   complete.PredictNothing,
-		"-acl-replication-token":         complete.PredictAnything,
+		"-dev":                         complete.PredictNothing,
+		"-dev-connect":                 complete.PredictNothing,
+		"-server":                      complete.PredictNothing,
+		"-client":                      complete.PredictNothing,
+		"-bootstrap-expect":            complete.PredictAnything,
+		"-encrypt":                     complete.PredictAnything,
+		"-raft-protocol":               complete.PredictAnything,
+		"-rejoin":                      complete.PredictNothing,
+		"-join":                        complete.PredictAnything,
+		"-retry-join":                  complete.PredictAnything,
+		"-retry-max":                   complete.PredictAnything,
+		"-state-dir":                   complete.PredictDirs("*"),
+		"-alloc-dir":                   complete.PredictDirs("*"),
+		"-node-class":                  complete.PredictAnything,
+		"-node-pool":                   complete.PredictAnything,
+		"-servers":                     complete.PredictAnything,
+		"-meta":                        complete.PredictAnything,
+		"-config":                      configFilePredictor,
+		"-bind":                        complete.PredictAnything,
+		"-region":                      complete.PredictAnything,
+		"-data-dir":                    complete.PredictDirs("*"),
+		"-plugin-dir":                  complete.PredictDirs("*"),
+		"-host-volume-plugin-dir":      complete.PredictDirs("*"),
+		"-dc":                          complete.PredictAnything,
+		"-log-level":                   complete.PredictAnything,
+		"-json-logs":                   complete.PredictNothing,
+		"-node":                        complete.PredictAnything,
+		"-consul-auth":                 complete.PredictAnything,
+		"-consul-auto-advertise":       complete.PredictNothing,
+		"-consul-ca-file":              complete.PredictAnything,
+		"-consul-cert-file":            complete.PredictAnything,
+		"-consul-key-file":             complete.PredictAnything,
+		"-consul-checks-use-advertise": complete.PredictNothing,
+		"-consul-client-auto-join":     complete.PredictNothing,
+		"-consul-client-service-name":  complete.PredictAnything,
+		"-consul-client-failures-before-critical": complete.PredictAnything,
+		"-consul-client-failures-before-warning":  complete.PredictAnything,
+		"-consul-client-http-check-name":          complete.PredictAnything,
+		"-consul-server-service-name":             complete.PredictAnything,
+		"-consul-server-http-check-name":          complete.PredictAnything,
+		"-consul-server-serf-check-name":          complete.PredictAnything,
+		"-consul-server-rpc-check-name":           complete.PredictAnything,
+		"-consul-server-auto-join":                complete.PredictNothing,
+		"-consul-server-failures-before-critical": complete.PredictAnything,
+		"-consul-server-failures-before-warning":  complete.PredictAnything,
+		"-consul-ssl":                             complete.PredictNothing,
+		"-consul-verify-ssl":                      complete.PredictNothing,
+		"-consul-address":                         complete.PredictAnything,
+		"-consul-token":                           complete.PredictAnything,
+		"-vault-enabled":                          complete.PredictNothing,
+		"-vault-allow-unauthenticated":            complete.PredictNothing,
+		"-vault-token":                            complete.PredictAnything,
+		"-vault-address":                          complete.PredictAnything,
+		"-vault-create-from-role":                 complete.PredictAnything,
+		"-vault-ca-file":                          complete.PredictAnything,
+		"-vault-ca-path":                          complete.PredictAnything,
+		"-vault-cert-file":                        complete.PredictAnything,
+		"-vault-key-file":                         complete.PredictAnything,
+		"-vault-tls-skip-verify":                  complete.PredictNothing,
+		"-vault-tls-server-name":                  complete.PredictAnything,
+		"-acl-enabled":                            complete.PredictNothing,
+		"-acl-replication-token":                  complete.PredictAnything,
 	}
 }
 
@@ -737,20 +805,19 @@ func (c *Command) Run(args []string) int {
 		}
 	}
 
-	// Setup the log outputs
-	logFilter, logGate, logOutput := SetupLoggers(c.Ui, config)
-	c.logFilter = logFilter
-	c.logOutput = logOutput
+	// Set up the log outputs.
+	logGate, logOutput := SetupLoggers(c.Ui, config)
 	if logGate == nil {
 		return 1
 	}
 
 	// Create logger
 	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
-		Name:       "agent",
-		Level:      hclog.LevelFromString(config.LogLevel),
-		Output:     logOutput,
-		JSONFormat: config.LogJson,
+		Name:            "agent",
+		Level:           hclog.LevelFromString(config.LogLevel),
+		Output:          logOutput,
+		JSONFormat:      config.LogJson,
+		IncludeLocation: config.LogIncludeLocation,
 	})
 
 	// Wrap log messages emitted with the 'log' package.
@@ -864,7 +931,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 
 	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
@@ -897,7 +964,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		len(config.Server.ServerJoin.RetryJoin) != 0 {
 
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			serverJoin:    c.agent.server.Join,
@@ -915,7 +982,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		config.Client.ServerJoin != nil &&
 		len(config.Client.ServerJoin.RetryJoin) != 0 {
 		joiner := retryJoiner{
-			discover:      &discover.Discover{},
+			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
 			errCh:         c.retryJoinErrCh,
 			logger:        c.agent.logger.Named("joiner"),
 			clientJoin:    c.agent.client.SetServers,
@@ -932,10 +999,30 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	return nil
 }
 
+// These constants are for readiness signalling via the systemd notify protocol.
+// The functions we send these messages to are no-op on non-Linux systems. See
+// also https://www.man7.org/linux/man-pages/man3/sd_notify.3.html
+const (
+	sdReady     = "READY=1"
+	sdReloading = "RELOADING=1"
+	sdStopping  = "STOPPING=1"
+	sdMonotonic = "MONOTONIC_USEC=%d"
+)
+
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+
+	// Signal readiness only once signal handlers are setup
+	sdSock, err := openNotify()
+	if err != nil {
+		c.agent.logger.Debug("notify socket could not be accessed", "error", err)
+	}
+	if sdSock != nil {
+		defer sdSock.Close()
+	}
+	sdNotify(sdSock, sdReady)
 
 	// Wait for a signal
 WAIT:
@@ -960,7 +1047,10 @@ WAIT:
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
+		sdNotify(sdSock, sdReloading)
+		sdNotify(sdSock, fmt.Sprintf(sdMonotonic, time.Now().UnixMicro()))
 		c.handleReload()
+		sdNotify(sdSock, sdReady)
 		goto WAIT
 	}
 
@@ -978,6 +1068,7 @@ WAIT:
 	}
 
 	// Attempt a graceful leave
+	sdNotify(sdSock, sdStopping)
 	gracefulCh := make(chan struct{})
 	c.Ui.Output("Gracefully shutting down agent...")
 	go func() {
@@ -1027,13 +1118,12 @@ func (c *Command) handleReload() {
 	}
 
 	// Change the log level
-	minLevel := logutils.LogLevel(strings.ToUpper(newConf.LogLevel))
-	if ValidateLevelFilter(minLevel, c.logFilter) {
-		c.logFilter.SetMinLevel(minLevel)
-	} else {
+	minLevel := strings.ToUpper(newConf.LogLevel)
+
+	if !isLogLevelValid(minLevel) {
 		c.Ui.Error(fmt.Sprintf(
 			"Invalid log level: %s. Valid log levels are: %v",
-			minLevel, c.logFilter.Levels))
+			minLevel, validLogLevels.Slice()))
 
 		// Keep the current log level
 		newConf.LogLevel = c.agent.GetConfig().LogLevel
@@ -1100,14 +1190,8 @@ func (c *Command) handleReload() {
 	}
 }
 
-// setupTelemetry is used ot setup the telemetry sub-systems
+// setupTelemetry is used to set up the telemetry sub-systems.
 func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
-	/* Setup telemetry
-	Aggregate on 10 second intervals for 1 minute. Expose the
-	metrics over stderr when there is a SIGUSR1 received.
-	*/
-	inm := metrics.NewInmemSink(10*time.Second, time.Minute)
-	metrics.DefaultInmemSignal(inm)
 
 	var telConfig *Telemetry
 	if config.Telemetry == nil {
@@ -1115,6 +1199,9 @@ func (c *Command) setupTelemetry(config *Config) (*metrics.InmemSink, error) {
 	} else {
 		telConfig = config.Telemetry
 	}
+
+	inm := metrics.NewInmemSink(telConfig.inMemoryCollectionInterval, telConfig.inMemoryRetentionPeriod)
+	metrics.DefaultInmemSignal(inm)
 
 	metricsConf := metrics.DefaultConfig("nomad")
 	metricsConf.EnableHostname = !telConfig.DisableHostname
@@ -1359,6 +1446,9 @@ General Options (clients and servers):
   -log-json
     Output logs in a JSON format. The default is false.
 
+  -log-include-location
+    Include file and line information in each log line. The default is false.
+
   -node=<name>
     The name of the local agent. This name is used to identify the node
     in the cluster. The name must be unique per region. The default is
@@ -1377,8 +1467,18 @@ General Options (clients and servers):
 
   -dev-connect
     Start the agent in development mode, but bind to a public network
-    interface rather than localhost for using Consul Connect. This
+    interface rather than localhost for using Consul Connect. It may be used
+    with -dev-consul to configure default workload identities for Consul. This
     mode is supported only on Linux as root.
+
+  -dev-consul
+    Starts the agent in development mode with a default Consul configuration
+    for Nomad workload identity. It may be used with -dev-connect to configure
+    the agent for Consul Service Mesh.
+
+  -dev-vault
+    Starts the agent in development mode with a default Vault configuration
+    for Nomad workload identity.
 
 Server Options:
 
@@ -1455,10 +1555,23 @@ Client Options:
 
   -network-interface
     Forces the network fingerprinter to use the specified network interface.
+  
+  -preferred-address-family
+    Specify which IP family to prefer when selecting an IP address of the
+    network interface. Valid values are "ipv4" and "ipv6". When not specified,
+    the agent will not sort the addresses and use the first one.
 
   -network-speed
     The default speed for network interfaces in MBits if the link speed can not
     be determined dynamically.
+
+  -host-volumes-dir
+    Directory wherein host volume plugins should place volumes. The default is
+    <data-dir>/host_volumes.
+
+  -host-volume-plugin-dir
+    Directory containing dynamic host volume plugins. The default is
+    <data-dir>/host_volume_plugins.
 
 ACL Options:
 
@@ -1510,6 +1623,14 @@ Consul Options:
   -consul-client-http-check-name=<name>
     Specifies the HTTP health check name in Consul for the Nomad clients.
 
+  -consul-client-failures-before-critical
+    Specifies the number of consecutive failures before the Nomad client
+    Consul health check is critical. Defaults to 0.
+
+  -consul-client-failures-before-warning
+    Specifies the number of consecutive failures before the Nomad client
+    Consul health check shows a warning. Defaults to 0.
+
   -consul-key-file=<path>
     Specifies the path to the private key used for Consul communication. If this
     is set then you need to also set cert_file.
@@ -1531,6 +1652,14 @@ Consul Options:
     Nomad servers by searching for the Consul service name defined in the
     server_service_name option. This search only happens if the server does not
     have a leader.
+
+  -consul-server-failures-before-critical
+    Specifies the number of consecutive failures before the Nomad server
+    Consul health check is critical. Defaults to 0.
+
+  -consul-server-failures-before-warning
+    Specifies the number of consecutive failures before the Nomad server
+    Consul health check shows a warning. Defaults to 0.
 
   -consul-ssl
     Specifies if the transport scheme should use HTTPS to communicate with the

@@ -9,7 +9,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/devicemanager"
+	hvm "github.com/hashicorp/nomad/client/hostvolumemanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	"github.com/hashicorp/nomad/client/pluginmanager/drivermanager"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -30,7 +32,7 @@ func (c *Client) batchFirstFingerprints() {
 
 	ch, err := c.pluginManagers.WaitForFirstFingerprint(ctx)
 	if err != nil {
-		c.logger.Warn("failed to batch initial fingerprint updates, switching to incemental updates")
+		c.logger.Warn("failed to batch initial fingerprint updates, switching to incremental updates")
 		goto SEND_BATCH
 	}
 
@@ -45,6 +47,13 @@ SEND_BATCH:
 	defer c.configLock.Unlock()
 
 	newConfig := c.config.Copy()
+
+	// host volume updates
+	var hostVolChanged bool
+	c.batchNodeUpdates.batchHostVolumeUpdates(func(name string, vol *structs.ClientHostVolumeConfig) {
+		hostVolChanged = hvm.UpdateVolumeMap(c.logger.Named("node_updater").With("method", "batchFirstFingerprint"),
+			newConfig.Node.HostVolumes, name, vol)
+	})
 
 	// csi updates
 	var csiChanged bool
@@ -85,7 +94,7 @@ SEND_BATCH:
 	})
 
 	// only update the node if changes occurred
-	if driverChanged || devicesChanged || csiChanged {
+	if driverChanged || devicesChanged || csiChanged || hostVolChanged {
 		c.config = newConfig
 		c.updateNode()
 	}
@@ -117,6 +126,24 @@ func (c *Client) updateNodeFromCSI(name string, info *structs.CSIInfo) {
 		changed = true
 	}
 
+	if changed {
+		c.config = newConfig
+		c.updateNode()
+	}
+}
+
+func (c *Client) updateNodeFromHostVol(name string, vol *structs.ClientHostVolumeConfig) {
+	c.configLock.Lock()
+	defer c.configLock.Unlock()
+
+	newConfig := c.config.Copy()
+
+	if newConfig.Node.HostVolumes == nil {
+		newConfig.Node.HostVolumes = make(map[string]*structs.ClientHostVolumeConfig)
+	}
+
+	changed := hvm.UpdateVolumeMap(c.logger.Named("node_updater").With("method", "updateNodeFromHostVol"),
+		newConfig.Node.HostVolumes, name, vol)
 	if changed {
 		c.config = newConfig
 		c.updateNode()
@@ -318,6 +345,8 @@ func (c *Client) updateNodeFromDevicesLocked(devices []*structs.NodeDeviceResour
 // Once ready, the batches can be flushed and toggled to stop batching and forward
 // all updates to a configured callback to be performed incrementally
 type batchNodeUpdates struct {
+	logger hclog.Logger
+
 	// access to driver fields must hold driversMu lock
 	drivers        map[string]*structs.DriverInfo
 	driversBatched bool
@@ -336,14 +365,22 @@ type batchNodeUpdates struct {
 	csiBatched           bool
 	csiCB                csimanager.UpdateNodeCSIInfoFunc
 	csiMu                sync.Mutex
+
+	hostVolumes        hvm.VolumeMap
+	hostVolumesBatched bool
+	hostVolumeCB       hvm.HostVolumeNodeUpdater
+	hostVolumeMu       sync.Mutex
 }
 
 func newBatchNodeUpdates(
+	logger hclog.Logger,
 	driverCB drivermanager.UpdateNodeDriverInfoFn,
 	devicesCB devicemanager.UpdateNodeDevicesFn,
-	csiCB csimanager.UpdateNodeCSIInfoFunc) *batchNodeUpdates {
+	csiCB csimanager.UpdateNodeCSIInfoFunc,
+	hostVolumeCB hvm.HostVolumeNodeUpdater) *batchNodeUpdates {
 
 	return &batchNodeUpdates{
+		logger:               logger,
 		drivers:              make(map[string]*structs.DriverInfo),
 		driverCB:             driverCB,
 		devices:              []*structs.NodeDeviceResource{},
@@ -351,7 +388,35 @@ func newBatchNodeUpdates(
 		csiNodePlugins:       make(map[string]*structs.CSIInfo),
 		csiControllerPlugins: make(map[string]*structs.CSIInfo),
 		csiCB:                csiCB,
+		hostVolumes:          make(hvm.VolumeMap),
+		hostVolumeCB:         hostVolumeCB,
 	}
+}
+
+// this is the one that the volume manager runs
+func (b *batchNodeUpdates) updateNodeFromHostVolume(name string, vol *structs.ClientHostVolumeConfig) {
+	b.hostVolumeMu.Lock()
+	defer b.hostVolumeMu.Unlock()
+	if b.hostVolumesBatched {
+		b.hostVolumeCB(name, vol) // => Client.updateNodeFromHostVol()
+		return
+	}
+	hvm.UpdateVolumeMap(b.logger.Named("node_updater").With("method", "updateNodeFromHostVolume"),
+		b.hostVolumes, name, vol)
+}
+
+// this one runs on client start
+func (b *batchNodeUpdates) batchHostVolumeUpdates(f hvm.HostVolumeNodeUpdater) error {
+	b.hostVolumeMu.Lock()
+	defer b.hostVolumeMu.Unlock()
+	if b.hostVolumesBatched {
+		return fmt.Errorf("host volume updates already batched")
+	}
+	b.hostVolumesBatched = true
+	for name, vol := range b.hostVolumes {
+		f(name, vol) // => c.batchNodeUpdates.batchHostVolumeUpdates(FUNC
+	}
+	return nil
 }
 
 // updateNodeFromCSI implements csimanager.UpdateNodeCSIInfoFunc and is used in

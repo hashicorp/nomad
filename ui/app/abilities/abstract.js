@@ -80,6 +80,7 @@ export default class Abstract extends Ability {
   }
 
   featureIsPresent(featureName) {
+    // See the hashicorp/nomad-licensing repo for canonical feature names
     return this.features.includes(featureName);
   }
 

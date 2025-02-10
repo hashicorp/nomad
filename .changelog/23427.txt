@@ -1,0 +1,3 @@
+```release-note:bug
+ui: fix an issue where gateway timeouts would cause the jobs list to revert to null, gives users a Pause Fetch option
+```

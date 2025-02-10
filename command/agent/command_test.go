@@ -6,19 +6,21 @@ package agent
 import (
 	"math"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/cli"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
-	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
+	"github.com/shoenig/test/must"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCommand_Implements(t *testing.T) {
@@ -57,7 +59,7 @@ func TestCommand_Args(t *testing.T) {
 		},
 		{
 			[]string{"-client", "-alloc-dir="},
-			"Must specify the state, alloc dir, and plugin dir if data-dir is omitted.",
+			"Must specify the state, alloc-dir, alloc-mounts-dir and plugin-dir if data-dir is omitted.",
 		},
 		{
 			[]string{"-client", "-data-dir=" + tmpDir, "-meta=invalid..key=inaccessible-value"},
@@ -472,6 +474,17 @@ func TestIsValidConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "BadOIDCIssuer",
+			conf: Config{
+				DataDir: "/tmp",
+				Server: &ServerConfig{
+					Enabled:    true,
+					OIDCIssuer: ":/example.com",
+				},
+			},
+			err: "missing protocol scheme",
+		},
 	}
 
 	for _, tc := range cases {
@@ -492,4 +505,179 @@ func TestIsValidConfig(t *testing.T) {
 			t.Logf("%s returned: %s", tc.name, mui.ErrorWriter.String())
 		})
 	}
+}
+
+func TestCommand_readConfig(t *testing.T) {
+	// Don't run in parallel since this test modifies environment variables.
+
+	configFiles := map[string]string{
+		"base.hcl": `
+data_dir = "/tmp/nomad"
+region   = "global"
+
+server {
+  enabled = true
+}
+
+client {
+  enabled = true
+}
+`,
+		"vault.hcl": `
+data_dir = "/tmp/nomad"
+region   = "global"
+
+server {
+  enabled = true
+}
+
+client {
+  enabled = true
+}
+
+vault {
+  token     = "token-from-config"
+  namespace = "ns-from-config"
+}
+`,
+	}
+
+	configDir := t.TempDir()
+	for k, v := range configFiles {
+		err := os.WriteFile(path.Join(configDir, k), []byte(v), 0644)
+		must.NoError(t, err)
+	}
+
+	testCases := []struct {
+		name    string
+		args    []string
+		env     map[string]string
+		checkFn func(*testing.T, *Config)
+	}{
+		{
+			name: "vault token and namespace from env var",
+			args: []string{
+				"-config", path.Join(configDir, "base.hcl"),
+			},
+			env: map[string]string{
+				"VAULT_TOKEN":     "token-from-env",
+				"VAULT_NAMESPACE": "ns-from-env",
+			},
+			checkFn: func(t *testing.T, c *Config) {
+				must.Eq(t, "token-from-env", c.Vaults[0].Token)
+				must.Eq(t, "ns-from-env", c.Vaults[0].Namespace)
+			},
+		},
+		{
+			name: "vault token and namespace from config takes precedence over env var",
+			args: []string{
+				"-config", path.Join(configDir, "vault.hcl"),
+			},
+			env: map[string]string{
+				"VAULT_TOKEN":     "token-from-env",
+				"VAULT_NAMESPACE": "ns-from-env",
+			},
+			checkFn: func(t *testing.T, c *Config) {
+				must.Eq(t, "token-from-config", c.Vaults[0].Token)
+				must.Eq(t, "ns-from-config", c.Vaults[0].Namespace)
+			},
+		},
+		{
+			name: "vault token and namespace from flag takes precedence over env var and config",
+			args: []string{
+				"-config", path.Join(configDir, "vault.hcl"),
+				"-vault-token", "secret-from-cli",
+				"-vault-namespace", "ns-from-cli",
+			},
+			env: map[string]string{
+				"VAULT_TOKEN":     "secret-from-env",
+				"VAULT_NAMESPACE": "ns-from-env",
+			},
+			checkFn: func(t *testing.T, c *Config) {
+				must.Eq(t, "secret-from-cli", c.Vaults[0].Token)
+				must.Eq(t, "ns-from-cli", c.Vaults[0].Namespace)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			defer func() {
+				// Print command stderr in case of a failed test case to help
+				// with debugging.
+				if t.Failed() {
+					t.Log(ui.ErrorWriter.String())
+				}
+			}()
+
+			cmd := &Command{
+				Ui:   ui,
+				args: tc.args,
+			}
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+
+			got := cmd.readConfig()
+			must.NotNil(t, got)
+			tc.checkFn(t, got)
+		})
+	}
+}
+
+func Test_setupLoggers_logFile(t *testing.T) {
+
+	// Generate a mock UI and temporary log file location to write to.
+	mockUI := cli.NewMockUi()
+	logFile := filepath.Join(t.TempDir(), "nomad.log")
+
+	// The initial configuration contains an invalid log level parameter.
+	cfg := &Config{
+		LogFile:  logFile,
+		LogLevel: "warning",
+	}
+
+	// Generate the loggers and ensure the correct error is generated.
+	gatedWriter, writer := SetupLoggers(mockUI, cfg)
+	must.Nil(t, gatedWriter)
+	must.Nil(t, writer)
+	must.StrContains(t, mockUI.ErrorWriter.String(), "Invalid log level: WARNING")
+
+	mockUI.ErrorWriter.Reset()
+	mockUI.OutputWriter.Reset()
+
+	// Update the log level, so that it is a valid option and set up the
+	// loggers again.
+	cfg.LogLevel = "warn"
+	gatedWriter, writer = SetupLoggers(mockUI, cfg)
+	must.NotNil(t, gatedWriter)
+	must.NotNil(t, writer)
+
+	// Build the logger as the command does.
+	testLogger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
+		Name:   "agent",
+		Level:  hclog.LevelFromString(cfg.LogLevel),
+		Output: writer,
+	})
+
+	// Flush the log gate and write messages at all levels.
+	gatedWriter.Flush()
+	testLogger.Error("error log entry")
+	testLogger.Warn("warn log entry")
+	testLogger.Info("info log entry")
+	testLogger.Debug("debug log entry")
+	testLogger.Trace("trace log entry")
+
+	// Read the file out and ensure it only contains log entries which match
+	// our desired level.
+	fileContents, err := os.ReadFile(logFile)
+	must.NoError(t, err)
+
+	fileContentsStr := string(fileContents)
+	must.StrContains(t, fileContentsStr, "error log entry")
+	must.StrContains(t, fileContentsStr, "warn log entry")
+	must.StrNotContains(t, fileContentsStr, "info log entry")
+	must.StrNotContains(t, fileContentsStr, "debug log entry")
+	must.StrNotContains(t, fileContentsStr, "trace log entry")
 }

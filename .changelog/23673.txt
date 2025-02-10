@@ -1,0 +1,3 @@
+```release-note:bug
+scaling: Fixed a bug where state store corruption could occur when writing scaling events
+```

@@ -6,6 +6,7 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -56,7 +57,7 @@ func (s *HTTPServer) JWKSRequest(resp http.ResponseWriter, req *http.Request) (a
 		if k, err := pubKey.GetPublicKey(); err == nil {
 			jwk.Key = k
 		} else {
-			s.logger.Warn("error getting public key. server is likely newer than client", "err", err)
+			s.logger.Warn("error getting public key. server is likely newer than client", "error", err)
 			continue
 		}
 
@@ -77,6 +78,31 @@ func (s *HTTPServer) JWKSRequest(resp http.ResponseWriter, req *http.Request) (a
 	return out, nil
 }
 
+// OIDCDiscoveryRequest implements the OIDC Discovery protocol for using
+// workload identity JWTs with external services.
+//
+// See https://openid.net/specs/openid-connect-discovery-1_0.html for details.
+func (s *HTTPServer) OIDCDiscoveryRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	args := structs.GenericRequest{}
+	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
+		return nil, nil
+	}
+	var rpcReply structs.KeyringGetConfigResponse
+	if err := s.agent.RPC("Keyring.GetConfig", &args, &rpcReply); err != nil {
+		return nil, err
+	}
+
+	if rpcReply.OIDCDiscovery == nil {
+		return nil, CodedError(http.StatusNotFound, "OIDC Discovery endpoint disabled")
+	}
+
+	return rpcReply.OIDCDiscovery, nil
+}
+
 // KeyringRequest is used route operator/raft API requests to the implementing
 // functions.
 func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -90,9 +116,20 @@ func (s *HTTPServer) KeyringRequest(resp http.ResponseWriter, req *http.Request)
 		return s.keyringListRequest(resp, req)
 	case strings.HasPrefix(path, "key"):
 		keyID := strings.TrimPrefix(req.URL.Path, "/v1/operator/keyring/key/")
+
+		var forceBool bool
+		var err error
+		forceQuery, ok := req.URL.Query()["force"]
+		if ok {
+			forceBool, err = strconv.ParseBool(forceQuery[0])
+		}
+
+		if err != nil {
+			return nil, CodedError(422, "invalid force parameter")
+		}
 		switch req.Method {
 		case http.MethodDelete:
-			return s.keyringDeleteRequest(resp, req, keyID)
+			return s.keyringDeleteRequest(resp, req, keyID, forceBool)
 		default:
 			return nil, CodedError(405, ErrInvalidMethod)
 		}
@@ -142,6 +179,15 @@ func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Re
 		args.Full = true
 	}
 
+	ptRaw := query.Get("publish_time")
+	if ptRaw != "" {
+		publishTime, err := strconv.ParseInt(ptRaw, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid publish_time: %w", err)
+		}
+		args.PublishTime = publishTime
+	}
+
 	var out structs.KeyringRotateRootKeyResponse
 	if err := s.agent.RPC("Keyring.Rotate", &args, &out); err != nil {
 		return nil, err
@@ -150,9 +196,9 @@ func (s *HTTPServer) keyringRotateRequest(resp http.ResponseWriter, req *http.Re
 	return out, nil
 }
 
-func (s *HTTPServer) keyringDeleteRequest(resp http.ResponseWriter, req *http.Request, keyID string) (interface{}, error) {
+func (s *HTTPServer) keyringDeleteRequest(resp http.ResponseWriter, req *http.Request, keyID string, force bool) (interface{}, error) {
 
-	args := structs.KeyringDeleteRootKeyRequest{KeyID: keyID}
+	args := structs.KeyringDeleteRootKeyRequest{KeyID: keyID, Force: force}
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.KeyringDeleteRootKeyResponse

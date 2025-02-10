@@ -57,16 +57,32 @@ export default class ClientNodeRow extends Component.extend(
 
   @watchRelationship('allocations') watch;
 
-  @computed('node.compositeStatus')
-  get compositeStatusClass() {
-    let compositeStatus = this.get('node.compositeStatus');
-
-    if (compositeStatus === 'draining') {
-      return 'status-text is-info';
-    } else if (compositeStatus === 'ineligible') {
-      return 'status-text is-warning';
-    } else if (compositeStatus === 'down') {
-      return 'status-text is-danger';
+  @computed('node.status')
+  get nodeStatusColor() {
+    let status = this.get('node.status');
+    if (status === 'disconnected') {
+      return 'warning';
+    } else if (status === 'down') {
+      return 'critical';
+    } else if (status === 'ready') {
+      return 'success';
+    } else if (status === 'initializing') {
+      return 'neutral';
+    } else {
+      return 'neutral';
+    }
+  }
+  @computed('node.status')
+  get nodeStatusIcon() {
+    let status = this.get('node.status');
+    if (status === 'disconnected') {
+      return 'skip';
+    } else if (status === 'down') {
+      return 'x-circle';
+    } else if (status === 'ready') {
+      return 'check-circle';
+    } else if (status === 'initializing') {
+      return 'entry-point';
     } else {
       return '';
     }

@@ -371,6 +371,7 @@ message DriverCapabilities {
         NONE = 0;
         CHROOT = 1;
         IMAGE = 2;
+        UNVEIL= 3;
     }
     // FsIsolation indicates what kind of filesystem isolation a driver supports.
     FSIsolation fs_isolation = 3;
@@ -389,13 +390,17 @@ message DriverCapabilities {
     // MountConfigs indicates whether the driver supports mount configurations.
     MountConfigs mount_configs = 6;
 
-    // remote_tasks indicates whether the driver executes tasks remotely such
-    // on cloud runtimes like AWS ECS.
-    bool remote_tasks = 7;
+    // previous remote_tasks field no longer used by nomad clients
+    reserved 7;
+    reserved "remote_tasks";
 
     // disable_log_collection indicates whether the driver has the capability of
     // disabling log collection
     bool disable_log_collection = 8;
+
+    // dynamic_workload_users indicates the task is capable of using UID/GID
+    // assigned from the Nomad client as user credentials for the task.
+    bool dynamic_workload_users = 9;
 }
 
 message NetworkIsolationSpec {
@@ -590,6 +595,8 @@ message Mount {
     // Propagation mode for the mount. Not exactly the same as the unix mount
     // propagation flags. See callsite usage for details.
     string propagation_mode = 4;
+
+    string selinux_label = 5;
 }
 
 message Device {

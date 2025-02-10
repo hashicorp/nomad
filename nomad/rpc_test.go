@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/go-sockaddr"
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/pool"
@@ -41,7 +41,7 @@ import (
 
 // rpcClient is a test helper method to return a ClientCodec to use to make rpc
 // calls to the passed server.
-func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
+func rpcClient(t testing.TB, s *Server) rpc.ClientCodec {
 	t.Helper()
 	addr := s.config.RPCAddr
 	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
@@ -55,7 +55,7 @@ func rpcClient(t *testing.T, s *Server) rpc.ClientCodec {
 
 // rpcClientWithTLS is a test helper method to return a ClientCodec to use to
 // make RPC calls to the passed server via mTLS
-func rpcClientWithTLS(t *testing.T, srv *Server, cfg *config.TLSConfig) rpc.ClientCodec {
+func rpcClientWithTLS(t testing.TB, srv *Server, cfg *config.TLSConfig) rpc.ClientCodec {
 	t.Helper()
 
 	// configure TLS, ignoring client-side validation
@@ -1203,99 +1203,93 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 	// Some endpoints can only be called server -> server
 	// Some endpoints can only be called client -> server
 	cases := []struct {
-		name   string
-		cn     string
-		rpcs   map[string]any
-		canRPC bool
+		name      string
+		cn        string
+		rpcs      map[string]any
+		expectErr string
 	}{
 		// Local server.
 		{
-			name:   "local server/standard rpc",
-			cn:     "server.global.nomad",
-			rpcs:   standardRPCs,
-			canRPC: true,
+			name: "local server/standard rpc",
+			cn:   "server.global.nomad",
+			rpcs: standardRPCs,
 		},
 		{
-			name:   "local server/servers only rpc",
-			cn:     "server.global.nomad",
-			rpcs:   localServersOnlyRPCs,
-			canRPC: true,
+			name: "local server/servers only rpc",
+			cn:   "server.global.nomad",
+			rpcs: localServersOnlyRPCs,
 		},
 		{
-			name:   "local server/clients only rpc",
-			cn:     "server.global.nomad",
-			rpcs:   localClientsOnlyRPCs,
-			canRPC: true,
+			name: "local server/clients only rpc",
+			cn:   "server.global.nomad",
+			rpcs: localClientsOnlyRPCs,
 		},
 		// Local client.
 		{
-			name:   "local client/standard rpc",
-			cn:     "client.global.nomad",
-			rpcs:   standardRPCs,
-			canRPC: true,
+			name: "local client/standard rpc",
+			cn:   "client.global.nomad",
+			rpcs: standardRPCs,
 		},
 		{
-			name:   "local client/servers only rpc",
-			cn:     "client.global.nomad",
-			rpcs:   localServersOnlyRPCs,
-			canRPC: false,
+			name:      "local client/servers only rpc",
+			cn:        "client.global.nomad",
+			rpcs:      localServersOnlyRPCs,
+			expectErr: "(Permission denied|broken pipe)",
 		},
 		{
-			name:   "local client/clients only rpc",
-			cn:     "client.global.nomad",
-			rpcs:   localClientsOnlyRPCs,
-			canRPC: true,
+			name: "local client/clients only rpc",
+			cn:   "client.global.nomad",
+			rpcs: localClientsOnlyRPCs,
 		},
 		// Other region server.
 		{
-			name:   "other region server/standard rpc",
-			cn:     "server.other.nomad",
-			rpcs:   standardRPCs,
-			canRPC: true,
+			name: "other region server/standard rpc",
+			cn:   "server.other.nomad",
+			rpcs: standardRPCs,
 		},
 		{
-			name:   "other region server/servers only rpc",
-			cn:     "server.other.nomad",
-			rpcs:   localServersOnlyRPCs,
-			canRPC: false,
+			name:      "other region server/servers only rpc",
+			cn:        "server.other.nomad",
+			rpcs:      localServersOnlyRPCs,
+			expectErr: "(Permission denied|broken pipe)",
 		},
 		{
-			name:   "other region server/clients only rpc",
-			cn:     "server.other.nomad",
-			rpcs:   localClientsOnlyRPCs,
-			canRPC: false,
+			name:      "other region server/clients only rpc",
+			cn:        "server.other.nomad",
+			rpcs:      localClientsOnlyRPCs,
+			expectErr: "(Permission denied|broken pipe)",
 		},
 		// Other region client.
 		{
-			name:   "other region client/standard rpc",
-			cn:     "client.other.nomad",
-			rpcs:   standardRPCs,
-			canRPC: false,
+			name:      "other region client/standard rpc",
+			cn:        "client.other.nomad",
+			rpcs:      standardRPCs,
+			expectErr: "(certificate|broken pipe)",
 		},
 		{
-			name:   "other region client/servers only rpc",
-			cn:     "client.other.nomad",
-			rpcs:   localServersOnlyRPCs,
-			canRPC: false,
+			name:      "other region client/servers only rpc",
+			cn:        "client.other.nomad",
+			rpcs:      localServersOnlyRPCs,
+			expectErr: "(certificate|broken pipe)",
 		},
 		{
-			name:   "other region client/clients only rpc",
-			cn:     "client.other.nomad",
-			rpcs:   localClientsOnlyRPCs,
-			canRPC: false,
+			name:      "other region client/clients only rpc",
+			cn:        "client.other.nomad",
+			rpcs:      localClientsOnlyRPCs,
+			expectErr: "(certificate|broken pipe)",
 		},
 		// Wrong certs.
 		{
-			name:   "irrelevant cert",
-			cn:     "nomad.example.com",
-			rpcs:   standardRPCs,
-			canRPC: false,
+			name:      "irrelevant cert",
+			cn:        "nomad.example.com",
+			rpcs:      standardRPCs,
+			expectErr: "(certificate|broken pipe)",
 		},
 		{
-			name:   "globs",
-			cn:     "*.global.nomad",
-			rpcs:   standardRPCs,
-			canRPC: false,
+			name:      "globs",
+			cn:        "*.global.nomad",
+			rpcs:      standardRPCs,
+			expectErr: "(certificate|broken pipe)",
 		},
 		{},
 	}
@@ -1318,7 +1312,7 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 					t.Run(name, func(t *testing.T) {
 						err := tlsHelper.nomadRPC(t, srv, cfg, method, arg)
 
-						if tc.canRPC {
+						if tc.expectErr == "" {
 							if err != nil {
 								// note: lots of these RPCs will return
 								// validation errors after connection b/c we're
@@ -1332,8 +1326,7 @@ func TestRPC_TLS_Enforcement_RPC(t *testing.T) {
 							// we immediately write on the pipe that was just
 							// closed by the client
 							must.Error(t, err)
-							must.RegexMatch(t,
-								regexp.MustCompile("(certificate|broken pipe)"), err.Error())
+							must.RegexMatch(t, regexp.MustCompile(tc.expectErr), err.Error())
 						}
 					})
 				}

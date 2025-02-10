@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: when an Action has long output, anchor to the latest messages
+```

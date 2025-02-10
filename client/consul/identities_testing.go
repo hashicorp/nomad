@@ -4,6 +4,7 @@
 package consul
 
 import (
+	"context"
 	"sync"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -35,13 +36,13 @@ func NewMockServiceIdentitiesClient() *MockServiceIdentitiesClient {
 	}
 }
 
-func (mtc *MockServiceIdentitiesClient) DeriveSITokens(alloc *structs.Allocation, tasks []string) (map[string]string, error) {
+func (mtc *MockServiceIdentitiesClient) DeriveSITokens(ctx context.Context, alloc *structs.Allocation, tasks []string) (map[string]string, error) {
 	mtc.lock.Lock()
 	defer mtc.lock.Unlock()
 
 	// if the DeriveTokenFn is explicitly set, use that
 	if mtc.DeriveTokenFn != nil {
-		return mtc.DeriveTokenFn(alloc, tasks)
+		return mtc.DeriveTokenFn(ctx, alloc, tasks)
 	}
 
 	// generate a token for each task, unless the mock has an error ready for

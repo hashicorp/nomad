@@ -10,9 +10,11 @@ import (
 	"sync"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	"github.com/docker/docker/api/types"
+	containerapi "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v3"
 )
 
 // containerReconciler detects and kills unexpectedly running containers.
@@ -25,11 +27,11 @@ type containerReconciler struct {
 	ctx       context.Context
 	config    *ContainerGCConfig
 	logger    hclog.Logger
-	getClient func() (*docker.Client, error)
+	getClient func() (*client.Client, error)
 
 	isDriverHealthy   func() bool
-	trackedContainers func() *set.Set[string]
-	isNomadContainer  func(c docker.APIContainers) bool
+	trackedContainers func() set.Collection[string]
+	isNomadContainer  func(c types.Container) bool
 
 	once sync.Once
 }
@@ -114,13 +116,9 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 		return err
 	}
 
-	for _, id := range untracked.Slice() {
+	for id := range untracked.Items() {
 		ctx, cancel := r.dockerAPIQueryContext()
-		err := dockerClient.RemoveContainer(docker.RemoveContainerOptions{
-			Context: ctx,
-			ID:      id,
-			Force:   true,
-		})
+		err := dockerClient.ContainerRemove(ctx, id, containerapi.RemoveOptions{Force: true})
 		cancel()
 		if err != nil {
 			r.logger.Warn("failed to remove untracked container", "container_id", id, "error", err)
@@ -134,7 +132,7 @@ func (r *containerReconciler) removeDanglingContainersIteration() error {
 
 // untrackedContainers returns the ids of containers that suspected
 // to have been started by Nomad but aren't tracked by this driver
-func (r *containerReconciler) untrackedContainers(tracked *set.Set[string], cutoffTime time.Time) (*set.Set[string], error) {
+func (r *containerReconciler) untrackedContainers(tracked set.Collection[string], cutoffTime time.Time) (*set.Set[string], error) {
 	result := set.New[string](10)
 
 	ctx, cancel := r.dockerAPIQueryContext()
@@ -145,9 +143,8 @@ func (r *containerReconciler) untrackedContainers(tracked *set.Set[string], cuto
 		return nil, err
 	}
 
-	cc, err := dockerClient.ListContainers(docker.ListContainersOptions{
-		Context: ctx,
-		All:     false, // only reconcile running containers
+	cc, err := dockerClient.ContainerList(ctx, containerapi.ListOptions{
+		All: false, // only reconcile running containers
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list containers: %v", err)
@@ -188,7 +185,7 @@ func (r *containerReconciler) dockerAPIQueryContext() (context.Context, context.
 	return context.WithTimeout(context.Background(), timeout)
 }
 
-func isNomadContainer(c docker.APIContainers) bool {
+func isNomadContainer(c types.Container) bool {
 	if _, ok := c.Labels[dockerLabelAllocID]; ok {
 		return true
 	}
@@ -206,7 +203,7 @@ func isNomadContainer(c docker.APIContainers) bool {
 	return true
 }
 
-func hasMount(c docker.APIContainers, p string) bool {
+func hasMount(c types.Container, p string) bool {
 	for _, m := range c.Mounts {
 		if m.Destination == p {
 			return true
@@ -218,7 +215,7 @@ func hasMount(c docker.APIContainers, p string) bool {
 
 var nomadContainerNamePattern = regexp.MustCompile(`\/.*-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 
-func hasNomadName(c docker.APIContainers) bool {
+func hasNomadName(c types.Container) bool {
 	for _, n := range c.Names {
 		if nomadContainerNamePattern.MatchString(n) {
 			return true
@@ -230,7 +227,7 @@ func hasNomadName(c docker.APIContainers) bool {
 // trackedContainers returns the set of container IDs of containers that were
 // started by Driver and are expected to be running. This includes both normal
 // Task containers, as well as infra pause containers.
-func (d *Driver) trackedContainers() *set.Set[string] {
+func (d *Driver) trackedContainers() set.Collection[string] {
 	// collect the task containers
 	ids := d.tasks.IDs()
 	// now also accumulate pause containers

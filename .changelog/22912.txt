@@ -1,0 +1,3 @@
+```release-note:improvement
+metrics (Enterprise): Publish quota utilization as metrics
+```

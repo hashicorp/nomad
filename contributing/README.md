@@ -5,7 +5,10 @@ This directory contains some documentation about the Nomad codebase,
 aimed at readers who are interested in making code contributions.
 
 If you're looking for information on _using_ Nomad, please instead refer
-to the [Nomad website](https://nomadproject.io).
+to the [Nomad website](https://developer.hashicorp.com/nomad).
+
+The [good first issue label](https://github.com/hashicorp/nomad/issues?q=is:issue+is:open+label:%22good+first+issue%22)
+is used to identify issues which are suited to first time contributors.
 
 Developing with Vagrant
 ---
@@ -30,7 +33,7 @@ A development environment is supplied via Vagrant to make getting started easier
 
 Developing without Vagrant
 ---
-1. Install [Go 1.21.0+](https://golang.org/) *(Note: `gcc-go` is not supported)*
+1. Install [Go 1.23.6+](https://golang.org/) *(Note: `gcc-go` is not supported)*
 1. Clone this repo
    ```sh
    $ git clone https://github.com/hashicorp/nomad.git

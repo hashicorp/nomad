@@ -12,16 +12,18 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul-template/signals"
 	hclog "github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-set"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
@@ -40,6 +42,13 @@ import (
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"golang.org/x/sys/unix"
+)
+
+const (
+	// CPU shares limits are defined by the Linux kernel.
+	// https://github.com/torvalds/linux/blob/0dd3ee31125508cd67f7e7172247f05b7fd1753a/kernel/sched/sched.h#L409-L418
+	MinCPUShares = 2
+	MaxCPUShares = 262_144
 )
 
 var (
@@ -70,9 +79,31 @@ type LibcontainerExecutor struct {
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
 	exitState      *ProcessState
+	sigChan        chan os.Signal
+}
+
+func (l *LibcontainerExecutor) catchSignals() {
+	l.logger.Trace("waiting for signals")
+	defer signal.Stop(l.sigChan)
+	defer close(l.sigChan)
+
+	signal.Notify(l.sigChan, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT, syscall.SIGSEGV)
+	for {
+		signal := <-l.sigChan
+		if signal == syscall.SIGTERM || signal == syscall.SIGINT {
+			l.Shutdown("SIGINT", 0)
+			break
+		}
+
+		if l.container != nil {
+			l.container.Signal(signal, false)
+		}
+	}
 }
 
 func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Executor {
+	sigch := make(chan os.Signal, 4)
+
 	le := &LibcontainerExecutor{
 		id:             strings.ReplaceAll(uuid.Generate(), "-", "_"),
 		logger:         logger.Named("isolated_executor"),
@@ -80,13 +111,45 @@ func NewExecutorWithIsolation(logger hclog.Logger, compute cpustats.Compute) Exe
 		totalCpuStats:  cpustats.New(compute),
 		userCpuStats:   cpustats.New(compute),
 		systemCpuStats: cpustats.New(compute),
+		sigChan:        sigch,
 	}
+
+	go le.catchSignals()
+
 	le.processStats = procstats.New(compute, le)
 	return le
 }
 
-func (l *LibcontainerExecutor) ListProcesses() *set.Set[int] {
+func (l *LibcontainerExecutor) ListProcesses() set.Collection[int] {
 	return procstats.List(l.command)
+}
+
+// cleanOldProcessesInCGroup kills processes that might ended up orphans when the
+// executor was unexpectedly killed and nomad can't reconnect to them.
+func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) {
+	l.logger.Debug("looking for old processes", "path", nomadRelativePath)
+
+	root := cgroupslib.GetDefaultRoot()
+	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
+	if err != nil {
+		l.logger.Error("unable to get orphaned task PIDs", "error", err)
+		return
+	}
+
+	for _, pid := range orphansPIDs {
+		l.logger.Info("killing orphaned process", "pid", pid)
+
+		// Avoid bringing down the whole node by mistake, very unlikely case,
+		// but it's better to be sure.
+		if pid == 1 {
+			continue
+		}
+
+		err := syscall.Kill(pid, syscall.SIGKILL)
+		if err != nil {
+			l.logger.Error("unable to send signal to process", "pid", pid, "error", err)
+		}
+	}
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
@@ -119,6 +182,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
 
+	l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path)
 	container, err := factory.Create(l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
@@ -150,6 +214,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	process := &libcontainer.Process{
 		Args:   combined,
 		Env:    command.Env,
+		Cwd:    command.WorkDir,
 		Stdout: stdout,
 		Stderr: stderr,
 		Init:   true,
@@ -158,6 +223,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	if command.User != "" {
 		process.User = command.User
 	}
+
 	l.userProc = process
 
 	l.totalCpuStats = cpustats.New(l.compute)
@@ -179,7 +245,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	// start a goroutine to wait on the process to complete, so Wait calls can
 	// be multiplexed
 	l.userProcExited = make(chan interface{})
-
 	go l.wait()
 
 	return &ProcessState{
@@ -201,6 +266,23 @@ func (l *LibcontainerExecutor) Wait(ctx context.Context) (*ProcessState, error) 
 
 func (l *LibcontainerExecutor) wait() {
 	defer close(l.userProcExited)
+
+	// Best effort detection of OOMs. It's possible for us to miss OOM notifications in
+	// the event that the wait returns before we read from the OOM notification channel
+	var oomKilled atomic.Bool
+	go func() {
+		oomCh, err := l.container.NotifyOOM()
+		if err != nil {
+			l.logger.Error("failed to get OOM notification channel for container(%s): %v", l.id, err)
+			return
+		}
+
+		for range oomCh {
+			oomKilled.Store(true)
+			// We can terminate this goroutine as soon as we've seen the first OOM
+			return
+		}
+	}()
 
 	ps, err := l.userProc.Wait()
 	if err != nil {
@@ -229,10 +311,11 @@ func (l *LibcontainerExecutor) wait() {
 	}
 
 	l.exitState = &ProcessState{
-		Pid:      ps.Pid(),
-		ExitCode: exitCode,
-		Signal:   signal,
-		Time:     time.Now(),
+		Pid:       ps.Pid(),
+		ExitCode:  exitCode,
+		Signal:    signal,
+		OOMKilled: oomKilled.Load(),
+		Time:      time.Now(),
 	}
 }
 
@@ -415,6 +498,7 @@ func (l *LibcontainerExecutor) Exec(deadline time.Time, cmd string, args []strin
 	process := &libcontainer.Process{
 		Args:   combined,
 		Env:    l.command.Env,
+		Cwd:    l.command.WorkDir,
 		Stdout: buf,
 		Stderr: buf,
 	}
@@ -470,7 +554,7 @@ func (l *LibcontainerExecutor) ExecStreaming(ctx context.Context, cmd []string, 
 		Env:  l.userProc.Env,
 		User: l.userProc.User,
 		Init: false,
-		Cwd:  "/",
+		Cwd:  l.command.WorkDir,
 	}
 
 	execHelper := &execHelper{
@@ -595,6 +679,10 @@ func configureIsolation(cfg *runc.Config, command *ExecCommand) error {
 		cfg.Devices = append(cfg.Devices, devs...)
 	}
 
+	for _, device := range cfg.Devices {
+		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
+	}
+
 	cfg.Mounts = []*runc.Mount{
 		{
 			Source:      "tmpfs",
@@ -698,7 +786,7 @@ func (l *LibcontainerExecutor) configureCgroupMemory(cfg *runc.Config, command *
 
 func (l *LibcontainerExecutor) configureCG1(cfg *runc.Config, command *ExecCommand, cgroup string) error {
 
-	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpuShares := l.clampCpuShares(command.Resources.LinuxResources.CPUShares)
 	cpusetPath := command.Resources.LinuxResources.CpusetCgroupPath
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
 
@@ -730,7 +818,7 @@ func (l *LibcontainerExecutor) cpusetCG1(cpusetCgroupPath, cores string) error {
 }
 
 func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecCommand, cg string) error {
-	cpuShares := command.Resources.LinuxResources.CPUShares
+	cpuShares := l.clampCpuShares(command.Resources.LinuxResources.CPUShares)
 	cpuCores := command.Resources.LinuxResources.CpusetCpus
 
 	// Set the v2 specific unified path
@@ -753,16 +841,13 @@ func (l *LibcontainerExecutor) configureCG2(cfg *runc.Config, command *ExecComma
 
 func (l *LibcontainerExecutor) newLibcontainerConfig(command *ExecCommand) (*runc.Config, error) {
 	cfg := &runc.Config{
+		ParentDeathSignal: 9,
 		Cgroups: &runc.Cgroup{
 			Resources: &runc.Resources{
 				MemorySwappiness: nil,
 			},
 		},
 		Version: "1.0.0",
-	}
-
-	for _, device := range specconv.AllowedDevices {
-		cfg.Cgroups.Resources.Devices = append(cfg.Cgroups.Resources.Devices, &device.Rule)
 	}
 
 	configureCapabilities(cfg, command)
@@ -782,6 +867,24 @@ func (l *LibcontainerExecutor) newLibcontainerConfig(command *ExecCommand) (*run
 	return cfg, nil
 }
 
+func (l *LibcontainerExecutor) clampCpuShares(shares int64) int64 {
+	if shares < MinCPUShares {
+		l.logger.Warn(
+			"task CPU is lower than minimum allowed, using minimum value instead",
+			"task_cpu", shares, "min", MinCPUShares,
+		)
+		return MinCPUShares
+	}
+	if shares > MaxCPUShares {
+		l.logger.Warn(
+			"task CPU is greater than maximum allowed, using maximum value instead",
+			"task_cpu", shares, "max", MaxCPUShares,
+		)
+		return MaxCPUShares
+	}
+	return shares
+}
+
 // cmdDevices converts a list of driver.DeviceConfigs into excutor.Devices.
 func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error) {
 	if len(driverDevices) == 0 {
@@ -796,6 +899,7 @@ func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error
 			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)
 		}
 		ed.Path = d.TaskPath
+		ed.Allow = true // rules will be used to allow devices via cgroups
 		r[i] = ed
 	}
 

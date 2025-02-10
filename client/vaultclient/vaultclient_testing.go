@@ -4,16 +4,23 @@
 package vaultclient
 
 import (
+	"context"
+	"fmt"
 	"sync"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	vaultapi "github.com/hashicorp/vault/api"
 )
 
 // MockVaultClient is used for testing the vaultclient integration and is safe
 // for concurrent access.
 type MockVaultClient struct {
+	// legacyTokens stores the tokens per task derived using the legacy flow.
+	legacyTokens map[string]string
+
+	// jwtTokens stores the tokens derived using the JWT flow.
+	jwtTokens map[string]string
+
 	// stoppedTokens tracks the tokens that have stopped renewing
 	stoppedTokens []string
 
@@ -34,11 +41,40 @@ type MockVaultClient struct {
 	// a token is generated and returned
 	DeriveTokenFn func(a *structs.Allocation, tasks []string) (map[string]string, error)
 
+	// deriveTokenWithJWTFn allows the caller to control the DeriveTokenWithJWT
+	// function.
+	deriveTokenWithJWTFn func(context.Context, JWTLoginRequest) (string, bool, error)
+
+	// renewable determines if the tokens returned should be marked as renewable
+	renewable bool
+
 	mu sync.Mutex
 }
 
 // NewMockVaultClient returns a MockVaultClient for testing
-func NewMockVaultClient() *MockVaultClient { return &MockVaultClient{} }
+func NewMockVaultClient(_ string) (VaultClient, error) {
+	return &MockVaultClient{renewable: true}, nil
+}
+
+func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, error) {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+
+	if vc.deriveTokenWithJWTFn != nil {
+		return vc.deriveTokenWithJWTFn(ctx, req)
+	}
+
+	if vc.jwtTokens == nil {
+		vc.jwtTokens = make(map[string]string)
+	}
+
+	token := uuid.Generate()
+	if req.Role != "" {
+		token = fmt.Sprintf("%s-%s", token, req.Role)
+	}
+	vc.jwtTokens[req.JWT] = token
+	return token, vc.renewable, nil
+}
 
 func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (map[string]string, error) {
 	vc.mu.Lock()
@@ -59,6 +95,7 @@ func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (m
 		tokens[task] = uuid.Generate()
 	}
 
+	vc.legacyTokens = tokens
 	return tokens, nil
 }
 
@@ -118,7 +155,25 @@ func (vc *MockVaultClient) Start() {}
 
 func (vc *MockVaultClient) Stop() {}
 
-func (vc *MockVaultClient) GetConsulACL(string, string) (*vaultapi.Secret, error) { return nil, nil }
+func (vc *MockVaultClient) SetRenewable(renewable bool) {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.renewable = renewable
+}
+
+// LegacyTokens returns the tokens generated using the legacy flow.
+func (vc *MockVaultClient) LegacyTokens() map[string]string {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	return vc.legacyTokens
+}
+
+// JWTTotkens returns the tokens generated suing the JWT flow.
+func (vc *MockVaultClient) JWTTokens() map[string]string {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	return vc.jwtTokens
+}
 
 // StoppedTokens tracks the tokens that have stopped renewing
 func (vc *MockVaultClient) StoppedTokens() []string {
@@ -135,6 +190,14 @@ func (vc *MockVaultClient) RenewTokens() map[string]chan error {
 	return vc.renewTokens
 }
 
+// RenewTokenErrCh returns the error channel for the given token renewal
+// process.
+func (vc *MockVaultClient) RenewTokenErrCh(token string) chan error {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	return vc.renewTokens[token]
+}
+
 // RenewTokenErrors is used to return an error when the RenewToken is called
 // with the given token
 func (vc *MockVaultClient) RenewTokenErrors() map[string]error {
@@ -149,4 +212,11 @@ func (vc *MockVaultClient) DeriveTokenErrors() map[string]map[string]error {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	return vc.deriveTokenErrors
+}
+
+// SetDeriveTokenWithJWTFn sets the function used to derive tokens using JWT.
+func (vc *MockVaultClient) SetDeriveTokenWithJWTFn(f func(context.Context, JWTLoginRequest) (string, bool, error)) {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+	vc.deriveTokenWithJWTFn = f
 }

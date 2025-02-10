@@ -1,0 +1,20 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<@S.TextInput
+  @type="search"
+  @value={{@searchText}}
+  aria-label="Job Search"
+  placeholder="Name contains myJob"
+  @icon="search"
+  @width="300px"
+  {{on "input" (action this.updateSearchText)}}
+  {{keyboard-shortcut 
+    label="Search Jobs"
+    pattern=(array "Shift+F")
+    action=(action this.focus)
+  }}
+  data-test-jobs-search
+/>

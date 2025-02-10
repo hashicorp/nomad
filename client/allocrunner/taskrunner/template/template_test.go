@@ -5,19 +5,17 @@ package template
 
 import (
 	"bytes"
-	"context"
+	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -25,6 +23,7 @@ import (
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
+	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/taskenv"
 	clienttestutil "github.com/hashicorp/nomad/client/testutil"
@@ -37,10 +36,22 @@ import (
 	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
+
+// TestMain overrides the normal top-level test runner for this package. When
+// template-render subprocesses are run, they use os.Executable to find their
+// own binary, which is the template.test binary when these tests are
+// running. That causes the template-render subprocess to run all these tests!
+// Bail out early if we know we're in the subprocess.
+func TestMain(m *testing.M) {
+	flag.Parse()
+	if slices.Contains(flag.Args(), "template-render") {
+		return
+	}
+	os.Exit(m.Run())
+}
 
 const (
 	// TestTaskName is the name of the injected task. It should appear in the
@@ -48,99 +59,11 @@ const (
 	TestTaskName = "test-task"
 )
 
-// MockTaskHooks is a mock of the TaskHooks interface useful for testing
-type MockTaskHooks struct {
-	Restarts  int
-	RestartCh chan struct{}
-
-	Signals    []string
-	SignalCh   chan struct{}
-	signalLock sync.Mutex
-
-	// SignalError is returned when Signal is called on the mock hook
-	SignalError error
-
-	UnblockCh chan struct{}
-
-	KillEvent *structs.TaskEvent
-	KillCh    chan *structs.TaskEvent
-
-	Events      []*structs.TaskEvent
-	EmitEventCh chan *structs.TaskEvent
-
-	// hasHandle can be set to simulate restoring a task after client restart
-	hasHandle bool
-}
-
-func NewMockTaskHooks() *MockTaskHooks {
-	return &MockTaskHooks{
-		UnblockCh:   make(chan struct{}, 1),
-		RestartCh:   make(chan struct{}, 1),
-		SignalCh:    make(chan struct{}, 1),
-		KillCh:      make(chan *structs.TaskEvent, 1),
-		EmitEventCh: make(chan *structs.TaskEvent, 1),
-	}
-}
-func (m *MockTaskHooks) Restart(ctx context.Context, event *structs.TaskEvent, failure bool) error {
-	m.Restarts++
-	select {
-	case m.RestartCh <- struct{}{}:
-	default:
-	}
-	return nil
-}
-
-func (m *MockTaskHooks) Signal(event *structs.TaskEvent, s string) error {
-	m.signalLock.Lock()
-	m.Signals = append(m.Signals, s)
-	m.signalLock.Unlock()
-	select {
-	case m.SignalCh <- struct{}{}:
-	default:
-	}
-
-	return m.SignalError
-}
-
-func (m *MockTaskHooks) Kill(ctx context.Context, event *structs.TaskEvent) error {
-	m.KillEvent = event
-	select {
-	case m.KillCh <- event:
-	default:
-	}
-	return nil
-}
-
-func (m *MockTaskHooks) IsRunning() bool {
-	return m.hasHandle
-}
-
-func (m *MockTaskHooks) EmitEvent(event *structs.TaskEvent) {
-	m.Events = append(m.Events, event)
-	select {
-	case m.EmitEventCh <- event:
-	case <-m.EmitEventCh:
-		m.EmitEventCh <- event
-	}
-}
-
-func (m *MockTaskHooks) SetState(state string, event *structs.TaskEvent) {}
-
-// mockExecutor implements script executor interface
-type mockExecutor struct {
-	DesiredExit int
-	DesiredErr  error
-}
-
-func (m *mockExecutor) Exec(timeout time.Duration, cmd string, args []string) ([]byte, int, error) {
-	return []byte{}, m.DesiredExit, m.DesiredErr
-}
-
 // testHarness is used to test the TaskTemplateManager by spinning up
 // Consul/Vault as needed
 type testHarness struct {
 	manager        *TaskTemplateManager
-	mockHooks      *MockTaskHooks
+	mockHooks      *trtesting.MockTaskHooks
 	templates      []*structs.Template
 	envBuilder     *taskenv.Builder
 	node           *structs.Node
@@ -156,11 +79,12 @@ type testHarness struct {
 // newTestHarness returns a harness starting a dev consul and vault server,
 // building the appropriate config and creating a TaskTemplateManager
 func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault bool) *testHarness {
+	t.Helper()
 	region := "global"
 	mockNode := mock.Node()
 
 	harness := &testHarness{
-		mockHooks: NewMockTaskHooks(),
+		mockHooks: trtesting.NewMockTaskHooks(),
 		templates: templates,
 		node:      mockNode,
 		config: &config.Config{
@@ -193,14 +117,17 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 		if err != nil {
 			t.Fatalf("error starting test Consul server: %v", err)
 		}
-		harness.config.ConsulConfig = &sconfig.ConsulConfig{
-			Addr: harness.consul.HTTPAddr,
-		}
+		harness.config.ConsulConfigs = map[string]*sconfig.ConsulConfig{
+			structs.ConsulDefaultCluster: {
+				Addr: harness.consul.HTTPAddr,
+			}}
 	}
 
 	if vault {
 		harness.vault = testutil.NewTestVault(t)
-		harness.config.VaultConfig = harness.vault.Config
+		harness.config.VaultConfigs = map[string]*sconfig.VaultConfig{
+			structs.VaultDefaultCluster: harness.vault.Config,
+		}
 		harness.vaultToken = harness.vault.RootToken
 	}
 
@@ -208,6 +135,7 @@ func newTestHarness(t *testing.T, templates []*structs.Template, consul, vault b
 }
 
 func (h *testHarness) start(t *testing.T) {
+	t.Helper()
 	if err := h.startWithErr(); err != nil {
 		t.Fatalf("failed to build task template manager: %v", err)
 	}
@@ -221,10 +149,13 @@ func (h *testHarness) startWithErr() error {
 		Events:               h.mockHooks,
 		Templates:            h.templates,
 		ClientConfig:         h.config,
+		ConsulConfig:         h.config.GetDefaultConsul(),
 		VaultToken:           h.vaultToken,
+		VaultConfig:          h.config.GetDefaultVault(),
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.envBuilder,
 		MaxTemplateEventRate: h.emitRate,
+		TaskID:               uuid.Generate(),
 	})
 	return err
 }
@@ -251,9 +182,9 @@ func (h *testHarness) stop() {
 
 func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 	ci.Parallel(t)
-	hooks := NewMockTaskHooks()
+	hooks := trtesting.NewMockTaskHooks()
 	clientConfig := &config.Config{Region: "global"}
-	taskDir := "foo"
+	taskDir := t.TempDir()
 	a := mock.Alloc()
 	envBuilder := taskenv.NewBuilder(mock.Node(), a, a.Job.TaskGroups[0].Tasks[0], clientConfig.Region)
 
@@ -276,6 +207,7 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 				TaskDir:              taskDir,
 				EnvBuilder:           envBuilder,
 				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+				Logger:               testlog.HCLogger(t),
 			},
 			expectedErr: "lifecycle hooks",
 		},
@@ -376,6 +308,10 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			if c.config != nil {
+				c.config.TaskID = c.name
+				c.config.Logger = testlog.HCLogger(t)
+			}
 			_, err := NewTaskTemplateManager(c.config)
 			if err != nil {
 				if c.expectedErr == "" {
@@ -469,17 +405,15 @@ func TestTaskTemplateManager_HostPath(t *testing.T) {
 			harness.taskDir, template.SourcePath, err)
 	}
 
-	// Test with desination too
+	// Test with destination too
 	template.SourcePath = f.Name()
 	template.DestPath = "../../../../../../" + file
 	harness = newTestHarness(t, []*structs.Template{template}, false, false)
 	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
 	err = harness.startWithErr()
-	if err == nil || !strings.Contains(err.Error(), "escapes alloc directory") {
-		t.Fatalf("Expected directory traversal out of %q via interpolation disallowed for %q: %v",
-			harness.taskDir, template.SourcePath, err)
-	}
-
+	must.ErrorContains(t, err, "escapes alloc directory", must.Sprintf(
+		"Expected directory traversal out of %q via interpolation disallowed for %q: %v",
+		harness.taskDir, template.SourcePath, err))
 }
 
 func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
@@ -493,7 +427,13 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
 
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
+	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 	harness.start(t)
 	defer harness.stop()
 
@@ -516,51 +456,6 @@ func TestTaskTemplateManager_Unblock_Static(t *testing.T) {
 	}
 }
 
-func TestTaskTemplateManager_Permissions(t *testing.T) {
-	clienttestutil.RequireRoot(t)
-	ci.Parallel(t)
-	// Make a template that will render immediately
-	content := "hello, world!"
-	file := "my.tmpl"
-	template := &structs.Template{
-		EmbeddedTmpl: content,
-		DestPath:     file,
-		ChangeMode:   structs.TemplateChangeModeNoop,
-		Perms:        "777",
-		Uid:          pointer.Of(503),
-		Gid:          pointer.Of(20),
-	}
-
-	harness := newTestHarness(t, []*structs.Template{template}, false, false)
-	harness.start(t)
-	defer harness.stop()
-
-	// Wait for the unblock
-	select {
-	case <-harness.mockHooks.UnblockCh:
-	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		t.Fatalf("Task unblock should have been called")
-	}
-
-	// Check the file is there
-	path := filepath.Join(harness.taskDir, file)
-	fi, err := os.Stat(path)
-	if err != nil {
-		t.Fatalf("Failed to stat file: %v", err)
-	}
-
-	if m := fi.Mode(); m != os.ModePerm {
-		t.Fatalf("Got mode %v; want %v", m, os.ModePerm)
-	}
-
-	sys := fi.Sys()
-	uid := pointer.Of(int(sys.(*syscall.Stat_t).Uid))
-	gid := pointer.Of(int(sys.(*syscall.Stat_t).Gid))
-
-	must.Eq(t, template.Uid, uid)
-	must.Eq(t, template.Gid, gid)
-}
-
 func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
 	ci.Parallel(t)
 	// Make a template that will render immediately
@@ -573,7 +468,13 @@ func TestTaskTemplateManager_Unblock_Static_NomadEnv(t *testing.T) {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
 
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
+	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 	harness.start(t)
 	defer harness.stop()
 
@@ -607,13 +508,17 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
 
+	a := mock.Alloc()
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = TestTaskName
+
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.envBuilder = taskenv.NewBuilder(harness.node, a, task, "global")
+	harness.envBuilder.SetClientTaskRoot(harness.taskDir)
 
 	// Write the contents
 	path := filepath.Join(harness.taskDir, file)
-	if err := os.WriteFile(path, []byte(content), 0777); err != nil {
-		t.Fatalf("Failed to write data: %v", err)
-	}
+	must.NoError(t, os.WriteFile(path, []byte(content), 0777))
 
 	harness.start(t)
 	defer harness.stop()
@@ -628,17 +533,16 @@ func TestTaskTemplateManager_Unblock_Static_AlreadyRendered(t *testing.T) {
 	// Check the file is there
 	path = filepath.Join(harness.taskDir, file)
 	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("Failed to read rendered template from %q: %v", path, err)
-	}
+	must.NoError(t, err, must.Sprintf(
+		"Failed to read rendered template from %q", path))
 
-	if s := string(raw); s != content {
-		t.Fatalf("Unexpected template data; got %q, want %q", s, content)
-	}
+	must.Eq(t, content, string(raw), must.Sprint("Unexpected template data"))
 }
 
 func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that will render based on a key in Consul
 	key := "foo"
 	content := "barbaz"
@@ -685,7 +589,8 @@ func TestTaskTemplateManager_Unblock_Consul(t *testing.T) {
 
 func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+	clienttestutil.RequireVault(t)
+
 	// Make a template that will render based on a key in Vault
 	vaultPath := "secret/data/password"
 	key := "password"
@@ -712,7 +617,7 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 	// Write the secret to Vault
 	logical := harness.vault.Client.Logical()
 	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Wait for the unblock
 	select {
@@ -735,6 +640,8 @@ func TestTaskTemplateManager_Unblock_Vault(t *testing.T) {
 
 func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that will render immediately
 	staticContent := "hello, world!"
 	staticFile := "my.tmpl"
@@ -803,7 +710,8 @@ func TestTaskTemplateManager_Unblock_Multi_Template(t *testing.T) {
 // restored renders and triggers its change mode if the template has changed
 func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+	clienttestutil.RequireVault(t)
+
 	// Make a template that will render based on a key in Vault
 	vaultPath := "secret/data/password"
 	key := "password"
@@ -823,30 +731,30 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	// Ensure no unblock
 	select {
 	case <-harness.mockHooks.UnblockCh:
-		require.Fail("Task unblock should not have been called")
+		t.Fatal("Task unblock should not have been called")
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
 	// Write the secret to Vault
 	logical := harness.vault.Client.Logical()
 	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Wait for the unblock
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		require.Fail("Task unblock should have been called")
+		t.Fatal("Task unblock should have been called")
 	}
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
 	raw, err := os.ReadFile(path)
-	require.NoError(err, "Failed to read rendered template from %q", path)
-	require.Equal(content, string(raw), "Unexpected template data; got %s, want %q", raw, content)
+	must.NoError(t, err, must.Sprintf("Failed to read rendered template from %q", path))
+	must.Eq(t, content, string(raw), must.Sprintf("Unexpected template data; got %s, want %q", raw, content))
 
 	// task is now running
-	harness.mockHooks.hasHandle = true
+	harness.mockHooks.HasHandle = true
 
 	// simulate a client restart
 	harness.manager.Stop()
@@ -857,14 +765,14 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		require.Fail("Task unblock should have been called")
+		t.Fatal("Task unblock should have been called")
 	}
 
 	select {
 	case <-harness.mockHooks.RestartCh:
-		require.Fail("should not have restarted", harness.mockHooks)
+		t.Fatal("should not have restarted", harness.mockHooks)
 	case <-harness.mockHooks.SignalCh:
-		require.Fail("should not have restarted", harness.mockHooks)
+		t.Fatal("should not have received signal", harness.mockHooks)
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -872,7 +780,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	harness.manager.Stop()
 	content = "bazbar"
 	_, err = logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
-	require.NoError(err)
+	must.NoError(t, err)
 	harness.mockHooks.UnblockCh = make(chan struct{}, 1)
 	harness.start(t)
 
@@ -880,7 +788,7 @@ func TestTaskTemplateManager_FirstRender_Restored(t *testing.T) {
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		require.Fail("Task unblock should have been called")
+		t.Fatal("Task unblock should have been called")
 	}
 
 	// Wait for restart
@@ -891,15 +799,80 @@ OUTER:
 		case <-harness.mockHooks.RestartCh:
 			break OUTER
 		case <-harness.mockHooks.SignalCh:
-			require.Fail("Signal with restart policy", harness.mockHooks)
+			t.Fatal("Signal with restart policy", harness.mockHooks)
 		case <-timeout:
-			require.Fail("Should have received a restart", harness.mockHooks)
+			t.Fatal("Should have received a restart", harness.mockHooks)
 		}
+	}
+}
+
+// Tests an edge case where a task has multiple templates and the client is restarted.
+// In this case, consul-template may re-render and overwrite some fields in the first
+// render event but we still want to make sure it causes a restart.
+// We cannot control the order in which these templates are rendered, so this test will
+// exhibit flakiness if this edge case is not properly handled.
+func TestTaskTemplateManager_FirstRender_MultiSecret(t *testing.T) {
+	ci.Parallel(t)
+	clienttestutil.RequireVault(t)
+
+	// Make a template that will render based on a key in Vault
+	vaultPath := "secret/data/restart"
+	key := "shouldRestart"
+	content := "shouldRestart"
+	embedded := fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath, key)
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: embedded,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeRestart,
+	}
+
+	vaultPath2 := "secret/data/noop"
+	key2 := "noop"
+	content2 := "noop"
+	embedded2 := fmt.Sprintf(`{{with secret "%s"}}{{.Data.data.%s}}{{end}}`, vaultPath2, key2)
+	file2 := "my.tmpl2"
+	template2 := &structs.Template{
+		EmbeddedTmpl: embedded2,
+		DestPath:     file2,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template, template2}, false, true)
+
+	// Write the secret to Vault
+	logical := harness.vault.Client.Logical()
+	_, err := logical.Write(vaultPath, map[string]interface{}{"data": map[string]interface{}{key: content}})
+	must.NoError(t, err)
+	_, err = logical.Write(vaultPath2, map[string]interface{}{"data": map[string]interface{}{key2: content2}})
+	must.NoError(t, err)
+
+	// simulate task is running already
+	harness.mockHooks.HasHandle = true
+
+	harness.start(t)
+	defer harness.stop()
+
+	// Wait for the unblock
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatal("Task unblock should have been called")
+	}
+
+	select {
+	case <-harness.mockHooks.RestartCh:
+	case <-harness.mockHooks.SignalCh:
+		t.Fatal("should not have received signal", harness.mockHooks)
+	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
+		t.Fatal("should have restarted")
 	}
 }
 
 func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that will render based on a key in Consul
 	key := "foo"
 	content1 := "bar"
@@ -969,6 +942,8 @@ func TestTaskTemplateManager_Rerender_Noop(t *testing.T) {
 
 func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that renders based on a key in Consul and sends SIGALRM
 	key1 := "foo"
 	content1_1 := "bar"
@@ -1017,7 +992,7 @@ func TestTaskTemplateManager_Rerender_Signal(t *testing.T) {
 		t.Fatalf("Task unblock should have been called")
 	}
 
-	if len(harness.mockHooks.Signals) != 0 {
+	if len(harness.mockHooks.Signals()) != 0 {
 		t.Fatalf("Should not have received any signals: %+v", harness.mockHooks)
 	}
 
@@ -1033,9 +1008,7 @@ OUTER:
 		case <-harness.mockHooks.RestartCh:
 			t.Fatalf("Restart with signal policy: %+v", harness.mockHooks)
 		case <-harness.mockHooks.SignalCh:
-			harness.mockHooks.signalLock.Lock()
-			s := harness.mockHooks.Signals
-			harness.mockHooks.signalLock.Unlock()
+			s := harness.mockHooks.Signals()
 			if len(s) != 2 {
 				continue
 			}
@@ -1069,6 +1042,8 @@ OUTER:
 
 func TestTaskTemplateManager_Rerender_Restart(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that renders based on a key in Consul and sends restart
 	key1 := "bam"
 	content1_1 := "cat"
@@ -1143,6 +1118,7 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.config.TemplateConfig.DisableSandbox = true // no real alloc in this test
 	harness.start(t)
 	defer harness.stop()
 
@@ -1168,7 +1144,7 @@ func TestTaskTemplateManager_Interpolate_Destination(t *testing.T) {
 
 func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+	clienttestutil.RequireConsul(t)
 
 	// Make a template that renders based on a key in Consul and sends SIGALRM
 	key1 := "foo"
@@ -1210,18 +1186,20 @@ func TestTaskTemplateManager_Signal_Error(t *testing.T) {
 		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
 	}
 
-	require.NotNil(harness.mockHooks.KillEvent)
-	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "failed to send signals")
+	must.NotNil(t, harness.mockHooks.KillEvent)
+	must.StrContains(t, harness.mockHooks.KillEvent().DisplayMessage, "failed to send signals")
 }
 
 func TestTaskTemplateManager_ScriptExecution(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
 
 	// Make a template that renders based on a key in Consul and triggers script
 	key1 := "bam"
 	key2 := "bar"
 	content1_1 := "cat"
 	content1_2 := "dog"
+
 	t1 := &structs.Template{
 		EmbeddedTmpl: `
 FOO={{key "bam"}}
@@ -1251,16 +1229,15 @@ BAR={{key "bar"}}
 		Envvars: true,
 	}
 
-	me := mockExecutor{DesiredExit: 0, DesiredErr: nil}
 	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
+	harness.mockHooks.SetupExecTest(0, nil)
 	harness.start(t)
-	harness.manager.SetDriverHandle(&me)
 	defer harness.stop()
 
 	// Ensure no unblock
 	select {
 	case <-harness.mockHooks.UnblockCh:
-		require.Fail(t, "Task unblock should not have been called")
+		t.Fatal(t, "Task unblock should not have been called")
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -1272,7 +1249,7 @@ BAR={{key "bar"}}
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		require.Fail(t, "Task unblock should have been called")
+		t.Fatal(t, "Task unblock should have been called")
 	}
 
 	// Update the keys in Consul
@@ -1284,15 +1261,15 @@ OUTER:
 	for {
 		select {
 		case <-harness.mockHooks.RestartCh:
-			require.Fail(t, "restart not expected")
+			t.Fatal(t, "restart not expected")
 		case ev := <-harness.mockHooks.EmitEventCh:
 			if strings.Contains(ev.DisplayMessage, t1.ChangeScript.Command) {
 				break OUTER
 			}
 		case <-harness.mockHooks.SignalCh:
-			require.Fail(t, "signal not expected")
+			t.Fatal(t, "signal not expected")
 		case <-timeout:
-			require.Fail(t, "should have received an event")
+			t.Fatal(t, "should have received an event")
 		}
 	}
 }
@@ -1301,7 +1278,7 @@ OUTER:
 // task upon script execution failure if that's how it's configured.
 func TestTaskTemplateManager_ScriptExecutionFailTask(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
+	clienttestutil.RequireConsul(t)
 
 	// Make a template that renders based on a key in Consul and triggers script
 	key1 := "bam"
@@ -1337,16 +1314,15 @@ BAR={{key "bar"}}
 		Envvars: true,
 	}
 
-	me := mockExecutor{DesiredExit: 1, DesiredErr: fmt.Errorf("Script failed")}
 	harness := newTestHarness(t, []*structs.Template{t1, t2}, true, false)
+	harness.mockHooks.SetupExecTest(1, fmt.Errorf("Script failed"))
 	harness.start(t)
-	harness.manager.SetDriverHandle(&me)
 	defer harness.stop()
 
 	// Ensure no unblock
 	select {
 	case <-harness.mockHooks.UnblockCh:
-		require.Fail("Task unblock should not have been called")
+		t.Fatal("Task unblock should not have been called")
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -1358,7 +1334,7 @@ BAR={{key "bar"}}
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		require.Fail("Task unblock should have been called")
+		t.Fatal("Task unblock should have been called")
 	}
 
 	// Update the keys in Consul
@@ -1369,15 +1345,16 @@ BAR={{key "bar"}}
 	case <-harness.mockHooks.KillCh:
 		break
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
-		require.Fail("Should have received a signals: %+v", harness.mockHooks)
+		t.Fatalf("Should have received a signals: %+v", harness.mockHooks)
 	}
 
-	require.NotNil(harness.mockHooks.KillEvent)
-	require.Contains(harness.mockHooks.KillEvent.DisplayMessage, "task is being killed")
+	must.NotNil(t, harness.mockHooks.KillEvent)
+	must.StrContains(t, harness.mockHooks.KillEvent().DisplayMessage, "task is being killed")
 }
 
 func TestTaskTemplateManager_ChangeModeMixed(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
 
 	templateRestart := &structs.Template{
 		EmbeddedTmpl: `
@@ -1416,16 +1393,15 @@ COMMON={{key "common"}}
 		templateScript,
 	}
 
-	me := mockExecutor{DesiredExit: 0, DesiredErr: nil}
 	harness := newTestHarness(t, templates, true, false)
+	harness.mockHooks.SetupExecTest(0, nil)
 	harness.start(t)
-	harness.manager.SetDriverHandle(&me)
 	defer harness.stop()
 
 	// Ensure no unblock
 	select {
 	case <-harness.mockHooks.UnblockCh:
-		require.Fail(t, "Task unblock should not have been called")
+		t.Fatal(t, "Task unblock should not have been called")
 	case <-time.After(time.Duration(1*testutil.TestMultiplier()) * time.Second):
 	}
 
@@ -1439,7 +1415,7 @@ COMMON={{key "common"}}
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		require.Fail(t, "Task unblock should have been called")
+		t.Fatal(t, "Task unblock should have been called")
 	}
 
 	t.Run("restart takes precedence", func(t *testing.T) {
@@ -1455,7 +1431,7 @@ COMMON={{key "common"}}
 			case <-harness.mockHooks.RestartCh:
 				// Consume restarts so the channel is clean for other tests.
 			case <-harness.mockHooks.SignalCh:
-				require.Fail(t, "signal not expected")
+				t.Fatal(t, "signal not expected")
 			case ev := <-harness.mockHooks.EmitEventCh:
 				events = append(events, ev)
 			case <-timeout:
@@ -1464,8 +1440,8 @@ COMMON={{key "common"}}
 		}
 
 		for _, ev := range events {
-			require.NotContains(t, ev.DisplayMessage, templateScript.ChangeScript.Command)
-			require.NotContains(t, ev.Type, structs.TaskSignaling)
+			must.StrNotContains(t, ev.DisplayMessage, templateScript.ChangeScript.Command)
+			must.StrNotContains(t, ev.Type, structs.TaskSignaling)
 		}
 	})
 
@@ -1480,19 +1456,19 @@ COMMON={{key "common"}}
 		for {
 			select {
 			case <-harness.mockHooks.RestartCh:
-				require.Fail(t, "restart not expected")
+				t.Fatal(t, "restart not expected")
 			case ev := <-harness.mockHooks.EmitEventCh:
 				if strings.Contains(ev.DisplayMessage, templateScript.ChangeScript.Command) {
 					// Make sure we only run script once.
-					require.False(t, gotScript)
+					must.False(t, gotScript)
 					gotScript = true
 				}
 			case <-harness.mockHooks.SignalCh:
 				// Make sure we only signal once.
-				require.False(t, gotSignal)
+				must.False(t, gotSignal)
 				gotSignal = true
 			case <-timeout:
-				require.Fail(t, "timeout waiting for script and signal")
+				t.Fatal(t, "timeout waiting for script and signal")
 			}
 
 			if gotScript && gotSignal {
@@ -1502,10 +1478,10 @@ COMMON={{key "common"}}
 	})
 }
 
-// TestTaskTemplateManager_FiltersProcessEnvVars asserts that we only render
+// TestTaskTemplateManager_FiltersEnvVars asserts that we only render
 // environment variables found in task env-vars and not read the nomad host
-// process environment variables.  nomad host process environment variables
-// are to be treated the same as not found environment variables.
+// process environment variables.  nomad host process environment variables are
+// to be treated the same as not found environment variables.
 func TestTaskTemplateManager_FiltersEnvVars(t *testing.T) {
 
 	t.Setenv("NOMAD_TASK_NAME", "should be overridden by task")
@@ -1527,6 +1503,7 @@ TEST_ENV_NOT_FOUND: {{env "` + testenv + `_NOTFOUND" }}`
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+	harness.config.TemplateConfig.DisableSandbox = true // no real alloc in this test
 	harness.start(t)
 	defer harness.stop()
 
@@ -1534,21 +1511,23 @@ TEST_ENV_NOT_FOUND: {{env "` + testenv + `_NOTFOUND" }}`
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
-		require.Fail(t, "Task unblock should have been called")
+		t.Fatal(t, "Task unblock should have been called")
 	}
 
 	// Check the file is there
 	path := filepath.Join(harness.taskDir, file)
 	raw, err := os.ReadFile(path)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	require.Equal(t, expected, string(raw))
+	must.Eq(t, expected, string(raw))
 }
 
 // TestTaskTemplateManager_Env asserts templates with the env flag set are read
 // into the task's environment.
 func TestTaskTemplateManager_Env(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	template := &structs.Template{
 		EmbeddedTmpl: `
 # Comment lines are ok
@@ -1562,6 +1541,7 @@ ANYTHING_goes=Spaces are=ok!
 		Envvars:    true,
 	}
 	harness := newTestHarness(t, []*structs.Template{template}, true, false)
+	harness.config.TemplateConfig.DisableSandbox = true // no real alloc in this test
 	harness.start(t)
 	defer harness.stop()
 
@@ -1623,7 +1603,6 @@ func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 // template processing function handles interpolated destinations
 func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	d := t.TempDir()
 
@@ -1650,9 +1629,9 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 		d, "")
 
 	vars, err := loadTemplateEnv(templates, taskEnv)
-	require.NoError(err)
-	require.Contains(vars, "FOO")
-	require.Equal(vars["FOO"], "bar")
+	must.NoError(t, err)
+	must.MapContainsKey(t, vars, "FOO")
+	must.Eq(t, "bar", vars["FOO"])
 }
 
 // TestTaskTemplateManager_Env_Multi asserts the core env
@@ -1702,6 +1681,8 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 
 func TestTaskTemplateManager_Rerender_Env(t *testing.T) {
 	ci.Parallel(t)
+	clienttestutil.RequireConsul(t)
+
 	// Make a template that renders based on a key in Consul and sends restart
 	key1 := "bam"
 	key2 := "bar"
@@ -1786,22 +1767,27 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 	ci.Parallel(t)
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+		},
 	}
+
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
+		VaultConfig:  c.GetDefaultVault(),
+		TaskID:       uuid.Generate(),
 	}
 	ctconf, err := newRunnerConfig(config, nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if *ctconf.Vault.SSL.ServerName != c.VaultConfig.TLSServerName {
-		t.Fatalf("expected %q but found %q", c.VaultConfig.TLSServerName, *ctconf.Vault.SSL.ServerName)
+	if *ctconf.Vault.SSL.ServerName != c.GetDefaultVault().TLSServerName {
+		t.Fatalf("expected %q but found %q", c.GetDefaultVault().TLSServerName, *ctconf.Vault.SSL.ServerName)
 	}
 }
 
@@ -1809,47 +1795,51 @@ func TestTaskTemplateManager_Config_ServerName(t *testing.T) {
 // propagated to consul-template's configuration.
 func TestTaskTemplateManager_Config_VaultNamespace(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	testNS := "test-namespace"
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
-		Namespace:     testNS,
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+			Namespace:     testNS,
+		},
 	}
 
 	alloc := mock.Alloc()
 	config := &TaskTemplateManagerConfig{
 		ClientConfig: c,
 		VaultToken:   "token",
+		VaultConfig:  c.GetDefaultVault(),
 		EnvBuilder:   taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		TaskID:       uuid.Generate(),
 	}
 
 	ctmplMapping, err := parseTemplateConfigs(config)
-	assert.Nil(err, "Parsing Templates")
+	must.NoError(t, err, must.Sprint("parsing templates"))
 
 	ctconf, err := newRunnerConfig(config, ctmplMapping)
-	assert.Nil(err, "Building Runner Config")
-	assert.Equal(testNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
+	must.NoError(t, err, must.Sprint("building runner config"))
+	must.Eq(t, testNS, *ctconf.Vault.Namespace, must.Sprintf("Vault Namespace Value"))
 }
 
 // TestTaskTemplateManager_Config_VaultNamespace asserts the Vault namespace setting is
 // propagated to consul-template's configuration.
 func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	ci.Parallel(t)
-	assert := assert.New(t)
 
 	testNS := "test-namespace"
 	c := config.DefaultConfig()
 	c.Node = mock.Node()
-	c.VaultConfig = &sconfig.VaultConfig{
-		Enabled:       pointer.Of(true),
-		Addr:          "https://localhost/",
-		TLSServerName: "notlocalhost",
-		Namespace:     testNS,
+	c.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:       pointer.Of(true),
+			Addr:          "https://localhost/",
+			TLSServerName: "notlocalhost",
+			Namespace:     testNS,
+		},
 	}
 
 	alloc := mock.Alloc()
@@ -1859,16 +1849,18 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 	config := &TaskTemplateManagerConfig{
 		ClientConfig:   c,
 		VaultToken:     "token",
+		VaultConfig:    c.GetDefaultVault(),
 		VaultNamespace: overriddenNS,
 		EnvBuilder:     taskenv.NewBuilder(c.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], c.Region),
+		TaskID:         uuid.Generate(),
 	}
 
 	ctmplMapping, err := parseTemplateConfigs(config)
-	assert.Nil(err, "Parsing Templates")
+	must.NoError(t, err, must.Sprint("parsing templates"))
 
 	ctconf, err := newRunnerConfig(config, ctmplMapping)
-	assert.Nil(err, "Building Runner Config")
-	assert.Equal(overriddenNS, *ctconf.Vault.Namespace, "Vault Namespace Value")
+	must.NoError(t, err, must.Sprint("building runner config"))
+	must.Eq(t, overriddenNS, *ctconf.Vault.Namespace, must.Sprintf("Vault Namespace Value"))
 }
 
 // TestTaskTemplateManager_Escapes asserts that when sandboxing is enabled
@@ -1876,8 +1868,12 @@ func TestTaskTemplateManager_Config_VaultNamespace_TaskOverride(t *testing.T) {
 func TestTaskTemplateManager_Escapes(t *testing.T) {
 	ci.Parallel(t)
 
+	// the specific files paths are different on Linux vs Windows
+	// TODO(tgross): rewrite this test to allow for platform-specific paths
+	clienttestutil.RequireNotWindows(t)
+
 	clientConf := config.DefaultConfig()
-	require.False(t, clientConf.TemplateConfig.DisableSandbox, "expected sandbox to be disabled")
+	must.False(t, clientConf.TemplateConfig.DisableSandbox, must.Sprint("expected sandbox to be enabled"))
 
 	// Set a fake alloc dir to make test output more realistic
 	clientConf.AllocDir = "/fake/allocdir"
@@ -1886,8 +1882,8 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 	alloc := mock.Alloc()
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 	logger := testlog.HCLogger(t)
-	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, alloc.ID)
-	taskDir := allocDir.NewTaskDir(task.Name)
+	allocDir := allocdir.NewAllocDir(logger, clientConf.AllocDir, clientConf.AllocMountsDir, alloc.ID)
+	taskDir := allocDir.NewTaskDir(task)
 
 	containerEnv := func() *taskenv.Builder {
 		// To emulate a Docker or exec tasks we must copy the
@@ -2100,21 +2096,22 @@ func TestTaskTemplateManager_Escapes(t *testing.T) {
 		tc := cases[i]
 		t.Run(tc.Name, func(t *testing.T) {
 			config := tc.Config()
+			config.TaskID = uuid.Generate()
 			mapping, err := parseTemplateConfigs(config)
 			if tc.Err == nil {
 				// Ok path
-				require.NoError(t, err)
-				require.NotNil(t, mapping)
-				require.Len(t, mapping, 1)
+				must.NoError(t, err)
+				must.NotNil(t, mapping)
+				must.MapLen(t, 1, mapping)
 				for k := range mapping {
-					require.Equal(t, tc.SourcePath, *k.Source)
-					require.Equal(t, tc.DestPath, *k.Destination)
+					must.Eq(t, tc.SourcePath, *k.Source)
+					must.Eq(t, tc.DestPath, *k.Destination)
 					t.Logf("Rendering %s => %s", *k.Source, *k.Destination)
 				}
 			} else {
 				// Err path
-				assert.EqualError(t, err, tc.Err.Error())
-				require.Nil(t, mapping)
+				test.EqError(t, err, tc.Err.Error())
+				must.Nil(t, mapping)
 			}
 
 		})
@@ -2127,7 +2124,7 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 	// then asserts that templates are still blocked on 3 and 4,
 	// and check that we got the relevant task events
 	ci.Parallel(t)
-	require := require.New(t)
+	clienttestutil.RequireConsul(t)
 
 	// Make a template that will render based on a key in Consul
 	var embedded string
@@ -2179,11 +2176,11 @@ func TestTaskTemplateManager_BlockedEvents(t *testing.T) {
 
 	// Check to see we got a correct message
 	// assert that all 0-4 keys are missing
-	require.Len(harness.mockHooks.Events, 1)
-	t.Logf("first message: %v", harness.mockHooks.Events[0])
-	missing, more := missingKeys(harness.mockHooks.Events[0])
-	require.Equal(5, len(missing)+more)
-	require.Contains(harness.mockHooks.Events[0].DisplayMessage, "and 2 more")
+	must.Len(t, 1, harness.mockHooks.Events())
+	t.Logf("first message: %v", harness.mockHooks.Events()[0])
+	missing, more := missingKeys(harness.mockHooks.Events()[0])
+	must.Eq(t, 5, len(missing)+more)
+	must.StrContains(t, harness.mockHooks.Events()[0].DisplayMessage, "and 2 more")
 
 	// Write 0-2 keys to Consul
 	for i := 0; i < 3; i++ {
@@ -2212,7 +2209,7 @@ WAIT_LOOP:
 	}
 
 	// Check to see we got a correct message
-	event := harness.mockHooks.Events[len(harness.mockHooks.Events)-1]
+	event := harness.mockHooks.Events()[len(harness.mockHooks.Events())-1]
 	if !isExpectedFinalEvent(event) {
 		t.Logf("received all events: %v", pretty.Sprint(harness.mockHooks.Events))
 
@@ -2231,14 +2228,16 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 	clientConfig := config.DefaultConfig()
 	clientConfig.Node = mock.Node()
 
-	clientConfig.VaultConfig = &sconfig.VaultConfig{
-		Enabled:   pointer.Of(true),
-		Namespace: testNS,
+	clientConfig.VaultConfigs = map[string]*sconfig.VaultConfig{
+		structs.VaultDefaultCluster: {
+			Enabled:   pointer.Of(true),
+			Namespace: testNS,
+		},
 	}
-
-	clientConfig.ConsulConfig = &sconfig.ConsulConfig{
-		Namespace: testNS,
-	}
+	clientConfig.ConsulConfigs = map[string]*sconfig.ConsulConfig{
+		structs.ConsulDefaultCluster: {
+			Namespace: testNS,
+		}}
 
 	// helper to reduce boilerplate
 	waitConfig := &config.WaitConfig{
@@ -2289,7 +2288,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
+				ConsulConfig: clientConfig.GetDefaultConsul(),
 				VaultToken:   "token",
+				VaultConfig:  clientConfig.GetDefaultVault(),
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, alloc, alloc.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 			},
 			&config.Config{
@@ -2322,7 +2323,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
+				ConsulConfig: clientConfig.GetDefaultConsul(),
 				VaultToken:   "token",
+				VaultConfig:  clientConfig.GetDefaultVault(),
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 			},
 			&config.Config{
@@ -2359,7 +2362,9 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 			},
 			&TaskTemplateManagerConfig{
 				ClientConfig: clientConfig,
+				ConsulConfig: clientConfig.GetDefaultConsul(),
 				VaultToken:   "token",
+				VaultConfig:  clientConfig.GetDefaultVault(),
 				EnvBuilder:   taskenv.NewBuilder(clientConfig.Node, allocWithOverride, allocWithOverride.Job.TaskGroups[0].Tasks[0], clientConfig.Region),
 				Templates: []*structs.Template{
 					{
@@ -2398,42 +2403,43 @@ func TestTaskTemplateManager_ClientTemplateConfig_Set(t *testing.T) {
 		t.Run(_case.Name, func(t *testing.T) {
 			// monkey patch the client config with the version of the ClientTemplateConfig we want to test.
 			_case.TTMConfig.ClientConfig.TemplateConfig = _case.ClientTemplateConfig
+			_case.TTMConfig.TaskID = uuid.Generate()
 			templateMapping, err := parseTemplateConfigs(_case.TTMConfig)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			runnerConfig, err := newRunnerConfig(_case.TTMConfig, templateMapping)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			// Direct properties
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.MaxStale, *runnerConfig.MaxStale)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.BlockQueryWaitTime, *runnerConfig.BlockQueryWaitTime)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.MaxStale, *runnerConfig.MaxStale)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.BlockQueryWaitTime, *runnerConfig.BlockQueryWaitTime)
 			// WaitConfig
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Min, *runnerConfig.Wait.Min)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Max, *runnerConfig.Wait.Max)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Min, *runnerConfig.Wait.Min)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.Wait.Max, *runnerConfig.Wait.Max)
 			// Consul Retry
-			require.NotNil(t, runnerConfig.Consul)
-			require.NotNil(t, runnerConfig.Consul.Retry)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Attempts, *runnerConfig.Consul.Retry.Attempts)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Backoff, *runnerConfig.Consul.Retry.Backoff)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.MaxBackoff, *runnerConfig.Consul.Retry.MaxBackoff)
+			must.NotNil(t, runnerConfig.Consul)
+			must.NotNil(t, runnerConfig.Consul.Retry)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Attempts, *runnerConfig.Consul.Retry.Attempts)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.Backoff, *runnerConfig.Consul.Retry.Backoff)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.ConsulRetry.MaxBackoff, *runnerConfig.Consul.Retry.MaxBackoff)
 			// Vault Retry
-			require.NotNil(t, runnerConfig.Vault)
-			require.NotNil(t, runnerConfig.Vault.Retry)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Attempts, *runnerConfig.Vault.Retry.Attempts)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Backoff, *runnerConfig.Vault.Retry.Backoff)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.MaxBackoff, *runnerConfig.Vault.Retry.MaxBackoff)
+			must.NotNil(t, runnerConfig.Vault)
+			must.NotNil(t, runnerConfig.Vault.Retry)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Attempts, *runnerConfig.Vault.Retry.Attempts)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.Backoff, *runnerConfig.Vault.Retry.Backoff)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.VaultRetry.MaxBackoff, *runnerConfig.Vault.Retry.MaxBackoff)
 			// Nomad Retry
-			require.NotNil(t, runnerConfig.Nomad)
-			require.NotNil(t, runnerConfig.Nomad.Retry)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.NomadRetry.Attempts, *runnerConfig.Nomad.Retry.Attempts)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.NomadRetry.Backoff, *runnerConfig.Nomad.Retry.Backoff)
-			require.Equal(t, *_case.ExpectedRunnerConfig.TemplateConfig.NomadRetry.MaxBackoff, *runnerConfig.Nomad.Retry.MaxBackoff)
+			must.NotNil(t, runnerConfig.Nomad)
+			must.NotNil(t, runnerConfig.Nomad.Retry)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.NomadRetry.Attempts, *runnerConfig.Nomad.Retry.Attempts)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.NomadRetry.Backoff, *runnerConfig.Nomad.Retry.Backoff)
+			must.Eq(t, *_case.ExpectedRunnerConfig.TemplateConfig.NomadRetry.MaxBackoff, *runnerConfig.Nomad.Retry.MaxBackoff)
 
 			// Test that wait_bounds are enforced
 			for _, tmpl := range *runnerConfig.Templates {
-				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Enabled, *tmpl.Wait.Enabled)
-				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Min, *tmpl.Wait.Min)
-				require.Equal(t, *_case.ExpectedTemplateConfig.Wait.Max, *tmpl.Wait.Max)
+				must.Eq(t, *_case.ExpectedTemplateConfig.Wait.Enabled, *tmpl.Wait.Enabled)
+				must.Eq(t, *_case.ExpectedTemplateConfig.Wait.Min, *tmpl.Wait.Min)
+				must.Eq(t, *_case.ExpectedTemplateConfig.Wait.Max, *tmpl.Wait.Max)
 			}
 		})
 	}
@@ -2462,15 +2468,16 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 				},
 			},
 		},
+		TaskID: uuid.Generate(),
 	}
 
 	templateMapping, err := parseTemplateConfigs(ttmConfig)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	for k, _ := range templateMapping {
-		require.True(t, *k.Wait.Enabled)
-		require.Equal(t, 5*time.Second, *k.Wait.Min)
-		require.Equal(t, 10*time.Second, *k.Wait.Max)
+		must.True(t, *k.Wait.Enabled)
+		must.Eq(t, 5*time.Second, *k.Wait.Min)
+		must.Eq(t, 10*time.Second, *k.Wait.Max)
 	}
 }
 
@@ -2499,17 +2506,18 @@ func TestTaskTemplateManager_Template_ErrMissingKey_Set(t *testing.T) {
 				ErrMissingKey: true,
 			},
 		},
+		TaskID: uuid.Generate(),
 	}
 
 	templateMapping, err := parseTemplateConfigs(ttmConfig)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	for k, tmpl := range templateMapping {
 		if tmpl.EmbeddedTmpl == "test-false" {
-			require.False(t, *k.ErrMissingKey)
+			must.False(t, *k.ErrMissingKey)
 		}
 		if tmpl.EmbeddedTmpl == "test-true" {
-			require.True(t, *k.ErrMissingKey)
+			must.True(t, *k.ErrMissingKey)
 		}
 	}
 }
@@ -2530,7 +2538,7 @@ func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
 	}
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
-	require.NoError(t, harness.startWithErr(), "couldn't setup initial harness")
+	must.NoError(t, harness.startWithErr(), must.Sprint("couldn't setup initial harness"))
 	defer harness.stop()
 
 	// Using writeToFile should cause a kill
@@ -2540,7 +2548,7 @@ func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
 	case <-harness.mockHooks.EmitEventCh:
 		t.Fatalf("Task event should not have been emitted")
 	case e := <-harness.mockHooks.KillCh:
-		require.Contains(t, e.DisplayMessage, "writeToFile: function is disabled")
+		must.StrContains(t, e.DisplayMessage, "writeToFile: function is disabled")
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("timeout")
 	}
@@ -2548,20 +2556,17 @@ func TestTaskTemplateManager_writeToFile_Disabled(t *testing.T) {
 	// Check the file is not there
 	path := filepath.Join(harness.taskDir, file)
 	_, err := os.ReadFile(path)
-	require.Error(t, err)
+	must.Error(t, err)
 }
 
 // TestTaskTemplateManager_writeToFile asserts the consul-template function
 // writeToFile can be enabled.
 func TestTaskTemplateManager_writeToFile(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("username and group lookup assume linux platform")
-	}
-
 	ci.Parallel(t)
+	clienttestutil.RequireLinux(t)
 
 	cu, err := users.Current()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	file := "my.tmpl"
 	template := &structs.Template{
@@ -2581,7 +2586,7 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 	// Enable all funcs
 	harness.config.TemplateConfig.FunctionDenylist = []string{}
 
-	require.NoError(t, harness.startWithErr(), "couldn't setup initial harness")
+	must.NoError(t, harness.startWithErr(), must.Sprint("couldn't setup initial harness"))
 	defer harness.stop()
 
 	// Using writeToFile should not cause a kill
@@ -2598,12 +2603,12 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 	// Check the templated file is there
 	path := filepath.Join(harness.taskDir, file)
 	r, err := os.ReadFile(path)
-	require.NoError(t, err)
-	require.True(t, bytes.HasSuffix(r, []byte("...done\n")), string(r))
+	must.NoError(t, err)
+	must.True(t, bytes.HasSuffix(r, []byte("...done\n")), must.Sprint(string(r)))
 
 	// Check that writeToFile was allowed
 	path = filepath.Join(harness.taskDir, "writetofile.out")
 	r, err = os.ReadFile(path)
-	require.NoError(t, err)
-	require.Equal(t, "hello", string(r))
+	must.NoError(t, err)
+	must.Eq(t, "hello", string(r))
 }

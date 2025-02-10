@@ -66,7 +66,7 @@ func (op *Operator) RaftGetConfiguration(q *QueryOptions) (*RaftConfiguration, e
 		return nil, err
 	}
 	r.setQueryOptions(q)
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (op *Operator) RaftRemovePeerByAddress(address string, q *WriteOptions) err
 
 	r.params.Set("address", address)
 
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,47 @@ func (op *Operator) RaftRemovePeerByID(id string, q *WriteOptions) error {
 
 	r.params.Set("id", id)
 
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
+	if err != nil {
+		return err
+	}
+
+	resp.Body.Close()
+	return nil
+}
+
+// RaftTransferLeadershipByAddress is used to transfer leadership to a
+// different peer using its address in the form of "IP:port".
+func (op *Operator) RaftTransferLeadershipByAddress(address string, q *WriteOptions) error {
+	r, err := op.c.newRequest("PUT", "/v1/operator/raft/transfer-leadership")
+	if err != nil {
+		return err
+	}
+	r.setWriteOptions(q)
+
+	r.params.Set("address", address)
+
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
+	if err != nil {
+		return err
+	}
+
+	resp.Body.Close()
+	return nil
+}
+
+// RaftTransferLeadershipByID is used to transfer leadership to a
+// different peer using its Raft ID.
+func (op *Operator) RaftTransferLeadershipByID(id string, q *WriteOptions) error {
+	r, err := op.c.newRequest("PUT", "/v1/operator/raft/transfer-leadership")
+	if err != nil {
+		return err
+	}
+	r.setWriteOptions(q)
+
+	r.params.Set("id", id)
+
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return err
 	}
@@ -222,7 +262,7 @@ func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
 		return nil, err
 	}
 	r.setQueryOptions(q)
-	_, resp, err := requireOK(op.c.doRequest(r))
+	_, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +273,6 @@ func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
 	if err != nil {
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
-
 		return nil, err
 	}
 
@@ -315,7 +354,7 @@ func (op *Operator) ApplyLicense(license string, opts *ApplyLicenseOptions, q *W
 	r.setWriteOptions(q)
 	r.body = strings.NewReader(license)
 
-	rtt, resp, err := requireOK(op.c.doRequest(r))
+	rtt, resp, err := requireOK(op.c.doRequest(r)) //nolint:bodyclose
 	if err != nil {
 		return nil, err
 	}
@@ -335,7 +374,7 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	req.setQueryOptions(q)
 
 	var reply LicenseReply
-	rtt, resp, err := op.c.doRequest(req)
+	rtt, resp, err := op.c.doRequest(req) //nolint:bodyclose
 	if err != nil {
 		return nil, nil, err
 	}
@@ -362,4 +401,73 @@ func (op *Operator) LicenseGet(q *QueryOptions) (*LicenseReply, *QueryMeta, erro
 	qm.RequestTime = rtt
 
 	return &reply, qm, nil
+}
+
+type LeadershipTransferResponse struct {
+	From RaftServer
+	To   RaftServer
+	Noop bool
+	Err  error
+
+	WriteMeta
+}
+
+// VaultWorkloadIdentityUpgradeCheck is the result of verifying if the cluster
+// is ready to switch to workload identities for Vault.
+type VaultWorkloadIdentityUpgradeCheck struct {
+	// JobsWithoutVaultIdentity is the list of jobs that have a `vault` block
+	// but do not have an `identity` for Vault.
+	JobsWithoutVaultIdentity []*JobListStub
+
+	// OutdatedNodes is the list of nodes running a version of Nomad that does
+	// not support workload identities for Vault.
+	OutdatedNodes []*NodeListStub
+
+	// VaultTokens is the list of Vault ACL token accessors that Nomad created
+	// and will no longer manage after the cluster is migrated to workload
+	// identities.
+	VaultTokens []*VaultAccessor
+}
+
+// Ready returns true if the cluster is ready to migrate to workload identities
+// with Vault.
+func (v *VaultWorkloadIdentityUpgradeCheck) Ready() bool {
+	return v != nil &&
+		len(v.VaultTokens) == 0 &&
+		len(v.OutdatedNodes) == 0 &&
+		len(v.JobsWithoutVaultIdentity) == 0
+}
+
+// VaultAccessor is a Vault ACL token created by Nomad for a task to access
+// Vault using the legacy authentication flow.
+type VaultAccessor struct {
+	// AllocID is the ID of the allocation that requested this token.
+	AllocID string
+
+	// Task is the name of the task that requested this token.
+	Task string
+
+	// NodeID is the ID of the node running the allocation that requested this
+	// token.
+	NodeID string
+
+	// Accessor is the Vault ACL token accessor ID.
+	Accessor string
+
+	// CreationTTL is the TTL set when the token was created.
+	CreationTTL int
+
+	// CreateIndex is the Raft index when the token was created.
+	CreateIndex uint64
+}
+
+// UpgradeCheckVaultWorkloadIdentity retrieves the cluster status for migrating
+// to workload identities with Vault.
+func (op *Operator) UpgradeCheckVaultWorkloadIdentity(q *QueryOptions) (*VaultWorkloadIdentityUpgradeCheck, *QueryMeta, error) {
+	var resp VaultWorkloadIdentityUpgradeCheck
+	qm, err := op.c.query("/v1/operator/upgrade-check/vault-workload-identity", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
 }

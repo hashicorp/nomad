@@ -1,0 +1,406 @@
+---
+layout: docs
+page_title: Federate access to AWS with Nomad Workload Identity
+description: |-
+  Integrate Nomad as an OpenID Connect (OIDC) provider with AWS IAM identity and federate access to AWS resources.
+---
+
+# Federate access to AWS with Nomad Workload Identity
+
+This page describes how to integrate Nomad with AWS IAM as an OpenID Connect (OIDC) provider and
+use [Workload Identity] to federate access to AWS resources and services. In this workflow, Nomad
+is the [OpenID Connect Provider] (OP or OIDC provider) and generates JSON Web Tokens (JWTs) which
+serve as workload identities. AWS IAM is the Relying Party (RP) and validates these workload
+identity tokens with Nomad before it permits federated access to resources and services.
+
+## Prerequisites
+
+To integrate Nomad and AWS IAM identity, you need a running Nomad cluster that
+meets the following prerequisites:
+
+- Nomad v1.7.x or later
+- TLS enabled
+
+The instructions on this page also assume the following:
+
+- Your AWS account has the necessary permissions to create IAM roles, policies, hosted zones,
+  and certificates.
+- You are using Terraform to manage your AWS infrastructure and you have
+  [configured it to communicate with AWS](https://registry.terraform.io/providers/hashicorp/aws/latest/docs#authentication-and-configuration).
+
+## Workflow
+
+The process to integrate Nomad as an OIDC provider with AWS consists of the following steps:
+
+1. Create the required AWS resources:
+    - [Route 53 hosted zone](#create-a-hosted-zone)
+    - [AWS Certificate Manager SSL certificates](#generate-ssl-certificates)
+    - [Load balancer and listener](#create-an-application-load-balancer)
+    - [DNS Alias for the load balancer](#create-a-dns-alias)
+    - [OIDC Identity Provider](#create-an-oidc-identity-provider)
+    - [AWS IAM role](#create-an-iam-policy-for-oidc-federated-users)
+1. Update the Nomad server configuration.
+1. Create a jobspec file that accesses AWS and then run it to verify your configuration.
+
+## Create and configure AWS resources
+
+To use Nomad as an identity provider, you need to have a trusted SSL certificate for the
+domain used by the cluster. The following example uses AWS Certificate Manager (ACM).
+
+### Create a hosted zone
+
+Use the [`aws_route53_zone` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone).
+
+```hcl
+variable "domain_name" {
+    type = string
+    default = "<DOMAIN_NAME>"
+}
+
+resource "aws_route53_zone" "example" {
+    name = var.domain_name
+}
+```
+
+This configuration requires the following information:
+- [`<DOMAIN_NAME>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone#name):
+The domain name of your Nomad cluster without the protocol or port. `var.domain_name` is used
+throughout the examples on this page to reference `<DOMAIN_NAME>`.
+
+### Generate SSL certificates
+
+Use the [`aws_acm_certificate`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/acm_certificate)
+and [`aws_acm_certificate_validation`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/acm_certificate_validation) resources to create a request and provide validation for an SSL
+certficiate.
+
+```hcl
+variable "zone_id" {
+  type    = string
+  default = "<HOSTED_ZONE_ID>"
+}
+
+resource "aws_acm_certificate" "example" {
+  domain_name       = var.domain_name
+  validation_method = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "cert_dns" {
+  allow_overwrite = true
+  name            = tolist(aws_acm_certificate.example.domain_validation_options)[0].resource_record_name
+  records         = [tolist(aws_acm_certificate.example.domain_validation_options)[0].resource_record_value]
+  type            = tolist(aws_acm_certificate.example.domain_validation_options)[0].resource_record_type
+  zone_id         = var.zone_id
+  ttl             = 60
+}
+
+resource "aws_acm_certificate_validation" "example" {
+  certificate_arn         = aws_acm_certificate.example.arn
+  validation_record_fqdns = [aws_route53_record.cert_dns.fqdn]
+}
+```
+
+This configuration requires the following information:
+- [`<HOSTED_ZONE_ID>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record#zone_id):
+The ID of the hosted zone. This will be `aws_route53_zone.example.zone_id` if you are using the
+examples from this page.
+
+### Create an Application Load Balancer
+
+Use the [`aws_lb` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb).
+
+```hcl
+resource "aws_lb" "test" {
+  name               = "test-lb-tf"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [<SECURITY_GROUP_ID>]
+  subnets            = [<SUBNET_IDS>]
+
+  enable_deletion_protection = true
+
+  access_logs {
+    bucket  = <S3_BUCKET_ID>
+    prefix  = "test-lb"
+    enabled = true
+  }
+}
+```
+
+This configuration requires the following information:
+- [`<SECURITY_GROUP_ID>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb#security_groups):
+A list of security groups IDs that you want to apply to the load balancer.
+- [`<SUBNET_IDS>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb#subnets):
+A list of subnet IDs that you want to attach to the load balancer.
+- [`<S3_BUCKET_ID>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb#bucket):
+The ID of an S3 bucket to store the load balancer access logs in.
+
+### Create a load balancer listener
+
+Use the [`aws_lb_listener` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener).
+
+```hcl
+resource "aws_lb_listener" "example" {
+  load_balancer_arn = <LB_ARN>
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = <CERT_ARN>
+
+  default_action {
+    type             = "forward"
+    target_group_arn = <LB_TARGET_GROUP_ARN>
+  }
+}
+```
+
+This configuration requires the following information:
+- [`<LB_ARN>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener#load_balancer_arn):
+The AWS resource name of the load balancer. This will be `aws_lb.test.arn` if you are using the
+examples from this page.
+- [`<CERT_ARN>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener#certificate_arn):
+The AWS resource name of the load balancer's certificate. This will be
+`aws_acm_certificate_validation.example.certificate_arn` if you are using the examples from this
+page.
+- [`<LB_TARGET_GROUP_ARN>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/lb_listener#target_group_arn): The AWS resource name of the target group for the load balancer to route traffic to. This group
+includes your Nomad server instances.
+
+### Create a DNS Alias
+
+Use the [`aws_route53_record` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record).
+
+```hcl
+resource "aws_route53_record" "www" {
+  zone_id = <HOSTED_ZONE_ID>
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = <LB_ALIAS_DNS_NAME>
+    zone_id                = <LB_ALIAS_ZONE_ID>
+    evaluate_target_health = true
+  }
+}
+```
+
+This configuration requires the following information:
+- [`<HOSTED_ZONE_ID>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record#zone_id):
+The ID of the hosted zone. This will be `aws_route53_zone.example.zone_id` if you are using the
+examples from this page.
+- [`<LB_ALIAS_DNS_NAME>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record#name):
+The DNS
+name of the load balancer. This will be `aws_lb.test.dns_name` if you are using the examples
+from this page.
+- [`<LB_ALIAS_ZONE_ID>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_record#zone_id):
+The zone ID of the load balancer. This will be `aws_lb.test.zone_id` if you are using the
+examples from this page.
+
+### Create an OIDC Identity Provider
+
+Use the [`aws_iam_openid_connect_provider` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_openid_connect_provider).
+
+```hcl
+data "tls_certificate" "example" {
+  url = <CERT_DOMAIN_NAME>
+}
+
+resource "aws_iam_openid_connect_provider" "nomad" {
+  # Nomad HTTPS URL
+  url = <CERT_DOMAIN_NAME>
+
+  client_id_list = [
+    "aws",
+  ]
+
+  thumbprint_list = [data.tls_certificate.example.certificates.0.sha1_fingerprint]
+}
+```
+
+This configuration requires the following information:
+- [`<CERT_DOMAIN_NAME>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_openid_connect_provider#url):
+The domain name of the load balancer certificate. This will be
+`aws_acm_certificate.example.domain_name` if you are using the examples from this page.
+
+### Create an IAM policy for OIDC Federated Users
+
+Use the [`aws_iam_role` resource](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/iam_role)
+to create an appropriate IAM role for workloads acting as federated users. This will be
+specific to your use case. The following example allows workloads access to S3 buckets.
+
+```hcl
+# Variables for OIDC provider and AWS account
+variable "oidc_provider" {
+  description = "The OIDC provider URL"
+  type        = string
+  default     = "<DOMAIN_NAME>"
+}
+
+variable "aws_account_id" {
+  description = "AWS account ID"
+  type        = string
+  default     = "<AWS_ACCOUNT_ID>"
+}
+
+data "aws_iam_policy_document" "assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Federated"
+      identifiers = ["arn:aws:iam::${var.aws_account_id}:oidc-provider/${var.oidc_provider}"]
+    }
+
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "${var.oidc_provider}:aud"
+      values   = ["aws"]
+    }
+  }
+}
+
+# Create an IAM role with the assume role policy generated above
+resource "aws_iam_role" "s3_all_access_role" {
+  name               = "s3_all_access_role"
+  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+
+  tags = {
+    tag-key = "tag-value"
+  }
+}
+
+# Inline policy that defines what the role can do (full S3 access)
+data "aws_iam_policy_document" "s3_access_policy" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "s3:*",
+      "s3-object-lambda:*"
+    ]
+
+    resources = ["*"] # You can scope this down to specific S3 buckets if necessary
+  }
+}
+
+# Create a policy resource from the inline policy document above
+resource "aws_iam_policy" "policy" {
+  name        = "nomad-oidc-policy"
+  description = "A policy for federated Nomad OIDC"
+  policy      = data.aws_iam_policy_document.s3_access_policy.json
+}
+
+# Attach the S3 access policy to the IAM role
+resource "aws_iam_role_policy_attachment" "test-attach" {
+  role       = aws_iam_role.s3_all_access_role.name
+  policy_arn = aws_iam_policy.policy.arn
+}
+```
+
+This configuration requires the following information:
+- [`<DOMAIN_NAME>`](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/route53_zone#name):
+The domain name of your Nomad cluster without the protocol or port.
+- `<AWS_ACCOUNT_ID>`: The ID of the AWS account where the IAM role from the previous step was
+created.
+
+## Update the Nomad server configuration
+
+After you configure AWS, modify the Nomad server configuration file. Add the
+[`oidc_issuer` attribute](/nomad/docs/configuration/server#oidc_issuer) and set the value
+to the domain name for the Nomad cluster. This [enables the HTTP endpoint in Nomad](https://developer.hashicorp.com/nomad/docs/configuration/server#oidc_issuer) that allows third parties to discover Nomad's OIDC
+configuration.
+
+```hcl
+server {
+  enabled = true
+  [...]
+  oidc_issuer = "https://<DOMAIN_NAME>"
+  [...]
+}
+```
+
+This configuration requires the following information:
+- `<DOMAIN_NAME>`: The domain name of your Nomad cluster without the protocol or port.
+
+Restart the Nomad server agent to apply the configuration changes.
+
+## Create and run a sample jobspec file
+
+Create and run a jobspec file to validate your configuration. The following file is named `s3-upload.nomad.hcl`, add the following configuration to it, and
+save the file.
+
+```hcl
+job "s3" {
+  type = "batch"
+  group "bucket" {
+    task "copy" {
+      driver = "docker"
+      config {
+        image = "public.ecr.aws/aws-cli/aws-cli"
+        command = "s3"
+        args = ["cp", "/local/test.txt", "s3://<S3_BUCKET_NAME>/test-nomad.txt"]
+      }
+
+      identity {
+        name = "aws"
+        aud = ["aws"]
+        file = true
+        ttl = "1h"
+
+        # AWS SDKs gracefully handle OIDC/WebIdentity reauthentication when the
+        # session or token expire, therefore a restart isn't needed
+        change_mode = "noop"
+      }
+
+      template {
+        destination = "local/test.txt"
+        change_mode = "restart"
+        data        = <<EOF
+Job:          {{ env "NOMAD_JOB_NAME" }}
+Alloc:        {{ env "NOMAD_ALLOC_ID" }}
+EOF
+      }
+
+      env {
+        AWS_ROLE_ARN = "arn:aws:iam::<AWS_ACCOUNT_ID>:role/<IAM_ROLE_NAME>"
+        # The format of the token file is nomad_$NAME_OF_IDENTITY.jwt
+        AWS_WEB_IDENTITY_TOKEN_FILE = "${NOMAD_SECRETS_DIR}/nomad_aws.jwt"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 256
+      }
+    }
+  }
+}
+```
+
+This configuration requires the following information:
+- `<S3_BUCKET_NAME>`: The name of the S3 bucket where the test file will be saved.
+- `<AWS_ACCOUNT_ID>`: The ID of the AWS account where the IAM role from the previous step was
+created.
+- `<IAM_ROLE_NAME>`: The name of the IAM role from previous steps. This will be
+`s3_all_access_role` if you are using the examples from this page.
+
+Submit the job to Nomad.
+
+```shell-session
+$ nomad job run s3-upload.nomad.hcl
+```
+
+Verify that the job completed successfully.
+
+```shell-session
+$ nomad job status s3
+```
+
+Verify that the file was also uploaded to the S3 bucket.
+
+
+[Workload Identity]: /nomad/docs/concepts/workload-identity
+[OpenID Connect Provider]: https://openid.net/developers/how-connect-works/

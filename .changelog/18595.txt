@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: simplify presentation of task event times (10m2.230948s bceomes 10m2s etc.)
+```

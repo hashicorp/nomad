@@ -7,6 +7,7 @@ import Component from '@glimmer/component';
 import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 import { alias } from '@ember/object/computed';
+import messageFromAdapterError from 'nomad-ui/utils/message-from-adapter-error';
 
 export default class PolicyEditorComponent extends Component {
   @service notifications;
@@ -17,6 +18,10 @@ export default class PolicyEditorComponent extends Component {
 
   @action updatePolicyRules(value) {
     this.policy.set('rules', value);
+  }
+
+  @action updatePolicyName({ target: { value } }) {
+    this.policy.set('name', value);
   }
 
   @action async save(e) {
@@ -30,20 +35,22 @@ export default class PolicyEditorComponent extends Component {
           `Policy name must be 1-128 characters long and can only contain letters, numbers, and dashes.`
         );
       }
-
       const shouldRedirectAfterSave = this.policy.isNew;
-
+      // Because we set the ID for adapter/serialization reasons just before save here,
+      // that becomes a barrier to our Unique Name validation. So we explicltly exclude
+      // the current policy when checking for uniqueness.
       if (
         this.policy.isNew &&
-        this.store.peekRecord('policy', this.policy.name)
+        this.store
+          .peekAll('policy')
+          .filter((policy) => policy !== this.policy)
+          .findBy('name', this.policy.name)
       ) {
         throw new Error(
           `A policy with name ${this.policy.name} already exists.`
         );
       }
-
-      this.policy.id = this.policy.name;
-
+      this.policy.set('id', this.policy.name);
       await this.policy.save();
 
       this.notifications.add({
@@ -52,12 +59,19 @@ export default class PolicyEditorComponent extends Component {
       });
 
       if (shouldRedirectAfterSave) {
-        this.router.transitionTo('policies.policy', this.policy.id);
+        this.router.transitionTo(
+          'administration.policies.policy',
+          this.policy.id
+        );
       }
-    } catch (error) {
+    } catch (err) {
+      let message = err.errors?.length
+        ? messageFromAdapterError(err)
+        : err.message || 'Unknown Error';
+
       this.notifications.add({
         title: `Error creating Policy ${this.policy.name}`,
-        message: error,
+        message,
         color: 'critical',
         sticky: true,
       });

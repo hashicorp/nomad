@@ -4,6 +4,8 @@
 package consul
 
 import (
+	"context"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -25,8 +27,8 @@ func NewIdentitiesClient(logger hclog.Logger, tokenDeriver TokenDeriverFunc) *id
 	}
 }
 
-func (c *identitiesClient) DeriveSITokens(alloc *structs.Allocation, tasks []string) (map[string]string, error) {
-	tokens, err := c.tokenDeriver(alloc, tasks)
+func (c *identitiesClient) DeriveSITokens(ctx context.Context, alloc *structs.Allocation, tasks []string) (map[string]string, error) {
+	tokens, err := c.tokenDeriver(ctx, alloc, tasks)
 	if err != nil {
 		c.logger.Error("error deriving SI token", "error", err, "alloc_id", alloc.ID, "task_names", tasks)
 		return nil, err

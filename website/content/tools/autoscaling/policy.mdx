@@ -69,6 +69,12 @@ horizontal application scaling or horizontal cluster scaling.
   value may not be supported by all APM plugins. Refer to the documentation of
   the specific APM plugin being used for more information.
 
+- `query_window_offset` - Defines a time offset from the current time to apply
+  to the query window. A short offset (for example, `1m`) can be used to avoid
+  reading unstable and incomplete data from the APM. A long offset (`168h`,
+  representing 7 days ago) can be used for predictive scaling based on past
+  data.
+
 - `group` - Specifies which checks should treated as correlated when the policy
   is evaluated. Refer to [Check Grouping][concepts_grouping] for more
   information.

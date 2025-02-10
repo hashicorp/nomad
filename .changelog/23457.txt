@@ -1,0 +1,3 @@
+```release-note:improvement
+scaling: Added `-check-index` support to `job scale` command
+```

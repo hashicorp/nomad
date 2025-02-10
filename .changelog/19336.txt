@@ -1,0 +1,7 @@
+```release-note:improvement
+consul: Added support for failures_before_warning and failures_before_critical in Nomad agent services
+```
+
+```release-note:improvement
+consul: Added support for failures_before_warning in Consul service checks
+```

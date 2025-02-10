@@ -1,0 +1,17 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<div class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
+  <ul>
+    <li><LinkTo @route="administration.index" @activeClass="is-active">Overview</LinkTo></li>
+    <li><LinkTo @route="administration.tokens" @activeClass="is-active">Tokens</LinkTo></li>
+    <li><LinkTo @route="administration.roles" @activeClass="is-active">Roles</LinkTo></li>
+    <li><LinkTo @route="administration.policies" @activeClass="is-active">Policies</LinkTo></li>
+    <li><LinkTo @route="administration.namespaces" @activeClass="is-active">Namespaces</LinkTo></li>
+    {{#if (can "list sentinel-policy")}}
+      <li><LinkTo @route="administration.sentinel-policies" @activeClass="is-active">Sentinel Policies</LinkTo></li>
+    {{/if}}
+  </ul>
+</div>

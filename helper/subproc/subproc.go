@@ -15,13 +15,16 @@ import (
 
 const (
 	// ExitSuccess indicates the subprocess completed successfully.
-	ExitSuccess = iota
+	ExitSuccess = 0
 
 	// ExitFailure indicates the subprocess terminated unsuccessfully.
-	ExitFailure
+	ExitFailure = 1
 
 	// ExitTimeout indicates the subprocess timed out before completion.
-	ExitTimeout
+	ExitTimeout = 2
+
+	// ExitNotRunnable indicates a command cannot be run.
+	ExitNotRunnable = 127 // bash-ism
 )
 
 // MainFunc is the function that runs for this sub-process.

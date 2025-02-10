@@ -1,0 +1,3 @@
+```release-note:improvement
+keyring: Added support for encrypting the keyring via Vault transit or external KMS
+```

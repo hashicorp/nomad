@@ -5,6 +5,7 @@ package taskrunner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -13,13 +14,16 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
+	"github.com/hashicorp/go-hclog"
 	log "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/vaultclient"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sconfig "github.com/hashicorp/nomad/nomad/structs/config"
 )
 
 const (
@@ -40,6 +44,9 @@ type vaultTokenUpdateHandler interface {
 	updatedVaultToken(token string)
 }
 
+// deriveTokenFunc is the signature of a function used to derive Vault tokens.
+type deriveTokenFunc func() (string, error)
+
 func (tr *TaskRunner) updatedVaultToken(token string) {
 	// Update the task runner and environment
 	tr.setVaultToken(token)
@@ -49,19 +56,25 @@ func (tr *TaskRunner) updatedVaultToken(token string) {
 }
 
 type vaultHookConfig struct {
-	vaultBlock *structs.Vault
-	client     vaultclient.VaultClient
-	events     ti.EventEmitter
-	lifecycle  ti.TaskLifecycle
-	updater    vaultTokenUpdateHandler
-	logger     log.Logger
-	alloc      *structs.Allocation
-	task       string
+	vaultBlock       *structs.Vault
+	vaultConfigsFunc func(hclog.Logger) map[string]*sconfig.VaultConfig
+	clientFunc       vaultclient.VaultClientFunc
+	events           ti.EventEmitter
+	lifecycle        ti.TaskLifecycle
+	updater          vaultTokenUpdateHandler
+	logger           log.Logger
+	alloc            *structs.Allocation
+	task             *structs.Task
+	widmgr           widmgr.IdentityManager
 }
 
 type vaultHook struct {
 	// vaultBlock is the vault block for the task
 	vaultBlock *structs.Vault
+
+	// vaultConfig is the Nomad client configuration for Vault.
+	vaultConfig      *sconfig.VaultConfig
+	vaultConfigsFunc func(hclog.Logger) map[string]*sconfig.VaultConfig
 
 	// eventEmitter is used to emit events to the task
 	eventEmitter ti.EventEmitter
@@ -72,8 +85,10 @@ type vaultHook struct {
 	// updater is used to update the Vault token
 	updater vaultTokenUpdateHandler
 
-	// client is the Vault client to retrieve and renew the Vault token
-	client vaultclient.VaultClient
+	// client is the Vault client to retrieve and renew the Vault token, and
+	// clientFunc is the injected function that retrieves it
+	client     vaultclient.VaultClient
+	clientFunc vaultclient.VaultClientFunc
 
 	// logger is used to log
 	logger log.Logger
@@ -93,11 +108,23 @@ type vaultHook struct {
 	// alloc is the allocation
 	alloc *structs.Allocation
 
-	// taskName is the name of the task
-	taskName string
+	// task is the task to run.
+	task *structs.Task
 
 	// firstRun stores whether it is the first run for the hook
 	firstRun bool
+
+	// widmgr is used to access signed tokens for workload identities.
+	widmgr widmgr.IdentityManager
+
+	// widName is the workload identity name to use to retrieve signed JWTs.
+	widName string
+
+	// deriveTokenFunc is the function used to derive Vault tokens.
+	deriveTokenFunc deriveTokenFunc
+
+	// allowTokenExpiration determines if a renew loop should be run
+	allowTokenExpiration bool
 
 	// future is used to wait on retrieving a Vault token
 	future *tokenFuture
@@ -106,19 +133,32 @@ type vaultHook struct {
 func newVaultHook(config *vaultHookConfig) *vaultHook {
 	ctx, cancel := context.WithCancel(context.Background())
 	h := &vaultHook{
-		vaultBlock:   config.vaultBlock,
-		client:       config.client,
-		eventEmitter: config.events,
-		lifecycle:    config.lifecycle,
-		updater:      config.updater,
-		alloc:        config.alloc,
-		taskName:     config.task,
-		firstRun:     true,
-		ctx:          ctx,
-		cancel:       cancel,
-		future:       newTokenFuture(),
+		vaultBlock:           config.vaultBlock,
+		vaultConfigsFunc:     config.vaultConfigsFunc,
+		clientFunc:           config.clientFunc,
+		eventEmitter:         config.events,
+		lifecycle:            config.lifecycle,
+		updater:              config.updater,
+		alloc:                config.alloc,
+		task:                 config.task,
+		firstRun:             true,
+		ctx:                  ctx,
+		cancel:               cancel,
+		future:               newTokenFuture(),
+		widmgr:               config.widmgr,
+		allowTokenExpiration: config.vaultBlock.AllowTokenExpiration,
 	}
 	h.logger = config.logger.Named(h.Name())
+
+	h.widName = config.task.Vault.IdentityName()
+	wid := config.task.GetIdentity(h.widName)
+	switch {
+	case wid != nil:
+		h.deriveTokenFunc = h.deriveVaultTokenJWT
+	default:
+		h.deriveTokenFunc = h.deriveVaultTokenLegacy
+	}
+
 	return h
 }
 
@@ -133,6 +173,18 @@ func (h *vaultHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRe
 	h.firstRun = false
 	if !first {
 		return nil
+	}
+
+	cluster := h.task.GetVaultClusterName()
+	vclient, err := h.clientFunc(cluster)
+	if err != nil {
+		return err
+	}
+	h.client = vclient
+
+	h.vaultConfig = h.vaultConfigsFunc(h.logger)[cluster]
+	if h.vaultConfig == nil {
+		return fmt.Errorf("No client configuration found for Vault cluster %s", cluster)
 	}
 
 	// Try to recover a token if it was previously written in the secrets
@@ -189,6 +241,9 @@ func (h *vaultHook) Shutdown() {
 func (h *vaultHook) run(token string) {
 	// Helper for stopping token renewal
 	stopRenewal := func() {
+		if h.allowTokenExpiration {
+			return
+		}
 		if err := h.client.StopRenewToken(h.future.Get()); err != nil {
 			h.logger.Warn("failed to stop token renewal", "error", err)
 		}
@@ -230,6 +285,12 @@ OUTER:
 						SetDisplayMessage(fmt.Sprintf("Vault %v", errorString)))
 				return
 			}
+		}
+
+		if h.allowTokenExpiration {
+			h.future.Set(token)
+			h.logger.Debug("Vault token will not renew")
+			return
 		}
 
 		// Start the renewal process.
@@ -280,9 +341,9 @@ OUTER:
 				const noFailure = false
 				h.lifecycle.Restart(h.ctx,
 					structs.NewTaskEvent(structs.TaskRestartSignal).
-						SetDisplayMessage("Vault: new Vault token acquired"), false)
+						SetDisplayMessage("Vault: new Vault token acquired"), noFailure)
 			case structs.VaultChangeModeNoop:
-				fallthrough
+				// True to its name, this is a noop!
 			default:
 				h.logger.Error("invalid Vault change mode", "mode", h.vaultBlock.ChangeMode)
 			}
@@ -311,13 +372,13 @@ OUTER:
 
 // deriveVaultToken derives the Vault token using exponential backoffs. It
 // returns the Vault token and whether the manager should exit.
-func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
+func (h *vaultHook) deriveVaultToken() (string, bool) {
 	var attempts uint64
 	var backoff time.Duration
 	for {
-		tokens, err := h.client.DeriveToken(h.alloc, []string{h.taskName})
+		token, err := h.deriveTokenFunc()
 		if err == nil {
-			return tokens[h.taskName], false
+			return token, false
 		}
 
 		// Check if this is a server side error
@@ -353,6 +414,67 @@ func (h *vaultHook) deriveVaultToken() (token string, exit bool) {
 		case <-time.After(backoff):
 		}
 	}
+}
+
+// deriveVaultTokenJWT returns a Vault ACL token using JWT auth login.
+func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
+	// Retrieve signed identity.
+	signed, err := h.widmgr.Get(structs.WIHandle{
+		IdentityName:       h.widName,
+		WorkloadIdentifier: h.task.Name,
+		WorkloadType:       structs.WorkloadTypeTask,
+	})
+	if err != nil {
+		return "", structs.NewRecoverableError(
+			fmt.Errorf("failed to retrieve signed workload identity: %w", err),
+			true,
+		)
+	}
+	if signed == nil {
+		return "", structs.NewRecoverableError(
+			errors.New("no signed workload identity available"),
+			false,
+		)
+	}
+
+	role := h.vaultConfig.Role
+	if h.vaultBlock.Role != "" {
+		role = h.vaultBlock.Role
+	}
+
+	// Derive Vault token with signed identity.
+	token, renewable, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
+		JWT:       signed.JWT,
+		Role:      role,
+		Namespace: h.vaultBlock.Namespace,
+	})
+	if err != nil {
+		return "", structs.WrapRecoverable(
+			fmt.Sprintf("failed to derive Vault token for identity %s: %v", h.widName, err),
+			err,
+		)
+	}
+
+	// If the token cannot be renewed, it doesn't matter if the user set
+	// allow_token_expiration or not, so override the requested behavior
+	if !renewable {
+		h.allowTokenExpiration = true
+	}
+
+	return token, nil
+}
+
+// deriveVaultTokenLegacy returns a Vault ACL token using the legacy flow where
+// Nomad clients request Vault tokens from Nomad servers.
+//
+// Deprecated: This authentication flow will be removed Nomad 1.9.
+func (h *vaultHook) deriveVaultTokenLegacy() (string, error) {
+	tokens, err := h.client.DeriveToken(h.alloc, []string{h.task.Name})
+	if err != nil {
+		return "", err
+	}
+
+	return tokens[h.task.Name], nil
 }
 
 // writeToken writes the given token to disk

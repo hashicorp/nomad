@@ -1,0 +1,3 @@
+```release-note:improvement
+scheduler: Added a new configuration to avoid rescheduling allocations if a nodes misses one or more heartbits
+```

@@ -1,0 +1,49 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<tr data-test-job-row data-test-child-job-row>
+  <td data-test-job-name
+    {{keyboard-shortcut
+      enumerated=true
+      action=(action "gotoJob" @job)
+    }}
+  >
+    <LinkTo
+      @route="jobs.job.index"
+      @model={{@job.idWithNamespace}}
+      class="is-primary"
+    >
+      {{@job.name}}
+
+      {{#if @job.isPack}}
+        <span data-test-pack-tag class="tag is-pack">
+          {{x-icon "box" class= "test"}}
+          <span>Pack</span>
+        </span>
+      {{/if}}
+
+    </LinkTo>
+  </td>
+  <td data-test-job-submit-time>
+    {{format-month-ts @job.submitTime}}
+  </td>
+  <td data-test-job-status>
+    <span class="{{@job.aggregateAllocStatus.label}}">
+      <Hds::Badge @text="{{capitalize @job.aggregateAllocStatus.label}}" @color={{@job.aggregateAllocStatus.state}} @size="large" />
+    </span>
+  </td>
+  <td data-test-job-allocations>
+    <div class="job-status-panel compact">
+      <JobStatus::AllocationStatusRow
+        @allocBlocks={{@job.allocBlocks}}
+        @steady={{true}}
+        @compact={{true}}
+        @completeAllocs={{@job.allocBlocks.complete.healthy.nonCanary.length}}
+        @allocationTallyMode="complete"
+        @groupCountSum={{@job.expectedRunningAllocCount}}
+      />
+    </div>
+  </td>
+</tr>

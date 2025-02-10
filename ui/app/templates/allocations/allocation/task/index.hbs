@@ -30,8 +30,8 @@
       </div>
     </div>
   {{/if}}
-  <h1 class="title with-flex" data-test-title>
-    <div>
+  <Hds::PageHeader class="job-page-header" as |PH|>
+    <PH.Title data-test-title>
       {{this.model.name}}
       {{#if this.model.isConnectProxy}}
         <ProxyTag @class="bumper-left" />
@@ -44,9 +44,17 @@
       >
         {{this.model.state}}
       </span>
-    </div>
-    <div>
+    </PH.Title>
+    <PH.Actions>
       {{#if this.model.isRunning}}
+
+        {{#if this.shouldShowActions}}
+          <ActionsDropdown
+            @actions={{this.model.task.actions}}
+            @allocation={{this.model.allocation}}
+          />
+        {{/if}}
+
         <div class="two-step-button">
           <Exec::OpenButton
             @job={{this.model.task.taskGroup.job}}
@@ -55,6 +63,7 @@
             @task={{this.model.task}}
           />
         </div>
+
         <TwoStepButton
           data-test-restart
           @alignRight={{true}}
@@ -67,8 +76,37 @@
           @onConfirm={{perform this.restartTask}}
         />
       {{/if}}
-    </div>
-  </h1>
+    </PH.Actions>
+  </Hds::PageHeader>
+  {{#if this.model.task.schedule}}
+    <Hds::Alert @type="inline" @icon="delay" @color="highlight" class="time-based-alert" as |A|>
+      {{#if (eq this.model.paused '')}}
+        <A.Title>This task is currently running on schedule</A.Title>
+        <A.Description>This task is running as per the defined schedule.</A.Description>
+        <A.Button @text="Force Pause" @color="secondary" {{on "click" (perform this.forcePause)}} />
+        <A.Button @text="Remove from Schedule" @color="secondary" {{on "click" (perform this.forceRun)}}  />
+      {{else if (eq this.model.paused 'scheduled_pause')}}
+        <A.Title>This task is currently paused on schedule</A.Title>
+        <A.Description>This task is paused and will resume on the next scheduled run.</A.Description>
+        <A.Button @text="Force Run" @color="secondary" {{on "click" (perform this.forceRun)}} />
+        <A.Button @text="Remove from Schedule" @color="secondary" {{on "click" (perform this.forcePause)}} />
+      {{else if (eq this.model.paused 'force_pause')}}
+        <A.Title>This task is manually paused</A.Title>
+        <A.Description>This task has been paused manually and is not following the schedule.</A.Description>
+        <A.Button @text="Force Run" @color="secondary" {{on "click" (perform this.forceRun)}} />
+        <A.Button @text="Put Back on Schedule" @color="secondary" {{on "click" (perform this.reEnableSchedule)}} />
+      {{else if (eq this.model.paused 'force_run')}}
+        <A.Title>This task is manually running</A.Title>
+        <A.Description>This task is running manually and is not following the schedule.</A.Description>
+        <A.Button @text="Force Pause" @color="secondary" {{on "click" (perform this.forcePause)}} />
+        <A.Button @text="Put Back on Schedule" @color="secondary" {{on "click" (perform this.reEnableSchedule)}} />
+      {{/if}}
+      <A.Generic>
+        <Hds::CodeBlock @value={{stringify-object this.model.task.schedule.cron}} @hasLineNumbers={{false}} @language="hcl" />
+      </A.Generic>
+    </Hds::Alert>
+    <Hds::Separator />
+  {{/if}}
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">
@@ -214,7 +252,7 @@
     <div class="boxed-section-body is-full-bleed">
       <ListTable
         @source={{reverse this.model.events}}
-        @class="is-striped" as |t|
+        @class="is-striped recent-events-table" as |t|
       >
         <t.head>
           <th class="is-3">
@@ -249,4 +287,9 @@
       </ListTable>
     </div>
   </div>
+  {{#if this.model.task.meta}}
+    <JobPage::Parts::Meta
+      @meta={{this.model.task.meta}}
+    />
+  {{/if}}
 </section>

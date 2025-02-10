@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed storage/plugin 404s by unescaping a slash character in the request URL
+```

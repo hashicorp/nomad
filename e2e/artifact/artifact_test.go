@@ -41,11 +41,13 @@ func artifactCheckLogContents(t *testing.T, nomad *api.Client, group, task strin
 	t.Run(task, func(t *testing.T) {
 		logs, err := e2eutil.AllocTaskLogs(allocID, task, e2eutil.LogsStdOut)
 		must.NoError(t, err)
-		must.StrContains(t, logs, "module github.com/hashicorp/go-set")
+		must.StrContains(t, logs, "module github.com/hashicorp/go-set/v3")
 	})
 }
 
 func testWindows(t *testing.T) {
+	t.Skip("SKIP WINDOWS TEST") // TODO restore when windows client is fixed
+
 	nomad := e2eutil.NomadClient(t)
 	jobID := "artifact-windows-" + uuid.Short()
 	jobIDs := []string{jobID}

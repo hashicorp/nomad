@@ -131,7 +131,7 @@ func TestAllocRunner_Restore_RunningTerminal(t *testing.T) {
 	//    - removal during exited is de-duped due to prekill
 	//    - removal during stop is de-duped due to prekill
 	//   1 removal group during stop
-	consulOps := conf2.Consul.(*regMock.ServiceRegistrationHandler).GetOps()
+	consulOps := conf2.ConsulServices.(*regMock.ServiceRegistrationHandler).GetOps()
 	require.Len(t, consulOps, 2)
 	for _, op := range consulOps {
 		require.Equal(t, "remove", op.Op)

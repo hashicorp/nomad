@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -626,7 +627,7 @@ func TestCSIVolume_Merge(t *testing.T) {
 			update:   &CSIVolume{},
 			expected: "volume topology request update was not compatible with existing topology",
 			expectFn: func(t *testing.T, v *CSIVolume) {
-				require.Len(t, v.Topologies, 1)
+				must.Len(t, 1, v.Topologies)
 			},
 		},
 		{
@@ -646,8 +647,8 @@ func TestCSIVolume_Merge(t *testing.T) {
 			},
 			expected: "volume topology request update was not compatible with existing topology",
 			expectFn: func(t *testing.T, v *CSIVolume) {
-				require.Len(t, v.Topologies, 1)
-				require.Equal(t, "R1", v.Topologies[0].Segments["rack"])
+				must.Len(t, 1, v.Topologies)
+				must.Eq(t, "R1", v.Topologies[0].Segments["rack"])
 			},
 		},
 		{
@@ -676,6 +677,20 @@ func TestCSIVolume_Merge(t *testing.T) {
 			expected: "volume topology request update was not compatible with existing topology",
 		},
 		{
+			name: "invalid mount options while in use",
+			v: &CSIVolume{
+				// having any allocs means it's "in use"
+				ReadAllocs: map[string]*Allocation{
+					"test-alloc": {ID: "anything"},
+				},
+			},
+			update: &CSIVolume{
+				MountOptions: &CSIMountOptions{
+					MountFlags: []string{"any flags"}},
+			},
+			expected: "can not update mount options while volume is in use",
+		},
+		{
 			name: "valid update",
 			v: &CSIVolume{
 				Topologies: []*CSITopology{
@@ -696,6 +711,13 @@ func TestCSIVolume_Merge(t *testing.T) {
 						{Segments: map[string]string{"rack": "R2"}},
 					},
 				},
+				Context: map[string]string{
+					// a typical context for democratic-csi
+					"provisioner_driver": "nfs-client",
+					"node_attach_driver": "nfs",
+					"server":             "192.168.1.170",
+					"share":              "/srv/nfs_data/v/csi-volume-nfs",
+				},
 			},
 			update: &CSIVolume{
 				Topologies: []*CSITopology{
@@ -704,7 +726,7 @@ func TestCSIVolume_Merge(t *testing.T) {
 				},
 				MountOptions: &CSIMountOptions{
 					FSType:     "ext4",
-					MountFlags: []string{"noatime"},
+					MountFlags: []string{"noatime", "another"},
 				},
 				RequestedTopologies: &CSITopologyRequest{
 					Required: []*CSITopology{
@@ -725,20 +747,34 @@ func TestCSIVolume_Merge(t *testing.T) {
 					},
 				},
 			},
+			expectFn: func(t *testing.T, v *CSIVolume) {
+				test.Len(t, 2, v.RequestedCapabilities,
+					test.Sprint("should add 2 requested capabilities"))
+				test.Eq(t, []string{"noatime", "another"}, v.MountOptions.MountFlags,
+					test.Sprint("should add mount flag"))
+				test.Eq(t, map[string]string{
+					"provisioner_driver": "nfs-client",
+					"node_attach_driver": "nfs",
+					"server":             "192.168.1.170",
+					"share":              "/srv/nfs_data/v/csi-volume-nfs",
+				}, v.Context,
+					test.Sprint("context should not be overwritten with empty update"))
+
+			},
 		},
 	}
 	for _, tc := range testCases {
-		tc = tc
+		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.v.Merge(tc.update)
+			if tc.expectFn != nil {
+				tc.expectFn(t, tc.v)
+			}
 			if tc.expected == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				if tc.expectFn != nil {
-					tc.expectFn(t, tc.v)
-				}
-				require.Error(t, err, tc.expected)
-				require.Contains(t, err.Error(), tc.expected)
+				must.Error(t, err)
+				must.ErrorContains(t, err, tc.expected)
 			}
 		})
 	}

@@ -9,7 +9,8 @@ package host
 import (
 	"os"
 	"syscall"
-	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 func uname() string {
@@ -36,34 +37,24 @@ func mountedPaths() (disks []string) {
 }
 
 type df struct {
-	size  int64
-	avail int64
+	size       uint64 // "systemFree" less quotas
+	avail      uint64
+	systemFree uint64
 }
 
 func makeDf(path string) (*df, error) {
-	h, err := syscall.LoadDLL("kernel32.dll")
-	if err != nil {
-		return nil, err
-	}
-
-	c, err := h.FindProc("GetDiskFreeSpaceExW")
-	if err != nil {
-		return nil, err
-	}
-
 	df := &df{}
+	err := windows.GetDiskFreeSpaceEx(
+		syscall.StringToUTF16Ptr(path),
+		&df.avail, &df.size, &df.systemFree)
 
-	c.Call(uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(path))),
-		uintptr(unsafe.Pointer(&df.size)),
-		uintptr(unsafe.Pointer(&df.avail)))
-
-	return df, nil
+	return df, err
 }
 
 func (d *df) total() uint64 {
-	return uint64(d.size)
+	return d.size
 }
 
 func (d *df) available() uint64 {
-	return uint64(d.avail)
+	return d.avail
 }

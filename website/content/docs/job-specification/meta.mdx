@@ -47,8 +47,8 @@ Meta values are made available inside tasks as [runtime environment variables][e
 
 The "parameters" for the `meta` block can be any key-value. The keys and values
 are both of type `string`, but they can be specified as other types. They will
-automatically be converted to strings. Any `-` character existing in the key
-will also be converted to `_`.
+automatically be converted to strings. Any character in a key other than
+`[A-Za-z0-9_.]` will be converted to `_`.
 
 ## `meta` Examples
 

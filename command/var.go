@@ -15,9 +15,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/mitchellh/mapstructure"
 	"github.com/posener/complete"
@@ -38,7 +38,7 @@ Usage: nomad var <subcommand> [options] [args]
 
   Users can create new variables; list, inspect, and delete existing
   variables, and more. For a full guide on variables see:
-  https://www.nomadproject.io/docs/concepts/variables
+  https://developer.hashicorp.com/nomad/docs/concepts/variables
 
   Create a variable specification file:
 

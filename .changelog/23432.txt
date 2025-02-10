@@ -1,0 +1,3 @@
+```release-note:bug
+template: Fix template rendering on Windows
+```

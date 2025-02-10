@@ -47,7 +47,7 @@ func newHeartbeatStop(
 // allocation to be stopped if the taskgroup is configured appropriately
 func (h *heartbeatStop) allocHook(alloc *structs.Allocation) {
 	tg := allocTaskGroup(alloc)
-	if tg.StopAfterClientDisconnect != nil {
+	if tg.GetDisconnectStopTimeout() != nil {
 		h.allocHookCh <- alloc
 	}
 }
@@ -56,8 +56,9 @@ func (h *heartbeatStop) allocHook(alloc *structs.Allocation) {
 // past that it should be prevented from restarting
 func (h *heartbeatStop) shouldStop(alloc *structs.Allocation) bool {
 	tg := allocTaskGroup(alloc)
-	if tg.StopAfterClientDisconnect != nil {
-		return h.shouldStopAfter(time.Now(), *tg.StopAfterClientDisconnect)
+	timeout := tg.GetDisconnectStopTimeout()
+	if timeout != nil {
+		return h.shouldStopAfter(time.Now(), *timeout)
 	}
 	return false
 }
@@ -103,8 +104,9 @@ func (h *heartbeatStop) watch() {
 
 		case alloc := <-h.allocHookCh:
 			tg := allocTaskGroup(alloc)
-			if tg.StopAfterClientDisconnect != nil {
-				h.allocInterval[alloc.ID] = *tg.StopAfterClientDisconnect
+			timeout := tg.GetDisconnectStopTimeout()
+			if timeout != nil {
+				h.allocInterval[alloc.ID] = *timeout
 			}
 
 		case <-timeout:

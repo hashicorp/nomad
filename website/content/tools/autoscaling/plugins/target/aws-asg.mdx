@@ -75,6 +75,14 @@ target "aws-asg" {
   the [standard credential chain][aws_sdk_creds] will be followed. If set to
   "ec2_role" credentials will be retrieved from the EC2 instance role.
 
+- `retry_attempts` `(int: "15")` - The number of attempts to make while waiting
+  for the cluster to stabilize after a scaling action. It may need to be tuned
+  up if errors such as `failed to ensure all activities completed` occur.
+
+- `scale_in_protection` `(bool: false)` - If `true`, instances marked with
+  [scale-in protection][aws_scale_in_protection] are not considered for
+  removal. It may be overridden per policy.
+
 ### Nomad ACL
 
 When using a Nomad cluster with ACLs enabled, the plugin will require an ACL
@@ -110,6 +118,9 @@ check "hashistack-allocated-cpu" {
 - `node_class` `(string: "")` - The Nomad [client node class][nomad_node_class]
   identifier used to group nodes into a pool of resource.
 
+- `node_pool` `(string: "")` - The Nomad [client node pool][nomad_node_pool]
+  identifier used to group nodes into a pool of resource.
+
 - `node_drain_deadline` `(duration: "15m")` The Nomad [drain
   deadline][nomad_node_drain_deadline] to use when performing node draining
   actions. **Note that the default value for this setting differs from Nomad's
@@ -127,18 +138,17 @@ check "hashistack-allocated-cpu" {
   selecting nodes for termination. Refer to the [node selector
   strategy][node_selector_strategy] documentation for more information.
 
+- `scale_in_protection` `(bool: false)` - If `true`, instances marked with
+  [scale-in protection][aws_scale_in_protection] are not considered for
+  removal. If set, it overrides the plugin configuration.
+
 [aws_autoscaling]: https://aws.amazon.com/autoscaling/
-
 [aws_region]: https://aws.amazon.com/about-aws/global-infrastructure/regions_az/
-
+[aws_scale_in_protection]: https://docs.aws.amazon.com/autoscaling/ec2/userguide/ec2-auto-scaling-instance-protection.html
 [nomad_datacenter]: /nomad/docs/configuration#datacenter
-
 [nomad_node_class]: /nomad/docs/configuration/client#node_class
-
+[nomad_node_pool]: /nomad/docs/configuration/client#node_pool
 [nomad_node_drain_deadline]: /nomad/api-docs/nodes#deadline
-
 [nomad_node_purge]: /nomad/api-docs/nodes#purge-node
-
 [node_selector_strategy]: /nomad/tools/autoscaling/internals/node-selector-strategy
-
 [vault_aws_backend]: /vault/docs/secrets/aws

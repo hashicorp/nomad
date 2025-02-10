@@ -5,19 +5,34 @@ package nomad
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Node attributes acquired via fingerprinting.
 const (
 	attrVaultVersion      = `${attr.vault.version}`
 	attrConsulVersion     = `${attr.consul.version}`
 	attrNomadVersion      = `${attr.nomad.version}`
 	attrNomadServiceDisco = `${attr.nomad.service_discovery}`
+	attrBridgeCNI         = `${attr.plugins.cni.version.bridge}`
+	attrFirewallCNI       = `${attr.plugins.cni.version.firewall}`
+	attrHostLocalCNI      = `${attr.plugins.cni.version.host-local}`
+	attrLoopbackCNI       = `${attr.plugins.cni.version.loopback}`
+	attrPortMapCNI        = `${attr.plugins.cni.version.portmap}`
+	attrConsulCNI         = `${attr.plugins.cni.version.consul-cni}`
 )
+
+// cniMinVersion is the version expression for the minimum CNI version supported
+// for the CNI container-networking plugins. Support was added at v0.4.0, so
+// we set the minimum to that.
+const cniMinVersion = ">= 0.4.0"
 
 var (
 	// vaultConstraint is the implicit constraint added to jobs requesting a
@@ -31,10 +46,10 @@ var (
 	// consulServiceDiscoveryConstraint is the implicit constraint added to
 	// task groups which include services utilising the Consul provider. The
 	// Consul version is pinned to a minimum of that which introduced the
-	// namespace feature.
+	// JWT auth feature.
 	consulServiceDiscoveryConstraint = &structs.Constraint{
 		LTarget: attrConsulVersion,
-		RTarget: ">= 1.7.0",
+		RTarget: ">= 1.8.0",
 		Operand: structs.ConstraintSemver,
 	}
 
@@ -57,6 +72,91 @@ var (
 	nativeServiceDiscoveryChecksConstraint = &structs.Constraint{
 		LTarget: attrNomadVersion,
 		RTarget: ">= 1.4.0",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// numaVersionConstraint is the constraint injected into task groups that
+	// utilize Nomad's NUMA aware scheduling which requires Nomad 1.7 or later.
+	numaVersionConstraint = &structs.Constraint{
+		LTarget: "${attr.nomad.version}",
+		RTarget: ">= 1.6.3-dev",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// numaKernelConstraint is the constraint injected into task groups that utilize
+	// Nomad's NUMA aware scheduling which requires running on Linux.
+	numaKernelConstraint = &structs.Constraint{
+		LTarget: "${attr.kernel.name}",
+		RTarget: "linux",
+		Operand: "=",
+	}
+
+	// cniBridgeConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniBridgeConstraint = &structs.Constraint{
+		LTarget: attrBridgeCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniFirewallConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniFirewallConstraint = &structs.Constraint{
+		LTarget: attrFirewallCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniHostLocalConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniHostLocalConstraint = &structs.Constraint{
+		LTarget: attrHostLocalCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniLoopbackConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniLoopbackConstraint = &structs.Constraint{
+		LTarget: attrLoopbackCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniPortMapConstraint is an implicit constraint added to jobs making use
+	// of bridge networking mode. This is one of the CNI plugins used to support
+	// bridge networking.
+	cniPortMapConstraint = &structs.Constraint{
+		LTarget: attrPortMapCNI,
+		RTarget: cniMinVersion,
+		Operand: structs.ConstraintSemver,
+	}
+
+	// cniConsulConstraint is an implicit constraint added to jobs making use of
+	// transparent proxy mode.
+	cniConsulConstraint = &structs.Constraint{
+		LTarget: attrConsulCNI,
+		RTarget: ">= 1.4.2",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// tproxyConstraint is an implicit constraint added to jobs making use of
+	// transparent proxy mode
+	tproxyConstraint = &structs.Constraint{
+		LTarget: attrNomadVersion,
+		RTarget: ">= 1.8.0-dev",
+		Operand: structs.ConstraintSemver,
+	}
+
+	// taskScheduleConstraint is an implicit constraint added to jobs that have
+	// tasks with a schedule{} block for time based task execution (Enterprise)
+	taskScheduleConstraint = &structs.Constraint{
+		LTarget: attrNomadVersion,
+		RTarget: ">= 1.8.0-dev",
 		Operand: structs.ConstraintSemver,
 	}
 )
@@ -170,9 +270,23 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// Identify which task groups are utilising Consul service discovery.
 	consulServiceDisco := j.RequiredConsulServiceDiscovery()
 
-	// Hot path
+	// Identify which task groups are utilizing NUMA resources.
+	numaTaskGroups := j.RequiredNUMA()
+
+	bridgeNetworkingTaskGroups := j.RequiredBridgeNetwork()
+
+	transparentProxyTaskGroups := j.RequiredTransparentProxy()
+
+	taskScheduleTaskGroups := j.RequiredScheduleTask()
+
+	// Hot path where none of our things require constraints.
+	//
+	// [UPDATE THIS] if you are adding a new constraint thing!
 	if len(signals) == 0 && len(vaultBlocks) == 0 &&
-		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 {
+		nativeServiceDisco.Empty() && len(consulServiceDisco) == 0 &&
+		numaTaskGroups.Empty() && bridgeNetworkingTaskGroups.Empty() &&
+		transparentProxyTaskGroups.Empty() &&
+		taskScheduleTaskGroups.Empty() {
 		return j, nil, nil
 	}
 
@@ -180,10 +294,18 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 	// constraints. When adding new implicit constraints, they should go inside
 	// this single loop, with a new constraintMatcher if needed.
 	for _, tg := range j.TaskGroups {
-
 		// If the task group utilises Vault, run the mutator.
-		if _, ok := vaultBlocks[tg.Name]; ok {
-			mutateConstraint(constraintMatcherLeft, tg, vaultConstraint)
+		vaultTasks := lang.MapKeys(vaultBlocks[tg.Name])
+		sort.Strings(vaultTasks)
+		for _, vaultTask := range vaultTasks {
+			vaultBlock := vaultBlocks[tg.Name][vaultTask]
+			mutateConstraint(constraintMatcherLeft, tg, vaultConstraintFn(vaultBlock))
+		}
+
+		// If the task group utilizes NUMA resources, run the mutator.
+		if numaTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherFull, tg, numaVersionConstraint)
+			mutateConstraint(constraintMatcherFull, tg, numaKernelConstraint)
 		}
 
 		// Check whether the task group is using signals. In the case that it
@@ -206,12 +328,74 @@ func (jobImpliedConstraints) Mutate(j *structs.Job) (*structs.Job, []error, erro
 		}
 
 		// If the task group utilises Consul service discovery, run the mutator.
-		if ok := consulServiceDisco[tg.Name]; ok {
-			mutateConstraint(constraintMatcherLeft, tg, consulServiceDiscoveryConstraint)
+		if consulServiceDisco[tg.Name] {
+			for _, service := range tg.Services {
+				if service.IsConsul() {
+					mutateConstraint(constraintMatcherLeft, tg, consulConstraintFn(service))
+				}
+			}
+
+			for _, task := range tg.Tasks {
+				for _, service := range task.Services {
+					if service.IsConsul() {
+						mutateConstraint(constraintMatcherLeft, task, consulConstraintFn(service))
+					}
+				}
+			}
+		}
+
+		if bridgeNetworkingTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, cniBridgeConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniFirewallConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniHostLocalConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniLoopbackConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, cniPortMapConstraint)
+		}
+
+		if transparentProxyTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, cniConsulConstraint)
+			mutateConstraint(constraintMatcherLeft, tg, tproxyConstraint)
+		}
+
+		if taskScheduleTaskGroups.Contains(tg.Name) {
+			mutateConstraint(constraintMatcherLeft, tg, taskScheduleConstraint)
 		}
 	}
 
 	return j, nil, nil
+}
+
+// vaultConstraintFn returns a constraint that matches the fingerprint of the
+// requested Vault cluster. This is to support Nomad Enterprise but neither the
+// fingerprint or non-default cluster are allowed well before we get here, so no
+// need to split out the behavior to ENT-specific code.
+func vaultConstraintFn(vault *structs.Vault) *structs.Constraint {
+	if vault.Cluster != structs.VaultDefaultCluster && vault.Cluster != "" {
+		// Non-default clusters use workload identities to derive tokens, which
+		// require Vault 1.11.0+.
+		return &structs.Constraint{
+			LTarget: fmt.Sprintf("${attr.vault.%s.version}", vault.Cluster),
+			RTarget: ">= 1.11.0",
+			Operand: structs.ConstraintSemver,
+		}
+	}
+	return vaultConstraint
+}
+
+// consulConstraintFn returns a service discovery constraint that matches the
+// fingerprint of the requested Consul cluster. This is to support Nomad
+// Enterprise but neither the fingerprint or non-default cluster are allowed
+// well before we get here, so no need to split out the behavior to ENT-specific
+// code.
+func consulConstraintFn(service *structs.Service) *structs.Constraint {
+	if service.Cluster != structs.ConsulDefaultCluster && service.Cluster != "" {
+		return &structs.Constraint{
+			LTarget: fmt.Sprintf("${attr.consul.%s.version}", service.Cluster),
+			RTarget: ">= 1.8.0",
+			Operand: structs.ConstraintSemver,
+		}
+	}
+	return consulServiceDiscoveryConstraint
 }
 
 // constraintMatcher is a custom type which helps control how constraints are
@@ -230,9 +414,17 @@ const (
 	constraintMatcherLeft
 )
 
+// both Tasks and TaskGroups can have constraints, and since current (1.22) Go
+// still doesn't allow us accessing fields of generic type structs, we have to
+// resort to an interface
+type hasConstraints interface {
+	GetConstraints() []*structs.Constraint
+	SetConstraints([]*structs.Constraint)
+}
+
 // mutateConstraint is a generic mutator used to set implicit constraints
 // within the task group if they are needed.
-func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, constraint *structs.Constraint) {
+func mutateConstraint[T hasConstraints](matcher constraintMatcher, taskOrTG T, constraint *structs.Constraint) {
 
 	var found bool
 
@@ -241,14 +433,14 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 	// therefore we do it here.
 	switch matcher {
 	case constraintMatcherFull:
-		for _, c := range taskGroup.Constraints {
+		for _, c := range taskOrTG.GetConstraints() {
 			if c.Equal(constraint) {
 				found = true
 				break
 			}
 		}
 	case constraintMatcherLeft:
-		for _, c := range taskGroup.Constraints {
+		for _, c := range taskOrTG.GetConstraints() {
 			if c.LTarget == constraint.LTarget {
 				found = true
 				break
@@ -258,7 +450,9 @@ func mutateConstraint(matcher constraintMatcher, taskGroup *structs.TaskGroup, c
 
 	// If we didn't find a suitable constraint match, add one.
 	if !found {
-		taskGroup.Constraints = append(taskGroup.Constraints, constraint)
+		constraints := taskOrTG.GetConstraints()
+		constraints = append(constraints, constraint)
+		taskOrTG.SetConstraints(constraints)
 	}
 }
 
@@ -305,19 +499,26 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 		multierror.Append(validationErrors, fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, v.srv.config.JobMaxPriority))
 	}
 
+	okForIdentity := v.isEligibleForMultiIdentity()
+
 	for _, tg := range job.TaskGroups {
 		for _, s := range tg.Services {
-			serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task group %s", tg.Name))
+			serviceErrs := v.validateServiceIdentity(
+				s, fmt.Sprintf("task group %s", tg.Name), okForIdentity)
 			multierror.Append(validationErrors, serviceErrs)
 		}
 
 		for _, t := range tg.Tasks {
+			if len(t.Identities) > 1 && !okForIdentity {
+				multierror.Append(validationErrors, fmt.Errorf("tasks can only have 1 identity block until all servers are upgraded to %s or later", minVersionMultiIdentities))
+			}
 			for _, s := range t.Services {
-				serviceErrs := v.validateServiceIdentity(s, fmt.Sprintf("task %s", t.Name))
+				serviceErrs := v.validateServiceIdentity(
+					s, fmt.Sprintf("task %s", t.Name), okForIdentity)
 				multierror.Append(validationErrors, serviceErrs)
 			}
 
-			vaultWarns, vaultErrs := v.validateVaultIdentity(t)
+			vaultWarns, vaultErrs := v.validateVaultIdentity(t, okForIdentity)
 			multierror.Append(validationErrors, vaultErrs)
 			warnings = append(warnings, vaultWarns...)
 		}
@@ -326,72 +527,78 @@ func (v *jobValidate) Validate(job *structs.Job) (warnings []error, err error) {
 	return warnings, validationErrors.ErrorOrNil()
 }
 
-func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string) error {
-	var mErr *multierror.Error
-
-	if s.Identity != nil {
-		if !v.srv.config.UseConsulIdentity() {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"Service %s in %s defines an identity but server is not configured to use Consul identities, set use_identity to true in the Consul server configuration",
-				s.Name, parent,
-			))
-		}
-
-		if s.Identity.Name == "" {
-			mErr = multierror.Append(mErr, fmt.Errorf("Service %s in %s has an identity with an empty name", s.Name, parent))
-		}
-	} else if v.srv.config.UseConsulIdentity() && v.srv.config.ConsulServiceIdentity() == nil {
-		mErr = multierror.Append(mErr, fmt.Errorf(
-			"Service %s in %s expected to have an identity, add an identity block to the service or provide a default using the service_identity block in the server Consul configuration",
-			s.Name, parent,
-		))
+func (v *jobValidate) isEligibleForMultiIdentity() bool {
+	if v.srv == nil || v.srv.serf == nil {
+		return true // handle tests w/o real servers safely
 	}
-
-	return mErr.ErrorOrNil()
+	return ServersMeetMinimumVersion(
+		v.srv.Members(), v.srv.Region(), minVersionMultiIdentities, true)
 }
 
-func (v *jobValidate) validateVaultIdentity(t *structs.Task) ([]error, error) {
-	var mErr *multierror.Error
+func (v *jobValidate) validateServiceIdentity(s *structs.Service, parent string, okForIdentity bool) error {
+	if s.Identity != nil && !okForIdentity {
+		return fmt.Errorf("Service %s in %s cannot have an identity until all servers are upgraded to %s or later",
+			s.Name, parent, minVersionMultiIdentities)
+	}
+	if s.Identity != nil && s.Identity.Name == "" {
+		return fmt.Errorf("Service %s in %s has an identity with an empty name", s.Name, parent)
+	}
+
+	return nil
+}
+
+// validateVaultIdentity validates that a task is properly configured to access
+// a Vault cluster.
+//
+// It assumes the jobImplicitIdentitiesHook mutator hook has been called to
+// inject task identities if necessary.
+func (v *jobValidate) validateVaultIdentity(t *structs.Task, okForIdentity bool) ([]error, error) {
 	var warnings []error
 
-	hasVault := t.Vault != nil
-	hasTaskWID := t.GetIdentity(vaultIdentityName) != nil
-	hasDefaultWID := v.srv.config.VaultDefaultIdentity() != nil
-
-	useIdentity := hasVault && v.srv.config.UseVaultIdentity()
-	hasWID := hasTaskWID || hasDefaultWID
-
-	if useIdentity {
-		if !hasWID {
-			mErr = multierror.Append(mErr, fmt.Errorf(
-				"Task %s expected to have a Vault identity, add an identity block called %s or provide a default using the default_identity block in the server Vault configuration",
-				t.Name, vaultIdentityName,
-			))
+	if t.Vault == nil {
+		// Warn if task doesn't use Vault but has Vault identities.
+		for _, wid := range t.Identities {
+			if strings.HasPrefix(wid.Name, structs.WorkloadIdentityVaultPrefix) {
+				warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, wid.Name))
+			}
 		}
-
-		if len(t.Vault.Policies) > 0 {
-			warnings = append(warnings, fmt.Errorf(
-				"Task %s has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored",
-				t.Name,
-			))
-		}
-	} else if hasVault && len(t.Vault.Policies) == 0 {
-		mErr = multierror.Append(mErr, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name))
+		return warnings, nil
 	}
 
-	if hasTaskWID {
-		if !v.srv.config.UseVaultIdentity() {
-			warnings = append(warnings, fmt.Errorf(
-				"Task %s has an identity called %s but server is not configured to use Vault identities, set use_identity to true in the Vault server configuration",
-				t.Name, vaultIdentityName,
-			))
-		}
-		if !hasVault {
-			warnings = append(warnings, fmt.Errorf("Task %s has an identity called %s but no vault block", t.Name, vaultIdentityName))
-		}
+	vaultWIDName := t.Vault.IdentityName()
+	vaultWID := t.GetIdentity(vaultWIDName)
+
+	if vaultWID != nil && !okForIdentity {
+		return warnings, fmt.Errorf("Task %s cannot have an identity for Vault until all servers are upgraded to %s or later", t.Name, minVersionMultiIdentities)
 	}
 
-	return warnings, mErr.ErrorOrNil()
+	if vaultWID == nil {
+		// Tasks using non-default clusters are required to have an identity.
+		if t.Vault.Cluster != structs.VaultDefaultCluster {
+			return warnings, fmt.Errorf(
+				"Task %s uses Vault cluster %s but does not have an identity named %s and no default identity is provided in agent configuration",
+				t.Name, t.Vault.Cluster, vaultWIDName,
+			)
+		}
+
+		// Tasks using the default cluster but without a Vault identity will
+		// use the legacy flow.
+		if len(t.Vault.Policies) == 0 {
+			return warnings, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name)
+		}
+
+		return warnings, nil
+	}
+
+	// Warn if tasks is using identity-based flow with the deprecated policies
+	// field.
+	if len(t.Vault.Policies) > 0 {
+		warnings = append(warnings, fmt.Errorf(
+			"Task %s has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored",
+			t.Name,
+		))
+	}
+	return warnings, nil
 }
 
 type memoryOversubscriptionValidate struct {

@@ -6,8 +6,10 @@
 
 package nomad
 
+import "github.com/hashicorp/nomad/nomad/structs"
+
 // establishEnterpriseLeadership is a no-op on OSS.
-func (s *Server) establishEnterpriseLeadership(stopCh chan struct{}) error {
+func (s *Server) establishEnterpriseLeadership(stopCh chan struct{}, clusterMD structs.ClusterMetadata) error {
 	return nil
 }
 

@@ -1,10 +1,13 @@
 ---
 layout: docs
 page_title: Network Plugins
-description: Learn how Nomad manages custom user-specified network configurations.
+description:  |-
+  Nomad's network plugin support enables scheduling tasks with custom network configuration plugins that conform to the Container Network Interface (CNI). Learn about the CNI reference plugins that are required for Nomad bridge networking and Consul service mesh.
 ---
 
 # Network plugins
+
+This page provides conceptual information on Nomad's network plugin support, which enables scheduling tasks with custom network configuration plugins that conform to the Container Network Interface (CNI). Learn about the CNI reference plugins that are required for Nomad bridge networking and Consul service mesh.
 
 Nomad has built-in support for scheduling compute resources such as
 CPU, memory, and networking. Nomad's network plugin support extends
@@ -61,4 +64,4 @@ Nomad Networking documentation](/nomad/docs/networking/cni).
 [cni_spec]: https://www.cni.dev/docs/spec/
 [cni_spec_net_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#configuration-format
 [cni_spec_plugin_config]: https://github.com/containernetworking/cni/blob/main/SPEC.md#plugin-configuration-objects
-[nomad_install]: /nomad/tutorials/get-started/get-started-install#post-installation-steps
+[nomad_install]: /nomad/tutorials/get-started/get-started-install#linux-post-installation-steps

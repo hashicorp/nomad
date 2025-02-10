@@ -1,0 +1,3 @@
+```release-note:bug
+keyring: Fixed a panic on server startup when decrypting AEAD key data with empty RSA block
+```

@@ -37,7 +37,7 @@ CLI (command/) -> API Client (api/) -> HTTP API (command/agent) -> RPC (nomad/)
 ## Docs
 
 * [ ] Changelog
-* [ ] API docs https://www.nomadproject.io/api
-* [ ] CLI docs https://www.nomadproject.io/docs/commands
+* [ ] API docs https://developer.hashicorp.com/nomad/api
+* [ ] CLI docs https://developer.hashicorp.com/nomad/docs/commands
 * [ ] If adding new docs see [website README](../website/README.md#editing-navigation-sidebars)
-* [ ] Consider if it needs a guide https://www.nomadproject.io/guides/index.html
+* [ ] Consider if it needs a guide https://developer.hashicorp.com/nomad/guides/index.html

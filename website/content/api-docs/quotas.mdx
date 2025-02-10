@@ -51,17 +51,29 @@ $ curl \
 ```json
 [
   {
-    "CreateIndex": 8,
+    "CreateIndex": 11,
     "Description": "Limit the shared default namespace",
-    "Hash": "SgDCH7L5ZDqNSi2NmJlqdvczt/Q6mjyVwVJC0XjWglQ=",
+    "Hash": "uTIBStF55xKqUMGdI23rdP+W+hsvZ2WEfRWU11j7CzQ=",
     "Limits": [
       {
-        "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=",
+        "Hash": "fTSnZHxUyDQcRT2Q7L3Hlu3vWpwSt0LWu7JVd3neK9k=",
         "Region": "global",
         "RegionLimit": {
           "CPU": 2500,
+          "Cores": 0,
+          "Devices": [
+            {
+              "Affinities": null,
+              "Constraints": null,
+              "Count": 1,
+              "Name": "nvidia/gpu/Tesla M60"
+            }
+          ],
           "DiskMB": 0,
+          "IOPS": 0,
           "MemoryMB": 2000,
+          "MemoryMaxMB": 2000,
+          "NUMA": null,
           "Networks": [
             {
               "CIDR": "",
@@ -72,13 +84,14 @@ $ curl \
               "Mode": "",
               "ReservedPorts": null
             }
-          ]
+          ],
+          "SecretsMB": 0
         },
         "VariablesLimit": 1000
       }
     ],
-    "ModifyIndex": 56,
-    "Name": "shared-quota"
+    "ModifyIndex": 11,
+    "Name": "default-quota"
   }
 ]
 ```
@@ -115,17 +128,29 @@ $ curl \
 
 ```json
 {
-  "CreateIndex": 8,
+  "CreateIndex": 11,
   "Description": "Limit the shared default namespace",
-  "Hash": "SgDCH7L5ZDqNSi2NmJlqdvczt/Q6mjyVwVJC0XjWglQ=",
+  "Hash": "uTIBStF55xKqUMGdI23rdP+W+hsvZ2WEfRWU11j7CzQ=",
   "Limits": [
     {
-      "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=",
+      "Hash": "fTSnZHxUyDQcRT2Q7L3Hlu3vWpwSt0LWu7JVd3neK9k=",
       "Region": "global",
       "RegionLimit": {
         "CPU": 2500,
+        "Cores": 0,
+        "Devices": [
+          {
+            "Affinities": null,
+            "Constraints": null,
+            "Count": 1,
+            "Name": "nvidia/gpu/Tesla M60"
+          }
+        ],
         "DiskMB": 0,
+        "IOPS": 0,
         "MemoryMB": 2000,
+        "MemoryMaxMB": 2000,
+        "NUMA": null,
         "Networks": [
           {
             "CIDR": "",
@@ -136,13 +161,14 @@ $ curl \
             "Mode": "",
             "ReservedPorts": null
           }
-        ]
+        ],
+        "SecretsMB": 0
       },
       "VariablesLimit": 1000
     }
   ],
-  "ModifyIndex": 56,
-  "Name": "shared-quota"
+  "ModifyIndex": 11,
+  "Name": "default-quota"
 }
 ```
 
@@ -172,19 +198,22 @@ object](https://pkg.go.dev/github.com/hashicorp/nomad/api#QuotaSpec).
 
 ```javascript
 {
-  "Name": "shared-quota",
+  "Name": "default-quota",
   "Description": "Limit the shared default namespace",
   "Limits": [
     {
       "Region": "global",
       "RegionLimit": {
         "CPU": 2500,
-        "MemoryMB": 1000,
-        "Networks": [
+        "MemoryMB": 2000,
+        "MemoryMaxMB": 2000,
+        "Devices": [
           {
-            "Mbits": 50
+            "Name": "nvidia/gpu/Tesla M60",
+            "Count": 1
           }
-        ]
+        ],
+        "VariablesLimit": 1000
       }
     }
   ]
@@ -275,20 +304,44 @@ $ curl \
 [
   {
     "Used": {
-      "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=": {
+      "+kpaU440830Btn3/a0VUL4ROJCQyBOE55xwRR8rlFpc=": {
         "Region": "global",
         "RegionLimit": {
           "CPU": 500,
+          "Cores": 0,
           "MemoryMB": 256,
+          "MemoryMaxMB": 256,
           "DiskMB": 0,
-          "Networks": null
+          "IOPS": 0,
+          "Networks": [
+            {
+              "CIDR": "",
+              "Device": "",
+              "DynamicPorts": null,
+              "IP": "",
+              "MBits": 50,
+              "Mode": "",
+              "ReservedPorts": null
+            }
+          ],
+          "Devices": [
+            {
+              "Name": "nvidia/gpu/Tesla M60",
+              "Count": 1,
+              "Constraints": null,
+              "Affinities": null
+            }
+          ],
+          "NUMA": null,
+          "SecretsMB": 0
         },
-        "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU="
+        "VariablesLimit": 0,
+        "Hash": "+kpaU440830Btn3/a0VUL4ROJCQyBOE55xwRR8rlFpc="
       }
     },
-    "Name": "default",
-    "CreateIndex": 8,
-    "ModifyIndex": 56
+    "Name": "default-quota",
+    "CreateIndex": 11,
+    "ModifyIndex": 38
   }
 ]
 ```
@@ -326,12 +379,15 @@ $ curl \
 ```json
 {
   "Used": {
-    "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=": {
+    "+kpaU440830Btn3/a0VUL4ROJCQyBOE55xwRR8rlFpc=": {
       "Region": "global",
       "RegionLimit": {
         "CPU": 500,
+        "Cores": 0,
         "MemoryMB": 256,
+        "MemoryMaxMB": 256,
         "DiskMB": 0,
+        "IOPS": 0,
         "Networks": [
           {
             "CIDR": "",
@@ -342,13 +398,24 @@ $ curl \
             "Mode": "",
             "ReservedPorts": null
           }
-        ]
+        ],
+        "Devices": [
+          {
+            "Name": "nvidia/gpu/Tesla M60",
+            "Count": 1,
+            "Constraints": null,
+            "Affinities": null
+          }
+        ],
+        "NUMA": null,
+        "SecretsMB": 0
       },
-      "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU="
+      "VariablesLimit": 0,
+      "Hash": "+kpaU440830Btn3/a0VUL4ROJCQyBOE55xwRR8rlFpc="
     }
   },
-  "Name": "default",
-  "CreateIndex": 8,
-  "ModifyIndex": 56
+  "Name": "default-quota",
+  "CreateIndex": 11,
+  "ModifyIndex": 38
 }
 ```

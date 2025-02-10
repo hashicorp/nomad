@@ -1,21 +1,25 @@
 ---
 layout: docs
-page_title: Filesystem
+page_title: Allocation Filesystems
 description: |-
-  Nomad creates an allocation working directory for every allocation. Learn what
-  goes into the working directory and how it interacts with Nomad task drivers.
+  Learn how Nomad uses allocation working directories to store job task templates, storage volumes, artifacts, dispatch payloads, and logs. Review image and chroot isolation, as well as when Nomad uses isolation mode.
 ---
 
-# Filesystem
+# Allocation Filesystems
 
-Nomad creates a working directory for each allocation on a client. This
-directory can be found in the Nomad [`data_dir`] at
+This page provides conceptual information about how Nomad uses allocation
+working directories to store job task templates, storage volumes, artifacts,
+dispatch payloads, and logs. Review image and chroot isolation, as well as when
+Nomad does not use any isolation mode.
+
+Nomad creates a working directory for each allocation on a client. Find this
+directory in the Nomad [`data_dir`] at
 `./alloc/«alloc_id»`. The allocation working directory is where Nomad
-creates task directories and directories shared between tasks, write logs for
+creates task directories and directories shared between tasks, writes logs for
 tasks, and downloads artifacts or templates.
 
 An allocation with two tasks (named `task1` and `task2`) will have an
-allocation directory like the one below.
+allocation directory like this example.
 
 ```shell-session
 .
@@ -353,7 +357,7 @@ $ mount
 ...
 /dev/mapper/root on /alloc type ext4 (rw,relatime,errors=remount-ro,data=ordered)
 tmpfs on /private type tmpfs (rw,noexec,relatime,size=1024k)
-tmpfs on /secrets type tmpfs (rw,noexec,relatime,size=1024k)
+tmpfs on /secrets type tmpfs (rw,noexec,relatime,size=1024k,noswap)
 ...
 ```
 

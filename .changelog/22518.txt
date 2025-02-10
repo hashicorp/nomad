@@ -1,0 +1,3 @@
+```release-note:bug
+driver: Fixed a bug where the exec, java, and raw_exec drivers would not configure cgroups to allow access to devices provided by device plugins
+```

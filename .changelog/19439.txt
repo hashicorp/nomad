@@ -1,0 +1,3 @@
+```release-note:bug
+vault: Fixed a bug that caused `template` blocks to ignore Nomad configuration for Vault and use the default address of `https://127.0.0.1:8200` when the job does not have a `vault` block defined
+```

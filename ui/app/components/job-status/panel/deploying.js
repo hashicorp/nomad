@@ -42,8 +42,9 @@ export default class JobStatusPanelDeployingComponent extends Component {
     const relevantAllocs = this.job.allocations.filter(
       (a) => !a.isOld && a.isCanary && !a.hasBeenRescheduled
     );
-    return relevantAllocs.every(
-      (a) => a.clientStatus === 'running' && a.isHealthy
+    return (
+      relevantAllocs.length &&
+      relevantAllocs.every((a) => a.clientStatus === 'running' && a.isHealthy)
     );
   }
 

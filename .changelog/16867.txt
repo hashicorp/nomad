@@ -1,0 +1,3 @@
+```release-note:feature
+**Reschedule on Lost**: Adds the ability to prevent tasks on down nodes from being rescheduled
+```

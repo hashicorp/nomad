@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix an issue where a dropdown on the variables page would appear underneath table headers
+```

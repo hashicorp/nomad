@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 var _ cli.Command = (*JobRunCommand)(nil)
@@ -54,24 +54,6 @@ job "job1" {
 	if out := ui.OutputWriter.String(); !strings.Contains(out, `"Type": "service",`) {
 		t.Fatalf("Expected JSON output: %v", out)
 	}
-}
-
-func TestRunCommand_hcl1_hcl2_strict(t *testing.T) {
-	ci.Parallel(t)
-
-	_, _, addr := testServer(t, false, nil)
-
-	t.Run("-hcl1 implies -hcl2-strict is false", func(t *testing.T) {
-		ui := cli.NewMockUi()
-		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
-		got := cmd.Run([]string{
-			"-hcl1", "-hcl2-strict",
-			"-address", addr,
-			"-detach",
-			"asset/example-short.nomad.hcl",
-		})
-		require.Equal(t, 0, got, ui.ErrorWriter.String())
-	})
 }
 
 func TestRunCommand_Fails(t *testing.T) {
@@ -261,13 +243,13 @@ func TestRunCommand_JSON(t *testing.T) {
 
 	// First convert HCL -> JSON with -output
 	stdout, stderr, code := run("-output", "asset/example-short.nomad.hcl")
-	require.Zero(t, code, stderr)
-	require.Empty(t, stderr)
-	require.NotEmpty(t, stdout)
+	must.Zero(t, code)
+	must.Eq(t, "", stderr)
+	must.NotEq(t, "", stdout)
 	t.Logf("run -output==> %s...", stdout[:12])
 
 	jsonFile := filepath.Join(t.TempDir(), "redis.json")
-	require.NoError(t, os.WriteFile(jsonFile, []byte(stdout), 0o640))
+	must.NoError(t, os.WriteFile(jsonFile, []byte(stdout), 0o640))
 
 	// Wait for agent to start and get its address
 	addr := ""
@@ -279,23 +261,23 @@ func TestRunCommand_JSON(t *testing.T) {
 
 	// Submit JSON
 	stdout, stderr, code = run("-detach", "-address", addr, "-json", jsonFile)
-	require.Zero(t, code, stderr)
-	require.Empty(t, stderr)
+	must.Zero(t, code)
+	must.Eq(t, "", stderr)
 
 	// Read the JSON from the API as it omits the Job envelope and
 	// therefore differs from -output
 	resp, err := http.Get(addr + "/v1/job/example")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	buf, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.NoError(t, resp.Body.Close())
-	require.NotEmpty(t, buf)
+	must.NoError(t, err)
+	must.NoError(t, resp.Body.Close())
+	must.SliceNotEmpty(t, buf)
 	t.Logf("/v1/job/example==> %s...", string(buf[:12]))
-	require.NoError(t, os.WriteFile(jsonFile, buf, 0o640))
+	must.NoError(t, os.WriteFile(jsonFile, buf, 0o640))
 
 	// Submit JSON
 	stdout, stderr, code = run("-detach", "-address", addr, "-json", jsonFile)
-	require.Zerof(t, code, "stderr: %s\njson: %s\n", stderr, string(buf))
-	require.Empty(t, stderr)
-	require.NotEmpty(t, stdout)
+	must.Zero(t, code)
+	must.Eq(t, "", stderr)
+	must.NotEq(t, "", stdout)
 }

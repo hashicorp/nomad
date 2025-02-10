@@ -22,11 +22,13 @@ import (
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/serviceregistration/wrapper"
 	"github.com/hashicorp/nomad/client/state"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/vaultclient"
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,9 +66,9 @@ func TestConsul_Integration(t *testing.T) {
 
 	conf := config.DefaultConfig()
 	conf.Node = mock.Node()
-	conf.ConsulConfig.Addr = testconsul.HTTPAddr
+	conf.GetDefaultConsul().Addr = testconsul.HTTPAddr
 	conf.APIListenerRegistrar = config.NoopAPIListenerRegistrar{}
-	consulConfig, err := conf.ConsulConfig.ApiConfig()
+	consulConfig, err := conf.GetDefaultConsul().ApiConfig()
 	if err != nil {
 		t.Fatalf("error generating consul config: %v", err)
 	}
@@ -129,15 +131,16 @@ func TestConsul_Integration(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	logUpdate := &mockUpdater{logger}
-	allocDir := allocdir.NewAllocDir(logger, conf.AllocDir, alloc.ID)
+	allocDir := allocdir.NewAllocDir(logger, conf.AllocDir, conf.AllocMountsDir, alloc.ID)
 	if err := allocDir.Build(); err != nil {
 		t.Fatalf("error building alloc dir: %v", err)
 	}
 	t.Cleanup(func() {
 		r.NoError(allocDir.Destroy())
 	})
-	taskDir := allocDir.NewTaskDir(task.Name)
-	vclient := vaultclient.NewMockVaultClient()
+	taskDir := allocDir.NewTaskDir(task)
+	vclient, err := vaultclient.NewMockVaultClient("default")
+	must.NoError(t, err)
 	consulClient, err := consulapi.NewClient(consulConfig)
 	r.Nil(err)
 
@@ -159,11 +162,11 @@ func TestConsul_Integration(t *testing.T) {
 	config := &taskrunner.Config{
 		Alloc:               alloc,
 		ClientConfig:        conf,
-		Consul:              serviceClient,
+		ConsulServices:      serviceClient,
 		Task:                task,
 		TaskDir:             taskDir,
 		Logger:              logger,
-		Vault:               vclient,
+		VaultFunc:           func(string) (vaultclient.VaultClient, error) { return vclient, nil },
 		StateDB:             state.NoopDB{},
 		StateUpdater:        logUpdate,
 		DeviceManager:       devicemanager.NoopMockManager(),
@@ -171,6 +174,7 @@ func TestConsul_Integration(t *testing.T) {
 		StartConditionMetCh: closedCh,
 		ServiceRegWrapper:   wrapper.NewHandlerWrapper(logger, serviceClient, regMock.NewServiceRegistrationHandler(logger)),
 		Wranglers:           proclib.MockWranglers(t),
+		AllocHookResources:  cstructs.NewAllocHookResources(),
 	}
 
 	tr, err := taskrunner.NewTaskRunner(config)

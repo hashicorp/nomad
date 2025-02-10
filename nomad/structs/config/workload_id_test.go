@@ -20,6 +20,7 @@ func TestWorkloadIdentityConfig_Copy(t *testing.T) {
 		Audience: []string{"aud"},
 		Env:      pointer.Of(true),
 		File:     pointer.Of(false),
+		Filepath: "foo",
 		TTL:      pointer.Of(time.Hour),
 	}
 
@@ -27,16 +28,24 @@ func TestWorkloadIdentityConfig_Copy(t *testing.T) {
 	clone := original.Copy()
 	must.Eq(t, original, clone)
 	must.NotEqOp(t, original, clone)
+	must.NotEqOp(t, original.Env, clone.Env)
+	must.NotEqOp(t, original.File, clone.File)
+	must.NotEqOp(t, original.TTL, clone.TTL)
 
 	// Verify returned struct does not mutate original.
 	clone.Name = "clone"
-	clone.Audience = []string{"aud", "clone"}
-	clone.Env = pointer.Of(false)
-	clone.File = pointer.Of(true)
-	clone.TTL = pointer.Of(time.Second)
+	clone.Audience[0] = "changed"
+	*clone.Env = false
+	*clone.File = true
+	clone.Filepath = "changed"
+	*clone.TTL = time.Second
 
 	must.NotEq(t, original, clone)
 	must.NotEqOp(t, original, clone)
+	must.NotEqOp(t, original.Env, clone.Env)
+	must.NotEqOp(t, original.File, clone.File)
+	must.NotEqOp(t, original.Filepath, clone.Filepath)
+	must.NotEqOp(t, original.TTL, clone.TTL)
 }
 
 func TestWorkloadIdentityConfig_Equal(t *testing.T) {
@@ -55,6 +64,7 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				Filepath: "foo",
 				TTL:      pointer.Of(time.Hour),
 			},
 			b: &WorkloadIdentityConfig{
@@ -62,6 +72,7 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				Filepath: "foo",
 				TTL:      pointer.Of(time.Hour),
 			},
 			expectEq: true,
@@ -117,6 +128,16 @@ func TestWorkloadIdentityConfig_Equal(t *testing.T) {
 			expectEq: false,
 		},
 		{
+			name: "different filepath",
+			a: &WorkloadIdentityConfig{
+				Filepath: "a",
+			},
+			b: &WorkloadIdentityConfig{
+				Filepath: "b",
+			},
+			expectEq: false,
+		},
+		{
 			name: "different file nil",
 			a: &WorkloadIdentityConfig{
 				File: pointer.Of(true),
@@ -167,6 +188,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				Filepath: "test",
 				TTL:      pointer.Of(time.Hour),
 			},
 		},
@@ -180,6 +202,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud", "other"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				Filepath: "test",
 				TTL:      pointer.Of(time.Hour),
 			},
 		},
@@ -193,6 +216,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(false),
 				File:     pointer.Of(false),
+				Filepath: "test",
 				TTL:      pointer.Of(time.Hour),
 			},
 		},
@@ -206,6 +230,21 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(true),
+				Filepath: "test",
+				TTL:      pointer.Of(time.Hour),
+			},
+		},
+		{
+			name: "merge filepath",
+			other: &WorkloadIdentityConfig{
+				Filepath: "other",
+			},
+			expected: &WorkloadIdentityConfig{
+				Name:     "test",
+				Audience: []string{"aud"},
+				Env:      pointer.Of(true),
+				File:     pointer.Of(false),
+				Filepath: "other",
 				TTL:      pointer.Of(time.Hour),
 			},
 		},
@@ -219,6 +258,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				Filepath: "test",
 				TTL:      pointer.Of(time.Second),
 			},
 		},
@@ -231,6 +271,7 @@ func TestWorkloadIdentityConfig_Merge(t *testing.T) {
 				Audience: []string{"aud"},
 				Env:      pointer.Of(true),
 				File:     pointer.Of(false),
+				Filepath: "test",
 				TTL:      pointer.Of(time.Hour),
 			}
 			got := original.Merge(tc.other)

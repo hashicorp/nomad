@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	"github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -170,7 +170,11 @@ func (n *NodePool) GetNodePool(args *structs.NodePoolSpecificRequest, reply *str
 // cannot be updated.
 func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *structs.GenericResponse) error {
 	authErr := n.srv.Authenticate(n.ctx, args)
-	args.Region = n.srv.config.AuthoritativeRegion
+	if n.srv.config.ACLEnabled || args.Region == "" {
+		// only forward to the authoritative region if ACLs are enabled,
+		// otherwise we silently write to the local region
+		args.Region = n.srv.config.AuthoritativeRegion
+	}
 	if done, err := n.srv.forward("NodePool.UpsertNodePools", args, args, reply); done {
 		return err
 	}
@@ -231,7 +235,11 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 // deleted.
 func (n *NodePool) DeleteNodePools(args *structs.NodePoolDeleteRequest, reply *structs.GenericResponse) error {
 	authErr := n.srv.Authenticate(n.ctx, args)
-	args.Region = n.srv.config.AuthoritativeRegion
+	if n.srv.config.ACLEnabled || args.Region == "" {
+		// only forward to the authoritative region if ACLs are enabled,
+		// otherwise we silently write to the local region
+		args.Region = n.srv.config.AuthoritativeRegion
+	}
 	if done, err := n.srv.forward("NodePool.DeleteNodePools", args, args, reply); done {
 		return err
 	}
@@ -404,6 +412,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 	}
 	allowNsFunc := aclObj.AllowNsOpFunc(acl.NamespaceCapabilityListJobs)
 	namespace := args.RequestNamespace()
+	sort := state.QueryOptionSort(args.QueryOptions)
 
 	// Setup the blocking query. This largely mirrors the Jobs.List RPC but with
 	// an additional paginator filter for the node pool.
@@ -441,7 +450,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 				if namespace == structs.AllNamespacesSentinel {
 					iter, err = store.JobsByPool(ws, args.Name)
 				} else {
-					iter, err = store.JobsByNamespace(ws, namespace)
+					iter, err = store.JobsByNamespace(ws, namespace, sort)
 					filters = append(filters,
 						paginator.GenericFilter{
 							Allow: func(raw interface{}) (bool, error) {

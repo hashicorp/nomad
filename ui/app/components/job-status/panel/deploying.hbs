@@ -140,11 +140,11 @@
               <span class="represented-allocation legend-example {{health}}">
                 <span class="alloc-health-indicator">
                   {{#if (eq health "healthy")}}
-                    <FlightIcon @name="check" @color="#25ba81" />
+                    <Hds::Icon @name="check" @color="#25ba81" @isInline={{true}} />
                   {{else if (eq health "unhealthy")}}
-                    <FlightIcon @name="x" @color="#c84034" />
+                    <Hds::Icon @name="x" @color="#c84034" @isInline={{true}} />
                   {{else}}
-                    <FlightIcon @name="running" @color="black" class="not-animated" />
+                    <Hds::Icon @name="running" @color="black" class="not-animated" @isInline={{true}} />
                   {{/if}}
                 </span>
               </span>

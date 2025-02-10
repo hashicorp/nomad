@@ -3,7 +3,7 @@
 
 package structs
 
-//go:generate codecgen -c github.com/hashicorp/go-msgpack/codec -st codec -d 102 -t codegen_generated -o structs.generated.go structs.go
+//go:generate codecgen -c github.com/hashicorp/go-msgpack/v2/codec -st codec -d 102 -t codegen_generated -o structs.generated.go structs.go
 
 import (
 	"errors"
@@ -44,6 +44,11 @@ type MonitorRequest struct {
 
 	// LogJSON specifies if log format should be unstructured or json
 	LogJSON bool
+
+	// LogIncludeLocation dictates whether the logger includes file and line
+	// information on each log line. This is useful for Nomad development and
+	// debugging.
+	LogIncludeLocation bool
 
 	// NodeID is the node we want to track the logs of
 	NodeID string
@@ -170,6 +175,9 @@ type StreamErrWrapper struct {
 
 // AllocExecRequest is the initial request for execing into an Alloc task
 type AllocExecRequest struct {
+	// JobID is the ID of the job requested
+	JobID string
+
 	// AllocID is the allocation to stream logs from
 	AllocID string
 
@@ -181,6 +189,9 @@ type AllocExecRequest struct {
 
 	// Cmd is the command to be executed
 	Cmd []string
+
+	// The name of a predefined command to be executed (optional)
+	Action string
 
 	structs.QueryOptions
 }

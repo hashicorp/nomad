@@ -25,7 +25,7 @@ class MockAbortController {
 export default class TaskLog extends Component {
   @service token;
   @service userSettings;
-
+  @service can;
   allocation = null;
   task = null;
 
@@ -34,6 +34,7 @@ export default class TaskLog extends Component {
 
   // When true, logs cannot be fetched from either the client or the server
   noConnection = false;
+  logsDisabled = false;
 
   clientTimeout = 1000;
   serverTimeout = 5000;
@@ -49,11 +50,13 @@ export default class TaskLog extends Component {
 
   @computed('allocation.{id,node.httpAddr}', 'useServer')
   get logUrl() {
-    const address = this.get('allocation.node.httpAddr');
+    let address;
     const allocation = this.get('allocation.id');
-
+    if (this.can.can('read client')) {
+      address = this.get('allocation.node.httpAddr');
+    }
     const url = `/v1/client/fs/logs/${allocation}`;
-    return this.useServer ? url : `//${address}${url}`;
+    return this.useServer ? url : address ? `//${address}${url}` : url;
   }
 
   @computed('task', 'mode')
@@ -82,6 +85,11 @@ export default class TaskLog extends Component {
         timeout(timing),
       ]).then(
         (response) => {
+          // whenever the log files 404, it is due to log collection
+          // being disabled.
+          if (response.status === 404) {
+            this.set('logsDisabled', true);
+          }
           return response;
         },
         (error) => {

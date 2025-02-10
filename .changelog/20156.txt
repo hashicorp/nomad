@@ -1,0 +1,3 @@
+```release-note:improvement
+autopilot: Added `operator autopilot health` command to review Autopilot health data
+```

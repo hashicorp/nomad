@@ -59,6 +59,7 @@ func TestPrevAlloc_StreamAllocDir_TLS(t *testing.T) {
 			KeyFile:              clientKeyFn,
 		}
 		c.Client.Enabled = true
+		c.Server.Enabled = false
 		c.Client.Servers = []string{server.GetConfig().RPCAddr.String()}
 	}
 	client1 := agent.NewTestAgent(t, "client1", agentConfFunc)

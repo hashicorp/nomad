@@ -851,21 +851,237 @@ func Test_ACLAuthMethodGetRequest(t *testing.T) {
 func TestACLAuthMethodSetHash(t *testing.T) {
 	ci.Parallel(t)
 
-	am := &ACLAuthMethod{
-		Name: "foo",
-		Type: "bad type",
+	testCases := []struct {
+		name                string
+		fistACLAuthMethod   *ACLAuthMethod
+		secondACLAuthMethod *ACLAuthMethod
+		expectedEqual       bool
+	}{
+		{
+			name: "type_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "bad type",
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "good type",
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "oidc_scopes_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					OIDCScopes: []string{"groups"},
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					OIDCScopes: []string{"groups", "roles"},
+				},
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "jwksurl_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					JWKSURL: "some-url",
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					JWKSURL: "some-other-url",
+				},
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "jwkscacert_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					JWKSCACert: "some-ca-cert",
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					JWKSCACert: "some-other-ca-cert",
+				},
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "expiration_leeway_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					ExpirationLeeway: 1 * time.Second,
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					ExpirationLeeway: 60 * time.Second,
+				},
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "not_before_leeway_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					NotBeforeLeeway: 1 * time.Second,
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					NotBeforeLeeway: 60 * time.Second,
+				},
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "clock_skew_leeway_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					ClockSkewLeeway: 1 * time.Second,
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					ClockSkewLeeway: 60 * time.Second,
+				},
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "bound_issuer_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					BoundIssuer: []string{"issuer"},
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					BoundIssuer: []string{"issuer", "other-issuer"},
+				},
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "jtw_validation_pub_keys_change",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					JWTValidationPubKeys: []string{"pubkey"},
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					JWTValidationPubKeys: []string{"pubkey", "other-pubkey"},
+				},
+			},
+			expectedEqual: false,
+		},
+		{
+			name: "full_unchanged",
+			fistACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					JWTValidationPubKeys: []string{"some-jwt-validation-pubkey"},
+					JWKSURL:              "some-jks-url",
+					OIDCDiscoveryURL:     "some-oidc-discovery-url",
+					OIDCClientID:         "some-oidc-client-id",
+					OIDCClientSecret:     "some-oidc-client-secret",
+					BoundAudiences:       []string{"audience1", "audience2"},
+					AllowedRedirectURIs:  []string{"foo", "bar"},
+					DiscoveryCaPem:       []string{"foo"},
+					SigningAlgs:          []string{"bar"},
+					OIDCScopes:           []string{"some-oidc-scope"},
+					BoundIssuer:          []string{"some-bound-issuer"},
+					JWKSCACert:           "some-jks-ca-cert",
+					ExpirationLeeway:     5 * time.Second,
+					NotBeforeLeeway:      5 * time.Second,
+					ClockSkewLeeway:      5 * time.Second,
+					ClaimMappings:        map[string]string{"foo": "bar"},
+					ListClaimMappings:    map[string]string{"foo": "bar"},
+				},
+			},
+			secondACLAuthMethod: &ACLAuthMethod{
+				Name: "foo",
+				Type: "type",
+				Config: &ACLAuthMethodConfig{
+					JWTValidationPubKeys: []string{"some-jwt-validation-pubkey"},
+					JWKSURL:              "some-jks-url",
+					OIDCDiscoveryURL:     "some-oidc-discovery-url",
+					OIDCClientID:         "some-oidc-client-id",
+					OIDCClientSecret:     "some-oidc-client-secret",
+					BoundAudiences:       []string{"audience1", "audience2"},
+					AllowedRedirectURIs:  []string{"foo", "bar"},
+					DiscoveryCaPem:       []string{"foo"},
+					SigningAlgs:          []string{"bar"},
+					OIDCScopes:           []string{"some-oidc-scope"},
+					BoundIssuer:          []string{"some-bound-issuer"},
+					JWKSCACert:           "some-jks-ca-cert",
+					ExpirationLeeway:     5 * time.Second,
+					NotBeforeLeeway:      5 * time.Second,
+					ClockSkewLeeway:      5 * time.Second,
+					ClaimMappings:        map[string]string{"foo": "bar"},
+					ListClaimMappings:    map[string]string{"foo": "bar"},
+				},
+			},
+			expectedEqual: true,
+		},
 	}
-	out1 := am.SetHash()
-	must.NotNil(t, out1)
-	must.NotNil(t, am.Hash)
-	must.Eq(t, out1, am.Hash)
 
-	am.Type = "good type"
-	out2 := am.SetHash()
-	must.NotNil(t, out2)
-	must.NotNil(t, am.Hash)
-	must.Eq(t, out2, am.Hash)
-	must.NotEq(t, out1, out2)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			must.NotNil(t, tc.fistACLAuthMethod.SetHash())
+			must.NotNil(t, tc.fistACLAuthMethod.Hash)
+
+			hash2 := tc.secondACLAuthMethod.SetHash()
+			must.NotNil(t, hash2)
+			must.NotNil(t, tc.secondACLAuthMethod.Hash)
+			must.Eq(t, hash2, tc.secondACLAuthMethod.Hash)
+
+			if tc.expectedEqual {
+				must.Eq(t, tc.fistACLAuthMethod.Hash, tc.secondACLAuthMethod.Hash)
+			} else {
+				must.NotEq(t, tc.fistACLAuthMethod.Hash, tc.secondACLAuthMethod.Hash)
+			}
+		})
+	}
 }
 
 func TestACLAuthMethod_Stub(t *testing.T) {
@@ -882,6 +1098,7 @@ func TestACLAuthMethod_Stub(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
 			DiscoveryCaPem:      []string{"foo"},
@@ -922,6 +1139,7 @@ func TestACLAuthMethod_Equal(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
 			DiscoveryCaPem:      []string{"foo"},
@@ -974,6 +1192,7 @@ func TestACLAuthMethod_Copy(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
 			DiscoveryCaPem:      []string{"foo"},
@@ -1051,19 +1270,22 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 
 	maxTokenTTL, _ := time.ParseDuration("3600s")
 	am1 := &ACLAuthMethod{
-		Name:          name,
-		TokenLocality: "global",
+		Name:            name,
+		TokenLocality:   "global",
+		TokenNameFormat: "${auth_method_name}-${value.sub}",
 	}
 	am2 := &ACLAuthMethod{
-		Name:          name,
-		Type:          "OIDC",
-		TokenLocality: "locality",
-		MaxTokenTTL:   maxTokenTTL,
-		Default:       true,
+		Name:            name,
+		Type:            "OIDC",
+		TokenLocality:   "locality",
+		TokenNameFormat: "format",
+		MaxTokenTTL:     maxTokenTTL,
+		Default:         true,
 		Config: &ACLAuthMethodConfig{
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
 			DiscoveryCaPem:      []string{"foo"},
@@ -1078,6 +1300,7 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 
 	am1.Merge(am2)
 	must.Eq(t, am1.TokenLocality, "global")
+	must.Eq(t, am1.TokenNameFormat, "${auth_method_name}-${value.sub}")
 	minTTL, _ := time.ParseDuration("10s")
 	maxTTL, _ := time.ParseDuration("10h")
 	must.NoError(t, am1.Validate(minTTL, maxTTL))
@@ -1090,6 +1313,7 @@ func TestACLAuthMethodConfig_Copy(t *testing.T) {
 		OIDCDiscoveryURL:    "http://example.com",
 		OIDCClientID:        "mock",
 		OIDCClientSecret:    "very secret secret",
+		OIDCDisableUserInfo: false,
 		OIDCScopes:          []string{"groups"},
 		BoundAudiences:      []string{"audience1", "audience2"},
 		AllowedRedirectURIs: []string{"foo", "bar"},
@@ -1118,6 +1342,10 @@ func TestACLAuthMethod_Canonicalize(t *testing.T) {
 			&ACLAuthMethod{},
 		},
 		{
+			"no create time or modify time set & token name format set",
+			&ACLAuthMethod{TokenNameFormat: "${auth_method_name}-${value.sub}"},
+		},
+		{
 			"create time set to now, modify time not set",
 			&ACLAuthMethod{CreateTime: now},
 		},
@@ -1137,6 +1365,11 @@ func TestACLAuthMethod_Canonicalize(t *testing.T) {
 			}
 			if existing.ModifyTime.IsZero() {
 				must.NotEq(t, time.Time{}, tt.inputMethod.ModifyTime)
+			}
+			if existing.TokenNameFormat == "" {
+				must.Eq(t, DefaultACLAuthMethodTokenNameFormat, tt.inputMethod.TokenNameFormat)
+			} else {
+				must.Eq(t, existing.TokenNameFormat, tt.inputMethod.TokenNameFormat)
 			}
 		})
 	}

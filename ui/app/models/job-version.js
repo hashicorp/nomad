@@ -4,6 +4,7 @@
  */
 
 import Model from '@ember-data/model';
+import { fragment } from 'ember-data-model-fragments/attributes';
 import { attr, belongsTo } from '@ember-data/model';
 
 export default class JobVersion extends Model {
@@ -12,6 +13,7 @@ export default class JobVersion extends Model {
   @attr('date') submitTime;
   @attr('number') number;
   @attr() diff;
+  @fragment('version-tag') versionTag;
 
   revertTo() {
     return this.store.adapterFor('job-version').revertTo(this);

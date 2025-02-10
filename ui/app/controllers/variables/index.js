@@ -15,11 +15,6 @@ export default class VariablesIndexController extends Controller {
 
   isForbidden = false;
 
-  @action
-  goToVariable(variable) {
-    this.router.transitionTo('variables.variable', variable.path);
-  }
-
   @action goToNewVariable() {
     this.router.transitionTo('variables.new');
   }

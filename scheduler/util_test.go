@@ -547,6 +547,42 @@ func TestTasksUpdated(t *testing.T) {
 	// Compare changed Template ErrMissingKey
 	j30.TaskGroups[0].Tasks[0].Templates[0].ErrMissingKey = true
 	must.True(t, tasksUpdated(j29, j30, name).modified)
+
+	// Compare identical volume mounts
+	j31 := mock.Job()
+	j32 := j31.Copy()
+
+	must.False(t, tasksUpdated(j31, j32, name).modified)
+
+	// Modify volume mounts
+	j31.TaskGroups[0].Tasks[0].VolumeMounts = []*structs.VolumeMount{
+		{
+			Volume:       "myvolume",
+			SELinuxLabel: "z",
+		},
+	}
+
+	j32.TaskGroups[0].Tasks[0].VolumeMounts = []*structs.VolumeMount{
+		{
+			Volume:       "myvolume",
+			SELinuxLabel: "",
+		},
+	}
+
+	must.True(t, tasksUpdated(j31, j32, name).modified)
+
+	// Add volume mount
+	j32.TaskGroups[0].Tasks[0].VolumeMounts = append(j32.TaskGroups[0].Tasks[0].VolumeMounts,
+		&structs.VolumeMount{
+			Volume:       "myvolume2",
+			SELinuxLabel: "Z",
+		})
+
+	// Remove volume mount
+	j32 = j31.Copy()
+	j32.TaskGroups[0].Tasks[0].VolumeMounts = nil
+
+	must.True(t, tasksUpdated(j31, j32, name).modified)
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {
@@ -914,7 +950,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	// Create a new task group that requires too much resources.
 	tg := &structs.TaskGroup{}
 	*tg = *job.TaskGroups[0]
-	resource := &structs.Resources{CPU: 9999}
+	resource := &structs.Resources{CPU: 99999}
 	tg.Tasks[0].Resources = resource
 
 	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
@@ -1186,6 +1222,25 @@ func TestTasksUpdated_Identity(t *testing.T) {
 
 	// Set identity on j1 and assert update
 	j1.TaskGroups[0].Tasks[0].Identity = &structs.WorkloadIdentity{}
+
+	must.True(t, tasksUpdated(j1, j2, name).modified)
+}
+
+func TestTasksUpdated_NUMA(t *testing.T) {
+	ci.Parallel(t)
+
+	j1 := mock.Job()
+	name := j1.TaskGroups[0].Name
+
+	j1.TaskGroups[0].Tasks[0].Resources.NUMA = &structs.NUMA{
+		Affinity: "none",
+	}
+
+	j2 := j1.Copy()
+
+	must.False(t, tasksUpdated(j1, j2, name).modified)
+
+	j2.TaskGroups[0].Tasks[0].Resources.NUMA.Affinity = "require"
 
 	must.True(t, tasksUpdated(j1, j2, name).modified)
 }

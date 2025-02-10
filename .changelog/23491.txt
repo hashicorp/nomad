@@ -1,0 +1,3 @@
+```release-note:bug
+vault: Fixed a bug where requests to derive or renew tokens could be sent to the wrong namespace
+```

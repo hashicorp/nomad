@@ -27,7 +27,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/syndtr/gocapability/capability"
+	"github.com/moby/sys/capability"
 )
 
 const (
@@ -125,14 +125,13 @@ type ExecCommand struct {
 	// TaskDir is the directory path on the host where for the task
 	TaskDir string
 
+	// WorkDir is the working directory of the task inside of a chroot
+	// which defaults to the chroot directory (TaskDir) itself
+	WorkDir string
+
 	// ResourceLimits determines whether resource limits are enforced by the
 	// executor.
 	ResourceLimits bool
-
-	// Cgroup marks whether we put the process in a cgroup. Setting this field
-	// doesn't enforce resource limits. To enforce limits, set ResourceLimits.
-	// Using the cgroup does allow more precise cleanup of processes.
-	BasicProcessCgroup bool
 
 	// NoPivotRoot disables using pivot_root for isolation, useful when the root
 	// partition is on a ramdisk which does not support pivot_root,
@@ -142,7 +141,7 @@ type ExecCommand struct {
 	// Mounts are the host paths to be be made available inside rootfs
 	Mounts []*drivers.MountConfig
 
-	// Devices are the the device nodes to be created in isolation environment
+	// Devices are the device nodes to be created in isolation environment
 	Devices []*drivers.DeviceConfig
 
 	// NetworkIsolation is the network isolation configuration.
@@ -156,6 +155,39 @@ type ExecCommand struct {
 
 	// Capabilities are the linux capabilities to be enabled by the task driver.
 	Capabilities []string
+
+	// OverrideCgroupV2 allows overriding the unified cgroup the task will be
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV2 string
+
+	// OverrideCgroupV1 allows overriding per-controller cgroups the task will
+	// become a member of.
+	//
+	// * All resource isolation guarantees are lost FOR ALL TASKS if set *
+	OverrideCgroupV1 map[string]string
+
+	// OOMScoreAdj allows setting oom_score_adj (likelihood of process being
+	// OOM killed) on Linux systems
+	OOMScoreAdj int32
+}
+
+func (c *ExecCommand) getCgroupOr(controller, fallback string) string {
+	switch cgroupslib.GetMode() {
+	case cgroupslib.OFF:
+		return ""
+	case cgroupslib.CG2:
+		if c.OverrideCgroupV2 != "" {
+			return c.OverrideCgroupV2
+		}
+	case cgroupslib.CG1:
+		path, exists := c.OverrideCgroupV1[controller]
+		if exists {
+			return cgroupslib.CustomPathCG1(controller, path)
+		}
+	}
+	return fallback
 }
 
 // CpusetCgroup returns the path to the cgroup in which the Nomad client will
@@ -171,7 +203,10 @@ func (c *ExecCommand) CpusetCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
-	return c.Resources.LinuxResources.CpusetCgroupPath
+
+	// lookup the custom cgroup (cpuset controller on cgroups v1) or use the
+	// predetermined fallback
+	return c.getCgroupOr("cpuset", c.Resources.LinuxResources.CpusetCgroupPath)
 }
 
 // StatsCgroup returns the path to the cgroup Nomad client will use to inspect
@@ -186,14 +221,19 @@ func (c *ExecCommand) StatsCgroup() string {
 	if c == nil || c.Resources == nil || c.Resources.LinuxResources == nil {
 		return ""
 	}
-	switch cgroupslib.GetMode() {
-	case cgroupslib.CG1:
+
+	// figure out the freezer cgroup path nomad created for use as fallback
+	// (in cgroups v2 its just the unified cgroup)
+	fallback := c.Resources.LinuxResources.CpusetCgroupPath
+	if cgroupslib.GetMode() == cgroupslib.CG1 {
 		taskName := filepath.Base(c.TaskDir)
 		allocID := filepath.Base(filepath.Dir(c.TaskDir))
-		return cgroupslib.PathCG1(allocID, taskName, "freezer")
-	default:
-		return c.CpusetCgroup()
+		fallback = cgroupslib.PathCG1(allocID, taskName, "freezer")
 	}
+
+	// lookup the custom cgroup (pids controller on cgroups v1) or use
+	// the predetermined fallback
+	return c.getCgroupOr("pids", fallback)
 }
 
 // SetWriters sets the writer for the process stdout and stderr. This should
@@ -259,10 +299,11 @@ func (c *ExecCommand) Close() {
 
 // ProcessState holds information about the state of a user process.
 type ProcessState struct {
-	Pid      int
-	ExitCode int
-	Signal   int
-	Time     time.Time
+	Pid       int
+	ExitCode  int
+	Signal    int
+	OOMKilled bool
+	Time      time.Time
 }
 
 // ExecutorVersion is the version of the executor
@@ -326,7 +367,11 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// set the task dir as the working directory for the command
-	e.childCmd.Dir = e.command.TaskDir
+	if e.command.WorkDir != "" {
+		e.childCmd.Dir = e.command.WorkDir
+	} else {
+		e.childCmd.Dir = e.command.TaskDir
+	}
 
 	// start command in separate process group
 	if err := e.setNewProcessGroup(); err != nil {
@@ -334,9 +379,14 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	}
 
 	// setup containment (i.e. cgroups on linux)
-	if cleanup, err := e.configureResourceContainer(command, os.Getpid()); err != nil {
-		// keep going; some folks run nomad as non-root and expect this driver to still work
-		e.logger.Warn("failed to configure container, process isolation will not work", "error", err)
+	running, cleanup, err := e.configureResourceContainer(command, os.Getpid())
+	if err != nil {
+		e.logger.Error("failed to configure container, process isolation will not work", "error", err)
+		if os.Geteuid() == 0 || e.usesCustomCgroup() {
+			return nil, fmt.Errorf("unable to configure cgroups: %w", err)
+		}
+		// keep going if we are not root; some folks run nomad as non-root and
+		// expect this driver to still work
 	} else {
 		defer cleanup()
 	}
@@ -375,6 +425,12 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 		return nil, fmt.Errorf("failed to start command path=%q --- args=%q: %v", path, e.childCmd.Args, err)
 	}
 
+	// Run the runningFunc hook after the process starts
+	if err := running(); err != nil {
+		return nil, err
+	}
+
+	// Wait on the task process
 	go e.wait()
 	return &ProcessState{Pid: e.childCmd.Process.Pid, ExitCode: -1, Time: time.Now()}, nil
 }
@@ -441,7 +497,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 
-	cmd.Dir = "/"
+	cmd.Dir = e.childCmd.Dir
 	cmd.Env = e.childCmd.Env
 
 	execHelper := &execHelper{
@@ -671,6 +727,11 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 	}
 }
 
+// usesCustomCgroup whether cgroup_v1_override or cgroup_v2_override is set
+func (e *UniversalExecutor) usesCustomCgroup() bool {
+	return len(e.command.OverrideCgroupV1) > 0 || e.command.OverrideCgroupV2 != ""
+}
+
 // lookupBin looks for path to the binary to run by looking for the binary in
 // the following locations, in-order:
 // task/local/, task/, on the host file system, in host $PATH
@@ -732,15 +793,8 @@ func makeExecutable(binPath string) error {
 // SupportedCaps returns a list of all supported capabilities in kernel.
 func SupportedCaps(allowNetRaw bool) []string {
 	var allCaps []string
-	last := capability.CAP_LAST_CAP
-	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
-	}
-	for _, cap := range capability.List() {
-		if cap > last {
-			continue
-		}
+	list, _ := capability.ListSupported()
+	for _, cap := range list {
 		if !allowNetRaw && cap == capability.CAP_NET_RAW {
 			continue
 		}

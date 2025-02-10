@@ -6,7 +6,7 @@ package client
 import (
 	"time"
 
-	metrics "github.com/armon/go-metrics"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/client/structs"
 	nstructs "github.com/hashicorp/nomad/nomad/structs"
 )
@@ -23,7 +23,7 @@ func (s *ClientStats) Stats(args *nstructs.NodeSpecificRequest, reply *structs.C
 	// Check node read permissions
 	if aclObj, err := s.c.ResolveToken(args.AuthToken); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.AllowNodeRead() {
+	} else if !aclObj.AllowNodeRead() {
 		return nstructs.ErrPermissionDenied
 	}
 

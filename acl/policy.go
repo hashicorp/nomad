@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
@@ -46,6 +47,11 @@ const (
 	NamespaceCapabilityCSIReadVolume        = "csi-read-volume"
 	NamespaceCapabilityCSIListVolume        = "csi-list-volume"
 	NamespaceCapabilityCSIMountVolume       = "csi-mount-volume"
+	NamespaceCapabilityHostVolumeCreate     = "host-volume-create"
+	NamespaceCapabilityHostVolumeRegister   = "host-volume-register"
+	NamespaceCapabilityHostVolumeRead       = "host-volume-read"
+	NamespaceCapabilityHostVolumeWrite      = "host-volume-write"
+	NamespaceCapabilityHostVolumeDelete     = "host-volume-delete"
 	NamespaceCapabilityListScalingPolicies  = "list-scaling-policies"
 	NamespaceCapabilityReadScalingPolicy    = "read-scaling-policy"
 	NamespaceCapabilityReadJobScaling       = "read-job-scaling"
@@ -191,7 +197,7 @@ func isPolicyValid(policy string) bool {
 
 func (p *PluginPolicy) isValid() bool {
 	switch p.Policy {
-	case PolicyDeny, PolicyRead, PolicyList:
+	case PolicyDeny, PolicyRead, PolicyList, PolicyWrite:
 		return true
 	default:
 		return false
@@ -206,7 +212,7 @@ func isNamespaceCapabilityValid(cap string) bool {
 		NamespaceCapabilityReadFS, NamespaceCapabilityAllocLifecycle,
 		NamespaceCapabilityAllocExec, NamespaceCapabilityAllocNodeExec,
 		NamespaceCapabilityCSIReadVolume, NamespaceCapabilityCSIWriteVolume, NamespaceCapabilityCSIListVolume, NamespaceCapabilityCSIMountVolume, NamespaceCapabilityCSIRegisterPlugin,
-		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy, NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob:
+		NamespaceCapabilityListScalingPolicies, NamespaceCapabilityReadScalingPolicy, NamespaceCapabilityReadJobScaling, NamespaceCapabilityScaleJob, NamespaceCapabilityHostVolumeCreate, NamespaceCapabilityHostVolumeRegister, NamespaceCapabilityHostVolumeWrite, NamespaceCapabilityHostVolumeRead:
 		return true
 	// Separate the enterprise-only capabilities
 	case NamespaceCapabilitySentinelOverride, NamespaceCapabilitySubmitRecommendation:
@@ -240,6 +246,7 @@ func expandNamespacePolicy(policy string) []string {
 		NamespaceCapabilityReadJobScaling,
 		NamespaceCapabilityListScalingPolicies,
 		NamespaceCapabilityReadScalingPolicy,
+		NamespaceCapabilityHostVolumeRead,
 	}
 
 	write := make([]string, len(read))
@@ -256,6 +263,7 @@ func expandNamespacePolicy(policy string) []string {
 		NamespaceCapabilityCSIMountVolume,
 		NamespaceCapabilityCSIWriteVolume,
 		NamespaceCapabilitySubmitRecommendation,
+		NamespaceCapabilityHostVolumeCreate,
 	}...)
 
 	switch policy {
@@ -275,6 +283,32 @@ func expandNamespacePolicy(policy string) []string {
 	default:
 		return nil
 	}
+}
+
+// expandNamespaceCapabilities adds extra capabilities implied by fine-grained
+// capabilities.
+func expandNamespaceCapabilities(ns *NamespacePolicy) {
+	extraCaps := []string{}
+	for _, cap := range ns.Capabilities {
+		switch cap {
+		case NamespaceCapabilityHostVolumeWrite:
+			extraCaps = append(extraCaps,
+				NamespaceCapabilityHostVolumeRegister,
+				NamespaceCapabilityHostVolumeCreate,
+				NamespaceCapabilityHostVolumeDelete,
+				NamespaceCapabilityHostVolumeRead)
+		case NamespaceCapabilityHostVolumeRegister:
+			extraCaps = append(extraCaps,
+				NamespaceCapabilityHostVolumeCreate,
+				NamespaceCapabilityHostVolumeRead)
+		case NamespaceCapabilityHostVolumeCreate:
+			extraCaps = append(extraCaps, NamespaceCapabilityHostVolumeRead)
+		}
+	}
+
+	// These may end up being duplicated, but they'll get deduplicated in NewACL
+	// when inserted into the radix tree.
+	ns.Capabilities = append(ns.Capabilities, extraCaps...)
 }
 
 func isNodePoolCapabilityValid(cap string) bool {
@@ -387,6 +421,9 @@ func Parse(rules string) (*Policy, error) {
 			ns.Capabilities = append(ns.Capabilities, extraCap...)
 		}
 
+		// Expand implicit capabilities
+		expandNamespaceCapabilities(ns)
+
 		if ns.Variables != nil {
 			if len(ns.Variables.Paths) == 0 {
 				return nil, fmt.Errorf("Invalid variable policy: no variable paths in namespace %s", ns.Name)
@@ -394,6 +431,11 @@ func Parse(rules string) (*Policy, error) {
 			for _, pathPolicy := range ns.Variables.Paths {
 				if pathPolicy.PathSpec == "" {
 					return nil, fmt.Errorf("Invalid missing variable path in namespace %s", ns.Name)
+				}
+				if strings.HasPrefix(pathPolicy.PathSpec, "/") {
+					return nil, fmt.Errorf(
+						"Invalid variable path %q in namespace %s: cannot start with a leading '/'`",
+						pathPolicy.PathSpec, ns.Name)
 				}
 				for _, cap := range pathPolicy.Capabilities {
 					if !isPathCapabilityValid(cap) {

@@ -180,13 +180,14 @@
           >
             Eligible
           </Toggle>
-          <span
-            class="tooltip"
-            aria-label="Only eligible clients can receive allocations"
-          >
-            {{x-icon "info-circle-outline" class="is-faded"}}
-          </span>
         </label>
+        <Hds::TooltipButton
+          @text="Only eligible clients can receive allocations"
+          aria-label="More information"
+          class="is-faded"
+        >
+          <Hds::Icon @name="info" @isInline={{true}} />
+        </Hds::TooltipButton>
         <span
           data-test-node-id
           class="tag is-hollow is-small no-text-transform"
@@ -434,12 +435,14 @@
   <div class="boxed-section">
     <div class="boxed-section-head is-hollow">
       Host Resource Utilization
-      <span
-        class="tooltip multiline pad-left"
-        aria-label="All allocation and system processes aggregated"
+      <Hds::TooltipButton
+        @text="All allocation and system processes aggregated"
+        aria-label="More information"
+        class="is-faded"
       >
-        {{x-icon "info-circle-outline" class="is-faded"}}
-      </span>
+        <Hds::Icon @name="info" @isInline={{true}} />
+      </Hds::TooltipButton>
+
     </div>
     <div class="boxed-section-body">
       <div class="columns">
@@ -536,7 +539,7 @@
             @class="with-foot {{if this.showSubTasks "with-collapsed-borders"}}" as |t|
           >
             <t.head>
-              <th class="is-narrow"></th>
+              <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
               <t.sort-by @prop="shortId">
                 ID
               </t.sort-by>
@@ -564,6 +567,7 @@
               <th>
                 Memory
               </th>
+              <th>Actions</th>
             </t.head>
             <t.body as |row|>
               <AllocationRow
@@ -578,7 +582,7 @@
               />
               {{#if this.showSubTasks}}
                 {{#each row.model.states as |task|}}
-                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} />
+                  <TaskSubRow @namespan="8" @taskState={{task}} @active={{eq this.activeTask (concat task.allocation.id "-" task.name)}} @onSetActiveTask={{action 'setActiveTaskQueryParam'}} @jobHasActions={{true}} />
                 {{/each}}
               {{/if}}
             </t.body>
@@ -789,7 +793,7 @@
               {{capitalize a.item.name}}
               Attributes
             </div>
-            {{#if a.item.attributes.structured}}
+            {{#if a.item.attributesShort}}
               <div class="boxed-section-body is-full-bleed">
                 <AttributesTable
                   @attributePairs={{a.item.attributesShort}}
@@ -817,7 +821,7 @@
     <div class="boxed-section-body is-full-bleed">
       <AttributesTable
         data-test-attributes
-        @attributePairs={{this.model.attributes.structured}}
+        @attributePairs={{this.model.attributes.structured.root}}
         @class="attributes-table"
         @copyable={{true}}
       />
@@ -831,7 +835,7 @@
       <div class="boxed-section-body is-full-bleed">
         <AttributesTable
           data-test-meta
-          @attributePairs={{this.model.meta.structured}}
+          @attributePairs={{this.model.meta.structured.root}}
           @editable={{can "write client"}}
           @onKVSave={{this.addDynamicMetaData}}
           @onKVEdit={{this.validateMetadata}}

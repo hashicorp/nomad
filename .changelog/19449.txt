@@ -1,0 +1,3 @@
+```release-note:bug
+consul (Enterprise): Fixed a bug where implicit Consul constraints were not specific to non-default Consul clusters
+```

@@ -1,17 +1,17 @@
 ---
 layout: docs
-page_title: acl Block - Agent Configuration
+page_title: acl Block in Agent Configuration
 description: >-
-  The "acl" block configures the Nomad agent to enable ACLs and tune various
-  parameters.
+   Configure Nomad's Access Control List (ACL) system behavior in the `acl` block of a Nomad agent configuration. Enable ACL enforcement, change token replication and expiration values, and tune the cache for token, role, and policy TTLs.
 ---
 
-# `acl` Block
+# acl Block in Agent Configuration
 
 <Placement groups={['acl']} />
 
-The `acl` block configures the Nomad agent to enable ACLs and tunes various
-ACL parameters. Learn more about configuring Nomad's ACL system in the [Secure
+This page provides reference information for configuring Nomad's Access Control List (ACL) system behavior in the `acl` block of a Nomad agent configuration.  Enable ACL enforcement, change token replication and expiration values, and tune the cache for token, role, and policy TTLs.
+
+Learn more about configuring Nomad's ACL system in the [Secure
 Nomad with Access Control guide][secure-guide].
 
 ```hcl
@@ -51,16 +51,21 @@ acl {
   because of an outage, the TTL will be ignored and the cached value used.
 
 - `replication_token` `(string: "")` - Specifies the Secret ID of the ACL token
-  to use for replicating policies and tokens. This is used by servers in non-authoritative
-  region to mirror the policies and tokens into the local region from [authoritative_region][authoritative-region].
+  to use for replicating policies and tokens. This is used by servers in
+  non-authoritative region to mirror the policies and tokens into the local
+  region from the [`authoritative_region`][authoritative-region]. Setting
+  `replication_token` requires that ACLs have been bootstrapped in the
+  authoritative region. Refer to [Configure for multiple regions][] in the ACLs
+  tutorial.
 
 - `token_min_expiration_ttl` `(string: "1m")` - Specifies the lowest acceptable
   TTL value for an ACL token when setting expiration. This is used by the Nomad
-  servers to validate ACL tokens.
+  servers to validate ACL tokens and ACL authentication methods.
 
 - `token_max_expiration_ttl` `(string: "24h")` - Specifies the highest acceptable
   TTL value for an ACL token when setting expiration. This is used by the Nomad
-  servers to validate ACL tokens.
+  servers to validate ACL tokens and ACL authentication methods.
 
 [secure-guide]: /nomad/tutorials/access-control
 [authoritative-region]: /nomad/docs/configuration/server#authoritative_region
+[Configure for multiple regions]: /nomad/tutorials/access-control/access-control-bootstrap#configure-for-multiple-regions

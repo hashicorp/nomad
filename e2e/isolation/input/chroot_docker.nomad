@@ -17,12 +17,12 @@ job "chroot_docker" {
         args = [
           "/bin/sh",
           "-c",
-          "echo $NOMAD_ALLOC_DIR; echo $NOMAD_TASK_DIR; echo $NOMAD_SECRETS_DIR; echo $PATH"
+          "echo $NOMAD_ALLOC_DIR; echo $NOMAD_TASK_DIR; echo $NOMAD_SECRETS_DIR; echo $PATH; sleep 2"
         ]
       }
       resources {
-        cpu    = 50
-        memory = 50
+        cpu    = 200
+        memory = 128
       }
     }
   }

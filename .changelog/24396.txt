@@ -1,0 +1,3 @@
+```release-note:security
+csi: Fixed a bug where a user with csi-write-volume permissions to one namespace can create volumes in another namespace (CVE-2024-10975)
+```

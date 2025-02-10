@@ -10,8 +10,6 @@ import Modifier from 'ember-modifier';
 
 import 'codemirror/addon/edit/matchbrackets';
 import 'codemirror/addon/selection/active-line';
-import 'codemirror/addon/lint/lint.js';
-import 'codemirror/addon/lint/json-lint.js';
 import 'codemirror/mode/javascript/javascript';
 import 'codemirror/mode/ruby/ruby';
 
@@ -25,8 +23,17 @@ export default class CodeMirrorModifier extends Modifier {
     }
   }
 
-  didInstall() {
-    this._setup();
+  element = null;
+  args = {};
+
+  modify(element, positional, named) {
+    if (!this.element) {
+      this.element = element;
+      this.args = { positional, named };
+      this._setup();
+    } else {
+      this.didUpdateArguments();
+    }
   }
 
   didUpdateArguments() {
@@ -52,9 +59,8 @@ export default class CodeMirrorModifier extends Modifier {
   _setup() {
     if (this.element) {
       const editor = codemirror(this.element, {
-        gutters: this.args.named.gutters || ['CodeMirror-lint-markers'],
+        gutters: this.args.named.gutters || [],
         matchBrackets: true,
-        lint: { lintOnChange: true },
         showCursorWhenSelecting: true,
         styleActiveLine: true,
         tabSize: 2,

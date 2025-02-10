@@ -5,7 +5,7 @@ package benchmarks
 
 // Test helper functions for running scheduling tests and benchmarks
 // against real world state snapshots or data directories. These live
-// here and not in the the parent scheduler package because it would
+// here and not in the parent scheduler package because it would
 // create circular imports between the scheduler and raftutils package
 // (via the nomad package)
 
@@ -73,7 +73,7 @@ func NewHarnessFromSnapshot(t testing.TB, snapshotPath string) (*scheduler.Harne
 	}
 	defer f.Close()
 
-	state, _, err := raftutil.RestoreFromArchive(f, nil)
+	_, state, _, err := raftutil.RestoreFromArchive(f, nil)
 	if err != nil {
 		return nil, err
 	}

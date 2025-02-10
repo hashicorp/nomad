@@ -1,7 +1,7 @@
 ---
 layout: docs
 page_title: 'Drivers: Exec'
-description: The Exec task driver is used to run binaries using OS isolation primitives.
+description: The Exec task driver runs binaries using OS isolation primitives.
 ---
 
 # Isolated Fork/Exec Driver
@@ -65,8 +65,10 @@ be able to access sensitive process information like environment variables.
 able to make use of IPC features, like sending unexpected POSIX signals.
 
 - `cap_add` - (Optional) A list of Linux capabilities to enable for the task.
-  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a subset
-  of the allowed capabilities configured with [`allow_caps`][allow_caps].
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a
+  subset of the allowed capabilities configured with [`allow_caps`][allow_caps].
+  Note that `"all"` is not permitted here if the `allow_caps` field in the
+  driver configuration doesn't also allow all capabilities.
 
 ```hcl
 config {
@@ -84,6 +86,11 @@ config {
   cap_add  = ["chown", "sys_chroot", "mknod"]
 }
 ```
+
+- `work_dir` - (Optional) Sets a custom working directory for the task. This path must be
+  absolute and within the task's [chroot](#chroot) or in a [host volume][] mounted
+  with a [`volume_mount`][volume_mount] block. This will also change the working
+  directory when using `nomad alloc exec`.
 
 ## Examples
 
@@ -186,6 +193,30 @@ able to make use of IPC features, like sending unexpected POSIX signals.
 undesirable consequences, including untrusted tasks being able to compromise the
 host system.
 
+- `denied_host_uids` - (Optional) Specifies a comma-separated list of host uids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user has a user id in
+  the given ranges, the task will error before starting. This will not be checked on Windows
+  clients.
+
+```hcl
+config {
+  denied_host_uids = "0,10-15,22"
+}
+```
+
+- `denied_host_gids` - (Optional) Specifies a comma-separated list of host gids to
+  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
+  If a "user" value is specified in task configuration and that user is part of
+  any groups with gid's in the specified ranges, the task will error before
+  starting. This will not be checked on Windows clients.
+
+```hcl
+config {
+  denied_host_gids = "2,4-8"
+}
+```
+
 ## Client Attributes
 
 The `exec` driver will set the following client attributes:
@@ -220,10 +251,16 @@ hugetlb 1
 pids 1
 ```
 
+Nomad can only use cgroups to control resources if all the required controllers
+are available. If one or more required cgroups are unavailable, Nomad will
+disable resource controls that require cgroups entirely. See the documentation
+on [cgroup controller requirements][] for more details.
+
 ### Chroot
 
-The chroot is populated with data in the following directories from the host
-machine:
+Chroot changes the root directory of the current process and all its child processes. Nomad uses a chroot environment to implement file system isolation.
+
+Nomad populates the chroot environment with data in the following host machine directories:
 
 ```
 [
@@ -238,13 +275,13 @@ machine:
 ]
 ```
 
-The task's chroot is populated by linking or copying the data from the host into
-the chroot. Note that this can take considerable disk space. Since Nomad v0.5.3,
-the client manages garbage collection locally which mitigates any issue this may
-create.
+Nomad populates the task's chroot environment by linking or copying the data from the host into the chroot. Note that this can take considerable disk space.
+The client manages garbage collection locally, which mitigates any issue this may create.
 
-This list is configurable through the agent client
-[configuration file](/nomad/docs/configuration/client#chroot_env).
+@include 'chroot-limitations.mdx'
+
+Configure the chroot environment list through the agent client's
+[`chroot_env` attribute](/nomad/docs/configuration/client#chroot_env).
 
 ### CPU
 
@@ -272,3 +309,4 @@ is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
 [volume_mount]: /nomad/docs/job-specification/volume_mount
 [cores]: /nomad/docs/job-specification/resources#cores
 [runtime_env]: /nomad/docs/runtime/environment#job-related-variables
+[cgroup controller requirements]: /nomad/docs/install/production/requirements#hardening-nomad

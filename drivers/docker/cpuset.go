@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -49,8 +50,17 @@ func (c *cpuset) watch() {
 	}
 }
 
+func effectiveCpusetFile() string {
+	switch cgroupslib.GetMode() {
+	case cgroupslib.CG1:
+		return "cpuset.effective_cpus"
+	default:
+		return "cpuset.cpus.effective"
+	}
+}
+
 func (c *cpuset) copyCpuset(source, destination string) {
-	source = filepath.Join(source, "cpuset.cpus.effective")
+	source = filepath.Join(source, effectiveCpusetFile())
 	destination = filepath.Join(destination, "cpuset.cpus")
 
 	// read the current value of usable cores
@@ -67,7 +77,7 @@ func (c *cpuset) copyCpuset(source, destination string) {
 	}
 
 	// otherwise write the new value
-	err = os.WriteFile(destination, b, 0644)
+	err = os.WriteFile(destination, b, 0o644)
 	if err != nil {
 		return
 	}

@@ -160,6 +160,7 @@ func (f *EnvGCEFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 		"cpu-platform":                   false,
 		"scheduling/automatic-restart":   false,
 		"scheduling/on-host-maintenance": false,
+		"scheduling/preemptible":         false,
 	}
 
 	for k, unique := range keys {
@@ -280,7 +281,7 @@ func (f *EnvGCEFingerprint) isGCE() bool {
 	// Query the metadata url for the machine type, to verify we're on GCE
 	machineType, err := f.Get("machine-type", false)
 	if err != nil {
-		if re, ok := err.(ReqError); !ok || re.StatusCode != 404 {
+		if re, ok := err.(ReqError); !ok || re.StatusCode != http.StatusNotFound {
 			// If it wasn't a 404 error, print an error message.
 			f.logger.Debug("error querying GCE Metadata URL, skipping")
 		}

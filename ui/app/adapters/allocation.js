@@ -41,6 +41,29 @@ export default class AllocationAdapter extends Watchable {
       .then(handleFSResponse);
   }
 
+  // note: TaskName vs Task as key for PUT data differs from restart above
+  forcePause(allocation, taskName) {
+    const prefix = `${this.host || '/'}${this.urlPrefix()}`;
+    const url = `${prefix}/client/allocation/${allocation.id}/pause`;
+    return this.ajax(url, 'PUT', {
+      data: taskName && { Task: taskName, ScheduleState: 'pause' },
+    });
+  }
+  forceRun(allocation, taskName) {
+    const prefix = `${this.host || '/'}${this.urlPrefix()}`;
+    const url = `${prefix}/client/allocation/${allocation.id}/pause`;
+    return this.ajax(url, 'PUT', {
+      data: taskName && { Task: taskName, ScheduleState: 'run' },
+    });
+  }
+  reEnableSchedule(allocation, taskName) {
+    const prefix = `${this.host || '/'}${this.urlPrefix()}`;
+    const url = `${prefix}/client/allocation/${allocation.id}/pause`;
+    return this.ajax(url, 'PUT', {
+      data: taskName && { Task: taskName, ScheduleState: 'scheduled' },
+    });
+  }
+
   async check(model) {
     const res = await this.token.authorizedRequest(
       `/v1/client/allocation/${model.id}/checks`

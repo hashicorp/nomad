@@ -61,6 +61,9 @@ type VaultConfig struct {
 	// URL such as "http://vault.example.com"
 	Addr string `mapstructure:"address"`
 
+	// JWTAuthBackendPath is the path used to access the JWT auth method.
+	JWTAuthBackendPath string `mapstructure:"jwt_auth_backend_path"`
+
 	// ConnectionRetryIntv is the interval to wait before re-attempting to
 	// connect to Vault.
 	ConnectionRetryIntv time.Duration
@@ -87,15 +90,9 @@ type VaultConfig struct {
 
 	// Servers-only fields.
 
-	// UseIdentity defines if workload identities should be used to derive
-	// Vault tokens.
-	//
-	// It is a transitional field used only during the adoption period of
-	// workload identities and will be ignored and removed in future versions.
-	UseIdentity *bool `mapstructure:"use_identity"`
-
 	// DefaultIdentity is the default workload identity configuration used when
-	// a job has a `vault` block but no `identity` named "vault".
+	// a job has a `vault` block but no `identity` named "vault_<name>", where
+	// <name> matches this block `name` parameter.
 	DefaultIdentity *WorkloadIdentityConfig `mapstructure:"default_identity"`
 
 	// Deprecated fields.
@@ -132,14 +129,17 @@ func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
 		Name:                 "default",
 		Addr:                 "https://vault.service.consul:8200",
+		JWTAuthBackendPath:   "jwt-nomad",
 		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
 		AllowUnauthenticated: pointer.Of(true),
-		UseIdentity:          pointer.Of(false),
 	}
 }
 
 // IsEnabled returns whether the config enables Vault integration
 func (c *VaultConfig) IsEnabled() bool {
+	if c == nil {
+		return false
+	}
 	return c.Enabled != nil && *c.Enabled
 }
 
@@ -154,7 +154,7 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	result := *c
 
 	if b.Name != "" {
-		c.Name = b.Name
+		result.Name = b.Name
 	}
 	if b.Enabled != nil {
 		result.Enabled = b.Enabled
@@ -168,6 +168,9 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	}
 	if b.Addr != "" {
 		result.Addr = b.Addr
+	}
+	if b.JWTAuthBackendPath != "" {
+		result.JWTAuthBackendPath = b.JWTAuthBackendPath
 	}
 	if b.ConnectionRetryIntv.Nanoseconds() != 0 {
 		result.ConnectionRetryIntv = b.ConnectionRetryIntv
@@ -190,8 +193,6 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 	if b.TLSServerName != "" {
 		result.TLSServerName = b.TLSServerName
 	}
-
-	result.UseIdentity = pointer.Merge(result.UseIdentity, b.UseIdentity)
 
 	if result.DefaultIdentity == nil && b.DefaultIdentity != nil {
 		sID := *b.DefaultIdentity
@@ -275,6 +276,9 @@ func (c *VaultConfig) Equal(b *VaultConfig) bool {
 	if c.Addr != b.Addr {
 		return false
 	}
+	if c.JWTAuthBackendPath != b.JWTAuthBackendPath {
+		return false
+	}
 	if c.ConnectionRetryIntv.Nanoseconds() != b.ConnectionRetryIntv.Nanoseconds() {
 		return false
 	}
@@ -297,9 +301,6 @@ func (c *VaultConfig) Equal(b *VaultConfig) bool {
 		return false
 	}
 
-	if !pointer.Eq(b.UseIdentity, c.UseIdentity) {
-		return false
-	}
 	if !c.DefaultIdentity.Equal(b.DefaultIdentity) {
 		return false
 	}

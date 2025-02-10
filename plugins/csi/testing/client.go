@@ -150,6 +150,7 @@ type NodeClient struct {
 	NextPublishVolumeResponse   *csipbv1.NodePublishVolumeResponse
 	NextUnpublishVolumeResponse *csipbv1.NodeUnpublishVolumeResponse
 	NextExpandVolumeResponse    *csipbv1.NodeExpandVolumeResponse
+	LastExpandVolumeRequest     *csipbv1.NodeExpandVolumeRequest
 }
 
 // NewNodeClient returns a new stub NodeClient
@@ -193,5 +194,6 @@ func (c *NodeClient) NodeUnpublishVolume(ctx context.Context, in *csipbv1.NodeUn
 }
 
 func (c *NodeClient) NodeExpandVolume(ctx context.Context, in *csipbv1.NodeExpandVolumeRequest, opts ...grpc.CallOption) (*csipbv1.NodeExpandVolumeResponse, error) {
+	c.LastExpandVolumeRequest = in
 	return c.NextExpandVolumeResponse, c.NextErr
 }

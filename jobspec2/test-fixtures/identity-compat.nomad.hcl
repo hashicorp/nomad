@@ -29,8 +29,12 @@ job "identitycompat" {
       # ensure parsing handles both the default and alternate identities
       # properly.
       identity {
-        name = "foo"
-        aud  = ["bar"]
+        name          = "foo"
+        aud           = ["bar"]
+        file          = true
+        ttl           = "2h"
+        change_mode   = "signal"
+        change_signal = "sighup"
       }
 
       resources {

@@ -32,6 +32,11 @@ job "docs" {
 
         provider = "consul"
 
+        weights {
+          passing = 5
+          warning = 1
+        }
+
         meta {
           meta = "for your service"
         }
@@ -56,6 +61,10 @@ job "docs" {
             ignore_warnings = false
           }
         }
+
+        identity {
+          aud = ["consul.io"]
+        }
       }
     }
   }
@@ -66,9 +75,9 @@ This section of the documentation only cover the job file fields and blocks
 for service discovery. For more details on using Nomad with Consul please see
 the [Consul integration documentation][service-discovery].
 
-Nomad 0.10 also allows specifying the `service` block at the task group level.
+The `service` block can also be at task group level.
 This enables services in the same task group to opt into [Consul
-Connect][connect] integration.
+Service Mesh][connect] integration.
 
 ## `service` Parameters
 
@@ -89,8 +98,21 @@ Connect][connect] integration.
   provider supports `tcp` and `http` checks. The Consul integration supports
   the `grpc`, `http`, `script`<sup><small>1</small></sup>, and `tcp` checks.
 
+- `weights` <code>(Weights: nil)</code> - Specifies how a service instance is
+  weighted in a DNS SRV request based on the service's health status, as
+  described in the Consul [weights][] documentation. Only available where
+  `provider = "consul"` The `weight` block supports the following fields:
+  - `passing` <code>int: 1</code> - The weight of services in passing state.
+  - `warning` <code>int: 1</code> - The weight of services in warning state.
+
 - `connect` - Configures the [Consul Connect][connect] integration. Only
   available on group services and where `provider = "consul"`.
+
+- `identity` <code>([Identity][identity_block]: nil)</code> - Specifies a
+  Workload Identity to use when obtaining Service Identity tokens from Consul to
+  register the service. Only available where `provider = "consul"`. Typically
+  this can be omitted so that Nomad will fall back to the server's
+  [`consul.service_identity`][] block.
 
 - `name` `(string: "<job>-<taskgroup>-<task>")` - Specifies the name this service
   will be advertised as in Consul. If not supplied, this will default to the
@@ -524,3 +546,6 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [on_update]: /nomad/docs/job-specification/service#on_update
 [tagged_addresses]: /consul/docs/discovery/services#tagged-addresses
 [`consul.name`]: /nomad/docs/configuration/consul#name
+[`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
+[identity_block]: /nomad/docs/job-specification/identity
+[weights]: /consul/docs/services/configuration/services-configuration-reference#weights

@@ -34,6 +34,9 @@ job "docs" {
   configurations are specific to each driver, so please see specific driver
   documentation for more information.
 
+- `consul` <code>([Consul][consul_jobspec]: nil)</code> - Specifies Consul
+  configuration options specific to the task.
+
 - `constraint` <code>([Constraint][]: nil)</code> - Specifies user-defined
   constraints on the task. This can be provided multiple times to define
   additional constraints.
@@ -104,10 +107,9 @@ job "docs" {
 
 - `user` `(string: <varies>)` - Specifies the user that will run the task.
   Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
-  [Docker][] and [rkt][] images specify their own default users. This can only
-  be set on Linux platforms, and clients can restrict
-  [which drivers][user_drivers] are allowed to run tasks as
-  [certain users][user_denylist].
+  [Docker][] images specify their own default users. This can only be set
+  on Linux platforms, and clients can restrict [which drivers][user_drivers]
+  are allowed to run tasks as [certain users][user_denylist].
 
 - `template` <code>([Template][]: nil)</code> - Specifies the set of templates
   to render for the task. Templates can be used to inject both static and
@@ -206,6 +208,7 @@ task "server" {
 
 [artifact]: /nomad/docs/job-specification/artifact 'Nomad artifact Job Specification'
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
+[consul_jobspec]: /nomad/docs/job-specification/consul
 [constraint]: /nomad/docs/job-specification/constraint 'Nomad constraint Job Specification'
 [affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'
 [dispatchpayload]: /nomad/docs/job-specification/dispatch_payload 'Nomad dispatch_payload Job Specification'

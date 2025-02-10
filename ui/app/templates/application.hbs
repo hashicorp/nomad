@@ -20,17 +20,25 @@
         queue
           (action close)
           (action (optional flash.customCloseAction))
-        
+
       }}
     as |T|>
       {{#if flash.title}}
         <T.Title>{{flash.title}}</T.Title>
       {{/if}}
       {{#if flash.message}}
-        <T.Description>{{flash.message}}</T.Description>
+        {{#if flash.code}}
+          <T.Description><code><pre>{{flash.message}}</pre></code></T.Description>
+        {{else}}
+          <T.Description>{{flash.message}}</T.Description>
+        {{/if}}
       {{/if}}
       {{#if flash.customAction}}
-        <T.Button @text={{flash.customAction.label}} @color="secondary" {{on "click" (action flash.customAction.action)}} />
+        <T.Button
+          @text={{flash.customAction.label}}
+          @color="secondary" {{on "click" (action flash.customAction.action)}}
+          class={{if flash.code "follows-code"}}
+        />
       {{/if}}
     </Hds::Toast>
   </FlashMessage>
@@ -38,6 +46,9 @@
 </section>
 
 <KeyboardShortcutsModal />
+
+<ActionsFlyout />
+<ActionsFlyoutGlobalButton />
 
 <PortalTarget @name="log-sidebar-portal" />
 
@@ -69,12 +80,12 @@
         <h1 data-test-error-title class="title is-spaced">Not Authorized</h1>
         {{#if this.token.secret}}
           <p data-test-error-message class="subtitle">Your
-            <LinkTo @route="settings.tokens" data-test-error-acl-link>ACL token</LinkTo>
+            <LinkTo @route="settings.tokens" data-test-error-acl-link {{on "click" (action (mut this.token.postExpiryPath) this.router.currentURL)}}>ACL token</LinkTo>
             does not provide the required permissions. Contact your
             administrator if this is an error.</p>
         {{else}}
           <p data-test-error-message class="subtitle">Provide an
-            <LinkTo @route="settings.tokens" data-test-error-acl-link>ACL token</LinkTo>
+            <LinkTo @route="settings.tokens" data-test-error-acl-link {{on "click" (action (mut this.token.postExpiryPath) this.router.currentURL)}}>ACL token</LinkTo>
             with requisite permissions to view this.</p>
         {{/if}}
       {{else}}
@@ -97,6 +108,7 @@
         @route="settings.tokens"
         data-test-error-signin-link
         class="button is-white"
+        {{on "click" (action (mut this.token.postExpiryPath) this.router.currentURL)}}
       >Go to Sign In</LinkTo>
     </div>
   </div>

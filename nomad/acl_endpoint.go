@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-set"
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-set/v3"
 
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -52,6 +53,10 @@ const (
 	// aclLoginRequestExpiryTime is the deadline used when performing HTTP
 	// requests to external APIs during the validation of bearer tokens.
 	aclLoginRequestExpiryTime = 60 * time.Second
+
+	// verboseLoggingMessage is the message displayed to a user when
+	// this auth config is enabled
+	verboseLoggingMessage = "attempting login with verbose logging enabled"
 )
 
 // ACL endpoint is used for manipulating ACL tokens and policies
@@ -94,9 +99,9 @@ func (a *ACL) UpsertPolicies(args *structs.ACLPolicyUpsertRequest, reply *struct
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -143,9 +148,9 @@ func (a *ACL) DeletePolicies(args *structs.ACLPolicyDeleteRequest, reply *struct
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_policies"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -208,7 +213,7 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 		}
 
 		// Add the token policies which are directly referenced into the set.
-		tokenPolicyNames.InsertAll(token.Policies)
+		tokenPolicyNames.InsertSlice(token.Policies)
 	}
 
 	// Setup the blocking query
@@ -302,7 +307,7 @@ func (a *ACL) GetPolicy(args *structs.ACLPolicySpecificRequest, reply *structs.S
 		}
 
 		// Add the token policies which are directly referenced into the set.
-		tokenPolicyNames.InsertAll(token.Policies)
+		tokenPolicyNames.InsertSlice(token.Policies)
 
 		if !tokenPolicyNames.Contains(args.Name) {
 			return structs.ErrPermissionDenied
@@ -387,12 +392,7 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 	}
 
 	// Add the token policies which are directly referenced into the set.
-	tokenPolicyNames.InsertAll(token.Policies)
-
-	// Ensure the token has enough permissions to query the named policies.
-	if token.Type != structs.ACLManagementToken && !tokenPolicyNames.ContainsAll(args.Names) {
-		return structs.ErrPermissionDenied
-	}
+	tokenPolicyNames.InsertSlice(token.Policies)
 
 	// Setup the blocking query
 	opts := blockingOptions{
@@ -400,17 +400,27 @@ func (a *ACL) GetPolicies(args *structs.ACLPolicySetRequest, reply *structs.ACLP
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Setup the output
-			reply.Policies = make(map[string]*structs.ACLPolicy, len(args.Names))
+			reply.Policies = make(map[string]*structs.ACLPolicy)
 
-			// Look for the policy
+			// Look for the policy and check whether the caller has the
+			// permission to view it. This endpoint is used by the replication
+			// process, or Nomad clients looking up a callers policies. It is
+			// therefore safe, to perform auth checks here and ensures we do
+			// not return erroneous permission denied errors when a caller uses
+			// a token with dangling policies.
 			for _, policyName := range args.Names {
 				out, err := state.ACLPolicyByName(ws, policyName)
 				if err != nil {
 					return err
 				}
-				if out != nil {
-					reply.Policies[policyName] = out
+				if out == nil {
+					continue
 				}
+
+				if token.Type != structs.ACLManagementToken && !tokenPolicyNames.Contains(policyName) {
+					return structs.ErrPermissionDenied
+				}
+				reply.Policies[policyName] = out
 			}
 
 			// Use the last index that affected the policy table
@@ -447,7 +457,7 @@ func (a *ACL) GetClaimPolicies(args *structs.GenericRequest, reply *structs.ACLP
 		return structs.ErrPermissionDenied
 	}
 
-	policies, err := a.srv.resolvePoliciesForClaims(claims)
+	policies, err := a.srv.ResolvePoliciesForClaims(claims)
 	if err != nil {
 		// Likely only hit if a job/alloc has been GC'd on the server but the
 		// client hasn't stopped it yet. Return Permission Denied as there's no way
@@ -627,9 +637,9 @@ func (a *ACL) UpsertTokens(args *structs.ACLTokenUpsertRequest, reply *structs.A
 	defer metrics.MeasureSince([]string{"nomad", "acl", "upsert_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -781,9 +791,9 @@ func (a *ACL) DeleteTokens(args *structs.ACLTokenDeleteRequest, reply *structs.G
 	defer metrics.MeasureSince([]string{"nomad", "acl", "delete_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -859,9 +869,9 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1014,9 +1024,9 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_tokens"}, time.Now())
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1227,9 +1237,9 @@ func (a *ACL) ExpireOneTimeTokens(args *structs.OneTimeTokenExpireRequest, reply
 
 	// Check management level permissions
 	if a.srv.config.ACLEnabled {
-		if acl, err := a.srv.ResolveACL(args); err != nil {
+		if aclObj, err := a.srv.ResolveACL(args); err != nil {
 			return err
-		} else if acl == nil || !acl.IsManagement() {
+		} else if !aclObj.IsManagement() {
 			return structs.ErrPermissionDenied
 		}
 	}
@@ -1277,9 +1287,9 @@ func (a *ACL) UpsertRoles(
 	}
 
 	// Only management level permissions can create ACL roles.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1421,9 +1431,9 @@ func (a *ACL) DeleteRolesByID(
 	}
 
 	// Only management level permissions can create ACL roles.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1862,9 +1872,9 @@ func (a *ACL) UpsertAuthMethods(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1965,9 +1975,9 @@ func (a *ACL) DeleteAuthMethods(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2054,10 +2064,9 @@ func (a *ACL) GetAuthMethod(
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_auth_method_name"}, time.Now())
 
 	// Resolve the token and ensure it has some form of permissions.
-	acl, err := a.srv.ResolveACL(args)
-	if err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2177,6 +2186,16 @@ func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIRespo
 	}
 
 	reply.Identity = args.GetIdentity()
+
+	// COMPAT: originally these were time.Time objects but switching to go-jose
+	// changed them to int64 which aren't compatible with Nomad versions
+	// <1.7. These aren't used by any existing callers of this handler.
+	if reply.Identity.Claims != nil {
+		reply.Identity.Claims.Expiry = nil
+		reply.Identity.Claims.IssuedAt = nil
+		reply.Identity.Claims.NotBefore = nil
+	}
+
 	return nil
 }
 
@@ -2209,9 +2228,9 @@ func (a *ACL) UpsertBindingRules(
 	}
 
 	// Check management level permissions
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2336,9 +2355,9 @@ func (a *ACL) DeleteBindingRules(
 	}
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2378,9 +2397,9 @@ func (a *ACL) ListBindingRules(
 	defer metrics.MeasureSince([]string{"nomad", "acl", "list_binding_rules"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2437,9 +2456,9 @@ func (a *ACL) GetBindingRules(
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_rules"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2492,9 +2511,9 @@ func (a *ACL) GetBindingRule(
 	defer metrics.MeasureSince([]string{"nomad", "acl", "get_binding_rule"}, time.Now())
 
 	// Check management level permissions.
-	if acl, err := a.srv.ResolveACL(args); err != nil {
+	if aclObj, err := a.srv.ResolveACL(args); err != nil {
 		return err
-	} else if acl == nil || !acl.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -2677,6 +2696,14 @@ func (a *ACL) OIDCCompleteAuth(
 		return structs.NewErrRPCCodedf(http.StatusBadRequest, "auth-method %q not found", args.AuthMethodName)
 	}
 
+	// vlog is a verbose logger used for debugging OIDC in test environments
+	vlog := hclog.NewNullLogger()
+	if authMethod.Config.VerboseLogging {
+		vlog = a.logger
+	}
+
+	vlog.Debug(verboseLoggingMessage)
+
 	// If the authentication method generates global ACL tokens, we need to
 	// forward the request onto the authoritative regional leader.
 	if authMethod.TokenLocalityIsGlobal() {
@@ -2732,9 +2759,11 @@ func (a *ACL) OIDCCompleteAuth(
 	}
 
 	var userClaims map[string]interface{}
-	if userTokenSource := oidcToken.StaticTokenSource(); userTokenSource != nil {
-		if err := oidcProvider.UserInfo(ctx, userTokenSource, idTokenClaims["sub"].(string), &userClaims); err != nil {
-			return fmt.Errorf("failed to retrieve the user info claims: %v", err)
+	if !authMethod.Config.OIDCDisableUserInfo {
+		if userTokenSource := oidcToken.StaticTokenSource(); userTokenSource != nil {
+			if err := oidcProvider.UserInfo(ctx, userTokenSource, idTokenClaims["sub"].(string), &userClaims); err != nil {
+				return fmt.Errorf("failed to retrieve the user info claims: %v", err)
+			}
 		}
 	}
 
@@ -2745,6 +2774,29 @@ func (a *ACL) OIDCCompleteAuth(
 		return err
 	}
 
+	// No need to do all this marshaling if VerboseLogging is disabled
+	if authMethod.Config.VerboseLogging {
+		idTokenClaimBytes, err := json.MarshalIndent(idTokenClaims, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal ID token claims")
+		}
+
+		userClaimBytes, err := json.MarshalIndent(userClaims, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal user claims")
+		}
+		vlog.Debug("claims from jwt token and user info endpoint",
+			"token_claims", string(idTokenClaimBytes),
+			"user_claims", string(userClaimBytes),
+		)
+
+		internalClaimBytes, err := json.MarshalIndent(oidcInternalClaims.List, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal OIDC internal claims list")
+		}
+		vlog.Debug("claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
+	}
+
 	// Create a new binder object based on the current state snapshot to
 	// provide consistency within the RPC handler.
 	oidcBinder := auth.NewBinder(stateSnapshot)
@@ -2752,7 +2804,7 @@ func (a *ACL) OIDCCompleteAuth(
 	// Generate the role and policy bindings that will be assigned to the ACL
 	// token. Ensure we have at least 1 role or policy, otherwise the RPC will
 	// fail anyway.
-	tokenBindings, err := oidcBinder.Bind(authMethod, auth.NewIdentity(authMethod.Config, oidcInternalClaims))
+	tokenBindings, err := oidcBinder.Bind(vlog, authMethod, auth.NewIdentity(authMethod.Config, oidcInternalClaims))
 	if err != nil {
 		return err
 	}
@@ -2764,8 +2816,13 @@ func (a *ACL) OIDCCompleteAuth(
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
+	name, err := formatTokenName(authMethod.TokenNameFormat, structs.ACLAuthMethodTypeOIDC, authMethod.Name, oidcInternalClaims.Value)
+	if err != nil {
+		return err
+	}
+
 	token := structs.ACLToken{
-		Name:          "OIDC-" + authMethod.Name,
+		Name:          name,
 		Global:        authMethod.TokenLocalityIsGlobal(),
 		ExpirationTTL: authMethod.MaxTokenTTL,
 	}
@@ -2889,6 +2946,14 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 		)
 	}
 
+	// vlog is a verbose logger used for debugging in test environments
+	vlog := hclog.NewNullLogger()
+	if authMethod.Config.VerboseLogging {
+		vlog = a.logger
+	}
+
+	vlog.Debug(verboseLoggingMessage)
+
 	// Create a new binder object based on the current state snapshot to
 	// provide consistency within the RPC handler.
 	jwtBinder := auth.NewBinder(stateSnapshot)
@@ -2900,7 +2965,22 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 		return err
 	}
 
-	tokenBindings, err := jwtBinder.Bind(authMethod, auth.NewIdentity(authMethod.Config, jwtClaims))
+	// No need to do marshaling if VerboseLogging is not enabled
+	if authMethod.Config.VerboseLogging {
+		idTokenClaimBytes, err := json.MarshalIndent(claims, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal token claims")
+		}
+		vlog.Debug("jwt token claims", "token_claims", string(idTokenClaimBytes))
+
+		internalClaimBytes, err := json.MarshalIndent(jwtClaims.List, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal claims list")
+		}
+		vlog.Debug("claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
+	}
+
+	tokenBindings, err := jwtBinder.Bind(vlog, authMethod, auth.NewIdentity(authMethod.Config, jwtClaims))
 	if err != nil {
 		return err
 	}
@@ -2912,8 +2992,13 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	// logic, so we do not want to call Raft directly or copy that here. In the
 	// future we should try and extract out the logic into an interface, or at
 	// least a separate function.
+	name, err := formatTokenName(authMethod.TokenNameFormat, structs.ACLAuthMethodTypeJWT, authMethod.Name, jwtClaims.Value)
+	if err != nil {
+		return err
+	}
+
 	token := structs.ACLToken{
-		Name:          "JWT-" + authMethod.Name,
+		Name:          name,
 		Global:        authMethod.TokenLocalityIsGlobal(),
 		ExpirationTTL: authMethod.MaxTokenTTL,
 	}
@@ -2946,4 +3031,24 @@ func (a *ACL) Login(args *structs.ACLLoginRequest, reply *structs.ACLLoginRespon
 	reply.ACLToken = tokenUpsertReply.Tokens[0]
 
 	return nil
+}
+
+func formatTokenName(format, authType, authName string, claims map[string]string) (string, error) {
+	claimMappings := map[string]string{
+		"auth_method_type": authType,
+		"auth_method_name": authName,
+	}
+	for k, v := range claims {
+		claimMappings["value."+k] = v
+	}
+
+	if format == "" {
+		format = structs.DefaultACLAuthMethodTokenNameFormat
+	}
+	tokenName, err := auth.InterpolateHIL(format, claimMappings, false)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate ACL token name: %w", err)
+	}
+
+	return tokenName, nil
 }

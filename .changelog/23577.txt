@@ -1,0 +1,15 @@
+```release-note:improvement
+keyring: Added support for prepublishing keys
+```
+
+```release-note:bug
+keyring: Fixed a bug where periodic key rotation would not occur
+```
+
+```release-note:bug
+keyring: Fixed a bug where keys could be garbage collected before workload identities expire
+```
+
+```release-note:bug
+keyring: Fixed a bug where keys would never exit the "rekeying" state after a rotation with the `-full` flag
+```

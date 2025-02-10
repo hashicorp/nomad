@@ -53,13 +53,6 @@
     {{this.job.priority}}
   </td>
 {{/if}}
-<td data-test-job-task-groups>
-  {{#if this.job.taskGroupCount}}
-    {{this.job.taskGroupCount}}
-  {{else}}
-    --
-  {{/if}}
-</td>
 <td data-test-job-allocations>
   <div class="inline-chart">
     {{#if this.job.hasChildren}}

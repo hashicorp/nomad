@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/e2e/v3/cluster3"
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
@@ -41,6 +42,7 @@ func testExecNamespacePID(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/exec.hcl",
 		jobs3.WaitComplete("group"),
+		jobs3.Timeout(time.Second*30), // exec can be a bit slow
 	)
 	t.Cleanup(cleanup)
 
@@ -52,6 +54,7 @@ func testExecHostPID(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/exec_host.hcl",
 		jobs3.WaitComplete("group"),
+		jobs3.Timeout(time.Second*30), // exec can be a bit slow
 	)
 	t.Cleanup(cleanup)
 
@@ -62,7 +65,10 @@ func testExecHostPID(t *testing.T) {
 }
 
 func testExecNamespaceAllocExec(t *testing.T) {
-	job, cleanup := jobs3.Submit(t, "./input/alloc_exec.hcl")
+	job, cleanup := jobs3.Submit(t,
+		"./input/alloc_exec.hcl",
+		jobs3.Timeout(time.Second*30), // exec can be a bit slow
+	)
 	t.Cleanup(cleanup)
 
 	logs := job.Exec("group", "sleep", []string{"ps", "ax"})
@@ -76,6 +82,7 @@ func testJavaNamespacePID(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/java.hcl",
 		jobs3.WaitComplete("group"),
+		jobs3.Timeout(time.Second*60), // exec prestart + java main
 	)
 	t.Cleanup(cleanup)
 
@@ -87,6 +94,7 @@ func testJavaHostPID(t *testing.T) {
 	job, cleanup := jobs3.Submit(t,
 		"./input/java_host.hcl",
 		jobs3.WaitComplete("group"),
+		jobs3.Timeout(time.Second*60), // exec prestart + java main
 	)
 	t.Cleanup(cleanup)
 
@@ -97,7 +105,10 @@ func testJavaHostPID(t *testing.T) {
 }
 
 func testJavaNamespaceAllocExec(t *testing.T) {
-	job, cleanup := jobs3.Submit(t, "./input/alloc_exec_java.hcl")
+	job, cleanup := jobs3.Submit(t,
+		"./input/alloc_exec_java.hcl",
+		jobs3.Timeout(time.Second*60), // exec prestart + java main
+	)
 	t.Cleanup(cleanup)
 
 	logs := job.Exec("group", "sleep", []string{"ps", "ax"})

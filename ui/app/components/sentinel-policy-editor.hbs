@@ -1,0 +1,90 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<form class="acl-form" autocomplete="off" {{on "submit" this.save}}>
+	{{#if @policy.isNew }}
+		<Hds::Form::TextInput::Field
+			@isRequired={{true}}
+			data-test-policy-name-input
+			@value={{@policy.name}}
+			{{on "input" this.updatePolicyName}}
+			{{autofocus}}
+		as |F|>
+			<F.Label>Policy Name</F.Label>
+		</Hds::Form::TextInput::Field>
+	{{/if}}
+
+	<div class="boxed-section">
+		<div class="boxed-section-head">
+			Policy Definition
+		</div>
+		<div class="boxed-section-body is-full-bleed">
+			<div
+				class="policy-editor"
+				data-test-policy-editor
+				{{code-mirror
+					screenReaderLabel="Policy definition"
+					theme="hashi"
+					mode="ruby"
+					content=@policy.policy
+					onUpdate=this.updatePolicy
+					autofocus=false
+					extraKeys=(hash Cmd-Enter=this.save)
+				}} />
+		</div>
+	</div>
+
+	<div>
+		<label>
+			<span>
+				Description (optional)
+			</span>
+			<Input
+				data-test-policy-description
+				@value={{@policy.description}}
+				class="input"
+			/>
+		</label>
+	</div>
+
+	<div>
+		<Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updatePolicyEnforcementLevel}} as |G|>
+		<G.Legend>Enforcement Level</G.Legend>
+		<G.HelperText>See  <Hds::Link::Inline @href="https://developer.hashicorp.com/sentinel/docs/concepts/enforcement-levels">Sentinel Policy documentation</Hds::Link::Inline> for more information.</G.HelperText>
+		<G.RadioField
+			@id="advisory"
+			checked={{eq @policy.enforcementLevel "advisory"}}
+			data-test-enforcement-level="advisory"
+		as |F|>
+			<F.Label>Advisory</F.Label>
+		</G.RadioField>
+		<G.RadioField
+			@id="soft-mandatory"
+			checked={{eq @policy.enforcementLevel "soft-mandatory"}}
+			data-test-enforcement-level="soft-mandatory"
+		as |F|>
+			<F.Label>Soft Mandatory</F.Label>
+		</G.RadioField>
+		<G.RadioField
+			@id="hard-mandatory"
+			checked={{eq @policy.enforcementLevel "hard-mandatory"}}
+			data-test-enforcement-level="hard-mandatory"
+		as |F|>
+			<F.Label>Hard Mandatory</F.Label>
+		</G.RadioField>
+		</Hds::Form::Radio::Group>
+	</div>
+
+	<footer>
+		{{#if (can "update sentinel-policy")}}
+		<Hds::Button
+			@text="Save Policy"
+			@type="submit"
+			data-test-save-policy
+			{{on "click" this.save}}
+		/>
+		{{/if}}
+	</footer>
+</form>

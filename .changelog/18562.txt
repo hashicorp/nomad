@@ -1,0 +1,7 @@
+```release-note:improvement
+deps: bumped `shirou/gopsutil` to v3.23.9
+```
+
+```release-note:improvement
+client: add support for NetBSD clients
+```

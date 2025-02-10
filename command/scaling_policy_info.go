@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"
@@ -141,24 +141,27 @@ func (s *ScalingPolicyInfoCommand) Run(args []string) int {
 	}
 
 	policyID = sanitizeUUIDPrefix(policyID)
-	policies, _, err := client.Scaling().ListPolicies(&api.QueryOptions{
-		Prefix: policyID,
-	})
+
+	// get a policy that matches the given prefix or a list of all matches if an
+	// exact match is not found.
+	policyStub, possible, err := getByPrefix[api.ScalingPolicyListStub]("scaling policies",
+		client.Scaling().ListPolicies,
+		func(policy *api.ScalingPolicyListStub, prefix string) bool { return policy.ID == prefix },
+		&api.QueryOptions{
+			Prefix: policyID,
+		})
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error querying scaling policy: %v", err))
 		return 1
 	}
-	if len(policies) == 0 {
-		s.Ui.Error(fmt.Sprintf("No scaling policies with prefix or id %q found", policyID))
+	if len(possible) > 0 {
+		out := formatScalingPolicies(possible, length)
+		s.Ui.Error(fmt.Sprintf("Prefix matched multiple scaling policies\n\n%s", out))
 		return 1
 	}
-	if len(policies) > 1 {
-		out := formatScalingPolicies(policies, length)
-		s.Ui.Error(fmt.Sprintf("Prefix matched multiple scaling policies\n\n%s", out))
-		return 0
-	}
+	policyID = policyStub.ID
 
-	policy, _, err := client.Scaling().GetPolicy(policies[0].ID, nil)
+	policy, _, err := client.Scaling().GetPolicy(policyID, nil)
 	if err != nil {
 		s.Ui.Error(fmt.Sprintf("Error querying scaling policy: %s", err))
 		return 1

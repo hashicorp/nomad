@@ -2,3 +2,20 @@
 
 /.release/                              @hashicorp/github-nomad-core @hashicorp/nomad-eng
 /.github/workflows/build.yml            @hashicorp/github-nomad-core @hashicorp/nomad-eng
+
+# codeowner default
+*                              @hashicorp/github-nomad-core @hashicorp/nomad-eng
+
+
+# engineering and web presence get notified of, and can approve changes to web tooling, but not content.
+
+/website/               @hashicorp/web-presence @hashicorp/github-nomad-core @hashicorp/nomad-eng
+/website/data/
+/website/public/
+/website/content/
+
+# education and engineering get notified of, and can approve changes to web content.
+
+/website/data/          @hashicorp/nomad-docs @hashicorp/github-nomad-core @hashicorp/nomad-eng
+/website/public/        @hashicorp/nomad-docs @hashicorp/github-nomad-core @hashicorp/nomad-eng
+/website/content/       @hashicorp/nomad-docs @hashicorp/github-nomad-core @hashicorp/nomad-eng

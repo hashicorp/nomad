@@ -28,18 +28,34 @@ Usage: nomad volume register [options] <input>
   If the supplied path is "-" the volume file is read from stdin. Otherwise, it
   is read from the file at the supplied path.
 
-  When ACLs are enabled, this command requires a token with the
-  'csi-write-volume' capability for the volume's namespace.
+  When ACLs are enabled, this command requires a token with the appropriate
+  capability in the volume's namespace: the 'csi-write-volume' capability for
+  CSI volumes or 'host-volume-register' for dynamic host volumes.
 
 General Options:
 
-  ` + generalOptionsUsage(usageOptsDefault)
+  ` + generalOptionsUsage(usageOptsDefault) + `
+
+Register Options:
+
+  -id
+    Update a volume previously created with this ID prefix. Used for dynamic
+    host volumes only.
+
+  -policy-override
+    Sets the flag to force override any soft mandatory Sentinel policies. Used
+    for dynamic host volumes only.
+`
 
 	return strings.TrimSpace(helpText)
 }
 
 func (c *VolumeRegisterCommand) AutocompleteFlags() complete.Flags {
-	return c.Meta.AutocompleteFlags(FlagSetClient)
+	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
+		complete.Flags{
+			"-policy-override": complete.PredictNothing,
+			"-id":              complete.PredictNothing,
+		})
 }
 
 func (c *VolumeRegisterCommand) AutocompleteArgs() complete.Predictor {
@@ -53,7 +69,11 @@ func (c *VolumeRegisterCommand) Synopsis() string {
 func (c *VolumeRegisterCommand) Name() string { return "volume register" }
 
 func (c *VolumeRegisterCommand) Run(args []string) int {
+	var override bool
+	var volID string
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags.BoolVar(&override, "policy-override", false, "override soft mandatory Sentinel policies")
+	flags.StringVar(&volID, "id", "", "update an existing dynamic host volume")
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
 	if err := flags.Parse(args); err != nil {
@@ -103,16 +123,13 @@ func (c *VolumeRegisterCommand) Run(args []string) int {
 
 	switch volType {
 	case "csi":
-		code := c.csiRegister(client, ast)
-		if code != 0 {
-			return code
-		}
+		return c.csiRegister(client, ast)
+	case "host":
+		return c.hostVolumeRegister(client, ast, override, volID)
 	default:
 		c.Ui.Error(fmt.Sprintf("Error unknown volume type: %s", volType))
 		return 1
 	}
-
-	return 0
 }
 
 // parseVolume is used to parse the quota specification from HCL

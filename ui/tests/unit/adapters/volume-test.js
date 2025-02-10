@@ -87,9 +87,7 @@ module('Unit | Adapter | Volume', function (hooks) {
     await settled();
 
     assert.deepEqual(pretender.handledRequests.mapBy('url'), [
-      `/v1/volume/${encodeURIComponent(
-        volumeName
-      )}?namespace=${volumeNamespace}`,
+      `/v1/volume/${volumeName}?namespace=${volumeNamespace}`,
     ]);
   });
 

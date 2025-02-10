@@ -10,14 +10,11 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
-
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestMemoryFingerprint(t *testing.T) {
 	ci.Parallel(t)
-
-	require := require.New(t)
 
 	f := NewMemoryFingerprint(testlog.HCLogger(t))
 	node := &structs.Node{
@@ -27,13 +24,10 @@ func TestMemoryFingerprint(t *testing.T) {
 	request := &FingerprintRequest{Config: &config.Config{}, Node: node}
 	var response FingerprintResponse
 	err := f.Fingerprint(request, &response)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
-	require.NotNil(response.Resources, "expected response Resources to not be nil")
-	require.NotZero(response.Resources.MemoryMB, "expected memory to be non-zero")
-	require.NotNil(response.NodeResources, "expected response NodeResources to not be nil")
-	require.NotZero(response.NodeResources.Memory.MemoryMB, "expected memory to be non-zero")
+	must.Positive(t, response.NodeResources.Memory.MemoryMB)
 }
 
 func TestMemoryFingerprint_Override(t *testing.T) {
@@ -53,9 +47,5 @@ func TestMemoryFingerprint_Override(t *testing.T) {
 	}
 
 	assertNodeAttributeContains(t, response.Attributes, "memory.totalbytes")
-	require := require.New(t)
-	require.NotNil(response.Resources)
-	require.EqualValues(response.Resources.MemoryMB, memoryMB)
-	require.NotNil(response.NodeResources)
-	require.EqualValues(response.NodeResources.Memory.MemoryMB, memoryMB)
+	must.Eq(t, response.NodeResources.Memory.MemoryMB, int64(memoryMB))
 }

@@ -7,14 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/mitchellh/cli"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestACLBindingRuleUpdateCommand_Run(t *testing.T) {
@@ -29,7 +28,7 @@ func TestACLBindingRuleUpdateCommand_Run(t *testing.T) {
 	// Wait for the server to start fully and ensure we have a bootstrap token.
 	testutil.WaitForLeader(t, srv.Agent.RPC)
 	rootACLToken := srv.RootToken
-	require.NotNil(t, rootACLToken)
+	must.NotNil(t, rootACLToken)
 
 	ui := cli.NewMockUi()
 	cmd := &ACLBindingRuleUpdateCommand{

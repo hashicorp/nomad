@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
-	"github.com/mitchellh/cli"
 )
 
 // Ensure ACLAuthMethodCommand satisfies the cli.Command interface.
@@ -77,7 +77,8 @@ func formatAuthMethod(authMethod *api.ACLAuthMethod) string {
 		fmt.Sprintf("Name|%s", authMethod.Name),
 		fmt.Sprintf("Type|%s", authMethod.Type),
 		fmt.Sprintf("Locality|%s", authMethod.TokenLocality),
-		fmt.Sprintf("MaxTokenTTL|%s", authMethod.MaxTokenTTL.String()),
+		fmt.Sprintf("Max Token TTL|%s", authMethod.MaxTokenTTL.String()),
+		fmt.Sprintf("Token Name Format|%s", authMethod.TokenNameFormat),
 		fmt.Sprintf("Default|%t", authMethod.Default),
 		fmt.Sprintf("Create Index|%d", authMethod.CreateIndex),
 		fmt.Sprintf("Modify Index|%d", authMethod.ModifyIndex),
@@ -92,6 +93,7 @@ func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) string {
 		fmt.Sprintf("OIDC Discovery URL|%s", config.OIDCDiscoveryURL),
 		fmt.Sprintf("OIDC Client ID|%s", config.OIDCClientID),
 		fmt.Sprintf("OIDC Client Secret|%s", config.OIDCClientSecret),
+		fmt.Sprintf("OIDC Disable UserInfo|%t", config.OIDCDisableUserInfo),
 		fmt.Sprintf("OIDC Scopes|%s", strings.Join(config.OIDCScopes, ",")),
 		fmt.Sprintf("Bound audiences|%s", strings.Join(config.BoundAudiences, ",")),
 		fmt.Sprintf("Bound issuer|%s", strings.Join(config.BoundIssuer, ",")),

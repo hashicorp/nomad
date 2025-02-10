@@ -22,6 +22,7 @@ func newVolumeUsageTracker() *volumeUsageTracker {
 
 type volumeUsageKey struct {
 	id        string
+	ns        string
 	usageOpts UsageOptions
 }
 
@@ -51,21 +52,21 @@ func (v *volumeUsageTracker) removeAlloc(key volumeUsageKey, needle string) {
 	}
 }
 
-func (v *volumeUsageTracker) Claim(allocID, volID string, usage *UsageOptions) {
+func (v *volumeUsageTracker) Claim(allocID, volID, volNS string, usage *UsageOptions) {
 	v.stateMu.Lock()
 	defer v.stateMu.Unlock()
 
-	key := volumeUsageKey{id: volID, usageOpts: *usage}
+	key := volumeUsageKey{id: volID, ns: volNS, usageOpts: *usage}
 	v.appendAlloc(key, allocID)
 }
 
 // Free removes the allocation from the state list for the given alloc. If the
 // alloc is the last allocation for the volume then it returns true.
-func (v *volumeUsageTracker) Free(allocID, volID string, usage *UsageOptions) bool {
+func (v *volumeUsageTracker) Free(allocID, volID, volNS string, usage *UsageOptions) bool {
 	v.stateMu.Lock()
 	defer v.stateMu.Unlock()
 
-	key := volumeUsageKey{id: volID, usageOpts: *usage}
+	key := volumeUsageKey{id: volID, ns: volNS, usageOpts: *usage}
 	v.removeAlloc(key, allocID)
 	allocs := v.allocsForKey(key)
 	return len(allocs) == 0

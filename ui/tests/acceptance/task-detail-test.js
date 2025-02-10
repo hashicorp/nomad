@@ -12,7 +12,6 @@ import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import Task from 'nomad-ui/tests/pages/allocations/task/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
 import moment from 'moment';
-
 let allocation;
 let task;
 
@@ -213,6 +212,28 @@ module('Acceptance | task detail', function (hooks) {
     });
   });
 
+  test('when a task group has metadata, the metadata table is shown', async function (assert) {
+    const job = server.create('job', {
+      createAllocations: false,
+    });
+    const taskGroup = server.create('task-group', {
+      job,
+      name: 'scaling',
+      count: 1,
+      withTaskMeta: true,
+    });
+    job.update({ taskGroupIds: [taskGroup.id] });
+    allocation = server.db.allocations[1];
+    server.db.taskStates.update(
+      { allocationId: allocation.id },
+      { state: 'running' }
+    );
+    const jobTask = taskGroup.tasks.models[0];
+    task = jobTask;
+    await Task.visit({ id: allocation.id, name: task.name });
+    assert.ok(Task.hasMeta);
+  });
+
   test('each recent event should list the time, type, and description of the event', async function (assert) {
     const event = server.db.taskEvents.where({ taskStateId: task.id })[0];
     const recentEvent = Task.events.objectAt(Task.events.length - 1);
@@ -223,7 +244,7 @@ module('Acceptance | task detail', function (hooks) {
       'Event timestamp'
     );
     assert.equal(recentEvent.type, event.type, 'Event type');
-    assert.equal(recentEvent.message, event.message, 'Event message');
+    assert.equal(recentEvent.message, event.displayMessage, 'Event message');
   });
 
   test('when the allocation is not found, the application errors', async function (assert) {
@@ -377,11 +398,7 @@ module('Acceptance | task detail (different namespace)', function (hooks) {
     const job = server.db.jobs.find(jobId);
 
     await Layout.breadcrumbFor('jobs.index').visit();
-    assert.equal(
-      currentURL(),
-      '/jobs?namespace=*',
-      'Jobs breadcrumb links correctly'
-    );
+    assert.equal(currentURL(), '/jobs', 'Jobs breadcrumb links correctly');
 
     await Task.visit({ id: allocation.id, name: task.name });
     await Layout.breadcrumbFor('jobs.job.index').visit();

@@ -1,0 +1,3 @@
+```release-note:bug
+ui: unbind job detail running allocations count from job-summary endpoint
+```

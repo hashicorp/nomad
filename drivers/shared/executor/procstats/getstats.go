@@ -63,7 +63,7 @@ func (lps *linuxProcStats) scanPIDs() {
 	}
 
 	// insert trackers for new pids not yet present
-	for _, pid := range currentPIDs.Slice() {
+	for pid := range currentPIDs.Items() {
 		if _, exists := lps.latest[pid]; !exists {
 			lps.latest[pid] = &stats{
 				TotalCPU:  cpustats.New(lps.compute),

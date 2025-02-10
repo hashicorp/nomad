@@ -155,3 +155,24 @@
     }
   }
 }
+// Media query for small screens
+@media ($breakpoint-mobile) {
+  .exec-window {
+    width: 100vw;
+    height: 100vh;
+    flex-direction: column;
+    position: static;
+    .task-group-tree {
+      flex: 0 0 auto;
+      min-height: 50px;
+      max-height: 300px;
+      overflow-y: auto;
+      width: 100%;
+    }
+    .terminal-container {
+      flex: 1 0 auto;
+      width: 100%;
+      height: auto;
+    }
+  }
+}

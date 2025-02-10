@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/dustin/go-humanize"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-multierror"
 
 	"github.com/hashicorp/nomad/acl"
@@ -189,7 +189,7 @@ func (v *CSIVolume) Get(args *structs.CSIVolumeGetRequest, reply *structs.CSIVol
 	allowCSIAccess := acl.NamespaceValidator(acl.NamespaceCapabilityCSIReadVolume,
 		acl.NamespaceCapabilityCSIMountVolume,
 		acl.NamespaceCapabilityReadJob)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	aclObj, err := v.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,8 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 
 	defer metrics.MeasureSince([]string{"nomad", "volume", "register"}, time.Now())
 
-	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+	// permission for the volume namespaces will be checked below
+	if !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -312,24 +313,25 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 		return fmt.Errorf("missing volume definition")
 	}
 
-	// This is the only namespace we ACL checked, force all the volumes to use it.
-	// We also validate that the plugin exists for each plugin, and validate the
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Validate ACLs, that the plugin exists for each volume, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
-
-		snap, err := v.srv.State().Snapshot()
-		if err != nil {
-			return err
-		}
 		if vol.Namespace == "" {
 			vol.Namespace = args.RequestNamespace()
+		}
+		if !allowVolume(aclObj, vol.Namespace) {
+			return structs.ErrPermissionDenied
 		}
 		if err = vol.Validate(); err != nil {
 			return err
 		}
 
-		ws := memdb.NewWatchSet()
-		existingVol, err := snap.CSIVolumeByID(ws, vol.Namespace, vol.ID)
+		existingVol, err := snap.CSIVolumeByID(nil, vol.Namespace, vol.ID)
 		if err != nil {
 			return err
 		}
@@ -357,7 +359,7 @@ func (v *CSIVolume) Register(args *structs.CSIVolumeRegisterRequest, reply *stru
 
 			*vol = *existingVol
 
-		} else if vol.Topologies == nil || len(vol.Topologies) == 0 {
+		} else if len(vol.Topologies) == 0 {
 			// The topologies for the volume have already been set
 			// when it was created, so for newly register volumes
 			// we accept the user's description of that topology
@@ -452,15 +454,13 @@ func (v *CSIVolume) Claim(args *structs.CSIVolumeClaimRequest, reply *structs.CS
 		return structs.ErrPermissionDenied
 	}
 
-	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, time.Now())
+
+	aclObj, err := v.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-
-	defer metrics.MeasureSince([]string{"nomad", "volume", "claim"}, time.Now())
-
-	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+	if !aclObj.AllowClientOp() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -694,11 +694,15 @@ func (v *CSIVolume) Unpublish(args *structs.CSIVolumeUnpublishRequest, reply *st
 	defer metrics.MeasureSince([]string{"nomad", "volume", "unpublish"}, time.Now())
 
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityCSIMountVolume)
-	aclObj, err := v.srv.ResolveClientOrACL(args)
+	aclObj, err := v.srv.ResolveACL(args)
 	if err != nil {
 		return err
 	}
-	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+	// this RPC is called by both clients and by `nomad volume detach`. we can't
+	// safely match the node ID for client RPCs because we may not have the node
+	// ID anymore
+	if !aclObj.AllowClientOp() &&
+		!(allowVolume(aclObj, args.RequestNamespace()) && aclObj.AllowPluginRead()) {
 		return structs.ErrPermissionDenied
 	}
 
@@ -846,14 +850,15 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 	}
 
 	req := &cstructs.ClientCSINodeDetachVolumeRequest{
-		PluginID:       vol.PluginID,
-		VolumeID:       vol.ID,
-		ExternalID:     vol.RemoteID(),
-		AllocID:        claim.AllocationID,
-		NodeID:         claim.NodeID,
-		AttachmentMode: claim.AttachmentMode,
-		AccessMode:     claim.AccessMode,
-		ReadOnly:       claim.Mode == structs.CSIVolumeClaimRead,
+		PluginID:        vol.PluginID,
+		VolumeID:        vol.ID,
+		VolumeNamespace: vol.Namespace,
+		ExternalID:      vol.RemoteID(),
+		AllocID:         claim.AllocationID,
+		NodeID:          claim.NodeID,
+		AttachmentMode:  claim.AttachmentMode,
+		AccessMode:      claim.AccessMode,
+		ReadOnly:        claim.Mode == structs.CSIVolumeClaimRead,
 	}
 	err := v.srv.RPC("ClientCSI.NodeDetachVolume",
 		req, &cstructs.ClientCSINodeDetachVolumeResponse{})
@@ -993,7 +998,7 @@ func (v *CSIVolume) lookupExternalNodeID(vol *structs.CSIVolume, claim *structs.
 		return "", fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, claim.NodeID)
 	}
 
-	// get the the storage provider's ID for the client node (not
+	// get the storage provider's ID for the client node (not
 	// Nomad's ID for the node)
 	targetCSIInfo, ok := targetNode.CSINodePlugins[vol.PluginID]
 	if !ok || targetCSIInfo.NodeInfo == nil {
@@ -1041,7 +1046,8 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		return err
 	}
 
-	if !allowVolume(aclObj, args.RequestNamespace()) || !aclObj.AllowPluginRead() {
+	// permission for the volume namespaces will be checked below
+	if !aclObj.AllowPluginRead() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1059,12 +1065,19 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 	}
 	validatedVols := []validated{}
 
-	// This is the only namespace we ACL checked, force all the volumes to use it.
-	// We also validate that the plugin exists for each plugin, and validate the
+	snap, err := v.srv.State().Snapshot()
+	if err != nil {
+		return err
+	}
+
+	// Validate ACLs, that the plugin exists for each volume, and validate the
 	// capabilities when the plugin has a controller.
 	for _, vol := range args.Volumes {
 		if vol.Namespace == "" {
 			vol.Namespace = args.RequestNamespace()
+		}
+		if !allowVolume(aclObj, vol.Namespace) {
+			return structs.ErrPermissionDenied
 		}
 		if err = vol.Validate(); err != nil {
 			return err
@@ -1081,10 +1094,6 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 		}
 
 		// if the volume already exists, we'll update it instead
-		snap, err := v.srv.State().Snapshot()
-		if err != nil {
-			return err
-		}
 		// current will be nil if it does not exist.
 		current, err := snap.CSIVolumeByID(nil, vol.Namespace, vol.ID)
 		if err != nil {
@@ -1272,10 +1281,56 @@ func (v *CSIVolume) expandVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	logger.Info("controller done expanding volume")
 
 	if cResp.NodeExpansionRequired {
-		v.logger.Warn("TODO: also do node volume expansion if needed") // TODO
+		return v.nodeExpandVolume(vol, plugin, capacity)
 	}
 
 	return nil
+}
+
+// nodeExpandVolume sends NodeExpandVolume requests to the appropriate client
+// for each allocation that has a claim on the volume. The client will then
+// send a gRPC call to the CSI node plugin colocated with the allocation.
+func (v *CSIVolume) nodeExpandVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin, capacity *csi.CapacityRange) error {
+	var mErr multierror.Error
+	logger := v.logger.Named("nodeExpandVolume").
+		With("volume", vol.ID, "plugin", plugin.ID)
+
+	expand := func(claim *structs.CSIVolumeClaim) {
+		if claim == nil {
+			return
+		}
+
+		logger.Debug("starting volume expansion on node",
+			"node_id", claim.NodeID, "alloc_id", claim.AllocationID)
+
+		resp := &cstructs.ClientCSINodeExpandVolumeResponse{}
+		req := &cstructs.ClientCSINodeExpandVolumeRequest{
+			PluginID:        plugin.ID,
+			VolumeID:        vol.ID,
+			VolumeNamespace: vol.Namespace,
+			ExternalID:      vol.ExternalID,
+			Capacity:        capacity,
+			Claim:           claim,
+		}
+		if err := v.srv.RPC("ClientCSI.NodeExpandVolume", req, resp); err != nil {
+			mErr.Errors = append(mErr.Errors, err)
+		}
+
+		if resp.CapacityBytes != vol.Capacity {
+			// not necessarily an error, but maybe notable
+			logger.Warn("unexpected capacity from NodeExpandVolume",
+				"expected", vol.Capacity, "resp", resp.CapacityBytes)
+		}
+	}
+
+	for _, claim := range vol.ReadClaims {
+		expand(claim)
+	}
+	for _, claim := range vol.WriteClaims {
+		expand(claim)
+	}
+
+	return mErr.ErrorOrNil()
 }
 
 func (v *CSIVolume) Delete(args *structs.CSIVolumeDeleteRequest, reply *structs.CSIVolumeDeleteResponse) error {
@@ -1751,8 +1806,8 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 		return structs.ErrPermissionDenied
 	}
 
-	withAllocs := aclObj == nil ||
-		aclObj.AllowNsOp(args.RequestNamespace(), acl.NamespaceCapabilityReadJob)
+	ns := args.RequestNamespace()
+	withAllocs := aclObj.AllowNsOp(ns, acl.NamespaceCapabilityReadJob)
 
 	if args.ID == "" {
 		return fmt.Errorf("missing plugin ID")
@@ -1776,18 +1831,22 @@ func (v *CSIPlugin) Get(args *structs.CSIPluginGetRequest, reply *structs.CSIPlu
 				return nil
 			}
 
+			// if we're not allowed access to the namespace at all, we skip this
+			// copy as an optimization. withAllocs will be true for the wildcard
+			// namespace
 			if withAllocs {
 				plug, err = snap.CSIPluginDenormalize(ws, plug.Copy())
 				if err != nil {
 					return err
 				}
 
-				// Filter the allocation stubs by our namespace. withAllocs
-				// means we're allowed
+				// Filter the allocation stubs by allowed namespace
 				var as []*structs.AllocListStub
 				for _, a := range plug.Allocations {
-					if a.Namespace == args.RequestNamespace() {
-						as = append(as, a)
+					if ns == structs.AllNamespacesSentinel || a.Namespace == ns {
+						if aclObj.AllowNsOp(a.Namespace, acl.NamespaceCapabilityReadJob) {
+							as = append(as, a)
+						}
 					}
 				}
 				plug.Allocations = as
@@ -1815,7 +1874,7 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 	// Check that it is a management token.
 	if aclObj, err := v.srv.ResolveACL(args); err != nil {
 		return err
-	} else if aclObj != nil && !aclObj.IsManagement() {
+	} else if !aclObj.IsManagement() {
 		return structs.ErrPermissionDenied
 	}
 
@@ -1824,7 +1883,7 @@ func (v *CSIPlugin) Delete(args *structs.CSIPluginDeleteRequest, reply *structs.
 	}
 
 	_, index, err := v.srv.raftApply(structs.CSIPluginDeleteRequestType, args)
-	if err != nil {
+	if err != nil && !errors.Is(err, structs.ErrCSIPluginInUse) {
 		v.logger.Error("csi raft apply failed", "error", err, "method", "delete")
 		return err
 	}

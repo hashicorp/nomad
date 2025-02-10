@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	metrics "github.com/hashicorp/go-metrics/compat"
 
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
@@ -527,13 +527,52 @@ func (c *CSI) NodeDetachVolume(req *structs.ClientCSINodeDetachVolumeRequest, re
 		AccessMode:     req.AccessMode,
 	}
 
-	err = manager.UnmountVolume(ctx, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
+	err = manager.UnmountVolume(ctx, req.VolumeNamespace, req.VolumeID, req.ExternalID, req.AllocID, usageOpts)
 	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
 		// if the unmounting previously happened but the server failed to
 		// checkpoint, we'll get an error from Unmount but can safely
 		// ignore it.
 		return fmt.Errorf("CSI.NodeDetachVolume: %v", err)
 	}
+	return nil
+}
+
+// NodeExpandVolume instructs the node plugin to complete a volume expansion
+// for a particular claim held by an allocation.
+func (c *CSI) NodeExpandVolume(req *structs.ClientCSINodeExpandVolumeRequest, resp *structs.ClientCSINodeExpandVolumeResponse) error {
+	defer metrics.MeasureSince([]string{"client", "csi_node", "expand_volume"}, time.Now())
+
+	if err := req.Validate(); err != nil {
+		return err
+	}
+	usageOpts := &csimanager.UsageOptions{
+		// Claim will not be nil here, per req.Validate() above.
+		ReadOnly:       req.Claim.Mode == nstructs.CSIVolumeClaimRead,
+		AttachmentMode: req.Claim.AttachmentMode,
+		AccessMode:     req.Claim.AccessMode,
+	}
+
+	ctx, cancel := c.requestContext() // note: this has a 2-minute timeout
+	defer cancel()
+
+	err := c.c.csimanager.WaitForPlugin(ctx, dynamicplugins.PluginTypeCSINode, req.PluginID)
+	if err != nil {
+		return err
+	}
+
+	manager, err := c.c.csimanager.ManagerForPlugin(ctx, req.PluginID)
+	if err != nil {
+		return err
+	}
+
+	newCapacity, err := manager.ExpandVolume(ctx, req.VolumeNamespace,
+		req.VolumeID, req.ExternalID, req.Claim.AllocationID, usageOpts, req.Capacity)
+
+	if err != nil && !errors.Is(err, nstructs.ErrCSIClientRPCIgnorable) {
+		return err
+	}
+	resp.CapacityBytes = newCapacity
+
 	return nil
 }
 

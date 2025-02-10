@@ -1,6 +1,6 @@
-github.com/google/go-cmp v0.5.9 h1:O2Tfq5qg4qc4AmwVlvv0oLiVAGB7enBSJ2x2DqQFi38=
-github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/hashicorp/go-set v0.1.11 h1:EZU3AzhNfCcMHtU0hCo2j4FAp7OHFDe/KTfmsbu1QIM=
-github.com/hashicorp/go-set v0.1.11/go.mod h1:BaYYjrI6m7H3D0j+N5Z0rZkCbBXOgNtuoDHrMJfORsk=
-github.com/shoenig/test v0.6.4 h1:kVTaSd7WLz5WZ2IaoM0RSzRsUD+m8wRR+5qvntpn4LU=
-github.com/shoenig/test v0.6.4/go.mod h1:byHiCGXqrVaflBLAMq/srcZIHynQPQgeyvkvXnjqq0k=
+github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+github.com/hashicorp/go-set/v3 v3.0.0-alpha.1 h1:dPUtuqKJGgxtF7YO42oE+NdUONXi5nfLMKH2NpBffIM=
+github.com/hashicorp/go-set/v3 v3.0.0-alpha.1/go.mod h1:7bJRgsF3EL3AtRTzcKXdjAFbYGSef+1gHXhglGGO52k=
+github.com/shoenig/test v1.8.2 h1:WDlty8UBqJRdmgdJX8lMwvCq97tiN7Um/GZD2vBDuug=
+github.com/shoenig/test v1.8.2/go.mod h1:UxJ6u/x2v/TNs/LoLxBNJRV9DiwBBKYxXSyczsBHFoI=

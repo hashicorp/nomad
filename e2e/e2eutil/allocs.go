@@ -140,7 +140,11 @@ func AllocTaskEventsForJob(jobID, ns string) (map[string][]map[string]string, er
 	for _, alloc := range allocs {
 		results[alloc["ID"]] = make([]map[string]string, 0)
 
-		cmd := []string{"nomad", "alloc", "status", alloc["ID"]}
+		cmd := []string{"nomad", "alloc", "status"}
+		if ns != "" {
+			cmd = append(cmd, "-namespace="+ns)
+		}
+		cmd = append(cmd, alloc["ID"])
 		out, err := Command(cmd[0], cmd[1:]...)
 		if err != nil {
 			return nil, fmt.Errorf("querying alloc status: %w", err)

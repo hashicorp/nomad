@@ -1,0 +1,97 @@
+---
+layout: docs
+page_title: Azure Key Vault Keyring Configuration
+description: >-
+  Configure an Azure Key Vault keyring in the `keyring "azurekeyvault"` block of a Nomad agent configuration. Configure the Key Vault resource's DNS, Azure Cloud environment variables and API endpoints, and vault and key names. Learn how Nomad supports rotating keys defined in Azure Key Vault.
+---
+
+# Azure Key Vault Keyring Configuration
+
+This page provides reference information for configuring an Azure Key Vault
+keyring in the `keyring "azurekeyvault"` block of a Nomad agent
+configuration. Configure the Key Vault resource's DNS, Azure Cloud environment
+API endpoints, vault and key names, tenant and client IDs, and the client secret. Learn how Nomad supports rotating keys defined in Azure Key
+Vault.
+
+The Azure Key Vault keyring configures Nomad to use Azure Key Vault to wrap its
+keyring. This example shows configuring Azure Key Vault keyring through the
+Nomad configuration file by providing all the required values.
+
+```hcl
+keyring "azurekeyvault" {
+  active = true
+  name   = "example"
+
+  # fields specific to azurekeyvault
+  tenant_id      = "46646709-b63e-4747-be42-516edeaf1e14"
+  client_id      = "03dc33fc-16d9-4b77-8152-3ec568f8af6e"
+  client_secret  = "DUJDS3..."
+  vault_name     = "nomad"
+  key_name       = "nomad_key"
+}
+```
+
+## `azurekeyvault` parameters
+
+These parameters apply to the `keyring` block in the Nomad configuration file:
+
+- `tenant_id` `(string: <required>)`: The tenant id for the Azure Active
+  Directory organization. Alternately specify via the `AZURE_TENANT_ID`
+  environment variable.
+
+- `client_id` `(string: <required or MSI>)`: The client id for credentials to
+  query the Azure APIs. Alternately specify via the `AZURE_CLIENT_ID`
+  environment variable.
+
+- `client_secret` `(string: <required or MSI>)`: The client secret for
+  credentials to query the Azure APIs. Alternately specify via the
+  `AZURE_CLIENT_SECRET` environment variable.
+
+- `environment` `(string: "AZUREPUBLICCLOUD")`: The Azure Cloud environment API
+  endpoints to use. Alternately specify via the `AZURE_ENVIRONMENT` environment
+  variable.
+
+- `vault_name` `(string: <required>)`: The Key Vault vault to use the encryption
+  keys for encryption and decryption.
+
+- `key_name` `(string: <required>)`: The Key Vault key to use for encryption and
+  decryption.
+
+- `resource` `(string: "vault.azure.net")`: The Key Vault resource's DNS
+  Suffix to connect to. Alternately specify via the `AZURE_AD_RESOURCE`
+  environment variable. Needs to be changed to connect to Azure's Managed HSM
+  KeyVault instance type.
+
+## Authentication
+
+You must provide authentication-related values either as environment variables
+or as configuration parameters.
+
+Azure authentication values:
+
+- `AZURE_TENANT_ID`
+- `AZURE_CLIENT_ID`
+- `AZURE_CLIENT_SECRET`
+- `AZURE_ENVIRONMENT`
+- `AZURE_AD_RESOURCE`
+
+~> **Note:** If Nomad is hosted on Azure, Nomad can use Managed Service
+Identities (MSI) to access Azure instead of an environment and shared client id
+and secret. MSI must be [enabled][msi_enabled] on the VMs hosting Nomad. We
+recommend this configuration since MSI prevents your Azure credentials from
+being stored as clear text.
+
+-> **Note:** If you are using a Managed HSM KeyVault, you must specify
+`AZURE_AD_RESOURCE` or the `resource` configuration parameter; usually this
+should point to `managedhsm.azure.net` but could point to other suffixes
+depending on Azure environment.
+
+## Key rotation
+
+This keyring supports rotating keys defined in Azure Key Vault. Key metadata is
+stored with the encrypted data to ensure the correct key is used during
+decryption operations. Set up Azure Key Vault with [key rotation][] using Azure
+Automation Account so Vault recognizes newly rotated keys.
+
+[msi_enabled]: https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/qs-configure-portal-windows-vm
+[key rotation]: https://docs.microsoft.com/en-us/azure/key-vault/key-vault-key-rotation-log-monitoring

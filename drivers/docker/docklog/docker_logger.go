@@ -12,7 +12,10 @@ import (
 	"sync"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 
@@ -93,23 +96,14 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 		backoff := 0.0
 
 		for {
-			logOpts := docker.LogsOptions{
-				Context:      ctx,
-				Container:    opts.ContainerID,
-				OutputStream: stdout,
-				ErrorStream:  stderr,
-				Since:        sinceTime.Unix(),
-				Follow:       true,
-				Stdout:       true,
-				Stderr:       true,
-
-				// When running in TTY, we must use a raw terminal.
-				// If not, we set RawTerminal to false to allow docker client
-				// to interpret special stdout/stderr messages
-				RawTerminal: opts.TTY,
+			logOpts := containerapi.LogsOptions{
+				Since:      sinceTime.Format(time.RFC3339),
+				Follow:     true,
+				ShowStdout: true,
+				ShowStderr: true,
 			}
 
-			err := client.Logs(logOpts)
+			logs, err := client.ContainerLogs(ctx, opts.ContainerID, logOpts)
 			if ctx.Err() != nil {
 				// If context is terminated then we can safely break the loop
 				return
@@ -124,15 +118,25 @@ func (d *dockerLogger) Start(opts *StartOpts) error {
 
 				time.Sleep(time.Duration(backoff) * time.Second)
 			}
+			defer logs.Close()
+
+			// attempt to check if the container uses a TTY. if it does, there is no
+			// multiplexing or headers in the log stream
+			if opts.TTY {
+				_, err = io.Copy(stdout, logs)
+			} else {
+				_, err = stdcopy.StdCopy(stdout, stderr, logs)
+			}
+			if err != nil && err != io.EOF {
+				d.logger.Error("log streaming ended with error", "error", err)
+				return
+			}
 
 			sinceTime = time.Now()
 
-			container, err := client.InspectContainerWithOptions(docker.InspectContainerOptions{
-				ID: opts.ContainerID,
-			})
+			container, err := client.ContainerInspect(ctx, opts.ContainerID)
 			if err != nil {
-				_, notFoundOk := err.(*docker.NoSuchContainer)
-				if !notFoundOk {
+				if !errdefs.IsNotFound(err) {
 					return
 				}
 			} else if !container.State.Running {
@@ -206,10 +210,10 @@ func (d *dockerLogger) Stop() error {
 	return nil
 }
 
-func (d *dockerLogger) getDockerClient(opts *StartOpts) (*docker.Client, error) {
+func (d *dockerLogger) getDockerClient(opts *StartOpts) (*client.Client, error) {
 	var err error
 	var merr multierror.Error
-	var newClient *docker.Client
+	var newClient *client.Client
 
 	// Default to using whatever is configured in docker.endpoint. If this is
 	// not specified we'll fall back on NewClientFromEnv which reads config from
@@ -219,20 +223,27 @@ func (d *dockerLogger) getDockerClient(opts *StartOpts) (*docker.Client, error) 
 	if opts.Endpoint != "" {
 		if opts.TLSCert+opts.TLSKey+opts.TLSCA != "" {
 			d.logger.Debug("using TLS client connection to docker", "endpoint", opts.Endpoint)
-			newClient, err = docker.NewTLSClient(opts.Endpoint, opts.TLSCert, opts.TLSKey, opts.TLSCA)
+			newClient, err = client.NewClientWithOpts(
+				client.WithHost(opts.Endpoint),
+				client.WithTLSClientConfig(opts.TLSCA, opts.TLSCert, opts.TLSKey),
+				client.WithAPIVersionNegotiation(),
+			)
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
 		} else {
 			d.logger.Debug("using plaintext client connection to docker", "endpoint", opts.Endpoint)
-			newClient, err = docker.NewClient(opts.Endpoint)
+			newClient, err = client.NewClientWithOpts(
+				client.WithHost(opts.Endpoint),
+				client.WithAPIVersionNegotiation(),
+			)
 			if err != nil {
 				merr.Errors = append(merr.Errors, err)
 			}
 		}
 	} else {
 		d.logger.Debug("using client connection initialized from environment")
-		newClient, err = docker.NewClientFromEnv()
+		newClient, err = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 		if err != nil {
 			merr.Errors = append(merr.Errors, err)
 		}
@@ -246,19 +257,13 @@ func isLoggingTerminalError(err error) bool {
 		return false
 	}
 
-	if apiErr, ok := err.(*docker.Error); ok {
-		switch apiErr.Status {
-		case 501:
-			return true
-		}
-	}
-
 	terminals := []string{
 		"configured logging driver does not support reading",
+		"not implemented",
 	}
 
 	for _, c := range terminals {
-		if strings.Contains(err.Error(), c) {
+		if strings.Contains(strings.ToLower(err.Error()), c) {
 			return true
 		}
 	}

@@ -58,7 +58,28 @@ export default class KeyboardShortcutsModalComponent extends Component {
   @computed('keyboard.{keyCommands.length,displayHints}')
   get hints() {
     if (this.keyboard.displayHints) {
-      return this.keyboard.keyCommands.filter((c) => c.element);
+      let elementBoundKeyCommands = this.keyboard.keyCommands.filter(
+        (c) => c.element
+      );
+      // Some element-bound key commands have pairs can be re-bound by the user.
+      // For each of them, check to see if any other key command has its pattern
+      // as a defaultPattern. If so, use that key command's pattern instead.
+      let elementBoundKeyCommandsWithRebinds = [];
+      elementBoundKeyCommands.forEach((c) => {
+        let pair = this.keyboard.keyCommands.find(
+          (kc) =>
+            JSON.stringify(kc.defaultPattern) === JSON.stringify(c.pattern)
+        );
+        if (pair) {
+          elementBoundKeyCommandsWithRebinds.push({
+            ...c,
+            pattern: pair.pattern,
+          });
+        } else {
+          elementBoundKeyCommandsWithRebinds.push(c);
+        }
+      });
+      return elementBoundKeyCommandsWithRebinds;
     } else {
       return [];
     }

@@ -8,9 +8,9 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	clientconfig "github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -106,38 +106,57 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	// Create a new taskenv.Builder which is used by hooks that mutate them to
 	// build new taskenv.TaskEnv.
 	newEnvBuilder := func() *taskenv.Builder {
-		return taskenv.NewBuilder(config.Node, ar.Alloc(), nil, config.Region).
-			SetAllocDir(ar.allocDir.AllocDir)
+		return taskenv.NewBuilder(
+			config.Node,
+			ar.Alloc(),
+			nil,
+			config.Region,
+		).SetAllocDir(ar.allocDir.AllocDirPath())
 	}
 
-	// Create a taskenv.TaskEnv which is used for read only purposes by the
-	// newNetworkHook.
+	// Create a *taskenv.TaskEnv which is used for read only purposes by the
+	// newNetworkHook and newChecksHook.
 	builtTaskEnv := newEnvBuilder().Build()
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := ar.Alloc()
+
 	ar.runnerHooks = []interfaces.RunnerHook{
+		newIdentityHook(hookLogger, ar.widmgr),
 		newAllocDirHook(hookLogger, ar.allocDir),
+		newConsulHook(consulHookConfig{
+			alloc:                   ar.alloc,
+			allocdir:                ar.allocDir,
+			widmgr:                  ar.widmgr,
+			consulConfigs:           ar.clientConfig.GetConsulConfigs(hookLogger),
+			consulClientConstructor: consul.NewConsulClientFactory(config),
+			hookResources:           ar.hookResources,
+			envBuilder:              newEnvBuilder,
+			logger:                  hookLogger,
+		}),
 		newUpstreamAllocsHook(hookLogger, ar.prevAllocWatcher),
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newCPUPartsHook(hookLogger, ar.partitions, alloc),
-		newAllocHealthWatcherHook(hookLogger, alloc, newEnvBuilder, hs, ar.Listener(), ar.consulClient, ar.checkStore),
+		newAllocHealthWatcherHook(hookLogger, alloc, newEnvBuilder, hs, ar.Listener(), ar.consulServicesHandler, ar.checkStore),
 		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, builtTaskEnv),
 		newGroupServiceHook(groupServiceHookConfig{
 			alloc:             alloc,
 			providerNamespace: alloc.ServiceProviderNamespace(),
 			serviceRegWrapper: ar.serviceRegWrapper,
+			hookResources:     ar.hookResources,
 			restarter:         ar,
 			taskEnvBuilder:    newEnvBuilder(),
 			networkStatus:     ar,
 			logger:            hookLogger,
 			shutdownDelayCtx:  ar.shutdownDelayCtx,
 		}),
-		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig, config.Node.Attributes),
-		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir, config.ConsulConfig),
+		newConsulGRPCSocketHook(hookLogger, alloc, ar.allocDir,
+			config.GetConsulConfigs(ar.logger), config.Node.Attributes),
+		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir,
+			config.GetConsulConfigs(ar.logger)),
 		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
-		newChecksHook(hookLogger, alloc, ar.checkStore, ar),
+		newChecksHook(hookLogger, alloc, ar.checkStore, ar, builtTaskEnv),
 	}
 	if config.ExtraAllocHooks != nil {
 		ar.runnerHooks = append(ar.runnerHooks, config.ExtraAllocHooks...)
@@ -170,7 +189,17 @@ func (ar *allocRunner) prerun() error {
 			ar.logger.Trace("running pre-run hook", "name", name, "start", start)
 		}
 
-		if err := pre.Prerun(); err != nil {
+		// If the operator has disabled hook metrics, then don't call the time
+		// function to save 30ns per hook.
+		var hookExecutionStart time.Time
+
+		if !ar.clientConfig.DisableAllocationHookMetrics {
+			hookExecutionStart = time.Now()
+		}
+
+		err := pre.Prerun()
+		ar.hookStatsHandler.Emit(hookExecutionStart, name, "prerun", err)
+		if err != nil {
 			return fmt.Errorf("pre-run hook %q failed: %v", name, err)
 		}
 

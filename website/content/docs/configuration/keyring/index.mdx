@@ -1,0 +1,110 @@
+---
+layout: docs
+page_title: keyring Block in Agent Configuration
+description: >-
+  Configure keyring protection behavior in the `keyring` block of a Nomad agent configuration. Enable a keyring and configure a name. Learn how to configure keyring high availability (HA) and migrate keyrings.
+---
+
+# `keyring` Block in Agent Configuration
+
+<Placement groups={['keyring']} />
+
+This page provides reference information for configuring keyring protection
+behavior in the `keyring` block of a Nomad agent configuration. Enable a keyring
+and configure a name. Learn how to configure keyring high availability (HA) and
+migrate keyrings.
+
+The `keyring` block configures how the Nomad server protects the keyring used
+for encrypting [variables][] and signing [workload identities][]. By default,
+Nomad encrypts the key material with a unique key encryption key (KEK) that is
+not shared between servers, and writes the wrapped key material to disk as
+described in [Key Management][]. Nomad refers to this as `"aead"` (authenticated
+encryption with associated data). Using the `keyring` configuration block, Nomad
+servers can instead use an external key management system (KMS) or Vault transit
+encryption. The encrypted key is stored on disk but is now protected against
+offline attacks because the KEK is not present in the file.
+
+All `keyring` blocks require a label for the KMS type. Each external KMS has its
+own configuration options. The `keyring` block only applies to Nomad servers,
+not Nomad clients.
+
+```hcl
+keyring [TYPE] {
+  name   = "example"
+  active = true
+}
+```
+
+The default `keyring` configuration is as follows:
+
+```hcl
+keyring "aead" {
+  active = true
+}
+```
+
+## `keyring` Parameters
+
+All `keyring` blocks support the following parameters.
+
+- `name` `(string: "")` - A unique identifier for the `keyring` block, used to
+  disambiguate when there are multiple blocks of the same type.
+
+- `active` `(bool: false)` - Indicates which block to use for encrypting
+  keys. For existing servers, changing which block is `active` only impacts new
+  keys created by a [key rotation][]. Existing keys are encrypted with the
+  previous `active` block, so those blocks should not be removed from the
+  configuration until they have been garbage collected and the keys have been
+  removed from the keystore. In Nomad Community Edition, only a single keyring
+  can be `active` at a time.
+
+## Migrating Keyrings
+
+To migrate to a new keyring, add the new `keyring` block to the servers with
+`active=true`, and restart the servers. The server starts using the new keyring
+wrapper when the current key is rotated either periodically or via the [`nomad
+operator root keyring rotate`][keyring_rotate_cmd] command.
+
+Adding or removing a keyring requires restarting the Nomad server. You should
+not remove a keyring until all keys it wraps have been garbage collected. You
+can examine the contents of the `keystore` directory found in the Nomad server's
+data directory and compare this against the output of [`nomad operator root
+keyring list`][keyring_list_cmd].
+
+## High Availability
+
+<EnterpriseAlert product="nomad"/>
+
+Keyring high availability provides the means to configure multiple active
+`keyring` blocks, in order to have resilience against an outage of an external
+KMS. When there are multiple `keyring` blocks with `active = true`, Nomad
+Enterprise encrypts each key it creates in all the active KMS providers. On
+startup, Nomad tries each KMS provider in order until it finds a provider that
+can decrypt each key.
+
+In this example high availability configuration, both `keyring` blocks use the
+`"awskms"` provider, but each block uses a different KMS key in a different AWS
+region.
+
+```hcl
+keyring "awskms" {
+  active     = true
+  name       = "kms-us-east-1"
+  region     = "us-east-1"
+  kms_key_id = "arn:aws:kms:us-east-1:000000000000:key/7d23633a-4464-11ef-a273-abd12example"
+}
+
+keyring "awskms" {
+  active     = true
+  name       = "kms-us-east-2"
+  region     = "us-east-2"
+  kms_key_id = "alias/nomad-keyring-us-east-2"
+}
+```
+
+[variables]: /nomad/docs/concepts/variables
+[workload identities]: /nomad/docs/concepts/workload-identity
+[Key Management]: /nomad/docs/operations/key-management
+[key rotation]: /nomad/docs/operations/key-management#key-rotation
+[keyring_rotate_cmd]: /nomad/docs/commands/operator/root/keyring-rotate
+[keyring_list_cmd]: /nomad/docs/commands/operator/root/keyring-list

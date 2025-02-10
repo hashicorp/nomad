@@ -31,6 +31,9 @@ const (
 	TopicACLAuthMethod  Topic = "ACLAuthMethod"
 	TopicACLBindingRule Topic = "ACLBindingRule"
 	TopicService        Topic = "Service"
+	TopicHostVolume     Topic = "HostVolume"
+	TopicCSIVolume      Topic = "CSIVolume"
+	TopicCSIPlugin      Topic = "CSIPlugin"
 	TopicAll            Topic = "*"
 
 	TypeNodeRegistration              = "NodeRegistration"
@@ -63,6 +66,11 @@ const (
 	TypeACLBindingRuleDeleted         = "ACLBindingRuleDeleted"
 	TypeServiceRegistration           = "ServiceRegistration"
 	TypeServiceDeregistration         = "ServiceDeregistration"
+	TypeHostVolumeRegistered          = "HostVolumeRegistered"
+	TypeHostVolumeDeleted             = "HostVolumeDeleted"
+	TypeCSIVolumeRegistered           = "CSIVolumeRegistered"
+	TypeCSIVolumeDeregistered         = "CSIVolumeDeregistered"
+	TypeCSIVolumeClaim                = "CSIVolumeClaim"
 )
 
 // Event represents a change in Nomads state.
@@ -155,8 +163,7 @@ type ServiceRegistrationStreamEvent struct {
 // NewACLTokenEvent takes a token and creates a new ACLTokenEvent.  It creates
 // a copy of the passed in ACLToken and empties out the copied tokens SecretID
 func NewACLTokenEvent(token *ACLToken) *ACLTokenEvent {
-	c := token.Copy()
-	c.SecretID = ""
+	c := token.Sanitize()
 
 	return &ACLTokenEvent{
 		ACLToken: c,
@@ -188,4 +195,22 @@ type ACLAuthMethodEvent struct {
 // used as an event in the event stream.
 type ACLBindingRuleEvent struct {
 	ACLBindingRule *ACLBindingRule
+}
+
+// HostVolumeEvent holds a newly updated or deleted dynamic host volume to be
+// used as an event in the event stream
+type HostVolumeEvent struct {
+	Volume *HostVolume
+}
+
+// CSIVolumeEvent holds a newly updated or deleted CSI volume to be
+// used as an event in the event stream
+type CSIVolumeEvent struct {
+	Volume *CSIVolume
+}
+
+// CSIPluginEvent holds a newly updated or deleted CSI plugin to be
+// used as an event in the event stream
+type CSIPluginEvent struct {
+	Plugin *CSIPlugin
 }

@@ -1,0 +1,3 @@
+```release-note:bug
+consul: uses token namespace to fetch policies for verification
+```

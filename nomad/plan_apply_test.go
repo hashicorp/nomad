@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"reflect"
 	"testing"
 	"time"
@@ -16,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/hashicorp/raft"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -50,30 +51,13 @@ func testRegisterNode(t *testing.T, s *Server, n *structs.Node) {
 	}
 }
 
-func testRegisterJob(t *testing.T, s *Server, j *structs.Job) {
-	// Create the register request
-	req := &structs.JobRegisterRequest{
-		Job:          j,
-		WriteRequest: structs.WriteRequest{Region: "global"},
-	}
-
-	// Fetch the response
-	var resp structs.JobRegisterResponse
-	if err := s.RPC("Job.Register", req, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if resp.Index == 0 {
-		t.Fatalf("bad index: %d", resp.Index)
-	}
-}
-
 // COMPAT 0.11: Tests the older unoptimized code path for applyPlan
 func TestPlanApply_applyPlan(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -81,9 +65,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Register a fake deployment
 	oldDeployment := mock.Deployment()
-	if err := s1.State().UpsertDeployment(900, oldDeployment); err != nil {
-		t.Fatalf("UpsertDeployment failed: %v", err)
-	}
+	must.NoError(t, s1.State().UpsertDeployment(900, oldDeployment))
 
 	// Create a deployment
 	dnew := mock.Deployment()
@@ -100,13 +82,11 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Register alloc, deployment and deployment update
 	alloc := mock.Alloc()
-	s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID))
+	must.NoError(t, s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	// Create an eval
 	eval := mock.Eval()
 	eval.JobID = alloc.JobID
-	if err := s1.State().UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, s1.State().UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}))
 
 	planRes := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
@@ -118,9 +98,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Snapshot the state
 	snap, err := s1.State().Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Create the plan with a deployment
 	plan := &structs.Plan{
@@ -132,50 +110,49 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Apply the plan
 	future, err := s1.applyPlan(plan, planRes, snap)
-	assert := assert.New(t)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	// Verify our optimistic snapshot is updated
 	ws := memdb.NewWatchSet()
 	allocOut, err := snap.AllocByID(ws, alloc.ID)
-	assert.Nil(err)
-	assert.NotNil(allocOut)
+	must.NoError(t, err)
+	must.NotNil(t, allocOut)
 
 	deploymentOut, err := snap.DeploymentByID(ws, plan.Deployment.ID)
-	assert.Nil(err)
-	assert.NotNil(deploymentOut)
+	must.NoError(t, err)
+	must.NotNil(t, deploymentOut)
 
 	// Check plan does apply cleanly
 	index, err := planWaitFuture(future)
-	assert.Nil(err)
-	assert.NotEqual(0, index)
+	must.NoError(t, err)
+	must.NotNil(t, index)
 
 	// Lookup the allocation
 	fsmState := s1.fsm.State()
 	allocOut, err = fsmState.AllocByID(ws, alloc.ID)
-	assert.Nil(err)
-	assert.NotNil(allocOut)
-	assert.True(allocOut.CreateTime > 0)
-	assert.True(allocOut.ModifyTime > 0)
-	assert.Equal(allocOut.CreateTime, allocOut.ModifyTime)
+	must.NoError(t, err)
+	must.NotNil(t, allocOut)
+	must.True(t, allocOut.CreateTime > 0)
+	must.True(t, allocOut.ModifyTime > 0)
+	must.Eq(t, allocOut.CreateTime, allocOut.ModifyTime)
 
 	// Lookup the new deployment
 	dout, err := fsmState.DeploymentByID(ws, plan.Deployment.ID)
-	assert.Nil(err)
-	assert.NotNil(dout)
+	must.NoError(t, err)
+	must.NotNil(t, dout)
 
 	// Lookup the updated deployment
 	dout2, err := fsmState.DeploymentByID(ws, oldDeployment.ID)
-	assert.Nil(err)
-	assert.NotNil(dout2)
-	assert.Equal(desiredStatus, dout2.Status)
-	assert.Equal(desiredStatusDescription, dout2.StatusDescription)
+	must.NoError(t, err)
+	must.NotNil(t, dout2)
+	must.Eq(t, desiredStatus, dout2.Status)
+	must.Eq(t, desiredStatusDescription, dout2.StatusDescription)
 
 	// Lookup updated eval
 	evalOut, err := fsmState.EvalByID(ws, eval.ID)
-	assert.Nil(err)
-	assert.NotNil(evalOut)
-	assert.Equal(index, evalOut.ModifyIndex)
+	must.NoError(t, err)
+	must.NotNil(t, evalOut)
+	must.Eq(t, index, evalOut.ModifyIndex)
 
 	// Evict alloc, Register alloc2
 	allocEvict := new(structs.Allocation)
@@ -184,7 +161,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 	job := allocEvict.Job
 	allocEvict.Job = nil
 	alloc2 := mock.Alloc()
-	s1.State().UpsertJobSummary(1500, mock.JobSummary(alloc2.JobID))
+	must.NoError(t, s1.State().UpsertJobSummary(1500, mock.JobSummary(alloc2.JobID)))
 	planRes = &structs.PlanResult{
 		NodeUpdate: map[string][]*structs.Allocation{
 			node.ID: {allocEvict},
@@ -196,7 +173,7 @@ func TestPlanApply_applyPlan(t *testing.T) {
 
 	// Snapshot the state
 	snap, err = s1.State().Snapshot()
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	// Apply the plan
 	plan = &structs.Plan{
@@ -204,40 +181,40 @@ func TestPlanApply_applyPlan(t *testing.T) {
 		EvalID: eval.ID,
 	}
 	future, err = s1.applyPlan(plan, planRes, snap)
-	assert.Nil(err)
+	must.NoError(t, err)
 
 	// Check that our optimistic view is updated
 	out, _ := snap.AllocByID(ws, allocEvict.ID)
 	if out.DesiredStatus != structs.AllocDesiredStatusEvict && out.DesiredStatus != structs.AllocDesiredStatusStop {
-		assert.Equal(structs.AllocDesiredStatusEvict, out.DesiredStatus)
+		must.Eq(t, structs.AllocDesiredStatusEvict, out.DesiredStatus)
 	}
 
 	// Verify plan applies cleanly
 	index, err = planWaitFuture(future)
-	assert.Nil(err)
-	assert.NotEqual(0, index)
+	must.NoError(t, err)
+	must.NotEq(t, 0, index)
 
 	// Lookup the allocation
 	allocOut, err = s1.fsm.State().AllocByID(ws, alloc.ID)
-	assert.Nil(err)
+	must.NoError(t, err)
 	if allocOut.DesiredStatus != structs.AllocDesiredStatusEvict && allocOut.DesiredStatus != structs.AllocDesiredStatusStop {
-		assert.Equal(structs.AllocDesiredStatusEvict, allocOut.DesiredStatus)
+		must.Eq(t, structs.AllocDesiredStatusEvict, allocOut.DesiredStatus)
 	}
 
-	assert.NotNil(allocOut.Job)
-	assert.True(allocOut.ModifyTime > 0)
+	must.NotNil(t, allocOut.Job)
+	must.True(t, allocOut.ModifyTime > 0)
 
 	// Lookup the allocation
 	allocOut, err = s1.fsm.State().AllocByID(ws, alloc2.ID)
-	assert.Nil(err)
-	assert.NotNil(allocOut)
-	assert.NotNil(allocOut.Job)
+	must.NoError(t, err)
+	must.NotNil(t, allocOut)
+	must.NotNil(t, allocOut.Job)
 
 	// Lookup updated eval
 	evalOut, err = fsmState.EvalByID(ws, eval.ID)
-	assert.Nil(err)
-	assert.NotNil(evalOut)
-	assert.Equal(index, evalOut.ModifyIndex)
+	must.NoError(t, err)
+	must.NotNil(t, evalOut)
+	must.Eq(t, index, evalOut.ModifyIndex)
 }
 
 // Verifies that applyPlan properly updates the constituent objects in MemDB,
@@ -249,7 +226,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		c.Build = "1.4.0"
 	})
 	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -287,8 +264,9 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		ID:                    preemptedAlloc.ID,
 		PreemptedByAllocation: alloc.ID,
 	}
-	s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID))
-	s1.State().UpsertAllocs(structs.MsgTypeTestSetup, 1100, []*structs.Allocation{stoppedAlloc, preemptedAlloc})
+	must.NoError(t, s1.State().UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, s1.State().UpsertAllocs(structs.MsgTypeTestSetup, 1100, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
+
 	// Create an eval
 	eval := mock.Eval()
 	eval.JobID = alloc.JobID
@@ -296,7 +274,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	timestampBeforeCommit := time.Now().UTC().UnixNano()
+	timestampBeforeCommit := time.Now().UnixNano()
 	planRes := &structs.PlanResult{
 		NodeAllocation: map[string][]*structs.Allocation{
 			node.ID: {alloc},
@@ -313,9 +291,7 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 
 	// Snapshot the state
 	snap, err := s1.State().Snapshot()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Create the plan with a deployment
 	plan := &structs.Plan{
@@ -325,72 +301,189 @@ func TestPlanApply_applyPlanWithNormalizedAllocs(t *testing.T) {
 		EvalID:            eval.ID,
 	}
 
-	require := require.New(t)
-	assert := assert.New(t)
-
 	// Apply the plan
 	future, err := s1.applyPlan(plan, planRes, snap)
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// Verify our optimistic snapshot is updated
 	ws := memdb.NewWatchSet()
 	allocOut, err := snap.AllocByID(ws, alloc.ID)
-	require.NoError(err)
-	require.NotNil(allocOut)
+	must.NoError(t, err)
+	must.NotNil(t, allocOut)
 
 	deploymentOut, err := snap.DeploymentByID(ws, plan.Deployment.ID)
-	require.NoError(err)
-	require.NotNil(deploymentOut)
+	must.NoError(t, err)
+	must.NotNil(t, deploymentOut)
 
 	// Check plan does apply cleanly
 	index, err := planWaitFuture(future)
-	require.NoError(err)
-	assert.NotEqual(0, index)
+	must.NoError(t, err)
+	must.NotEq(t, 0, index)
 
 	// Lookup the allocation
 	fsmState := s1.fsm.State()
 	allocOut, err = fsmState.AllocByID(ws, alloc.ID)
-	require.NoError(err)
-	require.NotNil(allocOut)
-	assert.True(allocOut.CreateTime > 0)
-	assert.True(allocOut.ModifyTime > 0)
-	assert.Equal(allocOut.CreateTime, allocOut.ModifyTime)
+	must.NoError(t, err)
+	must.NotNil(t, allocOut)
+	must.True(t, allocOut.CreateTime > 0)
+	must.True(t, allocOut.ModifyTime > 0)
+	must.Eq(t, allocOut.CreateTime, allocOut.ModifyTime)
 
 	// Verify stopped alloc diff applied cleanly
 	updatedStoppedAlloc, err := fsmState.AllocByID(ws, stoppedAlloc.ID)
-	require.NoError(err)
-	require.NotNil(updatedStoppedAlloc)
-	assert.True(updatedStoppedAlloc.ModifyTime > timestampBeforeCommit)
-	assert.Equal(updatedStoppedAlloc.DesiredDescription, stoppedAllocDiff.DesiredDescription)
-	assert.Equal(updatedStoppedAlloc.ClientStatus, stoppedAllocDiff.ClientStatus)
-	assert.Equal(updatedStoppedAlloc.DesiredStatus, structs.AllocDesiredStatusStop)
+	must.NoError(t, err)
+	must.NotNil(t, updatedStoppedAlloc)
+	must.True(t, updatedStoppedAlloc.ModifyTime > timestampBeforeCommit)
+	must.Eq(t, updatedStoppedAlloc.DesiredDescription, stoppedAllocDiff.DesiredDescription)
+	must.Eq(t, updatedStoppedAlloc.ClientStatus, stoppedAllocDiff.ClientStatus)
+	must.Eq(t, updatedStoppedAlloc.DesiredStatus, structs.AllocDesiredStatusStop)
 
 	// Verify preempted alloc diff applied cleanly
 	updatedPreemptedAlloc, err := fsmState.AllocByID(ws, preemptedAlloc.ID)
-	require.NoError(err)
-	require.NotNil(updatedPreemptedAlloc)
-	assert.True(updatedPreemptedAlloc.ModifyTime > timestampBeforeCommit)
-	assert.Equal(updatedPreemptedAlloc.DesiredDescription,
+	must.NoError(t, err)
+	must.NotNil(t, updatedPreemptedAlloc)
+	must.True(t, updatedPreemptedAlloc.ModifyTime > timestampBeforeCommit)
+	must.Eq(t, updatedPreemptedAlloc.DesiredDescription,
 		"Preempted by alloc ID "+preemptedAllocDiff.PreemptedByAllocation)
-	assert.Equal(updatedPreemptedAlloc.DesiredStatus, structs.AllocDesiredStatusEvict)
+	must.Eq(t, updatedPreemptedAlloc.DesiredStatus, structs.AllocDesiredStatusEvict)
 
 	// Lookup the new deployment
 	dout, err := fsmState.DeploymentByID(ws, plan.Deployment.ID)
-	require.NoError(err)
-	require.NotNil(dout)
+	must.NoError(t, err)
+	must.NotNil(t, dout)
 
 	// Lookup the updated deployment
 	dout2, err := fsmState.DeploymentByID(ws, oldDeployment.ID)
-	require.NoError(err)
-	require.NotNil(dout2)
-	assert.Equal(desiredStatus, dout2.Status)
-	assert.Equal(desiredStatusDescription, dout2.StatusDescription)
+	must.NoError(t, err)
+	must.NotNil(t, dout2)
+	must.Eq(t, desiredStatus, dout2.Status)
+	must.Eq(t, desiredStatusDescription, dout2.StatusDescription)
 
 	// Lookup updated eval
 	evalOut, err := fsmState.EvalByID(ws, eval.ID)
-	require.NoError(err)
-	require.NotNil(evalOut)
-	assert.Equal(index, evalOut.ModifyIndex)
+	must.NoError(t, err)
+	must.NotNil(t, evalOut)
+	must.Eq(t, index, evalOut.ModifyIndex)
+}
+
+func TestPlanApply_signAllocIdentities(t *testing.T) {
+	// note: this is mutated by the method under test
+	alloc := mockAlloc()
+	job := alloc.Job
+	taskName := job.TaskGroups[0].Tasks[0].Name // "web"
+	allocs := []*structs.Allocation{alloc}
+
+	signErr := errors.New("could not sign the thing")
+
+	cases := []struct {
+		name      string
+		signer    *mockSigner
+		expectErr error
+		callNum   int
+	}{
+		{
+			name: "signer error",
+			signer: &mockSigner{
+				nextErr: signErr,
+			},
+			expectErr: signErr,
+			callNum:   1,
+		},
+		{
+			name: "first signing",
+			signer: &mockSigner{
+				nextToken: "first-token",
+				nextKeyID: "first-key",
+			},
+			callNum: 1,
+		},
+		{
+			name: "second signing",
+			signer: &mockSigner{
+				nextToken: "dont-sign-token",
+				nextKeyID: "dont-sign-key",
+			},
+			callNum: 0,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			err := signAllocIdentities(tc.signer, job, allocs, time.Now())
+
+			if tc.expectErr != nil {
+				must.Error(t, err)
+				must.ErrorIs(t, err, tc.expectErr)
+			} else {
+				must.NoError(t, err)
+				// assert mutations happened
+				must.MapLen(t, 1, allocs[0].SignedIdentities)
+				// we should always keep the first signing
+				must.Eq(t, "first-token", allocs[0].SignedIdentities[taskName])
+				must.Eq(t, "first-key", allocs[0].SigningKeyID)
+			}
+
+			must.Len(t, tc.callNum, tc.signer.calls, must.Sprint("unexpected call count"))
+			if tc.callNum > 0 {
+				call := tc.signer.calls[tc.callNum-1]
+				must.NotNil(t, call)
+				must.Eq(t, call.AllocationID, alloc.ID)
+				must.Eq(t, call.Namespace, alloc.Namespace)
+				must.Eq(t, call.JobID, job.ID)
+				must.Eq(t, call.TaskName, taskName)
+			}
+
+		})
+	}
+}
+
+// TestPlanApply_KeyringNotReady asserts we safely fail to apply a plan if the
+// leader's keyring is not ready
+func TestPlanApply_KeyringNotReady(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.KEKProviderConfigs = []*structs.KEKProviderConfig{{
+			Provider: "no-such-provider",
+			Active:   true,
+		}}
+	})
+	defer cleanup()
+	testutil.WaitForLeader(t, srv.RPC) // don't WaitForKeyring
+
+	node := mock.Node()
+	alloc := mock.Alloc()
+	deploy := mock.Deployment()
+	dupdates := []*structs.DeploymentStatusUpdate{
+		{
+			DeploymentID:      uuid.Generate(),
+			Status:            "foo",
+			StatusDescription: "bar",
+		},
+	}
+	plan := &structs.Plan{
+		Job: alloc.Job,
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+		Deployment:        deploy,
+		DeploymentUpdates: dupdates,
+	}
+
+	planRes := &structs.PlanResult{
+		NodeAllocation: map[string][]*structs.Allocation{
+			node.ID: {alloc},
+		},
+		NodeUpdate:        map[string][]*structs.Allocation{},
+		NodePreemptions:   map[string][]*structs.Allocation{},
+		Deployment:        deploy,
+		DeploymentUpdates: dupdates,
+	}
+	snap, _ := srv.State().Snapshot()
+
+	_, err := srv.applyPlan(plan, planRes, snap)
+	must.EqError(t, err, "keyring has not been initialized yet")
 }
 
 func TestPlanApply_EvalPlan_Simple(t *testing.T) {
@@ -442,8 +535,10 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 	state := testStateStore(t)
 	node := mock.Node()
 	node.NodeResources = &structs.NodeResources{
-		Cpu: structs.NodeCpuResources{
-			CpuShares: 2000,
+		Cpu: structs.LegacyNodeCpuResources{
+			CpuShares:          2000,
+			TotalCpuCores:      2,
+			ReservableCpuCores: []uint16{0, 1},
 		},
 		Memory: structs.NodeMemoryResources{
 			MemoryMB: 4192,
@@ -459,6 +554,8 @@ func TestPlanApply_EvalPlan_Preemption(t *testing.T) {
 			},
 		},
 	}
+	node.NodeResources.Compatibility()
+
 	state.UpsertNode(structs.MsgTypeTestSetup, 1000, node)
 
 	preemptedAlloc := mock.Alloc()

@@ -30,10 +30,11 @@ type AllocServiceRegistrationsResponse struct {
 // services should be registered. This takes into account the different
 // providers that can provide service registrations. In the event no services
 // are found, the function will return the Consul namespace which allows hooks
-// to work as they did before this feature.
+// to work as they did before Nomad native services.
 //
 // It currently assumes that all services within an allocation use the same
-// provider and therefore the same namespace.
+// provider and therefore the same namespace, which is enforced at job submit
+// time.
 func (a *Allocation) ServiceProviderNamespace() string {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
@@ -52,12 +53,39 @@ func (a *Allocation) ServiceProviderNamespace() string {
 			case ServiceProviderNomad:
 				return a.Job.Namespace
 			default:
-				return tg.Consul.GetNamespace()
+				return a.ConsulNamespaceForTask(task.Name)
 			}
 		}
 	}
 
 	return tg.Consul.GetNamespace()
+}
+
+// ServiceProviderNamespaceForTask returns the namespace within which a given
+// tasks's services should be registered. This takes into account the different
+// providers that can provide service registrations. In the event no services
+// are found, the function will return the Consul namespace which allows hooks
+// to work as they did before Nomad native services.
+//
+// It currently assumes that all services within a task use the same provider
+// and therefore the same namespace, which is enforced at job submit time.
+func (a *Allocation) ServiceProviderNamespaceForTask(taskName string) string {
+	tg := a.Job.LookupTaskGroup(a.TaskGroup)
+
+	for _, task := range tg.Tasks {
+		if task.Name == taskName {
+			for _, service := range task.Services {
+				switch service.Provider {
+				case ServiceProviderNomad:
+					return a.Job.Namespace
+				default:
+					return a.ConsulNamespaceForTask(taskName)
+				}
+			}
+		}
+	}
+
+	return a.ConsulNamespaceForTask(taskName)
 }
 
 type AllocInfo struct {

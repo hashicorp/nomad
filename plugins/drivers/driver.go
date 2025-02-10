@@ -8,6 +8,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"maps"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -17,12 +18,12 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/base"
+	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/drivers/proto"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/msgpack"
-	"golang.org/x/exp/maps"
 )
 
 const (
@@ -132,20 +133,18 @@ type Fingerprint struct {
 	Err error
 }
 
-// FSIsolation is an enumeration to describe what kind of filesystem isolation
-// a driver supports.
-type FSIsolation string
+// Deprecated: use fsisolation.Mode instead.
+type FSIsolation = fsisolation.Mode
 
 var (
-	// FSIsolationNone means no isolation. The host filesystem is used.
-	FSIsolationNone = FSIsolation("none")
+	// Deprecated: use fsisolation.None instead.
+	FSIsolationNone = fsisolation.None
 
-	// FSIsolationChroot means the driver will use a chroot on the host
-	// filesystem.
-	FSIsolationChroot = FSIsolation("chroot")
+	// Deprecated: use fsisolation.Chroot instead.
+	FSIsolationChroot = fsisolation.Chroot
 
-	// FSIsolationImage means the driver uses an image.
-	FSIsolationImage = FSIsolation("image")
+	// Deprecated: use fsisolation.Image instead.
+	FSIsolationImage = fsisolation.Image
 )
 
 type Capabilities struct {
@@ -157,7 +156,7 @@ type Capabilities struct {
 	Exec bool
 
 	//FSIsolation indicates what kind of filesystem isolation the driver supports.
-	FSIsolation FSIsolation
+	FSIsolation fsisolation.Mode
 
 	//NetIsolationModes lists the set of isolation modes supported by the driver
 	NetIsolationModes []NetIsolationMode
@@ -169,15 +168,15 @@ type Capabilities struct {
 	// MountConfigs tells Nomad which mounting config options the driver supports.
 	MountConfigs MountConfigSupport
 
-	// RemoteTasks indicates this driver runs tasks on remote systems
-	// instead of locally. The Nomad client can use this information to
-	// adjust behavior such as propogating task handles between allocations
-	// to avoid downtime when a client is lost.
-	RemoteTasks bool
-
 	// DisableLogCollection indicates this driver has disabled log collection
 	// and the client should not start a logmon process.
 	DisableLogCollection bool
+
+	// DynamicWorkloadUsers indicates this driver is capable (but not required)
+	// of making use of UID/GID not backed by a user known to the operating system.
+	// The allocation of a unique, not-in-use UID/GID is managed by Nomad client
+	// ensuring no overlap.
+	DynamicWorkloadUsers bool
 }
 
 func (c *Capabilities) HasNetIsolationMode(m NetIsolationMode) bool {
@@ -403,7 +402,12 @@ type LinuxResources struct {
 	CPUQuota         int64
 	CPUShares        int64
 	MemoryLimitBytes int64
-	OOMScoreAdj      int64
+
+	// OOMScoreAdj field in LinuxResources is never used and left for
+	// compatibility reasons. Docker, raw_exec and exec2 drivers allow tasks to
+	// set per-task oom_score_adj values using their own TaskConfig OOMScoreAdj
+	// fields
+	OOMScoreAdj int64
 
 	CpusetCpus       string
 	CpusetCgroupPath string
@@ -444,13 +448,15 @@ type MountConfig struct {
 	HostPath        string
 	Readonly        bool
 	PropagationMode string
+	SELinuxLabel    string
 }
 
 func (m *MountConfig) IsEqual(o *MountConfig) bool {
 	return m.TaskPath == o.TaskPath &&
 		m.HostPath == o.HostPath &&
 		m.Readonly == o.Readonly &&
-		m.PropagationMode == o.PropagationMode
+		m.PropagationMode == o.PropagationMode &&
+		m.SELinuxLabel == o.SELinuxLabel
 }
 
 func (m *MountConfig) Copy() *MountConfig {

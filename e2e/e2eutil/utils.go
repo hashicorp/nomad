@@ -209,14 +209,8 @@ func WaitForAllocNotPending(t *testing.T, nomadClient *api.Client, allocID strin
 
 // WaitForJobStopped stops a job and waits for all of its allocs to terminate.
 func WaitForJobStopped(t *testing.T, nomadClient *api.Client, job string) {
-	allocs, _, err := nomadClient.Jobs().Allocations(job, true, nil)
-	require.NoError(t, err, "error getting allocations for job %q", job)
-	ids := AllocIDsFromAllocationListStubs(allocs)
-	_, _, err = nomadClient.Jobs().Deregister(job, true, nil)
+	_, _, err := nomadClient.Jobs().Deregister(job, true, nil)
 	require.NoError(t, err, "error deregistering job %q", job)
-	for _, id := range ids {
-		WaitForAllocStopped(t, nomadClient, id)
-	}
 }
 
 func WaitForAllocsStopped(t *testing.T, nomadClient *api.Client, allocIDs []string) {

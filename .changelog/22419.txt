@@ -1,0 +1,3 @@
+```release-note:improvement
+docker: Added container_exists_attempts plugin configuration variable
+```

@@ -13,8 +13,14 @@ import { copy } from 'ember-copy';
 import formatHost from 'nomad-ui/utils/format-host';
 import faker from 'nomad-ui/mirage/faker';
 
-export function findLeader(schema) {
-  const agent = schema.agents.first();
+export function findLeader(schema, region = null) {
+  let agent;
+  let agents = schema.agents.all().models;
+  if (region) {
+    agent = agents.find((agent) => agent.member?.Tags?.region === region);
+  } else {
+    agent = agents[0];
+  }
   return formatHost(agent.member.Address, agent.member.Tags.port);
 }
 
@@ -37,12 +43,20 @@ export default function () {
 
   const nomadIndices = {}; // used for tracking blocking queries
   const server = this;
-  const withBlockingSupport = function (fn) {
+  const withBlockingSupport = function (
+    fn,
+    { pagination = false, tokenProperty = 'ModifyIndex' } = {}
+  ) {
     return function (schema, request) {
+      let handler = fn;
+      if (pagination) {
+        handler = withPagination(handler, tokenProperty);
+      }
+
       // Get the original response
       let { url } = request;
       url = url.replace(/index=\d+[&;]?/, '');
-      const response = fn.apply(this, arguments);
+      let response = handler.apply(this, arguments);
 
       // Get and increment the appropriate index
       nomadIndices[url] || (nomadIndices[url] = 2);
@@ -55,6 +69,37 @@ export default function () {
         return response;
       }
       return new Response(200, { 'x-nomad-index': index }, response);
+    };
+  };
+
+  const withPagination = function (fn, tokenProperty = 'ModifyIndex') {
+    return function (schema, request) {
+      let response = fn.apply(this, arguments);
+      if (response.code && response.code !== 200) {
+        return response;
+      }
+      let perPage = parseInt(request.queryParams.per_page || 25);
+      let page = parseInt(request.queryParams.page || 1);
+      let totalItems = response.length;
+      let totalPages = Math.ceil(totalItems / perPage);
+      let hasMore = page < totalPages;
+
+      let paginatedItems = response.slice((page - 1) * perPage, page * perPage);
+
+      let nextToken = null;
+      if (hasMore) {
+        nextToken = response[page * perPage][tokenProperty];
+      }
+
+      if (nextToken) {
+        return new Response(
+          200,
+          { 'x-nomad-nexttoken': nextToken },
+          paginatedItems
+        );
+      } else {
+        return new Response(200, {}, paginatedItems);
+      }
     };
   };
 
@@ -71,6 +116,226 @@ export default function () {
             : job.NamespaceID === namespace;
         })
         .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+    })
+  );
+
+  this.get(
+    '/jobs/statuses',
+    withBlockingSupport(
+      function ({ jobs }, req) {
+        const namespace = req.queryParams.namespace || '*';
+        let nextToken = req.queryParams.next_token || 0;
+        let reverse = req.queryParams.reverse === 'true';
+        const json = this.serialize(jobs.all());
+
+        // Let's implement a very basic handling of ?filter here.
+        // We'll assume at most "and" combinations, and only positive filters
+        // (no "not Type contains sys" or similar)
+        let filteredJson = json;
+
+        // Filter out all child jobs
+        if (!req.queryParams.include_children) {
+          filteredJson = filteredJson.filter((job) => !job.ParentID);
+        }
+
+        if (req.queryParams.filter) {
+          // Format will be something like "Name contains NAME" or "Type == sysbatch" or combinations thereof
+          const filterConditions = req.queryParams.filter
+            .split(' and ')
+            .map((condition) => {
+              // Dropdowns user parenthesis wrapping; remove them for mock/test purposes
+              // We want to test multiple conditions within parens, like "(Type == system or Type == sysbatch)"
+              // So if we see parenthesis, we should re-split on "or" and treat them as separate conditions.
+              if (condition.startsWith('(') && condition.endsWith(')')) {
+                condition = condition.slice(1, -1);
+              }
+              if (condition.includes(' or ')) {
+                // multiple or condition
+                return {
+                  field: condition.split(' ')[0],
+                  operator: '==',
+                  parts: condition.split(' or ').map((part) => {
+                    return (
+                      part
+                        .split(' ')[2]
+                        // mirage only: strip quotes
+                        .replace(/['"]+/g, '')
+                    );
+                  }),
+                };
+              } else {
+                const parts = condition.split(' ');
+
+                return {
+                  field: parts[0],
+                  operator: parts[1],
+                  value: parts.slice(2).join(' ').replace(/['"]+/g, ''),
+                };
+              }
+            });
+
+          const allowedFields = [
+            'Name',
+            'Status',
+            'StatusDescription',
+            'Region',
+            'NodePool',
+            'Namespace',
+            'Version',
+            'Priority',
+            'Stop',
+            'Type',
+            'ID',
+            'AllAtOnce',
+            'Datacenters',
+            'Dispatched',
+            'ConsulToken',
+            'ConsulNamespace',
+            'VaultToken',
+            'VaultNamespace',
+            'NomadTokenID',
+            'Stable',
+            'SubmitTime',
+            'CreateIndex',
+            'ModifyIndex',
+            'JobModifyIndex',
+            'ParentID',
+          ];
+
+          // Simulate a failure if a filterCondition's field is not among the allowed
+          if (
+            !filterConditions.every((condition) =>
+              allowedFields.includes(condition.field)
+            )
+          ) {
+            return new Response(
+              500,
+              {},
+              'couldn\'t find key: struct field with name "' +
+                filterConditions[0].field +
+                '" in type (...extraneous)'
+            );
+          }
+
+          filteredJson = filteredJson.filter((job) => {
+            return filterConditions.every((condition) => {
+              if (condition.parts) {
+                // Making a shortcut assumption that any condition.parts situations
+                // will be == as operator for testing sake.
+                return condition.parts.some((part) => {
+                  return job[condition.field] === part;
+                });
+              }
+              if (condition.operator === 'contains') {
+                return (
+                  job[condition.field] &&
+                  job[condition.field].includes(condition.value)
+                );
+              } else if (condition.operator === '==') {
+                return job[condition.field] === condition.value;
+              } else if (condition.operator === '!=') {
+                return job[condition.field] !== condition.value;
+              }
+              return true;
+            });
+          });
+        }
+
+        let sortedJson = filteredJson
+          .sort((a, b) =>
+            reverse
+              ? a.ModifyIndex - b.ModifyIndex
+              : b.ModifyIndex - a.ModifyIndex
+          )
+          .filter((job) => {
+            if (namespace === '*') return true;
+            return namespace === 'default'
+              ? !job.NamespaceID || job.NamespaceID === 'default'
+              : job.NamespaceID === namespace;
+          })
+          .map((job) => filterKeys(job, 'TaskGroups', 'NamespaceID'));
+        if (nextToken) {
+          sortedJson = sortedJson.filter((job) =>
+            reverse
+              ? job.ModifyIndex >= nextToken
+              : job.ModifyIndex <= nextToken
+          );
+        }
+        return sortedJson;
+      },
+      { pagination: true, tokenProperty: 'ModifyIndex' }
+    )
+  );
+
+  this.post(
+    '/jobs/statuses',
+    withBlockingSupport(function ({ jobs }, req) {
+      const body = JSON.parse(req.requestBody);
+      const requestedJobs = body.jobs || [];
+      const allJobs = this.serialize(jobs.all());
+
+      let returnedJobs = allJobs
+        .filter((job) => {
+          return requestedJobs.some((requestedJob) => {
+            return (
+              job.ID === requestedJob.id &&
+              (requestedJob.namespace === 'default' ||
+                job.NamespaceID === requestedJob.namespace)
+            );
+          });
+        })
+        .map((j) => {
+          let job = {};
+
+          // get children that may have been created
+          let children = null;
+          if (j.Periodic || j.Parameterized) {
+            children = allJobs.filter((child) => {
+              return child.ParentID === j.ID;
+            });
+          }
+          job.ID = j.ID;
+          job.Name = j.Name;
+          job.ModifyIndex = j.ModifyIndex;
+          job.Allocs = server.db.allocations
+            .where({ jobId: j.ID, namespace: j.Namespace })
+            .map((alloc) => {
+              let taskStates = server.db.taskStates.where({
+                allocationId: alloc.id,
+              });
+              return {
+                ClientStatus: alloc.clientStatus,
+                DeploymentStatus: {
+                  Canary: false,
+                  Healthy: true,
+                },
+                Group: alloc.taskGroup,
+                JobVersion: alloc.jobVersion,
+                NodeID: alloc.nodeId,
+                ID: alloc.id,
+                HasPausedTask: taskStates.any((ts) => ts.paused),
+              };
+            });
+          job.ChildStatuses = children ? children.mapBy('Status') : null;
+          job.Datacenters = j.Datacenters;
+          job.LatestDeployment = j.LatestDeployment;
+          job.GroupCountSum = j.TaskGroups.mapBy('Count').reduce(
+            (a, b) => a + b,
+            0
+          );
+          job.Namespace = j.NamespaceID;
+          job.NodePool = j.NodePool;
+          job.Type = j.Type;
+          job.Priority = j.Priority;
+          job.Version = j.Version;
+          return job;
+        });
+      // sort by modifyIndex, descending
+      returnedJobs
+        .sort((a, b) => b.ID.localeCompare(a.ID))
+        .sort((a, b) => b.ModifyIndex - a.ModifyIndex);
+
+      return returnedJobs;
     })
   );
 
@@ -139,10 +404,16 @@ export default function () {
     const FailedTGAllocs =
       body.Job.Unschedulable && generateFailedTGAllocs(body.Job);
 
+    const jobPlanWarnings = body.Job.WithWarnings && generateWarnings();
+
     return new Response(
       200,
       {},
-      JSON.stringify({ FailedTGAllocs, Diff: generateDiff(req.params.id) })
+      JSON.stringify({
+        FailedTGAllocs,
+        Warnings: jobPlanWarnings,
+        Diff: generateDiff(req.params.id),
+      })
     );
   });
 
@@ -191,6 +462,31 @@ export default function () {
   this.get('/job/:id/versions', function ({ jobVersions }, { params }) {
     return this.serialize(jobVersions.where({ jobId: params.id }));
   });
+
+  this.post(
+    '/job/:id/versions/:version/tag',
+    function ({ jobVersions }, { params }) {
+      // Create a new version tag
+      const tag = server.create('version-tag', {
+        jobVersion: jobVersions.findBy({
+          jobId: params.id,
+          version: params.version,
+        }),
+        name: params.name,
+        description: params.description,
+      });
+      return this.serialize(tag);
+    }
+  );
+
+  this.delete(
+    '/job/:id/versions/:version/tag',
+    function ({ jobVersions }, { params }) {
+      return this.serialize(
+        jobVersions.findBy({ jobId: params.id, version: params.version })
+      );
+    }
+  );
 
   this.get('/job/:id/deployments', function ({ deployments }, { params }) {
     return this.serialize(deployments.where({ jobId: params.id }));
@@ -299,8 +595,16 @@ export default function () {
     });
 
     if (token) {
-      const { policyIds } = token;
-      const policies = server.db.policies.find(policyIds);
+      const policyIds = token.policyIds || [];
+
+      const roleIds = token.roleIds || [];
+      const roles = server.db.roles.find(roleIds);
+      const rolePolicyIds = roles.map((role) => role.policyIds).flat();
+
+      const policies = server.db.policies.find([
+        ...policyIds,
+        ...rolePolicyIds,
+      ]);
       const hasReadPolicy = policies.find(
         (p) =>
           p.rulesJSON.Node?.Policy === 'read' ||
@@ -369,13 +673,9 @@ export default function () {
   );
 
   this.get(
-    '/volume/:id',
+    '/volume/csi/:id',
     withBlockingSupport(function ({ csiVolumes }, { params, queryParams }) {
-      if (!params.id.startsWith('csi/')) {
-        return new Response(404, {}, null);
-      }
-
-      const id = params.id.replace(/^csi\//, '');
+      const { id } = params;
       const volume = csiVolumes.all().models.find((volume) => {
         const volumeIsDefault =
           !volume.namespaceId || volume.namespaceId === 'default';
@@ -400,13 +700,8 @@ export default function () {
     return this.serialize(csiPlugins.all());
   });
 
-  this.get('/plugin/:id', function ({ csiPlugins }, { params }) {
-    if (!params.id.startsWith('csi/')) {
-      return new Response(404, {}, null);
-    }
-
-    const id = params.id.replace(/^csi\//, '');
-    const volume = csiPlugins.find(id);
+  this.get('/plugin/csi/:id', function ({ csiPlugins }, { params }) {
+    const volume = csiPlugins.find(params.id);
 
     if (!volume) {
       return new Response(404, {}, null);
@@ -415,21 +710,12 @@ export default function () {
     return this.serialize(volume);
   });
 
-  this.get('/namespaces', function ({ namespaces }) {
-    const records = namespaces.all();
-
-    if (records.length) {
-      return this.serialize(records);
+  this.get('/agent/members', function ({ agents, regions }, req) {
+    const tokenPresent = req.requestHeaders['X-Nomad-Token'];
+    if (!tokenPresent) {
+      return new Response(403, {}, 'Forbidden');
     }
 
-    return this.serialize([{ Name: 'default' }]);
-  });
-
-  this.get('/namespace/:id', function ({ namespaces }, { params }) {
-    return this.serialize(namespaces.find(params.id));
-  });
-
-  this.get('/agent/members', function ({ agents, regions }) {
     const firstRegion = regions.first();
     return {
       ServerRegion: firstRegion ? firstRegion.id : null,
@@ -461,8 +747,9 @@ export default function () {
     return logEncode(logFrames, logFrames.length - 1);
   });
 
-  this.get('/status/leader', function (schema) {
-    return JSON.stringify(findLeader(schema));
+  this.get('/status/leader', function (schema, { queryParams: { region } }) {
+    let leader = JSON.stringify(findLeader(schema, region));
+    return leader;
   });
 
   this.get('/acl/tokens', function ({ tokens }, req) {
@@ -476,14 +763,57 @@ export default function () {
   });
 
   this.post('/acl/token', function (schema, request) {
-    const { Name, Policies, Type } = JSON.parse(request.requestBody);
+    const { Name, Policies, Type, ExpirationTTL, ExpirationTime, Global } =
+      JSON.parse(request.requestBody);
+
+    function parseDuration(duration) {
+      const [_, value, unit] = duration.match(/(\d+)(\w)/);
+      const unitMap = {
+        s: 1000,
+        m: 1000 * 60,
+        h: 1000 * 60 * 60,
+        d: 1000 * 60 * 60 * 24,
+      };
+      return value * unitMap[unit];
+    }
+
+    // If there's an expirationTime, use that. Otherwise, use the TTL.
+    const expirationTime = ExpirationTime
+      ? new Date(ExpirationTime)
+      : ExpirationTTL
+      ? new Date(Date.now() + parseDuration(ExpirationTTL))
+      : null;
+
     return server.create('token', {
       name: Name,
       policyIds: Policies,
       type: Type,
       id: faker.random.uuid(),
+      expirationTime,
+      global: Global,
       createTime: new Date().toISOString(),
     });
+  });
+
+  this.post('/acl/token/:id', function (schema, request) {
+    // If both Policies and Roles arrays are empty, return an error
+    const { Policies, Roles } = JSON.parse(request.requestBody);
+    if (!Policies.length && !Roles.length) {
+      return new Response(
+        500,
+        {},
+        'Either Policies or Roles must be specified'
+      );
+    }
+    return new Response(
+      200,
+      {},
+      {
+        id: request.params.id,
+        Policies,
+        Roles,
+      }
+    );
   });
 
   this.get('/acl/token/self', function ({ tokens }, req) {
@@ -557,7 +887,6 @@ export default function () {
     const policy = policies.findBy({ name: req.params.id });
     const secret = req.requestHeaders['X-Nomad-Token'];
     const tokenForSecret = tokens.findBy({ secretId: secret });
-
     if (req.params.id === 'anonymous') {
       if (policy) {
         return this.serialize(policy);
@@ -565,13 +894,15 @@ export default function () {
         return new Response(404, {}, null);
       }
     }
-
     // Return the policy only if the token that matches the request header
     // includes the policy or if the token that matches the request header
     // is of type management
     if (
       tokenForSecret &&
       (tokenForSecret.policies.includes(policy) ||
+        tokenForSecret.roles.models.any((role) =>
+          role.policies.includes(policy)
+        ) ||
         tokenForSecret.type === 'management')
     ) {
       return this.serialize(policy);
@@ -581,21 +912,113 @@ export default function () {
     return new Response(403, {}, null);
   });
 
+  this.get('/acl/roles', function ({ roles }, req) {
+    return this.serialize(roles.all());
+  });
+
+  this.get('/acl/role/:id', function ({ roles }, req) {
+    const role = roles.findBy({ id: req.params.id });
+    return this.serialize(role);
+  });
+
+  this.post('/acl/role', function (schema, request) {
+    const { Name, Description } = JSON.parse(request.requestBody);
+    return server.create('role', {
+      name: Name,
+      description: Description,
+    });
+  });
+
+  this.put('/acl/role/:id', function (schema, request) {
+    const { Policies } = JSON.parse(request.requestBody);
+    if (!Policies.length) {
+      return new Response(500, {}, 'Policies must be specified');
+    }
+    return new Response(
+      200,
+      {},
+      {
+        id: request.params.id,
+        Policies,
+      }
+    );
+  });
+
+  this.delete('/acl/role/:id', function (schema, request) {
+    const { id } = request.params;
+
+    // Also update any tokens whose policyIDs include this policy
+    const tokens =
+      server.schema.tokens.where((token) => token.roleIds?.includes(id)) || [];
+    tokens.models.forEach((token) => {
+      token.update({
+        roleIds: token.roleIds.filter((roleId) => roleId !== id),
+      });
+    });
+
+    server.db.roles.remove(id);
+    return '';
+  });
+
   this.get('/acl/policies', function ({ policies }, req) {
     return this.serialize(policies.all());
   });
 
+  this.get('/sentinel/policies', function (schema, req) {
+    return this.serialize(schema.sentinelPolicies.all());
+  });
+
+  this.post('/sentinel/policy/:id', function (schema, req) {
+    const { Name, Description, EnforcementLevel, Policy, Scope } = JSON.parse(
+      req.requestBody
+    );
+    return server.create('sentinelPolicy', {
+      name: Name,
+      description: Description,
+      enforcementLevel: EnforcementLevel,
+      policy: Policy,
+      scope: Scope,
+    });
+  });
+
+  this.get('/sentinel/policy/:id', function ({ sentinelPolicies }, req) {
+    return this.serialize(sentinelPolicies.findBy({ name: req.params.id }));
+  });
+
+  this.delete('/sentinel/policy/:id', function (schema, req) {
+    const { id } = req.params;
+    server.db.sentinelPolicies.remove(id);
+    return '';
+  });
+
+  this.put('/sentinel/policy/:id', function (schema, req) {
+    return new Response(200, {}, {});
+  });
+
   this.delete('/acl/policy/:id', function (schema, request) {
     const { id } = request.params;
-    schema.tokens
-      .all()
-      .models.filter((token) => token.policyIds.includes(id))
-      .forEach((token) => {
-        token.update({
-          policyIds: token.policyIds.filter((pid) => pid !== id),
-        });
+
+    // Also update any tokens whose policyIDs include this policy
+    const tokens =
+      server.schema.tokens.where((token) => token.policyIds?.includes(id)) ||
+      [];
+    tokens.models.forEach((token) => {
+      token.update({
+        policyIds: token.policyIds.filter((policyId) => policyId !== id),
       });
+    });
+
+    // Also update any roles whose policyIDs include this policy
+    const roles =
+      server.schema.roles.where((role) => role.policyIds?.includes(id)) || [];
+    roles.models.forEach((role) => {
+      role.update({
+        policyIds: role.policyIds.filter((policyId) => policyId !== id),
+      });
+    });
+
     server.db.policies.remove(id);
+
     return '';
   });
 
@@ -610,6 +1033,48 @@ export default function () {
       description: Description,
       rules: Rules,
     });
+  });
+
+  this.get('/namespaces', function ({ namespaces }) {
+    const records = namespaces.all();
+
+    if (records.length) {
+      return this.serialize(records);
+    }
+
+    return this.serialize([{ Name: 'default' }]);
+  });
+
+  this.get('/namespace/:id', function ({ namespaces }, { params }) {
+    return this.serialize(namespaces.find(params.id));
+  });
+
+  this.post('/namespace/:id', function (schema, request) {
+    const { Name, Description } = JSON.parse(request.requestBody);
+
+    return server.create('namespace', {
+      id: Name,
+      name: Name,
+      description: Description,
+    });
+  });
+
+  this.put('/namespace/:id', function () {
+    return new Response(200, {}, {});
+  });
+
+  this.delete('/namespace/:id', function (schema, request) {
+    const { id } = request.params;
+
+    // If any variables exist for the namespace, error
+    const variables =
+      server.db.variables.where((v) => v.namespace === id) || [];
+    if (variables.length) {
+      return new Response(403, {}, 'Namespace has variables');
+    }
+
+    server.db.namespaces.remove(id);
+    return '';
   });
 
   this.get('/regions', function ({ regions }) {
@@ -1110,4 +1575,8 @@ function generateFailedTGAllocs(job, taskGroups) {
     hash[tgName] = generateTaskGroupFailures();
     return hash;
   }, {});
+}
+
+function generateWarnings() {
+  return '2 warnings:\n\n* Group "yourtask" has warnings: 1 error occurred:\n\t* Task "yourtask" has warnings: 1 error occurred:\n\t* 2 errors occurred:\n\t* Identity[vault_default] identities without an audience are insecure\n\t* Identity[vault_default] identities without an expiration are insecure\n* Task yourtask has an identity called vault_default but no vault block';
 }

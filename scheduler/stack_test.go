@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func BenchmarkServiceStack_With_ComputedClass(b *testing.B) {
@@ -149,15 +149,11 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 	prefNodes := []*structs.Node{preferredNode}
 	selectOptions := &SelectOptions{PreferredNodes: prefNodes}
 	option := stack.Select(job.TaskGroups[0], selectOptions)
-	if option == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-	if option.Node.ID != preferredNode.ID {
-		t.Fatalf("expected: %v, actual: %v", option.Node.ID, preferredNode.ID)
-	}
+	must.NotNil(t, option, must.Sprintf("missing node %#v", ctx.Metrics()))
+	must.Eq(t, option.Node.ID, preferredNode.ID)
 
 	// Make sure select doesn't have a side effect on preferred nodes
-	require.Equal(t, prefNodes, selectOptions.PreferredNodes)
+	must.Eq(t, prefNodes, selectOptions.PreferredNodes)
 
 	// Change the preferred node's kernel to windows and ensure the allocations
 	// are placed elsewhere
@@ -167,14 +163,9 @@ func TestServiceStack_Select_PreferringNodes(t *testing.T) {
 	prefNodes1 := []*structs.Node{preferredNode1}
 	selectOptions = &SelectOptions{PreferredNodes: prefNodes1}
 	option = stack.Select(job.TaskGroups[0], selectOptions)
-	if option == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-
-	if option.Node.ID != nodes[0].ID {
-		t.Fatalf("expected: %#v, actual: %#v", nodes[0], option.Node)
-	}
-	require.Equal(t, prefNodes1, selectOptions.PreferredNodes)
+	must.NotNil(t, option, must.Sprintf("missing node %#v", ctx.Metrics()))
+	must.Eq(t, option.Node.ID, nodes[0].ID)
+	must.Eq(t, prefNodes1, selectOptions.PreferredNodes)
 }
 
 func TestServiceStack_Select_MetricsReset(t *testing.T) {
@@ -195,24 +186,16 @@ func TestServiceStack_Select_MetricsReset(t *testing.T) {
 	selectOptions := &SelectOptions{}
 	n1 := stack.Select(job.TaskGroups[0], selectOptions)
 	m1 := ctx.Metrics()
-	if n1 == nil {
-		t.Fatalf("missing node %#v", m1)
-	}
+	must.NotNil(t, n1, must.Sprintf("missing node %#v", m1))
 
-	if m1.NodesEvaluated != 2 {
-		t.Fatalf("should only be 2")
-	}
+	must.Eq(t, 2, m1.NodesEvaluated)
 
 	n2 := stack.Select(job.TaskGroups[0], selectOptions)
 	m2 := ctx.Metrics()
-	if n2 == nil {
-		t.Fatalf("missing node %#v", m2)
-	}
+	must.NotNil(t, n2, must.Sprintf("missing node %#v", m2))
 
 	// If we don't reset, this would be 4
-	if m2.NodesEvaluated != 2 {
-		t.Fatalf("should only be 2")
-	}
+	must.Eq(t, 2, m2.NodesEvaluated)
 }
 
 func TestServiceStack_Select_DriverFilter(t *testing.T) {
@@ -225,9 +208,7 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 	}
 	zero := nodes[0]
 	zero.Attributes["driver.foo"] = "1"
-	if err := zero.ComputeClass(); err != nil {
-		t.Fatalf("ComputedClass() failed: %v", err)
-	}
+	must.NoError(t, zero.ComputeClass())
 
 	stack := NewGenericStack(false, ctx)
 	stack.SetNodes(nodes)
@@ -238,13 +219,103 @@ func TestServiceStack_Select_DriverFilter(t *testing.T) {
 
 	selectOptions := &SelectOptions{}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
-	if node == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
+	must.NotNil(t, node, must.Sprintf("missing node %#v", ctx.Metrics()))
 
-	if node.Node != zero {
-		t.Fatalf("bad")
+	must.Eq(t, zero, node.Node)
+}
+
+func TestServiceStack_Select_HostVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+
+	// Create nodes with host volumes and one without.
+	node0 := mock.Node()
+
+	node1 := mock.Node()
+	node1.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"unique": {
+			Name: "unique",
+			Path: "/tmp/unique",
+		},
+		"per_alloc[0]": {
+			Name: "per_alloc[0]",
+			Path: "/tmp/per_alloc_0",
+		},
 	}
+	node1.ComputeClass()
+
+	node2 := mock.Node()
+	node2.HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"per_alloc[1]": {
+			Name: "per_alloc[1]",
+			Path: "/tmp/per_alloc_1",
+		},
+	}
+	node2.ComputeClass()
+
+	// Create stack with nodes.
+	stack := NewGenericStack(false, ctx)
+	stack.SetNodes([]*structs.Node{node0, node1, node2})
+
+	job := mock.Job()
+	job.TaskGroups[0].Count = 1
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"unique": {
+		Name:     "unique",
+		Type:     structs.VolumeTypeHost,
+		Source:   "unique",
+		PerAlloc: false,
+	}}
+	stack.SetJob(job)
+
+	// Alloc selects node with host volume 'unique'.
+	selectOptions := &SelectOptions{
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 0),
+	}
+	option := stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node1.ID)
+
+	// Recreate the stack and select volumes per alloc.
+	stack = NewGenericStack(false, ctx)
+	stack.SetNodes([]*structs.Node{node0, node1, node2})
+
+	job.TaskGroups[0].Count = 3
+	job.TaskGroups[0].Volumes = map[string]*structs.VolumeRequest{"per_alloc": {
+		Name:     "per_alloc",
+		Type:     structs.VolumeTypeHost,
+		Source:   "per_alloc",
+		PerAlloc: true,
+	}}
+	stack.SetJob(job)
+
+	// First alloc selects node with host volume 'per_alloc[0]'.
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 0),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node1.ID)
+
+	// Second alloc selects node with host volume 'per_alloc[1]'.
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 1),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.NotNil(t, option)
+	must.Eq(t, option.Node.ID, node2.ID)
+
+	// Third alloc must select node with host volume 'per_alloc[2]', but none
+	// of the nodes available can fulfil this requirement.
+	selectOptions = &SelectOptions{
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 2),
+	}
+	option = stack.Select(job.TaskGroups[0], selectOptions)
+	must.Nil(t, option)
+
+	metrics := ctx.Metrics()
+	must.MapLen(t, 1, metrics.ConstraintFiltered)
+	must.Eq(t, metrics.ConstraintFiltered[FilterConstraintHostVolumes], 3)
 }
 
 func TestServiceStack_Select_CSI(t *testing.T) {
@@ -264,7 +335,7 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	v.AttachmentMode = structs.CSIVolumeAttachmentModeFilesystem
 	v.PluginID = "bar"
 	err := state.UpsertCSIVolume(999, []*structs.CSIVolume{v})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Create a node with healthy fingerprints for both controller and node plugins
 	zero := nodes[0]
@@ -291,12 +362,10 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 
 	// Add the node to the state store to index the healthy plugins and mark the volume "foo" healthy
 	err = state.UpsertNode(structs.MsgTypeTestSetup, 1000, zero)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// Use the node to build the stack and test
-	if err := zero.ComputeClass(); err != nil {
-		t.Fatalf("ComputedClass() failed: %v", err)
-	}
+	must.NoError(t, zero.ComputeClass())
 
 	stack := NewGenericStack(false, ctx)
 	stack.SetNodes(nodes)
@@ -314,15 +383,11 @@ func TestServiceStack_Select_CSI(t *testing.T) {
 	stack.SetJob(job)
 
 	selectOptions := &SelectOptions{
-		AllocName: structs.AllocName(job.Name, job.TaskGroups[0].Name, 0)}
+		AllocName: structs.AllocName(job.ID, job.TaskGroups[0].Name, 0)}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
-	if node == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
+	must.NotNil(t, node, must.Sprintf("missing node %#v", ctx.Metrics()))
 
-	if node.Node != zero {
-		t.Fatalf("bad")
-	}
+	must.Eq(t, zero, node.Node)
 }
 
 func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
@@ -347,24 +412,14 @@ func TestServiceStack_Select_ConstraintFilter(t *testing.T) {
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
-	if node == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
+	must.NotNil(t, node, must.Sprintf("missing node %#v", ctx.Metrics()))
 
-	if node.Node != zero {
-		t.Fatalf("bad")
-	}
+	must.Eq(t, zero, node.Node)
 
 	met := ctx.Metrics()
-	if met.NodesFiltered != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
-	if met.ClassFiltered["linux-medium-pci"] != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
-	if met.ConstraintFiltered["${attr.kernel.name} = freebsd"] != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
+	must.One(t, met.NodesFiltered)
+	must.One(t, met.ClassFiltered["linux-medium-pci"])
+	must.One(t, met.ConstraintFiltered["${attr.kernel.name} = freebsd"])
 }
 
 func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
@@ -391,25 +446,14 @@ func TestServiceStack_Select_BinPack_Overflow(t *testing.T) {
 	selectOptions := &SelectOptions{}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
 	ctx.Metrics().PopulateScoreMetaData()
-	if node == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-
-	if node.Node != zero {
-		t.Fatalf("bad")
-	}
+	must.NotNil(t, node)
+	must.Eq(t, zero, node.Node)
 
 	met := ctx.Metrics()
-	if met.NodesExhausted != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
-	if met.ClassExhausted["linux-medium-pci"] != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
+	must.One(t, met.NodesExhausted)
+	must.One(t, met.ClassExhausted["linux-medium-pci"])
 	// Expect score metadata for one node
-	if len(met.ScoreMetaData) != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
+	must.Len(t, 1, met.ScoreMetaData)
 }
 
 func TestSystemStack_SetNodes(t *testing.T) {
@@ -431,9 +475,7 @@ func TestSystemStack_SetNodes(t *testing.T) {
 	stack.SetNodes(nodes)
 
 	out := collectFeasible(stack.source)
-	if !reflect.DeepEqual(out, nodes) {
-		t.Fatalf("bad: %#v", out)
-	}
+	must.Eq(t, out, nodes)
 }
 
 func TestSystemStack_SetJob(t *testing.T) {
@@ -445,12 +487,8 @@ func TestSystemStack_SetJob(t *testing.T) {
 	job := mock.Job()
 	stack.SetJob(job)
 
-	if stack.binPack.priority != job.Priority {
-		t.Fatalf("bad")
-	}
-	if !reflect.DeepEqual(stack.jobConstraint.constraints, job.Constraints) {
-		t.Fatalf("bad")
-	}
+	must.Eq(t, stack.binPack.priority, job.Priority)
+	must.Eq(t, stack.jobConstraint.constraints, job.Constraints)
 }
 
 func TestSystemStack_Select_Size(t *testing.T) {
@@ -465,9 +503,7 @@ func TestSystemStack_Select_Size(t *testing.T) {
 	stack.SetJob(job)
 	selectOptions := &SelectOptions{}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
-	if node == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
+	must.NotNil(t, node)
 
 	// Note: On Windows time.Now currently has a best case granularity of 1ms.
 	// We skip the following assertion on Windows because this test usually
@@ -496,24 +532,15 @@ func TestSystemStack_Select_MetricsReset(t *testing.T) {
 	selectOptions := &SelectOptions{}
 	n1 := stack.Select(job.TaskGroups[0], selectOptions)
 	m1 := ctx.Metrics()
-	if n1 == nil {
-		t.Fatalf("missing node %#v", m1)
-	}
-
-	if m1.NodesEvaluated != 1 {
-		t.Fatalf("should only be 1")
-	}
+	must.NotNil(t, n1)
+	must.One(t, m1.NodesEvaluated)
 
 	n2 := stack.Select(job.TaskGroups[0], selectOptions)
 	m2 := ctx.Metrics()
-	if n2 == nil {
-		t.Fatalf("missing node %#v", m2)
-	}
+	must.NotNil(t, n2)
 
 	// If we don't reset, this would be 2
-	if m2.NodesEvaluated != 1 {
-		t.Fatalf("should only be 2")
-	}
+	must.One(t, m2.NodesEvaluated)
 }
 
 func TestSystemStack_Select_DriverFilter(t *testing.T) {
@@ -535,26 +562,17 @@ func TestSystemStack_Select_DriverFilter(t *testing.T) {
 
 	selectOptions := &SelectOptions{}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
-	if node == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-
-	if node.Node != zero {
-		t.Fatalf("bad")
-	}
+	must.NotNil(t, node)
+	must.Eq(t, zero, node.Node)
 
 	zero.Attributes["driver.foo"] = "0"
-	if err := zero.ComputeClass(); err != nil {
-		t.Fatalf("ComputedClass() failed: %v", err)
-	}
+	must.NoError(t, zero.ComputeClass())
 
 	stack = NewSystemStack(false, ctx)
 	stack.SetNodes(nodes)
 	stack.SetJob(job)
 	node = stack.Select(job.TaskGroups[0], selectOptions)
-	if node != nil {
-		t.Fatalf("node not filtered %#v", node)
-	}
+	must.Nil(t, node)
 }
 
 func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
@@ -580,24 +598,13 @@ func TestSystemStack_Select_ConstraintFilter(t *testing.T) {
 
 	selectOptions := &SelectOptions{}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
-	if node == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-
-	if node.Node != zero {
-		t.Fatalf("bad")
-	}
+	must.NotNil(t, node)
+	must.Eq(t, zero, node.Node)
 
 	met := ctx.Metrics()
-	if met.NodesFiltered != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
-	if met.ClassFiltered["linux-medium-pci"] != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
-	if met.ConstraintFiltered["${attr.kernel.name} = freebsd"] != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
+	must.One(t, met.NodesFiltered)
+	must.One(t, met.ClassFiltered["linux-medium-pci"])
+	must.One(t, met.ConstraintFiltered["${attr.kernel.name} = freebsd"])
 }
 
 func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
@@ -625,23 +632,12 @@ func TestSystemStack_Select_BinPack_Overflow(t *testing.T) {
 	selectOptions := &SelectOptions{}
 	node := stack.Select(job.TaskGroups[0], selectOptions)
 	ctx.Metrics().PopulateScoreMetaData()
-	if node == nil {
-		t.Fatalf("missing node %#v", ctx.Metrics())
-	}
-
-	if node.Node != one {
-		t.Fatalf("bad")
-	}
+	must.NotNil(t, node)
+	must.Eq(t, one, node.Node)
 
 	met := ctx.Metrics()
-	if met.NodesExhausted != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
-	if met.ClassExhausted["linux-medium-pci"] != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
+	must.One(t, met.NodesExhausted)
+	must.One(t, met.ClassExhausted["linux-medium-pci"])
 	// Should have two scores, one from bin packing and one from normalization
-	if len(met.ScoreMetaData) != 1 {
-		t.Fatalf("bad: %#v", met)
-	}
+	must.Len(t, 1, met.ScoreMetaData)
 }

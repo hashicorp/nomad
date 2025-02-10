@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Added a new UI block to job spec in order to provide description and links in the Web UI
+```

@@ -5,12 +5,14 @@ package docker
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
 	"time"
 
-	docker "github.com/fsouza/go-dockerclient"
+	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/docker/util"
@@ -40,9 +42,7 @@ type usageSender struct {
 // sending and closing, and the receiver end of the chan.
 func newStatsChanPipe() (*usageSender, <-chan *cstructs.TaskResourceUsage) {
 	destCh := make(chan *cstructs.TaskResourceUsage, 1)
-	return &usageSender{
-		destCh: destCh,
-	}, destCh
+	return &usageSender{destCh: destCh}, destCh
 
 }
 
@@ -67,7 +67,6 @@ func (u *usageSender) send(tru *cstructs.TaskResourceUsage) {
 func (u *usageSender) close() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-
 	if u.closed {
 		// already closed
 		return
@@ -91,100 +90,68 @@ func (h *taskHandle) Stats(ctx context.Context, interval time.Duration, compute 
 	return recvCh, nil
 }
 
-// collectStats starts collecting resource usage stats of a docker container
+// collectStats starts collecting resource usage stats of a Docker container
+// and does this until the context or the tasks handler done channel is closed.
 func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, interval time.Duration, compute cpustats.Compute) {
 	defer destCh.close()
 
-	// backoff and retry used if the docker stats API returns an error
-	var backoff time.Duration
+	// retry tracks the number of retries the collection has been through since
+	// the last successful Docker API call. This is used to calculate the
+	// backoff time for the collection ticker.
 	var retry uint64
 
-	// create an interval timer
-	timer, stop := helper.NewSafeTimer(backoff)
-	defer stop()
+	ticker, cancel := helper.NewSafeTicker(interval)
+	defer cancel()
 
-	// loops until doneCh is closed
 	for {
-		timer.Reset(backoff)
-
-		if backoff > 0 {
-			select {
-			case <-timer.C:
-			case <-ctx.Done():
-				return
-			case <-h.doneCh:
-				return
+		select {
+		case <-ctx.Done():
+			return
+		case <-h.doneCh:
+			return
+		case <-ticker.C:
+			stats, err := h.collectDockerStats(ctx)
+			switch err {
+			case nil:
+				resourceUsage := util.DockerStatsToTaskResourceUsage(stats, compute)
+				destCh.send(resourceUsage)
+				ticker.Reset(interval)
+				retry = 0
+			default:
+				h.logger.Error("error collecting stats from container", "error", err)
+				ticker.Reset(helper.Backoff(statsCollectorBackoffBaseline, statsCollectorBackoffLimit, retry))
+				retry++
 			}
 		}
-
-		// make a channel for docker stats structs and start a collector to
-		// receive stats from docker and emit nomad stats
-		// statsCh will always be closed by docker client.
-		statsCh := make(chan *docker.Stats)
-		go dockerStatsCollector(destCh, statsCh, interval, compute)
-
-		statsOpts := docker.StatsOptions{
-			ID:      h.containerID,
-			Context: ctx,
-			Done:    h.doneCh,
-			Stats:   statsCh,
-			Stream:  true,
-		}
-
-		// Stats blocks until an error has occurred, or doneCh has been closed
-		if err := h.dockerClient.Stats(statsOpts); err != nil && err != io.ErrClosedPipe {
-			// An error occurred during stats collection, retry with backoff
-			h.logger.Debug("error collecting stats from container", "error", err)
-
-			// Calculate the new backoff
-			backoff = helper.Backoff(statsCollectorBackoffBaseline, statsCollectorBackoffLimit, retry)
-			retry++
-			continue
-		}
-		// Stats finished either because context was canceled, doneCh was closed
-		// or the container stopped. Stop stats collections.
-		return
 	}
 }
 
-func dockerStatsCollector(destCh *usageSender, statsCh <-chan *docker.Stats, interval time.Duration, compute cpustats.Compute) {
-	var resourceUsage *cstructs.TaskResourceUsage
+// collectDockerStats performs the stats collection from the Docker API. It is
+// split into its own function for the purpose of aiding testing.
+func (h *taskHandle) collectDockerStats(ctx context.Context) (*containerapi.Stats, error) {
 
-	// hasSentInitialStats is used so as to emit the first stats received from
-	// the docker daemon
-	var hasSentInitialStats bool
+	var stats *containerapi.Stats
 
-	// timer is used to send nomad status at the specified interval
-	timer := time.NewTimer(interval)
-	for {
-		select {
-		case <-timer.C:
-			// it is possible for the timer to go off before the first stats
-			// has been emitted from docker
-			if resourceUsage == nil {
-				continue
-			}
-
-			// sending to destCh could block, drop this interval if it does
-			destCh.send(resourceUsage)
-
-			timer.Reset(interval)
-
-		case s, ok := <-statsCh:
-			// if statsCh is closed stop collection
-			if !ok {
-				return
-			}
-			// s should always be set, but check and skip just in case
-			if s != nil {
-				resourceUsage = util.DockerStatsToTaskResourceUsage(s, compute)
-				// send stats next interation if this is the first time received
-				// from docker
-				if !hasSentInitialStats {
-					timer.Reset(0)
-					hasSentInitialStats = true
-				}
-			}
-		}
+	statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, false)
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("failed to collect stats: %w", err)
 	}
+
+	// Ensure the body is not nil to avoid potential panics. The statsReader
+	// itself cannot be nil, so there is no need to check this.
+	if statsReader.Body == nil {
+		return nil, errors.New("error decoding stats data: no reader body")
+	}
+
+	err = json.NewDecoder(statsReader.Body).Decode(&stats)
+	_ = statsReader.Body.Close()
+	if err != nil && err != io.EOF {
+		return nil, fmt.Errorf("failed to decode Docker response: %w", err)
+	}
+
+	if stats == nil {
+		return nil, errors.New("error decoding stats data: stats were nil")
+	}
+
+	return stats, nil
 }

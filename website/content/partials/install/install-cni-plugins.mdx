@@ -1,0 +1,27 @@
+Nomad uses CNI plugins to configure network namespaces when using the `bridge`
+network mode. You must install the CNI plugins on all Linux Nomad client nodes
+that use network namespaces. Refer to the [CNI Plugins external
+guide](https://www.cni.dev/plugins/current/) for details on individual plugins.
+
+The following series of commands determines your operating system architecture,
+downloads the [CNI 1.6.2
+release](https://github.com/containernetworking/plugins/releases/tag/v1.6.2),
+and then extracts the CNI plugin binaries into the `/opt/cni/bin` directory.
+Update the `CNI_PLUGIN_VERSION` value to use a different release version.
+
+```shell-session
+$ export ARCH_CNI=$( [ $(uname -m) = aarch64 ] && echo arm64 || echo amd64)
+$ export CNI_PLUGIN_VERSION=v1.6.2
+$ curl -L -o cni-plugins.tgz "https://github.com/containernetworking/plugins/releases/download/${CNI_PLUGIN_VERSION}/cni-plugins-linux-${ARCH_CNI}-${CNI_PLUGIN_VERSION}".tgz && \
+  sudo mkdir -p /opt/cni/bin && \
+  sudo tar -C /opt/cni/bin -xzf cni-plugins.tgz
+```
+
+Your Linux distribution's package manager may provide the CNI reference plugins
+but we recommend installing the most recent stable version to ensure you have
+fixes for known bugs shipping in those versions.
+
+Nomad looks for CNI plugin binaries by default in the `/opt/cni/bin` directory.
+However, you may install in the binaries in a different directory and then
+configure using the [`cni_path`](/nomad/docs/configuration/client#cni_path)
+attribute.

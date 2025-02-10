@@ -1,39 +1,15 @@
 name: test-ui
 on:
   pull_request:
-    paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.changelog/**'
-      - '.tours/**'
-      - 'contributing/**'
-      - 'demo/**'
-      - 'dev/**'
-      - 'e2e/**'
-      - 'integrations/**'
-      - 'pkg/**'
-      - 'scripts/**'
-      - 'terraform/**'
-      - 'website/**'
+    paths:
+      - "ui/**"
   push:
     branches:
       - main
       - release/**
       - test-ui
-    paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
-      - '.changelog/**'
-      - '.tours/**'
-      - 'contributing/**'
-      - 'demo/**'
-      - 'dev/**'
-      - 'e2e/**'
-      - 'integrations/**'
-      - 'pkg/**'
-      - 'scripts/**'
-      - 'terraform/**'
-      - 'website/**'
+    paths:
+      - "ui/**"
 
 jobs:
   pre-test:
@@ -45,7 +21,7 @@ jobs:
     outputs:
       nonce: ${{ steps.nonce.outputs.nonce }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/setup-js
       - name: lint:js
         run: yarn run lint:js
@@ -58,9 +34,8 @@ jobs:
   tests:
     needs:
       - pre-test
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-latest' }}
     timeout-minutes: 30
-    continue-on-error: true
     defaults:
       run:
         working-directory: ui
@@ -68,41 +43,101 @@ jobs:
       matrix:
         partition: [1, 2, 3, 4]
         split: [4]
+        # Note: If we ever change the number of partitions, we'll need to update the
+        # finalize.combine step to match
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/setup-js
-      - uses: browser-actions/setup-chrome@c485fa3bab6be59dce18dbc18ef6ab7cbc8ff5f1 # v1.2.0
-      - uses: ./.github/actions/vault-secrets
+      - uses: browser-actions/setup-chrome@facf10a55b9caf92e0cc749b4f82bf8220989148 # v1.7.2
+      - name: Retrieve Vault-hosted Secrets
+        if: endsWith(github.repository, '-enterprise')
+        id: vault
+        uses: hashicorp/vault-action@d1720f055e0635fd932a1d2a48f87a666a57906c # v3.0.0
         with:
-          paths: |-
+          url: ${{ vars.CI_VAULT_URL }}
+          method: ${{ vars.CI_VAULT_METHOD }}
+          path: ${{ vars.CI_VAULT_PATH }}
+          jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
+          secrets: |-
             kv/data/teams/nomad/ui PERCY_TOKEN ;
       - name: ember exam
         env:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
-        run: yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }}
-
+        run: |
+          yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
+        continue-on-error: true
+      - name: Express timeout failure
+        if: ${{ failure() }}
+        run: exit 1
+      - name: Upload partition test results
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: test-results-${{ matrix.partition }}
+          path: ui/test-results/test-results.json
+          retention-days: 90
   finalize:
     needs:
       - pre-test
       - tests
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-latest' }}
     timeout-minutes: 30
     defaults:
       run:
         working-directory: ui
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: ./.github/actions/setup-js
-      - uses: ./.github/actions/vault-secrets
+      - name: Retrieve Vault-hosted Secrets
+        if: endsWith(github.repository, '-enterprise')
+        id: vault
+        uses: hashicorp/vault-action@d1720f055e0635fd932a1d2a48f87a666a57906c # v3.0.0
         with:
-          paths: |-
+          url: ${{ vars.CI_VAULT_URL }}
+          method: ${{ vars.CI_VAULT_METHOD }}
+          path: ${{ vars.CI_VAULT_PATH }}
+          jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
+          secrets: |-
             kv/data/teams/nomad/ui PERCY_TOKEN ;
+      - name: Download all test results
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: test-results-*
+          path: test-results
+
+      - name: Combine test results for comparison
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: node ../scripts/combine-ui-test-results.js
+      - name: Upload combined results for comparison
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: test-results-${{ github.sha }}
+          path: ui/combined-test-results.json
+          retention-days: 90
+
       - name: finalize
         env:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: yarn percy build:finalize
+
+  handle-failure:
+    needs:
+      - pre-test
+      - tests
+      - finalize
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    uses: ./.github/workflows/test-failure-notification.yml
+    secrets: inherit
+    with:
+      actor: ${{ github.triggering_actor }}
+      git-branch: ${{ github.ref_name }}
+      workflow-run-id: ${{ github.run_id }}
+      workflow-name: ${{ github.workflow }}
+
 permissions:
   contents: read
   id-token: write

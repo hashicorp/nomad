@@ -118,6 +118,10 @@ module('Acceptance | keyboard', function (hooks) {
         'end up on the clients page after typing g c'
       );
 
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert.dom('[data-shortcut="g,c"]').exists('g c shortcut is shown');
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
+
       triggerEvent('.page-layout', 'keydown', { key: 'g' });
       await triggerEvent('.page-layout', 'keydown', { key: 'j' });
       assert.equal(
@@ -180,6 +184,16 @@ module('Acceptance | keyboard', function (hooks) {
           'text unchanged when I hit escape during recording'
         );
 
+      // when holding shift, the previous "g c" command is now "r o f l"
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert
+        .dom('[data-shortcut="g,c"]')
+        .doesNotExist('g c shortcut is no longer shown');
+      assert
+        .dom('[data-shortcut="r,o,f,l"]')
+        .exists('r o f l shortcut is shown in its place');
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
+
       await click(
         '[data-test-command-label="Go to Clients"] button.reset-to-default'
       );
@@ -188,6 +202,16 @@ module('Acceptance | keyboard', function (hooks) {
           '[data-test-command-label="Go to Clients"] button[data-test-rebinder]'
         )
         .hasText('g c', 'Resetting to default rebinds the shortcut');
+
+      // when holding shift, the now-reset command is back to "g c"
+      await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+      assert
+        .dom('[data-shortcut="g,c"]')
+        .exists('g c shortcut is back after reset to default');
+      assert
+        .dom('[data-shortcut="r,o,f,l"]')
+        .doesNotExist('r o f l shortcut is gone after reset to default');
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
     });
 
     test('Rebound shortcuts persist from localStorage', async function (assert) {
@@ -231,10 +255,13 @@ module('Acceptance | keyboard', function (hooks) {
       await visit('/');
 
       await triggerEvent('.page-layout', 'keydown', { key: 'Shift' });
+
+      let keyboardService = this.owner.lookup('service:keyboard');
+      let hints = keyboardService.keyCommands.filter((c) => c.element);
       assert.equal(
         document.querySelectorAll('[data-test-keyboard-hint]').length,
-        7,
-        'Shows 7 hints by default'
+        hints.length,
+        'Shows correct number of hints by default'
       );
       await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
 
@@ -243,6 +270,18 @@ module('Acceptance | keyboard', function (hooks) {
         0,
         'Hints disappear when you release Shift'
       );
+
+      await triggerEvent('.page-layout', 'keydown', {
+        key: 'Shift',
+        metaKey: true,
+      });
+      assert.equal(
+        document.querySelectorAll('[data-test-keyboard-hint]').length,
+        0,
+        'Hints do not show up when holding down Command+Shift'
+      );
+      await triggerEvent('.page-layout', 'keyup', { key: 'Shift' });
+      await triggerEvent('.page-layout', 'keyup', { key: 'Meta' });
     });
   });
 
@@ -309,7 +348,7 @@ module('Acceptance | keyboard', function (hooks) {
       let token = server.create('token', { type: 'management' });
       window.localStorage.nomadTokenSecret = token.secretId;
       server.createList('job', 3, { createAllocations: true, type: 'system' });
-      const jobID = server.db.jobs.sortBy('modifyIndex').reverse()[0].id;
+      const jobID = server.db.jobs[0].id;
       await visit(`/jobs/${jobID}@default`);
 
       await triggerKeyEvent('.page-layout', 'keydown', 'ArrowRight', {

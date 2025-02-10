@@ -47,49 +47,38 @@ env:
   NOMAD_TEST_LOG_LEVEL: OFF
 
 jobs:
-  # this caches dependencies for subsequent jobs, including private deps in enterprise
-  mods:
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-22.04' }}
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: ./.github/actions/vault-secrets
-        with:
-          paths: |-
-            kv/data/github/hashicorp/nomad-enterprise/gha ELEVATED_GITHUB_TOKEN ;
-      - name: Git config token
-        if: endsWith(github.repository, '-enterprise')
-        run: git config --global url.'https://${{ env.ELEVATED_GITHUB_TOKEN }}@github.com'.insteadOf 'https://github.com'
-      - uses: hashicorp/setup-golang@v1
-      - name: Get Go modules
-        run: |
-          make bootstrap
-          make tidy
   checks:
     uses: ./.github/workflows/checks.yaml
-    needs: [mods]
   compile:
-    needs: [mods, checks]
+    needs: [checks]
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-11, windows-2019]
+        os: [ubuntu-24.04, macos-14, windows-2019]
     runs-on: ${{matrix.os}}
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: hashicorp/setup-golang@v1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
       - name: Run make dev
         run: |
           make bootstrap
           make dev
   tests-api:
-    needs: [mods]
-    runs-on: [custom, xl, 22.04]
+    needs: [checks]
+    runs-on: custom-linux-xl-nomad-22.04
     timeout-minutes: 8
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: hashicorp/setup-golang@v1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          cache: true
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
       - name: Run API tests
         env:
           GOTEST_MOD: api
@@ -99,7 +88,7 @@ jobs:
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad-module
   tests-groups:
-    needs: [mods]
+    needs: [checks]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     strategy:
@@ -112,8 +101,15 @@ jobs:
           - drivers
           - quick
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: hashicorp/setup-golang@v1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          cache: ${{ contains(runner.name, 'Github Actions') }}
+          go-version-file: .go-version
+          cache-dependency-path: '**/go.sum'
+      - name: Install optional dependencies
+        if: ${{ matrix.groups == 'drivers' }}
+        run: sudo apt update && sudo apt install qemu-system
       - name: Run Matrix Tests
         env:
           GOTEST_GROUP: ${{matrix.groups}}
@@ -121,10 +117,26 @@ jobs:
           make bootstrap
           make generate-all
           make dev
-          hc-install install -version ${{env.VAULT_VERSION}} -path ${{env.GOBIN}} vault
-          hc-install install -version ${{env.CONSUL_VERSION}} -path ${{env.GOBIN}} consul
+          sudo -E env "PATH=$PATH" hc-install install -version ${{env.VAULT_VERSION}} -path '${{env.GOPATH}}/bin' vault
+          sudo -E env "PATH=$PATH" hc-install install -version ${{env.CONSUL_VERSION}} -path '${{env.GOPATH}}/bin' consul
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad
+
+  handle-failure:
+    needs:
+      - checks
+      - compile
+      - tests-api
+      - tests-groups
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    uses: ./.github/workflows/test-failure-notification.yml
+    secrets: inherit
+    with:
+      actor: ${{ github.triggering_actor }}
+      git-branch: ${{ github.ref_name }}
+      workflow-run-id: ${{ github.run_id }}
+      workflow-name: ${{ github.workflow }}
+
 permissions:
   contents: read
   id-token: write

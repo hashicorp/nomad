@@ -153,6 +153,27 @@ func TestNodes_Info(t *testing.T) {
 	must.GreaterEq(t, 1, len(result.Events))
 }
 
+func TestNode_Stats(t *testing.T) {
+	testutil.Parallel(t)
+
+	c, s := makeClient(t, nil, func(c *testutil.TestServerConfig) {
+		c.DevMode = true
+	})
+	defer s.Stop()
+	nodesAPI := c.Nodes()
+	nodeID := oneNodeFromNodeList(t, nodesAPI).ID
+
+	stats, err := nodesAPI.Stats(nodeID, nil)
+	must.NoError(t, err)
+
+	// there isn't much we can reliably check here except that the values are
+	// populated
+	must.NotNil(t, stats.Memory)
+	must.NonZero(t, stats.Memory.Available)
+	must.NotNil(t, stats.AllocDirStats)
+	must.NonZero(t, stats.AllocDirStats.Size)
+}
+
 func TestNodes_NoSecretID(t *testing.T) {
 	testutil.Parallel(t)
 

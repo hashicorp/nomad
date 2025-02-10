@@ -280,7 +280,7 @@ func (f *FormatCommand) processFile(path string, r io.Reader) {
 	}
 
 	if f.writeStdout {
-		f.Ui.Output(string(out))
+		formattedFile.WriteTo(os.Stdout)
 	}
 }
 

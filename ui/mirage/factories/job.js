@@ -199,6 +199,14 @@ export default Factory.extend({
   // When true, only task groups and allocations are made
   shallow: false,
 
+  // When true, the job's groups' tasks will have actions blocks
+  withActions: false,
+
+  // When true, the job will simulate a "scheduled" block's paused state
+  withPausedTasks: false,
+
+  latestDeployment: null,
+
   afterCreate(job, server) {
     Ember.assert(
       '[Mirage] No node pools! make sure node pools are created before jobs',
@@ -208,7 +216,7 @@ export default Factory.extend({
     if (!job.namespaceId) {
       const namespace = server.db.namespaces.length
         ? pickOne(server.db.namespaces).id
-        : null;
+        : 'default';
       job.update({
         namespace,
         namespaceId: namespace,
@@ -231,13 +239,19 @@ export default Factory.extend({
       withRescheduling: job.withRescheduling,
       withServices: job.withGroupServices,
       withTaskServices: job.withTaskServices,
+      withActions: job.withActions,
       createRecommendations: job.createRecommendations,
       shallow: job.shallow,
       allocStatusDistribution: job.allocStatusDistribution,
+      withPausedTasks: job.withPausedTasks,
     };
 
     if (job.groupTaskCount) {
-      groupProps.count = job.groupTaskCount;
+      groupProps.taskCount = job.groupTaskCount;
+    }
+
+    if (job.groupAllocCount !== undefined) {
+      groupProps.count = job.groupAllocCount;
     }
 
     let groups;
@@ -305,6 +319,18 @@ export default Factory.extend({
             activeDeployment: job.activeDeployment,
           });
         });
+    }
+
+    if (job.activeDeployment) {
+      job.latestDeployment = {
+        IsActive: true,
+        Status: 'running',
+        StatusDescription: 'Deployment is running',
+        RequiresPromotion: false,
+        AllAutoPromote: true,
+        JobVersion: 1,
+        ID: faker.random.uuid(),
+      };
     }
 
     if (!job.shallow) {

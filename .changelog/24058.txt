@@ -1,0 +1,3 @@
+```release-note:improvement
+deps: Upgraded yamux to v0.1.2 to fix a bug where RPC connections could deadlock
+```

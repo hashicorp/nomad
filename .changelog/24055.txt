@@ -1,0 +1,3 @@
+```release-note:improvement
+jobs: Added Version Tags to job versions, to prevent them from being garbage collected and allow for diffs
+```

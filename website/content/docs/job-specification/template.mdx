@@ -69,7 +69,7 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
 
 - `destination` `(string: <required>)` - Specifies the location where the
   resulting template should be rendered, relative to the [task working
-  directory]. Only drivers without filesystem isolation (ex. `raw_exec`) or
+  directory][]. Only drivers without filesystem isolation (ex. `raw_exec`) or
   that build a chroot in the task working directory (ex. `exec`) can render
   templates outside of the `NOMAD_ALLOC_DIR`, `NOMAD_TASK_DIR`, or
   `NOMAD_SECRETS_DIR`. For more details on how `destination` interacts with
@@ -123,10 +123,11 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   different delimiter that does not conflict with the output file itself.
 
 - `source` `(string: "")` - Specifies the path to the template to be rendered.
-  One of `source` or `data` must be specified, but not both. This source can
-  optionally be fetched using an [`artifact`][artifact] resource. This template
-  must exist on the machine prior to starting the task; it is not possible to
-  reference a template that's source is inside a Docker container, for example.
+  One of `source` or `data` must be specified, but not both. This source can be
+  fetched using an [`artifact`][artifact] resource. The template must exist in
+  the [task working directory][] prior to starting the task; it is not possible
+  to reference a template whose source is inside a Docker container, for
+  example.
 
 - `splay` `(string: "5s")` - Specifies a random amount of time to wait between
   0 ms and the given splay value before invoking the change mode. This is
@@ -331,11 +332,21 @@ task "task" {
 }
 ```
 
+### Dependencies
+
+For templates that read from Vault, Consul, or Nomad, each item read is called a
+"dependency". All the `template` blocks share the same internal runner which
+de-duplicates dependencies requesting the same item. You should avoid having
+large numbers of dependencies for a given task, as each dependency requires at
+least one concurrent request (a possibly blocking query) to the upstream
+server. If a task has more than 128 dependencies, a warn-level log will appear
+in the Nomad client logs which reports "watching this many dependencies could
+DDoS your servers", referring to the Vault, Consul, or Nomad cluster being
+queried.
+
 ## Nomad Integration
 
 ### Nomad Services
-
-~> Nomad Services are new in Nomad 1.3.
 
 Nomad service registrations can be queried using the `nomadService` and
 `nomadServices` functions. The requests are tied to the same namespace as the
@@ -367,8 +378,6 @@ EOF
 
 ### Simple Load Balancing with Nomad Services
 
-~> Simple load balancing with Nomad Services is new in Nomad 1.3.2.
-
 The `nomadService` function now supports simple load balancing by selecting
 instances of a service via [rendezvous hashing][rhash].
 To enable simple load balancing, the `nomadService` function requires 3 arguments.
@@ -398,7 +407,17 @@ EOH
 
 ### Nomad Variables
 
-Nomad [variables] can be queried using the `nomadVar`, `nomadVarList`,
+<Warning>
+
+Using the Nomad integration results in an implicit dependency on the Nomad
+servers. If the Nomad servers are unavailable (for example, a client is
+disconnected), then after some retries, running allocations will be
+stopped. Refer to the [`template.nomad_retry`][] client configuration option for
+more details and to adjust the retry behaviour.
+
+</Warning>
+
+Nomad [variables][] can be queried using the `nomadVar`, `nomadVarList`,
 `nomadVarListSafe`, and `nomadVarExists` functions.
 
 #### `nomadVarList` and `nomadVarListSafe`
@@ -567,6 +586,15 @@ EOH
 
 ## Consul Integration
 
+<Warning>
+
+Using the Consul integration results in an implicit dependency on Consul. If
+Consul is unavailable, then after some retries, running allocations will be
+stopped. Refer to the [`template.consul_retry`][] client configuration option
+for more details and to adjust the retry behaviour.
+
+</Warning>
+
 ### Consul KV
 
 Consul KV values can be accessed using the [`key`][ct_api_key] function to
@@ -622,6 +650,15 @@ upstream {{ .Name | toLower }} {
 
 ## Vault Integration
 
+<Warning>
+
+Using the Vault integration results in an implicit dependency on Vault. If
+Vault is unavailable, then after some retries, running allocations will be
+stopped. Refer to the [`template.vault_retry`][] client configuration option
+for more details and to adjust the retry behaviour.
+
+</Warning>
+
 ### PKI Certificate
 
 Vault is a popular open source tool for managing secrets. In addition to acting
@@ -632,12 +669,6 @@ When generating PKI certificates with Vault, the certificate, private key, and
 any intermediate certs are all returned as part of the same API call. Most
 software requires these files be placed in separate files on the system.
 
-~> **Note**: `generate_lease` must be set to `true` (non-default) on the Vault
-PKI role.<br /><br /> Failure to do so will cause the template to frequently
-render a new certificate, approximately every minute. This creates a significant
-number of certificates to be expired in Vault and could ultimately lead to Vault
-performance impacts and failures.
-
 #### As individual files
 
 For templates, all dependencies are mapped into a single list. This means that
@@ -646,8 +677,8 @@ multiple templates watching the same path return the same data.
 ```hcl
 template {
   data = <<EOH
-{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
-{{- .Data.certificate -}}
+{{ with pkiCert "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .Cert -}}
 {{ end }}
 EOH
   destination   = "${NOMAD_SECRETS_DIR}/certificate.crt"
@@ -656,8 +687,8 @@ EOH
 
 template {
   data = <<EOH
-{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
-{{- .Data.issuing_ca -}}
+{{ with pkiCert "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .CA -}}
 {{ end }}
 EOH
   destination   = "${NOMAD_SECRETS_DIR}/ca.crt"
@@ -666,8 +697,8 @@ EOH
 
 template {
   data = <<EOH
-{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
-{{- .Data.private_key -}}
+{{ with pkiCert "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" }}
+{{- .Key -}}
 {{ end }}
 EOH
   destination   = "${NOMAD_SECRETS_DIR}/private_key.key"
@@ -687,10 +718,10 @@ directory.
 ```hcl
 template {
   data = <<EOH
-{{ with secret "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" "format=pem" }}
-{{ .Data.certificate }}
-{{ .Data.issuing_ca }}
-{{ .Data.private_key }}{{ end }}
+{{ with pkiCert "pki/issue/foo" "common_name=foo.service.consul" "ip_sans=127.0.0.1" "format=pem" }}
+{{ .Cert }}
+{{ .CA }}
+{{ .Key }}{{ end }}
 EOH
   destination   = "${NOMAD_SECRETS_DIR}/bundle.pem"
   change_mode   = "restart"
@@ -760,8 +791,10 @@ options](/nomad/docs/configuration/client#options):
 
 - `function_denylist` `([]string: ["plugin"])` - Specifies a list of template
   rendering functions that should be disallowed in job specs. By default, the
-  `plugin` function is disallowed as it allows running arbitrary commands on
-  the host as root (unless Nomad is configured to run as a non-root user).
+  `plugin` function is disallowed as it allows running arbitrary commands on the
+  host as root (unless Nomad is configured to run as a non-root user),
+  `executeTemplate` is disallowed to prevent accidental or malicious infinitely
+  recursive execution, and `writeToFile` is disallowed.
 
 - `disable_file_sandbox` `(bool: false)` - Allows templates access to arbitrary
   files on the client host via the `file` function. By default, templates can
@@ -791,3 +824,6 @@ options](/nomad/docs/configuration/client#options):
 [variables]: /nomad/docs/concepts/variables
 [workload identity]: /nomad/docs/concepts/workload-identity
 [`time.Time`]: https://pkg.go.dev/time#Time
+[`template.nomad_retry`]: /nomad/docs/configuration/client#nomad_retry
+[`template.consul_retry`]: /nomad/docs/configuration/client#consul_retry
+[`template.vault_retry`]: /nomad/docs/configuration/client#vault_retry

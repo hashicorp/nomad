@@ -31,6 +31,7 @@ if [ -f version/version_ent.go ]; then
 fi
 
 # do not push directly to main, stable-*, release/*
+# do not push Enterprise tags
 # ====================
 while read local_ref local_sha remote_ref remote_sha
 do
@@ -45,5 +46,13 @@ do
     if echo "$remote_ref"|grep -q 'refs/heads/release/.*'; then
         fail "refusing to push directly to a branch prefixed \`release/\`"
     fi
-done
 
+    if echo "$remote_ref" | grep -q 'refs/tags/v.*\+ent'; then
+        fail "refusing to push Nomad Enterprise tag"
+    fi
+
+    if echo "$remote_ref" | grep -q 'refs/tags/v.*\+pro'; then
+        fail "refusing to push Nomad Enterprise (pro) tag"
+    fi
+
+done

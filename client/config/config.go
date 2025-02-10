@@ -73,7 +73,7 @@ var (
 
 	DefaultTemplateMaxStale = 87600 * time.Hour
 
-	DefaultTemplateFunctionDenylist = []string{"plugin", "writeToFile"}
+	DefaultTemplateFunctionDenylist = []string{"executeTemplate", "plugin", "writeToFile"}
 )
 
 // RPCHandler can be provided to the Client if there is a local server
@@ -97,7 +97,15 @@ type Config struct {
 	StateDir string
 
 	// AllocDir is where we store data for allocations
+	//
+	// In a production environment this should be owned by root with file
+	// mode 0o700.
 	AllocDir string
+
+	// AllocMountsDir is where we bind mount paths from AllocDir for tasks making
+	// use of the unveil file isolation mode. In a production environment this
+	// should be owned  by root with file mode 0o755.
+	AllocMountsDir string
 
 	// Logger provides a logger to the client
 	Logger log.InterceptLogger
@@ -107,6 +115,9 @@ type Config struct {
 
 	// Network interface to be used in network fingerprinting
 	NetworkInterface string
+
+	// Preferred address family to be used in network fingerprinting
+	PreferredAddressFamily structs.NodeNetworkAF
 
 	// Network speed is the default speed of network interfaces if they can not
 	// be determined dynamically.
@@ -170,16 +181,10 @@ type Config struct {
 	// Version is the version of the Nomad client
 	Version *version.VersionInfo
 
-	// ConsulConfig is this Agent's default Consul configuration
-	ConsulConfig *structsc.ConsulConfig
-
 	// ConsulConfigs is a map of Consul configurations, here to support features
 	// in Nomad Enterprise. The default Consul config pointer above will be
 	// found in this map under the name "default"
 	ConsulConfigs map[string]*structsc.ConsulConfig
-
-	// VaultConfig is this Agent's default Vault configuration
-	VaultConfig *structsc.VaultConfig
 
 	// VaultConfigs is a map of Vault configurations, here to support features
 	// in Nomad Enterprise. The default Vault config pointer above will be found
@@ -197,6 +202,18 @@ type Config struct {
 	// PublishAllocationMetrics determines whether nomad is going to publish
 	// allocation metrics to remote Telemetry sinks
 	PublishAllocationMetrics bool
+
+	// IncludeAllocMetadataInMetrics determines whether nomad should include the
+	// allocation metadata as labels in the metrics to remote Telemetry sinks
+	IncludeAllocMetadataInMetrics bool
+
+	// DisableAllocationHookMetrics allows operators to disable emitting hook
+	// metrics.
+	DisableAllocationHookMetrics bool
+
+	// AllowedMetadataKeysInMetrics when provided nomad will only include the
+	// configured metadata keys as part of the metrics to remote Telemetry sinks
+	AllowedMetadataKeysInMetrics []string
 
 	// TLSConfig holds various TLS related configurations
 	TLSConfig *structsc.TLSConfig
@@ -286,11 +303,23 @@ type Config struct {
 
 	// BridgeNetworkAllocSubnet is the IP subnet to use for address allocation
 	// for allocations in bridge networking mode. Subnet must be in CIDR
-	// notation
+	// notation and must be an IPv4 address.
 	BridgeNetworkAllocSubnet string
+
+	// BridgeNetworkAllocSubnetIPv6 is the IP subnet to use for address allocation
+	// for allocations in bridge networking mode. Subnet must be in CIDR
+	// notation and must be an IPv6 address.
+	BridgeNetworkAllocSubnetIPv6 string
 
 	// HostVolumes is a map of the configured host volumes by name.
 	HostVolumes map[string]*structs.ClientHostVolumeConfig
+
+	// HostVolumesDir is the suggested directory for plugins to put volumes.
+	// Volume plugins may ignore this suggestion, but we provide this default.
+	HostVolumesDir string
+
+	// HostVolumePluginDir is the directory with dynamic host volume plugins.
+	HostVolumePluginDir string
 
 	// HostNetworks is a map of the conigured host networks by name.
 	HostNetworks map[string]*structs.ClientHostNetworkConfig
@@ -333,6 +362,9 @@ type Config struct {
 
 	// Drain configuration from the agent's config file.
 	Drain *DrainConfig
+
+	// Uesrs configuration from the agent's config file.
+	Users *UsersConfig
 
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
@@ -388,14 +420,14 @@ type ClientTemplateConfig struct {
 	// time to wait for the Consul cluster to reach a consistent state before rendering a
 	// template. This is useful to enable in systems where Consul is experiencing
 	// a lot of flapping because it will reduce the number of times a template is rendered.
-	Wait *WaitConfig `hcl:"wait,optional" json:"-"`
+	Wait *WaitConfig `hcl:"wait,optional"`
 
 	// WaitBounds allows operators to define boundaries on individual template wait
 	// configuration overrides. If set, this ensures that if a job author specifies
 	// a wait configuration with values the cluster operator does not allow, the
 	// cluster operator's boundary will be applied rather than the job author's
 	// out of bounds configuration.
-	WaitBounds *WaitConfig `hcl:"wait_bounds,optional" json:"-"`
+	WaitBounds *WaitConfig `hcl:"wait_bounds,optional"`
 
 	// This controls the retry behavior when an error is returned from Consul.
 	// Consul Template is highly fault tolerant, meaning it does not exit in the
@@ -417,6 +449,28 @@ type ClientTemplateConfig struct {
 	// to wait for the cluster to become available, as is customary in distributed
 	// systems.
 	NomadRetry *RetryConfig `hcl:"nomad_retry,optional"`
+}
+
+func DefaultTemplateConfig() *ClientTemplateConfig {
+	return &ClientTemplateConfig{
+		FunctionDenylist:   DefaultTemplateFunctionDenylist,
+		DisableSandbox:     false,
+		BlockQueryWaitTime: pointer.Of(5 * time.Minute),         // match Consul default
+		MaxStale:           pointer.Of(DefaultTemplateMaxStale), // match Consul default
+		Wait: &WaitConfig{
+			Min: pointer.Of(5 * time.Second),
+			Max: pointer.Of(4 * time.Minute),
+		},
+		ConsulRetry: &RetryConfig{
+			Attempts: pointer.Of(0), // unlimited
+		},
+		VaultRetry: &RetryConfig{
+			Attempts: pointer.Of(0), // unlimited
+		},
+		NomadRetry: &RetryConfig{
+			Attempts: pointer.Of(0), // unlimited
+		},
+	}
 }
 
 // Copy returns a deep copy of a ClientTemplateConfig
@@ -480,6 +534,50 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 		c.NomadRetry.IsEmpty()
 }
 
+func (c *ClientTemplateConfig) Merge(o *ClientTemplateConfig) *ClientTemplateConfig {
+	if c == nil {
+		return o
+	}
+
+	result := *c
+	if o == nil {
+		return &result
+	}
+
+	if o.FunctionDenylist != nil {
+		result.FunctionDenylist = slices.Clone(o.FunctionDenylist)
+	}
+	if o.FunctionBlacklist != nil {
+		result.FunctionBlacklist = slices.Clone(o.FunctionBlacklist)
+	}
+
+	if o.DisableSandbox {
+		result.DisableSandbox = true
+	}
+
+	result.MaxStale = pointer.Merge(result.MaxStale, o.MaxStale)
+	result.BlockQueryWaitTime = pointer.Merge(result.BlockQueryWaitTime, o.BlockQueryWaitTime)
+
+	if o.Wait != nil {
+		result.Wait = c.Wait.Merge(o.Wait)
+	}
+	if o.WaitBounds != nil {
+		result.WaitBounds = c.WaitBounds.Merge(o.WaitBounds)
+	}
+
+	if o.ConsulRetry != nil {
+		result.ConsulRetry = c.ConsulRetry.Merge(o.ConsulRetry)
+	}
+	if o.VaultRetry != nil {
+		result.VaultRetry = c.VaultRetry.Merge(o.VaultRetry)
+	}
+	if o.NomadRetry != nil {
+		result.NomadRetry = c.NomadRetry.Merge(o.NomadRetry)
+	}
+
+	return &result
+}
+
 // WaitConfig is mirrored from templateconfig.WaitConfig because we need to handle
 // the HCL conversion which happens in agent.ParseConfigFile
 // NOTE: Since Consul Template requires pointers, this type uses pointers to fields
@@ -487,9 +585,9 @@ func (c *ClientTemplateConfig) IsEmpty() bool {
 // to maintain parity with the external subsystem, not to establish a new standard.
 type WaitConfig struct {
 	Min    *time.Duration `hcl:"-"`
-	MinHCL string         `hcl:"min,optional" json:"-"`
+	MinHCL string         `hcl:"min,optional"`
 	Max    *time.Duration `hcl:"-"`
-	MaxHCL string         `hcl:"max,optional" json:"-"`
+	MaxHCL string         `hcl:"max,optional"`
 }
 
 // Copy returns a deep copy of the receiver.
@@ -617,11 +715,11 @@ type RetryConfig struct {
 	// Backoff is the base of the exponential backoff. This number will be
 	// multiplied by the next power of 2 on each iteration.
 	Backoff    *time.Duration `hcl:"-"`
-	BackoffHCL string         `hcl:"backoff,optional" json:"-"`
+	BackoffHCL string         `hcl:"backoff,optional"`
 	// MaxBackoff is an upper limit to the sleep time between retries
 	// A MaxBackoff of 0 means there is no limit to the exponential growth of the backoff.
 	MaxBackoff    *time.Duration `hcl:"-"`
-	MaxBackoffHCL string         `hcl:"max_backoff,optional" json:"-"`
+	MaxBackoffHCL string         `hcl:"max_backoff,optional"`
 }
 
 func (rc *RetryConfig) Copy() *RetryConfig {
@@ -758,22 +856,23 @@ func (c *Config) Copy() *Config {
 	nc.Servers = slices.Clone(nc.Servers)
 	nc.Options = maps.Clone(nc.Options)
 	nc.HostVolumes = structs.CopyMapStringClientHostVolumeConfig(nc.HostVolumes)
-	nc.ConsulConfig = c.ConsulConfig.Copy()
 	nc.ConsulConfigs = helper.DeepCopyMap(c.ConsulConfigs)
-	nc.VaultConfig = c.VaultConfig.Copy()
 	nc.VaultConfigs = helper.DeepCopyMap(c.VaultConfigs)
 	nc.TemplateConfig = c.TemplateConfig.Copy()
 	nc.ReservableCores = slices.Clone(c.ReservableCores)
 	nc.Artifact = c.Artifact.Copy()
+	nc.Users = c.Users.Copy()
 	return &nc
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	cfg := &Config{
-		Version:                 version.GetVersion(),
-		VaultConfig:             structsc.DefaultVaultConfig(),
-		ConsulConfig:            structsc.DefaultConsulConfig(),
+		Version: version.GetVersion(),
+		VaultConfigs: map[string]*structsc.VaultConfig{
+			structs.VaultDefaultCluster: structsc.DefaultVaultConfig()},
+		ConsulConfigs: map[string]*structsc.ConsulConfig{
+			structs.ConsulDefaultCluster: structsc.DefaultConsulConfig()},
 		Region:                  "global",
 		StatsCollectionInterval: 1 * time.Second,
 		TLSConfig:               &structsc.TLSConfig{},
@@ -784,39 +883,20 @@ func DefaultConfig() *Config {
 		GCMaxAllocs:             50,
 		NoHostUUID:              true,
 		DisableRemoteExec:       false,
-		TemplateConfig: &ClientTemplateConfig{
-			FunctionDenylist:   DefaultTemplateFunctionDenylist,
-			DisableSandbox:     false,
-			BlockQueryWaitTime: pointer.Of(5 * time.Minute),         // match Consul default
-			MaxStale:           pointer.Of(DefaultTemplateMaxStale), // match Consul default
-			Wait: &WaitConfig{
-				Min: pointer.Of(5 * time.Second),
-				Max: pointer.Of(4 * time.Minute),
-			},
-			ConsulRetry: &RetryConfig{
-				Attempts: pointer.Of(0), // unlimited
-			},
-			VaultRetry: &RetryConfig{
-				Attempts: pointer.Of(0), // unlimited
-			},
-			NomadRetry: &RetryConfig{
-				Attempts: pointer.Of(0), // unlimited
-			},
+		TemplateConfig:          DefaultTemplateConfig(),
+		RPCHoldTimeout:          5 * time.Second,
+		CNIPath:                 "/opt/cni/bin",
+		CNIConfigDir:            "/opt/cni/config",
+		CNIInterfacePrefix:      "eth",
+		HostNetworks:            map[string]*structs.ClientHostNetworkConfig{},
+		CgroupParent:            "nomad.slice", // SETH todo
+		MaxDynamicPort:          structs.DefaultMinDynamicPort,
+		MinDynamicPort:          structs.DefaultMaxDynamicPort,
+		Users: &UsersConfig{
+			MinDynamicUser: 80_000,
+			MaxDynamicUser: 89_999,
 		},
-		RPCHoldTimeout:     5 * time.Second,
-		CNIPath:            "/opt/cni/bin",
-		CNIConfigDir:       "/opt/cni/config",
-		CNIInterfacePrefix: "eth",
-		HostNetworks:       map[string]*structs.ClientHostNetworkConfig{},
-		CgroupParent:       "nomad.slice", // SETH todo
-		MaxDynamicPort:     structs.DefaultMinDynamicPort,
-		MinDynamicPort:     structs.DefaultMaxDynamicPort,
 	}
-
-	cfg.ConsulConfigs = map[string]*structsc.ConsulConfig{
-		"default": cfg.ConsulConfig}
-	cfg.VaultConfigs = map[string]*structsc.VaultConfig{
-		"default": cfg.VaultConfig}
 
 	return cfg
 }
@@ -957,4 +1037,16 @@ func (c *Config) NomadPluginConfig(topology *numalib.Topology) *base.AgentConfig
 			Topology:      topology,
 		},
 	}
+}
+
+func (c *Config) GetDefaultConsul() *structsc.ConsulConfig {
+	return c.ConsulConfigs[structs.ConsulDefaultCluster]
+}
+
+func (c *Config) GetDefaultVault() *structsc.VaultConfig {
+	return c.VaultConfigs[structs.VaultDefaultCluster]
+}
+
+func (c *Config) GetNode() *structs.Node {
+	return c.Node
 }

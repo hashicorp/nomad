@@ -6,8 +6,8 @@ package command
 import (
 	"strings"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -22,7 +22,7 @@ Usage: nomad namespace <subcommand> [options] [args]
   This command groups subcommands for interacting with namespaces. Namespaces
   allow jobs and their associated objects to be segmented from each other and
   other users of the cluster. For a full guide on namespaces see:
-  https://learn.hashicorp.com/tutorials/nomad/namespaces
+  https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces
 
   Create or update a namespace:
 

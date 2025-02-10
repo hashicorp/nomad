@@ -15,14 +15,16 @@ export default class ServersRoute extends Route.extend(WithForbiddenState) {
   @service store;
   @service system;
 
-  beforeModel() {
-    return this.get('system.leader');
+  async beforeModel() {
+    await this.system.leaders;
   }
 
-  model() {
+  async model() {
+    const agents = await this.store.findAll('agent');
+    await Promise.all(agents.map((agent) => agent.checkForLeadership()));
     return RSVP.hash({
       nodes: this.store.findAll('node'),
-      agents: this.store.findAll('agent'),
+      agents,
     }).catch(notifyForbidden(this));
   }
 }

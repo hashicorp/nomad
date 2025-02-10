@@ -1,17 +1,24 @@
 ---
 layout: docs
-page_title: Agent Configuration
-description: Learn about the configuration options available for the Nomad agent.
+page_title: Nomad Agent Configuration
+description: This section contains reference information for configuring Nomad agents. Learn how Nomad loads and merges multiple configuration files. Configure networking and advertise addresses, Nomad regions and datacenters, data directories, Consul integration, handshake limits, connections per client, logging, plugins, Sentinel policies, security, update check behavior, and Vault integration. Enable debugging, write to syslog, leave on interrupt or terminate, and cross-origin resource sharing (CORS).
 ---
 
-# Nomad Configuration
+# Nomad Agent Configuration
 
-Nomad agents have a variety of parameters that can be specified via
-configuration files or command-line flags. Configuration files are written in
-[HCL][hcl]. Nomad can read and combine parameters from multiple configuration
-files or directories to configure the Nomad agent.
+This page provides an overview of reference information for configuring Nomad
+agents. Learn how Nomad loads and merges multiple configuration files. Configure
+networking and advertise addresses, Nomad regions and data centers, data
+directories, Consul integration, handshake limits, connections per client,
+logging, plugins, Sentinel policies, security, update check behavior, and Vault
+integration. Enable debugging, writing to syslog, leave on interrupt or
+terminate, and cross-origin resource sharing (CORS).
 
-## Load Order and Merging
+Write configuration files in [HCL][hcl] or specify parameters as command-line
+flags. Nomad can read and combine parameters from multiple configuration files
+or directories to configure the Nomad agent.
+
+## Configuration File Load Order and Merging
 
 The Nomad agent supports multiple configuration files, which can be provided
 using the `-config` CLI flag. The flag can accept either a file or folder. In
@@ -81,11 +88,11 @@ testing.
 
 - `acl` `(`[`ACL`]`: nil)` - Specifies configuration which is specific to ACLs.
 
-- `addresses` `(Addresses: see below)` - Specifies the bind address for
+- `addresses` `(Addresses: refer to explanation)` - Specifies the bind address for
   individual network services. Any values configured in this block take
   precedence over the default [bind_addr](#bind_addr). These values should be
   specified in IP format without a port (ex. `"0.0.0.0"`). To set the port,
-  see the [`ports`](#ports) field. The values support [go-sockaddr/template
+  refer to the [`ports`](#ports) field. The values support [go-sockaddr/template
   format][go-sockaddr/template].
 
   - `http` - The address the HTTP server is bound to. This is the most
@@ -99,7 +106,7 @@ testing.
     listener will be exposed on this address. Should be exposed only to other
     cluster members if possible.
 
-- `advertise` `(Advertise: see below)` - Specifies the advertise address for
+- `advertise` `(Advertise: refer to explanation)` - Specifies the advertise address for
   individual network services. This can be used to advertise a different address
   to the peers of a server or a client node to support more complex network
   configurations such as NAT. This configuration is optional, and defaults to
@@ -152,7 +159,8 @@ testing.
   agent state. Client nodes use this directory by default to store temporary
   allocation data as well as cluster information. Server nodes use this
   directory to store cluster state, including the replicated log and snapshot
-  data. This must be specified as an absolute path.
+  data. This must be specified as an absolute path. Nomad will create the
+  directory on the host, if it does not exist when the agent process starts.
 
 - `disable_anonymous_signature` `(bool: false)` - Specifies if Nomad should
   provide an anonymous signature for de-duplication with the update check.
@@ -193,9 +201,8 @@ testing.
   [`drain_on_shutdown`][], the client will drain its workloads before shutting
   down.
 
-- `limits` - Available in Nomad 0.10.3 and later, this is a nested object that
-  configures limits that are enforced by the agent. The following parameters
-  are available:
+- `limits` - This is a nested object that configures limits that are enforced by
+   the agent. The following parameters are available:
 
   - `https_handshake_timeout` `(string: "5s")` - Configures the limit for how
     long the HTTPS server in both client and server agents will wait for a
@@ -245,8 +252,11 @@ testing.
     connection.
 
 - `log_level` `(string: "INFO")` - Specifies the verbosity of logs the Nomad
-  agent will output. Valid log levels include `WARN`, `INFO`, or `DEBUG` in
-  increasing order of verbosity.
+  agent will output. Valid log levels include `WARN`, `INFO`, `DEBUG`, or
+  `TRACE` in increasing order of verbosity.
+
+- `log_include_location` `(bool: false)` - Include file and line information in
+  each log line.
 
 - `log_json` `(bool: false)` - Output logs in a JSON format.
 
@@ -273,18 +283,18 @@ testing.
   value is used to identify individual agents. When specified on a server, the
   name must be unique within the region.
 
-- `plugin_dir` `(string: "[data_dir]/plugins")` - Specifies the directory to
-  use for looking up plugins. By default, this is the top-level
-  [data_dir](#data_dir) suffixed with "plugins", like `"/opt/nomad/plugins"`.
-  This must be an absolute path.
+- `plugin_dir` `(string: "")` - Specifies the directory to use for looking up
+  plugins. When this parameter is empty, Nomad will generate the path using the
+  [top-level `data_dir`](#data_dir) suffixed with `plugins`, like
+  `"/opt/nomad/plugins"`. This must be an absolute path.
 
 - `plugin` `(`[`Plugin`]`: nil)` - Specifies configuration for a
   specific plugin. The plugin block may be repeated, once for each plugin being
   configured. The key of the block is the plugin's executable name relative to
   the [plugin_dir](#plugin_dir).
 
-- `ports` `(Port: see below)` - Specifies the network ports used for different
-  services required by the Nomad agent.
+- `ports` `(Port: refer to explanation)` - Specifies the network ports used for
+  different services required by the Nomad agent.
 
   - `http` - The port used to run the HTTP server.
 
@@ -354,7 +364,7 @@ license will be reloaded from the file on a configuration reload.
 </EnterpriseAlert>
 
 If the Nomad agent receives a `SIGHUP` during initialization, it may crash
-(see [GH-3885]). Ensure that the Nomad agent is able to receive RPC traffic
+(refer to [GH-3885]). Ensure that the Nomad agent is able to receive RPC traffic
 before attempting to reload its configuration.
 
 ## Examples
@@ -388,7 +398,7 @@ http_api_response_headers {
 [`server`]: /nomad/docs/configuration/server 'Nomad Agent server Configuration'
 [tls]: /nomad/docs/configuration/tls 'Nomad Agent tls Configuration'
 [`vault`]: /nomad/docs/configuration/vault 'Nomad Agent vault Configuration'
-[go-sockaddr/template]: https://godoc.org/github.com/hashicorp/go-sockaddr/template
+[go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [log-api]: /nomad/api-docs/client#stream-logs
 [hcl]: https://github.com/hashicorp/hcl 'HashiCorp Configuration Language'
 [tls-reload]: /nomad/docs/configuration/tls#tls-configuration-reloads

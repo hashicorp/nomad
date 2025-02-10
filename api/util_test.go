@@ -116,9 +116,13 @@ func testQuotaSpec() *QuotaSpec {
 		Limits: []*QuotaLimit{
 			{
 				Region: "global",
-				RegionLimit: &Resources{
+				RegionLimit: &QuotaResources{
 					CPU:      pointerOf(2000),
 					MemoryMB: pointerOf(2000),
+					Devices: []*RequestedDevice{{
+						Name:  "nvidia/gpu/1080ti",
+						Count: pointerOf(uint64(2)),
+					}},
 				},
 			},
 		},

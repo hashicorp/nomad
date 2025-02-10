@@ -6,8 +6,8 @@ package client
 import (
 	"time"
 
-	"github.com/armon/go-metrics"
-	"github.com/hashicorp/go-set"
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -67,7 +67,7 @@ func (c *Client) ResolveToken(bearerToken string) (*acl.ACL, error) {
 func (c *Client) resolveTokenAndACL(bearerToken string) (*acl.ACL, *structs.AuthenticatedIdentity, error) {
 	// Fast-path if ACLs are disabled
 	if !c.GetConfig().ACLEnabled {
-		return nil, nil, nil
+		return acl.ACLsDisabledACL, nil, nil
 	}
 	defer metrics.MeasureSince([]string{"client", "acl", "resolve_token"}, time.Now())
 

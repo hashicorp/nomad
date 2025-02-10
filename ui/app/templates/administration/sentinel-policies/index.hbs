@@ -1,0 +1,78 @@
+{{!
+Copyright (c) HashiCorp, Inc.
+SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<section class="section">
+  <Hds::PageHeader class="variable-title" as |PH|>
+    <PH.Title>Sentinel Policies</PH.Title>
+    <PH.Description>
+      Nomad integrates with <Hds::Link::Inline @icon="collections" @href="https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel">HashiCorp Sentinel</Hds::Link::Inline> to allow operators to express policies as code and have those policies automatically enforced. This allows operators to define a "sandbox" and restrict actions to only those compliant with that policy.
+    </PH.Description>
+    <PH.Actions>
+      {{#if (can "write sentinel-policy")}}
+        <span
+          {{keyboard-shortcut
+            pattern=(array "n" "p" )
+            action=(action this.goToNewPolicy)
+            label="Create Policy"
+          }}
+        >
+          <Hds::Button @text="Create from Scratch" @icon="plus" @route="administration.sentinel-policies.new" data-test-create-sentinel-policy />
+        </span>
+        <span
+          {{keyboard-shortcut
+            pattern=(array "n" "t" "p")
+            action=(action this.goToTemplateGallery)
+            label="Create Policy from Template"
+          }}
+        >
+          <Hds::Button @text="Create from Template" @icon="plus" @route="administration.sentinel-policies.gallery" data-test-create-sentinel-policy-from-template />
+        </span>
+      {{else}}
+        <Hds::Button @text="Create Policy" @icon="plus" disabled data-test-disabled-create-sentinel-policy />
+      {{/if}}
+    </PH.Actions>
+  </Hds::PageHeader>
+
+  {{#if this.model}}
+  <Hds::Table @caption="A list of policies for this cluster" class="acl-table" @model={{this.model}}
+    @columns={{this.columns}} @sortBy="name">
+    <:body as |B|>
+      <B.Tr {{keyboard-shortcut enumerated=true action=(action "openPolicy" B.data) }} data-test-sentinel-policy-row>
+        <B.Td>
+          <LinkTo data-test-sentinel-policy-name={{B.data.name}} @route="administration.sentinel-policies.policy"
+            @model={{B.data.name}}>{{B.data.name}}</LinkTo>
+        </B.Td>
+        <B.Td data-test-sentinel-policy-description>{{B.data.description}}</B.Td>
+        <B.Td data-test-sentinel-policy-enforcement>{{B.data.enforcementLevel}}</B.Td>
+        {{#if (can "destroy sentinel-policy")}}
+          <B.Td>
+            <TwoStepButton
+              data-test-delete-policy
+              @idleText="Delete"
+              @inlineText={{true}}
+              @cancelText="Cancel"
+              @confirmText="Yes, Delete Policy"
+              @confirmationMessage="Are you sure?"
+              @awaitingConfirmation={{this.deletePolicy.isRunning}}
+              @disabled={{this.deletePolicy.isRunning}}
+              @onConfirm={{perform this.deletePolicy B.data}}
+            />
+          </B.Td>
+        {{/if}}
+      </B.Tr>
+    </:body>
+  </Hds::Table>
+  {{else}}
+  <div data-test-empty-sentinel-policy-list class="empty-message">
+    <h3 data-test-empty-sentinel-policy-list-headline class="empty-message-headline">
+      No Sentinel Policies
+    </h3>
+    <p class="empty-message-body">
+      Get started by <LinkTo @route="administration.sentinel-policies.new">creating a policy from scratch</LinkTo> or
+      by <LinkTo @route="administration.sentinel-policies.gallery">creating one from the policy gallery</LinkTo>.
+    </p>
+  </div>
+  {{/if}}
+</section>

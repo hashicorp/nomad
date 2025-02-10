@@ -312,8 +312,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf(""),
-						Count: pointerOf(1),
+						Name:                    pointerOf(""),
+						Count:                   pointerOf(1),
+						PreventRescheduleOnLost: pointerOf(false),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -399,8 +400,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				JobModifyIndex:    pointerOf(uint64(0)),
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf(""),
-						Count: pointerOf(1),
+						Name:                    pointerOf(""),
+						Count:                   pointerOf(1),
+						PreventRescheduleOnLost: pointerOf(false),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -491,8 +493,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("bar"),
-						Count: pointerOf(1),
+						Name:                    pointerOf("bar"),
+						PreventRescheduleOnLost: pointerOf(false),
+						Count:                   pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -555,8 +558,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("cache"),
-						Count: pointerOf(1),
+						Name:                    pointerOf("cache"),
+						Count:                   pointerOf(1),
+						PreventRescheduleOnLost: pointerOf(true),
 						RestartPolicy: &RestartPolicy{
 							Interval: pointerOf(5 * time.Minute),
 							Attempts: pointerOf(10),
@@ -666,8 +670,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("cache"),
-						Count: pointerOf(1),
+						Name:                    pointerOf("cache"),
+						Count:                   pointerOf(1),
+						PreventRescheduleOnLost: pointerOf(true),
 						RestartPolicy: &RestartPolicy{
 							Interval:        pointerOf(5 * time.Minute),
 							Attempts:        pointerOf(10),
@@ -795,7 +800,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name: "periodic",
 			input: &Job{
@@ -865,7 +869,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name: pointerOf("bar"),
+						Name:                    pointerOf("bar"),
+						PreventRescheduleOnLost: pointerOf(true),
 						Consul: &Consul{
 							Namespace: "",
 						},
@@ -885,7 +890,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name: pointerOf("baz"),
+						Name:                    pointerOf("baz"),
+						PreventRescheduleOnLost: pointerOf(false),
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -930,8 +936,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("bar"),
-						Count: pointerOf(1),
+						Name:                    pointerOf("bar"),
+						Count:                   pointerOf(1),
+						PreventRescheduleOnLost: pointerOf(true),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -979,8 +986,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name:  pointerOf("baz"),
-						Count: pointerOf(1),
+						Name:                    pointerOf("baz"),
+						PreventRescheduleOnLost: pointerOf(false),
+						Count:                   pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -1038,7 +1046,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ParentID: pointerOf("lol"),
 				TaskGroups: []*TaskGroup{
 					{
-						Name: pointerOf("bar"),
+						Name:                    pointerOf("bar"),
+						PreventRescheduleOnLost: pointerOf(true),
 						RestartPolicy: &RestartPolicy{
 							Delay:    pointerOf(15 * time.Second),
 							Attempts: pointerOf(2),
@@ -1111,8 +1120,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:  pointerOf("bar"),
-						Count: pointerOf(1),
+						Name:                    pointerOf("bar"),
+						PreventRescheduleOnLost: pointerOf(true),
+						Count:                   pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -1166,8 +1176,9 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name:  pointerOf("baz"),
-						Count: pointerOf(1),
+						Name:                    pointerOf("baz"),
+						PreventRescheduleOnLost: pointerOf(false),
+						Count:                   pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -1223,7 +1234,6 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name: "multiregion",
 			input: &Job{
@@ -1486,6 +1496,25 @@ func TestJobs_JobSubmission_Canonicalize(t *testing.T) {
 		js.Canonicalize()
 		must.Nil(t, js.VariableFlags)
 	})
+
+	t.Run("multiline var values", func(t *testing.T) {
+		js := &JobSubmission{
+			Source:        "abc123",
+			VariableFlags: map[string]string{"test": "foo\nbar"},
+		}
+		js.Canonicalize()
+
+		must.Eq(t, js.VariableFlags["test"], "foo%0Abar")
+	})
+
+	t.Run("non-alphabetic chars", func(t *testing.T) {
+		js := &JobSubmission{
+			Source:        "abc123",
+			VariableFlags: map[string]string{"test": `"foo": "bar"`},
+		}
+		js.Canonicalize()
+		must.Eq(t, js.VariableFlags["test"], "%22foo%22%3A+%22bar%22")
+	})
 }
 
 func TestJobs_JobSubmission_Copy(t *testing.T) {
@@ -1666,7 +1695,7 @@ func TestJobs_Submission_namespaces(t *testing.T) {
 	_, wm, err = jobs.RegisterOpts(job2, &RegisterOptions{
 		Submission: &JobSubmission{
 			Source: "second job source",
-			Format: "hcl1",
+			Format: "hcl2",
 		},
 	}, &WriteOptions{Namespace: "second"})
 	must.NoError(t, err)
@@ -2558,7 +2587,6 @@ func TestJobs_Parse(t *testing.T) {
 	// Test ParseHCLOpts
 	req := &JobsParseRequest{
 		JobHCL:       jobspec,
-		HCLv1:        false,
 		Canonicalize: false,
 	}
 
@@ -2569,31 +2597,9 @@ func TestJobs_Parse(t *testing.T) {
 	// Test ParseHCLOpts with Canonicalize=true
 	req = &JobsParseRequest{
 		JobHCL:       jobspec,
-		HCLv1:        false,
 		Canonicalize: true,
 	}
 	job2Canonicalized, err := c.Jobs().ParseHCLOpts(req)
 	must.NoError(t, err)
 	must.Eq(t, job1Canonicalized, job2Canonicalized)
-
-	// Test ParseHCLOpts with HCLv1=true
-	req = &JobsParseRequest{
-		JobHCL:       jobspec,
-		HCLv1:        true,
-		Canonicalize: false,
-	}
-
-	job3, err := c.Jobs().ParseHCLOpts(req)
-	must.NoError(t, err)
-	must.Eq(t, job1, job3)
-
-	// Test ParseHCLOpts with HCLv1=true and Canonicalize=true
-	req = &JobsParseRequest{
-		JobHCL:       jobspec,
-		HCLv1:        true,
-		Canonicalize: true,
-	}
-	job3Canonicalized, err := c.Jobs().ParseHCLOpts(req)
-	must.NoError(t, err)
-	must.Eq(t, job1Canonicalized, job3Canonicalized)
 }

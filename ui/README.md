@@ -78,12 +78,6 @@ Nomad UI releases are in lockstep with Nomad releases and are integrated into th
 
 - UI branches should be prefix with `f-ui-` for feature work and `b-ui-` for bug fixes. This instructs CI to skip running nomad backend tests.
 
-### Storybook UI Library
-
-The Storybook project provides a browser to see what components and patterns are present in the application and how to use them. You can run it locally with `yarn storybook` after you have `ember serve` running. The latest version from the `main` branch is at [`nomad-storybook-and-ui.vercel.app/storybook/`](https://nomad-storybook-and-ui.vercel.app/storybook/).
-
-To generate a new story for a component, run `ember generate story component-name`. You can use the existing stories as a guide.
-
 ### Troubleshooting
 
 #### The UI is running, but none of the API requests are working

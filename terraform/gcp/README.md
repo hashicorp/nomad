@@ -6,7 +6,7 @@ To get started, you will need a GCP [account](https://cloud.google.com/free).
 
 ## Welcome
 
-This tutorial will teach you how to deploy [Nomad](https://www.nomadproject.io/) clusters to the Google Cloud Platform using [Packer](https://www.packer.io/) and [Terraform](https://www.terraform.io/).
+This tutorial will teach you how to deploy [Nomad](https://developer.hashicorp.com/nomad/) clusters to the Google Cloud Platform using [Packer](https://www.packer.io/) and [Terraform](https://www.terraform.io/).
 
 Includes:
 
@@ -20,7 +20,7 @@ Includes:
 
 ### Nomad
 
-Download the latest version of [Nomad](https://www.nomadproject.io/) from HashiCorp's website by copying and pasting this snippet in the terminal:
+Download the latest version of [Nomad](https://developer.hashicorp.com/nomad/) from HashiCorp's website by copying and pasting this snippet in the terminal:
 
 ```console
 curl "https://releases.hashicorp.com/nomad/0.12.4/nomad_0.12.4_linux_amd64.zip" -o nomad.zip

@@ -6,16 +6,18 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/golang/snappy"
 	"github.com/gorilla/websocket"
-	"github.com/hashicorp/go-msgpack/codec"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -141,7 +143,7 @@ func (s *HTTPServer) allocGet(allocID string, resp http.ResponseWriter, req *htt
 }
 
 func (s *HTTPServer) allocStop(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if !(req.Method == "POST" || req.Method == "PUT") {
+	if !(req.Method == http.MethodPost || req.Method == http.MethodPut) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -235,6 +237,8 @@ func (s *HTTPServer) ClientAllocRequest(resp http.ResponseWriter, req *http.Requ
 		return s.allocGC(allocID, resp, req)
 	case "signal":
 		return s.allocSignal(allocID, resp, req)
+	case "pause":
+		return s.allocPause(allocID, resp, req)
 	}
 
 	return nil, CodedError(404, resourceNotFoundErr)
@@ -354,7 +358,7 @@ func (s *HTTPServer) allocGC(allocID string, resp http.ResponseWriter, req *http
 }
 
 func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	if !(req.Method == "POST" || req.Method == "PUT") {
+	if !(req.Method == http.MethodPost || req.Method == http.MethodPut) {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
 
@@ -379,6 +383,105 @@ func (s *HTTPServer) allocSignal(allocID string, resp http.ResponseWriter, req *
 		rpcErr = s.agent.Client().RPC("ClientAllocations.Signal", &args, &reply)
 	} else if useServerRPC {
 		rpcErr = s.agent.Server().RPC("ClientAllocations.Signal", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return reply, rpcErr
+}
+
+func (s *HTTPServer) allocPause(allocID string, resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	switch req.Method {
+	case http.MethodPost, http.MethodPut:
+		return s.allocPauseSet(allocID, resp, req)
+	case http.MethodGet:
+		return s.allocPauseGet(allocID, resp, req)
+	default:
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) allocPauseGet(allocID string, resp http.ResponseWriter, req *http.Request) (any, error) {
+	// Build the request and parse the ACL token
+	task := req.URL.Query().Get("task")
+	args := structs.AllocGetPauseStateRequest{
+		AllocID: allocID,
+		Task:    task,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply structs.AllocGetPauseStateResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.GetPauseState", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.GetPauseState", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.GetPauseState", &args, &reply)
+	} else {
+		rpcErr = CodedError(400, "No local Node and node_id not provided")
+	}
+
+	if rpcErr != nil {
+		if structs.IsErrNoNodeConn(rpcErr) || structs.IsErrUnknownAllocation(rpcErr) {
+			rpcErr = CodedError(404, rpcErr.Error())
+		}
+	}
+
+	return reply, rpcErr
+}
+
+func (s *HTTPServer) allocPauseSet(allocID string, resp http.ResponseWriter, req *http.Request) (any, error) {
+	// Build the request and parse the ACL token
+	args := structs.AllocPauseRequest{
+		AllocID: allocID,
+	}
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Explicitly parse the body separately to disallow overriding the allocID
+	var reqBody struct {
+		Task          string
+		ScheduleState string
+	}
+	err := json.NewDecoder(req.Body).Decode(&reqBody)
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	args.Task = reqBody.Task
+
+	switch reqBody.ScheduleState {
+	case "pause":
+		args.ScheduleState = structs.TaskScheduleStateForcePause
+	case "run":
+		args.ScheduleState = structs.TaskScheduleStateForceRun
+	case "scheduled":
+		args.ScheduleState = structs.TaskScheduleStateSchedResume
+	default:
+		return nil, CodedError(400, "Not a valid task schedule state")
+	}
+
+	// Determine the handler to use
+	useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForAlloc(allocID)
+
+	// Make the RPC
+	var reply structs.GenericResponse
+	var rpcErr error
+	if useLocalClient {
+		rpcErr = s.agent.Client().ClientRPC("Allocations.SetPauseState", &args, &reply)
+	} else if useClientRPC {
+		rpcErr = s.agent.Client().RPC("ClientAllocations.SetPauseState", &args, &reply)
+	} else if useServerRPC {
+		rpcErr = s.agent.Server().RPC("ClientAllocations.SetPauseState", &args, &reply)
 	} else {
 		rpcErr = CodedError(400, "No local Node and node_id not provided")
 	}
@@ -515,7 +618,7 @@ func (s *HTTPServer) allocExec(allocID string, resp http.ResponseWriter, req *ht
 		return nil, err
 	}
 
-	return s.execStreamImpl(conn, &args)
+	return s.execStream(conn, &args)
 }
 
 // readWsHandshake reads the websocket handshake message and sets
@@ -551,7 +654,9 @@ type wsHandshakeMessage struct {
 	AuthToken string `json:"auth_token"`
 }
 
-func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExecRequest) (interface{}, error) {
+// execStream finds the appropriate RPC handler and then runs the bidirectional
+// websocket-to-RPC stream
+func (s *HTTPServer) execStream(ws *websocket.Conn, args *cstructs.AllocExecRequest) (any, error) {
 	allocID := args.AllocID
 	method := "Allocations.Exec"
 
@@ -571,6 +676,13 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		return nil, CodedError(500, handlerErr.Error())
 	}
 
+	return s.execStreamImpl(ws, args, handler)
+}
+
+// execStreamImpl is called by execStream with the appropriate RPC handler and
+// then runs the bidirectional websocket-to-RPC stream.
+func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExecRequest, handler structs.StreamingRpcHandler) (any, error) {
+
 	// Create a pipe connecting the (possibly remote) handler to the http response
 	httpPipe, handlerPipe := net.Pipe()
 	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
@@ -585,33 +697,37 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 		// don't close ws - wait to drain messages
 	}()
 
-	// Create a channel that decodes the results
-	errCh := make(chan HTTPCodedError, 2)
+	// Create a channel for the final result
+	resultCh := make(chan HTTPCodedError, 1)
 
-	// stream response
+	// stream response back to the websocket: this should be the only goroutine
+	// that writes to this websocket connection
 	go func() {
 		defer cancel()
+		errCh := make(chan HTTPCodedError, 2)
 
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
-			errCh <- CodedError(500, err.Error())
+			resultCh <- s.execStreamHandleError(ws, CodedError(500, err.Error()))
 			return
 		}
 
-		go forwardExecInput(encoder, ws, errCh)
+		// only start this after we've tried to send the initial args
+		go forwardExecInput(ctx, encoder, ws, errCh)
 
 		for {
-			var res cstructs.StreamErrWrapper
-			err := decoder.Decode(&res)
-			if isClosedError(err) {
-				ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-				errCh <- nil
+			select {
+			case codedErr := <-errCh:
+				resultCh <- s.execStreamHandleError(ws, codedErr)
 				return
+			default:
 			}
 
+			var res cstructs.StreamErrWrapper
+			err := decoder.Decode(&res)
 			if err != nil {
 				errCh <- CodedError(500, err.Error())
-				return
+				continue
 			}
 			decoder.Reset(httpPipe)
 
@@ -621,39 +737,47 @@ func (s *HTTPServer) execStreamImpl(ws *websocket.Conn, args *cstructs.AllocExec
 					code = int(*err.Code)
 				}
 				errCh <- CodedError(code, err.Error())
-				return
+				continue
 			}
-
 			if err := ws.WriteMessage(websocket.TextMessage, res.Payload); err != nil {
 				errCh <- CodedError(500, err.Error())
-				return
+				continue
 			}
 		}
 	}()
 
-	// start streaming request to streaming RPC - returns when streaming completes or errors
+	// start streaming request to streaming RPC - returns when streaming
+	// completes or errors
 	handler(handlerPipe)
-	// stop streaming background goroutines for streaming - but not websocket activity
-	cancel()
-	// retrieve any error and/or wait until goroutine stop and close errCh connection before
-	// closing websocket connection
-	codedErr := <-errCh
 
+	// stop streaming background goroutines for streaming - but not websocket
+	// activity
+	cancel()
+
+	// retrieve any error and/or wait until goroutine stop and close errCh
+	// connection before closing websocket connection
+	result := <-resultCh
+	ws.Close()
+	return nil, result
+}
+
+// execStreamHandleError writes a CloseMessage to the websocket if we get an
+// error that isn't a "close error" caused by the RPC pipe finishing up. Note
+// that this should *only* ever be called in the same goroutine as we're
+// streaming the responses
+func (s *HTTPServer) execStreamHandleError(ws *websocket.Conn, codedErr HTTPCodedError) HTTPCodedError {
 	// we won't return an error on ws close, but at least make it available in
 	// the logs so we can trace spurious disconnects
-	if codedErr != nil {
-		s.logger.Debug("alloc exec channel closed with error", "error", codedErr)
-	}
+	s.logger.Trace("alloc exec channel closed with error", "error", codedErr)
 
 	if isClosedError(codedErr) {
-		codedErr = nil
+		return nil // we're intentionally throwing this error away
 	} else if codedErr != nil {
 		ws.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(toWsCode(codedErr.Code()), codedErr.Error()))
+		return codedErr
 	}
-	ws.Close()
-
-	return nil, codedErr
+	return nil
 }
 
 func toWsCode(httpCode int) int {
@@ -666,21 +790,34 @@ func toWsCode(httpCode int) int {
 	}
 }
 
+// isClosedError checks if the websocket "error" is one of the benign "close" status codes
 func isClosedError(err error) bool {
 	if err == nil {
 		return false
 	}
 
-	return err == io.EOF ||
+	return errors.Is(err, io.EOF) ||
+		errors.Is(err, io.ErrClosedPipe) ||
 		err == io.ErrClosedPipe ||
-		strings.Contains(err.Error(), "closed") ||
-		strings.Contains(err.Error(), "EOF")
+		slices.ContainsFunc([]string{
+			"closed", // msgpack decode error [pos 0]: io: read/write on closed pipe"
+			"EOF",
+			"close 1000", // CLOSE_NORMAL
+			"close 1001", // CLOSE_GOING_AWAY
+			"close 1005", // CLOSED_NO_STATUS
+		}, func(s string) bool { return strings.Contains(err.Error(), s) })
 }
 
 // forwardExecInput forwards exec input (e.g. stdin) from websocket connection
 // to the streaming RPC connection to client
-func forwardExecInput(encoder *codec.Encoder, ws *websocket.Conn, errCh chan<- HTTPCodedError) {
+func forwardExecInput(ctx context.Context, encoder *codec.Encoder, ws *websocket.Conn, errCh chan<- HTTPCodedError) {
 	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		sf := &drivers.ExecTaskStreamingRequestMsg{}
 		err := ws.ReadJSON(sf)
 		if err == io.EOF {

@@ -1,0 +1,3 @@
+!> **Warning chroot limitations:** Nomad by default doesn't copy the ephemeral runtime files in the `/run` directory. For exampe, on Ubuntu, `/etc/resolv.conf` is a symlink to `/run/systemd/resolve/stub-resolv.conf`, so Nomad doesn't copy `resolv.conf` to the chroot environment.
+
+In these cases, configure your job's [network block](/nomad/docs/job-specification/network) for each chroot task.

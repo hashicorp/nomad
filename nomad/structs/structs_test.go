@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/kr/pretty"
@@ -339,6 +341,17 @@ func TestJob_Validate(t *testing.T) {
 			},
 		},
 		{
+			name: "job description is too long",
+			job: &Job{
+				UI: &JobUIConfig{
+					Description: strings.Repeat("a", 1015),
+				},
+			},
+			expErr: []string{
+				"UI description must be under 1000 characters",
+			},
+		},
+		{
 			name: "job task group is type invalid",
 			job: &Job{
 				Region:      "global",
@@ -382,6 +395,18 @@ func TestJob_Validate(t *testing.T) {
 				"Unsupported restart mode",
 				"Task Group web should have a reschedule policy",
 				"Task Group web should have an ephemeral disk object",
+			},
+		},
+		{
+			name: "VersionTag Description length",
+			job: &Job{
+				Type: JobTypeService,
+				VersionTag: &JobVersionTag{
+					Description: strings.Repeat("a", 1001),
+				},
+			},
+			expErr: []string{
+				"Tagged version description must be under 1000 characters",
 			},
 		},
 	}
@@ -669,6 +694,19 @@ func testJob() *Job {
 		AllAtOnce:   false,
 		Datacenters: []string{"*"},
 		NodePool:    NodePoolDefault,
+		UI: &JobUIConfig{
+			Description: "A job",
+			Links: []*JobUILink{
+				{
+					Label: "Nomad Project",
+					Url:   "https://nomadproject.io",
+				},
+				{
+					Label: "Nomad on GitHub",
+					Url:   "https://github.com/hashicorp/nomad",
+				},
+			},
+		},
 		Constraints: []*Constraint{
 			{
 				LTarget: "$attr.kernel.name",
@@ -726,6 +764,7 @@ func testJob() *Job {
 							},
 						},
 						Identity: &WorkloadIdentity{
+							Name: "foo",
 							Env:  true,
 							File: true,
 						},
@@ -759,6 +798,38 @@ func TestJob_Copy(t *testing.T) {
 	c := j.Copy()
 	if !reflect.DeepEqual(j, c) {
 		t.Fatalf("Copy() returned an unequal Job; got %#v; want %#v", c, j)
+	}
+}
+
+func TestJob_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		job *Job
+	}{
+		{
+			job: testJob(),
+		},
+		{
+			job: &Job{},
+		},
+		{
+			job: &Job{
+				Datacenters: []string{},
+				Constraints: []*Constraint{},
+				Affinities:  []*Affinity{},
+				Spreads:     []*Spread{},
+				TaskGroups:  []*TaskGroup{},
+				Meta:        map[string]string{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.job.Canonicalize()
+		copied := c.job.Copy()
+		if !reflect.DeepEqual(c.job, copied) {
+			t.Fatalf("Canonicalize() returned a Job that changed after copy; before %#v; after %#v", c.job, copied)
+		}
 	}
 }
 
@@ -1460,7 +1531,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 			tg: &TaskGroup{
 				Networks: []*NetworkResource{
 					{
-						DynamicPorts: []Port{{"http", 0, 80, ""}},
+						DynamicPorts: []Port{{Label: "http", To: 80}},
 					},
 				},
 				Tasks: []*Task{
@@ -1468,7 +1539,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 						Resources: &Resources{
 							Networks: []*NetworkResource{
 								{
-									DynamicPorts: []Port{{"http", 0, 80, ""}},
+									DynamicPorts: []Port{{Label: "http", To: 80}},
 								},
 							},
 						},
@@ -1588,7 +1659,7 @@ func TestTaskGroup_Validate(t *testing.T) {
 				},
 			},
 			expErr: []string{
-				`Volume Mount (0) references an empty volume`,
+				`Volume Mount (0) references undefined volume`,
 				`Volume Mount (0) references undefined volume foob`,
 			},
 			jobType: JobTypeService,
@@ -1955,6 +2026,83 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 			},
 			ErrContains: "Hostname is not a valid DNS name",
 		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-duplicate-cni-arg-keys",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value"}},
+					},
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "new_value"}},
+					},
+				},
+			},
+			ErrContains: "duplicate CNI arg",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-valid-cni-arg-keys",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value"}},
+					},
+					{
+						CNI: &CNIConfig{Args: map[string]string{"new_key": "new_value"}},
+					},
+					{
+						CNI: &CNIConfig{Args: map[string]string{"newest_key": "new_value", "second_key": "second_value"}},
+					},
+				},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-invalid-character-cni-arg-key",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static;": "first_value"}},
+					},
+				},
+			},
+			ErrContains: "invalid ';' character in CNI arg key \"static;",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-invalid-character-cni-arg-value",
+				Networks: []*NetworkResource{
+					{
+						CNI: &CNIConfig{Args: map[string]string{"static": "first_value;"}},
+					},
+				},
+			},
+			ErrContains: "invalid ';' character in CNI arg value \"first_value;",
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-port-ignore-collision-ok",
+				Networks: []*NetworkResource{{
+					Mode: "host",
+					ReservedPorts: []Port{
+						{Label: "one", Value: 10, IgnoreCollision: true},
+						{Label: "two", Value: 10, IgnoreCollision: true},
+					},
+				}},
+			},
+		},
+		{
+			TG: &TaskGroup{
+				Name: "testing-port-ignore-collision-non-host-network-mode",
+				Networks: []*NetworkResource{{
+					Mode: "not-host",
+					ReservedPorts: []Port{
+						{Label: "one", Value: 10, IgnoreCollision: true},
+						{Label: "two", Value: 10, IgnoreCollision: true},
+					},
+				}},
+			},
+			ErrContains: "collision may not be ignored on non-host network mode",
+		},
 	}
 
 	for i := range cases {
@@ -1970,6 +2118,41 @@ func TestTaskGroupNetwork_Validate(t *testing.T) {
 			require.Error(t, err)
 			require.Contains(t, err.Error(), tc.ErrContains)
 		})
+	}
+}
+
+func TestTaskGroup_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	job := testJob()
+	cases := []struct {
+		tg *TaskGroup
+	}{
+		{
+			tg: job.TaskGroups[0],
+		},
+		{
+			tg: &TaskGroup{},
+		},
+		{
+			tg: &TaskGroup{
+				Constraints: []*Constraint{},
+				Tasks:       []*Task{},
+				Meta:        map[string]string{},
+				Affinities:  []*Affinity{},
+				Spreads:     []*Spread{},
+				Networks:    []*NetworkResource{},
+				Services:    []*Service{},
+				Volumes:     map[string]*VolumeRequest{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.tg.Canonicalize(job)
+		copied := c.tg.Copy()
+		if !reflect.DeepEqual(c.tg, copied) {
+			t.Fatalf("Canonicalize() returned a TaskGroup that changed after copy; before %#v; after %#v", c.tg, copied)
+		}
 	}
 }
 
@@ -2005,6 +2188,24 @@ func TestTask_Validate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
+
+	tg.Volumes = map[string]*VolumeRequest{
+		"foo": {
+			Name: "foo",
+		},
+	}
+
+	task.VolumeMounts = []*VolumeMount{
+		{
+			Volume: "blah",
+		},
+	}
+
+	err = task.Validate(JobTypeBatch, tg)
+	requireErrors(t, err,
+		"Volume Mount (0) references undefined volume blah",
+	)
+	task.VolumeMounts = nil
 
 	task.Constraints = append(task.Constraints,
 		&Constraint{
@@ -2073,6 +2274,7 @@ func TestTask_Validate_Resources(t *testing.T) {
 								HostNetwork: "loopback",
 							},
 						},
+						CNI: &CNIConfig{map[string]string{"static": "new_val"}},
 					},
 				},
 			},
@@ -2102,19 +2304,102 @@ func TestTask_Validate_Resources(t *testing.T) {
 			},
 			err: "MemoryMaxMB value (10) should be larger than MemoryMB value (200",
 		},
+		{
+			name: "memory max no limit",
+			res: &Resources{
+				CPU:         100,
+				MemoryMB:    200,
+				MemoryMaxMB: -1,
+			},
+		},
+		{
+			name: "numa devices do not match",
+			res: &Resources{
+				CPU:      100,
+				MemoryMB: 200,
+				Devices: []*RequestedDevice{
+					{
+						Name:  "evilcorp/gpu",
+						Count: 2,
+					},
+					{
+						Name:  "fpga",
+						Count: 1,
+					},
+					{
+						Name:  "net/nic/model1",
+						Count: 1,
+					},
+				},
+				NUMA: &NUMA{
+					Affinity: "require",
+					Devices:  []string{"evilcorp/gpu", "bad/bad", "fpga"},
+				},
+			},
+			err: "numa device \"bad/bad\" not requested as task resource",
+		},
+		{
+			name: "numa affinity not valid",
+			res: &Resources{
+				CPU:      100,
+				MemoryMB: 200,
+				NUMA: &NUMA{
+					Affinity: "bad",
+				},
+			},
+			err: "numa affinity must be one of none, prefer, or require",
+		},
 	}
 
-	for i := range cases {
-		tc := cases[i]
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.res.Validate()
 			if tc.err == "" {
-				require.NoError(t, err)
+				must.NoError(t, err)
 			} else {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.err)
+				must.ErrorContains(t, err, tc.err)
 			}
 		})
+	}
+}
+
+func TestTask_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	job := testJob()
+	tg := job.TaskGroups[0]
+	cases := []struct {
+		task *Task
+	}{
+		{
+			task: tg.Tasks[0],
+		},
+		{
+			task: &Task{},
+		},
+		{
+			task: &Task{
+				Config:          map[string]interface{}{},
+				Env:             map[string]string{},
+				Services:        []*Service{},
+				Templates:       []*Template{},
+				Constraints:     []*Constraint{},
+				Affinities:      []*Affinity{},
+				Meta:            map[string]string{},
+				Artifacts:       []*TaskArtifact{},
+				VolumeMounts:    []*VolumeMount{},
+				ScalingPolicies: []*ScalingPolicy{},
+				Identities:      []*WorkloadIdentity{},
+				Actions:         []*Action{},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c.task.Canonicalize(job, tg)
+		copied := c.task.Copy()
+		if !reflect.DeepEqual(c.task, copied) {
+			t.Fatalf("Canonicalize() returned a Task that changed after copy; before %#v; after %#v", c.task, copied)
+		}
 	}
 }
 
@@ -2157,6 +2442,7 @@ func TestNetworkResource_Copy(t *testing.T) {
 						HostNetwork: "public",
 					},
 				},
+				CNI: &CNIConfig{Args: map[string]string{"foo": "bar", "hello": "world"}},
 			},
 			name: "fully populated input check",
 		},
@@ -2945,6 +3231,16 @@ func TestTask_Validate_CSIPluginConfig(t *testing.T) {
 			},
 			expectedErr: "CSIPluginConfig PluginType must be one of 'node', 'controller', or 'monolith', got: \"nonsense\"",
 		},
+		{
+			name: "requires staging publish base dir to not be a subdir of mountdir",
+			pc: &TaskCSIPluginConfig{
+				ID:                  "com.hashicorp.csi",
+				Type:                "monolith",
+				MountDir:            "/csi",
+				StagePublishBaseDir: "/csi/local",
+			},
+			expectedErr: "CSIPluginConfig StagePublishBaseDir must not be a subdirectory of MountDir, got: StagePublishBaseDir=\"/csi/local\" MountDir=\"/csi\"",
+		},
 	}
 
 	for _, tt := range table {
@@ -3540,25 +3836,33 @@ func TestResource_Add(t *testing.T) {
 
 	r1 := &Resources{
 		CPU:      2000,
+		Cores:    100,
 		MemoryMB: 2048,
 		DiskMB:   10000,
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         100,
-				ReservedPorts: []Port{{"ssh", 22, 0, ""}},
+				ReservedPorts: []Port{{Label: "ssh", Value: 22}},
 			},
 		},
 	}
 	r2 := &Resources{
 		CPU:      2000,
+		Cores:    100,
 		MemoryMB: 1024,
 		DiskMB:   5000,
 		Networks: []*NetworkResource{
 			{
 				IP:            "10.0.0.1",
 				MBits:         50,
-				ReservedPorts: []Port{{"web", 80, 0, ""}},
+				ReservedPorts: []Port{{Label: "web", Value: 80}},
+			},
+		},
+		Devices: []*RequestedDevice{
+			{
+				Name:  "nvidia/gpu/Tesla M60",
+				Count: 1,
 			},
 		},
 	}
@@ -3566,21 +3870,27 @@ func TestResource_Add(t *testing.T) {
 	r1.Add(r2)
 
 	expect := &Resources{
-		CPU:      3000,
-		MemoryMB: 3072,
-		DiskMB:   15000,
+		CPU:         4000,
+		Cores:       200,
+		MemoryMB:    3072,
+		MemoryMaxMB: 1024,
+		DiskMB:      15000,
 		Networks: []*NetworkResource{
 			{
 				CIDR:          "10.0.0.0/8",
 				MBits:         150,
-				ReservedPorts: []Port{{"ssh", 22, 0, ""}, {"web", 80, 0, ""}},
+				ReservedPorts: []Port{{Label: "ssh", Value: 22}, {Label: "web", Value: 80}},
+			},
+		},
+		Devices: []*RequestedDevice{
+			{
+				Name:  "nvidia/gpu/Tesla M60",
+				Count: 1,
 			},
 		},
 	}
 
-	if !reflect.DeepEqual(expect.Networks, r1.Networks) {
-		t.Fatalf("bad: %#v %#v", expect, r1)
-	}
+	must.Eq(t, expect, r1)
 }
 
 func TestResource_Add_Network(t *testing.T) {
@@ -3591,7 +3901,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        50,
-				DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}},
+				DynamicPorts: []Port{{Label: "http", To: 80}, {Label: "https", To: 443}},
 			},
 		},
 	}
@@ -3599,7 +3909,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        25,
-				DynamicPorts: []Port{{"admin", 0, 8080, ""}},
+				DynamicPorts: []Port{{Label: "admin", To: 8080}},
 			},
 		},
 	}
@@ -3611,7 +3921,7 @@ func TestResource_Add_Network(t *testing.T) {
 		Networks: []*NetworkResource{
 			{
 				MBits:        75,
-				DynamicPorts: []Port{{"http", 0, 80, ""}, {"https", 0, 443, ""}, {"admin", 0, 8080, ""}},
+				DynamicPorts: []Port{{Label: "http", To: 80}, {Label: "https", To: 443}, {Label: "admin", To: 8080}},
 			},
 		},
 	}
@@ -3638,7 +3948,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         100,
-					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
 				},
 			},
 		},
@@ -3661,7 +3971,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         20,
-					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
 				},
 			},
 		},
@@ -3685,7 +3995,7 @@ func TestComparableResources_Subtract(t *testing.T) {
 				{
 					CIDR:          "10.0.0.0/8",
 					MBits:         100,
-					ReservedPorts: []Port{{"ssh", 22, 0, ""}},
+					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
 				},
 			},
 		},
@@ -4745,6 +5055,27 @@ func TestTaskArtifact_Hash(t *testing.T) {
 			GetterMode:   "g",
 			RelativeDest: "i",
 		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:     "g",
+			GetterInsecure: true,
+			RelativeDest:   "i",
+		},
+		{
+			GetterSource: "b",
+			GetterOptions: map[string]string{
+				"c": "c",
+				"d": "e",
+			},
+			GetterMode:     "g",
+			GetterInsecure: true,
+			RelativeDest:   "i",
+			Chown:          true,
+		},
 	}
 
 	// Map of hash to source
@@ -5005,22 +5336,26 @@ func TestPlan_AppendPreemptedAllocAppendsAllocWithUpdatedAttrs(t *testing.T) {
 	assert.Equal(t, expectedAlloc, appendedAlloc)
 }
 
-func TestAllocation_MsgPackTags(t *testing.T) {
+func TestMsgPackTags(t *testing.T) {
 	ci.Parallel(t)
-	planType := reflect.TypeOf(Allocation{})
 
-	msgPackTags, _ := planType.FieldByName("_struct")
+	cases := []struct {
+		name   string
+		typeOf reflect.Type
+	}{
+		{"Allocation", reflect.TypeOf(Allocation{})},
+		{"Evaluation", reflect.TypeOf(Evaluation{})},
+		{"NetworkResource", reflect.TypeOf(NetworkResource{})},
+		{"Plan", reflect.TypeOf(Plan{})},
+	}
 
-	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
-}
-
-func TestEvaluation_MsgPackTags(t *testing.T) {
-	ci.Parallel(t)
-	planType := reflect.TypeOf(Evaluation{})
-
-	msgPackTags, _ := planType.FieldByName("_struct")
-
-	assert.Equal(t, msgPackTags.Tag, reflect.StructTag(`codec:",omitempty"`))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			field, ok := tc.typeOf.FieldByName("_struct")
+			must.True(t, ok, must.Sprint("_struct field not found"))
+			must.Eq(t, `codec:",omitempty"`, field.Tag, must.Sprint("bad _struct tag"))
+		})
+	}
 }
 
 func TestAllocation_Terminated(t *testing.T) {
@@ -5189,7 +5524,10 @@ func TestAllocation_ShouldReschedule(t *testing.T) {
 		alloc := Allocation{}
 		alloc.DesiredStatus = state.DesiredStatus
 		alloc.ClientStatus = state.ClientStatus
-		alloc.RescheduleTracker = &RescheduleTracker{state.RescheduleTrackers}
+		alloc.RescheduleTracker = &RescheduleTracker{
+			Events:         state.RescheduleTrackers,
+			LastReschedule: "",
+		}
 
 		t.Run(state.Desc, func(t *testing.T) {
 			if got := alloc.ShouldReschedule(state.ReschedulePolicy, state.FailTime); got != state.ShouldReschedule {
@@ -5747,248 +6085,6 @@ func TestAllocation_NextDelay(t *testing.T) {
 
 }
 
-func TestAllocation_WaitClientStop(t *testing.T) {
-	ci.Parallel(t)
-	type testCase struct {
-		desc                   string
-		stop                   time.Duration
-		status                 string
-		expectedShould         bool
-		expectedRescheduleTime time.Time
-	}
-	now := time.Now().UTC()
-	testCases := []testCase{
-		{
-			desc:           "running",
-			stop:           2 * time.Second,
-			status:         AllocClientStatusRunning,
-			expectedShould: true,
-		},
-		{
-			desc:           "no stop_after_client_disconnect",
-			status:         AllocClientStatusLost,
-			expectedShould: false,
-		},
-		{
-			desc:                   "stop",
-			status:                 AllocClientStatusLost,
-			stop:                   2 * time.Second,
-			expectedShould:         true,
-			expectedRescheduleTime: now.Add((2 + 5) * time.Second),
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			j := testJob()
-			a := &Allocation{
-				ClientStatus: tc.status,
-				Job:          j,
-				TaskStates:   map[string]*TaskState{},
-			}
-
-			if tc.status == AllocClientStatusLost {
-				a.AppendState(AllocStateFieldClientStatus, AllocClientStatusLost)
-			}
-
-			j.TaskGroups[0].StopAfterClientDisconnect = &tc.stop
-			a.TaskGroup = j.TaskGroups[0].Name
-
-			require.Equal(t, tc.expectedShould, a.ShouldClientStop())
-
-			if !tc.expectedShould || tc.status != AllocClientStatusLost {
-				return
-			}
-
-			// the reschedTime is close to the expectedRescheduleTime
-			reschedTime := a.WaitClientStop()
-			e := reschedTime.Unix() - tc.expectedRescheduleTime.Unix()
-			require.Less(t, e, int64(2))
-		})
-	}
-}
-
-func TestAllocation_DisconnectTimeout(t *testing.T) {
-	type testCase struct {
-		desc          string
-		maxDisconnect *time.Duration
-	}
-
-	testCases := []testCase{
-		{
-			desc:          "no max_client_disconnect",
-			maxDisconnect: nil,
-		},
-		{
-			desc:          "has max_client_disconnect",
-			maxDisconnect: pointer.Of(30 * time.Second),
-		},
-		{
-			desc:          "zero max_client_disconnect",
-			maxDisconnect: pointer.Of(0 * time.Second),
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.desc, func(t *testing.T) {
-			j := testJob()
-			a := &Allocation{
-				Job: j,
-			}
-
-			j.TaskGroups[0].MaxClientDisconnect = tc.maxDisconnect
-			a.TaskGroup = j.TaskGroups[0].Name
-
-			now := time.Now()
-
-			reschedTime := a.DisconnectTimeout(now)
-
-			if tc.maxDisconnect == nil {
-				require.Equal(t, now, reschedTime, "expected to be now")
-			} else {
-				difference := reschedTime.Sub(now)
-				require.Equal(t, *tc.maxDisconnect, difference, "expected durations to be equal")
-			}
-
-		})
-	}
-}
-
-func TestAllocation_Expired(t *testing.T) {
-	type testCase struct {
-		name             string
-		maxDisconnect    string
-		ellapsed         int
-		expected         bool
-		nilJob           bool
-		badTaskGroup     bool
-		mixedUTC         bool
-		noReconnectEvent bool
-		status           string
-	}
-
-	testCases := []testCase{
-		{
-			name:          "has-expired",
-			maxDisconnect: "5s",
-			ellapsed:      10,
-			expected:      true,
-		},
-		{
-			name:          "has-not-expired",
-			maxDisconnect: "5s",
-			ellapsed:      3,
-			expected:      false,
-		},
-		{
-			name:          "are-equal",
-			maxDisconnect: "5s",
-			ellapsed:      5,
-			expected:      true,
-		},
-		{
-			name:          "nil-job",
-			maxDisconnect: "5s",
-			ellapsed:      10,
-			expected:      false,
-			nilJob:        true,
-		},
-		{
-			name:          "wrong-status",
-			maxDisconnect: "5s",
-			ellapsed:      10,
-			expected:      false,
-			status:        AllocClientStatusRunning,
-		},
-		{
-			name:          "bad-task-group",
-			maxDisconnect: "",
-			badTaskGroup:  true,
-			ellapsed:      10,
-			expected:      false,
-		},
-		{
-			name:          "no-max-disconnect",
-			maxDisconnect: "",
-			ellapsed:      10,
-			expected:      false,
-		},
-		{
-			name:          "mixed-utc-has-expired",
-			maxDisconnect: "5s",
-			ellapsed:      10,
-			mixedUTC:      true,
-			expected:      true,
-		},
-		{
-			name:          "mixed-utc-has-not-expired",
-			maxDisconnect: "5s",
-			ellapsed:      3,
-			mixedUTC:      true,
-			expected:      false,
-		},
-		{
-			name:             "no-reconnect-event",
-			maxDisconnect:    "5s",
-			ellapsed:         2,
-			expected:         false,
-			noReconnectEvent: true,
-		},
-	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			alloc := MockAlloc()
-			var err error
-			var maxDisconnect time.Duration
-
-			if tc.maxDisconnect != "" {
-				maxDisconnect, err = time.ParseDuration(tc.maxDisconnect)
-				require.NoError(t, err)
-				alloc.Job.TaskGroups[0].MaxClientDisconnect = &maxDisconnect
-			}
-
-			if tc.nilJob {
-				alloc.Job = nil
-			}
-
-			if tc.badTaskGroup {
-				alloc.TaskGroup = "bad"
-			}
-
-			alloc.ClientStatus = AllocClientStatusUnknown
-			if tc.status != "" {
-				alloc.ClientStatus = tc.status
-			}
-
-			alloc.AllocStates = []*AllocState{{
-				Field: AllocStateFieldClientStatus,
-				Value: AllocClientStatusUnknown,
-				Time:  time.Now(),
-			}}
-
-			require.NoError(t, err)
-			now := time.Now().UTC()
-			if tc.mixedUTC {
-				now = time.Now()
-			}
-
-			if !tc.noReconnectEvent {
-				event := NewTaskEvent(TaskClientReconnected)
-				event.Time = now.UnixNano()
-
-				alloc.TaskStates = map[string]*TaskState{
-					"web": {
-						Events: []*TaskEvent{event},
-					},
-				}
-			}
-
-			ellapsedDuration := time.Duration(tc.ellapsed) * time.Second
-			now = now.Add(ellapsedDuration)
-
-			require.Equal(t, tc.expected, alloc.Expired(now))
-		})
-	}
-}
-
 func TestAllocation_NeedsToReconnect(t *testing.T) {
 	ci.Parallel(t)
 
@@ -6089,6 +6185,123 @@ func TestAllocation_NeedsToReconnect(t *testing.T) {
 
 			got := alloc.NeedsToReconnect()
 			require.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestAllocation_RescheduleTimeOnDisconnect(t *testing.T) {
+	ci.Parallel(t)
+	testNow := time.Now()
+
+	testAlloc := MockAlloc()
+
+	testCases := []struct {
+		name            string
+		taskGroup       string
+		disconnectGroup *DisconnectStrategy
+		expected        bool
+		expectedTime    time.Time
+	}{
+		{
+			name:         "missing_task_group",
+			taskGroup:    "missing-task-group",
+			expected:     false,
+			expectedTime: time.Time{},
+		},
+		{
+			name:            "missing_disconnect_group",
+			taskGroup:       "web",
+			disconnectGroup: nil,
+			expected:        true,
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
+		},
+		{
+			name:            "empty_disconnect_group",
+			taskGroup:       "web",
+			disconnectGroup: &DisconnectStrategy{},
+			expected:        true,
+			expectedTime:    testNow.Add(RestartPolicyMinInterval), // RestartPolicyMinInterval is the default value
+		},
+		{
+			name:      "replace_enabled",
+			taskGroup: "web",
+			disconnectGroup: &DisconnectStrategy{
+				Replace: pointer.Of(true),
+			},
+			expected:     true,
+			expectedTime: testNow,
+		},
+		{
+			name:      "replace_disabled",
+			taskGroup: "web",
+			disconnectGroup: &DisconnectStrategy{
+				Replace: pointer.Of(false),
+			},
+			expected:     false,
+			expectedTime: testNow,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc := testAlloc.Copy()
+
+			alloc.TaskGroup = tc.taskGroup
+			alloc.Job.TaskGroups[0].Disconnect = tc.disconnectGroup
+
+			time, eligible := alloc.RescheduleTimeOnDisconnect(testNow)
+
+			must.Eq(t, tc.expected, eligible)
+			must.Eq(t, tc.expectedTime, time)
+		})
+	}
+}
+
+func TestAllocation_LastStartOfTask(t *testing.T) {
+	ci.Parallel(t)
+	testNow := time.Now()
+
+	alloc := MockAlloc()
+	alloc.TaskStates = map[string]*TaskState{
+		"task-with-restarts": {
+			StartedAt:   testNow.Add(-30 * time.Minute),
+			Restarts:    3,
+			LastRestart: testNow.Add(-5 * time.Minute),
+		},
+		"task-without-restarts": {
+			StartedAt: testNow.Add(-30 * time.Minute),
+			Restarts:  0,
+		},
+	}
+
+	testCases := []struct {
+		name     string
+		taskName string
+		expected time.Time
+	}{
+		{
+			name:     "missing_task",
+			taskName: "missing-task",
+			expected: time.Time{},
+		},
+		{
+			name:     "task_with_restarts",
+			taskName: "task-with-restarts",
+			expected: testNow.Add(-5 * time.Minute),
+		},
+		{
+			name:     "task_without_restarts",
+			taskName: "task-without-restarts",
+			expected: testNow.Add(-30 * time.Minute),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			alloc.TaskGroup = "web"
+			got := alloc.LastStartOfTask(tc.taskName)
+
+			must.Eq(t, tc.expected, got)
 		})
 	}
 }
@@ -6271,54 +6484,6 @@ func TestParameterizedJobConfig_Validate_NonBatch(t *testing.T) {
 	}
 }
 
-func TestJobConfig_Validate_StopAferClientDisconnect(t *testing.T) {
-	ci.Parallel(t)
-	// Setup a system Job with stop_after_client_disconnect set, which is invalid
-	job := testJob()
-	job.Type = JobTypeSystem
-	stop := 1 * time.Minute
-	job.TaskGroups[0].StopAfterClientDisconnect = &stop
-
-	err := job.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "stop_after_client_disconnect can only be set in batch and service jobs")
-
-	// Modify the job to a batch job with an invalid stop_after_client_disconnect value
-	job.Type = JobTypeBatch
-	invalid := -1 * time.Minute
-	job.TaskGroups[0].StopAfterClientDisconnect = &invalid
-
-	err = job.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "stop_after_client_disconnect must be a positive value")
-
-	// Modify the job to a batch job with a valid stop_after_client_disconnect value
-	job.Type = JobTypeBatch
-	job.TaskGroups[0].StopAfterClientDisconnect = &stop
-	err = job.Validate()
-	require.NoError(t, err)
-}
-
-func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
-	// Set up a job with an invalid max_client_disconnect value
-	job := testJob()
-	timeout := -1 * time.Minute
-	job.TaskGroups[0].MaxClientDisconnect = &timeout
-	job.TaskGroups[0].StopAfterClientDisconnect = &timeout
-
-	err := job.Validate()
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "max_client_disconnect cannot be negative")
-	require.Contains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
-
-	// Modify the job with a valid max_client_disconnect value
-	timeout = 1 * time.Minute
-	job.TaskGroups[0].MaxClientDisconnect = &timeout
-	job.TaskGroups[0].StopAfterClientDisconnect = nil
-	err = job.Validate()
-	require.NoError(t, err)
-}
-
 func TestParameterizedJobConfig_Canonicalize(t *testing.T) {
 	ci.Parallel(t)
 
@@ -6357,10 +6522,17 @@ func TestDispatchPayloadConfig_Validate(t *testing.T) {
 func TestScalingPolicy_Canonicalize(t *testing.T) {
 	ci.Parallel(t)
 
+	job := &Job{Namespace: "prod", ID: "example"}
+	tg := &TaskGroup{Name: "web"}
+	task := &Task{Name: "httpd"}
+
 	cases := []struct {
 		name     string
 		input    *ScalingPolicy
 		expected *ScalingPolicy
+		job      *Job
+		tg       *TaskGroup
+		task     *Task
 	}{
 		{
 			name:     "empty policy",
@@ -6372,14 +6544,42 @@ func TestScalingPolicy_Canonicalize(t *testing.T) {
 			input:    &ScalingPolicy{Type: "other-type"},
 			expected: &ScalingPolicy{Type: "other-type"},
 		},
+		{
+			name:  "policy with type and task group",
+			input: &ScalingPolicy{Type: "other-type"},
+			expected: &ScalingPolicy{
+				Type: "other-type",
+				Target: map[string]string{
+					ScalingTargetNamespace: "prod",
+					ScalingTargetJob:       "example",
+					ScalingTargetGroup:     "web",
+				},
+			},
+			job: job,
+			tg:  tg,
+		},
+		{
+			name:  "policy with type and task",
+			input: &ScalingPolicy{Type: "other-type"},
+			expected: &ScalingPolicy{
+				Type: "other-type",
+				Target: map[string]string{
+					ScalingTargetNamespace: "prod",
+					ScalingTargetJob:       "example",
+					ScalingTargetGroup:     "web",
+					ScalingTargetTask:      "httpd",
+				},
+			},
+			job:  job,
+			tg:   tg,
+			task: task,
+		},
 	}
 
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			require := require.New(t)
-
-			c.input.Canonicalize()
-			require.Equal(c.expected, c.input)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.input.Canonicalize(tc.job, tc.tg, tc.task)
+			must.Eq(t, tc.expected, tc.input)
 		})
 	}
 }
@@ -6655,12 +6855,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 			},
 			true,
@@ -6671,12 +6871,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.0",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 			},
 			false,
@@ -6687,12 +6887,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         40,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 			},
 			false,
@@ -6703,12 +6903,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}, {"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}, {Label: "web", Value: 80}},
 				},
 			},
 			false,
@@ -6719,7 +6919,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:            "10.0.0.1",
@@ -6735,12 +6935,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"web", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:            "10.0.0.1",
 					MBits:         50,
-					ReservedPorts: []Port{{"notweb", 80, 0, ""}},
+					ReservedPorts: []Port{{Label: "notweb", Value: 80}},
 				},
 			},
 			false,
@@ -6751,12 +6951,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0, ""}},
+					DynamicPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0, ""}, {"web", 80, 0, ""}},
+					DynamicPorts: []Port{{Label: "web", Value: 80}, {Label: "web", Value: 80}},
 				},
 			},
 			false,
@@ -6767,7 +6967,7 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0, ""}},
+					DynamicPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:           "10.0.0.1",
@@ -6783,12 +6983,12 @@ func TestNetworkResourcesEquals(t *testing.T) {
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"web", 80, 0, ""}},
+					DynamicPorts: []Port{{Label: "web", Value: 80}},
 				},
 				{
 					IP:           "10.0.0.1",
 					MBits:        50,
-					DynamicPorts: []Port{{"notweb", 80, 0, ""}},
+					DynamicPorts: []Port{{Label: "notweb", Value: 80}},
 				},
 			},
 			false,
@@ -6824,7 +7024,6 @@ func TestNode_Canonicalize(t *testing.T) {
 
 func TestNode_Copy(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	node := &Node{
 		ID:         uuid.Generate(),
@@ -6838,36 +7037,9 @@ func TestNode_Copy(t *testing.T) {
 			"driver.exec":        "1",
 			"driver.mock_driver": "1",
 		},
-		Resources: &Resources{
-			CPU:      4000,
-			MemoryMB: 8192,
-			DiskMB:   100 * 1024,
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
-		},
-		Reserved: &Resources{
-			CPU:      100,
-			MemoryMB: 256,
-			DiskMB:   4 * 1024,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "192.168.0.100",
-					ReservedPorts: []Port{{Label: "ssh", Value: 22}},
-					MBits:         1,
-				},
-			},
-		},
 		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares:          4000,
-				TotalCpuCores:      4,
-				ReservableCpuCores: []uint16{0, 1, 2, 3},
+			Processors: NodeProcessorResources{
+				Topology: MockBasicTopology(),
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 8192,
@@ -6923,14 +7095,14 @@ func TestNode_Copy(t *testing.T) {
 
 	node2 := node.Copy()
 
-	require.Equal(node.Attributes, node2.Attributes)
-	require.Equal(node.Resources, node2.Resources)
-	require.Equal(node.Reserved, node2.Reserved)
-	require.Equal(node.Links, node2.Links)
-	require.Equal(node.Meta, node2.Meta)
-	require.Equal(node.Events, node2.Events)
-	require.Equal(node.DrainStrategy, node2.DrainStrategy)
-	require.Equal(node.Drivers, node2.Drivers)
+	must.Eq(t, node.Attributes, node2.Attributes)
+	must.Eq(t, node.Resources, node2.Resources)
+	must.Eq(t, node.Reserved, node2.Reserved)
+	must.Eq(t, node.Links, node2.Links)
+	must.Eq(t, node.Meta, node2.Meta)
+	must.Eq(t, node.Events, node2.Events)
+	must.Eq(t, node.DrainStrategy, node2.DrainStrategy)
+	must.Eq(t, node.Drivers, node2.Drivers)
 }
 
 func TestNode_GetID(t *testing.T) {
@@ -7196,10 +7368,8 @@ func TestNodeResources_Copy(t *testing.T) {
 	ci.Parallel(t)
 
 	orig := &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:          int64(32000),
-			TotalCpuCores:      32,
-			ReservableCpuCores: []uint16{1, 2, 3, 9},
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -7228,25 +7398,20 @@ func TestNodeResources_Copy(t *testing.T) {
 		},
 	}
 
-	kopy := orig.Copy()
-	assert.Equal(t, orig, kopy)
+	cpy := orig.Copy()
+	must.Eq(t, orig, cpy)
 
-	// Make sure slices aren't shared
-	kopy.Cpu.ReservableCpuCores[1] = 9000
-	assert.NotEqual(t, orig.Cpu.ReservableCpuCores, kopy.Cpu.ReservableCpuCores)
-
-	kopy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
-	kopy.NodeNetworks[0].Addresses[0].Alias = "public"
-	assert.NotEqual(t, orig.NodeNetworks[0], kopy.NodeNetworks[0])
+	cpy.NodeNetworks[0].MacAddress = "11:11:11:11:11:11"
+	cpy.NodeNetworks[0].Addresses[0].Alias = "public"
+	must.NotEq(t, orig.NodeNetworks[0], cpy.NodeNetworks[0])
 }
 
 func TestNodeResources_Merge(t *testing.T) {
 	ci.Parallel(t)
 
 	res := &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:     int64(32000),
-			TotalCpuCores: 32,
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(64000),
@@ -7258,8 +7423,11 @@ func TestNodeResources_Merge(t *testing.T) {
 		},
 	}
 
+	topo2 := MockBasicTopology()
+	topo2.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0, 1, 2}))
+
 	res.Merge(&NodeResources{
-		Cpu: NodeCpuResources{ReservableCpuCores: []uint16{0, 1, 2, 3}},
+		Processors: NodeProcessorResources{topo2},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
 		},
@@ -7270,11 +7438,9 @@ func TestNodeResources_Merge(t *testing.T) {
 		},
 	})
 
-	require.Exactly(t, &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares:          int64(32000),
-			TotalCpuCores:      32,
-			ReservableCpuCores: []uint16{0, 1, 2, 3},
+	must.Eq(t, &NodeResources{
+		Processors: NodeProcessorResources{
+			Topology: MockBasicTopology(),
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: int64(100000),
@@ -7330,7 +7496,7 @@ func TestAllocatedResources_Canonicalize(t *testing.T) {
 						Networks: Networks{
 							{
 								IP:           "127.0.0.1",
-								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+								DynamicPorts: []Port{{Label: "admin", Value: 8080, HostNetwork: "default"}},
 							},
 						},
 					},
@@ -7342,7 +7508,7 @@ func TestAllocatedResources_Canonicalize(t *testing.T) {
 						Networks: Networks{
 							{
 								IP:           "127.0.0.1",
-								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+								DynamicPorts: []Port{{Label: "admin", Value: 8080, HostNetwork: "default"}},
 							},
 						},
 					},
@@ -7366,7 +7532,7 @@ func TestAllocatedResources_Canonicalize(t *testing.T) {
 						Networks: Networks{
 							{
 								IP:           "127.0.0.1",
-								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+								DynamicPorts: []Port{{Label: "admin", Value: 8080, HostNetwork: "default"}},
 							},
 						},
 					},
@@ -7388,7 +7554,7 @@ func TestAllocatedResources_Canonicalize(t *testing.T) {
 						Networks: Networks{
 							{
 								IP:           "127.0.0.1",
-								DynamicPorts: []Port{{"admin", 8080, 0, "default"}},
+								DynamicPorts: []Port{{Label: "admin", Value: 8080, HostNetwork: "default"}},
 							},
 						},
 					},
@@ -7593,6 +7759,185 @@ func TestComparableResources_Superset(t *testing.T) {
 	}
 }
 
+func TestAllocatedResources_Comparable_Flattened(t *testing.T) {
+	ci.Parallel(t)
+
+	allocationResources := AllocatedResources{
+		TaskLifecycles: map[string]*TaskLifecycleConfig{
+			"prestart-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: false,
+			},
+			"poststop-task": {
+				Hook:    TaskLifecycleHookPoststop,
+				Sidecar: false,
+			},
+		},
+		Tasks: map[string]*AllocatedTaskResources{
+			"prestart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 2000,
+				},
+			},
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 4000,
+				},
+			},
+			"poststop-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 1000,
+				},
+			},
+		},
+	}
+
+	// The output of Flattened should return the resource required during the execution of the largest lifecycle
+	must.Eq(t, 4000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 0, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+
+	allocationResources = AllocatedResources{
+		TaskLifecycles: map[string]*TaskLifecycleConfig{
+			"prestart-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: false,
+			},
+			"prestart-sidecar-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: true,
+			},
+			"poststop-task": {
+				Hook:    TaskLifecycleHookPoststop,
+				Sidecar: false,
+			},
+		},
+		Tasks: map[string]*AllocatedTaskResources{
+			"prestart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     1000,
+					ReservedCores: []uint16{0},
+				},
+			},
+			"prestart-sidecar-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{1, 2},
+				},
+			},
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{3, 4},
+				},
+			},
+			"poststop-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     1000,
+					ReservedCores: []uint16{5},
+				},
+			},
+		},
+	}
+
+	// Reserved core resources are claimed throughout the lifespan of the allocation
+	must.Eq(t, 6000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 6, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+
+	allocationResources = AllocatedResources{
+		TaskLifecycles: map[string]*TaskLifecycleConfig{
+			"prestart-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: false,
+			},
+			"poststop-task": {
+				Hook:    TaskLifecycleHookPoststop,
+				Sidecar: false,
+			},
+		},
+		Tasks: map[string]*AllocatedTaskResources{
+			"prestart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 1000,
+				},
+			},
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{1, 2},
+				},
+			},
+			"poststop-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares: 1000,
+				},
+			},
+		},
+	}
+
+	// Reserved core resources are claimed throughout the lifespan of the allocation,
+	// but the prestart and poststop task can reuse the CpuShares. It's important to
+	// note that we will only claim 1000 MHz as part of the share slice.
+	must.Eq(t, 3000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 2, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+
+	allocationResources = AllocatedResources{
+		TaskLifecycles: map[string]*TaskLifecycleConfig{
+			"prestart-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: false,
+			},
+			"prestart-sidecar-task": {
+				Hook:    TaskLifecycleHookPrestart,
+				Sidecar: true,
+			},
+			"poststart-task": {
+				Hook:    TaskLifecycleHookPoststart,
+				Sidecar: false,
+			},
+			"poststop-task": {
+				Hook:    TaskLifecycleHookPoststop,
+				Sidecar: false,
+			},
+		},
+		Tasks: map[string]*AllocatedTaskResources{
+			"prestart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{0, 1},
+				},
+			},
+			"prestart-sidecar-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{2, 3},
+				},
+			},
+			"main-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     1000,
+					ReservedCores: []uint16{4},
+				},
+			},
+			"poststart-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{5, 6},
+				},
+			},
+			"poststop-task": {
+				Cpu: AllocatedCpuResources{
+					CpuShares:     2000,
+					ReservedCores: []uint16{7, 8},
+				},
+			},
+		},
+	}
+
+	// The output of Flattened should return the resource required during the execution of the largest lifecycle
+	must.Eq(t, 9000, allocationResources.Comparable().Flattened.Cpu.CpuShares)
+	must.Len(t, 9, allocationResources.Comparable().Flattened.Cpu.ReservedCores)
+}
+
 func requireErrors(t *testing.T, err error, expected ...string) {
 	t.Helper()
 	require.Error(t, err)
@@ -7639,6 +7984,7 @@ func TestDNSConfig_Equal(t *testing.T) {
 
 	must.Equal[*DNSConfig](t, nil, nil)
 	must.NotEqual[*DNSConfig](t, nil, new(DNSConfig))
+	must.NotEqual[*DNSConfig](t, nil, &DNSConfig{Servers: []string{"8.8.8.8"}})
 
 	must.StructEqual(t, &DNSConfig{
 		Servers:  []string{"8.8.8.8", "8.8.4.4"},
@@ -7704,7 +8050,7 @@ func TestTaskArtifact_Equal(t *testing.T) {
 	ci.Parallel(t)
 
 	must.Equal[*TaskArtifact](t, nil, nil)
-	must.NotEqual[*TaskArtifact](t, nil, new(TaskArtifact))
+	must.NotEqual(t, nil, new(TaskArtifact))
 
 	must.StructEqual(t, &TaskArtifact{
 		GetterSource:  "source",
@@ -7727,7 +8073,11 @@ func TestTaskArtifact_Equal(t *testing.T) {
 	}, {
 		Field: "RelativeDest",
 		Apply: func(ta *TaskArtifact) { ta.RelativeDest = "./alloc" },
-	}})
+	}, {
+		Field: "Chown",
+		Apply: func(ta *TaskArtifact) { ta.Chown = true },
+	},
+	})
 }
 
 func TestVault_Equal(t *testing.T) {

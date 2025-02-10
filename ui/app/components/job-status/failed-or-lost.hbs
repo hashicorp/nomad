@@ -9,7 +9,7 @@
     {{#if @supportsRescheduling}}
       <span>
         <Hds::TooltipButton @text="Allocations that have been rescheduled, on another node if possible, due to failure or manual restart" aria-label="Info">
-          <FlightIcon @name="info" />
+          <Hds::Icon @name="info" @isInline={{true}} />
         </Hds::TooltipButton>
         <ConditionalLinkTo
           @condition={{@rescheduledAllocs.length}}
@@ -25,7 +25,7 @@
 
     <span>
       <Hds::TooltipButton @text="Allocations that have been restarted in-place due to a task failure or manual restart" aria-label="Info">
-        <FlightIcon @name="info" />
+        <Hds::Icon @name="info" @isInline={{true}} />
       </Hds::TooltipButton>
       <ConditionalLinkTo
         @condition={{@restartedAllocs.length}}

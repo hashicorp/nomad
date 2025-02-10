@@ -1,0 +1,15 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<Breadcrumb @crumb={{hash label="New" args=(array "administration.policies.new")}} />
+{{page-title "Create Policy"}}
+<section class="section">
+  <Hds::PageHeader as |PH|>
+    <PH.Title>Create Policy</PH.Title>
+  </Hds::PageHeader>
+  <PolicyEditor
+    @policy={{this.model}}
+  />
+</section>

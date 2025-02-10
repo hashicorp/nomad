@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mitchellh/cli"
+	"github.com/hashicorp/cli"
 	"github.com/posener/complete"
 
 	"github.com/hashicorp/nomad/api"
@@ -75,11 +75,15 @@ func renderVariablesKeysResponse(keys []*api.RootKeyMeta, verbose bool) string {
 		length = 8
 	}
 	out := make([]string, len(keys)+1)
-	out[0] = "Key|State|Create Time"
+	out[0] = "Key|State|Create Time|Publish Time"
 	i := 1
 	for _, k := range keys {
-		out[i] = fmt.Sprintf("%s|%v|%s",
-			k.KeyID[:length], k.State, formatUnixNanoTime(k.CreateTime))
+		publishTime := ""
+		if k.PublishTime > 0 {
+			publishTime = formatUnixNanoTime(k.PublishTime)
+		}
+		out[i] = fmt.Sprintf("%s|%v|%s|%s",
+			k.KeyID[:length], k.State, formatUnixNanoTime(k.CreateTime), publishTime)
 		i = i + 1
 	}
 	return formatList(out)

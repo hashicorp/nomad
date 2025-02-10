@@ -38,7 +38,12 @@
           </t.head>
           <t.body @key="model.id" as |row|>
             <tr class="is-interactive" data-test-plugin-row {{on "click" (action "gotoPlugin" row.model)}}>
-              <td data-test-plugin-id>
+              <td data-test-plugin-id
+                {{keyboard-shortcut
+                  enumerated=true
+                  action=(action "gotoPlugin" row.model)
+                }}
+              >
                 <LinkTo @route="csi.plugins.plugin" @model={{row.model.plainId}} class="is-primary">{{row.model.plainId}}</LinkTo>
               </td>
               <td data-test-plugin-controller-health>

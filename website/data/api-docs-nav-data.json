@@ -132,6 +132,10 @@
       {
         "title": "Snapshot",
         "path": "operator/snapshot"
+      },
+      {
+        "title": "Upgrade Check",
+        "path": "operator/upgrade-check"
       }
     ]
   },
@@ -185,7 +189,20 @@
   },
   {
     "title": "Variables",
-    "path": "variables"
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "variables"
+      },
+      {
+        "title": "Variables",
+        "path": "variables/variables"
+      },
+      {
+        "title": "Locks",
+        "path": "variables/locks"
+      }
+    ]
   },
   {
     "title": "Volumes",

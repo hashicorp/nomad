@@ -23,6 +23,7 @@ export default class TaskState extends Fragment {
   @attr('date') startedAt;
   @attr('date') finishedAt;
   @attr('boolean') failed;
+  @attr() paused;
 
   @and('isActive', 'allocation.isRunning') isRunning;
 
@@ -69,5 +70,17 @@ export default class TaskState extends Fragment {
 
   restart() {
     return this.allocation.restart(this.name);
+  }
+
+  forcePause() {
+    return this.allocation.forcePause(this.name);
+  }
+
+  forceRun() {
+    return this.allocation.forceRun(this.name);
+  }
+
+  reEnableSchedule() {
+    return this.allocation.reEnableSchedule(this.name);
   }
 }

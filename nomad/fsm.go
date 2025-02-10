@@ -10,25 +10,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/hashicorp/go-msgpack/codec"
+	metrics "github.com/hashicorp/go-metrics/compat"
+	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
-)
-
-const (
-	// timeTableGranularity is the granularity of index to time tracking
-	timeTableGranularity = 5 * time.Minute
-
-	// timeTableLimit is the maximum limit of our tracking
-	timeTableLimit = 72 * time.Hour
 )
 
 // SnapshotType is prefixed to a record in the FSM snapshot
@@ -41,7 +33,6 @@ const (
 	IndexSnapshot                        SnapshotType = 2
 	EvalSnapshot                         SnapshotType = 3
 	AllocSnapshot                        SnapshotType = 4
-	TimeTableSnapshot                    SnapshotType = 5
 	PeriodicLaunchSnapshot               SnapshotType = 6
 	JobSummarySnapshot                   SnapshotType = 7
 	VaultAccessorSnapshot                SnapshotType = 8
@@ -56,7 +47,6 @@ const (
 	CSIPluginSnapshot                    SnapshotType = 17
 	CSIVolumeSnapshot                    SnapshotType = 18
 	ScalingEventsSnapshot                SnapshotType = 19
-	EventSinkSnapshot                    SnapshotType = 20
 	ServiceRegistrationSnapshot          SnapshotType = 21
 	VariablesSnapshot                    SnapshotType = 22
 	VariablesQuotaSnapshot               SnapshotType = 23
@@ -65,10 +55,57 @@ const (
 	ACLAuthMethodSnapshot                SnapshotType = 26
 	ACLBindingRuleSnapshot               SnapshotType = 27
 	NodePoolSnapshot                     SnapshotType = 28
+	JobSubmissionSnapshot                SnapshotType = 29
+	RootKeySnapshot                      SnapshotType = 30
+	HostVolumeSnapshot                   SnapshotType = 31
+
+	// TimeTableSnapshot
+	// Deprecated: Nomad no longer supports TimeTable snapshots since 1.9.2
+	TimeTableSnapshot SnapshotType = 5
+
+	// EventSinkSnapshot
+	// Deprecated: Nomad no longer supports EventSink snapshots since 1.0
+	EventSinkSnapshot SnapshotType = 20
 
 	// Namespace appliers were moved from enterprise and therefore start at 64
 	NamespaceSnapshot SnapshotType = 64
 )
+
+var snapshotTypeStrings = map[SnapshotType]string{
+	NodeSnapshot:                         "Node",
+	JobSnapshot:                          "Job",
+	IndexSnapshot:                        "Index",
+	EvalSnapshot:                         "Eval",
+	AllocSnapshot:                        "Alloc",
+	TimeTableSnapshot:                    "TimeTable",
+	PeriodicLaunchSnapshot:               "PeriodicLaunch",
+	JobSummarySnapshot:                   "JobSummary",
+	VaultAccessorSnapshot:                "VaultAccessor",
+	JobVersionSnapshot:                   "JobVersion",
+	DeploymentSnapshot:                   "Deployment",
+	ACLPolicySnapshot:                    "ACLPolicy",
+	ACLTokenSnapshot:                     "ACLToken",
+	SchedulerConfigSnapshot:              "SchedulerConfig",
+	ClusterMetadataSnapshot:              "ClusterMetadata",
+	ServiceIdentityTokenAccessorSnapshot: "ServiceIdentityTokenAccessor",
+	ScalingPolicySnapshot:                "ScalingPolicy",
+	CSIPluginSnapshot:                    "CSIPlugin",
+	CSIVolumeSnapshot:                    "CSIVolume",
+	ScalingEventsSnapshot:                "ScalingEvents",
+	EventSinkSnapshot:                    "EventSink",
+	ServiceRegistrationSnapshot:          "ServiceRegistration",
+	VariablesSnapshot:                    "Variables",
+	VariablesQuotaSnapshot:               "VariablesQuota",
+	RootKeyMetaSnapshot:                  "RootKeyMeta",
+	ACLRoleSnapshot:                      "ACLRole",
+	ACLAuthMethodSnapshot:                "ACLAuthMethod",
+	ACLBindingRuleSnapshot:               "ACLBindingRule",
+	NodePoolSnapshot:                     "NodePool",
+	JobSubmissionSnapshot:                "JobSubmission",
+	RootKeySnapshot:                      "WrappedRootKeys",
+	HostVolumeSnapshot:                   "HostVolumeSnapshot",
+	NamespaceSnapshot:                    "Namespace",
+}
 
 // LogApplier is the definition of a function that can apply a Raft log
 type LogApplier func(buf []byte, index uint64) interface{}
@@ -91,9 +128,9 @@ type nomadFSM struct {
 	evalBroker         *EvalBroker
 	blockedEvals       *BlockedEvals
 	periodicDispatcher *PeriodicDispatch
+	encrypter          *Encrypter
 	logger             hclog.Logger
 	state              *state.StateStore
-	timetable          *TimeTable
 
 	// config is the FSM config
 	config *FSMConfig
@@ -115,12 +152,11 @@ type nomadFSM struct {
 // state in a way that can be accessed concurrently with operations
 // that may modify the live state.
 type nomadSnapshot struct {
-	snap      *state.StateSnapshot
-	timetable *TimeTable
+	snap *state.StateSnapshot
 }
 
-// snapshotHeader is the first entry in our snapshot
-type snapshotHeader struct {
+// SnapshotHeader is the first entry in our snapshot
+type SnapshotHeader struct {
 }
 
 // FSMConfig is used to configure the FSM
@@ -135,6 +171,9 @@ type FSMConfig struct {
 	// BlockedEvals is the blocked eval tracker that blocked evaluations should
 	// be added to.
 	Blocked *BlockedEvals
+
+	// Encrypter is the encrypter where new WrappedRootKeys should be added
+	Encrypter *Encrypter
 
 	// Logger is the logger used by the FSM
 	Logger hclog.Logger
@@ -172,10 +211,10 @@ func NewFSM(config *FSMConfig) (*nomadFSM, error) {
 		evalBroker:          config.EvalBroker,
 		periodicDispatcher:  config.Periodic,
 		blockedEvals:        config.Blocked,
+		encrypter:           config.Encrypter,
 		logger:              config.Logger.Named("fsm"),
 		config:              config,
 		state:               state,
-		timetable:           NewTimeTable(timeTableGranularity, timeTableLimit),
 		enterpriseAppliers:  make(map[structs.MessageType]LogApplier, 8),
 		enterpriseRestorers: make(map[SnapshotType]SnapshotRestorer, 8),
 	}
@@ -202,17 +241,9 @@ func (n *nomadFSM) State() *state.StateStore {
 	return n.state
 }
 
-// TimeTable returns the time table of transactions
-func (n *nomadFSM) TimeTable() *TimeTable {
-	return n.timetable
-}
-
 func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	buf := log.Data
 	msgType := structs.MessageType(buf[0])
-
-	// Witness this write
-	n.timetable.Witness(log.Index, time.Now().UTC())
 
 	// Check if this message type should be ignored when unknown. This is
 	// used so that new commands can be added with developer control if older
@@ -336,8 +367,8 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyVariableOperation(msgType, buf[1:], log.Index)
 	case structs.RootKeyMetaUpsertRequestType:
 		return n.applyRootKeyMetaUpsert(msgType, buf[1:], log.Index)
-	case structs.RootKeyMetaDeleteRequestType:
-		return n.applyRootKeyMetaDelete(msgType, buf[1:], log.Index)
+	case structs.WrappedRootKeysDeleteRequestType:
+		return n.applyWrappedRootKeysDelete(msgType, buf[1:], log.Index)
 	case structs.ACLRolesUpsertRequestType:
 		return n.applyACLRolesUpsert(msgType, buf[1:], log.Index)
 	case structs.ACLRolesDeleteByIDRequestType:
@@ -350,6 +381,14 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 		return n.applyACLBindingRulesUpsert(buf[1:], log.Index)
 	case structs.ACLBindingRulesDeleteRequestType:
 		return n.applyACLBindingRulesDelete(buf[1:], log.Index)
+	case structs.WrappedRootKeysUpsertRequestType:
+		return n.applyWrappedRootKeysUpsert(msgType, buf[1:], log.Index)
+	case structs.JobVersionTagRequestType:
+		return n.applyJobVersionTag(buf[1:], log.Index)
+	case structs.HostVolumeRegisterRequestType:
+		return n.applyHostVolumeRegister(msgType, buf[1:], log.Index)
+	case structs.HostVolumeDeleteRequestType:
+		return n.applyHostVolumeDelete(msgType, buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -480,31 +519,8 @@ func (n *nomadFSM) applyDrainUpdate(reqType structs.MessageType, buf []byte, ind
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	accessorId := ""
-	if req.AuthToken != "" {
-		token, err := n.state.ACLTokenBySecretID(nil, req.AuthToken)
-		if err != nil {
-			n.logger.Error("error looking up ACL token from drain update", "error", err)
-			return fmt.Errorf("error looking up ACL token: %v", err)
-		}
-		if token == nil {
-			node, err := n.state.NodeBySecretID(nil, req.AuthToken)
-			if err != nil {
-				n.logger.Error("error looking up node for drain update", "error", err)
-				return fmt.Errorf("error looking up node for drain update: %v", err)
-			}
-			if node == nil {
-				n.logger.Error("token did not exist during node drain update")
-				return fmt.Errorf("token did not exist during node drain update")
-			}
-			accessorId = node.ID
-		} else {
-			accessorId = token.AccessorID
-		}
-	}
-
 	if err := n.state.UpdateNodeDrain(reqType, index, req.NodeID, req.DrainStrategy, req.MarkEligible, req.UpdatedAt,
-		req.NodeEvent, req.Meta, accessorId); err != nil {
+		req.NodeEvent, req.Meta, req.UpdatedBy); err != nil {
 		n.logger.Error("UpdateNodeDrain failed", "error", err)
 		return err
 	}
@@ -726,7 +742,7 @@ func (n *nomadFSM) applyDeregisterJob(msgType structs.MessageType, buf []byte, i
 	}
 
 	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
-		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.NoShutdownDelay, tx)
+		err := n.handleJobDeregister(index, req.JobID, req.Namespace, req.Purge, req.SubmitTime, req.NoShutdownDelay, tx)
 
 		if err != nil {
 			n.logger.Error("deregistering job failed",
@@ -761,37 +777,22 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// Perform all store updates atomically to ensure a consistent view for store readers.
-	// A partial update may increment the snapshot index, allowing eval brokers to process
-	// evals for jobs whose deregistering didn't get committed yet.
-	err := n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
+	// Perform all store updates atomically to ensure a consistent view for
+	// store readers.
+	return n.state.WithWriteTransaction(msgType, index, func(tx state.Txn) error {
 		for jobNS, options := range req.Jobs {
-			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, false, tx); err != nil {
+			if err := n.handleJobDeregister(index, jobNS.ID, jobNS.Namespace, options.Purge, req.SubmitTime, false, tx); err != nil {
 				n.logger.Error("deregistering job failed", "job", jobNS.ID, "error", err)
 				return err
 			}
 		}
-
-		if err := n.state.UpsertEvalsTxn(index, req.Evals, tx); err != nil {
-			n.logger.Error("UpsertEvals failed", "error", err)
-			return err
-		}
-
 		return nil
 	})
-
-	if err != nil {
-		return err
-	}
-
-	// perform the side effects outside the transactions
-	n.handleUpsertedEvals(req.Evals)
-	return nil
 }
 
 // handleJobDeregister is used to deregister a job. Leaves error logging up to
 // caller.
-func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, noShutdownDelay bool, tx state.Txn) error {
+func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, submitTime int64, noShutdownDelay bool, tx state.Txn) error {
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
@@ -839,6 +840,9 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 
 		stopped := current.Copy()
 		stopped.Stop = true
+		if submitTime != 0 {
+			stopped.SubmitTime = submitTime
+		}
 
 		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
 			return fmt.Errorf("UpsertJob failed: %w", err)
@@ -1178,6 +1182,22 @@ func (n *nomadFSM) applyDeploymentDelete(buf []byte, index uint64) interface{} {
 	return nil
 }
 
+// applyJobVersionTag is used to tag a job version for diffing and GC-prevention
+func (n *nomadFSM) applyJobVersionTag(buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_version_tag"}, time.Now())
+	var req structs.JobApplyTagRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpdateJobVersionTag(index, req.RequestNamespace(), &req); err != nil {
+		n.logger.Error("UpdateJobVersionTag failed", "error", err)
+		return err
+	}
+
+	return nil
+}
+
 // applyJobStability is used to set the stability of a job
 func (n *nomadFSM) applyJobStability(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_job_stability"}, time.Now())
@@ -1388,7 +1408,7 @@ func (n *nomadFSM) applyCSIVolumeBatchClaim(buf []byte, index uint64) interface{
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_batch_claim"}, time.Now())
 
 	for _, req := range batch.Claims {
-		err := n.state.CSIVolumeClaim(index, req.RequestNamespace(),
+		err := n.state.CSIVolumeClaim(index, req.Timestamp, req.RequestNamespace(),
 			req.VolumeID, req.ToClaim())
 		if err != nil {
 			n.logger.Error("CSIVolumeClaim for batch failed", "error", err)
@@ -1405,7 +1425,7 @@ func (n *nomadFSM) applyCSIVolumeClaim(buf []byte, index uint64) interface{} {
 	}
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_csi_volume_claim"}, time.Now())
 
-	if err := n.state.CSIVolumeClaim(index, req.RequestNamespace(), req.VolumeID, req.ToClaim()); err != nil {
+	if err := n.state.CSIVolumeClaim(index, req.Timestamp, req.RequestNamespace(), req.VolumeID, req.ToClaim()); err != nil {
 		n.logger.Error("CSIVolumeClaim failed", "error", err)
 		return err
 	}
@@ -1476,6 +1496,7 @@ func (n *nomadFSM) applyNamespaceDelete(buf []byte, index uint64) interface{} {
 
 	if err := n.state.DeleteNamespaces(index, req.Namespaces); err != nil {
 		n.logger.Error("DeleteNamespaces failed", "error", err)
+		return err
 	}
 
 	return nil
@@ -1489,8 +1510,7 @@ func (n *nomadFSM) Snapshot() (raft.FSMSnapshot, error) {
 	}
 
 	ns := &nomadSnapshot{
-		snap:      snap,
-		timetable: n.timetable,
+		snap: snap,
 	}
 	return ns, nil
 }
@@ -1535,7 +1555,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 	dec := codec.NewDecoder(old, structs.MsgpackHandle)
 
 	// Read in the header
-	var header snapshotHeader
+	var header SnapshotHeader
 	if err := dec.Decode(&header); err != nil {
 		return err
 	}
@@ -1555,8 +1575,11 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 		snapType := SnapshotType(msgType[0])
 		switch snapType {
 		case TimeTableSnapshot:
-			if err := n.timetable.Deserialize(dec); err != nil {
-				return fmt.Errorf("time table deserialize failed: %v", err)
+			// COMPAT: Nomad 1.9.2 removed the timetable, this case kept to
+			// gracefully handle tt snapshot requests
+			var table []TimeTableEntry
+			if err := dec.Decode(&table); err != nil {
+				return err
 			}
 
 		case NodeSnapshot:
@@ -1747,7 +1770,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if filter.Include(scalingPolicy) {
 				// Handle upgrade path:
 				//   - Set policy type if empty
-				scalingPolicy.Canonicalize()
+				scalingPolicy.Canonicalize(nil, nil, nil)
 				if err := restore.ScalingPolicyRestore(scalingPolicy); err != nil {
 					return err
 				}
@@ -1784,9 +1807,10 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 				return err
 			}
 
-		// COMPAT(1.0): Allow 1.0-beta clusterers to gracefully handle
+		// DEPRECATED: EventSinkSnapshot type only available in pre-1.0 Nomad
 		case EventSinkSnapshot:
-			return nil
+			return fmt.Errorf(
+				"EventSinkSnapshot is an unsupported snapshot type since Nomad 1.0. Executing this code path means state corruption!")
 
 		case ServiceRegistrationSnapshot:
 			serviceRegistration := new(structs.ServiceRegistration)
@@ -1825,10 +1849,36 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			if err := dec.Decode(keyMeta); err != nil {
 				return err
 			}
+			if filter.Include(keyMeta) {
+				wrappedKeys := structs.NewRootKey(keyMeta)
+				if err := restore.RootKeyRestore(wrappedKeys); err != nil {
+					return err
+				}
 
-			if err := restore.RootKeyMetaRestore(keyMeta); err != nil {
+				if n.encrypter != nil {
+					// only decrypt the key if we're running in a real server and
+					// not the 'operator snapshot' command context
+					go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+				}
+			}
+
+		case RootKeySnapshot:
+			wrappedKeys := new(structs.RootKey)
+			if err := dec.Decode(wrappedKeys); err != nil {
 				return err
 			}
+			if filter.Include(wrappedKeys) {
+				if err := restore.RootKeyRestore(wrappedKeys); err != nil {
+					return err
+				}
+
+				if n.encrypter != nil {
+					// only decrypt the key if we're running in a real server and
+					// not the 'operator snapshot' command context
+					go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedKeys)
+				}
+			}
+
 		case ACLRoleSnapshot:
 
 			// Create a new ACLRole object, so we can decode the message into
@@ -1877,6 +1927,29 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			// Perform the restoration.
 			if err := restore.NodePoolRestore(pool); err != nil {
 				return err
+			}
+
+		case JobSubmissionSnapshot:
+			jobSubmissions := new(structs.JobSubmission)
+
+			if err := dec.Decode(jobSubmissions); err != nil {
+				return err
+			}
+
+			// Perform the restoration.
+			if err := restore.JobSubmissionRestore(jobSubmissions); err != nil {
+				return err
+			}
+
+		case HostVolumeSnapshot:
+			vol := new(structs.HostVolume)
+			if err := dec.Decode(vol); err != nil {
+				return err
+			}
+			if filter.Include(vol) {
+				if err := restore.HostVolumeRestore(vol); err != nil {
+					return err
+				}
 			}
 
 		default:
@@ -1976,7 +2049,7 @@ func (n *nomadFSM) failLeakedDeployments(store *state.StateStore) error {
 func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 	// Get all the jobs
 	ws := memdb.NewWatchSet()
-	iter, err := n.state.Jobs(ws)
+	iter, err := n.state.Jobs(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
@@ -2254,7 +2327,8 @@ func (f *FSMFilter) Include(item interface{}) bool {
 	return true
 }
 
-func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byte,
+	index uint64) any {
 	var req structs.VarApplyStateRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
@@ -2270,6 +2344,10 @@ func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byt
 		return n.state.VarDeleteCAS(index, &req)
 	case structs.VarOpCAS:
 		return n.state.VarSetCAS(index, &req)
+	case structs.VarOpLockAcquire:
+		return n.state.VarLockAcquire(index, &req)
+	case structs.VarOpLockRelease:
+		return n.state.VarLockRelease(index, &req)
 	default:
 		err := fmt.Errorf("Invalid variable operation '%s'", req.Op)
 		n.logger.Warn("Invalid variable operation", "operation", req.Op)
@@ -2285,27 +2363,90 @@ func (n *nomadFSM) applyRootKeyMetaUpsert(msgType structs.MessageType, buf []byt
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpsertRootKeyMeta(index, req.RootKeyMeta, req.Rekey); err != nil {
-		n.logger.Error("UpsertRootKeyMeta failed", "error", err)
+	wrappedRootKeys := structs.NewRootKey(req.RootKeyMeta)
+
+	if err := n.state.UpsertRootKey(index, wrappedRootKeys, req.Rekey); err != nil {
+		n.logger.Error("UpsertWrappedRootKeys failed", "error", err)
 		return err
+	}
+
+	if n.encrypter != nil {
+		// start a task to decrypt the key material if we're running in a real
+		// server and not the 'operator snapshot' command context
+		go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, wrappedRootKeys)
 	}
 
 	return nil
 }
 
-func (n *nomadFSM) applyRootKeyMetaDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_root_key_meta_delete"}, time.Now())
+func (n *nomadFSM) applyWrappedRootKeysUpsert(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_wrapped_root_key_upsert"}, time.Now())
+
+	var req structs.KeyringUpsertWrappedRootKeyRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertRootKey(index, req.WrappedRootKeys, req.Rekey); err != nil {
+		n.logger.Error("UpsertWrappedRootKeys failed", "error", err)
+		return err
+	}
+
+	if n.encrypter != nil {
+		// start a task to decrypt the key material if we're running in a real
+		// server and not the 'operator snapshot' command context
+		go n.encrypter.AddWrappedKey(n.encrypter.srv.shutdownCtx, req.WrappedRootKeys)
+	}
+
+	return nil
+}
+
+func (n *nomadFSM) applyWrappedRootKeysDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_wrapped_root_key_delete"}, time.Now())
 
 	var req structs.KeyringDeleteRootKeyRequest
 	if err := structs.Decode(buf, &req); err != nil {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.DeleteRootKeyMeta(index, req.KeyID); err != nil {
-		n.logger.Error("DeleteRootKeyMeta failed", "error", err)
+	if err := n.state.DeleteRootKey(index, req.KeyID); err != nil {
+		n.logger.Error("DeleteWrappedRootKeys failed", "error", err)
 		return err
 	}
 
+	if n.encrypter != nil {
+		n.encrypter.RemoveKey(req.KeyID)
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyHostVolumeRegister(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_host_volume_register"}, time.Now())
+
+	var req structs.HostVolumeRegisterRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.UpsertHostVolume(index, req.Volume); err != nil {
+		n.logger.Error("UpsertHostVolumes failed", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_host_volume_delete"}, time.Now())
+
+	var req structs.HostVolumeDeleteRequest
+	if err := structs.Decode(buf, &req); err != nil {
+		panic(fmt.Errorf("failed to decode request: %v", err))
+	}
+
+	if err := n.state.DeleteHostVolume(index, req.RequestNamespace(), req.VolumeID); err != nil {
+		n.logger.Error("DeleteHostVolumes failed", "error", err)
+		return err
+	}
 	return nil
 }
 
@@ -2315,15 +2456,8 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 	encoder := codec.NewEncoder(sink, structs.MsgpackHandle)
 
 	// Write the header
-	header := snapshotHeader{}
+	header := SnapshotHeader{}
 	if err := encoder.Encode(&header); err != nil {
-		sink.Cancel()
-		return err
-	}
-
-	// Write the time table
-	sink.Write([]byte{byte(TimeTableSnapshot)})
-	if err := s.timetable.Serialize(encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2429,7 +2563,7 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
-	if err := s.persistRootKeyMeta(sink, encoder); err != nil {
+	if err := s.persistWrappedRootKeys(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2442,6 +2576,14 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		return err
 	}
 	if err := s.persistACLBindingRules(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistJobSubmissions(sink, encoder); err != nil {
+		sink.Cancel()
+		return err
+	}
+	if err := s.persistHostVolumes(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
 	}
@@ -2528,7 +2670,7 @@ func (s *nomadSnapshot) persistJobs(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 	// Get all the jobs
 	ws := memdb.NewWatchSet()
-	jobs, err := s.snap.Jobs(ws)
+	jobs, err := s.snap.Jobs(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
@@ -3070,11 +3212,11 @@ func (s *nomadSnapshot) persistVariablesQuotas(sink raft.SnapshotSink,
 	return nil
 }
 
-func (s *nomadSnapshot) persistRootKeyMeta(sink raft.SnapshotSink,
+func (s *nomadSnapshot) persistWrappedRootKeys(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
 
 	ws := memdb.NewWatchSet()
-	keys, err := s.snap.RootKeyMetas(ws)
+	keys, err := s.snap.RootKeys(ws)
 	if err != nil {
 		return err
 	}
@@ -3084,8 +3226,8 @@ func (s *nomadSnapshot) persistRootKeyMeta(sink raft.SnapshotSink,
 		if raw == nil {
 			break
 		}
-		key := raw.(*structs.RootKeyMeta)
-		sink.Write([]byte{byte(RootKeyMetaSnapshot)})
+		key := raw.(*structs.RootKey)
+		sink.Write([]byte{byte(RootKeySnapshot)})
 		if err := encoder.Encode(key); err != nil {
 			return err
 		}
@@ -3161,7 +3303,95 @@ func (s *nomadSnapshot) persistACLBindingRules(sink raft.SnapshotSink, encoder *
 	return nil
 }
 
+func (s *nomadSnapshot) persistJobSubmissions(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+
+	// Get all the job submissions.
+	ws := memdb.NewWatchSet()
+	jobSubmissionsIter, err := s.snap.GetJobSubmissions(ws)
+	if err != nil {
+		return err
+	}
+
+	for raw := jobSubmissionsIter.Next(); raw != nil; raw = jobSubmissionsIter.Next() {
+		jobSubmission := raw.(*structs.JobSubmission)
+
+		// write the snapshot
+		sink.Write([]byte{byte(JobSubmissionSnapshot)})
+		if err := encoder.Encode(jobSubmission); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *nomadSnapshot) persistHostVolumes(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	iter, err := s.snap.HostVolumes(nil, state.SortDefault)
+	if err != nil {
+		return err
+	}
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		vol := raw.(*structs.HostVolume)
+
+		sink.Write([]byte{byte(HostVolumeSnapshot)})
+		if err := encoder.Encode(vol); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Release is a no-op, as we just need to GC the pointer
 // to the state store snapshot. There is nothing to explicitly
 // cleanup.
 func (s *nomadSnapshot) Release() {}
+
+// ReadSnapshot decodes each message type and utilizes the handler function to
+// process each message type individually
+func ReadSnapshot(r io.Reader, handler func(header *SnapshotHeader, snapType SnapshotType, dec *codec.Decoder) error) error {
+	// Create a decoder
+	dec := codec.NewDecoder(r, structs.MsgpackHandle)
+
+	// Read in the header
+	var header SnapshotHeader
+	if err := dec.Decode(&header); err != nil {
+		return err
+	}
+
+	// Populate the new state
+	msgType := make([]byte, 1)
+	for {
+		// Read the message type
+		_, err := r.Read(msgType)
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+
+		// Decode
+		snapType := SnapshotType(msgType[0])
+
+		if err := handler(&header, snapType, dec); err != nil {
+			return err
+		}
+	}
+}
+
+func (s SnapshotType) String() string {
+	v, ok := snapshotTypeStrings[s]
+	if ok {
+		return v
+	}
+	v, ok = enterpriseSnapshotType(s)
+	if ok {
+		return v
+	}
+	return fmt.Sprintf("Unknown(%d)", s)
+}
+
+// TimeTableEntry was used to track a time and index, but has been removed. We
+// still need to deserialize existing entries
+type TimeTableEntry struct {
+	Index uint64
+	Time  time.Time
+}

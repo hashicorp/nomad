@@ -1,0 +1,3 @@
+```release-note:improvement
+docker: Added support for oom_score_adj
+```

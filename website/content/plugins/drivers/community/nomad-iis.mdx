@@ -1,0 +1,75 @@
+---
+layout: docs
+page_title: 'Drivers: nomad-iis'
+description: >-
+  The IIS driver is used for running
+  Windows IIS services.
+---
+
+# Windows IIS Driver
+
+Name: `nomad_iis`
+
+This plugin is a task driver to run IIS Web Applications on Windows Servers. Each allocation will create an AppPool and a Website.  
+For a full documentation please refer to the project's [Readme](https://github.com/sevensolutions/nomad-iis/blob/main/README.md).
+
+Unlike most other Nomad task drivers, this one is written in the C# language using ASP.NET. It uses the Microsoft.Web.Administration-API to communicate with IIS.
+
+<Note>
+At the moment I'm developing this plugin as a hobby project. Version 1 has not yet been reached and breaking changes may still occur.
+</Note>
+
+## Sample Job
+
+```hcl
+job "iis-test" {
+  datacenters = ["dc1"]
+  type = "service"
+
+  group "iis-test" {
+    count = 1
+    
+    network {
+      port "httplabel" {}
+    }
+
+    task "iis-test" {
+      driver = "iis"
+
+      config {
+        application {
+          path = "C:\\inetpub\\wwwroot"
+        }
+        application {
+          alias = "subapp"
+          path = "C:\\inetpub\\wwwroot"
+        }
+        
+        binding {
+          type = "http"
+          port = "httplabel"
+        }
+      }
+      
+      env {
+        my_key = "my-value"
+      }
+
+      resources {
+        cpu    = 100
+        memory = 20
+      }
+    }
+  }
+}
+```
+
+Please refer to the project's [Readme](https://github.com/sevensolutions/nomad-iis/blob/main/README.md) for the full documentation and configuration options.
+
+## Download
+
+Download the latest version from [here](https://github.com/sevensolutions/nomad-iis/releases).
+
+## Source Code
+
+You can get the full source code of this plugin on [Github](https://github.com/sevensolutions/nomad-iis).

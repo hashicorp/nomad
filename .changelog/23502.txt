@@ -1,0 +1,19 @@
+```release-note:bug
+cli: Fixed bug where the `plugin status` command would fail if the plugin ID was a prefix of another plugin ID
+```
+
+```release-note:bug
+cli: Fixed bug where the `quota status` and `quota inspect` commands would fail if the quota name was a prefix of another quota name
+```
+
+```release-note:bug
+cli: Fixed bug where the `scaling policy info` command would fail if the policy ID was a prefix of another policy ID
+```
+
+```release-note:bug
+cli: Fixed bug where the `service info` command would fail if the service name was a prefix of another service name in the same namespace
+```
+
+```release-note:bug
+cli: Fixed bug where the `volume deregister`, `volume detach`, and `volume status` commands would fail if the volume ID was a prefix of another volume ID in the same namespace
+```

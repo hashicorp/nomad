@@ -1,0 +1,3 @@
+```release-note:feature
+**Workload Identity IDP:** Nomad's workload identities may now be used with third parties that support JWT or OIDC IDPs such as the AWS IAM OIDC Provider.
+```

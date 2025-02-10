@@ -517,6 +517,8 @@ type DriverInfo struct {
 type HostVolumeInfo struct {
 	Path     string
 	ReadOnly bool
+	// ID is set for dynamic host volumes only.
+	ID string
 }
 
 // HostNetworkInfo is used to return metadata about a given HostNetwork
@@ -783,6 +785,7 @@ type HostStats struct {
 	Memory           *HostMemoryStats
 	CPU              []*HostCPUStats
 	DiskStats        []*HostDiskStats
+	AllocDirStats    *HostDiskStats
 	DeviceStats      []*DeviceGroupStats
 	Uptime           uint64
 	CPUTicksConsumed float64

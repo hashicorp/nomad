@@ -84,21 +84,9 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
-- `cpuset_cpus` <sup>Beta</sup> - (Optional) CPUs in which to allow execution
-  (0-3, 0,1). Limit the specific CPUs or cores a container can use. A
-  comma-separated list or hyphen-separated range of CPUs a container can use, if
-  you have more than one CPU. The first CPU is numbered 0. A valid value might
-  be 0-3 (to use the first, second, third, and fourth CPU) or 1,3 (to use the
-  second and fourth CPU).
-
-Note: `cpuset_cpus` pins the workload to the CPUs but doesn't give the workload
-exclusive access to those CPUs.
-
-```hcl
-config {
-  cpuset_cpus = "0-3"
-}
-```
+- `container_exists_attempts` - (Optional) A number of attempts to be made to
+  purge a container if during task creation Nomad encounters an existing one in
+  non-running state for the same task. Defaults to `5`.
 
 - `dns_search_domains` - (Optional) A list of DNS search domains for
   the container to use. If you are using bridge networking mode with a
@@ -160,8 +148,9 @@ config {
 - `interactive` - (Optional) `true` or `false` (default). Keep STDIN open on
   the container.
 
-- `isolation` - (Optional) One of `"hyper-v"`, `"process"`, or `"default"`
-  (which is the same as `process`). Enables [Windows isolation][] modes.
+- `isolation` - (Optional) Specifies [Windows isolation][] mode: `"hyperv"` or
+  `"process"`. Defaults to `"hyperv"`.
+
 
 - `sysctl` - (Optional) A key-value map of sysctl configurations to set to the
   containers on start.
@@ -213,6 +202,21 @@ config {
       foo = "bar"
       zip = "zap"
     }
+  }
+  ```
+
+  A more verbose syntax must be used to specify labels with keys that require
+  quoting. For example DataDog's autodiscovery mechanism looks for labels with
+  dots in the key which must be quoted:
+
+  ```hcl
+  config {
+    labels = [
+      {
+        "com.datadoghq.ad.check_names"  =  "[\"openmetrics\"]"
+        "com.datadoghq.ad.init_configs" = "[{}]"
+      }
+    ]
   }
   ```
 
@@ -297,6 +301,9 @@ config {
   firewalld enabled. This behavior is often caused by the CNI plugin not registering the group
   network as trusted and can be resolved as described in the [network block] documentation.
 
+- `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
+  the task being OOM killed (valid only for Linux). Defaults to 0.
+
 - `pid_mode` - (Optional) `host` or not set (default). Set to `host` to share
   the PID namespace with the host. Note that this also requires the Nomad agent
   to be configured to allow privileged containers.
@@ -331,9 +338,6 @@ config {
     }
   }
   ```
-
-- `SSL` - (Optional) If this is set to true, Nomad uses SSL to talk to the
-  repository. The default value is `true`. **Deprecated as of 0.5.3**
 
 - `tty` - (Optional) `true` or `false` (default). Allocate a pseudo-TTY for the
   container.
@@ -511,7 +515,9 @@ config {
   directly to [`--cap-add`][]. Effective capabilities (computed from `cap_add`
   and `cap_drop`) must be a subset of the allowed capabilities configured with
   the [`allow_caps`][allow_caps] plugin option key in the client node's
-  configuration. For example:
+  configuration. Note that `"all"` is not permitted here if the `allow_caps`
+  field in the driver configuration doesn't also allow all capabilities. For
+  example:
 
 ```hcl
 config {
@@ -654,6 +660,21 @@ plugin "docker" {
 !> **Be Careful!** At this time these credentials are stored in Nomad in plain
 text. Secrets management will be added in a later release.
 
+## Insecure Registries
+
+In order to pull images from a registry without TLS, you must configure the
+Docker daemon's `insecure-registries` flag. No additional Nomad client
+configuration is required. You should only allow insecure registries for
+registries running locally on the client or when the communication to the
+registry is otherwise encrypted. List the `insecure-registries` flag in the
+`dockerd` [configuration file](https://docs.docker.com/config/daemon/).
+
+```json
+{
+  "insecure-registries": ["example.local:5000"]
+}
+```
+
 ## Networking
 
 Docker supports a variety of networking configurations, including using host
@@ -757,8 +778,6 @@ a task maps with the `ports` field.
 
 ### Advertising Container IPs
 
-_New in Nomad 0.6._
-
 When using network plugins like `weave` that assign containers a routable IP
 address, that address will automatically be used in any `service`
 advertisements for the task. You may override what address is advertised by
@@ -792,7 +811,7 @@ The `docker` driver implements the following [capabilities](/nomad/docs/concepts
 ## Client Requirements
 
 Nomad requires Docker to be installed and running on the host alongside the
-Nomad agent. Nomad was developed against Docker `1.8.2` and `1.9`.
+Nomad agent.
 
 By default Nomad communicates with the Docker daemon using the daemon's Unix
 socket. Nomad will need to be able to read/write to this socket. If you do not
@@ -805,6 +824,13 @@ user to the `docker` group so you can run Nomad without root:
 ```shell-session
 $ sudo usermod -G docker -a nomad
 ```
+
+Nomad clients manage a cpuset cgroup for each task to reserve or share CPU
+[cores][]. In order for Nomad to be compatible with Docker's own cgroups
+management, it must write to cgroups owned by Docker, which requires running as
+root. If Nomad is not running as root, CPU isolation and NUMA-aware scheduling
+will not function correctly for workloads with `resources.cores`, including
+workloads using task drivers other than `docker` on the same host.
 
 For the best performance and security features you should use recent versions
 of the Linux Kernel and Docker daemon.
@@ -1003,12 +1029,18 @@ host system.
 
 - `infra_image` - This is the Docker image to use when creating the parent
   container necessary when sharing network namespaces between tasks. Defaults to
-  `gcr.io/google_containers/pause-<goarch>:3.1`. The image will only be pulled from
-  the container registry if its tag is `latest` or the image doesn't yet exist locally.
+  `registry.k8s.io/pause-<goarch>:3.3`. The image will only be pulled from the
+  container registry if its tag is `latest` or the image doesn't yet exist
+  locally.
 
 - `infra_image_pull_timeout` - A time duration that controls how long Nomad will
   wait before cancelling an in-progress pull of the Docker image as specified in
   `infra_image`. Defaults to `"5m"`.
+
+- `windows_allow_insecure_container_admin` - Indicates that on windows, docker
+  checks the `task.user` field or, if unset, the container image manifest after
+  pulling the container, to see if it's running as `ContainerAdmin`. If so, exits
+  with an error unless the task config has `privileged=true`. Defaults to `false`.
 
 ## Client Configuration
 
@@ -1180,7 +1212,7 @@ reasons, it is recommended to use full virtualization like
 
 ### Dangling Containers
 
-Nomad 0.10.2 introduces a detector and a reaper for dangling Docker containers,
+Nomad has a detector and a reaper for dangling Docker containers,
 containers that Nomad starts yet does not manage or track. Though rare, they
 lead to unexpectedly running services, potentially with stale versions.
 
@@ -1227,5 +1259,6 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
 [cores]: /nomad/docs/job-specification/resources#cores
 [runtime_env]: /nomad/docs/runtime/environment#job-related-variables
-[`--cap-add`][](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)
-[`--cap-drop`][](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities)
+[`--cap-add`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[`--cap-drop`]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[cores]: /nomad/docs/job-specification/resources#cores

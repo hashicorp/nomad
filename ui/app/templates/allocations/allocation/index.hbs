@@ -188,7 +188,7 @@
           @class="is-striped" as |t|
         >
           <t.head>
-            <th class="is-narrow"></th>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health</span></th>
             <t.sort-by @prop="name">
               Name
             </t.sort-by>
@@ -287,7 +287,7 @@
       <div class="boxed-section-body is-full-bleed">
         <ListTable class="allocation-services-table" @source={{this.servicesWithHealthChecks}} as |t|>
           <t.head>
-            <th class="is-narrow"></th>
+            <th class="is-narrow"><span class="visually-hidden">Service Type</span></th>
             <th>
               Name
             </th>
@@ -311,11 +311,11 @@
             >
               <td class="is-narrow">
                 {{#if (eq row.model.provider "nomad")}}
-                  <FlightIcon @name="nomad-color" />
+                  <Hds::Icon @name="nomad-color" @isInline={{true}} />
                 {{else}}
-                  <FlightIcon @name="consul-color" />
+                  <Hds::Icon @name="consul-color" @isInline={{true}} />
                   {{#if row.model.connect}}
-                    <FlightIcon @name="mesh" @color="#444444" />
+                    <Hds::Icon @name="mesh" @color="#444444" @isInline={{true}} />
                   {{/if}}
                 {{/if}}
               </td>
@@ -468,7 +468,7 @@
           @class="allocations is-isolated" as |t|
         >
           <t.head>
-            <th class="is-narrow"></th>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
             <th>
               ID
             </th>

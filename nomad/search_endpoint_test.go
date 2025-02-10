@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1039,6 +1039,53 @@ func TestSearch_PrefixSearch_CSIVolume(t *testing.T) {
 	require.False(t, resp.Truncations[structs.Volumes])
 }
 
+func TestSearch_PrefixSearch_HostVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanup()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	store := srv.fsm.State()
+	index, _ := store.LatestIndex()
+
+	node := mock.Node()
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	id := uuid.Generate()
+	index++
+	err := store.UpsertHostVolume(index, &structs.HostVolume{
+		ID:        id,
+		Name:      "example",
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "glade",
+		NodeID:    node.ID,
+		NodePool:  node.NodePool,
+	})
+	must.NoError(t, err)
+
+	req := &structs.SearchRequest{
+		Prefix:  id[:6],
+		Context: structs.HostVolumes,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var resp structs.SearchResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.PrefixSearch", req, &resp))
+
+	must.Len(t, 1, resp.Matches[structs.HostVolumes])
+	must.Len(t, 0, resp.Matches[structs.Volumes])
+	must.Eq(t, id, resp.Matches[structs.HostVolumes][0])
+	must.False(t, resp.Truncations[structs.HostVolumes])
+}
+
 func TestSearch_PrefixSearch_Namespace(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1930,6 +1977,52 @@ func TestSearch_FuzzySearch_CSIVolume(t *testing.T) {
 	require.Len(t, resp.Matches[structs.Volumes], 1)
 	require.Equal(t, id, resp.Matches[structs.Volumes][0].ID)
 	require.False(t, resp.Truncations[structs.Volumes])
+}
+
+func TestSearch_FuzzySearch_HostVolume(t *testing.T) {
+	ci.Parallel(t)
+
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	defer cleanup()
+	codec := rpcClient(t, srv)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	store := srv.fsm.State()
+	index, _ := store.LatestIndex()
+
+	node := mock.Node()
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+
+	id := uuid.Generate()
+	index++
+	err := store.UpsertHostVolume(index, &structs.HostVolume{
+		ID:        id,
+		Name:      "example",
+		Namespace: structs.DefaultNamespace,
+		PluginID:  "glade",
+		NodeID:    node.ID,
+		NodePool:  node.NodePool,
+	})
+	must.NoError(t, err)
+
+	req := &structs.FuzzySearchRequest{
+		Text:    id[0:3], // volumes are prefix searched
+		Context: structs.HostVolumes,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			Namespace: structs.DefaultNamespace,
+		},
+	}
+
+	var resp structs.FuzzySearchResponse
+	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Search.FuzzySearch", req, &resp))
+
+	must.Len(t, 1, resp.Matches[structs.HostVolumes])
+	must.Eq(t, id, resp.Matches[structs.HostVolumes][0].ID)
+	must.False(t, resp.Truncations[structs.HostVolumes])
 }
 
 func TestSearch_FuzzySearch_Namespace(t *testing.T) {

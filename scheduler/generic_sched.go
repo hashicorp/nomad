@@ -466,7 +466,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		s.queuedAllocs[p.placeTaskGroup.Name] += 1
 		destructive = append(destructive, p)
 	}
-	return s.computePlacements(destructive, place)
+	return s.computePlacements(destructive, place, results.taskGroupAllocNameIndexes)
 }
 
 // downgradedJobForPlacement returns the job appropriate for non-canary placement replacement
@@ -508,7 +508,8 @@ func (s *GenericScheduler) downgradedJobForPlacement(p placementResult) (string,
 
 // computePlacements computes placements for allocations. It is given the set of
 // destructive updates to place and the set of new placements to place.
-func (s *GenericScheduler) computePlacements(destructive, place []placementResult) error {
+func (s *GenericScheduler) computePlacements(destructive, place []placementResult, nameIndex map[string]*allocNameIndex) error {
+
 	// Get the base nodes
 	nodes, byDC, err := s.setNodes(s.job)
 	if err != nil {
@@ -530,6 +531,12 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 		for _, missing := range results {
 			// Get the task group
 			tg := missing.TaskGroup()
+
+			// This is populated from the reconciler via the compute results,
+			// therefore we cannot have an allocation belonging to a task group
+			// that has not generated and been through allocation name index
+			// tracking.
+			taskGroupNameIndex := nameIndex[tg.Name]
 
 			var downgradedJob *structs.Job
 
@@ -628,12 +635,34 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					resources.Shared.Ports = option.AllocResources.Ports
 				}
 
+				// Pull the allocation name as a new variables, so we can alter
+				// this as needed without making changes to the original
+				// object.
+				newAllocName := missing.Name()
+
+				// Identify the index from the name, so we can check this
+				// against the allocation name index tracking for duplicates.
+				allocIndex := structs.AllocIndexFromName(newAllocName, s.job.ID, tg.Name)
+
+				// If the allocation index is a duplicate, we cannot simply
+				// create a new allocation with the same name. We need to
+				// generate a new index and use this. The log message is useful
+				// for debugging and development, but could be removed in a
+				// future version of Nomad.
+				if taskGroupNameIndex.IsDuplicate(allocIndex) {
+					oldAllocName := newAllocName
+					newAllocName = taskGroupNameIndex.Next(1)[0]
+					taskGroupNameIndex.UnsetIndex(allocIndex)
+					s.logger.Debug("duplicate alloc index found and changed",
+						"old_alloc_name", oldAllocName, "new_alloc_name", newAllocName)
+				}
+
 				// Create an allocation for this
 				alloc := &structs.Allocation{
 					ID:                 uuid.Generate(),
 					Namespace:          s.job.Namespace,
 					EvalID:             s.eval.ID,
-					Name:               missing.Name(),
+					Name:               newAllocName,
 					JobID:              s.job.ID,
 					TaskGroup:          tg.Name,
 					Metrics:            s.ctx.Metrics(),
@@ -659,10 +688,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					if missing.IsRescheduling() {
 						updateRescheduleTracker(alloc, prevAllocation, now)
 					}
-
-					// If the allocation has task handles,
-					// copy them to the new allocation
-					propagateTaskState(alloc, prevAllocation, missing.PreviousLost())
 				}
 
 				// If we are placing a canary and we found a match, add the canary
@@ -695,6 +720,16 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if stopPrevAlloc {
 					s.plan.PopUpdate(prevAllocation)
 				}
+
+				// If we were trying to replace a rescheduling alloc, mark the
+				// reschedule as failed so that we can retry it in the following
+				// blocked eval without dropping the reschedule tracker
+				if prevAllocation != nil {
+					if missing.IsRescheduling() {
+						annotateRescheduleTracker(prevAllocation, structs.LastRescheduleFailedToPlace)
+					}
+				}
+
 			}
 
 		}
@@ -742,46 +777,6 @@ func needsToSetNodes(a, b *structs.Job) bool {
 		a.NodePool != b.NodePool
 }
 
-// propagateTaskState copies task handles from previous allocations to
-// replacement allocations when the previous allocation is being drained or was
-// lost. Remote task drivers rely on this to reconnect to remote tasks when the
-// allocation managing them changes due to a down or draining node.
-//
-// The previous allocation will be marked as lost after task state has been
-// propagated (when the plan is applied), so its ClientStatus is not yet marked
-// as lost. Instead, we use the `prevLost` flag to track whether the previous
-// allocation will be marked lost.
-func propagateTaskState(newAlloc, prev *structs.Allocation, prevLost bool) {
-	// Don't transfer state from client terminal allocs
-	if prev.ClientTerminalStatus() {
-		return
-	}
-
-	// If previous allocation is not lost and not draining, do not copy
-	// task handles.
-	if !prevLost && !prev.DesiredTransition.ShouldMigrate() {
-		return
-	}
-
-	newAlloc.TaskStates = make(map[string]*structs.TaskState, len(newAlloc.AllocatedResources.Tasks))
-	for taskName, prevState := range prev.TaskStates {
-		if prevState.TaskHandle == nil {
-			// No task handle, skip
-			continue
-		}
-
-		if _, ok := newAlloc.AllocatedResources.Tasks[taskName]; !ok {
-			// Task dropped in update, skip
-			continue
-		}
-
-		// Copy state
-		newState := structs.NewTaskState()
-		newState.TaskHandle = prevState.TaskHandle.Copy()
-		newAlloc.TaskStates[taskName] = newState
-	}
-}
-
 // getSelectOptions sets up preferred nodes and penalty nodes
 func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs.Node) *SelectOptions {
 	selectOptions := &SelectOptions{}
@@ -804,6 +799,13 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 		selectOptions.PreferredNodes = []*structs.Node{preferredNode}
 	}
 	return selectOptions
+}
+
+func annotateRescheduleTracker(prev *structs.Allocation, note structs.RescheduleTrackerAnnotation) {
+	if prev.RescheduleTracker == nil {
+		prev.RescheduleTracker = &structs.RescheduleTracker{}
+	}
+	prev.RescheduleTracker.LastReschedule = note
 }
 
 // updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
@@ -840,7 +842,10 @@ func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 	nextDelay := prev.NextDelay()
 	rescheduleEvent := structs.NewRescheduleEvent(now.UnixNano(), prev.ID, prev.NodeID, nextDelay)
 	rescheduleEvents = append(rescheduleEvents, rescheduleEvent)
-	alloc.RescheduleTracker = &structs.RescheduleTracker{Events: rescheduleEvents}
+	alloc.RescheduleTracker = &structs.RescheduleTracker{
+		Events:         rescheduleEvents,
+		LastReschedule: structs.LastRescheduleSuccess}
+	annotateRescheduleTracker(prev, structs.LastRescheduleSuccess)
 }
 
 // findPreferredNode finds the preferred node for an allocation
@@ -861,6 +866,7 @@ func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.No
 			return preferredNode, nil
 		}
 	}
+
 	return nil, nil
 }
 

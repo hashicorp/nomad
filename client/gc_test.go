@@ -378,7 +378,7 @@ func TestAllocGarbageCollector_MakeRoomFor_MaxAllocs(t *testing.T) {
 		c.GCInterval = time.Hour
 		c.RPCHandler = server
 		c.Servers = []string{serverAddr}
-		c.ConsulConfig.ClientAutoJoin = new(bool)
+		c.GetDefaultConsul().ClientAutoJoin = new(bool)
 	})
 	defer cleanup()
 	waitTilNodeReady(client, t)

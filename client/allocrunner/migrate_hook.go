@@ -15,12 +15,16 @@ import (
 // diskMigrationHook migrates ephemeral disk volumes. Depends on alloc dir
 // being built but must be run before anything else manipulates the alloc dir.
 type diskMigrationHook struct {
-	allocDir     *allocdir.AllocDir
+	allocDir     allocdir.Interface
 	allocWatcher config.PrevAllocMigrator
 	logger       log.Logger
 }
 
-func newDiskMigrationHook(logger log.Logger, allocWatcher config.PrevAllocMigrator, allocDir *allocdir.AllocDir) *diskMigrationHook {
+func newDiskMigrationHook(
+	logger log.Logger,
+	allocWatcher config.PrevAllocMigrator,
+	allocDir allocdir.Interface,
+) *diskMigrationHook {
 	h := &diskMigrationHook{
 		allocDir:     allocDir,
 		allocWatcher: allocWatcher,

@@ -1,0 +1,3 @@
+```release-note:security
+build: Update to Go 1.21.3
+```

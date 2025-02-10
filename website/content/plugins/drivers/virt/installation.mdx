@@ -1,0 +1,73 @@
+---
+layout: docs
+page_title: Installation
+description: Installation of the virt task driver.
+---
+
+# Installation
+
+@include 'virt-beta-callout.mdx'
+
+Use the following instructions to download the task driver for use on your Nomad client host.
+
+<Tabs>
+  <Tab heading="Manual installation" group="manual">
+
+    Download a [precompiled binary](https://releases.hashicorp.com/nomad-driver-virt/) and
+    verify the binary using the available SHA-256 sums. Unzip the package. Make sure that the `nomad-driver-virt` binary is on your
+    [plugin_dir](/nomad/docs/configuration#plugin_dir) path, specified by the client's config file,
+    before continuing with the other guides.
+
+  </Tab>
+  <Tab heading="Ubuntu/Debian" group="manual">
+
+    Install the required packages.
+
+    ```shell-session
+    $ sudo apt-get update && \
+      sudo apt-get install wget gpg coreutils
+    ```
+
+    Add the HashiCorp [GPG key][gpg-key].
+
+    ```shell-session
+    $ wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+    ```
+
+    Add the official HashiCorp Linux test repository.
+
+    ```shell-session
+    $ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) test" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+    ```
+
+    Update and install.
+
+    ```shell-session
+    $ sudo apt-get update && sudo apt-get install nomad-driver-virt
+    ```
+
+  </Tab>
+  <Tab heading="CentOS/RHEL" group="linux">
+
+    Install `yum-config-manager` to manage your repositories.
+
+    ```shell-session
+    $ sudo yum install -y yum-utils
+    ```
+
+    Use `yum-config-manager` to add the official HashiCorp Linux repository.
+
+    ```shell-session
+    $ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+    ```
+
+    Edit the repo file at `/etc/yum.repos.d/hashicorp.repo` and set `enabled=1` for `[hashicorp-test]`.
+
+    Install.
+
+    ```shell-session
+    $ sudo yum -y install nomad-driver-virt
+    ```
+
+  </Tab>
+</Tabs>

@@ -1,0 +1,3 @@
+```release-note:improvement
+networking: Inject constraints on CNI plugins when using bridge networking
+```

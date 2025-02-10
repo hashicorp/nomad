@@ -17,12 +17,14 @@ The Nomad Autoscaler currently has limited support for
 [Nomad Namespaces][nomad_namespaces]. The `nomad` configuration below supports
 specifying a namespace; if configured with a namespace, the Autoscaler will
 retrieve scaling policies and perform autoscaling only for jobs in that
-namespace. A future version will include support for multiple namespaces.
+namespace. If the special wildcard namespace value `*` is used, the Autoscaler
+agent will retrieve scaling policies from all namespaces. A future version will
+include support for multiple namespaces.
 
 ## Nomad ACLs
 
 The Nomad Autoscaler can be configured to interact with an ACL-enabled Nomad
-cluster. Nomad 0.11 includes the `scale` ACL policy disposition specifically for
+cluster. Nomad includes the `scale` ACL policy disposition specifically for
 supporting the operations of the Nomad Autoscaler. Therefore, the
 following policy is sufficient for creating an ACL token that can be used by
 the autoscaler for fetching scaling policies and scaling jobs:
@@ -30,6 +32,32 @@ the autoscaler for fetching scaling policies and scaling jobs:
 ```hcl
 namespace "default" {
   policy = "scale"
+}
+```
+
+When utilizing the High-Availability feature added in v0.4.0, the ACL policy
+needs to include capabilities that allow the Nomad Autoscaler to obtain and release Nomad variable
+locks. The namespace identifier should match the configured
+[`high_availability.lock_namespace`][autoscaler_ha_lock_namespace] parameter,
+and the path should match the [`high_availability.lock_path`][autoscaler_ha_lock_path]
+parameter.
+
+```hcl
+namespace "default" {
+  variables {
+    path "nomad-autoscaler/lock" {
+      capabilities = ["write"]
+    }
+  }
+}
+```
+
+If running Nomad Autoscaler Enterprise, the following ACL policy addition is
+needed to ensure it can read the Nomad Enterprise license.
+
+```hcl
+operator {
+  policy = "read"
 }
 ```
 
@@ -97,3 +125,5 @@ following actions.
 [autoscaler_agent_nomad]: /nomad/tools/autoscaling/agent/nomad
 [autoscaler_cli_config]: /nomad/tools/autoscaling/cli#config
 [autoscaler_cli_policy_dir]: /nomad/tools/autoscaling/cli#policy-dir
+[autoscaler_ha_lock_namespace]: /nomad/tools/autoscaling/agent/high_availability#lock_namespace
+[autoscaler_ha_lock_path]: /nomad/tools/autoscaling/agent/high_availability#lock_path

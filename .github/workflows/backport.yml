@@ -11,7 +11,7 @@ jobs:
   backport:
     if: github.event.pull_request.merged
     runs-on: ubuntu-latest
-    container: hashicorpdev/backport-assistant:0.3.4
+    container: hashicorpdev/backport-assistant:0.4.1
     steps:
       - name: Backport changes to stable-website
         run: |
@@ -31,20 +31,39 @@ jobs:
           # Enabling this option increased the number of backport failures.
           BACKPORT_MERGE_COMMIT: false
           GITHUB_TOKEN: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
-
+          ENABLE_VERSION_MANIFESTS: true
+  backport-ent:
+    if: github.event.pull_request.merged && contains(join(github.event.pull_request.labels.*.name), 'backport/ent')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger backport for Enterprise
+        uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
+        with:
+          token: ${{ secrets.ELEVATED_GITHUB_TOKEN }}
+          repository: hashicorp/nomad-enterprise
+          event-type: ent-backport
+          client-payload: ${{ toJson(github.event) }}
   handle-failure:
     needs:
       - backport
-    if: always() && needs.backport.result == 'failure'
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+      - backport-ent
+    if: always() && (needs.backport.result == 'failure' || needs.backport-ent.result == 'failure')
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-latest' }}
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
-      - uses: ./.github/actions/vault-secrets
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Retrieve Vault-hosted Secrets
+        if: endsWith(github.repository, '-enterprise')
+        id: vault
+        uses: hashicorp/vault-action@d1720f055e0635fd932a1d2a48f87a666a57906c # v3.0.0
         with:
-          paths: |-
+          url: ${{ vars.CI_VAULT_URL }}
+          method: ${{ vars.CI_VAULT_METHOD }}
+          path: ${{ vars.CI_VAULT_PATH }}
+          jwtGithubAudience: ${{ vars.CI_VAULT_AUD }}
+          secrets: |-
             kv/data/teams/nomad/slack-webhooks feed-nomad | SLACK_FEED_NOMAD ;
       - name: Send slack notification on failure
-        uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
+        uses: slackapi/slack-github-action@485a9d42d3a73031f12ec201c457e2162c45d02d # v2.0.0
         with:
           payload: |
             {

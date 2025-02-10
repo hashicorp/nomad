@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"testing"
 
-	docker "github.com/fsouza/go-dockerclient"
+	docker "github.com/docker/docker/client"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -23,20 +23,15 @@ func DockerIsConnected(t *testing.T) bool {
 		return runtime.GOOS == "windows"
 	}
 
-	client, err := docker.NewClientFromEnv()
+	client, err := docker.NewClientWithOpts(docker.FromEnv, docker.WithAPIVersionNegotiation())
 	if err != nil {
 		return false
 	}
 
 	// Creating a client doesn't actually connect, so make sure we do something
-	// like call Version() on it.
-	env, err := client.Version()
-	if err != nil {
-		t.Logf("Failed to connect to docker daemon: %s", err)
-		return false
-	}
-
-	t.Logf("Successfully connected to docker daemon running version %s", env.Get("Version"))
+	// like call ClientVersion() on it.
+	ver := client.ClientVersion()
+	t.Logf("Successfully connected to docker daemon running version %s", ver)
 	return true
 }
 

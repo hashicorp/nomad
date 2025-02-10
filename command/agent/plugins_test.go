@@ -31,6 +31,6 @@ func testServer(t *testing.T, runClient bool, cb func(*Config)) (*TestAgent, *ap
 	})
 	t.Cleanup(a.Shutdown)
 
-	c := a.Client()
+	c := a.APIClient()
 	return a, c, a.HTTPAddr()
 }

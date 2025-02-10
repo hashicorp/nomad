@@ -6,7 +6,9 @@ package scheduler
 import (
 	"testing"
 
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -14,6 +16,12 @@ import (
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
+
+func anyMemoryNodeMatcher() *memoryNodeMatcher {
+	return &memoryNodeMatcher{
+		memoryNode: -1,
+	}
+}
 
 // deviceRequest takes the name, count and potential constraints and affinities
 // and returns a device request.
@@ -104,7 +112,8 @@ func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
 	// Build the request
 	ask := deviceRequest("gpu", 1, nil, nil)
 
-	out, score, err := d.AssignDevice(ask)
+	mem := anyMemoryNodeMatcher()
+	out, score, err := d.createOffer(mem, ask)
 	require.NotNil(out)
 	require.Zero(score)
 	require.NoError(err)
@@ -127,7 +136,8 @@ func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
 	// Build the request
 	ask := deviceRequest("intel/fpga/F100", 1, nil, nil)
 
-	out, score, err := d.AssignDevice(ask)
+	mem := anyMemoryNodeMatcher()
+	out, score, err := d.createOffer(mem, ask)
 	require.NotNil(out)
 	require.Zero(score)
 	require.NoError(err)
@@ -150,10 +160,63 @@ func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
 	// Build the request
 	ask := deviceRequest("gpu", 4, nil, nil)
 
-	out, _, err := d.AssignDevice(ask)
+	mem := anyMemoryNodeMatcher()
+	out, _, err := d.createOffer(mem, ask)
 	require.Nil(out)
 	require.Error(err)
 	require.Contains(err.Error(), "no devices match request")
+}
+
+func TestDeviceAllocator_Allocate_NUMA_available(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+	n := devNode()
+	d := newDeviceAllocator(ctx, n)
+
+	ask := deviceRequest("nvidia/gpu/1080ti", 2, nil, nil)
+
+	mem := &memoryNodeMatcher{
+		memoryNode: 0,
+		topology:   structs.MockWorkstationTopology(),
+		devices:    set.From([]string{"nvidia/gpu/1080ti"}),
+	}
+	out, _, err := d.createOffer(mem, ask)
+	must.NoError(t, err)
+	must.SliceLen(t, 2, out.DeviceIDs) // DeviceIDs are actually instance ids
+}
+
+func TestDeviceAllocator_Allocate_NUMA_node1(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+	n := devNode()
+	n.NodeResources.Devices = append(n.NodeResources.Devices, &structs.NodeDeviceResource{
+		Type:   "fpga",
+		Vendor: "xilinx",
+		Name:   "7XA",
+		Instances: []*structs.NodeDevice{
+			{
+				ID:      uuid.Generate(),
+				Healthy: true,
+				Locality: &structs.NodeDeviceLocality{
+					PciBusID: "00000000:09:01.0",
+				},
+			},
+		},
+	})
+	d := newDeviceAllocator(ctx, n)
+
+	ask := deviceRequest("xilinx/fpga/7XA", 1, nil, nil)
+
+	mem := &memoryNodeMatcher{
+		memoryNode: 1,
+		topology:   structs.MockWorkstationTopology(),
+		devices:    set.From([]string{"xilinx/fpga/7XA"}),
+	}
+	out, _, err := d.createOffer(mem, ask)
+	must.NoError(t, err)
+	must.SliceLen(t, 1, out.DeviceIDs)
 }
 
 // Test that asking for a device with constraints works
@@ -272,7 +335,8 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 			// Build the request
 			ask := deviceRequest(c.Name, 1, c.Constraints, nil)
 
-			out, score, err := d.AssignDevice(ask)
+			mem := anyMemoryNodeMatcher()
+			out, score, err := d.createOffer(mem, ask)
 			if c.NoPlacement {
 				require.Nil(t, out)
 			} else {
@@ -378,7 +442,8 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 			// Build the request
 			ask := deviceRequest(c.Name, 1, nil, c.Affinities)
 
-			out, score, err := d.AssignDevice(ask)
+			mem := anyMemoryNodeMatcher()
+			out, score, err := d.createOffer(mem, ask)
 			require.NotNil(out)
 			require.NoError(err)
 			if c.ZeroScore {
@@ -390,6 +455,121 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 			// Check that we got the nvidia device
 			require.Len(out.DeviceIDs, 1)
 			require.Contains(collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
+		})
+	}
+}
+
+func Test_equalBusID(t *testing.T) {
+	must.True(t, equalBusID("0000:03:00.1", "00000000:03:00.1"))
+	must.False(t, equalBusID("0000:03:00.1", "0000:03:00.0"))
+}
+
+func Test_memoryNodeMatcher(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name            string
+		memoryNode      int                         // memory node in consideration
+		topology        *numalib.Topology           // cpu cores and device bus associativity
+		taskNumaDevices *set.Set[string]            // devices that require numa associativity
+		instance        string                      // asking if this particular instance (id) satisfies the request
+		device          *structs.NodeDeviceResource // device group that contains specifics about instance(s)
+		exp             bool
+	}{
+		{
+			name:            "ws: single gpu match on node 0",
+			memoryNode:      0,
+			topology:        structs.MockWorkstationTopology(),
+			taskNumaDevices: set.From([]string{"nvidia/gpu/t1000"}),
+			instance:        "GPU-T1000-01",
+			device: &structs.NodeDeviceResource{
+				Vendor: "nvidia",
+				Type:   "gpu",
+				Name:   "t1000",
+				Instances: []*structs.NodeDevice{
+					{
+						ID: "GPU-T1000-01",
+						Locality: &structs.NodeDeviceLocality{
+							PciBusID: "0000:02:00.1",
+						},
+					},
+				},
+			},
+			exp: true,
+		},
+		{
+			name:            "ws: single gpu no match on node 1",
+			memoryNode:      1,
+			topology:        structs.MockWorkstationTopology(),
+			taskNumaDevices: set.From([]string{"nvidia/gpu/t1000"}),
+			instance:        "GPU-T1000-01",
+			device: &structs.NodeDeviceResource{
+				Vendor: "nvidia",
+				Type:   "gpu",
+				Name:   "t1000",
+				Instances: []*structs.NodeDevice{
+					{
+						ID: "GPU-T1000-01",
+						Locality: &structs.NodeDeviceLocality{
+							PciBusID: "0000:02:00.1",
+						},
+					},
+				},
+			},
+			exp: false,
+		},
+		{
+			name:            "ws: net card match on node 0",
+			memoryNode:      0,
+			topology:        structs.MockWorkstationTopology(),
+			taskNumaDevices: set.From([]string{"nvidia/gpu/t1000", "net/type1"}),
+			instance:        "NET-T1-01",
+			device: &structs.NodeDeviceResource{
+				Type: "net",
+				Name: "nic100",
+				Instances: []*structs.NodeDevice{
+					{
+						ID: "NET-T1-01",
+						Locality: &structs.NodeDeviceLocality{
+							PciBusID: "0000:03:00.2",
+						},
+					},
+				},
+			},
+			exp: true,
+		},
+		{
+			name:       "ws: any memory node",
+			memoryNode: -1,
+			exp:        true,
+		},
+		{
+			name:            "ws: device is not requested to be numa aware",
+			memoryNode:      0,
+			taskNumaDevices: set.From([]string{"amd/gpu/t1000"}),
+			instance:        "NET-T2-01",
+			device: &structs.NodeDeviceResource{
+				Type: "net",
+				Name: "nic200",
+				Instances: []*structs.NodeDevice{
+					{
+						ID: "NET-T2-01",
+					},
+				},
+			},
+			exp: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			m := &memoryNodeMatcher{
+				memoryNode: tc.memoryNode,
+				topology:   tc.topology,
+				devices:    tc.taskNumaDevices,
+			}
+			result := m.Matches(tc.instance, tc.device)
+			must.Eq(t, tc.exp, result)
 		})
 	}
 }

@@ -9,26 +9,26 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/cli"
 	gg "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/nomad/api"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
-	"github.com/hashicorp/nomad/jobspec"
 	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/kr/text"
-	"github.com/mitchellh/cli"
+	"github.com/moby/term"
 	"github.com/posener/complete"
 	"github.com/ryanuber/columnize"
 )
 
 const (
 	formatJSON = "json"
-	formatHCL1 = "hcl1"
 	formatHCL2 = "hcl2"
 )
 
@@ -408,23 +408,14 @@ type JobGetter struct {
 }
 
 func (j *JobGetter) Validate() error {
-	if j.HCL1 && j.Strict {
-		return fmt.Errorf("cannot parse job file as HCLv1 and HCLv2 strict.")
-	}
-	if j.HCL1 && j.JSON {
-		return fmt.Errorf("cannot parse job file as HCL and JSON.")
+	if j.HCL1 {
+		return fmt.Errorf("HCLv1 is no longer supported")
 	}
 	if len(j.Vars) > 0 && j.JSON {
 		return fmt.Errorf("cannot use variables with JSON files.")
 	}
 	if len(j.VarFiles) > 0 && j.JSON {
 		return fmt.Errorf("cannot use variables with JSON files.")
-	}
-	if len(j.Vars) > 0 && j.HCL1 {
-		return fmt.Errorf("cannot use variables with HCLv1.")
-	}
-	if len(j.VarFiles) > 0 && j.HCL1 {
-		return fmt.Errorf("cannot use variables with HCLv1.")
 	}
 	return nil
 }
@@ -494,14 +485,6 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 	jobfile = io.TeeReader(jobfile, &source)
 	var err error
 	switch {
-	case j.HCL1:
-		jobStruct, err = jobspec.Parse(jobfile)
-
-		// include the hcl1 source as the submission
-		jobSubmission = &api.JobSubmission{
-			Source: source.String(),
-			Format: formatHCL1,
-		}
 	case j.JSON:
 
 		// Support JSON files with both a top-level Job key as well as
@@ -534,6 +517,10 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			return nil, nil, fmt.Errorf("Failed to parse HCL job: %w", err)
 		}
 
+		// Perform the environment listing here as it is used twice beyond this
+		// point.
+		osEnv := os.Environ()
+
 		// we are parsing HCL2, whether from a file or stdio
 		jobStruct, err = jobspec2.ParseWithConfig(&jobspec2.ParseConfig{
 			Path:     pathName,
@@ -541,7 +528,7 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 			ArgVars:  j.Vars,
 			AllowFS:  true,
 			VarFiles: j.VarFiles,
-			Envs:     os.Environ(),
+			Envs:     osEnv,
 			Strict:   j.Strict,
 		})
 
@@ -549,23 +536,27 @@ func (j *JobGetter) Get(jpath string) (*api.JobSubmission, *api.Job, error) {
 		var readVarFileErr error
 		if err == nil {
 			// combine any -var-file data into one big blob
-			varFileCat, readVarFileErr = extractVarFiles([]string(j.VarFiles))
+			varFileCat, readVarFileErr = extractVarFiles(j.VarFiles)
 			if readVarFileErr != nil {
 				return nil, nil, fmt.Errorf("Failed to read var file(s): %w", readVarFileErr)
 			}
 		}
 
+		// Extract variables declared by the -var flag and as environment
+		// variables.
+		extractedVarFlags := extractVarFlags(j.Vars)
+		extractedEnvVars := extractJobSpecEnvVars(osEnv)
+
+		// Merge the two maps ensuring that variables defined by -var flags
+		// take precedence.
+		maps.Copy(extractedEnvVars, extractedVarFlags)
+
 		// submit the job with the submission with content from -var flags
 		jobSubmission = &api.JobSubmission{
-			VariableFlags: extractVarFlags(j.Vars),
+			VariableFlags: extractedEnvVars,
 			Variables:     varFileCat,
 			Source:        source.String(),
 			Format:        formatHCL2,
-		}
-		if err != nil {
-			if _, merr := jobspec.Parse(&source); merr == nil {
-				return nil, nil, fmt.Errorf("Failed to parse using HCL 2. Use the HCL 1 parser with `nomad run -hcl1`, or address the following issues:\n%v", err)
-			}
 		}
 	}
 
@@ -603,6 +594,36 @@ func extractVarFlags(slice []string) map[string]string {
 			m[tokens[0]] = tokens[1]
 		}
 	}
+	return m
+}
+
+// extractJobSpecEnvVars is used to extract Nomad specific HCL variables from
+// the OS environment. The input envVars parameter is expected to be generated
+// from the os.Environment function call. The result is never nil for
+// convenience.
+func extractJobSpecEnvVars(envVars []string) map[string]string {
+
+	m := make(map[string]string)
+
+	for _, raw := range envVars {
+		if !strings.HasPrefix(raw, jobspec2.VarEnvPrefix) {
+			continue
+		}
+
+		// Trim the prefix, so we just have the raw key=value variable
+		// remaining.
+		raw = raw[len(jobspec2.VarEnvPrefix):]
+
+		// Identify the index of the equals sign which is where we split the
+		// variable k/v pair. -1 indicates the equals sign is not found and
+		// therefore the var is not valid.
+		if eq := strings.Index(raw, "="); eq == -1 {
+			continue
+		} else if raw[:eq] != "" {
+			m[raw[:eq]] = raw[eq+1:]
+		}
+	}
+
 	return m
 }
 
@@ -712,4 +733,48 @@ func loadFromStdin(testStdin io.Reader) (string, error) {
 		return "", fmt.Errorf("Failed to read stdin: %v", err)
 	}
 	return b.String(), nil
+}
+
+// isTty returns true if both stdin and stdout are a TTY
+func isTty() bool {
+	_, isStdinTerminal := term.GetFdInfo(os.Stdin)
+	_, isStdoutTerminal := term.GetFdInfo(os.Stdout)
+	return isStdinTerminal && isStdoutTerminal
+}
+
+// getByPrefix makes a prefix list query and tries to find an exact match if
+// available, or returns a list of options if multiple objects match the prefix
+// and there's no exact match
+func getByPrefix[T any](
+	objName string,
+	queryFn func(*api.QueryOptions) ([]*T, *api.QueryMeta, error),
+	prefixCompareFn func(obj *T, prefix string) bool,
+	opts *api.QueryOptions,
+) (*T, []*T, error) {
+	objs, _, err := queryFn(opts)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error querying %s: %s", objName, err)
+	}
+	switch len(objs) {
+	case 0:
+		return nil, nil, fmt.Errorf("No %s with prefix or ID %q found", objName, opts.Prefix)
+	case 1:
+		return objs[0], nil, nil
+	default:
+		// List queries often sort by by CreateIndex, not by ID, so we need to
+		// search for exact matches but account for multiple exact ID matches
+		// across namespaces
+		var match *T
+		exactMatchesCount := 0
+		for _, obj := range objs {
+			if prefixCompareFn(obj, opts.Prefix) {
+				exactMatchesCount++
+				match = obj
+			}
+		}
+		if exactMatchesCount == 1 {
+			return match, nil, nil
+		}
+		return nil, objs, nil
+	}
 }

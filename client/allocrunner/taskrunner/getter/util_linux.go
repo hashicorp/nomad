@@ -51,7 +51,7 @@ func defaultEnvironment(taskDir string) map[string]string {
 // dir - the task directory
 //
 // Only applies to Linux, when available.
-func lockdown(allocDir, taskDir string) error {
+func lockdown(allocDir, taskDir string, extra []string) error {
 	// landlock not present in the kernel, do not sandbox
 	if !landlock.Available() {
 		return nil
@@ -68,6 +68,13 @@ func lockdown(allocDir, taskDir string) error {
 		landlock.Dir(taskDir, "rwc"),
 	}
 
+	for _, p := range extra {
+		path, err := landlock.ParsePath(p)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, path)
+	}
 	paths = append(paths, additionalFilesForVCS()...)
 	locker := landlock.New(paths...)
 	return locker.Lock(landlock.Mandatory)

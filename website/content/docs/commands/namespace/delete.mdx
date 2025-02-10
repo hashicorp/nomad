@@ -25,9 +25,10 @@ The `namespace delete` command requires the name of the namespace to be deleted.
 
 If ACLs are enabled, this command requires a management ACL token.
 
-You cannot delete a namespace that has non-terminal jobs. In federated clusters,
-you cannot delete a namespace that has non-terminal jobs in any of the federated
-regions.
+You cannot delete a namespace that has non-terminal jobs or allocations,
+existing CSI volumes or variables attached to it, or quotas associated with it.
+In federated clusters, you cannot delete a namespace that has any of the above
+in any of the federated regions.
 
 ## General Options
 

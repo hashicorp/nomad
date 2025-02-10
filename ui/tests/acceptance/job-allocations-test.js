@@ -4,7 +4,7 @@
  */
 
 /* eslint-disable qunit/require-expect */
-import { currentURL, click, find } from '@ember/test-helpers';
+import { currentURL, click } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -85,9 +85,8 @@ module('Acceptance | job allocations', function (hooks) {
 
     await Allocations.visit({ id: job.id });
 
-    const firstAllocation = find('[data-test-allocation]');
+    const firstAllocation = document.querySelector('[data-test-allocation]');
     await click(firstAllocation);
-
     const requestToAllocationEndpoint = server.pretender.handledRequests.find(
       (request) =>
         request.url.includes(

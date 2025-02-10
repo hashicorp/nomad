@@ -1,0 +1,3 @@
+```release-note:improvement
+artifact: Added support for downloading artifacts without validating the TLS certificate
+```

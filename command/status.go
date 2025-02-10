@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api/contexts"
-	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 )
 
@@ -26,6 +26,9 @@ Usage: nomad status [options] <identifier>
   Display the status output for any given resource. The command will
   detect the type of resource being queried and display the appropriate
   status output.
+
+  If no arguments are provided, the command will fallback to "nomad job status",
+  which will list all jobs.
 
 General Options:
 

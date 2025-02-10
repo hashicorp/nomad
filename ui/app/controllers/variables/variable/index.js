@@ -37,6 +37,10 @@ export default class VariablesVariableIndexController extends Controller {
     this.isDeleting = false;
   }
 
+  @action copyVariable() {
+    navigator.clipboard.writeText(JSON.stringify(this.model.items, null, 2));
+  }
+
   @task(function* () {
     try {
       yield this.model.deleteRecord();

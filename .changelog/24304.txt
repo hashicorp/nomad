@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: take all assigned cpu cores into account instead of only those part of the largest lifecycle
+```

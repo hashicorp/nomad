@@ -5,20 +5,18 @@ package taskrunner
 
 import (
 	"context"
-	"crypto/ed25519"
-	"fmt"
 	"path/filepath"
-	"slices"
 	"testing"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
-	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	trtesting "github.com/hashicorp/nomad/client/allocrunner/taskrunner/testing"
+	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/taskenv"
+	"github.com/hashicorp/nomad/client/widmgr"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -30,92 +28,6 @@ var _ interfaces.TaskStopHook = (*identityHook)(nil)
 var _ interfaces.ShutdownHook = (*identityHook)(nil)
 
 // See task_runner_test.go:TestTaskRunner_IdentityHook
-
-// MockWIDMgr allows TaskRunner unit tests to avoid having to setup a Server,
-// Client, and Allocation.
-type MockWIDMgr struct {
-	// wids maps identity names to workload identities. If wids is non-nil then
-	// SignIdentities will use it to find expirations or reject invalid identity
-	// names
-	wids map[string]*structs.WorkloadIdentity
-
-	key   ed25519.PrivateKey
-	keyID string
-}
-
-func NewMockWIDMgr(wids []*structs.WorkloadIdentity) *MockWIDMgr {
-	_, privKey, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		panic(err)
-	}
-	m := &MockWIDMgr{
-		key:   privKey,
-		keyID: uuid.Generate(),
-	}
-
-	if wids != nil {
-		m.setWIDs(wids)
-	}
-
-	return m
-}
-
-// setWIDs is a test helper to use Task.Identities in the MockWIDMgr for
-// sharing TTLs and validating names.
-func (m *MockWIDMgr) setWIDs(wids []*structs.WorkloadIdentity) {
-	m.wids = make(map[string]*structs.WorkloadIdentity, len(wids))
-	for _, wid := range wids {
-		m.wids[wid.Name] = wid
-	}
-}
-
-func (m *MockWIDMgr) SignIdentities(minIndex uint64, req []*structs.WorkloadIdentityRequest) ([]*structs.SignedWorkloadIdentity, error) {
-	swids := make([]*structs.SignedWorkloadIdentity, 0, len(req))
-	for _, idReq := range req {
-		// Set test values for default claims
-		claims := &structs.IdentityClaims{
-			Namespace:    "default",
-			JobID:        "test",
-			AllocationID: idReq.AllocID,
-			TaskName:     idReq.TaskName,
-		}
-		claims.ID = uuid.Generate()
-
-		// If test has set workload identities. Lookup claims or reject unknown
-		// identity.
-		if m.wids != nil {
-			wid, ok := m.wids[idReq.IdentityName]
-			if !ok {
-				return nil, fmt.Errorf("unknown identity: %q", idReq.IdentityName)
-			}
-
-			claims.Audience = slices.Clone(wid.Audience)
-
-			if wid.TTL > 0 {
-				claims.Expiry = jwt.NewNumericDate(time.Now().Add(wid.TTL))
-			}
-		}
-
-		opts := (&jose.SignerOptions{}).WithHeader("kid", m.keyID).WithType("JWT")
-		sig, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.EdDSA, Key: m.key}, opts)
-		if err != nil {
-			return nil, fmt.Errorf("error creating signer: %w", err)
-		}
-		token, err := jwt.Signed(sig).Claims(claims).CompactSerialize()
-		if err != nil {
-			return nil, fmt.Errorf("error signing: %w", err)
-		}
-
-		swid := &structs.SignedWorkloadIdentity{
-			WorkloadIdentityRequest: *idReq,
-			JWT:                     token,
-			Expiration:              claims.Expiry.Time(),
-		}
-
-		swids = append(swids, swid)
-	}
-	return swids, nil
-}
 
 // MockTokenSetter is a mock implementation of tokenSetter which is satisfied
 // by TaskRunner at runtime.
@@ -135,7 +47,7 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	// checking that tokens were rotated. Therefore the time must be long enough
 	// to generate new tokens. Since no Raft or IO (outside of potentially
 	// writing 1 token file) is performed, this should be relatively fast.
-	ttl := 8 * time.Second
+	ttl := 3 * time.Second
 
 	node := mock.Node()
 	alloc := mock.Alloc()
@@ -143,40 +55,64 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 	task := alloc.LookupTask("web")
 	task.Identities = []*structs.WorkloadIdentity{
 		{
-			Name:     "consul",
-			Audience: []string{"consul"},
-			Env:      true,
-			TTL:      ttl,
+			Name:       "consul",
+			Audience:   []string{"consul"},
+			Env:        true,
+			TTL:        ttl,
+			ChangeMode: "restart",
 		},
 		{
-			Name:     "vault",
-			Audience: []string{"vault"},
+			Name:         "vault",
+			Audience:     []string{"vault"},
+			File:         true,
+			TTL:          ttl,
+			ChangeMode:   "signal",
+			ChangeSignal: "SIGHUP",
+		},
+		{
+			Name:     "foo",
+			Audience: []string{"foo"},
 			File:     true,
+			Filepath: "foo.jwt",
 			TTL:      ttl,
 		},
 	}
 
-	secretsDir := t.TempDir()
-
-	widmgr := NewMockWIDMgr(task.Identities)
+	mockTaskDir := &allocdir.TaskDir{
+		SecretsDir: t.TempDir(),
+		Dir:        t.TempDir(),
+	}
 
 	mockTR := &MockTokenSetter{}
 
 	stopCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 
+	// setup mock signer and WIDMgr
+	logger := testlog.HCLogger(t)
+	db := cstate.NewMemDB(logger)
+	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, envBuilder)
+	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
+	mockLifecycle := trtesting.NewMockTaskHooks()
+
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
-		tokenDir:   secretsDir,
+		taskDir:    mockTaskDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
-		widmgr:     widmgr,
-		minWait:    time.Second,
+		lifecycle:  mockLifecycle,
+		widmgr:     mockWIDMgr,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
 		stop:       stop,
 	}
+
+	// do the initial renewal and start the loop
+	must.NoError(t, h.widmgr.Run())
 
 	start := time.Now()
 	must.NoError(t, h.Prestart(context.Background(), nil, nil))
@@ -184,13 +120,18 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 
 	// Assert initial tokens were set in Prestart
 	must.Eq(t, alloc.SignedIdentities["web"], mockTR.defaultToken)
-	must.FileNotExists(t, filepath.Join(secretsDir, wiTokenFile))
-	must.FileNotExists(t, filepath.Join(secretsDir, "nomad_consul.jwt"))
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, wiTokenFile))
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, "nomad_consul.jwt"))
 	must.MapContainsKey(t, env, "NOMAD_TOKEN_consul")
-	must.FileExists(t, filepath.Join(secretsDir, "nomad_vault.jwt"))
+	must.FileExists(t, filepath.Join(mockTaskDir.SecretsDir, "nomad_vault.jwt"))
+	// Assert foo token was written to correct directory
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, "foo.jwt"))
+	must.FileExists(t, filepath.Join(mockTaskDir.Dir, "foo.jwt"))
 
 	origConsul := env["NOMAD_TOKEN_consul"]
-	origVault := testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt")
+	origVault := testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt")
+
+	origFoo := testutil.MustReadFile(t, mockTaskDir.Dir, "foo.jwt")
 
 	// Tokens should be rotated by their expiration
 	wait := time.Until(start.Add(ttl))
@@ -199,27 +140,45 @@ func TestIdentityHook_RenewAll(t *testing.T) {
 
 	// Stop renewal before checking to ensure stopping works
 	must.NoError(t, h.Stop(context.Background(), nil, nil))
-	time.Sleep(time.Second) // Stop is async so give renewal time to exit
+
+	// Ensure change_mode operations occurred
+	select {
+	case <-mockLifecycle.RestartCh:
+		h.logger.Trace("restart happened")
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for restart")
+	}
+
+	select {
+	case <-mockLifecycle.SignalCh:
+		h.logger.Trace("signal happened")
+	case <-time.After(10 * time.Second):
+		t.Fatalf("timed out waiting for restart")
+	}
 
 	newConsul := h.envBuilder.Build().EnvMap["NOMAD_TOKEN_consul"]
 	must.StrContains(t, newConsul, ".") // ensure new token is JWTish
 	must.NotEq(t, newConsul, origConsul)
 
-	newVault := testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt")
+	newVault := testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt")
 	must.StrContains(t, string(newVault), ".") // ensure new token is JWTish
 	must.NotEq(t, newVault, origVault)
+
+	newFoo := testutil.MustReadFile(t, mockTaskDir.Dir, "foo.jwt")
+	must.StrContains(t, string(newFoo), ".")
+	must.NotEq(t, newFoo, origFoo)
 
 	// Assert Stop work. Tokens should not have changed.
 	time.Sleep(wait)
 	must.Eq(t, newConsul, h.envBuilder.Build().EnvMap["NOMAD_TOKEN_consul"])
-	must.Eq(t, newVault, testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt"))
+	must.Eq(t, newVault, testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt"))
 }
 
 // TestIdentityHook_RenewOne asserts token renewal only renews tokens with a TTL.
 func TestIdentityHook_RenewOne(t *testing.T) {
 	ci.Parallel(t)
 
-	ttl := 8 * time.Second
+	ttl := 3 * time.Second
 
 	node := mock.Node()
 	alloc := mock.Alloc()
@@ -240,41 +199,52 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 		},
 	}
 
-	secretsDir := t.TempDir()
-
-	widmgr := NewMockWIDMgr(task.Identities)
+	mockTaskDir := &allocdir.TaskDir{
+		SecretsDir: t.TempDir(),
+	}
 
 	mockTR := &MockTokenSetter{}
 
 	stopCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 
+	// setup mock signer and WIDMgr
+	logger := testlog.HCLogger(t)
+	db := cstate.NewMemDB(logger)
+	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, envBuilder)
+	mockWIDMgr.SetMinWait(time.Second) // fast renewals, because the default is 10s
+
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
-		tokenDir:   secretsDir,
+		taskDir:    mockTaskDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         mockTR,
-		widmgr:     widmgr,
-		minWait:    time.Second,
+		widmgr:     mockWIDMgr,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
 		stop:       stop,
 	}
 
+	// do the initial renewal and start the loop
+	must.NoError(t, h.widmgr.Run())
+
 	start := time.Now()
 	must.NoError(t, h.Prestart(context.Background(), nil, nil))
+	time.Sleep(time.Second) // goroutines in the Prestart hook must run first before we Build the EnvMap
 	env := h.envBuilder.Build().EnvMap
 
 	// Assert initial tokens were set in Prestart
 	must.Eq(t, alloc.SignedIdentities["web"], mockTR.defaultToken)
-	must.FileNotExists(t, filepath.Join(secretsDir, wiTokenFile))
-	must.FileNotExists(t, filepath.Join(secretsDir, "nomad_consul.jwt"))
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, wiTokenFile))
+	must.FileNotExists(t, filepath.Join(mockTaskDir.SecretsDir, "nomad_consul.jwt"))
 	must.MapContainsKey(t, env, "NOMAD_TOKEN_consul")
-	must.FileExists(t, filepath.Join(secretsDir, "nomad_vault.jwt"))
+	must.FileExists(t, filepath.Join(mockTaskDir.SecretsDir, "nomad_vault.jwt"))
 
 	origConsul := env["NOMAD_TOKEN_consul"]
-	origVault := testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt")
+	origVault := testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt")
 
 	// One token should be rotated by their expiration
 	wait := time.Until(start.Add(ttl))
@@ -289,14 +259,14 @@ func TestIdentityHook_RenewOne(t *testing.T) {
 	must.StrContains(t, newConsul, ".") // ensure new token is JWTish
 	must.Eq(t, newConsul, origConsul)
 
-	newVault := testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt")
+	newVault := testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt")
 	must.StrContains(t, string(newVault), ".") // ensure new token is JWTish
 	must.NotEq(t, newVault, origVault)
 
 	// Assert Stop work. Tokens should not have changed.
 	time.Sleep(wait)
 	must.Eq(t, newConsul, h.envBuilder.Build().EnvMap["NOMAD_TOKEN_consul"])
-	must.Eq(t, newVault, testutil.MustReadFile(t, secretsDir, "nomad_vault.jwt"))
+	must.Eq(t, newVault, testutil.MustReadFile(t, mockTaskDir.SecretsDir, "nomad_vault.jwt"))
 }
 
 // TestIdentityHook_ErrorWriting assert Prestart returns an error if the
@@ -312,14 +282,16 @@ func TestIdentityHook_ErrorWriting(t *testing.T) {
 	stopCtx, stop := context.WithCancel(context.Background())
 	t.Cleanup(stop)
 
+	mockTaskDir := &allocdir.TaskDir{
+		SecretsDir: "/this-should-not-exist",
+	}
+
 	h := &identityHook{
 		alloc:      alloc,
 		task:       task,
-		tokenDir:   "/this-should-not-exist",
+		taskDir:    mockTaskDir,
 		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
 		ts:         &MockTokenSetter{},
-		widmgr:     NewMockWIDMgr(nil),
-		minWait:    time.Second,
 		logger:     testlog.HCLogger(t),
 		stopCtx:    stopCtx,
 		stop:       stop,
@@ -328,45 +300,4 @@ func TestIdentityHook_ErrorWriting(t *testing.T) {
 	// Prestart should fail when trying to write the default identity file
 	err := h.Prestart(context.Background(), nil, nil)
 	must.ErrorContains(t, err, "failed to write nomad token")
-}
-
-// TestIdentityHook_GetIdentitiesMismatch asserts that if SignIdentities() does
-// not return enough identities then Prestart fails.
-func TestIdentityHook_GetIdentitiesMismatch(t *testing.T) {
-	ci.Parallel(t)
-
-	alloc := mock.Alloc()
-	task := alloc.LookupTask("web")
-	task.Identities = []*structs.WorkloadIdentity{
-		{
-			Name:     "consul",
-			Audience: []string{"consul"},
-			TTL:      time.Minute,
-		},
-	}
-	node := mock.Node()
-	stopCtx, stop := context.WithCancel(context.Background())
-	t.Cleanup(stop)
-
-	wids := []*structs.WorkloadIdentity{
-		{
-			Name: "not-consul",
-		},
-	}
-	h := &identityHook{
-		alloc:      alloc,
-		task:       task,
-		tokenDir:   t.TempDir(),
-		envBuilder: taskenv.NewBuilder(node, alloc, task, alloc.Job.Region),
-		ts:         &MockTokenSetter{},
-		widmgr:     NewMockWIDMgr(wids),
-		minWait:    time.Second,
-		logger:     testlog.HCLogger(t),
-		stopCtx:    stopCtx,
-		stop:       stop,
-	}
-
-	// Prestart should fail when trying to write the default identity file
-	err := h.Prestart(context.Background(), nil, nil)
-	must.ErrorContains(t, err, "error fetching alternate identities")
 }

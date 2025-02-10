@@ -13,6 +13,7 @@ import (
 // Current interoperable fields:
 //   - Hostname
 //   - DNS
+//   - CNI
 func InterpolateNetworks(taskEnv *TaskEnv, networks structs.Networks) structs.Networks {
 
 	// Guard against not having a valid taskEnv. This can be the case if the
@@ -31,6 +32,12 @@ func InterpolateNetworks(taskEnv *TaskEnv, networks structs.Networks) structs.Ne
 			interpolated[i].DNS.Servers = taskEnv.ParseAndReplace(interpolated[i].DNS.Servers)
 			interpolated[i].DNS.Searches = taskEnv.ParseAndReplace(interpolated[i].DNS.Searches)
 			interpolated[i].DNS.Options = taskEnv.ParseAndReplace(interpolated[i].DNS.Options)
+		}
+		if interpolated[i].CNI != nil {
+			for k, v := range interpolated[i].CNI.Args {
+				interpolated[i].CNI.Args[k] = taskEnv.ReplaceEnv(v)
+
+			}
 		}
 	}
 

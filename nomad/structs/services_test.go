@@ -5,6 +5,7 @@ package structs
 
 import (
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ func TestServiceCheck_Hash(t *testing.T) {
 		Name:                   "check",
 		SuccessBeforePassing:   3,
 		FailuresBeforeCritical: 4,
+		FailuresBeforeWarning:  2,
 	}
 
 	type sc = ServiceCheck
@@ -56,6 +58,10 @@ func TestServiceCheck_Hash(t *testing.T) {
 
 	t.Run("failures_before_critical", func(t *testing.T) {
 		try(t, func(s *sc) { s.FailuresBeforeCritical = 99 })
+	})
+
+	t.Run("failures_before_warning", func(t *testing.T) {
+		try(t, func(s *sc) { s.FailuresBeforeWarning = 99 })
 	})
 }
 
@@ -136,6 +142,7 @@ func TestServiceCheck_validate_FailingTypes(t *testing.T) {
 				Interval:               1 * time.Second,
 				Timeout:                2 * time.Second,
 				FailuresBeforeCritical: 3,
+				FailuresBeforeWarning:  2,
 			}).validateConsul()
 			require.NoError(t, err)
 		}
@@ -152,6 +159,19 @@ func TestServiceCheck_validate_FailingTypes(t *testing.T) {
 			FailuresBeforeCritical: 3,
 		}).validateConsul()
 		require.EqualError(t, err, `failures_before_critical not supported for check of type "script"`)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		err := (&ServiceCheck{
+			Name:                  "check",
+			Type:                  "script",
+			Command:               "/nothing",
+			Interval:              1 * time.Second,
+			Timeout:               2 * time.Second,
+			SuccessBeforePassing:  0,
+			FailuresBeforeWarning: 3,
+		}).validateConsul()
+		require.EqualError(t, err, `failures_before_warning not supported for check of type "script"`)
 	})
 }
 
@@ -275,6 +295,16 @@ func TestServiceCheck_validateNomad(t *testing.T) {
 				Timeout:                1 * time.Second,
 			},
 			exp: `failures_before_critical may only be set for Consul service checks`,
+		},
+		{
+			name: "failures_before_warning",
+			sc: &ServiceCheck{
+				Type:                  ServiceCheckTCP,
+				FailuresBeforeWarning: 3, // consul only
+				Interval:              3 * time.Second,
+				Timeout:               1 * time.Second,
+			},
+			exp: `failures_before_warning may only be set for Consul service checks`,
 		},
 		{
 			name: "check_restart",
@@ -403,6 +433,15 @@ func TestService_Hash(t *testing.T) {
 						LocalBindPort:        29000,
 						Config:               map[string]any{"foo": "bar"},
 					}},
+					TransparentProxy: &ConsulTransparentProxy{
+						UID:                  "101",
+						OutboundPort:         15001,
+						ExcludeInboundPorts:  []string{"www", "9000"},
+						ExcludeOutboundPorts: []uint16{4443},
+						ExcludeOutboundCIDRs: []string{"10.0.0.0/8"},
+						ExcludeUIDs:          []string{"1", "10"},
+						NoDNS:                true,
+					},
 				},
 				Meta: map[string]string{
 					"test-key": "test-value",
@@ -499,6 +538,54 @@ func TestService_Hash(t *testing.T) {
 
 	t.Run("mod connect sidecar proxy upstream config", func(t *testing.T) {
 		try(t, func(s *svc) { s.Connect.SidecarService.Proxy.Upstreams[0].Config = map[string]any{"foo": "baz"} })
+	})
+
+	t.Run("mod connect transparent proxy removed", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy = nil
+		})
+	})
+
+	t.Run("mod connect transparent proxy uid", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.UID = "42"
+		})
+	})
+
+	t.Run("mod connect transparent proxy outbound port", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.OutboundPort = 42
+		})
+	})
+
+	t.Run("mod connect transparent proxy inbound ports", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.ExcludeInboundPorts = []string{"443"}
+		})
+	})
+
+	t.Run("mod connect transparent proxy outbound ports", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.ExcludeOutboundPorts = []uint16{42}
+		})
+	})
+
+	t.Run("mod connect transparent proxy outbound cidr", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.ExcludeOutboundCIDRs = []string{"192.168.1.0/24"}
+		})
+	})
+
+	t.Run("mod connect transparent proxy exclude uids", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.ExcludeUIDs = []string{"42"}
+		})
+	})
+
+	t.Run("mod connect transparent proxy no dns", func(t *testing.T) {
+		try(t, func(s *svc) {
+			s.Connect.SidecarService.Proxy.TransparentProxy.NoDNS = false
+		})
 	})
 }
 
@@ -757,6 +844,16 @@ func TestConsulUpstream_upstreamEqual(t *testing.T) {
 		must.False(t, upstreamsEquals(a, b))
 	})
 
+	t.Run("different dest partition", func(t *testing.T) {
+		a := []ConsulUpstream{up("foo", 8000)}
+		a[0].DestinationPeer = "infra"
+
+		b := []ConsulUpstream{up("foo", 8000)}
+		b[0].DestinationPeer = "dev"
+
+		must.False(t, upstreamsEquals(a, b))
+	})
+
 	t.Run("different dest type", func(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000)}
 		a[0].DestinationType = "tcp"
@@ -803,10 +900,12 @@ func TestConsulUpstream_upstreamEqual(t *testing.T) {
 		a := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
 		b := []ConsulUpstream{up("foo", 8000), up("bar", 9000)}
 		a[0].DestinationPeer = "10.0.0.1:6379"
+		a[0].DestinationPartition = "infra"
 		a[0].DestinationType = "tcp"
 		a[0].LocalBindSocketPath = "/var/run/mysocket.sock"
 		a[0].LocalBindSocketMode = "0666"
 		b[0].DestinationPeer = "10.0.0.1:6379"
+		b[0].DestinationPartition = "infra"
 		b[0].DestinationType = "tcp"
 		b[0].LocalBindSocketPath = "/var/run/mysocket.sock"
 		b[0].LocalBindSocketMode = "0666"
@@ -1790,7 +1889,8 @@ func TestService_Validate(t *testing.T) {
 		{
 			name: "Native Connect without task name",
 			input: &Service{
-				Name: "testservice",
+				Name:      "testservice",
+				PortLabel: "8080",
 				Connect: &ConsulConnect{
 					Native: true,
 				},
@@ -1800,8 +1900,33 @@ func TestService_Validate(t *testing.T) {
 		{
 			name: "Native Connect with task name",
 			input: &Service{
+				Name:      "testservice",
+				PortLabel: "8080",
+				TaskName:  "testtask",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expErr: false,
+		},
+		{
+			name: "Native Connect without port",
+			input: &Service{
 				Name:     "testservice",
 				TaskName: "testtask",
+				Connect: &ConsulConnect{
+					Native: true,
+				},
+			},
+			expErr:    true,
+			expErrStr: "Service testservice is Connect Native and requires setting the port",
+		},
+		{
+			name: "Native Connect with port",
+			input: &Service{
+				Name:      "testservice",
+				TaskName:  "testtask",
+				PortLabel: "8080",
 				Connect: &ConsulConnect{
 					Native: true,
 				},
@@ -1893,6 +2018,26 @@ func TestService_Validate(t *testing.T) {
 				Provider: "nomad",
 			},
 			expErr: false,
+		},
+		{
+			name: "provider consul with notes too long",
+			input: &Service{
+				Name:      "testservice",
+				Provider:  "consul",
+				PortLabel: "port",
+				Checks: []*ServiceCheck{
+					{
+						Name:     "servicecheck",
+						Type:     "http",
+						Path:     "/",
+						Interval: 1 * time.Second,
+						Timeout:  3 * time.Second,
+						Notes:    strings.Repeat("A", 256),
+					},
+				},
+			},
+			expErr:    true,
+			expErrStr: "notes must not be longer than 255 characters",
 		},
 	}
 

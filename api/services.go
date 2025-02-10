@@ -212,6 +212,7 @@ type ServiceCheck struct {
 	Interval               time.Duration       `hcl:"interval,optional"`
 	Timeout                time.Duration       `hcl:"timeout,optional"`
 	InitialStatus          string              `mapstructure:"initial_status" hcl:"initial_status,optional"`
+	Notes                  string              `hcl:"notes,optional"`
 	TLSServerName          string              `mapstructure:"tls_server_name" hcl:"tls_server_name,optional"`
 	TLSSkipVerify          bool                `mapstructure:"tls_skip_verify" hcl:"tls_skip_verify,optional"`
 	Header                 map[string][]string `hcl:"header,block"`
@@ -222,6 +223,7 @@ type ServiceCheck struct {
 	TaskName               string              `mapstructure:"task" hcl:"task,optional"`
 	SuccessBeforePassing   int                 `mapstructure:"success_before_passing" hcl:"success_before_passing,optional"`
 	FailuresBeforeCritical int                 `mapstructure:"failures_before_critical" hcl:"failures_before_critical,optional"`
+	FailuresBeforeWarning  int                 `mapstructure:"failures_before_warning" hcl:"failures_before_warning,optional"`
 	Body                   string              `hcl:"body,optional"`
 	OnUpdate               string              `mapstructure:"on_update" hcl:"on_update,optional"`
 }
@@ -244,13 +246,14 @@ type Service struct {
 	TaskName          string            `mapstructure:"task" hcl:"task,optional"`
 	OnUpdate          string            `mapstructure:"on_update" hcl:"on_update,optional"`
 	Identity          *WorkloadIdentity `hcl:"identity,block"`
+	Weights           *ServiceWeights   `mapstructure:"weights" hcl:"weights,block"`
 
 	// Provider defines which backend system provides the service registration,
 	// either "consul" (default) or "nomad".
 	Provider string `hcl:"provider,optional"`
 
 	// Cluster is valid only for Nomad Enterprise with provider: consul
-	Cluster string `hcl:"cluster,optional`
+	Cluster string `hcl:"cluster,optional"`
 }
 
 const (
@@ -305,6 +308,7 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 	}
 
 	s.Connect.Canonicalize()
+	s.Weights.Canonicalize()
 
 	// Canonicalize CheckRestart on Checks and merge Service.CheckRestart
 	// into each check.
@@ -320,9 +324,33 @@ func (s *Service) Canonicalize(t *Task, tg *TaskGroup, job *Job) {
 			s.Checks[i].FailuresBeforeCritical = 0
 		}
 
+		if s.Checks[i].FailuresBeforeWarning < 0 {
+			s.Checks[i].FailuresBeforeWarning = 0
+		}
+
 		// Inhert Service
 		if s.Checks[i].OnUpdate == "" {
 			s.Checks[i].OnUpdate = s.OnUpdate
 		}
+	}
+}
+
+// ServiceWeights is the jobspec block which configures how a service instance
+// is weighted in a DNS SRV request based on the service's health status.
+type ServiceWeights struct {
+	Passing int `hcl:"passing,optional"`
+	Warning int `hcl:"warning,optional"`
+}
+
+func (weights *ServiceWeights) Canonicalize() {
+	if weights == nil {
+		return
+	}
+
+	if weights.Passing <= 0 {
+		weights.Passing = 1
+	}
+	if weights.Warning <= 0 {
+		weights.Warning = 1
 	}
 }

@@ -35,10 +35,11 @@ type Stack interface {
 }
 
 type SelectOptions struct {
-	PenaltyNodeIDs map[string]struct{}
-	PreferredNodes []*structs.Node
-	Preempt        bool
-	AllocName      string
+	PenaltyNodeIDs          map[string]struct{}
+	PreferredNodes          []*structs.Node
+	Preempt                 bool
+	AllocName               string
+	AllocationHostVolumeIDs []string
 }
 
 // GenericStack is the Stack used for the Generic scheduler. It is
@@ -51,6 +52,8 @@ type GenericStack struct {
 	wrappedChecks        *FeasibilityWrapper
 	quota                FeasibleIterator
 	jobVersion           *uint64
+	jobNamespace         string
+	jobID                string
 	jobConstraint        *ConstraintChecker
 	taskGroupDrivers     *DriverChecker
 	taskGroupConstraint  *ConstraintChecker
@@ -101,6 +104,8 @@ func (s *GenericStack) SetJob(job *structs.Job) {
 
 	jobVer := job.Version
 	s.jobVersion = &jobVer
+	s.jobNamespace = job.Namespace
+	s.jobID = job.ID
 
 	s.jobConstraint.SetConstraints(job.Constraints)
 	s.distinctHostsConstraint.SetJob(job)
@@ -154,7 +159,7 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
-	s.taskGroupHostVolumes.SetVolumes(options.AllocName, tg.Volumes)
+	s.taskGroupHostVolumes.SetVolumes(options.AllocName, s.jobNamespace, s.jobID, tg.Name, tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
@@ -202,6 +207,8 @@ type SystemStack struct {
 	ctx    Context
 	source *StaticIterator
 
+	jobNamespace         string
+	jobID                string
 	wrappedChecks        *FeasibilityWrapper
 	quota                FeasibleIterator
 	jobConstraint        *ConstraintChecker
@@ -259,11 +266,13 @@ func NewSystemStack(sysbatch bool, ctx Context) *SystemStack {
 	tgs := []FeasibilityChecker{
 		s.taskGroupDrivers,
 		s.taskGroupConstraint,
-		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
 		s.taskGroupNetwork,
 	}
-	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
+	avail := []FeasibilityChecker{
+		s.taskGroupHostVolumes,
+		s.taskGroupCSIVolumes,
+	}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
 	// Filter on distinct property constraints.
@@ -311,6 +320,8 @@ func (s *SystemStack) SetNodes(baseNodes []*structs.Node) {
 }
 
 func (s *SystemStack) SetJob(job *structs.Job) {
+	s.jobNamespace = job.Namespace
+	s.jobID = job.ID
 	s.jobConstraint.SetConstraints(job.Constraints)
 	s.distinctPropertyConstraint.SetJob(job)
 	s.binPack.SetJob(job)
@@ -343,7 +354,7 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
 	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
-	s.taskGroupHostVolumes.SetVolumes(options.AllocName, tg.Volumes)
+	s.taskGroupHostVolumes.SetVolumes(options.AllocName, s.jobNamespace, s.jobID, tg.Name, tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
 	if len(tg.Networks) > 0 {
 		s.taskGroupNetwork.SetNetwork(tg.Networks[0])
@@ -406,11 +417,13 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	tgs := []FeasibilityChecker{
 		s.taskGroupDrivers,
 		s.taskGroupConstraint,
-		s.taskGroupHostVolumes,
 		s.taskGroupDevices,
 		s.taskGroupNetwork,
 	}
-	avail := []FeasibilityChecker{s.taskGroupCSIVolumes}
+	avail := []FeasibilityChecker{
+		s.taskGroupHostVolumes,
+		s.taskGroupCSIVolumes,
+	}
 	s.wrappedChecks = NewFeasibilityWrapper(ctx, s.source, jobs, tgs, avail)
 
 	// Filter on distinct host constraints.

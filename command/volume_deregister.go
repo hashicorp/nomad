@@ -5,7 +5,6 @@ package command
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/hashicorp/nomad/api"
@@ -54,7 +53,6 @@ func (c *VolumeDeregisterCommand) AutocompleteArgs() complete.Predictor {
 			return nil
 		}
 
-		// When multiple volume types are implemented, this search should merge contexts
 		resp, _, err := client.Search().PrefixSearch(a.Last, contexts.Volumes, nil)
 		if err != nil {
 			return []string{}
@@ -96,29 +94,28 @@ func (c *VolumeDeregisterCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Prefix search for the volume
-	vols, _, err := client.CSIVolumes().List(&api.QueryOptions{Prefix: volID})
+	// get a CSI volume that matches the given prefix or a list of all matches if an
+	// exact match is not found.
+	volStub, possible, err := getByPrefix[api.CSIVolumeListStub]("volumes", client.CSIVolumes().List,
+		func(vol *api.CSIVolumeListStub, prefix string) bool { return vol.ID == prefix },
+		&api.QueryOptions{
+			Prefix:    volID,
+			Namespace: c.namespace,
+		})
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
+		c.Ui.Error(fmt.Sprintf("Error listing volumes: %s", err))
 		return 1
 	}
-	if len(vols) == 0 {
-		c.Ui.Error(fmt.Sprintf("No volumes(s) with prefix or ID %q found", volID))
-		return 1
-	}
-	if len(vols) > 1 {
-		if (volID != vols[0].ID) || (c.allNamespaces() && vols[0].ID == vols[1].ID) {
-			sort.Slice(vols, func(i, j int) bool { return vols[i].ID < vols[j].ID })
-			out, err := csiFormatSortedVolumes(vols)
-			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
-				return 1
-			}
-			c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+	if len(possible) > 0 {
+		out, err := csiFormatVolumes(possible, false, "")
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
 			return 1
 		}
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+		return 1
 	}
-	volID = vols[0].ID
+	volID = volStub.ID
 
 	// Confirm the -force flag
 	if force {

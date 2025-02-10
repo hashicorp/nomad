@@ -4,11 +4,11 @@
 package checks
 
 import (
+	"maps"
 	"net/http"
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"golang.org/x/exp/maps"
 )
 
 // GetCheckQuery extracts the needed info from c to actually execute the check.
@@ -18,16 +18,17 @@ func GetCheckQuery(c *structs.ServiceCheck) *Query {
 		protocol = "http"
 	}
 	return &Query{
-		Mode:        structs.GetCheckMode(c),
-		Type:        c.Type,
-		Timeout:     c.Timeout,
-		AddressMode: c.AddressMode,
-		PortLabel:   c.PortLabel,
-		Protocol:    protocol,
-		Path:        c.Path,
-		Method:      c.Method,
-		Headers:     maps.Clone(c.Header),
-		Body:        c.Body,
+		Mode:          structs.GetCheckMode(c),
+		Type:          c.Type,
+		Timeout:       c.Timeout,
+		AddressMode:   c.AddressMode,
+		PortLabel:     c.PortLabel,
+		Protocol:      protocol,
+		Path:          c.Path,
+		Method:        c.Method,
+		Headers:       maps.Clone(c.Header),
+		Body:          c.Body,
+		TLSSkipVerify: c.TLSSkipVerify,
 	}
 }
 
@@ -42,11 +43,12 @@ type Query struct {
 	AddressMode string // host, driver, or alloc
 	PortLabel   string // label or value
 
-	Protocol string      // http checks only (http or https)
-	Path     string      // http checks only
-	Method   string      // http checks only
-	Headers  http.Header // http checks only
-	Body     string      // http checks only
+	Protocol      string      // http checks only (http or https)
+	Path          string      // http checks only
+	Method        string      // http checks only
+	Headers       http.Header // http checks only
+	Body          string      // http checks only
+	TLSSkipVerify bool        // http checks only, https protocol
 }
 
 // A QueryContext contains allocation and service parameters necessary for

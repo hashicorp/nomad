@@ -5,6 +5,7 @@ package mock
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -50,6 +51,8 @@ func CSIVolume(plugin *structs.CSIPlugin) *structs.CSIVolume {
 		ControllersExpected: len(plugin.Controllers),
 		NodesHealthy:        plugin.NodesHealthy,
 		NodesExpected:       len(plugin.Nodes),
+		CreateTime:          time.Now().UTC().Add(-6 * time.Hour).UnixNano(),
+		ModifyTime:          time.Now().UTC().Add(-5 * time.Hour).UnixNano(),
 	}
 }
 

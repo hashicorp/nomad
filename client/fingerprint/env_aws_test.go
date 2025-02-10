@@ -9,10 +9,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/aws/smithy-go"
+	smithyHttp "github.com/aws/smithy-go/transport/http"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,6 +77,45 @@ func TestEnvAWSFingerprint_aws(t *testing.T) {
 	// confirm we have at least instance-id and ami-id
 	for _, k := range []string{"aws.ec2"} {
 		assertNodeLinksContains(t, response.Links, k)
+	}
+}
+
+func TestEnvAWSFingerprint_handleImdsError(t *testing.T) {
+	ci.Parallel(t)
+
+	f := NewEnvAWSFingerprint(testlog.HCLogger(t))
+
+	cases := []struct {
+		name string
+		err  error
+		exp  error
+	}{
+		{
+			name: "random errors return error",
+			err:  fmt.Errorf("not http error"),
+			exp:  fmt.Errorf("not http error"),
+		},
+		{
+			name: "other smithy errors return error",
+			err:  &smithy.OperationError{},
+			exp:  &smithy.OperationError{},
+		},
+		{
+			name: "http response errors correctly handled",
+			err: &smithyHttp.ResponseError{
+				Response: &smithyHttp.Response{
+					Response: &http.Response{
+						StatusCode: 404,
+					},
+				},
+			},
+			exp: nil,
+		},
+	}
+
+	for _, c := range cases {
+		err := f.(*EnvAWSFingerprint).handleImdsError(c.err, "some attribute")
+		must.Eq(t, c.exp, err)
 	}
 }
 
@@ -191,6 +233,9 @@ func TestNetworkFingerprint_AWS_NoNetwork(t *testing.T) {
 	require.True(t, response.Detected, "expected response to be applicable")
 
 	require.Equal(t, "ami-1234", response.Attributes["platform.aws.ami-id"])
+
+	// assert the key is not present in the Attributes map if the return value was empty
+	require.NotContains(t, response.Attributes, "unique.platform.aws.local-ipv4")
 
 	require.Nil(t, response.NodeResources.Networks)
 }

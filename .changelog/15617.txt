@@ -1,0 +1,3 @@
+```release-note:feature
+**Workload Identity for Vault:** Jobs can now use workload identity to authenticate to Vault.
+```

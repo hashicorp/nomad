@@ -8,37 +8,49 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
-import flat from 'flat';
-
-const { flatten } = flat;
+import PathTree from 'nomad-ui/utils/path-tree';
 
 module('Integration | Component | attributes table', function (hooks) {
   setupRenderingTest(hooks);
 
-  const commonAttributes = {
-    key: 'value',
-    nested: {
-      props: 'are',
-      supported: 'just',
-      fine: null,
+  const commonAttributes = [
+    {
+      path: 'key',
+      value: 'value',
     },
-    so: {
-      are: {
-        deeply: {
-          nested: 'properties',
-          like: 'these ones',
-        },
-      },
+    {
+      path: 'nested.props',
+      value: 'are',
     },
-  };
+    {
+      path: 'nested.supported',
+      value: 'just',
+    },
+    {
+      path: 'nested.fine',
+      value: null,
+    },
+    {
+      path: 'so.are.deeply.nested',
+      value: 'properties',
+    },
+    {
+      path: 'so.are.deeply.like',
+      value: 'these ones',
+    },
+  ];
+
+  const commonAttributesTree = new PathTree(commonAttributes, {
+    delimiter: '.',
+  });
 
   test('should render a row for each key/value pair in a deep object', async function (assert) {
     assert.expect(2);
 
-    this.set('attributes', commonAttributes);
+    this.set('attributes', commonAttributesTree.root);
     await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
 
-    const rowsCount = Object.keys(flatten(commonAttributes)).length;
+    const rowsCount = commonAttributes.length;
     assert.equal(
       this.element.querySelectorAll(
         '[data-test-attributes-section] [data-test-value]'
@@ -51,7 +63,7 @@ module('Integration | Component | attributes table', function (hooks) {
   });
 
   test('should render the full path of key/value pair from the root of the object', async function (assert) {
-    this.set('attributes', commonAttributes);
+    this.set('attributes', commonAttributesTree.root);
     await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
 
     assert.equal(
@@ -64,8 +76,7 @@ module('Integration | Component | attributes table', function (hooks) {
       'value',
       'Row renders the value'
     );
-
-    const deepRow = findAll('[data-test-attributes-section]')[8];
+    const deepRow = findAll('[data-test-attributes-section]')[4];
     assert.equal(
       deepRow.querySelector('[data-test-key]').textContent.trim(),
       'so.are.deeply.nested',
@@ -81,27 +92,4 @@ module('Integration | Component | attributes table', function (hooks) {
       'properties'
     );
   });
-
-  test('should render a row for key/value pairs even when the value is another object', async function (assert) {
-    this.set('attributes', commonAttributes);
-    await render(hbs`<AttributesTable @attributePairs={{attributes}} />`);
-
-    const countOfParentRows = countOfParentKeys(commonAttributes);
-    assert.equal(
-      findAll('[data-test-heading]').length,
-      countOfParentRows,
-      'Each key for a nested object gets a row with no value'
-    );
-  });
-
-  function countOfParentKeys(obj) {
-    return Object.keys(obj).reduce((count, key) => {
-      const value = obj[key];
-      return isObject(value) ? count + 1 + countOfParentKeys(value) : count;
-    }, 0);
-  }
-
-  function isObject(value) {
-    return !Array.isArray(value) && value != null && typeof value === 'object';
-  }
 });

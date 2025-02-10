@@ -10,7 +10,11 @@ import (
 
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/client/lib/idset"
+	"github.com/hashicorp/nomad/client/lib/numalib"
+	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,208 +90,23 @@ func TestFilterTerminalAllocs(t *testing.T) {
 	}
 }
 
-// COMPAT(0.11): Remove in 0.11
-func TestAllocsFit_PortsOvercommitted_Old(t *testing.T) {
-	ci.Parallel(t)
-
-	n := &Node{
-		Resources: &Resources{
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "10.0.0.0/8",
-					MBits:  100,
-				},
-			},
-		},
-	}
-
-	a1 := &Allocation{
-		Job: &Job{
-			TaskGroups: []*TaskGroup{
-				{
-					Name:          "web",
-					EphemeralDisk: DefaultEphemeralDisk(),
-				},
-			},
-		},
-		TaskResources: map[string]*Resources{
-			"web": {
-				Networks: []*NetworkResource{
-					{
-						Device:        "eth0",
-						IP:            "10.0.0.1",
-						MBits:         50,
-						ReservedPorts: []Port{{"main", 8000, 80, ""}},
-					},
-				},
-			},
-		},
-	}
-
-	// Should fit one allocation
-	fit, dim, _, err := AllocsFit(n, []*Allocation{a1}, nil, false)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if !fit {
-		t.Fatalf("Bad: %s", dim)
-	}
-
-	// Should not fit second allocation
-	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if fit {
-		t.Fatalf("Bad")
-	}
-}
-
-// COMPAT(0.11): Remove in 0.11
-func TestAllocsFit_Old(t *testing.T) {
-	ci.Parallel(t)
-
-	require := require.New(t)
-
-	n := &Node{
-		Resources: &Resources{
-			CPU:      2000,
-			MemoryMB: 2048,
-			DiskMB:   10000,
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "10.0.0.0/8",
-					MBits:  100,
-				},
-			},
-		},
-		Reserved: &Resources{
-			CPU:      1000,
-			MemoryMB: 1024,
-			DiskMB:   5000,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "10.0.0.1",
-					MBits:         50,
-					ReservedPorts: []Port{{"main", 80, 0, ""}},
-				},
-			},
-		},
-	}
-
-	a1 := &Allocation{
-		Resources: &Resources{
-			CPU:      1000,
-			MemoryMB: 1024,
-			DiskMB:   5000,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "10.0.0.1",
-					MBits:         50,
-					ReservedPorts: []Port{{"main", 8000, 80, ""}},
-				},
-			},
-		},
-	}
-
-	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
-	require.NoError(err)
-	require.True(fit)
-	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
-
-	// Should not fit second allocation
-	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
-	require.NoError(err)
-	require.False(fit)
-	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
-}
-
-// COMPAT(0.11): Remove in 0.11
-func TestAllocsFit_TerminalAlloc_Old(t *testing.T) {
-	ci.Parallel(t)
-
-	require := require.New(t)
-
-	n := &Node{
-		Resources: &Resources{
-			CPU:      2000,
-			MemoryMB: 2048,
-			DiskMB:   10000,
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "10.0.0.0/8",
-					MBits:  100,
-				},
-			},
-		},
-		Reserved: &Resources{
-			CPU:      1000,
-			MemoryMB: 1024,
-			DiskMB:   5000,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "10.0.0.1",
-					MBits:         50,
-					ReservedPorts: []Port{{"main", 80, 0, ""}},
-				},
-			},
-		},
-	}
-
-	a1 := &Allocation{
-		Resources: &Resources{
-			CPU:      1000,
-			MemoryMB: 1024,
-			DiskMB:   5000,
-			Networks: []*NetworkResource{
-				{
-					Device:        "eth0",
-					IP:            "10.0.0.1",
-					MBits:         50,
-					ReservedPorts: []Port{{"main", 8000, 0, ""}},
-				},
-			},
-		},
-	}
-
-	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
-	require.NoError(err)
-	require.True(fit)
-	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
-
-	// Should fit second allocation since it is terminal
-	a2 := a1.Copy()
-	a2.DesiredStatus = AllocDesiredStatusStop
-	a2.ClientStatus = AllocClientStatusComplete
-	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
-	require.NoError(err)
-	require.True(fit)
-	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
-}
-
-func TestAllocsFit(t *testing.T) {
-	ci.Parallel(t)
-
-	require := require.New(t)
-
+func node2k() *Node {
 	n := &Node{
 		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares:          2000,
-				TotalCpuCores:      2,
-				ReservableCpuCores: []uint16{0, 1},
+			Processors: NodeProcessorResources{
+				Topology: &numalib.Topology{
+					Distances: numalib.SLIT{[]numalib.Cost{10}},
+					Cores: []numalib.Core{{
+						ID:        0,
+						Grade:     numalib.Performance,
+						BaseSpeed: 1000,
+					}, {
+						ID:        1,
+						Grade:     numalib.Performance,
+						BaseSpeed: 1000,
+					}},
+					OverrideWitholdCompute: 1000, // set by client reserved field
+				},
 			},
 			Memory: NodeMemoryResources{
 				MemoryMB: 2048,
@@ -329,6 +148,15 @@ func TestAllocsFit(t *testing.T) {
 			},
 		},
 	}
+	n.NodeResources.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
+	n.NodeResources.Compatibility()
+	return n
+}
+
+func TestAllocsFit(t *testing.T) {
+	ci.Parallel(t)
+
+	n := node2k()
 
 	a1 := &Allocation{
 		AllocatedResources: &AllocatedResources{
@@ -349,7 +177,7 @@ func TestAllocsFit(t *testing.T) {
 					{
 						Mode:          "host",
 						IP:            "10.0.0.1",
-						ReservedPorts: []Port{{"main", 8000, 0, ""}},
+						ReservedPorts: []Port{{Label: "main", Value: 8000}},
 					},
 				},
 				Ports: AllocatedPorts{
@@ -365,17 +193,17 @@ func TestAllocsFit(t *testing.T) {
 
 	// Should fit one allocation
 	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
-	require.NoError(err)
-	require.True(fit, "failed for dimension %q", dim)
-	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
 
 	// Should not fit second allocation
 	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
-	require.NoError(err)
-	require.False(fit)
-	require.EqualValues(2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(2048, used.Flattened.Memory.MemoryMB)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, 2000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 2048, used.Flattened.Memory.MemoryMB)
 
 	a2 := &Allocation{
 		AllocatedResources: &AllocatedResources{
@@ -404,62 +232,99 @@ func TestAllocsFit(t *testing.T) {
 
 	// Should fit one allocation
 	fit, dim, used, err = AllocsFit(n, []*Allocation{a2}, nil, false)
-	require.NoError(err)
-	require.True(fit, "failed for dimension %q", dim)
-	require.EqualValues(500, used.Flattened.Cpu.CpuShares)
-	require.EqualValues([]uint16{0}, used.Flattened.Cpu.ReservedCores)
-	require.EqualValues(512, used.Flattened.Memory.MemoryMB)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 500, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, []uint16{0}, used.Flattened.Cpu.ReservedCores)
+	must.Eq(t, 512, used.Flattened.Memory.MemoryMB)
 
 	// Should not fit second allocation
 	fit, dim, used, err = AllocsFit(n, []*Allocation{a2, a2}, nil, false)
-	require.NoError(err)
-	require.False(fit)
-	require.EqualValues("cores", dim)
-	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues([]uint16{0}, used.Flattened.Cpu.ReservedCores)
-	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, "cores", dim)
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, []uint16{0}, used.Flattened.Cpu.ReservedCores)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+}
+
+func TestAllocsFit_Cores(t *testing.T) {
+	ci.Parallel(t)
+
+	n := node2k()
+
+	a1 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{0},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+		},
+	}
+
+	a2 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web-prestart": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{1},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     500,
+						ReservedCores: []uint16{0},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+			TaskLifecycles: map[string]*TaskLifecycleConfig{
+				"web-prestart": {
+					Hook:    TaskLifecycleHookPrestart,
+					Sidecar: false,
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 500, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+
+	// Should fit one allocation
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a2}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+
+	// Should not fit both allocations
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, dim, "cores")
 }
 
 func TestAllocsFit_TerminalAlloc(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
-	n := &Node{
-		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares: 2000,
-			},
-			Memory: NodeMemoryResources{
-				MemoryMB: 2048,
-			},
-			Disk: NodeDiskResources{
-				DiskMB: 10000,
-			},
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "10.0.0.0/8",
-					IP:     "10.0.0.1",
-					MBits:  100,
-				},
-			},
-		},
-		ReservedResources: &NodeReservedResources{
-			Cpu: NodeReservedCpuResources{
-				CpuShares: 1000,
-			},
-			Memory: NodeReservedMemoryResources{
-				MemoryMB: 1024,
-			},
-			Disk: NodeReservedDiskResources{
-				DiskMB: 5000,
-			},
-			Networks: NodeReservedNetworkResources{
-				ReservedHostPorts: "80",
-			},
-		},
-	}
+	n := node2k()
 
 	a1 := &Allocation{
 		AllocatedResources: &AllocatedResources{
@@ -476,7 +341,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 							Device:        "eth0",
 							IP:            "10.0.0.1",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80, ""}},
+							ReservedPorts: []Port{{Label: "main", Value: 8000, To: 80}},
 						},
 					},
 				},
@@ -489,20 +354,20 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 
 	// Should fit one allocation
 	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
-	require.NoError(err)
-	require.True(fit)
-	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
+	must.NoError(t, err)
+	must.True(t, fit)
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
 
 	// Should fit second allocation since it is terminal
 	a2 := a1.Copy()
 	a2.DesiredStatus = AllocDesiredStatusStop
 	a2.ClientStatus = AllocClientStatusComplete
 	fit, dim, used, err := AllocsFit(n, []*Allocation{a1, a2}, nil, false)
-	require.NoError(err)
-	require.True(fit, dim)
-	require.EqualValues(1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(1024, used.Flattened.Memory.MemoryMB)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("bad dimension: %q", dim))
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
 }
 
 // TestAllocsFit_ClientTerminalAlloc asserts that allocs which have a terminal
@@ -510,42 +375,7 @@ func TestAllocsFit_TerminalAlloc(t *testing.T) {
 func TestAllocsFit_ClientTerminalAlloc(t *testing.T) {
 	ci.Parallel(t)
 
-	n := &Node{
-		ID: "test-node",
-		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares: 2000,
-			},
-			Memory: NodeMemoryResources{
-				MemoryMB: 2048,
-			},
-			Disk: NodeDiskResources{
-				DiskMB: 10000,
-			},
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "10.0.0.0/8",
-					IP:     "10.0.0.1",
-					MBits:  100,
-				},
-			},
-		},
-		ReservedResources: &NodeReservedResources{
-			Cpu: NodeReservedCpuResources{
-				CpuShares: 1000,
-			},
-			Memory: NodeReservedMemoryResources{
-				MemoryMB: 1024,
-			},
-			Disk: NodeReservedDiskResources{
-				DiskMB: 5000,
-			},
-			Networks: NodeReservedNetworkResources{
-				ReservedHostPorts: "80",
-			},
-		},
-	}
+	n := node2k()
 
 	liveAlloc := &Allocation{
 		ID:            "test-alloc-live",
@@ -565,7 +395,7 @@ func TestAllocsFit_ClientTerminalAlloc(t *testing.T) {
 							Device:        "eth0",
 							IP:            "10.0.0.1",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80, ""}},
+							ReservedPorts: []Port{{Label: "main", Value: 8000, To: 80}},
 						},
 					},
 				},
@@ -584,10 +414,10 @@ func TestAllocsFit_ClientTerminalAlloc(t *testing.T) {
 	// *Should* fit both allocations since deadAlloc is not running on the
 	// client
 	fit, _, used, err := AllocsFit(n, []*Allocation{liveAlloc, deadAlloc}, nil, false)
-	require.NoError(t, err)
-	require.True(t, fit)
-	require.EqualValues(t, 1000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(t, 1024, used.Flattened.Memory.MemoryMB)
+	must.NoError(t, err)
+	must.True(t, fit)
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
 }
 
 // TestAllocsFit_ServerTerminalAlloc asserts that allocs which have a terminal
@@ -596,42 +426,7 @@ func TestAllocsFit_ClientTerminalAlloc(t *testing.T) {
 func TestAllocsFit_ServerTerminalAlloc(t *testing.T) {
 	ci.Parallel(t)
 
-	n := &Node{
-		ID: "test-node",
-		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares: 2000,
-			},
-			Memory: NodeMemoryResources{
-				MemoryMB: 2048,
-			},
-			Disk: NodeDiskResources{
-				DiskMB: 10000,
-			},
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "10.0.0.0/8",
-					IP:     "10.0.0.1",
-					MBits:  100,
-				},
-			},
-		},
-		ReservedResources: &NodeReservedResources{
-			Cpu: NodeReservedCpuResources{
-				CpuShares: 1000,
-			},
-			Memory: NodeReservedMemoryResources{
-				MemoryMB: 1024,
-			},
-			Disk: NodeReservedDiskResources{
-				DiskMB: 5000,
-			},
-			Networks: NodeReservedNetworkResources{
-				ReservedHostPorts: "80",
-			},
-		},
-	}
+	n := node2k()
 
 	liveAlloc := &Allocation{
 		ID:            "test-alloc-live",
@@ -651,7 +446,7 @@ func TestAllocsFit_ServerTerminalAlloc(t *testing.T) {
 							Device:        "eth0",
 							IP:            "10.0.0.1",
 							MBits:         50,
-							ReservedPorts: []Port{{"main", 8000, 80, ""}},
+							ReservedPorts: []Port{{Label: "main", Value: 8000, To: 80}},
 						},
 					},
 				},
@@ -669,10 +464,10 @@ func TestAllocsFit_ServerTerminalAlloc(t *testing.T) {
 
 	// Should *not* fit both allocations since deadAlloc is still running
 	fit, _, used, err := AllocsFit(n, []*Allocation{liveAlloc, deadAlloc}, nil, false)
-	require.NoError(t, err)
-	require.False(t, fit)
-	require.EqualValues(t, 2000, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(t, 2048, used.Flattened.Memory.MemoryMB)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, 2000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 2048, used.Flattened.Memory.MemoryMB)
 }
 
 // Tests that AllocsFit detects device collisions
@@ -743,21 +538,62 @@ func TestAllocsFit_Devices(t *testing.T) {
 	require.True(fit)
 }
 
+// Tests that AllocsFit detects volume collisions for volumes that have
+// exclusive access
+func TestAllocsFit_ExclusiveVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	n := node2k()
+	a1 := &Allocation{
+		TaskGroup: "group",
+		Job: &Job{TaskGroups: []*TaskGroup{{Name: "group", Volumes: map[string]*VolumeRequest{
+			"foo": {
+				Source:     "example",
+				AccessMode: HostVolumeAccessModeSingleNodeSingleWriter,
+			},
+		}}}},
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu:    AllocatedCpuResources{CpuShares: 500},
+					Memory: AllocatedMemoryResources{MemoryMB: 500},
+				},
+			},
+		},
+	}
+	a2 := a1.Copy()
+	a2.AllocatedResources.Tasks["web"] = &AllocatedTaskResources{
+		Cpu:    AllocatedCpuResources{CpuShares: 500},
+		Memory: AllocatedMemoryResources{MemoryMB: 500},
+	}
+	a2.Job.TaskGroups[0].Volumes["foo"].AccessMode = HostVolumeAccessModeSingleNodeMultiWriter
+
+	// Should fit one allocation
+	fit, _, _, err := AllocsFit(n, []*Allocation{a1}, nil, true)
+	must.NoError(t, err)
+	must.True(t, fit)
+
+	// Should not fit second allocation
+	fit, msg, _, err := AllocsFit(n, []*Allocation{a1, a2}, nil, true)
+	must.NoError(t, err)
+	must.False(t, fit)
+	must.Eq(t, "conflicting claims for host volume with single-writer", msg)
+
+	// Should not fit second allocation but won't detect since we disabled
+	// checking host volumes
+	fit, _, _, err = AllocsFit(n, []*Allocation{a1, a2}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit)
+}
+
 // TestAllocsFit_MemoryOversubscription asserts that only reserved memory is
 // used for capacity
 func TestAllocsFit_MemoryOversubscription(t *testing.T) {
 	ci.Parallel(t)
 
-	n := &Node{
-		NodeResources: &NodeResources{
-			Cpu: NodeCpuResources{
-				CpuShares: 2000,
-			},
-			Memory: NodeMemoryResources{
-				MemoryMB: 2048,
-			},
-		},
-	}
+	n := node2k()
+	n.NodeResources.Memory.MemoryMB = 2048
+	n.ReservedResources = nil
 
 	a1 := &Allocation{
 		AllocatedResources: &AllocatedResources{
@@ -776,91 +612,28 @@ func TestAllocsFit_MemoryOversubscription(t *testing.T) {
 	}
 
 	// Should fit one allocation
-	fit, _, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
-	require.NoError(t, err)
-	require.True(t, fit)
-	require.EqualValues(t, 100, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(t, 1000, used.Flattened.Memory.MemoryMB)
-	require.EqualValues(t, 4000, used.Flattened.Memory.MemoryMaxMB)
+	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("bad dimension: %q", dim))
+	must.Eq(t, 100, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1000, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 4000, used.Flattened.Memory.MemoryMaxMB)
 
 	// Should fit second allocation
-	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
-	require.NoError(t, err)
-	require.True(t, fit)
-	require.EqualValues(t, 200, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(t, 2000, used.Flattened.Memory.MemoryMB)
-	require.EqualValues(t, 8000, used.Flattened.Memory.MemoryMaxMB)
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("bad dimension: %q", dim))
+	must.Eq(t, 200, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 2000, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 8000, used.Flattened.Memory.MemoryMaxMB)
 
 	// Should not fit a third allocation
-	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1, a1}, nil, false)
-	require.NoError(t, err)
-	require.False(t, fit)
-	require.EqualValues(t, 300, used.Flattened.Cpu.CpuShares)
-	require.EqualValues(t, 3000, used.Flattened.Memory.MemoryMB)
-	require.EqualValues(t, 12000, used.Flattened.Memory.MemoryMaxMB)
-}
-
-// COMPAT(0.11): Remove in 0.11
-func TestScoreFitBinPack_Old(t *testing.T) {
-	ci.Parallel(t)
-
-	node := &Node{}
-	node.Resources = &Resources{
-		CPU:      4096,
-		MemoryMB: 8192,
-	}
-	node.Reserved = &Resources{
-		CPU:      2048,
-		MemoryMB: 4096,
-	}
-
-	// Test a perfect fit
-	util := &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: 2048,
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: 4096,
-			},
-		},
-	}
-	score := ScoreFitBinPack(node, util)
-	if score != 18.0 {
-		t.Fatalf("bad: %v", score)
-	}
-
-	// Test the worst fit
-	util = &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: 0,
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: 0,
-			},
-		},
-	}
-	score = ScoreFitBinPack(node, util)
-	if score != 0.0 {
-		t.Fatalf("bad: %v", score)
-	}
-
-	// Test a mid-case scenario
-	util = &ComparableResources{
-		Flattened: AllocatedTaskResources{
-			Cpu: AllocatedCpuResources{
-				CpuShares: 1024,
-			},
-			Memory: AllocatedMemoryResources{
-				MemoryMB: 2048,
-			},
-		},
-	}
-	score = ScoreFitBinPack(node, util)
-	if score < 10.0 || score > 16.0 {
-		t.Fatalf("bad: %v", score)
-	}
+	fit, dim, used, err = AllocsFit(n, []*Allocation{a1, a1, a1}, nil, false)
+	must.NoError(t, err)
+	must.False(t, fit, must.Sprintf("bad dimension: %q", dim))
+	must.Eq(t, 300, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 3000, used.Flattened.Memory.MemoryMB)
+	must.Eq(t, 12000, used.Flattened.Memory.MemoryMaxMB)
 }
 
 func TestScoreFitBinPack(t *testing.T) {
@@ -868,13 +641,22 @@ func TestScoreFitBinPack(t *testing.T) {
 
 	node := &Node{}
 	node.NodeResources = &NodeResources{
-		Cpu: NodeCpuResources{
-			CpuShares: 4096,
+		Processors: NodeProcessorResources{
+			Topology: &numalib.Topology{
+				Distances: numalib.SLIT{[]numalib.Cost{10}},
+				Cores: []numalib.Core{{
+					ID:        0,
+					Grade:     numalib.Performance,
+					BaseSpeed: 4096,
+				}},
+			},
 		},
 		Memory: NodeMemoryResources{
 			MemoryMB: 8192,
 		},
 	}
+	node.NodeResources.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
+	node.NodeResources.Compatibility()
 	node.ReservedResources = &NodeReservedResources{
 		Cpu: NodeReservedCpuResources{
 			CpuShares: 2048,

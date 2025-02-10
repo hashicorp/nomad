@@ -1,0 +1,3 @@
+```release-note:deprecation
+config: Loading plugins from `plugin_dir` without a `plugin` configuration block is deprecated
+```

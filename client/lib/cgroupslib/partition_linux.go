@@ -6,24 +6,26 @@
 package cgroupslib
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 )
 
 // GetPartition creates a Partition suitable for managing cores on this
 // Linux system.
-func GetPartition(cores *idset.Set[hw.CoreID]) Partition {
-	return NewPartition(cores)
+func GetPartition(log hclog.Logger, cores *idset.Set[hw.CoreID]) Partition {
+	return NewPartition(log, cores)
 }
 
 // NewPartition creates a cpuset partition manager for managing the books
 // when allocations are created and destroyed. The initial set of cores is
 // the usable set of cores by Nomad.
-func NewPartition(cores *idset.Set[hw.CoreID]) Partition {
+func NewPartition(log hclog.Logger, cores *idset.Set[hw.CoreID]) Partition {
 	var (
 		sharePath   string
 		reservePath string
@@ -41,6 +43,8 @@ func NewPartition(cores *idset.Set[hw.CoreID]) Partition {
 	}
 
 	return &partition{
+		usableCores: cores.Copy(),
+		log:         log,
 		sharePath:   sharePath,
 		reservePath: reservePath,
 		share:       cores.Copy(),
@@ -49,8 +53,10 @@ func NewPartition(cores *idset.Set[hw.CoreID]) Partition {
 }
 
 type partition struct {
+	log         hclog.Logger
 	sharePath   string
 	reservePath string
+	usableCores *idset.Set[hw.CoreID]
 
 	lock    sync.Mutex
 	share   *idset.Set[hw.CoreID]
@@ -58,41 +64,57 @@ type partition struct {
 }
 
 func (p *partition) Restore(cores *idset.Set[hw.CoreID]) {
+
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	p.share.RemoveSet(cores)
-	p.reserve.InsertSet(cores)
+	// Use the intersection with the usable cores to avoid adding more cores than available.
+	p.reserve.InsertSet(p.usableCores.Intersect(cores))
+
 }
 
 func (p *partition) Reserve(cores *idset.Set[hw.CoreID]) error {
+
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
+	// Use the intersection with the usable cores to avoid adding more cores than available.
+	usableCores := p.usableCores.Intersect(cores)
+
+	overlappingCores := p.reserve.Intersect(usableCores)
+	if overlappingCores.Size() > 0 {
+		// COMPAT: prior to Nomad 1.9.X this would silently happen, this should probably return an error instead
+		p.log.Warn("Unable to exclusively reserve the requested cores", "cores", cores, "overlapping_cores", overlappingCores)
+	}
+
 	p.share.RemoveSet(cores)
-	p.reserve.InsertSet(cores)
+	p.reserve.InsertSet(usableCores)
 
 	return p.write()
 }
 
 func (p *partition) Release(cores *idset.Set[hw.CoreID]) error {
+
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
 	p.reserve.RemoveSet(cores)
-	p.share.InsertSet(cores)
 
+	// Use the intersection with the usable cores to avoid removing more cores than available.
+	p.share.InsertSet(p.usableCores.Intersect(cores))
 	return p.write()
 }
 
 func (p *partition) write() error {
 	shareStr := p.share.String()
 	if err := os.WriteFile(p.sharePath, []byte(shareStr), 0644); err != nil {
-		return err
+		return fmt.Errorf("cgroupslib: unable to update share cpuset with %q: %w", shareStr, err)
 	}
+
 	reserveStr := p.reserve.String()
 	if err := os.WriteFile(p.reservePath, []byte(reserveStr), 0644); err != nil {
-		return err
+		return fmt.Errorf("cgroupslib: unable to update reserve cpuset with %q: %w", reserveStr, err)
 	}
 	return nil
 }

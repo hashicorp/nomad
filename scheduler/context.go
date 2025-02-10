@@ -51,6 +51,13 @@ type Context interface {
 	SendEvent(event interface{})
 }
 
+type ConstraintContext interface {
+	Metrics() *structs.AllocMetric
+	RegexpCache() map[string]*regexp.Regexp
+	VersionConstraintCache() map[string]VerConstraints
+	SemverConstraintCache() map[string]VerConstraints
+}
+
 // EvalCache is used to cache certain things during an evaluation
 type EvalCache struct {
 	reCache      map[string]*regexp.Regexp

@@ -1,0 +1,2 @@
+// Don't commit cluster snapshots
+*.snap

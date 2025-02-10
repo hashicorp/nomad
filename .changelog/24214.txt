@@ -1,0 +1,3 @@
+```release-note:bug
+windows: Fixed a bug where a crashed executor would orphan task processes
+```

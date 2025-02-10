@@ -17,14 +17,15 @@ import (
 	// processes along side of a task. By early importing them we can avoid
 	// additional code being imported and thus reserving memory.
 	_ "github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
+	_ "github.com/hashicorp/nomad/client/allocrunner/taskrunner/template/renderer"
 	_ "github.com/hashicorp/nomad/client/logmon"
 	_ "github.com/hashicorp/nomad/drivers/docker/docklog"
 	_ "github.com/hashicorp/nomad/drivers/shared/executor"
 
 	// Don't move any other code imports above the import block above!
+	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/command"
 	"github.com/hashicorp/nomad/version"
-	"github.com/mitchellh/cli"
 )
 
 var (
@@ -51,6 +52,7 @@ var (
 		"operator raft _logs",
 		"operator raft _state",
 		"operator snapshot _state",
+		"template-render",
 	}
 
 	// aliases is the list of aliases we want users to be aware of. We hide

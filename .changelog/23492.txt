@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fix an issue where a remotely purged job would prevent redirect from taking place in the web UI
+```

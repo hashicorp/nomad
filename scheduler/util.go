@@ -12,6 +12,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
@@ -243,7 +244,7 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 	}
 
 	// Check consul updated
-	if c := consulUpdated(a, b); c.modified {
+	if c := consulUpdated(a.Consul, b.Consul); c.modified {
 		return c
 	}
 
@@ -289,6 +290,9 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 		if !at.Vault.Equal(bt.Vault) {
 			return difference("task vault", at.Vault, bt.Vault)
 		}
+		if c := consulUpdated(at.Consul, bt.Consul); c.modified {
+			return c
+		}
 		if !slices.EqualFunc(at.Templates, bt.Templates, func(a, b *structs.Template) bool { return a.Equal(b) }) {
 			return difference("task templates", at.Templates, bt.Templates)
 		}
@@ -331,6 +335,11 @@ func tasksUpdated(jobA, jobB *structs.Job, taskGroup string) comparison {
 			return difference("task log disabled", at.LogConfig.Disabled, bt.LogConfig.Disabled)
 		}
 
+		// Check volume mount updates
+		if c := volumeMountsUpdated(at.VolumeMounts, bt.VolumeMounts); c.modified {
+			return c
+		}
+
 		// Check if restart.render_templates is updated
 		if c := renderTemplatesUpdated(at.RestartPolicy, bt.RestartPolicy,
 			"task restart render_templates"); c.modified {
@@ -357,6 +366,10 @@ func nonNetworkResourcesUpdated(a, b *structs.Resources) comparison {
 		return difference("task memory max", a.MemoryMaxMB, b.MemoryMaxMB)
 	case !a.Devices.Equal(&b.Devices):
 		return difference("task devices", a.Devices, b.Devices)
+	case !a.NUMA.Equal(b.NUMA):
+		return difference("numa", a.NUMA, b.NUMA)
+	case a.SecretsMB != b.SecretsMB:
+		return difference("task secrets", a.SecretsMB, b.SecretsMB)
 	}
 	return same
 }
@@ -368,16 +381,20 @@ func nonNetworkResourcesUpdated(a, b *structs.Resources) comparison {
 // configuration because Namespaces and Cluster directly impact networking
 // validity among Consul intentions.  Forcing the task through a reschedule is a
 // sure way of breaking no-longer valid network connections.
-func consulUpdated(tgA, tgB *structs.TaskGroup) comparison {
+func consulUpdated(consulA, consulB *structs.Consul) comparison {
 	// job.ConsulNamespace is pushed down to the TGs, just check those
-	if a, b := tgA.Consul.GetNamespace(), tgB.Consul.GetNamespace(); a != b {
+	if a, b := consulA.GetNamespace(), consulB.GetNamespace(); a != b {
 		return difference("consul namespace", a, b)
 	}
 
 	// if either are nil, we can treat this as a non-destructive update
-	if tgA.Consul != nil && tgB.Consul != nil {
-		if a, b := tgA.Consul.Cluster, tgB.Consul.Cluster; a != b {
+	if consulA != nil && consulB != nil {
+		if a, b := consulA.Cluster, consulB.Cluster; a != b {
 			return difference("consul cluster", a, b)
+		}
+
+		if a, b := consulA.Partition, consulB.Partition; a != b {
+			return difference("consul partition", a, b)
 		}
 	}
 
@@ -412,6 +429,32 @@ func connectServiceUpdated(servicesA, servicesB []*structs.Service) comparison {
 			}
 		}
 	}
+	return same
+}
+
+func volumeMountsUpdated(a, b []*structs.VolumeMount) comparison {
+	setA := set.HashSetFrom(a)
+	setB := set.HashSetFrom(b)
+
+	if setA.Equal(setB) {
+		return same
+	}
+
+	return difference("volume mounts", a, b)
+}
+
+// volumeMountUpdated returns true if the definition of the volume mount
+// has been updated in a manner that will requires the task to be recreated.
+func volumeMountUpdated(mountA, mountB *structs.VolumeMount) comparison {
+	if mountA != nil && mountB == nil {
+		difference("volume mount removed", mountA, mountB)
+	}
+
+	if mountA != nil && mountB != nil &&
+		mountA.SELinuxLabel != mountB.SELinuxLabel {
+		return difference("volume mount selinux label", mountA.SELinuxLabel, mountB.SELinuxLabel)
+	}
+
 	return same
 }
 
@@ -499,6 +542,10 @@ func networkUpdated(netA, netB []*structs.NetworkResource) comparison {
 
 		if !an.DNS.Equal(bn.DNS) {
 			return difference("network dns", an.DNS, bn.DNS)
+		}
+
+		if !an.CNI.Equal(bn.CNI) {
+			return difference("network cni", an.CNI, bn.CNI)
 		}
 
 		aPorts, bPorts := networkPortMap(an), networkPortMap(bn)

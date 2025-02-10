@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Badge added for Scaled Down jobs
+```

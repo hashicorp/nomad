@@ -110,6 +110,13 @@
       white-space: nowrap;
     }
 
+    &.node-status-badges,
+    &.server-status-badges {
+      .hds-badge__text {
+        white-space: nowrap;
+      }
+    }
+
     &.is-narrow {
       padding: 1.25em 0 1.25em 0.5em;
 
@@ -128,6 +135,18 @@
     &.is-200px {
       width: 200px;
       max-width: 200px;
+    }
+
+    .visually-hidden {
+      border: 0;
+      clip: rect(0 0 0 0);
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      padding: 0;
+      position: absolute;
+      width: 1px;
+      white-space: nowrap; /* added to ensure the text does not wrap */
     }
 
     @for $i from 1 through 11 {
@@ -272,7 +291,7 @@
   }
 
   .is-faded {
-    color: $grey-light;
+    color: darken($grey-light, 10%);
   }
 }
 

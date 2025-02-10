@@ -22,8 +22,9 @@ module.exports = async config => {
   const page = await context.newPage();
   await page.goto(NOMAD_ADDR+'/ui/settings/tokens');
   await page.fill('input[id="token-input"]', NOMAD_TOKEN);
-  await page.click('button:has-text("Set Token")', {strict: true});
+  await page.click('button:has-text("Sign in")', {strict: true});
 
-  await page.context().storageState({ path: 'storageState.json' });
+  const { storageState } = config.projects[0].use;
+  await page.context().storageState({ path: storageState });
   await browser.close();
 };

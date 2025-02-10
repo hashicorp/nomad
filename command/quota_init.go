@@ -119,28 +119,45 @@ description = "Limit the shared default namespace"
 limit {
   region = "global"
   region_limit {
+    cores      = 0
     cpu        = 2500
     memory     = 1000
     memory_max = 1000
+    device "nvidia/gpu/1080ti" {
+      count = 1
+    }
+    storage {
+      variables    = 1000   # in MB
+      host_volumes = 100000 # in MB
+    }
   }
-  variables_limit = 1000
 }
 `)
 
 var defaultJsonQuotaSpec = strings.TrimSpace(`
 {
-	"Name": "default-quota",
-	"Description": "Limit the shared default namespace",
-	"Limits": [
-		{
-			"Region": "global",
-			"RegionLimit": {
-				"CPU": 2500,
-				"MemoryMB": 1000,
-				"MemoryMaxMB": 1000
-			},
-			"VariablesLimit": 1000
-		}
-	]
+  "Name": "default-quota",
+  "Description": "Limit the shared default namespace",
+  "Limits": [
+    {
+      "Region": "global",
+      "RegionLimit": {
+        "Cores": 0,
+        "CPU": 2500,
+        "MemoryMB": 1000,
+        "MemoryMaxMB": 1000,
+        "Devices": [
+          {
+            "Name": "nvidia/gpu/1080ti",
+            "Count": 1
+          }
+        ],
+        "Storage": {
+          "Variables": 1000,
+          "HostVolumes": 100000
+        }
+      }
+    }
+  ]
 }
 `)

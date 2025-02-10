@@ -9,4 +9,5 @@ export default Model.extend({
   taskGroup: belongsTo(),
   recommendations: hasMany(),
   services: hasMany('service-fragment'),
+  schedule: belongsTo('task-schedule'),
 });

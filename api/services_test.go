@@ -75,12 +75,14 @@ func TestService_Check_PassFail(t *testing.T) {
 			Checks: []ServiceCheck{{
 				SuccessBeforePassing:   -1,
 				FailuresBeforeCritical: -2,
+				FailuresBeforeWarning:  -3,
 			}},
 		}
 
 		s.Canonicalize(task, tg, job)
 		must.Zero(t, s.Checks[0].SuccessBeforePassing)
 		must.Zero(t, s.Checks[0].FailuresBeforeCritical)
+		must.Zero(t, s.Checks[0].FailuresBeforeWarning)
 	})
 
 	t.Run("normal", func(t *testing.T) {
@@ -88,12 +90,14 @@ func TestService_Check_PassFail(t *testing.T) {
 			Checks: []ServiceCheck{{
 				SuccessBeforePassing:   3,
 				FailuresBeforeCritical: 4,
+				FailuresBeforeWarning:  2,
 			}},
 		}
 
 		s.Canonicalize(task, tg, job)
 		must.Eq(t, 3, s.Checks[0].SuccessBeforePassing)
 		must.Eq(t, 4, s.Checks[0].FailuresBeforeCritical)
+		must.Eq(t, 2, s.Checks[0].FailuresBeforeWarning)
 	})
 }
 

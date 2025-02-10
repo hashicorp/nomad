@@ -19,6 +19,17 @@ job "nomad-proxy" {
       }
     }
 
+    service {
+      name     = "nomad-proxy"
+      port     = "www"
+      provider = "nomad"
+      check {
+        type     = "tcp"
+        interval = "1s"
+        timeout  = "2s"
+      }
+    }
+
     task "nginx" {
 
       driver = "docker"

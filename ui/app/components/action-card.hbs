@@ -1,0 +1,107 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<div class="action-card">
+  <Hds::PageHeader class="action-card-header" as |PH|>
+    <PH.Title>
+      <span class="action-card-title">
+        <span>{{this.instance.action.name}}</span>
+        <LinkTo class="job-name" @route="jobs.job" @model={{this.instance.action.task.taskGroup.job}}>
+          {{this.instance.action.task.taskGroup.job.name}}
+        </LinkTo>
+      </span>
+      <Hds::Badge @text="{{capitalize this.instance.state}}" @color={{this.stateColor}} @size="medium" />
+    </PH.Title>
+    <PH.Actions>
+      {{!--
+        Action instance with peers (run on multiple allocs):
+        - If instance is running, user can stop it.
+        - If peers are running, user can stop all of them,
+        - And if none are running, user can clear all of them.
+      --}}
+      {{#if this.instance.peerID}}
+        {{#if (eq this.instance.state "running")}}
+          <Hds::Button @text="Stop" @color="critical" @size="medium" {{on "click" this.stop}} />
+        {{/if}}
+        {{#if (get (filter-by 'state' 'running' (filter-by 'peerID' this.instance.peerID this.nomadActions.actionsQueue)) 'length')}}
+          <Hds::Button @text="Stop All" @color="critical" @size="medium" {{on "click" this.stopAll}} />
+        {{else}}
+          <Hds::Button @text="Clear"
+            @color="secondary"
+            {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
+          />
+        {{/if}}
+      {{else}}
+      {{!--
+        Action instance run on a single alloc:
+        - If instance is running, user can stop it.
+        - if not, user can clear it from queue.
+      --}}
+        {{#if (eq this.instance.state "running")}}
+          <Hds::Button @text="Stop" @color="critical" @size="medium" {{on "click" this.stop}} />
+        {{else}}
+          <Hds::Button @text="Clear"
+            @color="secondary"
+            {{on "click" (action this.nomadActions.clearActionInstance this.instance)}}
+          />
+        {{/if}}
+      {{/if}}
+    </PH.Actions>
+  </Hds::PageHeader>
+
+  {{#if this.instance.peerID}}
+  <Hds::ButtonSet class="peers">
+    {{#each (filter-by 'peerID' this.instance.peerID this.nomadActions.actionsQueue) as |peer|}}
+    <Hds::Button
+      class="peer"
+      @icon={{if (eq peer.state "running") "loading" null}}
+      @iconPosition="trailing"
+      @text={{peer.allocShortID}}
+      @color={{if (eq this.instance.id peer.id) "primary" "secondary"}}
+      {{on "click" (action this.selectPeer peer)}}
+    />
+    {{/each}}
+  </Hds::ButtonSet>
+  {{/if}}
+
+  <div class="messages">
+    {{#if this.instance.error}}
+      <code><pre>Error: {{this.instance.error}}</pre></code>
+    {{/if}}
+    {{#if this.instance.messages.length}}
+      <code tabindex="0">
+        <Hds::Copy::Button class="copy-button" @text="Copy" @isIconOnly={{true}} @textToCopy={{this.instance.messages}} />
+        <pre {{did-update this.anchorToBottom this.instance.messages}}>
+          {{this.instance.messages}}
+        </pre>
+        <div class="anchor" />
+      </code>
+    {{else}}
+      {{#if (eq this.instance.state "complete")}}
+        <p class="no-messages">Action completed with no output</p>
+      {{/if}}
+    {{/if}}
+  </div>
+
+  <footer>
+    <Hds::Reveal @text="Action Info">
+      <ul>
+        <li><span>Task:</span> {{this.instance.action.task.name}}</li>
+        <li><span>Job:</span> {{this.instance.action.task.taskGroup.job.name}}</li>
+        <li><span>Allocation:</span> {{this.instance.allocID}}</li>
+        <li><span>Created:</span> {{format-ts this.instance.createdAt}}</li>
+        {{#if this.instance.completedAt}}
+          {{#if (gt (moment-diff this.instance.createdAt this.instance.completedAt precision='seconds') 1)}}
+            <li>Completed after {{moment-diff this.instance.createdAt this.instance.completedAt precision='seconds'}} seconds</li>
+          {{else}}
+            <li>Completed in {{moment-diff this.instance.createdAt this.instance.completedAt precision='seconds' float=true}} seconds</li>
+          {{/if}}
+        {{/if}}
+      </ul>
+    </Hds::Reveal>
+  </footer>
+
+  {{yield}}
+</div>

@@ -5,7 +5,7 @@
 
 {{#if this.keyboard.shortcutsVisible}}
   {{keyboard-commands (array this.escapeCommand)}}
-  <div class="keyboard-shortcuts"
+  <section class="keyboard-shortcuts"
       {{on-click-outside
         (toggle "keyboard.shortcutsVisible" this)
       }}
@@ -46,15 +46,17 @@
       {{/each}}
     </ul>
     <footer>
-      <strong>Keyboard shortcuts {{#if this.keyboard.enabled}}enabled{{else}}disabled{{/if}}</strong>
-      <Toggle
-        data-test-enable-shortcuts-toggle
-        @isActive={{this.keyboard.enabled}}
-        @onToggle={{this.toggleListener}}
-        title="{{if this.keyboard.enabled "enable" "disable"}} keyboard shortcuts"
-      />
+    <Hds::Form::Toggle::Field
+      {{on "change" this.toggleListener}}
+      data-test-enable-shortcuts-toggle
+      class={{if this.keyboard.enabled "is-active"}}
+      checked={{this.keyboard.enabled}}
+      as |F|
+    >
+      <F.Label>Keyboard shortcuts {{#if this.keyboard.enabled}}enabled{{else}}disabled{{/if}}</F.Label>
+    </Hds::Form::Toggle::Field>
     </footer>
-  </div>
+  </section>
 {{/if}}
 
 {{#if (and this.keyboard.enabled this.keyboard.displayHints)}}

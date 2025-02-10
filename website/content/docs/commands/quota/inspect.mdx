@@ -11,8 +11,7 @@ description: >
 The `quota inspect` command is used to view raw information about a particular
 quota. The default output is in JSON format.
 
-~> Quota commands are new in Nomad 0.7 and are only available with Nomad
-Enterprise.
+~> Quota commands are only available with Nomad Enterprise.
 
 ## Usage
 
@@ -41,49 +40,51 @@ Inspect a quota specification:
 $ nomad quota inspect default-quota
 {
     "Spec": {
-        "CreateIndex": 8,
+        "CreateIndex": 11,
         "Description": "Limit the shared default namespace",
         "Limits": [
             {
-                "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=",
+                "Hash": "p7s7A+4mFt+M41NS3nB3APheQS9YaePLguvnNn/c1t4=",
                 "Region": "global",
                 "RegionLimit": {
-                    "CPU": 2500,
+                    "CPU": 1000,
+                    "Cores": 1,
+                    "Devices": null,
                     "DiskMB": 0,
-                    "MemoryMB": 2000,
+                    "IOPS": 0,
+                    "MemoryMB": 1000,
+                    "MemoryMaxMB": 0,
+                    "NUMA": null,
                     "Networks": null
-                }
+                },
+                "VariablesLimit": 0
             }
         ],
-        "ModifyIndex": 56,
+        "ModifyIndex": 11,
         "Name": "default-quota"
     },
     "UsageLookupErrors": {},
     "Usages": {
         "global": {
-            "CreateIndex": 8,
-            "ModifyIndex": 56,
-            "Name": "default-quota",
+            "CreateIndex": 11,
+            "ModifyIndex": 12,
+            "Name": "default",
             "Used": {
-                "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=": {
-                    "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=",
+                "p7s7A+4mFt+M41NS3nB3APheQS9YaePLguvnNn/c1t4=": {
+                    "Hash": "p7s7A+4mFt+M41NS3nB3APheQS9YaePLguvnNn/c1t4=",
                     "Region": "global",
                     "RegionLimit": {
-                        "CPU": 500,
+                        "CPU": 0,
+                        "Cores": 0,
+                        "Devices": null,
                         "DiskMB": 0,
-                        "MemoryMB": 256,
-                        "Networks": [
-                            {
-                                "CIDR": "",
-                                "Device": "",
-                                "DynamicPorts": null,
-                                "IP": "",
-                                "MBits": 0,
-                                "Mode": "",
-                                "ReservedPorts": null
-                            }
-                        ]
-                    }
+                        "IOPS": 0,
+                        "MemoryMB": 0,
+                        "MemoryMaxMB": 0,
+                        "NUMA": null,
+                        "Networks": null
+                    },
+                    "VariablesLimit": 0
                 }
             }
         }
@@ -94,30 +95,34 @@ $ nomad quota inspect default-quota
 The `-json` flag can be used to get the quota specs in json format:
 ```shell-session
 $ nomad quota inspect -json default-quota
-
 {
-    "CreateIndex": 8,
+    "CreateIndex": 11,
     "Description": "Limit the shared default namespace",
     "Limits": [
         {
-            "Hash": "NLOoV2WBU8ieJIrYXXx8NRb5C2xU61pVVWRDLEIMxlU=",
+            "Hash": "p7s7A+4mFt+M41NS3nB3APheQS9YaePLguvnNn/c1t4=",
             "Region": "global",
             "RegionLimit": {
-                "CPU": 2500,
+                "CPU": 1000,
+                "Cores": 1,
+                "Devices": null,
                 "DiskMB": 0,
-                "MemoryMB": 2000,
+                "IOPS": 0,
+                "MemoryMB": 1000,
+                "MemoryMaxMB": 0,
+                "NUMA": null,
                 "Networks": null
-            }
+            },
+            "VariablesLimit": 0
         }
     ],
-    "ModifyIndex": 56,
+    "ModifyIndex": 11,
     "Name": "default-quota"
 }
 ```
 
 Or use the `-t` flag to format and display the quota specs using a Go template:
 ```shell-session
-$ nomad quota inspect -t {{ .Description }} default-quota
-
+$ nomad quota inspect -t '{{ .Description }}' default-quota
 Limit the shared default namespace
 ```

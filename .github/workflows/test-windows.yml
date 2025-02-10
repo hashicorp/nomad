@@ -50,9 +50,9 @@ jobs:
       - name: Docker Info
         run: docker version
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Setup go
-        uses: actions/setup-go@fac708d6674e30b6ba41289acaab6d4b75aa0753 # v4.0.1
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version-file: ".go-version"
       - name: Show installed Go version
@@ -87,11 +87,32 @@ jobs:
           gotestsum --format=short-verbose \
             --junitfile results.xml \
             github.com/hashicorp/nomad/drivers/docker \
+            github.com/hashicorp/nomad/drivers/rawexec \
+            github.com/hashicorp/nomad/drivers/shared/executor \
             github.com/hashicorp/nomad/client/lib/fifo \
-            github.com/hashicorp/nomad/client/logmon
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+            github.com/hashicorp/nomad/client/logmon \
+            github.com/hashicorp/nomad/client/allocrunner/taskrunner/template \
+            github.com/hashicorp/nomad/client/allocdir \
+            github.com/hashicorp/nomad/plugins/base
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
         with:
           name: results.xml
           path: results.xml
+
+  handle-failure:
+    permissions:
+      contents: read
+      id-token: write
+    needs:
+      - test-windows
+    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+    uses: ./.github/workflows/test-failure-notification.yml
+    secrets: inherit
+    with:
+      actor: ${{ github.triggering_actor }}
+      git-branch: ${{ github.ref_name }}
+      workflow-run-id: ${{ github.run_id }}
+      workflow-name: ${{ github.workflow }}
+
 permissions:
   contents: read

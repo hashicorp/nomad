@@ -32,19 +32,20 @@ consistent evaluation when Nomad spans multiple time zones.
 - The job's [scheduler type][batch-type] must be `batch` or `sysbatch`.
 - A job can not be updated to be periodically. Thus, to transition an existing job to be periodic, you must first run `nomad stop -purge «job name»`. This is expected behavior and is to ensure that this change has been intentionally made by an operator.
 
+Refer to the [parameterized] documentation for how to use parameters with a periodic job.
+
 ## `periodic` Parameters
 
-- `cron` `(string: <required>)` - Specifies a cron expression configuring the
+- `cron` (_deprecated_: Replaced by `crons` in 1.6.2) `(string)` - Specifies a cron expression configuring the
   interval to launch the job. In addition to [cron-specific formats][cron], this
-  option also includes predefined expressions such as `@daily` or `@weekly`.
+  option also includes predefined expressions such as `@daily` or `@weekly`. Either `cron` or `crons` must be set, but not both.
 
 - `crons` - A list of cron expressions configuring the intervals the job is
   launched at. The job runs at the next earliest time that matches any of the
   expressions. Supports predefined expressions such as `@daily` and
   `@weekly`. Refer to [the
   documentation](https://github.com/hashicorp/cronexpr#implementation) for full
-  details about the supported cron specs and the predefined expressions.
-  Conflicts with `cron`.
+  details about the supported cron specs and the predefined expressions. Either `cron` or `crons` must be set, but not both.
 
 - `prohibit_overlap` `(bool: false)` - Specifies if this job should wait until
   previous instances of this job have completed. This only applies to this job;
@@ -117,3 +118,4 @@ configuring time zones for periodic jobs.
 [cron]: https://github.com/hashicorp/cronexpr#implementation 'List of cron expressions'
 [dst]: #daylight-saving-time
 [multiregion]: /nomad/docs/job-specification/multiregion#periodic-time-zones
+[parameterized]: /nomad/docs/job-specification/parameterized#use-periodic-with-parameterized

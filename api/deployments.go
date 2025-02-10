@@ -193,6 +193,10 @@ type Deployment struct {
 
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// Creation and modification times, stored as UnixNano
+	CreateTime int64
+	ModifyTime int64
 }
 
 // DeploymentState tracks the state of a deployment for a given task group.
@@ -260,6 +264,9 @@ type DeploymentPromoteRequest struct {
 
 	// Groups is used to set the promotion status per task group
 	Groups []string
+
+	// PromotedAt is the timestamp stored as Unix nano
+	PromotedAt int64
 
 	WriteRequest
 }

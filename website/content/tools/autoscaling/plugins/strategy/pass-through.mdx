@@ -33,4 +33,10 @@ check "pass-through-check" {
 }
 ```
 
-The `pass-through` plugin doesn't have any configuration.
+- `max_scale_up` `(int: unlimited)` - Specifies the maximum number of instances
+  that can be added in a single scaling operation. It acts as a safeguard
+  against the system scaling up too rapidly.
+
+- `max_scale_down` `(int: unlimited)` - Specifies the maximum number of instances
+  that can be removed in a single scaling operation. It acts as a safeguard
+  against the system scaling down too rapidly.

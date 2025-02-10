@@ -21,7 +21,7 @@ do
 done
 
 # Use dnsmasq first and then docker bridge network for DNS resolution
-DOCKER_BRIDGE_IP_ADDRESS=$(/usr/local/bin/sockaddr eval 'GetInterfaceIP "docker0"')
+DOCKER_BRIDGE_IP_ADDRESS=$(docker network inspect bridge --format='{{(index .IPAM.Config 0).Gateway}}')
 cat <<EOF > /tmp/resolv.conf
 nameserver 127.0.0.1
 nameserver $DOCKER_BRIDGE_IP_ADDRESS
@@ -30,7 +30,7 @@ cp /tmp/resolv.conf /etc/resolv.conf
 
 # need to get the interface for dnsmasq config so that we can
 # accomodate both "predictable" and old-style interface names
-IFACE=$(/usr/local/bin/sockaddr eval 'GetDefaultInterfaces | attr "Name"')
+IFACE=$(ip route | grep default | awk '{print "interface="$5}')
 
 cat <<EOF > /tmp/dnsmasq
 port=53
@@ -38,7 +38,7 @@ resolv-file=/var/run/dnsmasq/resolv.conf
 bind-interfaces
 interface=docker0
 interface=lo
-interface=$IFACE
+$IFACE
 listen-address=127.0.0.1
 server=/consul/127.0.0.1#8600
 EOF

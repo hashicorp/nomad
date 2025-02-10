@@ -6,8 +6,9 @@ package capabilities
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 
-	"github.com/syndtr/gocapability/capability"
+	"github.com/moby/sys/capability"
 )
 
 const (
@@ -29,17 +30,6 @@ func NomadDefaults() *Set {
 	return New(extractLiteral.FindAllString(HCLSpecLiteral, -1))
 }
 
-// DockerDefaults is a list of Linux capabilities enabled by Docker by default
-// and is used to compute the set of capabilities to add/drop given docker driver
-// configuration.
-//
-// https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-func DockerDefaults() *Set {
-	defaults := NomadDefaults()
-	defaults.Add("NET_RAW")
-	return defaults
-}
-
 // Supported returns the set of capabilities supported by the operating system.
 //
 // This set will expand over time as new capabilities are introduced to the kernel
@@ -51,18 +41,19 @@ func DockerDefaults() *Set {
 func Supported() *Set {
 	s := New(nil)
 
-	last := capability.CAP_LAST_CAP
+	var list []capability.Cap
 
-	// workaround for RHEL6 which has no /proc/sys/kernel/cap_last_cap
-	if last == capability.Cap(63) {
-		last = capability.CAP_BLOCK_SUSPEND
+	switch runtime.GOOS {
+	case "linux":
+		list, _ = capability.ListSupported()
+	default:
+		// capability.ListSupported() will always return an empty list on
+		// non-linux systems
+		list = capability.ListKnown()
 	}
 
 	// accumulate every capability supported by this system
-	for _, c := range capability.List() {
-		if c > last {
-			continue
-		}
+	for _, c := range list {
 		s.Add(c.String())
 	}
 
@@ -135,7 +126,7 @@ func LegacySupported() *Set {
 //
 // The task will drop any capabilities specified in cap_drop, and add back
 // capabilities specified in cap_add. The task will not be allowed to add capabilities
-// not set in the the allow_caps setting (which by default is the same as the basis).
+// not set in the allow_caps setting (which by default is the same as the basis).
 //
 // cap_add takes precedence over cap_drop, enabling the common pattern of dropping
 // all capabilities, then adding back the desired smaller set. e.g.

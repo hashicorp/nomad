@@ -5,10 +5,10 @@ package acl
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,9 +16,9 @@ func TestParse(t *testing.T) {
 	ci.Parallel(t)
 
 	type tcase struct {
-		Raw    string
-		ErrStr string
-		Expect *Policy
+		Raw       string
+		ExpectErr string
+		Expect    *Policy
 	}
 	tcases := []tcase{
 		{
@@ -42,6 +42,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityReadJobScaling,
 							NamespaceCapabilityListScalingPolicies,
 							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityHostVolumeRead,
 						},
 					},
 				},
@@ -117,6 +118,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityReadJobScaling,
 							NamespaceCapabilityListScalingPolicies,
 							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityHostVolumeRead,
 						},
 					},
 					{
@@ -131,6 +133,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityReadJobScaling,
 							NamespaceCapabilityListScalingPolicies,
 							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityHostVolumeRead,
 							NamespaceCapabilityScaleJob,
 							NamespaceCapabilitySubmitJob,
 							NamespaceCapabilityDispatchJob,
@@ -141,6 +144,8 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityCSIMountVolume,
 							NamespaceCapabilityCSIWriteVolume,
 							NamespaceCapabilitySubmitRecommendation,
+							NamespaceCapabilityHostVolumeCreate,
+							NamespaceCapabilityHostVolumeRead,
 						},
 					},
 					{
@@ -337,6 +342,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityReadJobScaling,
 							NamespaceCapabilityListScalingPolicies,
 							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityHostVolumeRead,
 						},
 					},
 					{
@@ -351,6 +357,7 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityReadJobScaling,
 							NamespaceCapabilityListScalingPolicies,
 							NamespaceCapabilityReadScalingPolicy,
+							NamespaceCapabilityHostVolumeRead,
 							NamespaceCapabilityScaleJob,
 							NamespaceCapabilitySubmitJob,
 							NamespaceCapabilityDispatchJob,
@@ -361,6 +368,8 @@ func TestParse(t *testing.T) {
 							NamespaceCapabilityCSIMountVolume,
 							NamespaceCapabilityCSIWriteVolume,
 							NamespaceCapabilitySubmitRecommendation,
+							NamespaceCapabilityHostVolumeCreate,
+							NamespaceCapabilityHostVolumeRead,
 						},
 					},
 					{
@@ -496,6 +505,19 @@ func TestParse(t *testing.T) {
 		{
 			`
 			namespace "dev" {
+			  variables {
+                path "/nomad/job" {
+			      capabilities = ["read", "write"]
+                }
+			  }
+			}
+			`,
+			"Invalid variable path \"/nomad/job\" in namespace dev: cannot start with a leading '/'",
+			nil,
+		},
+		{
+			`
+			namespace "dev" {
 				policy = "read"
 
 				variables {
@@ -619,6 +641,54 @@ func TestParse(t *testing.T) {
 						Policy: "",
 						Capabilities: []string{
 							NamespaceCapabilitySentinelOverride,
+						},
+					},
+				},
+			},
+		},
+		{
+			`
+			namespace "default" {
+				capabilities = ["host-volume-register"]
+			}
+
+			namespace "other" {
+				capabilities = ["host-volume-create"]
+			}
+
+			namespace "foo" {
+				capabilities = ["host-volume-write"]
+			}
+			`,
+			"",
+			&Policy{
+				Namespaces: []*NamespacePolicy{
+					{
+						Name:   "default",
+						Policy: "",
+						Capabilities: []string{
+							NamespaceCapabilityHostVolumeRegister,
+							NamespaceCapabilityHostVolumeCreate,
+							NamespaceCapabilityHostVolumeRead,
+						},
+					},
+					{
+						Name:   "other",
+						Policy: "",
+						Capabilities: []string{
+							NamespaceCapabilityHostVolumeCreate,
+							NamespaceCapabilityHostVolumeRead,
+						},
+					},
+					{
+						Name:   "foo",
+						Policy: "",
+						Capabilities: []string{
+							NamespaceCapabilityHostVolumeWrite,
+							NamespaceCapabilityHostVolumeRegister,
+							NamespaceCapabilityHostVolumeCreate,
+							NamespaceCapabilityHostVolumeDelete,
+							NamespaceCapabilityHostVolumeRead,
 						},
 					},
 				},
@@ -864,22 +934,18 @@ func TestParse(t *testing.T) {
 	}
 
 	for idx, tc := range tcases {
-		t.Run(fmt.Sprintf("%d", idx), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%02d", idx), func(t *testing.T) {
 			p, err := Parse(tc.Raw)
-			if err != nil {
-				if tc.ErrStr == "" {
-					t.Fatalf("Unexpected err: %v", err)
-				}
-				if !strings.Contains(err.Error(), tc.ErrStr) {
-					t.Fatalf("Unexpected err: %v", err)
-				}
-				return
+			if tc.ExpectErr == "" {
+				must.NoError(t, err)
+			} else {
+				must.ErrorContains(t, err, tc.ExpectErr)
 			}
-			if err == nil && tc.ErrStr != "" {
-				t.Fatalf("Missing expected err")
+
+			if tc.Expect != nil {
+				tc.Expect.Raw = tc.Raw
+				must.Eq(t, tc.Expect, p)
 			}
-			tc.Expect.Raw = tc.Raw
-			assert.EqualValues(t, tc.Expect, p)
 		})
 	}
 }
@@ -895,6 +961,49 @@ func TestParse_BadInput(t *testing.T) {
 		t.Run(fmt.Sprintf("%d: %v", i, c), func(t *testing.T) {
 			_, err := Parse(c)
 			assert.Error(t, err)
+		})
+	}
+}
+
+func TestPluginPolicy_isValid(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name              string
+		inputPluginPolicy *PluginPolicy
+		expectedOutput    bool
+	}{
+		{
+			name:              "policy deny",
+			inputPluginPolicy: &PluginPolicy{Policy: "deny"},
+			expectedOutput:    true,
+		},
+		{
+			name:              "policy read",
+			inputPluginPolicy: &PluginPolicy{Policy: "read"},
+			expectedOutput:    true,
+		},
+		{
+			name:              "policy list",
+			inputPluginPolicy: &PluginPolicy{Policy: "list"},
+			expectedOutput:    true,
+		},
+		{
+			name:              "policy write",
+			inputPluginPolicy: &PluginPolicy{Policy: "write"},
+			expectedOutput:    true,
+		},
+		{
+			name:              "policy invalid",
+			inputPluginPolicy: &PluginPolicy{Policy: "invalid"},
+			expectedOutput:    false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputPluginPolicy.isValid()
+			must.Eq(t, tc.expectedOutput, actualOutput)
 		})
 	}
 }

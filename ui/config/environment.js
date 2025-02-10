@@ -40,7 +40,6 @@ module.exports = function (environment) {
       mirageWithNamespaces: true,
       mirageWithTokens: true,
       mirageWithRegions: true,
-      showStorybookLink: process.env.STORYBOOK_LINK === 'true',
     },
 
     percy: {
@@ -59,11 +58,6 @@ module.exports = function (environment) {
       enabled: USE_MIRAGE,
       excludeFilesFromBuild: !USE_MIRAGE,
     };
-
-    if (process.env.STORYBOOK === 'true') {
-      ENV.APP.autoboot = false;
-      ENV.rootURL = '/';
-    }
   }
 
   if (environment === 'test') {

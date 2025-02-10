@@ -192,7 +192,8 @@ func TestStateStore_UpsertPlanResults_AllocationsDenormalized(t *testing.T) {
 	}
 
 	require := require.New(t)
-	require.NoError(state.UpsertAllocs(structs.MsgTypeTestSetup, 900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
+	require.NoError(state.UpsertAllocs(
+		structs.MsgTypeTestSetup, 900, []*structs.Allocation{stoppedAlloc, preemptedAlloc}))
 	require.NoError(state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
 
 	// modify job and ensure that stopped and preempted alloc point to original Job
@@ -533,6 +534,50 @@ func TestStateStore_UpsertPlanResults_DeploymentUpdates(t *testing.T) {
 	if watchFired(ws) {
 		t.Fatalf("bad")
 	}
+}
+
+func TestStateStore_UpsertPlanResults_AllocationResources(t *testing.T) {
+	ci.Parallel(t)
+
+	dev := &structs.RequestedDevice{Name: "nvidia/gpu/Tesla 60", Count: 1}
+	structuredDev := &structs.AllocatedDeviceResource{
+		Vendor:    "nvidia",
+		Type:      "gpu",
+		Name:      "Tesla 60",
+		DeviceIDs: []string{"GPU-0668fc92-f8d5-07f6-e3cc-c07d76f466a1"},
+	}
+
+	state := testStateStore(t)
+	alloc := mock.Alloc()
+	job := alloc.Job
+	alloc.Job = nil
+	alloc.Resources = nil
+	alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{structuredDev}
+
+	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, job))
+
+	eval := mock.Eval()
+	eval.JobID = job.ID
+
+	// Create an eval
+	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1, []*structs.Evaluation{eval}))
+
+	// Create a plan result
+	res := structs.ApplyPlanResultsRequest{
+		AllocUpdateRequest: structs.AllocUpdateRequest{
+			Alloc: []*structs.Allocation{alloc},
+			Job:   job,
+		},
+		EvalID: eval.ID,
+	}
+
+	must.NoError(t, state.UpsertPlanResults(structs.MsgTypeTestSetup, 1000, &res))
+
+	out, err := state.AllocByID(nil, alloc.ID)
+	must.NoError(t, err)
+	must.Eq(t, alloc, out)
+
+	must.Eq(t, alloc.Resources.Devices[0], dev)
 }
 
 func TestStateStore_UpsertDeployment(t *testing.T) {
@@ -2566,6 +2611,54 @@ func TestStateStore_UpsertJob_submission(t *testing.T) {
 	must.Eq(t, 1007, sub.JobModifyIndex)
 }
 
+func TestStateStore_GetJobSubmissions(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	// Generate some job submissions and upsert these into state.
+	mockJobSubmissions := []*structs.JobSubmission{
+		{
+			Source:         "job{}",
+			Namespace:      "default",
+			JobID:          "example",
+			Version:        10,
+			JobModifyIndex: 20,
+		},
+		{
+			Source:         "job{}",
+			Namespace:      "platform",
+			JobID:          "example",
+			Version:        20,
+			JobModifyIndex: 20,
+		},
+	}
+
+	txn := state.db.WriteTxn(20)
+
+	for _, mockSubmission := range mockJobSubmissions {
+		must.NoError(t, state.updateJobSubmission(
+			20, mockSubmission, mockSubmission.Namespace, mockSubmission.JobID, mockSubmission.Version, txn))
+	}
+
+	must.NoError(t, txn.Commit())
+
+	// List out all the job submissions in state and ensure they match the
+	// items we previously wrote.
+	ws := memdb.NewWatchSet()
+	iter, err := state.GetJobSubmissions(ws)
+	must.NoError(t, err)
+
+	var submissions []*structs.JobSubmission
+
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		submissions = append(submissions, raw.(*structs.JobSubmission))
+	}
+
+	must.SliceLen(t, 2, submissions)
+	must.Eq(t, mockJobSubmissions, submissions)
+}
+
 func TestStateStore_UpdateUpsertJob_JobVersion(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2809,6 +2902,154 @@ func TestStateStore_DeleteJobTxn_BatchDeletes(t *testing.T) {
 	require.Equal(t, deletionIndex, index)
 }
 
+// TestStatestore_JobVersionTag tests that job versions which are tagged
+// do not count against the configured server.job_tracked_versions count,
+// do not get deleted when new versions are created,
+// and *do* get deleted immediately when its tag is removed.
+func TestStatestore_JobVersionTag(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	// tagged versions should be excluded from this limit
+	state.config.JobTrackedVersions = 5
+
+	job := mock.MinJob()
+	job.Stable = true
+
+	// helpers for readability
+	upsertJob := func(t *testing.T) {
+		t.Helper()
+		must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, nextIndex(state), nil, job.Copy()))
+	}
+
+	applyTag := func(t *testing.T, version uint64) {
+		t.Helper()
+		name := fmt.Sprintf("v%d", version)
+		desc := fmt.Sprintf("version %d", version)
+		req := &structs.JobApplyTagRequest{
+			JobID: job.ID,
+			Name:  name,
+			Tag: &structs.JobVersionTag{
+				Name:        name,
+				Description: desc,
+			},
+			Version: version,
+		}
+		must.NoError(t, state.UpdateJobVersionTag(nextIndex(state), job.Namespace, req))
+
+		// confirm
+		got, err := state.JobVersionByTagName(nil, job.Namespace, job.ID, name)
+		must.NoError(t, err)
+		must.Eq(t, version, got.Version)
+		must.Eq(t, name, got.VersionTag.Name)
+		must.Eq(t, desc, got.VersionTag.Description)
+	}
+	unsetTag := func(t *testing.T, name string) {
+		t.Helper()
+		req := &structs.JobApplyTagRequest{
+			JobID: job.ID,
+			Name:  name,
+			Tag:   nil, // this triggers unset
+		}
+		must.NoError(t, state.UpdateJobVersionTag(nextIndex(state), job.Namespace, req))
+	}
+
+	assertVersions := func(t *testing.T, expect []uint64) {
+		t.Helper()
+		jobs, err := state.JobVersionsByID(nil, job.Namespace, job.ID)
+		must.NoError(t, err)
+		vs := make([]uint64, len(jobs))
+		for i, j := range jobs {
+			vs[i] = j.Version
+		}
+		must.Eq(t, expect, vs)
+	}
+
+	// we want to end up with JobTrackedVersions (5) versions,
+	// 0-2 tagged and 3-4 untagged, but also interleave the tagging
+	// to be somewhat true to normal behavior in reality.
+	{
+		// upsert 3 jobs
+		for range 3 {
+			upsertJob(t)
+		}
+		assertVersions(t, []uint64{2, 1, 0})
+
+		// tag 2 of them
+		applyTag(t, 1)
+		applyTag(t, 2)
+		// nothing should change
+		assertVersions(t, []uint64{2, 1, 0})
+
+		// add 3 more, up to JobTrackedVersions (5) + 1 (6)
+		for range 3 {
+			upsertJob(t)
+		}
+		assertVersions(t, []uint64{5, 4, 3, 2, 1, 0})
+
+		// tag one more
+		applyTag(t, 3)
+		// again nothing should change
+		assertVersions(t, []uint64{5, 4, 3, 2, 1, 0})
+	}
+
+	// removing a tag at this point should leave the version in place,
+	// because we still have room within JobTrackedVersions
+	{
+		unsetTag(t, "v3")
+		assertVersions(t, []uint64{5, 4, 3, 2, 1, 0})
+	}
+
+	// adding more versions should replace 0,3-5
+	// and leave 1-2 in place because they are tagged
+	{
+		for range 10 {
+			upsertJob(t)
+		}
+		assertVersions(t, []uint64{15, 14, 13, 12, 11, 2, 1})
+	}
+
+	// untagging version 1 now should delete it immediately,
+	// since we now have more than JobTrackedVersions
+	{
+		unsetTag(t, "v1")
+		assertVersions(t, []uint64{15, 14, 13, 12, 11, 2})
+	}
+
+	// test some error conditions
+	{
+		// job does not exist
+		err := state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
+			JobID:   "non-existent-job",
+			Tag:     &structs.JobVersionTag{Name: "tag name"},
+			Version: 0,
+		})
+		must.ErrorContains(t, err, `job "non-existent-job" version 0 not found`)
+
+		// version does not exist
+		err = state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
+			JobID:   job.ID,
+			Tag:     &structs.JobVersionTag{Name: "tag name"},
+			Version: 999,
+		})
+		must.ErrorContains(t, err, fmt.Sprintf("job %q version 999 not found", job.ID))
+
+		// tag name already exists
+		err = state.UpdateJobVersionTag(nextIndex(state), job.Namespace, &structs.JobApplyTagRequest{
+			JobID:   job.ID,
+			Tag:     &structs.JobVersionTag{Name: "v2"},
+			Version: 10,
+		})
+		must.ErrorContains(t, err, fmt.Sprintf(`"v2" already exists on a different version of job %q`, job.ID))
+	}
+
+	// deleting all versions should also delete tagged versions
+	txn := state.db.WriteTxn(nextIndex(state))
+	must.NoError(t, state.deleteJobVersions(nextIndex(state), job, txn))
+	must.NoError(t, txn.Commit())
+	assertVersions(t, []uint64{})
+}
+
 func TestStateStore_DeleteJob_MultipleVersions(t *testing.T) {
 	ci.Parallel(t)
 
@@ -2937,7 +3178,7 @@ func TestStateStore_Jobs(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.Jobs(ws)
+	iter, err := state.Jobs(ws, SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3017,7 +3258,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := state.JobsByIDPrefix(ws, job.Namespace, job.ID)
+	iter, err := state.JobsByIDPrefix(ws, job.Namespace, job.ID, SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3039,7 +3280,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "re")
+	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "re", SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3064,7 +3305,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 	}
 
 	ws = memdb.NewWatchSet()
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "r")
+	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "r", SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3074,7 +3315,7 @@ func TestStateStore_JobsByIDPrefix(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "ri")
+	iter, err = state.JobsByIDPrefix(ws, job.Namespace, "ri", SortDefault)
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
@@ -3124,9 +3365,9 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 
 	// Try full match
 	ws := memdb.NewWatchSet()
-	iter1, err := state.JobsByIDPrefix(ws, ns1.Name, jobID)
+	iter1, err := state.JobsByIDPrefix(ws, ns1.Name, jobID, SortDefault)
 	require.NoError(t, err)
-	iter2, err := state.JobsByIDPrefix(ws, ns2.Name, jobID)
+	iter2, err := state.JobsByIDPrefix(ws, ns2.Name, jobID, SortDefault)
 	require.NoError(t, err)
 
 	jobsNs1 := gatherJobs(iter1)
@@ -3136,9 +3377,9 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 	require.Len(t, jobsNs2, 1)
 
 	// Try prefix
-	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "re")
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "re", SortDefault)
 	require.NoError(t, err)
-	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "re")
+	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "re", SortDefault)
 	require.NoError(t, err)
 
 	jobsNs1 = gatherJobs(iter1)
@@ -3153,9 +3394,9 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 	require.True(t, watchFired(ws))
 
 	ws = memdb.NewWatchSet()
-	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "r")
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "r", SortDefault)
 	require.NoError(t, err)
-	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "r")
+	iter2, err = state.JobsByIDPrefix(ws, ns2.Name, "r", SortDefault)
 	require.NoError(t, err)
 
 	jobsNs1 = gatherJobs(iter1)
@@ -3163,7 +3404,7 @@ func TestStateStore_JobsByIDPrefix_Namespaces(t *testing.T) {
 	require.Len(t, jobsNs1, 2)
 	require.Len(t, jobsNs2, 1)
 
-	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "ri")
+	iter1, err = state.JobsByIDPrefix(ws, ns1.Name, "ri", SortDefault)
 	require.NoError(t, err)
 
 	jobsNs1 = gatherJobs(iter1)
@@ -3193,9 +3434,9 @@ func TestStateStore_JobsByNamespace(t *testing.T) {
 
 	// Create watchsets so we can test that update fires the watch
 	watches := []memdb.WatchSet{memdb.NewWatchSet(), memdb.NewWatchSet()}
-	_, err := state.JobsByNamespace(watches[0], ns1.Name)
+	_, err := state.JobsByNamespace(watches[0], ns1.Name, SortDefault)
 	require.NoError(t, err)
-	_, err = state.JobsByNamespace(watches[1], ns2.Name)
+	_, err = state.JobsByNamespace(watches[1], ns2.Name, SortDefault)
 	require.NoError(t, err)
 
 	require.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 1001, nil, job1))
@@ -3206,9 +3447,9 @@ func TestStateStore_JobsByNamespace(t *testing.T) {
 	require.True(t, watchFired(watches[1]))
 
 	ws := memdb.NewWatchSet()
-	iter1, err := state.JobsByNamespace(ws, ns1.Name)
+	iter1, err := state.JobsByNamespace(ws, ns1.Name, SortDefault)
 	require.NoError(t, err)
-	iter2, err := state.JobsByNamespace(ws, ns2.Name)
+	iter2, err := state.JobsByNamespace(ws, ns2.Name, SortDefault)
 	require.NoError(t, err)
 
 	var out1 []*structs.Job
@@ -3412,19 +3653,22 @@ func TestStateStore_JobsByGC(t *testing.T) {
 	}
 
 	for i := 0; i < 20; i += 2 {
+		idx := 2000 + uint64(i+1)
 		job := mock.Job()
 		job.Type = structs.JobTypeBatch
+		job.ModifyIndex = idx
 		gc[job.ID] = struct{}{}
 
-		if err := state.UpsertJob(structs.MsgTypeTestSetup, 2000+uint64(i), nil, job); err != nil {
+		if err := state.UpsertJob(structs.MsgTypeTestSetup, idx, nil, job); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
 		// Create an eval for it
 		eval := mock.Eval()
 		eval.JobID = job.ID
+		eval.JobModifyIndex = job.ModifyIndex
 		eval.Status = structs.EvalStatusComplete
-		if err := state.UpsertEvals(structs.MsgTypeTestSetup, 2000+uint64(i+1), []*structs.Evaluation{eval}); err != nil {
+		if err := state.UpsertEvals(structs.MsgTypeTestSetup, idx, []*structs.Evaluation{eval}); err != nil {
 			t.Fatalf("err: %v", err)
 		}
 
@@ -3746,6 +3990,8 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	require.NoError(t, err)
 	defer state.DeleteNode(structs.MsgTypeTestSetup, 9999, []string{pluginID})
 
+	now := time.Now().UnixNano()
+
 	index++
 	err = state.UpsertAllocs(structs.MsgTypeTestSetup, index, []*structs.Allocation{alloc})
 	require.NoError(t, err)
@@ -3846,10 +4092,10 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	}
 
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, claim0)
+	err = state.CSIVolumeClaim(index, now, ns, vol0, claim0)
 	require.NoError(t, err)
 	index++
-	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
+	err = state.CSIVolumeClaim(index, now, ns, vol0, claim1)
 	require.NoError(t, err)
 
 	ws = memdb.NewWatchSet()
@@ -3861,7 +4107,7 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	claim2 := new(structs.CSIVolumeClaim)
 	*claim2 = *claim0
 	claim2.Mode = u
-	err = state.CSIVolumeClaim(2, ns, vol0, claim2)
+	err = state.CSIVolumeClaim(2, now, ns, vol0, claim2)
 	require.NoError(t, err)
 	ws = memdb.NewWatchSet()
 	iter, err = state.CSIVolumesByPluginID(ws, ns, "", "minnie")
@@ -3889,12 +4135,12 @@ func TestStateStore_CSIVolume(t *testing.T) {
 	claim3 := new(structs.CSIVolumeClaim)
 	*claim3 = *claim2
 	claim3.State = structs.CSIVolumeClaimStateReadyToFree
-	err = state.CSIVolumeClaim(index, ns, vol0, claim3)
+	err = state.CSIVolumeClaim(index, now, ns, vol0, claim3)
 	require.NoError(t, err)
 	index++
 	claim1.Mode = u
 	claim1.State = structs.CSIVolumeClaimStateReadyToFree
-	err = state.CSIVolumeClaim(index, ns, vol0, claim1)
+	err = state.CSIVolumeClaim(index, now, ns, vol0, claim1)
 	require.NoError(t, err)
 
 	index++
@@ -3935,16 +4181,17 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 	}
 
 	// helper function for test assertions
-	checkPlugin := func(counts pluginCounts) *structs.CSIPlugin {
+	checkPlugin := func(t *testing.T, plugID string, counts pluginCounts) *structs.CSIPlugin {
+		t.Helper()
 		plug, err := store.CSIPluginByID(memdb.NewWatchSet(), plugID)
-		require.NotNil(t, plug, "plugin was nil")
-		require.NoError(t, err)
-		require.Equal(t, counts.controllerFingerprints, len(plug.Controllers), "controllers fingerprinted")
-		require.Equal(t, counts.nodeFingerprints, len(plug.Nodes), "nodes fingerprinted")
-		require.Equal(t, counts.controllersHealthy, plug.ControllersHealthy, "controllers healthy")
-		require.Equal(t, counts.nodesHealthy, plug.NodesHealthy, "nodes healthy")
-		require.Equal(t, counts.controllersExpected, plug.ControllersExpected, "controllers expected")
-		require.Equal(t, counts.nodesExpected, plug.NodesExpected, "nodes expected")
+		must.NotNil(t, plug, must.Sprint("plugin was nil"))
+		must.NoError(t, err)
+		must.MapLen(t, counts.controllerFingerprints, plug.Controllers, must.Sprint("controllers fingerprinted"))
+		must.MapLen(t, counts.nodeFingerprints, plug.Nodes, must.Sprint("nodes fingerprinted"))
+		must.Eq(t, counts.controllersHealthy, plug.ControllersHealthy, must.Sprint("controllers healthy"))
+		must.Eq(t, counts.nodesHealthy, plug.NodesHealthy, must.Sprint("nodes healthy"))
+		must.Eq(t, counts.controllersExpected, plug.ControllersExpected, must.Sprint("controllers expected"))
+		must.Eq(t, counts.nodesExpected, plug.NodesExpected, must.Sprint("nodes expected"))
 		return plug.Copy()
 	}
 
@@ -3963,7 +4210,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		for _, id := range allocIDs {
 			alloc, err := store.AllocByID(ws, id)
-			require.NoError(t, err)
+			must.NoError(t, err)
 			alloc = alloc.Copy()
 			transform(alloc)
 			allocs = append(allocs, alloc)
@@ -3978,7 +4225,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			// transaction setup bugs
 			err = store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, nextIndex(store), allocs)
 		}
-		require.NoError(t, err)
+		must.NoError(t, err)
 		return allocs
 	}
 
@@ -3989,13 +4236,13 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		node = node.Copy()
 		transform(node)
 		err = store.UpsertNode(structs.MsgTypeTestSetup, nextIndex(store), node)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	}
 
 	nodes := []*structs.Node{mock.Node(), mock.Node(), mock.Node()}
 	for _, node := range nodes {
 		err = store.UpsertNode(structs.MsgTypeTestSetup, nextIndex(store), node)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	}
 
 	// Note: these are all subtests for clarity but are expected to be
@@ -4018,7 +4265,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		//
 		// TODO: that's the current code but we really should be able
 		// to figure out the system jobs too
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 0,
 			nodeFingerprints:       0,
 			controllersHealthy:     0,
@@ -4026,7 +4273,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          0,
 		})
-		require.False(t, plug.ControllerRequired)
+		must.False(t, plug.ControllerRequired)
 	})
 
 	t.Run("plan apply upserts allocations", func(t *testing.T) {
@@ -4061,10 +4308,10 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			allocs = append(allocs, nodeAlloc)
 		}
 		err = store.UpsertAllocs(structs.MsgTypeTestSetup, nextIndex(store), allocs)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		// node plugin now has expected counts too
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 0,
 			nodeFingerprints:       0,
 			controllersHealthy:     0,
@@ -4072,7 +4319,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          3,
 		})
-		require.False(t, plug.ControllerRequired)
+		must.False(t, plug.ControllerRequired)
 	})
 
 	t.Run("client upserts alloc status", func(t *testing.T) {
@@ -4082,7 +4329,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		})
 
 		// plugin still has allocs but no fingerprints
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 0,
 			nodeFingerprints:       0,
 			controllersHealthy:     0,
@@ -4090,7 +4337,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          3,
 		})
-		require.False(t, plug.ControllerRequired)
+		must.False(t, plug.ControllerRequired)
 	})
 
 	t.Run("client upserts node fingerprints", func(t *testing.T) {
@@ -4131,7 +4378,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 		}
 
 		// plugins have been fingerprinted so we have healthy counts
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 2,
 			nodeFingerprints:       3,
 			controllersHealthy:     2,
@@ -4139,21 +4386,21 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          3,
 		})
-		require.True(t, plug.ControllerRequired)
+		must.True(t, plug.ControllerRequired)
 	})
 
 	t.Run("node marked for drain", func(t *testing.T) {
 		ws := memdb.NewWatchSet()
 		nodeAllocs, err := store.AllocsByNode(ws, nodes[0].ID)
-		require.NoError(t, err)
-		require.Len(t, nodeAllocs, 2)
+		must.NoError(t, err)
+		must.Len(t, 2, nodeAllocs)
 
 		updateAllocsFn([]string{nodeAllocs[0].ID, nodeAllocs[1].ID},
 			SERVER, func(alloc *structs.Allocation) {
 				alloc.DesiredStatus = structs.AllocDesiredStatusStop
 			})
 
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 2,
 			nodeFingerprints:       3,
 			controllersHealthy:     2,
@@ -4161,7 +4408,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2, // job summary hasn't changed
 			nodesExpected:          3, // job summary hasn't changed
 		})
-		require.True(t, plug.ControllerRequired)
+		must.True(t, plug.ControllerRequired)
 	})
 
 	t.Run("client removes fingerprints after node drain", func(t *testing.T) {
@@ -4170,7 +4417,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			node.CSINodePlugins = nil
 		})
 
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 1,
 			nodeFingerprints:       2,
 			controllersHealthy:     1,
@@ -4178,20 +4425,20 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2,
 			nodesExpected:          3,
 		})
-		require.True(t, plug.ControllerRequired)
+		must.True(t, plug.ControllerRequired)
 	})
 
 	t.Run("client updates alloc status to stopped after node drain", func(t *testing.T) {
 		nodeAllocs, err := store.AllocsByNode(memdb.NewWatchSet(), nodes[0].ID)
-		require.NoError(t, err)
-		require.Len(t, nodeAllocs, 2)
+		must.NoError(t, err)
+		must.Len(t, 2, nodeAllocs)
 
 		updateAllocsFn([]string{nodeAllocs[0].ID, nodeAllocs[1].ID}, CLIENT,
 			func(alloc *structs.Allocation) {
 				alloc.ClientStatus = structs.AllocClientStatusComplete
 			})
 
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 1,
 			nodeFingerprints:       2,
 			controllersHealthy:     1,
@@ -4199,7 +4446,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    2, // still 2 because count=2
 			nodesExpected:          2, // has to use nodes we're actually placed on
 		})
-		require.True(t, plug.ControllerRequired)
+		must.True(t, plug.ControllerRequired)
 	})
 
 	t.Run("job stop with purge", func(t *testing.T) {
@@ -4210,15 +4457,15 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			PluginID:  plugID,
 		}
 		err = store.UpsertCSIVolume(nextIndex(store), []*structs.CSIVolume{vol})
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		err = store.DeleteJob(nextIndex(store), structs.DefaultNamespace, controllerJobID)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
 		err = store.DeleteJob(nextIndex(store), structs.DefaultNamespace, nodeJobID)
-		require.NoError(t, err)
+		must.NoError(t, err)
 
-		plug := checkPlugin(pluginCounts{
+		plug := checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 1, // no changes till we get fingerprint
 			nodeFingerprints:       2,
 			controllersHealthy:     1,
@@ -4226,29 +4473,8 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    0,
 			nodesExpected:          0,
 		})
-		require.True(t, plug.ControllerRequired)
-		require.False(t, plug.IsEmpty())
-
-		updateAllocsFn(allocIDs, SERVER,
-			func(alloc *structs.Allocation) {
-				alloc.DesiredStatus = structs.AllocDesiredStatusStop
-			})
-
-		updateAllocsFn(allocIDs, CLIENT,
-			func(alloc *structs.Allocation) {
-				alloc.ClientStatus = structs.AllocClientStatusComplete
-			})
-
-		plug = checkPlugin(pluginCounts{
-			controllerFingerprints: 1,
-			nodeFingerprints:       2,
-			controllersHealthy:     1,
-			nodesHealthy:           2,
-			controllersExpected:    0,
-			nodesExpected:          0,
-		})
-		require.True(t, plug.ControllerRequired)
-		require.False(t, plug.IsEmpty())
+		must.True(t, plug.ControllerRequired)
+		must.False(t, plug.IsEmpty())
 
 		for _, node := range nodes {
 			updateNodeFn(node.ID, func(node *structs.Node) {
@@ -4256,7 +4482,7 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			})
 		}
 
-		plug = checkPlugin(pluginCounts{
+		plug = checkPlugin(t, plugID, pluginCounts{
 			controllerFingerprints: 0,
 			nodeFingerprints:       2, // haven't removed fingerprints yet
 			controllersHealthy:     0,
@@ -4264,8 +4490,8 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 			controllersExpected:    0,
 			nodesExpected:          0,
 		})
-		require.True(t, plug.ControllerRequired)
-		require.False(t, plug.IsEmpty())
+		must.True(t, plug.ControllerRequired)
+		must.False(t, plug.IsEmpty())
 
 		for _, node := range nodes {
 			updateNodeFn(node.ID, func(node *structs.Node) {
@@ -4275,13 +4501,13 @@ func TestStateStore_CSIPlugin_Lifecycle(t *testing.T) {
 
 		ws := memdb.NewWatchSet()
 		plug, err := store.CSIPluginByID(ws, plugID)
-		require.NoError(t, err)
-		require.Nil(t, plug, "plugin was not deleted")
+		must.NoError(t, err)
+		must.Nil(t, plug, must.Sprint("plugin was not deleted"))
 
 		vol, err = store.CSIVolumeByID(ws, vol.Namespace, vol.ID)
-		require.NoError(t, err)
-		require.NotNil(t, vol, "volume should be queryable even if plugin is deleted")
-		require.False(t, vol.Schedulable)
+		must.NoError(t, err)
+		must.NotNil(t, vol, must.Sprint("volume should be queryable even if plugin is deleted"))
+		must.False(t, vol.Schedulable)
 	})
 }
 
@@ -4644,6 +4870,7 @@ func TestStateStore_UpsertEvals_Eval_ChildJob(t *testing.T) {
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
 	eval.JobID = child.ID
+	eval.JobModifyIndex = child.ModifyIndex
 
 	// Create watchsets so we can test that upsert fires the watch
 	ws := memdb.NewWatchSet()
@@ -4861,6 +5088,7 @@ func TestStateStore_DeleteEval_Eval(t *testing.T) {
 	require.Equal(t, uint64(1002), evalsIndex)
 }
 
+// This tests the evalDelete boolean by deleting a Pending eval and Pending Alloc.
 func TestStateStore_DeleteEval_ChildJob(t *testing.T) {
 	ci.Parallel(t)
 
@@ -5569,6 +5797,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 998, nil, parent))
 
 	child := mock.Job()
+	child.Type = structs.JobTypeBatch
 	child.Status = ""
 	child.ParentID = parent.ID
 	must.NoError(t, state.UpsertJob(structs.MsgTypeTestSetup, 999, nil, child))
@@ -6201,6 +6430,108 @@ func TestStateStore_UpsertAlloc_No_Job(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "without a job") {
 		t.Fatalf("expect err: %v", err)
 	}
+}
+
+func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
+	ci.Parallel(t)
+
+	store := testStateStore(t)
+
+	nodes := []*structs.Node{
+		mock.Node(),
+		mock.Node(),
+	}
+
+	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeReader,
+		},
+		{
+			AttachmentMode: structs.HostVolumeAttachmentModeFilesystem,
+			AccessMode:     structs.HostVolumeAccessModeSingleNodeWriter,
+		},
+	}
+	dhv := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[1].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
+	}
+
+	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {ID: dhv.ID, Name: dhv.Name}}
+
+	stickyRequest := map[string]*structs.VolumeRequest{
+		"foo": {
+			Type:           "host",
+			Source:         "foo",
+			Sticky:         true,
+			AccessMode:     structs.CSIVolumeAccessModeSingleNodeWriter,
+			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
+		},
+	}
+
+	for _, node := range nodes {
+		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
+	}
+
+	stickyJob := mock.Job()
+	stickyJob.TaskGroups[0].Volumes = stickyRequest
+
+	existingClaim := &structs.TaskGroupHostVolumeClaim{
+		Namespace:     structs.DefaultNamespace,
+		JobID:         stickyJob.ID,
+		TaskGroupName: stickyJob.TaskGroups[0].Name,
+		VolumeID:      dhv.ID,
+		VolumeName:    dhv.Name,
+	}
+	must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(structs.MsgTypeTestSetup, 1000, existingClaim))
+
+	allocWithClaimedVol := mock.AllocForNode(nodes[1])
+	allocWithClaimedVol.Namespace = structs.DefaultNamespace
+	allocWithClaimedVol.JobID = stickyJob.ID
+	allocWithClaimedVol.Job = stickyJob
+	allocWithClaimedVol.NodeID = nodes[1].ID
+
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocWithClaimedVol}))
+
+	// there must be exactly one claim in the state
+	claims := []*structs.TaskGroupHostVolumeClaim{}
+	iter, err := store.GetTaskGroupHostVolumeClaimsForTaskGroup(nil, structs.DefaultNamespace, stickyJob.ID, stickyJob.TaskGroups[0].Name)
+	must.Nil(t, err)
+	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		claim := raw.(*structs.TaskGroupHostVolumeClaim)
+		claims = append(claims, claim)
+	}
+	must.Len(t, 1, claims)
+
+	// clean up the state
+	txn := store.db.WriteTxn(1000)
+	_, err = txn.DeletePrefix(TableTaskGroupHostVolumeClaim, "id_prefix", stickyJob.ID)
+	must.Nil(t, err)
+	must.NoError(t, store.deleteAllocsForJobTxn(txn, 1000, structs.DefaultNamespace, stickyJob.ID))
+	must.NoError(t, txn.Commit())
+
+	// try to upsert an alloc for which there is no existing claim
+	stickyJob2 := mock.Job()
+	stickyJob2.TaskGroups[0].Volumes = stickyRequest
+	allocWithNoClaimedVol := mock.AllocForNode(nodes[1])
+	allocWithNoClaimedVol.Namespace = structs.DefaultNamespace
+	allocWithNoClaimedVol.JobID = stickyJob2.ID
+	allocWithNoClaimedVol.Job = stickyJob2
+	allocWithNoClaimedVol.NodeID = nodes[1].ID
+
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{allocWithNoClaimedVol}))
+
+	// make sure we recorded a claim
+	claim, err := store.GetTaskGroupHostVolumeClaim(nil, structs.DefaultNamespace, stickyJob2.ID, stickyJob2.TaskGroups[0].Name, dhv.ID)
+	must.NoError(t, err)
+	must.Eq(t, claim.Namespace, structs.DefaultNamespace)
+	must.Eq(t, claim.JobID, stickyJob2.ID)
+	must.Eq(t, claim.TaskGroupName, stickyJob2.TaskGroups[0].Name)
 }
 
 func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
@@ -7080,7 +7411,7 @@ func TestStateStore_AllocsForRegisteredJob(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	expected := len(allocs) + len(allocs1)
+	expected := len(allocs1) // state.DeleteJob corresponds to stop -purge, so all allocs from the original job should be gone
 	if len(out) != expected {
 		t.Fatalf("expected: %v, actual: %v", expected, len(out))
 	}
@@ -7218,7 +7549,8 @@ func TestStateStore_AllocsByIDPrefix_Namespaces(t *testing.T) {
 	alloc2.Namespace = ns2.Name
 
 	require.NoError(t, state.UpsertNamespaces(998, []*structs.Namespace{ns1, ns2}))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	require.NoError(t, state.UpsertAllocs(
+		structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	gatherAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
 		var allocs []*structs.Allocation
@@ -7454,232 +7786,224 @@ func TestStateStore_SetJobStatus(t *testing.T) {
 	}
 }
 
-func TestStateStore_GetJobStatus_NoEvalsOrAllocs(t *testing.T) {
+func TestStateStore_GetJobStatus(t *testing.T) {
 	ci.Parallel(t)
 
-	job := mock.Job()
-	state := testStateStore(t)
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
+	testCases := []struct {
+		name  string
+		setup func(*testing.T, *txn) *structs.Job
+		exp   string
+	}{
+		{
+			name: "stopped job with running allocations is still running",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+
+				a := mock.Alloc()
+				a.JobID = j.ID
+				a.Job = j
+				a.ClientStatus = structs.AllocClientStatusRunning
+
+				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+
+				stoppedJob := j.Copy()
+				stoppedJob.Stop = true
+				stoppedJob.Version += 1
+				return stoppedJob
+			},
+			exp: structs.JobStatusRunning,
+		},
+		{
+			name: "stopped job with terminal allocs is dead",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				j.Stop = true
+
+				a := mock.Alloc()
+				a.JobID = j.ID
+				a.Job = j
+				a.ClientStatus = structs.AllocClientStatusComplete
+				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+				return j
+			},
+			exp: structs.JobStatusDead,
+		},
+		{
+			name: "parameterized job",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				j.ParameterizedJob = &structs.ParameterizedJobConfig{}
+				j.Dispatched = false
+				return j
+			},
+			exp: structs.JobStatusRunning,
+		},
+		{
+			name: "periodic job",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				j.Periodic = &structs.PeriodicConfig{}
+				return j
+			},
+			exp: structs.JobStatusRunning,
+		},
+		{
+			name: "no allocs",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				return mock.Job()
+			},
+			exp: structs.JobStatusPending,
+		},
+		{
+			name: "current job has pending alloc",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				a := mock.Alloc()
+
+				a.JobID = j.ID
+
+				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+				return j
+			},
+			exp: structs.JobStatusRunning,
+		},
+		{
+			name: "previous job version had allocs",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				a := mock.Alloc()
+				e := mock.Eval()
+
+				e.JobID = j.ID
+				e.JobModifyIndex = j.ModifyIndex
+				e.Status = structs.EvalStatusPending
+
+				a.JobID = j.ID
+				a.Job = j
+				a.ClientStatus = structs.AllocClientStatusFailed
+
+				j.Version += 1
+				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+
+				err = txn.Insert("evals", e)
+				must.NoError(t, err)
+				return j
+			},
+			exp: structs.JobStatusPending,
+		},
+		{
+			name: "batch job has all terminal allocs, with no evals",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				j.Type = structs.JobTypeBatch
+
+				a := mock.Alloc()
+				a.ClientStatus = structs.AllocClientStatusFailed
+				a.JobID = j.ID
+				a.Job = j
+
+				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+				return j
+			},
+			exp: structs.JobStatusDead,
+		},
+		{
+			name: "job has all terminal allocs, but pending eval",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				a := mock.Alloc()
+
+				a.ClientStatus = structs.AllocClientStatusFailed
+				a.JobID = j.ID
+
+				e := mock.Eval()
+				e.JobID = j.ID
+				e.JobModifyIndex = j.ModifyIndex
+				e.Status = structs.EvalStatusPending
+
+				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+
+				err = txn.Insert("evals", e)
+				must.NoError(t, err)
+				return j
+
+			},
+			exp: structs.JobStatusPending,
+		},
+		{
+			name: "reschedulable alloc is pending waiting for replacement",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				if j.TaskGroups[0].ReschedulePolicy == nil {
+					t.Fatal("test job has no reschedule policy")
+				}
+				a := mock.Alloc()
+				a.Job = j
+				a.JobID = j.ID
+				a.ClientStatus = structs.AllocClientStatusFailed
+				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+				return j
+			},
+			exp: structs.JobStatusPending,
+		},
+		{
+			name: "reschedulable alloc is dead after replacement fails",
+			setup: func(t *testing.T, txn *txn) *structs.Job {
+				j := mock.Job()
+				// give job one reschedule attempt
+				j.TaskGroups[0].ReschedulePolicy.Attempts = 1
+				j.TaskGroups[0].ReschedulePolicy.Interval = time.Hour
+
+				// Replacement alloc
+				a := mock.Alloc()
+				a.Job = j
+				a.JobID = j.ID
+				a.ClientStatus = structs.AllocClientStatusFailed
+				a.RescheduleTracker = &structs.RescheduleTracker{
+					Events: []*structs.RescheduleEvent{
+						structs.NewRescheduleEvent(time.Now().UTC().UnixNano(), "", "", time.Minute),
+					},
+				}
+
+				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+
+				// Original alloc
+				a2 := mock.Alloc()
+				a2.Job = j
+				a2.JobID = j.ID
+				a2.ClientStatus = structs.AllocClientStatusFailed
+				a2.NextAllocation = a.ID
+
+				err = txn.Insert("allocs", a2)
+				must.NoError(t, err)
+				return j
+			},
+			exp: structs.JobStatusDead,
+		},
 	}
 
-	if status != structs.JobStatusPending {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusPending)
-	}
-}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ci.Parallel(t)
 
-func TestStateStore_GetJobStatus_NoEvalsOrAllocs_Periodic(t *testing.T) {
-	ci.Parallel(t)
+			state := testStateStore(t)
 
-	job := mock.PeriodicJob()
-	state := testStateStore(t)
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
+			txn := state.db.WriteTxn(0)
 
-	if status != structs.JobStatusRunning {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
-	}
-}
+			job := tc.setup(t, txn)
 
-func TestStateStore_GetJobStatus_NoEvalsOrAllocs_EvalDelete(t *testing.T) {
-	ci.Parallel(t)
-
-	job := mock.Job()
-	state := testStateStore(t)
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusDead {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
-	}
-}
-
-func TestStateStore_GetJobStatus_DeadEvalsAndAllocs(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.Job()
-
-	// Create a mock alloc that is dead.
-	alloc := mock.Alloc()
-	alloc.JobID = job.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusStop
-	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Create a mock eval that is complete
-	eval := mock.Eval()
-	eval.JobID = job.ID
-	eval.Status = structs.EvalStatusComplete
-	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusDead {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
-	}
-}
-
-func TestStateStore_GetJobStatus_RunningAlloc(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.Job()
-
-	// Create a mock alloc that is running.
-	alloc := mock.Alloc()
-	alloc.JobID = job.ID
-	alloc.DesiredStatus = structs.AllocDesiredStatusRun
-	state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID))
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusRunning {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
-	}
-}
-
-func TestStateStore_GetJobStatus_PeriodicJob(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.PeriodicJob()
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusRunning {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
-	}
-
-	// Mark it as stopped
-	job.Stop = true
-	status, err = state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusDead {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
-	}
-}
-
-func TestStateStore_GetJobStatus_ParameterizedJob(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.Job()
-	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusRunning {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusRunning)
-	}
-
-	// Mark it as stopped
-	job.Stop = true
-	status, err = state.getJobStatus(txn, job, false)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusDead {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusDead)
-	}
-}
-
-func TestStateStore_SetJobStatus_PendingEval(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.Job()
-
-	// Create a mock eval that is pending.
-	eval := mock.Eval()
-	eval.JobID = job.ID
-	eval.Status = structs.EvalStatusPending
-	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if status != structs.JobStatusPending {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, structs.JobStatusPending)
-	}
-}
-
-// TestStateStore_SetJobStatus_SystemJob asserts that system jobs are still
-// considered running until explicitly stopped.
-func TestStateStore_SetJobStatus_SystemJob(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	job := mock.SystemJob()
-
-	// Create a mock eval that is pending.
-	eval := mock.Eval()
-	eval.JobID = job.ID
-	eval.Type = job.Type
-	eval.Status = structs.EvalStatusComplete
-	if err := state.UpsertEvals(structs.MsgTypeTestSetup, 1000, []*structs.Evaluation{eval}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	txn := state.db.ReadTxn()
-	status, err := state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if expected := structs.JobStatusRunning; status != expected {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, expected)
-	}
-
-	// Stop the job
-	job.Stop = true
-	status, err = state.getJobStatus(txn, job, true)
-	if err != nil {
-		t.Fatalf("getJobStatus() failed: %v", err)
-	}
-
-	if expected := structs.JobStatusDead; status != expected {
-		t.Fatalf("getJobStatus() returned %v; expected %v", status, expected)
+			status, err := state.getJobStatus(txn, job, false)
+			must.NoError(t, err)
+			must.Eq(t, tc.exp, status)
+		})
 	}
 }
 
@@ -8003,6 +8327,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 	ci.Parallel(t)
 
 	state := testStateStore(t)
+	now := time.Now().UnixNano()
 
 	// Insert a job
 	job := mock.Job()
@@ -8011,7 +8336,7 @@ func TestStateStore_UpsertDeploymentStatusUpdate_Successful(t *testing.T) {
 	}
 
 	// Insert a deployment
-	d := structs.NewDeployment(job, 50)
+	d := structs.NewDeployment(job, 50, now)
 	if err := state.UpsertDeployment(2, d); err != nil {
 		t.Fatalf("bad: %v", err)
 	}
@@ -10608,9 +10933,10 @@ func TestStateStore_UpsertScalingEvent(t *testing.T) {
 	job := mock.Job()
 	groupName := job.TaskGroups[0].Name
 
-	newEvent := structs.NewScalingEvent("message 1").SetMeta(map[string]interface{}{
+	newEvent := structs.NewScalingEvent("message 1")
+	newEvent.Meta = map[string]interface{}{
 		"a": 1,
-	})
+	}
 
 	wsAll := memdb.NewWatchSet()
 	all, err := state.ScalingEvents(wsAll)
@@ -10681,10 +11007,11 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 
 	index := uint64(1000)
 	for i := 1; i <= structs.JobTrackedScalingEvents+10; i++ {
-		newEvent := structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+		newEvent := structs.NewScalingEvent("")
+		newEvent.Meta = map[string]interface{}{
 			"i":     i,
 			"group": group1,
-		})
+		}
 		err := state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
 			Namespace:    namespace,
 			JobID:        jobID,
@@ -10694,10 +11021,11 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 		index++
 		require.NoError(err)
 
-		newEvent = structs.NewScalingEvent("").SetMeta(map[string]interface{}{
+		newEvent = structs.NewScalingEvent("")
+		newEvent.Meta = map[string]interface{}{
 			"i":     i,
 			"group": group2,
-		})
+		}
 		err = state.UpsertScalingEvent(index, &structs.ScalingEventRequest{
 			Namespace:    namespace,
 			JobID:        jobID,
@@ -10734,75 +11062,6 @@ func TestStateStore_UpsertScalingEvent_LimitAndOrder(t *testing.T) {
 		actualEvents = append(actualEvents, event.Meta["i"].(int))
 	}
 	require.Equal(expectedEvents, actualEvents)
-}
-
-func TestStateStore_RootKeyMetaData_CRUD(t *testing.T) {
-	ci.Parallel(t)
-	store := testStateStore(t)
-	index, err := store.LatestIndex()
-	require.NoError(t, err)
-
-	// create 3 default keys, one of which is active
-	keyIDs := []string{}
-	for i := 0; i < 3; i++ {
-		key := structs.NewRootKeyMeta()
-		keyIDs = append(keyIDs, key.KeyID)
-		if i == 0 {
-			key.SetActive()
-		}
-		index++
-		require.NoError(t, store.UpsertRootKeyMeta(index, key, false))
-	}
-
-	// retrieve the active key
-	activeKey, err := store.GetActiveRootKeyMeta(nil)
-	require.NoError(t, err)
-	require.NotNil(t, activeKey)
-
-	// update an inactive key to active and verify the rotation
-	inactiveKey, err := store.RootKeyMetaByID(nil, keyIDs[1])
-	require.NoError(t, err)
-	require.NotNil(t, inactiveKey)
-	oldCreateIndex := inactiveKey.CreateIndex
-	newlyActiveKey := inactiveKey.Copy()
-	newlyActiveKey.SetActive()
-	index++
-	require.NoError(t, store.UpsertRootKeyMeta(index, newlyActiveKey, false))
-
-	iter, err := store.RootKeyMetas(nil)
-	require.NoError(t, err)
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		key := raw.(*structs.RootKeyMeta)
-		if key.KeyID == newlyActiveKey.KeyID {
-			require.True(t, key.Active(), "expected updated key to be active")
-			require.Equal(t, oldCreateIndex, key.CreateIndex)
-		} else {
-			require.False(t, key.Active(), "expected other keys to be inactive")
-		}
-	}
-
-	// delete the active key and verify it's been deleted
-	index++
-	require.NoError(t, store.DeleteRootKeyMeta(index, keyIDs[1]))
-
-	iter, err = store.RootKeyMetas(nil)
-	require.NoError(t, err)
-	var found int
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		key := raw.(*structs.RootKeyMeta)
-		require.NotEqual(t, keyIDs[1], key.KeyID)
-		require.False(t, key.Active(), "expected remaining keys to be inactive")
-		found++
-	}
-	require.Equal(t, 2, found, "expected only 2 keys remaining")
 }
 
 func TestStateStore_Abandon(t *testing.T) {

@@ -1,0 +1,94 @@
+---
+layout: docs
+page_title: Resource Quota Specification
+description: Learn about Nomad's Resource Quota specification.
+---
+
+# Resource Quota Specification
+
+<EnterpriseAlert>
+Resource Quotas are only available with Nomad Enterprise.
+</EnterpriseAlert>
+
+[Resource Quotas][] enable you to limit resource consumption across teams or
+projects to reduce waste and align budgets.
+
+You can manage quotas using the Nomad CLI via the [`quota`][] subcommands,
+or with Nomad's [Quota HTTP API][] directly.
+
+You may also follow a [Quotas tutorial][] for more example usage.
+
+## Example quota specification
+
+The CLI command `nomad quota init` generates an example `spec.hcl` file.
+
+```hcl
+name        = "default-quota"
+description = "Limit the shared default namespace"
+
+# Create a limit for the global region. Additional limits may
+# be specified in-order to limit other regions.
+limit {
+  region = "global"
+  region_limit {
+    cores      = 0
+    cpu        = 2500
+    memory     = 1000
+    memory_max = 1000
+    device "nvidia/gpu/1080ti" {
+      count = 1
+    }
+  }
+  variables_limit = 1000
+}
+```
+
+## Quota specification parameters
+
+- `name` `(string)` - The name of the Quota. Nomad uses `name` to connect the
+quota a [`Namespace`][].
+- `description` `(string: <optional>)` - A human-readable description.
+- `limit` <code>([QuotaLimit](#limit-parameters))</code> - The resource limit
+in a Nomad region.
+
+### `limit` parameters
+
+- `region` `(string)` - The Nomad `region` that the limit applies to.
+- `region_limit` <code>([RegionLimit](#region_limit-parameters))</code> -
+Resources to limit.
+- `variables_limit` `(int: 0)` - Maximum total size of all Nomad
+[`variables`][] in MiB. The default `0` means unlimited, and `-1` means
+variables are fully disabled.
+
+### `region_limit` parameters
+
+Region limits define the limits on cumulative task [`resources`][] blocks for
+allocations in the namespace and region the quota is applied to.
+
+- `cores` `(int: <optional>)` - The limit on total number of CPU cores from all
+`resources.cores` in the namespace. The [CPU concepts][] documentation
+has more details on CPU resources.
+- `cpu` `(int: <optional>)` - The limit on total amount of CPU from all
+`resources.cpu` in the namespace.
+- `memory` `(int: <optional>)` - The limit on total mount of memory in MB from
+all `resources.memory` in the namespace.
+- `memory_max` `(int: <optional>)` - The limit on total mount of hard memory
+limits in MB from all `resources.memory_max` in the namespace.
+- `device` <code>([Device](#device-parameters): nil)</code>
+
+### `device` parameters
+
+The `device` label specifies which device(s) the quota applies to,
+equivalent to the [`device`][] block in a job specification.
+
+- `count` `(int)` - How many of this device may be used.
+
+[Resource Quotas]: /nomad/docs/enterprise#resource-quotas
+[`quota`]: /nomad/docs/commands/quota
+[Quota HTTP API]: /nomad/api-docs/quotas
+[Quotas tutorial]: /nomad/tutorials/governance-and-policy/quotas
+[`Namespace`]: /nomad/docs/other-specifications/namespace
+[`variables`]: /nomad/docs/concepts/variables
+[`resources`]: /nomad/docs/job-specification/resources
+[CPU concepts]: /nomad/docs/concepts/cpu
+[`device`]: /nomad/docs/job-specification/device#device-parameters

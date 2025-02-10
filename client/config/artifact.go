@@ -5,6 +5,7 @@ package config
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -25,8 +26,9 @@ type ArtifactConfig struct {
 	DecompressionLimitFileCount int
 	DecompressionLimitSize      int64
 
-	DisableFilesystemIsolation bool
-	SetEnvironmentVariables    string
+	DisableFilesystemIsolation    bool
+	FilesystemIsolationExtraPaths []string
+	SetEnvironmentVariables       string
 }
 
 // ArtifactConfigFromAgent creates a new internal readonly copy of the client
@@ -68,17 +70,19 @@ func ArtifactConfigFromAgent(c *config.ArtifactConfig) (*ArtifactConfig, error) 
 	}
 
 	return &ArtifactConfig{
-		HTTPReadTimeout:             httpReadTimeout,
-		HTTPMaxBytes:                int64(httpMaxSize),
-		GCSTimeout:                  gcsTimeout,
-		GitTimeout:                  gitTimeout,
-		HgTimeout:                   hgTimeout,
-		S3Timeout:                   s3Timeout,
-		DecompressionLimitFileCount: *c.DecompressionFileCountLimit,
-		DecompressionLimitSize:      int64(decompressionSizeLimit),
-		DisableFilesystemIsolation:  *c.DisableFilesystemIsolation,
-		SetEnvironmentVariables:     *c.SetEnvironmentVariables,
+		HTTPReadTimeout:               httpReadTimeout,
+		HTTPMaxBytes:                  int64(httpMaxSize),
+		GCSTimeout:                    gcsTimeout,
+		GitTimeout:                    gitTimeout,
+		HgTimeout:                     hgTimeout,
+		S3Timeout:                     s3Timeout,
+		DecompressionLimitFileCount:   *c.DecompressionFileCountLimit,
+		DecompressionLimitSize:        int64(decompressionSizeLimit),
+		DisableFilesystemIsolation:    *c.DisableFilesystemIsolation,
+		FilesystemIsolationExtraPaths: slices.Clone(c.FilesystemIsolationExtraPaths),
+		SetEnvironmentVariables:       *c.SetEnvironmentVariables,
 	}, nil
+
 }
 
 func (a *ArtifactConfig) Copy() *ArtifactConfig {

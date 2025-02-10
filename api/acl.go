@@ -754,6 +754,9 @@ type ACLAuthMethod struct {
 	// ACLAuthMethodTokenLocalityGlobal for convenience.
 	TokenLocality string
 
+	// TokenNameFormat defines the HIL template to use when building the token name
+	TokenNameFormat string
+
 	// MaxTokenTTL is the maximum life of a token created by this method.
 	MaxTokenTTL time.Duration
 
@@ -823,6 +826,8 @@ type ACLAuthMethodConfig struct {
 	OIDCClientID string
 	// The OAuth Client Secret configured with the OIDC provider
 	OIDCClientSecret string
+	// Disable claims from the OIDC UserInfo endpoint
+	OIDCDisableUserInfo bool
 	// List of OIDC scopes
 	OIDCScopes []string
 	// List of auth claims that are valid for login
@@ -852,6 +857,9 @@ type ACLAuthMethodConfig struct {
 	// (value).
 	ClaimMappings     map[string]string
 	ListClaimMappings map[string]string
+	// Enables logging of claims and binding-rule evaluations when
+	// debug level logging is enabled.
+	VerboseLogging bool
 }
 
 // MarshalJSON implements the json.Marshaler interface and allows

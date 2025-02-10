@@ -9,7 +9,7 @@ Hi there,
 
 Thank you for opening an issue. Please note that we try to keep the Nomad issue
 tracker reserved for bug reports and feature requests. For general usage
-questions, please see: https://www.nomadproject.io/community
+questions, please see: https://developer.hashicorp.com/nomad/community
 
 -->
 

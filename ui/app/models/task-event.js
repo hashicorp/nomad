@@ -16,6 +16,27 @@ export default class TaskEvent extends Fragment {
 
   @attr('date') time;
   @attr('number') timeNanos;
+  @attr('string') displayMessage;
 
-  @attr('string') message;
+  get message() {
+    let message = simplifyTimeMessage(this.displayMessage);
+    return message;
+  }
+}
+
+function simplifyTimeMessage(message) {
+  return (
+    message?.replace(/(\d+h)?(\d+m)?(\d+\.\d+)s/g, (_, h, m, s) => {
+      h = h ? parseInt(h) : 0;
+      m = m ? parseInt(m) : 0;
+      s = Math.round(parseFloat(s));
+
+      m += Math.floor(s / 60);
+      s %= 60;
+      h += Math.floor(m / 60);
+      m %= 60;
+
+      return `${h ? h + 'h' : ''}${h || m ? m + 'm' : ''}${s}s`;
+    }) || message
+  );
 }

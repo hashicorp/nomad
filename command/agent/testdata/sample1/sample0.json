@@ -12,6 +12,13 @@
   "data_dir": "/opt/data/nomad/data",
   "datacenter": "dc1",
   "enable_syslog": true,
+  "keyring": {
+    "awskms": {
+      "active": true,
+      "region": "us-east-1",
+      "kms_key_id": "alias/kms-nomad-keyring"
+    }
+  },
   "leave_on_interrupt": true,
   "leave_on_terminate": true,
   "log_level": "INFO",

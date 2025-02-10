@@ -17,6 +17,7 @@ import { trimPath } from '../helpers/trim-path';
  * @property {string} path - the folder path containing our "file", relative to parent
  * @property {string} name - the variable "file" name
  * @property {string} absoluteFilePath - the folder path containing our "file", absolute
+ * @property {string} prefix - the path prefix
  * @property {VariableModel} variable - the variable itself
  */
 
@@ -39,10 +40,13 @@ export default class PathTree {
   /**
    * @param {MutableArray<VariableModel>} variables
    */
-  constructor(variables) {
+  constructor(variables, { delimiter = '/' } = {}) {
+    this.delimiter = delimiter;
     this.variables = variables;
     this.paths = this.generatePaths(variables);
   }
+
+  delimiter = '/';
 
   /**
    * @type {VariableFolder}
@@ -56,14 +60,15 @@ export default class PathTree {
    */
   generatePaths = (variables) => {
     variables.forEach((variable) => {
-      const path = trimPath([variable.path]).split('/');
+      const path = trimPath([variable.path]).split(this.delimiter);
       path.reduce((acc, segment, index, arr) => {
         if (index === arr.length - 1) {
           // If it's a file (end of the segment array)
           acc.files.push({
             name: segment,
-            absoluteFilePath: path.join('/'),
-            path: arr.slice(0, index + 1).join('/'),
+            absoluteFilePath: path.join(this.delimiter),
+            path: arr.slice(0, index + 1).join(this.delimiter),
+            prefix: arr.slice(0, index).join(this.delimiter),
             variable,
           });
         } else {

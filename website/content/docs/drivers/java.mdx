@@ -62,8 +62,11 @@ be able to access sensitive process information like environment variables.
 able to make use of IPC features, like sending unexpected POSIX signals.
 
 - `cap_add` - (Optional) A list of Linux capabilities to enable for the task.
-  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a subset
-  of the allowed capabilities configured with [`allow_caps`][allow_caps].
+  Effective capabilities (computed from `cap_add` and `cap_drop`) must be a
+  subset of the allowed capabilities configured with [`allow_caps`][allow_caps].
+  Note that `"all"` is not permitted here if the `allow_caps` field in the
+  driver configuration doesn't also allow all capabilities.
+
 
 ```hcl
 config {
@@ -81,6 +84,11 @@ config {
   cap_add  = ["chown", "sys_chroot", "mknod"]
 }
 ```
+
+- `work_dir` - (Optional) Sets a custom working directory for the task. This path must be
+  absolute and within the task's [chroot](#chroot) or in a [host volume][] mounted
+  with a [`volume_mount`][volume_mount] block. This will also change the working
+  directory when using `nomad alloc exec`.
 
 ## Examples
 
@@ -218,6 +226,11 @@ running as root, many of these mechanisms cannot be used.
 As a baseline, the Java jars will be run inside a Java Virtual Machine,
 providing a minimum amount of isolation.
 
+Nomad can only use cgroups to control resources if all the required controllers
+are available. If one or more required cgroups are unavailable, Nomad will
+disable resource controls that require cgroups entirely. See the documentation
+on [cgroup controller requirements][] for more details.
+
 ### Chroot
 
 The chroot created on Linux is populated with data in the following
@@ -251,3 +264,6 @@ This list is configurable through the agent client
 [no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
 [allow_caps]: /nomad/docs/drivers/java#allow_caps
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
+[cgroup controller requirements]: /nomad/docs/install/production/requirements#hardening-nomad
+[volume_mount]: /nomad/docs/job-specification/volume_mount
+[host volume]: /nomad/docs/configuration/client#host_volume-block

@@ -60,11 +60,16 @@ func (sub *Submission) Exec(group, task string, cmd []string) Logs {
 	)
 	sub.logf("alloc exec exit code: %d in: %s", exitCode, allocID)
 
+	sout, serr := stdout.String(), stderr.String()
+
 	must.NoError(sub.t, err, must.Sprintf("failed to exec cmd %q in %s/%s (%s)", cmd, group, task, allocID))
-	must.Zero(sub.t, exitCode, must.Sprintf("expected success exit code executing %s in %s/%s %s", cmd, group, task, allocID))
+	must.Zero(sub.t, exitCode, must.Sprintf(
+		"expected success exit code executing %s in %s/%s %s\nstdout: %s\nstderr: %s\n",
+		cmd, group, task, allocID, sout, serr),
+	)
 
 	return Logs{
-		Stdout: stdout.String(),
-		Stderr: stderr.String(),
+		Stdout: sout,
+		Stderr: serr,
 	}
 }

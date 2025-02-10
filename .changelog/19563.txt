@@ -1,0 +1,3 @@
+```release-note:improvement
+drivers/exec: Added support for OOM detection in exec driver
+```

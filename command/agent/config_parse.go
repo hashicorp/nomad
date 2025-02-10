@@ -10,12 +10,14 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"time"
 
 	"github.com/hashicorp/hcl"
 	"github.com/hashicorp/hcl/hcl/ast"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
 )
@@ -54,17 +56,13 @@ func ParseConfigFile(path string) (*Config, error) {
 			PlanRejectionTracker: &PlanRejectionTracker{},
 			ServerJoin:           &ServerJoin{},
 		},
-		ACL:   &ACLConfig{},
-		Audit: &config.AuditConfig{},
-		Consul: &config.ConsulConfig{
-			ServiceIdentity:  &config.WorkloadIdentityConfig{},
-			TemplateIdentity: &config.WorkloadIdentityConfig{},
-		},
-		Consuls:   map[string]*config.ConsulConfig{},
+		ACL:       &ACLConfig{},
+		Audit:     &config.AuditConfig{},
+		Consuls:   []*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
 		Telemetry: &Telemetry{},
-		Vault:     &config.VaultConfig{},
-		Vaults:    map[string]*config.VaultConfig{},
+		Vaults:    []*config.VaultConfig{},
+		Reporting: config.DefaultReporting(),
 	}
 
 	err = hcl.Decode(c, buf.String())
@@ -95,6 +93,13 @@ func ParseConfigFile(path string) (*Config, error) {
 		}
 	}
 
+	matches = list.Filter("keyring")
+	if len(matches.Items) > 0 {
+		if err := parseKeyringConfigs(c, matches); err != nil {
+			return nil, fmt.Errorf("error parsing 'keyring': %w", err)
+		}
+	}
+
 	// convert strings to time.Durations
 	tds := []durationConversionMap{
 		{"gc_interval", &c.Client.GCInterval, &c.Client.GCIntervalHCL, nil},
@@ -110,9 +115,10 @@ func ParseConfigFile(path string) (*Config, error) {
 		{"server.plan_rejection_tracker.node_window", &c.Server.PlanRejectionTracker.NodeWindow, &c.Server.PlanRejectionTracker.NodeWindowHCL, nil},
 		{"server.retry_interval", &c.Server.RetryInterval, &c.Server.RetryIntervalHCL, nil},
 		{"server.server_join.retry_interval", &c.Server.ServerJoin.RetryInterval, &c.Server.ServerJoin.RetryIntervalHCL, nil},
-		{"consul.timeout", &c.Consul.Timeout, &c.Consul.TimeoutHCL, nil},
 		{"autopilot.server_stabilization_time", &c.Autopilot.ServerStabilizationTime, &c.Autopilot.ServerStabilizationTimeHCL, nil},
 		{"autopilot.last_contact_threshold", &c.Autopilot.LastContactThreshold, &c.Autopilot.LastContactThresholdHCL, nil},
+		{"telemetry.in_memory_collection_interval", &c.Telemetry.inMemoryCollectionInterval, &c.Telemetry.InMemoryCollectionInterval, nil},
+		{"telemetry.in_memory_retention_period", &c.Telemetry.inMemoryRetentionPeriod, &c.Telemetry.InMemoryRetentionPeriod, nil},
 		{"telemetry.collection_interval", &c.Telemetry.collectionInterval, &c.Telemetry.CollectionInterval, nil},
 		{"client.template.block_query_wait", nil, &c.Client.TemplateConfig.BlockQueryWaitTimeHCL,
 			func(d *time.Duration) {
@@ -173,36 +179,43 @@ func ParseConfigFile(path string) (*Config, error) {
 				c.Client.TemplateConfig.NomadRetry.MaxBackoff = d
 			},
 		},
+		{"reporting.export_interval",
+			&c.Reporting.ExportInterval, &c.Reporting.ExportIntervalHCL, nil},
 	}
 
 	// Parse durations for Consul and Vault config blocks if provided.
-	//
-	// Since the map of multiple cluster configuration contains a pointer to
-	// the default block we don't need to parse it directly.
-	for name, consulConfig := range c.Consuls {
+	for _, consulConfig := range c.Consuls {
+		// Capture consulConfig inside the loop so the parse duration function
+		// modifies the right configuration.
+		consulConfig := consulConfig
+
 		if consulConfig.ServiceIdentity != nil {
 			tds = append(tds, durationConversionMap{
-				fmt.Sprintf("consuls.%s.service_identity.ttl", name), nil, &consulConfig.ServiceIdentity.TTLHCL,
+				"consul.service_identity.ttl", nil, &consulConfig.ServiceIdentity.TTLHCL,
 				func(d *time.Duration) {
 					consulConfig.ServiceIdentity.TTL = d
 				},
 			})
 		}
 
-		if consulConfig.TemplateIdentity != nil {
+		if consulConfig.TaskIdentity != nil {
 			tds = append(tds, durationConversionMap{
-				fmt.Sprintf("consuls.%s.template_identity.ttl", name), nil, &consulConfig.TemplateIdentity.TTLHCL,
+				"consul.task_identity.ttl", nil, &consulConfig.TaskIdentity.TTLHCL,
 				func(d *time.Duration) {
-					consulConfig.TemplateIdentity.TTL = d
+					consulConfig.TaskIdentity.TTL = d
 				},
 			})
 		}
 	}
 
-	for name, vaultConfig := range c.Vaults {
+	for _, vaultConfig := range c.Vaults {
+		// Capture vaultConfig inside the loop so the parse duration function
+		// modifies the right configuration.
+		vaultConfig := vaultConfig
+
 		if vaultConfig.DefaultIdentity != nil {
 			tds = append(tds, durationConversionMap{
-				fmt.Sprintf("vaults.%s.default_identity.ttl", name), nil, &vaultConfig.DefaultIdentity.TTLHCL,
+				"vaults.default_identity.ttl", nil, &vaultConfig.DefaultIdentity.TTLHCL,
 				func(d *time.Duration) {
 					vaultConfig.DefaultIdentity.TTL = d
 				},
@@ -282,7 +295,7 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "plugin")
 	}
 
-	for _, k := range []string{"options", "meta", "chroot_env", "servers", "server_join"} {
+	for _, k := range []string{"options", "meta", "chroot_env", "servers", "server_join", "template"} {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, k)
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "client")
 	}
@@ -300,6 +313,12 @@ func extraKeys(c *Config) error {
 	for _, hn := range c.Client.HostNetworks {
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, hn.Name)
 		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "host_network")
+	}
+
+	// Remove Template extra keys
+	for _, t := range []string{"function_denylist", "disable_file_sandbox", "max_stale", "wait", "wait_bounds", "block_query_wait", "consul_retry", "vault_retry", "nomad_retry"} {
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, t)
+		helper.RemoveEqualFold(&c.Client.ExtraKeysHCL, "template")
 	}
 
 	// Remove AuditConfig extra keys
@@ -327,10 +346,19 @@ func extraKeys(c *Config) error {
 		helper.RemoveEqualFold(&c.ExtraKeysHCL, "telemetry")
 	}
 
-	// The `vault` and `consul` blocks are parsed separately from the Decode method, so it
+	helper.RemoveEqualFold(&c.ExtraKeysHCL, "keyring")
+	for _, provider := range c.KEKProviders {
+		helper.RemoveEqualFold(&c.ExtraKeysHCL, provider.Provider)
+	}
+
+	// Remove reporting extra keys
+	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "license" })
+
+	// The`vault` and `consul` blocks are parsed separately from the Decode method, so it
 	// will incorrectly report them as extra keys, of which there may be multiple
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "vault" })
 	c.ExtraKeysHCL = slices.DeleteFunc(c.ExtraKeysHCL, func(s string) bool { return s == "consul" })
+
 	if len(c.ExtraKeysHCL) == 0 {
 		c.ExtraKeysHCL = nil
 	}
@@ -390,12 +418,19 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 			return err
 		}
 		if v.Name == "" {
-			v.Name = "default"
+			v.Name = structs.VaultDefaultCluster
 		}
-		if exist, ok := c.Vaults[v.Name]; ok {
-			c.Vaults[v.Name] = exist.Merge(v)
-		} else {
-			c.Vaults[v.Name] = v
+
+		var vaultFound bool
+		for i, exist := range c.Vaults {
+			if exist.Name == v.Name {
+				c.Vaults[i] = exist.Merge(v)
+				vaultFound = true
+				break
+			}
+		}
+		if !vaultFound {
+			c.Vaults = append(c.Vaults, v)
 		}
 
 		// Decode the default identity.
@@ -417,11 +452,10 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 			if err := mapstructure.WeakDecode(m, &defaultIdentity); err != nil {
 				return err
 			}
-			c.Vaults[v.Name].DefaultIdentity = &defaultIdentity
+			v.DefaultIdentity = &defaultIdentity
 		}
 	}
 
-	c.Vault = c.Vaults["default"]
 	return nil
 }
 
@@ -440,7 +474,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 		}
 
 		delete(m, "service_identity")
-		delete(m, "template_identity")
+		delete(m, "task_identity")
 
 		cc := &config.ConsulConfig{}
 		err := mapstructure.WeakDecode(m, cc)
@@ -448,7 +482,7 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			return err
 		}
 		if cc.Name == "" {
-			cc.Name = "default"
+			cc.Name = structs.ConsulDefaultCluster
 		}
 		if cc.TimeoutHCL != "" {
 			d, err := time.ParseDuration(cc.TimeoutHCL)
@@ -458,10 +492,16 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			cc.Timeout = d
 		}
 
-		if exist, ok := c.Consuls[cc.Name]; ok {
-			c.Consuls[cc.Name] = exist.Merge(cc)
-		} else {
-			c.Consuls[cc.Name] = cc
+		var consulFound bool
+		for i, exist := range c.Consuls {
+			if exist.Name == cc.Name {
+				c.Consuls[i] = exist.Merge(cc)
+				consulFound = true
+				break
+			}
+		}
+		if !consulFound {
+			c.Consuls = append(c.Consuls, cc)
 		}
 
 		// decode service and template identity blocks
@@ -483,24 +523,66 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 			if err := mapstructure.WeakDecode(m, &serviceIdentity); err != nil {
 				return err
 			}
-			c.Consuls[cc.Name].ServiceIdentity = &serviceIdentity
+			cc.ServiceIdentity = &serviceIdentity
 		}
 
-		if o := listVal.Filter("template_identity"); len(o.Items) > 0 {
+		if o := listVal.Filter("task_identity"); len(o.Items) > 0 {
 			var m map[string]interface{}
-			templateIdentityBlock := o.Items[0]
-			if err := hcl.DecodeObject(&m, templateIdentityBlock.Val); err != nil {
+			taskIdentityBlock := o.Items[0]
+			if err := hcl.DecodeObject(&m, taskIdentityBlock.Val); err != nil {
 				return err
 			}
 
-			var templateIdentity config.WorkloadIdentityConfig
-			if err := mapstructure.WeakDecode(m, &templateIdentity); err != nil {
+			var taskIdentity config.WorkloadIdentityConfig
+			if err := mapstructure.WeakDecode(m, &taskIdentity); err != nil {
 				return err
 			}
-			c.Consuls[cc.Name].TemplateIdentity = &templateIdentity
+			cc.TaskIdentity = &taskIdentity
 		}
 	}
 
-	c.Consul = c.Consuls["default"]
+	return nil
+}
+
+// parseKeyringConfigs parses the keyring blocks. At this point we have a list
+// of ast.Nodes and a KEKProviderConfig for each one. The KEKProviderConfig has
+// the unknown fields (provider-specific config) but not their values. So we
+// decode the ast.Node into a map and then read out the values for the unknown
+// fields. The results get added to the KEKProviderConfig's Config field
+func parseKeyringConfigs(c *Config, keyringBlocks *ast.ObjectList) error {
+	if len(keyringBlocks.Items) == 0 {
+		return nil
+	}
+
+	for idx, obj := range keyringBlocks.Items {
+		provider := c.KEKProviders[idx]
+		if len(provider.ExtraKeysHCL) == 0 {
+			continue
+		}
+
+		provider.Config = map[string]string{}
+
+		var m map[string]interface{}
+		if err := hcl.DecodeObject(&m, obj.Val); err != nil {
+			return err
+		}
+
+		for _, extraKey := range provider.ExtraKeysHCL {
+			val, ok := m[extraKey].(string)
+			if !ok {
+				return fmt.Errorf("failed to decode key %q to string", extraKey)
+			}
+			provider.Config[extraKey] = val
+		}
+
+		// clear the extra keys for these blocks because we've already handled
+		// them and don't want them to bubble up to the caller
+		provider.ExtraKeysHCL = nil
+	}
+
+	sort.Slice(c.KEKProviders, func(i, j int) bool {
+		return c.KEKProviders[i].ID() < c.KEKProviders[j].ID()
+	})
+
 	return nil
 }

@@ -19,7 +19,7 @@ const (
 
 var (
 	// projectURL is the project URL.
-	projectURL = "https://www.nomadproject.io/"
+	projectURL = "https://developer.hashicorp.com/nomad/"
 
 	// rt is the runtime - variable for tests.
 	rt = runtime.Version()

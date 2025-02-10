@@ -1,0 +1,7 @@
+```release-note:bug
+consul: Fixed a bug where broken Consul ACL tokens could block registration and deregistration of services and checks
+```
+
+```release-note:bug
+consul: Fixed a bug where service deregistration could fail because Consul ACL tokens were revoked during allocation GC
+```

@@ -112,11 +112,11 @@ func TestJobEndpointConnect_groupConnectGuessTaskDriver(t *testing.T) {
 func TestJobEndpointConnect_newConnectSidecarTask(t *testing.T) {
 	ci.Parallel(t)
 
-	task := newConnectSidecarTask("redis", "podman")
+	task := newConnectSidecarTask("redis", "podman", structs.ConsulDefaultCluster)
 	must.Eq(t, "connect-proxy-redis", task.Name)
 	must.Eq(t, "podman", task.Driver)
 
-	task2 := newConnectSidecarTask("db", "docker")
+	task2 := newConnectSidecarTask("db", "docker", structs.ConsulDefaultCluster)
 	must.Eq(t, "connect-proxy-db", task2.Name)
 	must.Eq(t, "docker", task2.Driver)
 }
@@ -154,8 +154,8 @@ func TestJobEndpointConnect_groupConnectHook(t *testing.T) {
 	// Expected tasks
 	tgExp := job.TaskGroups[0].Copy()
 	tgExp.Tasks = []*structs.Task{
-		newConnectSidecarTask("backend", "docker"),
-		newConnectSidecarTask("admin", "docker"),
+		newConnectSidecarTask("backend", "docker", structs.ConsulDefaultCluster),
+		newConnectSidecarTask("admin", "docker", structs.ConsulDefaultCluster),
 	}
 	tgExp.Services[0].Name = "backend"
 	tgExp.Services[1].Name = "admin"
@@ -200,7 +200,8 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_BridgeNetwork(t *tes
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway", false, true),
+		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway",
+			structs.ConsulDefaultCluster, "docker", false, true),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -239,7 +240,8 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testi
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway", true, false),
+		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway",
+			structs.ConsulDefaultCluster, "docker", true, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -254,6 +256,36 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_HostNetwork(t *testi
 	// Test that the hook is idempotent
 	require.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
 	require.Exactly(t, expTG, job.TaskGroups[0])
+}
+
+func TestJobEndpointConnect_groupConnectHook_IngressGateway_GuessPodman(t *testing.T) {
+	ci.Parallel(t)
+
+	// Test that the injected gateway task makes use of the podman driver if there
+	// is another task in the group that uses podman.
+	job := mock.ConnectIngressGatewayJob("Host", false)
+	job.Meta = map[string]string{"gateway_name": "my-gateway"}
+	job.TaskGroups[0].Services[0].Name = "${NOMAD_META_gateway_name}"
+
+	// setup a task using podman
+	job.TaskGroups[0].Tasks = []*structs.Task{{
+		Name:   "mytask",
+		Driver: "podman",
+		Config: make(map[string]interface{}),
+	}}
+
+	expTG := job.TaskGroups[0].Copy()
+	expTG.Tasks = append(expTG.Tasks,
+		newConnectGatewayTask(structs.ConnectIngressPrefix, "my-gateway",
+			structs.ConsulDefaultCluster, "podman", false, false),
+	)
+	expTG.Services[0].Name = "my-gateway"
+	expTG.Tasks[1].Canonicalize(job, expTG)
+	expTG.Networks[0].Canonicalize()
+	expTG.Services[0].Connect.Gateway.Proxy = gatewayProxy(expTG.Services[0].Connect.Gateway, "host")
+
+	must.NoError(t, groupConnectHook(job, job.TaskGroups[0]))
+	must.Eq(t, expTG, job.TaskGroups[0])
 }
 
 func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testing.T) {
@@ -305,8 +337,8 @@ func TestJobEndpointConnect_groupConnectHook_IngressGateway_CustomTask(t *testin
 			ShutdownDelay: 5 * time.Second,
 			KillSignal:    "SIGHUP",
 			Constraints: structs.Constraints{
-				connectGatewayVersionConstraint(),
-				connectListenerConstraint(),
+				connectGatewayVersionConstraint(structs.ConsulDefaultCluster),
+				connectListenerConstraint(structs.ConsulDefaultCluster),
 			},
 		},
 	}
@@ -341,7 +373,8 @@ func TestJobEndpointConnect_groupConnectHook_TerminatingGateway(t *testing.T) {
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(structs.ConnectTerminatingPrefix, "my-gateway", false, false),
+		newConnectGatewayTask(structs.ConnectTerminatingPrefix, "my-gateway",
+			structs.ConsulDefaultCluster, "docker", false, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Tasks[0].Canonicalize(job, expTG)
@@ -375,7 +408,8 @@ func TestJobEndpointConnect_groupConnectHook_MeshGateway(t *testing.T) {
 	expTG := job.TaskGroups[0].Copy()
 	expTG.Tasks = []*structs.Task{
 		// inject the gateway task
-		newConnectGatewayTask(structs.ConnectMeshPrefix, "my-gateway", false, false),
+		newConnectGatewayTask(structs.ConnectMeshPrefix, "my-gateway",
+			structs.ConsulDefaultCluster, "docker", false, false),
 	}
 	expTG.Services[0].Name = "my-gateway"
 	expTG.Services[0].PortLabel = "public_port"
@@ -544,13 +578,15 @@ func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("no connect services", func(t *testing.T) {
-		err := groupConnectUpstreamsValidate("group",
+		tg := &structs.TaskGroup{Name: "group"}
+		err := groupConnectUpstreamsValidate(tg,
 			[]*structs.Service{{Name: "s1"}, {Name: "s2"}})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("connect services no overlap", func(t *testing.T) {
-		err := groupConnectUpstreamsValidate("group",
+		tg := &structs.TaskGroup{Name: "group"}
+		err := groupConnectUpstreamsValidate(tg,
 			[]*structs.Service{
 				{
 					Name: "s1",
@@ -585,11 +621,12 @@ func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
 					},
 				},
 			})
-		require.NoError(t, err)
+		must.NoError(t, err)
 	})
 
 	t.Run("connect services overlap port", func(t *testing.T) {
-		err := groupConnectUpstreamsValidate("group",
+		tg := &structs.TaskGroup{Name: "group"}
+		err := groupConnectUpstreamsValidate(tg,
 			[]*structs.Service{
 				{
 					Name: "s1",
@@ -624,7 +661,75 @@ func TestJobEndpointConnect_groupConnectUpstreamsValidate(t *testing.T) {
 					},
 				},
 			})
-		require.EqualError(t, err, `Consul Connect services "s2" and "s1" in group "group" using same address for upstreams (127.0.0.1:9002)`)
+		must.EqError(t, err, `Consul Connect services "s2" and "s1" in group "group" using same address for upstreams (127.0.0.1:9002)`)
+	})
+
+	t.Run("connect tproxy excludes invalid port", func(t *testing.T) {
+		tg := &structs.TaskGroup{Name: "group", Networks: structs.Networks{
+			{
+				ReservedPorts: []structs.Port{{
+					Label: "www",
+				}},
+			},
+		}}
+		err := groupConnectUpstreamsValidate(tg,
+			[]*structs.Service{
+				{
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								TransparentProxy: &structs.ConsulTransparentProxy{
+									ExcludeInboundPorts: []string{"www", "9000", "no-such-label"},
+								},
+							},
+						},
+					},
+				},
+			})
+		must.EqError(t, err, `Consul Connect transparent proxy port "no-such-label" must be numeric or one of network.port labels`)
+	})
+
+	t.Run("Consul Connect transparent proxy allows only one Connect block", func(t *testing.T) {
+		tg := &structs.TaskGroup{Name: "group"}
+		err := groupConnectUpstreamsValidate(tg,
+			[]*structs.Service{
+				{
+					Name:    "s1",
+					Connect: &structs.ConsulConnect{},
+				},
+				{
+					Name: "s2",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								TransparentProxy: &structs.ConsulTransparentProxy{},
+							},
+						},
+					},
+				},
+			})
+		must.EqError(t, err, `Consul Connect transparent proxy requires there is only one connect block`)
+	})
+
+	t.Run("Consul Connect transparent proxy DNS not allowed with network.dns", func(t *testing.T) {
+		tg := &structs.TaskGroup{Name: "group", Networks: []*structs.NetworkResource{{
+			DNS: &structs.DNSConfig{Servers: []string{"1.1.1.1"}},
+		}}}
+		err := groupConnectUpstreamsValidate(tg,
+			[]*structs.Service{
+				{
+					Name: "s1",
+					Connect: &structs.ConsulConnect{
+						SidecarService: &structs.ConsulSidecarService{
+							Proxy: &structs.ConsulProxy{
+								TransparentProxy: &structs.ConsulTransparentProxy{},
+							},
+						},
+					},
+				},
+			})
+		must.EqError(t, err, `Consul Connect transparent proxy cannot be used with network.dns unless no_dns=true`)
 	})
 }
 
@@ -694,20 +799,36 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("ingress", func(t *testing.T) {
-		task := newConnectGatewayTask(structs.ConnectIngressPrefix, "foo", true, false)
-		require.Equal(t, "connect-ingress-foo", task.Name)
-		require.Equal(t, "connect-ingress:foo", string(task.Kind))
-		require.Equal(t, ">= 1.8.0", task.Constraints[0].RTarget)
-		require.Equal(t, "host", task.Config["network_mode"])
+		task := newConnectGatewayTask(structs.ConnectIngressPrefix, "foo",
+			structs.ConsulDefaultCluster, "docker", true, false)
+		must.Eq(t, "connect-ingress-foo", task.Name)
+		must.Eq(t, "connect-ingress:foo", string(task.Kind))
+		must.Eq(t, "${attr.consul.version}", task.Constraints[0].LTarget)
+		must.Eq(t, ">= 1.8.0", task.Constraints[0].RTarget)
+		must.Eq(t, "host", task.Config["network_mode"])
 		require.Nil(t, task.Lifecycle)
 	})
 
 	t.Run("terminating", func(t *testing.T) {
-		task := newConnectGatewayTask(structs.ConnectTerminatingPrefix, "bar", true, false)
-		require.Equal(t, "connect-terminating-bar", task.Name)
-		require.Equal(t, "connect-terminating:bar", string(task.Kind))
-		require.Equal(t, ">= 1.8.0", task.Constraints[0].RTarget)
-		require.Equal(t, "host", task.Config["network_mode"])
+		task := newConnectGatewayTask(structs.ConnectTerminatingPrefix, "bar",
+			structs.ConsulDefaultCluster, "docker", true, false)
+		must.Eq(t, "connect-terminating-bar", task.Name)
+		must.Eq(t, "connect-terminating:bar", string(task.Kind))
+		must.Eq(t, "${attr.consul.version}", task.Constraints[0].LTarget)
+		must.Eq(t, ">= 1.8.0", task.Constraints[0].RTarget)
+		must.Eq(t, "host", task.Config["network_mode"])
+		require.Nil(t, task.Lifecycle)
+	})
+
+	// this case can only happen on ENT but gets run in CE code
+	t.Run("terminating nondefault (ENT)", func(t *testing.T) {
+		task := newConnectGatewayTask(structs.ConnectTerminatingPrefix, "bar",
+			"nondefault", "docker", true, false)
+		must.Eq(t, "connect-terminating-bar", task.Name)
+		must.Eq(t, "connect-terminating:bar", string(task.Kind))
+		must.Eq(t, "${attr.consul.nondefault.version}", task.Constraints[0].LTarget)
+		must.Eq(t, ">= 1.8.0", task.Constraints[0].RTarget)
+		must.Eq(t, "host", task.Config["network_mode"])
 		require.Nil(t, task.Lifecycle)
 	})
 }
@@ -715,7 +836,8 @@ func TestJobEndpointConnect_newConnectGatewayTask_host(t *testing.T) {
 func TestJobEndpointConnect_newConnectGatewayTask_bridge(t *testing.T) {
 	ci.Parallel(t)
 
-	task := newConnectGatewayTask(structs.ConnectIngressPrefix, "service1", false, false)
+	task := newConnectGatewayTask(structs.ConnectIngressPrefix, "service1",
+		structs.ConsulDefaultCluster, "docker", false, false)
 	require.NotContains(t, task.Config, "network_mode")
 }
 
