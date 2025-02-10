@@ -13,7 +13,7 @@ locals {
   binary_destination = var.platform == "windows" ? "C:/opt/" : "/usr/local/bin/"
   ssh_user           = var.platform == "windows" ? "Administrator" : "ubuntu"
   ssh_config = {
-    host             = var.server_address
+    host             = var.instance_address
     private_key_path = var.ssh_key_path
     user             = local.ssh_user
   }

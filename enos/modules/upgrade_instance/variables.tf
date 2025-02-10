@@ -18,8 +18,8 @@ variable "platform" {
   default     = "linux"
 }
 
-variable "server_address" {
-  description = "IP address of the server that will be updated"
+variable "instance_address" {
+  description = "Public IP address of the instance that will be updated"
   type        = string
 }
 
