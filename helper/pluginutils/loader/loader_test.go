@@ -102,7 +102,8 @@ func TestPluginLoader_External(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	// Create two plugins
+	// Create three plugins. Only two will be referenced within the agent config
+	// meaning the third should not be loaded.
 	plugins := []string{"mock-device", "mock-device-2", "mock-device-3"}
 	pluginVersions := []string{"v0.0.1", "v0.0.2"}
 	h := newHarness(t, plugins)

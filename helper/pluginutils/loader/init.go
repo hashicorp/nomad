@@ -264,9 +264,14 @@ func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[str
 	fingerprinted := make(map[PluginID]*pluginInfo, len(plugins))
 	for _, p := range plugins {
 		name := cleanPluginExecutable(p.Name())
-		c, config_does_exist := configs[name]
-		if !config_does_exist {
-			l.logger.Error("failed to load config for plugin. Is it specified in the config?", "plugin", name)
+
+		// Use the cleaned plugin name to check whether it is configured by the
+		// operator for use. If it is not, skip loading it and log a message, so
+		// operators can easily see this.
+		c, ok := configs[name]
+		if !ok {
+			l.logger.Warn("plugin not referenced in the agent configuration file, loading skipped",
+				"plugin", name)
 			continue
 		}
 		info, err := l.fingerprintPlugin(p, c)
