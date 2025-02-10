@@ -7,10 +7,8 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
-	"strings"
 	"time"
 
-	"github.com/brianvoe/gofakeit/v6"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -18,7 +16,10 @@ type MockVariables map[string]*structs.VariableDecrypted
 
 func Variable() *structs.VariableDecrypted {
 	return &structs.VariableDecrypted{
-		VariableMetadata: mockVariableMetadata(),
+		VariableMetadata: structs.VariableMetadata{
+			Namespace: "default",
+			Path:      "/example/path",
+		},
 		Items: structs.VariableItems{
 			"key1": "value1",
 			"key2": "value2",
@@ -42,12 +43,7 @@ func Variables(minU, maxU uint8) MockVariables {
 	paths := make(map[string]*structs.VariableDecrypted, vc)
 	for i := 0; i < vc; i++ {
 		nv := Variable()
-		// There is an extremely rare chance of path collision because the mock
-		// variables generate their paths randomly. This check will add
-		// an extra component on conflict to (ideally) disambiguate them.
-		if _, found := paths[nv.Path]; found {
-			nv.Path = nv.Path + "/" + fmt.Sprint(time.Now().UnixNano())
-		}
+		nv.Path = fmt.Sprintf("%s/%d", nv.Path, i)
 		paths[nv.Path] = nv
 		svs[i] = nv
 	}
@@ -76,7 +72,10 @@ type MockVariablesEncrypted map[string]*structs.VariableEncrypted
 
 func VariableEncrypted() *structs.VariableEncrypted {
 	return &structs.VariableEncrypted{
-		VariableMetadata: mockVariableMetadata(),
+		VariableMetadata: structs.VariableMetadata{
+			Namespace: "default",
+			Path:      "/example/path",
+		},
 		VariableData: structs.VariableData{
 			KeyID: "foo",
 			Data:  []byte("foo"),
@@ -126,29 +125,6 @@ func (svs MockVariablesEncrypted) List() []*structs.VariableEncrypted {
 	for _, p := range svs.ListPaths() {
 		pc := svs[p].Copy()
 		out = append(out, &pc)
-	}
-	return out
-}
-
-func mockVariableMetadata() structs.VariableMetadata {
-	envs := []string{"dev", "test", "prod"}
-	envIdx := rand.Intn(3)
-	env := envs[envIdx]
-	domain := gofakeit.DomainName()
-
-	out := structs.VariableMetadata{
-		Namespace:   "default",
-		Path:        strings.ReplaceAll(env+"."+domain, ".", "/"),
-		CreateIndex: uint64(rand.Intn(100) + 100),
-		CreateTime:  gofakeit.DateRange(time.Now().AddDate(0, -1, 0), time.Now()).UnixNano(),
-	}
-	out.ModifyIndex = out.CreateIndex
-	out.ModifyTime = out.CreateTime
-
-	// Flip a coin to see if we should return a "modified" object
-	if gofakeit.Bool() {
-		out.ModifyTime = gofakeit.DateRange(time.Unix(0, out.CreateTime), time.Now()).UnixNano()
-		out.ModifyIndex = out.CreateIndex + uint64(rand.Intn(100))
 	}
 	return out
 }
