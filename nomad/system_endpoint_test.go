@@ -41,6 +41,7 @@ func TestSystemEndpoint_GarbageCollect(t *testing.T) {
 	eval := mock.Eval()
 	eval.Status = structs.EvalStatusComplete
 	eval.JobID = job.ID
+	eval.JobModifyIndex = job.ModifyIndex
 	// set modify time older than now but still newer than default GC threshold
 	eval.ModifyTime = time.Now().Add(-10 * time.Millisecond).UnixNano()
 	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}))

@@ -3722,6 +3722,9 @@ func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitia
 		}
 	}
 
+	// TODO: should we really be doing this here?  The only time this will affect the
+	// status of a job is if it's the last eval and alloc for a client, at which point
+	// the status of the job will already be "dead" from handling the alloc update.
 	// Set the job's status
 	if err := s.setJobStatuses(index, txn, jobs, true); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
@@ -3856,11 +3859,6 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*
 		}
 
 		e := raw.(*structs.Evaluation)
-
-		// Filter non-exact matches
-		if e.JobID != jobID {
-			continue
-		}
 
 		out = append(out, e)
 	}
@@ -4830,14 +4828,13 @@ func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index u
 		return err
 	}
 
-	// Upsert the job if necessary
+	// On failed deployments with auto_revert set to true, a new eval and job will be included on the request.
+	// We should upsert them both
 	if req.Job != nil {
 		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
 			return err
 		}
 	}
-
-	// Upsert the optional eval
 	if req.Eval != nil {
 		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
 			return err
@@ -5538,6 +5535,14 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 	if err := s.setJobSummary(txn, updated, index, oldStatus, newStatus); err != nil {
 		return fmt.Errorf("job summary update failed %w", err)
 	}
+
+	// Update the job version details. We need to make sure whenever the job summary
+	// is updated, we also update the job's specific version. That way they do not
+	// show different statuses.
+	if err := s.upsertJobVersion(index, updated, txn); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -5624,9 +5629,14 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	// If there is a non-terminal allocation, the job is running.
 	hasAlloc := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
-		hasAlloc = true
-		if !alloc.(*structs.Allocation).TerminalStatus() {
+		a := alloc.(*structs.Allocation)
+		if !a.TerminalStatus() {
 			return structs.JobStatusRunning, nil
+		}
+		// if there exists a terminal, non-reschedulable alloc,
+		// mark this job as possibly dead
+		if !isReschedulable(a) {
+			hasAlloc = true
 		}
 	}
 
@@ -5639,8 +5649,11 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
 		e := raw.(*structs.Evaluation)
 
-		// Filter non-exact matches
-		if e.JobID != job.ID {
+		// Handles restarting stopped jobs and rescheduled allocs, or else they
+		// are briefly marked dead. We don't always want to skip these evaluations,
+		// like in the case of rescheduled or stopped jobs, but we handle both
+		// those cases in elsewhere in this function.
+		if e.JobModifyIndex < job.ModifyIndex {
 			continue
 		}
 
@@ -5650,12 +5663,16 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 		}
 	}
 
-	// The job is dead if all the allocations and evals are terminal or if there
-	// are no evals because of garbage collection.
-	if evalDelete || hasEval || hasAlloc {
+	// The job is dead if all allocations for this version are terminal,
+	// all evals are terminal. In the event a jobs allocs and evals
+	// are all GC'd, we don't want the job to be marked pending.
+	if evalDelete || hasEval || hasAlloc || job.Stop {
 		return structs.JobStatusDead, nil
 	}
 
+	// There are no allocs/evals yet, which can happen for new job submissions,
+	// running new versions of a job, or reverting. This will happen if
+	// the evaluation is persisted after the job is persisted.
 	return structs.JobStatusPending, nil
 }
 
@@ -7352,6 +7369,13 @@ func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace stri
 	iter = memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
 
 	return iter, nil
+}
+
+func isReschedulable(a *structs.Allocation) bool {
+	if a.Job.Type != structs.JobTypeService {
+		return false
+	}
+	return a.RescheduleTracker.RescheduleEligible(a.ReschedulePolicy(), time.Now())
 }
 
 // scalingPolicyNamespaceFilter returns a filter function that filters all
