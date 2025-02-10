@@ -4,8 +4,8 @@
 
 set -xeuo pipefail
 
-TIMEOUT=20
-INTERVAL=5
+TIMEOUT=10
+INTERVAL=2
 
 start_time=$(date +%s)
 

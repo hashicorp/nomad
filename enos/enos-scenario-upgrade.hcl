@@ -132,7 +132,7 @@ scenario "upgrade" {
   }
 
   step "fetch_upgrade_binary" {
-    depends_on = [step.provision_cluster]
+    depends_on = [step.provision_cluster, step.initial_test_cluster_health]
 
     description = <<-EOF
     Bring the new upgraded binary from the artifactory to the instance running enos.
@@ -192,7 +192,8 @@ scenario "upgrade" {
   }
 
   step "server_upgrade_test_cluster_health" {
-    depends_on  = [step.upgrade_servers]
+    depends_on = [step.upgrade_servers]
+
     description = <<-EOF
     Verify the health of the cluster by checking the status of all servers, nodes,
     jobs and allocs and stopping random allocs to check for correct reschedules"
@@ -206,7 +207,7 @@ scenario "upgrade" {
       key_file        = step.provision_cluster.key_file
       nomad_token     = step.provision_cluster.nomad_token
       server_count    = var.server_count
-      client_count    = local.linux_count + local.windows_count
+      client_count    = local.clients_count
       jobs_count      = step.run_initial_workloads.jobs_count
       alloc_count     = step.run_initial_workloads.allocs_count
       servers         = step.provision_cluster.servers
@@ -312,6 +313,10 @@ scenario "upgrade" {
 
   output "key_file" {
     value = step.provision_cluster.key_file
+  }
+
+  output "ssh_key_file" {
+    value = step.provision_cluster.ssh_key_file
   }
 
   output "nomad_token" {
