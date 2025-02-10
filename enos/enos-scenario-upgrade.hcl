@@ -8,13 +8,10 @@ scenario "upgrade" {
     EOF
 
   matrix {
-    arch    = ["amd64"]
-    edition = ["ce"]
-    os      = ["linux"]
-    //service_discovery  = ["consul", "nomad"]
-    //arch = ["amd64", "arm64"]
-    //edition = ["ce", "ent"]
-    //os      = ["linux", "windows"]
+    arch = ["amd64"]
+    edition = ["ce", "ent"]
+    os      = ["linux", "windows"]
+    
     exclude {
       os   = ["windows"]
       arch = ["arm64"]
@@ -26,11 +23,13 @@ scenario "upgrade" {
   ]
 
   locals {
-    cluster_name  = "mcj-${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
-    linux_count   = matrix.os == "linux" ? "4" : "0"
-    windows_count = matrix.os == "windows" ? "4" : "0"
-    arch          = matrix.arch
-    clients_count = local.linux_count + local.windows_count
+    cluster_name         = "mcj-${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
+    linux_count          = matrix.os == "linux" ? "4" : "0"
+    windows_count        = matrix.os == "windows" ? "4" : "0"
+    arch                 = matrix.arch
+    clients_count        = local.linux_count + local.windows_count
+    test_product_version = matrix.edition == "ent" ? "${var.product_version}+ent" : "${var.product_version}"
+    test_upgrade_version = matrix.edition == "ent" ? "${var.upgrade_version}+ent" : "${var.upgrade_version}"
   }
 
   step "copy_initial_binary" {
@@ -117,8 +116,8 @@ scenario "upgrade" {
       jobs_count      = step.run_initial_workloads.jobs_count
       alloc_count     = step.run_initial_workloads.allocs_count
       servers         = step.provision_cluster.servers
-      clients_version = var.product_version
-      servers_version = var.product_version
+      clients_version = local.test_product_version
+      servers_version = local.test_product_version
     }
 
     verifies = [
@@ -211,8 +210,8 @@ scenario "upgrade" {
       jobs_count      = step.run_initial_workloads.jobs_count
       alloc_count     = step.run_initial_workloads.allocs_count
       servers         = step.provision_cluster.servers
-      clients_version = var.product_version
-      servers_version = var.upgrade_version
+      clients_version = local.test_product_version
+      servers_version = local.test_upgrade_version
     }
 
     verifies = [
@@ -225,6 +224,27 @@ scenario "upgrade" {
     ]
   }
 
+/*   step "run_workloads" {
+    depends_on = [step.server_upgrade_test_cluster_health]
+
+    description = <<-EOF
+    Verify the health of the cluster by running new workloads
+    EOF
+
+    module = module.run_workloads
+    variables {
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+    }
+
+    verifies = [
+      quality.nomad_register_job,
+    ]
+  }
+ */
   step "upgrade_clients" {
     depends_on = [step.server_upgrade_test_cluster_health]
 
@@ -286,8 +306,8 @@ scenario "upgrade" {
       jobs_count      = step.run_initial_workloads.jobs_count
       alloc_count     = step.run_initial_workloads.allocs_count
       servers         = step.provision_cluster.servers
-      clients_version = var.upgrade_version
-      servers_version = var.upgrade_version
+      clients_version = local.test_upgrade_version
+      servers_version = local.test_upgrade_version
     }
 
     verifies = [
