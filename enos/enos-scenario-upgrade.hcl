@@ -300,7 +300,6 @@ scenario "upgrade" {
     ]
   }
 
-
   /*
   step "run_servers_workloads" {
    // ...
@@ -324,40 +323,7 @@ scenario "upgrade" {
         // ...
     }
   }
-
-  step "run_clients_workloads" {
-     // ...
-  }
-
-  step "client_upgrade_test_cluster_health" {
-    depends_on  = [step.run_initial_workloads]
-    description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, jobs and allocs and stopping random allocs to check for correct reschedules"
-    EOF
-
-    module = module.test_cluster_health
-    variables {
-      nomad_addr   = step.provision_cluster.nomad_addr
-      ca_file      = step.provision_cluster.ca_file
-      cert_file    = step.provision_cluster.cert_file
-      key_file     = step.provision_cluster.key_file
-      nomad_token  = step.provision_cluster.nomad_token
-      server_count = var.server_count
-      client_count = local.linux_count + local.windows_count
-      jobs_count   = step.run_initial_workloads.jobs_count
-      alloc_count  = step.run_initial_workloads.allocs_count
-    }
-
-    verifies = [
-      quality.nomad_agent_info,
-      quality.nomad_agent_info_self,
-      quality.nomad_nodes_status,
-      quality.nomad_job_status,
-      quality.nomad_allocs_status,
-      quality.nomad_reschedule_alloc,
-    ]
-  }
- */
+*/
 
   output "servers" {
     value = step.provision_cluster.servers
