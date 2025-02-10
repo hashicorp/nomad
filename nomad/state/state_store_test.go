@@ -5808,6 +5808,11 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	alloc.Job = child
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusComplete
+	eval.JobID = child.ID
+	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}))
+
 	ws := memdb.NewWatchSet()
 	summary, err := state.JobSummaryByID(ws, parent.Namespace, parent.ID)
 	must.NoError(t, err)
@@ -5833,7 +5838,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 	}
-	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update})
+	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{update})
 	must.NoError(t, err)
 
 	must.True(t, watchFired(ws))
@@ -7794,7 +7799,7 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			exp: structs.JobStatusPending,
 		},
 		{
-			name: "batch job has all terminal allocs, with no evals",
+			name: "batch job has all terminal allocs and terminal evals",
 			setup: func(t *testing.T, txn *txn) *structs.Job {
 				j := mock.Job()
 				j.Type = structs.JobTypeBatch
@@ -7805,6 +7810,12 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 				a.Job = j
 
 				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+
+				e := mock.Eval()
+				e.JobID = j.ID
+				e.Status = structs.EvalStatusComplete
+				err = txn.Insert("evals", e)
 				must.NoError(t, err)
 				return j
 			},
@@ -7881,6 +7892,12 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 				a2.NextAllocation = a.ID
 
 				err = txn.Insert("allocs", a2)
+				must.NoError(t, err)
+
+				e := mock.Eval()
+				e.JobID = j.ID
+				e.Status = structs.EvalStatusComplete
+				err = txn.Insert("evals", e)
 				must.NoError(t, err)
 				return j
 			},
