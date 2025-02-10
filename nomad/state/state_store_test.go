@@ -5808,6 +5808,11 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 	alloc.Job = child
 	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc}))
 
+	eval := mock.Eval()
+	eval.Status = structs.EvalStatusComplete
+	eval.JobID = child.ID
+	must.NoError(t, state.UpsertEvals(structs.MsgTypeTestSetup, 1001, []*structs.Evaluation{eval}))
+
 	ws := memdb.NewWatchSet()
 	summary, err := state.JobSummaryByID(ws, parent.Namespace, parent.ID)
 	must.NoError(t, err)
@@ -5833,7 +5838,7 @@ func TestStateStore_UpdateAllocsFromClient(t *testing.T) {
 		JobID:        alloc.JobID,
 		TaskGroup:    alloc.TaskGroup,
 	}
-	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{update})
+	err = state.UpdateAllocsFromClient(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{update})
 	must.NoError(t, err)
 
 	must.True(t, watchFired(ws))
