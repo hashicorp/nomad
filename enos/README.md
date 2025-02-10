@@ -62,9 +62,8 @@ Next you'll need to obtain an Artifactory token via Doormat.
 export ARTIFACTORY_TOKEN=$(doormat artifactory create-token | jq -r .access_token)
 ```
 
-Next you'll need to create an Enos variables file (unlike Terraform, Enos
-doesn't accept variables on the command line). Create a file with the following
-values:
+Next you'll need to populate the Enos variables file `enos.vars.hcl (unlike
+Terraform, Enos doesn't accept variables on the command line):
 
 ```hcl
 artifactory_username = "<your email address>"
@@ -74,13 +73,12 @@ upgrade_version      = "1.9.4"                        # version to upgrade to
 download_binary_path = "/home/foo/Downloads/nomad"    # directory on your machine to download binaries
 nomad_license        = "<your Nomad Enterprise license, when running Nomad ENT>"
 consul_license       = "<your Consul Enterprise license, currently always required>"
-server_count         = 3
 aws_region           = "us-east-1"
 ```
 
-The following steps assume the file you created above can be found at
-`/tmp/enos.vars` and you're running the Enos commands in this directory with the
-scenario files.
+When the variables file is placed in the enos root folder with the name 
+`enos.vars.hcl` it is automatically picked up by enos, if a different variables 
+files will be used, it can be pass using the flag `--var-file`.
 
 ## Reviewing Enos
 
