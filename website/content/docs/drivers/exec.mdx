@@ -1,14 +1,14 @@
 ---
 layout: docs
-page_title: 'Drivers: Exec'
-description: The Exec task driver runs binaries using OS isolation primitives.
+page_title: Isolated Fork/Exec task driver
+description: Nomad's Isolated Fork/Exec task driver lets you run binaries using OS isolation primitives. Learn how to use the Isolated Fork/Exec task driver in your jobs. Configure the command to execute with command arguments, namespace isolation, and Linux capabilities. Review the Isolated Fork/Exec task driver capabilities, plugin options, client requirements, and client attributes. Learn how the Isolated Fork/Exec task driver affects resource isolation, chroot, and CPU resources.
 ---
 
-# Isolated Fork/Exec Driver
+# Isolated Fork/Exec task driver
 
 Name: `exec`
 
-The `exec` driver is used to simply execute a particular command for a task.
+The `exec` driver is used to execute a particular command for a task.
 However, unlike [`raw_exec`](/nomad/docs/drivers/raw_exec) it uses the underlying isolation
 primitives of the operating system to limit the task's access to resources. While
 simple, since the `exec` driver can invoke any command, it can be used to call

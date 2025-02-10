@@ -1,15 +1,15 @@
 ---
 layout: docs
-page_title: 'Device Plugins: Nvidia'
-description: The Nvidia Device Plugin detects and makes Nvidia devices available to tasks.
+page_title: NVIDIA GPU device plugin
+description: The NVIDIA GPU device plugin exposes NVIDIA GPUs to Nomad so you can run workloads on GPU hardware. Install and configure the plugin on your Nomad clients. Configure job tasks to use GPUs
 ---
 
-# Nvidia GPU Device Plugin
+# NVIDIA GPU device plugin
 
 Name: `nomad-device-nvidia`
 
-Use the NVIDIA device plugin to expose NVIDIA GPUs to Nomad. The driver
-automatically supports [Multi-Instance GPU (MIG)][mig].
+Use the NVIDIA device plugin to expose NVIDIA graphical processing units (GPUs)
+to Nomad. The driver automatically supports [Multi-Instance GPU (MIG)][mig].
 
 The NVIDIA device plugin uses [NVML] bindings to get data regarding available
 NVIDIA devices and then exposes them via [Fingerprint RPC]. The plugin detects
