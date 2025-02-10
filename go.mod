@@ -23,7 +23,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.28
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.53.0
 	github.com/aws/smithy-go v1.22.2
-	github.com/brianvoe/gofakeit/v6 v6.20.1
 	github.com/container-storage-interface/spec v1.10.0
 	github.com/containerd/go-cni v1.1.12
 	github.com/containernetworking/cni v1.2.3
