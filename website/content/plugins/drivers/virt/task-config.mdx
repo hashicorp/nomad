@@ -1,14 +1,16 @@
 ---
 layout: docs
-page_title: Task Config
-description: Configure the virt task driver job specification parameters.
+page_title: Configure a Virt job task
+description: Learn how to use the Virt task driver in your Nomad job specification. Configure a base virtual machine (VM) image, network interface,  and parameters for bootstrapping the VM instance.
 ---
 
-# Task configuration
+# Configure a Virt job task
 
 @include 'virt-beta-callout.mdx'
 
-Task configuration for an virt task includes setting an `image` to provide the base VM image as
+## Parameters
+
+Task configuration for a virt task includes setting an `image` to provide the base VM image as
 well as other parameters required for bootstrapping a VM instance.
 
 - `image` - (string: required) - Path to an `.img` cloud image to base the VM disk on. The image should
@@ -50,7 +52,7 @@ config {
 }
 ```
 
-##### os
+### os
 
 The VM architecture and machine can be different from the client host. When this is the case, you must set the
 `os` block. By default, this information matches the client host where the driver
@@ -70,7 +72,7 @@ config {
 }
 ```
 
-##### network_interface
+### network_interface
 
 You need to attach tasks to a libvirt network in order to access the internet and route
 from the local network. The `network_interface` block enables this as a list of network interfaces
@@ -97,7 +99,7 @@ config {
 }
 ```
 
-### Full example
+## Example configuration
 
 The following job specification displays use of all the configuration options, as well as other
 blocks that are useful when deploying tasks via the virt driver. You need to modify parameters, such as the

@@ -1,16 +1,15 @@
 ---
 layout: docs
-page_title: 'Drivers: nomad-driver-iis'
+page_title: Windows IIS task driver plugin
 description: >-
-  The IIS driver is used for running
-  Windows IIS services.
+  Use the community-supported Windows IIS task driver (nomad-driver-iis) to run Windows IIS services in Nomad jobs.
 ---
 
-# Windows IIS Driver
+# Windows IIS task driver plugin
 
 Name: `win_iis`
 
-The Nomad IIS driver provides an interface for running Windows IIS website tasks.
+The Nomad `win_iis` task driver provides an interface for running Windows IIS website tasks.
 A "website" is a combination of an application pool and a site (app, vdir, etc.).
 Each allocation will create an application pool and site with the name being the allocation ID (guid).
 
