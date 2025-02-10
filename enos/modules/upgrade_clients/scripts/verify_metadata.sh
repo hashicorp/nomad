@@ -9,8 +9,25 @@ error_exit() {
     exit 1
 }
 
-MAX_WAIT_TIME=5  # Maximum wait time in seconds
+MAX_WAIT_TIME=10  # Maximum wait time in seconds
 POLL_INTERVAL=2   # Interval between status checks
+
+elapsed_time=0
+
+while true; do
+    if nomad node status -address "https://$CLIENT_IP:4646" -self &>/dev/null; then
+        exit 0
+    fi
+
+    if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
+        error_exit "Node at $NOMAD_ADDR did not become available within $elapsed_time seconds."
+        exit 1
+    fi
+
+    echo "Node at $NOMAD_ADDR not available yet. Retrying in $POLL_INTERVAL seconds..."
+    sleep "$POLL_INTERVAL"
+    elapsed_time=$((elapsed_time + POLL_INTERVAL))
+done
 
 elapsed_time=0
 
