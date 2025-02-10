@@ -1,10 +1,10 @@
 ---
 layout: docs
-page_title: 'Drivers: Raw Exec'
-description: The Raw Exec task driver simply fork/execs and provides no isolation.
+page_title: Raw Fork/Exec task driver
+description: Nomad's Raw Exec task driver lets you execute commands with no resource isolation. Learn how to use the Raw Fork/Exec task driver in your jobs. Configure the command to execute, command arguments, cgroup overrides, work directory, and out-of-memory (OOM) behavior. Review the Isolated Fork/Exec task driver capabilities, plugin options, client requirements, and client attributes.
 ---
 
-# Raw Fork/Exec Driver
+# Raw Fork/Exec task driver
 
 Name: `raw_exec`
 
@@ -53,8 +53,9 @@ the Nomad client has been hardened according to the [production][hardening] guid
 - `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
   the task being OOM killed (valid only for Linux). Defaults to 0.
 
-- `work_dir` - (Optional) Sets a custom working directory for the task. This must be an
-  absolute path. This will also change the working directory when using `nomad alloc exec`.
+- `work_dir` - (Optional) Sets a custom working directory for the task. This
+  must be an absolute path. This will also change the working directory when
+  using `nomad alloc exec`.
 
 
 ## Examples

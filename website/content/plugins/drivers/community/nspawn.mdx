@@ -1,17 +1,17 @@
 ---
 layout: docs
-page_title: 'Drivers: systemd-nspawn'
-description: The nspawn task driver is used to run application containers using systemd-nspawn.
+page_title: Task driver plugin for nspawn
+description: Use the community-supported nspawn task driver to run application containers using systemd-nspawn in Nomad jobs.
 ---
 
-# nspawn Driver
+# nspawn Task Driver Plugin
 
 Name: `nspawn`
 
 The `nspawn` driver provides an interface for using systemd-nspawn for running
-application containers. You can download the external systemd-nspawn driver
-[here][nspawn-driver]. For more detailed instructions on how to set up and use
-this driver, please refer to the [guide][nspawn-guide].
+application containers. You can download the external nspawn driver from the
+[nomad-driver-nspawn releases page][nspawn-driver]. For more detailed instructions on how to set up and use
+this driver, please refer to the [examples in the nomad-driver-nspawn repository][nspawn-guide].
 
 ## Task Configuration
 
@@ -195,7 +195,7 @@ The `nspawn` driver will set the following client attributes:
 - `driver.nspawn.version` - Version of `systemd-nspawn` e.g.: `244`.
 
 [nspawn-driver]: https://github.com/JanMa/nomad-driver-nspawn/releases
-[nspawn-guide]: https://github.com/JanMa/nomad-driver-nspawn
+[nspawn-guide]: https://github.com/JanMa/nomad-driver-nspawn/tree/master/example
 [plugin]: /nomad/docs/configuration/plugin
 [plugin_dir]: /nomad/docs/configuration#plugin_dir
 [plugin-options]: #plugin-options
