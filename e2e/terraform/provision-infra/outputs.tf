@@ -13,6 +13,10 @@ output "windows_clients" {
   value = aws_instance.client_windows_2016.*.public_ip
 }
 
+output "clients" {
+  value = concat(aws_instance.client_ubuntu_jammy.*.public_ip, aws_instance.client_windows_2016.*.public_ip)
+}
+
 output "message" {
   value = <<EOM
 Your cluster has been provisioned! To prepare your environment, run:
