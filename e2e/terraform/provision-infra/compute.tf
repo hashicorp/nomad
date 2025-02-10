@@ -38,6 +38,7 @@ resource "aws_instance" "client_ubuntu_jammy" {
     Name           = "${local.random_name}-client-ubuntu-jammy-${count.index}"
     ConsulAutoJoin = "auto-join-${local.random_name}"
     User           = data.aws_caller_identity.current.arn
+    OS             = "linux"
   }
 }
 
@@ -59,6 +60,7 @@ resource "aws_instance" "client_windows_2016" {
     Name           = "${local.random_name}-client-windows-2016-${count.index}"
     ConsulAutoJoin = "auto-join-${local.random_name}"
     User           = data.aws_caller_identity.current.arn
+    OS             = "window"
   }
 }
 
