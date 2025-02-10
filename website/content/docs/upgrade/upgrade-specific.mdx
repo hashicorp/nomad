@@ -36,6 +36,13 @@ Drivers with the `RemoteTasks` capability will no longer be detached in the even
 the allocation is lost, nor will remote tasks be detached when a node is drained.
 Workloads running as remote tasks should be migrated prior to upgrading.
 
+#### Loading Binaries from `plugin_dir` Without Configuration
+
+Plugins stored within the [`plugin_dir`](/nomad/docs/configuration#plugin_dir)
+will now only be loaded when they have a corresponding
+[`plugin`](/nomad/docs/configuration/plugin) block in the agent configuration
+file.
+
 ## Nomad 1.9.5
 
 #### CNI plugins
