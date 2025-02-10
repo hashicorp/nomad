@@ -25,7 +25,7 @@ require (
 	github.com/aws/smithy-go v1.22.2
 	github.com/brianvoe/gofakeit/v6 v6.20.1
 	github.com/container-storage-interface/spec v1.10.0
-	github.com/containerd/go-cni v1.1.11
+	github.com/containerd/go-cni v1.1.12
 	github.com/containernetworking/cni v1.2.3
 	github.com/coreos/go-iptables v0.8.0
 	github.com/creack/pty v1.1.24
@@ -284,6 +284,7 @@ require (
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/selinux v1.11.0 // indirect
 	github.com/packethost/packngo v0.1.1-0.20180711074735-b9cb5096f54c // indirect
+	github.com/petermattis/goid v0.0.0-20240813172612-4fcff4a6cae7 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
@@ -294,6 +295,7 @@ require (
 	github.com/renier/xmlrpc v0.0.0-20170708154548-ce4a1a486c03 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.13.1 // indirect
+	github.com/sasha-s/go-deadlock v0.3.5 // indirect
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/seccomp/libseccomp-golang v0.10.0 // indirect
 	github.com/shopspring/decimal v1.4.0 // indirect
