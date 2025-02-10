@@ -5679,14 +5679,8 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	// If there is a non-terminal allocation, the job is running.
 	hasAlloc := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
-		a := alloc.(*structs.Allocation)
-		if !a.TerminalStatus() {
+		if !alloc.(*structs.Allocation).TerminalStatus() {
 			return structs.JobStatusRunning, nil
-		}
-		// if there exists a terminal, non-reschedulable alloc,
-		// mark this job as possibly dead
-		if !isReschedulable(a) {
-			hasAlloc = true
 		}
 	}
 
@@ -5697,18 +5691,8 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 
 	hasEval := false
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
-		e := raw.(*structs.Evaluation)
-
-		// Handles restarting stopped jobs and rescheduled allocs, or else they
-		// are briefly marked dead. We don't always want to skip these evaluations,
-		// like in the case of rescheduled or stopped jobs, but we handle both
-		// those cases in elsewhere in this function.
-		if e.JobModifyIndex < job.ModifyIndex {
-			continue
-		}
-
 		hasEval = true
-		if !e.TerminalStatus() {
+		if !raw.(*structs.Evaluation).TerminalStatus() {
 			return structs.JobStatusPending, nil
 		}
 	}
@@ -7419,13 +7403,6 @@ func (s *StateStore) ScalingPoliciesByIDPrefix(ws memdb.WatchSet, namespace stri
 	iter = memdb.NewFilterIterator(iter, scalingPolicyNamespaceFilter(namespace))
 
 	return iter, nil
-}
-
-func isReschedulable(a *structs.Allocation) bool {
-	if a.Job.Type != structs.JobTypeService {
-		return false
-	}
-	return a.RescheduleTracker.RescheduleEligible(a.ReschedulePolicy(), time.Now())
 }
 
 // scalingPolicyNamespaceFilter returns a filter function that filters all

@@ -7896,7 +7896,7 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 			exp: structs.JobStatusPending,
 		},
 		{
-			name: "batch job has all terminal allocs, with no evals",
+			name: "batch job has all terminal allocs and terminal evals",
 			setup: func(t *testing.T, txn *txn) *structs.Job {
 				j := mock.Job()
 				j.Type = structs.JobTypeBatch
@@ -7907,6 +7907,12 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 				a.Job = j
 
 				err := txn.Insert("allocs", a)
+				must.NoError(t, err)
+
+				e := mock.Eval()
+				e.JobID = j.ID
+				e.Status = structs.EvalStatusComplete
+				err = txn.Insert("evals", e)
 				must.NoError(t, err)
 				return j
 			},
@@ -7983,6 +7989,12 @@ func TestStateStore_GetJobStatus(t *testing.T) {
 				a2.NextAllocation = a.ID
 
 				err = txn.Insert("allocs", a2)
+				must.NoError(t, err)
+
+				e := mock.Eval()
+				e.JobID = j.ID
+				e.Status = structs.EvalStatusComplete
+				err = txn.Insert("evals", e)
 				must.NoError(t, err)
 				return j
 			},
