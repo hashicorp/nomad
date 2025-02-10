@@ -286,7 +286,7 @@ scenario "upgrade" {
       jobs_count      = step.run_initial_workloads.jobs_count
       alloc_count     = step.run_initial_workloads.allocs_count
       servers         = step.provision_cluster.servers
-      clients_version = var.product_version
+      clients_version = var.upgrade_version
       servers_version = var.upgrade_version
     }
 
@@ -299,31 +299,6 @@ scenario "upgrade" {
       quality.nomad_reschedule_alloc,
     ]
   }
-
-  /*
-  step "run_servers_workloads" {
-   // ...
-  }
-
-  step "upgrade_client" {
-    description = <<-EOF
-    Upgrade the cluster's clients by invoking nomad-cc ...
-    EOF
-
-    module      = module.run_cc_nomad
-
-    verifies = [
-        quality.nomad_nodes_status,
-        quality.nomad_job_status
-    ]
-
-    variables {
-        cc_update_type = "client"
-        nomad_upgraded_binary             = step.copy_initial_binary.nomad_local_binary
-        // ...
-    }
-  }
-*/
 
   output "servers" {
     value = step.provision_cluster.servers
