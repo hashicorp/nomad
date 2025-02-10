@@ -252,6 +252,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 						return true
 					}
 				}
+				return false
 			}
 		} else if !req.ReadOnly {
 			// this is a static host volume and can only be mounted ReadOnly,
