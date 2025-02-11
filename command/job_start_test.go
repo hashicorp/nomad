@@ -4,26 +4,23 @@
 package command
 
 import (
-	"encoding/json"
-	"fmt"
+	"strings"
+	"testing"
+
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
 	"github.com/shoenig/test/must"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 var _ cli.Command = (*JobStartCommand)(nil)
 
-func TestJobStartCommand_Fails(t *testing.T) {
+func TestStartCommand(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, addr := testServer(t, true, func(c *agent.Config) {
@@ -32,259 +29,102 @@ func TestJobStartCommand_Fails(t *testing.T) {
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
-	cmd := &JobStartCommand{Meta: Meta{Ui: ui}}
-
-	// Fails on misuse
-	code := cmd.Run([]string{"-bad", "-flag"})
-	must.One(t, code)
-
-	out := ui.ErrorWriter.String()
-	must.StrContains(t, out, "flag provided but not defined: -bad")
-
-	ui.ErrorWriter.Reset()
-
-	// Fails on nonexistent job ID
-	code = cmd.Run([]string{"-address=" + addr, "non-existent"})
-	must.One(t, code)
-
-	out = ui.ErrorWriter.String()
-	must.StrContains(t, out, "No job(s) with prefix or ID")
-
-	ui.ErrorWriter.Reset()
-
-	// Fails on connection failure
-	code = cmd.Run([]string{"-address=nope", "n"})
-	must.One(t, code)
-
-	out = ui.ErrorWriter.String()
-	must.StrContains(t, out, "Error querying job prefix")
-
-	// Info on attempting to start a job that's not been stopped
-	jobID := uuid.Generate()
-	jobFilePath := filepath.Join(os.TempDir(), jobID+".nomad")
-
-	t.Cleanup(func() {
-		_ = os.Remove(jobFilePath)
-	})
-	job := testJob(jobID)
-	job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
-	job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
-	job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
-	job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "30s",
+	cmd := &JobStartCommand{
+		Meta: Meta{
+			Ui:          ui,
+			flagAddress: addr,
+		},
 	}
 
-	jobJSON, err := json.MarshalIndent(job, "", " ")
-	must.NoError(t, err)
+	t.Run("succeeds when starting a stopped job", func(t *testing.T) {
+		job := testJob(uuid.Generate())
 
-	jobFile := jobFilePath
-	err = os.WriteFile(jobFile, []byte(jobJSON), 0o644)
-	must.NoError(t, err)
+		client, err := cmd.Meta.Client()
+		must.NoError(t, err)
 
-	runCmd := &JobRunCommand{Meta: Meta{Ui: ui}}
-	code = runCmd.Run([]string{"-address", addr, "-json", jobFile})
-	must.Zero(t, code,
-		must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
-		must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
-	)
+		_, _, err = client.Jobs().Register(job, nil)
+		must.NoError(t, err)
 
-	code = cmd.Run([]string{"-address=" + addr, jobID})
-	must.Zero(t, code)
-	out = ui.OutputWriter.String()
-	must.StrContains(t, out, "has not been stopped and has the following status:")
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
 
+		_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
+		must.Nil(t, err)
+
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
+
+		res := cmd.Run([]string{"-address", addr, *job.ID})
+		must.Zero(t, res)
+	})
+
+	t.Run("fails to start a job not previously stopped", func(t *testing.T) {
+		job := testJob(uuid.Generate())
+
+		client, err := cmd.Meta.Client()
+		must.NoError(t, err)
+
+		_, _, err = client.Jobs().Register(job, nil)
+		must.NoError(t, err)
+
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
+
+		res := cmd.Run([]string{"-address", addr, *job.ID})
+		must.Eq(t, 1, res)
+	})
+
+	t.Run("fails to start a non-existant job", func(t *testing.T) {
+		res := cmd.Run([]string{"-address", addr, "non-existant"})
+		must.Eq(t, 1, res)
+	})
 }
 
-func TestStartCommand_ManyJobs(t *testing.T) {
+func TestStartCommand_Arguments(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, client, addr := testServer(t, true, func(c *agent.Config) {
-		c.DevMode = true
-	})
-	defer srv.Shutdown()
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
+	t.Run("fails if client request fails", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobStartCommand{
+			Meta: Meta{
+				Ui: ui,
+			},
 		}
-		if len(nodes) == 0 {
-			return false, fmt.Errorf("missing node")
+
+		if code := cmd.Run([]string{"-address=nope", "foo"}); code != 1 {
+			t.Fatalf("expected exit code 1, got: %d", code)
 		}
-		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
-			return false, fmt.Errorf("mock_driver not ready")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
-	})
-	// the number of jobs we want to run
-	numJobs := 10
-
-	// create and run a handful of jobs
-	jobIDs := make([]string, 0, numJobs)
-	for i := 0; i < numJobs; i++ {
-		jobID := uuid.Generate()
-		jobIDs = append(jobIDs, jobID)
-	}
-
-	jobFilePath := func(jobID string) string {
-		return filepath.Join(os.TempDir(), jobID+".nomad")
-	}
-
-	// cleanup job files we will create
-	t.Cleanup(func() {
-		for _, jobID := range jobIDs {
-			_ = os.Remove(jobFilePath(jobID))
+		if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying job prefix") {
+			t.Fatalf("expected failed query error, got: %s", out)
 		}
 	})
-
-	// record cli output
-	ui := cli.NewMockUi()
-
-	for _, jobID := range jobIDs {
-		job := testServiceJob(jobID)
-		job.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
-		job.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
-		job.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
-		job.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-			"run_for": "500s",
+	t.Run("fails if given more than 1 argument", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobStartCommand{
+			Meta: Meta{
+				Ui: ui,
+			},
 		}
 
-		jobJSON, err := json.MarshalIndent(job, "", " ")
-		must.NoError(t, err)
-
-		jobFile := jobFilePath(jobID)
-		err = os.WriteFile(jobFile, []byte(jobJSON), 0o644)
-		must.NoError(t, err)
-
-		cmd := &JobRunCommand{Meta: Meta{Ui: ui}}
-
-		code := cmd.Run([]string{"-address", addr, "-json", jobFile})
-		must.Zero(t, code,
-			must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
-			must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
-		)
-		// wait for allocation to be running
-		allocs, _, err := client.Jobs().Allocations(jobID, true, nil)
-		must.NoError(t, err)
-		for _, alloc := range allocs {
-			waitForAllocRunning(t, client, alloc.ID)
-
+		if code := cmd.Run([]string{"foo1", "foo2"}); code != 1 {
+			t.Fatalf("expected exit code 1, got: %d", code)
 		}
-
-	}
-
-	// helper for stopping a list of jobs
-	stop := func(args ...string) (stdout string, stderr string, code int) {
-		cmd := &JobStopCommand{Meta: Meta{Ui: ui}}
-		code = cmd.Run(args)
-		return ui.OutputWriter.String(), ui.ErrorWriter.String(), code
-	}
-	// helper for starting a list of jobs
-	start := func(args ...string) (stdout string, stderr string, code int) {
-		cmd := &JobStartCommand{Meta: Meta{Ui: ui}}
-		code = cmd.Run(args)
-		return ui.OutputWriter.String(), ui.ErrorWriter.String(), code
-	}
-
-	// stop all jobs in one command
-	args := []string{"-address", addr, "-detach"}
-	args = append(args, jobIDs...)
-	stdout, stderr, code := stop(args...)
-	must.Zero(t, code,
-		must.Sprintf("job stop stdout: %s", stdout),
-		must.Sprintf("job stop stderr: %s", stderr),
-	)
-
-	// start all jobs again in one command
-	stdout, stderr, code = start(args...)
-	must.Zero(t, code,
-		must.Sprintf("job start stdout: %s", stdout),
-		must.Sprintf("job start stderr: %s", stderr),
-	)
-
-}
-
-func TestStartCommand_MultipleCycles(t *testing.T) {
-	ci.Parallel(t)
-
-	srv, client, addr := testServer(t, true, func(c *agent.Config) {
-		c.DevMode = true
+		if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one argument: <job>") {
+			t.Fatalf("expected failed query error, got: %s", out)
+		}
 	})
+	t.Run("fails if given less than 1 argument", func(t *testing.T) {
+		ui := cli.NewMockUi()
+		cmd := &JobStartCommand{
+			Meta: Meta{
+				Ui: ui,
+			},
+		}
 
-	defer srv.Shutdown()
-	testutil.WaitForResult(func() (bool, error) {
-		nodes, _, err := client.Nodes().List(nil)
-		if err != nil {
-			return false, err
+		if code := cmd.Run([]string{}); code != 1 {
+			t.Fatalf("expected exit code 1, got: %d", code)
 		}
-		if len(nodes) == 0 {
-			return false, fmt.Errorf("missing node")
+		if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one argument: <job>") {
+			t.Fatalf("expected failed query error, got: %s", out)
 		}
-		if _, ok := nodes[0].Drivers["mock_driver"]; !ok {
-			return false, fmt.Errorf("mock_driver not ready")
-		}
-		return true, nil
-	}, func(err error) {
-		t.Fatalf("err: %s", err)
 	})
-
-	ui := cli.NewMockUi()
-
-	job1 := testServiceJob("job-start-test")
-	job1.TaskGroups[0].Tasks[0].Resources.MemoryMB = pointer.Of(16)
-	job1.TaskGroups[0].Tasks[0].Resources.DiskMB = pointer.Of(32)
-	job1.TaskGroups[0].Tasks[0].Resources.CPU = pointer.Of(10)
-	job1.TaskGroups[0].Tasks[0].Config = map[string]interface{}{
-		"run_for": "500s",
-	}
-
-	resp, _, err := client.Jobs().Register(job1, nil)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if code := waitForSuccess(ui, client, fullId, t, resp.EvalID); code != 0 {
-		t.Fatalf("status code non zero saw %d", code)
-	}
-
-	// wait for allocation to be running
-	allocs, _, err := client.Jobs().Allocations("job-start-test", true, nil)
-	must.NoError(t, err)
-	for _, alloc := range allocs {
-		waitForAllocRunning(t, client, alloc.ID)
-	}
-	args := []string{"-address", addr}
-	args = append(args, "job-start-test")
-	stopCmd := &JobStopCommand{Meta: Meta{Ui: ui}}
-	startCmd := &JobStartCommand{Meta: Meta{Ui: ui}}
-
-	// check multiple cycles of starting/stopping a job result in the correct version selected
-	for _ = range 3 {
-
-		code := stopCmd.Run(args)
-		must.Zero(t, code,
-			must.Sprintf("job stop stdout: %s", ui.OutputWriter.String()),
-			must.Sprintf("job stop stderr: %s", ui.ErrorWriter.String()),
-		)
-
-		code = startCmd.Run(args)
-		must.Zero(t, code,
-			must.Sprintf("job start stdout: %s", ui.OutputWriter.String()),
-			must.Sprintf("job start stderr: %s", ui.ErrorWriter.String()),
-		)
-		if newCode := waitForSuccess(ui, client, fullId, t, resp.EvalID); newCode != 0 {
-			t.Fatalf("status code non zero saw %d", newCode)
-		}
-
-		allocs, _, err = client.Jobs().Allocations("job-start-test", true, nil)
-		must.NoError(t, err)
-		waitForAllocRunning(t, client, allocs[0].ID)
-
-		// check the version selected
-		versionSelected := <-startCmd.versionCh
-		must.Eq(t, 0, versionSelected)
-	}
-
 }
 
 func TestStartCommand_AutocompleteArgs(t *testing.T) {
