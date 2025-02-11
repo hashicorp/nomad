@@ -312,7 +312,7 @@ OUTER:
 	}
 }
 
-func TestEventStream_validateACL(t *testing.T) {
+func TestEventStream_validateNsOp(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
@@ -420,10 +420,72 @@ func TestEventStream_validateACL(t *testing.T) {
 			testACL, err := acl.NewACL(tc.Management, []*acl.Policy{p})
 			require.NoError(err)
 
-			err = validateACL(tc.Namespace, tc.Topics, testACL)
+			err = validateNsOp(tc.Namespace, tc.Topics, testACL)
 			require.Equal(tc.ExpectedErr, err)
 		})
 	}
+}
+
+func TestEventStream_validateACL(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, _, cleanupS := TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s1.RPC)
+
+	ns1 := mock.Namespace()
+
+	err := s1.State().UpsertNamespaces(0, []*structs.Namespace{ns1})
+	must.NoError(t, err)
+
+	testEvent := &Event{srv: s1}
+
+	t.Run("single namespace ACL errors on wildcard", func(t *testing.T) {
+		policy, err := acl.Parse(mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+		must.NoError(t, err)
+
+		// does not contain policy for default NS
+		testAcl, err := acl.NewACL(false, []*acl.Policy{policy})
+		must.NoError(t, err)
+
+		topics := map[structs.Topic][]string{
+			structs.TopicJob: {"*"},
+		}
+		_, err = testEvent.validateACL("*", topics, testAcl)
+		must.Error(t, err)
+	})
+
+	t.Run("all namespace ACL succeeds on wildcard", func(t *testing.T) {
+		policy1, err := acl.Parse(mock.NamespacePolicy("default", "", []string{acl.NamespaceCapabilityReadJob}))
+		must.NoError(t, err)
+		policy2, err := acl.Parse(mock.NamespacePolicy(ns1.Name, "", []string{acl.NamespaceCapabilityReadJob}))
+		must.NoError(t, err)
+
+		testAcl, err := acl.NewACL(false, []*acl.Policy{policy1, policy2})
+		must.NoError(t, err)
+
+		topics := map[structs.Topic][]string{
+			structs.TopicJob: {"*"},
+		}
+		nses, err := testEvent.validateACL("*", topics, testAcl)
+		must.NoError(t, err)
+		must.Eq(t, nses, []string{"default", ns1.Name})
+	})
+
+	t.Run("single namespace ACL succeeds with correct NS", func(t *testing.T) {
+		policy, err := acl.Parse(mock.NamespacePolicy("default", "", []string{acl.NamespaceCapabilityReadJob}))
+		must.NoError(t, err)
+
+		testAcl, err := acl.NewACL(false, []*acl.Policy{policy})
+		must.NoError(t, err)
+
+		topics := map[structs.Topic][]string{
+			structs.TopicJob: {"*"},
+		}
+		nses, err := testEvent.validateACL("default", topics, testAcl)
+		must.NoError(t, err)
+		must.Eq(t, nses, []string{"default"})
+	})
 }
 
 // TestEventStream_ACL_Update_Close_Stream asserts that an active subscription
