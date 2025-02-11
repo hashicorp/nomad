@@ -72,8 +72,6 @@ module upgrade_first_server {
   artifactory_release = local.artifactory
 }
 
-// This script calls `nomad server members` which returns an error if there 
-// is no leader.
 resource "enos_local_exec" "first_leader_verification" {
   depends_on = [module.upgrade_first_server]
 
@@ -112,8 +110,6 @@ module upgrade_second_server {
   artifactory_release = local.artifactory
 }
 
-// This script calls `nomad server members` which returns an error if there 
-// is no leader.
 resource "enos_local_exec" "second_leader_verification" {
   depends_on = [module.upgrade_second_server]
 
@@ -129,17 +125,13 @@ resource "enos_local_exec" "second_leader_verification" {
 // used to restore the cluster after the restart, because it will be the most 
 // recent available, the resulting file wont be used.
 resource "enos_local_exec" "take_third_cluster_snapshot" {
-  depends_on = [enos_local_exec.second_leader_verification]
-  
-  environment = merge(
-    local.nomad_env,
-    {
-      SERVER = var.servers[2]
-    }
-  )
+  depends_on = [enos_local_exec.first_leader_verification]
 
+  environment = local.nomad_env
 
-  scripts = [abspath("${path.module}/scripts/take_snapshot.sh")]
+  inline = [
+    "nomad operator snapshot save -stale -address https://${var.servers[2]}:4646 ${random_pet.upgrade.id}-1.snap",
+  ]
 }
 
 module upgrade_third_server {
@@ -156,9 +148,7 @@ module upgrade_third_server {
   artifactory_release = local.artifactory
 }
 
-// This script calls `nomad server members` which returns an error if there 
-// is no leader.
-resource "enos_local_exec" "third_leader_verification" {
+resource "enos_local_exec" "last_leader_verification" {
   depends_on = [module.upgrade_third_server]
 
   environment = local.nomad_env

@@ -15,10 +15,11 @@ POLL_INTERVAL=2
 elapsed_time=0
 
 while true; do  
-    servers=$(nomad operator autopilot health -json) || { echo "Failed to fetch Nomad health status, "; }
-    leader=$(echo "$servers" | jq -r '[.Servers[] | select(.Leader == true) | .ID] | length')
-
-    if [ "$leader" -eq 1 ]; then
+    servers=$(nomad operator api /v1/operator/raft/configuration)
+    leader=$(echo $servers | jq -r '[.Servers[] | select(.Leader == true)'])
+    echo $servers | jq '.'
+    echo $leader
+    if [ $(echo "$leader" | jq 'length') -eq 1 ]; then
       break
     fi
 
@@ -31,10 +32,8 @@ while true; do
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done
 
-leader=$(echo $servers | jq -r '.Servers[] | select(.Leader == true)')
-leader_last_index=$(echo $leader | jq -r '.LastIndex')
-leader_last_term=$(echo $leader | jq -r '.LastTerm')
-echo "working with $leader_last_index $leader_last_term"
+last_config_index=$(echo $servers | jq -r '.Index')
+echo "last_config_index: $last_config_index"
 
 for ip in $SERVERS; do
 while true; do  
@@ -45,14 +44,12 @@ while true; do
         fi
 
         last_log_index=$(echo "$node_info" | jq -r '.stats.raft.last_log_index')
-        last_leader_term=$(echo "$node_info" | jq -r '.stats.raft.last_log_term')
-        echo "reading $last_log_index $last_leader_term"
-        if [ "$last_log_index" -ge "$leader_last_index" ] && [ "$last_leader_term" -ge "$leader_last_term" ]; then
+        if [ "$last_log_index" -ge "$last_config_index" ]; then
             break
         fi
 
         if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
-            error_exit "Expected node at $ip to have last log index $leader_last_index and last term $leader_last_term, but found $last_log_index and $last_leader_term after $elapsed_time seconds."
+            error_exit "Expected node at $ip to have last log index at least $last_config_index but found $last_log_index after $elapsed_time seconds."
         fi
 
         echo "Expected log at $leader_last_index, found $last_log_index. Retrying in $POLL_INTERVAL seconds..."
