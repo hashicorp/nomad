@@ -49,7 +49,7 @@ rules:
             return err
           }
           ...
-          if !aclObj.AllowClientOp()
+          if !aclObj.AllowClientOp() {
             return structs.ErrPermissionDenied
           }
           ...
