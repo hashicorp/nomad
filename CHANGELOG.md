@@ -1,3 +1,39 @@
+## 1.9.6 (February 11, 2025)
+
+BREAKING CHANGES:
+
+* fingerprint: Consul and Vault fingerprints no longer reload periodically [[GH-24526](https://github.com/hashicorp/nomad/issues/24526)]
+
+SECURITY:
+
+* api: sanitize the SignedIdentities in allocations of events to clean the identity token. [[GH-24966](https://github.com/hashicorp/nomad/issues/24966)]
+* build: Updated Go to 1.23.6 [[GH-25041](https://github.com/hashicorp/nomad/issues/25041)]
+* event stream: fixes vulnerability CVE-2025-0937, where using a wildcard namespace to subscribe to the events API grants a user with "read" capabilites on any namespace, the ability to read events from all namespaces. [[GH-25089](https://github.com/hashicorp/nomad/issues/25089)]
+
+IMPROVEMENTS:
+
+* auth: adds `VerboseLogging` option to auth-method config for debugging SSO [[GH-24892](https://github.com/hashicorp/nomad/issues/24892)]
+* cli: Added actions available to a job when running nomad job status command [[GH-24959](https://github.com/hashicorp/nomad/issues/24959)]
+* event stream: adds ability to authenticate using workload identities [[GH-24849](https://github.com/hashicorp/nomad/issues/24849)]
+* services: Nomad service checks now support the `tls_skip_verify` parameter [[GH-24781](https://github.com/hashicorp/nomad/issues/24781)]
+* task schedule: The task being paused no longer impacts restart attempts [[GH-25085](https://github.com/hashicorp/nomad/issues/25085)]
+* ui: Contextualizes the Start Job button on whether it is startable, revertable, or not [[GH-24985](https://github.com/hashicorp/nomad/issues/24985)]
+
+BUG FIXES:
+
+* agent: Fixed a bug where Nomad error log messages within syslog showed via the notice priority [[GH-24820](https://github.com/hashicorp/nomad/issues/24820)]
+* agent: Fixed a bug where all syslog entries were marked as notice when using JSON logging format [[GH-24865](https://github.com/hashicorp/nomad/issues/24865)]
+* client: Fixed a bug where temporary RPC errors cause the client to poll for changes more frequently thereafter [[GH-25039](https://github.com/hashicorp/nomad/issues/25039)]
+* csi: Fixed a bug where volume context from the plugin would be erased on volume updates [[GH-24922](https://github.com/hashicorp/nomad/issues/24922)]
+* docker: Fixed a bug that prevented image_pull_timeout from being applied [[GH-24991](https://github.com/hashicorp/nomad/issues/24991)]
+* docker: Fixed a bug where "error reading image pull progress" caused the allocation to get stuck pending [[GH-24981](https://github.com/hashicorp/nomad/issues/24981)]
+* reporting (Enterprise): Updated the reporting metric to utilize node active heartbeat count. [[GH-24919](https://github.com/hashicorp/nomad/issues/24919)]
+* state store: fix for setting correct status for a job version when reverting, and also fixes an issue where jobs were briefly marked dead during restarts [[GH-24974](https://github.com/hashicorp/nomad/issues/24974)]
+* taskrunner: fix panic when a task with dynamic user is recovered [[GH-24739](https://github.com/hashicorp/nomad/issues/24739)]
+* ui: Ensure pending service check blocks are filled [[GH-24818](https://github.com/hashicorp/nomad/issues/24818)]
+* ui: Remove unrequired node read API call when attempting to stream task logs [[GH-24973](https://github.com/hashicorp/nomad/issues/24973)]
+* vault: Fixed a bug where successful renewal was logged as an error [[GH-25040](https://github.com/hashicorp/nomad/issues/25040)]
+
 ## 1.9.5 (January 14, 2025)
 
 IMPROVEMENTS:
