@@ -312,200 +312,116 @@ OUTER:
 	}
 }
 
-func TestEventStream_ACL(t *testing.T) {
+func TestEventStream_validateACL(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 
-	// start server
-	s, _, cleanupS := TestACLServer(t, nil)
-	defer cleanupS()
-	testutil.WaitForLeader(t, s.RPC)
-
-	policyBad := mock.NamespacePolicy("other", "", []string{acl.NamespaceCapabilityReadFS})
-	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", policyBad)
-
-	policyNsGood := mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob})
-	tokenNsFoo := mock.CreatePolicyAndToken(t, s.State(), 1006, "valid", policyNsGood)
-
-	policyNsNode := mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob})
-	policyNsNode += "\n" + mock.NodePolicy("read")
-	tokenNsNode := mock.CreatePolicyAndToken(t, s.State(), 1007, "validnNsNode", policyNsNode)
-
 	cases := []struct {
 		Name        string
-		Token       string
 		Topics      map[structs.Topic][]string
 		Namespace   string
-		ExpectedErr string
-		PublishFn   func(p *stream.EventBroker)
+		Policy      string
+		Management  bool
+		ExpectedErr error
 	}{
 		{
-			Name:  "no token",
-			Token: "",
-			Topics: map[structs.Topic][]string{
-				structs.TopicAll: {"*"},
-			},
-			ExpectedErr: structs.ErrPermissionDenied.Error(),
-		},
-		{
-			Name:  "bad token",
-			Token: tokenBad.SecretID,
-			Topics: map[structs.Topic][]string{
-				structs.TopicAll: {"*"},
-			},
-			ExpectedErr: structs.ErrPermissionDenied.Error(),
-		},
-		{
-			Name:  "job namespace token - correct ns",
-			Token: tokenNsFoo.SecretID,
+			Name: "read-job topics - correct ns",
 			Topics: map[structs.Topic][]string{
 				structs.TopicJob:        {"*"},
 				structs.TopicEvaluation: {"*"},
 				structs.TopicAllocation: {"*"},
 				structs.TopicDeployment: {"*"},
+				structs.TopicService:    {"*"},
 			},
+			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
 			Namespace:   "foo",
-			ExpectedErr: "subscription closed by server",
-			PublishFn: func(p *stream.EventBroker) {
-				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Job", Namespace: "foo", Payload: mock.Job()}}})
-			},
+			Management:  false,
+			ExpectedErr: nil,
 		},
 		{
-			Name:  "job namespace token - incorrect ns",
-			Token: tokenNsFoo.SecretID,
+			Name: "read-job topic - incorrect ns",
 			Topics: map[structs.Topic][]string{
 				structs.TopicJob: {"*"}, // good
 			},
+			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
 			Namespace:   "bar", // bad
-			ExpectedErr: structs.ErrPermissionDenied.Error(),
-			PublishFn: func(p *stream.EventBroker) {
-				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Job", Namespace: "foo", Payload: mock.Job()}}})
-			},
+			Management:  false,
+			ExpectedErr: structs.ErrPermissionDenied,
 		},
 		{
-			Name:  "job namespace token - request management topic",
-			Token: tokenNsFoo.SecretID,
+			Name: "read all topics - correct policy",
 			Topics: map[structs.Topic][]string{
 				structs.TopicAll: {"*"}, // bad
 			},
-			Namespace:   "foo",
-			ExpectedErr: structs.ErrPermissionDenied.Error(),
-			PublishFn: func(p *stream.EventBroker) {
-				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Job", Namespace: "foo", Payload: mock.Job()}}})
-			},
+			Policy:      "",
+			Namespace:   "*",
+			Management:  true,
+			ExpectedErr: nil,
 		},
 		{
-			Name:  "job namespace token - request invalid node topic",
-			Token: tokenNsFoo.SecretID,
+			Name: "read all topics - incorrect policy",
+			Topics: map[structs.Topic][]string{
+				structs.TopicAll: {"*"}, // bad
+			},
+			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
+			Namespace:   "foo",
+			Management:  false,
+			ExpectedErr: structs.ErrPermissionDenied,
+		},
+		{
+			Name: "read node - valid policy",
+			Topics: map[structs.Topic][]string{
+				structs.TopicNode: {"*"}, // bad
+			},
+			Policy:      mock.NodePolicy(acl.PolicyRead),
+			Namespace:   "foo",
+			Management:  false,
+			ExpectedErr: nil,
+		},
+		{
+			Name: "read node - invalid policy",
 			Topics: map[structs.Topic][]string{
 				structs.TopicEvaluation: {"*"}, // good
 				structs.TopicNode:       {"*"}, // bad
 			},
+			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
 			Namespace:   "foo",
-			ExpectedErr: structs.ErrPermissionDenied.Error(),
-			PublishFn: func(p *stream.EventBroker) {
-				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Job", Namespace: "foo", Payload: mock.Job()}}})
-			},
+			Management:  false,
+			ExpectedErr: structs.ErrPermissionDenied,
 		},
 		{
-			Name:  "job+node namespace token, valid",
-			Token: tokenNsNode.SecretID,
+			Name: "read node pool - correct policy",
 			Topics: map[structs.Topic][]string{
-				structs.TopicEvaluation: {"*"}, // good
-				structs.TopicNode:       {"*"}, // good
+				structs.TopicNodePool: {"*"}, // bad
 			},
+			Policy:      "",
+			Namespace:   "",
+			Management:  true,
+			ExpectedErr: nil,
+		},
+		{
+			Name: "read node pool - incorrect policy",
+			Topics: map[structs.Topic][]string{
+				structs.TopicNodePool: {"*"}, // bad
+			},
+			Policy:      mock.NamespacePolicy("foo", "", []string{acl.NamespaceCapabilityReadJob}),
 			Namespace:   "foo",
-			ExpectedErr: "subscription closed by server",
-			PublishFn: func(p *stream.EventBroker) {
-				p.Publish(&structs.Events{Index: uint64(1000), Events: []structs.Event{{Topic: "Node", Payload: mock.Node()}}})
-			},
+			Management:  false,
+			ExpectedErr: structs.ErrPermissionDenied,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			var ns string
-			if tc.Namespace != "" {
-				ns = tc.Namespace
-			}
-			// Create request for all topics and keys
-			req := structs.EventStreamRequest{
-				Topics: tc.Topics,
-				QueryOptions: structs.QueryOptions{
-					Region:    s.Region(),
-					Namespace: ns,
-					AuthToken: tc.Token,
-				},
-			}
 
-			handler, err := s.StreamingRpcHandler("Event.Stream")
-			require.Nil(err)
-
-			// create pipe
-			p1, p2 := net.Pipe()
-			defer p1.Close()
-			defer p2.Close()
-
-			errCh := make(chan error)
-			streamMsg := make(chan *structs.EventStreamWrapper)
-
-			go handler(p2)
-
-			// Start decoder
-			go func() {
-				decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
-				for {
-					var msg structs.EventStreamWrapper
-					if err := decoder.Decode(&msg); err != nil {
-						if err == io.EOF || strings.Contains(err.Error(), "closed") {
-							return
-						}
-						errCh <- fmt.Errorf("error decoding: %w", err)
-					}
-
-					streamMsg <- &msg
-				}
-			}()
-
-			// send request
-			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
-			require.Nil(encoder.Encode(req))
-
-			publisher, err := s.State().EventBroker()
+			p, err := acl.Parse(tc.Policy)
 			require.NoError(err)
 
-			// publish some events
-			node := mock.Node()
+			testACL, err := acl.NewACL(tc.Management, []*acl.Policy{p})
+			require.NoError(err)
 
-			publisher.Publish(&structs.Events{Index: uint64(1), Events: []structs.Event{{Topic: "test", Payload: node}}})
-			publisher.Publish(&structs.Events{Index: uint64(2), Events: []structs.Event{{Topic: "test", Payload: node}}})
-
-			if tc.PublishFn != nil {
-				tc.PublishFn(publisher)
-			}
-
-			timeout := time.After(5 * time.Second)
-		OUTER:
-			for {
-				select {
-				case <-timeout:
-					t.Fatal("timeout waiting for events")
-				case err := <-errCh:
-					t.Fatal(err)
-				case msg := <-streamMsg:
-					// force error by closing all subscriptions
-					publisher.CloseAll()
-					if msg.Error == nil {
-						continue
-					}
-
-					if strings.Contains(msg.Error.Error(), tc.ExpectedErr) {
-						break OUTER
-					} else {
-						t.Fatalf("unexpected error %v", msg.Error)
-					}
-				}
-			}
+			err = validateACL(tc.Namespace, tc.Topics, testACL)
+			require.Equal(tc.ExpectedErr, err)
 		})
 	}
 }
