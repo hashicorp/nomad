@@ -383,6 +383,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	nodes := []*structs.Node{
 		mock.Node(),
 		mock.Node(),
+		mock.Node(),
 	}
 
 	hostVolCapsReadWrite := []*structs.HostVolumeCapability{
@@ -407,22 +408,26 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	dhv2 := &structs.HostVolume{
 		Namespace:             structs.DefaultNamespace,
 		ID:                    uuid.Generate(),
-		Name:                  "foobar",
-		NodeID:                nodes[1].ID,
+		Name:                  "foo",
+		NodeID:                nodes[2].ID,
 		RequestedCapabilities: hostVolCapsReadWrite,
 		State:                 structs.HostVolumeStateReady,
 	}
 
+	// node0 doesn't have the desired volume, but both node2 and node2 do
 	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
 	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
-		"foo":    {ID: dhv1.ID},
-		"foobar": {ID: dhv2.ID},
+		"foo": {ID: dhv1.ID},
+	}
+	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {ID: dhv2.ID},
 	}
 
 	for _, node := range nodes {
 		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 	}
 	must.NoError(t, store.UpsertHostVolume(1000, dhv1))
+	must.NoError(t, store.UpsertHostVolume(1000, dhv2))
 
 	stickyRequests := map[string]*structs.VolumeRequest{
 		"foo": {
@@ -436,6 +441,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	stickyJob := mock.Job()
 	stickyJob.TaskGroups[0].Volumes = stickyRequests
 
+	// claims are only present for node1
 	existingClaims := []*structs.TaskGroupHostVolumeClaim{
 		{
 			Namespace:     structs.DefaultNamespace,
@@ -495,6 +501,13 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 		{
 			"requesting a sticky volume on a feasible node, but there is an existing claim for another vol ID on a different node",
 			nodes[0],
+			stickyJob,
+			false,
+			1,
+		},
+		{
+			"requesting a sticky volume on a node that has it, but it's claimed by a different alloc",
+			nodes[2],
 			stickyJob,
 			false,
 			1,
