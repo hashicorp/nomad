@@ -97,7 +97,7 @@ func EventsForIndex(t *testing.T, s *StateStore, index uint64) []structs.Event {
 		Topics: map[structs.Topic][]string{
 			"*": {"*"},
 		},
-		Namespace:           "default",
+		Namespaces:          []string{"default"},
 		Index:               index,
 		StartExactlyAtIndex: true,
 	})
