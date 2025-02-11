@@ -34,6 +34,8 @@ func TestTaskSchedule(t *testing.T) {
 	t.Run("job update", testJobUpdate)
 	t.Run("force run", testForceRun(nomadClient))
 	t.Run("force stop", testForceStop(nomadClient))
+	t.Run("repeat pause", testRepeatPause(nomadClient))
+	t.Run("task dies", testTaskDies(nomadClient))
 }
 
 // testInSchedule ensures a task starts when allocated in schedule,
@@ -199,6 +201,70 @@ func testForceStop(api *nomadapi.Client) func(t *testing.T) {
 			"Restarting",
 			"Running",
 			"Started",
+		})
+	}
+}
+
+// testRepeatPause ensures that pausing a task resets the restart counter,
+// so only application exits count against the restart attempts limit.
+func testRepeatPause(api *nomadapi.Client) func(t *testing.T) {
+	return func(t *testing.T) {
+		now := time.Now()
+
+		// schedule in future; task should not run.
+		job := runJob(t, now.Add(time.Hour), now.Add(2*time.Hour))
+		expectAllocStatus(t, job, "pending", 5*time.Second, "task should be placed")
+
+		alloc := &nomadapi.Allocation{
+			ID: job.AllocID("group"),
+		}
+		expectScheduleState(t, api, alloc, "scheduled_pause")
+
+		// the test job only allows for 1 restart attempt, so 3 stops would
+		// cause a failure if we fail to reset the restart counter (a bug)
+		for x := range 3 {
+			t.Run(fmt.Sprintf("attempt %d", x+1), func(t *testing.T) {
+				// force the task to run.
+				must.NoError(t, api.Allocations().SetPauseState(alloc, nil, "app", "run"))
+				expectScheduleState(t, api, alloc, "force_run")
+				expectAllocStatus(t, job, "running", 5*time.Second, "task should start")
+
+				// force the task to stop.
+				must.NoError(t, api.Allocations().SetPauseState(alloc, nil, "app", "pause"))
+				expectScheduleState(t, api, alloc, "force_pause")
+				expectAllocStatus(t, job, "pending", 5*time.Second, "task should stop")
+			})
+		}
+
+		// this skips "Received" and "Task Setup" and an initial pause
+		// because only 10 task events get stored at a time.
+		expectTaskEvents(t, job, []string{
+			"Running", "Started", "Pausing", "Terminated", "Restarting",
+			"Running", "Started", "Pausing", "Terminated", "Restarting",
+		})
+	}
+}
+
+// testTaskDies tests that a task dying on its own counts against the restart
+// counter (unlike repeat intentional pauses as in testRepeatPause)
+func testTaskDies(api *nomadapi.Client) func(t *testing.T) {
+	return func(t *testing.T) {
+		now := time.Now()
+		// schedule now; task should run.
+		job := runJob(t, now.Add(-time.Hour), now.Add(time.Hour))
+		expectAllocStatus(t, job, "running", 5*time.Second, "task should start")
+
+		alloc := &nomadapi.Allocation{
+			ID: job.AllocID("group"),
+		}
+
+		// the job has 0 restart attempts, so the first failure should be fatal.
+		must.NoError(t, api.Allocations().Signal(alloc, nil, "app", "SIGTERM"))
+		expectAllocStatus(t, job, "failed", 5*time.Second, "task should fail")
+
+		expectTaskEvents(t, job, []string{
+			"Received", "Task Setup",
+			"Started", "Signaling", "Terminated", "Not Restarting",
 		})
 	}
 }
