@@ -1589,7 +1589,7 @@ func TestVariablesEndpoint_RenewLock(t *testing.T) {
 	state := srv.fsm.State()
 
 	unlockedVar := mock.VariableEncrypted()
-
+	unlockedVar.Path = "/unlocked/var"
 	vsResp := state.VarSet(102, &structs.VarApplyStateRequest{
 		Op:  structs.VarOpSet,
 		Var: unlockedVar,
@@ -1597,6 +1597,7 @@ func TestVariablesEndpoint_RenewLock(t *testing.T) {
 	must.NoError(t, vsResp.Error)
 
 	lockedVar := mock.VariableEncrypted()
+	lockedVar.Path = "/locked/var"
 	lockedVar.VariableMetadata.Lock = &structs.VariableLock{
 		ID:        "theLockID",
 		TTL:       24 * time.Hour,
