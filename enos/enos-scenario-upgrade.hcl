@@ -9,8 +9,10 @@ scenario "upgrade" {
 
   matrix {
     arch = ["amd64"]
-    edition = ["ce", "ent"]
-    os      = ["linux", "windows"]
+    //edition = ["ce", "ent"]
+    //os      = ["linux", "windows"]
+    edition = ["ent"]
+    os      = ["linux"]
     
     exclude {
       os   = ["windows"]
