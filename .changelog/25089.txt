@@ -1,3 +1,3 @@
 ```release-note:security
-event stream: fixes an issue in the event stream API where using a wildcard namespace can allow a user with "read" capabilities on any namespace, the equivalent of "read" on all namespaces
+event stream: fixes vulnerability CVE-2025-0937, where using a wildcard namespace to subscribe to the events API grants a user with "read" capabilites on any namespace, the ability to read events from all namespaces.
 ```
