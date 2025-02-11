@@ -712,6 +712,10 @@
             "path": "commands/job/scaling-events"
           },
           {
+            "title": "start",
+            "path": "commands/job/start"
+          },
+          {
             "title": "status",
             "path": "commands/job/status"
           },
