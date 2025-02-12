@@ -104,11 +104,11 @@ port numbers, and whether trailing slashes are present.
 
       jq --raw-output '.access_token / "." | .[1] | @base64d' jwt.json
 
-- With debug level logging, use the [VerboseLogging] option to log the
-  received OIDC token. This can be helpful when debugging provider setup
-  and verifying that the received claims are what you expect. Since claims
-  data is logged verbatim and may contain sensitive information,
-  do not use this option in production.
+- With debug level logging, use the [VerboseLogging] option in the auth
+  method configuration to log the received OIDC token. This can be helpful
+  when debugging provider setup and verifying that the received claims are
+  what you expect. Since claims data is logged verbatim and may contain
+  sensitive information, do not use this option in production.
 
 @include 'jwt_claim_mapping_details.mdx'
 
