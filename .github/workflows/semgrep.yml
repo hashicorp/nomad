@@ -10,9 +10,9 @@ jobs:
     name: Semgrep Scan
     runs-on: ubuntu-latest
     container:
-      image: returntocorp/semgrep:1.36.0
+      image: returntocorp/semgrep:1.107.0
     env:
-      SEMGREP_SEND_METRICS: 0
+      SEMGREP_SEND_METRICS: off
     # Skip any PR created by dependabot to avoid permission issues
     if: (github.actor != 'dependabot[bot]')
     steps:
