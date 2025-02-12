@@ -31,7 +31,7 @@ scenario "upgrade" {
     clients_count          = local.linux_count + local.windows_count
     test_product_version   = matrix.edition == "ent" ? "${var.product_version}+ent" : "${var.product_version}"
     test_upgrade_version   = matrix.edition == "ent" ? "${var.upgrade_version}+ent" : "${var.upgrade_version}"
-    necessary_binaries     = matrix.os == "windows" ? ["linux", "windows"] : ["linux"]
+    server_os              = "linux"
     download_binaries_path = "${var.download_binary_path}/${matrix.arch}-${matrix.edition}-${var.product_version}"
   }
 
@@ -42,7 +42,7 @@ scenario "upgrade" {
     running enos.
     EOF
 
-    module = module.fetch_artifactory
+    module = module.install_binaries
 
     variables {
       artifactory_username   = var.artifactory_username
@@ -50,11 +50,11 @@ scenario "upgrade" {
       arch                   = local.arch
       edition                = matrix.edition
       product_version        = var.product_version
-      oss                    = local.necessary_binaries
+      oss                    = [local.server_os, matrix.os]
       download_binaries_path = local.download_binaries_path
     }
   }
-  /* 
+
   step "provision_cluster" {
     depends_on = [step.copy_initial_binary]
 
@@ -65,20 +65,20 @@ scenario "upgrade" {
 
     module = module.provision_cluster
     variables {
-      name                      = local.cluster_name
-      nomad_local_binary        = step.copy_initial_binary.nomad_local_binary
-      nomad_local_binary_server = step.copy_initial_binary.nomad_local_binary
-      server_count              = var.server_count
-      client_count_linux        = local.linux_count
-      client_count_windows_2016 = local.windows_count
-      nomad_license             = var.nomad_license
-      consul_license            = var.consul_license
-      volumes                   = false
-      region                    = var.aws_region
-      instance_arch             = matrix.arch
+      name                             = local.cluster_name
+      nomad_local_binary               = step.copy_initial_binary.binary_path_per_os[matrix.os]
+      nomad_local_binary_server_unique = step.copy_initial_binary.binary_path_per_os[local.server_os]
+      server_count                     = var.server_count
+      client_count_linux               = local.linux_count
+      client_count_windows_2016        = local.windows_count
+      nomad_license                    = var.nomad_license
+      consul_license                   = var.consul_license
+      volumes                          = false
+      region                           = var.aws_region
+      instance_arch                    = matrix.arch
     }
   }
-
+  /*
   step "run_initial_workloads" {
     depends_on = [step.provision_cluster]
 
@@ -347,8 +347,8 @@ scenario "upgrade" {
     sensitive = true
   } */
 
-  output "nomad_binary_info_map" {
-    value     = step.copy_initial_binary.nomad_binary_info_map
+  output "binary_info_per_os" {
+    value     = step.copy_initial_binary.binary_path_per_os
     sensitive = true
   }
 }

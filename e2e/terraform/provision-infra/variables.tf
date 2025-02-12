@@ -103,6 +103,12 @@ variable "aws_kms_alias" {
 # provide a build to override the values of nomad_sha, nomad_version,
 # or nomad_local_binary. Most of the time you can ignore these variables!
 
+variable "nomad_local_binary_server_unique" {
+  description = "A nomad local binary paths to deploy to servers, to override nomad_local_binary"
+  type        = string
+  default     = ""
+}
+
 variable "nomad_local_binary_server" {
   description = "A path to an alternative binary to deploy to servers, to override nomad_local_binary"
   type        = string
