@@ -1996,20 +1996,12 @@
         "path": "drivers/docker"
       },
       {
-        "title": "Exec2",
-        "href": "/plugins/drivers/exec2"
-      },
-      {
         "title": "Isolated Fork/Exec",
         "path": "drivers/exec"
       },
       {
         "title": "Java",
         "path": "drivers/java"
-      },
-      {
-        "title": "Podman",
-        "href": "/plugins/drivers/podman"
       },
       {
         "title": "QEMU",
@@ -2020,76 +2012,23 @@
         "path": "drivers/raw_exec"
       },
       {
-        "title": "Virt <sup>Beta</sup>",
+        "title": "Plugins",
         "routes": [
           {
-            "title": "Overview",
+            "title": "Exec2",
+            "href": "/plugins/drivers/exec2"
+          },
+          {
+            "title": "Podman",
+            "href": "/plugins/drivers/podman"
+          },
+          {
+            "title": "Virt <sup>Beta</sup>",
             "href": "/plugins/drivers/virt"
           },
           {
-            "title": "Installation",
-            "href": "/plugins/drivers/virt/installation"
-          },
-          {
-            "title": "Client",
-            "href": "/plugins/drivers/virt/client"
-          },
-          {
-            "title": "Task Config",
-            "href": "/plugins/drivers/virt/task-config"
-          }
-        ]
-      },
-      {
-        "title": "Community",
-        "routes": [
-          {
-            "title": "Overview",
+            "title": "Community",
             "href": "/plugins/drivers/community"
-          },
-          {
-            "title": "containerd",
-            "href": "/plugins/drivers/community/containerd"
-          },
-          {
-            "title": "Pledge",
-            "href": "/plugins/drivers/community/pledge"
-          },
-          {
-            "title": "Firecracker driver",
-            "href": "/plugins/drivers/community/firecracker-task-driver"
-          },
-          {
-            "title": "Jailtask driver",
-            "href": "/plugins/drivers/community/jail-task-driver"
-          },
-          {
-            "title": "Lightrun",
-            "href": "/plugins/drivers/community/lightrun"
-          },
-          {
-            "title": "Pot",
-            "href": "/plugins/drivers/community/pot"
-          },
-          {
-            "title": "Rookout",
-            "href": "/plugins/drivers/community/rookout"
-          },
-          {
-            "title": "Singularity",
-            "href": "/plugins/drivers/community/singularity"
-          },
-          {
-            "title": "systemd-nspawn",
-            "href": "/plugins/drivers/community/nspawn"
-          },
-          {
-            "title": "Windows IIS",
-            "href": "/plugins/drivers/community/iis"
-          },
-          {
-            "title": "Windows IIS",
-            "href": "/plugins/drivers/community/nomad-iis"
           }
         ]
       }
@@ -2097,34 +2036,7 @@
   },
   {
     "title": "Device Plugins",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "devices"
-      },
-      {
-        "title": "External",
-        "routes": [
-          {
-            "title": "Overview",
-            "href": "/plugins/devices"
-          },
-          {
-            "title": "Nvidia",
-            "href": "/plugins/devices/nvidia"
-          },
-          {
-            "title": "USB",
-            "badge": {
-              "text": "Beta",
-              "type": "outlined",
-              "color": "neutral"
-            },
-            "href": "/plugins/devices/community/usb"
-          }
-        ]
-      }
-    ]
+    "href": "/plugins/devices"
   },
   {
     "title": "Schedulers",

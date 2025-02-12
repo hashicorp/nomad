@@ -46,3 +46,19 @@ func HostVolume() *structs.HostVolume {
 	vol.HostPath = "/var/data/nomad/alloc_mounts/" + volID
 	return vol
 }
+
+// TaskGroupHostVolumeClaim creates a claim for a given job, alloc and host
+// volume request
+func TaskGroupHostVolumeClaim(job *structs.Job, alloc *structs.Allocation, dhv *structs.HostVolume) *structs.TaskGroupHostVolumeClaim {
+	return &structs.TaskGroupHostVolumeClaim{
+		ID:            uuid.Generate(),
+		Namespace:     structs.DefaultNamespace,
+		JobID:         job.ID,
+		TaskGroupName: job.TaskGroups[0].Name,
+		AllocID:       alloc.ID,
+		VolumeID:      dhv.ID,
+		VolumeName:    dhv.Name,
+		CreateIndex:   1000,
+		ModifyIndex:   1000,
+	}
+}

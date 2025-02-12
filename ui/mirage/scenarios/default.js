@@ -380,6 +380,8 @@ function smallCluster(server) {
 
   // #endregion Version Tags
 
+  createRestartableJobs(server);
+
   server.create('job', {
     name: 'hcl-definition-job',
     id: 'display-hcl',
@@ -1215,3 +1217,117 @@ function getScenarioQueryParameter() {
   return mirageScenario;
 }
 /* eslint-enable */
+
+export function createRestartableJobs(server) {
+  const restartableJob = server.create('job', {
+    name: 'restartable-job',
+    stopped: true,
+    status: 'dead',
+    noDeployments: true,
+    shallow: true,
+    createAllocations: false,
+    groupAllocCount: 0,
+  });
+
+  const revertableJob = server.create('job', {
+    name: 'revertable-job',
+    stopped: false,
+    status: 'dead',
+    noDeployments: true,
+    shallow: true,
+    createAllocations: false,
+    groupAllocCount: 0,
+  });
+
+  const nonRevertableJob = server.create('job', {
+    name: 'non-revertable-job',
+    stopped: false,
+    status: 'dead',
+    shallow: true,
+    createAllocations: false,
+    groupAllocCount: 0,
+  });
+
+  // So it shows up as "Failed" instead of "Scaled Down"
+  restartableJob.taskGroups.models[0].update({
+    count: 1,
+  });
+  revertableJob.taskGroups.models[0].update({
+    count: 1,
+  });
+  nonRevertableJob.taskGroups.models[0].update({
+    count: 1,
+  });
+
+  // Remove all job-versions inherently created
+  server.schema.jobVersions
+    .all()
+    .filter((v) => v.jobId === restartableJob.id)
+    .models.forEach((v) => v.destroy());
+  server.schema.jobVersions
+    .all()
+    .filter((v) => v.jobId === revertableJob.id)
+    .models.forEach((v) => v.destroy());
+  server.schema.jobVersions
+    .all()
+    .filter((v) => v.jobId === nonRevertableJob.id)
+    .models.forEach((v) => v.destroy());
+
+  server.create('job-version', {
+    job: revertableJob,
+    namespace: revertableJob.namespace,
+    version: 0,
+    stable: false,
+    versionTag: {
+      Name: 'v0',
+      Description: 'The first version',
+    },
+  });
+
+  server.create('job-version', {
+    job: revertableJob,
+    namespace: revertableJob.namespace,
+    version: 1,
+    stable: true,
+    versionTag: {
+      Name: 'v1',
+      Description: 'The second version',
+    },
+  });
+
+  server.create('job-version', {
+    job: revertableJob,
+    namespace: revertableJob.namespace,
+    version: 2,
+    stable: false,
+    versionTag: {
+      Name: 'v2',
+      Description: 'The third version',
+    },
+  });
+
+  server.create('job-version', {
+    job: nonRevertableJob,
+    namespace: nonRevertableJob.namespace,
+    version: 0,
+    stable: false,
+    noActiveDeployment: true,
+  });
+
+  server.create('job-version', {
+    job: nonRevertableJob,
+    namespace: nonRevertableJob.namespace,
+    version: 1,
+    stable: false,
+    noActiveDeployment: true,
+  });
+
+  server.schema.jobVersions
+    .all()
+    .filter((v) => v.jobId === revertableJob.id)
+    .models.forEach((v) => v.update({ stable: true }));
+  server.schema.jobVersions
+    .all()
+    .filter((v) => v.jobId === nonRevertableJob.id)
+    .models.forEach((v) => v.update({ stable: false }));
+}

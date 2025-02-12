@@ -1,20 +1,52 @@
 ---
 layout: docs
-page_title: 'Drivers: virt'
+page_title: Virt task driver plugin
 description: >-
-  The virt task driver leverages Linux capabilities and libvirt to run virtual
-  machines.
+  The Virt task driver leverages Linux capabilities and runs virtual machines using the libvirt API and hypervisors such as QEMU. Learn about Nomad client requirements, installation, capabilities, and Nomad client node attributes.
 ---
 
-# Virt task driver
+# Virt task driver plugin
 
 @include 'virt-beta-callout.mdx'
 
 Name: `virt`
 
-The `virt` driver utilises the [libvirt][] API to run and manage virtual machines (VMs) via
-hypervisors such as [QEMU][]. It supports a wide variety of Nomad features including
-[workload identity][], [task templates][], and [service discovery][].
+The Virt task driver utilizes the [libvirt][] API to run and manage virtual
+machines using hypervisors such as [QEMU][]. The task driver supports a wide
+variety of Nomad features including [workload identity][], [task templates][],
+and [service discovery][].
+
+## Driver Capabilities
+
+The Virt task driver implements these driver [capabilities][capabilities].
+
+| Feature              | Implementation |
+|----------------------|----------------|
+| `nomad alloc signal` | false          |
+| `nomad alloc exec`   | false          |
+| filesystem isolation | image          |
+| network isolation    | host           |
+| volume mounting      | false          |
+
+## Nomad Client Node Attributes
+
+The Virt task driver provides these node attributes that you can use as
+constraints when authoring jobs.
+
+```
+driver.virt                              = true
+driver.virt.active                       = 0
+driver.virt.emulator.version             = 8002002
+driver.virt.inactive                     = 0bytes
+driver.virt.libvirt.version              = 10000000
+driver.virt.network.default.bridge_name  = virbr0
+driver.virt.network.default.state        = active
+```
+
+## Reference
+
+- [Install and configure the Virt task driver][install].
+- [Configure a virt task in your job specification][task-config].
 
 
 [libvirt]: https://libvirt.org/
@@ -23,3 +55,6 @@ hypervisors such as [QEMU][]. It supports a wide variety of Nomad features inclu
 [task templates]: https://developer.hashicorp.com/nomad/docs/job-specification/template
 [service discovery]: https://developer.hashicorp.com/nomad/docs/networking/service-discovery
 [github]: https://github.com/hashicorp/nomad-driver-virt
+[capabilities]: /nomad/docs/concepts/plugins/task-drivers#task-driver-plugin-api
+[install]: /nomad/plugins/drivers/virt/install
+[task-config]: /nomad/plugins/drivers/virt/task-config

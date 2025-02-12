@@ -1,3 +1,0 @@
-```release-note:security
-build: Updated Go to 1.23.5
-```

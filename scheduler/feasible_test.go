@@ -176,8 +176,11 @@ func TestHostVolumeChecker_Static(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = nodes[2].ID
 
+	job := mock.Job()
+	taskGroup := job.TaskGroups[0]
+
 	for i, c := range cases {
-		checker.SetVolumes(alloc.Name, structs.DefaultNamespace, c.RequestedVolumes, alloc.HostVolumeIDs)
+		checker.SetVolumes(alloc.Name, structs.DefaultNamespace, job.ID, taskGroup.Name, c.RequestedVolumes)
 		if act := checker.Feasible(c.Node); act != c.Result {
 			t.Fatalf("case(%d) failed: got %v; want %v", i, act, c.Result)
 		}
@@ -360,9 +363,12 @@ func TestHostVolumeChecker_Dynamic(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = nodes[1].ID
 
+	job := mock.Job()
+	taskGroupName := job.TaskGroups[0].Name
+
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			checker.SetVolumes(alloc.Name, structs.DefaultNamespace, tc.requestedVolumes, alloc.HostVolumeIDs)
+			checker.SetVolumes(alloc.Name, structs.DefaultNamespace, job.ID, taskGroupName, tc.requestedVolumes)
 			actual := checker.Feasible(tc.node)
 			must.Eq(t, tc.expect, actual)
 		})
@@ -375,6 +381,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	store, ctx := testContext(t)
 
 	nodes := []*structs.Node{
+		mock.Node(),
 		mock.Node(),
 		mock.Node(),
 	}
@@ -390,7 +397,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 		},
 	}
 
-	dhv := &structs.HostVolume{
+	dhv1 := &structs.HostVolume{
 		Namespace:             structs.DefaultNamespace,
 		ID:                    uuid.Generate(),
 		Name:                  "foo",
@@ -398,16 +405,31 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 		RequestedCapabilities: hostVolCapsReadWrite,
 		State:                 structs.HostVolumeStateReady,
 	}
+	dhv2 := &structs.HostVolume{
+		Namespace:             structs.DefaultNamespace,
+		ID:                    uuid.Generate(),
+		Name:                  "foo",
+		NodeID:                nodes[2].ID,
+		RequestedCapabilities: hostVolCapsReadWrite,
+		State:                 structs.HostVolumeStateReady,
+	}
 
+	// node0 doesn't have the desired volume, but both node2 and node2 do
 	nodes[0].HostVolumes = map[string]*structs.ClientHostVolumeConfig{}
-	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{"foo": {ID: dhv.ID}}
+	nodes[1].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {ID: dhv1.ID},
+	}
+	nodes[2].HostVolumes = map[string]*structs.ClientHostVolumeConfig{
+		"foo": {ID: dhv2.ID},
+	}
 
 	for _, node := range nodes {
 		must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node))
 	}
-	must.NoError(t, store.UpsertHostVolume(1000, dhv))
+	must.NoError(t, store.UpsertHostVolume(1000, dhv1))
+	must.NoError(t, store.UpsertHostVolume(1000, dhv2))
 
-	stickyRequest := map[string]*structs.VolumeRequest{
+	stickyRequests := map[string]*structs.VolumeRequest{
 		"foo": {
 			Type:           "host",
 			Source:         "foo",
@@ -416,64 +438,89 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 			AttachmentMode: structs.CSIVolumeAttachmentModeFilesystem,
 		},
 	}
+	stickyJob := mock.Job()
+	stickyJob.TaskGroups[0].Volumes = stickyRequests
 
-	checker := NewHostVolumeChecker(ctx)
+	// claims are only present for node1
+	existingClaims := []*structs.TaskGroupHostVolumeClaim{
+		{
+			Namespace:     structs.DefaultNamespace,
+			JobID:         stickyJob.ID,
+			TaskGroupName: stickyJob.TaskGroups[0].Name,
+			VolumeID:      dhv1.ID,
+			VolumeName:    dhv1.Name,
+		},
+		{
+			Namespace:     "foo", // make sure we filter by ns correctly
+			JobID:         stickyJob.ID,
+			TaskGroupName: stickyJob.TaskGroups[0].Name,
+			VolumeID:      dhv1.ID,
+			VolumeName:    dhv1.Name,
+		},
+		{
+			Namespace:     structs.DefaultNamespace,
+			JobID:         "fooooo", // make sure we filter by jobID correctly
+			TaskGroupName: stickyJob.TaskGroups[0].Name,
+			VolumeID:      dhv1.ID,
+			VolumeName:    dhv1.Name,
+		},
+	}
 
-	// alloc0 wants a previously registered volume ID that's available on node1
-	alloc0 := mock.Alloc()
-	alloc0.NodeID = nodes[1].ID
-	alloc0.HostVolumeIDs = []string{dhv.ID}
-
-	// alloc1 wants a volume ID that's available on node1 but hasn't used it
-	// before
-	alloc1 := mock.Alloc()
-	alloc1.NodeID = nodes[1].ID
-
-	// alloc2 wants a volume ID that's unrelated
-	alloc2 := mock.Alloc()
-	alloc2.NodeID = nodes[1].ID
-	alloc2.HostVolumeIDs = []string{uuid.Generate()}
-
-	// insert all the allocs into the state
-	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc0, alloc1, alloc2}))
+	for _, claim := range existingClaims {
+		must.NoError(t, store.UpsertTaskGroupHostVolumeClaim(structs.MsgTypeTestSetup, 1000, claim))
+	}
 
 	cases := []struct {
-		name   string
-		node   *structs.Node
-		alloc  *structs.Allocation
-		expect bool
+		name                             string
+		node                             *structs.Node
+		job                              *structs.Job
+		expect                           bool
+		expectedClaimsInTheVolumeChecker int
 	}{
 		{
-			"alloc asking for a sticky volume on an infeasible node",
+			"requesting a sticky volume on an infeasible node",
 			nodes[0],
-			alloc0,
+			stickyJob,
 			false,
+			1,
 		},
 		{
-			"alloc asking for a sticky volume on a feasible node",
+			"requesting a sticky volume on a feasible node, existing claim",
 			nodes[1],
-			alloc0,
+			stickyJob,
 			true,
+			0,
 		},
 		{
-			"alloc asking for a sticky volume on a feasible node for the first time",
+			"requesting a sticky volume on a feasible node, new claim",
 			nodes[1],
-			alloc1,
+			mock.Job(),
 			true,
+			0,
 		},
 		{
-			"alloc asking for an unrelated volume",
-			nodes[1],
-			alloc2,
+			"requesting a sticky volume on a feasible node, but there is an existing claim for another vol ID on a different node",
+			nodes[0],
+			stickyJob,
 			false,
+			1,
+		},
+		{
+			"requesting a sticky volume on a node that has it, but it's claimed by a different alloc",
+			nodes[2],
+			stickyJob,
+			false,
+			1,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			checker.SetVolumes(tc.alloc.Name, structs.DefaultNamespace, stickyRequest, tc.alloc.HostVolumeIDs)
+			checker := NewHostVolumeChecker(ctx)
+			checker.SetVolumes(mock.Alloc().Name, structs.DefaultNamespace, tc.job.ID, tc.job.TaskGroups[0].Name, stickyRequests)
 			actual := checker.Feasible(tc.node)
 			must.Eq(t, tc.expect, actual)
+			must.Eq(t, tc.expectedClaimsInTheVolumeChecker, len(checker.claims))
 		})
 	}
 }

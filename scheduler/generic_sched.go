@@ -6,7 +6,6 @@ package scheduler
 import (
 	"fmt"
 	"runtime/debug"
-	"slices"
 	"sort"
 	"time"
 
@@ -658,18 +657,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 						"old_alloc_name", oldAllocName, "new_alloc_name", newAllocName)
 				}
 
-				// Are there sticky volumes requested by the task group for the first time? If
-				// yes, make sure the allocation stores their IDs for future reschedules.
-				var newHostVolumeIDs []string
-				for _, v := range tg.Volumes {
-					if v.Sticky {
-						if missing.PreviousAllocation() != nil && len(missing.PreviousAllocation().HostVolumeIDs) > 0 {
-							continue
-						}
-						newHostVolumeIDs = append(newHostVolumeIDs, option.Node.HostVolumes[v.Source].ID)
-					}
-				}
-
 				// Create an allocation for this
 				alloc := &structs.Allocation{
 					ID:                 uuid.Generate(),
@@ -694,10 +681,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					},
 				}
 
-				if len(newHostVolumeIDs) > 0 {
-					alloc.HostVolumeIDs = newHostVolumeIDs
-				}
-
 				// If the new allocation is replacing an older allocation then we
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
@@ -705,14 +688,6 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					if missing.IsRescheduling() {
 						updateRescheduleTracker(alloc, prevAllocation, now)
 					}
-
-					if len(prevAllocation.HostVolumeIDs) > 0 {
-						alloc.HostVolumeIDs = prevAllocation.HostVolumeIDs
-					}
-
-					// If the allocation has task handles,
-					// copy them to the new allocation
-					propagateTaskState(alloc, prevAllocation, missing.PreviousLost())
 				}
 
 				// If we are placing a canary and we found a match, add the canary
@@ -802,46 +777,6 @@ func needsToSetNodes(a, b *structs.Job) bool {
 		a.NodePool != b.NodePool
 }
 
-// propagateTaskState copies task handles from previous allocations to
-// replacement allocations when the previous allocation is being drained or was
-// lost. Remote task drivers rely on this to reconnect to remote tasks when the
-// allocation managing them changes due to a down or draining node.
-//
-// The previous allocation will be marked as lost after task state has been
-// propagated (when the plan is applied), so its ClientStatus is not yet marked
-// as lost. Instead, we use the `prevLost` flag to track whether the previous
-// allocation will be marked lost.
-func propagateTaskState(newAlloc, prev *structs.Allocation, prevLost bool) {
-	// Don't transfer state from client terminal allocs
-	if prev.ClientTerminalStatus() {
-		return
-	}
-
-	// If previous allocation is not lost and not draining, do not copy
-	// task handles.
-	if !prevLost && !prev.DesiredTransition.ShouldMigrate() {
-		return
-	}
-
-	newAlloc.TaskStates = make(map[string]*structs.TaskState, len(newAlloc.AllocatedResources.Tasks))
-	for taskName, prevState := range prev.TaskStates {
-		if prevState.TaskHandle == nil {
-			// No task handle, skip
-			continue
-		}
-
-		if _, ok := newAlloc.AllocatedResources.Tasks[taskName]; !ok {
-			// Task dropped in update, skip
-			continue
-		}
-
-		// Copy state
-		newState := structs.NewTaskState()
-		newState.TaskHandle = prevState.TaskHandle.Copy()
-		newAlloc.TaskStates[taskName] = newState
-	}
-}
-
 // getSelectOptions sets up preferred nodes and penalty nodes
 func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs.Node) *SelectOptions {
 	selectOptions := &SelectOptions{}
@@ -859,10 +794,6 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 			}
 		}
 		selectOptions.PenaltyNodeIDs = penaltyNodes
-
-		if prevAllocation.HostVolumeIDs != nil {
-			selectOptions.AllocationHostVolumeIDs = prevAllocation.HostVolumeIDs
-		}
 	}
 	if preferredNode != nil {
 		selectOptions.PreferredNodes = []*structs.Node{preferredNode}
@@ -933,28 +864,6 @@ func (s *GenericScheduler) findPreferredNode(place placementResult) (*structs.No
 
 		if preferredNode != nil && preferredNode.Ready() {
 			return preferredNode, nil
-		}
-	}
-
-	for _, vol := range place.TaskGroup().Volumes {
-		if !vol.Sticky {
-			continue
-		}
-
-		var preferredNode *structs.Node
-		preferredNode, err := s.state.NodeByID(nil, prev.NodeID)
-		if err != nil {
-			return nil, err
-		}
-
-		if preferredNode != nil && preferredNode.Ready() {
-			// if this node has at least one of the allocation volumes, it's a
-			// preferred one
-			for _, vol := range preferredNode.HostVolumes {
-				if slices.Contains(prev.HostVolumeIDs, vol.ID) {
-					return preferredNode, nil
-				}
-			}
 		}
 	}
 

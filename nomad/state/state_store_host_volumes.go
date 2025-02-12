@@ -142,6 +142,11 @@ func (s *StateStore) DeleteHostVolume(index uint64, ns string, id string) error 
 			}
 		}
 
+		err = s.subtractVolumeFromQuotaUsageTxn(txn, index, vol)
+		if err != nil {
+			return err
+		}
+
 		err = txn.Delete(TableHostVolumes, vol)
 		if err != nil {
 			return fmt.Errorf("host volume delete: %w", err)

@@ -7,6 +7,11 @@ job "example" {
 
   group "web" {
 
+    constraint {
+      attribute = "${attr.kernel.name}"
+      value     = "linux"
+    }
+
     network {
       mode = "bridge"
       port "www" {

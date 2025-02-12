@@ -29,13 +29,12 @@
     </PH.Generic>
   {{/if}}
   <PH.Actions>
-
-      {{#if (not (eq this.job.status "dead"))}}
-        {{#if (can "exec allocation" namespace=this.job.namespace)}}
-          {{#if (and this.job.actions.length this.job.allocations.length)}}
-            <ActionsDropdown @actions={{this.job.actions}} />
-          {{/if}}
+    {{#if (not (eq this.job.status "dead"))}}
+      {{#if (can "exec allocation" namespace=this.job.namespace)}}
+        {{#if (and this.job.actions.length this.job.allocations.length)}}
+          <ActionsDropdown @actions={{this.job.actions}} />
         {{/if}}
+      {{/if}}
       <Exec::OpenButton @job={{this.job}} />
       <TwoStepButton
         data-test-stop
@@ -46,7 +45,7 @@
         @confirmationMessage="Are you sure you want to stop this job?"
         @awaitingConfirmation={{this.stopJob.isRunning}}
         @onConfirm={{perform this.stopJob}}
-        {{keyboard-shortcut 
+        {{keyboard-shortcut
           label="Stop"
           pattern=(array "s" "t" "o" "p")
           action=(perform this.stopJob true)
@@ -61,27 +60,54 @@
         @confirmationMessage="Are you sure? You cannot undo this action."
         @awaitingConfirmation={{this.purgeJob.isRunning}}
         @onConfirm={{perform this.purgeJob}}
-        {{keyboard-shortcut 
+        {{keyboard-shortcut
           label="Purge"
           pattern=(array "p" "u" "r" "g" "e")
           action=(perform this.purgeJob)
         }}
         />
-      <TwoStepButton
-        data-test-start
-        @alignRight={{true}}
-        @idleText="Start Job"
-        @cancelText="Cancel"
-        @confirmText="Yes, Start Job"
-        @confirmationMessage="Are you sure you want to start this job?"
-        @awaitingConfirmation={{this.startJob.isRunning}}
-        @onConfirm={{perform this.startJob}}
-        {{keyboard-shortcut 
-          label="Start"
-          pattern=(array "s" "t" "a" "r" "t")
-          action=(perform this.startJob true)
-        }}
+      {{!--
+        1. If job.stopped is true, that means the job was manually stopped and can be restared. So we should show the "start" button.
+        2. If job.stopped is false, but if job.status is "dead", that means the job has failed and can't be restarted necessarily. We should should check to see that there's a stable verison of the job to fall back to.
+          2a. If there is a stable version, we should show a "Revert to last stable version" button
+          2b. If there is no stable version, we should show an "Edit and resubmit" button
+       --}}
+
+      {{#if this.job.stopped}}
+        <TwoStepButton
+          data-test-start
+          @alignRight={{true}}
+          @idleText="Start Job"
+          @cancelText="Cancel"
+          @confirmText="Yes, Start Job"
+          @confirmationMessage="Are you sure you want to start this job?"
+          @awaitingConfirmation={{this.startJob.isRunning}}
+          @onConfirm={{perform this.startJob}}
+          {{keyboard-shortcut
+            label="Start"
+            pattern=(array "s" "t" "a" "r" "t")
+            action=(perform this.startJob true)
+          }}
         />
+      {{else}}
+        {{#if this.job.hasStableNonCurrentVersion}}
+          <TwoStepButton
+            data-test-revert
+            @alignRight={{true}}
+            @idleText="Revert to last stable version (v{{this.job.latestStableVersion.number}})"
+            @cancelText="Cancel"
+            @confirmText="Yes, Revert to last stable version"
+            @confirmationMessage="Are you sure you want to revert to the last stable version?"
+            @awaitingConfirmation={{this.revertTo.isRunning}}
+            @onConfirm={{perform this.revertTo this.job.latestStableVersion}}
+          />
+        {{else}}
+          <Hds::Button
+            data-test-edit-and-resubmit
+            {{hds-tooltip "This job has failed and has no stable previous version to fall back to. You can edit and resubmit the job to try again." options=(hash placement="bottom")}}
+            @color="primary" @isInline={{true}} @text="Edit and Resubmit job" @route={{"jobs.job.definition" this.job.id}} @query={{hash isEditing=true}} />
+        {{/if}}
+      {{/if}}
     {{/if}}
   </PH.Actions>
 </Hds::PageHeader>

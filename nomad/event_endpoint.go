@@ -41,6 +41,10 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	}
 
 	authErr := e.srv.Authenticate(nil, &args)
+	if authErr != nil {
+		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		return
+	}
 
 	// forward to appropriate region
 	if args.Region != e.srv.config.Region {
@@ -52,16 +56,27 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 	}
 
 	e.srv.MeasureRPCRate("event", structs.RateMetricRead, &args)
-	if authErr != nil {
+
+	resolvedACL, err := e.srv.ResolveACL(&args)
+	if err != nil {
 		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		return
+	}
+
+	validatedNses, err := e.validateACL(args.Namespace, args.Topics, resolvedACL)
+	if err != nil {
+		handleJsonResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		return
 	}
 
 	// Generate the subscription request
 	subReq := &stream.SubscribeRequest{
-		Token:     args.AuthToken,
-		Topics:    args.Topics,
-		Index:     uint64(args.Index),
-		Namespace: args.Namespace,
+		Token:  args.AuthToken,
+		Topics: args.Topics,
+		Index:  uint64(args.Index),
+		// Namespaces is set once, in the event a users ACL is updated to include
+		// more NSes, the current event stream will not include the new NSes.
+		Namespaces: validatedNses,
 		Authenticate: func() error {
 			if err := e.srv.Authenticate(nil, &args); err != nil {
 				return err
@@ -70,7 +85,8 @@ func (e *Event) stream(conn io.ReadWriteCloser) {
 			if err != nil {
 				return err
 			}
-			return validateACL(args.Namespace, args.Topics, resolvedACL)
+			_, err = e.validateACL(args.Namespace, args.Topics, resolvedACL)
+			return err
 		},
 	}
 
@@ -225,7 +241,26 @@ func handleJsonResultError(err error, code *int64, encoder *codec.Encoder) {
 	})
 }
 
-func validateACL(namespace string, topics map[structs.Topic][]string, aclObj *acl.ACL) error {
+// validateACL handles wildcard namespaces by replacing it with all existing namespaces
+// and validates the user has the appropriate ACL to read topics in each one.
+func (e *Event) validateACL(namespace string, topics map[structs.Topic][]string, resolvedAcl *acl.ACL) ([]string, error) {
+	nses := []string{}
+	if namespace == structs.AllNamespacesSentinel {
+		ns, _ := e.srv.State().NamespaceNames()
+		nses = append(nses, ns...)
+	} else {
+		nses = append(nses, namespace)
+	}
+
+	for _, ns := range nses {
+		if err := validateNsOp(ns, topics, resolvedAcl); err != nil {
+			return nil, err
+		}
+	}
+	return nses, nil
+}
+
+func validateNsOp(namespace string, topics map[structs.Topic][]string, aclObj *acl.ACL) error {
 	for topic := range topics {
 		switch topic {
 		case structs.TopicDeployment,

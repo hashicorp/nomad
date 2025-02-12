@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	hclog "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/nomad/helper/useragent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -451,11 +451,11 @@ func (c *vaultClient) renew(req *vaultClientRenewalRequest) error {
 			strings.Contains(errMsg, "permission denied") ||
 			strings.Contains(errMsg, "token not found") {
 			fatal = true
+		} else {
+			c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "renewal_duration", renewalDuration)
+			c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
+				"error", renewalErr, "period", next)
 		}
-	} else {
-		c.logger.Debug("renewal error details", "req.increment", req.increment, "lease_duration", leaseDuration, "renewal_duration", renewalDuration)
-		c.logger.Error("error during renewal of lease or token failed due to a non-fatal error; retrying",
-			"error", renewalErr, "period", next)
 	}
 
 	if c.isTracked(req.id) {

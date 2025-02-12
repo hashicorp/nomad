@@ -23,7 +23,7 @@ ifndef BIN
 BIN := $(GOPATH)/bin
 endif
 
-GO_TAGS := $(GO_TAGS)
+GO_TAGS := hashicorpmetrics $(GO_TAGS)
 
 ifeq ($(CI),true)
 GO_TAGS := codegen_generated $(GO_TAGS)
@@ -46,7 +46,7 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 # or backport version, without the leading "v". main should have the latest
 # published release here, and release branches should point to the latest
 # published release in their X.Y release line.
-LAST_RELEASE ?= 1.9.5
+LAST_RELEASE ?= 1.9.6
 
 default: help
 
@@ -181,6 +181,14 @@ check: ## Lint the source code
 
 	@echo "==> Check API package is isolated from rest..."
 	@cd ./api && if go list --test -f '{{ join .Deps "\n" }}' . | grep github.com/hashicorp/nomad/ | grep -v -e /nomad/api/ -e nomad/api.test; then echo "  /api package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
+
+	@echo "==> Check jobspec2 package is isolated from Nomad core..."
+	@cd ./jobspec2 && \
+		if go list --test -f '{{ join .Deps "\n" }}' . | \
+		grep github.com/hashicorp/nomad/ | \
+		grep -v -e /nomad/jobspec2/ -e nomad/jobspec2.test | \
+		grep -v -e /nomad/api ; then echo \
+		"  /jobspec2 package depends the ^^ above internal nomad packages.  Remove such dependency"; exit 1; fi
 
 	@echo "==> Check command package does not import structs..."
 	@cd ./command && if go list -f '{{ join .Imports "\n" }}' . | grep github.com/hashicorp/nomad/nomad/structs; then echo "  /command package imports the structs pkg. Remove such import"; exit 1; fi
