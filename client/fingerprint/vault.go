@@ -21,11 +21,18 @@ import (
 type VaultFingerprint struct {
 	logger log.Logger
 	states map[string]*vaultFingerprintState
+
+	// Once initial fingerprints are complete, we no-op all periodic
+	// fingerprints to prevent Vault availability issues causing a thundering
+	// herd of node updates. This behavior resets if we reload the
+	// configuration.
+	initialResponse *FingerprintResponse
 }
 
 type vaultFingerprintState struct {
-	client      *vapi.Client
-	isAvailable bool
+	client            *vapi.Client
+	isAvailable       bool
+	fingerprintedOnce bool
 }
 
 // NewVaultFingerprint is used to create a Vault fingerprint
@@ -37,6 +44,10 @@ func NewVaultFingerprint(logger log.Logger) Fingerprint {
 }
 
 func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
+	if f.initialResponse != nil {
+		*resp = *f.initialResponse
+		return nil
+	}
 	var mErr *multierror.Error
 	vaultConfigs := req.Config.GetVaultConfigs(f.logger)
 
@@ -45,6 +56,16 @@ func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprin
 		if err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
+	}
+
+	fingerprintCount := 0
+	for _, state := range f.states {
+		if state.fingerprintedOnce {
+			fingerprintCount++
+		}
+	}
+	if fingerprintCount == len(vaultConfigs) {
+		f.initialResponse = resp
 	}
 
 	return mErr.ErrorOrNil()
@@ -103,14 +124,17 @@ func (f *VaultFingerprint) fingerprintImpl(cfg *config.VaultConfig, resp *Finger
 	}
 
 	state.isAvailable = true
+	state.fingerprintedOnce = true
 	resp.Detected = true
 
 	return nil
 }
 
 func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
-	return false, 0
+	return true, 15 * time.Second
 }
 
-// Reload satisfies ReloadableFingerprint.
-func (f *VaultFingerprint) Reload() {}
+// Reload satisfies ReloadableFingerprint and resets the gate on periodic fingerprinting.
+func (f *VaultFingerprint) Reload() {
+	f.initialResponse = nil
+}

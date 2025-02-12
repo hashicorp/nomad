@@ -35,6 +35,12 @@ type ConsulFingerprint struct {
 	// clusters maintains the latest fingerprinted state for each cluster
 	// defined in nomad consul client configuration(s).
 	clusters map[string]*consulState
+
+	// Once initial fingerprints are complete, we no-op all periodic
+	// fingerprints to prevent Consul availability issues causing a thundering
+	// herd of node updates. This behavior resets if we reload the
+	// configuration.
+	initialResponse *FingerprintResponse
 }
 
 type consulState struct {
@@ -43,6 +49,10 @@ type consulState struct {
 	// readers associates a function used to parse the value associated
 	// with the given key from a consul api response
 	readers map[string]valueReader
+
+	// tracks that we've successfully fingerprinted this cluster at least once
+	// since the last Fingerprint call
+	fingerprintedOnce bool
 }
 
 // valueReader is used to parse out one attribute from consulInfo. Returns
@@ -58,6 +68,11 @@ func NewConsulFingerprint(logger hclog.Logger) Fingerprint {
 }
 
 func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
+	if f.initialResponse != nil {
+		*resp = *f.initialResponse
+		return nil
+	}
+
 	var mErr *multierror.Error
 	consulConfigs := req.Config.GetConsulConfigs(f.logger)
 	for _, cfg := range consulConfigs {
@@ -65,6 +80,16 @@ func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 		if err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
+	}
+
+	fingerprintCount := 0
+	for _, state := range f.clusters {
+		if state.fingerprintedOnce {
+			fingerprintCount++
+		}
+	}
+	if fingerprintCount == len(consulConfigs) {
+		f.initialResponse = resp
 	}
 
 	return mErr.ErrorOrNil()
@@ -103,18 +128,22 @@ func (f *ConsulFingerprint) fingerprintImpl(cfg *config.ConsulConfig, resp *Fing
 	// create link for consul
 	f.link(resp)
 
+	state.fingerprintedOnce = true
 	resp.Detected = true
 	return nil
 }
 
 func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {
-	return false, 0
+	return true, 15 * time.Second
 }
 
-// Reload satisfies ReloadableFingerprint.
-func (f *ConsulFingerprint) Reload() {}
+// Reload satisfies ReloadableFingerprint and resets the gate on periodic fingerprinting.
+func (f *ConsulFingerprint) Reload() {
+	f.initialResponse = nil
+}
 
 func (cfs *consulState) initialize(cfg *config.ConsulConfig, logger hclog.Logger) error {
+	cfs.fingerprintedOnce = false
 	if cfs.client != nil {
 		return nil // already initialized!
 	}
