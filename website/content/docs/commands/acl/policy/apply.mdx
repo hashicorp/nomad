@@ -29,7 +29,7 @@ This command requires a management ACL token.
 - `-description`: Sets the human readable description for the ACL policy.
 
 - `-job`: Attaches the policy to the specified job. Requires that `-namespace` is
-    also set.
+    also set. Refer to [Workload Associated ACL Policies][] for more details.
 
 - `-namespace`: Attaches the policy to the specified namespace. Requires that
     `-job` is also set.
@@ -58,3 +58,5 @@ $ nomad acl policy apply \
     my-policy my-policy.json
 Successfully wrote 'my-policy' ACL policy!
 ```
+
+[Workload Associated ACL Policies]: /nomad/docs/concepts/workload-identity#workload-associated-acl-policies
