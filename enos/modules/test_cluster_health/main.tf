@@ -55,5 +55,5 @@ resource "enos_local_exec" "verify_versions" {
     abspath("${path.module}/scripts/versions.sh"),
   ]
 }
- 
+
 

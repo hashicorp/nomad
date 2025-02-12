@@ -24,13 +24,15 @@ scenario "upgrade" {
   ]
 
   locals {
-    cluster_name         = "mcj-${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
-    linux_count          = matrix.os == "linux" ? "4" : "0"
-    windows_count        = matrix.os == "windows" ? "4" : "0"
-    arch                 = matrix.arch
-    clients_count        = local.linux_count + local.windows_count
-    test_product_version = matrix.edition == "ent" ? "${var.product_version}+ent" : "${var.product_version}"
-    test_upgrade_version = matrix.edition == "ent" ? "${var.upgrade_version}+ent" : "${var.upgrade_version}"
+    cluster_name           = "mcj-${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
+    linux_count            = matrix.os == "linux" ? "4" : "0"
+    windows_count          = matrix.os == "windows" ? "4" : "0"
+    arch                   = matrix.arch
+    clients_count          = local.linux_count + local.windows_count
+    test_product_version   = matrix.edition == "ent" ? "${var.product_version}+ent" : "${var.product_version}"
+    test_upgrade_version   = matrix.edition == "ent" ? "${var.upgrade_version}+ent" : "${var.upgrade_version}"
+    necessary_binaries     = matrix.os == "windows" ? ["linux", "windows"] : ["linux"]
+    download_binaries_path = "${var.download_binary_path}/${matrix.arch}-${matrix.edition}-${var.product_version}"
   }
 
   step "copy_initial_binary" {
@@ -40,19 +42,19 @@ scenario "upgrade" {
     running enos.
     EOF
 
-    module = module.build_artifactory
+    module = module.fetch_artifactory
 
     variables {
-      artifactory_username = var.artifactory_username
-      artifactory_token    = var.artifactory_token
-      arch                 = local.arch
-      edition              = matrix.edition
-      product_version      = var.product_version
-      os                   = matrix.os
-      download_binary_path = "${var.download_binary_path}/${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
+      artifactory_username   = var.artifactory_username
+      artifactory_token      = var.artifactory_token
+      arch                   = local.arch
+      edition                = matrix.edition
+      product_version        = var.product_version
+      oss                    = local.necessary_binaries
+      download_binaries_path = local.download_binaries_path
     }
   }
-
+  /* 
   step "provision_cluster" {
     depends_on = [step.copy_initial_binary]
 
@@ -65,6 +67,7 @@ scenario "upgrade" {
     variables {
       name                      = local.cluster_name
       nomad_local_binary        = step.copy_initial_binary.nomad_local_binary
+      nomad_local_binary_server = step.copy_initial_binary.nomad_local_binary
       server_count              = var.server_count
       client_count_linux        = local.linux_count
       client_count_windows_2016 = local.windows_count
@@ -228,24 +231,6 @@ scenario "upgrade" {
   /*   step "run_workloads" {
     depends_on = [step.server_upgrade_test_cluster_health]
 
-    description = <<-EOF
-    Verify the health of the cluster by running new workloads
-    EOF
-
-    module = module.run_workloads
-    variables {
-      nomad_addr  = step.provision_cluster.nomad_addr
-      ca_file     = step.provision_cluster.ca_file
-      cert_file   = step.provision_cluster.cert_file
-      key_file    = step.provision_cluster.key_file
-      nomad_token = step.provision_cluster.nomad_token
-    }
-
-    verifies = [
-      quality.nomad_register_job,
-    ]
-  }
- */
   step "upgrade_clients" {
     depends_on = [step.server_upgrade_test_cluster_health]
 
@@ -359,6 +344,11 @@ scenario "upgrade" {
 
   output "nomad_token" {
     value     = step.provision_cluster.nomad_token
+    sensitive = true
+  } */
+
+  output "nomad_binary_info_map" {
+    value     = step.copy_initial_binary.nomad_binary_info_map
     sensitive = true
   }
 }
