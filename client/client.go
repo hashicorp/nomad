@@ -53,6 +53,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent/consul"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/envoy"
+	"github.com/hashicorp/nomad/helper/escapingfs"
 	"github.com/hashicorp/nomad/helper/goruntime"
 	"github.com/hashicorp/nomad/helper/group"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -739,6 +740,26 @@ func (c *Client) init() error {
 
 	// setup the nsd check store
 	c.checkStore = checkstore.NewStore(c.logger, c.stateDB)
+
+	// COMPAT(1.12.0): remove in Nomad 1.12.0
+	oldCNIDir := "/var/lib/cni/networks/nomad"
+	newCNIDir := "/var/run/cni/nomad"
+	if _, err := os.Stat(newCNIDir); os.IsNotExist(err) {
+		if _, err := os.Stat(oldCNIDir); err == nil {
+			err := escapingfs.CopyDir(oldCNIDir, newCNIDir)
+			if err != nil {
+				c.logger.Error("failed to migrate existing CNI state",
+					"error", err, "src", oldCNIDir, "dest", newCNIDir)
+			} else {
+				err := os.RemoveAll(oldCNIDir)
+				if err != nil {
+					c.logger.Error("migrated CNI state but could not remove old state",
+						"error", err, "src", oldCNIDir, "dest", newCNIDir)
+				}
+				c.logger.Info("migrated CNI state", "src", oldCNIDir, "dest", newCNIDir)
+			}
+		}
+	}
 
 	return nil
 }
