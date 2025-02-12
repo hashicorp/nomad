@@ -111,7 +111,7 @@ func (c *JobStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got exactly one arguement
+	// Check that we got exactly one argument
 	args = flags.Args()
 	if len(args) != 1 {
 		c.Ui.Error("This command takes one argument: <job>")
