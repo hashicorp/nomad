@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-module "fetch_artifactory" {
+module "install_binaries" {
   source = "./modules/install_binaries"
 }
 

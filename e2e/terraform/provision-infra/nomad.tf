@@ -1,6 +1,10 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+locals {
+  server_binary = var.nomad_local_binary_server_unique == "" ? var.nomad_local_binary : var.nomad_local_binary_server_unique
+}
+
 module "nomad_server" {
   source     = "./provision-nomad"
   depends_on = [aws_instance.server]
@@ -13,7 +17,7 @@ module "nomad_server" {
   instance = aws_instance.server[count.index]
 
   nomad_region       = var.nomad_region
-  nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : var.nomad_local_binary
+  nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : local.server_binary
 
   nomad_license = var.nomad_license
   tls_ca_key    = tls_private_key.ca.private_key_pem
