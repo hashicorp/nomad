@@ -2,42 +2,44 @@
 layout: docs
 page_title: 'Commands: job start'
 description: |
-  The start command is used to start a stopped job.
+  The nomad job start command starts the latest version of an existing job
+  with a status of Stopped.
 ---
 
 # Command: job start
 
 The `job start` command is used to start a stopped job.
+Use the `nomad job start` command to start the latest version of an existing job
+with a status of Stopped.
 
-The start command will use a Consul token with the following preference:
-first the `-consul-token` flag, then the `$CONSUL_HTTP_TOKEN` environment variable.
-Because the consul token used to [run] the targeted job version was not
-persisted, it must be provided to start if the targeted job version includes
-Consul Connect enabled services and the Nomad servers were configured to require
-[consul service identity] authentication.
+If your Nomad servers use [consul service identity] authentication and your job
+uses Consul Connect services, you must supply a Consul token. Nomad does not
+persist the Consul token when you [run] a job. Use the `-consul-token` flag to
+pass the token to the `nomad job start` command. Alternately, you may use the
+`$CONSUL_HTTP_TOKEN` environment variable.
 
-The Start command will use a Vault token with the following preference:
-first the `-vault-token` flag, then the `$VAULT_TOKEN` environment variable.
-Because the vault token used to [run] the targeted job version was not
-persisted, it must be provided to start if the targeted job includes
-Vault policies and the Nomad servers were configured to require [vault policy]
-authentication.
+If your Nomad servers require [Vault policy] authentication, you must supply a
+Vault token. Nomad does not persist the Vault token when you [run] a job.
+Use the `-vault-token` flag to pass the token to the `nomad job start` command.
+Alternately, you may use the `$VAULT_TOKEN` environment variable.
 
 ## Usage
 
 ```shell-session
-nomad job start [options] <job>
+nomad job start [options] <job_id>
 ```
 
-The `job start` command requires one input: the job ID. Nomad will start the
-latest version of the job that is not stopped. If the job has not previously
-been stopped, this command will fail.
+The `nomad job start` command requires the job ID. Nomad starts the latest
+version of the job. This command fails if the job does is not currently stopped.
 
-When ACLs are enabled, this command requires a token with the `submit-job`
-capability for the job's namespace. The `list-jobs` capability is required to
-run the command with a job prefix instead of the exact job ID. The `read-job`
-capability is required to monitor the resulting evaluation when `-detach` is
-not used.
+When Nomad uses ACLs, the `nomad job start` command requires a token with one of
+the following capabilities based on the specific scenario:
+
+- The `submit-job`capability for the job's namespace
+- The `list-jobs` capability to run the command with a job prefix instead of the
+  exact job ID
+- The `read-job` capability is required to monitor the resulting evaluation when
+  you do not use the `-detach`option.
 
 ## General Options
 
@@ -45,23 +47,22 @@ not used.
 
 ## Start Options
 
-- `-detach`: Return immediately instead of monitoring. A new evaluation ID
-  will be output, which can be used to examine the evaluation using the
+- `-detach`: Return immediately instead of monitoring. Nomad outputs a new
+  evaluation ID, which you can use to examine the evaluation using the
   [eval status] command.
 
-- `-consul-token`: If set, the passed Consul token is sent along with the Start
-  request to the Nomad servers. This overrides the token found in the
-  `$CONSUL_HTTP_TOKEN` environment variable.
+- `-consul-token`: If set, Nomad sends the Consul token with the
+  request. This overrides the token found in the `$CONSUL_HTTP_TOKEN`
+  environment variable.
 
-- `-vault-token`: If set, the passed Vault token is sent along with the Start
-  request to the Nomad servers. This overrides the token found in the
-  `$VAULT_TOKEN` environment variable.
+- `-vault-token`: If set, Nomad includes the Vault token with the request. This
+  overrides the token found in the `$VAULT_TOKEN` environment variable.
 
 - `-verbose`: Show full information.
 
 ## Examples
 
-Start a previously stopped job:
+Start a previously stopped job.
 
 ```shell-session
 $ nomad job status
