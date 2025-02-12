@@ -148,11 +148,8 @@ func (c *JobStartCommand) Run(args []string) int {
 		return 1
 	}
 
-	var jobID, jobName, namespace string
+	var jobName, namespace string
 
-	if job.ID != nil {
-		jobID = *job.ID
-	}
 	if job.Name != nil {
 		jobName = *job.Name
 	}
@@ -160,24 +157,14 @@ func (c *JobStartCommand) Run(args []string) int {
 		namespace = *job.Namespace
 	}
 
-	if job.Stop != nil && !*job.Stop {
+	if job.Stop == nil || !*job.Stop {
 		c.Ui.Error(fmt.Sprintf("Job '%v' has not been stopped", jobName))
 		return 1
 	}
 
-	chosenVersion, err := c.GetSelectedVersion(client, jobID, namespace)
-	if err != nil {
-		c.Ui.Error(err.Error())
-		return 1
-	}
-
-	// Revert to most recent non-stopped version!
+	*job.Stop = false
 	m := &api.WriteOptions{Namespace: namespace}
-	resp, _, err := client.Jobs().Revert(jobID, chosenVersion, nil, m, consulToken, vaultToken)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error retrieving job version %v for job %s: %s,", chosenVersion, jobID, err))
-		return 1
-	}
+	resp, _, err := client.Jobs().Register(job, m)
 
 	// Check if the job is periodic or is a parameterized job
 	periodic := job.IsPeriodic()
@@ -206,27 +193,4 @@ func (c *JobStartCommand) Run(args []string) int {
 
 	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(resp.EvalID)
-}
-
-func (c *JobStartCommand) GetSelectedVersion(client *api.Client, jobID string, namespace string) (uint64, error) {
-
-	// Get all versions associated to current job
-	q := &api.QueryOptions{Namespace: namespace}
-
-	// Versions are returned in sorted order
-	versions, _, _, err := client.Jobs().Versions(jobID, true, q)
-	if err != nil {
-		return 0, fmt.Errorf("Error retrieving job versions: %s", err)
-	}
-
-	// Find the most recent version for this job that has not been stopped
-	for _, version := range versions {
-		if version.Stop == nil {
-			continue
-		}
-		if !*version.Stop {
-			return *version.Version, nil
-		}
-	}
-	return 0, fmt.Errorf("No valid job version available to start")
 }
