@@ -105,6 +105,12 @@ function smallCluster(server) {
     },
     'withMeta'
   );
+  // Create one more node that is unusable
+  server.create('node', {
+    name: 'unusable-node',
+    status: 'down',
+    meta: { unusable: true },
+  });
   server.createList('job', 10, { createRecommendations: true });
   server.create('job', {
     withGroupServices: true,

@@ -487,6 +487,14 @@
             </div>
             <div class="toolbar-item is-right-aligned is-mobile-full-width">
               <div class="button-bar">
+                {{!-- HDS checkbox for selecting whether to show or hide empty nodes, default true --}}
+                Show empty nodes? {{this.showEmptyNodes}}
+                <Hds::Form::Checkbox::Field checked={{this.showEmptyNodes}} name="show-empty-nodes"
+                  {{on "change" (fn (mut this.showEmptyNodes) (not this.showEmptyNodes))}}
+                 as |F|>
+                  <F.Label>Show Empty Nodes</F.Label>
+                </Hds::Form::Checkbox::Field>
+
                 <MultiSelectDropdown
                   data-test-node-pool-facet
                   @label="Node Pool"
