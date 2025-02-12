@@ -26,27 +26,10 @@ job state matches your desired state.
 ## Job statuses
 
 After you submit your job, Nomad assigns a status to indicate how a job is
-performing. This status indicates how the job's current allocations compare to the desired
-job state.
+performing. This status indicates how the job's current allocations compare to
+the desired job state.
 
-Nomad uses one of three values to describe a job's status.
-
-- `complete`
-- `dead`
-- `running`
-
-The CLI and API return these rigid statuses, which are useful for scheduling and
-garbage collection. However, the Nomad UI displays additional human-readable
-statuses to help you manage jobs.
-
-The following table maps the CLI and API statuses to the statuses that appear in the Nomad UI.
-
-| CLI and API status | UI status |
-| ------------------ | --------- |
-| `complete `        | `Complete`    |
-| `dead`             | `Failed`, `Scaled Down` |
-| `dead (stopped)`   | `Stopped` |
-| `running`          | `Degraded`, `Deploying`, `Healthy`, `Recovering`, `Running`, `Scaled Down` |
+@include 'job-status-map.mdx'
 
 ### UI statuses
 
