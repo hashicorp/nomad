@@ -63,6 +63,25 @@ Connect (OIDC)][oidc] SSO workflow which allows users to log in to Nomad via
 applications such as [Auth0][auth0], [Okta][okta], and [Vault][vault], and
 non-interactive login via externally-issued [JSON Web Tokens (JWT)][jwt].
 
+Since both the `oidc` and `jwt` auth methods ultimately operate on JWTs as
+bearer tokens, use the following to determine which method fits your use case:
+
+- **JWT**
+
+  - Ideal for machine-oriented, headless login where an operator may have already
+    arranged for a valid JWT to be dropped on a VM or provided to a container.
+  - User or application performing the Nomad login must have a valid JWT
+    to begin login.
+  - Does not require browser interaction.
+
+- **OIDC**
+
+  - Ideal for human-oriented, interactive login where an operator or administrator
+    may have deployed SSO widely and doesn't want to distribute Nomad ACL tokens
+    to every authorized user.
+  - User performing the Nomad login does not need a JWT.
+  - Requires browser interaction.
+
 ## Binding Rule
 
 Binding rules provide a mapping between a Nomad user's SSO authorisation claims
