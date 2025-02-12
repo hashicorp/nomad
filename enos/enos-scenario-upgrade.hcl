@@ -13,7 +13,7 @@ scenario "upgrade" {
     //os      = ["linux", "windows"]
     edition = ["ent"]
     os      = ["linux"]
-    
+
     exclude {
       os   = ["windows"]
       arch = ["arm64"]
@@ -226,7 +226,7 @@ scenario "upgrade" {
     ]
   }
 
-/*   step "run_workloads" {
+  /*   step "run_workloads" {
     depends_on = [step.server_upgrade_test_cluster_health]
 
     description = <<-EOF

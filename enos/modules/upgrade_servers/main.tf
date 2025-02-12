@@ -16,7 +16,7 @@ locals {
     NOMAD_CLIENT_CERT = var.cert_file
     NOMAD_CLIENT_KEY  = var.key_file
     NOMAD_TOKEN       = var.nomad_token
-    SERVERS           =  join(" ", var.servers)
+    SERVERS           = join(" ", var.servers)
   }
 
   artifactory = {

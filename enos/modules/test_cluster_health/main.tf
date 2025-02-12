@@ -11,12 +11,12 @@ terraform {
 
 locals {
   servers_addr = join(" ", var.servers)
-  nomad_env = { 
-    NOMAD_ADDR = var.nomad_addr
+  nomad_env = {
+    NOMAD_ADDR        = var.nomad_addr
     NOMAD_CACERT      = var.ca_file
     NOMAD_CLIENT_CERT = var.cert_file
     NOMAD_CLIENT_KEY  = var.key_file
-    NOMAD_TOKEN = var.nomad_token 
+    NOMAD_TOKEN       = var.nomad_token
   }
 }
 
@@ -55,5 +55,5 @@ resource "enos_local_exec" "verify_versions" {
     abspath("${path.module}/scripts/versions.sh"),
   ]
 }
- 
+
 

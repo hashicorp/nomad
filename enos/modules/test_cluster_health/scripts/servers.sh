@@ -36,7 +36,8 @@ while true; do
     sleep "$POLL_INTERVAL"
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done
-# Quality: nomad_agent_info_self: A GET call to /v1/agent/self against every server returns the same last_log_index for all of them"
+# Quality: nomad_agent_info_self: A GET call to /v1/agent/self against every server returns the same last_log_index as the leader"
+# We use the leader's last log index to use as teh measure for the other servers. 
 
 leader=$(echo $servers | jq -r '.Servers[] | select(.Leader == true)')
 leader_last_index=$(echo $leader | jq -r '.LastIndex')
