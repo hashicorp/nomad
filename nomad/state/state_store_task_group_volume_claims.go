@@ -118,8 +118,9 @@ func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet,
 	return filter, nil
 }
 
-// deleteTaskGroupHostVolumeClaim deletes all claims for a given namespace and job ID
-func (s *StateStore) deleteTaskGroupHostVolumeClaim(index uint64, txn *txn, namespace, jobID string) error {
+// deleteTaskGroupHostVolumeClaimByNamespaceAndJob deletes all claims for a
+// given namespace and job ID
+func (s *StateStore) deleteTaskGroupHostVolumeClaimByNamespaceAndJob(index uint64, txn *txn, namespace, jobID string) error {
 	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
 	if err != nil {
 		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
@@ -135,4 +136,27 @@ func (s *StateStore) deleteTaskGroupHostVolumeClaim(index uint64, txn *txn, name
 	}
 
 	return nil
+}
+
+// deleteTaskGroupHostVolumeClaimByNamespaceAndJob deletes a claim by its ID
+func (s *StateStore) DeleteTaskGroupHostVolumeClaim(index uint64, claimID string) error {
+	txn := s.db.WriteTxnMsgT(structs.TaskGroupHostVolumeClaimDeleteRequestType, index)
+	defer txn.Abort()
+
+	obj, err := txn.First(TableTaskGroupHostVolumeClaim, indexClaimID, claimID)
+	if err != nil {
+		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+
+	if obj != nil {
+		if err := txn.Delete(TableTaskGroupHostVolumeClaim, obj); err != nil {
+			return err
+		}
+	}
+
+	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupHostVolumeClaim, index}); err != nil {
+		return fmt.Errorf("index update failed: %w", err)
+	}
+
+	return txn.Commit()
 }
