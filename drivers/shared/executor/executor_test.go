@@ -55,7 +55,7 @@ func init() {
 }
 
 var (
-	topology = numalib.Scan(numalib.PlatformScanners())
+	topology = numalib.Scan(numalib.PlatformScanners(false))
 	compute  = topology.Compute()
 )
 
@@ -341,7 +341,7 @@ func TestExecutor_Shutdown_Exit(t *testing.T) {
 	}
 
 	driverCfg := &base.ClientDriverConfig{
-		Topology: numalib.Scan(numalib.PlatformScanners()),
+		Topology: numalib.Scan(numalib.PlatformScanners(false)),
 	}
 
 	executor, pluginClient, err := CreateExecutor(testlog.HCLogger(t), driverCfg, cfg)

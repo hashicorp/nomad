@@ -88,7 +88,7 @@ func (f *CPUFingerprint) initialize(request *FingerprintRequest) {
 	}
 
 	f.top = numalib.Scan(append(
-		numalib.PlatformScanners(),
+		numalib.PlatformScanners(request.Config.CpuDisableDmidecode),
 		&numalib.ConfigScanner{
 			ReservableCores: reservableCores,
 			ReservedCores:   reservedCores,

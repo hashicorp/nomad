@@ -73,7 +73,7 @@ func TestMain(m *testing.M) {
 }
 
 var (
-	topology = numalib.Scan(numalib.PlatformScanners())
+	topology = numalib.Scan(numalib.PlatformScanners(false))
 )
 
 type mockIDValidator struct{}

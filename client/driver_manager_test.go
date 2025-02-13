@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	topology = numalib.Scan(numalib.PlatformScanners())
+	topology = numalib.Scan(numalib.PlatformScanners(false))
 )
 
 // TestDriverManager_Fingerprint_Run asserts that node is populated with

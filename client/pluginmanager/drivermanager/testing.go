@@ -27,7 +27,7 @@ type testManager struct {
 }
 
 func TestDriverManager(t *testing.T) Manager {
-	topology := numalib.Scan(numalib.PlatformScanners())
+	topology := numalib.Scan(numalib.PlatformScanners(false))
 	logger := testlog.HCLogger(t).Named("driver_mgr")
 	pluginLoader := catalog.TestPluginLoader(t)
 	return &testManager{
