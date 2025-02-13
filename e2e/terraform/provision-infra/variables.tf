@@ -104,7 +104,7 @@ variable "aws_kms_alias" {
 # or nomad_local_binary. Most of the time you can ignore these variables!
 
 variable "nomad_local_binary_server_unique" {
-  description = "A nomad local binary paths to deploy to servers, to override nomad_local_binary"
+  description = "A path to a unique binary  deploy to all servers, to override nomad_local_binary"
   type        = string
   default     = ""
 }

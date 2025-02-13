@@ -12,7 +12,7 @@ scenario "upgrade" {
     //edition = ["ce", "ent"]
     //os      = ["linux", "windows"]
     edition = ["ent"]
-    os      = ["linux"]
+    os      = ["windows"]
     exclude {
       os   = ["windows"]
       arch = ["arm64"]
@@ -66,8 +66,8 @@ scenario "upgrade" {
     module = module.provision_cluster
     variables {
       name                             = local.cluster_name
-      nomad_local_binary               = step.copy_initial_binary.binary_path_per_os[matrix.os]
-      nomad_local_binary_server_unique = step.copy_initial_binary.binary_path_per_os[local.server_os]
+      nomad_local_binary               = step.copy_initial_binary.binary_path[matrix.os]
+      nomad_local_binary_server_unique = step.copy_initial_binary.binary_path[local.server_os]
       server_count                     = var.server_count
       client_count_linux               = local.linux_count
       client_count_windows_2016        = local.windows_count
@@ -78,7 +78,7 @@ scenario "upgrade" {
       instance_arch                    = matrix.arch
     }
   }
-  /*
+
   step "run_initial_workloads" {
     depends_on = [step.provision_cluster]
 
@@ -133,7 +133,7 @@ scenario "upgrade" {
       quality.nomad_reschedule_alloc,
     ]
   }
-
+  /*
   step "fetch_upgrade_binary" {
     depends_on = [step.provision_cluster, step.initial_test_cluster_health]
 
@@ -141,7 +141,7 @@ scenario "upgrade" {
     Bring the new upgraded binary from the artifactory to the instance running enos.
     EOF
 
-    module = module.build_artifactory
+    module = module.install_binaries
 
     variables {
       artifactory_username = var.artifactory_username
@@ -149,7 +149,7 @@ scenario "upgrade" {
       arch                 = local.arch
       edition              = matrix.edition
       product_version      = var.upgrade_version
-      os                   = matrix.os
+      os                   = [local.server_os, matrix.os]
       download_binary      = false
     }
   }
@@ -347,8 +347,7 @@ scenario "upgrade" {
     sensitive = true
   } */
 
-  output "binary_info_per_os" {
-    value     = step.copy_initial_binary.binary_path_per_os
-    sensitive = true
+  output "binary_path" {
+    value = step.copy_initial_binary.binary_path
   }
 }
