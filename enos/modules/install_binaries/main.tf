@@ -10,7 +10,7 @@ terraform {
 }
 
 module fetch_artifact {
-  for_each = toset(var.oss)
+  for_each = toset(distinct(var.oss))
   source   = "../fetch_artifactory"
 
   artifactory_username = var.artifactory_username

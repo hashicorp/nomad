@@ -3,7 +3,7 @@
 
 output "nomad_local_binary" {
   description = "Path where the binary will be placed"
-  value       = var.os == "windows" ? "${var.download_binary_path}/nomad.exe" : "${var.download_binary_path}/nomad"
+  value       = var.download_binary ? local.local_binary : ""
 }
 
 output "artifact_url" {
