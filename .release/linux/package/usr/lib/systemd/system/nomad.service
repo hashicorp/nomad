@@ -4,9 +4,8 @@ Documentation=https://nomadproject.io/docs/
 Wants=network-online.target
 After=network-online.target
 
-# When using Nomad with Consul it is not necessary to start Consul first. These
-# lines start Consul before Nomad as an optimization to avoid Nomad logging
-# that Consul is unavailable at startup.
+# When using Nomad with Consul you should start Consul first, so that running
+# allocations using Consul are restored correctly during startup.
 #Wants=consul.service
 #After=consul.service
 
