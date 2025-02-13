@@ -1,38 +1,29 @@
 ---
 layout: docs
-page_title: Storage Plugins
+page_title: Container Storage Interface (CSI) Plugins
 description: |-
-  Nomad's storage plugin support enables scheduling tasks with external storage volumes that conform to the Container Storage Interface (CSI), including AWS Elastic Block Storage (EBS) volumes, Google Cloud Platform (GCP) persistent disks, Ceph, and Portworx. Learn about controller, node, and monolith storage plugins, as well as storage volume lifecyle.
+  Nomad's Container Storage Interface (CSI) plugin support enables scheduling tasks with external storage volumes that conform to the CSI specification, including AWS Elastic Block Storage (EBS) volumes, Google Cloud Platform (GCP) persistent disks, Ceph, and Portworx. Learn about controller, node, and monolith storage plugins, as well as storage volume lifecycle and state.
 ---
 
-# Storage Plugins
+# Container Storage Interface (CSI) Plugins
 
-This page provides conceptual information on Nomad's storage plugin support, which enables scheduling tasks with external storage volumes that conform to the Container Storage Interface (CSI), including AWS Elastic Block Storage (EBS) volumes, Google Cloud Platform (GCP) persistent disks, Ceph, and Portworx. Learn about controller, node, and monolith storage plugins, as well as storage volume lifecyle.
+This page provides conceptual information on Nomad's storage plugin support,
+which enables scheduling tasks with external storage volumes that conform to the
+Container Storage Interface (CSI), including AWS Elastic Block Storage (EBS)
+volumes, Google Cloud Platform (GCP) persistent disks, Ceph, and Portworx. Learn
+about controller, node, and monolith storage plugins, as well as storage volume
+lifecycle and state.
 
-Nomad has built-in support for scheduling compute resources such as
-CPU, memory, and networking. Nomad's storage plugin support extends
-this to allow scheduling tasks with externally created storage
-volumes. Storage plugins are third-party plugins that conform to the
-[Container Storage Interface (CSI)][csi-spec] specification.
-
-Storage plugins are created dynamically as Nomad jobs, unlike device
-and task driver plugins that need to be installed and configured on
-each client. Each dynamic plugin type has its own type-specific job
-spec block; currently there is only the `csi_plugin` type. Nomad
-tracks which clients have instances of a given plugin, and
-communicates with plugins over a Unix domain socket that it creates
-inside the plugin's tasks.
-
-## CSI Plugins
+## Introduction
 
 Every storage vendor has its own APIs and workflows, and the industry-standard
-Container Storage Interface specification unifies these APIs in a way that's
-agnostic to both the storage vendor and the container orchestrator. Each storage
-provider can build its own CSI plugin. Jobs can claim storage volumes from AWS
-Elastic Block Storage (EBS) volumes, GCP persistent disks, Ceph, Portworx,
-etc. The Nomad scheduler will be aware of volumes created by CSI plugins and
-schedule workloads based on the availability of volumes on a given Nomad client
-node.
+[Container Storage Interface][csi-spec] specification unifies these APIs in a
+way that's agnostic to both the storage vendor and the container orchestrator.
+Each storage provider can build its own CSI plugin. Jobs can claim storage
+volumes from AWS Elastic Block Storage (EBS) volumes, GCP persistent disks,
+Ceph, Portworx, etc. The Nomad scheduler will be aware of volumes created by
+CSI plugins and schedule workloads based on the availability of volumes on a
+given Nomad client node.
 
 A list of available CSI plugins can be found in the [Kubernetes CSI
 documentation][csi-drivers-list]. Spec-compliant plugins should work with Nomad.

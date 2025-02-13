@@ -34,7 +34,10 @@ taken to avoid adversely impacting performance.
 
 In each scope, there are different objects made available for introspection,
 such a job being submitted. Policies can inspect these objects to apply
-fine-grained policies.
+fine-grained policies. Nomad supports a `submit-job` scope for registering jobs,
+and a `submit-host-volume` scope for creating or updating dynamic host volumes.
+
+### submit-job scope
 
 The following top-level objects are available to policies in the `submit-job`
 scope automatically, without an explicit import.
@@ -42,7 +45,7 @@ scope automatically, without an explicit import.
 * `job`: the submitted job. This is a [Sentinel Job
   Object](#sentinel-job-objects).
 * `existing_job`: the previous version of the job. If `job_exists` is true, this
-  will always be non-nil. This is also a [Sentinel Job
+  is always non-nil. This is also a [Sentinel Job
   Object](#sentinel-job-objects).
 * `job_exists`: a boolean field that indicates that a previous version of the
   job exists.
@@ -51,11 +54,31 @@ scope automatically, without an explicit import.
 * `namespace`: the namespace the job is in. This is a [Sentinel Nomad Namespace
   Object](#sentinel-namespace-objects).
 
+### submit-host-volume scope
+
+The following top-level objects are available to policies in the
+`submit-host-volume` scope automatically, without an explicit import.
+
+* `volume`: the submitted volume. This is a [Sentinel Dynamic Host Volume
+  Object](#sentinel-dynamic-host-volume-objects).
+* `existing_volume`: the previous version of the volume. If `volume_exists` is
+  true, this is always non-nil. This is also a [Sentinel Dynamic Host
+  Volume Object](#sentinel-dynamic-host-volume-objects). `volume_exists`: a
+  boolean field that indicates that a previous version of the volume exists.
+* `nomad_acl_token`: the ACL token the job was submitted with. This is a
+  [Sentinel Nomad ACL Token Object](#sentinel-acl-token-objects).
+* `namespace`: the namespace the job is in. This is a [Sentinel Nomad Namespace
+  Object](#sentinel-namespace-objects).
+* `node`: the node the volume has been placed on. This is a [Sentinel Node
+  Object](#sentinel-node-objects).
+* `node_pool`: the node pool of the node the volume has been placed on. This is
+  a [Sentinel Node Pool Object](#sentinel-node-pool-objects).
+
 Sentinel convention for identifiers is lower case and separated by underscores.
 All fields on an object are accessed by the same name, converted to lower case
 and separating camel case to underscores.
 
-### Sentinel Job Objects
+## Sentinel Job Objects
 
 The `job` and `existing_job` objects map to the [JSON job specification][], with
 the fields converted to the Sentinel convention. Here are some examples:
@@ -68,8 +91,7 @@ the fields converted to the Sentinel convention. Here are some examples:
 | `job.TaskGroups`                         | `job.task_groups`                           |
 | `job.TaskGroups[0].EphemeralDisk.SizeMB` | `job.task_groups[0].ephemeral_disk.size_mb` |
 
-
-### Sentinel ACL Token Objects
+## Sentinel ACL Token Objects
 
 The `nomad_acl_token` object maps to the [ACL token][], with the fields
 converted to the Sentinel convention. Here are some examples:
@@ -81,7 +103,7 @@ converted to the Sentinel convention. Here are some examples:
 
 Note that the `SecretID` field is always redacted to prevent credential leaks.
 
-### Sentinel Namespace Objects
+## Sentinel Namespace Objects
 
 The `namespace` object maps to the [Namespace][], with the fields converted to
 the Sentinel convention. Here are some examples:
@@ -91,9 +113,43 @@ the Sentinel convention. Here are some examples:
 | `namespace.Description`                      | `namespace.description`                        |
 | `namespace.NodePoolConfiguration.Allowed[0]` | `namespace.node_pool_configuration.allowed[0]` |
 
+## Sentinel Node Objects
+
+The `node` object maps to the [Node][], with the fields converted to the
+Sentinel convention. Here are some examples:
+
+| Node Field         | Sentinel Accessor  |
+|--------------------|--------------------|
+| `node.Class`       | `node.class`       |
+| `node.Meta["foo"]` | `node.meta["foo"]` |
+
+## Sentinel Node Pool Objects
+
+The `node_pool` object maps to the [Node Pool][], with the fields converted to
+the Sentinel convention. Here are some examples:
+
+| Node Pool Field                                       | Sentinel Accessor                                       |
+|-------------------------------------------------------|---------------------------------------------------------|
+| `node_pool.Description`                               | `node_pool.description`                                 |
+| `node_pool.SchedulerConfiguration.SchedulerAlgorithm` | `node_pool.scheduler_configuration.scheduler_algorithm` |
+
+## Sentinel Dynamic Host Volume Objects
+
+The `volume` object maps to the [Dynamic Host Volume][], with the fields
+converted to the Sentinel convention. Here are some examples:
+
+| Dynamic Host Volume Field                    | Sentinel Accessor                              |
+|----------------------------------------------|------------------------------------------------|
+| `volume.Name`                                | `volume.name`                                  |
+| `volume.RequestedCapabilities[0].AccessMode` | `volume.requested_capabilities[0].access_mode` |
+
+
 [Nomad Sentinel Tutorial]: /nomad/tutorials/governance-and-policy/sentinel
 [`nomad sentinel`]: /nomad/docs/commands/sentinel
 [sentinel]: https://docs.hashicorp.com/sentinel
 [JSON job specification]: /nomad/api-docs/json-jobs
-[ACL token]: https://github.com/hashicorp/nomad/blob/v1.7.0-rc.1/nomad/structs/structs.go#L12991-L13020
-[Namespace]: https://github.com/hashicorp/nomad/blob/v1.7.0-rc.1/nomad/structs/structs.go#L5306-L5338
+[ACL token]: https://github.com/hashicorp/nomad/blob/v1.9.4/nomad/structs/structs.go#L13502-L13531
+[Namespace]: https://github.com/hashicorp/nomad/blob/v1.9.4/nomad/structs/structs.go#L5578-L5610
+[Node]: https://github.com/hashicorp/nomad/blob/v1.9.4/nomad/structs/structs.go#L2086-L2210
+[Node Pool]: https://github.com/hashicorp/nomad/blob/v1.9.4/nomad/structs/node_pool.go#L46-L68
+[Dynamic Host Volume]: https://github.com/hashicorp/nomad/blob/main/nomad/structs/host_volumes.go#L18-L87

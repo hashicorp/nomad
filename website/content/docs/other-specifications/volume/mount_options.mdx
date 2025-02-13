@@ -1,7 +1,8 @@
 ---
 layout: docs
 page_title: mount_options Block - Volume Specification
-description: The "mount_options" block allows for configuring how a volume is mounted.
+description: |-
+  Configure Container Storage Interface (CSI) storage volume file system type and mount flags in the "mount_options" block of the Nomad volume specification.
 ---
 
 # `mount_options` Block
@@ -12,8 +13,9 @@ description: The "mount_options" block allows for configuring how a volume is mo
   ]}
 />
 
-Options for mounting `file-system` volumes that don't already have a
-pre-formatted file system.
+Options for mounting `file-system` CSI volumes that don't already have a
+pre-formatted file system. The `mount_options` block is not supported for
+dynamic host volumes.
 
 ```hcl
 id           = "ebs_prod_db1"

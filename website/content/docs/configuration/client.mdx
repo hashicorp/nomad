@@ -633,11 +633,14 @@ refer to the [drivers documentation](/nomad/docs/drivers).
 
 ### `host_volume` Block
 
-The `host_volume` block is used to make volumes available to jobs.
+The `host_volume` block is used to make volumes available to jobs. You can also
+configure [dynamic host volumes][] via the [`volume create`][] or [`volume
+register`][] commands.
 
 The key of the block corresponds to the name of the volume for use in the
-`source` parameter of a `"host"` type [`volume`](/nomad/docs/job-specification/volume)
-and ACLs.
+`source` parameter of a `"host"` type
+[`volume`](/nomad/docs/job-specification/volume) and ACLs. A host volume in the
+configuration cannot have the same name as a dynamic host volume on the same node.
 
 ```hcl
 client {
@@ -827,3 +830,6 @@ client {
 [`TimeoutStopSec`]: https://www.freedesktop.org/software/systemd/man/systemd.service.html#TimeoutStopSec=
 [top_level_data_dir]: /nomad/docs/configuration#data_dir
 [unveil]: /nomad/docs/concepts/plugins/task-drivers#fsisolation-unveil
+[dynamic host volumes]: /nomad/docs/other-specifications/volume/host
+[`volume create`]: /nomad/docs/commands/volume/create
+[`volume register`]: /nomad/docs/commands/volume/register

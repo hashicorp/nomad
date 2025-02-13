@@ -167,7 +167,20 @@
           },
           {
             "title": "Storage",
-            "path": "concepts/plugins/csi"
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "concepts/plugins/storage"
+              },
+              {
+                "title": "CSI",
+                "path": "concepts/plugins/storage/csi"
+              },
+              {
+                "title": "Host Volumes",
+                "path": "concepts/plugins/storage/host-volumes"
+              }
+            ]
           },
           {
             "title": "Networking",
@@ -1946,6 +1959,14 @@
           {
             "title": "Overview",
             "path": "other-specifications/volume"
+          },
+          {
+            "title": "CSI",
+            "path": "other-specifications/volume/csi"
+          },
+          {
+            "title": "Dynamic Host Volumes",
+            "path": "other-specifications/volume/host"
           },
           {
             "title": "capability",
