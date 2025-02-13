@@ -49,7 +49,6 @@ variable "servers" {
   type        = list
 }
 
-
 variable "artifactory_username" {
   type        = string
   description = "The username to use when connecting to artifactory"

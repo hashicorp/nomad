@@ -16,6 +16,7 @@ locals {
     NOMAD_CLIENT_CERT = var.cert_file
     NOMAD_CLIENT_KEY  = var.key_file
     NOMAD_TOKEN       = var.nomad_token
+    SERVERS           = join(" ", var.servers)
   }
 
   artifactory = {
@@ -35,10 +36,10 @@ locals {
 resource "random_pet" "upgrade" {
 }
 
-resource "enos_local_exec" "wait_for_nomad_api" {
+resource "enos_local_exec" "wait_for_leader" {
   environment = local.nomad_env
 
-  scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
+  scripts = [abspath("${path.module}/scripts/wait_for_stable_cluster.sh")]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -48,7 +49,7 @@ resource "enos_local_exec" "wait_for_nomad_api" {
 // used to restore the cluster after the restart, because it will be the most 
 // recent available, the resulting file wont be used..
 resource "enos_local_exec" "take_first_cluster_snapshot" {
-  depends_on = [enos_local_exec.wait_for_nomad_api]
+  depends_on = [enos_local_exec.wait_for_leader]
 
   environment = local.nomad_env
 
@@ -71,14 +72,12 @@ module upgrade_first_server {
   artifactory_release = local.artifactory
 }
 
-// This script calls `nomad server members` which returns an error if there 
-// is no leader.
 resource "enos_local_exec" "first_leader_verification" {
   depends_on = [module.upgrade_first_server]
 
   environment = local.nomad_env
 
-  scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
+  scripts = [abspath("${path.module}/scripts/wait_for_stable_cluster.sh")]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -111,14 +110,12 @@ module upgrade_second_server {
   artifactory_release = local.artifactory
 }
 
-// This script calls `nomad server members` which returns an error if there 
-// is no leader.
 resource "enos_local_exec" "second_leader_verification" {
   depends_on = [module.upgrade_second_server]
 
   environment = local.nomad_env
 
-  scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
+  scripts = [abspath("${path.module}/scripts/wait_for_stable_cluster.sh")]
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -128,12 +125,12 @@ resource "enos_local_exec" "second_leader_verification" {
 // used to restore the cluster after the restart, because it will be the most 
 // recent available, the resulting file wont be used.
 resource "enos_local_exec" "take_third_cluster_snapshot" {
-  depends_on = [enos_local_exec.second_leader_verification]
+  depends_on = [enos_local_exec.first_leader_verification]
 
   environment = local.nomad_env
 
   inline = [
-    "nomad operator snapshot save -stale -address https://${var.servers[2]}:4646 ${random_pet.upgrade.id}-2.snap",
+    "nomad operator snapshot save -stale -address https://${var.servers[2]}:4646 ${random_pet.upgrade.id}-1.snap",
   ]
 }
 
@@ -151,12 +148,10 @@ module upgrade_third_server {
   artifactory_release = local.artifactory
 }
 
-// This script calls `nomad server members` which returns an error if there 
-// is no leader.
-resource "enos_local_exec" "third_leader_verification" {
+resource "enos_local_exec" "last_leader_verification" {
   depends_on = [module.upgrade_third_server]
 
   environment = local.nomad_env
 
-  scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
+  scripts = [abspath("${path.module}/scripts/wait_for_stable_cluster.sh")]
 }

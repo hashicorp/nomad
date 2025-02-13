@@ -6,7 +6,7 @@ quality "nomad_agent_info" {
 }
 
 quality "nomad_agent_info_self" {
-  description = "A GET call to /v1/agent/self against every server returns the same last_log_index for all of them"
+  description = "A GET call to /v1/agent/self against every server returns the same last_log_index as the leader"
 }
 
 quality "nomad_nodes_status" {
