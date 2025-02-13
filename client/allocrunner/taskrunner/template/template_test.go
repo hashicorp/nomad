@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	ctconf "github.com/hashicorp/consul-template/config"
 	templateconfig "github.com/hashicorp/consul-template/config"
 	ctestutil "github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/nomad/ci"
@@ -324,6 +325,49 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewRunnerConfig_Retries(t *testing.T) {
+	tcfg := config.DefaultTemplateConfig()
+	tcfg.ConsulRetry = &config.RetryConfig{
+		Attempts:   pointer.Of(0), // unlimited
+		Backoff:    pointer.Of(100 * time.Millisecond),
+		MaxBackoff: pointer.Of(300 * time.Millisecond),
+	}
+	tcfg.VaultRetry = &config.RetryConfig{
+		Attempts:   pointer.Of(5), // limited non-default
+		Backoff:    pointer.Of(200 * time.Millisecond),
+		MaxBackoff: pointer.Of(500 * time.Millisecond),
+	}
+
+	managerCfg := &TaskTemplateManagerConfig{
+		ClientConfig: &config.Config{TemplateConfig: tcfg},
+		ConsulConfig: &sconfig.ConsulConfig{},
+		VaultConfig:  &sconfig.VaultConfig{Enabled: pointer.Of(true)},
+	}
+	ct := ctconf.DefaultTemplateConfig()
+	mapping := map[*ctconf.TemplateConfig]*structs.Template{ct: &structs.Template{}}
+	tconfig, err := newRunnerConfig(managerCfg, mapping)
+	must.NoError(t, err)
+
+	must.Eq(t, &ctconf.RetryConfig{
+		Attempts:   pointer.Of(0),
+		Backoff:    pointer.Of(100 * time.Millisecond),
+		MaxBackoff: pointer.Of(300 * time.Millisecond),
+		Enabled:    pointer.Of(true),
+	}, tconfig.Consul.Retry)
+	must.Eq(t, &ctconf.RetryConfig{
+		Attempts:   pointer.Of(5),
+		Backoff:    pointer.Of(200 * time.Millisecond),
+		MaxBackoff: pointer.Of(500 * time.Millisecond),
+		Enabled:    pointer.Of(true),
+	}, tconfig.Vault.Retry)
+	must.Eq(t, &ctconf.RetryConfig{
+		Attempts:   pointer.Of(12),
+		Backoff:    pointer.Of(250 * time.Millisecond),
+		MaxBackoff: pointer.Of(time.Minute),
+		Enabled:    pointer.Of(true),
+	}, tconfig.Nomad.Retry)
 }
 
 func TestTaskTemplateManager_HostPath(t *testing.T) {

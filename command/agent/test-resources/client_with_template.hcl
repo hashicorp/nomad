@@ -25,13 +25,13 @@ client {
     }
 
     vault_retry {
-      attempts    = 10
+      attempts    = 0 // unlimited
       backoff     = "15s"
       max_backoff = "20s"
     }
 
     nomad_retry {
-      attempts    = 15
+      // unset attempts=12, should fallback to default
       backoff     = "20s"
       max_backoff = "25s"
     }
