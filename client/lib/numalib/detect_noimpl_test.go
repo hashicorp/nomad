@@ -17,7 +17,7 @@ func Test_NoImpl_yes(t *testing.T) {
 }
 
 func Test_NoImpl_no(t *testing.T) {
-	original := Scan(PlatformScanners())
+	original := Scan(PlatformScanners(false))
 	fallback := NoImpl(original)
 	must.EqOp(t, original, fallback) // pointer is same
 }

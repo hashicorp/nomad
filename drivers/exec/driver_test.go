@@ -75,7 +75,7 @@ func testResources(allocID, task string) *drivers.Resources {
 }
 
 func newExecDriverTest(t *testing.T, ctx context.Context) drivers.DriverPlugin {
-	topology := numalib.Scan(numalib.PlatformScanners())
+	topology := numalib.Scan(numalib.PlatformScanners(false))
 	d := NewExecDriver(ctx, testlog.HCLogger(t))
 	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
 	d.(*Driver).userIDValidator = &mockIDValidator{}
