@@ -17,6 +17,8 @@ import (
 	vapi "github.com/hashicorp/vault/api"
 )
 
+var vaultBaseFingerprintInterval = 15 * time.Second
+
 // VaultFingerprint is used to fingerprint for Vault
 type VaultFingerprint struct {
 	logger log.Logger
@@ -78,7 +80,7 @@ func (f *VaultFingerprint) fingerprintImpl(cfg *config.VaultConfig, resp *Finger
 	if err != nil {
 		// Print a message indicating that Vault is not available anymore
 		if state.isAvailable {
-			logger.Info("Vault is unavailable")
+			logger.Info("Vault is unavailable", "error", err)
 		}
 		state.isAvailable = false
 		return nil
@@ -109,6 +111,15 @@ func (f *VaultFingerprint) fingerprintImpl(cfg *config.VaultConfig, resp *Finger
 }
 
 func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
+	if len(f.states) == 0 {
+		return true, vaultBaseFingerprintInterval
+	}
+	for _, state := range f.states {
+		if !state.isAvailable {
+			return true, vaultBaseFingerprintInterval
+		}
+	}
+	// Once all vaults are initially discovered and healthy we stop the fingerprint
 	return false, 0
 }
 

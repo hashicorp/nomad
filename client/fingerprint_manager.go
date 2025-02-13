@@ -166,7 +166,11 @@ func (fm *FingerprintManager) setupFingerprinters(fingerprints []string) error {
 
 // runFingerprint runs each fingerprinter individually on an ongoing basis
 func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, name string) {
-	_, period := f.Periodic()
+	keep, period := f.Periodic()
+	if !keep {
+		// This should never happen, but just in case
+		return
+	}
 	fm.logger.Debug("fingerprinting periodically", "fingerprinter", name, "initial_period", period)
 
 	timer := time.NewTimer(period)
@@ -181,7 +185,10 @@ func (fm *FingerprintManager) runFingerprint(f fingerprint.Fingerprint, name str
 				continue
 			}
 
-			_, period = f.Periodic()
+			keep, period = f.Periodic()
+			if !keep {
+				return
+			}
 			timer.Reset(period)
 		case <-fm.shutdownCh:
 			return
