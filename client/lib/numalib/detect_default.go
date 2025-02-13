@@ -7,7 +7,7 @@ package numalib
 
 // PlatformScanners returns the set of SystemScanner for systems without a
 // specific implementation.
-func PlatformScanners() []SystemScanner {
+func PlatformScanners(_ bool) []SystemScanner {
 	return []SystemScanner{
 		new(Generic),
 	}

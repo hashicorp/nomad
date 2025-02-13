@@ -38,7 +38,7 @@ func TestQemuDriver_Start_Wait_Stop(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	topology := numalib.Scan(numalib.PlatformScanners())
+	topology := numalib.Scan(numalib.PlatformScanners(false))
 	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -116,7 +116,7 @@ func TestQemuDriver_User(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	topology := numalib.Scan(numalib.PlatformScanners())
+	topology := numalib.Scan(numalib.PlatformScanners(false))
 	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
 	harness := dtestutil.NewDriverHarness(t, d)
@@ -161,7 +161,7 @@ func TestQemuDriver_Stats(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	topology := numalib.Scan(numalib.PlatformScanners())
+	topology := numalib.Scan(numalib.PlatformScanners(false))
 	d := NewQemuDriver(ctx, testlog.HCLogger(t))
 	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
 	harness := dtestutil.NewDriverHarness(t, d)

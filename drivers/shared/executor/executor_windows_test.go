@@ -61,7 +61,7 @@ func testExecutorCommand(t *testing.T) *testExecCmd {
 func TestExecutor_ProcessExit(t *testing.T) {
 	ci.Parallel(t)
 
-	topology := numalib.Scan(numalib.PlatformScanners())
+	topology := numalib.Scan(numalib.PlatformScanners(false))
 	compute := topology.Compute()
 
 	cmd := testExecutorCommand(t)

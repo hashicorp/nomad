@@ -68,7 +68,7 @@ var (
 )
 
 var (
-	top = numalib.Scan(numalib.PlatformScanners())
+	top = numalib.Scan(numalib.PlatformScanners(false))
 )
 
 func dockerIsRemote() bool {

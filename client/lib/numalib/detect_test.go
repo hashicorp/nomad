@@ -12,7 +12,7 @@ import (
 // TestScanTopology is going to be different on every machine; even the CI
 // systems change sometimes so it's hard to make good assertions here.
 func TestScanTopology(t *testing.T) {
-	top := Scan(PlatformScanners())
+	top := Scan(PlatformScanners(false))
 	must.Positive(t, top.UsableCompute())
 	must.Positive(t, top.TotalCompute())
 	must.Positive(t, top.NumCores())
