@@ -2028,7 +2028,7 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	}
 
 	// Delete task group volume claims
-	if err = s.deleteTaskGroupHostVolumeClaim(index, txn, namespace, jobID); err != nil {
+	if err = s.deleteTaskGroupHostVolumeClaimByNamespaceAndJob(index, txn, namespace, jobID); err != nil {
 		return fmt.Errorf("deleting job volume claims failed: %v", err)
 	}
 

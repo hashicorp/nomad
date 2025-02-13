@@ -46,6 +46,7 @@ const (
 	indexSigningKey    = "signing_key"
 	indexAuthMethod    = "auth_method"
 	indexNodePool      = "node_pool"
+	indexClaimID       = "claim_id"
 )
 
 var (
@@ -1738,6 +1739,14 @@ func taskGroupHostVolumeClaimSchema() *memdb.TableSchema {
 							Field: "VolumeID",
 						},
 					},
+				},
+			},
+			indexClaimID: {
+				Name:         indexClaimID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
 				},
 			},
 		},
