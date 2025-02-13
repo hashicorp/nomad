@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
@@ -40,7 +41,8 @@ type ConsulFingerprint struct {
 	// fingerprints to prevent Consul availability issues causing a thundering
 	// herd of node updates. This behavior resets if we reload the
 	// configuration.
-	initialResponse *FingerprintResponse
+	initialResponse     *FingerprintResponse
+	initialResponseLock sync.RWMutex
 }
 
 type consulState struct {
@@ -68,8 +70,7 @@ func NewConsulFingerprint(logger hclog.Logger) Fingerprint {
 }
 
 func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
-	if f.initialResponse != nil {
-		*resp = *f.initialResponse
+	if f.readInitialResponse(resp) {
 		return nil
 	}
 
@@ -89,10 +90,34 @@ func (f *ConsulFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerpri
 		}
 	}
 	if fingerprintCount == len(consulConfigs) {
-		f.initialResponse = resp
+		f.setInitialResponse(resp)
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// readInitialResponse checks for a previously seen response. It returns true
+// and shallow-copies the response into the argument if one is available. We
+// only want to hold the lock open during the read and not the Fingerprint so
+// that we don't block a Reload call while waiting for Consul requests to
+// complete. If the Reload clears the initialResponse after we take the lock
+// again in setInitialResponse (ex. 2 reloads quickly in a row), the worst that
+// happens is we do an extra fingerprint when the Reload caller calls
+// Fingerprint
+func (f *ConsulFingerprint) readInitialResponse(resp *FingerprintResponse) bool {
+	f.initialResponseLock.RLock()
+	defer f.initialResponseLock.RUnlock()
+	if f.initialResponse != nil {
+		*resp = *f.initialResponse
+		return true
+	}
+	return false
+}
+
+func (f *ConsulFingerprint) setInitialResponse(resp *FingerprintResponse) {
+	f.initialResponseLock.Lock()
+	defer f.initialResponseLock.Unlock()
+	f.initialResponse = resp
 }
 
 func (f *ConsulFingerprint) fingerprintImpl(cfg *config.ConsulConfig, resp *FingerprintResponse) error {
@@ -137,9 +162,10 @@ func (f *ConsulFingerprint) Periodic() (bool, time.Duration) {
 	return true, 15 * time.Second
 }
 
-// Reload satisfies ReloadableFingerprint and resets the gate on periodic fingerprinting.
+// Reload satisfies ReloadableFingerprint and resets the gate on periodic
+// fingerprinting.
 func (f *ConsulFingerprint) Reload() {
-	f.initialResponse = nil
+	f.setInitialResponse(nil)
 }
 
 func (cfs *consulState) initialize(cfg *config.ConsulConfig, logger hclog.Logger) error {

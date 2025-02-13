@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -26,7 +27,8 @@ type VaultFingerprint struct {
 	// fingerprints to prevent Vault availability issues causing a thundering
 	// herd of node updates. This behavior resets if we reload the
 	// configuration.
-	initialResponse *FingerprintResponse
+	initialResponse     *FingerprintResponse
+	initialResponseLock sync.RWMutex
 }
 
 type vaultFingerprintState struct {
@@ -44,8 +46,7 @@ func NewVaultFingerprint(logger log.Logger) Fingerprint {
 }
 
 func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
-	if f.initialResponse != nil {
-		*resp = *f.initialResponse
+	if f.readInitialResponse(resp) {
 		return nil
 	}
 	var mErr *multierror.Error
@@ -65,10 +66,34 @@ func (f *VaultFingerprint) Fingerprint(req *FingerprintRequest, resp *Fingerprin
 		}
 	}
 	if fingerprintCount == len(vaultConfigs) {
-		f.initialResponse = resp
+		f.setInitialResponse(resp)
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// readInitialResponse checks for a previously seen response. It returns true
+// and shallow-copies the response into the argument if one is available. We
+// only want to hold the lock open during the read and not the Fingerprint so
+// that we don't block a Reload call while waiting for Vault requests to
+// complete. If the Reload clears the initialResponse after we take the lock
+// again in setInitialResponse (ex. 2 reloads quickly in a row), the worst that
+// happens is we do an extra fingerprint when the Reload caller calls
+// Fingerprint
+func (f *VaultFingerprint) readInitialResponse(resp *FingerprintResponse) bool {
+	f.initialResponseLock.RLock()
+	defer f.initialResponseLock.RUnlock()
+	if f.initialResponse != nil {
+		*resp = *f.initialResponse
+		return true
+	}
+	return false
+}
+
+func (f *VaultFingerprint) setInitialResponse(resp *FingerprintResponse) {
+	f.initialResponseLock.Lock()
+	defer f.initialResponseLock.Unlock()
+	f.initialResponse = resp
 }
 
 // fingerprintImpl fingerprints for a single Vault cluster
@@ -136,5 +161,5 @@ func (f *VaultFingerprint) Periodic() (bool, time.Duration) {
 
 // Reload satisfies ReloadableFingerprint and resets the gate on periodic fingerprinting.
 func (f *VaultFingerprint) Reload() {
-	f.initialResponse = nil
+	f.setInitialResponse(nil)
 }
