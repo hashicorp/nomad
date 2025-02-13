@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	topology = numalib.Scan(numalib.PlatformScanners())
+	topology = numalib.Scan(numalib.PlatformScanners(false))
 )
 
 // TestDockerDriver_FingerprintHealth asserts that docker reports healthy

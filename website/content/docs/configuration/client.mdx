@@ -78,6 +78,9 @@ client {
   the preferred family. When the option is not specified, the current behavior is conserved:
   the first IP address is selected no matter the family.
 
+- `cpu_disable_dmidecode` `(bool: false)` - Specifies the client should not use dmidecode
+  as a method of cpu detection. Nomad ignores this field on all platforms except Linux.
+
 - `cpu_total_compute` `(int: 0)` - Specifies an override for the total CPU
   compute. This value should be set to `# Cores * Core MHz`. For example, a
   quad-core running at 2 GHz would have a total compute of 8000 (4 \* 2000). Most
