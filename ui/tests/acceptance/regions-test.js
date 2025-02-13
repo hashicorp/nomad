@@ -5,7 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 /* eslint-disable qunit/no-conditional-assertions */
-import { currentURL } from '@ember/test-helpers';
+import { currentURL, settled } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { selectChoose } from 'ember-power-select/test-support';
@@ -80,9 +80,11 @@ module('Acceptance | regions (only one)', function (hooks) {
     await JobsList.jobs.objectAt(0).clickRow();
     await Layout.gutter.visitClients();
     await Layout.gutter.visitServers();
-    server.pretender.handledRequests.forEach((req) => {
-      assert.notOk(req.url.includes('region='), req.url);
-    });
+    server.pretender.handledRequests
+      .filter((req) => !req.url.includes('/v1/status/leader'))
+      .forEach((req) => {
+        assert.notOk(req.url.includes('region='), req.url);
+      });
   });
 });
 
@@ -114,7 +116,10 @@ module('Acceptance | regions (many)', function (hooks) {
   });
 
   test('when on the default region, pages do not include the region query param', async function (assert) {
+    let managementToken = server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
     await JobsList.visit();
+    await settled();
 
     assert.equal(currentURL(), '/jobs', 'No region query param');
     assert.equal(
@@ -143,11 +148,13 @@ module('Acceptance | regions (many)', function (hooks) {
   });
 
   test('switching regions to the default region, unsets the region query param', async function (assert) {
+    let managementToken = server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
     const startingRegion = server.db.regions[1].id;
     const defaultRegion = server.db.regions[0].id;
 
     await JobsList.visit({ region: startingRegion });
-
+    await settled();
     await selectChoose('[data-test-region-switcher-parent]', defaultRegion);
 
     assert.notOk(
@@ -197,7 +204,8 @@ module('Acceptance | regions (many)', function (hooks) {
     const appRequests = server.pretender.handledRequests.filter(
       (req) =>
         !req.responseURL.includes('/v1/regions') &&
-        !req.responseURL.includes('/v1/operator/license')
+        !req.responseURL.includes('/v1/operator/license') &&
+        !req.responseURL.includes('/v1/status/leader')
     );
 
     assert.notOk(

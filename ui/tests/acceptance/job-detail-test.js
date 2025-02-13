@@ -27,6 +27,7 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
     allocStatusDistribution: {
       running: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -39,6 +40,7 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
     allocStatusDistribution: {
       running: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -52,6 +54,7 @@ moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
       running: 1,
       failed: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -65,6 +68,7 @@ moduleForJobWithClientStatus(
       type: 'sysbatch',
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -80,6 +84,7 @@ moduleForJobWithClientStatus(
       namespaceId: namespace.name,
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -95,6 +100,7 @@ moduleForJobWithClientStatus(
       namespaceId: namespace.name,
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -109,6 +115,7 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
       running: 1,
     },
     noActiveDeployment: true,
+    withPreviousStableVersion: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -212,6 +219,7 @@ moduleForJob(
     server.create('job', 'parameterized', {
       shallow: true,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     }),
   {
     'the default sort is submitTime descending': async (job, assert) => {
@@ -292,7 +300,15 @@ moduleForJob(
 moduleForJob(
   'Acceptance | job detail (service)',
   'allocations',
-  () => server.create('job', { type: 'service', noActiveDeployment: true }),
+  () =>
+    server.create('job', {
+      type: 'service',
+      noActiveDeployment: true,
+      withPreviousStableVersion: true,
+      allocStatusDistribution: {
+        running: 1,
+      },
+    }),
   {
     'the subnav links to deployment': async (job, assert) => {
       await JobDetail.tabFor('deployments').visit();
