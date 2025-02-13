@@ -688,19 +688,19 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 	err := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp)
 	must.NoError(t, err)
 	must.Eq(t, map[string]string{
-		"consul.datacenter":    "dc1",
-		"consul.revision":      "22ce6c6ad",
-		"consul.segment":       "seg1",
-		"consul.server":        "true",
-		"consul.sku":           "ent",
-		"consul.version":       "1.9.5+ent",
-		"consul.ft.namespaces": "true",
-		"consul.connect":       "true",
-		"consul.grpc":          "8502",
-		"consul.dns.addr":      "192.168.1.117",
-		"consul.dns.port":      "8600",
-		"consul.partition":     "default",
-		"unique.consul.name":   "HAL9000",
+		"consul.datacenter":      "dc1",
+		"consul.revision":        "22ce6c6ad",
+		"consul.segment":         "seg1",
+		"consul.server":          "true",
+		"consul.sku":             "ent",
+		"consul.version":         "1.9.5+ent",
+		"consul.ft.namespaces":   "true",
+		"consul.connect":         "true",
+		"consul.grpc":            "8502",
+		"unique.consul.dns.addr": "192.168.1.117",
+		"consul.dns.port":        "8600",
+		"consul.partition":       "default",
+		"unique.consul.name":     "HAL9000",
 	}, resp.Attributes)
 	must.True(t, resp.Detected)
 
@@ -736,19 +736,19 @@ func TestConsulFingerprint_Fingerprint_ent(t *testing.T) {
 	err3 := cf.Fingerprint(&FingerprintRequest{Config: cfg, Node: node}, &resp3)
 	must.NoError(t, err3)
 	must.Eq(t, map[string]string{
-		"consul.datacenter":    "dc1",
-		"consul.revision":      "22ce6c6ad",
-		"consul.segment":       "seg1",
-		"consul.server":        "true",
-		"consul.sku":           "ent",
-		"consul.version":       "1.9.5+ent",
-		"consul.ft.namespaces": "true",
-		"consul.connect":       "true",
-		"consul.grpc":          "8502",
-		"consul.dns.addr":      "192.168.1.117",
-		"consul.dns.port":      "8600",
-		"consul.partition":     "default",
-		"unique.consul.name":   "HAL9000",
+		"consul.datacenter":      "dc1",
+		"consul.revision":        "22ce6c6ad",
+		"consul.segment":         "seg1",
+		"consul.server":          "true",
+		"consul.sku":             "ent",
+		"consul.version":         "1.9.5+ent",
+		"consul.ft.namespaces":   "true",
+		"consul.connect":         "true",
+		"consul.grpc":            "8502",
+		"unique.consul.dns.addr": "192.168.1.117",
+		"consul.dns.port":        "8600",
+		"consul.partition":       "default",
+		"unique.consul.name":     "HAL9000",
 	}, resp3.Attributes)
 
 	// consul now available again

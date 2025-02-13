@@ -131,34 +131,34 @@ func (cfs *consulState) initialize(cfg *config.ConsulConfig, logger hclog.Logger
 
 	if cfg.Name == structs.ConsulDefaultCluster {
 		cfs.readers = map[string]valueReader{
-			"consul.server":        cfs.server,
-			"consul.version":       cfs.version,
-			"consul.sku":           cfs.sku,
-			"consul.revision":      cfs.revision,
-			"unique.consul.name":   cfs.name, // note: won't have this for non-default clusters
-			"consul.datacenter":    cfs.dc,
-			"consul.segment":       cfs.segment,
-			"consul.connect":       cfs.connect,
-			"consul.grpc":          cfs.grpc(consulConfig.Scheme, logger),
-			"consul.ft.namespaces": cfs.namespaces,
-			"consul.partition":     cfs.partition,
-			"consul.dns.port":      cfs.dnsPort,
-			"consul.dns.addr":      cfs.dnsAddr(logger),
+			"consul.server":          cfs.server,
+			"consul.version":         cfs.version,
+			"consul.sku":             cfs.sku,
+			"consul.revision":        cfs.revision,
+			"unique.consul.name":     cfs.name, // note: won't have this for non-default clusters
+			"consul.datacenter":      cfs.dc,
+			"consul.segment":         cfs.segment,
+			"consul.connect":         cfs.connect,
+			"consul.grpc":            cfs.grpc(consulConfig.Scheme, logger),
+			"consul.ft.namespaces":   cfs.namespaces,
+			"consul.partition":       cfs.partition,
+			"consul.dns.port":        cfs.dnsPort,
+			"unique.consul.dns.addr": cfs.dnsAddr(logger),
 		}
 	} else {
 		cfs.readers = map[string]valueReader{
-			fmt.Sprintf("consul.%s.server", cfg.Name):        cfs.server,
-			fmt.Sprintf("consul.%s.version", cfg.Name):       cfs.version,
-			fmt.Sprintf("consul.%s.sku", cfg.Name):           cfs.sku,
-			fmt.Sprintf("consul.%s.revision", cfg.Name):      cfs.revision,
-			fmt.Sprintf("consul.%s.datacenter", cfg.Name):    cfs.dc,
-			fmt.Sprintf("consul.%s.segment", cfg.Name):       cfs.segment,
-			fmt.Sprintf("consul.%s.connect", cfg.Name):       cfs.connect,
-			fmt.Sprintf("consul.%s.grpc", cfg.Name):          cfs.grpc(consulConfig.Scheme, logger),
-			fmt.Sprintf("consul.%s.ft.namespaces", cfg.Name): cfs.namespaces,
-			fmt.Sprintf("consul.%s.partition", cfg.Name):     cfs.partition,
-			fmt.Sprintf("consul.%s.dns.port", cfg.Name):      cfs.dnsPort,
-			fmt.Sprintf("consul.%s.dns.addr", cfg.Name):      cfs.dnsAddr(logger),
+			fmt.Sprintf("consul.%s.server", cfg.Name):          cfs.server,
+			fmt.Sprintf("consul.%s.version", cfg.Name):         cfs.version,
+			fmt.Sprintf("consul.%s.sku", cfg.Name):             cfs.sku,
+			fmt.Sprintf("consul.%s.revision", cfg.Name):        cfs.revision,
+			fmt.Sprintf("consul.%s.datacenter", cfg.Name):      cfs.dc,
+			fmt.Sprintf("consul.%s.segment", cfg.Name):         cfs.segment,
+			fmt.Sprintf("consul.%s.connect", cfg.Name):         cfs.connect,
+			fmt.Sprintf("consul.%s.grpc", cfg.Name):            cfs.grpc(consulConfig.Scheme, logger),
+			fmt.Sprintf("consul.%s.ft.namespaces", cfg.Name):   cfs.namespaces,
+			fmt.Sprintf("consul.%s.partition", cfg.Name):       cfs.partition,
+			fmt.Sprintf("consul.%s.dns.port", cfg.Name):        cfs.dnsPort,
+			fmt.Sprintf("unique.consul.%s.dns.addr", cfg.Name): cfs.dnsAddr(logger),
 		}
 	}
 

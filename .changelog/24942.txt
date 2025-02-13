@@ -1,0 +1,7 @@
+```release-note:bug
+scheduler: Fixed a bug where node class hashes included unique attributes, making scheduling more costly
+```
+
+```release-note:breaking-change
+node: The node attribute `consul.addr.dns` has been changed to `unique.consul.addr.dns`. The node attribute `nomad.advertise.address` has been changed to `unique.advertise.address`.
+```
