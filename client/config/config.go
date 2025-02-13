@@ -123,7 +123,7 @@ type Config struct {
 	// be determined dynamically.
 	NetworkSpeed int
 
-	// CpuDisableDmidecode disables cpu compute using dmidecode
+	// CpuDisableDmidecode disables cpu fingerprinting using dmidecode on Linux
 	CpuDisableDmidecode bool
 
 	// CpuCompute is the default total CPU compute if they can not be determined

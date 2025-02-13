@@ -13,7 +13,7 @@ import (
 )
 
 // PlatformScanners returns the set of SystemScanner for macOS.
-func PlatformScanners(cpuDisableDmidecode bool) []SystemScanner {
+func PlatformScanners(_ bool) []SystemScanner {
 	return []SystemScanner{
 		new(MacOS),
 	}
