@@ -109,7 +109,7 @@ test  default    batch  pending
         }
     ],
     "OutdatedNodes": [],
-    "VaultTokens": []
+    "VaultTokens": null
 }
 `, *job.CreateIndex, *job.ModifyIndex, *job.SubmitTime),
 		},

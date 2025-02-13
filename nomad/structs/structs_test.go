@@ -973,21 +973,13 @@ func TestJob_Vault(t *testing.T) {
 	e0 := make(map[string]map[string]*Vault, 0)
 
 	vj1 := &Vault{
-		Policies: []string{
-			"p1",
-			"p2",
-		},
+		Role: "role-1",
 	}
 	vj2 := &Vault{
-		Policies: []string{
-			"p3",
-			"p4",
-		},
+		Role: "role-2",
 	}
 	vj3 := &Vault{
-		Policies: []string{
-			"p5",
-		},
+		Role: "role-3",
 	}
 	j1 := &Job{
 		TaskGroups: []*TaskGroup{
@@ -1123,11 +1115,9 @@ func TestJob_RequiredSignals(t *testing.T) {
 	e0 := make(map[string]map[string][]string, 0)
 
 	vj1 := &Vault{
-		Policies:   []string{"p1"},
 		ChangeMode: VaultChangeModeNoop,
 	}
 	vj2 := &Vault{
-		Policies:     []string{"p1"},
 		ChangeMode:   VaultChangeModeSignal,
 		ChangeSignal: "SIGUSR1",
 	}
@@ -6405,7 +6395,6 @@ func TestVault_Validate(t *testing.T) {
 	v := &Vault{
 		Env:        true,
 		ChangeMode: VaultChangeModeSignal,
-		Policies:   []string{"foo", "root"},
 	}
 
 	err := v.Validate()
@@ -6416,14 +6405,10 @@ func TestVault_Validate(t *testing.T) {
 	if !strings.Contains(err.Error(), "Signal must") {
 		t.Fatalf("Expected signal empty error")
 	}
-	if !strings.Contains(err.Error(), "root") {
-		t.Fatalf("Expected root error")
-	}
 }
 
 func TestVault_Copy(t *testing.T) {
 	v := &Vault{
-		Policies:     []string{"policy1", "policy2"},
 		Namespace:    "ns1",
 		Env:          false,
 		ChangeMode:   "noop",
@@ -6432,7 +6417,6 @@ func TestVault_Copy(t *testing.T) {
 
 	// Copy and modify.
 	vc := v.Copy()
-	vc.Policies[0] = "policy0"
 	vc.Namespace = "ns2"
 	vc.Env = true
 	vc.ChangeMode = "signal"
@@ -8088,7 +8072,6 @@ func TestVault_Equal(t *testing.T) {
 
 	must.StructEqual(t, &Vault{
 		Role:         "nomad-task",
-		Policies:     []string{"one"},
 		Namespace:    "global",
 		Env:          true,
 		ChangeMode:   "signal",
@@ -8096,9 +8079,6 @@ func TestVault_Equal(t *testing.T) {
 	}, []must.Tweak[*Vault]{{
 		Field: "Role",
 		Apply: func(v *Vault) { v.Role = "nomad-task-2" },
-	}, {
-		Field: "Policies",
-		Apply: func(v *Vault) { v.Policies = []string{"two"} },
 	}, {
 		Field: "Namespace",
 		Apply: func(v *Vault) { v.Namespace = "regional" },

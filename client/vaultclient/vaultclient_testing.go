@@ -76,29 +76,6 @@ func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginR
 	return token, vc.renewable, nil
 }
 
-func (vc *MockVaultClient) DeriveToken(a *structs.Allocation, tasks []string) (map[string]string, error) {
-	vc.mu.Lock()
-	defer vc.mu.Unlock()
-
-	if vc.DeriveTokenFn != nil {
-		return vc.DeriveTokenFn(a, tasks)
-	}
-
-	tokens := make(map[string]string, len(tasks))
-	for _, task := range tasks {
-		if tasks, ok := vc.deriveTokenErrors[a.ID]; ok {
-			if err, ok := tasks[task]; ok {
-				return nil, err
-			}
-		}
-
-		tokens[task] = uuid.Generate()
-	}
-
-	vc.legacyTokens = tokens
-	return tokens, nil
-}
-
 func (vc *MockVaultClient) SetDeriveTokenError(allocID string, tasks []string, err error) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()

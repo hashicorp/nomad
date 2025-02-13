@@ -84,12 +84,6 @@ func (s *HTTPServer) AgentSelfRequest(resp http.ResponseWriter, req *http.Reques
 
 	self.Config = s.agent.GetConfig().Copy()
 
-	for _, vaultConfig := range self.Config.Vaults {
-		if vaultConfig.Token != "" {
-			vaultConfig.Token = "<redacted>"
-		}
-	}
-
 	if self.Config != nil && self.Config.ACL != nil && self.Config.ACL.ReplicationToken != "" {
 		self.Config.ACL.ReplicationToken = "<redacted>"
 	}

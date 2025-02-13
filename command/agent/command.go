@@ -183,11 +183,6 @@ func (c *Command) readConfig() *Config {
 		defaultVault.Enabled = &b
 		return nil
 	}), "vault-enabled", "")
-	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		defaultVault.AllowUnauthenticated = &b
-		return nil
-	}), "vault-allow-unauthenticated", "")
-	flags.StringVar(&defaultVault.Token, "vault-token", "", "")
 	flags.StringVar(&defaultVault.Addr, "vault-address", "", "")
 	flags.StringVar(&defaultVault.Namespace, "vault-namespace", "", "")
 	flags.StringVar(&defaultVault.Role, "vault-create-from-role", "", "")
@@ -301,11 +296,6 @@ func (c *Command) readConfig() *Config {
 	// Read Vault configuration for the default cluster again after all
 	// configuration sources have been merged.
 	defaultVault = config.defaultVault()
-
-	// Check to see if we should read the Vault token from the environment
-	if defaultVault.Token == "" {
-		defaultVault.Token = os.Getenv("VAULT_TOKEN")
-	}
 
 	// Check to see if we should read the Vault namespace from the environment
 	if defaultVault.Namespace == "" {
@@ -652,12 +642,6 @@ func (c *Command) setupAgent(config *Config, logger hclog.InterceptLogger, logOu
 		return err
 	}
 	c.httpServers = httpServers
-
-	for _, vault := range config.Vaults {
-		if vault.Token != "" {
-			logger.Warn("Setting a Vault token in the agent configuration is deprecated and will be removed in Nomad 1.10. Migrate your Vault configuration to use workload identity.", "cluster", vault.Name)
-		}
-	}
 
 	// If DisableUpdateCheck is not enabled, set up update checking
 	// (DisableUpdateCheck is false by default)

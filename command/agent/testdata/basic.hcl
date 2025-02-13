@@ -270,10 +270,7 @@ consul {
 
 vault {
   address               = "127.0.0.1:9500"
-  allow_unauthenticated = true
-  task_token_ttl        = "1s"
   enabled               = false
-  token                 = "12345"
   ca_file               = "/path/to/ca/file"
   ca_path               = "/path/to/ca"
   cert_file             = "/path/to/cert/file"
