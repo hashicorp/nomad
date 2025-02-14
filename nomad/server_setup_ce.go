@@ -35,7 +35,3 @@ func (s *Server) setupEnterprise(config *Config) error {
 	return nil
 }
 func (s *Server) startEnterpriseBackground() {}
-
-func (s *Server) entVaultDelegate() *VaultNoopDelegate {
-	return &VaultNoopDelegate{}
-}

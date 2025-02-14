@@ -17,7 +17,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-multierror"
-	vapi "github.com/hashicorp/vault/api"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/hashicorp/nomad/acl"
@@ -475,18 +474,6 @@ func (n *Node) deregister(args *structs.NodeBatchDeregisterRequest,
 			return err
 		}
 
-		// Determine if there are any Vault accessors on the node
-		if accessors, err := snap.VaultAccessorsByNode(nil, nodeID); err != nil {
-			n.logger.Error("looking up vault accessors for node failed", "node_id", nodeID, "error", err)
-			return err
-		} else if l := len(accessors); l > 0 {
-			n.logger.Debug("revoking vault accessors on node due to deregister", "num_accessors", l, "node_id", nodeID)
-			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
-				n.logger.Error("revoking vault accessors for node failed", "node_id", nodeID, "error", err)
-				return err
-			}
-		}
-
 		// Determine if there are any SI token accessors on the node
 		if accessors, err := snap.SITokenAccessorsByNode(nil, nodeID); err != nil {
 			n.logger.Error("looking up si accessors for node failed", "node_id", nodeID, "error", err)
@@ -679,18 +666,6 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 	// Check if we need to setup a heartbeat
 	switch args.Status {
 	case structs.NodeStatusDown:
-		// Determine if there are any Vault accessors on the node to cleanup
-		if accessors, err := n.srv.State().VaultAccessorsByNode(ws, args.NodeID); err != nil {
-			n.logger.Error("looking up vault accessors for node failed", "node_id", args.NodeID, "error", err)
-			return err
-		} else if l := len(accessors); l > 0 {
-			n.logger.Debug("revoking vault accessors on node due to down state", "num_accessors", l, "node_id", args.NodeID)
-			if err := n.srv.vault.RevokeTokens(context.Background(), accessors, true); err != nil {
-				n.logger.Error("revoking vault accessors for node failed", "node_id", args.NodeID, "error", err)
-				return err
-			}
-		}
-
 		// Determine if there are any SI token accessors on the node to cleanup
 		if accessors, err := n.srv.State().SITokenAccessorsByNode(ws, args.NodeID); err != nil {
 			n.logger.Error("looking up SI accessors for node failed", "node_id", args.NodeID, "error", err)
@@ -1516,11 +1491,9 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 	}
 
 	// For each allocation we are updating, check if we should revoke any
-	// - Vault token accessors
 	// - Service Identity token accessors
 	var (
-		revokeVault []*structs.VaultAccessor
-		revokeSI    []*structs.SITokenAccessor
+		revokeSI []*structs.SITokenAccessor
 	)
 
 	for _, alloc := range updates {
@@ -1531,29 +1504,12 @@ func (n *Node) batchUpdate(future *structs.BatchFuture, updates []*structs.Alloc
 
 		ws := memdb.NewWatchSet()
 
-		// Determine if there are any orphaned Vault accessors for the allocation
-		if accessors, err := n.srv.State().VaultAccessorsByAlloc(ws, alloc.ID); err != nil {
-			n.logger.Error("looking up vault accessors for alloc failed", "alloc_id", alloc.ID, "error", err)
-			mErr.Errors = append(mErr.Errors, err)
-		} else {
-			revokeVault = append(revokeVault, accessors...)
-		}
-
 		// Determine if there are any orphaned SI accessors for the allocation
 		if accessors, err := n.srv.State().SITokenAccessorsByAlloc(ws, alloc.ID); err != nil {
 			n.logger.Error("looking up si accessors for alloc failed", "alloc_id", alloc.ID, "error", err)
 			mErr.Errors = append(mErr.Errors, err)
 		} else {
 			revokeSI = append(revokeSI, accessors...)
-		}
-	}
-
-	// Revoke any orphaned Vault token accessors
-	if l := len(revokeVault); l > 0 {
-		n.logger.Debug("revoking vault accessors due to terminal allocations", "num_accessors", l)
-		if err := n.srv.vault.RevokeTokens(context.Background(), revokeVault, true); err != nil {
-			n.logger.Error("batched vault accessor revocation failed", "error", err)
-			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
 
@@ -1770,232 +1726,6 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 		return nil, 0, err
 	}
 	return evalIDs, evalIndex, nil
-}
-
-// DeriveVaultToken is used by the clients to request wrapped Vault tokens for
-// tasks
-func (n *Node) DeriveVaultToken(args *structs.DeriveVaultTokenRequest, reply *structs.DeriveVaultTokenResponse) error {
-
-	authErr := n.srv.Authenticate(n.ctx, args)
-
-	setError := func(e error, recoverable bool) {
-		if e != nil {
-			if re, ok := e.(*structs.RecoverableError); ok {
-				reply.Error = re // No need to wrap if error is already a RecoverableError
-			} else {
-				reply.Error = structs.NewRecoverableError(e, recoverable).(*structs.RecoverableError)
-			}
-			n.logger.Error("DeriveVaultToken failed", "recoverable", recoverable, "error", e)
-		}
-	}
-
-	if done, err := n.srv.forward("Node.DeriveVaultToken", args, args, reply); done {
-		setError(err, structs.IsRecoverable(err) || err == structs.ErrNoLeader)
-		return nil
-	}
-	n.srv.MeasureRPCRate("node", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-	defer metrics.MeasureSince([]string{"nomad", "client", "derive_vault_token"}, time.Now())
-
-	// Verify the arguments
-	if args.NodeID == "" {
-		setError(fmt.Errorf("missing node ID"), false)
-		return nil
-	}
-	if args.SecretID == "" {
-		setError(fmt.Errorf("missing node SecretID"), false)
-		return nil
-	}
-	if args.AllocID == "" {
-		setError(fmt.Errorf("missing allocation ID"), false)
-		return nil
-	}
-	if len(args.Tasks) == 0 {
-		setError(fmt.Errorf("no tasks specified"), false)
-		return nil
-	}
-
-	// Verify the following:
-	// * The Node exists and has the correct SecretID
-	// * The Allocation exists on the specified Node
-	// * The Allocation contains the given tasks and they each require Vault
-	//   tokens
-	snap, err := n.srv.fsm.State().Snapshot()
-	if err != nil {
-		setError(err, false)
-		return nil
-	}
-	ws := memdb.NewWatchSet()
-	node, err := snap.NodeByID(ws, args.NodeID)
-	if err != nil {
-		setError(err, false)
-		return nil
-	}
-	if node == nil {
-		setError(fmt.Errorf("Node %q does not exist", args.NodeID), false)
-		return nil
-	}
-	if node.SecretID != args.SecretID {
-		setError(fmt.Errorf("SecretID mismatch"), false)
-		return nil
-	}
-
-	alloc, err := snap.AllocByID(ws, args.AllocID)
-	if err != nil {
-		setError(err, false)
-		return nil
-	}
-	if alloc == nil {
-		setError(fmt.Errorf("Allocation %q does not exist", args.AllocID), false)
-		return nil
-	}
-	if alloc.NodeID != args.NodeID {
-		setError(fmt.Errorf("Allocation %q not running on Node %q", args.AllocID, args.NodeID), false)
-		return nil
-	}
-	if alloc.ClientTerminalStatus() {
-		setError(fmt.Errorf("Can't request Vault token for terminal allocation"), false)
-		return nil
-	}
-
-	// Check if alloc has Vault
-	vaultBlocks := alloc.Job.Vault()
-	if vaultBlocks == nil {
-		setError(fmt.Errorf("Job does not require Vault token"), false)
-		return nil
-	}
-	tg, ok := vaultBlocks[alloc.TaskGroup]
-	if !ok {
-		setError(fmt.Errorf("Task group does not require Vault token"), false)
-		return nil
-	}
-
-	var unneeded []string
-	for _, task := range args.Tasks {
-		taskVault := tg[task]
-		if taskVault == nil || len(taskVault.Policies) == 0 {
-			unneeded = append(unneeded, task)
-		}
-	}
-
-	if len(unneeded) != 0 {
-		e := fmt.Errorf("Requested Vault tokens for tasks without defined Vault policies: %s",
-			strings.Join(unneeded, ", "))
-		setError(e, false)
-		return nil
-	}
-
-	// At this point the request is valid and we should contact Vault for
-	// tokens.
-
-	// Create an error group where we will spin up a fixed set of goroutines to
-	// handle deriving tokens but where if any fails the whole group is
-	// canceled.
-	g, ctx := errgroup.WithContext(context.Background())
-
-	// Cap the handlers
-	handlers := len(args.Tasks)
-	if handlers > maxParallelRequestsPerDerive {
-		handlers = maxParallelRequestsPerDerive
-	}
-
-	// Create the Vault Tokens
-	input := make(chan string, handlers)
-	results := make(map[string]*vapi.Secret, len(args.Tasks))
-	for i := 0; i < handlers; i++ {
-		g.Go(func() error {
-			for {
-				select {
-				case task, ok := <-input:
-					if !ok {
-						return nil
-					}
-
-					secret, err := n.srv.vault.CreateToken(ctx, alloc, task)
-					if err != nil {
-						return err
-					}
-
-					results[task] = secret
-				case <-ctx.Done():
-					return nil
-				}
-			}
-		})
-	}
-
-	// Send the input
-	go func() {
-		defer close(input)
-		for _, task := range args.Tasks {
-			select {
-			case <-ctx.Done():
-				return
-			case input <- task:
-			}
-		}
-	}()
-
-	// Wait for everything to complete or for an error
-	createErr := g.Wait()
-
-	// Retrieve the results
-	accessors := make([]*structs.VaultAccessor, 0, len(results))
-	tokens := make(map[string]string, len(results))
-	for task, secret := range results {
-		w := secret.WrapInfo
-		tokens[task] = w.Token
-		accessor := &structs.VaultAccessor{
-			Accessor:    w.WrappedAccessor,
-			Task:        task,
-			NodeID:      alloc.NodeID,
-			AllocID:     alloc.ID,
-			CreationTTL: w.TTL,
-		}
-
-		accessors = append(accessors, accessor)
-	}
-
-	// If there was an error revoke the created tokens
-	if createErr != nil {
-		n.logger.Error("Vault token creation for alloc failed", "alloc_id", alloc.ID, "error", createErr)
-
-		if revokeErr := n.srv.vault.RevokeTokens(context.Background(), accessors, false); revokeErr != nil {
-			n.logger.Error("Vault token revocation for alloc failed", "alloc_id", alloc.ID, "error", revokeErr)
-		}
-
-		if rerr, ok := createErr.(*structs.RecoverableError); ok {
-			reply.Error = rerr
-		} else {
-			reply.Error = structs.NewRecoverableError(createErr, false).(*structs.RecoverableError)
-		}
-
-		return nil
-	}
-
-	// Commit to Raft before returning any of the tokens
-	req := structs.VaultAccessorsRequest{Accessors: accessors}
-	_, index, err := n.srv.raftApply(structs.VaultAccessorRegisterRequestType, &req)
-	if err != nil {
-		n.logger.Error("registering Vault accessors for alloc failed", "alloc_id", alloc.ID, "error", err)
-
-		// Determine if we can recover from the error
-		retry := false
-		switch err {
-		case raft.ErrNotLeader, raft.ErrLeadershipLost, raft.ErrRaftShutdown, raft.ErrEnqueueTimeout:
-			retry = true
-		}
-
-		setError(err, retry)
-		return nil
-	}
-
-	reply.Index = index
-	reply.Tasks = tokens
-	n.srv.setQueryMeta(&reply.QueryMeta)
-	return nil
 }
 
 type connectTask struct {

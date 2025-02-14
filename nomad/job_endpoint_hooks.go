@@ -581,23 +581,9 @@ func (v *jobValidate) validateVaultIdentity(t *structs.Task, okForIdentity bool)
 			)
 		}
 
-		// Tasks using the default cluster but without a Vault identity will
-		// use the legacy flow.
-		if len(t.Vault.Policies) == 0 {
-			return warnings, fmt.Errorf("Task %s has a Vault block with an empty list of policies", t.Name)
-		}
-
 		return warnings, nil
 	}
 
-	// Warn if tasks is using identity-based flow with the deprecated policies
-	// field.
-	if len(t.Vault.Policies) > 0 {
-		warnings = append(warnings, fmt.Errorf(
-			"Task %s has a Vault block with policies but uses workload identity to authenticate with Vault, policies will be ignored",
-			t.Name,
-		))
-	}
 	return warnings, nil
 }
 

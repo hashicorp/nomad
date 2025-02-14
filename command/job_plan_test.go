@@ -188,27 +188,7 @@ func TestPlanCommand_From_Files(t *testing.T) {
 		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
 		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-vault.nomad"}
 		code := cmd.Run(args)
-		must.Eq(t, 255, code)
-		must.StrContains(t, ui.ErrorWriter.String(), "* Vault used in the job but missing Vault token")
-	})
-
-	t.Run("vault bad token via flag", func(t *testing.T) {
-		ui := cli.NewMockUi()
-		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
-		args := []string{"-address", "http://" + s.HTTPAddr, "-vault-token=abc123", "testdata/example-vault.nomad"}
-		code := cmd.Run(args)
-		must.Eq(t, 255, code)
-		must.StrContains(t, ui.ErrorWriter.String(), "* bad token")
-	})
-
-	t.Run("vault bad token via env", func(t *testing.T) {
-		t.Setenv("VAULT_TOKEN", "abc123")
-		ui := cli.NewMockUi()
-		cmd := &JobPlanCommand{Meta: Meta{Ui: ui}}
-		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-vault.nomad"}
-		code := cmd.Run(args)
-		must.Eq(t, 255, code)
-		must.StrContains(t, ui.ErrorWriter.String(), "* bad token")
+		must.One(t, code) // no client running, fail to place
 	})
 }
 

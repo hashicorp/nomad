@@ -148,16 +148,6 @@ func JobSysBatchSummary(jobID string) *structs.JobSummary {
 	}
 }
 
-func VaultAccessor() *structs.VaultAccessor {
-	return &structs.VaultAccessor{
-		Accessor:    uuid.Generate(),
-		NodeID:      uuid.Generate(),
-		AllocID:     uuid.Generate(),
-		CreationTTL: 86400,
-		Task:        "foo",
-	}
-}
-
 func SITokenAccessor() *structs.SITokenAccessor {
 	return &structs.SITokenAccessor{
 		NodeID:     uuid.Generate(),

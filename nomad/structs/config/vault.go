@@ -95,43 +95,20 @@ type VaultConfig struct {
 	// <name> matches this block `name` parameter.
 	DefaultIdentity *WorkloadIdentityConfig `mapstructure:"default_identity"`
 
-	// Deprecated fields.
-
-	// Token is the Vault token given to Nomad such that it can
-	// derive child tokens. Nomad will renew this token at half its lease
-	// lifetime.
-	//
-	// Deprecated: Nomad 1.7.0 is able to derive Vault tokens from workload
-	// identities. This field will be removed in a future release.
+	// Token is used by the Vault Transit Keyring implementation only. It was
+	// previously used by the now removed Nomad server derive child token
+	// workflow.
 	Token string `mapstructure:"token"`
-
-	// AllowUnauthenticated allows users to submit jobs requiring Vault tokens
-	// without providing a Vault token proving they have access to these
-	// policies.
-	//
-	// Deprecated: Nomad 1.7.0 no longer requires a Vault token for job
-	// operations. This field will be removed in a future release.
-	AllowUnauthenticated *bool `mapstructure:"allow_unauthenticated"`
-
-	// TaskTokenTTL is the TTL of the tokens created by Nomad Servers and used
-	// by the client.  There should be a minimum time value such that the client
-	// does not have to renew with Vault at a very high frequency
-	//
-	// Deprecated: Nomad 1.7.0 derives tokens from workload identities that
-	// receive their TTL configuration from the Vault role used. This field
-	// will be removed in a future release.
-	TaskTokenTTL string `mapstructure:"task_token_ttl"`
 }
 
 // DefaultVaultConfig returns the canonical defaults for the Nomad
 // `vault` configuration.
 func DefaultVaultConfig() *VaultConfig {
 	return &VaultConfig{
-		Name:                 "default",
-		Addr:                 "https://vault.service.consul:8200",
-		JWTAuthBackendPath:   "jwt-nomad",
-		ConnectionRetryIntv:  DefaultVaultConnectRetryIntv,
-		AllowUnauthenticated: pointer.Of(true),
+		Name:                "default",
+		Addr:                "https://vault.service.consul:8200",
+		JWTAuthBackendPath:  "jwt-nomad",
+		ConnectionRetryIntv: DefaultVaultConnectRetryIntv,
 	}
 }
 
@@ -141,12 +118,6 @@ func (c *VaultConfig) IsEnabled() bool {
 		return false
 	}
 	return c.Enabled != nil && *c.Enabled
-}
-
-// AllowsUnauthenticated returns whether the config allows unauthenticated
-// access to Vault
-func (c *VaultConfig) AllowsUnauthenticated() bool {
-	return c.AllowUnauthenticated != nil && *c.AllowUnauthenticated
 }
 
 // Merge merges two Vault configurations together.
@@ -199,16 +170,6 @@ func (c *VaultConfig) Merge(b *VaultConfig) *VaultConfig {
 		result.DefaultIdentity = &sID
 	} else if b.DefaultIdentity != nil {
 		result.DefaultIdentity = result.DefaultIdentity.Merge(b.DefaultIdentity)
-	}
-
-	if b.Token != "" {
-		result.Token = b.Token
-	}
-	if b.AllowUnauthenticated != nil {
-		result.AllowUnauthenticated = b.AllowUnauthenticated
-	}
-	if b.TaskTokenTTL != "" {
-		result.TaskTokenTTL = b.TaskTokenTTL
 	}
 
 	return &result
@@ -302,16 +263,6 @@ func (c *VaultConfig) Equal(b *VaultConfig) bool {
 	}
 
 	if !c.DefaultIdentity.Equal(b.DefaultIdentity) {
-		return false
-	}
-
-	if c.Token != b.Token {
-		return false
-	}
-	if !pointer.Eq(c.AllowUnauthenticated, b.AllowUnauthenticated) {
-		return false
-	}
-	if c.TaskTokenTTL != b.TaskTokenTTL {
 		return false
 	}
 

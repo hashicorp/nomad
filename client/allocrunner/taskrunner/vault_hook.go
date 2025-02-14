@@ -44,9 +44,6 @@ type vaultTokenUpdateHandler interface {
 	updatedVaultToken(token string)
 }
 
-// deriveTokenFunc is the signature of a function used to derive Vault tokens.
-type deriveTokenFunc func() (string, error)
-
 func (tr *TaskRunner) updatedVaultToken(token string) {
 	// Update the task runner and environment
 	tr.setVaultToken(token)
@@ -120,9 +117,6 @@ type vaultHook struct {
 	// widName is the workload identity name to use to retrieve signed JWTs.
 	widName string
 
-	// deriveTokenFunc is the function used to derive Vault tokens.
-	deriveTokenFunc deriveTokenFunc
-
 	// allowTokenExpiration determines if a renew loop should be run
 	allowTokenExpiration bool
 
@@ -146,18 +140,10 @@ func newVaultHook(config *vaultHookConfig) *vaultHook {
 		cancel:               cancel,
 		future:               newTokenFuture(),
 		widmgr:               config.widmgr,
+		widName:              config.task.Vault.IdentityName(),
 		allowTokenExpiration: config.vaultBlock.AllowTokenExpiration,
 	}
 	h.logger = config.logger.Named(h.Name())
-
-	h.widName = config.task.Vault.IdentityName()
-	wid := config.task.GetIdentity(h.widName)
-	switch {
-	case wid != nil:
-		h.deriveTokenFunc = h.deriveVaultTokenJWT
-	default:
-		h.deriveTokenFunc = h.deriveVaultTokenLegacy
-	}
 
 	return h
 }
@@ -376,19 +362,9 @@ func (h *vaultHook) deriveVaultToken() (string, bool) {
 	var attempts uint64
 	var backoff time.Duration
 	for {
-		token, err := h.deriveTokenFunc()
+		token, err := h.deriveVaultTokenJWT()
 		if err == nil {
 			return token, false
-		}
-
-		// Check if this is a server side error
-		if structs.IsServerSide(err) {
-			h.logger.Error("failed to derive Vault token", "error", err, "server_side", true)
-			h.lifecycle.Kill(h.ctx,
-				structs.NewTaskEvent(structs.TaskKilling).
-					SetFailsTask().
-					SetDisplayMessage(fmt.Sprintf("Vault: server failed to derive vault token: %v", err)))
-			return "", true
 		}
 
 		// Check if we can't recover from the error
@@ -462,19 +438,6 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 	}
 
 	return token, nil
-}
-
-// deriveVaultTokenLegacy returns a Vault ACL token using the legacy flow where
-// Nomad clients request Vault tokens from Nomad servers.
-//
-// Deprecated: This authentication flow will be removed Nomad 1.9.
-func (h *vaultHook) deriveVaultTokenLegacy() (string, error) {
-	tokens, err := h.client.DeriveToken(h.alloc, []string{h.task.Name})
-	if err != nil {
-		return "", err
-	}
-
-	return tokens[h.task.Name], nil
 }
 
 // writeToken writes the given token to disk

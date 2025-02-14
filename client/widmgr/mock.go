@@ -8,6 +8,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/go-jose/go-jose/v3"
@@ -112,4 +113,56 @@ func (m *MockWIDSigner) SignIdentities(minIndex uint64, req []*structs.WorkloadI
 		swids = append(swids, swid)
 	}
 	return swids, nil
+}
+
+type MockIdentityManager struct {
+	lastToken     map[structs.WIHandle]*structs.SignedWorkloadIdentity
+	lastTokenLock sync.RWMutex
+}
+
+// NewMockIdentityManager returns an implementation of the IdentityManager
+// interface which supports data manipulation for testing.
+func NewMockIdentityManager() IdentityManager {
+	return &MockIdentityManager{
+		lastToken: make(map[structs.WIHandle]*structs.SignedWorkloadIdentity),
+	}
+}
+
+// Get implements the IdentityManager.Get functionality. This should be used
+// along with SetIdentity for testing.
+func (m *MockIdentityManager) Get(handle structs.WIHandle) (*structs.SignedWorkloadIdentity, error) {
+	m.lastTokenLock.RLock()
+	defer m.lastTokenLock.RUnlock()
+
+	token := m.lastToken[handle]
+	if token == nil {
+		return nil, fmt.Errorf("no token for handle name:%s wid:%s type:%v",
+			handle.IdentityName, handle.WorkloadIdentifier, handle.WorkloadType)
+	}
+
+	return token, nil
+}
+
+// Run implements the IdentityManager.Run functionality. It currently does
+// nothing.
+func (m *MockIdentityManager) Run() error { return nil }
+
+// Watch implements the IdentityManager.Watch functionality. It currently does
+// nothing.
+func (m *MockIdentityManager) Watch(_ structs.WIHandle) (<-chan *structs.SignedWorkloadIdentity, func()) {
+	return nil, nil
+}
+
+// Shutdown implements the IdentityManager.Shutdown functionality. It currently
+// does nothing.
+func (m *MockIdentityManager) Shutdown() {}
+
+// SetIdentity is a helper function that allows testing callers to set custom
+// identity information. The constructor function returns the interface name,
+// therefore to call this you will need assert the type like
+// ".(*widmgr.MockIdentityManager).SetIdentity(...)".
+func (m *MockIdentityManager) SetIdentity(handle structs.WIHandle, token *structs.SignedWorkloadIdentity) {
+	m.lastTokenLock.Lock()
+	m.lastToken[handle] = token
+	m.lastTokenLock.Unlock()
 }

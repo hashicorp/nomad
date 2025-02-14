@@ -359,28 +359,14 @@ func CopySliceNodeScoreMeta(s []*NodeScoreMeta) []*NodeScoreMeta {
 	return c
 }
 
-// VaultPoliciesSet takes the structure returned by VaultPolicies and returns
-// the set of required policies
-func VaultPoliciesSet(policies map[string]map[string]*Vault) []string {
+// VaultNamespaceSet takes the structure returned by job.Vault() and returns a
+// set of required namespaces.
+func VaultNamespaceSet(blocks map[string]map[string]*Vault) []string {
 	s := set.New[string](10)
-	for _, tgp := range policies {
-		for _, tp := range tgp {
-			if tp != nil {
-				s.InsertSlice(tp.Policies)
-			}
-		}
-	}
-	return s.Slice()
-}
-
-// VaultNamespaceSet takes the structure returned by VaultPolicies and
-// returns a set of required namespaces
-func VaultNamespaceSet(policies map[string]map[string]*Vault) []string {
-	s := set.New[string](10)
-	for _, tgp := range policies {
-		for _, tp := range tgp {
-			if tp != nil && tp.Namespace != "" {
-				s.Insert(tp.Namespace)
+	for _, taskGroupVault := range blocks {
+		for _, taskVault := range taskGroupVault {
+			if taskVault != nil && taskVault.Namespace != "" {
+				s.Insert(taskVault.Namespace)
 			}
 		}
 	}

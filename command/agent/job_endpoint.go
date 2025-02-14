@@ -1148,7 +1148,6 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		Payload:        job.Payload,
 		Meta:           job.Meta,
 		ConsulToken:    *job.ConsulToken,
-		VaultToken:     *job.VaultToken,
 		VaultNamespace: *job.VaultNamespace,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
@@ -1472,7 +1471,6 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
 			Role:                 apiTask.Vault.Role,
-			Policies:             apiTask.Vault.Policies,
 			Namespace:            *apiTask.Vault.Namespace,
 			Cluster:              apiTask.Vault.Cluster,
 			Env:                  *apiTask.Vault.Env,

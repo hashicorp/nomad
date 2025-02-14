@@ -214,7 +214,6 @@ func StateAsMap(store *state.StateStore) map[string][]interface{} {
 		"SITokenAccessors": toArray(store.SITokenAccessors(nil)),
 		"ScalingEvents":    toArray(store.ScalingEvents(nil)),
 		"ScalingPolicies":  toArray(store.ScalingPolicies(nil)),
-		"VaultAccessors":   toArray(store.VaultAccessors(nil)),
 	}
 
 	insertEnterpriseState(result, store)
