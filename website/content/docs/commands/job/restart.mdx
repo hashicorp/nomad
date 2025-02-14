@@ -32,14 +32,12 @@ The command can operate in batches and wait until all restarted or
 rescheduled allocations are running again before proceeding to the next batch.
 It is also possible to specify additional time to wait between batches.
 
-Allocations can be restarted in-place or migrated. When restarting in-place the
+You may restart in-place or migrated allocations. When restarting in-place, the
 command may target specific tasks in the allocations, restart only tasks that
 are currently running, or restart all tasks, even the ones that have already
-run. Allocations can also be targeted by groups and tasks.  When both groups and
-tasks are defined only the tasks for the allocations of those groups are
-restarted.
+run. Groups and tasks can also target allocations.  When you define both groups and tasks, Nomad restarts only the tasks for the allocations of those groups.
 
-When migrating, the current allocations are stopped, triggering the Nomad
+When migrating, Nomad stops the current allocations, triggering the Nomad
 scheduler to create new allocations that may be placed in different clients. The
 command waits until the new allocations have client status `ready` before
 proceeding with the remaining batches. Services health checks are not taken into
@@ -82,13 +80,12 @@ of the exact job ID.
   shutdown or restart. Note that using this flag will result in failed network
   connections to the allocation being restarted.
 
-- `-reschedule`: If set, allocations are stopped and migrated instead of
-  restarted in-place. Since the group is not modified the restart does not
+- `-reschedule`: If set, Nomad stops and migrates allocations instead of
+  restarting in-place. Since the group is not modified, the restart does not
   create a new deployment, and so values defined in [`update`][] blocks, such as
-  [`max_parallel`][], are not taken into account. This option cannot be used
-  with `-task`. Only jobs of type `batch`, `service`, and `system` can be
-  migrated. Note that despite the name of this flag, allocations are migrated
-  and not rescheduled, to the `reschedule` block does not apply.
+  [`max_parallel`][], are not considered. This option cannot be used
+  with `-task`. You may only migrate jobs of type `batch`, `service`, and `system`.
+Note that despite the name of this flag, Nomad migrates but does not reschedule allocations, so Nomad ignores the `reschedule` block.
 
 - `-on-error=<ask|fail>`: Determines what action to take when an error happens
   during a restart batch. If `ask` the command stops and waits for user

@@ -66,13 +66,13 @@ job "docs" {
   for the group.
 
 - `prevent_reschedule_on_lost` `(bool: false)` - Defines the replacement
-  behaviour of an allocation when the node it is running on misses heartbeats.
-  When enabled, if the node it is running on becomes disconnected or goes down,
-  this allocations wont be replaced and will show up as `unknown` until the node
-  comes back up or it is manually restarted.
+  behavior of an allocation when the node it is running on misses heartbeats.
+  When enabled, if the node disconnects or goes down,
+  Nomad does not replace this allocation and shows it as `unknown` until the node
+  reconnects or you manually restart the node.
 
-  This behaviour will only modify the replacement process on the server.  To
-  modify the allocation behaviour on the client, see
+  This behavior only modifies the replacement process on the server.  To
+  modify the allocation behavior on the client, refer to
   [`stop_after_client_disconnect`](#stop_after_client_disconnect).
 
   The `unknown` allocation has to be manually stopped to run it again.
@@ -84,7 +84,7 @@ job "docs" {
   Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the
   same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
 
-  This field was deprecated in favour of `replace` on the [`disconnect`] block,
+  We deprecated this field in favor of `replace` on the [`disconnect`] block,
   see [example below][disconect_migration] for more details about migrating.
 
 - `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
@@ -299,13 +299,13 @@ issues with stateful tasks or tasks with long restart times.
 
 Instead, an operator may desire that these allocations reconnect without a
 restart. When `max_client_disconnect` or `disconnect.lost_after` is specified,
-the Nomad server will mark clients that fail to heartbeat as "disconnected"
+the Nomad server marks clients that fail to heartbeat as "disconnected"
 rather than "down", and will mark allocations on a disconnected client as
 "unknown" rather than "lost". These allocations may continue to run on the
 disconnected client. Replacement allocations will be scheduled according to the
 allocations' `disconnect.replace` settings. until the disconnected client
-reconnects. Once a disconnected client reconnects, Nomad will compare the "unknown"
-allocations with their replacements and will decide which ones to keep according
+reconnects. Once a disconnected client reconnects, Nomad compares the "unknown"
+allocations with their replacements and decides which ones to keep according
 to the `disconnect.replace` setting. If the `max_client_disconnect` or
 `disconnect.losta_after` duration expires before the client reconnects,
 the allocations will be marked "lost".

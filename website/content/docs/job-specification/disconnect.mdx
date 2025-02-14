@@ -17,10 +17,9 @@ node that misses heartbeats, the allocation will be marked `lost` and will be
 replaced.
 
 Replacement happens when a node is lost. When a node is drained, Nomad
-[migrates][] the allocations instead and the `disconnect` block does not
-apply. When a Nomad agent fails to setup the allocation or the tasks of an
+[migrates][] the allocations instead, and Nomad ignores the `disconnect` block. When a Nomad agent fails to set up the allocation or the tasks of an
 allocation fail more than their [`restart`][] block allows, Nomad
-[reschedules][] the allocations and the `disconnect` block does not apply.
+[reschedules][] the allocations and ignores the `disconnect`.
 
 
 ```hcl
@@ -58,12 +57,12 @@ same `disconnect` block.
 
   Refer to [the Lost After section][lost-after] for more details.
 
-- `replace` `(bool: false)` - Specifies if the disconnected allocation should be
-  replaced by a new one rescheduled on a different node. The replacement
-  allocation is considered a reschedule and will obey the job's [`reschedule`][]
-  block. If false and the node it is running on becomes disconnected or goes
-  down, this allocation won't be replaced and will be reported as `unknown`
-  until the node reconnects, or until the allocation is manually stopped:
+- `replace` `(bool: false)` - Specifies if Nomad should replace the disconnected
+  allocation with a new one rescheduled on a different node. Nomad considers the
+  replacement allocation a reschedule and obeys the job's [`reschedule`][]
+  block. If false and the node the allocation is running on disconnects
+  or goes down, Nomad does not replace this allocation and reports `unknown`
+  until the node reconnects, or until you manually stop the allocation.
 
   ```plaintext
   `nomad alloc stop  <alloc ID>`
@@ -110,11 +109,11 @@ The following examples only show the `disconnect` blocks. Remember that the
 This example shows how `stop_on_client_after` interacts with
 other blocks. For the `first` group, after the default 10 second
 [`heartbeat_grace`] window expires and 90 more seconds passes, the
-server will replace the allocation. The client will wait 90 seconds
+server replaces the allocation. The client waits 90 seconds
 before sending a stop signal (`SIGTERM`) to the `first-task`
 task. After 15 more seconds because of the task's `kill_timeout`, the
 client will send `SIGKILL`. The `second` group does not have
-`stop_on_client_after`, so the server will replace the
+`stop_on_client_after`, so the server replaces the
 allocation after the 10 second [`heartbeat_grace`] expires. It will
 not be stopped on the client, regardless of how long the client is out
 of touch.
