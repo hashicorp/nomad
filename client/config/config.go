@@ -458,13 +458,19 @@ func DefaultTemplateConfig() *ClientTemplateConfig {
 			Max: pointer.Of(4 * time.Minute),
 		},
 		ConsulRetry: &RetryConfig{
-			Attempts: pointer.Of(0), // unlimited
+			Attempts:   pointer.Of(12),
+			Backoff:    pointer.Of(time.Millisecond * 250),
+			MaxBackoff: pointer.Of(time.Minute),
 		},
 		VaultRetry: &RetryConfig{
-			Attempts: pointer.Of(0), // unlimited
+			Attempts:   pointer.Of(12),
+			Backoff:    pointer.Of(time.Millisecond * 250),
+			MaxBackoff: pointer.Of(time.Minute),
 		},
 		NomadRetry: &RetryConfig{
-			Attempts: pointer.Of(0), // unlimited
+			Attempts:   pointer.Of(12),
+			Backoff:    pointer.Of(time.Millisecond * 250),
+			MaxBackoff: pointer.Of(time.Minute),
 		},
 	}
 }
