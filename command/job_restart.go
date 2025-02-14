@@ -124,14 +124,14 @@ Usage: nomad job restart [options] <job>
   batch. It is also possible to specify additional time to wait between
   batches.
 
-  Allocations can be restarted in-place or rescheduled. When restarting
-  in-place the command may target specific tasks in the allocations, restart
-  only tasks that are currently running, or restart all tasks, even the ones
-  that have already run. Allocations can also be targeted by group. When both
-  groups and tasks are defined only the tasks for the allocations of those
-  groups are restarted.
+  Allocations can be restarted in-place or migrated. When restarting in-place
+  the command may target specific tasks in the allocations, restart only tasks
+  that are currently running, or restart all tasks, even the ones that have
+  already run. Allocations can also be targeted by group. When both groups and
+  tasks are defined only the tasks for the allocations of those groups are
+  restarted.
 
-  When rescheduling, the current allocations are stopped triggering the Nomad
+  When migrating, the current allocations are stopped triggering the Nomad
   scheduler to create new allocations that may be placed in different
   clients. The command waits until the new allocations have client status
   'ready' before proceeding with the remaining batches. Services health checks
@@ -183,12 +183,13 @@ Restart Options:
     proceed. If 'fail' the command exits immediately. Defaults to 'ask'.
 
   -reschedule
-    If set, allocations are stopped and rescheduled instead of restarted
+    If set, allocations are stopped and migrated instead of restarted
     in-place. Since the group is not modified the restart does not create a new
     deployment, and so values defined in 'update' blocks, such as
     'max_parallel', are not taken into account. This option cannot be used with
     '-task'. Only jobs of type 'batch', 'service', and 'system' can be
-    rescheduled.
+    migrated. Note that despite the name of this flag, allocations are migrated
+    and not rescheduled, so the 'reschedule' block does not apply.
 
   -task=<task-name>
     Specify the task to restart. Can be specified multiple times. If groups are
