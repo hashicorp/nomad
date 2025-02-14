@@ -7775,6 +7775,16 @@ func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
 	tg.Constraints = newConstraints
 }
 
+const (
+	// TaskGroupHostVolumeClaimListRPCMethod is the RPC method for listing task group
+	// host volume claims.
+	TaskGroupHostVolumeClaimListRPCMethod = "TaskGroupHostVolumeClaim.List"
+
+	// TaskGroupHostVolumeClaimDeleteRPCMethod is the RPC method for deleting task
+	// group host volume claims.
+	TaskGroupHostVolumeClaimDeleteRPCMethod = "TaskGroupHostVolumeClaim.Delete"
+)
+
 // TaskGroupHostVolumeClaim associates a task group with a host volume ID. It's
 // used for stateful deployments, i.e., volume requests with "sticky" set to
 // true.
