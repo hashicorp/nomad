@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Fixed a bug that made affinity and spread updates destructive
+```

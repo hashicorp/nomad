@@ -182,13 +182,13 @@ FieldsLoop:
 	}
 
 	// Object changes that can be done in-place are log configs, services,
-	// constraints.
+	// constraints, affinity or spread.
 
 	if !destructive {
 	ObjectsLoop:
 		for _, oDiff := range diff.Objects {
 			switch oDiff.Name {
-			case "Service", "Constraint":
+			case "Service", "Constraint", "Affinity", "Spread":
 				continue
 			case "LogConfig":
 				for _, fDiff := range oDiff.Fields {
