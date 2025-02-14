@@ -1,6 +1,5 @@
-Nomad uses one of three values to describe a job's status.
+Nomad uses one of these values to describe a job's status.
 
-- `complete`
 - `dead`
 - `running`
 
@@ -10,9 +9,8 @@ statuses to help you manage jobs.
 
 The following table maps the CLI statuses to the statuses that appear in the Nomad UI.
 
-| CLI status | UI status |
-| ---------- | --------- |
-| `dead`      | `Complete`    |
-| `dead`           | `Failed`, `Scaled Down` |
+| CLI status       | UI status |
+| ---------------- | --------- |
+| `dead`           | `Complete`, `Failed`, `Scaled Down` |
 | `dead (stopped)` | `Stopped` |
 | `running`        | `Degraded`, `Deploying`, `Healthy`, `Recovering`, `Running`, `Scaled Down` |

@@ -31,13 +31,31 @@ the desired job state.
 
 @include 'job-status-map.mdx'
 
+### CLI statuses
+
+Only the CLI returns these job statuses.
+
+#### `running`
+
+The `running` status indicates that the job has non-terminal allocations.
+
+#### `dead`
+
+The `dead` status indicates that all evaluations and allocations are in a
+terminal state.
+
+#### `dead (stopped)`
+
+The `dead (stopped)` status indicates that a user has manually stopped the job.
+You may start this job again.
+
 ### UI statuses
 
 These job statuses only appear in the Nomad UI.
 
 #### Complete
 
-The `Complete` status indicated that all expected allocations are complete. This
+The `Complete` status indicates that all expected allocations are complete. This
 status applies to batch and sysbatch jobs only.
 
 #### Degraded
