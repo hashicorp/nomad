@@ -346,7 +346,7 @@ func TestNewRunnerConfig_Retries(t *testing.T) {
 		VaultConfig:  &sconfig.VaultConfig{Enabled: pointer.Of(true)},
 	}
 	ct := ctconf.DefaultTemplateConfig()
-	mapping := map[*ctconf.TemplateConfig]*structs.Template{ct: &structs.Template{}}
+	mapping := map[*ctconf.TemplateConfig]*structs.Template{ct: {}}
 	tconfig, err := newRunnerConfig(managerCfg, mapping)
 	must.NoError(t, err)
 
