@@ -62,6 +62,10 @@ Operators can use weights to express relative preference across multiple affinit
 placement is still successful. This is different from [constraints][constraint] where placement is
 restricted only to nodes that meet the constraint's criteria.
 
+Updating the `affinity` block is non-destructive. Updating a job specification
+with only non-destructive updates will not migrate or replace existing
+allocations.
+
 ## `affinity` Parameters
 
 - `attribute` `(string: "")` - Specifies the name or reference of the attribute
