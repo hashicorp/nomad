@@ -4,21 +4,17 @@
 package client
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocrunner"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
-	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/hoststats"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func gcConfig() *GCConfig {
@@ -192,85 +188,82 @@ func TestAllocGarbageCollector_CollectAll(t *testing.T) {
 	}
 }
 
-// TODO: (mismithhisler) refactor to table driven test UseBelowThreshold
-func TestAllocGarbageCollector_UsageBelowThreshold(t *testing.T) {
+func TestAllocGarbageCollector_KeepUsageBelowThreshold(t *testing.T) {
 	ci.Parallel(t)
 
-	logger := testlog.HCLogger(t)
-	statsCollector := &MockStatsCollector{}
-	conf := gcConfig()
-	conf.ReservedDiskMB = 20
-	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
-
-	ar1, cleanup1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
-	defer cleanup1()
-	ar2, cleanup2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
-	defer cleanup2()
-
-	go ar1.Run()
-	go ar2.Run()
-
-	gc.MarkForCollection(ar1.Alloc().ID, ar1)
-	gc.MarkForCollection(ar2.Alloc().ID, ar2)
-
-	// Exit the alloc runners
-	exitAllocRunner(ar1, ar2)
-
-	statsCollector.availableValues = []uint64{1000}
-	statsCollector.usedPercents = []float64{20}
-	statsCollector.inodePercents = []float64{10}
-
-	if err := gc.keepUsageBelowThreshold(); err != nil {
-		t.Fatalf("err: %v", err)
+	testCases := []struct {
+		name    string
+		counter *MockAllocCounter
+		stats   *MockStatsCollector
+		expGC   bool
+	}{
+		{
+			name:    "garbage collects alloc when disk usage above threshold",
+			counter: &MockAllocCounter{},
+			stats: &MockStatsCollector{
+				availableValues: []uint64{0, 0},
+				usedPercents:    []float64{85, 85}, // above threshold
+				inodePercents:   []float64{0, 0},
+			},
+			expGC: true,
+		},
+		{
+			name:    "garbage collects alloc when inode usage above threshold",
+			counter: &MockAllocCounter{},
+			stats: &MockStatsCollector{
+				availableValues: []uint64{0, 0},
+				usedPercents:    []float64{0, 0},
+				inodePercents:   []float64{90, 90}, // above threshold
+			},
+			expGC: true,
+		},
+		{
+			name: "garbage collects alloc when liveAllocs above maxAllocs threshold",
+			counter: &MockAllocCounter{
+				allocs: 150, // above threshold
+			},
+			stats: &MockStatsCollector{
+				availableValues: []uint64{0, 0},
+				usedPercents:    []float64{0, 0},
+				inodePercents:   []float64{0, 0},
+			},
+			expGC: true,
+		},
+		{
+			name: "exits when there is no reason to GC",
+			counter: &MockAllocCounter{
+				allocs: 0,
+			},
+			stats: &MockStatsCollector{
+				availableValues: []uint64{0, 0},
+				usedPercents:    []float64{0, 0},
+				inodePercents:   []float64{0, 0},
+			},
+			expGC: false,
+		},
 	}
 
-	// We shouldn't GC any of the allocs since the used percent values are below
-	// threshold
-	for i := 0; i < 2; i++ {
-		if gcAlloc := gc.allocRunners.Pop(); gcAlloc == nil {
-			t.Fatalf("err: %v", gcAlloc)
-		}
-	}
-}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			logger := testlog.HCLogger(t)
+			gc := NewAllocGarbageCollector(logger, tc.stats, tc.counter, gcConfig())
 
-func TestAllocGarbageCollector_UsedPercentThreshold(t *testing.T) {
-	ci.Parallel(t)
+			// add a single alloc for garbage collection
+			ar1, cleanup1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
+			defer cleanup1()
+			exitAllocRunner(ar1)
+			gc.MarkForCollection(ar1.Alloc().ID, ar1)
 
-	logger := testlog.HCLogger(t)
-	statsCollector := &MockStatsCollector{}
-	conf := gcConfig()
-	conf.ReservedDiskMB = 20
-	gc := NewAllocGarbageCollector(logger, statsCollector, &MockAllocCounter{}, conf)
+			// gc
+			err := gc.keepUsageBelowThreshold()
+			must.Nil(t, err)
 
-	ar1, cleanup1 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
-	defer cleanup1()
-	ar2, cleanup2 := allocrunner.TestAllocRunnerFromAlloc(t, mock.Alloc())
-	defer cleanup2()
-
-	go ar1.Run()
-	go ar2.Run()
-
-	gc.MarkForCollection(ar1.Alloc().ID, ar1)
-	gc.MarkForCollection(ar2.Alloc().ID, ar2)
-
-	// Exit the alloc runners
-	exitAllocRunner(ar1, ar2)
-
-	statsCollector.availableValues = []uint64{1000, 800}
-	statsCollector.usedPercents = []float64{85, 60}
-	statsCollector.inodePercents = []float64{50, 30}
-
-	if err := gc.keepUsageBelowThreshold(); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// We should be GC-ing only one of the alloc runners since the second time
-	// used percent returns a number below threshold.
-	if gcAlloc := gc.allocRunners.Pop(); gcAlloc == nil {
-		t.Fatalf("err: %v", gcAlloc)
-	}
-
-	if gcAlloc := gc.allocRunners.Pop(); gcAlloc != nil {
-		t.Fatalf("gcAlloc: %v", gcAlloc)
+			gcAlloc := gc.allocRunners.Pop()
+			if tc.expGC {
+				must.Nil(t, gcAlloc)
+			} else {
+				must.NotNil(t, gcAlloc)
+			}
+		})
 	}
 }
