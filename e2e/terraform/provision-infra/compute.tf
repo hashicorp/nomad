@@ -138,7 +138,7 @@ data "aws_ami" "windows_2016" {
 
   filter {
     name   = "name"
-    values = ["${local.ami_prefix}-windows-2016-${local.windows_image_name}-*"]
+    values = ["${local.ami_prefix}-${local.windows_image_name}-*"]
   }
 
   filter {
@@ -149,5 +149,5 @@ data "aws_ami" "windows_2016" {
   filter {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
-  }
+  } 
 }
