@@ -17,7 +17,8 @@ node that misses heartbeats, the allocation will be marked `lost` and will be
 replaced.
 
 Replacement happens when a node is lost. When a node is drained, Nomad
-[migrates][] the allocations instead, and Nomad ignores the `disconnect` block. When a Nomad agent fails to set up the allocation or the tasks of an
+[migrates][] the allocations instead, and Nomad ignores the `disconnect`
+block. When a Nomad agent fails to set up the allocation or the tasks of an
 allocation fail more than their [`restart`][] block allows, Nomad
 [reschedules][] the allocations and ignores the `disconnect`.
 

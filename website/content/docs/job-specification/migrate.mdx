@@ -23,10 +23,10 @@ within the job. Only service jobs with a count greater than 1 support migrate
 blocks.
 
 Migrating happens when a Nomad node is drained. When a node is lost, Nomad
-[replaces][] the allocations instead and ignores the `migrate` block.
-When the agent fails to set up the allocation or the tasks of an
-allocation more than their [`restart`][] block allows, Nomad [reschedules][] the
-allocations instead and ignores the `migrate` block.
+[replaces][] the allocations instead and ignores the `migrate` block.  When the
+agent fails to set up the allocation or the tasks of an allocation more than
+their [`restart`][] block allows, Nomad [reschedules][] the allocations instead
+and ignores the `migrate` block.
 
 
 ```hcl

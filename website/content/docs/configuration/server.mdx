@@ -443,8 +443,8 @@ and replaced.
 The various heartbeat related parameters allow you to tune the following
 tradeoffs:
 
-- The longer the heartbeat period, the longer a `down` Client's workload will
-  take to be replaced.
+- The longer the heartbeat period, the longer Nomad takes to replace a `down`
+  Client's workload.
 - The shorter the heartbeat period, the more likely transient network issues,
   leader elections, and other temporary issues could cause a perfectly
   functional Client and its workloads to be marked as `down` and the work
