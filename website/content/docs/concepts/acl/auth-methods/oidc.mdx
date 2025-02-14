@@ -1,0 +1,117 @@
+---
+layout: docs
+page_title: OpenID Connect (OIDC) Auth Method
+description: >-
+  Use the OIDC auth method type to authenticate to Nomad through a web browser with an OpenID Connect provider. Learn how to configure the auth method parameters using this reference page and example configuration.
+---
+
+# OpenID Connect (OIDC) Auth Method
+
+Use the `oidc` auth method to authenticate to Nomad with
+[OIDC](https://en.wikipedia.org/wiki/OpenID_Connect). This method allows
+authentication via a configured OIDC provider using the user's web browser.
+Initiate this method from the Nomad UI or the command line.
+
+## Prerequisites
+
+- General knowledge of [OIDC concepts](https://developer.okta.com/blog/2017/07/25/oidc-primer-part-1)
+- [Nomad Access Control List fundamentals][ACL Overview].
+
+Refer to [auth-method create] for the parameters required to create an OIDC auth-method.
+
+## JWT Verification
+
+Nomad uses OIDC discovery to verify JWT signatures against public
+keys from the issuer. Nomad first fetches keys from the OIDC
+Discovery URL during authentication and then applies OIDC
+validation criteria such as `iss` and `aud`.
+
+## OIDC Authentication
+
+Nomad includes two built-in OIDC login flows: the Nomad UI, and the CLI using
+[`nomad login`](/nomad/docs/commands/login).
+
+### Redirect URIs
+
+Properly setting redirect URIs is an important part of OIDC auth method
+configuration. You must configure these in both Nomad and the OIDC
+provider, and these configurations must align.
+
+Specify the redirect URIs for an auth method with the
+`AllowedRedirectURIs` parameter in the auth method config. The Nomad UI
+and CLI use different redirect URIs, so you need to configure one or both,
+depending on your installation.
+
+**Note:** Redirect URI is used interchangeably with callback address.
+
+Logging in via the UI requires the redirect URI
+`http://{host:port}/ui/settings/tokens`.
+
+Logging in via the CLI requires the redirect
+URI `http://{host:port}/oidc/callback`.
+
+### OIDC Login
+
+#### Nomad UI
+
+1. Select one of the provider links in the Nomad homepage or navigate directly to `/ui/settings/tokens`.
+1. Click one of the buttons for your OIDC auth method of choice.
+1. Complete the authentication with the configured provider.
+
+#### CLI
+
+Execute the `nomad login -method=oidc` command to log in.
+If the `-oidc-callback-addr` flag is not specified, it will default to `localhost:4649`.
+
+```shell-session
+$ nomad login -method=oidc -oidc-callback-addr=<host:port>
+
+Complete the login via your OIDC provider. Launching browser to:
+
+    https://myco.auth0.com/authorize?redirect_uri=http%3A%2F%2Flocalhost%3A4649%2Foidc%2Fcallback&client_id=r3qXc2bix9eF...
+```
+
+Your browser opens to the generated URL to complete the provider's login.
+Enter the URL manually if the browser does not automatically open.
+
+## OIDC Configuration Troubleshooting
+
+The amount of configuration required for OIDC is relatively small, but it can
+be tricky to debug why things aren't working. The following are tips for setting up OIDC:
+
+- Monitor the log output for the Nomad servers for important
+information about OIDC validation failures.
+
+- Ensure correct redirect URIs in Nomad and on the provider. URIs
+need to match exactly. Check http/https, 127.0.0.1/localhost,
+port numbers, and whether trailing slashes are present.
+
+- The `BoundAudiences` option is typically
+  not required. OIDC providers use the `client_id` as the audience and
+  OIDC validation expects this.
+
+- Check your provider for scopes that are required to receive all of
+  the information you need. You often need to request the scopes
+  `profile` and `groups`, which you may set with
+  `OIDCScopes=["profile", "groups"]` in the auth method configuration.
+
+- If you're seeing claim-related errors in logs, review the provider's docs
+  very carefully to see how they're naming and structuring their claims.
+  Depending on the provider, you may be able to construct a simple `curl`
+  [implicit grant](https://developer.okta.com/blog/2018/05/24/what-is-the-oauth2-implicit-grant-type)
+  request to obtain a JWT that you can inspect. This example decodes the
+  JWT located in the `access_token` field of a JSON response.
+
+      jq --raw-output '.access_token / "." | .[1] | @base64d' jwt.json
+
+- With debug level logging, use the [VerboseLogging] option in the auth
+  method configuration to log the received OIDC token. This can be helpful
+  when debugging provider setup and verifying that the received claims are
+  what you expect. Since claims data is logged verbatim and may contain
+  sensitive information, do not use this option in production.
+
+@include 'jwt_claim_mapping_details.mdx'
+
+[ACL Overview]: /nomad/docs/concepts/acl
+[auth-method create]: /nomad/docs/commands/acl/auth-method/create
+[VerboseLogging]: /nomad/api-docs/acl/auth-methods#verboselogging
