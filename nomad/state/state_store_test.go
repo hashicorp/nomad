@@ -6487,6 +6487,7 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 	stickyJob.TaskGroups[0].Volumes = stickyRequest
 
 	existingClaim := &structs.TaskGroupHostVolumeClaim{
+		ID:            uuid.Generate(),
 		Namespace:     structs.DefaultNamespace,
 		JobID:         stickyJob.ID,
 		TaskGroupName: stickyJob.TaskGroups[0].Name,
