@@ -430,7 +430,6 @@ type HostVolumeListResponse struct {
 }
 
 type TaskGroupVolumeClaimListRequest struct {
-	Namespace  string
 	TaskGroup  string
 	JobID      string
 	VolumeName string

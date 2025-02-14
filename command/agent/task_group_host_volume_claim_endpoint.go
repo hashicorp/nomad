@@ -37,7 +37,6 @@ func (s *HTTPServer) TaskGroupHostVolumeClaimListRequest(resp http.ResponseWrite
 
 	query := req.URL.Query()
 	args.Prefix = query.Get("prefix")
-	args.Namespace = query.Get("namespace")
 	args.JobID = query.Get("job_id")
 	args.TaskGroup = query.Get("task_group")
 	args.VolumeName = query.Get("volume_name")
