@@ -22,30 +22,26 @@ import (
 )
 
 func parseDockerImage(image string) (repo, tag string) {
-	// decode the image tag
-	splitted := strings.SplitN(image, "@", 2)
-	repoTag := splitted[0]
-	idx := strings.LastIndex(repoTag, ":")
-	if idx < 0 {
-		repo = repoTag
-	} else if t := repoTag[idx+1:]; !strings.Contains(t, "/") {
-		repo = repoTag[:idx]
-		tag = t
-	} else if t := repoTag[idx+1:]; strings.Contains(t, "/") {
-		repo = image
-		tag = "latest"
+	matches := reference.ReferenceRegexp.FindStringSubmatch(image)
+	if matches == nil {
+		return "", ""
 	}
 
-	if tag != "" {
-		return repo, tag
-	}
-	if i := strings.IndexRune(image, '@'); i > -1 { // Has digest (@sha256:...)
+	repo = matches[1]
+	tag = matches[2]
+	digest := matches[3]
+
+	if digest == "" {
+		if tag == "" {
+			tag = "latest"
+		}
+	} else {
+		repo = fmt.Sprintf("%s@%s", repo, digest)
 		// when pulling images with a digest, the repository contains the sha hash, and the tag is empty
 		// see: https://github.com/fsouza/go-dockerclient/blob/master/image_test.go#L471
-		repo = image
-	} else {
-		tag = "latest"
+		tag = ""
 	}
+
 	return repo, tag
 }
 
