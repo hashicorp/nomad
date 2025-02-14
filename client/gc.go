@@ -208,7 +208,7 @@ func (a *AllocGarbageCollector) Collect(allocID string) bool {
 		return false
 	}
 
-	go a.destroyAllocRunner(allocID, gcAlloc.allocRunner, "forced collection")
+	a.destroyAllocRunner(allocID, gcAlloc.allocRunner, "forced collection")
 	return true
 }
 
