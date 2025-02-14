@@ -4,6 +4,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
@@ -138,7 +139,7 @@ func (s *StateStore) deleteTaskGroupHostVolumeClaimByNamespaceAndJob(index uint6
 	return nil
 }
 
-// deleteTaskGroupHostVolumeClaimByNamespaceAndJob deletes a claim by its ID
+// DeleteTaskGroupHostVolumeClaim deletes a claim by its ID
 func (s *StateStore) DeleteTaskGroupHostVolumeClaim(index uint64, claimID string) error {
 	txn := s.db.WriteTxnMsgT(structs.TaskGroupHostVolumeClaimDeleteRequestType, index)
 	defer txn.Abort()
@@ -148,10 +149,12 @@ func (s *StateStore) DeleteTaskGroupHostVolumeClaim(index uint64, claimID string
 		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
 	}
 
-	if obj != nil {
-		if err := txn.Delete(TableTaskGroupHostVolumeClaim, obj); err != nil {
-			return err
-		}
+	if obj == nil {
+		return errors.New("Task group volume claim does not exist")
+	}
+
+	if err := txn.Delete(TableTaskGroupHostVolumeClaim, obj); err != nil {
+		return err
 	}
 
 	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupHostVolumeClaim, index}); err != nil {
