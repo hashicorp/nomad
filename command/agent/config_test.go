@@ -1566,21 +1566,21 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 
 		// Consul Retry
 		must.NotNil(t, templateConfig.ConsulRetry)
-		must.Eq(t, 0, *templateConfig.ConsulRetry.Attempts)
-		must.Nil(t, templateConfig.ConsulRetry.Backoff)
-		must.Nil(t, templateConfig.ConsulRetry.MaxBackoff)
+		must.Eq(t, 12, *templateConfig.ConsulRetry.Attempts)
+		must.Eq(t, time.Millisecond*250, *templateConfig.ConsulRetry.Backoff)
+		must.Eq(t, time.Minute, *templateConfig.ConsulRetry.MaxBackoff)
 
 		// Vault Retry
 		must.NotNil(t, templateConfig.VaultRetry)
-		must.Eq(t, 0, *templateConfig.VaultRetry.Attempts)
-		must.Nil(t, templateConfig.VaultRetry.Backoff)
-		must.Nil(t, templateConfig.VaultRetry.MaxBackoff)
+		must.Eq(t, 12, *templateConfig.VaultRetry.Attempts)
+		must.Eq(t, time.Millisecond*250, *templateConfig.VaultRetry.Backoff)
+		must.Eq(t, time.Minute, *templateConfig.VaultRetry.MaxBackoff)
 
 		// Nomad Retry
 		must.NotNil(t, templateConfig.NomadRetry)
-		must.Eq(t, 0, *templateConfig.NomadRetry.Attempts)
-		must.Nil(t, templateConfig.NomadRetry.Backoff)
-		must.Nil(t, templateConfig.NomadRetry.MaxBackoff)
+		must.Eq(t, 12, *templateConfig.NomadRetry.Attempts)
+		must.Eq(t, time.Millisecond*250, *templateConfig.NomadRetry.Backoff)
+		must.Eq(t, time.Minute, *templateConfig.NomadRetry.MaxBackoff)
 	})
 
 	t.Run("client config with full template block", func(t *testing.T) {
@@ -1626,13 +1626,13 @@ func TestConfig_LoadConsulTemplateConfig(t *testing.T) {
 
 		// Vault Retry
 		must.NotNil(t, templateConfig.VaultRetry)
-		must.Eq(t, 10, *templateConfig.VaultRetry.Attempts)
+		must.Eq(t, 0, *templateConfig.VaultRetry.Attempts)
 		must.Eq(t, 15*time.Second, *templateConfig.VaultRetry.Backoff)
 		must.Eq(t, 20*time.Second, *templateConfig.VaultRetry.MaxBackoff)
 
 		// Nomad Retry
 		must.NotNil(t, templateConfig.NomadRetry)
-		must.Eq(t, 15, *templateConfig.NomadRetry.Attempts)
+		must.Eq(t, 12, *templateConfig.NomadRetry.Attempts)
 		must.Eq(t, 20*time.Second, *templateConfig.NomadRetry.Backoff)
 		must.Eq(t, 25*time.Second, *templateConfig.NomadRetry.MaxBackoff)
 	})
