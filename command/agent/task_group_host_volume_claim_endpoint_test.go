@@ -85,26 +85,36 @@ func TestTaskGroupHostVolumeClaimEndpoint(t *testing.T) {
 
 		// List claims
 
-		req, err := http.NewRequest(http.MethodGet, "/v1/volume/claims", nil)
+		req, err := http.NewRequest(http.MethodGet, "/v1/volumes/claims", nil)
 		must.NoError(t, err)
 		claims, err := s.Server.TaskGroupHostVolumeClaimListRequest(respW, req)
 		must.NoError(t, err)
 		must.NotNil(t, claims)
 		respClaims := claims.([]*structs.TaskGroupHostVolumeClaim)
 		must.NotNil(t, respClaims)
-		// must contain all the claims
-		must.SliceLen(t, len(existingClaims), respClaims)
+		// must contain all the claims except for the one in other ns
+		must.SliceLen(t, len(existingClaims)-1, respClaims)
+
+		// list by fooooo
+		req, err = http.NewRequest(http.MethodGet, "/v1/volumes/claims?job_id=fooooo", nil)
+		must.NoError(t, err)
+		claims, err = s.Server.TaskGroupHostVolumeClaimListRequest(respW, req)
+		must.NoError(t, err)
+		must.NotNil(t, claims)
+		respClaims = claims.([]*structs.TaskGroupHostVolumeClaim)
+		must.NotNil(t, respClaims)
+		must.Eq(t, existingClaims[2].ID, respClaims[0].ID)
 
 		// Delete claim number 1
 
-		req, err = http.NewRequest(http.MethodDelete, fmt.Sprintf("/v1/volume/claim/%s", existingClaims[0].ID), nil)
+		req, err = http.NewRequest(http.MethodDelete, fmt.Sprintf("/v1/volumes/claim/%s", existingClaims[0].ID), nil)
 		must.NoError(t, err)
 		_, err = s.Server.taskGroupHostVolumeClaimDelete(existingClaims[0].ID, respW, req)
 		must.NoError(t, err)
 
 		// Verify claim was deleted
 
-		req, err = http.NewRequest(http.MethodGet, "/v1/volume/claims", nil)
+		req, err = http.NewRequest(http.MethodGet, "/v1/volumes/claims", nil)
 		must.NoError(t, err)
 		claims, err = s.Server.TaskGroupHostVolumeClaimListRequest(respW, req)
 		must.NoError(t, err)

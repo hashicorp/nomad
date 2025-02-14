@@ -412,8 +412,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/plugins", s.wrap(s.CSIPluginsRequest))
 	s.mux.HandleFunc("/v1/plugin/csi/", s.wrap(s.CSIPluginSpecificRequest))
 	s.mux.HandleFunc("/v1/volume/host/", s.wrap(s.HostVolumeSpecificRequest))
-	s.mux.HandleFunc("/v1/volume/claims", s.wrap(s.TaskGroupHostVolumeClaimListRequest))
-	s.mux.HandleFunc("/v1/volume/claim/", s.wrap(s.TaskGroupHostVolumeClaimRequest))
+	s.mux.HandleFunc("/v1/volumes/claims", s.wrap(s.TaskGroupHostVolumeClaimListRequest))
+	s.mux.HandleFunc("/v1/volumes/claim/", s.wrap(s.TaskGroupHostVolumeClaimRequest))
 
 	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
 	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))

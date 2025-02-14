@@ -34,7 +34,7 @@ func (c *Client) TaskGroupHostVolumeClaims() *TaskGroupHostVolumeClaims {
 func (tgvc *TaskGroupHostVolumeClaims) List(opts *QueryOptions) ([]*TaskGroupHostVolumeClaim, *QueryMeta, error) {
 	var out []*TaskGroupHostVolumeClaim
 
-	qm, err := tgvc.client.query("/v1/volume/claims", &out, opts)
+	qm, err := tgvc.client.query("/v1/volumes/claims", &out, opts)
 	if err != nil {
 		return nil, qm, err
 	}
@@ -42,7 +42,7 @@ func (tgvc *TaskGroupHostVolumeClaims) List(opts *QueryOptions) ([]*TaskGroupHos
 }
 
 func (tgvc *TaskGroupHostVolumeClaims) Delete(claimID string, opts *WriteOptions) (*WriteMeta, error) {
-	path, err := url.JoinPath("/v1/volume/claim", url.PathEscape(claimID))
+	path, err := url.JoinPath("/v1/volumes/claim", url.PathEscape(claimID))
 	if err != nil {
 		return nil, err
 	}

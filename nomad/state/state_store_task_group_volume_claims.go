@@ -119,6 +119,48 @@ func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet,
 	return filter, nil
 }
 
+// TaskGroupHostVolumeClaimsByTaskGroup returns all volume claims filtered by
+// task group name
+func (s *StateStore) TaskGroupHostVolumeClaimsByTaskGroup(ws memdb.WatchSet, tg string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexTaskGroup, tg)
+	if err != nil {
+		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// TaskGroupHostVolumeClaimsByJobID returns all volume claims filtered by job
+// ID
+func (s *StateStore) TaskGroupHostVolumeClaimsByJobID(ws memdb.WatchSet, jobID string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexJob, jobID)
+	if err != nil {
+		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
+// TaskGroupHostVolumeClaimsByVolumeName returns all volume claims filtered by
+// volume name
+func (s *StateStore) TaskGroupHostVolumeClaimsByVolumeName(ws memdb.WatchSet, vol string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexVolumeName, vol)
+	if err != nil {
+		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // deleteTaskGroupHostVolumeClaimByNamespaceAndJob deletes all claims for a
 // given namespace and job ID
 func (s *StateStore) deleteTaskGroupHostVolumeClaimByNamespaceAndJob(index uint64, txn *txn, namespace, jobID string) error {

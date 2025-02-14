@@ -47,6 +47,8 @@ const (
 	indexAuthMethod    = "auth_method"
 	indexNodePool      = "node_pool"
 	indexClaimID       = "claim_id"
+	indexTaskGroup     = "task_group"
+	indexVolumeName    = "volume_name"
 )
 
 var (
@@ -1747,6 +1749,30 @@ func taskGroupHostVolumeClaimSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "ID",
+				},
+			},
+			indexTaskGroup: {
+				Name:         indexTaskGroup,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "TaskGroupName",
+				},
+			},
+			indexJob: {
+				Name:         indexJob,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "JobID",
+				},
+			},
+			indexVolumeName: {
+				Name:         indexVolumeName,
+				AllowMissing: false,
+				Unique:       false,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "VolumeName",
 				},
 			},
 		},

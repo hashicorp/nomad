@@ -1124,9 +1124,9 @@ $ curl \
 This endpoint allows lists host volume claims made by task groups that
 requested "sticky" volumes.
 
-| Method | Path                | Produces           |
-|--------|---------------------|--------------------|
-| `GET`  | `/v1/volume/claims` | `application/json` |
+| Method | Path                 | Produces           |
+|--------|----------------------|--------------------|
+| `GET`  | `/v1/volumes/claims` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -1136,11 +1136,30 @@ The table below shows this endpoint's support for
 |------------------|------------------------------|
 | `YES`            | `namespace:host-volume-read` |
 
+### Parameters
+
+- `job_id` `(string: "")` - Specifies the job ID used to filter task group
+volume claims.
+
+- `task_group` `(string: "")` - Specifies the task group name used to filter
+task group volume claims.
+
+- `volume_name` `(string: "")` - Specifies the volume name used to filter
+task group volume claims.
+
+- `next_token` `(string: "")` - This endpoint supports paging. The
+`next_token` parameter accepts a string returned in a previous response's
+`NextToken` field to request the next page of results.
+
+- `per_page` `(int: <required>)` - Specifies a maximum number of snapshots to
+return for this request. The response includes a `NextToken` field that
+can be passed to the next request to fetch additional pages.
+
 ### Sample Request
 
 ```shell-session
 $ curl \
-    https://localhost:4646/v1/volume/claims
+    https://localhost:4646/v1/volumes/claims
 ```
 
 ### Sample Response
@@ -1166,9 +1185,9 @@ $ curl \
 This endpoint allows deleting host volume claims made by task groups that
 requested "sticky" volumes.
 
-| Method   | Path                         | Produces       |
-|----------|------------------------------|----------------|
-| `DELETE` | `/v1/volume/claim/:claim_id` | `(empty body)` |
+| Method   | Path                          | Produces       |
+|----------|-------------------------------|----------------|
+| `DELETE` | `/v1/volumes/claim/:claim_id` | `(empty body)` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and

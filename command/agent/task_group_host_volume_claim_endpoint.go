@@ -35,8 +35,15 @@ func (s *HTTPServer) TaskGroupHostVolumeClaimListRequest(resp http.ResponseWrite
 		return nil, nil
 	}
 
+	query := req.URL.Query()
+	args.Prefix = query.Get("prefix")
+	args.Namespace = query.Get("namespace")
+	args.JobID = query.Get("job_id")
+	args.TaskGroup = query.Get("task_group")
+	args.VolumeName = query.Get("volume_name")
+
 	var out structs.TaskGroupVolumeClaimListResponse
-	if err := s.agent.RPC("TaskGroupHostVolumeClaim.List", &args, &out); err != nil {
+	if err := s.agent.RPC(structs.TaskGroupHostVolumeClaimListRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 
@@ -49,7 +56,7 @@ func (s *HTTPServer) taskGroupHostVolumeClaimDelete(id string, resp http.Respons
 	s.parseWriteRequest(req, &args.WriteRequest)
 
 	var out structs.TaskGroupVolumeClaimDeleteResponse
-	if err := s.agent.RPC("TaskGroupHostVolumeClaim.Delete", &args, &out); err != nil {
+	if err := s.agent.RPC(structs.TaskGroupHostVolumeClaimDeleteRPCMethod, &args, &out); err != nil {
 		return nil, err
 	}
 

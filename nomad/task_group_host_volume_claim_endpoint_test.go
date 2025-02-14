@@ -47,7 +47,7 @@ func TestTaskGroupHostVolumeClaimEndpoint_List(t *testing.T) {
 		},
 		{
 			ID:            uuid.Generate(),
-			Namespace:     "foo",
+			Namespace:     "foo", // this should be filtered out from any list outputs
 			JobID:         stickyJob.ID,
 			TaskGroupName: stickyJob.TaskGroups[0].Name,
 			VolumeID:      dhvID,
@@ -87,7 +87,7 @@ func TestTaskGroupHostVolumeClaimEndpoint_List(t *testing.T) {
 	var claimsResp2 structs.TaskGroupVolumeClaimListResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.TaskGroupHostVolumeClaimListRPCMethod, claimsReq2, &claimsResp2)
 	must.NoError(t, err)
-	must.Len(t, 3, claimsResp2.Claims)
+	must.Len(t, 2, claimsResp2.Claims)
 
 	// Now test a blocking query, where we wait for an update to the list which
 	// is triggered by a deletion.
@@ -118,7 +118,7 @@ func TestTaskGroupHostVolumeClaimEndpoint_List(t *testing.T) {
 	// Wait until the test within the routine is complete.
 	result := <-resultCh
 	must.NoError(t, result.err)
-	must.Len(t, 2, result.reply.Claims)
+	must.Len(t, 1, result.reply.Claims)
 	must.NotEq(t, result.reply.Claims[0].ID, existingClaims[0].ID)
 	must.Greater(t, claimsResp2.Index, result.reply.Index)
 }

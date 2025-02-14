@@ -7811,6 +7811,16 @@ func (tgvc *TaskGroupHostVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupHostVo
 	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
 }
 
+// GetNamespace implements the paginator.NamespaceGetter interface
+func (tgvc *TaskGroupHostVolumeClaim) GetNamespace() string {
+	return tgvc.Namespace
+}
+
+// GetID implements the paginator.IDGetter interface
+func (tgvc *TaskGroupHostVolumeClaim) GetID() string {
+	return tgvc.ID
+}
+
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {
