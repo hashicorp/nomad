@@ -43,6 +43,7 @@ type NodeStatusCommand struct {
 	pageToken   string
 	filter      string
 	tmpl        string
+	openURL     bool
 }
 
 func (c *NodeStatusCommand) Help() string {
@@ -92,6 +93,9 @@ Node Status Options:
   -filter
     Specifies an expression used to filter query results.
 
+  -ui
+    Open the node status page in the browser.
+
   -os
     Display operating system name.
 
@@ -126,6 +130,7 @@ func (c *NodeStatusCommand) AutocompleteFlags() complete.Flags {
 			"-os":         complete.PredictAnything,
 			"-quiet":      complete.PredictAnything,
 			"-verbose":    complete.PredictNothing,
+			"-ui":         complete.PredictNothing,
 		})
 }
 
@@ -166,6 +171,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 	flags.StringVar(&c.filter, "filter", "", "")
 	flags.IntVar(&c.perPage, "per-page", 0, "")
 	flags.StringVar(&c.pageToken, "page-token", "", "")
+	flags.BoolVar(&c.openURL, "ui", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -312,6 +318,14 @@ Results have been paginated. To get the next page run:
 %s -page-token %s`, argsWithoutPageToken(os.Args), qm.NextToken))
 		}
 
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: c.Name(),
+			OpenURL: c.openURL,
+		})
+		if hint != "" {
+			c.Ui.Warn(hint)
+		}
+
 		return 0
 	}
 
@@ -369,6 +383,7 @@ Results have been paginated. To get the next page run:
 	}
 
 	return c.formatNode(client, node)
+
 }
 
 func nodeDrivers(n *api.Node) []string {
@@ -504,6 +519,17 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 		basic = append(basic, fmt.Sprintf("Drivers|%s", strings.Join(nodeDrivers(node), ",")))
 		c.Ui.Output(c.Colorize().Color(formatKV(basic)))
 
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "node status single",
+			PathParams: map[string]string{
+				"nodeID": node.ID,
+			},
+			OpenURL: c.openURL,
+		})
+		if hint != "" {
+			c.Ui.Warn(hint)
+		}
+
 		// Output alloc info
 		if err := c.outputAllocInfo(node, nodeAllocs); err != nil {
 			c.Ui.Error(fmt.Sprintf("%s", err))
@@ -589,6 +615,17 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 	if err := c.outputAllocInfo(node, nodeAllocs); err != nil {
 		c.Ui.Error(fmt.Sprintf("%s", err))
 		return 1
+	}
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "node status single",
+		PathParams: map[string]string{
+			"nodeID": node.ID,
+		},
+		OpenURL: c.openURL,
+	})
+	if hint != "" {
+		c.Ui.Warn(hint)
 	}
 
 	return 0

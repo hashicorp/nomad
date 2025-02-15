@@ -17,6 +17,7 @@ type StatusCommand struct {
 
 	// Placeholder bool to allow passing of verbose flags to subcommands.
 	verbose bool
+	openURL bool
 }
 
 func (c *StatusCommand) Help() string {
@@ -38,6 +39,9 @@ Status Options:
 
   -verbose
     Display full information.
+
+  -ui
+    Open the status page in the browser.
 `
 
 	return strings.TrimSpace(helpText)
@@ -51,6 +55,7 @@ func (c *StatusCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-verbose": complete.PredictNothing,
+			"-ui":      complete.PredictNothing,
 		})
 }
 
@@ -84,7 +89,7 @@ func (c *StatusCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet("status", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.verbose, "verbose", false, "")
-
+	flags.BoolVar(&c.openURL, "ui", false, "")
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments: %q", err))
 		return 1
