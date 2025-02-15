@@ -1,0 +1,74 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+<div class="mega-search-input-container">
+<Hds::Form::TextInput::Base
+  @type="search"
+  @value={{this.searchText}}
+  aria-label="Global Search"
+  placeholder="Jump to"
+  @icon="search"
+  {{on "input" (action this.updateSearchText)}}
+  {{on "keyup" (action this.handleKeyUp)}}
+
+  {{on "focus" (action this.expand)}}
+  {{!-- {{on "blur" (action this.retract)}} --}}
+  {{keyboard-shortcut 
+    label="Global Search"
+    pattern=(array "/")
+    action=(action this.focus)
+    menuLevel=true
+  }}
+  data-test-search
+  class="mega-search-input"
+/>
+</div>
+
+<div class="mega-search {{if this.expanded "expanded"}}"
+  {{on-click-outside
+    this.retract
+    capture=true
+  }}
+
+>
+  {{#if this.expanded}}
+    {{log "EXPANDED"}}
+    {{#if this.results}}
+    <div class="results">
+      TODO: Search results here...
+    </div>
+    {{else}}
+    <div class="recent-searches">
+      <h3>Recent Searches:</h3>
+      TODO: Recent searches here...
+    </div>
+    {{/if}}
+    <div class="recents">
+      <h3>Recently Visited:</h3>
+      {{#each this.history.recommendations as |recent|}}
+        <div class="recent">
+          <LinkTo
+            @route="jobs.index"
+          >
+            {{!-- <header>{{recent.entityType}}</header> --}}
+            <h4>
+              {{or recent.label recent.identifier}}
+              <small>{{recent.entityType}}</small>
+            </h4>
+            <footer>
+              <em>
+                {{#if recent.reason}}
+                  {{recent.reason}}
+                {{else}}
+                  {{recent.views.length}} {{pluralize "time" recent.views.length}} in the past week
+                {{/if}}
+              </em>
+            </footer>
+          </LinkTo>
+        </div>
+      {{/each}}
+    </div>
+  {{/if}}
+</div>
