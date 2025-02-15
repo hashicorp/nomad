@@ -11,7 +11,6 @@ import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import Pretender from 'pretender';
 import { logEncode } from '../../../mirage/data/logs';
-import fetch from 'nomad-ui/utils/fetch';
 import Log from 'nomad-ui/utils/classes/log';
 
 const { assign } = Object;
