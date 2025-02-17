@@ -429,6 +429,18 @@ type HostVolumeListResponse struct {
 	QueryMeta
 }
 
+type TaskGroupVolumeClaimListRequest struct {
+	TaskGroup  string
+	JobID      string
+	VolumeName string
+	QueryOptions
+}
+
+type TaskGroupVolumeClaimListResponse struct {
+	Claims []*TaskGroupHostVolumeClaim
+	QueryMeta
+}
+
 type TaskGroupVolumeClaimDeleteRequest struct {
 	ClaimID string
 	WriteRequest
