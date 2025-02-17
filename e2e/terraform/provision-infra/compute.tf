@@ -149,5 +149,5 @@ data "aws_ami" "windows_2016" {
   filter {
     name   = "tag:BuilderSha"
     values = [data.external.packer_sha.result["sha"]]
-  } 
+  }
 }
