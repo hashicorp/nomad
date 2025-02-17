@@ -61,6 +61,9 @@ Optionally, edit the `nomad_local_binary` variable in the
 `terraform.tfvars` file to change the path to the local binary of
 Nomad you'd like to upload, but keep in mind it has to match the OS and the CPU architecture of the nodes (amd64 linux). 
 
+NOTE: If you want to have a cluster with mixed CPU architectures, you need to specify the count and also provide the 
+corresponding binary using `var.nomad_local_binary_client_ubuntu_jammy` and or `var.nomad_local_binary_client_windows_2016`.
+
 Run Terraform apply to deploy the infrastructure:
 
 ```sh

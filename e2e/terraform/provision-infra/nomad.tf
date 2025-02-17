@@ -1,6 +1,12 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+locals {
+  server_binary  = var.nomad_local_binary_server != "" ? var.nomad_local_binary_server : var.nomad_local_binary
+  linux_binary   = var.nomad_local_binary_client_ubuntu_jammy != "" ? var.nomad_local_binary_client_ubuntu_jammy : var.nomad_local_binary
+  windows_binary = var.nomad_local_binary_client_windows_2016 != "" ? var.nomad_local_binary_client_windows_2016 : var.nomad_local_binary
+}
+
 module "nomad_server" {
   source     = "./provision-nomad"
   depends_on = [aws_instance.server]
@@ -13,7 +19,7 @@ module "nomad_server" {
   instance = aws_instance.server[count.index]
 
   nomad_region       = var.nomad_region
-  nomad_local_binary = count.index < length(var.nomad_local_binary_server) ? var.nomad_local_binary_server[count.index] : var.nomad_local_binary
+  nomad_local_binary = local.server_binary
 
   nomad_license = var.nomad_license
   tls_ca_key    = tls_private_key.ca.private_key_pem
@@ -47,7 +53,7 @@ module "nomad_client_ubuntu_jammy" {
   instance           = aws_instance.client_ubuntu_jammy[count.index]
   nomad_license      = var.nomad_license
   nomad_region       = var.nomad_region
-  nomad_local_binary = count.index < length(var.nomad_local_binary_client_ubuntu_jammy) ? var.nomad_local_binary_client_ubuntu_jammy[count.index] : var.nomad_local_binary
+  nomad_local_binary = local.linux_binary
 
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
@@ -79,7 +85,7 @@ module "nomad_client_windows_2016" {
 
   nomad_region       = var.nomad_region
   nomad_license      = var.nomad_license
-  nomad_local_binary = count.index < length(var.nomad_local_binary_client_windows_2016) ? var.nomad_local_binary_client_windows_2016[count.index] : ""
+  nomad_local_binary = local.windows_binary
 
   tls_ca_key  = tls_private_key.ca.private_key_pem
   tls_ca_cert = tls_self_signed_cert.ca.cert_pem
