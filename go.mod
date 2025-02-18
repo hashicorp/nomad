@@ -43,7 +43,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/cap v0.7.0
 	github.com/hashicorp/cli v1.1.6
-	github.com/hashicorp/consul-template v0.39.0
+	github.com/hashicorp/consul-template v0.40.0
 	github.com/hashicorp/consul/api v1.30.0
 	github.com/hashicorp/consul/sdk v0.16.1
 	github.com/hashicorp/cronexpr v1.1.2
