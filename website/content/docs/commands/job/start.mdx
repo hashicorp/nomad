@@ -10,7 +10,7 @@ description: |
 
 The `job start` command is used to start a stopped job.
 Use the `nomad job start` command to start the latest version of an existing job
-with a status of Stopped.
+with a status of Stopped. Refer to [Job statuses] for status explanations.
 
 If your Nomad servers use [consul service identity] authentication and your job
 uses Consul Connect services, you must supply a Consul token. Nomad does not
@@ -82,4 +82,4 @@ $ nomad job start example
 [consul service identity]: /nomad/docs/configuration/consul#allow_unauthenticated
 [vault policy]: /nomad/docs/configuration/vault#allow_unauthenticated
 [run]: /nomad/docs/commands/job/run
-
+[Job statuses]: /nomad/docs/concepts/job#job-statuses
