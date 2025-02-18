@@ -455,10 +455,15 @@ export default class Job extends Model {
       .any((version) => version.get('stable'));
   }
 
-  @computed('versions.@each.stable')
+  @computed('versions.@each.stable', 'aggregateAllocStatus.label')
   get latestStableVersion() {
     return this.versions.filterBy('stable').sortBy('number').reverse().slice(1)
       .firstObject;
+  }
+
+  @computed('versions.[]', 'aggregateAllocStatus.label')
+  get latestVersion() {
+    return this.versions.sortBy('number').reverse().slice(1).firstObject;
   }
 
   get actions() {

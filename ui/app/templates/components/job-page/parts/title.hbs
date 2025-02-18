@@ -101,6 +101,25 @@
             @awaitingConfirmation={{this.revertTo.isRunning}}
             @onConfirm={{perform this.revertTo this.job.latestStableVersion}}
           />
+        {{else if
+          (and
+            (or (eq this.job.type "batch") (eq this.job.type "system") (eq this.job.type "sysbatch"))
+            this.job.latestVersion
+          )
+        }}
+          <TwoStepButton
+            data-test-revert
+            @alignRight={{true}}
+            @idleText="Revert to last version (v{{this.job.latestVersion.number}})"
+            @cancelText="Cancel"
+            @confirmText="Yes, Revert to last version"
+            @confirmationMessage="Are you sure you want to revert to the last version?"
+            @awaitingConfirmation={{this.revertTo.isRunning}}
+            @onConfirm={{perform this.revertTo this.job.latestVersion}}
+          />
+          <Hds::Button
+            data-test-edit-and-resubmit
+            @color="primary" @isInline={{true}} @text="Edit and Resubmit job" @route={{"jobs.job.definition" this.job.id}} @query={{hash isEditing=true}} />
         {{else}}
           <Hds::Button
             data-test-edit-and-resubmit
