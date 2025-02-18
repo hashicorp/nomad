@@ -98,7 +98,30 @@ func testNomadServiceJob(jobID string) *api.Job {
 	}}
 	return j
 }
+func testServiceJob(jobID string) *api.Job {
+	task := api.NewTask("task1", "mock_driver").
+		SetConfig("exit_code", 0).
+		Require(&api.Resources{
+			MemoryMB: pointer.Of(256),
+			CPU:      pointer.Of(100),
+		}).
+		SetLogConfig(&api.LogConfig{
+			MaxFiles:      pointer.Of(1),
+			MaxFileSizeMB: pointer.Of(2),
+		})
 
+	group := api.NewTaskGroup("group1", 1).
+		AddTask(task).
+		RequireDisk(&api.EphemeralDisk{
+			SizeMB: pointer.Of(20),
+		})
+
+	job := api.NewServiceJob(jobID, jobID, "global", 1).
+		AddDatacenter("dc1").
+		AddTaskGroup(group)
+
+	return job
+}
 func testMultiRegionJob(jobID, region, datacenter string) *api.Job {
 	task := api.NewTask("task1", "mock_driver").
 		SetConfig("kill_after", "10s").
