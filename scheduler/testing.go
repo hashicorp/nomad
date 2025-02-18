@@ -65,6 +65,9 @@ type Harness struct {
 
 	optimizePlan              bool
 	serversMeetMinimumVersion bool
+
+	// don't actually write plans back to state
+	noSubmit bool
 }
 
 // NewHarness is used to make a new testing harness
@@ -177,6 +180,10 @@ func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, er
 		}
 
 		req.NodePreemptions = preemptedAllocs
+	}
+
+	if h.noSubmit {
+		return result, nil, nil
 	}
 
 	// Apply the full plan
@@ -302,4 +309,8 @@ func (h *Harness) AssertEvalStatus(t testing.TB, state string) {
 	require.Len(t, h.Evals, 1)
 	update := h.Evals[0]
 	require.Equal(t, state, update.Status)
+}
+
+func (h *Harness) SetNoSubmit() {
+	h.noSubmit = true
 }
