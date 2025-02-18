@@ -2,7 +2,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-set -xeuo pipefail
+set -euo pipefail
 
 TIMEOUT=10
 INTERVAL=2
