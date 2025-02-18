@@ -5,6 +5,7 @@ package command
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"reflect"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
@@ -249,4 +251,346 @@ func TestMeta_JobByPrefix(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMeta_ShowUIPath(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a test server with UI enabled but CLI URL links disabled
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.ShowCLIHints = pointer.Of(true)
+	})
+	defer server.Shutdown()
+	waitForNodes(t, client)
+
+	m := &Meta{
+		Ui:          cli.NewMockUi(),
+		flagAddress: url,
+	}
+
+	cases := []struct {
+		name           string
+		context        UIHintContext
+		expectedURL    string
+		expectedOpened bool
+	}{
+		{
+			name: "server members",
+			context: UIHintContext{
+				Command: "server members",
+			},
+			expectedURL: url + "/ui/servers",
+		},
+		{
+			name: "node status (many)",
+			context: UIHintContext{
+				Command: "node status",
+			},
+			expectedURL: url + "/ui/clients",
+		},
+		{
+			name: "node status (single)",
+			context: UIHintContext{
+				Command: "node status single",
+				PathParams: map[string]string{
+					"nodeID": "node-1",
+				},
+			},
+			expectedURL: url + "/ui/clients/node-1",
+		},
+		{
+			name: "job status (many)",
+			context: UIHintContext{
+				Command: "job status",
+			},
+			expectedURL: url + "/ui/jobs",
+		},
+		{
+			name: "job status (single)",
+			context: UIHintContext{
+				Command: "job status single",
+				PathParams: map[string]string{
+					"jobID":     "example-job",
+					"namespace": "default",
+				},
+			},
+			expectedURL: url + "/ui/jobs/example-job@default",
+		},
+		{
+			name: "job run (default ns)",
+			context: UIHintContext{
+				Command: "job run",
+				PathParams: map[string]string{
+					"jobID":     "example-job",
+					"namespace": "default",
+				},
+			},
+			expectedURL: url + "/ui/jobs/example-job@default",
+		},
+		{
+			name: "job run (non-default ns)",
+			context: UIHintContext{
+				Command: "job run",
+				PathParams: map[string]string{
+					"jobID":     "example-job",
+					"namespace": "prod",
+				},
+			},
+			expectedURL: url + "/ui/jobs/example-job@prod",
+		},
+		{
+			name: "job dispatch (default ns)",
+			context: UIHintContext{
+				Command: "job dispatch",
+				PathParams: map[string]string{
+					"dispatchID": "dispatch-1",
+					"namespace":  "default",
+				},
+			},
+			expectedURL: url + "/ui/jobs/dispatch-1@default",
+		},
+		{
+			name: "job dispatch (non-default ns)",
+			context: UIHintContext{
+				Command: "job dispatch",
+				PathParams: map[string]string{
+					"dispatchID": "dispatch-1",
+					"namespace":  "toronto",
+				},
+			},
+			expectedURL: url + "/ui/jobs/dispatch-1@toronto",
+		},
+		{
+			name: "eval list",
+			context: UIHintContext{
+				Command: "eval list",
+			},
+			expectedURL: url + "/ui/evaluations",
+		},
+		{
+			name: "eval status",
+			context: UIHintContext{
+				Command: "eval status",
+				PathParams: map[string]string{
+					"evalID": "eval-1",
+				},
+			},
+			expectedURL: url + "/ui/evaluations?currentEval=eval-1",
+		},
+		{
+			name: "deployment status",
+			context: UIHintContext{
+				Command: "deployment status",
+				PathParams: map[string]string{
+					"jobID": "example-job",
+				},
+			},
+			expectedURL: url + "/ui/jobs/example-job/deployments",
+		},
+		{
+			name: "var list (root)",
+			context: UIHintContext{
+				Command: "var list",
+			},
+			expectedURL: url + "/ui/variables",
+		},
+		{
+			name: "var list (path)",
+			context: UIHintContext{
+				Command: "var list prefix",
+				PathParams: map[string]string{
+					"prefix": "foo",
+				},
+			},
+			expectedURL: url + "/ui/variables/path/foo",
+		},
+		{
+			name: "var get",
+			context: UIHintContext{
+				Command: "var get",
+				PathParams: map[string]string{
+					"path":      "foo",
+					"namespace": "default",
+				},
+			},
+			expectedURL: url + "/ui/variables/var/foo@default",
+		},
+		{
+			name: "var put",
+			context: UIHintContext{
+				Command: "var put",
+				PathParams: map[string]string{
+					"path":      "foo",
+					"namespace": "default",
+				},
+			},
+			expectedURL: url + "/ui/variables/var/foo@default",
+		},
+		{
+			name: "alloc status",
+			context: UIHintContext{
+				Command: "alloc status",
+				PathParams: map[string]string{
+					"allocID": "alloc-1",
+				},
+			},
+			expectedURL: url + "/ui/allocations/alloc-1",
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			route := CommandUIRoutes[tc.context.Command]
+			expectedHint := fmt.Sprintf("\n\n==> %s in the Web UI: %s", route.Description, tc.expectedURL)
+
+			hint, err := m.showUIPath(tc.context)
+			must.NoError(t, err)
+			must.Eq(t, expectedHint, hint)
+		})
+	}
+}
+
+func TestMeta_ShowUIPath_ShowCLIHintsEnabled(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a test server with UI enabled and CLI URL links enabled
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.ShowCLIHints = pointer.Of(true)
+	})
+	defer server.Shutdown()
+	waitForNodes(t, client)
+
+	m := &Meta{
+		Ui:          cli.NewMockUi(),
+		flagAddress: url,
+	}
+
+	hint, err := m.showUIPath(UIHintContext{
+		Command: "job status",
+	})
+	must.NoError(t, err)
+
+	must.StrContains(t, hint, url+"/ui/jobs")
+}
+
+func TestMeta_ShowUIPath_ShowCLIHintsDisabled(t *testing.T) {
+	ci.Parallel(t)
+
+	// Create a test server with UI enabled and CLI URL links disabled
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.ShowCLIHints = pointer.Of(false)
+	})
+	defer server.Shutdown()
+	waitForNodes(t, client)
+
+	m := &Meta{
+		Ui:          cli.NewMockUi(),
+		flagAddress: url,
+	}
+
+	hint, err := m.showUIPath(UIHintContext{
+		Command: "job status",
+	})
+	must.NoError(t, err)
+
+	must.StrNotContains(t, hint, url+"/ui/jobs")
+}
+
+func TestMeta_ShowUIPath_EnvVarOverride(t *testing.T) {
+
+	testCases := []struct {
+		name          string
+		envValue      string
+		serverEnabled bool
+		expectHints   bool
+	}{
+		{
+			name:          "env var true overrides server false",
+			envValue:      "true",
+			serverEnabled: false,
+			expectHints:   true,
+		},
+		{
+			name:          "env var false overrides server true",
+			envValue:      "false",
+			serverEnabled: true,
+			expectHints:   false,
+		},
+		{
+			name:          "empty env var falls back to server true",
+			envValue:      "",
+			serverEnabled: true,
+			expectHints:   true,
+		},
+		{
+			name:          "empty env var falls back to server false",
+			envValue:      "",
+			serverEnabled: false,
+			expectHints:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc // capture range variable
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Set environment variable
+			if tc.envValue != "" {
+				t.Setenv("NOMAD_CLI_SHOW_HINTS", tc.envValue)
+			}
+
+			// Create a test server with UI enabled and CLI hints as per test case
+			server, client, url := testServer(t, true, func(c *agent.Config) {
+				c.UI.ShowCLIHints = pointer.Of(tc.serverEnabled)
+			})
+			defer server.Shutdown()
+			waitForNodes(t, client)
+
+			m := &Meta{
+				Ui:          cli.NewMockUi(),
+				flagAddress: url,
+			}
+			m.SetupUi([]string{})
+
+			hint, err := m.showUIPath(UIHintContext{
+				Command: "job status",
+			})
+			must.NoError(t, err)
+
+			if tc.expectHints {
+				must.StrContains(t, hint, url+"/ui/jobs")
+			} else {
+				must.StrNotContains(t, hint, url+"/ui/jobs")
+			}
+		})
+	}
+}
+
+func TestMeta_ShowUIPath_BrowserOpening(t *testing.T) {
+	ci.Parallel(t)
+
+	server, client, url := testServer(t, true, func(c *agent.Config) {
+		c.UI.ShowCLIHints = pointer.Of(true)
+	})
+	defer server.Shutdown()
+	waitForNodes(t, client)
+
+	ui := cli.NewMockUi()
+
+	m := &Meta{
+		Ui:          ui,
+		flagAddress: url,
+	}
+
+	hint, err := m.showUIPath(UIHintContext{
+		Command: "job status",
+		OpenURL: true,
+	})
+	must.NoError(t, err)
+	must.StrContains(t, hint, url+"/ui/jobs")
+
+	// Not a perfect test, but it's a start: make sure showUIPath isn't warning about
+	// being unable to open the browser.
+	must.StrNotContains(t, ui.ErrorWriter.String(), "Failed to open browser")
 }
