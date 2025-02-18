@@ -1,0 +1,80 @@
+## Trusted Identity Attributes via Claim Mappings
+
+The authentication step can return data from JWT claims as trusted
+identity attributes for use in binding rule selectors and bind name
+interpolation.
+
+The `ClaimMappings` and `ListClaimMappings` attributes control how Nomad maps claims
+to identity attributes. Both are maps of items to copy,
+with elements of the form `"<JWT claim>":"<attribute suffix>"`.
+
+Use `ClaimMappings` to map singular values and `ListClaimMappings` to map lists of values.
+
+This examples contains `ClaimMappings` and `ListClaimMappings`. The configuration
+instructs Nomad to copy the values in the JWT claims `"givenName"` and `"surname"`
+to attributes named `"value.first_name"` and `"value.last_name"` respectively.
+Additionally, Nomad should copy the list of values in the JWT
+claim `"groups"`  to an attribute named `"list.roles"`.
+
+```json
+{
+  "Name": "example-auth-method",
+  "Type": "<jwt|oidc>",
+  "Description": "Example auth method",
+  "Config": {
+    "ClaimMappings": {
+      "givenName": "first_name",
+      "surname": "last_name"
+    },
+    "ListClaimMappings": {
+      "groups": "roles"
+    }
+  }
+}
+```
+
+The following table shows the resulting attributes and
+the ways they may be used in rule bindings:
+
+| Attributes         | Supported selector operations                      | Can be interpolated |
+| ------------------ | -------------------------------------------------- | ------------------- |
+| `value.first_name` | Equal, Not Equal, In, Not In, Matches, Not Matches | yes                 |
+| `value.last_name`  | Equal, Not Equal, In, Not In, Matches, Not Matches | yes                 |
+| `list.groups`      | In, Not In, Is Empty, Is Not Empty                 | no                  |
+
+Refer to the [binding-rule] documentation for more examples on using selectors.
+
+### Claim Specifications and JSON Pointer
+
+Use the `ClaimMappings` and `ListClaimMappings` fields to point to data
+within the JWT. If the desired key is at the top of level of the JWT, you may
+provide the name directly. If it is nested at a lower level, you may use a JSON
+Pointer.
+
+This example shows decoded JWT claims.
+
+```json
+{
+  "division": "North America",
+  "groups": {
+    "primary": "Engineering",
+    "secondary": "Software"
+  },
+  "iss": "https://my-corp-app-name.auth0.com/",
+  "sub": "auth0|eiw7OWoh5ieSh7ieyahC3ief0uyuraphaengae9d",
+  "aud": "V1RPi2MYptMV1RPi2MYptMV1RPi2MYpt",
+  "iat": 1589224148,
+  "exp": 1589260148,
+  "nonce": "eKiihooH3Fah8Ieshah4leeti6ien3"
+}
+```
+
+Use the following syntax to reference data:
+
+- Top-level key: Use direct reference. For example, `"division"` refers to `"North America"`.
+- Nested key: Use JSON Pointer syntax. For example, `"/groups/primary"` refers to `"Engineering"`.
+
+You may use any valid JSON Pointer as a selector. Refer to the [JSON Pointer
+RFC](https://tools.ietf.org/html/rfc6901) for a full description of the syntax.
+
+[binding-rule]: /nomad/docs/commands/acl/binding-rule/create#examples
