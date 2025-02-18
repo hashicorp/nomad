@@ -21,7 +21,6 @@ import (
 	goversion "github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/api"
 	nomadapi "github.com/hashicorp/nomad/api"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
@@ -65,9 +64,6 @@ func testVaultBuild(t *testing.T, b build) {
 	must.NoError(t, err)
 
 	t.Run("vault("+b.Version+")", func(t *testing.T) {
-		t.Run("legacy", func(t *testing.T) {
-			testVaultLegacy(t, b)
-		})
 
 		if version.GreaterThanOrEqual(minJWTVersion) {
 			t.Run("jwt", func(t *testing.T) {
@@ -78,16 +74,6 @@ func testVaultBuild(t *testing.T, b build) {
 		// give nomad and vault time to stop
 		defer func() { time.Sleep(5 * time.Second) }()
 	})
-}
-
-func validateLegacyAllocs(allocs []*nomadapi.AllocationListStub) error {
-	if n := len(allocs); n != 1 {
-		return fmt.Errorf("expected 1 alloc, got %d", n)
-	}
-	if s := allocs[0].ClientStatus; s != "complete" {
-		return fmt.Errorf("expected alloc status complete, got %s", s)
-	}
-	return nil
 }
 
 func validateJWTAllocs(allocs []*nomadapi.AllocationListStub) error {
@@ -181,27 +167,6 @@ func startVault(t *testing.T, b build) (func(), *vaultapi.Client) {
 	return vlt.Stop, vlt.Client
 }
 
-func setupVaultLegacy(t *testing.T, vc *vaultapi.Client) {
-	policy, err := os.ReadFile("input/policy_legacy.hcl")
-	must.NoError(t, err)
-
-	sys := vc.Sys()
-	must.NoError(t, sys.PutPolicy("nomad-server", string(policy)))
-
-	log := vc.Logical()
-	log.Write("auth/token/roles/nomad-cluster", roleLegacy)
-
-	token := vc.Auth().Token()
-	secret, err := token.Create(&vaultapi.TokenCreateRequest{
-		Policies: []string{"nomad-server"},
-		Period:   "72h",
-		NoParent: true,
-	})
-	must.NoError(t, err, must.Sprint("failed to create vault token"))
-	must.NotNil(t, secret)
-	must.NotNil(t, secret.Auth)
-}
-
 func setupVaultJWT(t *testing.T, vc *vaultapi.Client, jwksURL string) {
 	logical := vc.Logical()
 	sys := vc.Sys()
@@ -276,18 +241,6 @@ func startNomad(t *testing.T, cb func(*testutil.TestServerConfig)) (func(), *nom
 	must.NoError(t, err, must.Sprint("unable to create nomad api client"))
 	nc.SetSecretID(bootstrapToken)
 	return ts.Stop, nc
-}
-
-func configureNomadVaultLegacy(vc *vaultapi.Client) func(*testutil.TestServerConfig) {
-	return func(c *testutil.TestServerConfig) {
-		c.Vaults = []*testutil.VaultConfig{{
-			Enabled:              true,
-			Address:              vc.Address(),
-			Token:                vc.Token(),
-			Role:                 "nomad-cluster",
-			AllowUnauthenticated: pointer.Of(true),
-		}}
-	}
 }
 
 func configureNomadVaultJWT(vc *vaultapi.Client) func(*testutil.TestServerConfig) {

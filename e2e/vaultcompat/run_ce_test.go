@@ -26,16 +26,6 @@ func usable(v, minimum *version.Version) bool {
 	}
 }
 
-func testVaultLegacy(t *testing.T, b build) {
-	vStop, vc := startVault(t, b)
-	defer vStop()
-	setupVaultLegacy(t, vc)
-
-	nStop, nc := startNomad(t, configureNomadVaultLegacy(vc))
-	defer nStop()
-	runJob(t, nc, "input/cat.hcl", "default", validateLegacyAllocs)
-}
-
 func testVaultJWT(t *testing.T, b build) {
 	vStop, vc := startVault(t, b)
 	defer vStop()

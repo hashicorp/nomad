@@ -42,6 +42,7 @@ cd ./hcp-vault-auth
 terraform init
 terraform apply --auto-approve
 $(terraform output --raw environment)
+cd ../
 ```
 
 Optionally, edit the `terraform.tfvars` file to change the number of

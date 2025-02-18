@@ -10,5 +10,5 @@ tls {
   key_file  = "/etc/nomad.d/tls/agent.key"
 
   verify_server_hostname = true
-  verify_https_client    = true
+  verify_https_client    = false // https://github.com/hashicorp/vault/issues/29435
 }

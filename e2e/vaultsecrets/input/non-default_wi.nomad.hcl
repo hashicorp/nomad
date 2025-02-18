@@ -26,7 +26,7 @@ job "secrets" {
       }
 
       vault {
-        policies = ["access-secrets-TESTID"]
+        role = "TESTID"
       }
 
       template {
@@ -53,6 +53,5 @@ EOT
         memory = 64
       }
     }
-
   }
 }
