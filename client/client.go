@@ -2625,12 +2625,6 @@ func (c *Client) runAllocs(update *allocUpdates) {
 		c.updateAlloc(update)
 	}
 
-	// Make room for new allocations before running
-	if err := c.garbageCollector.MakeRoomFor(diff.added); err != nil {
-		c.logger.Error("error making room for new allocations", "error", err)
-		errs++
-	}
-
 	// Start the new allocations
 	for _, add := range diff.added {
 		migrateToken := update.migrateTokens[add.ID]
