@@ -54,6 +54,15 @@ resource "aws_security_group" "servers" {
     cidr_blocks = [local.ingress_cidr]
   }
 
+  # Nomad HTTP access from the HashiCorp Cloud virtual network CIDR. This is
+  # used for the workload identity authentication method JWKS callback.
+  ingress {
+    from_port   = 4646
+    to_port     = 4646
+    protocol    = "tcp"
+    cidr_blocks = [var.hcp_hvn_cidr]
+  }
+
   # Nomad HTTP and RPC from clients
   ingress {
     from_port       = 4646
