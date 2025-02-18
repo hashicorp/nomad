@@ -22,14 +22,20 @@ description: >-
   ]}
 />
 
-The `reschedule` block specifies the group's rescheduling strategy. If specified at the job
-level, the configuration will apply to all groups within the job. If the
-reschedule block is present on both the job and the group, they are merged with
-the group block taking the highest precedence and then the job.
+The `reschedule` block specifies the group's rescheduling strategy. If specified
+at the job level, the configuration will apply to all groups within the job. If
+the reschedule block is present on both the job and the group, they are merged
+with the group block taking the highest precedence and then the job.
 
-Nomad will attempt to schedule the allocation on another node if any of its
-task statuses become `failed`. The scheduler prefers to create a replacement
+Nomad will attempt to schedule the allocation on another node if any of its task
+statuses become `failed`. The scheduler prefers to create a replacement
 allocation on a node that was not used by a previous allocation.
+
+Rescheduling happens when the Nomad agent fails to set up the allocation or the
+tasks of an allocation fail more than their [`restart`][] block allows. When a
+node is drained, Nomad [migrates][] the allocations instead and ignores the
+`reschedule` block. When a node is lost, Nomad [replaces][] the allocations
+instead and ignores the `reschedule` block.
 
 
 ```hcl
@@ -127,3 +133,7 @@ job "docs" {
   }
 }
 ```
+
+[`restart`]: /nomad/docs/job-specification/restart
+[migrates]: /nomad/docs/job-specification/migrate
+[replaces]: /nomad/docs/job-specification/disconnect#replace

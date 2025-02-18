@@ -14,7 +14,8 @@ description: The "restart" block configures a group's behavior on task failure.
 />
 
 The `restart` block configures a task's behavior on task failure. Restarts
-happen on the client that is running the task.
+happen on the client that is running the task. Restarts are different from
+[rescheduling][], which happens when the tasks run out of restart attempts.
 
 ```hcl
 job "docs" {
@@ -88,7 +89,7 @@ level, so that the Connect sidecar can inherit the default `restart`.
   than `attempts` times in an interval. For a detailed explanation of these
   values and their behavior, please see the [mode values section](#mode-values).
 
-- `render_templates` `(bool: false)` - Specifies whether to re-render all 
+- `render_templates` `(bool: false)` - Specifies whether to re-render all
 templates when a task is restarted. If set to `true`, all templates will be re-rendered
 when the task restarts. This can be useful for re-fetching Vault secrets, even if the
 lease on the existing secrets has not yet expired.
@@ -192,3 +193,4 @@ restart {
 
 [sidecar_task]: /nomad/docs/job-specification/sidecar_task
 [`reschedule`]: /nomad/docs/job-specification/reschedule
+[rescheduling]: /nomad/docs/job-specification/reschedule
