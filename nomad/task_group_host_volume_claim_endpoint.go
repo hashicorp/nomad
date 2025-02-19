@@ -103,7 +103,7 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 						}
 
 						allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
-						return allowClaim(aclObj, ns), nil
+						return allowClaim(aclObj, claim.Namespace), nil
 					},
 				},
 			}

@@ -31,10 +31,29 @@ func (c *Client) TaskGroupHostVolumeClaims() *TaskGroupHostVolumeClaims {
 	return &TaskGroupHostVolumeClaims{client: c}
 }
 
-func (tgvc *TaskGroupHostVolumeClaims) List(opts *QueryOptions) ([]*TaskGroupHostVolumeClaim, *QueryMeta, error) {
-	var out []*TaskGroupHostVolumeClaim
+type TaskGroupHostVolumeClaimsListRequest struct {
+	JobID      string
+	TaskGroup  string
+	VolumeName string
+}
 
-	qm, err := tgvc.client.query("/v1/volumes/claims", &out, opts)
+func (tgvc *TaskGroupHostVolumeClaims) List(req *TaskGroupHostVolumeClaimsListRequest, opts *QueryOptions) ([]*TaskGroupHostVolumeClaim, *QueryMeta, error) {
+
+	qv := url.Values{}
+	if req != nil {
+		if req.JobID != "" {
+			qv.Set("job_id", req.JobID)
+		}
+		if req.TaskGroup != "" {
+			qv.Set("task_group", req.TaskGroup)
+		}
+		if req.VolumeName != "" {
+			qv.Set("volume_name", req.VolumeName)
+		}
+	}
+
+	var out []*TaskGroupHostVolumeClaim
+	qm, err := tgvc.client.query("/v1/volumes/claims?"+qv.Encode(), &out, opts)
 	if err != nil {
 		return nil, qm, err
 	}
