@@ -5,11 +5,12 @@ variable "alloc_count" {
   default = 1
 }
 
-job "service-docker" {
+job "system-docker" {
+  type = "system"
 
-  group "service-docker" {
-    count = var.alloc_count
-    task "alpine" {
+  group "system-docker" {
+
+    task "system-docker" {
       driver = "docker"
 
       config {
