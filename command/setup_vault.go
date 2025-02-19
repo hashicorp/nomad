@@ -74,9 +74,6 @@ Usage: nomad setup vault [options]
   migrate to use Workload Identities with Vault. This option requires
   operator:read permission for Nomad.
 
-  WARNING: This command is an experimental feature and may change its behavior
-  in future versions of Nomad.
-
 Setup Vault options:
 
   -jwks-url <url>
