@@ -16,7 +16,8 @@
     "prettier": "^3.4.1"
   },
   "overrides": {
-    "eslint-plugin-prettier": "5.0.0"
+    "eslint-plugin-prettier": "5.0.0",
+    "ws": "^7.5.10"
   },
   "scripts": {
     "build": "./scripts/website-build.sh",
