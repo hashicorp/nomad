@@ -14,7 +14,6 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -200,36 +199,6 @@ func TestServer_Regions(t *testing.T) {
 	}, func(err error) {
 		t.Fatalf("err: %v", err)
 	})
-}
-
-func TestServer_Reload_Vault(t *testing.T) {
-	ci.Parallel(t)
-
-	token := uuid.Generate()
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.Region = "global"
-		c.GetDefaultVault().Token = token
-	})
-	defer cleanupS1()
-
-	must.False(t, s1.vault.Running())
-
-	tr := true
-	config := DefaultConfig()
-	config.GetDefaultVault().Enabled = &tr
-	config.GetDefaultVault().Token = token
-	config.GetDefaultVault().Namespace = "nondefault"
-
-	err := s1.Reload(config)
-	must.NoError(t, err)
-
-	must.True(t, s1.vault.Running())
-	must.Eq(t, "nondefault", s1.vault.GetConfig().Namespace)
-
-	// Removing the token requires agent restart.
-	config.GetDefaultVault().Token = ""
-	err = s1.Reload(config)
-	must.ErrorContains(t, err, "requires restarting the Nomad agent")
 }
 
 func connectionReset(msg string) bool {

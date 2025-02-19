@@ -313,10 +313,6 @@ func TestTasksUpdated(t *testing.T) {
 	j14.TaskGroups[0].Networks[0].ReservedPorts = []structs.Port{{Label: "foo", Value: 1312}}
 	must.True(t, tasksUpdated(j1, j14, name).modified)
 
-	j15 := mock.Job()
-	j15.TaskGroups[0].Tasks[0].Vault = &structs.Vault{Policies: []string{"foo"}}
-	must.True(t, tasksUpdated(j1, j15, name).modified)
-
 	j16 := mock.Job()
 	j16.TaskGroups[0].EphemeralDisk.Sticky = true
 	must.True(t, tasksUpdated(j1, j16, name).modified)

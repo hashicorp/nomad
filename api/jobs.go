@@ -1103,7 +1103,6 @@ type Job struct {
 	Migrate          *MigrateStrategy        `hcl:"migrate,block"`
 	Meta             map[string]string       `hcl:"meta,block"`
 	ConsulToken      *string                 `mapstructure:"consul_token" hcl:"consul_token,optional"`
-	VaultToken       *string                 `mapstructure:"vault_token" hcl:"vault_token,optional"`
 	UI               *JobUIConfig            `hcl:"ui,block"`
 
 	/* Fields set by server, not sourced from job config file */
@@ -1178,9 +1177,6 @@ func (j *Job) Canonicalize() {
 	}
 	if j.ConsulNamespace == nil {
 		j.ConsulNamespace = pointerOf("")
-	}
-	if j.VaultToken == nil {
-		j.VaultToken = pointerOf("")
 	}
 	if j.VaultNamespace == nil {
 		j.VaultNamespace = pointerOf("")

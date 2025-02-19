@@ -67,7 +67,6 @@ import (
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
-	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
 )
 
@@ -2871,7 +2870,7 @@ func (c *Client) setupVaultClients() error {
 	c.vaultClients = map[string]vaultclient.VaultClient{}
 	vaultConfigs := c.GetConfig().GetVaultConfigs(c.logger)
 	for _, vaultConfig := range vaultConfigs {
-		vaultClient, err := vaultclient.NewVaultClient(vaultConfig, c.logger, c.deriveToken)
+		vaultClient, err := vaultclient.NewVaultClient(vaultConfig, c.logger)
 		if err != nil {
 			return err
 		}
@@ -2915,92 +2914,6 @@ func (c *Client) setupNomadServiceRegistrationHandler() {
 		),
 	}
 	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
-}
-
-// deriveToken takes in an allocation and a set of tasks and derives vault
-// tokens for each of the tasks, unwraps all of them using the supplied vault
-// client and returns a map of unwrapped tokens, indexed by the task name.
-func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vclient *vaultapi.Client) (map[string]string, error) {
-	vlogger := c.logger.Named("vault")
-
-	verifiedTasks, err := verifiedTasks(vlogger, alloc, taskNames)
-	if err != nil {
-		return nil, err
-	}
-
-	// DeriveVaultToken of nomad server can take in a set of tasks and
-	// creates tokens for all the tasks.
-	req := &structs.DeriveVaultTokenRequest{
-		NodeID:   c.NodeID(),
-		SecretID: c.secretNodeID(),
-		AllocID:  alloc.ID,
-		Tasks:    verifiedTasks,
-		QueryOptions: structs.QueryOptions{
-			Region:        c.Region(),
-			AllowStale:    false,
-			MinQueryIndex: alloc.CreateIndex,
-			AuthToken:     c.secretNodeID(),
-		},
-	}
-
-	// Derive the tokens
-	// namespace is handled via nomad/vault
-	var resp structs.DeriveVaultTokenResponse
-	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
-		vlogger.Error("error making derive token RPC", "error", err)
-		return nil, fmt.Errorf("DeriveVaultToken RPC failed: %v", err)
-	}
-	if resp.Error != nil {
-		vlogger.Error("error deriving vault tokens", "error", resp.Error)
-		return nil, structs.NewWrappedServerError(resp.Error)
-	}
-	if resp.Tasks == nil {
-		vlogger.Error("error derivng vault token", "error", "invalid response")
-		return nil, fmt.Errorf("failed to derive vault tokens: invalid response")
-	}
-
-	unwrappedTokens := make(map[string]string)
-
-	// Retrieve the wrapped tokens from the response and unwrap it
-	for _, taskName := range verifiedTasks {
-		// Get the wrapped token
-		wrappedToken, ok := resp.Tasks[taskName]
-		if !ok {
-			vlogger.Error("wrapped token missing for task", "task_name", taskName)
-			return nil, fmt.Errorf("wrapped token missing for task %q", taskName)
-		}
-
-		// Unwrap the vault token
-		unwrapResp, err := vclient.Logical().Unwrap(wrappedToken)
-		if err != nil {
-			if structs.VaultUnrecoverableError.MatchString(err.Error()) {
-				return nil, err
-			}
-
-			// The error is recoverable
-			return nil, structs.NewRecoverableError(
-				fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err), true)
-		}
-
-		// Validate the response
-		var validationErr error
-		if unwrapResp == nil {
-			validationErr = fmt.Errorf("Vault returned nil secret when unwrapping")
-		} else if unwrapResp.Auth == nil {
-			validationErr = fmt.Errorf("Vault returned unwrap secret with nil Auth. Secret warnings: %v", unwrapResp.Warnings)
-		} else if unwrapResp.Auth.ClientToken == "" {
-			validationErr = fmt.Errorf("Vault returned unwrap secret with empty Auth.ClientToken. Secret warnings: %v", unwrapResp.Warnings)
-		}
-		if validationErr != nil {
-			vlogger.Warn("error unwrapping token", "error", err)
-			return nil, structs.NewRecoverableError(validationErr, true)
-		}
-
-		// Append the unwrapped token to the return value
-		unwrappedTokens[taskName] = unwrapResp.Auth.ClientToken
-	}
-
-	return unwrappedTokens, nil
 }
 
 // deriveSIToken takes an allocation and a set of tasks and derives Consul

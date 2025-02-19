@@ -1976,11 +1976,9 @@ func vaultDiff(old, new *Vault, contextual bool) *ObjectDiff {
 	if reflect.DeepEqual(old, new) {
 		return nil
 	} else if old == nil {
-		old = &Vault{}
 		diff.Type = DiffTypeAdded
 		newPrimitiveFlat = flatmap.Flatten(new, nil, true)
 	} else if new == nil {
-		new = &Vault{}
 		diff.Type = DiffTypeDeleted
 		oldPrimitiveFlat = flatmap.Flatten(old, nil, true)
 	} else {
@@ -1991,11 +1989,6 @@ func vaultDiff(old, new *Vault, contextual bool) *ObjectDiff {
 
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, contextual)
-
-	// Policies diffs
-	if setDiff := stringSetDiff(old.Policies, new.Policies, "Policies", contextual); setDiff != nil {
-		diff.Objects = append(diff.Objects, setDiff)
-	}
 
 	return diff
 }

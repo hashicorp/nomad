@@ -30,19 +30,18 @@ func TestTaskRunner_DisableFileForVaultToken_UpgradePath(t *testing.T) {
 		"run_for": "0s",
 	}
 	task.Vault = &structs.Vault{
-		Cluster:  structs.VaultDefaultCluster,
-		Policies: []string{"default"},
+		Cluster: structs.VaultDefaultCluster,
 	}
 
 	// Setup a test Vault client.
 	token := "1234"
-	handler := func(*structs.Allocation, []string) (map[string]string, error) {
-		return map[string]string{task.Name: token}, nil
+	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, error) {
+		return token, true, nil
 	}
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
 	vaultClient := vc.(*vaultclient.MockVaultClient)
-	vaultClient.DeriveTokenFn = handler
+	vaultClient.SetDeriveTokenWithJWTFn(handler)
 
 	conf, cleanup := testTaskRunnerConfig(t, alloc, task.Name, vaultClient)
 	defer cleanup()
@@ -75,7 +74,7 @@ func TestTaskRunner_DisableFileForVaultToken_UpgradePath(t *testing.T) {
 	must.Eq(t, structs.TaskStateDead, finalState.State)
 	must.False(t, finalState.Failed)
 
-	// Verfiry token is in secrets dir.
+	// Verify token is in secrets dir.
 	tokenPath = filepath.Join(conf.TaskDir.SecretsDir, vaultTokenFile)
 	data, err := os.ReadFile(tokenPath)
 	must.NoError(t, err)

@@ -117,18 +117,8 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 		configs            map[string]*sconfig.VaultConfig
 		configNonrenewable bool
 		expectRole         string
-		expectLegacy       bool
 		expectNoRenew      bool
 	}{
-		{
-			name: "legacy flow",
-			task: &structs.Task{
-				Vault: &structs.Vault{
-					Cluster: structs.VaultDefaultCluster,
-				},
-			},
-			expectLegacy: true,
-		},
 		{
 			name: "jwt flow",
 			task: &structs.Task{
@@ -284,22 +274,18 @@ func TestTaskRunner_VaultHook(t *testing.T) {
 			// Token must have been derived.
 			var token string
 			client := hook.client.(*vaultclient.MockVaultClient)
-			if tc.expectLegacy {
-				tokens := client.LegacyTokens()
-				must.MapLen(t, 1, tokens)
-				token = tokens[tc.task.Name]
-			} else {
-				tokens := client.JWTTokens()
-				must.MapLen(t, 1, tokens)
 
-				swid, err := hook.widmgr.Get(structs.WIHandle{
-					IdentityName:       tc.task.Vault.IdentityName(),
-					WorkloadIdentifier: tc.task.Name,
-					WorkloadType:       structs.WorkloadTypeTask,
-				})
-				must.NoError(t, err)
-				token = tokens[swid.JWT]
-			}
+			tokens := client.JWTTokens()
+			must.MapLen(t, 1, tokens)
+
+			swid, err := hook.widmgr.Get(structs.WIHandle{
+				IdentityName:       tc.task.Vault.IdentityName(),
+				WorkloadIdentifier: tc.task.Name,
+				WorkloadType:       structs.WorkloadTypeTask,
+			})
+			must.NoError(t, err)
+			token = tokens[swid.JWT]
+
 			must.NotEq(t, "", token)
 
 			// Token must be derived with correct role.
@@ -443,7 +429,6 @@ func TestTaskRunner_VaultHook_recover(t *testing.T) {
 			// Verify token was recovered and not derived.
 			client := hook.client.(*vaultclient.MockVaultClient)
 			must.MapLen(t, 0, client.JWTTokens())
-			must.MapLen(t, 0, client.LegacyTokens())
 		})
 	}
 }
