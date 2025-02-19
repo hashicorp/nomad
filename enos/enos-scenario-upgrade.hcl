@@ -13,7 +13,7 @@ scenario "upgrade" {
     //os      = ["linux", "windows"]
     edition = ["ent"]
     os      = ["linux"]
-
+    
     exclude {
       os   = ["windows"]
       arch = ["arm64"]
@@ -65,7 +65,8 @@ scenario "upgrade" {
     module = module.provision_cluster
     variables {
       name                      = local.cluster_name
-      nomad_local_binary        = step.copy_initial_binary.nomad_local_binary
+      nomad_local_binary        = step.copy_initial_binary.binary_path[matrix.os]
+      nomad_local_binary_server = step.copy_initial_binary.binary_path[local.server_os]
       server_count              = var.server_count
       client_count_linux        = local.linux_count
       client_count_windows_2016 = local.windows_count
@@ -91,6 +92,14 @@ scenario "upgrade" {
       cert_file   = step.provision_cluster.cert_file
       key_file    = step.provision_cluster.key_file
       nomad_token = step.provision_cluster.nomad_token
+      workloads = {
+        service_raw_exec = { job_spec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3, type = "service" }
+        service_docker   = { job_spec = "jobs/docker-service.nomad.hcl", alloc_count = 3, type = "service" }
+        system_docker    = { job_spec = "jobs/docker-system.nomad.hcl", alloc_count = 0, type = "system" }
+        batch_docker     = { job_spec = "jobs/docker-batch.nomad.hcl", alloc_count = 3, type = "batch" }
+        batch_raw_exec   = { job_spec = "jobs/raw-exec-batch.nomad.hcl", alloc_count = 3, type = "batch" }
+        system_raw_exec  = { job_spec = "jobs/raw-exec-system.nomad.hcl", alloc_count = 0, type = "system" }
+      }
     }
 
     verifies = [
@@ -150,8 +159,8 @@ scenario "upgrade" {
       arch                 = local.arch
       edition              = matrix.edition
       product_version      = var.upgrade_version
-      os                   = matrix.os
-      download_binary      = false
+      oss                  = [local.server_os, matrix.os]
+      download_binaries    = false
     }
   }
 
@@ -193,8 +202,8 @@ scenario "upgrade" {
       ssh_key_path         = step.provision_cluster.ssh_key_file
       artifactory_username = var.artifactory_username
       artifactory_token    = var.artifactory_token
-      artifact_url         = step.fetch_upgrade_binary.artifact_url
-      artifact_sha         = step.fetch_upgrade_binary.artifact_sha
+      artifact_url         = step.fetch_upgrade_binary.artifact_url[local.server_os]
+      artifact_sha         = step.fetch_upgrade_binary.artifact_sha[local.server_os]
     }
   }
 
@@ -235,27 +244,6 @@ scenario "upgrade" {
     ]
   }
 
-  /*   step "run_workloads" {
-    depends_on = [step.server_upgrade_test_cluster_health]
-
-    description = <<-EOF
-    Verify the health of the cluster by running new workloads
-    EOF
-
-    module = module.run_workloads
-    variables {
-      nomad_addr  = step.provision_cluster.nomad_addr
-      ca_file     = step.provision_cluster.ca_file
-      cert_file   = step.provision_cluster.cert_file
-      key_file    = step.provision_cluster.key_file
-      nomad_token = step.provision_cluster.nomad_token
-    }
-
-    verifies = [
-      quality.nomad_register_job,
-    ]
-  }
- */
   step "upgrade_clients" {
     depends_on = [step.server_upgrade_test_cluster_health]
 
@@ -295,8 +283,8 @@ scenario "upgrade" {
       ssh_key_path         = step.provision_cluster.ssh_key_file
       artifactory_username = var.artifactory_username
       artifactory_token    = var.artifactory_token
-      artifact_url         = step.fetch_upgrade_binary.artifact_url
-      artifact_sha         = step.fetch_upgrade_binary.artifact_sha
+      artifact_url         = step.fetch_upgrade_binary.artifact_url[matrix.os]
+      artifact_sha         = step.fetch_upgrade_binary.artifact_sha[matrix.os]
     }
   }
 
@@ -376,5 +364,13 @@ scenario "upgrade" {
   output "nomad_token" {
     value     = step.provision_cluster.nomad_token
     sensitive = true
+  }
+
+  output "binary_path" {
+    value = step.copy_initial_binary.binary_path
+  }
+
+  output "allocs" {
+    value = step.run_initial_workloads.allocs_count
   }
 }

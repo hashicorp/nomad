@@ -6,11 +6,12 @@ variable "alloc_count" {
   default = 1
 }
 
-job "service-raw" {
+job "system-raw-exec" {
+  type = "system"
 
-  group "service-raw" {
-    count = var.alloc_count
-    task "raw" {
+  group "system-raw-exec" {
+
+    task "system-raw-exec" {
       driver = "raw_exec"
 
       config {
@@ -20,16 +21,10 @@ job "service-raw" {
 
       template {
         data        = <<EOH
- #!/bin/bash
+#!/bin/bash
 
-sigkill_handler() {
-    echo "Received SIGKILL signal. Exiting..."
-    exit 0
-}
-
-echo "Sleeping until SIGKILL signal is received..."
 while true; do
-    sleep 300  
+    sleep 30000  
 done
 EOH
         destination = "local/runme.sh"
@@ -39,7 +34,7 @@ EOH
       resources {
         cpu    = 50
         memory = 64
-      }
+      }      
     }
   }
 }
