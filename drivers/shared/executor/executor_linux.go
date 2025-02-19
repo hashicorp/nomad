@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -170,7 +171,7 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path)
-	container, err := libcontainer.Create("../alloc/container", l.id, containerCfg)
+	container, err := libcontainer.Create(path.Join(command.TaskDir, "../alloc/container"), l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
 	}
