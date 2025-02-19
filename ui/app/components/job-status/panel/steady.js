@@ -203,6 +203,11 @@ export default class JobStatusPanelSteadyComponent extends Component {
     return this.job.allocations.filter((a) => !a.isOld);
   }
 
+  get taskStates() {
+    console.log('getting task states', this.latestVersionAllocations);
+    return this.latestVersionAllocations.map((a) => a.states); //.map((s) => s.state));
+  }
+
   /**
    * @typedef {Object} CurrentStatus
    * @property {"Healthy"|"Failed"|"Degraded"|"Recovering"|"Complete"|"Running"|"Stopped"|"Scaled Down"} label - The current status of the job
