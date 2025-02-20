@@ -92,7 +92,11 @@ export default function moduleForJob(
 
     test('the title buttons are dependent on job status', async function (assert) {
       if (job.status === 'dead') {
-        assert.ok(JobDetail.start.isPresent);
+        if (job.stopped) {
+          assert.ok(JobDetail.start.isPresent);
+        } else {
+          assert.ok(JobDetail.revert.isPresent);
+        }
         assert.ok(JobDetail.purge.isPresent);
         assert.notOk(JobDetail.stop.isPresent);
         assert.notOk(JobDetail.execButton.isPresent);

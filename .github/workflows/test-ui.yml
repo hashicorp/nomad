@@ -40,6 +40,7 @@ jobs:
       run:
         working-directory: ui
     strategy:
+      fail-fast: false
       matrix:
         partition: [1, 2, 3, 4]
         split: [4]
@@ -61,17 +62,28 @@ jobs:
           secrets: |-
             kv/data/teams/nomad/ui PERCY_TOKEN ;
       - name: ember exam
+        id: ember_exam
         env:
           PERCY_TOKEN: ${{ env.PERCY_TOKEN || secrets.PERCY_TOKEN }}
           PERCY_PARALLEL_NONCE: ${{ needs.pre-test.outputs.nonce }}
         run: |
           yarn exam:parallel --split=${{ matrix.split }} --partition=${{ matrix.partition }} --json-report=test-results/test-results.json
         continue-on-error: true
-      - name: Express timeout failure
-        if: ${{ failure() }}
-        run: exit 1
+      - name: Express failure
+        if: steps.ember_exam.outcome == 'failure'
+        run: |
+          echo "Tests failed in ember-exam for partition ${{ matrix.partition }}"
+          echo "Failed tests:"
+          node -e "
+            const results = JSON.parse(require('fs').readFileSync('test-results/test-results.json'));
+            results.tests.filter(t => !t.passed).forEach(test => {
+              console.error('\n❌ ' + test.name);
+              if (test.error) console.error(test.error);
+            });
+          "
+          exit 1
       - name: Upload partition test results
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: test-results-${{ matrix.partition }}
