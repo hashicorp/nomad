@@ -191,6 +191,8 @@
   "resolutions": {
     "ember-auto-import": "^2.4.0",
     "ember-element-helper": "0.6.0",
-    "prop-types": "^15.8.1"
+    "prop-types": "^15.8.1",
+    "cross-spawn": "7.0.5",
+    "**/socket.io/**/ws": "^8.18.0"
   }
 }
