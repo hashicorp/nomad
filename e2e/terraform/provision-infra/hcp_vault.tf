@@ -58,13 +58,6 @@ resource "vault_jwt_auth_backend_role" "nomad_cluster" {
   }
 }
 
-// We must use a data source to read the auth backend accessor which is then
-// interpolated into the policy document.
-data "vault_auth_backend" "nomad_cluster" {
-  depends_on = [vault_jwt_auth_backend.nomad_cluster]
-  path       = local.workload_identity_path
-}
-
 // Enable a KV secrets backend using the generated name for the path, so that
 // multiple clusters can run simultaneously and that failed destroys do not
 // impact subsequent runs.
@@ -81,7 +74,7 @@ resource "vault_mount" "nomad_cluster" {
 resource "vault_policy" "nomad-workloads" {
   name = local.workload_identity_policy
   policy = templatefile("${path.module}/templates/vault-acl-jwt-policy-nomad-workloads.hcl.tpl", {
-    AUTH_METHOD_ACCESSOR = data.vault_auth_backend.nomad_cluster.accessor
+    AUTH_METHOD_ACCESSOR = vault_jwt_auth_backend.nomad_cluster.accessor
     MOUNT                = local.random_name
   })
 }
