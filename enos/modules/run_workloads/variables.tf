@@ -39,5 +39,6 @@ variable "workloads" {
   default = {
     service_raw_exec = { job_spec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3 }
     service_docker   = { job_spec = "jobs/docker-service.nomad.hcl", alloc_count = 3 }
+    tproxy           = { job_spec = "jobs/tproxy.nomad.hcl", alloc_count = 2 }
   }
 }

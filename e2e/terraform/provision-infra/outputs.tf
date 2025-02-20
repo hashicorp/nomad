@@ -66,7 +66,7 @@ EOM
 }
 
 output "cluster_unique_identifier" {
-  value = "${local.random_name}"
+  value = local.random_name
 }
 
 output "nomad_addr" {
