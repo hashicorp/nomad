@@ -108,11 +108,14 @@ scenario "upgrade" {
 
     module = module.test_cluster_health
     variables {
-      nomad_addr      = step.provision_cluster.nomad_addr
-      ca_file         = step.provision_cluster.ca_file
-      cert_file       = step.provision_cluster.cert_file
-      key_file        = step.provision_cluster.key_file
-      nomad_token     = step.provision_cluster.nomad_token
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # configuring assertions
       server_count    = var.server_count
       client_count    = local.clients_count
       jobs_count      = step.run_initial_workloads.jobs_count
@@ -178,11 +181,14 @@ scenario "upgrade" {
     ]
 
     variables {
-      nomad_addr           = step.provision_cluster.nomad_addr
-      ca_file              = step.provision_cluster.ca_file
-      cert_file            = step.provision_cluster.cert_file
-      key_file             = step.provision_cluster.key_file
-      nomad_token          = step.provision_cluster.nomad_token
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # driving the upgrade
       servers              = step.provision_cluster.servers
       ssh_key_path         = step.provision_cluster.ssh_key_file
       artifactory_username = var.artifactory_username
@@ -202,11 +208,14 @@ scenario "upgrade" {
 
     module = module.test_cluster_health
     variables {
-      nomad_addr      = step.provision_cluster.nomad_addr
-      ca_file         = step.provision_cluster.ca_file
-      cert_file       = step.provision_cluster.cert_file
-      key_file        = step.provision_cluster.key_file
-      nomad_token     = step.provision_cluster.nomad_token
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # configuring assertions
       server_count    = var.server_count
       client_count    = local.clients_count
       jobs_count      = step.run_initial_workloads.jobs_count
@@ -251,14 +260,14 @@ scenario "upgrade" {
     depends_on = [step.server_upgrade_test_cluster_health]
 
     description = <<-EOF
-     Takes the clients one by one, writes some dynamic metadata to them, 
+     Takes the clients one by one, writes some dynamic metadata to them,
     updates the binary with the new one previously fetched and restarts them.
 
-    Important: The path where the binary will be placed is hardcoded to match 
+    Important: The path where the binary will be placed is hardcoded to match
     what the provision-cluster module does. It can be configurable in the future
     but for now it is:
 
-     * "C:/opt/nomad.exe" for windows 
+     * "C:/opt/nomad.exe" for windows
      * "/usr/local/bin/nomad" for linux
 
     To ensure the clients are upgraded one by one, they use the depends_on meta,
@@ -274,11 +283,14 @@ scenario "upgrade" {
     ]
 
     variables {
-      nomad_addr           = step.provision_cluster.nomad_addr
-      ca_file              = step.provision_cluster.ca_file
-      cert_file            = step.provision_cluster.cert_file
-      key_file             = step.provision_cluster.key_file
-      nomad_token          = step.provision_cluster.nomad_token
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # configuring assertions
       clients              = step.provision_cluster.clients
       ssh_key_path         = step.provision_cluster.ssh_key_file
       artifactory_username = var.artifactory_username
@@ -292,17 +304,20 @@ scenario "upgrade" {
     depends_on = [step.upgrade_clients]
 
     description = <<-EOF
-    Verify the health of the cluster by checking the status of all servers, nodes, 
+    Verify the health of the cluster by checking the status of all servers, nodes,
     jobs and allocs and stopping random allocs to check for correct reschedules"
     EOF
 
     module = module.test_cluster_health
     variables {
-      nomad_addr      = step.provision_cluster.nomad_addr
-      ca_file         = step.provision_cluster.ca_file
-      cert_file       = step.provision_cluster.cert_file
-      key_file        = step.provision_cluster.key_file
-      nomad_token     = step.provision_cluster.nomad_token
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # configuring assertions
       server_count    = var.server_count
       client_count    = local.clients_count
       jobs_count      = step.run_initial_workloads.jobs_count

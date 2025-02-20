@@ -5,7 +5,7 @@
 set -euo pipefail
 
 error_exit() {
-    printf 'Error: %s' "${1}" 
+    printf 'Error: %s' "${1}"
     exit 1
 }
 
