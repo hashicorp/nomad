@@ -1,8 +1,9 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-# Policy for the Nomad agent. Note that this policy will work with Workload
-# Identity for Connect jobs, but is more highly-privileged than we need.
+# Policy for the Nomad agent. Note that with this policy we must use Workload
+# Identity for Connect jobs, or we'll get "failed to derive SI token" errors
+# from the client because the Nomad agent's token doesn't have "acl:write"
 
 # The operator:write permission is required for creating config entries for
 # connect ingress gateways. operator ACLs are not namespaced, though the
@@ -13,36 +14,31 @@ agent_prefix "" {
   policy = "read"
 }
 
-# The acl:write permission is required for minting Consul Service Identity
-# tokens for Connect services with Consul CE (which has no namespaces)
-acl = "write"
-
-key_prefix "" {
-  policy = "read"
-}
-
 node_prefix "" {
   policy = "read"
 }
 
-service_prefix "" {
+service_prefix "nomad" {
   policy = "write"
+}
+
+service_prefix "" {
+  policy = "read"
 }
 
 # for use with Consul ENT
 namespace_prefix "prod" {
 
-  acl = "write"
-
-  key_prefix "" {
-    policy = "read"
-  }
-
   node_prefix "" {
     policy = "read"
   }
 
-  service_prefix "" {
+  service_prefix "nomad" {
     policy = "write"
   }
+
+  service_prefix "" {
+    policy = "read"
+  }
+
 }

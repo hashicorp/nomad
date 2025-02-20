@@ -55,7 +55,6 @@ type Consul struct {
 	Name                      string                  `json:"name,omitempty"`
 	Address                   string                  `json:"address,omitempty"`
 	Auth                      string                  `json:"auth,omitempty"`
-	Token                     string                  `json:"token,omitempty"`
 	ServiceIdentity           *WorkloadIdentityConfig `json:"service_identity,omitempty"`
 	ServiceIdentityAuthMethod string                  `json:"service_auth_method,omitempty"`
 	TaskIdentity              *WorkloadIdentityConfig `json:"task_identity,omitempty"`
