@@ -125,3 +125,14 @@ You can update the `nomad_version` variable, or simply rebuild the binary you
 have at the `nomad_local_binary` path so that Terraform picks up the
 changes. Then run `terraform plan`/`terraform apply` again. This will update
 Nomad in place, making the minimum amount of changes necessary.
+
+### ...Use Vault within a Test
+
+The infrastructure build enables a Vault KV2 mount whose mount point matches the value of the
+`CLUSTER_UNIQUE_IDENTIFIER` environment variable and is generated
+[here](https://github.com/hashicorp/nomad/blob/687335639bc6d4d522c91d6026d9e3f149aa75dc/e2e/terraform/provision-infra/main.tf#L16).
+
+All Nomad workloads which include a
+[Vault block](https://developer.hashicorp.com/nomad/docs/job-specification/vault) will be granted
+access to secrets according to the
+[default policy document](./terraform/provision-infra/templates/vault-acl-jwt-policy-nomad-workloads.hcl.tpl).
