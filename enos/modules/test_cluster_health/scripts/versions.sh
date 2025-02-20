@@ -31,7 +31,6 @@ echo "All servers are running Nomad version $SERVERS_VERSION"
 
 # Clients version
 clients_versions=$(nomad node status -json | jq -r '[.[] | select(.Status == "ready") | .Version] | unique')
-
 if [ "$(echo "$clients_versions" | jq 'length')" -eq 0 ]; then
     error_exit "Unable to get clients version"
 fi
