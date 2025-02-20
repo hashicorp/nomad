@@ -28,7 +28,7 @@ export default class IndexController extends Controller.extend(
   @service system;
   @service userSettings;
   @service keyboard;
-  @controller('csi/volumes') volumesController;
+  @controller('storage/volumes') volumesController;
 
   @alias('volumesController.isForbidden')
   isForbidden;
@@ -115,7 +115,7 @@ export default class IndexController extends Controller.extend(
     lazyClick([
       () =>
         this.transitionToRoute(
-          'csi.volumes.volume',
+          'storage.volumes.volume',
           volume.get('idWithNamespace')
         ),
       event,

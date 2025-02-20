@@ -23,7 +23,7 @@ export default class IndexController extends Controller.extend(
   Searchable
 ) {
   @service userSettings;
-  @controller('csi/plugins') pluginsController;
+  @controller('storage/plugins') pluginsController;
 
   @alias('pluginsController.isForbidden') isForbidden;
 
@@ -65,7 +65,7 @@ export default class IndexController extends Controller.extend(
   @action
   gotoPlugin(plugin, event) {
     lazyClick([
-      () => this.transitionToRoute('csi.plugins.plugin', plugin.plainId),
+      () => this.transitionToRoute('storage.plugins.plugin', plugin.plainId),
       event,
     ]);
   }
