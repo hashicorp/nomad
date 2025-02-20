@@ -39,7 +39,7 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 		// Note that with this policy we must use Workload Identity for Connect
 		// jobs, or we'll get "failed to derive SI token" errors from the client
 		// because the Nomad agent's token doesn't have "acl:write"
-		e2eutil.SetupConsulACLsForServices(t, consulAPI,
+		token := e2eutil.SetupConsulACLsForServices(t, consulAPI,
 			"./input/consul-policy-for-nomad.hcl")
 
 		// we need service intentions so Connect apps can reach each other, and
@@ -56,6 +56,7 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 			Name:                      "default",
 			Address:                   consulHTTPAddr,
 			Auth:                      "",
+			Token:                     token,
 			ServiceIdentityAuthMethod: "nomad-workloads",
 			ServiceIdentity: &testutil.WorkloadIdentityConfig{
 				Audience: []string{"consul.io"},
