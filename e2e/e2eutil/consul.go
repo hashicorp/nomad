@@ -235,7 +235,7 @@ func DeleteConsulTokens(t *testing.T, client *capi.Client, tokens map[string][]s
 
 // SetupConsulACLsForServices installs a base set of ACL policies and returns a
 // token that the Nomad agent can use
-func SetupConsulACLsForServices(t *testing.T, consulAPI *capi.Client, policyFilePath string) {
+func SetupConsulACLsForServices(t *testing.T, consulAPI *capi.Client, policyFilePath string) string {
 
 	d, err := os.Getwd()
 	must.NoError(t, err)
@@ -251,6 +251,18 @@ func SetupConsulACLsForServices(t *testing.T, consulAPI *capi.Client, policyFile
 
 	policy, _, err = consulAPI.ACL().PolicyCreate(policy, nil)
 	must.NoError(t, err, must.Sprint("could not write policy to Consul"))
+
+	token := &capi.ACLToken{
+		Description: "token for Nomad agent",
+		Policies: []*capi.ACLLink{{
+			ID:   policy.ID,
+			Name: policy.Name,
+		}},
+	}
+	token, _, err = consulAPI.ACL().TokenCreate(token, nil)
+	must.NoError(t, err, must.Sprint("could not create token in Consul"))
+
+	return token.SecretID
 }
 
 func SetupConsulServiceIntentions(t *testing.T, consulAPI *capi.Client) {
