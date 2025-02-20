@@ -224,8 +224,13 @@ func (c *VolumeStatusCommand) formatCSIBasic(vol *api.CSIVolume) (string, error)
 		full = append(full, topo)
 	}
 
+	banner := "\n[bold]Capabilities[reset]"
+	caps := formatCSIVolumeCapabilities(vol.RequestedCapabilities)
+	full = append(full, banner)
+	full = append(full, caps)
+
 	// Format the allocs
-	banner := c.Colorize().Color("\n[bold]Allocations[reset]")
+	banner = c.Colorize().Color("\n[bold]Allocations[reset]")
 	allocs := formatAllocListStubs(vol.Allocations, c.verbose, c.length)
 	full = append(full, banner)
 	full = append(full, allocs)
@@ -290,4 +295,13 @@ func csiVolMountOption(volume, request *api.CSIMountOptions) string {
 	}
 
 	return out
+}
+
+func formatCSIVolumeCapabilities(caps []*api.CSIVolumeCapability) string {
+	lines := make([]string, len(caps)+1)
+	lines[0] = "Access Mode|Attachment Mode"
+	for i, cap := range caps {
+		lines[i+1] = fmt.Sprintf("%s|%s", cap.AccessMode, cap.AttachmentMode)
+	}
+	return formatList(lines)
 }
