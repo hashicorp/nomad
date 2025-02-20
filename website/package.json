@@ -15,6 +15,10 @@
     "next": "14.0.4",
     "prettier": "^3.2.4"
   },
+  "overrides": {
+    "eslint-plugin-prettier": "5.0.0",
+    "ws": "^7.5.10"
+  },
   "scripts": {
     "build": "./scripts/website-build.sh",
     "format": "next-hashicorp format",
