@@ -5,12 +5,15 @@ package e2eutil
 
 import (
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	capi "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -228,4 +231,117 @@ func DeleteConsulTokens(t *testing.T, client *capi.Client, tokens map[string][]s
 			assert.NoError(t, err)
 		}
 	}
+}
+
+// SetupConsulACLsForServices installs a base set of ACL policies and returns a
+// token that the Nomad agent can use
+func SetupConsulACLsForServices(t *testing.T, consulAPI *capi.Client, policyFilePath string) {
+
+	d, err := os.Getwd()
+	must.NoError(t, err)
+	t.Log(d)
+	policyRules, err := os.ReadFile(policyFilePath)
+	must.NoError(t, err, must.Sprintf("could not open policy file %s", policyFilePath))
+
+	policy := &capi.ACLPolicy{
+		Name:        "nomad-cluster-" + uuid.Short(),
+		Description: "policy for nomad agent",
+		Rules:       string(policyRules),
+	}
+
+	policy, _, err = consulAPI.ACL().PolicyCreate(policy, nil)
+	must.NoError(t, err, must.Sprint("could not write policy to Consul"))
+}
+
+func SetupConsulServiceIntentions(t *testing.T, consulAPI *capi.Client) {
+	ixn := &capi.Intention{
+		SourceName:      "count-dashboard",
+		DestinationName: "count-api",
+		Action:          "allow",
+	}
+	_, err := consulAPI.Connect().IntentionUpsert(ixn, nil)
+	must.NoError(t, err, must.Sprint("could not create intention"))
+}
+
+// SetupConsulACLsForTasks installs a base set of ACL policies and returns a
+// token that the Nomad agent can use
+func SetupConsulACLsForTasks(t *testing.T, consulAPI *capi.Client, roleName, policyFilePath string) {
+
+	policyRules, err := os.ReadFile(policyFilePath)
+	must.NoError(t, err, must.Sprintf("could not open policy file %s", policyFilePath))
+
+	policy := &capi.ACLPolicy{
+		Name:        "nomad-tasks-" + uuid.Short(),
+		Description: "policy for nomad tasks",
+		Rules:       string(policyRules),
+	}
+
+	policy, _, err = consulAPI.ACL().PolicyCreate(policy, nil)
+	must.NoError(t, err, must.Sprint("could not write policy to Consul"))
+
+	role := &capi.ACLRole{
+		Name:        roleName, // note: must match "prod-${nomad_namespace}"
+		Description: "role for nomad tasks",
+		Policies: []*capi.ACLLink{{
+			ID:   policy.ID,
+			Name: policy.Name,
+		}},
+	}
+	_, _, err = consulAPI.ACL().RoleCreate(role, nil)
+	if err != nil {
+		// TODO: because we run two types of Consul E2E tests, these setup
+		// functions will run twice. This is okay for all except when
+		// creating roles. So if the role already exists, just continue.
+		// When old framework tests are migrated, this should be removed.
+		must.ErrorContains(t, err, "already exists")
+	}
+}
+
+func SetupConsulJWTAuth(t *testing.T, consulAPI *capi.Client, address string, namespaceRules []*capi.ACLAuthMethodNamespaceRule) {
+
+	authConfig := map[string]any{
+		"JWKSURL":          fmt.Sprintf("%s/.well-known/jwks.json", address),
+		"JWTSupportedAlgs": []string{"RS256"},
+		"BoundAudiences":   "consul.io",
+		"ClaimMappings": map[string]string{
+			"nomad_namespace": "nomad_namespace",
+			"nomad_job_id":    "nomad_job_id",
+			"nomad_task":      "nomad_task",
+			"nomad_service":   "nomad_service",
+		},
+	}
+
+	_, _, err := consulAPI.ACL().AuthMethodCreate(&capi.ACLAuthMethod{
+		Name:           "nomad-workloads",
+		Type:           "jwt",
+		DisplayName:    "nomad-workloads",
+		Description:    "login method for Nomad tasks with workload identity (WI)",
+		MaxTokenTTL:    time.Hour,
+		TokenLocality:  "local",
+		Config:         authConfig,
+		NamespaceRules: namespaceRules,
+	}, nil)
+	must.NoError(t, err, must.Sprint("could not create Consul auth method for Nomad workloads"))
+
+	rule := &capi.ACLBindingRule{
+		ID:          "",
+		Description: "binding rule for Nomad workload identities (WI) for tasks",
+		AuthMethod:  "nomad-workloads",
+		Selector:    `"nomad_service" not in value`,
+		BindType:    "role",
+		BindName:    "nomad-${value.nomad_namespace}",
+	}
+	_, _, err = consulAPI.ACL().BindingRuleCreate(rule, nil)
+	must.NoError(t, err, must.Sprint("could not create Consul binding rule"))
+
+	rule = &capi.ACLBindingRule{
+		ID:          "",
+		Description: "binding rule for Nomad workload identities (WI) for services",
+		AuthMethod:  "nomad-workloads",
+		Selector:    `"nomad_service" in value`,
+		BindType:    "service",
+		BindName:    "${value.nomad_service}",
+	}
+	_, _, err = consulAPI.ACL().BindingRuleCreate(rule, nil)
+	must.NoError(t, err, must.Sprint("could not create Consul binding rule"))
 }
