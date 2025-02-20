@@ -37,7 +37,6 @@ import (
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	runc "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
-	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -880,7 +879,7 @@ func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error
 	r := make([]*devices.Device, len(driverDevices))
 
 	for i, d := range driverDevices {
-		ed, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
+		ed, err := devices.DeviceFromPath(d.HostPath, d.Permissions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)
 		}
