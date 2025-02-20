@@ -202,7 +202,7 @@ export default class GlobalSearchControl extends Component {
         );
       });
     } else if (model.type === 'plugin') {
-      this.router.transitionTo('csi.plugins.plugin', model.id);
+      this.router.transitionTo('storage.plugins.plugin', model.id);
     } else if (model.type === 'allocation') {
       this.router.transitionTo('allocations.allocation', model.id);
     }

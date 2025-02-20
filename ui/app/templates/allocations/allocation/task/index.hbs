@@ -220,7 +220,7 @@
               <td data-test-volume-client-source>
                 {{#if row.model.isCSI}}
                   <LinkTo
-                    @route="csi.volumes.volume"
+                    @route="storage.volumes.volume"
                     @model={{concat
                     (format-volume-name
                       source=row.model.source

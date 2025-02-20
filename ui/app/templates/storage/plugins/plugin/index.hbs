@@ -129,7 +129,7 @@
         <div class="boxed-section-foot">
           <p class="pull-right">
           <LinkTo
-            @route="csi.plugins.plugin.allocations"
+            @route="storage.plugins.plugin.allocations"
             @model={{this.model}}
             @query={{hash qpType=(qp-serialize (array "controller"))}}
             data-test-go-to-controller-allocations>
@@ -180,7 +180,7 @@
       <div class="boxed-section-foot">
         <p class="pull-right">
         <LinkTo
-          @route="csi.plugins.plugin.allocations"
+          @route="storage.plugins.plugin.allocations"
           @model={{this.model}}
           @query={{hash qpType=(qp-serialize (array "node"))}}
           data-test-go-to-node-allocations>
