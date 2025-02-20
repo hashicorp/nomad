@@ -18,7 +18,7 @@ locals {
     NOMAD_TOKEN       = var.nomad_token
   }
 
-  system_job_count =   length({for k, v in var.workloads : k => v if v.type == "system"})
+  system_job_count     = length({ for k, v in var.workloads : k => v if v.type == "system" })
   service_batch_allocs = sum([for wl in var.workloads : wl.alloc_count])
 }
 
@@ -31,7 +31,7 @@ resource "enos_local_exec" "wait_for_nomad_api" {
 resource "enos_local_exec" "get_nodes" {
   environment = local.nomad_env
 
-  inline = [ "nomad node status -json | jq '[.[] | select(.Status == \"ready\")] | length'"]
+  inline = ["nomad node status -json | jq '[.[] | select(.Status == \"ready\")] | length'"]
 }
 
 resource "enos_local_exec" "get_jobs" {
