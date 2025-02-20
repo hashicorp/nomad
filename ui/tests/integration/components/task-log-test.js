@@ -11,6 +11,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
 import Pretender from 'pretender';
 import { logEncode } from '../../../mirage/data/logs';
+import { startMirage } from 'nomad-ui/initializers/ember-cli-mirage';
 
 const HOST = '1.1.1.1:1111';
 const allowedConnectionTime = 100;
@@ -36,7 +37,22 @@ let logMode = null;
 module('Integration | Component | task log', function (hooks) {
   setupRenderingTest(hooks);
 
-  hooks.beforeEach(function () {
+  hooks.beforeEach(async function () {
+    this.server = startMirage();
+    const managementToken = this.server.create('token');
+    window.localStorage.nomadTokenSecret = managementToken.secretId;
+    const tokenService = this.owner.lookup('service:token');
+    const tokenPromise = tokenService.fetchSelfTokenAndPolicies.perform();
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(
+        () => reject(new Error('Token fetch timed out after 3 seconds')),
+        3000
+      );
+    });
+    await Promise.race([tokenPromise, timeoutPromise]);
+    // ^--- TODO: noticed some flakiness in local testing; this is meant to suss it out in CI.
+    await settled();
+
     const handler = ({ queryParams }) => {
       let frames;
       let data;
