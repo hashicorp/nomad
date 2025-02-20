@@ -34,7 +34,7 @@ EOH
       resources {
         cpu    = 50
         memory = 64
-      }      
+      }
     }
   }
 }

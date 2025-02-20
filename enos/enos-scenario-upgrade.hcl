@@ -13,7 +13,7 @@ scenario "upgrade" {
     //os      = ["linux", "windows"]
     edition = ["ent"]
     os      = ["linux"]
-    
+
     exclude {
       os   = ["windows"]
       arch = ["arm64"]
