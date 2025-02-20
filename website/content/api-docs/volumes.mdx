@@ -1137,6 +1137,11 @@ The table below shows this endpoint's support for
 | `YES`            | `namespace:host-volume-read` |
 
 ### Parameters
+- `claim_id` `(string: "")` - Specifies the prefix of a task group volume
+claim ID to perform the list. Specify this as a query string parameter.
+
+- `namespace` `(string: <required>)` - Specifies the namespace used to filter
+task group volume claims.
 
 - `job_id` `(string: "")` - Specifies the job ID used to filter task group
 volume claims.
