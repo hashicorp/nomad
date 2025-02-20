@@ -61,10 +61,10 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 			switch {
 			case args.JobID != "":
 				iter, err = stateStore.TaskGroupHostVolumeClaimsByJobID(ws, args.JobID)
-			case args.TaskGroup != "":
-				iter, err = stateStore.TaskGroupHostVolumeClaimsByTaskGroup(ws, args.TaskGroup)
 			case args.VolumeName != "":
 				iter, err = stateStore.TaskGroupHostVolumeClaimsByVolumeName(ws, args.VolumeName)
+			case args.TaskGroup != "":
+				iter, err = stateStore.TaskGroupHostVolumeClaimsByTaskGroup(ws, args.TaskGroup)
 			default:
 				iter, err = stateStore.GetTaskGroupHostVolumeClaims(ws)
 			}
