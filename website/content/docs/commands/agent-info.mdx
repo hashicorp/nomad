@@ -1,14 +1,14 @@
 ---
 layout: docs
-page_title: 'Commands: agent-info'
+page_title: 'nomad agent-info reference'
 description: |
-  Display information and status of a running agent.
+  The `nomad agent-info` command retrieves metrics and status information for a running agent. Use this command to review agent data from the client, nomad, serf, raft, and runtime subsystems.
 ---
 
-# Command: agent-info
+# `nomad agent-info` reference
 
-The `agent-info` command dumps metrics and status information of a running
-agent. The information displayed pertains to the specific agent the CLI
+The `nomad agent-info` command retrieves metrics and status information for a
+running agent. The information returned pertains to the specific agent the CLI
 is connected to. This is useful for troubleshooting and performance monitoring.
 
 ## Usage
@@ -24,23 +24,23 @@ capability.
 
 @include 'general_options_no_namespace.mdx'
 
-## Agent Info Options
+## `agent-info` options
 
 - `-json` : Output agent info in its JSON format.
 - `-t` : Format and display agent info using a Go template.
 
 ## Output
 
-Depending on the agent queried, information from different subsystems is
-returned. These subsystems are described below:
+Depending on the agent queried, the `nomad agent-info` command retrieves
+information from the following subsystems:
 
-- client - Status of the local Nomad client
-- nomad - Status of the local Nomad server
-- serf - Gossip protocol metrics and information
-- raft - Status information about the Raft consensus protocol
-- runtime - Various metrics from the runtime environment
+- Client: Status of the local Nomad client
+- Nomad: Status of the local Nomad server
+- Serf: Gossip protocol metrics and information
+- Raft: Status information about the Raft consensus protocol
+- Runtime: Various metrics from the runtime environment
 
-## Examples
+## Example
 
 ```shell-session
 $ nomad agent-info
