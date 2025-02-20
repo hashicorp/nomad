@@ -151,8 +151,13 @@ func formatHostVolume(vol *api.HostVolume, opts formatOpts) (string, error) {
 
 	full := []string{formatKV(output)}
 
+	banner := "\n[bold]Capabilities[reset]"
+	caps := formatHostVolumeCapabilities(vol.RequestedCapabilities)
+	full = append(full, banner)
+	full = append(full, caps)
+
 	// Format the allocs
-	banner := "\n[bold]Allocations[reset]"
+	banner = "\n[bold]Allocations[reset]"
 	allocs := formatAllocListStubs(vol.Allocations, opts.verbose, opts.length)
 	full = append(full, banner)
 	full = append(full, allocs)
@@ -195,4 +200,13 @@ func formatHostVolumes(vols []*api.HostVolumeStub, opts formatOpts) (string, err
 		)
 	}
 	return formatList(rows), nil
+}
+
+func formatHostVolumeCapabilities(caps []*api.HostVolumeCapability) string {
+	lines := make([]string, len(caps)+1)
+	lines[0] = "Access Mode|Attachment Mode"
+	for i, cap := range caps {
+		lines[i+1] = fmt.Sprintf("%s|%s", cap.AccessMode, cap.AttachmentMode)
+	}
+	return formatList(lines)
 }
