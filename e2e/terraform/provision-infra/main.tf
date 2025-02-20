@@ -23,7 +23,7 @@ locals {
 module "keys" {
   depends_on = [random_pet.e2e]
   name       = local.random_name
-  path       = "${local.keys_dir}"
+  path       = local.keys_dir
   source     = "mitchellh/dynamic-keys/aws"
   version    = "v2.0.0"
 }
