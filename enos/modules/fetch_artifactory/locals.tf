@@ -20,4 +20,5 @@ locals {
 
   artifact_name = "nomad_${local.artifact_version}${local.package_extensions[var.arch][var.os]}"
   artifact_zip  = "${local.artifact_name}.zip"
+  local_binary  = var.os == "windows" ? "${var.download_binary_path}/nomad.exe" : "${var.download_binary_path}/nomad"
 }

@@ -125,12 +125,12 @@ resource "enos_local_exec" "second_leader_verification" {
 // used to restore the cluster after the restart, because it will be the most 
 // recent available, the resulting file wont be used.
 resource "enos_local_exec" "take_third_cluster_snapshot" {
-  depends_on = [enos_local_exec.first_leader_verification]
+  depends_on = [enos_local_exec.second_leader_verification]
 
   environment = local.nomad_env
 
   inline = [
-    "nomad operator snapshot save -stale -address https://${var.servers[2]}:4646 ${random_pet.upgrade.id}-1.snap",
+    "nomad operator snapshot save -stale -address https://${var.servers[2]}:4646 ${random_pet.upgrade.id}-2.snap",
   ]
 }
 
