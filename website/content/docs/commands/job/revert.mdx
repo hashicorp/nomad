@@ -18,13 +18,6 @@ persisted, it must be provided to revert if the targeted job version includes
 Consul Connect enabled services and the Nomad servers were configured to require
 [consul service identity] authentication.
 
-The revert command will use a Vault token with the following preference:
-first the `-vault-token` flag, then the `$VAULT_TOKEN` environment variable.
-Because the vault token used to [run] the targeted job version was not
-persisted, it must be provided to revert if the targeted job version includes
-Vault policies and the Nomad servers were configured to require [vault policy]
-authentication.
-
 ## Usage
 
 ```shell-session
@@ -56,10 +49,6 @@ not used.
 - `-consul-token`: If set, the passed Consul token is sent along with the revert
   request to the Nomad servers. This overrides the token found in the
   `$CONSUL_HTTP_TOKEN` environment variable.
-
-- `-vault-token`: If set, the passed Vault token is sent along with the revert
-  request to the Nomad servers. This overrides the token found in the
-  `$VAULT_TOKEN` environment variable.
 
 - `-verbose`: Show full information.
 
@@ -126,5 +115,4 @@ Submit Date = 07/25/17 21:27:18 UTC
 [`job history`]: /nomad/docs/commands/job/history
 [eval status]: /nomad/docs/commands/eval/status
 [consul service identity]: /nomad/docs/configuration/consul#allow_unauthenticated
-[vault policy]: /nomad/docs/configuration/vault#allow_unauthenticated
 [run]: /nomad/docs/commands/job/run
