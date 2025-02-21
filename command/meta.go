@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/cap/util"
@@ -278,10 +279,12 @@ func (m *Meta) SetupUi(args []string) {
 
 	// Check to see if the user has disabled hints via env var.
 	showCLIHints := os.Getenv(EnvNomadCLIShowHints)
-	if showCLIHints == "false" {
-		m.showCLIHints = pointer.Of(false)
-	} else if showCLIHints == "true" {
-		m.showCLIHints = pointer.Of(true)
+	if showCLIHints != "" {
+		if show, err := strconv.ParseBool(showCLIHints); err == nil {
+			m.showCLIHints = pointer.Of(show)
+		} else {
+			m.Ui.Warn(fmt.Sprintf("Invalid value %q for %s: %v", showCLIHints, EnvNomadCLIShowHints, err))
+		}
 	}
 }
 
@@ -550,6 +553,11 @@ var CommandUIRoutes = map[string]UIRoute{
 }
 
 func (m *Meta) formatUIHint(url string, description string) string {
+	// Don't show hints for non-terminal output
+	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
+		return ""
+	}
+
 	if description == "" {
 		description = defaultHint
 	}
