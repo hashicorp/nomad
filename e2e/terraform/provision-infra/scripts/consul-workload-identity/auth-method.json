@@ -1,0 +1,25 @@
+{
+    "Name": "nomad-workloads",
+    "Type": "jwt",
+    "DisplayName": "nomad-workloads",
+    "Description": "Login method for Nomad workloads using workload identities",
+    "TokenLocality": "local",
+    "Config": {
+        "BoundAudiences": [
+            "consul.io"
+        ],
+        "ClaimMappings": {
+            "consul_namespace": "consul_namespace",
+            "nomad_job_id": "nomad_job_id",
+            "nomad_namespace": "nomad_namespace",
+            "nomad_service": "nomad_service",
+            "nomad_task": "nomad_task"
+        },
+        "JWKSURL": "http://localhost:4646/.well-known/jwks.json",
+        "JWTSupportedAlgs": [
+            "RS256"
+        ]
+    },
+    "CreateIndex": 0,
+    "ModifyIndex": 0
+}

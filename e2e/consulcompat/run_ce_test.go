@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-version"
-	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/testutil"
 )
 
@@ -39,14 +38,14 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 		// Note that with this policy we must use Workload Identity for Connect
 		// jobs, or we'll get "failed to derive SI token" errors from the client
 		// because the Nomad agent's token doesn't have "acl:write"
-		token := e2eutil.SetupConsulACLsForServices(t, consulAPI,
+		token := setupConsulACLsForServices(t, consulAPI,
 			"./input/consul-policy-for-nomad.hcl")
 
 		// we need service intentions so Connect apps can reach each other, and
 		// an ACL role and policy that tasks will be able to use to render
 		// templates
-		e2eutil.SetupConsulServiceIntentions(t, consulAPI)
-		e2eutil.SetupConsulACLsForTasks(t, consulAPI,
+		setupConsulServiceIntentions(t, consulAPI)
+		setupConsulACLsForTasks(t, consulAPI,
 			"nomad-default", "./input/consul-policy-for-tasks.hcl")
 
 		// note: Nomad needs to be live before we can setup Consul auth methods
@@ -72,7 +71,7 @@ func testConsulBuild(t *testing.T, b build, baseDir string) {
 		nc := startNomad(t, consulCfg)
 
 		// configure authentication for WI to Consul
-		e2eutil.SetupConsulJWTAuth(t, consulAPI, nc.Address(), nil)
+		setupConsulJWTAuth(t, consulAPI, nc.Address(), nil)
 
 		verifyConsulFingerprint(t, nc, b.Version, "default")
 		runConnectJob(t, nc, "default", "./input/connect.nomad.hcl")
