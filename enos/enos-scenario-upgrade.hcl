@@ -373,11 +373,8 @@ EOF
   output "binary_path" {
     value = step.copy_initial_binary.binary_path
   }
-<<<<<<< HEAD
-=======
 
   output "allocs" {
     value = step.run_initial_workloads.allocs_count
   }
->>>>>>> 25cf0ba2de (func: Add more workloads)
 }
