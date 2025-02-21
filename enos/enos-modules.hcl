@@ -1,8 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-module "install_binaries" {
-  source = "./modules/install_binaries"
+module "fetch_binaries" {
+  source = "./modules/fetch_binaries"
 }
 
 module "provision_cluster" {
