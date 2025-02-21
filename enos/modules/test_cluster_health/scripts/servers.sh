@@ -21,7 +21,10 @@ leader_last_term=
 
 checkAutopilotHealth() {
     local autopilotHealth servers_healthy leader
-    autopilotHealth=$(nomad operator autopilot health -json) || return 1
+    autopilotHealth=$(nomad operator autopilot health -json) || {
+        last_error="Could not read autopilot health"
+        return 1
+    }
     servers_healthy=$(echo "$autopilotHealth" |
                           jq -r '[.Servers[] | select(.Healthy == true) | .ID] | length')
 
