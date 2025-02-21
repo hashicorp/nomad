@@ -1,6 +1,5 @@
-// A policy used by the Consul role associated
-// with nomad tasks.
-// Used for Workload Identity integration.
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
 
 service_prefix "" {
   policy = "read"

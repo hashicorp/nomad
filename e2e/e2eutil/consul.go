@@ -5,15 +5,12 @@ package e2eutil
 
 import (
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	capi "github.com/hashicorp/consul/api"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
-	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
