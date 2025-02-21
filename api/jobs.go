@@ -549,7 +549,7 @@ func (j *Jobs) Dispatch(jobID string, meta map[string]string,
 // enforceVersion is set, the job is only reverted if the current version is at
 // the passed version.
 func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
-	q *WriteOptions, consulToken, vaultToken string) (*JobRegisterResponse, *WriteMeta, error) {
+	q *WriteOptions, consulToken, _ string) (*JobRegisterResponse, *WriteMeta, error) {
 
 	var resp JobRegisterResponse
 	req := &JobRevertRequest{
@@ -557,7 +557,6 @@ func (j *Jobs) Revert(jobID string, version uint64, enforcePriorVersion *uint64,
 		JobVersion:          version,
 		EnforcePriorVersion: enforcePriorVersion,
 		ConsulToken:         consulToken,
-		VaultToken:          vaultToken,
 	}
 	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/revert", req, &resp, q)
 	if err != nil {
@@ -1454,12 +1453,6 @@ type JobRevertRequest struct {
 	// Consul Connect enabled services. This field is only used to transfer the
 	// token and is not stored after the Job revert.
 	ConsulToken string `json:",omitempty"`
-
-	// VaultToken is the Vault token that proves the submitter of the job revert
-	// has access to any Vault policies specified in the targeted job version. This
-	// field is only used to authorize the revert and is not stored after the Job
-	// revert.
-	VaultToken string `json:",omitempty"`
 
 	WriteRequest
 }

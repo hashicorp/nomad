@@ -960,12 +960,6 @@ type JobRevertRequest struct {
 	// token and is not stored after the Job revert.
 	ConsulToken string
 
-	// VaultToken is the Vault token that proves the submitter of the job revert
-	// has access to any Vault policies specified in the targeted job version. This
-	// field is only used to transfer the token and is not stored after the Job
-	// revert.
-	VaultToken string
-
 	WriteRequest
 }
 
