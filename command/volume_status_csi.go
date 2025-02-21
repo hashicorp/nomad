@@ -29,12 +29,12 @@ func (c *VolumeStatusCommand) csiVolumeStatus(client *api.Client, id string, opt
 			Namespace: c.namespace,
 		})
 	if err != nil {
-		return fmt.Errorf("Error listing CSI volumes: %s", err)
+		return fmt.Errorf("Error listing CSI volumes: %w", err)
 	}
 	if len(possible) > 0 {
 		out, err := csiFormatVolumes(possible, c.json, c.template)
 		if err != nil {
-			return fmt.Errorf("Error formatting: %s", err)
+			return fmt.Errorf("Error formatting: %w", err)
 		}
 		return fmt.Errorf("Prefix matched multiple CSI volumes\n\n%s", out)
 	}
@@ -42,12 +42,12 @@ func (c *VolumeStatusCommand) csiVolumeStatus(client *api.Client, id string, opt
 	// Try querying the volume
 	vol, _, err := client.CSIVolumes().Info(volStub.ID, nil)
 	if err != nil {
-		return fmt.Errorf("Error querying CSI volume: %s", err)
+		return fmt.Errorf("Error querying CSI volume: %w", err)
 	}
 
 	str, err := c.formatCSIBasic(vol)
 	if err != nil {
-		return fmt.Errorf("Error formatting CSI volume: %s", err)
+		return fmt.Errorf("Error formatting CSI volume: %w", err)
 	}
 	c.Ui.Output(str)
 	return nil
@@ -61,7 +61,7 @@ func (c *VolumeStatusCommand) csiVolumesList(client *api.Client, opts formatOpts
 
 	vols, _, err := client.CSIVolumes().List(nil)
 	if err != nil {
-		return fmt.Errorf("Error querying CSI volumes: %s", err)
+		return fmt.Errorf("Error querying CSI volumes: %w", err)
 	}
 
 	if len(vols) == 0 {
@@ -70,7 +70,7 @@ func (c *VolumeStatusCommand) csiVolumesList(client *api.Client, opts formatOpts
 	} else {
 		str, err := csiFormatVolumes(vols, opts.json, opts.template)
 		if err != nil {
-			return fmt.Errorf("Error formatting: %s", err)
+			return fmt.Errorf("Error formatting: %w", err)
 		}
 		c.Ui.Output(str)
 	}
@@ -80,7 +80,7 @@ func (c *VolumeStatusCommand) csiVolumesList(client *api.Client, opts formatOpts
 
 	plugins, _, err := client.CSIPlugins().List(nil)
 	if err != nil {
-		return fmt.Errorf("Error querying CSI plugins: %s", err)
+		return fmt.Errorf("Error querying CSI plugins: %w", err)
 	}
 
 	if len(plugins) == 0 {
@@ -99,7 +99,7 @@ NEXT_PLUGIN:
 			externalList, _, err := client.CSIVolumes().ListExternal(plugin.ID, q)
 			if err != nil && !errors.Is(err, io.EOF) {
 				mErr = multierror.Append(mErr, fmt.Errorf(
-					"Error querying CSI external volumes for plugin %q: %s", plugin.ID, err))
+					"Error querying CSI external volumes for plugin %q: %w", plugin.ID, err))
 				// we'll stop querying this plugin, but there may be more to
 				// query, so report and set the error code but move on to the
 				// next plugin
@@ -145,7 +145,7 @@ func csiFormatVolumes(vols []*api.CSIVolumeListStub, json bool, template string)
 	if json || len(template) > 0 {
 		out, err := Format(json, template, vols)
 		if err != nil {
-			return "", fmt.Errorf("format error: %v", err)
+			return "", fmt.Errorf("format error: %w", err)
 		}
 		return out, nil
 	}
@@ -174,7 +174,7 @@ func (c *VolumeStatusCommand) formatCSIBasic(vol *api.CSIVolume) (string, error)
 	if c.json || len(c.template) > 0 {
 		out, err := Format(c.json, c.template, vol)
 		if err != nil {
-			return "", fmt.Errorf("format error: %v", err)
+			return "", fmt.Errorf("format error: %w", err)
 		}
 		return out, nil
 	}

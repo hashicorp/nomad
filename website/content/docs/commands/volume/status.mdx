@@ -84,7 +84,7 @@ vol-cd46df    Abnormal (provider message here)  i-14a12df13
 Short view of a specific volume:
 
 ```shell-session
-$ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
+$ nomad volume status ebs_prod_db1
 ID                   = ebs_prod_db1
 Name                 = database
 Type                 = csi
@@ -107,7 +107,7 @@ Namespace            = default
 Full status information of a volume:
 
 ```shell-session
-$ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
+$ nomad volume status -verbose ebs_prod_db1
 ID                   = ebs_prod_db1
 Name                 = database
 Type                 = csi

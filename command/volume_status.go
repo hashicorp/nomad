@@ -4,6 +4,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -191,6 +192,10 @@ func (c *VolumeStatusCommand) Run(args []string) int {
 			// for read, we only want to show whichever has results
 			hostErr := c.hostVolumeStatus(client, id, nodeID, nodePool, opts)
 			if hostErr != nil {
+				if !errors.Is(hostErr, hostVolumeListError) {
+					c.Ui.Error(hostErr.Error())
+					return 1 // we found a host volume but had some other error
+				}
 				csiErr := c.csiVolumeStatus(client, id, opts)
 				if csiErr != nil {
 					c.Ui.Error(hostErr.Error())
