@@ -35,7 +35,6 @@ const (
 	AllocSnapshot                        SnapshotType = 4
 	PeriodicLaunchSnapshot               SnapshotType = 6
 	JobSummarySnapshot                   SnapshotType = 7
-	VaultAccessorSnapshot                SnapshotType = 8
 	JobVersionSnapshot                   SnapshotType = 9
 	DeploymentSnapshot                   SnapshotType = 10
 	ACLPolicySnapshot                    SnapshotType = 11
@@ -62,6 +61,11 @@ const (
 	// TimeTableSnapshot
 	// Deprecated: Nomad no longer supports TimeTable snapshots since 1.9.2
 	TimeTableSnapshot SnapshotType = 5
+
+	// VaultAccessorSnapshot
+	// Deprecated: Nomad no longer supports the Vault legacy token based
+	// workflow and therefore accessor snapshots since 1.10.0.
+	VaultAccessorSnapshot SnapshotType = 8
 
 	// EventSinkSnapshot
 	// Deprecated: Nomad no longer supports EventSink snapshots since 1.0
@@ -1634,14 +1638,12 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			}
 
 		case VaultAccessorSnapshot:
+			// COMPAT: Nomad 1.10.0 removed the Vault accessor table. This case
+			// kept to gracefully handle snapshot requests which include an
+			// object from this.
 			accessor := new(structs.VaultAccessor)
 			if err := dec.Decode(accessor); err != nil {
 				return err
-			}
-			if filter.Include(accessor) {
-				if err := restore.VaultAccessorRestore(accessor); err != nil {
-					return err
-				}
 			}
 
 		case ServiceIdentityTokenAccessorSnapshot:
