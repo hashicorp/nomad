@@ -22,6 +22,6 @@ output "nodes" {
 }
 
 output "new_allocs_count" {
-  description = "The number of allocs that should be running in the cluster"
+  description = "The number of allocs that will be added to the cluster after all the workloads are run"
   value       = local.system_job_count * chomp(enos_local_exec.get_nodes.stdout) + local.service_batch_allocs
 }
