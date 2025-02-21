@@ -41,7 +41,7 @@ while true; do
         error_exit "Some allocs are not running:\n$(nomad alloc status -json | jq -r '.[] | select(.ClientStatus != "running") | .ID')"
     fi
 
-    echo "Running allocs: $running_allocs, expected "$ALLOC_COUNT". Waiting for $elapsed_time  Retrying in $POLL_INTERVAL seconds..."
+    echo "Running allocs: $running_allocs, expected $ALLOC_COUNT. Waiting for $elapsed_time  Retrying in $POLL_INTERVAL seconds..."
     sleep $POLL_INTERVAL
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done
