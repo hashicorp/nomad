@@ -15,7 +15,7 @@ module fetch_artifact {
 
   artifactory_credentials = {
     username = var.artifactory_username
-    token    = var.artifactory_username
+    token    = var.artifactory_token
   }
 
   artifactory_host = var.artifactory_host
