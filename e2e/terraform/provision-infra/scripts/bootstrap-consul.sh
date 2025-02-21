@@ -35,7 +35,6 @@ consul acl token create -policy-name=consul-agents -secret "$CONSUL_AGENT_TOKEN"
 # via Workload Identity
 echo "writing ACLs for Nomad Workload Identity integration..."
 
-# TODO: can we just use localhost here?
 CONF=$(sed 's\NOMAD_SERVER_ADDR\'${NOMAD_SERVER_ADDR}'\g' ${DIR}/consul-workload-identity/auth-method.json) 
 
 echo "writing Consul auth-method"
