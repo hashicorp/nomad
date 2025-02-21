@@ -55,6 +55,10 @@ type consulState struct {
 	// tracks that we've successfully fingerprinted this cluster at least once
 	// since the last Fingerprint call
 	fingerprintedOnce bool
+
+	// we currently can't disable Consul fingerprinting, so for users who aren't
+	// using it we want to make sure we report the periodic failure only once
+	reportedOnce bool
 }
 
 // valueReader is used to parse out one attribute from consulInfo. Returns
@@ -225,9 +229,15 @@ func (cfs *consulState) query(logger hclog.Logger) agentconsul.Self {
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := cfs.client.Agent().Self()
 	if err != nil {
+		if cfs.reportedOnce {
+			return nil
+		}
+		cfs.reportedOnce = true
 		logger.Warn("failed to acquire consul self endpoint", "error", err)
 		return nil
 	}
+
+	cfs.reportedOnce = false
 	return info
 }
 
