@@ -23,9 +23,6 @@ const (
 
 	consulJobRegisterOnUpdatePart1 = "consul/input/services_empty.nomad"
 	consulJobRegisterOnUpdatePart2 = "consul/input/services_present.nomad"
-
-	consulPolicyServiceInput = "/consul/input/consul-policy-for-nomad.hcl"
-	consulPolicyTaskInput    = "/consul/input/consul-policy-for-tasks.hcl"
 )
 
 const (
@@ -55,12 +52,6 @@ func init() {
 func (tc *ConsulE2ETest) BeforeAll(f *framework.F) {
 	e2eutil.WaitForLeader(f.T(), tc.Nomad())
 	e2eutil.WaitForNodesReady(f.T(), tc.Nomad(), 1)
-
-	// setup consul ACL's for WI auth
-	e2eutil.SetupConsulACLsForServices(f.T(), tc.Consul(), consulPolicyServiceInput)
-	e2eutil.SetupConsulServiceIntentions(f.T(), tc.Consul())
-	e2eutil.SetupConsulACLsForTasks(f.T(), tc.Consul(), "nomad-default", consulPolicyTaskInput)
-	e2eutil.SetupConsulJWTAuth(f.T(), tc.Consul(), tc.Nomad().Address(), nil)
 }
 
 func (tc *ConsulE2ETest) AfterEach(f *framework.F) {
