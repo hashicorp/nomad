@@ -43,7 +43,7 @@ scenario "upgrade" {
     running enos.
     EOF
 
-    module = module.install_binaries
+    module = module.fetch_binaries
 
     variables {
       artifactory_username   = var.artifactory_username
@@ -142,10 +142,12 @@ scenario "upgrade" {
     depends_on = [step.provision_cluster, step.initial_test_cluster_health]
 
     description = <<-EOF
-    Bring the new upgraded binary from the artifactory to the instance running enos.
-    EOF
+    Determine which Nomad artifact we want to use for the scenario, depending on the
+    'arch', 'edition' and 'os' and fetches the URL and SHA to identify the upgraded
+    binary.
+EOF
 
-    module = module.install_binaries
+    module = module.fetch_binaries
 
     variables {
       artifactory_username = var.artifactory_username
