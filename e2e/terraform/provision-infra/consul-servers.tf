@@ -173,6 +173,7 @@ resource "null_resource" "bootstrap_consul_acls" {
       CONSUL_HTTP_TOKEN          = "${random_uuid.consul_initial_management_token.result}"
       CONSUL_AGENT_TOKEN         = "${random_uuid.consul_agent_token.result}"
       NOMAD_CLUSTER_CONSUL_TOKEN = "${random_uuid.consul_token_for_nomad.result}"
+      NOMAD_SERVER_ADDR          = "https://${aws_instance.server[0].public_ip}:4646"
     }
   }
 }
