@@ -1,35 +1,34 @@
 ---
 layout: docs
-page_title: 'Commands: fmt'
+page_title: 'nomad fmt reference'
 description: |
-  Rewrite Nomad config and job files to canonical format
+  The `nomad fmt` commands rewrites Nomad configuration and job specification
+   files to canonical format. Use this command to improve readability and enforce consistency of style in Nomad files.
 ---
 
-# Command: fmt
+# `nomad fmt` reference
 
-The `fmt` commands check the syntax and rewrites Nomad configuration and jobspec
-files to canonical format. It can be used to improve readability and enforce
+The `nomad fmt` command rewrites Nomad configuration and job specification files
+to canonical format. Use this command to improve readability and enforce
 consistency of style in Nomad files.
 
 ## Usage
 
 ```plaintext
-nomad fmt [flags] paths ...
+nomad fmt [options] paths ...
 ```
 
-Formats Nomad agent configuration and job file to a canonical format. If a path
-is a directory, it will recursively format all files with .nomad and .hcl
-extensions in the directory.
+If a path is a directory, the command recursively formats all files with
+`.nomad` and `.hcl` extensions in the directory. If you provide a single dash
+(-) as an argument, the `nomad fmt` command reads from standard input and
+writes the processed text to standard output.
 
-If you provide a single dash (-) as argument, fmt will read from standard input
-(STDIN) and output the processed output to standard output (STDOUT).
-
-Note that, this command will check the syntax against
+The `nomad fmt` command checks the syntax against
 [HCL2](https://github.com/hashicorp/hcl/blob/hcl2/README.md), the second
 generation of Hashicorp Configuration Language. Running this command with
-deprecated HCL1 jobspec will result in errors.
+deprecated HCL1 job specification results in errors.
 
-## Format Options:
+## `nomad fmt` options
 
 - `-check`: Check if the files are valid HCL files. If not, exit status of the
   command will be 1 and the incorrect files will not be formatted. This flag

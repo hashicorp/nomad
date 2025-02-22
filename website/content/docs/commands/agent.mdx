@@ -1,29 +1,34 @@
 ---
 layout: docs
-page_title: 'Commands: agent'
+page_title: 'nomad agent reference'
 description: |
-  The agent command is the main entrypoint to running a Nomad client or server.
+  The `nomad agent` command starts the Nomad agent, which handles client or server functionality, including exposing interfaces for client consumption and running jobs. The agent runs until it receives an interrupt signal.
 ---
 
-# Command: agent
+# `nomad agent` reference
 
-The agent command is the heart of Nomad: it runs the agent that handles client
-or server functionality, including exposing interfaces for client consumption
-and running jobs.
+The `nomad agent` command starts the Nomad agent, which handles client or server
+functionality, including exposing interfaces for client consumption and running
+jobs. The agent runs until it receives an interrupt signal.
 
-Due to the power and flexibility of this command, the Nomad agent is documented
-in its own section. See the [Nomad Agent] guide and the [Configuration]
-documentation section for more information on how to use this command and the
-options it has.
+Refer to [Operating Nomad agents] and [Nomad agent configuration] for more
+information on how to use this command and the options it has.
 
--> **Note:** If you are running Nomad on Linux, you'll need to run client agents
-as root (or with `sudo`) so that cpuset accounting and network namespaces work
-correctly.
+## Usage
 
-## Command-line Options
+If you are running Nomad on Linux, you need to run client agents as root, or
+with `sudo`, so that cpuset accounting and network namespaces work correctly.
 
-A subset of the available Nomad agent configuration can optionally be passed in
-via CLI arguments. The `agent` command accepts the following arguments:
+```plaintext
+nomad agent [options]
+```
+
+## `nomad agent` options
+
+We recommend configuring a Nomad agent with configuration files. Refer to [Nomad
+agent configuration] for details.
+
+You may, however, may pass the following configuration options as CLI arguments:
 
 - `-alloc-dir=<path>`: Equivalent to the Client [alloc_dir][] config
   option.
@@ -222,7 +227,6 @@ via CLI arguments. The `agent` command accepts the following arguments:
 [server_failures_before_critical]: /nomad/docs/configuration/consul#server_failures_before_critical
 [server_failures_before_warning]: /nomad/docs/configuration/consul#server_failures_before_warning
 [client_service_name]: /nomad/docs/configuration/consul#client_service_name
-[configuration]: /nomad/docs/configuration
 [data_dir]: /nomad/docs/configuration#data_dir
 [datacenter]: /nomad/docs/configuration#datacenter
 [enabled]: /nomad/docs/configuration/acl#enabled
@@ -236,7 +240,8 @@ via CLI arguments. The `agent` command accepts the following arguments:
 [network_interface]: /nomad/docs/configuration/client#network_interface
 [node_class]: /nomad/docs/configuration/client#node_class
 [node_pool]: /nomad/docs/configuration/client#node_pool
-[nomad agent]: /nomad/docs/operations/nomad-agent
+[Operating Nomad agents]: /nomad/docs/operations/nomad-agent
+[Nomad agent configuration]: /nomad/docs/configuration
 [plugin_dir]: /nomad/docs/configuration#plugin_dir
 [region]: /nomad/docs/configuration#region
 [rejoin_after_leave]: /nomad/docs/configuration/server#rejoin_after_leave
@@ -253,3 +258,4 @@ via CLI arguments. The `agent` command accepts the following arguments:
 [state_dir]: /nomad/docs/configuration/client#state_dir
 [token]: /nomad/docs/configuration/consul#token
 [verify_ssl]: /nomad/docs/configuration/consul#verify_ssl
+
