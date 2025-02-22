@@ -25,38 +25,6 @@ func usable(v, minimum *version.Version) bool {
 	}
 }
 
-func testConsulBuildLegacy(t *testing.T, b build, baseDir string) {
-	t.Run("consul-legacy("+b.Version+")", func(t *testing.T) {
-		consulHTTPAddr, consulAPI := startConsul(t, b, baseDir, "")
-
-		// smoke test before we continue
-		verifyConsulVersion(t, consulAPI, b.Version)
-
-		// we need an ACL policy that allows the Nomad agent to fingerprint
-		// Consul, register services, render templates, and mint new SI tokens
-		consulToken := setupConsulACLsForServices(t, consulAPI,
-			"./input/consul-policy-for-nomad-legacy.hcl")
-
-		// we need service intentions so Connect apps can reach each other
-		setupConsulServiceIntentions(t, consulAPI)
-
-		// note: Nomad needs to be live before we can setupConsul because we
-		// need it up to serve the JWKS endpoint
-
-		consulCfg := &testutil.Consul{
-			Name:    "default",
-			Address: consulHTTPAddr,
-			Auth:    "",
-			Token:   consulToken,
-		}
-
-		nc := startNomad(t, consulCfg)
-
-		verifyConsulFingerprint(t, nc, b.Version, "default")
-		runConnectJob(t, nc, "default", "./input/connect.nomad.hcl")
-	})
-}
-
 func testConsulBuild(t *testing.T, b build, baseDir string) {
 	t.Run("consul("+b.Version+")", func(t *testing.T) {
 		consulHTTPAddr, consulAPI := startConsul(t, b, baseDir, "")

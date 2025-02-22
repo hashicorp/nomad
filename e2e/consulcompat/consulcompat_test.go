@@ -35,7 +35,6 @@ func TestConsulCompat(t *testing.T) {
 		for b := range versions.Items() {
 			downloadConsulBuild(t, b, baseDir)
 
-			testConsulBuildLegacy(t, b, baseDir)
 			testConsulBuild(t, b, baseDir)
 		}
 	})

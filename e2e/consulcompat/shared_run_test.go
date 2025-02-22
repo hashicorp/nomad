@@ -61,6 +61,9 @@ func verifyConsulFingerprint(t *testing.T, nc *nomadapi.Client, expectVersion, c
 // token that the Nomad agent can use
 func setupConsulACLsForServices(t *testing.T, consulAPI *consulapi.Client, policyFilePath string) string {
 
+	d, err := os.Getwd()
+	must.NoError(t, err)
+	t.Log(d)
 	policyRules, err := os.ReadFile(policyFilePath)
 	must.NoError(t, err, must.Sprintf("could not open policy file %s", policyFilePath))
 
