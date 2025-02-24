@@ -19,9 +19,11 @@ leader_last_term=
 
 checkAutopilotHealth() {
     local autopilotHealth leader
-    autopilotHealth=$(nomad operator autopilot health -json) || return 1
+    autopilotHealth=$(nomad operator autopilot health -json) || {
+        last_error="Could not read autopilot health"
+        return 1
+    }
     leader=$(echo "$autopilotHealth" | jq -r '[.Servers[] | select(.Leader == true)]')
-
     if [ "$(echo "$leader" | jq 'length')" -eq 1 ]; then
         leader_last_index=$(echo "$leader" | jq -r '.[0].LastIndex')
         leader_last_term=$(echo "$leader" | jq -r '.[0].LastTerm')

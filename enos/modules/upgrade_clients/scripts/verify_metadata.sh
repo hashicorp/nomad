@@ -20,9 +20,10 @@ checkClientReady() {
     local client client_status
     echo "Checking client health for $CLIENT_IP"
 
-    client=$(nomad node status -address "https://$CLIENT_IP:4646" -self -json) ||
-        error_exit "Unable to get info for node at $CLIENT_IP"
-
+    client=$(nomad node status -address "https://$CLIENT_IP:4646" -self -json) || {
+        last_error="Unable to get info for node at $CLIENT_IP"
+        return 1
+    }
     client_status=$(echo "$client" | jq  -r '.Status')
     if [ "$client_status" == "ready" ]; then
         client_id=$(echo "$client" | jq '.ID' | tr -d '"')
