@@ -18,11 +18,11 @@ require (
 	github.com/Microsoft/go-winio v0.6.1
 	github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e
 	github.com/armon/go-metrics v0.5.3
-	github.com/aws/aws-sdk-go-v2 v1.36.1
-	github.com/aws/aws-sdk-go-v2/config v1.29.6
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.28
+	github.com/aws/aws-sdk-go-v2 v1.36.2
+	github.com/aws/aws-sdk-go-v2/config v1.29.7
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.29
 	github.com/aws/aws-sdk-go-v2/service/ecs v1.53.0
-	github.com/aws/smithy-go v1.22.2
+	github.com/aws/smithy-go v1.22.3
 	github.com/container-storage-interface/spec v1.10.0
 	github.com/containerd/go-cni v1.1.12
 	github.com/containernetworking/cni v1.2.3
@@ -65,9 +65,9 @@ require (
 	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.10
 	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.13
 	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.12
-	github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.12
+	github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.13
 	github.com/hashicorp/go-memdb v1.3.4
-	github.com/hashicorp/go-msgpack/v2 v2.1.2
+	github.com/hashicorp/go-msgpack/v2 v2.1.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-netaddrs v0.1.0
 	github.com/hashicorp/go-plugin v1.6.2
@@ -83,7 +83,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.20.2-0.20240517235513-55d9c02d147d
 	github.com/hashicorp/hil v0.0.0-20210521165536-27a72121fd40
 	github.com/hashicorp/memberlist v0.5.3
-	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.0
+	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.1
 	github.com/hashicorp/nomad/api v0.0.0-20230103221135-ce00d683f9be
 	github.com/hashicorp/raft v1.7.1
 	github.com/hashicorp/raft-autopilot v0.1.6
@@ -95,7 +95,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.9
 	github.com/kr/pretty v0.3.1
 	github.com/kr/text v0.2.0
-	github.com/mattn/go-colorable v0.1.13
+	github.com/mattn/go-colorable v0.1.14
 	github.com/miekg/dns v1.1.62
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
 	github.com/mitchellh/copystructure v1.2.0
@@ -116,7 +116,7 @@ require (
 	github.com/opencontainers/runc v1.1.14
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/posener/complete v1.2.3
-	github.com/prometheus/client_golang v1.20.5
+	github.com/prometheus/client_golang v1.21.0
 	github.com/prometheus/common v0.62.0
 	github.com/rs/cors v1.11.1
 	github.com/ryanuber/columnize v2.1.2+incompatible
@@ -185,15 +185,15 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.55.6 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.17.59 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.32 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.32 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.13 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.24.15 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.14 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.33.14 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.60 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.33 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.33 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.14 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.24.16 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.28.15 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.33.15 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.1.0 // indirect
