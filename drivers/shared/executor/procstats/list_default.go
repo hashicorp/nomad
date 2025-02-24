@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:build !linux && !windows
+//go:build !windows
 
 package procstats
 
@@ -15,7 +15,7 @@ import (
 )
 
 // List the process tree starting at the given executorPID
-func List(executorPID int) set.Collection[ProcessID] {
+func ListByPid(executorPID int) set.Collection[ProcessID] {
 	result := set.New[ProcessID](10)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
