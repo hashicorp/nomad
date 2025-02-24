@@ -31,6 +31,7 @@ module('Acceptance | job versions', function (hooks) {
       namespaceId: namespace.id,
       createAllocations: false,
       noDeployments: true,
+      type: 'service',
     });
 
     // Create some versions

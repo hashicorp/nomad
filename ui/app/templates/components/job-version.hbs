@@ -8,10 +8,15 @@
   <div class="boxed-section {{if this.version.versionTag "tagged"}}" data-test-tagged-version={{if this.version.versionTag "true" "false"}}>
     <header class="boxed-section-head is-light inline-definitions">
       Version #{{this.version.number}}
-      <span class="bumper-left pair is-faded">
-        <span class="term">Stable</span>
-        <span class="badge is-light is-faded" data-test-version-stability><code>{{this.version.stable}}</code></span>
-      </span>
+
+      {{#if this.version.job.hasVersionStability}}
+        <span class="bumper-left pair is-faded">
+          <span class="term">Stable</span>
+          <span class="badge is-light is-faded" data-test-version-stability><code>{{this.version.stable}}</code></span>
+        </span>
+      {{else}}
+        <span class="bumper-left" />
+      {{/if}}
       <span class="pair is-faded">
         <span class="term">Submitted</span>
         <span data-test-version-submit-time class="submit-date">{{format-ts this.version.submitTime}}</span>

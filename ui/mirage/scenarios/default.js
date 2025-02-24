@@ -1237,6 +1237,7 @@ export function createRestartableJobs(server) {
     shallow: true,
     createAllocations: false,
     groupAllocCount: 0,
+    type: 'service',
   });
 
   const nonRevertableJob = server.create('job', {
@@ -1246,6 +1247,7 @@ export function createRestartableJobs(server) {
     shallow: true,
     createAllocations: false,
     groupAllocCount: 0,
+    type: 'service',
   });
 
   // So it shows up as "Failed" instead of "Scaled Down"
