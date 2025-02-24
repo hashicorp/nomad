@@ -6506,7 +6506,11 @@ func TestStateStore_UpsertAlloc_StickyVolumes(t *testing.T) {
 
 	// there must be exactly one claim in the state
 	claims := []*structs.TaskGroupHostVolumeClaim{}
-	iter, err := store.GetTaskGroupHostVolumeClaimsForTaskGroup(nil, structs.DefaultNamespace, stickyJob.ID, stickyJob.TaskGroups[0].Name)
+	iter, err := store.TaskGroupHostVolumeClaimsByFields(nil, TgvcSearchableFields{
+		Namespace:     structs.DefaultNamespace,
+		JobID:         stickyJob.ID,
+		TaskGroupName: stickyJob.TaskGroups[0].Name,
+	})
 	must.Nil(t, err)
 	for raw := iter.Next(); raw != nil; raw = iter.Next() {
 		claim := raw.(*structs.TaskGroupHostVolumeClaim)

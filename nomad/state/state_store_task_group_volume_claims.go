@@ -96,9 +96,17 @@ func (s *StateStore) GetTaskGroupHostVolumeClaims(ws memdb.WatchSet) (memdb.Resu
 	return iter, nil
 }
 
-// GetTaskGroupHostVolumeClaimsForTaskGroup returns all volume claims for a given
-// task group
-func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet, ns, jobID, tg string) (memdb.ResultIterator, error) {
+// TgvcSearchableFields lists fields that task group volume claims can be
+// searched by
+type TgvcSearchableFields struct {
+	Namespace     string
+	JobID         string
+	TaskGroupName string
+	VolumeName    string
+}
+
+// TaskGroupHostVolumeClaimsByFields returns all claims that match the fields
+func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields TgvcSearchableFields) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
@@ -107,58 +115,29 @@ func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet,
 	}
 	ws.Add(iter.WatchCh())
 
-	// Filter out by ns, jobID and tg
 	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
 		claim, ok := raw.(*structs.TaskGroupHostVolumeClaim)
 		if !ok {
+			return false
+		}
+
+		// check which fields we should filter by
+		if fields.Namespace != "" && claim.Namespace != fields.Namespace {
 			return true
 		}
-		return claim.Namespace != ns || claim.JobID != jobID || claim.TaskGroupName != tg
+		if fields.JobID != "" && claim.JobID != fields.JobID {
+			return true
+		}
+		if fields.TaskGroupName != "" && claim.TaskGroupName != fields.TaskGroupName {
+			return true
+		}
+		if fields.VolumeName != "" && claim.VolumeName != fields.VolumeName {
+			return true
+		}
+		return false
 	})
 
 	return filter, nil
-}
-
-// TaskGroupHostVolumeClaimsByTaskGroup returns all volume claims filtered by
-// task group name
-func (s *StateStore) TaskGroupHostVolumeClaimsByTaskGroup(ws memdb.WatchSet, tg string) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexTaskGroup, tg)
-	if err != nil {
-		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
-	}
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-// TaskGroupHostVolumeClaimsByJobID returns all volume claims filtered by job
-// ID
-func (s *StateStore) TaskGroupHostVolumeClaimsByJobID(ws memdb.WatchSet, jobID string) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexJob, jobID)
-	if err != nil {
-		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
-	}
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
-}
-
-// TaskGroupHostVolumeClaimsByVolumeName returns all volume claims filtered by
-// volume name
-func (s *StateStore) TaskGroupHostVolumeClaimsByVolumeName(ws memdb.WatchSet, vol string) (memdb.ResultIterator, error) {
-	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexVolumeName, vol)
-	if err != nil {
-		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
-	}
-	ws.Add(iter.WatchCh())
-
-	return iter, nil
 }
 
 // deleteTaskGroupHostVolumeClaimByNamespaceAndJob deletes all claims for a

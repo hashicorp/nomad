@@ -60,11 +60,11 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 
 			switch {
 			case args.JobID != "":
-				iter, err = stateStore.TaskGroupHostVolumeClaimsByJobID(ws, args.JobID)
+				iter, err = stateStore.TaskGroupHostVolumeClaimsByFields(ws, state.TgvcSearchableFields{Namespace: ns, JobID: args.JobID})
 			case args.VolumeName != "":
-				iter, err = stateStore.TaskGroupHostVolumeClaimsByVolumeName(ws, args.VolumeName)
+				iter, err = stateStore.TaskGroupHostVolumeClaimsByFields(ws, state.TgvcSearchableFields{Namespace: ns, VolumeName: args.VolumeName})
 			case args.TaskGroup != "":
-				iter, err = stateStore.TaskGroupHostVolumeClaimsByTaskGroup(ws, args.TaskGroup)
+				iter, err = stateStore.TaskGroupHostVolumeClaimsByFields(ws, state.TgvcSearchableFields{Namespace: ns, TaskGroupName: args.TaskGroup})
 			default:
 				iter, err = stateStore.GetTaskGroupHostVolumeClaims(ws)
 			}
