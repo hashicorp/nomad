@@ -53,7 +53,7 @@ resource "enos_local_exec" "take_cluster_snapshot" {
   environment = local.nomad_env
 
   inline = [
-    "nomad operator snapshot save --stale false ${random_pet.upgrade.id}-0.snap",
+    "nomad operator snapshot save -stale=false ${random_pet.upgrade.id}-0.snap",
   ]
 }
 
