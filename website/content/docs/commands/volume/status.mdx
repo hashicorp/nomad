@@ -8,7 +8,7 @@ description: |
 # Command: volume status
 
 The `volume status` command displays status information for [Container
-Storage Interface (CSI)][csi] volumes.
+Storage Interface (CSI)][csi] volumes or [dynamic host volumes][dhv].
 
 ## Usage
 
@@ -16,17 +16,18 @@ Storage Interface (CSI)][csi] volumes.
 nomad volume status [options] [volume]
 ```
 
-This command accepts an optional volume ID or prefix as the sole argument. If there
-is an exact match based on the provided volume ID or prefix, then information about
-the specific volume is queried and displayed. Otherwise, a list of matching volumes
-and information will be displayed.
+This command accepts an optional volume ID or prefix as the sole argument. If
+there is an exact match based on the provided volume ID or prefix, then
+information about the specific volume is queried and displayed. Otherwise, a
+list of matching volumes and information will be displayed.
 
-If the ID is omitted, the command lists out all of the existing volumes and a few
-of the most useful status fields for each.
+If the ID is omitted, the command lists out all of the existing volumes and a
+few of the most useful status fields for each.
 
-When ACLs are enabled, this command requires a token with the
-`csi-read-volume` and `csi-list-volumes` capability for the volume's
-namespace.
+When ACLs are enabled, this command requires a token with the appropriate
+capability in the volume's namespace: the `csi-read-volume` and
+`csi-list-volumes` capability for CSI volumes, or `host-volume-read` for dynamic
+host volumes.
 
 ## General Options
 
@@ -34,9 +35,9 @@ namespace.
 
 ## Status Options
 
-- `-type`: Display only volumes of a particular type. Currently only
-  the `csi` type is supported, so this option can be omitted when
-  querying the status of CSI volumes.
+- `-type`: Display only volumes of a particular type (one of `"host"` or
+  `"csi"`). If omitted, the command will query for both dynamic host volumes and
+  CSI volumes.
 
 - `-plugin_id`: Display only volumes managed by a particular [CSI
   plugin][csi_plugin].
@@ -57,15 +58,21 @@ namespace.
 List of all volumes:
 
 ```shell-session
-$ nomad volume [-type csi] status
+$ nomad volume status
+Dynamic Host Volumes
+ID        Name             Namespace  Plugin ID            Node ID   Node Pool  State
+070dc8ca  internal-plugin  default    mkdir                c3c27514  default    ready
+7ce38017  external-plugin  default    example-plugin-mkfs  c3c27514  default    ready
+
+Container Storage Interface
 ID            Name      Namespace  Plugin ID  Schedulable  Access Mode
 ebs_prod_db1  database  default    ebs-prod   true         single-node-writer
 ```
 
-List of all volumes, with external provider info:
+List of all CSI volumes, with external provider info:
 
 ```shell-session
-$ nomad volume [-type csi] status -verbose
+$ nomad volume -type csi status -verbose
 ID            Name      Namespace  Plugin ID  Schedulable  Access Mode
 ebs_prod_db1  database  default    ebs-prod   true         single-node-writer
 
@@ -77,7 +84,7 @@ vol-cd46df    Abnormal (provider message here)  i-14a12df13
 Short view of a specific volume:
 
 ```shell-session
-$ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
+$ nomad volume status ebs_prod_db1
 ID                   = ebs_prod_db1
 Name                 = database
 Type                 = csi
@@ -100,7 +107,7 @@ Namespace            = default
 Full status information of a volume:
 
 ```shell-session
-$ nomad volume status [-verbose] [-plugin=ebs-prod] ebs_prod_db1
+$ nomad volume status -verbose ebs_prod_db1
 ID                   = ebs_prod_db1
 Name                 = database
 Type                 = csi
@@ -127,3 +134,4 @@ b00fa322  28be17d5  write         csi         0        run
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin
 [`volume create`]: /nomad/docs/commands/volume/create
+[dhv]: /nomad/docs/other-specifications/volume/host

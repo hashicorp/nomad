@@ -673,7 +673,7 @@ func TestHelperGetByPrefix(t *testing.T) {
 		{
 			name:      "query error",
 			queryErr:  errors.New("foo"),
-			expectErr: "Error querying stubs: foo",
+			expectErr: "error querying stubs: foo",
 		},
 		{
 			name: "multiple prefix matches with exact match",
@@ -697,7 +697,7 @@ func TestHelperGetByPrefix(t *testing.T) {
 			name:        "no matches",
 			queryObjs:   []*testStub{},
 			queryPrefix: "test",
-			expectErr:   "No stubs with prefix or ID \"test\" found",
+			expectErr:   "no stubs with prefix or ID \"test\" found",
 		},
 	}
 
