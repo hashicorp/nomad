@@ -11,6 +11,7 @@ import {
   visit,
   click,
   fillIn,
+  waitUntil,
 } from '@ember/test-helpers';
 import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -38,6 +39,17 @@ let managementToken;
 let clientToken;
 let recentlyExpiredToken;
 let soonExpiringToken;
+
+async function saveAndWait(handledRequests, selector) {
+  if (!selector) {
+    selector = '[data-test-token-save]';
+  }
+  console.log('selector', selector);
+  const initialRequestCount = handledRequests.length;
+  console.log('initialRequestCount', initialRequestCount);
+  await click(selector);
+  await waitUntil(() => handledRequests.length > initialRequestCount);
+}
 
 module('Acceptance | tokens', function (hooks) {
   setupApplicationTest(hooks);
@@ -81,7 +93,7 @@ module('Acceptance | tokens', function (hooks) {
     );
     assert.ok(document.title.includes('Sign In'));
 
-    await Tokens.secret(secretId).submit();
+    await Tokens.secret(secretId).submit(this.owner);
     assert.equal(
       window.localStorage.nomadTokenSecret,
       secretId,
@@ -108,7 +120,7 @@ module('Acceptance | tokens', function (hooks) {
     const requestPosition = server.pretender.handledRequests.length;
 
     await Tokens.visit();
-    await Tokens.secret(secretId).submit();
+    await Tokens.secret(secretId).submit(this.owner);
 
     await JobDetail.visit({ id: job.id });
     await ClientDetail.visit({ id: node.id });
@@ -136,7 +148,7 @@ module('Acceptance | tokens', function (hooks) {
     );
 
     await Tokens.visit();
-    await Tokens.secret(bogusSecret).submit();
+    await Tokens.secret(bogusSecret).submit(this.owner);
 
     assert.equal(
       window.localStorage.nomadTokenSecret,
@@ -152,7 +164,7 @@ module('Acceptance | tokens', function (hooks) {
     const { secretId } = managementToken;
 
     await Tokens.visit();
-    await Tokens.secret(secretId).submit();
+    await Tokens.secret(secretId).submit(this.owner);
 
     await percySnapshot(assert);
 
@@ -168,7 +180,7 @@ module('Acceptance | tokens', function (hooks) {
     policy.update('description', 'Make sure there is a description');
 
     await Tokens.visit();
-    await Tokens.secret(secretId).submit();
+    await Tokens.secret(secretId).submit(this.owner);
 
     assert.ok(Tokens.successMessage, 'Token success message is shown');
     assert.notOk(Tokens.errorMessage, 'Token error message is not shown');
@@ -200,7 +212,7 @@ module('Acceptance | tokens', function (hooks) {
     assert.ok(find('.job-row'), 'Jobs found');
 
     await Tokens.visit();
-    await Tokens.secret(secretId).submit();
+    await Tokens.secret(secretId).submit(this.owner);
 
     server.pretender.get('/v1/jobs/statuses', function () {
       return [200, {}, '[]'];
@@ -221,7 +233,7 @@ module('Acceptance | tokens', function (hooks) {
     await Tokens.visit();
 
     // Token with no TTL
-    await Tokens.secret(clientToken.secretId).submit();
+    await Tokens.secret(clientToken.secretId).submit(this.owner);
     assert
       .dom('[data-test-token-expiry]')
       .doesNotExist('No expiry shown for regular token');
@@ -232,7 +244,7 @@ module('Acceptance | tokens', function (hooks) {
     setTimeout(() => run.cancelTimers(), 500);
 
     // Token with TTL
-    await Tokens.secret(expiringToken.secretId).submit();
+    await Tokens.secret(expiringToken.secretId).submit(this.owner);
     assert
       .dom('[data-test-token-expiry]')
       .exists('Expiry shown for TTL-having token');
@@ -355,7 +367,7 @@ module('Acceptance | tokens', function (hooks) {
         run.cancelTimers();
       }, 5000);
     }, 500);
-    await Tokens.secret(nearlyExpiringToken.secretId).submit();
+    await Tokens.secret(nearlyExpiringToken.secretId).submit(this.owner);
   });
 
   test('when the ott query parameter is present upon application load it’s exchanged for a token', async function (assert) {
@@ -474,7 +486,7 @@ module('Acceptance | tokens', function (hooks) {
     // Expect to be signed in as a manager
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.management'
-    ).submit();
+    ).submit(this.owner);
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText('Token: Manager');
     await Tokens.clear();
@@ -482,7 +494,7 @@ module('Acceptance | tokens', function (hooks) {
     // Expect to be signed in as a client
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.whateverlol'
-    ).submit();
+    ).submit(this.owner);
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-name]').includesText(
       `Token: ${
@@ -496,7 +508,7 @@ module('Acceptance | tokens', function (hooks) {
     // Expect to an error on bad JWT
     await Tokens.secret(
       'aaaaaaaaaaaaaaaaaaaaaaaaa.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.bad'
-    ).submit();
+    ).submit(this.owner);
     assert.ok(currentURL().startsWith('/settings/tokens'));
     assert.dom('[data-test-token-error]').exists();
   });
@@ -897,7 +909,7 @@ module('Acceptance | tokens', function (hooks) {
       token = server.db.tokens.findBy(
         (t) => t.name === 'High Level Role Token'
       );
-      await Tokens.secret(token.secretId).submit();
+      await Tokens.secret(token.secretId).submit(this.owner);
 
       assert.dom('[data-test-token-role]').exists({ count: 1 });
       assert.dom('[data-test-role-name]').hasText('high-level');
@@ -913,7 +925,7 @@ module('Acceptance | tokens', function (hooks) {
       token = server.db.tokens.findBy(
         (t) => t.name === 'Policy And Role Token'
       );
-      await Tokens.secret(token.secretId).submit();
+      await Tokens.secret(token.secretId).submit(this.owner);
 
       assert.dom('[data-test-token-role]').exists({ count: 1 });
       assert.dom('[data-test-role-name]').hasText('reader');
@@ -936,7 +948,7 @@ module('Acceptance | tokens', function (hooks) {
       token = server.db.tokens.findBy(
         (t) => t.name === 'Multi Role And Policy Token'
       );
-      await Tokens.secret(token.secretId).submit();
+      await Tokens.secret(token.secretId).submit(this.owner);
 
       assert.equal(token.roleIds.length, 2);
       assert.equal(token.policyIds.length, 1);
@@ -957,7 +969,7 @@ module('Acceptance | tokens', function (hooks) {
       let token = server.db.tokens.findBy(
         (t) => t.name === 'Clientless Role Token'
       );
-      await Tokens.secret(token.secretId).submit();
+      await Tokens.secret(token.secretId).submit(this.owner);
 
       await visit('/clients');
       // Expect no rows, and a denied message
@@ -974,7 +986,7 @@ module('Acceptance | tokens', function (hooks) {
       token = server.db.tokens.findBy(
         (t) => t.name === 'High Level Role Token'
       );
-      await Tokens.secret(token.secretId).submit();
+      await Tokens.secret(token.secretId).submit(this.owner);
 
       await visit('/jobs');
       // Expect the Run button/link to work now
@@ -995,7 +1007,7 @@ module('Acceptance | tokens', function (hooks) {
         (t) => t.type === 'management'
       );
       const { secretId } = managementToken;
-      await Tokens.secret(secretId).submit();
+      await Tokens.secret(secretId).submit(this.owner);
       await Administration.visitTokens();
     });
 
@@ -1088,7 +1100,8 @@ module('Acceptance | tokens', function (hooks) {
       const tokenRowToDelete = [...findAll('[data-test-token-row]')].find(
         (row) => row.textContent.includes(tokenToDelete.name)
       );
-      await click(
+      await saveAndWait(
+        server.pretender.handledRequests,
         tokenRowToDelete.querySelector('[data-test-delete-token] button')
       );
       assert.dom('.flash-message.alert-success').exists();
@@ -1250,7 +1263,7 @@ module('Acceptance | tokens', function (hooks) {
       await visit(`/administration/tokens/${token.id}`);
       assert.dom('[data-test-token-name-input]').hasValue(token.name);
       await fillIn('[data-test-token-name-input]', 'Mud-Token');
-      await click('[data-test-token-save]');
+      await saveAndWait(server.pretender.handledRequests);
       assert.dom('.flash-message.alert-success').exists();
       await Administration.visitTokens();
       assert.dom('[data-test-token-name="Mud-Token"]').exists({ count: 1 });
@@ -1300,12 +1313,12 @@ module('Acceptance | tokens', function (hooks) {
       checkedRoles.forEach((role) => {
         role.click();
       });
-      await click('[data-test-token-save]');
+      await saveAndWait(server.pretender.handledRequests);
       assert.dom('.flash-message.alert-critical').exists();
 
       // Try selecting a single role
       await click('[data-test-token-roles] tbody tr input');
-      await click('[data-test-token-save]');
+      await saveAndWait(server.pretender.handledRequests);
       assert.dom('.flash-message.alert-success').exists();
 
       await percySnapshot(assert);
@@ -1339,7 +1352,10 @@ module('Acceptance | tokens', function (hooks) {
       assert
         .dom('[data-test-confirmation-message]')
         .exists('confirmation message is present');
-      await click(find('[data-test-confirm-button]'));
+      await saveAndWait(
+        server.pretender.handledRequests,
+        '[data-test-confirm-button]'
+      );
 
       assert.dom('.flash-message.alert-success').exists();
       await Administration.visitTokens();
@@ -1349,7 +1365,7 @@ module('Acceptance | tokens', function (hooks) {
       await click('[data-test-create-token]');
       assert.equal(currentURL(), '/administration/tokens/new');
       await fillIn('[data-test-token-name-input]', 'Timeless Token');
-      await click('[data-test-token-save]');
+      await saveAndWait(server.pretender.handledRequests);
       assert.dom('.flash-message.alert-success').exists();
       await Administration.visitTokens();
       assert
@@ -1369,7 +1385,7 @@ module('Acceptance | tokens', function (hooks) {
       await fillIn('[data-test-token-name-input]', 'TTL Token');
       // Select the "8 hours" radio within the .expiration-time div
       await click('.expiration-time input[value="8h"]');
-      await click('[data-test-token-save]');
+      await saveAndWait(server.pretender.handledRequests);
       assert.dom('.flash-message.alert-success').exists();
       await Administration.visitTokens();
       assert.dom('[data-test-token-name="TTL Token"]').exists({ count: 1 });
@@ -1397,7 +1413,7 @@ module('Acceptance | tokens', function (hooks) {
       var tzoffset = new Date().getTimezoneOffset() * 60000; //offset in milliseconds
       var soonString = new Date(soon - tzoffset).toISOString().slice(0, -1);
       await fillIn('[data-test-token-expiration-time-input]', soonString);
-      await click('[data-test-token-save]');
+      await saveAndWait(server.pretender.handledRequests);
       assert.dom('.flash-message.alert-success').exists();
       await Administration.visitTokens();
       assert
@@ -1419,7 +1435,7 @@ module('Acceptance | tokens', function (hooks) {
       assert.dom('[data-test-global-token-group]').doesNotExist();
 
       await fillIn('[data-test-token-name-input]', 'Capt. Steven Hiller');
-      await click('[data-test-token-save]');
+      await saveAndWait(server.pretender.handledRequests);
       assert.dom('.flash-message.alert-success').exists();
       const token = server.db.tokens.findBy(
         (t) => t.name === 'Capt. Steven Hiller'
@@ -1489,7 +1505,7 @@ module('Tokens and Regions', function (hooks) {
     assert.dom('[data-test-locality="global"]').isChecked();
 
     await click('[data-test-token-type="management"]');
-    await click('[data-test-token-save]');
+    await saveAndWait(server.pretender.handledRequests);
 
     let globalToken = server.db.tokens.findBy(
       (t) => t.name === 'Thomas J. Whitmore'
@@ -1529,7 +1545,7 @@ module('Tokens and Regions', function (hooks) {
 
     await fillIn('[data-test-token-name-input]', 'David Levinson');
     await click('[data-test-token-type="management"]');
-    await click('[data-test-token-save]');
+    await saveAndWait(server.pretender.handledRequests);
     assert.dom('.flash-message.alert-success').exists();
     let token = server.db.tokens.findBy((t) => t.name === 'David Levinson');
 
@@ -1561,9 +1577,8 @@ module('Tokens and Regions', function (hooks) {
 
     await fillIn('[data-test-token-name-input]', 'Russell Casse');
     await click('[data-test-token-type="management"]');
-    // await this.pauseTest();
 
-    await click('[data-test-token-save]');
+    await saveAndWait(server.pretender.handledRequests);
     assert.dom('.flash-message.alert-success').exists();
     let token = server.db.tokens.findBy((t) => t.name === 'Russell Casse');
     assert.notOk(token.global, 'Token is not global');
