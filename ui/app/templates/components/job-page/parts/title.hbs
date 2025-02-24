@@ -103,7 +103,7 @@
           />
         {{else if
           (and
-            (or (eq this.job.type "batch") (eq this.job.type "system") (eq this.job.type "sysbatch"))
+            (not this.job.hasVersionStability)
             this.job.latestVersion
           )
         }}

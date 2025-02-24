@@ -848,6 +848,15 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
     assert.ok(JobDetail.editAndResubmit.isPresent);
   });
 
+  test('A batch job with a previous version can be reverted', async function (assert) {
+    const revertableSystemJob = server.db.jobs.findBy(
+      (j) => j.name === 'revertable-batch-job'
+    );
+    await JobDetail.visit({ id: revertableSystemJob.id });
+    assert.ok(JobDetail.revert.isPresent);
+    assert.equal(JobDetail.revert.text, 'Revert to last stable version (v0)');
+  });
+
   test('Clicking the resubmit button navigates to the job definition page in edit mode', async function (assert) {
     const job = server.db.jobs.findBy((j) => j.name === 'non-revertable-job');
     await JobDetail.visit({ id: job.id });
