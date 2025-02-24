@@ -17,8 +17,14 @@ export default function localStorageProperty(localStorageKey, defaultValue) {
       return persistedValue ? JSON.parse(persistedValue) : defaultValue;
     },
     set(key, value) {
-      window.localStorage.setItem(localStorageKey, JSON.stringify(value));
-      return value;
+      if (value === null || value === undefined) {
+        // not just !value because 0 or false could be valid localStorage settings
+        window.localStorage.removeItem(localStorageKey);
+        return defaultValue;
+      } else {
+        window.localStorage.setItem(localStorageKey, JSON.stringify(value));
+        return value;
+      }
     },
   });
 }
