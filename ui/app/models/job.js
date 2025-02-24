@@ -351,6 +351,18 @@ export default class Job extends Model {
     return this.type === 'system' || this.type === 'sysbatch';
   }
 
+  // version.Stable is determined by having an associated healthy deployment
+  // but System, Sysbatch, and Batch jobs do not have deployments.
+  // Use this as a boolean to determine if we should show the version stability badge
+  @computed('type')
+  get hasVersionStability() {
+    return (
+      this.type !== 'system' &&
+      this.type !== 'sysbatch' &&
+      this.type !== 'batch'
+    );
+  }
+
   @belongsTo('job', { inverse: 'children' }) parent;
   @hasMany('job', { inverse: 'parent' }) children;
 
