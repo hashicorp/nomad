@@ -854,7 +854,7 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
     );
     await JobDetail.visit({ id: revertableSystemJob.id });
     assert.ok(JobDetail.revert.isPresent);
-    assert.equal(JobDetail.revert.text, 'Revert to last stable version (v0)');
+    assert.equal(JobDetail.revert.text, 'Revert to last version (v0)');
   });
 
   test('Clicking the resubmit button navigates to the job definition page in edit mode', async function (assert) {
