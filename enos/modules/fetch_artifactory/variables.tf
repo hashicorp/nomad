@@ -1,17 +1,15 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-variable "artifactory_username" {
-  type        = string
-  description = "The username to use when connecting to artifactory"
-  default     = null
-}
+variable "artifactory_credentials" {
+  description = "Credentials for connecting to Artifactory"
 
-variable "artifactory_token" {
-  type        = string
-  description = "The token to use when connecting to artifactory"
-  default     = null
-  sensitive   = true
+  type = object({
+    username = string
+    token    = string
+  })
+
+  sensitive = true
 }
 
 variable "artifactory_host" {
@@ -26,31 +24,27 @@ variable "artifactory_repo" {
   default     = "hashicorp-crt-staging-local*"
 }
 
-variable "edition" {
-  type        = string
-  description = "The edition of the binary to search (one of ce or ent)"
+variable "binary_config" {
+  type = object({
+    edition         = string
+    os              = string
+    product_version = string
+    arch            = string
+  })
+
+  description = "Configuration for fetching the binary"
+
+  default = {
+    edition         = "ce"
+    os              = "linux"
+    product_version = null
+    arch            = null
+  }
 
   validation {
-    condition     = contains(["ent", "ce"], var.edition)
-    error_message = "must be one of ent or ce"
+    condition     = contains(["ent", "ce"], var.binary_config.edition)
+    error_message = "Edition must be one of 'ent' or 'ce'."
   }
-}
-
-variable "os" {
-  type        = string
-  description = "The operative system the binary is needed for"
-  default     = "linux"
-}
-
-variable "product_version" {
-  description = "The version of Nomad we are testing"
-  type        = string
-  default     = null
-}
-
-variable "arch" {
-  description = "The artifactory path to search for Nomad artifacts"
-  type        = string
 }
 
 variable "download_binary" {

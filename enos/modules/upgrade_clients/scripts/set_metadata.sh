@@ -4,7 +4,7 @@
 
 set -euo pipefail
 
-if ! client_id=$(nomad node status -address "http://$CLIENT_IP:4646" -self -json | jq '.ID' | tr -d '"'); then
+if ! client_id=$(nomad node status -address "https://$CLIENT_IP:4646" -self -json | jq '.ID' | tr -d '"'); then
     echo "No client found at $CLIENT_IP"
     exit 1
 fi
