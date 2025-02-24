@@ -5,7 +5,7 @@
 
 <div data-test-subnav="plugins" class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
   <ul>
-    <li data-test-tab="overview"><LinkTo @route="csi.plugins.plugin.index" @model={{@plugin}} @activeClass="is-active">Overview</LinkTo></li>
-    <li data-test-tab="allocations"><LinkTo @route="csi.plugins.plugin.allocations" @model={{@plugin}} @activeClass="is-active">Allocations</LinkTo></li>
+    <li data-test-tab="overview"><LinkTo @route="storage.plugins.plugin.index" @model={{@plugin}} @activeClass="is-active">Overview</LinkTo></li>
+    <li data-test-tab="allocations"><LinkTo @route="storage.plugins.plugin.allocations" @model={{@plugin}} @activeClass="is-active">Allocations</LinkTo></li>
   </ul>
 </div>
