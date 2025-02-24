@@ -1121,14 +1121,14 @@ $ curl \
 
 ## List Task Group Host Volume Claims
 
-This endpoint allows lists host volume claims made by task groups that
+This endpoint lists host volume claims made by task groups that
 requested "sticky" volumes.
 
 | Method | Path                 | Produces           |
 |--------|----------------------|--------------------|
 | `GET`  | `/v1/volumes/claims` | `application/json` |
 
-The table below shows this endpoint's support for
+The following table shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
 [required ACLs](/nomad/api-docs#acls).
 
@@ -1158,7 +1158,7 @@ task group volume claims.
 
 - `per_page` `(int: <required>)` - Specifies a maximum number of snapshots to
 return for this request. The response includes a `NextToken` field that
-can be passed to the next request to fetch additional pages.
+you can pass to the next request to fetch additional pages.
 
 ### Sample Request
 
@@ -1187,14 +1187,14 @@ $ curl \
 
 ## Delete Task Group Host Volume Claims
 
-This endpoint allows deleting host volume claims made by task groups that
+This endpoint deletes host volume claims made by task groups that
 requested "sticky" volumes.
 
 | Method   | Path                          | Produces       |
 |----------|-------------------------------|----------------|
 | `DELETE` | `/v1/volumes/claim/:claim_id` | `(empty body)` |
 
-The table below shows this endpoint's support for
+The following table shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
 [required ACLs](/nomad/api-docs#acls).
 
@@ -1204,7 +1204,7 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `claim_id` `(string: <required>)` - Specifies the ID of Task Group Host Volume Claim
+- `claim_id` `(string: <required>)` - Specifies the ID of task group host volume claim
 to delete and is specified as part of the path.
 
 ### Sample Request
