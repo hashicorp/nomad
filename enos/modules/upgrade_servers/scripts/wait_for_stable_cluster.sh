@@ -9,23 +9,22 @@ error_exit() {
     exit 1
 }
 
-MAX_WAIT_TIME=10 #40
+MAX_WAIT_TIME=60
 POLL_INTERVAL=2
 
 elapsed_time=0
-last_config_index=
 last_error=
+leader_last_index=
+leader_last_term=
 
-checkRaftConfiguration() {
-    local raftConfig leader
-    raftConfig=$(nomad operator api /v1/operator/raft/configuration) || return 1
-    leader=$(echo "$raftConfig" | jq -r '[.Servers[] | select(.Leader == true)'])
+checkAutopilotHealth() {
+    local autopilotHealth leader
+    autopilotHealth=$(nomad operator autopilot health -json) || return 1
+    leader=$(echo "$autopilotHealth" | jq -r '[.Servers[] | select(.Leader == true)]')
 
-    echo "$raftConfig" | jq '.'
-    echo "$leader"
     if [ "$(echo "$leader" | jq 'length')" -eq 1 ]; then
-        last_config_index=$(echo "$raftConfig" | jq -r '.Index')
-        echo "last_config_index: $last_config_index"
+        leader_last_index=$(echo "$leader" | jq -r '.[0].LastIndex')
+        leader_last_term=$(echo "$leader" | jq -r '.[0].LastTerm')
         return 0
     fi
 
@@ -34,35 +33,36 @@ checkRaftConfiguration() {
 }
 
 while true; do
-    checkRaftConfiguration && break
+    checkAutopilotHealth && break
+
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
-        error_exit "${last_error} after $elapsed_time seconds."
+        error_exit "$last_error after $elapsed_time seconds."
     fi
 
-    echo "${last_error} after $elapsed_time seconds. Retrying in $POLL_INTERVAL seconds..."
+    echo "$last_error after $elapsed_time seconds. Retrying in $POLL_INTERVAL seconds..."
     sleep "$POLL_INTERVAL"
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done
 
-
-# reset timer
-elapsed_time=0
-last_log_index=
+echo "Leader found"
 
 checkServerHealth() {
     local ip node_info
     ip=$1
-    echo "Checking server health for $ip"
+    echo "Checking server $ip is up to date"
 
     node_info=$(nomad agent-info -address "https://$ip:4646" -json) \
         || error_exit "Unable to get info for node at $ip"
 
     last_log_index=$(echo "$node_info" | jq -r '.stats.raft.last_log_index')
-    if [ "$last_log_index" -ge "$last_config_index" ]; then
+    last_log_term=$(echo "$node_info" | jq -r '.stats.raft.last_log_term')
+
+    if [ "$last_log_index" -ge "$leader_last_index" ] &&
+           [ "$last_log_term" -ge "$leader_last_term" ]; then
         return 0
     fi
 
-    last_error="Expected node at $ip to have last log index at least $last_config_index but found $last_log_index"
+    last_error="Expected node at $ip to have last log index $leader_last_index and last term $leader_last_term, but found $last_log_index and $last_log_term"
     return 1
 }
 
@@ -74,10 +74,10 @@ for ip in $SERVERS; do
             error_exit "$last_error after $elapsed_time seconds."
         fi
 
-        echo "${last_error} after $elapsed_time seconds. Retrying in $POLL_INTERVAL seconds..."
+        echo "$last_error after $elapsed_time seconds. Retrying in $POLL_INTERVAL seconds..."
         sleep "$POLL_INTERVAL"
         elapsed_time=$((elapsed_time + POLL_INTERVAL))
     done
 done
 
-echo "All servers are alive and up to date."
+echo "There is a leader and all servers are alive and up to date."
