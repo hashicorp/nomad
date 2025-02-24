@@ -413,10 +413,10 @@ func (c *cniNetworkConfigurator) setupTransparentProxyArgs(alloc *structs.Alloca
 func (c *cniNetworkConfigurator) dnsFromAttrs(cluster string) (string, int) {
 	var dnsAddrAttr, dnsPortAttr string
 	if cluster == structs.ConsulDefaultCluster || cluster == "" {
-		dnsAddrAttr = "consul.dns.addr"
+		dnsAddrAttr = "unique.consul.dns.addr"
 		dnsPortAttr = "consul.dns.port"
 	} else {
-		dnsAddrAttr = "consul." + cluster + ".dns.addr"
+		dnsAddrAttr = "unique.consul." + cluster + ".dns.addr"
 		dnsPortAttr = "consul." + cluster + ".dns.port"
 	}
 

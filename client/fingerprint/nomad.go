@@ -22,7 +22,7 @@ func NewNomadFingerprint(logger log.Logger) Fingerprint {
 }
 
 func (f *NomadFingerprint) Fingerprint(req *FingerprintRequest, resp *FingerprintResponse) error {
-	resp.AddAttribute("nomad.advertise.address", req.Node.HTTPAddr)
+	resp.AddAttribute("unique.advertise.address", req.Node.HTTPAddr)
 	resp.AddAttribute("nomad.version", req.Config.Version.VersionNumber())
 	resp.AddAttribute("nomad.revision", req.Config.Version.Revision)
 	resp.AddAttribute("nomad.service_discovery", strconv.FormatBool(req.Config.NomadServiceDiscovery))

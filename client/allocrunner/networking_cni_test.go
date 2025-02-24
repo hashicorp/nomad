@@ -257,8 +257,8 @@ func TestSetup(t *testing.T) {
 	}
 
 	nodeAddrs := map[string]string{
-		"consul.dns.addr": "192.168.1.117",
-		"consul.dns.port": "8600",
+		"unique.consul.dns.addr": "192.168.1.117",
+		"consul.dns.port":        "8600",
 	}
 	nodeMeta := map[string]string{
 		"connect.transparent_proxy.default_outbound_port": "15001",
@@ -554,8 +554,8 @@ func TestCNI_setupTproxyArgs(t *testing.T) {
 	}
 
 	nodeAttrs := map[string]string{
-		"consul.dns.addr": "192.168.1.117",
-		"consul.dns.port": "8600",
+		"unique.consul.dns.addr": "192.168.1.117",
+		"consul.dns.port":        "8600",
 	}
 
 	alloc := mock.ConnectAlloc()
@@ -716,8 +716,8 @@ func TestCNI_setupTproxyArgs(t *testing.T) {
 		{
 			name: "tproxy with consul dns disabled",
 			nodeAttrs: map[string]string{
-				"consul.dns.port": "-1",
-				"consul.dns.addr": "192.168.1.117",
+				"consul.dns.port":        "-1",
+				"unique.consul.dns.addr": "192.168.1.117",
 			},
 			tproxySpec: &structs.ConsulTransparentProxy{},
 			expectIPConfig: &iptables.Config{
@@ -732,10 +732,10 @@ func TestCNI_setupTproxyArgs(t *testing.T) {
 			name:    "tproxy for other cluster with default consul dns disabled",
 			cluster: "infra",
 			nodeAttrs: map[string]string{
-				"consul.dns.port":       "-1",
-				"consul.dns.addr":       "192.168.1.110",
-				"consul.infra.dns.port": "8600",
-				"consul.infra.dns.addr": "192.168.1.117",
+				"consul.dns.port":              "-1",
+				"unique.consul.dns.addr":       "192.168.1.110",
+				"consul.infra.dns.port":        "8600",
+				"unique.consul.infra.dns.addr": "192.168.1.117",
 			},
 			tproxySpec: &structs.ConsulTransparentProxy{},
 			expectIPConfig: &iptables.Config{
