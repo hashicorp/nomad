@@ -28,6 +28,7 @@ type JobStatusCommand struct {
 	verbose   bool
 	json      bool
 	tmpl      string
+	openURL   bool
 }
 
 // NamespacedID is a tuple of an ID and a namespace
@@ -73,6 +74,9 @@ Status Options:
 
   -verbose
     Display full information.
+
+  -ui
+    Open the job status page in the browser.
 `
 	return strings.TrimSpace(helpText)
 }
@@ -88,6 +92,7 @@ func (c *JobStatusCommand) AutocompleteFlags() complete.Flags {
 			"-evals":      complete.PredictNothing,
 			"-short":      complete.PredictNothing,
 			"-verbose":    complete.PredictNothing,
+			"-ui":         complete.PredictNothing,
 		})
 }
 
@@ -119,6 +124,7 @@ func (c *JobStatusCommand) Run(args []string) int {
 	flags.BoolVar(&c.json, "json", false, "")
 	flags.StringVar(&c.tmpl, "t", "", "")
 	flags.BoolVar(&c.verbose, "verbose", false, "")
+	flags.BoolVar(&c.openURL, "ui", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -159,6 +165,13 @@ func (c *JobStatusCommand) Run(args []string) int {
 		if len(jobs) == 0 {
 			// No output if we have no jobs
 			c.Ui.Output("No running jobs")
+			hint, _ := c.Meta.showUIPath(UIHintContext{
+				Command: "job status",
+				OpenURL: c.openURL,
+			})
+			if hint != "" {
+				c.Ui.Warn(hint)
+			}
 		} else {
 			if c.json || len(c.tmpl) > 0 {
 				pairs := make([]NamespacedID, len(jobs))
@@ -182,6 +195,13 @@ func (c *JobStatusCommand) Run(args []string) int {
 				c.Ui.Output(out)
 			} else {
 				c.Ui.Output(createStatusListOutput(jobs, allNamespaces))
+				hint, _ := c.Meta.showUIPath(UIHintContext{
+					Command: "job status",
+					OpenURL: c.openURL,
+				})
+				if hint != "" {
+					c.Ui.Warn(hint)
+				}
 			}
 		}
 		return 0
@@ -271,6 +291,17 @@ func (c *JobStatusCommand) Run(args []string) int {
 
 	// Exit early
 	if short {
+		hint, _ := c.Meta.showUIPath(UIHintContext{
+			Command: "job status single",
+			PathParams: map[string]string{
+				"jobID":     *job.ID,
+				"namespace": *job.Namespace,
+			},
+			OpenURL: c.openURL,
+		})
+		if hint != "" {
+			c.Ui.Warn(hint)
+		}
 		return 0
 	}
 
@@ -290,6 +321,18 @@ func (c *JobStatusCommand) Run(args []string) int {
 			c.Ui.Error(err.Error())
 			return 1
 		}
+	}
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "job status single",
+		PathParams: map[string]string{
+			"jobID":     *job.ID,
+			"namespace": *job.Namespace,
+		},
+		OpenURL: c.openURL,
+	})
+	if hint != "" {
+		c.Ui.Warn(hint)
 	}
 
 	return 0
