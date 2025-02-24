@@ -3019,7 +3019,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 			},
 		},
 		ConsulToken:       pointer.Of("abc123"),
-		VaultToken:        pointer.Of("def456"),
 		VaultNamespace:    pointer.Of("ghi789"),
 		Status:            pointer.Of("status"),
 		StatusDescription: pointer.Of("status_desc"),
@@ -3435,7 +3434,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Role:                 "nomad-task",
 							Namespace:            "ns1",
 							Cluster:              structs.VaultDefaultCluster,
-							Policies:             []string{"a", "b", "c"},
 							Env:                  true,
 							DisableFile:          false,
 							ChangeMode:           "c",
@@ -3478,7 +3476,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		},
 
 		ConsulToken: "abc123",
-		VaultToken:  "def456",
 	}
 
 	structsJob := ApiJobToStructJob(apiJob)

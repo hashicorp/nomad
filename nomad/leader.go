@@ -405,9 +405,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		}
 	}
 
-	// Activate the vault client
-	s.vault.SetActive(true)
-
 	// Enable the periodic dispatcher, since we are now the leader.
 	s.periodicDispatcher.SetEnabled(true)
 
@@ -497,11 +494,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 
 	// Setup any enterprise systems required.
 	if err := s.establishEnterpriseLeadership(stopCh, clusterMetadata); err != nil {
-		return err
-	}
-
-	// Cleanup orphaned Vault token accessors
-	if err := s.revokeVaultAccessorsOnRestore(); err != nil {
 		return err
 	}
 
@@ -828,60 +820,6 @@ func (s *Server) restoreEvals() error {
 			s.blockedEvals.Block(eval)
 		}
 	}
-	return nil
-}
-
-// revokeVaultAccessorsOnRestore is used to restore Vault accessors that should be
-// revoked.
-func (s *Server) revokeVaultAccessorsOnRestore() error {
-	// An accessor should be revoked if its allocation or node is terminal
-	ws := memdb.NewWatchSet()
-	state := s.fsm.State()
-	iter, err := state.VaultAccessors(ws)
-	if err != nil {
-		return fmt.Errorf("failed to get vault accessors: %v", err)
-	}
-
-	var revoke []*structs.VaultAccessor
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		va := raw.(*structs.VaultAccessor)
-
-		// Check the allocation
-		alloc, err := state.AllocByID(ws, va.AllocID)
-		if err != nil {
-			return fmt.Errorf("failed to lookup allocation %q: %v", va.AllocID, err)
-		}
-		if alloc == nil || alloc.Terminated() {
-			// No longer running and should be revoked
-			revoke = append(revoke, va)
-			continue
-		}
-
-		// Check the node
-		node, err := state.NodeByID(ws, va.NodeID)
-		if err != nil {
-			return fmt.Errorf("failed to lookup node %q: %v", va.NodeID, err)
-		}
-		if node == nil || node.TerminalStatus() {
-			// Node is terminal so any accessor from it should be revoked
-			revoke = append(revoke, va)
-			continue
-		}
-	}
-
-	if len(revoke) != 0 {
-		s.logger.Info("revoking vault accessors after becoming leader", "accessors", len(revoke))
-
-		if err := s.vault.MarkForRevocation(revoke); err != nil {
-			return fmt.Errorf("failed to revoke tokens: %v", err)
-		}
-	}
-
 	return nil
 }
 
@@ -1509,9 +1447,6 @@ func (s *Server) revokeLeadership() error {
 
 	// Disable the periodic dispatcher, since it is only useful as a leader
 	s.periodicDispatcher.SetEnabled(false)
-
-	// Disable the Vault client as it is only useful as a leader.
-	s.vault.SetActive(false)
 
 	// Disable the deployment watcher as it is only useful as a leader.
 	s.deploymentWatcher.SetEnabled(false, nil)

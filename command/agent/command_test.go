@@ -536,7 +536,6 @@ client {
 }
 
 vault {
-  token     = "token-from-config"
   namespace = "ns-from-config"
 }
 `,
@@ -555,46 +554,39 @@ vault {
 		checkFn func(*testing.T, *Config)
 	}{
 		{
-			name: "vault token and namespace from env var",
+			name: "namespace from env var",
 			args: []string{
 				"-config", path.Join(configDir, "base.hcl"),
 			},
 			env: map[string]string{
-				"VAULT_TOKEN":     "token-from-env",
 				"VAULT_NAMESPACE": "ns-from-env",
 			},
 			checkFn: func(t *testing.T, c *Config) {
-				must.Eq(t, "token-from-env", c.Vaults[0].Token)
 				must.Eq(t, "ns-from-env", c.Vaults[0].Namespace)
 			},
 		},
 		{
-			name: "vault token and namespace from config takes precedence over env var",
+			name: "namespace from config takes precedence over env var",
 			args: []string{
 				"-config", path.Join(configDir, "vault.hcl"),
 			},
 			env: map[string]string{
-				"VAULT_TOKEN":     "token-from-env",
 				"VAULT_NAMESPACE": "ns-from-env",
 			},
 			checkFn: func(t *testing.T, c *Config) {
-				must.Eq(t, "token-from-config", c.Vaults[0].Token)
 				must.Eq(t, "ns-from-config", c.Vaults[0].Namespace)
 			},
 		},
 		{
-			name: "vault token and namespace from flag takes precedence over env var and config",
+			name: "namespace from flag takes precedence over env var and config",
 			args: []string{
 				"-config", path.Join(configDir, "vault.hcl"),
-				"-vault-token", "secret-from-cli",
 				"-vault-namespace", "ns-from-cli",
 			},
 			env: map[string]string{
-				"VAULT_TOKEN":     "secret-from-env",
 				"VAULT_NAMESPACE": "ns-from-env",
 			},
 			checkFn: func(t *testing.T, c *Config) {
-				must.Eq(t, "secret-from-cli", c.Vaults[0].Token)
 				must.Eq(t, "ns-from-cli", c.Vaults[0].Namespace)
 			},
 		},

@@ -11,15 +11,10 @@ import (
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	vapi "github.com/hashicorp/vault/api"
 )
 
-// validateNamespaces returns an error if the job contains multiple Vault
-// namespaces.
-func (jobVaultHook) validateNamespaces(
-	blocks map[string]map[string]*structs.Vault,
-	token *vapi.Secret,
-) error {
+// validateNamespaces returns an error if the job contains any Vault namespaces.
+func (jobVaultHook) validateNamespaces(blocks map[string]map[string]*structs.Vault) error {
 
 	requestedNamespaces := structs.VaultNamespaceSet(blocks)
 	if len(requestedNamespaces) > 0 {

@@ -117,14 +117,6 @@ func (r *StateRestore) DeploymentRestore(deployment *structs.Deployment) error {
 	return nil
 }
 
-// VaultAccessorRestore is used to restore a vault accessor
-func (r *StateRestore) VaultAccessorRestore(accessor *structs.VaultAccessor) error {
-	if err := r.txn.Insert("vault_accessors", accessor); err != nil {
-		return fmt.Errorf("vault accessor insert failed: %v", err)
-	}
-	return nil
-}
-
 // SITokenAccessorRestore is used to restore an SI token accessor
 func (r *StateRestore) SITokenAccessorRestore(accessor *structs.SITokenAccessor) error {
 	if err := r.txn.Insert(siTokenAccessorTable, accessor); err != nil {

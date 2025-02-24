@@ -56,17 +56,6 @@ func TestHTTP_AgentSelf(t *testing.T) {
 		require.NotNil(self.Config.ACL)
 		require.NotEmpty(self.Stats)
 
-		// Check the Vault config
-		require.Empty(self.Config.defaultVault().Token)
-
-		// Assign a Vault token and require it is redacted.
-		s.Config.defaultVault().Token = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
-		respW = httptest.NewRecorder()
-		obj, err = s.Server.AgentSelfRequest(respW, req)
-		require.NoError(err)
-		self = obj.(agentSelf)
-		require.Equal("<redacted>", self.Config.defaultVault().Token)
-
 		// Assign a ReplicationToken token and require it is redacted.
 		s.Config.ACL.ReplicationToken = "badc0deb-adc0-deba-dc0d-ebadc0debadc"
 		respW = httptest.NewRecorder()

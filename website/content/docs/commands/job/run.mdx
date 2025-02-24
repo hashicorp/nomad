@@ -44,10 +44,6 @@ The run command will set the `consul_token` of the job based on the following
 precedence, going from highest to lowest: the `-consul-token` flag, the
 `$CONSUL_HTTP_TOKEN` environment variable and finally the value in the job file.
 
-The run command will set the `vault_token` of the job based on the following
-precedence, going from highest to lowest: the `-vault-token` flag, the
-`$VAULT_TOKEN` environment variable and finally the value in the job file.
-
 When ACLs are enabled, this command requires a token with the `submit-job`
 capability for the job's namespace. Jobs that mount CSI volumes require a
 token with the `csi-mount-volume` capability for the volume's namespace. Jobs
@@ -102,17 +98,6 @@ that volume.
   [`consul` block `allow_unauthenticated`] is disabled in the Nomad server configuration, then
   a Consul token must be supplied with appropriate service and KV Consul ACL policy
   permissions.
-
-- `-vault-token`: Used to validate if the user submitting the job has
-  permission to run the job according to its Vault policies. A Vault token must
-  be supplied if the [`vault` block `allow_unauthenticated`] is disabled in
-  the Nomad server configuration. If the `-vault-token` flag is set, the passed
-  Vault token is added to the jobspec before sending to the Nomad servers. This
-  allows passing the Vault token without storing it in the job file. This
-  overrides the token found in the `$VAULT_TOKEN` environment variable and the
-  [`vault_token`] field in the job file. This token is cleared from the job
-  after validating and cannot be used within the job executing environment. Use
-  the `vault` block when templating in a job with a Vault token.
 
 - `-vault-namespace`: If set, the passed Vault namespace is stored in the job
   before sending to the Nomad servers.
@@ -242,5 +227,3 @@ $ nomad job run example.nomad.hcl
 [job specification]: /nomad/docs/job-specification
 [JSON jobs]: /nomad/api-docs/json-jobs
 [`system`]: /nomad/docs/schedulers#system
-[`vault` block `allow_unauthenticated`]: /nomad/docs/configuration/vault#allow_unauthenticated
-[`vault_token`]: /nomad/docs/job-specification/job#vault_token

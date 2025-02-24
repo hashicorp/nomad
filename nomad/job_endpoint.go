@@ -312,9 +312,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
-	// Clear the Vault token
-	args.Job.VaultToken = ""
-
 	// Clear the Consul token
 	args.Job.ConsulToken = ""
 
@@ -653,7 +650,6 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Build the register request
 	revJob := jobV.Copy()
-	revJob.VaultToken = args.VaultToken   // use vault token from revert to perform (re)registration
 	revJob.ConsulToken = args.ConsulToken // use consul token from revert to perform (re)registration
 
 	// Clear out the VersionTag to prevent tag duplication
