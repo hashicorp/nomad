@@ -7775,6 +7775,16 @@ func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
 	tg.Constraints = newConstraints
 }
 
+const (
+	// TaskGroupHostVolumeClaimListRPCMethod is the RPC method for listing task group
+	// host volume claims.
+	TaskGroupHostVolumeClaimListRPCMethod = "TaskGroupHostVolumeClaim.List"
+
+	// TaskGroupHostVolumeClaimDeleteRPCMethod is the RPC method for deleting task
+	// group host volume claims.
+	TaskGroupHostVolumeClaimDeleteRPCMethod = "TaskGroupHostVolumeClaim.Delete"
+)
+
 // TaskGroupHostVolumeClaim associates a task group with a host volume ID. It's
 // used for stateful deployments, i.e., volume requests with "sticky" set to
 // true.
@@ -7799,6 +7809,16 @@ func (tgvc *TaskGroupHostVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupHostVo
 	}
 
 	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
+}
+
+// GetNamespace implements the paginator.NamespaceGetter interface
+func (tgvc *TaskGroupHostVolumeClaim) GetNamespace() string {
+	return tgvc.Namespace
+}
+
+// GetID implements the paginator.IDGetter interface
+func (tgvc *TaskGroupHostVolumeClaim) GetID() string {
+	return tgvc.ID
 }
 
 // CheckRestart describes if and when a task should be restarted based on
