@@ -5,6 +5,11 @@
 
 <div class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
   <ul>
+    <li data-test-tab="overview">
+      <LinkTo @route="storage.index" @activeClass="is-active">
+        Overview
+      </LinkTo>
+    </li>
     <li data-test-tab="volumes">
       <LinkTo @route="storage.volumes.index" @activeClass="is-active">
         Volumes
