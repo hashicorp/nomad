@@ -27,7 +27,10 @@ into the plan queue.
 
 # Details
 
-Preemption is enabled by default in Nomad 0.9 for system jobs. Operators can use the [scheduler config](/nomad/api-docs/operator#update-scheduler-configuration) API endpoint to disable preemption.
+Preemption is enabled by default for system jobs. You can use the [scheduler
+config][sched-config-api] API endpoint or [`nomad operator scheduler
+set-config`][sched-config-cli] commands to disable preemption or enable it for
+other job types.
 
 Nomad uses the [job priority](/nomad/docs/job-specification/job#priority) field to determine what running allocations can be preempted.
 In order to prevent a cascade of preemptions due to jobs close in priority being preempted, only allocations from jobs with a priority
@@ -92,3 +95,5 @@ They provide the operator a sample of the type of allocations that could be pree
 [borg]: https://research.google.com/pubs/pub43438.html
 [img-data-model]: /img/nomad-data-model.png
 [img-eval-flow]: /img/nomad-evaluation-flow.png
+[sched-config-api]: /nomad/api-docs/operator/scheduler#update-scheduler-configuration
+[sched-config-cli]: /nomad/docs/commands/operator/scheduler/set-config
