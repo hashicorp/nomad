@@ -553,11 +553,6 @@ var CommandUIRoutes = map[string]UIRoute{
 }
 
 func (m *Meta) formatUIHint(url string, description string) string {
-	// Don't show hints for non-terminal output
-	if !terminal.IsTerminal(int(os.Stdout.Fd())) {
-		return ""
-	}
-
 	if description == "" {
 		description = defaultHint
 	}
