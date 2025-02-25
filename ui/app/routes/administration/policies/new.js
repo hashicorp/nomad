@@ -67,6 +67,11 @@ operator {
 #  * alloc-lifecycle
 #  * csi-write-volume
 #  * csi-mount-volume
+#  * host-volume-create
+#  * host-volume-register
+#  * host-volume-read
+#  * host-volume-write
+#  * host-volume-delete
 #  * list-scaling-policies
 #  * read-scaling-policy
 #  * read-job-scaling
