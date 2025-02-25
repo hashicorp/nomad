@@ -55,19 +55,13 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
-			var iter memdb.ResultIterator
-			var err error
-
-			switch {
-			case args.JobID != "":
-				iter, err = stateStore.TaskGroupHostVolumeClaimsByFields(ws, state.TgvcSearchableFields{Namespace: ns, JobID: args.JobID})
-			case args.VolumeName != "":
-				iter, err = stateStore.TaskGroupHostVolumeClaimsByFields(ws, state.TgvcSearchableFields{Namespace: ns, VolumeName: args.VolumeName})
-			case args.TaskGroup != "":
-				iter, err = stateStore.TaskGroupHostVolumeClaimsByFields(ws, state.TgvcSearchableFields{Namespace: ns, TaskGroupName: args.TaskGroup})
-			default:
-				iter, err = stateStore.GetTaskGroupHostVolumeClaims(ws)
-			}
+			iter, err := stateStore.TaskGroupHostVolumeClaimsByFields(ws,
+				state.TgvcSearchableFields{
+					Namespace:     ns,
+					JobID:         args.JobID,
+					VolumeName:    args.VolumeName,
+					TaskGroupName: args.TaskGroup,
+				})
 			if err != nil {
 				return err
 			}
@@ -87,23 +81,10 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 						if !strings.HasPrefix(claim.ID, args.Prefix) {
 							return false, nil
 						}
-						if args.JobID != "" && claim.JobID != args.JobID {
-							return false, nil
-						}
-						if args.TaskGroup != "" && claim.TaskGroupName != args.TaskGroup {
-							return false, nil
-						}
-						if args.VolumeName != "" && claim.VolumeName != args.VolumeName {
-							return false, nil
-						}
-
-						if ns != structs.AllNamespacesSentinel &&
-							claim.Namespace != ns {
-							return false, nil
-						}
 
 						allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
-						return allowClaim(aclObj, claim.Namespace), nil
+						canI := allowClaim(aclObj, claim.Namespace)
+						return canI, nil
 					},
 				},
 			}

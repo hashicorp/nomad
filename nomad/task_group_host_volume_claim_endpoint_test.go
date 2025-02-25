@@ -28,7 +28,7 @@ func TestTaskGroupHostVolumeClaimEndpoint_List(t *testing.T) {
 	store := testServer.State()
 
 	goodToken := mock.CreatePolicyAndToken(t, store, 999, "good",
-		`namespace "default" { capabilities = ["host-volume-read"] }
+		`namespace "*" { capabilities = ["host-volume-read"] }
          node { policy = "read" }`).SecretID
 
 	stickyJob := mock.Job()
@@ -47,7 +47,7 @@ func TestTaskGroupHostVolumeClaimEndpoint_List(t *testing.T) {
 		},
 		{
 			ID:            uuid.Generate(),
-			Namespace:     "foo", // this should be filtered out from any list outputs
+			Namespace:     "foo",
 			JobID:         stickyJob.ID,
 			TaskGroupName: stickyJob.TaskGroups[0].Name,
 			VolumeID:      dhvID,
@@ -121,6 +121,21 @@ func TestTaskGroupHostVolumeClaimEndpoint_List(t *testing.T) {
 	must.Len(t, 1, result.reply.Claims)
 	must.NotEq(t, result.reply.Claims[0].ID, existingClaims[0].ID)
 	must.Greater(t, claimsResp2.Index, result.reply.Index)
+
+	// Try listing claims with a filter for a wildcard ns (should only be 1
+	// because existingClaims[0] has just been deleted)
+	claimsReq4 := &structs.TaskGroupVolumeClaimListRequest{
+		QueryOptions: structs.QueryOptions{
+			Region:    DefaultRegion,
+			AuthToken: goodToken,
+			Namespace: structs.AllNamespacesSentinel,
+		},
+		JobID: stickyJob.ID,
+	}
+	var claimsResp4 structs.TaskGroupVolumeClaimListResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.TaskGroupHostVolumeClaimListRPCMethod, claimsReq4, &claimsResp4)
+	must.NoError(t, err)
+	must.Len(t, 1, claimsResp4.Claims)
 }
 
 func TestTaskGroupHostVolumeClaimEndpoint_Delete(t *testing.T) {

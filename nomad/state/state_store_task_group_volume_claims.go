@@ -105,7 +105,8 @@ type TgvcSearchableFields struct {
 	VolumeName    string
 }
 
-// TaskGroupHostVolumeClaimsByFields returns all claims that match the fields
+// TaskGroupHostVolumeClaimsByFields returns all claims that match the fields,
+// and handles namespace wildcards
 func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields TgvcSearchableFields) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
@@ -122,8 +123,10 @@ func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields
 		}
 
 		// check which fields we should filter by
-		if fields.Namespace != "" && claim.Namespace != fields.Namespace {
-			return true
+		if fields.Namespace != structs.AllNamespacesSentinel && fields.Namespace != "" {
+			if claim.Namespace != fields.Namespace {
+				return true
+			}
 		}
 		if fields.JobID != "" && claim.JobID != fields.JobID {
 			return true
