@@ -1,0 +1,76 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{page-title "Storage"}}
+
+<Breadcrumb @crumb={{hash label="Storage" args=(array "storage.index")}} />{{outlet}}
+
+<StorageSubnav />
+<section class="section">
+  {{!-- <div class="toolbar">
+    <div class="toolbar-item">
+      {{#if this.visibleVolumes.length}}
+        <SearchBox
+          data-test-volumes-search
+          @searchTerm={{mut this.searchTerm}}
+          @onChange={{action this.resetPagination}}
+          @placeholder="Search volumes..."
+        />
+      {{/if}}
+    </div>
+    {{#if this.system.shouldShowNamespaces}}
+      <div class="toolbar-item is-right-aligned is-mobile-full-width">
+        <div class="button-bar">
+          <SingleSelectDropdown
+            data-test-namespace-facet
+            @label="Namespace"
+            @options={{this.optionsNamespaces}}
+            @selection={{this.qpNamespace}}
+            @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
+          />
+        </div>
+      </div>
+    {{/if}}
+  </div> --}}
+
+  <Hds::Alert @type="inline" @icon="database" @color="highlight" @title="Storage is in beta" as |A|>
+    <A.Title>Storage</A.Title>
+    <A.Description>
+      Databases rule ok
+    </A.Description>
+  </Hds::Alert>
+
+
+  {{#if this.isForbidden}}
+    <ForbiddenMessage />
+  {{else}}
+    {{#if this.sortedDynamicHostVolumes.length}}
+      <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}} @columns={{this.columns}} @sortBy="name">
+        <:body as |B|>
+          <B.Tr>
+            <B.Td>{{B.data.name}}</B.Td>
+          </B.Tr>
+        </:body>
+      </Hds::Table>
+
+      <Hds::Table @caption="A list of policies for this cluster" class="acl-table" @model={{this.sortedDynamicHostVolumes}}
+        @columns={{this.dhvColumns}} @sortBy="name">
+        <:body as |B|>
+          <B.Tr {{keyboard-shortcut enumerated=true action=(action "openDHV" B.data) }} data-test-dhv-row>
+            <B.Td>
+              {{!-- <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.dhv"
+                @model={{B.data.name}}>{{B.data.name}}</LinkTo> --}}
+                {{B.data.name}}
+            </B.Td>
+            <B.Td>{{B.data.namespace.name}}</B.Td>
+            <B.Td>{{B.data.pluginID}}</B.Td>
+            <B.Td>{{B.data.state}}</B.Td>
+          </B.Tr>
+        </:body>
+      </Hds::Table>
+    {{/if}}
+  {{/if }}
+
+</section>

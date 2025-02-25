@@ -27,8 +27,12 @@ export default class VolumeSerializer extends ApplicationSerializer {
     // but it is necessary to make the correct find requests and the
     // payload does not contain the required information to derive
     // this identifier.
-    hash.ID = JSON.stringify([`csi/${hash.ID}`, hash.NamespaceID || 'default']);
-    hash.PluginID = `csi/${hash.PluginID}`;
+
+    // Only for CSI volumes
+    if (hash.ID.includes('csi')) {
+      hash.ID = JSON.stringify([`csi/${hash.ID}`, hash.NamespaceID || 'default']);
+      hash.PluginID = `csi/${hash.PluginID}`;
+    }
 
     // Populate read/write allocation lists from aggregate allocation list
     const readAllocs = hash.ReadAllocs || {};
