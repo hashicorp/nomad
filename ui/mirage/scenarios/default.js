@@ -1237,6 +1237,7 @@ export function createRestartableJobs(server) {
     shallow: true,
     createAllocations: false,
     groupAllocCount: 0,
+    type: 'service',
   });
 
   const nonRevertableJob = server.create('job', {
@@ -1246,6 +1247,16 @@ export function createRestartableJobs(server) {
     shallow: true,
     createAllocations: false,
     groupAllocCount: 0,
+    type: 'service',
+  });
+
+  const revertableBatchJob = server.create('job', {
+    name: 'revertable-batch-job',
+    stopped: false,
+    status: 'dead',
+    noDeployments: true,
+    shallow: true,
+    type: 'batch',
   });
 
   // So it shows up as "Failed" instead of "Scaled Down"
@@ -1271,6 +1282,10 @@ export function createRestartableJobs(server) {
   server.schema.jobVersions
     .all()
     .filter((v) => v.jobId === nonRevertableJob.id)
+    .models.forEach((v) => v.destroy());
+  server.schema.jobVersions
+    .all()
+    .filter((v) => v.jobId === revertableBatchJob.id)
     .models.forEach((v) => v.destroy());
 
   server.create('job-version', {
@@ -1319,6 +1334,22 @@ export function createRestartableJobs(server) {
     namespace: nonRevertableJob.namespace,
     version: 1,
     stable: false,
+    noActiveDeployment: true,
+  });
+
+  server.create('job-version', {
+    job: revertableBatchJob,
+    namespace: revertableBatchJob.namespace,
+    version: 0,
+    stable: false, // <--- ignored by the UI by way of job.hasVersionStability
+    noActiveDeployment: true,
+  });
+
+  server.create('job-version', {
+    job: revertableBatchJob,
+    namespace: revertableBatchJob.namespace,
+    version: 1,
+    stable: false, // <--- ignored by the UI by way of job.hasVersionStability
     noActiveDeployment: true,
   });
 
