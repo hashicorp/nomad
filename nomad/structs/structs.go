@@ -7775,32 +7775,6 @@ func (tg *TaskGroup) SetConstraints(newConstraints []*Constraint) {
 	tg.Constraints = newConstraints
 }
 
-// TaskGroupHostVolumeClaim associates a task group with a host volume ID. It's
-// used for stateful deployments, i.e., volume requests with "sticky" set to
-// true.
-type TaskGroupHostVolumeClaim struct {
-	ID            string
-	Namespace     string
-	JobID         string
-	TaskGroupName string
-	AllocID       string // used for checks to make sure we don't insert duplicate claims for the same alloc
-
-	VolumeID   string
-	VolumeName string
-
-	CreateIndex uint64
-	ModifyIndex uint64
-}
-
-// ClaimedByAlloc checks if there's a match between allocation ID and volume ID
-func (tgvc *TaskGroupHostVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupHostVolumeClaim) bool {
-	if tgvc == nil || otherClaim == nil {
-		return tgvc == otherClaim
-	}
-
-	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
-}
-
 // CheckRestart describes if and when a task should be restarted based on
 // failing health checks.
 type CheckRestart struct {

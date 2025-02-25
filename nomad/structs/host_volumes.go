@@ -429,6 +429,64 @@ type HostVolumeListResponse struct {
 	QueryMeta
 }
 
+const (
+	// TaskGroupHostVolumeClaimListRPCMethod is the RPC method for listing task group
+	// host volume claims.
+	TaskGroupHostVolumeClaimListRPCMethod = "TaskGroupHostVolumeClaim.List"
+
+	// TaskGroupHostVolumeClaimDeleteRPCMethod is the RPC method for deleting task
+	// group host volume claims.
+	TaskGroupHostVolumeClaimDeleteRPCMethod = "TaskGroupHostVolumeClaim.Delete"
+)
+
+// TaskGroupHostVolumeClaim associates a task group with a host volume ID. It's
+// used for stateful deployments, i.e., volume requests with "sticky" set to
+// true.
+type TaskGroupHostVolumeClaim struct {
+	ID            string
+	Namespace     string
+	JobID         string
+	TaskGroupName string
+	AllocID       string // used for checks to make sure we don't insert duplicate claims for the same alloc
+
+	VolumeID   string
+	VolumeName string
+
+	CreateIndex uint64
+	ModifyIndex uint64
+}
+
+// ClaimedByAlloc checks if there's a match between allocation ID and volume ID
+func (tgvc *TaskGroupHostVolumeClaim) ClaimedByAlloc(otherClaim *TaskGroupHostVolumeClaim) bool {
+	if tgvc == nil || otherClaim == nil {
+		return tgvc == otherClaim
+	}
+
+	return tgvc.AllocID == otherClaim.AllocID && tgvc.VolumeID == otherClaim.VolumeID
+}
+
+// GetNamespace implements the paginator.NamespaceGetter interface
+func (tgvc *TaskGroupHostVolumeClaim) GetNamespace() string {
+	return tgvc.Namespace
+}
+
+// GetID implements the paginator.IDGetter interface
+func (tgvc *TaskGroupHostVolumeClaim) GetID() string {
+	return tgvc.ID
+}
+
+type TaskGroupVolumeClaimListRequest struct {
+	TaskGroup  string
+	JobID      string
+	VolumeName string
+	QueryOptions
+}
+
+type TaskGroupVolumeClaimListResponse struct {
+	Claims []*TaskGroupHostVolumeClaim
+	QueryMeta
+}
+
 type TaskGroupVolumeClaimDeleteRequest struct {
 	ClaimID string
 	WriteRequest

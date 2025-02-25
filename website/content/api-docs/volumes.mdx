@@ -1119,6 +1119,102 @@ $ curl \
     https://localhost:4646/v1/volume/host/ba97ef42-cc68-11ef-a2e7-ffddaecbdb89
 ```
 
+## List Task Group Host Volume Claims
+
+This endpoint lists host volume claims made by task groups that
+requested "sticky" volumes.
+
+| Method | Path                 | Produces           |
+|--------|----------------------|--------------------|
+| `GET`  | `/v1/volumes/claims` | `application/json` |
+
+The following table shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required                 |
+|------------------|------------------------------|
+| `YES`            | `namespace:host-volume-read` |
+
+### Parameters
+- `claim_id` `(string: "")` - Specifies the prefix of a task group volume
+claim ID to perform the list. Specify this as a query string parameter.
+
+- `namespace` `(string: <required>)` - Specifies the namespace used to filter
+task group volume claims.
+
+- `job_id` `(string: "")` - Specifies the job ID used to filter task group
+volume claims.
+
+- `task_group` `(string: "")` - Specifies the task group name used to filter
+task group volume claims.
+
+- `volume_name` `(string: "")` - Specifies the volume name used to filter
+task group volume claims.
+
+- `next_token` `(string: "")` - This endpoint supports paging. The
+`next_token` parameter accepts a string returned in a previous response's
+`NextToken` field to request the next page of results.
+
+- `per_page` `(int: <required>)` - Specifies a maximum number of snapshots to
+return for this request. The response includes a `NextToken` field that
+you can pass to the next request to fetch additional pages.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    https://localhost:4646/v1/volumes/claims
+```
+
+### Sample Response
+
+```json
+[
+  {
+    "AllocID": "34e44207-0cf3-a24d-4bbe-6c91cec642ce",
+    "CreateIndex": 15,
+    "ID": "75c417b5-cf90-86e4-8ffc-d18f445e0721",
+    "JobID": "example",
+    "ModifyIndex": 15,
+    "Namespace": "default",
+    "TaskGroupName": "echo",
+    "VolumeID": "0bb42da3-7e09-6937-a83d-69d5c9bfce30",
+    "VolumeName": "sticky-volume"
+  }
+]
+```
+
+## Delete Task Group Host Volume Claims
+
+This endpoint deletes host volume claims made by task groups that
+requested "sticky" volumes.
+
+| Method   | Path                          | Produces       |
+|----------|-------------------------------|----------------|
+| `DELETE` | `/v1/volumes/claim/:claim_id` | `(empty body)` |
+
+The following table shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | ACL Required                  |
+|------------------|-------------------------------|
+| `NO`             | `namespace:host-volume-write` |
+
+### Parameters
+
+- `claim_id` `(string: <required>)` - Specifies the ID of task group host volume claim
+to delete and is specified as part of the path.
+
+### Sample Request
+
+```shell-session
+$ curl \
+    --request DELETE \
+    https://localhost:4646/v1/volume/claim/75c417b5-cf90-86e4-8ffc-d18f445e0721
+```
+
 [blocking queries]: /nomad/api-docs#blocking-queries
 [required ACLs]: /nomad/api-docs#acls
 [csi]: https://github.com/container-storage-interface/spec
