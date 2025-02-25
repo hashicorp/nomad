@@ -11,14 +11,35 @@ job "batch-docker" {
   group "batch-docker" {
     count = var.alloc_count
 
+    network {
+      port "db" {
+        to = 6377
+      }
+    }
+
+    service {
+      provider = "nomad"
+      name     = "redis"
+      port     = "db"
+
+      check {
+        name     = "redis_probe"
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "1s"
+      }
+    }
+
     task "batch-docker" {
       driver = "docker"
 
       config {
-        image   = "alpine:latest"
-        command = "sh"
-        args    = ["-c", "while true; do sleep 30000; done"]
-
+        image = "redis:latest"
+        ports = ["db"]
+        args  = ["--port", "6377"]
+        labels {
+          workload = "docker-batch"
+        }
       }
 
       resources {

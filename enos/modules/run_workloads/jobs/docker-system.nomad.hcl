@@ -10,14 +10,36 @@ job "system-docker" {
 
   group "system-docker" {
 
+    network {
+      port "db" {
+        to = 6378
+      }
+    }
+
+    service {
+      provider = "nomad"
+      name     = "redis"
+      port     = "db"
+
+      check {
+        name     = "redis_probe"
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "1s"
+      }
+    }
+
+
     task "system-docker" {
       driver = "docker"
 
       config {
-        image   = "alpine:latest"
-        command = "sh"
-        args    = ["-c", "while true; do sleep 30000; done"]
-
+        image = "redis:7.2"
+        ports = ["db"]
+        args  = ["--port", "6378"]
+        labels {
+          workload = "docker-system"
+        }
       }
 
       resources {

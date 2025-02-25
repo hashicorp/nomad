@@ -3,7 +3,7 @@
 
 output "jobs_count" {
   description = "The number of jobs thar should be running in the cluster"
-  value       = length(var.workloads) + chomp(enos_local_exec.get_jobs.stdout)
+  value       = length(var.workloads) + tonumber(coalesce(chomp(enos_local_exec.get_jobs.stdout)))
 }
 
 output "new_jobs_count" {
@@ -13,7 +13,7 @@ output "new_jobs_count" {
 
 output "allocs_count" {
   description = "The number of allocs that should be running in the cluster"
-  value       = local.system_job_count * chomp(enos_local_exec.get_nodes.stdout) + local.service_batch_allocs + chomp(enos_local_exec.get_allocs.stdout)
+  value       = local.system_job_count * tonumber(coalesce(chomp(enos_local_exec.get_nodes.stdout))) + local.service_batch_allocs + tonumber(coalesce(chomp(enos_local_exec.get_allocs.stdout)))
 }
 
 output "nodes" {
@@ -23,5 +23,5 @@ output "nodes" {
 
 output "new_allocs_count" {
   description = "The number of allocs that will be added to the cluster after all the workloads are run"
-  value       = local.system_job_count * chomp(enos_local_exec.get_nodes.stdout) + local.service_batch_allocs
+  value       = local.system_job_count * tonumber(coalesce(chomp(enos_local_exec.get_nodes.stdout), "0")) + local.service_batch_allocs
 }
