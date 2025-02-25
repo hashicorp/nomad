@@ -497,11 +497,6 @@ func (s *Server) establishLeadership(stopCh chan struct{}) error {
 		return err
 	}
 
-	// Cleanup orphaned Service Identity token accessors
-	if err := s.revokeSITokenAccessorsOnRestore(); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -820,51 +815,6 @@ func (s *Server) restoreEvals() error {
 			s.blockedEvals.Block(eval)
 		}
 	}
-	return nil
-}
-
-// revokeSITokenAccessorsOnRestore is used to revoke Service Identity token
-// accessors on behalf of allocs that are now gone / terminal.
-func (s *Server) revokeSITokenAccessorsOnRestore() error {
-	ws := memdb.NewWatchSet()
-	fsmState := s.fsm.State()
-	iter, err := fsmState.SITokenAccessors(ws)
-	if err != nil {
-		return fmt.Errorf("failed to get SI token accessors: %w", err)
-	}
-
-	var toRevoke []*structs.SITokenAccessor
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		accessor := raw.(*structs.SITokenAccessor)
-
-		// Check the allocation
-		alloc, err := fsmState.AllocByID(ws, accessor.AllocID)
-		if err != nil {
-			return fmt.Errorf("failed to lookup alloc %q: %w", accessor.AllocID, err)
-		}
-		if alloc == nil || alloc.Terminated() {
-			// no longer running and associated accessors should be revoked
-			toRevoke = append(toRevoke, accessor)
-			continue
-		}
-
-		// Check the node
-		node, err := fsmState.NodeByID(ws, accessor.NodeID)
-		if err != nil {
-			return fmt.Errorf("failed to lookup node %q: %w", accessor.NodeID, err)
-		}
-		if node == nil || node.TerminalStatus() {
-			// node is terminal and associated accessors should be revoked
-			toRevoke = append(toRevoke, accessor)
-			continue
-		}
-	}
-
-	if len(toRevoke) > 0 {
-		s.logger.Info("revoking consul accessors after becoming leader", "accessors", len(toRevoke))
-		s.consulACLs.MarkForRevocation(toRevoke)
-	}
-
 	return nil
 }
 

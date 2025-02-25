@@ -4,7 +4,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -255,10 +254,6 @@ type Client struct {
 	// shutdownGroup are goroutines that exit when shutdownCh is closed.
 	// Shutdown() blocks on Wait() after closing shutdownCh.
 	shutdownGroup group.Group
-
-	// tokensClient is Nomad Client's custom Consul client for requesting Consul
-	// Service Identity tokens through Nomad Server.
-	tokensClient consulApiShim.ServiceIdentityAPI
 
 	// vaultClients is used to interact with Vault for token and secret renewals
 	vaultClients map[string]vaultclient.VaultClient
@@ -595,10 +590,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 			// No configured servers; trigger discovery manually
 			c.triggerDiscoveryCh <- struct{}{}
 		}
-	}
-
-	if err := c.setupConsulTokenClient(); err != nil {
-		return nil, fmt.Errorf("failed to setup consul tokens client: %w", err)
 	}
 
 	// Setup the vault client for token and secret renewals
@@ -2833,7 +2824,6 @@ func (c *Client) newAllocRunnerConfig(
 		ClientConfig:        c.GetConfig(),
 		ConsulServices:      c.consulServices,
 		ConsulProxiesFunc:   c.consulProxiesFunc,
-		ConsulSI:            c.tokensClient,
 		DeviceManager:       c.devicemanager,
 		DeviceStatsReporter: c,
 		DriverManager:       c.drivermanager,
@@ -2852,15 +2842,6 @@ func (c *Client) newAllocRunnerConfig(
 		Partitions:          c.partitions,
 		Users:               c.users,
 	}
-}
-
-// setupConsulTokenClient configures a tokenClient for managing consul service
-// identity tokens.
-// DEPRECATED: remove in 1.9.0
-func (c *Client) setupConsulTokenClient() error {
-	tc := consulApiShim.NewIdentitiesClient(c.logger, c.deriveSIToken)
-	c.tokensClient = tc
-	return nil
 }
 
 // setupVaultClients creates the objects that periodically renew tokens and
@@ -2914,83 +2895,6 @@ func (c *Client) setupNomadServiceRegistrationHandler() {
 		),
 	}
 	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
-}
-
-// deriveSIToken takes an allocation and a set of tasks and derives Consul
-// Service Identity tokens for each of the tasks by requesting them from the
-// Nomad Server.
-func (c *Client) deriveSIToken(ctx context.Context, alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
-	tasks, err := verifiedTasks(c.logger, alloc, taskNames)
-	if err != nil {
-		return nil, err
-	}
-
-	req := &structs.DeriveSITokenRequest{
-		NodeID:   c.NodeID(),
-		SecretID: c.secretNodeID(),
-		AllocID:  alloc.ID,
-		Tasks:    tasks,
-		QueryOptions: structs.QueryOptions{
-			Region:    c.Region(),
-			AuthToken: c.secretNodeID(),
-		},
-	}
-
-	// Nicely ask Nomad Server for the tokens.
-	var resp structs.DeriveSITokenResponse
-	if err := c.RPC("Node.DeriveSIToken", &req, &resp); err != nil {
-		c.logger.Error("error making derive token RPC", "error", err)
-		return nil, fmt.Errorf("DeriveSIToken RPC failed: %v", err)
-	}
-	if err := resp.Error; err != nil {
-		c.logger.Error("error deriving SI tokens", "error", err)
-		return nil, structs.NewWrappedServerError(err)
-	}
-	if len(resp.Tokens) == 0 {
-		c.logger.Error("error deriving SI tokens", "error", "invalid_response")
-		return nil, fmt.Errorf("failed to derive SI tokens: invalid response")
-	}
-
-	// NOTE: Unlike with the Vault integration, Nomad Server replies with the
-	// actual Consul SI token (.SecretID), because otherwise each Nomad
-	// Client would need to be blessed with 'acl:write' permissions to read the
-	// secret value given the .AccessorID, which does not fit well in the Consul
-	// security model.
-	//
-	// https://www.consul.io/api/acl/tokens.html#read-a-token
-	// https://www.consul.io/docs/internals/security.html
-
-	consulConfigs := c.config.GetConsulConfigs(c.logger)
-	consulClientConstructor := consulApiShim.NewConsulClientFactory(c.config)
-
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	tgNs := tg.Consul.GetNamespace()
-
-	for task, secretID := range resp.Tokens {
-		t := tg.LookupTask(task)
-		ns := t.Consul.GetNamespace()
-		if ns == "" {
-			ns = tgNs
-		}
-		cluster := tg.LookupTask(task).GetConsulClusterName(tg)
-		consulConfig := consulConfigs[cluster]
-		consulClient, err := consulClientConstructor(consulConfig, c.logger)
-		if err != nil {
-			return nil, err
-		}
-
-		err = consulClient.TokenPreflightCheck(ctx, &consulapi.ACLToken{
-			Namespace: ns,
-			SecretID:  secretID,
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	m := maps.Clone(resp.Tokens)
-
-	return m, nil
 }
 
 // verifiedTasks asserts each task in taskNames actually exists in the given alloc,

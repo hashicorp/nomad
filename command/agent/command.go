@@ -172,10 +172,6 @@ func (c *Command) readConfig() *Config {
 		return nil
 	}), "consul-verify-ssl", "")
 	flags.StringVar(&defaultConsul.Addr, "consul-address", "", "")
-	flags.Var((flaghelper.FuncBoolVar)(func(b bool) error {
-		defaultConsul.AllowUnauthenticated = &b
-		return nil
-	}), "consul-allow-unauthenticated", "")
 
 	// Vault options
 	defaultVault := cmdConfig.defaultVault()

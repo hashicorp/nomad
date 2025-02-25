@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocwatcher"
 	"github.com/hashicorp/nomad/client/config"
 	clientconfig "github.com/hashicorp/nomad/client/config"
-	"github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
@@ -85,7 +84,6 @@ func testAllocRunnerConfig(t *testing.T, alloc *structs.Allocation) (*config.All
 		ClientConfig:       clientConf,
 		StateDB:            stateDB,
 		ConsulServices:     consulRegMock,
-		ConsulSI:           consul.NewMockServiceIdentitiesClient(),
 		VaultFunc:          vaultclient.NewMockVaultClient,
 		StateUpdater:       &MockStateUpdater{},
 		PrevAllocWatcher:   allocwatcher.NoopPrevAlloc{},

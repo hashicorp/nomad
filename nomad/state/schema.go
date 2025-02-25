@@ -867,6 +867,7 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 // siTokenAccessorTableSchema returns the MemDB schema for the Service Identity
 // token accessor table. This table tracks accessors for tokens created on behalf
 // of allocations with Consul connect enabled tasks that need SI tokens.
+// TODO: is this safe to delete for 1.10.0?
 func siTokenAccessorTableSchema() *memdb.TableSchema {
 	return &memdb.TableSchema{
 		Name: siTokenAccessorTable,

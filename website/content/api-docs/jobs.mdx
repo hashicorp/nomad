@@ -662,7 +662,6 @@ $ curl \
       "Affinities": null,
       "AllAtOnce": false,
       "Constraints": null,
-      "ConsulToken": "",
       "CreateIndex": 44,
       "Datacenters": ["dc1"],
       "Dispatched": false,
@@ -874,7 +873,6 @@ $ curl \
       "Affinities": null,
       "AllAtOnce": false,
       "Constraints": null,
-      "ConsulToken": "",
       "CreateIndex": 10,
       "Datacenters": [
         "dc1"
@@ -1043,7 +1041,6 @@ $ curl \
       "Affinities": null,
       "AllAtOnce": false,
       "Constraints": null,
-      "ConsulToken": "",
       "CreateIndex": 10,
       "Datacenters": [
         "dc1"
@@ -1887,9 +1884,6 @@ The table below shows this endpoint's support for
 - `EnforcePriorVersion` `(integer: nil)` - Optional value specifying the current
   job's version. This is checked and acts as a check-and-set value before
   reverting to the specified job.
-
-- `ConsulToken` `(string:"")` - Optional value specifying the [consul token](/nomad/docs/commands/job/revert)
-  used for Consul [service identity polity authentication checking](/nomad/docs/configuration/consul#allow_unauthenticated).
 
 - `namespace` `(string: "default")` - Specifies the target namespace. If ACL is
 enabled, this value must match a namespace that the token is allowed to

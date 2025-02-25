@@ -106,7 +106,6 @@
         "Reschedule": null,
         "Migrate": null,
         "Meta": null,
-        "ConsulToken": null,
         "VaultToken": null,
         "Stop": null,
         "ParentID": null,

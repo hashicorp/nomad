@@ -3018,7 +3018,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
-		ConsulToken:       pointer.Of("abc123"),
 		VaultNamespace:    pointer.Of("ghi789"),
 		Status:            pointer.Of("status"),
 		StatusDescription: pointer.Of("status_desc"),
@@ -3474,8 +3473,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
-
-		ConsulToken: "abc123",
 	}
 
 	structsJob := ApiJobToStructJob(apiJob)

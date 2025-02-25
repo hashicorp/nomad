@@ -5,7 +5,6 @@ package nomad
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/rpc"
@@ -18,9 +17,6 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/command/agent/consul"
-	"github.com/hashicorp/nomad/helper"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -3798,145 +3794,8 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	}
 }
 
-func TestClientEndpoint_taskUsesConnect(t *testing.T) {
+func TestClientEndpoint_DeriveVaultToken_Bad(t *testing.T) {
 	ci.Parallel(t)
-
-	try := func(t *testing.T, task *structs.Task, exp bool) {
-		result := taskUsesConnect(task)
-		require.Equal(t, exp, result)
-	}
-
-	t.Run("task uses connect", func(t *testing.T) {
-		try(t, &structs.Task{
-			// see nomad.newConnectSidecarTask for how this works
-			Name: "connect-proxy-myservice",
-			Kind: "connect-proxy:myservice",
-		}, true)
-	})
-
-	t.Run("task does not use connect", func(t *testing.T) {
-		try(t, &structs.Task{
-			Name: "mytask",
-			Kind: "incorrect:mytask",
-		}, false)
-	})
-
-	t.Run("task does not exist", func(t *testing.T) {
-		try(t, nil, false)
-	})
-}
-
-func TestClientEndpoint_tasksNotUsingConnect(t *testing.T) {
-	ci.Parallel(t)
-
-	taskGroup := &structs.TaskGroup{
-		Name: "testgroup",
-		Tasks: []*structs.Task{{
-			Name: "connect-proxy-service1",
-			Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "service1"),
-		}, {
-			Name: "incorrect-task3",
-			Kind: "incorrect:task3",
-		}, {
-			Name: "connect-proxy-service4",
-			Kind: structs.NewTaskKind(structs.ConnectProxyPrefix, "service4"),
-		}, {
-			Name: "incorrect-task5",
-			Kind: "incorrect:task5",
-		}, {
-			Name: "task6",
-			Kind: structs.NewTaskKind(structs.ConnectNativePrefix, "service6"),
-		}},
-	}
-
-	requestingTasks := []string{
-		"connect-proxy-service1", // yes
-		"task2",                  // does not exist
-		"task3",                  // no
-		"connect-proxy-service4", // yes
-		"task5",                  // no
-		"task6",                  // yes, native
-	}
-
-	notConnect, usingConnect := connectTasks(taskGroup, requestingTasks)
-
-	notConnectExp := []string{"task2", "task3", "task5"}
-	usingConnectExp := []connectTask{
-		{TaskName: "connect-proxy-service1", TaskKind: "connect-proxy:service1"},
-		{TaskName: "connect-proxy-service4", TaskKind: "connect-proxy:service4"},
-		{TaskName: "task6", TaskKind: "connect-native:service6"},
-	}
-
-	require.Equal(t, notConnectExp, notConnect)
-	require.Equal(t, usingConnectExp, usingConnect)
-}
-
-func mutateConnectJob(t *testing.T, job *structs.Job) {
-	var jch jobConnectHook
-	_, warnings, err := jch.Mutate(job)
-	require.Empty(t, warnings)
-	require.NoError(t, err)
-}
-
-func TestClientEndpoint_DeriveSIToken(t *testing.T) {
-	ci.Parallel(t)
-	r := require.New(t)
-
-	s1, cleanupS1 := TestServer(t, nil) // already sets consul mocks
-	defer cleanupS1()
-
-	state := s1.fsm.State()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Set allow unauthenticated (no operator token required)
-	s1.config.GetDefaultConsul().AllowUnauthenticated = pointer.Of(true)
-
-	// Create the node
-	node := mock.Node()
-	err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node)
-	r.NoError(err)
-
-	// Create an alloc with a typical connect service (sidecar) defined
-	alloc := mock.ConnectAlloc()
-	alloc.NodeID = node.ID
-	mutateConnectJob(t, alloc.Job) // appends sidecar task
-	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
-
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
-	r.NoError(err)
-
-	request := &structs.DeriveSITokenRequest{
-		NodeID:   node.ID,
-		SecretID: node.SecretID,
-		AllocID:  alloc.ID,
-		Tasks:    []string{sidecarTask.Name},
-		QueryOptions: structs.QueryOptions{
-			Region:    "global",
-			AuthToken: node.SecretID,
-		},
-	}
-
-	var response structs.DeriveSITokenResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.DeriveSIToken", request, &response)
-	r.NoError(err)
-	r.Nil(response.Error)
-
-	// Check the state store and ensure we created a Consul SI Token Accessor
-	ws := memdb.NewWatchSet()
-	accessors, err := state.SITokenAccessorsByNode(ws, node.ID)
-	r.NoError(err)
-	r.Equal(1, len(accessors))                                  // only asked for one
-	r.Equal("connect-proxy-testconnect", accessors[0].TaskName) // set by the mock
-	r.Equal(node.ID, accessors[0].NodeID)                       // should match
-	r.Equal(alloc.ID, accessors[0].AllocID)                     // should match
-	r.True(helper.IsUUID(accessors[0].AccessorID))              // should be set
-	r.Greater(accessors[0].CreateIndex, uint64(3))              // more than 3rd
-}
-
-func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
-	ci.Parallel(t)
-	r := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3944,50 +3803,84 @@ func TestClientEndpoint_DeriveSIToken_ConsulError(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// Set allow unauthenticated (no operator token required)
-	s1.config.GetDefaultConsul().AllowUnauthenticated = pointer.Of(true)
-
 	// Create the node
 	node := mock.Node()
-	err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node)
-	r.NoError(err)
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
-	// Create an alloc with a typical connect service (sidecar) defined
-	alloc := mock.ConnectAlloc()
-	alloc.NodeID = node.ID
-	mutateConnectJob(t, alloc.Job) // appends sidecar task
-	sidecarTask := alloc.Job.TaskGroups[0].Tasks[1]
+	// Create an alloc
+	alloc := mock.Alloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	tasks := []string{task.Name}
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
 
-	// rejigger the server to use a broken mock consul
-	mockACLsAPI := consul.NewMockACLsAPI(s1.logger)
-	mockACLsAPI.SetError(structs.NewRecoverableError(errors.New("consul recoverable error"), true))
-	m := NewConsulACLsAPI(mockACLsAPI, s1.logger, nil)
-	s1.consulACLs = m
-
-	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc})
-	r.NoError(err)
-
-	request := &structs.DeriveSITokenRequest{
+	badSecret := uuid.Generate()
+	req := &structs.DeriveVaultTokenRequest{
 		NodeID:   node.ID,
-		SecretID: node.SecretID,
+		SecretID: badSecret,
 		AllocID:  alloc.ID,
-		Tasks:    []string{sidecarTask.Name},
+		Tasks:    tasks,
 		QueryOptions: structs.QueryOptions{
 			Region:    "global",
-			AuthToken: node.SecretID,
+			AuthToken: badSecret,
 		},
 	}
 
-	var response structs.DeriveSITokenResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.DeriveSIToken", request, &response)
-	r.NoError(err)
-	r.NotNil(response.Error)               // error should be set
-	r.True(response.Error.IsRecoverable()) // and is recoverable
+	var resp structs.DeriveVaultTokenResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.DeriveVaultToken", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+
+	if resp.Error == nil || !strings.Contains(resp.Error.Error(), "SecretID mismatch") {
+		t.Fatalf("Expected SecretID mismatch: %v", resp.Error)
+	}
+
+	// Put the correct SecretID
+	req.SecretID = node.SecretID
+
+	// Now we should get an error about the allocation not running on the node
+	if err := msgpackrpc.CallWithCodec(codec, "Node.DeriveVaultToken", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if resp.Error == nil || !strings.Contains(resp.Error.Error(), "not running on Node") {
+		t.Fatalf("Expected not running on node error: %v", resp.Error)
+	}
+
+	// Update to be running on the node
+	alloc.NodeID = node.ID
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 4, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Now we should get an error about the job not needing any Vault secrets
+	if err := msgpackrpc.CallWithCodec(codec, "Node.DeriveVaultToken", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if resp.Error == nil || !strings.Contains(resp.Error.Error(), "does not require") {
+		t.Fatalf("Expected no policies error: %v", resp.Error)
+	}
+
+	// Update to be client-terminal
+	alloc.ClientStatus = structs.AllocClientStatusFailed
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 5, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Now we should get an error about the job not needing any Vault secrets
+	if err := msgpackrpc.CallWithCodec(codec, "Node.DeriveVaultToken", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if resp.Error == nil || !strings.Contains(resp.Error.Error(), "terminal") {
+		t.Fatalf("Expected terminal allocation error: %v", resp.Error)
+	}
+
 }
 
-func TestClientEndpoint_EmitEvents(t *testing.T) {
+func TestClientEndpoint_DeriveVaultToken(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 
 	s1, cleanupS1 := TestServer(t, nil)
 	defer cleanupS1()
@@ -3995,33 +3888,148 @@ func TestClientEndpoint_EmitEvents(t *testing.T) {
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
 
-	// create a node that we can register our event to
+	// Enable vault and allow authenticated
+	tr := true
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &tr
+
+	// Replace the Vault Client on the server
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Create the node
 	node := mock.Node()
-	err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node)
-	require.Nil(err)
-
-	nodeEvent := &structs.NodeEvent{
-		Message:   "Registration failed",
-		Subsystem: "Server",
-		Timestamp: time.Now(),
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node); err != nil {
+		t.Fatalf("err: %v", err)
 	}
 
-	nodeEvents := map[string][]*structs.NodeEvent{node.ID: {nodeEvent}}
-	req := structs.EmitNodeEventsRequest{
-		NodeEvents:   nodeEvents,
-		WriteRequest: structs.WriteRequest{Region: "global", AuthToken: node.SecretID},
+	// Create an alloc an allocation that has vault policies required
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	tasks := []string{task.Name}
+	task.Vault = &structs.Vault{Policies: []string{"a", "b"}}
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
 	}
 
-	var resp structs.GenericResponse
-	err = msgpackrpc.CallWithCodec(codec, "Node.EmitEvents", &req, &resp)
-	require.Nil(err)
-	require.NotEqual(uint64(0), resp.Index)
+	// Return a secret for the task
+	token := uuid.Generate()
+	accessor := uuid.Generate()
+	ttl := 10
+	secret := &vapi.Secret{
+		WrapInfo: &vapi.SecretWrapInfo{
+			Token:           token,
+			WrappedAccessor: accessor,
+			TTL:             ttl,
+		},
+	}
+	tvc.SetCreateTokenSecret(alloc.ID, task.Name, secret)
 
-	// Check for the node in the FSM
+	req := &structs.DeriveVaultTokenRequest{
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		AllocID:  alloc.ID,
+		Tasks:    tasks,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
+	}
+
+	var resp structs.DeriveVaultTokenResponse
+	if err := msgpackrpc.CallWithCodec(codec, "Node.DeriveVaultToken", req, &resp); err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if resp.Error != nil {
+		t.Fatalf("bad: %v", resp.Error)
+	}
+
+	// Check the state store and ensure that we created a VaultAccessor
 	ws := memdb.NewWatchSet()
-	out, err := state.NodeByID(ws, node.ID)
-	require.Nil(err)
-	require.False(len(out.Events) < 2)
+	va, err := state.VaultAccessor(ws, accessor)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if va == nil {
+		t.Fatalf("bad: %v", va)
+	}
+
+	if va.CreateIndex == 0 {
+		t.Fatalf("bad: %v", va)
+	}
+
+	va.CreateIndex = 0
+	expected := &structs.VaultAccessor{
+		AllocID:     alloc.ID,
+		Task:        task.Name,
+		NodeID:      alloc.NodeID,
+		Accessor:    accessor,
+		CreationTTL: ttl,
+	}
+
+	if !reflect.DeepEqual(expected, va) {
+		t.Fatalf("Got %#v; want %#v", va, expected)
+	}
+}
+
+func TestClientEndpoint_DeriveVaultToken_VaultError(t *testing.T) {
+	ci.Parallel(t)
+
+	s1, cleanupS1 := TestServer(t, nil)
+	defer cleanupS1()
+	state := s1.fsm.State()
+	codec := rpcClient(t, s1)
+	testutil.WaitForLeader(t, s1.RPC)
+
+	// Enable vault and allow authenticated
+	tr := true
+	s1.config.GetDefaultVault().Enabled = &tr
+	s1.config.GetDefaultVault().AllowUnauthenticated = &tr
+
+	// Replace the Vault Client on the server
+	tvc := &TestVaultClient{}
+	s1.vault = tvc
+
+	// Create the node
+	node := mock.Node()
+	if err := state.UpsertNode(structs.MsgTypeTestSetup, 2, node); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Create an alloc an allocation that has vault policies required
+	alloc := mock.Alloc()
+	alloc.NodeID = node.ID
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	tasks := []string{task.Name}
+	task.Vault = &structs.Vault{Policies: []string{"a", "b"}}
+	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{alloc}); err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Return an error when creating the token
+	tvc.SetCreateTokenError(alloc.ID, task.Name,
+		structs.NewRecoverableError(fmt.Errorf("recover"), true))
+
+	req := &structs.DeriveVaultTokenRequest{
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		AllocID:  alloc.ID,
+		Tasks:    tasks,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
+	}
+
+	var resp structs.DeriveVaultTokenResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.DeriveVaultToken", req, &resp)
+	if err != nil {
+		t.Fatalf("bad: %v", err)
+	}
+	if resp.Error == nil || !resp.Error.IsRecoverable() {
+		t.Fatalf("bad: %+v", resp.Error)
+	}
 }
 
 func TestClientEndpoint_ShouldCreateNodeEval(t *testing.T) {

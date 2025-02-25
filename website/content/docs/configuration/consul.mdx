@@ -226,17 +226,6 @@ agents with [`server.enabled`] set to `true`.
   support [`template`][] blocks. Refer to [Workload
   Identity](#workload-identity) for a recommended configuration.
 
-### Deprecated Parameters
-
-These parameters are used by the deprecated token-based authentication flow and
-will be removed in a future release.
-
-- `allow_unauthenticated` `(bool: true)` - Specifies if users submitting jobs to
-  the Nomad server should be required to provide their own Consul token, proving
-  they have access to the service identity policies required by the Consul
-  Connect enabled services listed in the job. This option should be disabled in
-  an untrusted environment.
-
 ## Workload Identity
 
 The `service_identity` and `task_identity` blocks accept all the same values as

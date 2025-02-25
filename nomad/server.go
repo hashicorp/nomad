@@ -255,9 +255,6 @@ type Server struct {
 	// consulConfigEntries is used for managing Consul Configuration Entries.
 	consulConfigEntries ConsulConfigsAPI
 
-	// consulACLs is used for managing Consul Service Identity tokens.
-	consulACLs ConsulACLsAPI
-
 	// Worker used for processing
 	workers          []*Worker
 	workerLock       sync.RWMutex
@@ -319,7 +316,7 @@ type Server struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) (*Server, error) {
+func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc) (*Server, error) {
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -399,8 +396,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// Initialize the stats fetcher that autopilot will use.
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
-	// Setup Consul (more)
-	s.setupConsul(consulConfigFunc, consulACLs)
+	// Setup Consul
+	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)
 
 	// Set up the keyring
 	keystorePath := filepath.Join(s.config.DataDir, "keystore")
@@ -746,9 +743,6 @@ func (s *Server) Shutdown() error {
 	if s.fsm != nil {
 		s.fsm.Close()
 	}
-
-	// Stop the Consul ACLs token revocations
-	s.consulACLs.Stop()
 
 	// Stop being able to set Configuration Entries
 	s.consulConfigEntries.Stop()
@@ -1158,12 +1152,6 @@ func (s *Server) setupNodeDrainer() {
 		BatchUpdateInterval:   drainer.BatchUpdateInterval,
 	}
 	s.nodeDrainer = drainer.NewNodeDrainer(c)
-}
-
-// setupConsul is used to setup Server specific consul components.
-func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) {
-	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)
-	s.consulACLs = NewConsulACLsAPI(consulACLs, s.logger, s.purgeSITokenAccessors)
 }
 
 // setupRPC is used to setup the RPC listener

@@ -55,10 +55,6 @@ Alias: nomad run
   If the job has specified the region, the -region flag and NOMAD_REGION
   environment variable are overridden and the job's region is used.
 
-  The run command will set the consul_token of the job based on the following
-  precedence, going from highest to lowest: the -consul-token flag, the
-  $CONSUL_HTTP_TOKEN environment variable and finally the value in the job file.
-
   When ACLs are enabled, this command requires a token with the 'submit-job'
   capability for the job's namespace. Jobs that mount CSI volumes require a
   token with the 'csi-mount-volume' capability for the volume's
@@ -108,12 +104,6 @@ Run Options:
   -preserve-counts
     If set, the existing task group counts will be preserved when updating a job.
 
-  -consul-token
-    If set, the passed Consul token is stored in the job before sending to the
-    Nomad servers. This allows passing the Consul token without storing it in
-    the job file. This overrides the token found in $CONSUL_HTTP_TOKEN environment
-    variable and that found in the job.
-
   -consul-namespace
     (Enterprise only) If set, any services in the job will be registered into
     the specified Consul namespace. Any template block reading from Consul KV
@@ -148,7 +138,6 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-check-index":      complete.PredictNothing,
 			"-detach":           complete.PredictNothing,
 			"-verbose":          complete.PredictNothing,
-			"-consul-token":     complete.PredictNothing,
 			"-consul-namespace": complete.PredictAnything,
 			"-vault-namespace":  complete.PredictAnything,
 			"-output":           complete.PredictNothing,
@@ -174,7 +163,7 @@ func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts bool
-	var checkIndexStr, consulToken, consulNamespace, vaultNamespace string
+	var checkIndexStr, consulNamespace, vaultNamespace string
 	var evalPriority int
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -187,7 +176,6 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
 	flagSet.StringVar(&checkIndexStr, "check-index", "", "")
-	flagSet.StringVar(&consulToken, "consul-token", "", "")
 	flagSet.StringVar(&consulNamespace, "consul-namespace", "", "")
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
@@ -245,16 +233,6 @@ func (c *JobRunCommand) Run(args []string) int {
 	periodic := job.IsPeriodic()
 	paramjob := job.IsParameterized()
 	multiregion := job.IsMultiregion()
-
-	// Parse the Consul token
-	if consulToken == "" {
-		// Check the environment variable
-		consulToken = os.Getenv("CONSUL_HTTP_TOKEN")
-	}
-
-	if consulToken != "" {
-		job.ConsulToken = pointer.Of(consulToken)
-	}
 
 	if consulNamespace != "" {
 		job.ConsulNamespace = pointer.Of(consulNamespace)
