@@ -17,12 +17,12 @@ job "system-docker" {
     }
 
     service {
-      provider = "nomad"
-      name     = "redis"
+      provider = "consul"
+      name     = "system-docker"
       port     = "db"
 
       check {
-        name     = "redis_probe"
+        name     = "system-docker_probe"
         type     = "tcp"
         interval = "10s"
         timeout  = "1s"

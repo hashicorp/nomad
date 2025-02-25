@@ -18,12 +18,12 @@ job "batch-docker" {
     }
 
     service {
-      provider = "nomad"
-      name     = "redis"
+      provider = "consul"
+      name     = "batch-docker"
       port     = "db"
 
       check {
-        name     = "redis_probe"
+        name     = "service-docker_probe"
         type     = "tcp"
         interval = "10s"
         timeout  = "1s"
