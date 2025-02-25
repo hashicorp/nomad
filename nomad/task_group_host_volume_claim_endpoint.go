@@ -153,7 +153,6 @@ func (tgvc *TaskGroupHostVolumeClaim) Delete(args *structs.TaskGroupVolumeClaimD
 	}
 	defer metrics.MeasureSince([]string{"nomad", "task_group_host_volume_claim", "delete"}, time.Now())
 
-	// Note that all deleted claims need to be in the same namespace
 	allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeDelete)
 	aclObj, err := tgvc.srv.ResolveACL(args)
 	if err != nil {

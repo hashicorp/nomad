@@ -9,13 +9,13 @@ import "net/url"
 // used for stateful deployments, i.e., volume requests with "sticky" set to
 // true.
 type TaskGroupHostVolumeClaim struct {
-	ID            string `mapstructure:"id" hcl:"id"`
-	Namespace     string `mapstructure:"namespace" hcl:"namespace"`
-	JobID         string `mapstructure:"job_id" hcl:"job_id"`
-	TaskGroupName string `mapstructure:"task_group_name" hcl:"task_group_name"`
-	AllocID       string `mapstructure:"alloc_id" hcl:"alloc_id"`
-	VolumeID      string `mapstructure:"volume_id" hcl:"volume_id"`
-	VolumeName    string `mapstructure:"volume_name" hcl:"volume_name"`
+	ID            string `mapstructure:"id"`
+	Namespace     string `mapstructure:"namespace"`
+	JobID         string `mapstructure:"job_id"`
+	TaskGroupName string `mapstructure:"task_group_name"`
+	AllocID       string `mapstructure:"alloc_id"`
+	VolumeID      string `mapstructure:"volume_id"`
+	VolumeName    string `mapstructure:"volume_name"`
 
 	CreateIndex uint64
 	ModifyIndex uint64
