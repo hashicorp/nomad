@@ -3,7 +3,7 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-{{page-title "CSI Volumes"}}
+{{page-title "Volumes"}}
 <StorageSubnav />
 <section class="section">
   <div class="toolbar">
@@ -166,6 +166,7 @@
         </h3>
         <p class="empty-message-body">
           This namespace currently has no CSI Volumes.
+          {{!-- TODO: make sure the empty-message is generalized to include DHV --}}
         </p>
       {{else if this.searchTerm}}
         <h3 data-test-empty-volumes-list-headline class="empty-message-headline">

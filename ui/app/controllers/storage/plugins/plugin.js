@@ -5,7 +5,7 @@
 
 import Controller from '@ember/controller';
 
-export default class CsiPluginsPluginController extends Controller {
+export default class StoragePluginsPluginController extends Controller {
   get plugin() {
     return this.model;
   }

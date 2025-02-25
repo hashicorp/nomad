@@ -8,7 +8,7 @@ import { create, isPresent, text, visitable } from 'ember-cli-page-object';
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 
 export default create({
-  visit: visitable('/csi/volumes/:id'),
+  visit: visitable('/storage/volumes/:id'),
 
   title: text('[data-test-title]'),
 
