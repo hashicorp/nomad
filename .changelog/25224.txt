@@ -1,0 +1,3 @@
+```release-note:improvement
+ui: Dynamic Host Volumes added to the UI
+```
