@@ -51,17 +51,17 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 
 	ns := args.RequestNamespace()
 
+	searchFields := state.TgvcSearchableFields{
+		Namespace:     ns,
+		JobID:         args.JobID,
+		VolumeName:    args.VolumeName,
+		TaskGroupName: args.TaskGroup,
+	}
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
-			iter, err := stateStore.TaskGroupHostVolumeClaimsByFields(ws,
-				state.TgvcSearchableFields{
-					Namespace:     ns,
-					JobID:         args.JobID,
-					VolumeName:    args.VolumeName,
-					TaskGroupName: args.TaskGroup,
-				})
+			iter, err := stateStore.TaskGroupHostVolumeClaimsByFields(ws, searchFields)
 			if err != nil {
 				return err
 			}
@@ -73,6 +73,7 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 				},
 			)
 
+			allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
 			filters := []paginator.Filter{
 				paginator.GenericFilter{
 					Allow: func(raw any) (bool, error) {
@@ -82,9 +83,7 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 							return false, nil
 						}
 
-						allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
-						canI := allowClaim(aclObj, claim.Namespace)
-						return canI, nil
+						return allowClaim(aclObj, claim.Namespace), nil
 					},
 				},
 			}

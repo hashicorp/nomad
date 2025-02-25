@@ -119,7 +119,7 @@ func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields
 	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
 		claim, ok := raw.(*structs.TaskGroupHostVolumeClaim)
 		if !ok {
-			return false
+			return true
 		}
 
 		// check which fields we should filter by
