@@ -13,7 +13,7 @@ export default class IndexRoute extends Route.extend(WithWatchers) {
   @service store;
 
   startWatchers(controller) {
-    controller.set('modelWatch', this.watch.perform({ type: 'csi' }));
+    controller.set('modelWatch', this.watch.perform({ type: 'host' }));
   }
 
   @watchQuery('plugin') watch;

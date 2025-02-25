@@ -294,7 +294,7 @@ export default class KeyboardService extends Service {
 
         // If no activeLink, means we're nested within a primary section.
         // Luckily, Ember's RouteInfo.find() gives us access to parents and connected leaves of a route.
-        // So, if we're on /csi/volumes but the nav link is to /csi, we'll .find() it.
+        // So, if we're on /storage/volumes but the nav link is to /storage, we'll .find() it.
         // Similarly, /job/:job/taskgroupid/index will find /job.
         if (!activeLink) {
           activeLink = links.find((link) => {

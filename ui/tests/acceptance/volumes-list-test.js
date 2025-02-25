@@ -43,20 +43,26 @@ module('Acceptance | volumes list', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('visiting /csi redirects to /csi/volumes', async function (assert) {
+  test('visiting /storage redirects to /storage/volumes', async function (assert) {
+    await visit('/storage');
+
+    assert.equal(currentURL(), '/storage/volumes');
+  });
+
+  test('visiting the now-deprecated /csi redirects to /storage/volumes', async function (assert) {
     await visit('/csi');
 
-    assert.equal(currentURL(), '/csi/volumes');
+    assert.equal(currentURL(), '/storage/volumes');
   });
 
-  test('visiting /csi/volumes', async function (assert) {
+  test('visiting /storage/volumes', async function (assert) {
     await VolumesList.visit();
 
-    assert.equal(currentURL(), '/csi/volumes');
-    assert.equal(document.title, 'CSI Volumes - Nomad');
+    assert.equal(currentURL(), '/storage/volumes');
+    assert.equal(document.title, 'Volumes - Nomad');
   });
 
-  test('/csi/volumes should list the first page of volumes sorted by name', async function (assert) {
+  test('/storage/volumes should list the first page of volumes sorted by name', async function (assert) {
     const volumeCount = VolumesList.pageSize + 1;
     server.createList('csi-volume', volumeCount);
 
@@ -120,16 +126,16 @@ module('Acceptance | volumes list', function (hooks) {
     await VolumesList.volumes.objectAt(0).clickName();
     assert.equal(
       currentURL(),
-      `/csi/volumes/${volume.id}@${secondNamespace.id}`
+      `/storage/volumes/${volume.id}@${secondNamespace.id}`
     );
 
     await VolumesList.visit({ namespace: '*' });
-    assert.equal(currentURL(), '/csi/volumes?namespace=*');
+    assert.equal(currentURL(), '/storage/volumes?namespace=*');
 
     await VolumesList.volumes.objectAt(0).clickRow();
     assert.equal(
       currentURL(),
-      `/csi/volumes/${volume.id}@${secondNamespace.id}`
+      `/storage/volumes/${volume.id}@${secondNamespace.id}`
     );
   });
 
@@ -159,11 +165,11 @@ module('Acceptance | volumes list', function (hooks) {
     await VolumesList.visit();
     await VolumesList.nextPage();
 
-    assert.equal(currentURL(), '/csi/volumes?page=2');
+    assert.equal(currentURL(), '/storage/volumes?page=2');
 
     await VolumesList.search('foobar');
 
-    assert.equal(currentURL(), '/csi/volumes?search=foobar');
+    assert.equal(currentURL(), '/storage/volumes?search=foobar');
   });
 
   test('when the cluster has namespaces, each volume row includes the volume namespace', async function (assert) {
