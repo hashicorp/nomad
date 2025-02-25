@@ -76,6 +76,7 @@ scenario "upgrade" {
       consul_license            = var.consul_license
       volumes                   = false
       region                    = var.aws_region
+      availability_zone         = var.availability_zone
       instance_arch             = matrix.arch
     }
   }
@@ -89,11 +90,13 @@ scenario "upgrade" {
 
     module = module.run_workloads
     variables {
-      nomad_addr  = step.provision_cluster.nomad_addr
-      ca_file     = step.provision_cluster.ca_file
-      cert_file   = step.provision_cluster.cert_file
-      key_file    = step.provision_cluster.key_file
-      nomad_token = step.provision_cluster.nomad_token
+      nomad_addr        = step.provision_cluster.nomad_addr
+      ca_file           = step.provision_cluster.ca_file
+      cert_file         = step.provision_cluster.cert_file
+      key_file          = step.provision_cluster.key_file
+      nomad_token       = step.provision_cluster.nomad_token
+      availability_zone = var.availability_zone
+
       workloads = {
         service_raw_exec = { job_spec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3, type = "service" }
         service_docker   = { job_spec = "jobs/docker-service.nomad.hcl", alloc_count = 3, type = "service" }
@@ -101,6 +104,21 @@ scenario "upgrade" {
         batch_docker     = { job_spec = "jobs/docker-batch.nomad.hcl", alloc_count = 3, type = "batch" }
         batch_raw_exec   = { job_spec = "jobs/raw-exec-batch.nomad.hcl", alloc_count = 3, type = "batch" }
         system_raw_exec  = { job_spec = "jobs/raw-exec-system.nomad.hcl", alloc_count = 0, type = "system" }
+
+        csi_plugin_efs_node = {
+          job_spec    = "jobs/plugin-aws-efs-nodes.nomad.hcl"
+          alloc_count = 0
+          type        = "system"
+          post_script = "scripts/wait_for_efs_plugin.sh"
+        }
+
+        wants_csi = {
+          job_spec    = "jobs/wants-volume.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+          pre_script  = "scripts/wait_for_efs_volume.sh"
+        }
+
       }
     }
 
