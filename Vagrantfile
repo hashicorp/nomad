@@ -130,11 +130,11 @@ def configureLinuxProvisioners(vmCfg)
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/linux-priv-go.sh'
+		path: './scripts/linux-priv-config.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,
-		path: './scripts/linux-priv-config.sh'
+		path: './scripts/linux-priv-go.sh'
 
 	vmCfg.vm.provision "shell",
 		privileged: true,

@@ -30,7 +30,13 @@ A development environment is supplied via Vagrant to make getting started easier
     ```sh
     $ vagrant ssh
     ```
-
+1. Previous command opens a shell. Execute the tests in that shell:
+   ```sh
+   cd /opt/gopath/src/github.com/hashicorp/nomad
+   sudo su
+   make bootstrap
+   PATH=/root/go/bin:$PATH make test
+   ```
 Developing without Vagrant
 ---
 1. Install [Go 1.23.5+](https://golang.org/) *(Note: `gcc-go` is not supported)*
