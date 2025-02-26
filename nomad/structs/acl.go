@@ -794,6 +794,7 @@ func (a *ACLAuthMethod) SetHash() []byte {
 		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
+		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCEnablePKCE)))
 		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCDisableUserInfo)))
 		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.VerboseLogging)))
 		_, _ = hash.Write([]byte(a.Config.ExpirationLeeway.String()))
@@ -827,6 +828,24 @@ func (a *ACLAuthMethod) SetHash() []byte {
 		for k, v := range a.Config.ListClaimMappings {
 			_, _ = hash.Write([]byte(k))
 			_, _ = hash.Write([]byte(v))
+		}
+		if a.Config.OIDCClientAssertion != nil {
+			_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.KeySource))
+			_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.KeyAlgorithm))
+			for _, aud := range a.Config.OIDCClientAssertion.Audience {
+				_, _ = hash.Write([]byte(aud))
+			}
+			for k, v := range a.Config.OIDCClientAssertion.ExtraHeaders {
+				_, _ = hash.Write([]byte(k))
+				_, _ = hash.Write([]byte(v))
+			}
+			if a.Config.OIDCClientAssertion.PrivateKey != nil {
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.Base64PemKey))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemKeyFile))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.Base64PemCert))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemCertFile))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.KeyID))
+			}
 		}
 	}
 
@@ -934,6 +953,8 @@ func (a *ACLAuthMethod) Canonicalize() {
 	if a.TokenNameFormat == "" {
 		a.TokenNameFormat = DefaultACLAuthMethodTokenNameFormat
 	}
+
+	a.Config.Canonicalize()
 }
 
 // Merge merges auth method a with method b. It sets all required empty fields
@@ -975,6 +996,10 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 			a.MaxTokenTTL.String(), minTTL.String(), maxTTL.String()))
 	}
 
+	if err := a.Config.Validate(); err != nil {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid config: %w", err))
+	}
+
 	return mErr.ErrorOrNil()
 }
 
@@ -1001,6 +1026,12 @@ type ACLAuthMethodConfig struct {
 
 	// The OAuth Client Secret configured with the OIDC provider
 	OIDCClientSecret string
+
+	// Optional client assertion ("private key jwt") config
+	OIDCClientAssertion *OIDCClientAssertion
+
+	// OEnable PKCE challenge verification
+	OIDCEnablePKCE bool // TODO: default enabled, except for existing auth methods
 
 	// Disable claims from the OIDC UserInfo endpoint
 	OIDCDisableUserInfo bool
@@ -1048,6 +1079,26 @@ type ACLAuthMethodConfig struct {
 	// Enables logging of claims and binding-rule evaluations when
 	// debug level logging is enabled.
 	VerboseLogging bool
+}
+
+func (a *ACLAuthMethodConfig) Canonicalize() {
+	if a.OIDCClientAssertion != nil {
+		// client assertions inherit certain values from auth method
+		if len(a.OIDCClientAssertion.Audience) == 0 {
+			a.OIDCClientAssertion.Audience = []string{a.OIDCDiscoveryURL}
+		}
+		a.OIDCClientAssertion.clientSecret = a.OIDCClientSecret
+		a.OIDCClientAssertion.Canonicalize()
+	}
+}
+
+func (a *ACLAuthMethodConfig) Validate() error {
+	if a.OIDCClientAssertion != nil {
+		if err := a.OIDCClientAssertion.Validate(); err != nil {
+			return fmt.Errorf("invalid client assertion config: %w", err)
+		}
+	}
+	return nil
 }
 
 func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
@@ -1154,6 +1205,117 @@ func (a *ACLAuthMethodConfig) UnmarshalJSON(data []byte) (err error) {
 		}
 	}
 	return nil
+}
+
+type OIDCClientAssertionKeySource string
+
+const (
+	OIDCKeySourceNomad        OIDCClientAssertionKeySource = "nomad"
+	OIDCKeySourceClientSecret OIDCClientAssertionKeySource = "client_secret"
+	OIDCKeySourcePrivateKey   OIDCClientAssertionKeySource = "private_key"
+)
+
+// OIDCClientAssertion (a.k.a private_key_jwt) is used to send
+// a client_assertion along with an OIDC token request.
+// See api.OIDCClientAssertion for full field descriptions.
+type OIDCClientAssertion struct {
+	KeySource    OIDCClientAssertionKeySource
+	Audience     []string
+	PrivateKey   *OIDCClientAssertionKey
+	ExtraHeaders map[string]string
+	KeyAlgorithm string
+	// clientSecret is inherited from parent ACLAuthMethodConfig struct
+	// via ACLAuthMethodConfig.Canonicalize
+	clientSecret string
+}
+
+func (c *OIDCClientAssertion) Canonicalize() {
+	if c == nil {
+		return
+	}
+	// default KeyAlgorithm to "RS256" for nomad and user keys, "HS256" for client_secret
+	if c.KeyAlgorithm == "" {
+		switch c.KeySource {
+		case OIDCKeySourceClientSecret:
+			c.KeyAlgorithm = "HS256"
+		case OIDCKeySourceNomad, OIDCKeySourcePrivateKey:
+			c.KeyAlgorithm = "RS256"
+		}
+	}
+}
+
+func (c *OIDCClientAssertion) IsSet() bool {
+	return c != nil && c.KeySource != ""
+}
+
+func (c *OIDCClientAssertion) ClientSecret() string {
+	return c.clientSecret
+}
+
+func (c *OIDCClientAssertion) Validate() error {
+	if c == nil { // guard, shouldn't happen
+		return errors.New("nil OIDCClientAssertion")
+	}
+	if len(c.Audience) == 0 {
+		return errors.New("audience is required")
+	}
+	switch c.KeySource {
+	case OIDCKeySourceNomad:
+	case OIDCKeySourcePrivateKey:
+		if c.PrivateKey == nil {
+			return errors.New("PrivateKey is required for `private_key` key source")
+		}
+		if err := c.PrivateKey.Validate(); err != nil {
+			return fmt.Errorf("invalid PrivateKey: %w", err)
+		}
+	case OIDCKeySourceClientSecret:
+		if c.clientSecret == "" {
+			return errors.New("OIDCClientSecret is required for `client_secret` key source")
+		}
+	default:
+		return fmt.Errorf("invalid KeySource %q", c.KeySource)
+	}
+	return nil
+}
+
+// OIDCClientAssertionKey contains key material provided by users for Nomad
+// to use to sign the private key JWT.
+// See api.OIDCClientAssertionKey for full field descriptions.
+type OIDCClientAssertionKey struct {
+	Base64PemKey string
+	PemKeyFile   string
+
+	Base64PemCert string
+	PemCertFile   string
+	KeyID         string
+}
+
+// Validate ensures that one Key and one Cert or KeyID are provided.
+func (k *OIDCClientAssertionKey) Validate() error {
+	if k == nil { // guard, shouldn't happen
+		return errors.New("nil OIDCClientAssertionKey")
+	}
+	// mutual exclusive fields
+	me := set.From([]string{k.Base64PemKey, k.PemKeyFile})
+	if !me.Remove("") { // one should be empty
+		return errors.New("require exactly one of Base64PemKey or PemKeyFile")
+	}
+	if me.Size() == 0 { // but not both of them
+		return errors.New("missing Base64PemKey or PemKeyFile")
+	}
+
+	me = set.From([]string{k.Base64PemCert, k.PemCertFile, k.KeyID})
+	if !me.Remove("") { // one should be empty
+		return errors.New("require only one of Base64PemCert, PemCertFile, or KeyID")
+	}
+	switch s := me.Size(); s {
+	case 1: // should have 1 left
+		return nil
+	case 0:
+		return errors.New("missing Base64PemCert, PemCertFile, or KeyID")
+	default:
+		return errors.New("require exactly one of Base64PemCert, PemCertFile, or KeyID")
+	}
 }
 
 // ACLAuthClaims is the claim mapping of the OIDC auth method in a format that
