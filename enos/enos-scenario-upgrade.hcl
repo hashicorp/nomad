@@ -94,6 +94,14 @@ scenario "upgrade" {
       cert_file   = step.provision_cluster.cert_file
       key_file    = step.provision_cluster.key_file
       nomad_token = step.provision_cluster.nomad_token
+      workloads = {
+        service_raw_exec = { job_spec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3, type = "service" }
+        service_docker   = { job_spec = "jobs/docker-service.nomad.hcl", alloc_count = 3, type = "service" }
+        system_docker    = { job_spec = "jobs/docker-system.nomad.hcl", alloc_count = 0, type = "system" }
+        batch_docker     = { job_spec = "jobs/docker-batch.nomad.hcl", alloc_count = 3, type = "batch" }
+        batch_raw_exec   = { job_spec = "jobs/raw-exec-batch.nomad.hcl", alloc_count = 3, type = "batch" }
+        system_raw_exec  = { job_spec = "jobs/raw-exec-system.nomad.hcl", alloc_count = 0, type = "system" }
+      }
     }
 
     verifies = [
@@ -364,5 +372,9 @@ EOF
 
   output "binary_path" {
     value = step.copy_initial_binary.binary_path
+  }
+
+  output "allocs" {
+    value = step.run_initial_workloads.allocs_count
   }
 }

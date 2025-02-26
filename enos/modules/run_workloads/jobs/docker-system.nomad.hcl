@@ -5,37 +5,40 @@ variable "alloc_count" {
   default = 1
 }
 
-job "service-docker" {
-  group "service-docker" {
-    count = var.alloc_count
+job "system-docker" {
+  type = "system"
+
+  group "system-docker" {
 
     network {
       port "db" {
-        to = 6379
+        to = 6378
       }
     }
 
     service {
       provider = "consul"
-      name     = "service-docker"
+      name     = "system-docker"
       port     = "db"
 
       check {
-        name     = "service-docker_probe"
+        name     = "system-docker_probe"
         type     = "tcp"
         interval = "10s"
         timeout  = "1s"
       }
     }
 
-    task "service-docker" {
+
+    task "system-docker" {
       driver = "docker"
 
       config {
         image = "redis:7.2"
         ports = ["db"]
+        args  = ["--port", "6378"]
         labels {
-          workload = "docker-service"
+          workload = "docker-system"
         }
       }
 

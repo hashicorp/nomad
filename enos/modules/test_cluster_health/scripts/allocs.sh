@@ -48,6 +48,10 @@ done
 
 echo "All ALLOCS are running."
 
+if [ "$allocs_length" -eq 0 ]; then
+    exit 0
+fi
+
 # Quality: nomad_reschedule_alloc: A POST / PUT call to /v1/allocation/:alloc_id/stop results in the stopped allocation being rescheduled
 
 random_index=$((RANDOM % allocs_length))

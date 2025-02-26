@@ -5,19 +5,21 @@ variable "alloc_count" {
   default = 1
 }
 
-job "service-docker" {
-  group "service-docker" {
+job "batch-docker" {
+  type = "batch"
+
+  group "batch-docker" {
     count = var.alloc_count
 
     network {
       port "db" {
-        to = 6379
+        to = 6377
       }
     }
 
     service {
       provider = "consul"
-      name     = "service-docker"
+      name     = "batch-docker"
       port     = "db"
 
       check {
@@ -28,14 +30,15 @@ job "service-docker" {
       }
     }
 
-    task "service-docker" {
+    task "batch-docker" {
       driver = "docker"
 
       config {
-        image = "redis:7.2"
+        image = "redis:latest"
         ports = ["db"]
+        args  = ["--port", "6377"]
         labels {
-          workload = "docker-service"
+          workload = "docker-batch"
         }
       }
 
