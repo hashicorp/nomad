@@ -18,7 +18,7 @@ export default class IndexController extends Controller {
     return this.model.dynamicHostVolumes.sortBy('name');
   }
 
-  get sortedCsiVolumes() {
+  get sortedCSIVolumes() {
     return this.model.csiVolumes.sortBy('name');
   }
 
@@ -47,6 +47,41 @@ export default class IndexController extends Controller {
     ];
   }
 
+  get csiColumns() {
+    return [
+      {
+        key: 'name',
+        label: 'Name',
+        isSortable: true,
+      },
+      {
+        key: 'namespace.name',
+        label: 'Namespace',
+        isSortable: true,
+      },
+      {
+        key: 'schedulable',
+        label: 'Volume Health',
+        isSortable: true,
+      },
+      {
+        key: 'controllersHealthyProportion',
+        label: 'Controller Health',
+      },
+      {
+        key: 'nodesHealthyProportion',
+        label: 'Node Health',
+      },
+      {
+        key: 'provider',
+        label: 'Provider',
+      },
+      {
+        key: 'allocationCount',
+        label: '# Allocs',
+      },
+    ];
+  }
   @action openDHV(dhv) {
     this.router.transitionTo('storage.dhv', dhv.name);
   }

@@ -8,7 +8,7 @@
 <Breadcrumb @crumb={{hash label="Storage" args=(array "storage.index")}} />{{outlet}}
 
 <StorageSubnav />
-<section class="section">
+<section class="section storage-index">
   {{!-- <div class="toolbar">
     <div class="toolbar-item">
       {{#if this.visibleVolumes.length}}
@@ -35,10 +35,17 @@
     {{/if}}
   </div> --}}
 
-  <Hds::Alert @type="inline" @icon="database" @color="highlight" @title="Storage is in beta" as |A|>
+  <Hds::Alert class="storage-intro" @type="inline" @icon="database" @color="highlight" @title="Storage is in beta" as |A|>
     <A.Title>Storage</A.Title>
     <A.Description>
-      Databases rule ok
+      Nomad has four main ways to store and persist data:
+      <ul>
+        <li><strong>CSI Volumes:</strong> A flexible option with advanced features like snapshots and resizing.</li>
+        <li><strong>Dynamic Host Volumes:</strong> Easily provisioned for both local and networked storage.</li>
+        <li><strong>Static Host Volumes:</strong> Defined in the Nomad agent's config file, best for infrequently changing storage.</li>
+        <li><strong>Ephemeral Disks:</strong> Best-effort persistence, ideal for rebuildable data.</li>
+      </ul>
+      For more details, visit <Hds::Link::Inline @icon="docs-link" @href="https://developer.hashicorp.com/nomad/docs/operations/stateful-workloads">Considerations for Stateful Workloads</Hds::Link::Inline>.
     </A.Description>
   </Hds::Alert>
 
@@ -47,15 +54,7 @@
     <ForbiddenMessage />
   {{else}}
     {{#if this.sortedDynamicHostVolumes.length}}
-      <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}} @columns={{this.columns}} @sortBy="name">
-        <:body as |B|>
-          <B.Tr>
-            <B.Td>{{B.data.name}}</B.Td>
-          </B.Tr>
-        </:body>
-      </Hds::Table>
-
-      <Hds::Table @caption="A list of policies for this cluster" class="acl-table" @model={{this.sortedDynamicHostVolumes}}
+      <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}}
         @columns={{this.dhvColumns}} @sortBy="name">
         <:body as |B|>
           <B.Tr {{keyboard-shortcut enumerated=true action=(action "openDHV" B.data) }} data-test-dhv-row>
@@ -67,6 +66,69 @@
             <B.Td>{{B.data.namespace.name}}</B.Td>
             <B.Td>{{B.data.pluginID}}</B.Td>
             <B.Td>{{B.data.state}}</B.Td>
+          </B.Tr>
+        </:body>
+      </Hds::Table>
+
+
+      <Hds::Table @caption="CSI Volumes" @model={{this.sortedCSIVolumes}}
+        @columns={{this.csiColumns}} @sortBy="name">
+        <:body as |B|>
+          <B.Tr>
+            <B.Td>
+              <LinkTo
+                @route="storage.volumes.volume"
+                @model={{B.data.idWithNamespace}}
+                class="is-primary"
+              >
+                {{B.data.name}}
+              </LinkTo>
+            </B.Td>
+            <B.Td>
+              {{#if this.system.shouldShowNamespaces}}
+                {{B.data.namespace.name}}
+              {{else}}
+                --
+              {{/if}}
+            </B.Td>
+            <B.Td data-test-volume-schedulable>
+              {{if B.data.schedulable "Schedulable" "Unschedulable"}}
+            </B.Td>
+            <B.Td data-test-volume-controller-health>
+              {{#if B.data.controllerRequired}}
+                {{if (gt B.data.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                (
+                {{B.data.controllersHealthy}}
+                /
+                {{B.data.controllersExpected}}
+                )
+              {{else if (gt B.data.controllersExpected 0)}}
+                {{if (gt B.data.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                (
+                {{B.data.controllersHealthy}}
+                /
+                {{B.data.controllersExpected}}
+                )
+              {{else}}
+                <em class="is-faded">
+                  Node Only
+                </em>
+              {{/if}}
+            </B.Td>
+            <B.Td data-test-volume-node-health>
+              {{if (gt B.data.nodesHealthy 0) "Healthy" "Unhealthy"}}
+              (
+              {{B.data.nodesHealthy}}
+              /
+              {{B.data.nodesExpected}}
+              )
+            </B.Td>
+            <B.Td data-test-volume-provider>
+              {{B.data.provider}}
+            </B.Td>
+            <B.Td data-test-volume-allocations>
+              {{B.data.allocationCount}}
+            </B.Td>
           </B.Tr>
         </:body>
       </Hds::Table>
