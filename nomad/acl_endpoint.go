@@ -69,6 +69,11 @@ type ACL struct {
 	// hashicorp/cap library. When performing an OIDC login flow, this cache
 	// should be used to obtain a provider from an auth-method.
 	oidcProviderCache *oidc.ProviderCache
+
+	// oidcRequests stores a cache of OIDC requests, so request state (mainly
+	// PKCE challenge/verification) can persist between calls to OIDCAuthURL
+	// and OIDCCompleteAuth.
+	oidcRequests *oidc.RequestCache
 }
 
 func NewACLEndpoint(srv *Server, ctx *RPCContext) *ACL {
@@ -77,6 +82,7 @@ func NewACLEndpoint(srv *Server, ctx *RPCContext) *ACL {
 		ctx:               ctx,
 		logger:            srv.logger.Named("acl"),
 		oidcProviderCache: srv.oidcProviderCache,
+		oidcRequests:      oidc.NewRequestCache(), // TODO: why not instantiate here? provider cache is set up elsewhere...
 	}
 }
 
@@ -1884,6 +1890,8 @@ func (a *ACL) UpsertAuthMethods(
 		existingMethod, _ := stateSnapshot.GetACLAuthMethodByName(nil, authMethod.Name)
 		authMethod.Merge(existingMethod)
 
+		authMethod.Canonicalize()
+
 		if err := authMethod.Validate(
 			a.srv.config.ACLTokenMinExpirationTTL,
 			a.srv.config.ACLTokenMaxExpirationTTL); err != nil {
@@ -1901,7 +1909,6 @@ func (a *ACL) UpsertAuthMethods(
 				)
 			}
 		}
-		authMethod.Canonicalize()
 		authMethod.SetHash()
 	}
 
@@ -2595,21 +2602,12 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 	}
 
 	// Generate our OIDC request.
-	oidcReqOpts := []capOIDC.Option{
-		capOIDC.WithNonce(args.ClientNonce),
-	}
-
-	if len(authMethod.Config.OIDCScopes) > 0 {
-		oidcReqOpts = append(oidcReqOpts, capOIDC.WithScopes(authMethod.Config.OIDCScopes...))
-	}
-
-	oidcReq, err := capOIDC.NewRequest(
-		aclOIDCAuthURLRequestExpiryTime,
-		args.RedirectURI,
-		oidcReqOpts...,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to generate OIDC request: %v", err)
+	oidcReq := a.oidcRequests.Load(args.ClientNonce)
+	if oidcReq == nil {
+		oidcReq, err = a.oidcRequest(args.ClientNonce, args.RedirectURI, authMethod.Config)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Use the cache to provide us with an OIDC provider for the auth method
@@ -2708,22 +2706,12 @@ func (a *ACL) OIDCCompleteAuth(
 		return fmt.Errorf("failed to generate OIDC provider: %v", err)
 	}
 
-	// Build our OIDC request options and request object.
-	oidcReqOpts := []capOIDC.Option{
-		capOIDC.WithNonce(args.ClientNonce),
-		capOIDC.WithState(args.State),
-	}
-
-	if len(authMethod.Config.OIDCScopes) > 0 {
-		oidcReqOpts = append(oidcReqOpts, capOIDC.WithScopes(authMethod.Config.OIDCScopes...))
-	}
-	if len(authMethod.Config.BoundAudiences) > 0 {
-		oidcReqOpts = append(oidcReqOpts, capOIDC.WithAudiences(authMethod.Config.BoundAudiences...))
-	}
-
-	oidcReq, err := capOIDC.NewRequest(aclOIDCCallbackRequestExpiryTime, args.RedirectURI, oidcReqOpts...)
-	if err != nil {
-		return fmt.Errorf("failed to generate OIDC request: %v", err)
+	// Retrieve the request generated in OIDCAuthURL()
+	oidcReq := a.oidcRequests.LoadAndDelete(args.ClientNonce) // I am so done with this NONCENSE
+	if oidcReq == nil {
+		// note: this may happen if there is a leader election between getting
+		// the auth url and completing the login flow here.
+		return errors.New("no OIDC request found for client nonce")
 	}
 
 	// Generate a context with a deadline. This is passed to the OIDC provider
@@ -3044,4 +3032,48 @@ func formatTokenName(format, authType, authName string, claims map[string]string
 	}
 
 	return tokenName, nil
+}
+
+// oidcRequest builds the request to send to the cap library.
+// The way the cap lib is structured, you can build the request once,
+// and use it for different request types.
+func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodConfig) (*capOIDC.Req, error) {
+	opts := []capOIDC.Option{
+		capOIDC.WithNonce(nonce),
+	}
+
+	if len(config.OIDCScopes) > 0 {
+		opts = append(opts, capOIDC.WithScopes(config.OIDCScopes...))
+	}
+	if len(config.BoundAudiences) > 0 {
+		opts = append(opts, capOIDC.WithAudiences(config.BoundAudiences...))
+	}
+
+	if config.OIDCEnablePKCE {
+		verifier, err := capOIDC.NewCodeVerifier()
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, capOIDC.WithPKCE(verifier))
+	}
+
+	if config.OIDCClientAssertion.IsSet() {
+		j, err := oidc.BuildClientAssertionJWT(config, a.srv.encrypter)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, capOIDC.WithClientAssertionJWT(j))
+	}
+
+	req, err := capOIDC.NewRequest(
+		aclOIDCAuthURLRequestExpiryTime,
+		redirect,
+		opts...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate OIDC request: %v", err)
+	}
+
+	a.oidcRequests.Store(a.srv.shutdownCtx, req)
+	return req, nil
 }
