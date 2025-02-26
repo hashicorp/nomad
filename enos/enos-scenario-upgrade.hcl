@@ -167,6 +167,13 @@ scenario "upgrade" {
           pre_script  = "scripts/wait_for_nfs_volume.sh"
         }
 
+        writes_variable = {
+          job_spec    = "jobs/writes-vars.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+          pre_script  = "scripts/configure-variables-acls.sh"
+        }
+
       }
     }
 
