@@ -1310,27 +1310,31 @@ func (k *OIDCClientAssertionKey) Validate() error {
 	if k == nil { // guard, shouldn't happen
 		return errors.New("nil OIDCClientAssertionKey")
 	}
-	// mutual exclusive fields
-	me := set.From([]string{k.Base64PemKey, k.PemKeyFile})
-	if !me.Remove("") { // one should be empty
-		return errors.New("require exactly one of Base64PemKey or PemKeyFile")
-	}
-	if me.Size() == 0 { // but not both of them
+
+	// mutual exclusive key fields
+	if k.Base64PemKey == "" && k.PemKeyFile == "" {
 		return errors.New("missing Base64PemKey or PemKeyFile")
 	}
+	if k.Base64PemKey != "" && k.PemKeyFile != "" {
+		return errors.New("require exactly one of Base64PemKey or PemKeyFile")
+	}
 
-	me = set.From([]string{k.Base64PemCert, k.PemCertFile, k.KeyID})
-	if !me.Remove("") { // one should be empty
-		return errors.New("require only one of Base64PemCert, PemCertFile, or KeyID")
-	}
-	switch s := me.Size(); s {
-	case 1: // should have 1 left
-		return nil
-	case 0:
+	// mutual exclusive cert fields
+	if k.Base64PemCert == "" && k.PemCertFile == "" && k.KeyID == "" {
 		return errors.New("missing Base64PemCert, PemCertFile, or KeyID")
-	default:
-		return errors.New("require exactly one of Base64PemCert, PemCertFile, or KeyID")
 	}
+	errOnlyOne := errors.New("require only one of Base64PemCert, PemCertFile, or KeyID")
+	if k.Base64PemCert != "" && (k.PemCertFile != "" || k.KeyID == "") {
+		return errOnlyOne
+	}
+	if k.PemCertFile != "" && (k.Base64PemCert != "" || k.KeyID != "") {
+		return errOnlyOne
+	}
+	if k.KeyID != "" && (k.Base64PemCert != "" || k.PemCertFile != "") {
+		return errOnlyOne
+	}
+
+	return nil
 }
 
 // ACLAuthClaims is the claim mapping of the OIDC auth method in a format that
