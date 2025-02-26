@@ -826,6 +826,10 @@ type ACLAuthMethodConfig struct {
 	OIDCClientID string
 	// The OAuth Client Secret configured with the OIDC provider
 	OIDCClientSecret string
+	// Optionally send a signed JWT ("private key jwt") as a client assertion
+	OIDCClientAssertion *OIDCClientAssertion
+	// Enable S256 PKCE challenge verification
+	OIDCEnablePKCE bool // TODO: default enabled, except for existing auth methods
 	// Disable claims from the OIDC UserInfo endpoint
 	OIDCDisableUserInfo bool
 	// List of OIDC scopes
@@ -948,6 +952,82 @@ func (c *ACLAuthMethodConfig) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
+}
+
+// OIDCClientAssertionKeySource specifies what key material should be used
+// to sign an OIDCClientAssertion.
+type OIDCClientAssertionKeySource string
+
+const (
+	// OIDCKeySourceNomad signs the OIDCClientAssertion JWT with Nomad's
+	// internal private key. Its public key is exposed at /.well-known/jwks.json
+	OIDCKeySourceNomad OIDCClientAssertionKeySource = "nomad"
+	// OIDCKeySourcePrivateKey signs the OIDCClientAssertion JWT with
+	// key material defined in OIDCClientAssertion.PrivateKey
+	OIDCKeySourcePrivateKey OIDCClientAssertionKeySource = "private_key"
+	// OIDCKeySourceClientSecret signs the OIDCClientAssertion JWT with
+	// ACLAuthMethod.ClientSecret
+	OIDCKeySourceClientSecret OIDCClientAssertionKeySource = "client_secret"
+)
+
+// OIDCClientAssertion (a.k.a private_key_jwt) is used to send
+// a client_assertion along with an OIDC token request.
+// See also: structs.OIDCClientAssertion
+type OIDCClientAssertion struct {
+	// KeySource is where to get the private key to sign the JWT.
+	// It is the one field that *must* be set to enable client assertions.
+	// Available sources:
+	// * "nomad" = Use current active key in Nomad's keyring
+	// * "private_key" = Use key material in the PrivateKey field of this struct
+	// * "client_secret" = Use the ClientSecret inherited from the parent
+	//   ACLAuthMethodConfig struct
+	KeySource OIDCClientAssertionKeySource
+
+	// Audience is/are who will be processing the assertion.
+	// Defaults to the parent ACLAuthMethodConfig's OIDCDiscoveryURL
+	Audience []string
+
+	// PrivateKey contains external key material provided by users.
+	PrivateKey *OIDCClientAssertionKey
+
+	// KeyAlgorithm is the key's algorithm.
+	// Its default values are based on the KeySource:
+	// * nomad = "RS256" -- pulled from the keyring
+	// * private_key = "RS256"
+	// * client_secret = "HS256"
+	KeyAlgorithm string
+
+	// ExtraHeaders are added to the JWT headers, alongside "kid" and "type"
+	ExtraHeaders map[string]string
+}
+
+// OIDCClientAssertionKey contains key material provided by users for Nomad
+// to use to sign the private key JWT.
+// Base64PemKey or PemKeyFile must contain an RSA private key in PEM format.
+// Base64PemCert, PemCertFile may contain an x509 certificate created with
+// the Key, used to derive the KeyID. Alternatively, KeyID may be set manually.
+type OIDCClientAssertionKey struct {
+	// Base64PemKey is the private key, in pem format, base64-encoded.
+	// It is used to sign the JWT.
+	// Mutually exclusive with PemKeyFile.
+	Base64PemKey string
+	// PemKeyFile is the path to a private key on disk, in pem format.
+	// It is used to sign the JWT.
+	// Mutually exclusive with Base64PemKey.
+	PemKeyFile string
+
+	// Base64PemCert is a certificate, signed by the private key, in pem format,
+	// base64-encoded. It is used to derive an x5t-style KeyID.
+	// Mutually exclusive with PemCertFile and KeyID.
+	Base64PemCert string
+	// PemCertFile is a certificate, signed by the private key, on disk,
+	// in pem format. It is used to derive an x5t-style KeyID.
+	// Mutually exclusive with Base64PemCert and KeyID.
+	PemCertFile string
+	// KeyID may be set manually if needed to satisfy an OIDC provider's
+	// unique requirements.
+	// Mutually exclusive with Base64PemCert and PemCertFile.
+	KeyID string
 }
 
 // ACLAuthMethodListStub is the stub object returned when performing a listing
