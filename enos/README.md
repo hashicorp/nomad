@@ -43,7 +43,7 @@ already use the separate Terraform configuration found in the
 `$REPO/e2e/terraform/hcp-vault-auth` directory. The following will set the correct
 values for `VAULT_TOKEN`, `VAULT_ADDR`, and `VAULT_NAMESPACE`:
 
-```
+```sh
 terraform init
 terraform apply --auto-approve
 $(terraform output --raw environment)
@@ -51,7 +51,7 @@ $(terraform output --raw environment)
 
 Make sure your AWS credentials have been refreshed with the appropriate IAM role:
 
-```
+```sh
 $ doormat login --force
 $ doormat aws cred-file add-profile --role "$ROLE" --set-default
 ```
@@ -76,15 +76,15 @@ consul_license       = "<your Consul Enterprise license, currently always requir
 aws_region           = "us-east-1"
 ```
 
-When the variables file is placed in the enos root folder with the name 
-`enos.vars.hcl` it is automatically picked up by enos, if a different variables 
+When the variables file is placed in the enos root folder with the name
+`enos.vars.hcl` it is automatically picked up by enos, if a different variables
 files will be used, it can be pass using the flag `--var-file`.
 
 ## Reviewing Enos
 
 You can quickly validate the Enos scenario configuration without running it:
 
-```
+```sh
 $ enos scenario validate upgrade --var-file /tmp/enos.vars
 $ echo $?
 0
@@ -93,7 +93,7 @@ $ echo $?
 You can also review what Enos will do by generating an outline you can read in
 your browser:
 
-```
+```sh
 $ enos scenario outline upgrade --var-file /tmp/enos.vars --format=html > /tmp/outline.html
 $ open /tmp/outline.html
 ```
@@ -102,10 +102,25 @@ $ open /tmp/outline.html
 
 Run the Enos scenario end-to-end:
 
-```
+```sh
 $ enos scenario run upgrade --var-file /tmp/enos.vars --timeout 2h
 ```
 
 Enos will not clean up after itself automatically if interrupted. If you have to
 interrupt it, you may need to run `enos scenario destroy upgrade --var-file
 /tmp/enos.vars `
+
+## Debugging
+
+Enos builds Terraform state in the `.enos` directory, in a subdirectory named
+with a hash. If you're working on Enos scenarios or test workloads and want to
+connect to the Nomad cluster you create, you can use the `debug-environment`
+script in this directory to set your Nomad environment variables by passing it
+the path to that subdirectory. For example:
+
+```sh
+$ $(./debug-environment .enos/c545bbc25c5eec0ca86c99595a9034b5451a91aa10b586da2baab435df65be2e)
+```
+
+Note that this won't be fully populated until the Enos scenario is far enough
+along to bootstrap the Nomad cluster.
