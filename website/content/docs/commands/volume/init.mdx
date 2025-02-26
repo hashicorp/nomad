@@ -2,7 +2,7 @@
 layout: docs
 page_title: 'Commands: volume init'
 description: |
-  Generate an example volume specification.
+  The `nomad volume init` command generates an example storage volume specification.
 ---
 
 # Command: volume init
@@ -19,6 +19,9 @@ nomad volume init
 ## Init Options
 
 - `-json`: Create an example JSON volume specification.
+
+- `-type`: Create an example for a specific type of volume. Use either "csi" or
+  "host", defaults to "csi".
 
 ## Examples
 

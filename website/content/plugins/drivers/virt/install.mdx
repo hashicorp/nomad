@@ -1,0 +1,148 @@
+---
+layout: docs
+page_title: Install the Virt task driver plugin
+description: >-
+  Install and configure the Virt task driver plugin on your Nomad clients. Review manual instructions and those for Ubuntu, Debian, CentOS, and RHEL. Add the Virt task driver plugin to Nomad.
+---
+
+# Install the Virt task driver plugin
+
+The Virt task driver plugin for Linux operating systems is not bundled with
+Nomad. You must install the driver into each Nomad client's [configured plugin
+directory][plugin_dir].
+
+@include 'virt-beta-callout.mdx'
+
+## Prerequisites
+
+Your Nomad client must meet these requirements:
+
+- Run as root.
+- Able to run hardware-accelerated KVM virtual machines. Run the [kvm-ok][]
+  command to verify your client capabilities.
+
+The Virt driver requires the following packages:
+
+- bridge-utils
+- cloudinit
+- dnsmasq
+- iptables
+- [libvirt daemon][]
+- [QEMU][]
+
+## Install the Virt task driver plugin
+
+<Tabs>
+<Tab heading="Manual installation" group="manual">
+
+Download a [precompiled binary][releases] and verify the binary using the
+available SHA-256 sums. Unzip the package. Make sure that the
+`nomad-driver-virt` binary is on your
+[plugin_dir] path, specified by the
+client's config file, before continuing with the other guides.
+
+</Tab>
+<Tab heading="Ubuntu/Debian" group="manual">
+
+Install the required packages.
+
+```shell-session
+$ sudo apt-get update && \
+  sudo apt-get install -y \
+  wget \
+  gpg \
+  coreutils \
+  bridge-utils \
+  cloud-init \
+  dnsmasq \
+  iptables \
+  libvirt-daemon-system \
+  qemu-system \
+  qemu-system-x86 \
+  qemu-utils
+```
+
+Add the HashiCorp [GPG key][gpg-key].
+
+```shell-session
+$ wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+```
+
+Add the official HashiCorp Linux test repository.
+
+```shell-session
+$ echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) test" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+```
+
+Update and install.
+
+```shell-session
+$ sudo apt-get update && sudo apt-get install nomad-driver-virt
+```
+
+</Tab>
+<Tab heading="CentOS/RHEL" group="linux">
+
+Install `yum-config-manager` to manage your repositories.
+
+```shell-session
+$ sudo yum install -y yum-utils
+```
+
+Use `yum-config-manager` to add the official HashiCorp Linux repository.
+
+```shell-session
+$ sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+```
+
+Edit the repo file at `/etc/yum.repos.d/hashicorp.repo` and set `enabled=1` for `[hashicorp-test]`.
+
+Install.
+
+```shell-session
+$ sudo yum -y install nomad-driver-virt
+```
+
+</Tab>
+</Tabs>
+
+## Add the Virt task driver plugin to Nomad
+
+This example shows the default plugin configuration.
+
+```hcl
+plugin "nomad-driver-driver" {
+  config {
+    data_dir     = "/var/lib/virt"
+    image_paths  = ["/var/lib/virt", "${ALLOC_DIR}"]
+
+    emulator {
+      uri      = "qemu:///system"
+      user     = ""
+      password = ""
+    }
+  }
+}
+```
+
+- `data_dir` - (default: `"/var/lib/virt"`) - the directory for storing VM configuration files and
+  intermediate files.
+
+- `image_paths` - (default: `["/var/lib/virt", "${ALLOC_DIR}"]`) - an allow-list of paths the driver
+  is allowed to load an image from.
+
+- `emulator` - (block)
+  - `uri` - (default: `"qemu:///system"`) - The `uri` specifies which hypervisor to connect to.
+  - `user` - (default: `""`) - the username to use for authentication.
+  - `password` - (default: `""`) - the password to use for authentication.
+
+## Next steps
+
+[Learn how to use the Virt task driver in your Nomad job specification][task-config].
+
+[releases]: https://releases.hashicorp.com/nomad-driver-virt
+[kvm-ok]: https://manpages.ubuntu.com/manpages/bionic/man1/kvm-ok.1.html
+[libvirt daemon]: https://libvirt.org/daemons.html
+[QEMU]: https://www.qemu.org/
+[task-config]: /nomad/plugins/drivers/virt/task-config
+[plugin_dir]: /nomad/docs/configuration#plugin_dir

@@ -123,6 +123,9 @@ type Config struct {
 	// be determined dynamically.
 	NetworkSpeed int
 
+	// CpuDisableDmidecode disables cpu fingerprinting using dmidecode on Linux
+	CpuDisableDmidecode bool
+
 	// CpuCompute is the default total CPU compute if they can not be determined
 	// dynamically. It should be given as Cores * MHz (2 Cores * 2 Ghz = 4000)
 	CpuCompute int
@@ -462,13 +465,19 @@ func DefaultTemplateConfig() *ClientTemplateConfig {
 			Max: pointer.Of(4 * time.Minute),
 		},
 		ConsulRetry: &RetryConfig{
-			Attempts: pointer.Of(0), // unlimited
+			Attempts:   pointer.Of(12),
+			Backoff:    pointer.Of(time.Millisecond * 250),
+			MaxBackoff: pointer.Of(time.Minute),
 		},
 		VaultRetry: &RetryConfig{
-			Attempts: pointer.Of(0), // unlimited
+			Attempts:   pointer.Of(12),
+			Backoff:    pointer.Of(time.Millisecond * 250),
+			MaxBackoff: pointer.Of(time.Minute),
 		},
 		NomadRetry: &RetryConfig{
-			Attempts: pointer.Of(0), // unlimited
+			Attempts:   pointer.Of(12),
+			Backoff:    pointer.Of(time.Millisecond * 250),
+			MaxBackoff: pointer.Of(time.Minute),
 		},
 	}
 }

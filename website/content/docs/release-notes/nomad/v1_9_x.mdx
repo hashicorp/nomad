@@ -2,7 +2,7 @@
 layout: docs
 page_title: 1.9.x
 description: >-
-  Nomad release notes for Nomad version 1.9.x
+  HashiCorp Nomad version 1.9.x release notes. Multi-Instance GPU (MIG) support, quotas for device resources, NUMA-aware scheduling, job versions, Virt task driver beta, Exec2 task driver GA, improved IPv6 support.
 ---
 
 # Nomad 1.9.0
@@ -19,7 +19,7 @@ details.
 
 - **Quotas for device resources (Enterprise)**: This release extends quotas to
 allow limiting [device resources](/nomad/docs/job-specification/device). Refer
-to [Resource quotas]() for configuration details.
+to [Resource quotas](/nomad/docs/other-specifications/quota) for configuration details.
 
 - **NUMA awareness for device resources (Enterprise)**: Nomad is able to
   correlate CPU cores with memory nodes and assign tasks to run on specific CPU
@@ -133,3 +133,4 @@ listed below.
 [vault-integration]: /nomad/docs/integrations/vault/acl
 [GH-18529]: https://github.com/hashicorp/nomad/issues/18529
 [`disconnect`]: /nomad/docs/job-specification/disconnect
+[Resource Quotas]: /nomad/docs/other-specifications/quota

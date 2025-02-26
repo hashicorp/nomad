@@ -14,10 +14,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/armon/go-metrics"
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-set/v3"
 
 	policy "github.com/hashicorp/nomad/acl"
@@ -2792,9 +2792,15 @@ func (a *ACL) OIDCCompleteAuth(
 
 		internalClaimBytes, err := json.MarshalIndent(oidcInternalClaims.List, "", " ")
 		if err != nil {
-			vlog.Debug("failed to marshal OIDC internal claims list")
+			vlog.Debug("failed to marshal OIDC internal list claims")
 		}
-		vlog.Debug("claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
+		vlog.Debug("list claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
+
+		internalClaimBytes, err = json.MarshalIndent(oidcInternalClaims.Value, "", " ")
+		if err != nil {
+			vlog.Debug("failed to marshal OIDC internal value claims")
+		}
+		vlog.Debug("value claims after mapping to nomad identity attributes", "internal_claims", string(internalClaimBytes))
 	}
 
 	// Create a new binder object based on the current state snapshot to

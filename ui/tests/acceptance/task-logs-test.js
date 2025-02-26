@@ -62,10 +62,7 @@ module('Acceptance | task logs', function (hooks) {
 
   test('the stdout log immediately starts streaming', async function (assert) {
     await TaskLogs.visit({ id: allocation.id, name: task.name });
-    const node = server.db.nodes.find(allocation.nodeId);
-    const logUrlRegex = new RegExp(
-      `${node.httpAddr}/v1/client/fs/logs/${allocation.id}`
-    );
+    const logUrlRegex = new RegExp(`/v1/client/fs/logs/${allocation.id}`);
     assert.ok(
       server.pretender.handledRequests.filter((req) =>
         logUrlRegex.test(req.url)

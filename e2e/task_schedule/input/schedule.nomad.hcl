@@ -8,10 +8,23 @@ job "test_task_schedule" {
   type = "service"
 
   group "group" {
-    # disable deployments
+    # disable deployments, because any task started outside of the schedule
+    # will stay "pending" until the schedule starts it.
     update { max_parallel = 0 }
-    # restart faster
-    restart { delay = "5s" }
+
+    # pausing the task should be orthogonal to this restart{} block.
+    # restart{} config should only apply to the task stopping on its own,
+    # as with an application error.
+    restart {
+      # disable restarts entirely - any application exit fails the task.
+      attempts = 0
+      mode     = "fail"
+    }
+
+    # don't bother rescheduling this test app
+    reschedule {
+      attempts = 0
+    }
 
     task "app" {
 

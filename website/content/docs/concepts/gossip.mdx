@@ -2,11 +2,14 @@
 layout: docs
 page_title: Gossip Protocol
 description: |-
-  Nomad uses a gossip protocol to manage membership. All of this is provided
-  through the use of the Serf library.
+  Learn how Nomad's gossip protocol uses the Serf library to provide server membership management, which includes cross-region requests, failure detection, and automatic clustering using a consensus protocol.
 ---
 
 # Gossip Protocol
+
+This page provides conceptual information about Nomad's gossip protocol, which
+provides server membership management, cross-region requests, failure detection,
+and automatic clustering using a consensus protocol.
 
 Nomad uses the [Serf library][serf] to provide a [gossip
 protocol](https://en.wikipedia.org/wiki/Gossip_protocol) to manage membership.

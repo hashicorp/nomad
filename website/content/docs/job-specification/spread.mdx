@@ -70,6 +70,10 @@ metadata][client-meta].  Additionally, spread may be specified at the [job][job]
 and [group][group] levels for ultimate flexibility. Job level spread criteria
 are inherited by all task groups in the job.
 
+Updating the `spread` block is non-destructive. Updating a job specification
+with only non-destructive updates will not migrate or replace existing
+allocations.
+
 ## `spread` Parameters
 
 - `attribute` `(string: "")` - Specifies the name or reference of the attribute

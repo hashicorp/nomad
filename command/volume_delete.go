@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/helper"
 	flaghelper "github.com/hashicorp/nomad/helper/flags"
 	"github.com/posener/complete"
 )
@@ -136,7 +137,31 @@ func (c *VolumeDeleteCommand) deleteCSIVolume(client *api.Client, volID string, 
 		}
 	}
 
-	err := client.CSIVolumes().DeleteOpts(&api.CSIVolumeDeleteRequest{
+	// get a CSI volume that matches the given prefix or a list of all matches
+	// if an exact match is not found.
+	stub, possible, err := getByPrefix[api.CSIVolumeListStub]("volumes", client.CSIVolumes().List,
+		func(vol *api.CSIVolumeListStub, prefix string) bool { return vol.ID == prefix },
+		&api.QueryOptions{
+			Prefix:    volID,
+			Namespace: c.namespace,
+		})
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Could not find existing volume to delete: %s", err))
+		return 1
+	}
+	if len(possible) > 0 {
+		out, err := csiFormatVolumes(possible, false, "")
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+			return 1
+		}
+		c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+		return 1
+	}
+	volID = stub.ID
+	c.namespace = stub.Namespace
+
+	err = client.CSIVolumes().DeleteOpts(&api.CSIVolumeDeleteRequest{
 		ExternalVolumeID: volID,
 		Secrets:          secrets,
 	}, nil)
@@ -150,6 +175,26 @@ func (c *VolumeDeleteCommand) deleteCSIVolume(client *api.Client, volID string, 
 }
 
 func (c *VolumeDeleteCommand) deleteHostVolume(client *api.Client, volID string) int {
+
+	if !helper.IsUUID(volID) {
+		stub, possible, err := getHostVolumeByPrefix(client, volID, c.namespace)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Could not find existing volume to delete: %s", err))
+			return 1
+		}
+		if len(possible) > 0 {
+			out, err := formatHostVolumes(possible, formatOpts{short: true})
+			if err != nil {
+				c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
+				return 1
+			}
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
+			return 1
+		}
+		volID = stub.ID
+		c.namespace = stub.Namespace
+	}
+
 	_, err := client.HostVolumes().Delete(&api.HostVolumeDeleteRequest{ID: volID}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting volume: %s", err))

@@ -142,6 +142,11 @@ func (s *StateStore) DeleteHostVolume(index uint64, ns string, id string) error 
 			}
 		}
 
+		err = s.subtractVolumeFromQuotaUsageTxn(txn, index, vol)
+		if err != nil {
+			return err
+		}
+
 		err = txn.Delete(TableHostVolumes, vol)
 		if err != nil {
 			return fmt.Errorf("host volume delete: %w", err)
@@ -243,14 +248,19 @@ func upsertHostVolumeForNode(txn *txn, node *structs.Node, index uint64) error {
 		_, ok := node.HostVolumes[vol.Name]
 
 		switch {
-		case ok && vol.State != structs.HostVolumeStateReady:
-			// the fingerprint has been updated on the client for this volume
+		case ok && node.Status == structs.NodeStatusReady &&
+			vol.State != structs.HostVolumeStateReady:
+			// the fingerprint has been updated on a healthy client
 			volState = structs.HostVolumeStateReady
 
 		case !ok && vol.State == structs.HostVolumeStateReady:
 			// the volume was previously fingerprinted but is no longer showing
 			// up in the fingerprint; this will usually be because of a failed
 			// restore on the client
+			volState = structs.HostVolumeStateUnavailable
+
+		case ok && node.Status == structs.NodeStatusDown:
+			// volumes on down nodes will never pass feasibility checks
 			volState = structs.HostVolumeStateUnavailable
 
 		case ok && vol.NodePool != node.NodePool:

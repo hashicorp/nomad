@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/lang"
 	"github.com/hashicorp/nomad/nomad/stream"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -2025,6 +2026,12 @@ func (s *StateStore) DeleteJobTxn(index uint64, namespace, jobID string, txn Txn
 	if _, err = txn.DeleteAll("scaling_event", "id", namespace, jobID); err != nil {
 		return fmt.Errorf("deleting job scaling events failed: %v", err)
 	}
+
+	// Delete task group volume claims
+	if err = s.deleteTaskGroupHostVolumeClaimByNamespaceAndJob(index, txn, namespace, jobID); err != nil {
+		return fmt.Errorf("deleting job volume claims failed: %v", err)
+	}
+
 	if err := txn.Insert("index", &IndexEntry{"scaling_event", index}); err != nil {
 		return fmt.Errorf("index update failed: %v", err)
 	}
@@ -3716,6 +3723,9 @@ func (s *StateStore) DeleteEval(index uint64, evals, allocs []string, userInitia
 		}
 	}
 
+	// TODO: should we really be doing this here?  The only time this will affect the
+	// status of a job is if it's the last eval and alloc for a client, at which point
+	// the status of the job will already be "dead" from handling the alloc update.
 	// Set the job's status
 	if err := s.setJobStatuses(index, txn, jobs, true); err != nil {
 		return fmt.Errorf("setting job status failed: %v", err)
@@ -3850,11 +3860,6 @@ func (s *StateStore) EvalsByJob(ws memdb.WatchSet, namespace, jobID string) ([]*
 		}
 
 		e := raw.(*structs.Evaluation)
-
-		// Filter non-exact matches
-		if e.JobID != jobID {
-			continue
-		}
 
 		out = append(out, e)
 	}
@@ -4112,11 +4117,11 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			}
 
 			// Issue https://github.com/hashicorp/nomad/issues/2583 uncovered
-			// the a race between a forced garbage collection and the scheduler
+			// a race between a forced garbage collection and the scheduler
 			// marking an allocation as terminal. The issue is that the
 			// allocation from the scheduler has its job normalized and the FSM
-			// will only denormalize if the allocation is not terminal.  However
-			// if the allocation is garbage collected, that will result in a
+			// will only denormalize if the allocation is not terminal. However
+			// if the allocation is garbage collected, that will result in an
 			// allocation being upserted for the first time without a job
 			// attached. By returning an error here, it will cause the FSM to
 			// error, causing the plan_apply to error and thus causing the
@@ -4124,6 +4129,55 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			// should solve this issue.
 			if alloc.Job == nil {
 				return fmt.Errorf("attempting to upsert allocation %q without a job", alloc.ID)
+			}
+
+			// Check if the alloc requires sticky volumes. If yes, find a node
+			// that has the right volume and update the task group volume
+			// claims table
+			for _, tg := range alloc.Job.TaskGroups {
+				for _, v := range tg.Volumes {
+					if !v.Sticky {
+						continue
+					}
+					sv := &structs.TaskGroupHostVolumeClaim{
+						ID:            uuid.Generate(),
+						Namespace:     alloc.Namespace,
+						JobID:         alloc.JobID,
+						TaskGroupName: tg.Name,
+						AllocID:       alloc.ID,
+						VolumeName:    v.Source,
+					}
+
+					allocNode, err := s.NodeByID(nil, alloc.NodeID)
+					if err != nil {
+						return err
+					}
+
+					// since there's no existing claim, find a volume and register a claim
+					for _, v := range allocNode.HostVolumes {
+						if v.Name != sv.VolumeName {
+							continue
+						}
+
+						sv.VolumeID = v.ID
+
+						// has this volume been claimed already?
+						existingClaim, err := s.GetTaskGroupHostVolumeClaim(nil, sv.Namespace, sv.JobID, sv.TaskGroupName, v.ID)
+						if err != nil {
+							return err
+						}
+
+						// if the volume has already been claimed, we don't have to do anything. The
+						// feasibility checker in the scheduler will verify alloc placement.
+						if existingClaim != nil {
+							continue
+						}
+
+						if err := s.upsertTaskGroupHostVolumeClaimImpl(index, sv, txn); err != nil {
+							return err
+						}
+					}
+				}
 			}
 		} else {
 			alloc.CreateIndex = exist.CreateIndex
@@ -4824,14 +4878,13 @@ func (s *StateStore) UpdateDeploymentStatus(msgType structs.MessageType, index u
 		return err
 	}
 
-	// Upsert the job if necessary
+	// On failed deployments with auto_revert set to true, a new eval and job will be included on the request.
+	// We should upsert them both
 	if req.Job != nil {
 		if err := s.upsertJobImpl(index, nil, req.Job, false, txn); err != nil {
 			return err
 		}
 	}
-
-	// Upsert the optional eval
 	if req.Eval != nil {
 		if err := s.nestedUpsertEval(txn, index, req.Eval); err != nil {
 			return err
@@ -5532,6 +5585,14 @@ func (s *StateStore) setJobStatus(index uint64, txn *txn,
 	if err := s.setJobSummary(txn, updated, index, oldStatus, newStatus); err != nil {
 		return fmt.Errorf("job summary update failed %w", err)
 	}
+
+	// Update the job version details. We need to make sure whenever the job summary
+	// is updated, we also update the job's specific version. That way they do not
+	// show different statuses.
+	if err := s.upsertJobVersion(index, updated, txn); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -5618,7 +5679,6 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 	// If there is a non-terminal allocation, the job is running.
 	hasAlloc := false
 	for alloc := allocs.Next(); alloc != nil; alloc = allocs.Next() {
-		hasAlloc = true
 		if !alloc.(*structs.Allocation).TerminalStatus() {
 			return structs.JobStatusRunning, nil
 		}
@@ -5631,25 +5691,22 @@ func (s *StateStore) getJobStatus(txn *txn, job *structs.Job, evalDelete bool) (
 
 	hasEval := false
 	for raw := evals.Next(); raw != nil; raw = evals.Next() {
-		e := raw.(*structs.Evaluation)
-
-		// Filter non-exact matches
-		if e.JobID != job.ID {
-			continue
-		}
-
 		hasEval = true
-		if !e.TerminalStatus() {
+		if !raw.(*structs.Evaluation).TerminalStatus() {
 			return structs.JobStatusPending, nil
 		}
 	}
 
-	// The job is dead if all the allocations and evals are terminal or if there
-	// are no evals because of garbage collection.
-	if evalDelete || hasEval || hasAlloc {
+	// The job is dead if all allocations for this version are terminal,
+	// all evals are terminal. In the event a jobs allocs and evals
+	// are all GC'd, we don't want the job to be marked pending.
+	if evalDelete || hasEval || hasAlloc || job.Stop {
 		return structs.JobStatusDead, nil
 	}
 
+	// There are no allocs/evals yet, which can happen for new job submissions,
+	// running new versions of a job, or reverting. This will happen if
+	// the evaluation is persisted after the job is persisted.
 	return structs.JobStatusPending, nil
 }
 

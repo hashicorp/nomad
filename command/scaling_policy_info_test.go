@@ -58,8 +58,8 @@ func TestScalingPolicyInfoCommand_Run(t *testing.T) {
 	if code := cmd.Run([]string{"-address=" + url, "scaling_policy_info"}); code != 1 {
 		t.Fatalf("expected cmd run exit code 1, got: %d", code)
 	}
-	if out := ui.ErrorWriter.String(); !strings.Contains(out, `No scaling policies with prefix or ID "scaling_policy_inf" found`) {
-		t.Fatalf("expected 'No scaling policies with prefix' within output: %v", out)
+	if out := ui.ErrorWriter.String(); !strings.Contains(out, `no scaling policies with prefix or ID "scaling_policy_inf" found`) {
+		t.Fatalf("expected 'no scaling policies with prefix' within output: %v", out)
 	}
 
 	// Generate a test job.

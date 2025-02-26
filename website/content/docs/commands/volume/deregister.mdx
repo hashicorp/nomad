@@ -2,7 +2,7 @@
 layout: docs
 page_title: 'Commands: volume deregister'
 description: |
-  Deregister volumes with CSI plugins.
+  The `nomad volume deregister` command deregisters Container Storage Interface (CSI) storage volumes.
 ---
 
 # Command: volume deregister
@@ -12,6 +12,9 @@ Nomad's [Container Storage Interface (CSI)][csi] support. The volume will be
 removed from Nomad's state store but not deleted from the external storage
 provider. Note that deregistering a volume prevents Nomad from deleting it via
 [`volume delete`] at a later time.
+
+For dynamic host volumes, use the [`volume delete`][] command.
+
 
 ## Usage
 

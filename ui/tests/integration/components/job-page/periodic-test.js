@@ -202,6 +202,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       childrenCount: 0,
       createAllocations: false,
       status: 'dead',
+      withPreviousStableVersion: true,
+      stopped: true,
     });
     await this.store.findAll('job');
 
@@ -223,6 +225,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       childrenCount: 0,
       createAllocations: false,
       status: 'dead',
+      withPreviousStableVersion: true,
+      stopped: true,
     });
     await this.store.findAll('job');
 
@@ -243,6 +247,8 @@ module('Integration | Component | job-page/periodic', function (hooks) {
       childrenCount: 0,
       createAllocations: false,
       status: 'dead',
+      withPreviousStableVersion: true,
+      stopped: true,
     });
     await this.store.findAll('job');
 

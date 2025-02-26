@@ -79,7 +79,6 @@ variable "volumes" {
   default     = true
 }
 
-
 variable "hcp_vault_cluster_id" {
   description = "The ID of the HCP Vault cluster"
   type        = string
@@ -92,6 +91,12 @@ variable "hcp_vault_namespace" {
   default     = "admin"
 }
 
+variable "hcp_hvn_cidr" {
+  description = "The CIDR block of the HVN peered into the account."
+  type        = string
+  default     = "172.25.16.0/20"
+}
+
 variable "aws_kms_alias" {
   description = "The alias for the AWS KMS key ID"
   type        = string
@@ -99,24 +104,24 @@ variable "aws_kms_alias" {
 }
 
 # ----------------------------------------
-# If you want to deploy multiple versions you can use these variables to
-# provide a list of builds to override the values of nomad_sha, nomad_version,
+# If you want to deploy different versions you can use these variables to
+# provide a build to override the values of nomad_sha, nomad_version,
 # or nomad_local_binary. Most of the time you can ignore these variables!
 
 variable "nomad_local_binary_server" {
-  description = "A list of nomad local binary paths to deploy to servers, to override nomad_local_binary"
-  type        = list(string)
-  default     = []
+  description = "A path to an alternative binary to deploy to servers, to override nomad_local_binary"
+  type        = string
+  default     = ""
 }
 
 variable "nomad_local_binary_client_ubuntu_jammy" {
-  description = "A list of nomad local binary paths to deploy to Ubuntu Jammy clients, to override nomad_local_binary"
-  type        = list(string)
-  default     = []
+  description = "A path to an alternative binary to deploy to ubuntu clients, to override nomad_local_binary"
+  type        = string
+  default     = ""
 }
 
 variable "nomad_local_binary_client_windows_2016" {
-  description = "A list of nomad local binary paths to deploy to Windows 2016 clients, to override nomad_local_binary"
-  type        = list(string)
-  default     = []
+  description = "A path to an alternative binary to deploy to windows clients, to override nomad_local_binary"
+  type        = string
+  default     = ""
 }

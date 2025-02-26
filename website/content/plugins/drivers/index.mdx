@@ -1,41 +1,12 @@
 ---
 layout: docs
-page_title: Task Drivers
-description: Task Drivers are used to integrate with the host OS to run tasks in Nomad.
+page_title: Task driver plugins
+description: Task driver plugins extend Nomad functionality to provide resource isolation when executing job tasks. Review the Exec2, Podman, and Virt task driver reference. Explore plugins developed by the Nomad user community.
 ---
 
-# Task Drivers
+# Task driver plugins
 
-Task drivers are used by Nomad clients to execute a task and provide resource
-isolation. By having extensible task drivers, Nomad has the flexibility to
-support a broad set of workloads across all major operating systems.
+This section provides reference information for task driver plugins.
 
-Task drivers are pluggable. This gives you the flexibility to introduce your
-own drivers without having to recompile Nomad. You can view the
-[plugin block][plugin] documentation for examples on how to use the plugin
-block in Nomad's client configuration. See the Docker driver's
-[Client Requirements][docker_plugin] for a more detailed and specific example.
+@include 'task-driver-intro.mdx'
 
-The Nomad binary includes the default task drivers, so you do not have to
-download them separately.
-
-The list of supported task drivers is provided on the left of this page. Each
-task driver documents the configuration available in a [job
-specification](/nomad/docs/job-specification), the environments it can be
-used in, and the resource isolation mechanisms available.
-
-For details on authoring a task driver plugin, please refer to the [plugin
-authoring guide][plugin_guide].
-
-Task driver resource isolation is intended to provide a degree of separation of
-Nomad client CPU / memory / storage between tasks. Resource isolation
-effectiveness is dependent upon individual task driver implementations and
-underlying client operating systems. Task drivers do include various
-security-related controls, but the Nomad client to task interface should not be
-considered a security boundary. See the [access control guide][acl_guide] for
-more information on how to protect Nomad cluster operations.
-
-[plugin]: /nomad/docs/configuration/plugin
-[docker_plugin]: /nomad/docs/drivers/docker#client-requirements
-[plugin_guide]: /nomad/docs/concepts/plugins
-[acl_guide]: /nomad/tutorials/access-control

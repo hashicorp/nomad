@@ -16,10 +16,10 @@ import (
 	"sync"
 	"time"
 
-	metrics "github.com/armon/go-metrics"
 	"github.com/dustin/go-humanize"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	uuidparse "github.com/hashicorp/go-uuid"
 	"github.com/hashicorp/nomad/client"
 	clientconfig "github.com/hashicorp/nomad/client/config"
@@ -754,6 +754,9 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Options = agentConfig.Client.Options
 	if agentConfig.Client.NetworkSpeed != 0 {
 		conf.NetworkSpeed = agentConfig.Client.NetworkSpeed
+	}
+	if agentConfig.Client.CpuDisableDmidecode {
+		conf.CpuDisableDmidecode = agentConfig.Client.CpuDisableDmidecode
 	}
 	if agentConfig.Client.CpuCompute != 0 {
 		conf.CpuCompute = agentConfig.Client.CpuCompute

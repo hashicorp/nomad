@@ -315,6 +315,48 @@ func TestAnnotateTask(t *testing.T) {
 				Objects: []*structs.ObjectDiff{
 					{
 						Type: structs.DiffTypeAdded,
+						Name: "Affinity",
+						Fields: []*structs.FieldDiff{
+							{
+								Type: structs.DiffTypeAdded,
+								Name: "LTarget",
+								Old:  "",
+								New:  "baz",
+							},
+						},
+					},
+				},
+			},
+			Parent:  &structs.TaskGroupDiff{Type: structs.DiffTypeEdited},
+			Desired: AnnotationForcesInplaceUpdate,
+		},
+		{
+			Diff: &structs.TaskDiff{
+				Type: structs.DiffTypeEdited,
+				Objects: []*structs.ObjectDiff{
+					{
+						Type: structs.DiffTypeAdded,
+						Name: "Spread",
+						Fields: []*structs.FieldDiff{
+							{
+								Type: structs.DiffTypeAdded,
+								Name: "LTarget",
+								Old:  "",
+								New:  "baz",
+							},
+						},
+					},
+				},
+			},
+			Parent:  &structs.TaskGroupDiff{Type: structs.DiffTypeEdited},
+			Desired: AnnotationForcesInplaceUpdate,
+		},
+		{
+			Diff: &structs.TaskDiff{
+				Type: structs.DiffTypeEdited,
+				Objects: []*structs.ObjectDiff{
+					{
+						Type: structs.DiffTypeAdded,
 						Name: "LogConfig",
 						Fields: []*structs.FieldDiff{
 							{

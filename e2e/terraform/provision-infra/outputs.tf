@@ -13,6 +13,10 @@ output "windows_clients" {
   value = aws_instance.client_windows_2016.*.public_ip
 }
 
+output "clients" {
+  value = concat(aws_instance.client_ubuntu_jammy.*.public_ip, aws_instance.client_windows_2016.*.public_ip)
+}
+
 output "message" {
   value = <<EOM
 Your cluster has been provisioned! To prepare your environment, run:
@@ -26,16 +30,16 @@ Then you can run tests from the e2e directory with:
 ssh into servers with:
 
 %{for ip in aws_instance.server.*.public_ip~}
-   ssh -i keys/${local.random_name}/${local.random_name}.pem ubuntu@${ip}
+   ssh -i ${local.keys_dir}/${local.random_name}.pem ubuntu@${ip}
 %{endfor~}
 
 ssh into clients with:
 
 %{for ip in aws_instance.client_ubuntu_jammy.*.public_ip~}
-    ssh -i keys/${local.random_name}/${local.random_name}.pem ubuntu@${ip}
+    ssh -i ${local.keys_dir}/${local.random_name}.pem ubuntu@${ip}
 %{endfor~}
 %{for ip in aws_instance.client_windows_2016.*.public_ip~}
-    ssh -i keys/${local.random_name}/${local.random_name}.pem Administrator@${ip}
+    ssh -i ${local.keys_dir}/${local.random_name}.pem Administrator@${ip}
 %{endfor~}
 
 EOM
@@ -81,7 +85,11 @@ output "key_file" {
   value = "${abspath(local.keys_dir)}/tls_api_client.key"
 }
 
+output "ssh_key_file" {
+  value = "${abspath(local.keys_dir)}/${local.random_name}.pem"
+}
+
 output "nomad_token" {
-  value     = "${data.local_sensitive_file.nomad_token.content}"
+  value     = chomp(data.local_sensitive_file.nomad_token.content)
   sensitive = true
 }

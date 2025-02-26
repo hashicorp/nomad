@@ -161,7 +161,7 @@ capability {
 	code = cmd.Run(args)
 	must.Eq(t, 1, code)
 	must.StrContains(t, ui.ErrorWriter.String(),
-		"Error listing volumes: no volumes with prefix or ID")
+		"Error listing host volumes: no volumes with prefix or ID")
 	ui.ErrorWriter.Reset()
 
 	args = []string{"-address", url, "-type", "host", "-namespace", "prod", id}

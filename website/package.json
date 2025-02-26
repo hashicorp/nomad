@@ -13,10 +13,12 @@
     "dart-linkcheck": "^2.0.15",
     "husky": "^9.0.7",
     "next": "14.0.4",
-    "prettier": "^3.4.1"
+    "prettier": "^3.5.1"
   },
   "overrides": {
-    "eslint-plugin-prettier": "5.0.0"
+    "eslint-plugin-prettier": "5.0.0",
+    "ws": "^7.5.10",
+    "trim-newlines": "^3.0.1"
   },
   "scripts": {
     "build": "./scripts/website-build.sh",

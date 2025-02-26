@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/armon/go-metrics"
 	"github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/hashicorp/nomad/helper"
 	"golang.org/x/time/rate"

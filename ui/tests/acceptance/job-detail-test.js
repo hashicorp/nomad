@@ -16,6 +16,7 @@ import moduleForJob, {
 } from 'nomad-ui/tests/helpers/module-for-job';
 import JobDetail from 'nomad-ui/tests/pages/jobs/detail';
 import percySnapshot from '@percy/ember';
+import { createRestartableJobs } from 'nomad-ui/mirage/scenarios/default';
 
 moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
   server.create('job', {
@@ -26,6 +27,7 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
     allocStatusDistribution: {
       running: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -38,6 +40,7 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
     allocStatusDistribution: {
       running: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -51,6 +54,7 @@ moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
       running: 1,
       failed: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -64,6 +68,7 @@ moduleForJobWithClientStatus(
       type: 'sysbatch',
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -79,6 +84,7 @@ moduleForJobWithClientStatus(
       namespaceId: namespace.name,
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -94,6 +100,7 @@ moduleForJobWithClientStatus(
       namespaceId: namespace.name,
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -108,6 +115,7 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
       running: 1,
     },
     noActiveDeployment: true,
+    withPreviousStableVersion: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -211,6 +219,7 @@ moduleForJob(
     server.create('job', 'parameterized', {
       shallow: true,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     }),
   {
     'the default sort is submitTime descending': async (job, assert) => {
@@ -291,7 +300,15 @@ moduleForJob(
 moduleForJob(
   'Acceptance | job detail (service)',
   'allocations',
-  () => server.create('job', { type: 'service', noActiveDeployment: true }),
+  () =>
+    server.create('job', {
+      type: 'service',
+      noActiveDeployment: true,
+      withPreviousStableVersion: true,
+      allocStatusDistribution: {
+        running: 1,
+      },
+    }),
   {
     'the subnav links to deployment': async (job, assert) => {
       await JobDetail.tabFor('deployments').visit();
@@ -785,5 +802,84 @@ module('Acceptance | job detail (with namespaces)', function (hooks) {
     assert
       .dom('.flash-message.alert-critical')
       .exists('A toast error message pops up.');
+  });
+});
+
+module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
+  setupApplicationTest(hooks);
+  setupMirage(hooks);
+
+  hooks.beforeEach(function () {
+    server.create('agent');
+    server.create('node-pool');
+    server.create('node');
+
+    createRestartableJobs(server);
+  });
+
+  test('Start Job depends on the job being stopped', async function (assert) {
+    const restartableJob = server.db.jobs.findBy(
+      (j) => j.name === 'restartable-job'
+    );
+    const revertableJob = server.db.jobs.findBy(
+      (j) => j.name === 'revertable-job'
+    );
+    const nonRevertableJob = server.db.jobs.findBy(
+      (j) => j.name === 'non-revertable-job'
+    );
+    await JobDetail.visit({ id: restartableJob.id });
+
+    assert.ok(JobDetail.start.isPresent);
+    assert.notOk(JobDetail.stop.isPresent);
+    assert.notOk(JobDetail.revert.isPresent);
+    assert.notOk(JobDetail.editAndResubmit.isPresent);
+    await percySnapshot('Start Job depends on the job being stopped');
+
+    await JobDetail.visit({ id: revertableJob.id });
+    assert.notOk(JobDetail.start.isPresent);
+
+    await percySnapshot('Revertable Job depends on having stable job versions');
+
+    await JobDetail.visit({ id: nonRevertableJob.id });
+    assert.notOk(JobDetail.start.isPresent);
+    await percySnapshot(
+      'Non-revertable Job depends on having no stable job versions'
+    );
+  });
+
+  test('A revertable job depends on having stable job versions', async function (assert) {
+    const revertableJob = server.db.jobs.findBy(
+      (j) => j.name === 'revertable-job'
+    );
+    const nonRevertableJob = server.db.jobs.findBy(
+      (j) => j.name === 'non-revertable-job'
+    );
+    await JobDetail.visit({ id: revertableJob.id });
+
+    assert.ok(JobDetail.revert.isPresent);
+    assert.equal(JobDetail.revert.text, 'Revert to last stable version (v1)');
+
+    await JobDetail.visit({ id: nonRevertableJob.id });
+    assert.notOk(JobDetail.revert.isPresent);
+    assert.ok(JobDetail.editAndResubmit.isPresent);
+  });
+
+  test('A batch job with a previous version can be reverted', async function (assert) {
+    const revertableSystemJob = server.db.jobs.findBy(
+      (j) => j.name === 'revertable-batch-job'
+    );
+    await JobDetail.visit({ id: revertableSystemJob.id });
+    assert.ok(JobDetail.revert.isPresent);
+    assert.equal(JobDetail.revert.text, 'Revert to last version (v0)');
+  });
+
+  test('Clicking the resubmit button navigates to the job definition page in edit mode', async function (assert) {
+    const job = server.db.jobs.findBy((j) => j.name === 'non-revertable-job');
+    await JobDetail.visit({ id: job.id });
+    await JobDetail.editAndResubmit.click();
+    assert.equal(
+      currentURL(),
+      `/jobs/${job.id}/definition?isEditing=true&view=job-spec`
+    );
   });
 });

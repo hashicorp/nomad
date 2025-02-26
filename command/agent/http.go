@@ -19,12 +19,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/armon/go-metrics"
 	assetfs "github.com/elazarl/go-bindata-assetfs"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/websocket"
 	"github.com/hashicorp/go-connlimit"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/rs/cors"
@@ -412,6 +412,8 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/plugins", s.wrap(s.CSIPluginsRequest))
 	s.mux.HandleFunc("/v1/plugin/csi/", s.wrap(s.CSIPluginSpecificRequest))
 	s.mux.HandleFunc("/v1/volume/host/", s.wrap(s.HostVolumeSpecificRequest))
+	s.mux.HandleFunc("/v1/volumes/claims", s.wrap(s.TaskGroupHostVolumeClaimListRequest))
+	s.mux.HandleFunc("/v1/volumes/claim/", s.wrap(s.TaskGroupHostVolumeClaimRequest))
 
 	s.mux.HandleFunc("/v1/acl/policies", s.wrap(s.ACLPoliciesRequest))
 	s.mux.HandleFunc("/v1/acl/policy/", s.wrap(s.ACLPolicySpecificRequest))

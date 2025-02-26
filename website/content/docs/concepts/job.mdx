@@ -2,13 +2,14 @@
 layout: docs
 page_title: Job
 description: |-
-  Learn about Nomad's job feature, which is how you deploy your apps, maintenance scripts, cron jobs, and similar tasks.
+  Learn how a Nomad workload, called a job, deploys your apps, maintenance scripts, cron jobs, and similar tasks. Review job statuses and how Nomad versions your jobs.
 ---
 
 # Job
 
-This page explains jobs, which are the main Nomad constructs for workloads that
-run your apps, maintenance scripts, cron jobs, and other tasks.
+This page contains conceptual information about jobs, which are the main Nomad
+constructs for workloads that run your apps, maintenance scripts, cron jobs, and
+other tasks. Review job statuses and how Nomad versions your jobs.
 
 ## Background
 
@@ -25,26 +26,28 @@ job state matches your desired state.
 ## Job statuses
 
 After you submit your job, Nomad assigns a status to indicate how a job is
-performing. This status indicates how the job's current allocations compare to the desired
-job state.
+performing. This status indicates how the job's current allocations compare to
+the desired job state.
 
-Nomad uses one of three values to describe a job's status.
+@include 'job-status-map.mdx'
 
-- `complete`
-- `dead`
-- `running`
+### CLI statuses
 
-The CLI and API return these rigid statuses, which are useful for scheduling and
-garbage collection. However, the Nomad UI displays additional human-readable
-statuses to help you manage jobs.
+Only the CLI returns these job statuses.
 
-The following table maps the CLI and API statuses to the statuses that appear in the Nomad UI.
+#### `running`
 
-| CLI and API status | UI status |
-| ---------------    | --------------- |
-| `complete `        | `Complete`    |
-| `dead`             | `Failed`, `Scaled Down`, `Stopped` |
-| `running`          | `Degraded`, `Deploying`, `Healthy`, `Recovering`, `Running`, `Scaled Down` |
+The `running` status indicates that the job has non-terminal allocations.
+
+#### `dead`
+
+The `dead` status indicates that all evaluations and allocations are in a
+terminal state.
+
+#### `dead (stopped)`
+
+The `dead (stopped)` status indicates that a user has manually stopped the job.
+You may start this job again.
 
 ### UI statuses
 
@@ -52,12 +55,13 @@ These job statuses only appear in the Nomad UI.
 
 #### Complete
 
-The `Complete` status indicated that all expected allocations are complete. This
+The `Complete` status indicates that all expected allocations are complete. This
 status applies to batch and sysbatch jobs only.
 
 #### Degraded
 
-The `Degraded` status indicates that a [deployment] is not taking place. Some allocations are failed, lost, or unplaced.
+The `Degraded` status indicates that a [deployment] is not taking place. Some
+allocations are failed, lost, or unplaced.
 
 #### Deploying
 
@@ -69,7 +73,8 @@ The `Failed` status indicates that all allocations are failed, lost, or unplaced
 
 #### Healthy
 
-The `Healthy` status indicates that all expected allocations are running and healthy.
+The `Healthy` status indicates that all expected allocations are running and
+healthy.
 
 #### Recovering
 

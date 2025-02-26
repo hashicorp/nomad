@@ -5,6 +5,7 @@ package docker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"sync"
@@ -17,15 +18,17 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
 type mockImageClient struct {
-	pulled    map[string]int
-	idToName  map[string]string
-	removed   map[string]int
-	pullDelay time.Duration
-	lock      sync.Mutex
+	pulled     map[string]int
+	idToName   map[string]string
+	removed    map[string]int
+	pullDelay  time.Duration
+	pullReader io.ReadCloser
+	lock       sync.Mutex
 }
 
 func newMockImageClient(idToName map[string]string, pullDelay time.Duration) *mockImageClient {
@@ -38,11 +41,15 @@ func newMockImageClient(idToName map[string]string, pullDelay time.Duration) *mo
 }
 
 func (m *mockImageClient) ImagePull(ctx context.Context, refStr string, opts image.PullOptions) (io.ReadCloser, error) {
-	time.Sleep(m.pullDelay)
+	select {
+	case <-ctx.Done():
+		return nil, fmt.Errorf("mockImageClient.ImagePull aborted: %w", ctx.Err())
+	case <-time.After(m.pullDelay):
+	}
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	m.pulled[refStr]++
-	return nil, nil
+	return m.pullReader, nil
 }
 
 func (m *mockImageClient) ImageInspectWithRaw(ctx context.Context, id string) (types.ImageInspect, []byte, error) {
@@ -58,6 +65,21 @@ func (m *mockImageClient) ImageRemove(ctx context.Context, id string, opts image
 	defer m.lock.Unlock()
 	m.removed[id]++
 	return []image.DeleteResponse{}, nil
+}
+
+type readErrorer struct {
+	readErr    error
+	closeError error
+}
+
+var _ io.ReadCloser = &readErrorer{}
+
+func (r *readErrorer) Read(p []byte) (n int, err error) {
+	return len(p), r.readErr
+}
+
+func (r *readErrorer) Close() error {
+	return r.closeError
 }
 
 func TestDockerCoordinator_ConcurrentPulls(t *testing.T) {
@@ -321,4 +343,95 @@ func TestDockerCoordinator_Cleanup_HonorsCtx(t *testing.T) {
 
 	// Check that only no delete happened
 	require.Equal(t, map[string]int{id1: 1}, mock.removed, "removed images")
+}
+
+func TestDockerCoordinator_PullImage_ProgressError(t *testing.T) {
+	// testing: "error reading image pull progress"
+
+	ci.Parallel(t)
+
+	timeout := time.Second // shut down the driver in 1s (should not happen)
+	driverCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	mapping := map[string]string{uuid.Generate(): "foo"}
+	mock := newMockImageClient(mapping, 1*time.Millisecond)
+	config := &dockerCoordinatorConfig{
+		ctx:         driverCtx,
+		logger:      testlog.HCLogger(t),
+		cleanup:     true,
+		client:      mock,
+		removeDelay: 1 * time.Millisecond,
+	}
+	coordinator := newDockerCoordinator(config)
+
+	readErr := errors.New("a bad bad thing happened")
+	mock.pullReader = &readErrorer{readErr: readErr}
+
+	_, _, err := coordinator.PullImage("foo", nil, uuid.Generate(), nil, timeout, timeout)
+	must.ErrorIs(t, err, readErr)
+}
+
+func TestDockerCoordinator_PullImage_Timeouts(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name          string
+		driverTimeout time.Duration // used in driver context to simulate driver/agent shutdown
+		pullTimeout   time.Duration // user provided `image_pull_timeout`
+		pullDelay     time.Duration // mock delay - how long it "actually" takes to pull the image
+		expectErr     string
+	}{
+		{
+			name:          "pull completes",
+			pullDelay:     10 * time.Millisecond,
+			pullTimeout:   200 * time.Millisecond,
+			driverTimeout: 400 * time.Millisecond,
+			expectErr:     "",
+		},
+		{
+			name:          "pull timeout",
+			pullDelay:     400 * time.Millisecond,
+			pullTimeout:   10 * time.Millisecond,
+			driverTimeout: 200 * time.Millisecond,
+			expectErr:     "mockImageClient.ImagePull aborted",
+		},
+		{
+			name:          "driver shutdown",
+			pullDelay:     400 * time.Millisecond,
+			pullTimeout:   200 * time.Millisecond,
+			driverTimeout: 10 * time.Millisecond,
+			expectErr:     "wait aborted",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			driverCtx, cancel := context.WithTimeout(context.Background(), tc.driverTimeout)
+			defer cancel()
+
+			mapping := map[string]string{"foo:v1": "foo"}
+			mock := newMockImageClient(mapping, tc.pullDelay)
+			config := &dockerCoordinatorConfig{
+				ctx:         driverCtx,
+				logger:      testlog.HCLogger(t),
+				cleanup:     true,
+				client:      mock,
+				removeDelay: 1 * time.Millisecond,
+			}
+			coordinator := newDockerCoordinator(config)
+			progressTimeout := 10 * time.Millisecond // does not apply here
+
+			id, _, err := coordinator.PullImage("foo:v1", nil, uuid.Generate(), nil,
+				tc.pullTimeout, progressTimeout)
+
+			if tc.expectErr == "" {
+				must.NoError(t, err)
+				must.Eq(t, "foo", id)
+			} else {
+				must.ErrorIs(t, err, context.DeadlineExceeded)
+				must.ErrorContains(t, err, tc.expectErr)
+			}
+		})
+	}
 }

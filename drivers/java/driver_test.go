@@ -39,7 +39,7 @@ func javaCompatible(t *testing.T) {
 }
 
 func newJavaDriverTest(t *testing.T, ctx context.Context) drivers.DriverPlugin {
-	topology := numalib.Scan(numalib.PlatformScanners())
+	topology := numalib.Scan(numalib.PlatformScanners(false))
 	d := NewDriver(ctx, testlog.HCLogger(t))
 	d.(*Driver).nomadConfig = &base.ClientDriverConfig{Topology: topology}
 	return d

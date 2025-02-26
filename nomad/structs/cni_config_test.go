@@ -4,9 +4,10 @@
 package structs
 
 import (
+	"testing"
+
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
-	"testing"
 )
 
 func TestCNIConfig_Equal(t *testing.T) {

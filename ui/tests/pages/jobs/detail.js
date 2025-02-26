@@ -43,6 +43,11 @@ export default create({
   stop: twoStepButton('[data-test-stop]'),
   start: twoStepButton('[data-test-start]'),
   purge: twoStepButton('[data-test-purge]'),
+  revert: twoStepButton('[data-test-revert]'),
+  editAndResubmit: {
+    scope: '[data-test-edit-and-resubmit]',
+    click: clickable(),
+  },
 
   packTag: isPresent('[data-test-pack-tag]'),
   metaTable: isPresent('[data-test-meta]'),

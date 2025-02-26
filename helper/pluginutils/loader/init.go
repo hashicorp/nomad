@@ -264,10 +264,15 @@ func (l *PluginLoader) fingerprintPlugins(plugins []os.FileInfo, configs map[str
 	fingerprinted := make(map[PluginID]*pluginInfo, len(plugins))
 	for _, p := range plugins {
 		name := cleanPluginExecutable(p.Name())
+
+		// Use the cleaned plugin name to check whether it is configured by the
+		// operator for use. If it is not, skip loading it and log a message, so
+		// operators can easily see this.
 		c, ok := configs[name]
 		if !ok {
-			// COMPAT(1.7): Skip executing unconfigured plugins in 1.8 or later.
-			l.logger.Warn("plugin not referenced in the agent configuration file, future versions of Nomad will not load this plugin until the agent configuration is updated", "plugin", name)
+			l.logger.Warn("plugin not referenced in the agent configuration file, loading skipped",
+				"plugin", name)
+			continue
 		}
 		info, err := l.fingerprintPlugin(p, c)
 		if err != nil {

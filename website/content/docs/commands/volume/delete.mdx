@@ -2,16 +2,20 @@
 layout: docs
 page_title: 'Commands: volume delete'
 description: |
-  Delete volumes with CSI plugins.
+  The `nomad volume delete` command deletes Container Storage Interface (CSI) and dynamic host storage volumes.
 ---
 
 # Command: volume delete
 
-The `volume delete` command deletes external storage volumes with Nomad's
-[Container Storage Interface (CSI)][csi] support. Only CSI plugins that
-implement the [Controller][csi_plugins_internals] interface support this
-command. The volume will also be [deregistered] when it is successfully
-deleted.
+The `volume delete` command deletes storage volumes that are either [Container
+Storage Interface (CSI)][csi] volumes or dynamic host volumes.
+
+For CSI volumes, only CSI plugins that implement the
+[Controller][csi_plugins_internals] interface support this command. The volume
+is [deregistered][] when it is successfully deleted.
+
+For dynamic host volumes, only volumes with plugins are deleted. Volumes without
+plugins are deregistered without deleting them.
 
 ## Usage
 
@@ -20,24 +24,29 @@ nomad volume delete [options] [volume]
 ```
 
 The `volume delete` command requires a single argument, specifying the ID of
-volume to be deleted. The volume must still be [registered] with Nomad in
-order to be deleted. Deleting will fail if the volume is still in use by an
+volume to be deleted. The volume must still be [registered][] with Nomad in
+order to be deleted. Deleting fails if the volume is still in use by an
 allocation or in the process of being unpublished. If the volume no longer
-exists, this command will silently return without an error.
+exists, this command silently returns without an error.
 
-When ACLs are enabled, this command requires a token with the
-`csi-write-volume` capability for the volume's namespace.
+When ACLs are enabled, this command requires a token with the appropriate
+capability in the volume's namespace: the `csi-write-volume` capability for CSI
+volumes or `host-volume-delete` for dynamic host volumes.
 
 ## General Options
 
 @include 'general_options.mdx'
 
+## Delete Options
+
+- `-secret`: Secrets to pass to the plugin to delete the snapshot. Accepts
+  multiple flags in the form `-secret key=value`. Only available for CSI
+  volumes.
+
+- `-type`: Type of volume to delete. Must be one of "csi" or "host". Defaults to
+  "csi".
+
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /nomad/docs/concepts/plugins/csi#csi-plugins
 [deregistered]: /nomad/docs/commands/volume/deregister
 [registered]: /nomad/docs/commands/volume/register
-
-## Delete Options
-
-- `-secret`: Secrets to pass to the plugin to delete the
-  snapshot. Accepts multiple flags in the form `-secret key=value`

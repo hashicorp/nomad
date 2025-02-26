@@ -21,9 +21,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/armon/go-metrics"
 	consulapi "github.com/hashicorp/consul/api"
 	log "github.com/hashicorp/go-hclog"
+	metrics "github.com/hashicorp/go-metrics/compat"
 	multierror "github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/raft"
 	autopilot "github.com/hashicorp/raft-autopilot"
@@ -1357,6 +1357,7 @@ func (s *Server) setupRpcServer(server *rpc.Server, ctx *RPCContext) {
 	_ = server.Register(NewSystemEndpoint(s, ctx))
 	_ = server.Register(NewVariablesEndpoint(s, ctx, s.encrypter))
 	_ = server.Register(NewHostVolumeEndpoint(s, ctx))
+	_ = server.Register(NewTaskGroupVolumeClaimEndpoint(s, ctx))
 	_ = server.Register(NewClientHostVolumeEndpoint(s, ctx))
 
 	// Register non-streaming

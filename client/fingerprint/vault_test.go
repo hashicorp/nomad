@@ -25,10 +25,6 @@ func TestVaultFingerprint(t *testing.T) {
 		Attributes: make(map[string]string),
 	}
 
-	p, period := fp.Periodic()
-	must.False(t, p)
-	must.Zero(t, period)
-
 	conf := config.DefaultConfig()
 	conf.VaultConfigs[structs.VaultDefaultCluster] = tv.Config
 
@@ -46,9 +42,17 @@ func TestVaultFingerprint(t *testing.T) {
 	// Stop Vault to simulate it being unavailable
 	tv.Stop()
 
-	// Not detected this time
+	// Fingerprint should not change without a reload
 	var response2 FingerprintResponse
 	err = fp.Fingerprint(request, &response2)
 	must.NoError(t, err)
-	must.False(t, response2.Detected)
+	must.Eq(t, response1, response2)
+
+	// Fingerprint should update after a reload
+	reloadable := fp.(ReloadableFingerprint)
+	reloadable.Reload()
+	var response3 FingerprintResponse
+	err = fp.Fingerprint(request, &response3)
+	must.NoError(t, err)
+	must.False(t, response3.Detected)
 }

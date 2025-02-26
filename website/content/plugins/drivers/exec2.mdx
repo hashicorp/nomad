@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Drivers: exec2'
+page_title: Exec2 task driver plugin
 description: >-
-  The exec2 task driver leverages modern kernel features for constraining tasks.
+  The Exec2 task driver executes a command for a job task and leverages Linux kernel features such as Landlock LSM, cgroups v2, and the `unshare` system utility. Learn how to configure and install the Exec2 task driver plugin. Review capabilities, client requirements, and concepts such as filesystem and resource isolation. Learn how to use the Exec2 task driver in your Nomad job. Configure command, command args, paths, memory, CPU resources, and out-of-memory (OOM) behavior.
 ---
 
-# Exec2 Task Driver
+# Exec2 task driver plugin
 
 Name: `exec2`
 
@@ -15,7 +15,7 @@ and minimal overhead in terms of CPU, disk, and memory utilization. The `exec2`
 driver leverages kernel features such as the [Landlock LSM][landlock], cgroups
 v2, and the [`unshare`][unshare] system utility.
 
-Source is on [GitHub][github]
+Review the source on [GitHub][github].
 
 ## Installation
 
