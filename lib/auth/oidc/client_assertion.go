@@ -32,7 +32,7 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, keys ActiveKey
 	as := config.OIDCClientAssertion
 
 	// this should have also happened long before, but again, just in case.
-	if err := as.Validate(); err != nil { // TODO: this is a terrible time to learn that it's invalid.
+	if err := as.Validate(); err != nil {
 		return nil, err
 	}
 
