@@ -390,7 +390,7 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.HostVolumeDeleteRequestType:
 		return n.applyHostVolumeDelete(msgType, buf[1:], log.Index)
 	case structs.TaskGroupHostVolumeClaimDeleteRequestType:
-		return n.applyTaskGroupHostVolumeClaimDelete(msgType, buf[1:], log.Index)
+		return n.applyTaskGroupHostVolumeClaimDelete(buf[1:], log.Index)
 	}
 
 	// Check enterprise only message types.
@@ -2452,7 +2452,7 @@ func (n *nomadFSM) applyHostVolumeDelete(msgType structs.MessageType, buf []byte
 	return nil
 }
 
-func (n *nomadFSM) applyTaskGroupHostVolumeClaimDelete(msgType structs.MessageType, buf []byte, index uint64) interface{} {
+func (n *nomadFSM) applyTaskGroupHostVolumeClaimDelete(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_task_group_host_volume_claim_delete"}, time.Now())
 
 	var req structs.TaskGroupVolumeClaimDeleteRequest

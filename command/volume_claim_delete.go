@@ -11,7 +11,7 @@ import (
 )
 
 // ensure interface satisfaction
-var _ cli.Command = &VolumeClaimListCommand{}
+var _ cli.Command = &VolumeClaimDeleteCommand{}
 
 type VolumeClaimDeleteCommand struct {
 	Meta
@@ -19,23 +19,20 @@ type VolumeClaimDeleteCommand struct {
 
 func (c *VolumeClaimDeleteCommand) Help() string {
 	helpText := `
-Usage: nomad volume claims <subcommand> [options]
-  volume claims groups commands that interact with volumes claims.
-  List existing volume claims:
-      $ nomad volume claims list
-  Delete an existing volume claim:
-      $ nomad volume claims delete <id>
-  Please see the individual subcommand help for detailed usage information.
+Usage: nomad volume claim delete <id>
+  volume claim list is used to delete existing host volume claim by claim ID.
+General Options:
+  ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
 `
 	return strings.TrimSpace(helpText)
 }
 
 func (c *VolumeClaimDeleteCommand) Name() string {
-	return "volume claims"
+	return "volume claim delete"
 }
 
 func (c *VolumeClaimDeleteCommand) Synopsis() string {
-	return "Interact with volume claims"
+	return "Delete existing volume claim"
 }
 
 func (c *VolumeClaimDeleteCommand) Run(args []string) int {

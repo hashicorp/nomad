@@ -18,6 +18,10 @@ var _ cli.Command = &VolumeClaimListCommand{}
 type VolumeClaimListCommand struct {
 	Meta
 
+	job        string
+	taskGroup  string
+	volumeName string
+
 	json bool
 	tmpl string
 }
@@ -28,7 +32,17 @@ Usage: nomad volume claim list [options]
   volume claim list is used to list existing host volume claims.
 General Options:
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
-ACL List Options:
+List Options:
+
+  -job <id>
+    Filter volume claims by job ID.
+
+  -task-group <name>
+    Filter volumes claims by task-group name.
+
+  -volume-name <name>
+    Filter volumes claims by volume name.
+
   -json
     Output the host volume claims in a JSON format.
   -t
@@ -40,8 +54,11 @@ ACL List Options:
 func (c *VolumeClaimListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-json": complete.PredictNothing,
-			"-t":    complete.PredictAnything,
+			"-job":         complete.PredictNothing,
+			"-task-group":  complete.PredictNothing,
+			"-volume-name": complete.PredictNothing,
+			"-json":        complete.PredictNothing,
+			"-t":           complete.PredictAnything,
 		})
 }
 
@@ -60,6 +77,9 @@ func (c *VolumeClaimListCommand) Synopsis() string {
 func (c *VolumeClaimListCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
+	flags.StringVar(&c.job, "job", "", "")
+	flags.StringVar(&c.taskGroup, "task-group", "", "")
+	flags.StringVar(&c.volumeName, "volume-name", "", "")
 	flags.BoolVar(&c.json, "json", false, "")
 	flags.StringVar(&c.tmpl, "t", "", "")
 
@@ -81,7 +101,11 @@ func (c *VolumeClaimListCommand) Run(args []string) int {
 		return 1
 	}
 
-	claims, _, err := client.TaskGroupHostVolumeClaims().List(nil, nil)
+	claims, _, err := client.TaskGroupHostVolumeClaims().List(&api.TaskGroupHostVolumeClaimsListRequest{
+		JobID:      c.job,
+		TaskGroup:  c.taskGroup,
+		VolumeName: c.volumeName,
+	}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error listing task group host volume claims: %s", err))
 		return 1

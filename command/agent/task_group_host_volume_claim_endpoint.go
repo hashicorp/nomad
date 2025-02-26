@@ -13,7 +13,7 @@ import (
 func (s *HTTPServer) TaskGroupHostVolumeClaimRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
 	// Tokenize the suffix of the path to get the volume id, tolerating a
 	// present or missing trailing slash
-	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/volume/claim/")
+	reqSuffix := strings.TrimPrefix(req.URL.Path, "/v1/volumes/claim/")
 	tokens := strings.FieldsFunc(reqSuffix, func(c rune) bool { return c == '/' })
 
 	if len(tokens) == 0 {
