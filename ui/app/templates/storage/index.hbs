@@ -53,6 +53,7 @@
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
+    <h3>Dynamic Host Volumes</h3>
     {{#if this.sortedDynamicHostVolumes.length}}
       <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}}
         @columns={{this.dhvColumns}} @sortBy="name">
@@ -69,8 +70,10 @@
           </B.Tr>
         </:body>
       </Hds::Table>
+    {{/if}}
 
-
+    <h3>CSI Volumes</h3>
+    {{#if this.sortedCSIVolumes.length}}
       <Hds::Table @caption="CSI Volumes" @model={{this.sortedCSIVolumes}}
         @columns={{this.csiColumns}} @sortBy="name">
         <:body as |B|>
@@ -133,6 +136,37 @@
         </:body>
       </Hds::Table>
     {{/if}}
-  {{/if }}
+  {{/if}}
 
+  <h3>Ephemeral Disks (experimental)</h3>
+  <Hds::Button @icon="plus" @text="Scan for Ephemeral Disks" {{on "click" this.scanForEphemeralDisks}} />
+  {{#if this.sortedEphemeralDisks.length}}
+    {{log "EDISKS" this.sortedEphemeralDisks}}
+    <Hds::Table @caption="Ephemeral Disks" @model={{this.sortedEphemeralDisks}}
+      @columns={{array (hash key="name" label="Name") (hash key="size" label="Size")}} @sortBy="size" @sortOrder="desc">
+      <:body as |B|>
+        <B.Tr>
+          <B.Td>
+            <LinkTo @route="allocations.allocation" @model={{B.data.id}}>{{B.data.name}}</LinkTo>
+          </B.Td>
+          <B.Td>{{B.data.size}}</B.Td>
+        </B.Tr>
+      </:body>
+    </Hds::Table>
+  {{/if}}
+
+  <h3>Static Host Volumes (experimental)</h3>
+  <Hds::Button @icon="plus" @text="Scan for Static Host Volumes" {{on "click" this.scanForStaticHostVolumes}} />
+  {{#if this.sortedStaticHostVolumes.length}}
+    {{log "SHVS" this.sortedStaticHostVolumes}}
+    <Hds::Table @caption="Static Host Volumes" @model={{this.sortedStaticHostVolumes}}
+      @columns={{array (hash key="name" label="Name") (hash key="size" label="Size")}} @sortBy="name">
+      <:body as |B|>
+        <B.Tr>
+          <B.Td>{{B.data.name}}</B.Td>
+          <B.Td>{{B.data.size}}</B.Td>
+        </B.Tr>
+      </:body>
+    </Hds::Table>
+  {{/if}}
 </section>
