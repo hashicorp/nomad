@@ -589,6 +589,15 @@ func (e *Encrypter) waitForKey(ctx context.Context, keyID string) (*cipherSet, e
 	return ks, nil
 }
 
+// GetActiveKey returns the active private key and its kid (key id)
+func (e *Encrypter) GetActiveKey() (*rsa.PrivateKey, string, error) {
+	c, err := e.activeCipherSet()
+	if err != nil {
+		return nil, "", err
+	}
+	return c.rsaPrivateKey, c.rootKey.Meta.KeyID, nil
+}
+
 // GetKey retrieves the key material by ID from the keyring.
 func (e *Encrypter) GetKey(keyID string) (*structs.UnwrappedRootKey, error) {
 	e.lock.Lock()
