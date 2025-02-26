@@ -11,6 +11,9 @@ replace (
 // Nomad is built using the current source of the API module.
 replace github.com/hashicorp/nomad/api => ./api
 
+// TODO: remove after hashicorp/cap PR: https://github.com/hashicorp/cap/pull/155
+replace github.com/hashicorp/cap => github.com/gulducat/cap v0.0.3
+
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
 	github.com/Masterminds/sprig/v3 v3.3.0
