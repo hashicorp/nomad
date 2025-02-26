@@ -65,7 +65,7 @@ func TestVolumeClaimDeleteCommand_Run(t *testing.T) {
 	must.One(t, cmd.Run([]string{"-address=" + url, "-token=" + invalidToken.SecretID, existingClaims[0].ID}))
 
 	// Delete with a valid token
-	must.Zero(t, cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, existingClaims[0].ID}))
+	must.Zero(t, cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-y", existingClaims[0].ID}))
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, "successfully deleted")
 
