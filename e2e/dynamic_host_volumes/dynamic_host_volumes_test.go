@@ -98,7 +98,10 @@ func TestDynamicHostVolumes_RegisterWorkflow(t *testing.T) {
 
 	out, err := e2eutil.Command("nomad", "volume", "status", "-verbose", "-type", "host")
 	must.NoError(t, err)
-	vols, err := e2eutil.ParseColumns(out)
+
+	section, err := e2eutil.GetSection(out, "Dynamic Host Volumes")
+	must.NoError(t, err)
+	vols, err := e2eutil.ParseColumns(section)
 	must.NoError(t, err)
 
 	var volID string
