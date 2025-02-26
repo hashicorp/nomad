@@ -47,8 +47,8 @@ resource "enos_local_exec" "get_allocs" {
 }
 
 resource "enos_local_exec" "workloads" {
-  depends_on = [ enos_local_exec.get_jobs, enos_local_exec.get_allocs ]
-  for_each = var.workloads
+  depends_on = [enos_local_exec.get_jobs, enos_local_exec.get_allocs]
+  for_each   = var.workloads
 
   environment = local.nomad_env
 
