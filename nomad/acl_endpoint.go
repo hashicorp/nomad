@@ -3071,7 +3071,11 @@ func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodC
 	}
 
 	if config.OIDCClientAssertion.IsSet() {
-		j, err := oidc.BuildClientAssertionJWT(config, a.srv.encrypter)
+		nomadKey, nomadKID, err := a.srv.encrypter.GetActiveKey()
+		if err != nil {
+			return nil, err
+		}
+		j, err := oidc.BuildClientAssertionJWT(config, nomadKey, nomadKID)
 		if err != nil {
 			return nil, err
 		}

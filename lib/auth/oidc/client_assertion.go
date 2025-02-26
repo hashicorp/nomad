@@ -18,11 +18,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type ActiveKeyGetter interface {
-	GetActiveKey() (key *rsa.PrivateKey, id string, err error)
-}
-
-func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, keys ActiveKeyGetter) (*cass.JWT, error) {
+func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.PrivateKey, nomadKID string) (*cass.JWT, error) {
 	// should already be validated by caller, but just in case.
 	if config == nil || config.OIDCClientAssertion == nil {
 		return nil, errors.New("no auth method config or client assertion")
@@ -52,13 +48,9 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, keys ActiveKey
 
 	case structs.OIDCKeySourceNomad:
 		algo := cass.RS256
-		key, keyID, err := keys.GetActiveKey()
-		if err != nil {
-			return nil, err
-		}
 		opts = append(opts,
-			cass.WithRSAKey(key, algo),
-			cass.WithKeyID(keyID),
+			cass.WithRSAKey(nomadKey, algo),
+			cass.WithKeyID(nomadKID),
 		)
 
 	case structs.OIDCKeySourcePrivateKey:
