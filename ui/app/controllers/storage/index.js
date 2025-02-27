@@ -4,10 +4,10 @@
  */
 
 import { inject as service } from '@ember/service';
-import { action, computed } from '@ember/object';
+import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import Controller from '@ember/controller';
-
+import { restartableTask, timeout } from 'ember-concurrency';
 export default class IndexController extends Controller {
   @service router;
 
@@ -90,48 +90,63 @@ export default class IndexController extends Controller {
   @tracked sortedEphemeralDisks = [];
   @tracked sortedStaticHostVolumes = [];
 
-  @action async scanForEphemeralDisks() {
-    console.log('scanForEphemeralDisks');
-    // Check store for all jobs
-    const allAllocs = await this.store.findAll('allocation');
+  @restartableTask *scanForEphemeralDisks() {
+    const allAllocs = yield this.store.findAll('allocation', { reload: true });
     console.log('allAllocs', allAllocs);
-    const allocDataDirs = await Promise.all(
+    const allocDataDirs = yield Promise.all(
       allAllocs.map(async (alloc) => {
-        // TODO: /logs is demo-only, /data is actual.
-        // return alloc.ls('alloc/logs');
         return {
-          // job: alloc.get('jobID'),
-          // allocID: alloc.id,
           alloc,
           files: await alloc.ls('alloc/logs'),
         };
       })
     );
     console.log('allocDataDirs', allocDataDirs);
-    this.sortedEphemeralDisks = allocDataDirs.map((dir, index) => {
+    // TODO: demonstrative timeout
+    yield timeout(2000);
+
+    yield (this.sortedEphemeralDisks = allocDataDirs.map((dir) => {
       const files = dir.files;
-      console.log('files', files);
       const totalFileSize = files.reduce((acc, file) => {
         return acc + file.Size;
       }, 0);
-      console.log('indexed', index, allAllocs.objectAt(index));
       return {
-        // job: allAllocs.objectAt(index).get('job.name'),
-        // job: dir.job,
         name: dir.alloc.name,
         id: dir.alloc.id,
         size: totalFileSize,
       };
-    });
-    // console.log('sortedEphemeralDisks', sortedEphemeralDisks);
-    // const allocsWithEphemeralDisks = allAllocs.filter((alloc) => {
-    //   return alloc.job.ephemeralDisk;
-    // });
-    // console.log('allAllocs', allAllocs);
-    // console.log('allocsWithEphemeralDisks', allocsWithEphemeralDisks);
+    }));
+    // TODO: demonstrative timeout
+    yield timeout(2000);
   }
 
-  @action scanForStaticHostVolumes() {
-    console.log('scanForStaticHostVolumes');
+  @restartableTask *scanForStaticHostVolumes() {
+    const allNodes = yield this.store.findAll('node', { reload: true });
+
+    // TODO: demonstrative timeout
+    yield timeout(2000);
+
+    this.sortedStaticHostVolumes = allNodes
+      .map((node) => {
+        const hostVolumes = node.hostVolumes.filter((volume) => {
+          return !volume.volumeId;
+        });
+        return hostVolumes.map((volume) => {
+          return {
+            name: volume.name,
+            path: volume.path,
+            readOnly: volume.readOnly,
+          };
+        });
+      })
+      .flat();
+  }
+
+  @action pauseScanForEphemeralDisks() {
+    this.scanForEphemeralDisks.cancelAll();
+  }
+
+  @action pauseScanForStaticHostVolumes() {
+    this.scanForStaticHostVolumes.cancelAll();
   }
 }

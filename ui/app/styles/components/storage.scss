@@ -13,5 +13,27 @@
 }
 
 .storage-index table {
+  // margin-bottom: 2rem;
+}
+
+
+.storage-index-table-card {
+  padding: 1rem;
   margin-bottom: 2rem;
+  header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    h3 {
+      font-size: 1.5rem;
+      font-weight: $weight-bold;
+    }
+    .actions {
+      display: grid;
+      gap: 1rem;
+      grid-auto-flow: column;
+    }
+  }
+  table {
+    margin-top: 1rem;
+  }
 }

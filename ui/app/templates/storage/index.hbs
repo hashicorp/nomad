@@ -53,120 +53,191 @@
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-    <h3>Dynamic Host Volumes</h3>
-    {{#if this.sortedDynamicHostVolumes.length}}
-      <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}}
-        @columns={{this.dhvColumns}} @sortBy="name">
-        <:body as |B|>
-          <B.Tr {{keyboard-shortcut enumerated=true action=(action "openDHV" B.data) }} data-test-dhv-row>
-            <B.Td>
-              {{!-- <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.dhv"
-                @model={{B.data.name}}>{{B.data.name}}</LinkTo> --}}
-                {{B.data.name}}
-            </B.Td>
-            <B.Td>{{B.data.namespace.name}}</B.Td>
-            <B.Td>{{B.data.pluginID}}</B.Td>
-            <B.Td>{{B.data.state}}</B.Td>
-          </B.Tr>
-        </:body>
-      </Hds::Table>
-    {{/if}}
+    <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
+      <header>
+        <h3>Dynamic Host Volumes</h3>
+      </header>
+      {{#if this.sortedDynamicHostVolumes.length}}
+        <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}}
+          @columns={{this.dhvColumns}} @sortBy="name">
+          <:body as |B|>
+            <B.Tr {{keyboard-shortcut enumerated=true action=(action "openDHV" B.data) }} data-test-dhv-row>
+              <B.Td>
+                {{!-- <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.dhv"
+                  @model={{B.data.name}}>{{B.data.name}}</LinkTo> --}}
+                  {{B.data.name}}
+              </B.Td>
+              <B.Td>{{B.data.namespace.name}}</B.Td>
+              <B.Td>{{B.data.pluginID}}</B.Td>
+              <B.Td>{{B.data.state}}</B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+      {{/if}}
+    </Hds::Card::Container>
 
-    <h3>CSI Volumes</h3>
-    {{#if this.sortedCSIVolumes.length}}
-      <Hds::Table @caption="CSI Volumes" @model={{this.sortedCSIVolumes}}
-        @columns={{this.csiColumns}} @sortBy="name">
+    <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
+      <header>
+        <h3>CSI Volumes</h3>
+      </header>
+      {{#if this.sortedCSIVolumes.length}}
+        <Hds::Table @caption="CSI Volumes" @model={{this.sortedCSIVolumes}}
+          @columns={{this.csiColumns}} @sortBy="name">
+          <:body as |B|>
+            <B.Tr>
+              <B.Td>
+                <LinkTo
+                  @route="storage.volumes.volume"
+                  @model={{B.data.idWithNamespace}}
+                  class="is-primary"
+                >
+                  {{B.data.name}}
+                </LinkTo>
+              </B.Td>
+              <B.Td>
+                {{#if this.system.shouldShowNamespaces}}
+                  {{B.data.namespace.name}}
+                {{else}}
+                  --
+                {{/if}}
+              </B.Td>
+              <B.Td data-test-volume-schedulable>
+                {{if B.data.schedulable "Schedulable" "Unschedulable"}}
+              </B.Td>
+              <B.Td data-test-volume-controller-health>
+                {{#if B.data.controllerRequired}}
+                  {{if (gt B.data.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                  (
+                  {{B.data.controllersHealthy}}
+                  /
+                  {{B.data.controllersExpected}}
+                  )
+                {{else if (gt B.data.controllersExpected 0)}}
+                  {{if (gt B.data.controllersHealthy 0) "Healthy" "Unhealthy"}}
+                  (
+                  {{B.data.controllersHealthy}}
+                  /
+                  {{B.data.controllersExpected}}
+                  )
+                {{else}}
+                  <em class="is-faded">
+                    Node Only
+                  </em>
+                {{/if}}
+              </B.Td>
+              <B.Td data-test-volume-node-health>
+                {{if (gt B.data.nodesHealthy 0) "Healthy" "Unhealthy"}}
+                (
+                {{B.data.nodesHealthy}}
+                /
+                {{B.data.nodesExpected}}
+                )
+              </B.Td>
+              <B.Td data-test-volume-provider>
+                {{B.data.provider}}
+              </B.Td>
+              <B.Td data-test-volume-allocations>
+                {{B.data.allocationCount}}
+              </B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+      {{else}}
+        {{!-- TODO: --}}
+        <p>No CSI Volumes found</p>
+      {{/if}}
+    </Hds::Card::Container>
+  {{/if}}
+
+  <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
+    <header>
+      <h3>Ephemeral Disks</h3>
+      <div class="actions">
+        <Hds::Button
+          @color="secondary"
+          disabled={{this.scanForEphemeralDisks.isRunning}}
+          @icon={{if this.scanForEphemeralDisks.isRunning "loading" "plus"}}
+          @text="{{if this.scanForEphemeralDisks.isRunning "Scanning" "Scan"}} for Ephemeral Disks"
+          {{on "click" (perform this.scanForEphemeralDisks)}}
+        />
+        {{#if this.scanForEphemeralDisks.isRunning}}
+          <Hds::Button
+            @icon="pause"
+            @text="cancel"
+            @color="tertiary"
+            {{on "click" (action this.pauseScanForEphemeralDisks)}}
+          />
+        {{/if}}
+      </div>
+    </header>
+    {{#if this.sortedEphemeralDisks.length}}
+      <Hds::Table @caption="Ephemeral Disks" @model={{this.sortedEphemeralDisks}}
+        @columns={{array (hash key="name" label="Name") (hash key="size" label="Size" isSortable=true)}} @sortBy="size" @sortOrder="desc">
         <:body as |B|>
           <B.Tr>
             <B.Td>
-              <LinkTo
-                @route="storage.volumes.volume"
-                @model={{B.data.idWithNamespace}}
-                class="is-primary"
-              >
-                {{B.data.name}}
-              </LinkTo>
+              <LinkTo @route="allocations.allocation.fs" @models={{array B.data.id 'alloc/data'}}>{{B.data.name}}</LinkTo>
             </B.Td>
-            <B.Td>
-              {{#if this.system.shouldShowNamespaces}}
-                {{B.data.namespace.name}}
-              {{else}}
-                --
-              {{/if}}
-            </B.Td>
-            <B.Td data-test-volume-schedulable>
-              {{if B.data.schedulable "Schedulable" "Unschedulable"}}
-            </B.Td>
-            <B.Td data-test-volume-controller-health>
-              {{#if B.data.controllerRequired}}
-                {{if (gt B.data.controllersHealthy 0) "Healthy" "Unhealthy"}}
-                (
-                {{B.data.controllersHealthy}}
-                /
-                {{B.data.controllersExpected}}
-                )
-              {{else if (gt B.data.controllersExpected 0)}}
-                {{if (gt B.data.controllersHealthy 0) "Healthy" "Unhealthy"}}
-                (
-                {{B.data.controllersHealthy}}
-                /
-                {{B.data.controllersExpected}}
-                )
-              {{else}}
-                <em class="is-faded">
-                  Node Only
-                </em>
-              {{/if}}
-            </B.Td>
-            <B.Td data-test-volume-node-health>
-              {{if (gt B.data.nodesHealthy 0) "Healthy" "Unhealthy"}}
-              (
-              {{B.data.nodesHealthy}}
-              /
-              {{B.data.nodesExpected}}
-              )
-            </B.Td>
-            <B.Td data-test-volume-provider>
-              {{B.data.provider}}
-            </B.Td>
-            <B.Td data-test-volume-allocations>
-              {{B.data.allocationCount}}
-            </B.Td>
+            <B.Td>{{B.data.size}}</B.Td>
           </B.Tr>
         </:body>
       </Hds::Table>
+    {{else if
+      (and
+        (not this.scanForEphemeralDisks.isRunning)
+        this.scanForEphemeralDisks.lastSuccessful
+      )
+    }}
+      <p>No Ephemeral Disks found</p>
     {{/if}}
-  {{/if}}
+  </Hds::Card::Container>
 
-  <h3>Ephemeral Disks (experimental)</h3>
-  <Hds::Button @icon="plus" @text="Scan for Ephemeral Disks" {{on "click" this.scanForEphemeralDisks}} />
-  {{#if this.sortedEphemeralDisks.length}}
-    {{log "EDISKS" this.sortedEphemeralDisks}}
-    <Hds::Table @caption="Ephemeral Disks" @model={{this.sortedEphemeralDisks}}
-      @columns={{array (hash key="name" label="Name") (hash key="size" label="Size")}} @sortBy="size" @sortOrder="desc">
-      <:body as |B|>
-        <B.Tr>
-          <B.Td>
-            <LinkTo @route="allocations.allocation" @model={{B.data.id}}>{{B.data.name}}</LinkTo>
-          </B.Td>
-          <B.Td>{{B.data.size}}</B.Td>
-        </B.Tr>
-      </:body>
-    </Hds::Table>
-  {{/if}}
-
-  <h3>Static Host Volumes (experimental)</h3>
-  <Hds::Button @icon="plus" @text="Scan for Static Host Volumes" {{on "click" this.scanForStaticHostVolumes}} />
-  {{#if this.sortedStaticHostVolumes.length}}
-    {{log "SHVS" this.sortedStaticHostVolumes}}
-    <Hds::Table @caption="Static Host Volumes" @model={{this.sortedStaticHostVolumes}}
-      @columns={{array (hash key="name" label="Name") (hash key="size" label="Size")}} @sortBy="name">
-      <:body as |B|>
-        <B.Tr>
-          <B.Td>{{B.data.name}}</B.Td>
-          <B.Td>{{B.data.size}}</B.Td>
-        </B.Tr>
-      </:body>
-    </Hds::Table>
-  {{/if}}
+  <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
+    <header>
+      <h3>Static Host Volumes</h3>
+      <div class="actions">
+        <Hds::Button
+          @color="secondary"
+          disabled={{this.scanForStaticHostVolumes.isRunning}}
+          @icon={{if this.scanForStaticHostVolumes.isRunning "loading" "plus"}}
+          @text="{{if this.scanForStaticHostVolumes.isRunning "Scanning" "Scan"}} for Static Host Volumes"
+          {{on "click" (perform this.scanForStaticHostVolumes)}}
+        />
+        {{#if this.scanForStaticHostVolumes.isRunning}}
+          <Hds::Button
+            @icon="pause"
+            @text="cancel"
+            @color="tertiary"
+            {{on "click" (action this.pauseScanForStaticHostVolumes)}}
+          />
+        {{/if}}
+      </div>
+    </header>
+    {{#if this.sortedStaticHostVolumes.length}}
+      {{log "SHVS" this.sortedStaticHostVolumes}}
+      <Hds::Table @caption="Static Host Volumes" @model={{this.sortedStaticHostVolumes}}
+        @columns={{array
+          (hash key="name" label="Name" isSortable=true)
+          (hash key="path" label="Path" isSortable=true)
+          (hash key="readOnly" label="Read Only?" isSortable=true)
+        }}
+        @sortBy="name"
+      >
+        <:body as |B|>
+          <B.Tr>
+            <B.Td>{{B.data.name}}</B.Td>
+            <B.Td>{{B.data.path}}</B.Td>
+            <B.Td>{{B.data.readOnly}}</B.Td>
+          </B.Tr>
+        </:body>
+      </Hds::Table>
+    {{else if
+      (and
+        (not this.scanForStaticHostVolumes.isRunning)
+        this.scanForStaticHostVolumes.lastSuccessful
+      )
+    }}
+      <p>No Static Host Volumes found</p>
+    {{/if}}
+  </Hds::Card::Container>
 </section>
