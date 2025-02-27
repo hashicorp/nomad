@@ -75,12 +75,7 @@ func (c *VolumeClaimDeleteCommand) Run(args []string) int {
 If you delete a volume claim, the allocation that uses this claim to "stick"
 to a particular volume ID will no longer use it upon its next reschedule or
 migration. The deployment of the task group the allocation runs will still
-claim another feasible volume ID during reschedule or replacement. Deleting
-the volume claim is thus a temporary release of the volume ID, meant to be used
-in "emergency" situations, i.e., when the operator wants to drain the node the
-volume is on, but does not want to re-deploy the job.
-
-Please use with caution!
+claim another feasible volume ID during reschedule or replacement.
 `)
 		if !c.askQuestion(fmt.Sprintf("Are you sure you want to delete task group host volume claim %s? [Y/n]", claimID)) {
 			return 0
