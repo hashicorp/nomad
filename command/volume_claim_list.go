@@ -29,15 +29,19 @@ type VolumeClaimListCommand struct {
 func (c *VolumeClaimListCommand) Help() string {
 	helpText := `
 Usage: nomad volume claim list [options]
+
   volume claim list is used to list existing host volume claims.
+
 General Options:
+
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
+
 List Options:
 
   -job <id>
     Filter volume claims by job ID.
 
-  -task-group <name>
+  -group <name>
     Filter volumes claims by task-group name.
 
   -volume-name <name>
@@ -55,7 +59,7 @@ func (c *VolumeClaimListCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
 			"-job":         complete.PredictNothing,
-			"-task-group":  complete.PredictNothing,
+			"-group":       complete.PredictNothing,
 			"-volume-name": complete.PredictNothing,
 			"-json":        complete.PredictNothing,
 			"-t":           complete.PredictAnything,
@@ -78,7 +82,7 @@ func (c *VolumeClaimListCommand) Run(args []string) int {
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&c.job, "job", "", "")
-	flags.StringVar(&c.taskGroup, "task-group", "", "")
+	flags.StringVar(&c.taskGroup, "group", "", "")
 	flags.StringVar(&c.volumeName, "volume-name", "", "")
 	flags.BoolVar(&c.json, "json", false, "")
 	flags.StringVar(&c.tmpl, "t", "", "")
