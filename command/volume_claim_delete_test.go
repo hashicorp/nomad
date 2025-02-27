@@ -32,10 +32,15 @@ func TestVolumeClaimDeleteCommand_Run(t *testing.T) {
 	     node { policy = "write" }`)
 	must.NotNil(t, token)
 
+	longID := uuid.Generate()
+	shortID := longID[0:8]
+	longID2 := uuid.Generate()
+	longID2 = shortID + longID2[8:]
+
 	// Create some test claims
 	existingClaims := []*structs.TaskGroupHostVolumeClaim{
 		{
-			ID:            uuid.Generate(),
+			ID:            longID,
 			Namespace:     structs.DefaultNamespace,
 			JobID:         "foo",
 			TaskGroupName: "foo",
@@ -51,6 +56,14 @@ func TestVolumeClaimDeleteCommand_Run(t *testing.T) {
 			VolumeID:      uuid.Generate(),
 			VolumeName:    "foo",
 		},
+		{
+			ID:            longID2, // same prefix as the longID
+			Namespace:     structs.DefaultNamespace,
+			JobID:         "bar",
+			TaskGroupName: "foo",
+			VolumeID:      uuid.Generate(),
+			VolumeName:    "foo",
+		},
 	}
 
 	for _, claim := range existingClaims {
@@ -62,16 +75,25 @@ func TestVolumeClaimDeleteCommand_Run(t *testing.T) {
 
 	// Delete with an invalid token fails
 	invalidToken := mock.ACLToken()
-	must.One(t, cmd.Run([]string{"-address=" + url, "-token=" + invalidToken.SecretID, existingClaims[0].ID}))
+	must.One(t, cmd.Run([]string{"-address=" + url, "-token=" + invalidToken.SecretID, "-y", existingClaims[0].ID}))
+	out := ui.ErrorWriter.String()
+	must.StrContains(t, out, "Permission denied")
+	ui.ErrorWriter.Reset()
+
+	// Delete with a valid token, but short ID that matches multiple claims
+	must.One(t, cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-y", shortID}))
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, "matched multiple claims")
+	ui.ErrorWriter.Reset()
 
 	// Delete with a valid token
 	must.Zero(t, cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-y", existingClaims[0].ID}))
-	out := ui.OutputWriter.String()
+	out = ui.OutputWriter.String()
 	must.StrContains(t, out, "successfully deleted")
 
 	ui.OutputWriter.Reset()
 
-	// List and make sure there are no tokens left (we have no permissions to read foo ns)
+	// List and make sure there is just 1 claim left (we have no permissions to read foo ns)
 	listCmd := &VolumeClaimListCommand{Meta: Meta{Ui: ui, flagAddress: url}}
 	must.Zero(t, listCmd.Run([]string{
 		"-address=" + url,
@@ -79,7 +101,7 @@ func TestVolumeClaimDeleteCommand_Run(t *testing.T) {
 	}))
 	out = ui.OutputWriter.String()
 
-	must.StrContains(t, out, "No task group host volume claims found")
+	must.StrContains(t, out, shortID)
 
 	ui.OutputWriter.Reset()
 }

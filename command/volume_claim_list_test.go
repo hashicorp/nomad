@@ -98,7 +98,7 @@ func TestVolumeClaimListCommand_Run(t *testing.T) {
 	must.One(t, code)
 
 	// List with a valid token
-	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID})
+	code = cmd.Run([]string{"-address=" + url, "-token=" + token.SecretID, "-verbose"})
 	must.Zero(t, code)
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, existingClaims[0].ID)
@@ -116,6 +116,7 @@ func TestVolumeClaimListCommand_Run(t *testing.T) {
 		"-token=" + token.SecretID,
 		"-job=" + "foo",
 		"-volume-name=" + "foo",
+		"-verbose",
 	}))
 	out = ui.OutputWriter.String()
 

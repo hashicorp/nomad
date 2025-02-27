@@ -22,8 +22,10 @@ type VolumeClaimListCommand struct {
 	taskGroup  string
 	volumeName string
 
-	json bool
-	tmpl string
+	length  int
+	verbose bool
+	json    bool
+	tmpl    string
 }
 
 func (c *VolumeClaimListCommand) Help() string {
@@ -47,6 +49,9 @@ List Options:
   -volume-name <name>
     Filter volumes claims by volume name.
 
+  -verbose
+    Display full information.
+
   -json
     Output the host volume claims in a JSON format.
   -t
@@ -61,6 +66,7 @@ func (c *VolumeClaimListCommand) AutocompleteFlags() complete.Flags {
 			"-job":         complete.PredictNothing,
 			"-group":       complete.PredictNothing,
 			"-volume-name": complete.PredictNothing,
+			"-verbose":     complete.PredictNothing,
 			"-json":        complete.PredictNothing,
 			"-t":           complete.PredictAnything,
 		})
@@ -79,12 +85,13 @@ func (c *VolumeClaimListCommand) Synopsis() string {
 }
 
 func (c *VolumeClaimListCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags := c.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.StringVar(&c.job, "job", "", "")
 	flags.StringVar(&c.taskGroup, "group", "", "")
 	flags.StringVar(&c.volumeName, "volume-name", "", "")
 	flags.BoolVar(&c.json, "json", false, "")
+	flags.BoolVar(&c.verbose, "verbose", false, "")
 	flags.StringVar(&c.tmpl, "t", "", "")
 
 	if err := flags.Parse(args); err != nil {
@@ -98,8 +105,14 @@ func (c *VolumeClaimListCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Truncate the id unless full length is requested
+	c.length = shortId
+	if c.verbose {
+		c.length = fullId
+	}
+
 	// Get the HTTP client
-	client, err := c.Meta.Client()
+	client, err := c.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
@@ -126,11 +139,11 @@ func (c *VolumeClaimListCommand) Run(args []string) int {
 		return 0
 	}
 
-	c.Ui.Output(formatClaims(claims))
+	c.Ui.Output(formatClaims(claims, c.length))
 	return 0
 }
 
-func formatClaims(claims []*api.TaskGroupHostVolumeClaim) string {
+func formatClaims(claims []*api.TaskGroupHostVolumeClaim, length int) string {
 	if len(claims) == 0 {
 		return "No task group host volume claims found"
 	}
@@ -140,7 +153,7 @@ func formatClaims(claims []*api.TaskGroupHostVolumeClaim) string {
 	for _, claim := range claims {
 		output = append(output, fmt.Sprintf(
 			"%s|%s|%s|%s|%s",
-			claim.ID, claim.Namespace, claim.JobID, claim.VolumeID, claim.VolumeName))
+			limit(claim.ID, length), claim.Namespace, claim.JobID, limit(claim.VolumeID, length), claim.VolumeName))
 	}
 
 	return formatList(output)

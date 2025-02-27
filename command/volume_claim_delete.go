@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/cli"
+	"github.com/hashicorp/nomad/api"
 )
 
 // ensure interface satisfaction
@@ -48,7 +49,7 @@ func (c *VolumeClaimDeleteCommand) Synopsis() string {
 }
 
 func (c *VolumeClaimDeleteCommand) Run(args []string) int {
-	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
+	flags := c.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&c.autoYes, "y", false, "")
 	if err := flags.Parse(args); err != nil {
@@ -82,13 +83,33 @@ claim another feasible volume ID during reschedule or replacement.
 	}
 
 	// Get the HTTP client
-	client, err := c.Meta.Client()
+	client, err := c.Client()
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error initializing client: %s", err))
 		return 1
 	}
 
-	// Delete the specified method
+	if len(claimID) == shortId {
+		claimID = sanitizeUUIDPrefix(claimID)
+		claims, _, err := client.TaskGroupHostVolumeClaims().List(nil, &api.QueryOptions{Prefix: claimID})
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error querying claims: %s", err))
+			return 1
+		}
+		// Return error if no claims are found
+		if len(claims) == 0 {
+			c.Ui.Error(fmt.Sprintf("No claim(s) with prefix %q found", claimID))
+			return 1
+		}
+		if len(claims) > 1 {
+			// Dump the output
+			c.Ui.Error(fmt.Sprintf("Prefix matched multiple claims\n\n%s", formatClaims(claims, fullId)))
+			return 1
+		}
+		claimID = claims[0].ID
+	}
+
+	// Delete the specified claim
 	_, err = client.TaskGroupHostVolumeClaims().Delete(claimID, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting claim: %s", err))
