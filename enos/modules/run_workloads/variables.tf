@@ -28,6 +28,11 @@ variable "nomad_token" {
   sensitive   = true
 }
 
+variable "availability_zone" {
+  description = "The AZ where the cluster is being run"
+  type        = string
+}
+
 variable "workloads" {
   description = "A map of workloads to provision"
 
@@ -35,5 +40,7 @@ variable "workloads" {
     job_spec    = string
     alloc_count = number
     type        = string
+    pre_script  = optional(string)
+    post_script = optional(string)
   }))
 }
