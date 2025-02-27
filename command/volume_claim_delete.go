@@ -14,6 +14,13 @@ import (
 // ensure interface satisfaction
 var _ cli.Command = &VolumeClaimDeleteCommand{}
 
+var warning string = `
+  If you delete a volume claim, the allocation that uses this claim to "stick"
+  to a particular volume ID will no longer use it upon its next reschedule or
+  migration. The deployment of the task group the allocation runs will still
+  claim another feasible volume ID during reschedule or replacement.
+`
+
 type VolumeClaimDeleteCommand struct {
 	Meta
 
@@ -25,7 +32,7 @@ func (c *VolumeClaimDeleteCommand) Help() string {
 Usage: nomad volume claim delete <id>
 
   volume claim delete is used to delete existing host volume claim by claim ID.
-
+` + warning + `
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault|usageOptsNoNamespace) + `
@@ -71,12 +78,7 @@ func (c *VolumeClaimDeleteCommand) Run(args []string) int {
 	claimID := flags.Args()[0]
 
 	if !c.autoYes {
-		c.Ui.Warn(`
-If you delete a volume claim, the allocation that uses this claim to "stick"
-to a particular volume ID will no longer use it upon its next reschedule or
-migration. The deployment of the task group the allocation runs will still
-claim another feasible volume ID during reschedule or replacement.
-`)
+		c.Ui.Warn(warning)
 		if !c.askQuestion(fmt.Sprintf("Are you sure you want to delete task group host volume claim %s? [Y/n]", claimID)) {
 			return 0
 		}
