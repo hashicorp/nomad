@@ -123,7 +123,7 @@ require (
 	github.com/shoenig/go-m1cpu v0.1.6
 	github.com/shoenig/test v1.12.0
 	github.com/stretchr/testify v1.10.0
-	github.com/zclconf/go-cty v1.16.0
+	github.com/zclconf/go-cty v1.16.2
 	github.com/zclconf/go-cty-yaml v1.1.0
 	go.etcd.io/bbolt v1.4.0
 	go.uber.org/goleak v1.2.1
