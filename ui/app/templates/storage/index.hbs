@@ -9,76 +9,16 @@
 
 <StorageSubnav />
 <section class="section storage-index">
-  {{!-- <div class="toolbar">
-    <div class="toolbar-item">
-      {{#if this.visibleVolumes.length}}
-        <SearchBox
-          data-test-volumes-search
-          @searchTerm={{mut this.searchTerm}}
-          @onChange={{action this.resetPagination}}
-          @placeholder="Search volumes..."
-        />
-      {{/if}}
-    </div>
-    {{#if this.system.shouldShowNamespaces}}
-      <div class="toolbar-item is-right-aligned is-mobile-full-width">
-        <div class="button-bar">
-          <SingleSelectDropdown
-            data-test-namespace-facet
-            @label="Namespace"
-            @options={{this.optionsNamespaces}}
-            @selection={{this.qpNamespace}}
-            @onSelect={{action this.setFacetQueryParam "qpNamespace"}}
-          />
-        </div>
-      </div>
-    {{/if}}
-  </div> --}}
-
-  <Hds::Alert class="storage-intro" @type="inline" @icon="database" @color="highlight" @title="Storage is in beta" as |A|>
-    <A.Title>Storage</A.Title>
-    <A.Description>
-      Nomad has four main ways to store and persist data:
-      <ul>
-        <li><strong>CSI Volumes:</strong> A flexible option with advanced features like snapshots and resizing.</li>
-        <li><strong>Dynamic Host Volumes:</strong> Easily provisioned for both local and networked storage.</li>
-        <li><strong>Static Host Volumes:</strong> Defined in the Nomad agent's config file, best for infrequently changing storage.</li>
-        <li><strong>Ephemeral Disks:</strong> Best-effort persistence, ideal for rebuildable data.</li>
-      </ul>
-      For more details, visit <Hds::Link::Inline @icon="docs-link" @href="https://developer.hashicorp.com/nomad/docs/operations/stateful-workloads">Considerations for Stateful Workloads</Hds::Link::Inline>.
-    </A.Description>
-  </Hds::Alert>
-
-
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-    <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
-      <header aria-label="Dynamic Host Volumes">
-        <h3>Dynamic Host Volumes</h3>
-      </header>
-      {{#if this.sortedDynamicHostVolumes.length}}
-        <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}}
-          @columns={{this.dhvColumns}} @sortBy="name">
-          <:body as |B|>
-            <B.Tr {{keyboard-shortcut enumerated=true action=(action "openDHV" B.data) }} data-test-dhv-row>
-              <B.Td>
-                {{!-- <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.dhv"
-                  @model={{B.data.name}}>{{B.data.name}}</LinkTo> --}}
-                  {{B.data.name}}
-              </B.Td>
-              <B.Td>{{B.data.namespace.name}}</B.Td>
-              <B.Td>{{B.data.pluginID}}</B.Td>
-              <B.Td>{{B.data.state}}</B.Td>
-            </B.Tr>
-          </:body>
-        </Hds::Table>
-      {{/if}}
-    </Hds::Card::Container>
-
-    <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} class="storage-index-table-card">
       <header aria-label="CSI Volumes">
         <h3>CSI Volumes</h3>
+        <p class="intro">
+          Storage configured by plugins run as Nomad jobs, with advanced features like snapshots and resizing.
+          <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/concepts/plugins/csi" @icon="docs-link" @iconPosition="trailing">Read more</Hds::Link::Inline>
+        </p>
       </header>
       {{#if this.sortedCSIVolumes.length}}
         <Hds::Table @caption="CSI Volumes" @model={{this.sortedCSIVolumes}}
@@ -143,100 +83,162 @@
           </:body>
         </Hds::Table>
       {{else}}
-        {{!-- TODO: --}}
         <p>No CSI Volumes found</p>
       {{/if}}
     </Hds::Card::Container>
+
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} class="storage-index-table-card">
+      <header aria-label="Dynamic Host Volumes">
+        <h3>Dynamic Host Volumes</h3>
+        <p class="intro">
+          Storage provisioned via plugin scripts on a particular client, modifiable without requiring client restart.
+          <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/commands/volume/create" @icon="docs-link" @iconPosition="trailing">Read more</Hds::Link::Inline>
+        </p>
+      </header>
+      {{#if this.sortedDynamicHostVolumes.length}}
+        <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}}
+          @columns={{this.dhvColumns}} @sortBy="name">
+          <:body as |B|>
+            <B.Tr data-test-dhv-row>
+              <B.Td>
+                {{!-- <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.dhv"
+                  @model={{B.data.name}}>{{B.data.name}}</LinkTo> --}}
+                  {{B.data.name}}
+              </B.Td>
+              <B.Td>{{B.data.namespace.name}}</B.Td>
+              <B.Td>{{B.data.pluginID}}</B.Td>
+              <B.Td>{{B.data.state}}</B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+      {{/if}}
+    </Hds::Card::Container>
+
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} class="storage-index-table-card"
+      {{keyboard-shortcut
+        label="Scan for Static Host Volumes"
+        pattern=(array "s" "c" "a" "n")
+        action=(action "performScanForStaticHostVolumes")
+      }}
+    >
+      <header aria-label="Static Host Volumes">
+        <h3>
+          Static Host Volumes
+          <Hds::TooltipButton @text="Static Host Volumes are scanned by reading all nodes in your cluster, so this list will not automatically load or update.">
+            <Hds::Icon @name="info" />
+          </Hds::TooltipButton>
+        </h3>
+        <div class="actions">
+          <Hds::Button
+            @color="secondary"
+            disabled={{this.scanForStaticHostVolumes.isRunning}}
+            @icon={{if this.scanForStaticHostVolumes.isRunning "loading" "search"}}
+            @text="{{if this.scanForStaticHostVolumes.isRunning "Scanning" "Scan"}} for Static Host Volumes"
+            {{on "click" (perform this.scanForStaticHostVolumes)}}
+          />
+          {{#if this.scanForStaticHostVolumes.isRunning}}
+            <Hds::Button
+              autofocus
+              @icon="x"
+              @iconPosition="trailing"
+              @text="cancel"
+              @color="tertiary"
+              {{on "click" (action this.pauseScanForStaticHostVolumes)}}
+            />
+          {{/if}}
+        </div>
+        <p class="intro">
+          Defined in the Nomad agent's config file, best for infrequently changing storage
+        </p>
+      </header>
+      {{#if this.sortedStaticHostVolumes.length}}
+        <Hds::Table @caption="Static Host Volumes" @model={{this.sortedStaticHostVolumes}}
+          @columns={{array
+            (hash key="name" label="Name" isSortable=true)
+            (hash key="path" label="Path" isSortable=true)
+            (hash key="readOnly" label="Read Only?" isSortable=true)
+          }}
+          @sortBy="name"
+        >
+          <:body as |B|>
+            <B.Tr>
+              <B.Td>
+                <LinkTo @route="clients.client" @models={{array B.data.nodeID}}>{{B.data.name}}</LinkTo>
+              </B.Td>
+              <B.Td>{{B.data.path}}</B.Td>
+              <B.Td>{{B.data.readOnly}}</B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+      {{else if
+        (and
+          (not this.scanForStaticHostVolumes.isRunning)
+          this.scanForStaticHostVolumes.lastSuccessful
+        )
+      }}
+        <p>No Static Host Volumes found</p>
+      {{/if}}
+    </Hds::Card::Container>
+
+    <Hds::Card::Container @level="mid" @hasBorder={{true}} class="storage-index-table-card"
+      {{keyboard-shortcut
+        label="Scan for Ephemeral Disks"
+        pattern=(array "s" "c" "a" "n")
+        action=(action "performScanForEphemeralDisks")
+      }}
+    >
+      <header aria-label="Ephemeral Disks">
+        <h3>
+          Ephemeral Disks
+          <Hds::TooltipButton @text="Ephemeral Disks are scanned by reading all allocations in your cluster, so this list will not automatically load or update.">
+            <Hds::Icon @name="info" />
+          </Hds::TooltipButton>
+        </h3>
+        <div class="actions">
+          <Hds::Button
+            @color="secondary"
+            disabled={{this.scanForEphemeralDisks.isRunning}}
+            @icon={{if this.scanForEphemeralDisks.isRunning "loading" "search"}}
+            @text="{{if this.scanForEphemeralDisks.isRunning "Scanning" "Scan"}} for Ephemeral Disks"
+            {{on "click" (perform this.scanForEphemeralDisks)}}
+          />
+          {{#if this.scanForEphemeralDisks.isRunning}}
+            <Hds::Button
+              autofocus
+              @icon="x"
+              @iconPosition="trailing"
+              @text="cancel"
+              @color="tertiary"
+              {{on "click" (action this.pauseScanForEphemeralDisks)}}
+            />
+          {{/if}}
+        </div>
+        <p class="intro">
+          Best-effort persistence, ideal for rebuildable data. Stored in the <code>/alloc/data</code> directory in a given allocation.
+        </p>
+      </header>
+      {{#if this.sortedEphemeralDisks.length}}
+        <Hds::Table @caption="Ephemeral Disks" @model={{this.sortedEphemeralDisks}}
+          @columns={{array (hash key="name" label="Name") (hash key="size" label="Size" isSortable=true)}} @sortBy="size" @sortOrder="desc">
+          <:body as |B|>
+            <B.Tr>
+              <B.Td>
+                <LinkTo @route="allocations.allocation.fs" @models={{array B.data.id 'alloc/data'}}>{{B.data.name}}</LinkTo>
+              </B.Td>
+              <B.Td>{{B.data.size}}</B.Td>
+            </B.Tr>
+          </:body>
+        </Hds::Table>
+        {{!-- TODO: pagination for all tables here --}}
+      {{else if
+        (and
+          (not this.scanForEphemeralDisks.isRunning)
+          this.scanForEphemeralDisks.lastSuccessful
+        )
+      }}
+        <p>No Ephemeral Disks found</p>
+      {{/if}}
+    </Hds::Card::Container>
+
   {{/if}}
-
-  <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
-    <header aria-label="Ephemeral Disks">
-      <h3>Ephemeral Disks</h3>
-      <div class="actions">
-        <Hds::Button
-          @color="secondary"
-          disabled={{this.scanForEphemeralDisks.isRunning}}
-          @icon={{if this.scanForEphemeralDisks.isRunning "loading" "plus"}}
-          @text="{{if this.scanForEphemeralDisks.isRunning "Scanning" "Scan"}} for Ephemeral Disks"
-          {{on "click" (perform this.scanForEphemeralDisks)}}
-        />
-        {{#if this.scanForEphemeralDisks.isRunning}}
-          <Hds::Button
-            @icon="pause"
-            @text="cancel"
-            @color="tertiary"
-            {{on "click" (action this.pauseScanForEphemeralDisks)}}
-          />
-        {{/if}}
-      </div>
-    </header>
-    {{#if this.sortedEphemeralDisks.length}}
-      <Hds::Table @caption="Ephemeral Disks" @model={{this.sortedEphemeralDisks}}
-        @columns={{array (hash key="name" label="Name") (hash key="size" label="Size" isSortable=true)}} @sortBy="size" @sortOrder="desc">
-        <:body as |B|>
-          <B.Tr>
-            <B.Td>
-              <LinkTo @route="allocations.allocation.fs" @models={{array B.data.id 'alloc/data'}}>{{B.data.name}}</LinkTo>
-            </B.Td>
-            <B.Td>{{B.data.size}}</B.Td>
-          </B.Tr>
-        </:body>
-      </Hds::Table>
-    {{else if
-      (and
-        (not this.scanForEphemeralDisks.isRunning)
-        this.scanForEphemeralDisks.lastSuccessful
-      )
-    }}
-      <p>No Ephemeral Disks found</p>
-    {{/if}}
-  </Hds::Card::Container>
-
-  <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
-    <header aria-label="Static Host Volumes">
-      <h3>Static Host Volumes</h3>
-      <div class="actions">
-        <Hds::Button
-          @color="secondary"
-          disabled={{this.scanForStaticHostVolumes.isRunning}}
-          @icon={{if this.scanForStaticHostVolumes.isRunning "loading" "plus"}}
-          @text="{{if this.scanForStaticHostVolumes.isRunning "Scanning" "Scan"}} for Static Host Volumes"
-          {{on "click" (perform this.scanForStaticHostVolumes)}}
-        />
-        {{#if this.scanForStaticHostVolumes.isRunning}}
-          <Hds::Button
-            @icon="pause"
-            @text="cancel"
-            @color="tertiary"
-            {{on "click" (action this.pauseScanForStaticHostVolumes)}}
-          />
-        {{/if}}
-      </div>
-    </header>
-    {{#if this.sortedStaticHostVolumes.length}}
-      <Hds::Table @caption="Static Host Volumes" @model={{this.sortedStaticHostVolumes}}
-        @columns={{array
-          (hash key="name" label="Name" isSortable=true)
-          (hash key="path" label="Path" isSortable=true)
-          (hash key="readOnly" label="Read Only?" isSortable=true)
-        }}
-        @sortBy="name"
-      >
-        <:body as |B|>
-          <B.Tr>
-            <B.Td>{{B.data.name}}</B.Td>
-            <B.Td>{{B.data.path}}</B.Td>
-            <B.Td>{{B.data.readOnly}}</B.Td>
-          </B.Tr>
-        </:body>
-      </Hds::Table>
-    {{else if
-      (and
-        (not this.scanForStaticHostVolumes.isRunning)
-        this.scanForStaticHostVolumes.lastSuccessful
-      )
-    }}
-      <p>No Static Host Volumes found</p>
-    {{/if}}
-  </Hds::Card::Container>
 </section>

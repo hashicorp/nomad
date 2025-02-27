@@ -129,17 +129,28 @@ export default class IndexController extends Controller {
     this.sortedStaticHostVolumes = allNodes
       .map((node) => {
         const hostVolumes = node.hostVolumes.filter((volume) => {
-          return !volume.volumeId;
+          return !volume.volumeID;
         });
         return hostVolumes.map((volume) => {
           return {
             name: volume.name,
             path: volume.path,
             readOnly: volume.readOnly,
+            nodeID: node.id,
           };
         });
       })
       .flat();
+  }
+
+  // keyboard-shortcut-friendly actions
+
+  @action performScanForEphemeralDisks() {
+    this.scanForEphemeralDisks.perform();
+  }
+
+  @action performScanForStaticHostVolumes() {
+    this.scanForStaticHostVolumes.perform();
   }
 
   @action pauseScanForEphemeralDisks() {
