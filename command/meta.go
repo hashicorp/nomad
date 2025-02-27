@@ -120,6 +120,30 @@ func (m *Meta) AutocompleteFlags(fs FlagSetFlags) complete.Flags {
 	}
 }
 
+// askQuestion asks question to user until they provide a valid response.
+func (m *Meta) askQuestion(question string) bool {
+	for {
+		answer, err := m.Ui.Ask(m.Colorize().Color(fmt.Sprintf("[?] %s", question)))
+		if err != nil {
+			if err.Error() != "interrupted" {
+				m.Ui.Output(err.Error())
+				os.Exit(1)
+			}
+			os.Exit(0)
+		}
+
+		switch strings.TrimSpace(strings.ToLower(answer)) {
+		case "", "y", "yes":
+			return true
+		case "n", "no":
+			return false
+		default:
+			m.Ui.Output(fmt.Sprintf(`%q is not a valid response, please answer "yes" or "no".`, answer))
+			continue
+		}
+	}
+}
+
 // ApiClientFactory is the signature of a API client factory
 type ApiClientFactory func() (*api.Client, error)
 

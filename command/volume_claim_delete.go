@@ -5,7 +5,6 @@ package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/hashicorp/cli"
@@ -99,28 +98,4 @@ claim another feasible volume ID during reschedule or replacement.
 	// Give some feedback to indicate the deletion was successful.
 	c.Ui.Output(fmt.Sprintf("Task group host volume claim %s successfully deleted", claimID))
 	return 0
-}
-
-// askQuestion asks question to user until they provide a valid response.
-func (c *VolumeClaimDeleteCommand) askQuestion(question string) bool {
-	for {
-		answer, err := c.Ui.Ask(c.Colorize().Color(fmt.Sprintf("[?] %s", question)))
-		if err != nil {
-			if err.Error() != "interrupted" {
-				c.Ui.Output(err.Error())
-				os.Exit(1)
-			}
-			os.Exit(0)
-		}
-
-		switch strings.TrimSpace(strings.ToLower(answer)) {
-		case "", "y", "yes":
-			return true
-		case "n", "no":
-			return false
-		default:
-			c.Ui.Output(fmt.Sprintf(`%q is not a valid response, please answer "yes" or "no".`, answer))
-			continue
-		}
-	}
 }
