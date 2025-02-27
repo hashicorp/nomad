@@ -1139,6 +1139,7 @@ func TestACLAuthMethod_Equal(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCClientAssertion: validClientAssertion(),
 			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
@@ -1192,6 +1193,7 @@ func TestACLAuthMethod_Copy(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCClientAssertion: validClientAssertion(),
 			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
@@ -1219,6 +1221,8 @@ func TestACLAuthMethod_Copy(t *testing.T) {
 func TestACLAuthMethod_Validate(t *testing.T) {
 	ci.Parallel(t)
 
+	minTTL, _ := time.ParseDuration("10s")
+	maxTTL, _ := time.ParseDuration("10h")
 	goodTTL, _ := time.ParseDuration("3600s")
 	badTTL, _ := time.ParseDuration("3600h")
 
@@ -1246,8 +1250,6 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			minTTL, _ := time.ParseDuration("10s")
-			maxTTL, _ := time.ParseDuration("10h")
 			got := tt.method.Validate(minTTL, maxTTL)
 			if tt.wantErr {
 				must.Error(t, got, must.Sprintf(
@@ -1261,6 +1263,35 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 			}
 		})
 	}
+
+	// test that Validate calls relevant fields' Validate, and so on
+	t.Run("validate cascade", func(t *testing.T) {
+		goodMethod := &ACLAuthMethod{
+			// min need to pass top-level validation
+			Name:          "test-name",
+			Type:          "OIDC",
+			TokenLocality: "local",
+			MaxTokenTTL:   goodTTL,
+		}
+		err := goodMethod.Validate(minTTL, maxTTL)
+		must.NoError(t, err)
+
+		deeplyBadClientAssertion := goodMethod.Copy()
+		deeplyBadClientAssertion.Config = &ACLAuthMethodConfig{
+			OIDCClientAssertion: &OIDCClientAssertion{
+				// need these to pass
+				Audience:  []string{"test-audience"},
+				KeySource: OIDCKeySourcePrivateKey,
+				// then fail validation nested way down in here
+				PrivateKey: &OIDCClientAssertionKey{
+					// cannot set both of these
+					Base64PemKey: "test-b64",
+					PemKeyFile:   "test-file",
+				}},
+		}
+		err = deeplyBadClientAssertion.Validate(minTTL, maxTTL)
+		must.ErrorContains(t, err, "require exactly one of")
+	})
 }
 
 // Sanitize method should redact sensitive values
@@ -1303,6 +1334,7 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCClientAssertion: validClientAssertion(),
 			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
@@ -1322,6 +1354,7 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 	minTTL, _ := time.ParseDuration("10s")
 	maxTTL, _ := time.ParseDuration("10h")
 	must.NoError(t, am1.Validate(minTTL, maxTTL))
+	must.Eq(t, am1.Config.OIDCClientAssertion.PrivateKey.KeyID, "test-key-id")
 }
 
 func TestACLAuthMethodConfig_Copy(t *testing.T) {
@@ -1331,6 +1364,7 @@ func TestACLAuthMethodConfig_Copy(t *testing.T) {
 		OIDCDiscoveryURL:    "http://example.com",
 		OIDCClientID:        "mock",
 		OIDCClientSecret:    "very secret secret",
+		OIDCClientAssertion: validClientAssertion(),
 		OIDCDisableUserInfo: false,
 		OIDCScopes:          []string{"groups"},
 		BoundAudiences:      []string{"audience1", "audience2"},
@@ -1346,6 +1380,7 @@ func TestACLAuthMethodConfig_Copy(t *testing.T) {
 
 	amc3 := amc1.Copy()
 	amc3.AllowedRedirectURIs = []string{"new", "urls"}
+	amc3.OIDCClientAssertion.PrivateKey.KeyID = "new-key-id"
 	must.NotEq(t, amc1, amc3)
 }
 
@@ -1785,4 +1820,19 @@ func TestACLOIDCCompleteAuthRequest_Validate(t *testing.T) {
 	must.StrContains(t, err.Error(), "missing state")
 	must.StrContains(t, err.Error(), "missing code")
 	must.StrContains(t, err.Error(), "missing redirect URI")
+}
+
+func validClientAssertion() *OIDCClientAssertion {
+	return &OIDCClientAssertion{
+		KeySource: OIDCKeySourcePrivateKey,
+		Audience:  []string{"test-audience"},
+		PrivateKey: &OIDCClientAssertionKey{
+			PemKeyFile: "test-key-file",
+			KeyID:      "test-key-id",
+		},
+		ExtraHeaders: map[string]string{"test-header": "test-value"},
+		KeyAlgorithm: "test-key-algo",
+		// clientSecret is ordinarily inherited from parent ACLAuthMethodConfig
+		clientSecret: "test-client-secret",
+	}
 }
