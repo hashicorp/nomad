@@ -841,9 +841,9 @@ func (a *ACLAuthMethod) SetHash() []byte {
 				_, _ = hash.Write([]byte(v))
 			}
 			if a.Config.OIDCClientAssertion.PrivateKey != nil {
-				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.Base64PemKey))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemKeyBase64))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemKeyFile))
-				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.Base64PemCert))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemCertBase64))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemCertFile))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.KeyID))
 			}
@@ -1300,10 +1300,10 @@ func (c *OIDCClientAssertion) Validate() error {
 // to use to sign the private key JWT.
 // See api.OIDCClientAssertionKey for full field descriptions.
 type OIDCClientAssertionKey struct {
-	Base64PemKey string
+	PemKeyBase64 string
 	PemKeyFile   string
 
-	Base64PemCert string
+	PemCertBase64 string
 	PemCertFile   string
 	KeyID         string
 }
@@ -1324,25 +1324,25 @@ func (k *OIDCClientAssertionKey) Validate() error {
 	}
 
 	// mutual exclusive key fields
-	if k.Base64PemKey == "" && k.PemKeyFile == "" {
-		return errors.New("missing Base64PemKey or PemKeyFile")
+	if k.PemKeyBase64 == "" && k.PemKeyFile == "" {
+		return errors.New("missing PemKeyBase64 or PemKeyFile")
 	}
-	if k.Base64PemKey != "" && k.PemKeyFile != "" {
-		return errors.New("require exactly one of Base64PemKey or PemKeyFile")
+	if k.PemKeyBase64 != "" && k.PemKeyFile != "" {
+		return errors.New("require exactly one of PemKeyBase64 or PemKeyFile")
 	}
 
 	// mutual exclusive cert fields
-	if k.Base64PemCert == "" && k.PemCertFile == "" && k.KeyID == "" {
-		return errors.New("missing Base64PemCert, PemCertFile, or KeyID")
+	if k.PemCertBase64 == "" && k.PemCertFile == "" && k.KeyID == "" {
+		return errors.New("missing PemCertBase64, PemCertFile, or KeyID")
 	}
-	errOnlyOne := errors.New("require only one of Base64PemCert, PemCertFile, or KeyID")
-	if k.Base64PemCert != "" && (k.PemCertFile != "" || k.KeyID == "") {
+	errOnlyOne := errors.New("require only one of PemCertBase64, PemCertFile, or KeyID")
+	if k.PemCertBase64 != "" && (k.PemCertFile != "" || k.KeyID != "") {
 		return errOnlyOne
 	}
-	if k.PemCertFile != "" && (k.Base64PemCert != "" || k.KeyID != "") {
+	if k.PemCertFile != "" && (k.PemCertBase64 != "" || k.KeyID != "") {
 		return errOnlyOne
 	}
-	if k.KeyID != "" && (k.Base64PemCert != "" || k.PemCertFile != "") {
+	if k.KeyID != "" && (k.PemCertBase64 != "" || k.PemCertFile != "") {
 		return errOnlyOne
 	}
 
