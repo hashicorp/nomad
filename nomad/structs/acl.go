@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strconv"
@@ -1082,6 +1083,9 @@ type ACLAuthMethodConfig struct {
 }
 
 func (a *ACLAuthMethodConfig) Canonicalize() {
+	if a == nil {
+		return
+	}
 	if a.OIDCClientAssertion != nil {
 		// client assertions inherit certain values from auth method
 		if len(a.OIDCClientAssertion.Audience) == 0 {
@@ -1093,10 +1097,11 @@ func (a *ACLAuthMethodConfig) Canonicalize() {
 }
 
 func (a *ACLAuthMethodConfig) Validate() error {
-	if a.OIDCClientAssertion != nil {
-		if err := a.OIDCClientAssertion.Validate(); err != nil {
-			return fmt.Errorf("invalid client assertion config: %w", err)
-		}
+	if a == nil {
+		return nil
+	}
+	if err := a.OIDCClientAssertion.Validate(); err != nil {
+		return fmt.Errorf("invalid client assertion config: %w", err)
 	}
 	return nil
 }
@@ -1116,6 +1121,7 @@ func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
 	c.AllowedRedirectURIs = slices.Clone(a.AllowedRedirectURIs)
 	c.DiscoveryCaPem = slices.Clone(a.DiscoveryCaPem)
 	c.SigningAlgs = slices.Clone(a.SigningAlgs)
+	c.OIDCClientAssertion = a.OIDCClientAssertion.Copy()
 
 	return c
 }
@@ -1229,6 +1235,18 @@ type OIDCClientAssertion struct {
 	clientSecret string
 }
 
+func (c *OIDCClientAssertion) Copy() *OIDCClientAssertion {
+	if c == nil {
+		return nil
+	}
+	n := new(OIDCClientAssertion)
+	*n = *c
+	n.Audience = slices.Clone(c.Audience)
+	n.PrivateKey = c.PrivateKey.Copy()
+	n.ExtraHeaders = maps.Clone(c.ExtraHeaders)
+	return n
+}
+
 func (c *OIDCClientAssertion) Canonicalize() {
 	if c == nil {
 		return
@@ -1253,8 +1271,8 @@ func (c *OIDCClientAssertion) ClientSecret() string {
 }
 
 func (c *OIDCClientAssertion) Validate() error {
-	if c == nil { // guard, shouldn't happen
-		return errors.New("nil OIDCClientAssertion")
+	if c == nil {
+		return nil
 	}
 	if len(c.Audience) == 0 {
 		return errors.New("audience is required")
@@ -1290,10 +1308,19 @@ type OIDCClientAssertionKey struct {
 	KeyID         string
 }
 
+func (k *OIDCClientAssertionKey) Copy() *OIDCClientAssertionKey {
+	if k == nil {
+		return nil
+	}
+	n := new(OIDCClientAssertionKey)
+	*n = *k
+	return n
+}
+
 // Validate ensures that one Key and one Cert or KeyID are provided.
 func (k *OIDCClientAssertionKey) Validate() error {
-	if k == nil { // guard, shouldn't happen
-		return errors.New("nil OIDCClientAssertionKey")
+	if k == nil {
+		return nil
 	}
 
 	// mutual exclusive key fields
