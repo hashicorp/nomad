@@ -1003,30 +1003,30 @@ type OIDCClientAssertion struct {
 
 // OIDCClientAssertionKey contains key material provided by users for Nomad
 // to use to sign the private key JWT.
-// Base64PemKey or PemKeyFile must contain an RSA private key in PEM format.
-// Base64PemCert, PemCertFile may contain an x509 certificate created with
+// PemKeyBase64 or PemKeyFile must contain an RSA private key in PEM format.
+// PemCertBase64, PemCertFile may contain an x509 certificate created with
 // the Key, used to derive the KeyID. Alternatively, KeyID may be set manually.
 type OIDCClientAssertionKey struct {
-	// Base64PemKey is the private key, in pem format, base64-encoded.
+	// PemKeyBase64 is the private key, in pem format, base64-encoded.
 	// It is used to sign the JWT.
 	// Mutually exclusive with PemKeyFile.
-	Base64PemKey string
+	PemKeyBase64 string
 	// PemKeyFile is the path to a private key on disk, in pem format.
 	// It is used to sign the JWT.
-	// Mutually exclusive with Base64PemKey.
+	// Mutually exclusive with PemKeyBase64.
 	PemKeyFile string
 
-	// Base64PemCert is a certificate, signed by the private key, in pem format,
+	// PemCertBase64 is a certificate, signed by the private key, in pem format,
 	// base64-encoded. It is used to derive an x5t-style KeyID.
 	// Mutually exclusive with PemCertFile and KeyID.
-	Base64PemCert string
+	PemCertBase64 string
 	// PemCertFile is a certificate, signed by the private key, on disk,
 	// in pem format. It is used to derive an x5t-style KeyID.
-	// Mutually exclusive with Base64PemCert and KeyID.
+	// Mutually exclusive with PemCertBase64 and KeyID.
 	PemCertFile string
 	// KeyID may be set manually if needed to satisfy an OIDC provider's
 	// unique requirements.
-	// Mutually exclusive with Base64PemCert and PemCertFile.
+	// Mutually exclusive with PemCertBase64 and PemCertFile.
 	KeyID string
 }
 

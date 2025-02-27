@@ -1285,7 +1285,7 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 				// then fail validation nested way down in here
 				PrivateKey: &OIDCClientAssertionKey{
 					// cannot set both of these
-					Base64PemKey: "test-b64",
+					PemKeyBase64: "test-b64",
 					PemKeyFile:   "test-file",
 				}},
 		}
