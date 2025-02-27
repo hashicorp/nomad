@@ -89,7 +89,7 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.
 }
 
 // getCassPrivateKey parses the structs.OIDCClientAssertionKey PemKeyFile
-// or Base64PemKey, depending on which is set.
+// or PemKeyBase64, depending on which is set.
 func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, err error) {
 	var bts []byte
 	var source string // for informative error messages
@@ -103,10 +103,10 @@ func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, 
 		}
 	}
 	// or base64 string
-	if k.Base64PemKey != "" {
-		source = "Base64PemKey"
-		bts = make([]byte, base64.StdEncoding.DecodedLen(len(k.Base64PemKey)))
-		_, err := base64.StdEncoding.Decode(bts, []byte(k.Base64PemKey))
+	if k.PemKeyBase64 != "" {
+		source = "PemKeyBase64"
+		bts = make([]byte, base64.StdEncoding.DecodedLen(len(k.PemKeyBase64)))
+		_, err := base64.StdEncoding.Decode(bts, []byte(k.PemKeyBase64))
 		if err != nil {
 			return nil, fmt.Errorf("error decoding %s: %w", source, err)
 		}
@@ -120,7 +120,7 @@ func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, 
 }
 
 // getCassCert parses the structs.OIDCClientAssertionKey PemCertFile
-// or Base64PemCert, depending on which is set.
+// or PemCertBase64, depending on which is set.
 func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 	var bts []byte
 	var err error
@@ -135,10 +135,10 @@ func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 		}
 	}
 	// or base64 string
-	if k.Base64PemCert != "" {
-		source = "Base64PemCert"
-		bts = make([]byte, base64.StdEncoding.DecodedLen(len(k.Base64PemCert)))
-		_, err := base64.StdEncoding.Decode(bts, []byte(k.Base64PemCert))
+	if k.PemCertBase64 != "" {
+		source = "PemCertBase64"
+		bts = make([]byte, base64.StdEncoding.DecodedLen(len(k.PemCertBase64)))
+		_, err := base64.StdEncoding.Decode(bts, []byte(k.PemCertBase64))
 		if err != nil {
 			return nil, fmt.Errorf("error decoding %s: %w", source, err)
 		}
