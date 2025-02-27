@@ -564,30 +564,6 @@ func (s *SetupVaultCommand) createNamespace(ns string) error {
 	return nil
 }
 
-// askQuestion asks question to user until they provide a valid response.
-func (s *SetupVaultCommand) askQuestion(question string) bool {
-	for {
-		answer, err := s.Ui.Ask(s.Colorize().Color(fmt.Sprintf("[?] %s", question)))
-		if err != nil {
-			if err.Error() != "interrupted" {
-				s.Ui.Output(err.Error())
-				os.Exit(1)
-			}
-			os.Exit(0)
-		}
-
-		switch strings.TrimSpace(strings.ToLower(answer)) {
-		case "", "y", "yes":
-			return true
-		case "n", "no":
-			return false
-		default:
-			s.Ui.Output(fmt.Sprintf(`%q is not a valid response, please answer "yes" or "no".`, answer))
-			continue
-		}
-	}
-}
-
 func (s *SetupVaultCommand) handleNo() {
 	s.Ui.Warn(`
 By answering "no" to any of these questions, you are risking an incorrect Vault
