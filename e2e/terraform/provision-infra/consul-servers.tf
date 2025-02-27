@@ -183,11 +183,11 @@ resource "null_resource" "setup_consul_workload_identity" {
   provisioner "local-exec" {
     command = "${path.module}/scripts/setup-consul-wi.sh"
     environment = {
-      CONSUL_HTTP_ADDR           = "https://${aws_instance.consul_server.public_ip}:8501"
-      CONSUL_CACERT              = "${local.keys_dir}/tls_ca.crt"
-      CONSUL_HTTP_TOKEN          = "${random_uuid.consul_initial_management_token.result}"
-      CONSUL_AGENT_TOKEN         = "${random_uuid.consul_agent_token.result}"
-      NOMAD_SERVER_ADDR          = "https://${aws_instance.server[0].public_ip}:4646"
+      CONSUL_HTTP_ADDR   = "https://${aws_instance.consul_server.public_ip}:8501"
+      CONSUL_CACERT      = "${local.keys_dir}/tls_ca.crt"
+      CONSUL_HTTP_TOKEN  = "${random_uuid.consul_initial_management_token.result}"
+      CONSUL_AGENT_TOKEN = "${random_uuid.consul_agent_token.result}"
+      NOMAD_SERVER_ADDR  = "https://${aws_instance.server[0].public_ip}:4646"
     }
   }
 }
