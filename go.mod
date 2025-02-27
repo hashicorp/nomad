@@ -128,7 +128,7 @@ require (
 	go.etcd.io/bbolt v1.4.0
 	go.uber.org/goleak v1.2.1
 	golang.org/x/crypto v0.35.0
-	golang.org/x/mod v0.22.0
+	golang.org/x/mod v0.23.0
 	golang.org/x/sync v0.11.0
 	golang.org/x/sys v0.30.0
 	golang.org/x/time v0.10.0
