@@ -54,7 +54,7 @@
     <ForbiddenMessage />
   {{else}}
     <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
-      <header>
+      <header aria-label="Dynamic Host Volumes">
         <h3>Dynamic Host Volumes</h3>
       </header>
       {{#if this.sortedDynamicHostVolumes.length}}
@@ -77,7 +77,7 @@
     </Hds::Card::Container>
 
     <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
-      <header>
+      <header aria-label="CSI Volumes">
         <h3>CSI Volumes</h3>
       </header>
       {{#if this.sortedCSIVolumes.length}}
@@ -150,7 +150,7 @@
   {{/if}}
 
   <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
-    <header>
+    <header aria-label="Ephemeral Disks">
       <h3>Ephemeral Disks</h3>
       <div class="actions">
         <Hds::Button
@@ -193,7 +193,7 @@
   </Hds::Card::Container>
 
   <Hds::Card::Container @level="mid" @hasBorder={{false}} class="storage-index-table-card">
-    <header>
+    <header aria-label="Static Host Volumes">
       <h3>Static Host Volumes</h3>
       <div class="actions">
         <Hds::Button
@@ -214,7 +214,6 @@
       </div>
     </header>
     {{#if this.sortedStaticHostVolumes.length}}
-      {{log "SHVS" this.sortedStaticHostVolumes}}
       <Hds::Table @caption="Static Host Volumes" @model={{this.sortedStaticHostVolumes}}
         @columns={{array
           (hash key="name" label="Name" isSortable=true)
