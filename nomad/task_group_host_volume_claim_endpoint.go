@@ -66,12 +66,7 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 				return err
 			}
 
-			tokenizer := paginator.NewStructsTokenizer(iter,
-				paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
-				},
-			)
+			tokenizer := paginator.NamespaceIDTokenizer[*structs.TaskGroupHostVolumeClaim](args.NextToken)
 
 			allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
 			filters := []paginator.Filter{

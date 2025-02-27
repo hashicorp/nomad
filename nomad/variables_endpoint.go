@@ -424,12 +424,7 @@ func (sv *Variables) List(
 
 			// Generate the tokenizer to use for pagination using namespace and
 			// ID to ensure complete uniqueness.
-			tokenizer := paginator.NewStructsTokenizer(iter,
-				paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
-				},
-			)
+			tokenizer := paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken)
 
 			filters := []paginator.Filter{
 				paginator.GenericFilter{
@@ -515,11 +510,7 @@ func (sv *Variables) listAllVariables(
 
 			// Generate the tokenizer to use for pagination using namespace and
 			// ID to ensure complete uniqueness.
-			tokenizer := paginator.NewStructsTokenizer(iter,
-				paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
-				})
+			tokenizer := paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken)
 
 			filters := []paginator.Filter{
 				paginator.GenericFilter{

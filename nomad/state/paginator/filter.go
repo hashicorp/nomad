@@ -31,7 +31,7 @@ func (f NamespaceFilter) Evaluate(raw interface{}) (bool, error) {
 		return false, nil
 	}
 
-	item, _ := raw.(NamespaceGetter)
+	item, _ := raw.(namespaceGetter)
 	namespace := item.GetNamespace()
 
 	if f.AllowableNamespaces == nil {

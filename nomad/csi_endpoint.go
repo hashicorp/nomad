@@ -113,13 +113,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				return err
 			}
 
-			tokenizer := paginator.NewStructsTokenizer(
-				iter,
-				paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
-				},
-			)
+			tokenizer := paginator.NamespaceIDTokenizer[*structs.CSIVolume](args.NextToken)
 			volFilter := paginator.GenericFilter{
 				Allow: func(raw interface{}) (bool, error) {
 					vol := raw.(*structs.CSIVolume)

@@ -477,31 +477,21 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 
 			// Capture all the deployments
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
+			var tokenizer paginator.Tokenizer[*structs.Deployment]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
+				tokenizer = paginator.IDTokenizer[*structs.Deployment](args.NextToken)
 			} else if namespace != structs.AllNamespacesSentinel {
 				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Deployment](args.NextToken)
 			} else {
 				iter, err = store.Deployments(ws, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Deployment](args.NextToken)
 			}
 			if err != nil {
 				return err
 			}
-
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
 
 			filters := []paginator.Filter{
 				paginator.NamespaceFilter{

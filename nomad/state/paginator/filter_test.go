@@ -26,7 +26,7 @@ func TestGenericFilter(t *testing.T) {
 		},
 	}}
 	iter := newTestIterator(ids)
-	tokenizer := testTokenizer{}
+	tokenizer := IDTokenizer[*mockObject]("")
 	opts := structs.QueryOptions{
 		PerPage: 3,
 	}
@@ -85,7 +85,7 @@ func TestNamespaceFilter(t *testing.T) {
 				AllowableNamespaces: tc.allowable,
 			}}
 			iter := newTestIteratorWithMocks(mocks)
-			tokenizer := testTokenizer{}
+			tokenizer := IDTokenizer[*mockObject]("")
 			opts := structs.QueryOptions{
 				PerPage: int32(len(mocks)),
 			}
@@ -174,8 +174,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
-			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
-
+			tokenizer := IDTokenizer[*structs.Evaluation]("")
 			var evals []*structs.Evaluation
 			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
@@ -199,7 +198,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
-			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
+			tokenizer := IDTokenizer[*structs.Evaluation]("")
 
 			var evals []*structs.Evaluation
 			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
@@ -237,7 +236,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
-			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
+			tokenizer := IDTokenizer[*structs.Evaluation](opts.NextToken)
 
 			var evals []*structs.Evaluation
 			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
@@ -276,7 +275,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
-			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
+			tokenizer := IDTokenizer[*structs.Evaluation](opts.NextToken)
 
 			var evals []*structs.Evaluation
 			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {

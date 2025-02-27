@@ -109,12 +109,8 @@ func (j *Job) Statuses(
 			}
 
 			// set up tokenizer and filters
-			tokenizer := paginator.NewStructsTokenizer(
-				iter,
-				paginator.StructsTokenizerOptions{
-					OnlyModifyIndex: true,
-				},
-			)
+			tokenizer := paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken)
+
 			filters := []paginator.Filter{
 				paginator.NamespaceFilter{
 					AllowableNamespaces: allowableNamespaces,

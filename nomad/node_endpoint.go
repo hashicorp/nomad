@@ -1608,7 +1608,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 			// Generate the tokenizer to use for pagination using the populated
 			// paginatorOpts object. The ID of a node must be unique within the
 			// region, therefore we only need WithID on the paginator options.
-			tokenizer := paginator.NewStructsTokenizer(iter, paginator.StructsTokenizerOptions{WithID: true})
+			tokenizer := paginator.IDTokenizer[*structs.Node](args.NextToken)
 
 			var nodes []*structs.NodeListStub
 

@@ -678,7 +678,6 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			// Scan all the evaluations
 			var err error
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
@@ -689,23 +688,16 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			} else if err != nil {
 				return err
 			} else {
+				var tokenizer paginator.Tokenizer[*structs.Evaluation]
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
 					iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithID: true,
-					}
+					tokenizer = paginator.IDTokenizer[*structs.Evaluation](args.NextToken)
 				} else if namespace != structs.AllNamespacesSentinel {
 					iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithCreateIndex: true,
-						WithID:          true,
-					}
+					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Evaluation](args.NextToken)
 				} else {
 					iter, err = store.Evals(ws, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithCreateIndex: true,
-						WithID:          true,
-					}
+					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Evaluation](args.NextToken)
 				}
 				if err != nil {
 					return err
@@ -718,7 +710,6 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 					return false
 				})
 
-				tokenizer := paginator.NewStructsTokenizer(iter, opts)
 				filters := []paginator.Filter{
 					paginator.NamespaceFilter{
 						AllowableNamespaces: allowableNamespaces,

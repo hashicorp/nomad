@@ -884,30 +884,21 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			// Iterate over all the tokens
 			var err error
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
+			var tokenizer paginator.Tokenizer[*structs.ACLToken]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
+				tokenizer = paginator.IDTokenizer[*structs.ACLToken](args.NextToken)
 			} else if args.GlobalOnly {
 				iter, err = state.ACLTokensByGlobal(ws, true, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
+				tokenizer = paginator.IDTokenizer[*structs.ACLToken](args.NextToken)
 			} else {
 				iter, err = state.ACLTokens(ws, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.ACLToken](args.NextToken)
 			}
 			if err != nil {
 				return err
 			}
-
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
 
 			var tokens []*structs.ACLTokenListStub
 			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,

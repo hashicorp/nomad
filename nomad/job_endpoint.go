@@ -1488,13 +1488,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 					return err
 				}
 
-				tokenizer := paginator.NewStructsTokenizer(
-					iter,
-					paginator.StructsTokenizerOptions{
-						WithNamespace: true,
-						WithID:        true,
-					},
-				)
+				tokenizer := paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken)
 				filters := []paginator.Filter{
 					paginator.NamespaceFilter{
 						AllowableNamespaces: allowableNamespaces,

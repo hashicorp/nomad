@@ -130,14 +130,7 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				return err
 			}
 
-			// Generate the tokenizer to use for pagination using namespace and
-			// ID to ensure complete uniqueness.
-			tokenizer := paginator.NewStructsTokenizer(iter,
-				paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
-				},
-			)
+			tokenizer := paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken)
 
 			filters := []paginator.Filter{
 				paginator.GenericFilter{

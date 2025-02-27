@@ -4,9 +4,7 @@
 package paginator
 
 import (
-	"cmp"
 	"fmt"
-	"strconv"
 
 	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -21,14 +19,12 @@ type Iterator interface {
 }
 
 // Paginator wraps an iterator and returns only the expected number of pages.
-type Paginator struct {
+type Paginator[T any] struct {
 	iter           Iterator
-	tokenizer      Tokenizer
+	tokenizer      Tokenizer[T]
 	filters        []Filter
 	perPage        int32
 	itemCount      int32
-	seekingToken   string
-	seekingUint    uint64
 	nextToken      string
 	reverse        bool
 	nextTokenFound bool
@@ -43,8 +39,8 @@ type Paginator struct {
 // NewPaginator returns a new Paginator. Any error creating the paginator is
 // due to bad user filter input, RPC functions should therefore return a 400
 // error code along with an appropriate message.
-func NewPaginator(iter Iterator, tokenizer Tokenizer, filters []Filter,
-	opts structs.QueryOptions, appendFunc func(interface{}) error) (*Paginator, error) {
+func NewPaginator[T any](iter Iterator, tokenizer Tokenizer[T], filters []Filter,
+	opts structs.QueryOptions, appendFunc func(interface{}) error) (*Paginator[T], error) {
 
 	var evaluator *bexpr.Evaluator
 	var err error
@@ -57,18 +53,11 @@ func NewPaginator(iter Iterator, tokenizer Tokenizer, filters []Filter,
 		filters = append(filters, evaluator)
 	}
 
-	// attempt to convert token to uint for iterators ordered numerically.
-	// it's safe to ignore the error here because the `next` method ignores
-	// this field for string tokens and 0 is valid for an unset numeric token.
-	seekingUint, _ := strconv.ParseUint(opts.NextToken, 10, 64)
-
-	return &Paginator{
+	return &Paginator[T]{
 		iter:           iter,
 		tokenizer:      tokenizer,
 		filters:        filters,
 		perPage:        opts.PerPage,
-		seekingToken:   opts.NextToken,
-		seekingUint:    seekingUint,
 		reverse:        opts.Reverse,
 		nextTokenFound: opts.NextToken == "",
 		appendFunc:     appendFunc,
@@ -77,7 +66,7 @@ func NewPaginator(iter Iterator, tokenizer Tokenizer, filters []Filter,
 
 // Page populates a page by running the append function
 // over all results. Returns the next token.
-func (p *Paginator) Page() (string, error) {
+func (p *Paginator[T]) Page() (string, error) {
 DONE:
 	for {
 		raw, andThen := p.next()
@@ -97,33 +86,25 @@ DONE:
 	return p.nextToken, p.pageErr
 }
 
-func (p *Paginator) next() (interface{}, paginatorState) {
+func (p *Paginator[T]) next() (interface{}, paginatorState) {
 	raw := p.iter.Next()
 	if raw == nil {
 		p.nextToken = ""
 		return nil, paginatorComplete
 	}
-	token := p.tokenizer.GetToken(raw)
-
-	var compared int
-
-	switch t := token.(type) {
-	case string:
-		p.nextToken = t
-		compared = cmp.Compare(t, p.seekingToken)
-	case uint64:
-		p.nextToken = strconv.FormatUint(t, 10)
-		compared = cmp.Compare(t, p.seekingUint)
-	default:
-		panic("unknown token type, neither string nor uint64")
+	obj, ok := raw.(T)
+	if !ok {
+		panic("paginator was instantiated with wrong type for table")
 	}
 
-	var passedToken bool
+	token, compared := p.tokenizer(obj)
+	p.nextToken = token
 
+	var passedToken bool
 	if p.reverse {
-		passedToken = compared == 1 // token > p.seekingToken
+		passedToken = compared == 1 // token > target token
 	} else {
-		passedToken = compared == -1 // token < p.seekingToken
+		passedToken = compared == -1 // token < target token
 	}
 
 	if !p.nextTokenFound && passedToken {

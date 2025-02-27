@@ -68,8 +68,8 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 				return err
 			}
 
-			pageOpts := paginator.StructsTokenizerOptions{WithID: true}
-			tokenizer := paginator.NewStructsTokenizer(iter, pageOpts)
+			tokenizer := paginator.IDTokenizer[*structs.NodePool](args.NextToken)
+
 			filters := []paginator.Filter{
 				// Filter out node pools based on ACL token capabilities.
 				paginator.GenericFilter{
@@ -466,14 +466,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 					return err
 				}
 
-				tokenizer := paginator.NewStructsTokenizer(
-					iter,
-					paginator.StructsTokenizerOptions{
-						WithNamespace: true,
-						WithID:        true,
-					},
-				)
-
+				tokenizer := paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken)
 				var jobs []*structs.JobListStub
 
 				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
@@ -571,11 +564,7 @@ func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.
 			}
 
 			// Setup paginator by node ID.
-			pageOpts := paginator.StructsTokenizerOptions{
-				WithID: true,
-			}
-			tokenizer := paginator.NewStructsTokenizer(iter, pageOpts)
-
+			tokenizer := paginator.IDTokenizer[*structs.Node](args.NextToken)
 			var nodes []*structs.NodeListStub
 			pager, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
 				func(raw interface{}) error {
