@@ -30,7 +30,10 @@ export default class VolumeSerializer extends ApplicationSerializer {
 
     // Only for CSI volumes
     if (hash.ID.includes('csi')) {
-      hash.ID = JSON.stringify([`csi/${hash.ID}`, hash.NamespaceID || 'default']);
+      hash.ID = JSON.stringify([
+        `csi/${hash.ID}`,
+        hash.NamespaceID || 'default',
+      ]);
       hash.PluginID = `csi/${hash.PluginID}`;
     }
 
