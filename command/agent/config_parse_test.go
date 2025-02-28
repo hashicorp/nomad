@@ -228,7 +228,6 @@ var basicConfig = &Config{
 		ClientServiceName:         "nomad-client",
 		ClientHTTPCheckName:       "nomad-client-http-health-check",
 		Addr:                      "127.0.0.1:9500",
-		AllowUnauthenticated:      &trueValue,
 		Token:                     "token1",
 		Auth:                      "username:pass",
 		EnableSSL:                 &trueValue,
@@ -865,7 +864,6 @@ var sample1 = &Config{
 		ClientHTTPCheckName:       "Nomad Client HTTP Check",
 		AutoAdvertise:             pointer.Of(true),
 		ChecksUseAdvertise:        pointer.Of(false),
-		AllowUnauthenticated:      pointer.Of(true),
 		Timeout:                   5 * time.Second,
 		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
 		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
@@ -1075,7 +1073,6 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			defaultConsul := cfg.Consuls[0]
 			must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
 			must.Eq(t, config.DefaultConsulConfig(), defaultConsul)
-			must.True(t, *defaultConsul.AllowUnauthenticated)
 			must.Eq(t, "127.0.0.1:8500", defaultConsul.Addr)
 			must.Eq(t, "", defaultConsul.Token)
 
@@ -1088,7 +1085,6 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			must.Len(t, 1, cfg.Consuls)
 			defaultConsul = cfg.Consuls[0]
 			must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
-			must.True(t, *defaultConsul.AllowUnauthenticated)
 			must.Eq(t, "127.0.0.1:9500", defaultConsul.Addr)
 			must.Eq(t, "token1", defaultConsul.Token)
 
@@ -1100,12 +1096,10 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			must.Len(t, 3, cfg.Consuls)
 			defaultConsul = cfg.Consuls[0]
 			must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
-			must.False(t, *defaultConsul.AllowUnauthenticated)
 			must.Eq(t, "127.0.0.1:9501", defaultConsul.Addr)
 			must.Eq(t, "abracadabra", defaultConsul.Token)
 
 			must.Eq(t, "alternate", cfg.Consuls[1].Name)
-			must.True(t, *cfg.Consuls[1].AllowUnauthenticated)
 			must.Eq(t, "127.0.0.2:8501", cfg.Consuls[1].Addr)
 			must.Eq(t, "xyzzy", cfg.Consuls[1].Token)
 
