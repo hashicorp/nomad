@@ -22,7 +22,8 @@ type Iterator interface {
 type Paginator[T any] struct {
 	iter           Iterator
 	tokenizer      Tokenizer[T]
-	filters        []Filter
+	bexpr          *bexpr.Evaluator
+	filter         FilterFunc[T]
 	perPage        int32
 	itemCount      int32
 	nextToken      string
@@ -39,29 +40,32 @@ type Paginator[T any] struct {
 // NewPaginator returns a new Paginator. Any error creating the paginator is
 // due to bad user filter input, RPC functions should therefore return a 400
 // error code along with an appropriate message.
-func NewPaginator[T any](iter Iterator, tokenizer Tokenizer[T], filters []Filter,
+func NewPaginator[T any](iter Iterator, tokenizer Tokenizer[T],
 	opts structs.QueryOptions, appendFunc func(interface{}) error) (*Paginator[T], error) {
 
-	var evaluator *bexpr.Evaluator
-	var err error
-
-	if opts.Filter != "" {
-		evaluator, err = bexpr.CreateEvaluator(opts.Filter)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read filter expression: %v", err)
-		}
-		filters = append(filters, evaluator)
-	}
-
-	return &Paginator[T]{
+	p := &Paginator[T]{
 		iter:           iter,
 		tokenizer:      tokenizer,
-		filters:        filters,
 		perPage:        opts.PerPage,
 		reverse:        opts.Reverse,
 		nextTokenFound: opts.NextToken == "",
 		appendFunc:     appendFunc,
-	}, nil
+	}
+
+	if opts.Filter != "" {
+		evaluator, err := bexpr.CreateEvaluator(opts.Filter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read filter expression: %v", err)
+		}
+		p.bexpr = evaluator
+	}
+
+	return p, nil
+}
+
+func (p *Paginator[T]) WithFilter(fn FilterFunc[T]) *Paginator[T] {
+	p.filter = fn
+	return p
 }
 
 // Page populates a page by running the append function
@@ -111,9 +115,8 @@ func (p *Paginator[T]) next() (interface{}, paginatorState) {
 		return nil, paginatorSkip
 	}
 
-	// apply filters if defined
-	for _, f := range p.filters {
-		allow, err := f.Evaluate(raw)
+	if p.bexpr != nil {
+		allow, err := p.bexpr.Evaluate(raw)
 		if err != nil {
 			p.pageErr = err
 			return nil, paginatorComplete
@@ -121,6 +124,10 @@ func (p *Paginator[T]) next() (interface{}, paginatorState) {
 		if !allow {
 			return nil, paginatorSkip
 		}
+	}
+
+	if p.filter != nil && !p.filter(obj) {
+		return nil, paginatorSkip
 	}
 
 	p.nextTokenFound = true

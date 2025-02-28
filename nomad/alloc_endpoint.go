@@ -90,14 +90,10 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 					return err
 				}
 
-				filters := []paginator.Filter{
-					paginator.NamespaceFilter{
-						AllowableNamespaces: allowableNamespaces,
-					},
-				}
+				filter := paginator.NamespaceFilterFunc[*structs.Allocation](allowableNamespaces)
 
 				var stubs []*structs.AllocListStub
-				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+				pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 					func(raw interface{}) error {
 						allocation := raw.(*structs.Allocation)
 						stubs = append(stubs, allocation.Stub(args.Fields))
@@ -107,8 +103,8 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
-
-				nextToken, err := paginator.Page()
+				pager = pager.WithFilter(filter)
+				nextToken, err := pager.Page()
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to read result page: %v", err)

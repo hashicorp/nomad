@@ -426,19 +426,14 @@ func (sv *Variables) List(
 			// ID to ensure complete uniqueness.
 			tokenizer := paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken)
 
-			filters := []paginator.Filter{
-				paginator.GenericFilter{
-					Allow: func(raw interface{}) (bool, error) {
-						v := raw.(*structs.VariableEncrypted)
-						if !strings.HasPrefix(v.Path, args.Prefix) {
-							return false, nil
-						}
+			filter := func(v *structs.VariableEncrypted) bool {
+				if !strings.HasPrefix(v.Path, args.Prefix) {
+					return false
+				}
 
-						return aclObj.AllowVariableOperation(args.Namespace, v.Path,
-							acl.PolicyList,
-							auth.IdentityToACLClaim(args.GetIdentity(), sv.srv.State())), nil
-					},
-				},
+				return aclObj.AllowVariableOperation(v.Namespace, v.Path,
+					acl.PolicyList,
+					auth.IdentityToACLClaim(args.GetIdentity(), sv.srv.State()))
 			}
 
 			// Set up our output after we have checked the error.
@@ -447,7 +442,7 @@ func (sv *Variables) List(
 			// Build the paginator. This includes the function that is
 			// responsible for appending a variable to the variables
 			// stubs slice.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 				func(raw interface{}) error {
 					sv := raw.(*structs.VariableEncrypted)
 					svStub := sv.VariableMetadata
@@ -463,10 +458,11 @@ func (sv *Variables) List(
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+			pager = pager.WithFilter(filter)
 
 			// Calling page populates our output variable stub array as well as
 			// returns the next token.
-			nextToken, err := paginatorImpl.Page()
+			nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)
@@ -512,24 +508,19 @@ func (sv *Variables) listAllVariables(
 			// ID to ensure complete uniqueness.
 			tokenizer := paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken)
 
-			filters := []paginator.Filter{
-				paginator.GenericFilter{
-					Allow: func(raw interface{}) (bool, error) {
-						v := raw.(*structs.VariableEncrypted)
-						if !strings.HasPrefix(v.Path, args.Prefix) {
-							return false, nil
-						}
+			filter := func(v *structs.VariableEncrypted) bool {
+				if !strings.HasPrefix(v.Path, args.Prefix) {
+					return false
+				}
 
-						return aclObj.AllowVariableOperation(v.Namespace, v.Path,
-							acl.PolicyList,
-							auth.IdentityToACLClaim(args.GetIdentity(), sv.srv.State())), nil
-					},
-				},
+				return aclObj.AllowVariableOperation(v.Namespace, v.Path,
+					acl.PolicyList,
+					auth.IdentityToACLClaim(args.GetIdentity(), sv.srv.State()))
 			}
 
 			// Build the paginator. This includes the function that is
 			// responsible for appending a variable to the stubs array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 				func(raw interface{}) error {
 					v := raw.(*structs.VariableEncrypted)
 					svStub := v.VariableMetadata
@@ -545,10 +536,11 @@ func (sv *Variables) listAllVariables(
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+			pager = pager.WithFilter(filter)
 
 			// Calling page populates our output variable stubs array as well as
 			// returns the next token.
-			nextToken, err := paginatorImpl.Page()
+			nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

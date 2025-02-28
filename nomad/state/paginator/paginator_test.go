@@ -100,7 +100,7 @@ func TestPaginator(t *testing.T) {
 			}
 
 			results := []string{}
-			paginator, err := NewPaginator(iter, tc.tokenizer, nil, opts,
+			paginator, err := NewPaginator(iter, tc.tokenizer, opts,
 				func(raw interface{}) error {
 					if tc.expectedError != "" {
 						return errors.New(tc.expectedError)

@@ -132,31 +132,26 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 
 			tokenizer := paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken)
 
-			filters := []paginator.Filter{
-				paginator.GenericFilter{
-					Allow: func(raw any) (bool, error) {
-						vol := raw.(*structs.HostVolume)
-						// empty prefix doesn't filter
-						if !strings.HasPrefix(vol.Name, args.Prefix) &&
-							!strings.HasPrefix(vol.ID, args.Prefix) {
-							return false, nil
-						}
-						if args.NodeID != "" && vol.NodeID != args.NodeID {
-							return false, nil
-						}
-						if args.NodePool != "" && vol.NodePool != args.NodePool {
-							return false, nil
-						}
+			filter := func(vol *structs.HostVolume) bool {
+				if !strings.HasPrefix(vol.Name, args.Prefix) &&
+					!strings.HasPrefix(vol.ID, args.Prefix) {
+					return false
+				}
+				if args.NodeID != "" && vol.NodeID != args.NodeID {
+					return false
+				}
+				if args.NodePool != "" && vol.NodePool != args.NodePool {
+					return false
+				}
 
-						if ns != structs.AllNamespacesSentinel &&
-							vol.Namespace != ns {
-							return false, nil
-						}
+				if ns != structs.AllNamespacesSentinel &&
+					vol.Namespace != ns {
+					return false
+				}
 
-						allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
-						return allowVolume(aclObj, ns), nil
-					},
-				},
+				allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
+				return allowVolume(aclObj, ns)
+
 			}
 
 			// Set up our output after we have checked the error.
@@ -165,7 +160,7 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 			// Build the paginator. This includes the function that is
 			// responsible for appending a variable to the variables
 			// stubs slice.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+			pages, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 				func(raw any) error {
 					vol := raw.(*structs.HostVolume)
 					vols = append(vols, vol.Stub())
@@ -175,10 +170,11 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+			pages = pages.WithFilter(filter)
 
 			// Calling page populates our output variable stub array as well as
 			// returns the next token.
-			nextToken, err := paginatorImpl.Page()
+			nextToken, err := pages.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

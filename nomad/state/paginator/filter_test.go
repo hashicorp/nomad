@@ -19,28 +19,28 @@ func TestGenericFilter(t *testing.T) {
 	ci.Parallel(t)
 	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 
-	filters := []Filter{GenericFilter{
-		Allow: func(raw interface{}) (bool, error) {
-			result := raw.(*mockObject)
-			return result.id > "5", nil
-		},
-	}}
+	filter := func(obj *mockObject) bool {
+		return obj.id > "5"
+	}
+
 	iter := newTestIterator(ids)
 	tokenizer := IDTokenizer[*mockObject]("")
 	opts := structs.QueryOptions{
 		PerPage: 3,
 	}
 	results := []string{}
-	paginator, err := NewPaginator(iter, tokenizer, filters, opts,
+	pager, err := NewPaginator(iter, tokenizer, opts,
 		func(raw interface{}) error {
 			result := raw.(*mockObject)
 			results = append(results, result.id)
 			return nil
 		},
 	)
+	pager.WithFilter(filter)
+
 	require.NoError(t, err)
 
-	nextToken, err := paginator.Page()
+	nextToken, err := pager.Page()
 	require.NoError(t, err)
 
 	expected := []string{"6", "7", "8"}
@@ -81,9 +81,6 @@ func TestNamespaceFilter(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			filters := []Filter{NamespaceFilter{
-				AllowableNamespaces: tc.allowable,
-			}}
 			iter := newTestIteratorWithMocks(mocks)
 			tokenizer := IDTokenizer[*mockObject]("")
 			opts := structs.QueryOptions{
@@ -91,7 +88,7 @@ func TestNamespaceFilter(t *testing.T) {
 			}
 
 			results := []string{}
-			paginator, err := NewPaginator(iter, tokenizer, filters, opts,
+			pager, err := NewPaginator(iter, tokenizer, opts,
 				func(raw interface{}) error {
 					result := raw.(*mockObject)
 					results = append(results, result.namespace)
@@ -99,8 +96,9 @@ func TestNamespaceFilter(t *testing.T) {
 				},
 			)
 			require.NoError(t, err)
+			pager = pager.WithFilter(NamespaceFilterFunc[*mockObject](tc.allowable))
 
-			nextToken, err := paginator.Page()
+			nextToken, err := pager.Page()
 			require.NoError(t, err)
 			require.Equal(t, "", nextToken)
 			require.Equal(t, tc.expected, results)
@@ -176,7 +174,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
 			tokenizer := IDTokenizer[*structs.Evaluation]("")
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(iter, tokenizer, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -201,7 +199,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 			tokenizer := IDTokenizer[*structs.Evaluation]("")
 
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(iter, tokenizer, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -239,7 +237,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 			tokenizer := IDTokenizer[*structs.Evaluation](opts.NextToken)
 
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(iter, tokenizer, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil
@@ -278,7 +276,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 			tokenizer := IDTokenizer[*structs.Evaluation](opts.NextToken)
 
 			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
+			paginator, err := NewPaginator(iter, tokenizer, opts, func(raw interface{}) error {
 				eval := raw.(*structs.Evaluation)
 				evals = append(evals, eval)
 				return nil

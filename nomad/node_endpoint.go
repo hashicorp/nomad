@@ -1614,7 +1614,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 
 			// Build the paginator. This includes the function that is
 			// responsible for appending a node to the nodes array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 				func(raw interface{}) error {
 					nodes = append(nodes, raw.(*structs.Node).Stub(args.Fields))
 					return nil

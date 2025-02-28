@@ -1489,14 +1489,11 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				}
 
 				tokenizer := paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken)
-				filters := []paginator.Filter{
-					paginator.NamespaceFilter{
-						AllowableNamespaces: allowableNamespaces,
-					},
-				}
+
+				filter := paginator.NamespaceFilterFunc[*structs.Job](allowableNamespaces)
 
 				var jobs []*structs.JobListStub
-				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+				pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 					func(raw interface{}) error {
 						job := raw.(*structs.Job)
 						summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
@@ -1510,8 +1507,9 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
+				pager = pager.WithFilter(filter)
 
-				nextToken, err := paginator.Page()
+				nextToken, err := pager.Page()
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to read result page: %v", err)

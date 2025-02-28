@@ -114,31 +114,27 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			}
 
 			tokenizer := paginator.NamespaceIDTokenizer[*structs.CSIVolume](args.NextToken)
-			volFilter := paginator.GenericFilter{
-				Allow: func(raw interface{}) (bool, error) {
-					vol := raw.(*structs.CSIVolume)
 
-					// Remove (possibly again) by PluginID to handle passing both
-					// NodeID and PluginID
-					if args.PluginID != "" && args.PluginID != vol.PluginID {
-						return false, nil
-					}
+			filter := func(vol *structs.CSIVolume) bool {
+				// Remove (possibly again) by PluginID to handle passing both
+				// NodeID and PluginID
+				if args.PluginID != "" && args.PluginID != vol.PluginID {
+					return false
+				}
 
-					// Remove by Namespace, since CSIVolumesByNodeID hasn't used
-					// the Namespace yet
-					if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
-						return false, nil
-					}
+				// Remove by Namespace, since CSIVolumesByNodeID hasn't used
+				// the Namespace yet
+				if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
+					return false
+				}
 
-					return true, nil
-				},
+				return true
 			}
-			filters := []paginator.Filter{volFilter}
 
 			// Collect results, filter by ACL access
 			vs := []*structs.CSIVolListStub{}
 
-			paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 				func(raw interface{}) error {
 					vol := raw.(*structs.CSIVolume)
 
@@ -154,8 +150,9 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+			pager = pager.WithFilter(filter)
 
-			nextToken, err := paginator.Page()
+			nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

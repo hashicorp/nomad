@@ -710,14 +710,10 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 					return false
 				})
 
-				filters := []paginator.Filter{
-					paginator.NamespaceFilter{
-						AllowableNamespaces: allowableNamespaces,
-					},
-				}
+				filter := paginator.NamespaceFilterFunc[*structs.Evaluation](allowableNamespaces)
 
 				var evals []*structs.Evaluation
-				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+				pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 					func(raw interface{}) error {
 						eval := raw.(*structs.Evaluation)
 						evals = append(evals, eval)
@@ -727,8 +723,9 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
+				pager = pager.WithFilter(filter)
 
-				nextToken, err := paginator.Page()
+				nextToken, err := pager.Page()
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to read result page: %v", err)

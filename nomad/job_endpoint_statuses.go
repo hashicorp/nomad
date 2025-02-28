@@ -111,36 +111,34 @@ func (j *Job) Statuses(
 			// set up tokenizer and filters
 			tokenizer := paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken)
 
-			filters := []paginator.Filter{
-				paginator.NamespaceFilter{
-					AllowableNamespaces: allowableNamespaces,
-				},
-				// skip child jobs unless requested to include them
-				paginator.GenericFilter{Allow: func(i interface{}) (bool, error) {
-					if args.IncludeChildren {
-						return true, nil
-					}
-					job := i.(*structs.Job)
-					return job.ParentID == "", nil
-				}},
+			filter := func(job *structs.Job) bool {
+				if allowableNamespaces != nil && !allowableNamespaces[job.Namespace] {
+					return false
+				}
+				if args.IncludeChildren {
+					return true
+				}
+				return job.ParentID == ""
 			}
+
 			// only provide specific jobs if requested.
 			if len(args.Jobs) > 0 {
 				// set per-page to avoid iterating the whole table
 				args.QueryOptions.PerPage = int32(len(args.Jobs))
 				// filter in the requested jobs
 				jobSet := set.From[structs.NamespacedID](args.Jobs)
-				filters = append(filters, paginator.GenericFilter{
-					Allow: func(i interface{}) (bool, error) {
-						job := i.(*structs.Job)
-						return jobSet.Contains(job.NamespacedID()), nil
-					},
-				})
+				filter = func(job *structs.Job) bool {
+					if !filter(job) {
+						return false
+					}
+					return jobSet.Contains(job.NamespacedID())
+				}
+
 			}
 
 			jobs := make([]structs.JobStatusesJob, 0)
 			newJobs := set.New[structs.NamespacedID](0)
-			pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 				func(raw interface{}) error {
 					job := raw.(*structs.Job)
 
@@ -166,6 +164,7 @@ func (j *Job) Statuses(
 				return structs.NewErrRPCCodedf(
 					http.StatusInternalServerError, "failed to create result paginator: %v", err)
 			}
+			pager = pager.WithFilter(filter)
 
 			nextToken, err := pager.Page()
 			if err != nil {

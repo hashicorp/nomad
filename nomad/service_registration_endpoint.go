@@ -370,7 +370,7 @@ func (s *ServiceRegistration) GetService(
 
 			// Build the paginator. This includes the function that is
 			// responsible for appending a registration to the services array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 				func(raw interface{}) error {
 					services = append(services, raw.(*structs.ServiceRegistration))
 					return nil

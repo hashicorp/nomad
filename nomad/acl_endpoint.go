@@ -901,7 +901,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			}
 
 			var tokens []*structs.ACLTokenListStub
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
+			paginator, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
 				func(raw interface{}) error {
 					token := raw.(*structs.ACLToken)
 					tokens = append(tokens, token.Stub())
