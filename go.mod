@@ -5,7 +5,6 @@ go 1.23.6
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826.
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
-	github.com/hashicorp/cap => github.com/gulducat/cap v0.0.4
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 )
 
@@ -42,7 +41,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/hashicorp/cap v0.7.0
+	github.com/hashicorp/cap v0.9.0
 	github.com/hashicorp/cli v1.1.6
 	github.com/hashicorp/consul-template v0.40.0
 	github.com/hashicorp/consul/api v1.30.0
