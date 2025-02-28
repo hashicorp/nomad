@@ -1,0 +1,12 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
+{{page-title "Dynamic Host Volume " this.model.name}}
+<section class="section with-headspace">
+  <h1 class="title" data-test-title>{{this.model.name}}</h1>
+</section>
