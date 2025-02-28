@@ -979,7 +979,7 @@ type OIDCClientAssertion struct {
 	// Available sources:
 	// * "nomad" = Use current active key in Nomad's keyring
 	// * "private_key" = Use key material in the PrivateKey field of this struct
-	// * "client_secret" = Use the ClientSecret inherited from the parent
+	// * "client_secret" = Use the OIDCClientSecret inherited from the parent
 	//   ACLAuthMethodConfig struct
 	KeySource OIDCClientAssertionKeySource
 
