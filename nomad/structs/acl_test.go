@@ -1513,7 +1513,7 @@ func TestOIDCClientAssertion_Validate(t *testing.T) {
 			name: "missing ClientSecret",
 			mod: func(ca *OIDCClientAssertion) {
 				ca.KeySource = OIDCKeySourceClientSecret
-				ca.clientSecret = ""
+				ca.ClientSecret = ""
 			},
 			err: "OIDCClientSecret is required",
 		},
@@ -2050,6 +2050,6 @@ func validClientAssertion() *OIDCClientAssertion {
 		ExtraHeaders: map[string]string{"test-header": "test-value"},
 		KeyAlgorithm: "test-key-algo",
 		// clientSecret is ordinarily inherited from parent ACLAuthMethodConfig
-		clientSecret: "test-client-secret",
+		ClientSecret: "test-client-secret",
 	}
 }
