@@ -19,37 +19,37 @@ type Iterator interface {
 }
 
 // Paginator wraps an iterator and returns only the expected number of pages.
-type Paginator[T any] struct {
+type Paginator[T, TStub any] struct {
 	iter           Iterator
 	tokenizer      Tokenizer[T]
 	bexpr          *bexpr.Evaluator
 	filter         FilterFunc[T]
+	stubFn         func(T) (TStub, error)
 	perPage        int32
 	itemCount      int32
 	nextToken      string
 	reverse        bool
 	nextTokenFound bool
 	pageErr        error
-
-	// appendFunc is the function the caller should use to append raw
-	// entries to the results set. The object is guaranteed to be
-	// non-nil.
-	appendFunc func(interface{}) error
 }
 
 // NewPaginator returns a new Paginator. Any error creating the paginator is
 // due to bad user filter input, RPC functions should therefore return a 400
 // error code along with an appropriate message.
-func NewPaginator[T any](iter Iterator, tokenizer Tokenizer[T],
-	opts structs.QueryOptions, appendFunc func(interface{}) error) (*Paginator[T], error) {
+func NewPaginator[T, TStub any](
+	iter Iterator,
+	tokenizer Tokenizer[T],
+	opts structs.QueryOptions,
+	stubFn func(T) (TStub, error),
+) (*Paginator[T, TStub], error) {
 
-	p := &Paginator[T]{
+	p := &Paginator[T, TStub]{
 		iter:           iter,
 		tokenizer:      tokenizer,
+		stubFn:         stubFn,
 		perPage:        opts.PerPage,
 		reverse:        opts.Reverse,
 		nextTokenFound: opts.NextToken == "",
-		appendFunc:     appendFunc,
 	}
 
 	if opts.Filter != "" {
@@ -63,38 +63,36 @@ func NewPaginator[T any](iter Iterator, tokenizer Tokenizer[T],
 	return p, nil
 }
 
-func (p *Paginator[T]) WithFilter(fn FilterFunc[T]) *Paginator[T] {
+func (p *Paginator[T, TStub]) WithFilter(fn FilterFunc[T]) *Paginator[T, TStub] {
 	p.filter = fn
 	return p
 }
 
 // Page populates a page by running the append function
 // over all results. Returns the next token.
-func (p *Paginator[T]) Page() (string, error) {
+func (p *Paginator[T, TStub]) Page() ([]TStub, string, error) {
+	out := []TStub{}
 DONE:
 	for {
-		raw, andThen := p.next()
+		obj, andThen := p.next()
 		switch andThen {
 		case paginatorInclude:
-			err := p.appendFunc(raw)
-			if err != nil {
-				p.pageErr = err
-				break DONE
-			}
+			out = append(out, obj)
 		case paginatorSkip:
 			continue
 		case paginatorComplete:
 			break DONE
 		}
 	}
-	return p.nextToken, p.pageErr
+	return out, p.nextToken, p.pageErr
 }
 
-func (p *Paginator[T]) next() (interface{}, paginatorState) {
+func (p *Paginator[T, TStub]) next() (TStub, paginatorState) {
+	var none TStub
 	raw := p.iter.Next()
 	if raw == nil {
 		p.nextToken = ""
-		return nil, paginatorComplete
+		return none, paginatorComplete
 	}
 	obj, ok := raw.(T)
 	if !ok {
@@ -112,33 +110,38 @@ func (p *Paginator[T]) next() (interface{}, paginatorState) {
 	}
 
 	if !p.nextTokenFound && passedToken {
-		return nil, paginatorSkip
+		return none, paginatorSkip
 	}
 
 	if p.bexpr != nil {
 		allow, err := p.bexpr.Evaluate(raw)
 		if err != nil {
 			p.pageErr = err
-			return nil, paginatorComplete
+			return none, paginatorComplete
 		}
 		if !allow {
-			return nil, paginatorSkip
+			return none, paginatorSkip
 		}
 	}
 
 	if p.filter != nil && !p.filter(obj) {
-		return nil, paginatorSkip
+		return none, paginatorSkip
 	}
 
 	p.nextTokenFound = true
+	out, err := p.stubFn(obj)
+	if err != nil {
+		p.pageErr = err
+		return none, paginatorComplete
+	}
 
 	// have we produced enough results for this page?
 	p.itemCount++
 	if p.perPage != 0 && p.itemCount > p.perPage {
-		return raw, paginatorComplete
+		return out, paginatorComplete
 	}
 
-	return raw, paginatorInclude
+	return out, paginatorInclude
 }
 
 type paginatorState int

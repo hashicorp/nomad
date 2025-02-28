@@ -132,19 +132,13 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			}
 
 			// Collect results, filter by ACL access
-			vs := []*structs.CSIVolListStub{}
-
 			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(raw interface{}) error {
-					vol := raw.(*structs.CSIVolume)
-
+				func(vol *structs.CSIVolume) (*structs.CSIVolListStub, error) {
 					vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
 					if err != nil {
-						return err
+						return nil, err
 					}
-
-					vs = append(vs, vol.Stub())
-					return nil
+					return vol.Stub(), nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
@@ -152,7 +146,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			}
 			pager = pager.WithFilter(filter)
 
-			nextToken, err := pager.Page()
+			vs, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

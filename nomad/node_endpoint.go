@@ -1610,14 +1610,11 @@ func (n *Node) List(args *structs.NodeListRequest,
 			// region, therefore we only need WithID on the paginator options.
 			tokenizer := paginator.IDTokenizer[*structs.Node](args.NextToken)
 
-			var nodes []*structs.NodeListStub
-
 			// Build the paginator. This includes the function that is
 			// responsible for appending a node to the nodes array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(raw interface{}) error {
-					nodes = append(nodes, raw.(*structs.Node).Stub(args.Fields))
-					return nil
+			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+				func(node *structs.Node) (*structs.NodeListStub, error) {
+					return node.Stub(args.Fields), nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
@@ -1626,7 +1623,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 
 			// Calling page populates our output nodes array as well as returns
 			// the next token.
-			nextToken, err := paginatorImpl.Page()
+			nodes, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

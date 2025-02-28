@@ -99,21 +99,17 @@ func TestPaginator(t *testing.T) {
 				NextToken: tc.nextToken,
 			}
 
-			results := []string{}
 			paginator, err := NewPaginator(iter, tc.tokenizer, opts,
-				func(raw interface{}) error {
+				func(result *mockObject) (string, error) {
 					if tc.expectedError != "" {
-						return errors.New(tc.expectedError)
+						return "", errors.New(tc.expectedError)
 					}
-
-					result := raw.(*mockObject)
-					results = append(results, result.id)
-					return nil
+					return result.id, nil
 				},
 			)
 			must.NoError(t, err)
 
-			nextToken, err := paginator.Page()
+			results, nextToken, err := paginator.Page()
 			if tc.expectedError == "" {
 				must.NoError(t, err)
 				must.Eq(t, tc.expected, results)

@@ -493,22 +493,17 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 				return err
 			}
 
-			filter := paginator.NamespaceFilterFunc[*structs.Deployment](allowableNamespaces)
-
-			var deploys []*structs.Deployment
 			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(raw interface{}) error {
-					deploy := raw.(*structs.Deployment)
-					deploys = append(deploys, deploy)
-					return nil
-				})
+				func(d *structs.Deployment) (*structs.Deployment, error) { return d, nil })
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
+
+			filter := paginator.NamespaceFilterFunc[*structs.Deployment](allowableNamespaces)
 			pager = pager.WithFilter(filter)
 
-			nextToken, err := pager.Page()
+			deploys, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

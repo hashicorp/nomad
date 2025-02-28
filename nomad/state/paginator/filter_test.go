@@ -30,17 +30,12 @@ func TestGenericFilter(t *testing.T) {
 	}
 	results := []string{}
 	pager, err := NewPaginator(iter, tokenizer, opts,
-		func(raw interface{}) error {
-			result := raw.(*mockObject)
-			results = append(results, result.id)
-			return nil
-		},
-	)
+		func(result *mockObject) (string, error) { return result.id, nil })
 	pager.WithFilter(filter)
 
 	require.NoError(t, err)
 
-	nextToken, err := pager.Page()
+	results, nextToken, err := pager.Page()
 	require.NoError(t, err)
 
 	expected := []string{"6", "7", "8"}
@@ -87,18 +82,12 @@ func TestNamespaceFilter(t *testing.T) {
 				PerPage: int32(len(mocks)),
 			}
 
-			results := []string{}
 			pager, err := NewPaginator(iter, tokenizer, opts,
-				func(raw interface{}) error {
-					result := raw.(*mockObject)
-					results = append(results, result.namespace)
-					return nil
-				},
-			)
+				func(result *mockObject) (string, error) { return result.namespace, nil })
 			require.NoError(t, err)
 			pager = pager.WithFilter(NamespaceFilterFunc[*mockObject](tc.allowable))
 
-			nextToken, err := pager.Page()
+			results, nextToken, err := pager.Page()
 			require.NoError(t, err)
 			require.Equal(t, "", nextToken)
 			require.Equal(t, tc.expected, results)
@@ -173,12 +162,8 @@ func BenchmarkEvalListFilter(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
 			tokenizer := IDTokenizer[*structs.Evaluation]("")
-			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, opts, func(raw interface{}) error {
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-				return nil
-			})
+			paginator, err := NewPaginator(iter, tokenizer, opts,
+				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
 			}
@@ -198,12 +183,8 @@ func BenchmarkEvalListFilter(b *testing.B) {
 			iter, _ := state.Evals(nil, false)
 			tokenizer := IDTokenizer[*structs.Evaluation]("")
 
-			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, opts, func(raw interface{}) error {
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-				return nil
-			})
+			paginator, err := NewPaginator(iter, tokenizer, opts,
+				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
 			}
@@ -236,12 +217,8 @@ func BenchmarkEvalListFilter(b *testing.B) {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
 			tokenizer := IDTokenizer[*structs.Evaluation](opts.NextToken)
 
-			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, opts, func(raw interface{}) error {
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-				return nil
-			})
+			paginator, err := NewPaginator(iter, tokenizer, opts,
+				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
 			}
@@ -275,12 +252,8 @@ func BenchmarkEvalListFilter(b *testing.B) {
 			iter, _ := state.Evals(nil, false)
 			tokenizer := IDTokenizer[*structs.Evaluation](opts.NextToken)
 
-			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, opts, func(raw interface{}) error {
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-				return nil
-			})
+			paginator, err := NewPaginator(iter, tokenizer, opts,
+				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
 			}

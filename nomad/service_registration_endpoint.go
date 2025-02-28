@@ -365,24 +365,16 @@ func (s *ServiceRegistration) GetService(
 			// ID to ensure complete uniqueness.
 			tokenizer := paginator.NamespaceIDTokenizer[*structs.ServiceRegistration](args.NextToken)
 
-			// Set up our output after we have checked the error.
-			var services []*structs.ServiceRegistration
-
-			// Build the paginator. This includes the function that is
-			// responsible for appending a registration to the services array.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(raw interface{}) error {
-					services = append(services, raw.(*structs.ServiceRegistration))
-					return nil
+			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+				func(svc *structs.ServiceRegistration) (*structs.ServiceRegistration, error) {
+					return svc, nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			// Calling page populates our output services array as well as
-			// returns the next token.
-			nextToken, err := paginatorImpl.Page()
+			services, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

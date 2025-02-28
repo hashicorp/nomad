@@ -900,19 +900,16 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 				return err
 			}
 
-			var tokens []*structs.ACLTokenListStub
-			paginator, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(raw interface{}) error {
-					token := raw.(*structs.ACLToken)
-					tokens = append(tokens, token.Stub())
-					return nil
+			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+				func(a *structs.ACLToken) (*structs.ACLTokenListStub, error) {
+					return a.Stub(), nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := paginator.Page()
+			tokens, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)
