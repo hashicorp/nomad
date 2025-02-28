@@ -15,6 +15,7 @@ import (
 	"time"
 
 	capOIDC "github.com/hashicorp/cap/oidc"
+	cass "github.com/hashicorp/cap/oidc/clientassertion"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
@@ -1922,6 +1923,17 @@ func (a *ACL) UpsertAuthMethods(
 				)
 			}
 		}
+
+		// if there is a client assertion, ensure it is valid.
+		if authMethod.Config != nil && authMethod.Config.OIDCClientAssertion.IsSet() {
+			_, err := a.oidcClientAssertion(authMethod.Config)
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "invalid OIDCClientAssertion: %s", err,
+				)
+			}
+		}
+
 		authMethod.SetHash()
 	}
 
@@ -3065,17 +3077,13 @@ func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodC
 	if config.OIDCEnablePKCE {
 		verifier, err := capOIDC.NewCodeVerifier()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to make pkce verifier: %w", err)
 		}
 		opts = append(opts, capOIDC.WithPKCE(verifier))
 	}
 
 	if config.OIDCClientAssertion.IsSet() {
-		nomadKey, nomadKID, err := a.srv.encrypter.GetActiveKey()
-		if err != nil {
-			return nil, err
-		}
-		j, err := oidc.BuildClientAssertionJWT(config, nomadKey, nomadKID)
+		j, err := a.oidcClientAssertion(config)
 		if err != nil {
 			return nil, err
 		}
@@ -3088,9 +3096,36 @@ func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodC
 		opts...,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate OIDC request: %v", err)
+		return nil, fmt.Errorf("failed to create OIDC request: %v", err)
 	}
 
 	a.oidcRequests.Store(a.srv.shutdownCtx, req)
 	return req, nil
+}
+
+func (a *ACL) oidcClientAssertion(config *structs.ACLAuthMethodConfig) (*cass.JWT, error) {
+	// this nomad key will only actually be used if the client assertion config
+	// KeySource = "nomad", but we get it here to avoid exposing more of the
+	// codebase to the encrypter.
+	nomadKey, nomadKID, err := a.srv.encrypter.GetActiveKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active nomad key: %w", err)
+	}
+	j, err := oidc.BuildClientAssertionJWT(config, nomadKey, nomadKID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build client_assertion jwt: %w", err)
+	}
+	if config.VerboseLogging {
+		// a user intially setting up the auth method, as one might with
+		// VerboseLogging enabled, may benefit from not having to do a full
+		// login flow to see the jwt (and any possible Serialize() error).
+		// we say "example" in the log, because the cap library will run
+		// Serialize() again internally, so it won't use this same jwt.
+		token, err := j.Serialize()
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize client_assertion jwt: %w", err)
+		}
+		a.logger.Debug("example client_assertion", "oidc_client_id", config.OIDCClientID, "jwt", token)
+	}
+	return j, nil
 }
