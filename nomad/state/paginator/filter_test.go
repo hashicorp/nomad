@@ -24,12 +24,11 @@ func TestGenericFilter(t *testing.T) {
 	}
 
 	iter := newTestIterator(ids)
-	tokenizer := IDTokenizer[*mockObject]("")
 	opts := structs.QueryOptions{
 		PerPage: 3,
 	}
 	results := []string{}
-	pager, err := NewPaginator(iter, tokenizer, opts,
+	pager, err := NewPaginator(iter, opts, IDTokenizer[*mockObject](""),
 		func(result *mockObject) (string, error) { return result.id, nil })
 	pager.WithFilter(filter)
 
@@ -77,12 +76,11 @@ func TestNamespaceFilter(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			iter := newTestIteratorWithMocks(mocks)
-			tokenizer := IDTokenizer[*mockObject]("")
 			opts := structs.QueryOptions{
 				PerPage: int32(len(mocks)),
 			}
 
-			pager, err := NewPaginator(iter, tokenizer, opts,
+			pager, err := NewPaginator(iter, opts, IDTokenizer[*mockObject](""),
 				func(result *mockObject) (string, error) { return result.namespace, nil })
 			require.NoError(t, err)
 			pager = pager.WithFilter(NamespaceFilterFunc[*mockObject](tc.allowable))
@@ -161,8 +159,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
-			tokenizer := IDTokenizer[*structs.Evaluation]("")
-			paginator, err := NewPaginator(iter, tokenizer, opts,
+			paginator, err := NewPaginator(iter, opts, IDTokenizer[*structs.Evaluation](""),
 				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
@@ -181,9 +178,7 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
-			tokenizer := IDTokenizer[*structs.Evaluation]("")
-
-			paginator, err := NewPaginator(iter, tokenizer, opts,
+			paginator, err := NewPaginator(iter, opts, IDTokenizer[*structs.Evaluation](""),
 				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
@@ -215,9 +210,9 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
-			tokenizer := IDTokenizer[*structs.Evaluation](opts.NextToken)
 
-			paginator, err := NewPaginator(iter, tokenizer, opts,
+			paginator, err := NewPaginator(iter, opts,
+				IDTokenizer[*structs.Evaluation](opts.NextToken),
 				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
@@ -250,9 +245,8 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
-			tokenizer := IDTokenizer[*structs.Evaluation](opts.NextToken)
-
-			paginator, err := NewPaginator(iter, tokenizer, opts,
+			paginator, err := NewPaginator(iter, opts,
+				IDTokenizer[*structs.Evaluation](opts.NextToken),
 				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)

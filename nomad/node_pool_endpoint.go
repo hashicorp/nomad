@@ -68,9 +68,8 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 				return err
 			}
 
-			tokenizer := paginator.IDTokenizer[*structs.NodePool](args.NextToken)
-
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.IDTokenizer[*structs.NodePool](args.NextToken),
 				(*structs.NodePool).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to create result paginator: %v", err)
@@ -451,9 +450,8 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 					return err
 				}
 
-				tokenizer := paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken)
-
-				pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+					paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken),
 					func(job *structs.Job) (*structs.JobListStub, error) {
 						summary, err := store.JobSummaryByID(ws, job.Namespace, job.ID)
 						if err != nil || summary == nil {
@@ -546,9 +544,8 @@ func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.
 				return err
 			}
 
-			// Setup paginator by node ID.
-			tokenizer := paginator.IDTokenizer[*structs.Node](args.NextToken)
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.IDTokenizer[*structs.Node](args.NextToken),
 				func(node *structs.Node) (*structs.NodeListStub, error) {
 					return node.Stub(args.Fields), nil
 				})

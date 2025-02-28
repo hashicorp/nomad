@@ -90,7 +90,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 					return err
 				}
 
-				pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions, tokenizer,
 					func(a *structs.Allocation) (*structs.AllocListStub, error) {
 						return a.Stub(args.Fields), nil
 					},

@@ -422,9 +422,8 @@ func (sv *Variables) List(
 				return err
 			}
 
-			tokenizer := paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken)
-
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken),
 				func(sv *structs.VariableEncrypted) (*structs.VariableMetadata, error) {
 					svStub := sv.VariableMetadata
 
@@ -491,9 +490,8 @@ func (sv *Variables) listAllVariables(
 				return err
 			}
 
-			tokenizer := paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken)
-
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken),
 				func(v *structs.VariableEncrypted) (*structs.VariableMetadata, error) {
 					svStub := v.VariableMetadata
 

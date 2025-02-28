@@ -1488,8 +1488,6 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 					return err
 				}
 
-				tokenizer := paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken)
-
 				stubFn := func(job *structs.Job) (*structs.JobListStub, error) {
 					summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
 					if err != nil || summary == nil {
@@ -1498,7 +1496,9 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 					return job.Stub(summary, args.Fields), nil
 				}
 
-				pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions, stubFn)
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+					paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken),
+					stubFn)
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)

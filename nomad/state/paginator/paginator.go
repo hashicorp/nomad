@@ -39,8 +39,8 @@ type Paginator[T, TStub any] struct {
 // error code along with an appropriate message.
 func NewPaginator[T, TStub any](
 	iter Iterator,
-	tokenizer Tokenizer[T],
 	opts structs.QueryOptions,
+	tokenizer Tokenizer[T],
 	stubFn func(T) (TStub, error),
 ) (*Paginator[T, TStub], error) {
 

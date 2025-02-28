@@ -900,7 +900,8 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				tokenizer,
 				(*structs.ACLToken).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(

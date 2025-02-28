@@ -712,7 +712,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 
 				// note this endpoint does not return EvaluationStub, so we
 				// can't use the Stub method here
-				pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions, tokenizer,
 					func(e *structs.Evaluation) (*structs.Evaluation, error) { return e, nil })
 				if err != nil {
 					return structs.NewErrRPCCodedf(

@@ -108,11 +108,9 @@ func (j *Job) Statuses(
 				return err
 			}
 
-			// set up tokenizer and filters
-			tokenizer := paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken)
-
 			newJobs := set.New[structs.NamespacedID](0)
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken),
 				func(job *structs.Job) (structs.JobStatusesJob, error) {
 					var none structs.JobStatusesJob
 					// this is where the sausage is made

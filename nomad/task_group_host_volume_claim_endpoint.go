@@ -66,9 +66,8 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 				return err
 			}
 
-			tokenizer := paginator.NamespaceIDTokenizer[*structs.TaskGroupHostVolumeClaim](args.NextToken)
-
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.NamespaceIDTokenizer[*structs.TaskGroupHostVolumeClaim](args.NextToken),
 				(*structs.TaskGroupHostVolumeClaim).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(

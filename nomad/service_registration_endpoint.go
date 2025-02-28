@@ -361,11 +361,8 @@ func (s *ServiceRegistration) GetService(
 				return err
 			}
 
-			// Generate the tokenizer to use for pagination using namespace and
-			// ID to ensure complete uniqueness.
-			tokenizer := paginator.NamespaceIDTokenizer[*structs.ServiceRegistration](args.NextToken)
-
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.NamespaceIDTokenizer[*structs.ServiceRegistration](args.NextToken),
 				(*structs.ServiceRegistration).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(

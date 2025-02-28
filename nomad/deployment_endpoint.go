@@ -493,7 +493,8 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				tokenizer,
 				(*structs.Deployment).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(

@@ -99,7 +99,7 @@ func TestPaginator(t *testing.T) {
 				NextToken: tc.nextToken,
 			}
 
-			paginator, err := NewPaginator(iter, tc.tokenizer, opts,
+			paginator, err := NewPaginator(iter, opts, tc.tokenizer,
 				func(result *mockObject) (string, error) {
 					if tc.expectedError != "" {
 						return "", errors.New(tc.expectedError)

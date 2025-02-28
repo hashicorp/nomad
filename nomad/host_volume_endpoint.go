@@ -130,8 +130,8 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				return err
 			}
 
-			tokenizer := paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken)
-			pages, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken),
 				(*structs.HostVolume).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
@@ -159,11 +159,11 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				return allowVolume(aclObj, ns)
 
 			}
-			pages = pages.WithFilter(filter)
+			pager = pager.WithFilter(filter)
 
 			// Calling page populates our output variable stub array as well as
 			// returns the next token.
-			vols, nextToken, err := pages.Page()
+			vols, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)
