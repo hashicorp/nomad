@@ -42,7 +42,7 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.
 
 	case structs.OIDCKeySourceClientSecret:
 		algo := cass.HSAlgorithm(as.KeyAlgorithm)
-		return cass.NewJWTWithHMAC(clientID, as.Audience, algo, as.ClientSecret(), opts...)
+		return cass.NewJWTWithHMAC(clientID, as.Audience, algo, as.ClientSecret, opts...)
 
 	case structs.OIDCKeySourceNomad:
 		opts = append(opts, cass.WithKeyID(nomadKID))

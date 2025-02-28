@@ -1091,7 +1091,7 @@ func (a *ACLAuthMethodConfig) Canonicalize() {
 		if len(a.OIDCClientAssertion.Audience) == 0 {
 			a.OIDCClientAssertion.Audience = []string{a.OIDCDiscoveryURL}
 		}
-		a.OIDCClientAssertion.clientSecret = a.OIDCClientSecret
+		a.OIDCClientAssertion.ClientSecret = a.OIDCClientSecret
 		a.OIDCClientAssertion.Canonicalize()
 	}
 }
@@ -1230,9 +1230,10 @@ type OIDCClientAssertion struct {
 	PrivateKey   *OIDCClientAssertionKey
 	ExtraHeaders map[string]string
 	KeyAlgorithm string
-	// clientSecret is inherited from parent ACLAuthMethodConfig struct
-	// via ACLAuthMethodConfig.Canonicalize
-	clientSecret string
+	// ClientSecret here is not part of the public api; it's inherited from the
+	// parent ACLAuthMethodConfig struct via ACLAuthMethodConfig.Canonicalize.
+	// It's exported mainly so that it gets saved across msgpack in raft state.
+	ClientSecret string
 }
 
 func (c *OIDCClientAssertion) Copy() *OIDCClientAssertion {
@@ -1266,10 +1267,6 @@ func (c *OIDCClientAssertion) IsSet() bool {
 	return c != nil && c.KeySource != ""
 }
 
-func (c *OIDCClientAssertion) ClientSecret() string {
-	return c.clientSecret
-}
-
 func (c *OIDCClientAssertion) Validate() error {
 	if c == nil {
 		return nil
@@ -1287,7 +1284,7 @@ func (c *OIDCClientAssertion) Validate() error {
 			return fmt.Errorf("invalid PrivateKey: %w", err)
 		}
 	case OIDCKeySourceClientSecret:
-		if c.clientSecret == "" {
+		if c.ClientSecret == "" {
 			return errors.New("OIDCClientSecret is required for `client_secret` KeySource")
 		}
 	default:
