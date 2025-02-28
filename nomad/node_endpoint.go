@@ -1605,7 +1605,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
 				paginator.IDTokenizer[*structs.Node](args.NextToken),
 				func(node *structs.Node) (*structs.NodeListStub, error) {
 					return node.Stub(args.Fields), nil

@@ -361,7 +361,7 @@ func (s *ServiceRegistration) GetService(
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
 				paginator.NamespaceIDTokenizer[*structs.ServiceRegistration](args.NextToken),
 				(*structs.ServiceRegistration).Stub)
 			if err != nil {

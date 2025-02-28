@@ -712,15 +712,14 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 
 				// note this endpoint does not return EvaluationStub, so we
 				// can't use the Stub method here
-				pager, err := paginator.NewPaginator(iter, args.QueryOptions, tokenizer,
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+					paginator.NamespaceFilterFunc[*structs.Evaluation](allowableNamespaces),
+					tokenizer,
 					func(e *structs.Evaluation) (*structs.Evaluation, error) { return e, nil })
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
-
-				filter := paginator.NamespaceFilterFunc[*structs.Evaluation](allowableNamespaces)
-				pager = pager.WithFilter(filter)
 
 				evals, nextToken, err := pager.Page()
 				if err != nil {

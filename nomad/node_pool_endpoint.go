@@ -68,17 +68,16 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+			filter := func(pool *structs.NodePool) bool {
+				return aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityRead)
+			}
+
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, filter,
 				paginator.IDTokenizer[*structs.NodePool](args.NextToken),
 				(*structs.NodePool).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
-
-			filter := func(pool *structs.NodePool) bool {
-				return aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityRead)
-			}
-			pager = pager.WithFilter(filter)
 
 			pools, nextToken, err := pager.Page()
 			if err != nil {
@@ -450,7 +449,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 					return err
 				}
 
-				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions, filter,
 					paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken),
 					func(job *structs.Job) (*structs.JobListStub, error) {
 						summary, err := store.JobSummaryByID(ws, job.Namespace, job.ID)
@@ -463,7 +462,6 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
-				pager = pager.WithFilter(filter)
 
 				jobs, nextToken, err := pager.Page()
 				if err != nil {
@@ -544,7 +542,7 @@ func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
 				paginator.IDTokenizer[*structs.Node](args.NextToken),
 				func(node *structs.Node) (*structs.NodeListStub, error) {
 					return node.Stub(args.Fields), nil

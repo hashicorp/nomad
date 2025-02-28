@@ -113,20 +113,6 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-				paginator.NamespaceIDTokenizer[*structs.CSIVolume](args.NextToken),
-				func(vol *structs.CSIVolume) (*structs.CSIVolListStub, error) {
-					vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
-					if err != nil {
-						return nil, err
-					}
-					return vol.Stub(), nil
-				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
-			}
-
 			filter := func(vol *structs.CSIVolume) bool {
 				// Remove (possibly again) by PluginID to handle passing both
 				// NodeID and PluginID
@@ -142,7 +128,21 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 
 				return true
 			}
-			pager = pager.WithFilter(filter)
+
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				filter,
+				paginator.NamespaceIDTokenizer[*structs.CSIVolume](args.NextToken),
+				func(vol *structs.CSIVolume) (*structs.CSIVolListStub, error) {
+					vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
+					if err != nil {
+						return nil, err
+					}
+					return vol.Stub(), nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			}
 
 			vs, nextToken, err := pager.Page()
 			if err != nil {

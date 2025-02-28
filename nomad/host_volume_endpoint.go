@@ -130,14 +130,6 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-				paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken),
-				(*structs.HostVolume).Stub)
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
-			}
-
 			filter := func(vol *structs.HostVolume) bool {
 				if !strings.HasPrefix(vol.Name, args.Prefix) &&
 					!strings.HasPrefix(vol.ID, args.Prefix) {
@@ -159,7 +151,14 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				return allowVolume(aclObj, ns)
 
 			}
-			pager = pager.WithFilter(filter)
+
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, filter,
+				paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken),
+				(*structs.HostVolume).Stub)
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			}
 
 			// Calling page populates our output variable stub array as well as
 			// returns the next token.

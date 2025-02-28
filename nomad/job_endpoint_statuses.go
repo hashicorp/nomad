@@ -108,33 +108,6 @@ func (j *Job) Statuses(
 				return err
 			}
 
-			newJobs := set.New[structs.NamespacedID](0)
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-				paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken),
-				func(job *structs.Job) (structs.JobStatusesJob, error) {
-					var none structs.JobStatusesJob
-					// this is where the sausage is made
-					jsj, highestIndexOnPage, err := jobStatusesJobFromJob(ws, state, job)
-					if err != nil {
-						return none, err
-					}
-
-					newJobs.Insert(job.NamespacedID())
-
-					// by using the highest index we find on any job/alloc/
-					// deployment among the jobs on the page, instead of the
-					// latest index for any particular state table, we can
-					// avoid unblocking the RPC if something changes "off page"
-					if highestIndexOnPage > reply.Index {
-						reply.Index = highestIndexOnPage
-					}
-					return jsj, nil
-				})
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusInternalServerError, "failed to create result paginator: %v", err)
-			}
-
 			filter := func(job *structs.Job) bool {
 				if allowableNamespaces != nil && !allowableNamespaces[job.Namespace] {
 					return false
@@ -159,7 +132,34 @@ func (j *Job) Statuses(
 				}
 
 			}
-			pager = pager.WithFilter(filter)
+
+			newJobs := set.New[structs.NamespacedID](0)
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				filter,
+				paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken),
+				func(job *structs.Job) (structs.JobStatusesJob, error) {
+					var none structs.JobStatusesJob
+					// this is where the sausage is made
+					jsj, highestIndexOnPage, err := jobStatusesJobFromJob(ws, state, job)
+					if err != nil {
+						return none, err
+					}
+
+					newJobs.Insert(job.NamespacedID())
+
+					// by using the highest index we find on any job/alloc/
+					// deployment among the jobs on the page, instead of the
+					// latest index for any particular state table, we can
+					// avoid unblocking the RPC if something changes "off page"
+					if highestIndexOnPage > reply.Index {
+						reply.Index = highestIndexOnPage
+					}
+					return jsj, nil
+				})
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusInternalServerError, "failed to create result paginator: %v", err)
+			}
 
 			jobs, nextToken, err := pager.Page()
 			if err != nil {

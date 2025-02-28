@@ -66,14 +66,6 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-				paginator.NamespaceIDTokenizer[*structs.TaskGroupHostVolumeClaim](args.NextToken),
-				(*structs.TaskGroupHostVolumeClaim).Stub)
-			if err != nil {
-				return structs.NewErrRPCCodedf(
-					http.StatusBadRequest, "failed to create result paginator: %v", err)
-			}
-
 			allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
 			filter := func(claim *structs.TaskGroupHostVolumeClaim) bool {
 				// empty prefix doesn't filter
@@ -83,7 +75,15 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 
 				return allowClaim(aclObj, claim.Namespace)
 			}
-			pager = pager.WithFilter(filter)
+
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				filter,
+				paginator.NamespaceIDTokenizer[*structs.TaskGroupHostVolumeClaim](args.NextToken),
+				(*structs.TaskGroupHostVolumeClaim).Stub)
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "failed to create result paginator: %v", err)
+			}
 
 			// Calling page populates our output array as well as returns the next token.
 			claims, nextToken, err := pager.Page()

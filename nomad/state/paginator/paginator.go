@@ -40,6 +40,7 @@ type Paginator[T, TStub any] struct {
 func NewPaginator[T, TStub any](
 	iter Iterator,
 	opts structs.QueryOptions,
+	filter FilterFunc[T],
 	tokenizer Tokenizer[T],
 	stubFn func(T) (TStub, error),
 ) (*Paginator[T, TStub], error) {
@@ -47,6 +48,7 @@ func NewPaginator[T, TStub any](
 	p := &Paginator[T, TStub]{
 		iter:           iter,
 		tokenizer:      tokenizer,
+		filter:         filter,
 		stubFn:         stubFn,
 		perPage:        opts.PerPage,
 		reverse:        opts.Reverse,
@@ -64,10 +66,10 @@ func NewPaginator[T, TStub any](
 	return p, nil
 }
 
-func (p *Paginator[T, TStub]) WithFilter(fn FilterFunc[T]) *Paginator[T, TStub] {
-	p.filter = fn
-	return p
-}
+// func (p *Paginator[T, TStub]) WithFilter(fn FilterFunc[T]) *Paginator[T, TStub] {
+// 	p.filter = fn
+// 	return p
+// }
 
 // Page populates a page by running the append function
 // over all results. Returns the next token.

@@ -494,15 +494,13 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			}
 
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.NamespaceFilterFunc[*structs.Deployment](allowableNamespaces),
 				tokenizer,
 				(*structs.Deployment).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
-
-			filter := paginator.NamespaceFilterFunc[*structs.Deployment](allowableNamespaces)
-			pager = pager.WithFilter(filter)
 
 			deploys, nextToken, err := pager.Page()
 			if err != nil {

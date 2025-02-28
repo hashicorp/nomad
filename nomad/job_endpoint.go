@@ -1497,14 +1497,13 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				}
 
 				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+					paginator.NamespaceFilterFunc[*structs.Job](allowableNamespaces),
 					paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken),
 					stubFn)
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
-				filter := paginator.NamespaceFilterFunc[*structs.Job](allowableNamespaces)
-				pager = pager.WithFilter(filter)
 
 				jobs, nextToken, err := pager.Page()
 				if err != nil {
