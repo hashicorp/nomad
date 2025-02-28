@@ -135,6 +135,11 @@ func (n *NodePool) MemoryOversubscriptionEnabled(global *SchedulerConfiguration)
 	return memOversubEnabled
 }
 
+// Stub implements support for pagination
+func (n *NodePool) Stub() (*NodePool, error) {
+	return n, nil
+}
+
 // SetHash is used to compute and set the hash of node pool
 func (n *NodePool) SetHash() []byte {
 	// Initialize a 256bit Blake2 hash (32 bytes)

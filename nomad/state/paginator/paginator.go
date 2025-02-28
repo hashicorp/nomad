@@ -4,6 +4,7 @@
 package paginator
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/go-bexpr"
@@ -96,7 +97,8 @@ func (p *Paginator[T, TStub]) next() (TStub, paginatorState) {
 	}
 	obj, ok := raw.(T)
 	if !ok {
-		panic("paginator was instantiated with wrong type for table")
+		p.pageErr = errors.New("paginator was instantiated with wrong type for table")
+		return none, paginatorComplete
 	}
 
 	token, compared := p.tokenizer(obj)

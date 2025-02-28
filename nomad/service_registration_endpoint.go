@@ -366,9 +366,7 @@ func (s *ServiceRegistration) GetService(
 			tokenizer := paginator.NamespaceIDTokenizer[*structs.ServiceRegistration](args.NextToken)
 
 			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(svc *structs.ServiceRegistration) (*structs.ServiceRegistration, error) {
-					return svc, nil
-				})
+				(*structs.ServiceRegistration).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)

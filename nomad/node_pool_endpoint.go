@@ -71,9 +71,7 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 			tokenizer := paginator.IDTokenizer[*structs.NodePool](args.NextToken)
 
 			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(pool *structs.NodePool) (*structs.NodePool, error) {
-					return pool, nil
-				})
+				(*structs.NodePool).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}

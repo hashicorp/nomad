@@ -132,9 +132,7 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 
 			tokenizer := paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken)
 			pages, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(vol *structs.HostVolume) (*structs.HostVolumeStub, error) {
-					return vol.Stub(), nil
-				})
+				(*structs.HostVolume).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)

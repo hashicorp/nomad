@@ -107,9 +107,9 @@ func (hv *HostVolume) Copy() *HostVolume {
 	return &nhv
 }
 
-func (hv *HostVolume) Stub() *HostVolumeStub {
+func (hv *HostVolume) Stub() (*HostVolumeStub, error) {
 	if hv == nil {
-		return nil
+		return nil, nil
 	}
 
 	return &HostVolumeStub{
@@ -125,7 +125,7 @@ func (hv *HostVolume) Stub() *HostVolumeStub {
 		CreateTime:    hv.CreateTime,
 		ModifyIndex:   hv.ModifyIndex,
 		ModifyTime:    hv.ModifyTime,
-	}
+	}, nil
 }
 
 // Validate verifies that the submitted HostVolume spec has valid field values,
@@ -473,6 +473,11 @@ func (tgvc *TaskGroupHostVolumeClaim) GetNamespace() string {
 // GetID implements the paginator.IDGetter interface
 func (tgvc *TaskGroupHostVolumeClaim) GetID() string {
 	return tgvc.ID
+}
+
+// Stub implements support for pagination
+func (tgvc *TaskGroupHostVolumeClaim) Stub() (*TaskGroupHostVolumeClaim, error) {
+	return tgvc, nil
 }
 
 type TaskGroupVolumeClaimListRequest struct {

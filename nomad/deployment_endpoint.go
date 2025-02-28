@@ -494,7 +494,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			}
 
 			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(d *structs.Deployment) (*structs.Deployment, error) { return d, nil })
+				(*structs.Deployment).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)

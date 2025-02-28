@@ -69,9 +69,7 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 			tokenizer := paginator.NamespaceIDTokenizer[*structs.TaskGroupHostVolumeClaim](args.NextToken)
 
 			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(claim *structs.TaskGroupHostVolumeClaim) (*structs.TaskGroupHostVolumeClaim, error) {
-					return claim, nil
-				})
+				(*structs.TaskGroupHostVolumeClaim).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)

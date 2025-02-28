@@ -901,9 +901,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			}
 
 			pager, err := paginator.NewPaginator(iter, tokenizer, args.QueryOptions,
-				func(a *structs.ACLToken) (*structs.ACLTokenListStub, error) {
-					return a.Stub(), nil
-				})
+				(*structs.ACLToken).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
