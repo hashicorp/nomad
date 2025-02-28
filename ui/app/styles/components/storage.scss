@@ -5,8 +5,15 @@
 
 .storage-index {
   .storage-index-table-card {
-    padding: 1rem;
+    // padding: 1rem;
     margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #eee;
+    &:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
     header {
       display: grid;
       grid-template-columns: 1fr auto;

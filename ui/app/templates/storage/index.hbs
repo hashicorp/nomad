@@ -12,7 +12,7 @@
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-    <Hds::Card::Container @level="mid" @hasBorder={{true}} class="storage-index-table-card">
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card">
       <header aria-label="CSI Volumes">
         <h3>CSI Volumes</h3>
         <p class="intro">
@@ -87,7 +87,7 @@
       {{/if}}
     </Hds::Card::Container>
 
-    <Hds::Card::Container @level="mid" @hasBorder={{true}} class="storage-index-table-card">
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card">
       <header aria-label="Dynamic Host Volumes">
         <h3>Dynamic Host Volumes</h3>
         <p class="intro">
@@ -101,9 +101,8 @@
           <:body as |B|>
             <B.Tr data-test-dhv-row>
               <B.Td>
-                {{!-- <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.dhv"
-                  @model={{B.data.name}}>{{B.data.name}}</LinkTo> --}}
-                  {{B.data.name}}
+                <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.volumes.dynamic-host-volume"
+                  @model={{B.data.idWithNamespace}}>{{B.data.name}}</LinkTo>
               </B.Td>
               <B.Td>{{B.data.namespace.name}}</B.Td>
               <B.Td>{{B.data.pluginID}}</B.Td>
@@ -114,7 +113,7 @@
       {{/if}}
     </Hds::Card::Container>
 
-    <Hds::Card::Container @level="mid" @hasBorder={{true}} class="storage-index-table-card"
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card"
       {{keyboard-shortcut
         label="Scan for Static Host Volumes"
         pattern=(array "s" "c" "a" "n")
@@ -180,7 +179,7 @@
       {{/if}}
     </Hds::Card::Container>
 
-    <Hds::Card::Container @level="mid" @hasBorder={{true}} class="storage-index-table-card"
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card"
       {{keyboard-shortcut
         label="Scan for Ephemeral Disks"
         pattern=(array "s" "c" "a" "n")
