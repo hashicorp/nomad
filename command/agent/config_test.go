@@ -199,22 +199,21 @@ func TestConfig_Merge(t *testing.T) {
 			TLSServerName: "1",
 		}},
 		Consuls: []*config.ConsulConfig{{
-			ServerServiceName:    "1",
-			ClientServiceName:    "1",
-			AutoAdvertise:        &falseValue,
-			Addr:                 "1",
-			AllowUnauthenticated: &falseValue,
-			Timeout:              1 * time.Second,
-			Token:                "1",
-			Auth:                 "1",
-			EnableSSL:            &falseValue,
-			VerifySSL:            &falseValue,
-			CAFile:               "1",
-			CertFile:             "1",
-			KeyFile:              "1",
-			ServerAutoJoin:       &falseValue,
-			ClientAutoJoin:       &falseValue,
-			ChecksUseAdvertise:   &falseValue,
+			ServerServiceName:  "1",
+			ClientServiceName:  "1",
+			AutoAdvertise:      &falseValue,
+			Addr:               "1",
+			Timeout:            1 * time.Second,
+			Token:              "1",
+			Auth:               "1",
+			EnableSSL:          &falseValue,
+			VerifySSL:          &falseValue,
+			CAFile:             "1",
+			CertFile:           "1",
+			KeyFile:            "1",
+			ServerAutoJoin:     &falseValue,
+			ClientAutoJoin:     &falseValue,
+			ChecksUseAdvertise: &falseValue,
 		}},
 		Autopilot: &config.AutopilotConfig{
 			CleanupDeadServers:      &falseValue,
@@ -429,7 +428,6 @@ func TestConfig_Merge(t *testing.T) {
 			ClientServiceName:         "2",
 			AutoAdvertise:             &trueValue,
 			Addr:                      "2",
-			AllowUnauthenticated:      &trueValue,
 			Timeout:                   2 * time.Second,
 			Token:                     "2",
 			Auth:                      "2",
@@ -1747,8 +1745,7 @@ func Test_mergeConsulConfigs(t *testing.T) {
 	c0 := &Config{
 		Consuls: []*config.ConsulConfig{
 			{
-				Token:                "foo",
-				AllowUnauthenticated: pointer.Of(true),
+				Token: "foo",
 			},
 		},
 	}
@@ -1773,7 +1770,6 @@ func Test_mergeConsulConfigs(t *testing.T) {
 	must.Eq(t, c1.Consuls[0].ServiceIdentity, result.Consuls[0].ServiceIdentity)
 	must.Eq(t, c1.Consuls[0].TaskIdentity, result.Consuls[0].TaskIdentity)
 	must.Eq(t, c0.Consuls[0].Token, result.Consuls[0].Token)
-	must.Eq(t, c0.Consuls[0].AllowUnauthenticated, result.Consuls[0].AllowUnauthenticated)
 }
 
 func Test_mergeKEKProviderConfigs(t *testing.T) {
