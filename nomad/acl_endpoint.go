@@ -3116,7 +3116,7 @@ func (a *ACL) oidcClientAssertion(config *structs.ACLAuthMethodConfig) (*cass.JW
 		return nil, fmt.Errorf("failed to build client_assertion jwt: %w", err)
 	}
 	if config.VerboseLogging {
-		// a user intially setting up the auth method, as one might with
+		// a user initially setting up the auth method, as one might with
 		// VerboseLogging enabled, may benefit from not having to do a full
 		// login flow to see the jwt (and any possible Serialize() error).
 		// we say "example" in the log, because the cap library will run
