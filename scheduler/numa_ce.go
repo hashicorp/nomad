@@ -6,7 +6,9 @@
 package scheduler
 
 import (
+	"cmp"
 	"math/rand"
+	"slices"
 
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib"
@@ -28,8 +30,13 @@ type coreSelector struct {
 func (cs *coreSelector) Select(ask *structs.Resources) ([]uint16, hw.MHz) {
 	cores := cs.availableCores.Slice()[0:ask.Cores]
 	mhz := hw.MHz(0)
+	sortedTopologyCores := make([]numalib.Core, len(cs.topology.Cores))
+	copy(sortedTopologyCores, cs.topology.Cores)
+	slices.SortFunc(sortedTopologyCores, func(a, b numalib.Core) int { return cmp.Compare(a.ID, b.ID) })
 	for _, core := range cores {
-		mhz += cs.topology.Cores[core].MHz()
+		if i, found := slices.BinarySearchFunc(sortedTopologyCores, core, func(c numalib.Core, id hw.CoreID) int { return cmp.Compare(c.ID, id) }); found {
+			mhz += cs.topology.Cores[i].MHz()
+		}
 	}
 	ids := helper.ConvertSlice(cores, func(id hw.CoreID) uint16 { return uint16(id) })
 	return ids, mhz
