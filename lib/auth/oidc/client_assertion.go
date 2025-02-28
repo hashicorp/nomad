@@ -26,7 +26,6 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.
 
 	// this is all we use config for
 	clientID := config.OIDCClientID
-	verbose := config.VerboseLogging
 	// client assertion-specific info is in here
 	as := config.OIDCClientAssertion
 
@@ -43,15 +42,11 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.
 
 	case structs.OIDCKeySourceClientSecret:
 		algo := cass.HSAlgorithm(as.KeyAlgorithm)
-		opts = append(opts,
-			cass.WithClientSecret(as.ClientSecret(), algo))
+		return cass.NewJWTWithHMAC(clientID, as.Audience, algo, as.ClientSecret(), opts...)
 
 	case structs.OIDCKeySourceNomad:
-		algo := cass.RS256
-		opts = append(opts,
-			cass.WithRSAKey(nomadKey, algo),
-			cass.WithKeyID(nomadKID),
-		)
+		opts = append(opts, cass.WithKeyID(nomadKID))
+		return cass.NewJWTWithRSAKey(clientID, as.Audience, cass.RS256, nomadKey, opts...)
 
 	case structs.OIDCKeySourcePrivateKey:
 		algo := cass.RSAlgorithm(as.KeyAlgorithm)
@@ -68,24 +63,13 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.
 			keyID = X5T(cert)
 		}
 		opts = append(opts,
-			cass.WithRSAKey(rsaKey, algo),
 			cass.WithKeyID(keyID),
 		)
+		return cass.NewJWTWithRSAKey(clientID, as.Audience, algo, rsaKey, opts...)
 
 	default: // this shouldn't happen, but just in case
 		return nil, fmt.Errorf("unknown OIDC KeySource %q", as.KeySource)
 	}
-
-	j, err := cass.NewJWT(clientID, as.Audience, opts...)
-	if err != nil {
-		return nil, err
-	}
-	if verbose {
-		// TODO: hmmm...
-		//signed, _ := j.Serialize()
-		//a.logger.Debug("approximate signed jwt for client assertion", "jwt", signed)
-	}
-	return j, nil
 }
 
 // getCassPrivateKey parses the structs.OIDCClientAssertionKey PemKeyFile
