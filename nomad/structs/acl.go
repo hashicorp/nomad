@@ -1275,20 +1275,20 @@ func (c *OIDCClientAssertion) Validate() error {
 		return nil
 	}
 	if len(c.Audience) == 0 {
-		return errors.New("audience is required")
+		return errors.New("Audience is required")
 	}
 	switch c.KeySource {
 	case OIDCKeySourceNomad:
 	case OIDCKeySourcePrivateKey:
 		if c.PrivateKey == nil {
-			return errors.New("PrivateKey is required for `private_key` key source")
+			return errors.New("PrivateKey is required for `private_key` KeySource")
 		}
 		if err := c.PrivateKey.Validate(); err != nil {
 			return fmt.Errorf("invalid PrivateKey: %w", err)
 		}
 	case OIDCKeySourceClientSecret:
 		if c.clientSecret == "" {
-			return errors.New("OIDCClientSecret is required for `client_secret` key source")
+			return errors.New("OIDCClientSecret is required for `client_secret` KeySource")
 		}
 	default:
 		return fmt.Errorf("invalid KeySource %q", c.KeySource)
@@ -1317,36 +1317,49 @@ func (k *OIDCClientAssertionKey) Copy() *OIDCClientAssertionKey {
 	return n
 }
 
+var (
+	ErrMissingClientAssertionKey     = errors.New("missing PemKeyBase64 or PemKeyFile")
+	ErrAmbiguousClientAssertionKey   = errors.New("require only one of PemKeyBase64 or PemKeyFile")
+	ErrMissingClientAssertionKeyID   = errors.New("missing PemCertBase64, PemCertFile, or KeyID")
+	ErrAmbiguousClientAssertionKeyID = errors.New("require only one of PemCertBase64, PemCertFile, or KeyID")
+)
+
 // Validate ensures that one Key and one Cert or KeyID are provided.
 func (k *OIDCClientAssertionKey) Validate() error {
 	if k == nil {
 		return nil
 	}
 
+	// there should be at most 2 errors:
+	// one for key file/b64, one for cert file/b64 or keyid
+	var errs []error
+
 	// mutual exclusive key fields
+	// must have key file or base64, but not both
 	if k.PemKeyBase64 == "" && k.PemKeyFile == "" {
-		return errors.New("missing PemKeyBase64 or PemKeyFile")
+		errs = append(errs, ErrMissingClientAssertionKey)
 	}
 	if k.PemKeyBase64 != "" && k.PemKeyFile != "" {
-		return errors.New("require exactly one of PemKeyBase64 or PemKeyFile")
+		errs = append(errs, ErrAmbiguousClientAssertionKey)
 	}
 
 	// mutual exclusive cert fields
+	// must have exactly one of: cert file or base64, or keyid
 	if k.PemCertBase64 == "" && k.PemCertFile == "" && k.KeyID == "" {
-		return errors.New("missing PemCertBase64, PemCertFile, or KeyID")
+		errs = append(errs, ErrMissingClientAssertionKeyID)
 	}
-	errOnlyOne := errors.New("require only one of PemCertBase64, PemCertFile, or KeyID")
 	if k.PemCertBase64 != "" && (k.PemCertFile != "" || k.KeyID != "") {
-		return errOnlyOne
+		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
 	}
 	if k.PemCertFile != "" && (k.PemCertBase64 != "" || k.KeyID != "") {
-		return errOnlyOne
+		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
 	}
 	if k.KeyID != "" && (k.PemCertBase64 != "" || k.PemCertFile != "") {
-		return errOnlyOne
+		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
 	}
 
-	return nil
+	merry := multierror.Append(nil, errs...)
+	return helper.FlattenMultierror(merry)
 }
 
 // ACLAuthClaims is the claim mapping of the OIDC auth method in a format that

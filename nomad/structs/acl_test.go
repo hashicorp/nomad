@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -1290,7 +1291,7 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 				}},
 		}
 		err = deeplyBadClientAssertion.Validate(minTTL, maxTTL)
-		must.ErrorContains(t, err, "require exactly one of")
+		must.ErrorIs(t, err, ErrAmbiguousClientAssertionKey)
 	})
 }
 
@@ -1418,6 +1419,222 @@ func TestACLAuthMethod_TokenLocalityIsGlobal(t *testing.T) {
 
 	localAuthMethod := &ACLAuthMethod{TokenLocality: "local"}
 	must.False(t, localAuthMethod.TokenLocalityIsGlobal())
+}
+
+func TestOIDCClientAssertion_Copy(t *testing.T) {
+	ca1 := &OIDCClientAssertion{
+		KeySource:    "keyy",                                // plain value
+		Audience:     []string{"aud"},                       // slice
+		ExtraHeaders: map[string]string{"foo": "bar"},       // map
+		PrivateKey:   &OIDCClientAssertionKey{KeyID: "kid"}, // struct
+	}
+	ca2 := ca1.Copy()
+	must.Eq(t, ca1, ca2)
+	must.Eq(t, ca2.KeySource, "keyy")
+	must.Eq(t, ca2.Audience, []string{"aud"})
+	must.Eq(t, ca2.PrivateKey.KeyID, "kid")
+	must.Eq(t, ca2.ExtraHeaders, map[string]string{"foo": "bar"})
+	ca2.KeySource = "another"
+	must.NotEq(t, ca1, ca2)
+}
+
+func TestOIDCClientAssertion_Canonicalize(t *testing.T) {
+	cases := []struct {
+		keySource  OIDCClientAssertionKeySource
+		expectAlgo string // varies based on he key source
+	}{
+		{OIDCKeySourcePrivateKey, "RS256"},
+		{OIDCKeySourceNomad, "RS256"},
+		{OIDCKeySourceClientSecret, "HS256"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.keySource), func(t *testing.T) {
+			ca := &OIDCClientAssertion{
+				KeyAlgorithm: "", // explicitly empty
+				KeySource:    tc.keySource,
+			}
+			ca.Canonicalize()
+			must.Eq(t, tc.expectAlgo, ca.KeyAlgorithm)
+		})
+	}
+}
+
+func TestOIDCClientAssertion_Validate(t *testing.T) {
+	ca := validClientAssertion()
+	must.NoError(t, ca.Validate())
+
+	cases := []struct {
+		name string
+		mod  func(*OIDCClientAssertion)
+		err  string
+	}{
+		{
+			name: "require audience",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.Audience = nil
+			},
+			err: "Audience is required",
+		},
+		{
+			name: "missing PrivateKey",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.KeySource = OIDCKeySourcePrivateKey
+				ca.PrivateKey = nil
+			},
+			err: "PrivateKey is required",
+		},
+		{
+			name: "invalid PrivateKey",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.KeySource = OIDCKeySourcePrivateKey
+				ca.PrivateKey.KeyID = ""
+			},
+			err: "invalid PrivateKey",
+		},
+		{
+			name: "missing ClientSecret",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.KeySource = OIDCKeySourceClientSecret
+				ca.clientSecret = ""
+			},
+			err: "OIDCClientSecret is required",
+		},
+		{
+			name: "invalid KeySource",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.KeySource = "bogus"
+			},
+			err: "invalid KeySource",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			ca := ca.Copy()
+			if tc.mod != nil {
+				tc.mod(ca)
+			}
+			err := ca.Validate()
+			must.ErrorContains(t, err, tc.err)
+		})
+	}
+}
+
+func TestOIDCClientAssertionKey_Copy(t *testing.T) {
+	k1 := &OIDCClientAssertionKey{
+		KeyID: "kid",
+	}
+	k2 := k1.Copy()
+	must.Eq(t, k1, k2)
+	k2.KeyID = "another"
+	must.NotEq(t, k1, k2)
+}
+
+func TestOIDCClientAssertionKey_Validate(t *testing.T) {
+	// standalone multierror test, because permutations would be excessive
+	// in a table test.
+	t.Run("multierror", func(t *testing.T) {
+		key := &OIDCClientAssertionKey{}
+		err := key.Validate()
+		test.ErrorIs(t, err, ErrMissingClientAssertionKey)
+		test.ErrorIs(t, err, ErrMissingClientAssertionKeyID)
+		key = &OIDCClientAssertionKey{
+			PemKeyFile:    "/any.key",
+			PemKeyBase64:  "anykey",
+			PemCertFile:   "/any.crt",
+			PemCertBase64: "anycert",
+			KeyID:         "key-id",
+		}
+		err = key.Validate()
+		test.ErrorIs(t, err, ErrAmbiguousClientAssertionKey)
+		test.ErrorIs(t, err, ErrAmbiguousClientAssertionKeyID)
+	})
+
+	cases := []struct {
+		name string
+		key  *OIDCClientAssertionKey
+		err  error
+	}{
+		{
+			name: "ok files",
+			// Validate only checks that they are set to something.
+			// their existence and contents are validated later.
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:  "/any.key",
+				PemCertFile: "/any.crt",
+			},
+		},
+		{
+			name: "ok base64s",
+			key: &OIDCClientAssertionKey{
+				PemKeyBase64:  "anykey",
+				PemCertBase64: "anycert",
+			},
+		},
+		{
+			name: "ok keyid",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile: "/any.key",
+				KeyID:      "key-id",
+			},
+		},
+		{
+			name: "missing key",
+			key: &OIDCClientAssertionKey{
+				KeyID: "key-id",
+			},
+			err: ErrMissingClientAssertionKey,
+		},
+		{
+			name: "missing kid or cert",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile: "/any.key",
+			},
+			err: ErrMissingClientAssertionKeyID,
+		},
+		{
+			name: "ambiguous key",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:   "/any.key",
+				PemKeyBase64: "anykey",
+			},
+			err: ErrAmbiguousClientAssertionKey,
+		},
+		{
+			name: "ambiguous keyid - cert file and b64",
+			key: &OIDCClientAssertionKey{
+				PemCertFile:   "/any.cert",
+				PemCertBase64: "anycert",
+			},
+			err: ErrAmbiguousClientAssertionKeyID,
+		},
+		{
+			name: "ambiguous keyid - cert file and keyid",
+			key: &OIDCClientAssertionKey{
+				PemCertFile: "/any.cert",
+				KeyID:       "key-id",
+			},
+			err: ErrAmbiguousClientAssertionKeyID,
+		},
+		{
+			name: "ambiguous keyid - cert file and b64",
+			key: &OIDCClientAssertionKey{
+				PemCertBase64: "anycert",
+				KeyID:         "key-id",
+			},
+			err: ErrAmbiguousClientAssertionKeyID,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.key.Validate()
+			if tc.err == nil {
+				must.NoError(t, err)
+			} else {
+				must.ErrorIs(t, err, tc.err)
+			}
+		})
+	}
 }
 
 func TestACLBindingRule_Canonicalize(t *testing.T) {
