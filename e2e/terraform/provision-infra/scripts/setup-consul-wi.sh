@@ -55,6 +55,7 @@ fi
 echo "writing binding-rule for Nomad services"
 consul acl binding-rule create \
     -method 'nomad-workloads' \
+    -description 'Binding rule for Nomad services authenticated using a workload identity' \
     -bind-type 'service' \
     -bind-name '${value.nomad_service}' \
     -selector '"nomad_service" in value'
@@ -62,8 +63,9 @@ consul acl binding-rule create \
 echo "writing binding-rule for Nomad tasks"
 consul acl binding-rule create \
   -method 'nomad-workloads' \
+  -description 'Binding rule for Nomad tasks authenticated using a workload identity' \
   -bind-type 'role' \
-  -bind-name 'nomad-tasks-${value.nomad_namespace}' \
+  -bind-name 'nomad-${value.nomad_namespace}-tasks' \
   -selector '"nomad_service" not in value'
 
 echo "writing policy for Nomad tasks"
