@@ -1619,7 +1619,7 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			}
 
 		case ServiceIdentityTokenAccessorSnapshot:
-			// COMAPT: Nomad 1.10.0 removed the SI Token accessor table. This case
+			// COMPAT: Nomad 1.10.0 removed the SI Token accessor table. This case
 			// kept to gracefully handle snapshot requests which include an
 			// object from this.
 			accessor := new(structs.SITokenAccessor)
