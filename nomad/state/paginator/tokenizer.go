@@ -35,8 +35,7 @@ func NamespaceIDTokenizer[T namespaceIDGetter](target string) Tokenizer[T] {
 func IDTokenizer[T idGetter](target string) Tokenizer[T] {
 	return func(item T) (string, int) {
 		id := item.GetID()
-		token := fmt.Sprintf("%s", id)
-		return token, cmp.Compare(token, target)
+		return id, cmp.Compare(id, target)
 	}
 }
 
