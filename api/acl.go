@@ -988,6 +988,7 @@ type OIDCClientAssertion struct {
 	Audience []string
 
 	// PrivateKey contains external key material provided by users.
+	// KeySource must be "private_key" to enable this.
 	PrivateKey *OIDCClientAssertionKey
 
 	// KeyAlgorithm is the key's algorithm.
@@ -995,6 +996,7 @@ type OIDCClientAssertion struct {
 	// * nomad = "RS256" -- pulled from the keyring
 	// * private_key = "RS256"
 	// * client_secret = "HS256"
+	// Only RSA algorithms are supported for nomad and private_key.
 	KeyAlgorithm string
 
 	// ExtraHeaders are added to the JWT headers, alongside "kid" and "type"
@@ -1006,22 +1008,24 @@ type OIDCClientAssertion struct {
 // PemKeyBase64 or PemKeyFile must contain an RSA private key in PEM format.
 // PemCertBase64, PemCertFile may contain an x509 certificate created with
 // the Key, used to derive the KeyID. Alternatively, KeyID may be set manually.
+// PemKeyFile and PemCertFile, if set, must be present on disk on any Nomad
+// servers that may become cluster leaders.
 type OIDCClientAssertionKey struct {
 	// PemKeyBase64 is the private key, in pem format, base64-encoded.
 	// It is used to sign the JWT.
 	// Mutually exclusive with PemKeyFile.
 	PemKeyBase64 string
-	// PemKeyFile is the path to a private key on disk, in pem format.
+	// PemKeyFile is the path to a private key on server disk, in pem format.
 	// It is used to sign the JWT.
 	// Mutually exclusive with PemKeyBase64.
 	PemKeyFile string
 
-	// PemCertBase64 is a certificate, signed by the private key, in pem format,
-	// base64-encoded. It is used to derive an x5t-style KeyID.
+	// PemCertBase64 is a certificate, signed by the private key or a CA,
+	// in pem format, base64-encoded. It is used to derive an x5t-style KeyID.
 	// Mutually exclusive with PemCertFile and KeyID.
 	PemCertBase64 string
-	// PemCertFile is a certificate, signed by the private key, on disk,
-	// in pem format. It is used to derive an x5t-style KeyID.
+	// PemCertFile is a certificate, signed by the private key or a CA,
+	// on server disk, in pem format. It is used to derive an x5t-style KeyID.
 	// Mutually exclusive with PemCertBase64 and KeyID.
 	PemCertFile string
 	// KeyID may be set manually if needed to satisfy an OIDC provider's
