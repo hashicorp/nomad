@@ -3195,7 +3195,7 @@ func (c *Client) emitStats() {
 }
 
 // setGaugeForMemoryStats proxies metrics for memory specific statistics
-func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForMemoryStats(hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), baseLabels)
@@ -3203,7 +3203,7 @@ func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *hoststats.HostSta
 }
 
 // setGaugeForCPUStats proxies metrics for CPU specific statistics
-func (c *Client) setGaugeForCPUStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForCPUStats(hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 
 	labels := make([]metrics.Label, len(baseLabels))
 	copy(labels, baseLabels)
@@ -3226,7 +3226,7 @@ func (c *Client) setGaugeForCPUStats(nodeID string, hStats *hoststats.HostStats,
 }
 
 // setGaugeForDiskStats proxies metrics for disk specific statistics
-func (c *Client) setGaugeForDiskStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForDiskStats(hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 
 	labels := make([]metrics.Label, len(baseLabels))
 	copy(labels, baseLabels)
@@ -3246,7 +3246,7 @@ func (c *Client) setGaugeForDiskStats(nodeID string, hStats *hoststats.HostStats
 }
 
 // setGaugeForAllocationStats proxies metrics for allocation specific statistics
-func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForAllocationStats(baseLabels []metrics.Label) {
 	node := c.GetConfig().Node
 	total := node.NodeResources
 	res := node.ReservedResources
@@ -3304,22 +3304,20 @@ func (c *Client) setGaugeForUptime(hStats *hoststats.HostStats, baseLabels []met
 
 // emitHostStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitHostStats() {
-	nodeID := c.NodeID()
 	hStats := c.hostStatsCollector.Stats()
 	labels := c.labels()
 
-	c.setGaugeForMemoryStats(nodeID, hStats, labels)
+	c.setGaugeForMemoryStats(hStats, labels)
 	c.setGaugeForUptime(hStats, labels)
-	c.setGaugeForCPUStats(nodeID, hStats, labels)
-	c.setGaugeForDiskStats(nodeID, hStats, labels)
+	c.setGaugeForCPUStats(hStats, labels)
+	c.setGaugeForDiskStats(hStats, labels)
 }
 
 // emitClientMetrics emits lower volume client metrics
 func (c *Client) emitClientMetrics() {
-	nodeID := c.NodeID()
 	labels := c.labels()
 
-	c.setGaugeForAllocationStats(nodeID, labels)
+	c.setGaugeForAllocationStats(labels)
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0
