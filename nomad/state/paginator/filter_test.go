@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestGenericFilter(t *testing.T) {
@@ -32,14 +32,14 @@ func TestGenericFilter(t *testing.T) {
 		func(result *mockObject) (string, error) { return result.id, nil })
 	pager.WithFilter(filter)
 
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	results, nextToken, err := pager.Page()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	expected := []string{"6", "7", "8"}
-	require.Equal(t, "9", nextToken)
-	require.Equal(t, expected, results)
+	must.Eq(t, "9", nextToken)
+	must.Eq(t, expected, results)
 }
 
 func TestNamespaceFilter(t *testing.T) {
@@ -82,13 +82,13 @@ func TestNamespaceFilter(t *testing.T) {
 
 			pager, err := NewPaginator(iter, opts, IDTokenizer[*mockObject](""),
 				func(result *mockObject) (string, error) { return result.namespace, nil })
-			require.NoError(t, err)
+			must.NoError(t, err)
 			pager = pager.WithFilter(NamespaceFilterFunc[*mockObject](tc.allowable))
 
 			results, nextToken, err := pager.Page()
-			require.NoError(t, err)
-			require.Equal(t, "", nextToken)
-			require.Equal(t, tc.expected, results)
+			must.NoError(t, err)
+			must.Eq(t, "", nextToken)
+			must.Eq(t, tc.expected, results)
 		})
 	}
 }
