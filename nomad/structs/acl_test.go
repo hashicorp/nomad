@@ -1263,6 +1263,24 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 	}
 }
 
+// Sanitize method should redact sensitive values
+func TestACLAuthMethod_Sanitize(t *testing.T) {
+	// these just shouldn't nil panic
+	am := &ACLAuthMethod{}
+	am.Sanitize()
+	am.Config = &ACLAuthMethodConfig{}
+	am.Sanitize()
+
+	t.Run("client secret", func(t *testing.T) {
+		am := am.Copy()
+		am.Config.OIDCClientSecret = "very private secret"
+		dirty := am.Config.OIDCClientSecret
+		clean := am.Sanitize().Config.OIDCClientSecret
+		must.Eq(t, "very private secret", dirty)
+		must.Eq(t, "redacted", clean)
+	})
+}
+
 func TestACLAuthMethod_Merge(t *testing.T) {
 	ci.Parallel(t)
 
