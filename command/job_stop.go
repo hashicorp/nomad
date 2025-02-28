@@ -148,7 +148,7 @@ func (c *JobStopCommand) Run(args []string) int {
 
 	var wg sync.WaitGroup
 	for _, jobID := range jobIDs {
-		jobID := jobID
+		copiedJobID := jobID
 
 		wg.Add(1)
 		go func() {
@@ -161,7 +161,7 @@ func (c *JobStopCommand) Run(args []string) int {
 			}
 
 			// Check if the job exists
-			job, err := c.JobByPrefix(client, jobID, nil)
+			job, err := c.JobByPrefix(client, copiedJobID, nil)
 			if err != nil {
 				c.Ui.Error(err.Error())
 				statusCh <- 1
@@ -195,7 +195,7 @@ func (c *JobStopCommand) Run(args []string) int {
 			// job that needs to be stopped. Since we're stopping
 			// jobs concurrently, we're going to skip confirmation
 			// for when multiple jobs need to be stopped.
-			if len(jobIDs) == 1 && jobID != *job.ID && !autoYes {
+			if len(jobIDs) == 1 && copiedJobID != *job.ID && !autoYes {
 				question := fmt.Sprintf("Are you sure you want to stop job %q? [y/N]", *job.ID)
 				code, confirmed := getConfirmation(question)
 				if !confirmed {
@@ -220,7 +220,7 @@ func (c *JobStopCommand) Run(args []string) int {
 			wq := &api.WriteOptions{Namespace: *job.Namespace}
 			evalID, _, err := client.Jobs().DeregisterOpts(*job.ID, opts, wq)
 			if err != nil {
-				c.Ui.Error(fmt.Sprintf("Error deregistering job with id %s err: %s", jobID, err))
+				c.Ui.Error(fmt.Sprintf("Error deregistering job with id %s err: %s", copiedJobID, err))
 				statusCh <- 1
 				return
 			}
