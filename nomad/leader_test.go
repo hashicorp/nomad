@@ -788,61 +788,6 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 	})
 }
 
-func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Insert a vault accessor that should be revoked
-	fsmState := s1.fsm.State()
-	va := mock.VaultAccessor()
-	if err := fsmState.UpsertVaultAccessor(100, []*structs.VaultAccessor{va}); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Swap the Vault client
-	tvc := &TestVaultClient{}
-	s1.vault = tvc
-
-	// Do a restore
-	if err := s1.revokeVaultAccessorsOnRestore(); err != nil {
-		t.Fatalf("Failed to restore: %v", err)
-	}
-
-	if len(tvc.RevokedTokens) != 1 && tvc.RevokedTokens[0].Accessor != va.Accessor {
-		t.Fatalf("Bad revoked accessors: %v", tvc.RevokedTokens)
-	}
-}
-
-func TestLeader_revokeVaultAccessorsOnRestore_workloadIdentity(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Insert a Vault accessor that should be revoked
-	fsmState := s1.fsm.State()
-	va := mock.VaultAccessor()
-	err := fsmState.UpsertVaultAccessor(100, []*structs.VaultAccessor{va})
-	must.NoError(t, err)
-
-	// Do a restore
-	err = s1.revokeVaultAccessorsOnRestore()
-	must.NoError(t, err)
-
-	// Verify accessor was removed from state.
-	got, err := fsmState.VaultAccessor(nil, va.Accessor)
-	must.NoError(t, err)
-	must.Nil(t, got)
-}
-
 func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
 	ci.Parallel(t)
 	r := require.New(t)

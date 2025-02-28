@@ -727,8 +727,7 @@ func TestOperator_UpgradeCheckRequest_VaultWorkloadIdentity(t *testing.T) {
 		// Create a test job with a Vault block but without an identity.
 		job := mock.Job()
 		job.TaskGroups[0].Tasks[0].Vault = &structs.Vault{
-			Cluster:  "default",
-			Policies: []string{"test"},
+			Cluster: "default",
 		}
 
 		args := structs.JobRegisterRequest{

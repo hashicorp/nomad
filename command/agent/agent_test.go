@@ -1320,7 +1320,6 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 		c.Vaults[0] = &config.VaultConfig{
 			Name:      "default",
 			Enabled:   pointer.Of(true),
-			Token:     "vault-token",
 			Namespace: "vault-namespace",
 			Addr:      "https://vault.consul:8200",
 		}
@@ -1331,7 +1330,6 @@ func TestServer_Reload_VaultConfig(t *testing.T) {
 	newConfig.Vaults[0] = &config.VaultConfig{
 		Name:      "default",
 		Enabled:   pointer.Of(true),
-		Token:     "vault-token",
 		Namespace: "another-namespace",
 		Addr:      "https://vault.consul:8200",
 	}

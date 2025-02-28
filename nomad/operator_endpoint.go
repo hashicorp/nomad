@@ -861,18 +861,6 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	}
 	reply.OutdatedNodes = nodes
 
-	// Retrieve Vault tokens that were created by Nomad servers.
-	vaultTokensIter, err := op.srv.State().VaultAccessors(ws)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve Vault token accessors: %w", err)
-	}
-
-	vaultTokens := []*structs.VaultAccessor{}
-	for raw := vaultTokensIter.Next(); raw != nil; raw = vaultTokensIter.Next() {
-		vaultTokens = append(vaultTokens, raw.(*structs.VaultAccessor))
-	}
-	reply.VaultTokens = vaultTokens
-
 	reply.QueryMeta.Index, _ = op.srv.State().LatestIndex()
 	op.srv.setQueryMeta(&reply.QueryMeta)
 

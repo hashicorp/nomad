@@ -59,10 +59,6 @@ Alias: nomad run
   precedence, going from highest to lowest: the -consul-token flag, the
   $CONSUL_HTTP_TOKEN environment variable and finally the value in the job file.
 
-  The run command will set the vault_token of the job based on the following
-  precedence, going from highest to lowest: the -vault-token flag, the
-  $VAULT_TOKEN environment variable and finally the value in the job file.
-
   When ACLs are enabled, this command requires a token with the 'submit-job'
   capability for the job's namespace. Jobs that mount CSI volumes require a
   token with the 'csi-mount-volume' capability for the volume's
@@ -126,18 +122,6 @@ Run Options:
     Nomad server configuration, then a Consul token must be supplied with
     appropriate service and KV Consul ACL policy permissions.
 
-  -vault-token
-    Used to validate if the user submitting the job has permission to run the job
-    according to its Vault policies. A Vault token must be supplied if the vault
-    block allow_unauthenticated is disabled in the Nomad server configuration.
-    If the -vault-token flag is set, the passed Vault token is added to the jobspec
-    before sending to the Nomad servers. This allows passing the Vault token
-    without storing it in the job file. This overrides the token found in the
-    $VAULT_TOKEN environment variable and the vault_token field in the job file.
-    This token is cleared from the job after validating and cannot be used within
-    the job executing environment. Use the vault block when templating in a job
-    with a Vault token.
-
   -vault-namespace
     If set, the passed Vault namespace is stored in the job before sending to the
     Nomad servers.
@@ -166,7 +150,6 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-verbose":          complete.PredictNothing,
 			"-consul-token":     complete.PredictNothing,
 			"-consul-namespace": complete.PredictAnything,
-			"-vault-token":      complete.PredictAnything,
 			"-vault-namespace":  complete.PredictAnything,
 			"-output":           complete.PredictNothing,
 			"-policy-override":  complete.PredictNothing,
@@ -191,7 +174,7 @@ func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts bool
-	var checkIndexStr, consulToken, consulNamespace, vaultToken, vaultNamespace string
+	var checkIndexStr, consulToken, consulNamespace, vaultNamespace string
 	var evalPriority int
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
@@ -206,7 +189,6 @@ func (c *JobRunCommand) Run(args []string) int {
 	flagSet.StringVar(&checkIndexStr, "check-index", "", "")
 	flagSet.StringVar(&consulToken, "consul-token", "", "")
 	flagSet.StringVar(&consulNamespace, "consul-namespace", "", "")
-	flagSet.StringVar(&vaultToken, "vault-token", "", "")
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
 	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
@@ -276,16 +258,6 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	if consulNamespace != "" {
 		job.ConsulNamespace = pointer.Of(consulNamespace)
-	}
-
-	// Parse the Vault token
-	if vaultToken == "" {
-		// Check the environment variable
-		vaultToken = os.Getenv("VAULT_TOKEN")
-	}
-
-	if vaultToken != "" {
-		job.VaultToken = pointer.Of(vaultToken)
 	}
 
 	if vaultNamespace != "" {

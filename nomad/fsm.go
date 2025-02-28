@@ -35,7 +35,6 @@ const (
 	AllocSnapshot                        SnapshotType = 4
 	PeriodicLaunchSnapshot               SnapshotType = 6
 	JobSummarySnapshot                   SnapshotType = 7
-	VaultAccessorSnapshot                SnapshotType = 8
 	JobVersionSnapshot                   SnapshotType = 9
 	DeploymentSnapshot                   SnapshotType = 10
 	ACLPolicySnapshot                    SnapshotType = 11
@@ -62,6 +61,11 @@ const (
 	// TimeTableSnapshot
 	// Deprecated: Nomad no longer supports TimeTable snapshots since 1.9.2
 	TimeTableSnapshot SnapshotType = 5
+
+	// VaultAccessorSnapshot
+	// Deprecated: Nomad no longer supports the Vault legacy token based
+	// workflow and therefore accessor snapshots since 1.10.0.
+	VaultAccessorSnapshot SnapshotType = 8
 
 	// EventSinkSnapshot
 	// Deprecated: Nomad no longer supports EventSink snapshots since 1.0
@@ -282,9 +286,9 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.ReconcileJobSummariesRequestType:
 		return n.applyReconcileSummaries(buf[1:], log.Index)
 	case structs.VaultAccessorRegisterRequestType:
-		return n.applyUpsertVaultAccessor(buf[1:], log.Index)
+		return nil
 	case structs.VaultAccessorDeregisterRequestType:
-		return n.applyDeregisterVaultAccessor(buf[1:], log.Index)
+		return nil
 	case structs.ApplyPlanResultsRequestType:
 		return n.applyPlanResults(msgType, buf[1:], log.Index)
 	case structs.DeploymentStatusUpdateRequestType:
@@ -1034,39 +1038,6 @@ func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte,
 	return nil
 }
 
-// applyUpsertVaultAccessor stores the Vault accessors for a given allocation
-// and task
-func (n *nomadFSM) applyUpsertVaultAccessor(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_vault_accessor"}, time.Now())
-	var req structs.VaultAccessorsRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.UpsertVaultAccessor(index, req.Accessors); err != nil {
-		n.logger.Error("UpsertVaultAccessor failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-// applyDeregisterVaultAccessor deregisters a set of Vault accessors
-func (n *nomadFSM) applyDeregisterVaultAccessor(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_vault_accessor"}, time.Now())
-	var req structs.VaultAccessorsRequest
-	if err := structs.Decode(buf, &req); err != nil {
-		panic(fmt.Errorf("failed to decode request: %v", err))
-	}
-
-	if err := n.state.DeleteVaultAccessors(index, req.Accessors); err != nil {
-		n.logger.Error("DeregisterVaultAccessor failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
 func (n *nomadFSM) applyUpsertSIAccessor(buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_si_accessor"}, time.Now())
 	var request structs.SITokenAccessorsRequest
@@ -1669,14 +1640,12 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			}
 
 		case VaultAccessorSnapshot:
+			// COMPAT: Nomad 1.10.0 removed the Vault accessor table. This case
+			// kept to gracefully handle snapshot requests which include an
+			// object from this.
 			accessor := new(structs.VaultAccessor)
 			if err := dec.Decode(accessor); err != nil {
 				return err
-			}
-			if filter.Include(accessor) {
-				if err := restore.VaultAccessorRestore(accessor); err != nil {
-					return err
-				}
 			}
 
 		case ServiceIdentityTokenAccessorSnapshot:
@@ -2512,10 +2481,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
-	if err := s.persistVaultAccessors(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
 	if err := s.persistSITokenAccessors(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
@@ -2814,31 +2779,6 @@ func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 
 		sink.Write([]byte{byte(JobSummarySnapshot)})
 		if err := encoder.Encode(jobSummary); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistVaultAccessors(sink raft.SnapshotSink,
-	encoder *codec.Encoder) error {
-
-	ws := memdb.NewWatchSet()
-	accessors, err := s.snap.VaultAccessors(ws)
-	if err != nil {
-		return err
-	}
-
-	for {
-		raw := accessors.Next()
-		if raw == nil {
-			break
-		}
-
-		accessor := raw.(*structs.VaultAccessor)
-
-		sink.Write([]byte{byte(VaultAccessorSnapshot)})
-		if err := encoder.Encode(accessor); err != nil {
 			return err
 		}
 	}

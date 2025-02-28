@@ -52,6 +52,29 @@ incremented. If you were relying on the previous behavior to redistribute
 workloads, you can force a destructive update by changing fields that require
 one, such as the `meta` block.
 
+#### Vault integration changes
+
+Nomad 1.10.0 removes the previously deprecated token-based Vault authentication
+workflow. Nomad clients must now use a task's [Workload Identity][] to
+authenticate to Vault and obtain a Vault token specific to the task.
+
+This table lists removed fields and the new workflow.
+
+| Field | Configuration | New Workflow |
+| ------ | ------------ | ------------ |
+| [`vault.allow_unauthenticated`][] | Agent | Tasks should use a workload identity. Do not use a Vault token. |
+| [`vault.task_token_ttl`][] | Agent | With workload identity, tasks receive their TTL configuration from the Vault role. |
+| [`vault.token`][] | Agent | Nomad agents use the workload identity when making requests to authenticated endpoints. |
+| [`vault.policies`][]  | Job specification  |  Configure and use a Vault role.  |
+
+Before upgrading to Nomad 1.10, perform the following tasks:
+
+1. Configure Vault to work with workload identity.
+1. Migrate all workloads to use workload identity.
+
+Refer to [Migrating to Using Workload Identity with Vault][] for more
+details.
+
 ## Nomad 1.9.5
 
 #### CNI plugins
