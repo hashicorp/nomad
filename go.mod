@@ -5,14 +5,13 @@ go 1.23.6
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826.
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
+	// TODO: remove after hashicorp/cap PR: https://github.com/hashicorp/cap/pull/155
+	github.com/hashicorp/cap => github.com/gulducat/cap v0.0.4
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 )
 
 // Nomad is built using the current source of the API module.
 replace github.com/hashicorp/nomad/api => ./api
-
-// TODO: remove after hashicorp/cap PR: https://github.com/hashicorp/cap/pull/155
-replace github.com/hashicorp/cap => github.com/gulducat/cap v0.0.4
 
 require (
 	github.com/LK4D4/joincontext v0.0.0-20171026170139-1724345da6d5
