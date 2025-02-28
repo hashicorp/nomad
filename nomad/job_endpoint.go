@@ -285,9 +285,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		}
 	}
 
-	// Clear the Consul token
-	args.Job.ConsulToken = ""
-
 	// Preserve the existing task group counts, if so requested
 	if existingJob != nil && args.PreserveCounts {
 		prevCounts := make(map[string]int)
