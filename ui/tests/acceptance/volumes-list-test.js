@@ -43,16 +43,10 @@ module('Acceptance | volumes list', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('visiting /storage redirects to /storage/volumes', async function (assert) {
-    await visit('/storage');
-
-    assert.equal(currentURL(), '/storage/volumes');
-  });
-
-  test('visiting the now-deprecated /csi redirects to /storage/volumes', async function (assert) {
+  test('visiting the now-deprecated /csi redirects to /storage', async function (assert) {
     await visit('/csi');
 
-    assert.equal(currentURL(), '/storage/volumes');
+    assert.equal(currentURL(), '/storage');
   });
 
   test('visiting /storage/volumes', async function (assert) {

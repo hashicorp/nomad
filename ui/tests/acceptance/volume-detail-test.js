@@ -48,7 +48,6 @@ module('Acceptance | volume detail', function (hooks) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.equal(Layout.breadcrumbFor('storage.index').text, 'Storage');
-    assert.equal(Layout.breadcrumbFor('storage.volumes').text, 'Volumes');
     assert.equal(
       Layout.breadcrumbFor('storage.volumes.volume').text,
       volume.name
