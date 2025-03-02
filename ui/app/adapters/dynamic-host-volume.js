@@ -7,7 +7,7 @@ import WatchableNamespaceIDs from './watchable-namespace-ids';
 import classic from 'ember-classic-decorator';
 
 @classic
-export default class HostVolumeAdapter extends WatchableNamespaceIDs {
+export default class DynamicHostVolumeAdapter extends WatchableNamespaceIDs {
   pathForType = () => 'volume/host';
 
   urlForFindRecord(fullID) {

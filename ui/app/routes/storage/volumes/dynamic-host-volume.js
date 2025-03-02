@@ -19,7 +19,9 @@ export default class StorageVolumesDynamicHostVolumeRoute extends Route {
     const fullId = JSON.stringify([`${id}`, namespace || 'default']);
 
     return RSVP.hash({
-      volume: this.store.findRecord('host-volume', fullId, { reload: true }),
+      volume: this.store.findRecord('dynamic-host-volume', fullId, {
+        reload: true,
+      }),
       namespaces: this.store.findAll('namespace'),
     })
       .then((hash) => hash.volume)

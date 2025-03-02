@@ -5,7 +5,7 @@
 
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { action, computed } from '@ember/object';
+import { action } from '@ember/object';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 export default class DynamicHostVolumeController extends Controller {
@@ -40,6 +40,10 @@ export default class DynamicHostVolumeController extends Controller {
         ],
       },
     ];
+  }
+
+  @action gotoAllocation(allocation) {
+    this.transitionToRoute('allocations.allocation', allocation.id);
   }
 
   // @computed('model.readAllocations.@each.modifyIndex')
