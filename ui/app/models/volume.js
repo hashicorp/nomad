@@ -67,9 +67,9 @@ export default class Volume extends Model {
   @attr('number') createIndex;
   @attr('number') modifyIndex;
 
-  //#region Dynamic Host Volumes
-  @attr('string') state;
-  @attr('string') pluginID;
-  @attr('string') capacity;
-  //#endregion Dynamic Host Volumes
+  // //#region Dynamic Host Volumes
+  // @attr('string') state;
+  // @attr('string') pluginID;
+  // @attr('string') capacity;
+  // //#endregion Dynamic Host Volumes
 }
