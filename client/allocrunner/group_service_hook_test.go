@@ -4,6 +4,7 @@
 package allocrunner
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -292,4 +293,106 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 
 	services := h.getWorkloadServicesLocked()
 	must.Len(t, 1, services.Services)
+}
+
+func TestGroupServiceHook_PreKill(t *testing.T) {
+	ci.Parallel(t)
+	logger := testlog.HCLogger(t)
+
+	t.Run("returns immediately when no shutdown delay", func(t *testing.T) {
+		alloc := mock.Alloc()
+		alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
+		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		tg.Services = []*structs.Service{
+			{
+				Name:      "testconnect",
+				PortLabel: "9999",
+				Connect: &structs.ConsulConnect{
+					SidecarService: &structs.ConsulSidecarService{},
+				},
+			},
+		}
+
+		consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+		regWrapper := wrapper.NewHandlerWrapper(
+			logger,
+			consulMockClient,
+			regMock.NewServiceRegistrationHandler(logger))
+
+		h := newGroupServiceHook(groupServiceHookConfig{
+			alloc:             alloc,
+			serviceRegWrapper: regWrapper,
+			restarter:         agentconsul.NoopRestarter(),
+			taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+			logger:            logger,
+			hookResources:     cstructs.NewAllocHookResources(),
+		})
+
+		successChan := make(chan struct{}, 1)
+		go func() {
+			h.PreKill()
+			successChan <- struct{}{}
+		}()
+
+		shutDownCtx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+
+		select {
+		case <-shutDownCtx.Done():
+			t.Fail()
+		case <-successChan:
+		}
+	})
+
+	t.Run("returns immediately when already deregistered", func(t *testing.T) {
+		alloc := mock.Alloc()
+		alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
+		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		tg.Services = []*structs.Service{
+			{
+				Name:      "testconnect",
+				PortLabel: "9999",
+				Connect: &structs.ConsulConnect{
+					SidecarService: &structs.ConsulSidecarService{},
+				},
+			},
+		}
+		delay := 500 * time.Millisecond
+		tg.ShutdownDelay = &delay
+
+		consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+		regWrapper := wrapper.NewHandlerWrapper(
+			logger,
+			consulMockClient,
+			regMock.NewServiceRegistrationHandler(logger))
+
+		// wait a shorter amount of time than shutdown_delay. If this triggers, the shutdown delay
+		// is being waited on, so we did not skip it.
+		shutDownCtx, cancel := context.WithTimeout(context.Background(), delay-300*time.Millisecond)
+		defer cancel()
+
+		h := newGroupServiceHook(groupServiceHookConfig{
+			alloc:             alloc,
+			serviceRegWrapper: regWrapper,
+			restarter:         agentconsul.NoopRestarter(),
+			taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+			logger:            logger,
+			hookResources:     cstructs.NewAllocHookResources(),
+		})
+		h.deregistered = true
+
+		successChan := make(chan struct{}, 1)
+		go func() {
+			h.PreKill()
+			successChan <- struct{}{}
+		}()
+
+		select {
+		case <-shutDownCtx.Done():
+			t.Fail()
+		case <-successChan:
+		}
+	})
 }

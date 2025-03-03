@@ -215,8 +215,8 @@ func (h *groupServiceHook) PreKill() {
 //
 // caller must hold h.mu
 func (h *groupServiceHook) preKillLocked() {
-	// Optimization: If this allocation has already been deregistered
-	// because it ran PostRun hooks, skip shutdown_delay
+	// Optimization: If this allocation has already been deregistered,
+	// skip waiting for the shutdown_delay again.
 	if h.deregistered && h.delay != 0 {
 		h.logger.Debug("tasks already deregistered, skipping shutdown_delay")
 		return
