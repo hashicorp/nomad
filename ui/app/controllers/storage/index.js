@@ -45,6 +45,11 @@ export default class IndexController extends Controller {
         label: 'State',
         isSortable: true,
       },
+      {
+        key: 'modifyTime',
+        label: 'Last Modified',
+        isSortable: true,
+      },
     ];
   }
 
@@ -92,7 +97,6 @@ export default class IndexController extends Controller {
 
   @restartableTask *scanForEphemeralDisks() {
     const allAllocs = yield this.store.findAll('allocation', { reload: true });
-    console.log('allAllocs', allAllocs);
     const allocDataDirs = yield Promise.all(
       allAllocs.map(async (alloc) => {
         return {
@@ -101,7 +105,6 @@ export default class IndexController extends Controller {
         };
       })
     );
-    console.log('allocDataDirs', allocDataDirs);
     // TODO: demonstrative timeout
     yield timeout(2000);
 

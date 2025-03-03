@@ -27,6 +27,18 @@
         <span class="term">Plugin</span>
         {{this.model.pluginID}}
       </span>
+      <span class="pair" data-test-volume-create-time>
+        <span class="term">Create Time</span>
+        <span class="tooltip" aria-label="{{format-month-ts this.model.createTime}}">
+          {{moment-from-now this.model.createTime}}
+        </span>
+      </span>
+      <span class="pair" data-test-volume-modify-time>
+        <span class="term">Modify Time</span>
+        <span class="tooltip" aria-label="{{format-month-ts this.model.modifyTime}}">
+          {{moment-from-now this.model.modifyTime}}
+        </span>
+      </span>
     </div>
   </div>
 
@@ -84,12 +96,14 @@
       <table class="table">
         <thead>
             <th>Setting</th>
+            <th>&nbsp;</th>
             <th>Value</th>
         </thead>
         <tbody>
           {{#each this.model.constraints as |constraint|}}
             <tr>
               <td>{{constraint.LTarget}}</td>
+              <td>{{constraint.Operand}}</td>
               <td>{{constraint.RTarget}}</td>
             </tr>
           {{/each}}

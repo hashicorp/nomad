@@ -30,7 +30,10 @@ export default class IndexRoute extends Route.extend(
         .catch(notifyForbidden(this)),
       namespaces: this.store.findAll('namespace'),
       dynamicHostVolumes: this.store
-        .query('volume', { type: 'host', namespace: params.qpNamespace })
+        .query('dynamic-host-volume', {
+          type: 'host',
+          namespace: params.qpNamespace,
+        })
         .catch(notifyForbidden(this)),
       // staticHostVolumes: this.store
       //   .query('volume', { type: 'host', namespace: params.qpNamespace })
