@@ -91,7 +91,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 				}
 
 				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-					paginator.NamespaceFilterFunc[*structs.Allocation](allowableNamespaces),
+					paginator.NamespaceSelectorFunc[*structs.Allocation](allowableNamespaces),
 					tokenizer,
 					func(a *structs.Allocation) (*structs.AllocListStub, error) {
 						return a.Stub(args.Fields), nil

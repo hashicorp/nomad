@@ -130,7 +130,7 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				return err
 			}
 
-			filter := func(vol *structs.HostVolume) bool {
+			selector := func(vol *structs.HostVolume) bool {
 				if !strings.HasPrefix(vol.Name, args.Prefix) &&
 					!strings.HasPrefix(vol.ID, args.Prefix) {
 					return false
@@ -152,7 +152,7 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions, filter,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
 				paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken),
 				(*structs.HostVolume).Stub)
 			if err != nil {

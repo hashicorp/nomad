@@ -68,11 +68,11 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 				return err
 			}
 
-			filter := func(pool *structs.NodePool) bool {
+			selector := func(pool *structs.NodePool) bool {
 				return aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityRead)
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions, filter,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
 				paginator.IDTokenizer[*structs.NodePool](args.NextToken),
 				(*structs.NodePool).Stub)
 			if err != nil {
@@ -428,14 +428,14 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 			} else if err != nil {
 				return err
 			} else {
-				var filter paginator.FilterFunc[*structs.Job]
+				var selector paginator.SelectorFunc[*structs.Job]
 
 				if namespace == structs.AllNamespacesSentinel {
 					iter, err = store.JobsByPool(ws, args.Name)
-					filter = paginator.NamespaceFilterFunc[*structs.Job](allowableNamespaces)
+					selector = paginator.NamespaceSelectorFunc[*structs.Job](allowableNamespaces)
 				} else {
 					iter, err = store.JobsByNamespace(ws, namespace, sort)
-					filter = func(job *structs.Job) bool {
+					selector = func(job *structs.Job) bool {
 						if allowableNamespaces != nil && !allowableNamespaces[job.Namespace] {
 							return false
 						}
@@ -449,7 +449,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 					return err
 				}
 
-				pager, err := paginator.NewPaginator(iter, args.QueryOptions, filter,
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
 					paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken),
 					func(job *structs.Job) (*structs.JobListStub, error) {
 						summary, err := store.JobSummaryByID(ws, job.Namespace, job.ID)

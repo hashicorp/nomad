@@ -108,7 +108,7 @@ func (j *Job) Statuses(
 				return err
 			}
 
-			filter := func(job *structs.Job) bool {
+			baseSelector := func(job *structs.Job) bool {
 				if allowableNamespaces != nil && !allowableNamespaces[job.Namespace] {
 					return false
 				}
@@ -119,23 +119,26 @@ func (j *Job) Statuses(
 			}
 
 			// only provide specific jobs if requested.
+			var selector paginator.SelectorFunc[*structs.Job]
 			if len(args.Jobs) > 0 {
 				// set per-page to avoid iterating the whole table
 				args.QueryOptions.PerPage = int32(len(args.Jobs))
 				// filter in the requested jobs
 				jobSet := set.From[structs.NamespacedID](args.Jobs)
-				filter = func(job *structs.Job) bool {
-					if !filter(job) {
+				selector = func(job *structs.Job) bool {
+					if !baseSelector(job) {
 						return false
 					}
 					return jobSet.Contains(job.NamespacedID())
 				}
 
+			} else {
+				selector = baseSelector
 			}
 
 			newJobs := set.New[structs.NamespacedID](0)
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-				filter,
+				selector,
 				paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken),
 				func(job *structs.Job) (structs.JobStatusesJob, error) {
 					var none structs.JobStatusesJob

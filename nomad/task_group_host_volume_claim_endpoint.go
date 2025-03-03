@@ -67,8 +67,7 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 			}
 
 			allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
-			filter := func(claim *structs.TaskGroupHostVolumeClaim) bool {
-				// empty prefix doesn't filter
+			selector := func(claim *structs.TaskGroupHostVolumeClaim) bool {
 				if !strings.HasPrefix(claim.ID, args.Prefix) {
 					return false
 				}
@@ -77,7 +76,7 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 			}
 
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-				filter,
+				selector,
 				paginator.NamespaceIDTokenizer[*structs.TaskGroupHostVolumeClaim](args.NextToken),
 				(*structs.TaskGroupHostVolumeClaim).Stub)
 			if err != nil {

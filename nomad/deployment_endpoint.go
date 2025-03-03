@@ -494,7 +494,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			}
 
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-				paginator.NamespaceFilterFunc[*structs.Deployment](allowableNamespaces),
+				paginator.NamespaceSelectorFunc[*structs.Deployment](allowableNamespaces),
 				tokenizer,
 				(*structs.Deployment).Stub)
 			if err != nil {

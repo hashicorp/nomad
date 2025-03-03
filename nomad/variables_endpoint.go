@@ -422,7 +422,7 @@ func (sv *Variables) List(
 				return err
 			}
 
-			filter := func(v *structs.VariableEncrypted) bool {
+			selector := func(v *structs.VariableEncrypted) bool {
 				if !strings.HasPrefix(v.Path, args.Prefix) {
 					return false
 				}
@@ -432,7 +432,7 @@ func (sv *Variables) List(
 					auth.IdentityToACLClaim(args.GetIdentity(), sv.srv.State()))
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions, filter,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
 				paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken),
 				func(sv *structs.VariableEncrypted) (*structs.VariableMetadata, error) {
 					svStub := sv.VariableMetadata
@@ -489,7 +489,7 @@ func (sv *Variables) listAllVariables(
 				return err
 			}
 
-			filter := func(v *structs.VariableEncrypted) bool {
+			selector := func(v *structs.VariableEncrypted) bool {
 				if !strings.HasPrefix(v.Path, args.Prefix) {
 					return false
 				}
@@ -499,7 +499,7 @@ func (sv *Variables) listAllVariables(
 					auth.IdentityToACLClaim(args.GetIdentity(), sv.srv.State()))
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions, filter,
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
 				paginator.NamespaceIDTokenizer[*structs.VariableEncrypted](args.NextToken),
 				func(v *structs.VariableEncrypted) (*structs.VariableMetadata, error) {
 					svStub := v.VariableMetadata

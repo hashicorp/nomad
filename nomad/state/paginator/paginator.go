@@ -24,7 +24,7 @@ type Paginator[T, TStub any] struct {
 	iter           Iterator
 	tokenizer      Tokenizer[T]
 	bexpr          *bexpr.Evaluator
-	filter         FilterFunc[T]
+	selector       SelectorFunc[T]
 	stubFn         func(T) (TStub, error)
 	perPage        int32
 	itemCount      int32
@@ -40,7 +40,7 @@ type Paginator[T, TStub any] struct {
 func NewPaginator[T, TStub any](
 	iter Iterator,
 	opts structs.QueryOptions,
-	filter FilterFunc[T],
+	selector SelectorFunc[T],
 	tokenizer Tokenizer[T],
 	stubFn func(T) (TStub, error),
 ) (*Paginator[T, TStub], error) {
@@ -48,7 +48,7 @@ func NewPaginator[T, TStub any](
 	p := &Paginator[T, TStub]{
 		iter:           iter,
 		tokenizer:      tokenizer,
-		filter:         filter,
+		selector:       selector,
 		stubFn:         stubFn,
 		perPage:        opts.PerPage,
 		reverse:        opts.Reverse,
@@ -65,11 +65,6 @@ func NewPaginator[T, TStub any](
 
 	return p, nil
 }
-
-// func (p *Paginator[T, TStub]) WithFilter(fn FilterFunc[T]) *Paginator[T, TStub] {
-// 	p.filter = fn
-// 	return p
-// }
 
 // Page populates a page by running the append function
 // over all results. Returns the next token.
@@ -128,7 +123,7 @@ func (p *Paginator[T, TStub]) next() (TStub, paginatorState) {
 		}
 	}
 
-	if p.filter != nil && !p.filter(obj) {
+	if p.selector != nil && !p.selector(obj) {
 		return none, paginatorSkip
 	}
 

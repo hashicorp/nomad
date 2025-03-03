@@ -1497,7 +1497,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				}
 
 				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-					paginator.NamespaceFilterFunc[*structs.Job](allowableNamespaces),
+					paginator.NamespaceSelectorFunc[*structs.Job](allowableNamespaces),
 					paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken),
 					stubFn)
 				if err != nil {

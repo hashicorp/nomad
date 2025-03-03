@@ -113,7 +113,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				return err
 			}
 
-			filter := func(vol *structs.CSIVolume) bool {
+			selector := func(vol *structs.CSIVolume) bool {
 				// Remove (possibly again) by PluginID to handle passing both
 				// NodeID and PluginID
 				if args.PluginID != "" && args.PluginID != vol.PluginID {
@@ -130,7 +130,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			}
 
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
-				filter,
+				selector,
 				paginator.NamespaceIDTokenizer[*structs.CSIVolume](args.NextToken),
 				func(vol *structs.CSIVolume) (*structs.CSIVolListStub, error) {
 					vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
