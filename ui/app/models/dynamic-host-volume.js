@@ -12,5 +12,5 @@ export default class DynamicHostVolumeModel extends Model {
   @belongsTo('node') node;
   @attr('string') pluginID;
   @attr() constraints;
-  @hasMany('allocation') allocations;
+  @hasMany('allocation', { async: false }) allocations;
 }
