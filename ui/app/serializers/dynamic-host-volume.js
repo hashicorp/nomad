@@ -34,13 +34,9 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
   extractEmbeddedRecords(serializer, store, typeHash, partial) {
     partial.included = partial.included || [];
 
-    this.embeddedRelationships.forEach((relationshipName) => {
-      const relationshipMeta =
-        typeHash.relationshipsByName.get(relationshipName);
-      const relationship = get(
-        partial,
-        `data.relationships.${relationshipName}.data`
-      );
+    this.embeddedRelationships.forEach((embed) => {
+      const relationshipMeta = typeHash.relationshipsByName.get(embed);
+      const relationship = get(partial, `data.relationships.${embed}.data`);
 
       if (!relationship) return;
 
@@ -53,12 +49,18 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
           alloc
         );
 
-        hasMany[idx] = data;
-        if (included) partial.included.push(...included);
+        partial.included.push(data);
+        if (included) {
+          partial.included.push(...included);
+        }
+
+        // In JSONAPI, the main payload value is an array of IDs that
+        // map onto the objects in the included array.
+        hasMany[idx] = { id: data.id, type: data.type };
       });
 
       const relationshipJson = { data: hasMany };
-      set(partial, `data.relationships.${relationshipName}`, relationshipJson);
+      set(partial, `data.relationships.${embed}`, relationshipJson);
     });
 
     return partial;
