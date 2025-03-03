@@ -367,7 +367,24 @@ func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 					},
 				},
 			},
-			wantErr:     false,
+			wantErr:     true,
+			expectedErr: "invalid path for private key file",
+		},
+		{
+			name: "invalid private key source with invalid kid ID",
+			config: &structs.ACLAuthMethodConfig{
+				OIDCClientID: "test-client-id",
+				OIDCClientAssertion: &structs.OIDCClientAssertion{
+					KeySource:    structs.OIDCKeySourcePrivateKey,
+					Audience:     []string{"test-audience"},
+					KeyAlgorithm: "RS256",
+					PrivateKey: &structs.OIDCClientAssertionKey{
+						PemKeyBase64: encodeTestPrivateKeyBase64(t, nomadKey),
+						KeyID:        "invalid-kid",
+					},
+				},
+			},
+			wantErr:     true,
 			expectedErr: "invalid path for private key file",
 		},
 	}
