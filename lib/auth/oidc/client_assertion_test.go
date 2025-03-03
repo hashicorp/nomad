@@ -158,7 +158,7 @@ func TestBuildClientAssertionJWT_ClientSecret(t *testing.T) {
 		},
 		// expected non-nil error; got nil
 		{
-			name: "invalid missing audience with nil discovery url",
+			name: "invalid missing audience with empty discovery url",
 			config: &structs.ACLAuthMethodConfig{
 				OIDCClientID:     "test-client-id",
 				OIDCClientSecret: "1234567890abcdefghijklmnopqrstuvwxyz",
@@ -173,11 +173,29 @@ func TestBuildClientAssertionJWT_ClientSecret(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			expectedErr: "missing audience with nil discovery URL",
+			expectedErr: "missing audience with empty discovery URL",
 		},
 		// expected non-nil error; got nil
 		{
 			name: "invalid missing audience",
+			config: &structs.ACLAuthMethodConfig{
+				OIDCClientID:     "test-client-id",
+				OIDCClientSecret: "1234567890abcdefghijklmnopqrstuvwxyz",
+				OIDCEnablePKCE:   true,
+				OIDCClientAssertion: &structs.OIDCClientAssertion{
+					KeySource:    structs.OIDCKeySourceClientSecret,
+					KeyAlgorithm: "HS256",
+					ExtraHeaders: map[string]string{
+						"test-header": "test-value",
+					},
+				},
+			},
+			wantErr:     true,
+			expectedErr: "missing audience",
+		},
+		// expected non-nil error; got nil
+		{
+			name: "inexistent discovery URL",
 			config: &structs.ACLAuthMethodConfig{
 				OIDCClientID:     "test-client-id",
 				OIDCClientSecret: "1234567890abcdefghijklmnopqrstuvwxyz",
@@ -192,13 +210,14 @@ func TestBuildClientAssertionJWT_ClientSecret(t *testing.T) {
 				},
 			},
 			wantErr:     true,
-			expectedErr: "missing audience",
+			expectedErr: "inexistent discovery URL",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.config.Canonicalize() // inherits clientSecret from OIDCClientAssertion
+			tt.config.Validate()     // validates clientSecret length
 			jwt, err := BuildClientAssertionJWT(tt.config, nil, "")
 			if tt.wantErr {
 				must.Error(t, err)
