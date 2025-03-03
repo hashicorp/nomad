@@ -21,7 +21,7 @@ last_error=
 checkReadyClients() {
     local clients_length
 
-    ready_clients=$(nomad node status -json | jq '[.[] | select(.Status == "ready")]') ||
+    ready_clients=$(nomad node status -json | jq '[.[] | select(.Status == "ready" and .SchedulingEligibility == "eligible")]') ||
         error_exit "Could not query node status"
 
     clients_length=$(echo "$ready_clients" | jq 'length')
@@ -54,4 +54,4 @@ while true; do
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done
 
-echo "All clients are eligible and running."
+echo "All $CLIENT_COUNT clients are eligible and running."
