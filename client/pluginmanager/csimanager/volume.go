@@ -423,7 +423,7 @@ func (v *volumeManager) ExpandVolume(ctx context.Context, volNS, volID, remoteID
 	// This it the path from the host, which we need to use to verify whether
 	// the path is the right one to pass to the plugin container
 	hostStagingPath := v.stagingDirForVolume(v.mountRoot, volNS, volID, usage)
-	_, err := os.Stat(hostStagingPath)
+	_, err = os.Stat(hostStagingPath)
 	if err != nil && errors.Is(err, fs.ErrNotExist) {
 		// COMPAT: it's possible to get an unmount request that includes the
 		// namespace even for volumes that were mounted before the path included
