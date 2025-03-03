@@ -646,6 +646,7 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		reply.EvalCreateIndex = evalIndex
 	}
 
+	// Check if we need to setup a heartbeat
 	if args.Status != structs.NodeStatusDown {
 		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
 		if err != nil {
