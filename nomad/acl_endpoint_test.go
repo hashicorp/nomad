@@ -3708,7 +3708,6 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	oidcTestProvider.SetExpectedAuthNonce("fsSPuaodKevKfDU3IeXa")
 	oidcTestProvider.SetExpectedAuthCode("codeABC")
 	oidcTestProvider.SetCustomAudience("mock")
-	oidcTestProvider.SetExpectedState("st_someweirdstateid")
 	oidcTestProvider.SetCustomClaims(map[string]interface{}{
 		"azp":                            "mock",
 		"http://nomad.internal/policies": []string{"engineering"},
@@ -3728,7 +3727,6 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 
 	// Simulate a case where OIDCAuthURL was never called, or expired,
 	// or a leadership transfer occurred between it and OIDCCompleteAuth.
-	// re-use completeAuthReq2, now that the auth method has been set up.
 	var completeAuthResp3 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq3, &completeAuthResp3)
 	must.Error(t, err)
