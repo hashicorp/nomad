@@ -19,7 +19,7 @@ func TestGenericFilter(t *testing.T) {
 	ci.Parallel(t)
 	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 
-	filter := func(obj *mockObject) bool {
+	selector := func(obj *mockObject) bool {
 		return obj.id > "5"
 	}
 
@@ -28,7 +28,7 @@ func TestGenericFilter(t *testing.T) {
 		PerPage: 3,
 	}
 	results := []string{}
-	pager, err := NewPaginator(iter, opts, filter, IDTokenizer[*mockObject](""),
+	pager, err := NewPaginator(iter, opts, selector, IDTokenizer[*mockObject](""),
 		func(result *mockObject) (string, error) { return result.id, nil })
 
 	must.NoError(t, err)
@@ -80,7 +80,7 @@ func TestNamespaceFilter(t *testing.T) {
 			}
 
 			pager, err := NewPaginator(iter, opts,
-				NamespaceFilterFunc[*mockObject](tc.allowable),
+				NamespaceSelectorFunc[*mockObject](tc.allowable),
 				IDTokenizer[*mockObject](""),
 				func(result *mockObject) (string, error) { return result.namespace, nil })
 			must.NoError(t, err)
