@@ -166,12 +166,24 @@ func TestACLOIDC_CompleteAuth(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, createBindingRole2Resp)
 
+	// Request Auth URL first, as a user would. This primes the request cache
+	// on the server, and the response includes the expected state.
+	authURLresp, _, err := testClient.ACLAuth().GetAuthURL(&api.ACLOIDCAuthURLRequest{
+		AuthMethodName: createdAuthMethod.Name,
+		RedirectURI:    createdAuthMethod.Config.AllowedRedirectURIs[0],
+		ClientNonce:    "fpSPuaodKevKfDU3IeXb",
+	}, nil)
+	must.NoError(t, err)
+	u, err := url.Parse(authURLresp.AuthURL)
+	must.NoError(t, err)
+	state := u.Query().Get("state")
+
 	// Generate and make the request.
 	authURLRequest := api.ACLOIDCCompleteAuthRequest{
 		AuthMethodName: createdAuthMethod.Name,
 		RedirectURI:    createdAuthMethod.Config.AllowedRedirectURIs[0],
 		ClientNonce:    "fpSPuaodKevKfDU3IeXb",
-		State:          "st_someweirdstateid",
+		State:          state,
 		Code:           "codeABC",
 	}
 
