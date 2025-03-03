@@ -54,7 +54,7 @@
                         "Templates": null,
                         "DispatchPayload": null,
                         "VolumeMounts": null,
-                       "Leader": false,
+                        "Leader": false,
                         "ShutdownDelay": 0,
                         "KillSignal": "",
                         "Kind": "",

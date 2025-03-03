@@ -646,12 +646,14 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 		reply.EvalCreateIndex = evalIndex
 	}
 
-	ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
-	if err != nil {
-		n.logger.Error("heartbeat reset failed", "error", err)
-		return err
+	if args.Status != structs.NodeStatusDown {
+		ttl, err := n.srv.resetHeartbeatTimer(args.NodeID)
+		if err != nil {
+			n.logger.Error("heartbeat reset failed", "error", err)
+			return err
+		}
+		reply.HeartbeatTTL = ttl
 	}
-	reply.HeartbeatTTL = ttl
 
 	// Set the reply index and leader
 	reply.Index = index
