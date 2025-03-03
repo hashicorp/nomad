@@ -297,6 +297,23 @@ func TestWaitConfig_ToConsulTemplate(t *testing.T) {
 
 	actual, err := clientWaitConfig.ToConsulTemplate()
 	must.NoError(t, err)
+	must.Eq(t, *expected.Enabled, *actual.Enabled)
+	must.Eq(t, *expected.Min, *actual.Min)
+	must.Eq(t, *expected.Max, *actual.Max)
+
+	expected = config.WaitConfig{
+		Enabled: pointer.Of(false),
+		Min:     pointer.Of(0 * time.Second),
+		Max:     pointer.Of(0 * time.Second),
+	}
+
+	clientWaitConfig = &WaitConfig{
+		Min: pointer.Of(0 * time.Second),
+		Max: pointer.Of(0 * time.Second),
+	}
+
+	actual, err = clientWaitConfig.ToConsulTemplate()
+	must.NoError(t, err)
 	must.Eq(t, *expected.Min, *actual.Min)
 	must.Eq(t, *expected.Max, *actual.Max)
 }

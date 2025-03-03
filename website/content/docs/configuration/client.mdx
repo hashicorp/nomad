@@ -516,8 +516,9 @@ refer to the [drivers documentation](/nomad/docs/drivers).
   `max` duration has elapsed. Once the `max` duration has elapsed, Consul Template will
   re-render the template with the data available at the time. This is useful to enable in
   systems where Consul is in a degraded state, or the referenced data values are changing
-  rapidly, because it will reduce the number of times a template is rendered. This
-  configuration is also exposed in the _task template block_ to allow overrides per task.
+  rapidly, because it will reduce the number of times a template is rendered. Setting
+  both `min` and `max` to `0` disables the feature. This configuration is also exposed
+  in the _task template block_ to allow overrides per task.
 
   ```hcl
   wait {
