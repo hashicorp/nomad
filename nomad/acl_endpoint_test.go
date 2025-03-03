@@ -3713,12 +3713,10 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		"http://nomad.internal/roles":    []string{"engineering"},
 	})
 
-	// We should now be able to authenticate, however, we do not have any rule
-	// bindings that will match.
 	completeAuthReq3 := structs.ACLOIDCCompleteAuthRequest{
 		AuthMethodName: mockedAuthMethod.Name,
 		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
-		State:          "st_",
+		State:          "overwrite me",
 		Code:           "codeABC",
 		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
 		WriteRequest: structs.WriteRequest{
@@ -3726,7 +3724,20 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
+	// Simulate a case where OIDCAuthURL was never called, or expired,
+	// or a leadership transfer occurred between it and OIDCCompleteAuth.
+	// re-use completeAuthReq2, now that the auth method has been set up.
 	var completeAuthResp3 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq3, &completeAuthResp3)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "no OIDC request found for client nonce")
+	must.False(t, strings.Contains(buf.String(), verboseLoggingMessage))
+
+	// Pretend that OIDCAuthURL was called as a separate request.
+	completeAuthReq3.State = setupOIDCAuthURLForCompleteAuth(t, testServer, completeAuthReq3)
+
+	// We should now be able to authenticate, however, we do not have any rule
+	// bindings that will match.
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq3, &completeAuthResp3)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3767,13 +3778,16 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	completeAuthReq4 := structs.ACLOIDCCompleteAuthRequest{
 		AuthMethodName: mockedAuthMethod.Name,
 		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
-		State:          "st_someweirdstateid",
+		State:          "overwrite me",
 		Code:           "codeABC",
 		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
 		WriteRequest: structs.WriteRequest{
 			Region: DefaultRegion,
 		},
 	}
+
+	// Pretend that OIDCAuthURL was called as a separate request.
+	completeAuthReq4.State = setupOIDCAuthURLForCompleteAuth(t, testServer, completeAuthReq4)
 
 	var completeAuthResp4 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq4, &completeAuthResp4)
@@ -3801,7 +3815,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	completeAuthReq5 := structs.ACLOIDCCompleteAuthRequest{
 		AuthMethodName: mockedAuthMethod.Name,
 		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
-		State:          "st_someweirdstateid",
+		State:          "overwrite me",
 		Code:           "codeABC",
 		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
 		WriteRequest: structs.WriteRequest{
@@ -3809,10 +3823,13 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
+	// Pretend that OIDCAuthURL was called as a separate request.
+	completeAuthReq5.State = setupOIDCAuthURLForCompleteAuth(t, testServer, completeAuthReq5)
+
 	var completeAuthResp5 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq5, &completeAuthResp5)
 	must.NoError(t, err)
-	must.NotNil(t, completeAuthResp4.ACLToken)
+	must.NotNil(t, completeAuthResp5.ACLToken)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Roles)
 	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
@@ -4008,4 +4025,22 @@ func TestACL_Login(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp6.ACLToken)
 	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name+"-"+user, completeAuthResp6.ACLToken.Name)
+}
+
+// setupOIDCAuthURLForCompleteAuth calls OIDCAuthURL to prime the oidc.Request
+// cache and returns valid State for a subsequent OIDCCompleteAuth call.
+func setupOIDCAuthURLForCompleteAuth(t *testing.T, srv *Server, req structs.ACLOIDCCompleteAuthRequest) string {
+	t.Helper()
+	var authURLResp structs.ACLOIDCAuthURLResponse
+	err := srv.RPC(structs.ACLOIDCAuthURLRPCMethod, &structs.ACLOIDCAuthURLRequest{
+		AuthMethodName: req.AuthMethodName,
+		RedirectURI:    req.RedirectURI,
+		ClientNonce:    req.ClientNonce,
+		WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+	}, &authURLResp)
+	must.NoError(t, err)
+	// get the right State from the request cache
+	oidcReq := srv.oidcRequestCache.Load(req.ClientNonce)
+	must.NotNil(t, req)
+	return oidcReq.State()
 }

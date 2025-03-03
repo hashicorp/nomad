@@ -71,10 +71,10 @@ type ACL struct {
 	// should be used to obtain a provider from an auth-method.
 	oidcProviderCache *oidc.ProviderCache
 
-	// oidcRequests stores a cache of OIDC requests, so request state (mainly
-	// PKCE challenge/verification) can persist between calls to OIDCAuthURL
-	// and OIDCCompleteAuth.
-	oidcRequests *oidc.RequestCache
+	// oidcRequestCache stores a cache of OIDC requests, so request state
+	// (mainly PKCE challenge/verification) can persist between calls to
+	// OIDCAuthURL and OIDCCompleteAuth.
+	oidcRequestCache *oidc.RequestCache
 }
 
 func NewACLEndpoint(srv *Server, ctx *RPCContext) *ACL {
@@ -83,7 +83,7 @@ func NewACLEndpoint(srv *Server, ctx *RPCContext) *ACL {
 		ctx:               ctx,
 		logger:            srv.logger.Named("acl"),
 		oidcProviderCache: srv.oidcProviderCache,
-		oidcRequests:      oidc.NewRequestCache(), // TODO: why not instantiate here? provider cache is set up elsewhere...
+		oidcRequestCache:  srv.oidcRequestCache,
 	}
 }
 
@@ -2614,7 +2614,7 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 	}
 
 	// Generate our OIDC request.
-	oidcReq := a.oidcRequests.Load(args.ClientNonce)
+	oidcReq := a.oidcRequestCache.Load(args.ClientNonce)
 	if oidcReq == nil {
 		oidcReq, err = a.oidcRequest(args.ClientNonce, args.RedirectURI, authMethod.Config)
 		if err != nil {
@@ -2719,7 +2719,7 @@ func (a *ACL) OIDCCompleteAuth(
 	}
 
 	// Retrieve the request generated in OIDCAuthURL()
-	oidcReq := a.oidcRequests.LoadAndDelete(args.ClientNonce) // I am so done with this NONCENSE
+	oidcReq := a.oidcRequestCache.LoadAndDelete(args.ClientNonce) // I am so done with this NONCENSE
 	if oidcReq == nil {
 		// note: this may happen if there is a leader election between getting
 		// the auth url and completing the login flow here.
@@ -3086,7 +3086,7 @@ func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodC
 		return nil, fmt.Errorf("failed to create OIDC request: %v", err)
 	}
 
-	a.oidcRequests.Store(a.srv.shutdownCtx, req)
+	a.oidcRequestCache.Store(a.srv.shutdownCtx, req)
 	return req, nil
 }
 
