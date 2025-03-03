@@ -2,7 +2,7 @@
 layout: docs
 page_title: 'Commands: acl bootstrap'
 description: |
-  The bootstrap command is used to create the initial ACL token.
+  The nomad acl bootstrap command creates the initial ACL token.
 ---
 
 # Command: acl bootstrap
@@ -15,10 +15,10 @@ The `acl bootstrap` command is used to bootstrap the initial ACL token.
 nomad acl bootstrap [options]
 ```
 
-The `acl bootstrap` command can be used in two ways: 
+The `acl bootstrap` command can be used in two ways:
 - If you provide no arguments it will return a system generated bootstrap token.
 - If you would like to provide an operator generated token it is possible to provide the token
-using a file `acl bootstrap [path]`. The Token can be read from stdin by setting the path to "-". 
+using a file `acl bootstrap [path]`. The Token can be read from stdin by setting the path to "-".
 Please make sure you secure this token in an appropriate manner as it could be written to your terminal history.
 
 ## General Options
@@ -67,7 +67,7 @@ Create Index = 7
 Modify Index = 7
 ```
 
-Bootstrap the initial token with provided token using stdin 
+Bootstrap the initial token with provided token using stdin
 
 ```shell-session
 $ nomad acl bootstrap -
