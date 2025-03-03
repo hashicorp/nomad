@@ -795,7 +795,9 @@ func (a *ACLAuthMethod) SetHash() []byte {
 		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
-		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCEnablePKCE)))
+		if a.Config.OIDCDisablePKCE != nil {
+			_, _ = hash.Write([]byte(strconv.FormatBool(*a.Config.OIDCDisablePKCE)))
+		}
 		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCDisableUserInfo)))
 		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.VerboseLogging)))
 		_, _ = hash.Write([]byte(a.Config.ExpirationLeeway.String()))
@@ -1046,8 +1048,8 @@ type ACLAuthMethodConfig struct {
 	// Optional client assertion ("private key jwt") config
 	OIDCClientAssertion *OIDCClientAssertion
 
-	// OEnable PKCE challenge verification
-	OIDCEnablePKCE bool // TODO: default enabled, except for existing auth methods
+	// Disable PKCE challenge verification
+	OIDCDisablePKCE *bool
 
 	// Disable claims from the OIDC UserInfo endpoint
 	OIDCDisableUserInfo bool

@@ -828,8 +828,8 @@ type ACLAuthMethodConfig struct {
 	OIDCClientSecret string
 	// Optionally send a signed JWT ("private key jwt") as a client assertion
 	OIDCClientAssertion *OIDCClientAssertion
-	// Enable S256 PKCE challenge verification
-	OIDCEnablePKCE bool // TODO: default enabled, except for existing auth methods
+	// Disable S256 PKCE challenge verification
+	OIDCDisablePKCE *bool
 	// Disable claims from the OIDC UserInfo endpoint
 	OIDCDisableUserInfo bool
 	// List of OIDC scopes
