@@ -688,7 +688,8 @@ func (wc *WaitConfig) ToConsulTemplate() (*config.WaitConfig, error) {
 		return nil, err
 	}
 
-	result := &config.WaitConfig{Enabled: pointer.Of(true)}
+	enabled := wc.Min == nil || *wc.Min != 0 || wc.Max == nil || *wc.Max != 0
+	result := &config.WaitConfig{Enabled: pointer.Of(enabled)}
 
 	if wc.Min != nil {
 		result.Min = wc.Min
