@@ -11,11 +11,15 @@ import classic from 'ember-classic-decorator';
 @classic
 export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
   embeddedRelationships = ['allocations'];
+  separateNanos = ['CreateTime', 'ModifyTime'];
 
   // Volumes treat Allocations as embedded records. Ember has an
   // EmbeddedRecords mixin, but it assumes an application is using
   // the REST serializer and Nomad does not.
   normalize(typeHash, hash) {
+    hash.PlainId = hash.ID;
+    hash.ID = JSON.stringify([hash.ID, hash.NamespaceID || 'default']);
+
     const normalizedHash = super.normalize(typeHash, hash);
     return this.extractEmbeddedRecords(
       this,

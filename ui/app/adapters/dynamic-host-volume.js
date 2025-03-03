@@ -8,12 +8,12 @@ import classic from 'ember-classic-decorator';
 
 @classic
 export default class DynamicHostVolumeAdapter extends WatchableNamespaceIDs {
-  pathForType = () => 'volume/host';
+  pathForType = () => 'volumes';
 
   urlForFindRecord(fullID) {
     const [id, namespace] = JSON.parse(fullID);
 
-    let url = `/v1/${this.pathForType()}/${id}`;
+    let url = `/${this.namespace}/volume/host/${id}`;
 
     if (namespace && namespace !== 'default') {
       url += `?namespace=${namespace}`;
@@ -21,8 +21,4 @@ export default class DynamicHostVolumeAdapter extends WatchableNamespaceIDs {
 
     return url;
   }
-  // queryParamsToAttrs = {
-  //   type: 'type',
-  //   plugin_id: 'plugin.id',
-  // };
 }

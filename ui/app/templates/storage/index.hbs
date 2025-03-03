@@ -102,11 +102,18 @@
             <B.Tr data-test-dhv-row>
               <B.Td>
                 <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.volumes.dynamic-host-volume"
-                  @model={{B.data.idWithNamespace}}>{{B.data.name}}</LinkTo>
+                  @model={{B.data.idWithNamespace}}>
+                    {{B.data.name}}
+                  </LinkTo>
               </B.Td>
-              <B.Td>{{B.data.namespace.name}}</B.Td>
+              <B.Td>{{B.data.namespace}}</B.Td>
               <B.Td>{{B.data.pluginID}}</B.Td>
               <B.Td>{{B.data.state}}</B.Td>
+              <B.Td>
+                <span class="tooltip" aria-label="{{format-month-ts B.data.modifyTime}}">
+                  {{moment-from-now B.data.modifyTime}}
+                </span>
+              </B.Td>
             </B.Tr>
           </:body>
         </Hds::Table>
