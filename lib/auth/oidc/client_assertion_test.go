@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
@@ -391,6 +392,8 @@ func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			tt.config.Canonicalize() // inherits clientSecret from OIDCClientAssertion
+			tt.config.Validate()     // validates clientSecret length
 			jwt, err := BuildClientAssertionJWT(tt.config, nomadKey, nomadKID)
 			if tt.wantErr {
 				must.Error(t, err)
@@ -440,6 +443,53 @@ func TestBuildClientAssertionJWT_NomadKey(t *testing.T) {
 			jwt, err := BuildClientAssertionJWT(tt.config, nomadKey, nomadKID)
 			if tt.wantErr {
 				must.Error(t, err)
+			} else {
+				must.NoError(t, err)
+				must.NotNil(t, jwt)
+			}
+		})
+	}
+}
+
+func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
+	nomadKey := generateTestPrivateKey(t)
+	nomadKID := generateTestKeyID(nomadKey)
+	nomadCert := generateExpiredTestCertificate(t, nomadKey)
+	nomadCertPath := writeTestCertToFile(t, nomadCert)
+
+	tests := []struct {
+		name        string
+		config      *structs.ACLAuthMethodConfig
+		wantErr     bool
+		expectedErr string
+	}{
+		{
+			name: "expired certificate",
+			config: &structs.ACLAuthMethodConfig{
+				OIDCClientID: "test-client-id",
+				OIDCClientAssertion: &structs.OIDCClientAssertion{
+					KeySource:    structs.OIDCKeySourcePrivateKey,
+					Audience:     []string{"test-audience"},
+					KeyAlgorithm: "RS256",
+					PrivateKey: &structs.OIDCClientAssertionKey{
+						PemKeyBase64: encodeTestPrivateKeyBase64(t, nomadKey),
+						PemCertFile:  nomadCertPath,
+					},
+				},
+			},
+			wantErr:     true,
+			expectedErr: "certificate has expired or is not yet valid",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.config.Canonicalize() // inherits clientSecret from OIDCClientAssertion
+			tt.config.Validate()     // validates clientSecret length
+			jwt, err := BuildClientAssertionJWT(tt.config, nomadKey, nomadKID)
+			if tt.wantErr {
+				must.Error(t, err)
+				must.StrContains(t, err.Error(), tt.expectedErr)
 			} else {
 				must.NoError(t, err)
 				must.NotNil(t, jwt)
@@ -541,4 +591,19 @@ func writeTestCertToFile(t *testing.T, cert *x509.Certificate) string {
 	must.NoError(t, err)
 
 	return certPath
+}
+
+func generateExpiredTestCertificate(t *testing.T, key *rsa.PrivateKey) *x509.Certificate {
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    time.Now().Add(-2 * time.Hour),
+		NotAfter:     time.Now().Add(-1 * time.Hour),
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	must.NoError(t, err)
+
+	cert, err := x509.ParseCertificate(certDER)
+	must.NoError(t, err)
+
+	return cert
 }
