@@ -10610,6 +10610,11 @@ func (d *Deployment) Copy() *Deployment {
 	return c
 }
 
+// Stub implements support for pagination
+func (d *Deployment) Stub() (*Deployment, error) {
+	return d, nil
+}
+
 // Active returns whether the deployment is active or terminal.
 func (d *Deployment) Active() bool {
 	switch d.Status {
@@ -13557,7 +13562,7 @@ func (a *ACLToken) SetHash() []byte {
 	return hashVal
 }
 
-func (a *ACLToken) Stub() *ACLTokenListStub {
+func (a *ACLToken) Stub() (*ACLTokenListStub, error) {
 	return &ACLTokenListStub{
 		AccessorID:     a.AccessorID,
 		Name:           a.Name,
@@ -13570,7 +13575,7 @@ func (a *ACLToken) Stub() *ACLTokenListStub {
 		ExpirationTime: a.ExpirationTime,
 		CreateIndex:    a.CreateIndex,
 		ModifyIndex:    a.ModifyIndex,
-	}
+	}, nil
 }
 
 // ACLTokenListRequest is used to request a list of tokens

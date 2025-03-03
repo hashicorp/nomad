@@ -12,40 +12,33 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestGenericFilter(t *testing.T) {
 	ci.Parallel(t)
 	ids := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}
 
-	filters := []Filter{GenericFilter{
-		Allow: func(raw interface{}) (bool, error) {
-			result := raw.(*mockObject)
-			return result.id > "5", nil
-		},
-	}}
+	selector := func(obj *mockObject) bool {
+		return obj.id > "5"
+	}
+
 	iter := newTestIterator(ids)
-	tokenizer := testTokenizer{}
 	opts := structs.QueryOptions{
 		PerPage: 3,
 	}
 	results := []string{}
-	paginator, err := NewPaginator(iter, tokenizer, filters, opts,
-		func(raw interface{}) error {
-			result := raw.(*mockObject)
-			results = append(results, result.id)
-			return nil
-		},
-	)
-	require.NoError(t, err)
+	pager, err := NewPaginator(iter, opts, selector, IDTokenizer[*mockObject](""),
+		func(result *mockObject) (string, error) { return result.id, nil })
 
-	nextToken, err := paginator.Page()
-	require.NoError(t, err)
+	must.NoError(t, err)
+
+	results, nextToken, err := pager.Page()
+	must.NoError(t, err)
 
 	expected := []string{"6", "7", "8"}
-	require.Equal(t, "9", nextToken)
-	require.Equal(t, expected, results)
+	must.Eq(t, "9", nextToken)
+	must.Eq(t, expected, results)
 }
 
 func TestNamespaceFilter(t *testing.T) {
@@ -81,29 +74,21 @@ func TestNamespaceFilter(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			filters := []Filter{NamespaceFilter{
-				AllowableNamespaces: tc.allowable,
-			}}
 			iter := newTestIteratorWithMocks(mocks)
-			tokenizer := testTokenizer{}
 			opts := structs.QueryOptions{
 				PerPage: int32(len(mocks)),
 			}
 
-			results := []string{}
-			paginator, err := NewPaginator(iter, tokenizer, filters, opts,
-				func(raw interface{}) error {
-					result := raw.(*mockObject)
-					results = append(results, result.namespace)
-					return nil
-				},
-			)
-			require.NoError(t, err)
+			pager, err := NewPaginator(iter, opts,
+				NamespaceSelectorFunc[*mockObject](tc.allowable),
+				IDTokenizer[*mockObject](""),
+				func(result *mockObject) (string, error) { return result.namespace, nil })
+			must.NoError(t, err)
 
-			nextToken, err := paginator.Page()
-			require.NoError(t, err)
-			require.Equal(t, "", nextToken)
-			require.Equal(t, tc.expected, results)
+			results, nextToken, err := pager.Page()
+			must.NoError(t, err)
+			must.Eq(t, "", nextToken)
+			must.Eq(t, tc.expected, results)
 		})
 	}
 }
@@ -174,14 +159,8 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
-			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
-
-			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-				return nil
-			})
+			paginator, err := NewPaginator(iter, opts, nil, IDTokenizer[*structs.Evaluation](""),
+				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
 			}
@@ -199,14 +178,8 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
-			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
-
-			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-				return nil
-			})
+			paginator, err := NewPaginator(iter, opts, nil, IDTokenizer[*structs.Evaluation](""),
+				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
 			}
@@ -237,14 +210,10 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.EvalsByNamespace(nil, structs.DefaultNamespace)
-			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
 
-			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-				return nil
-			})
+			paginator, err := NewPaginator(iter, opts, nil,
+				IDTokenizer[*structs.Evaluation](opts.NextToken),
+				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
 			}
@@ -276,14 +245,9 @@ func BenchmarkEvalListFilter(b *testing.B) {
 
 		for i := 0; i < b.N; i++ {
 			iter, _ := state.Evals(nil, false)
-			tokenizer := NewStructsTokenizer(iter, StructsTokenizerOptions{WithID: true})
-
-			var evals []*structs.Evaluation
-			paginator, err := NewPaginator(iter, tokenizer, nil, opts, func(raw interface{}) error {
-				eval := raw.(*structs.Evaluation)
-				evals = append(evals, eval)
-				return nil
-			})
+			paginator, err := NewPaginator(iter, opts, nil,
+				IDTokenizer[*structs.Evaluation](opts.NextToken),
+				func(eval *structs.Evaluation) (*structs.Evaluation, error) { return eval, nil })
 			if err != nil {
 				b.Fatalf("failed: %v", err)
 			}

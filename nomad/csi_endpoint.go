@@ -113,55 +113,38 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 				return err
 			}
 
-			tokenizer := paginator.NewStructsTokenizer(
-				iter,
-				paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
-				},
-			)
-			volFilter := paginator.GenericFilter{
-				Allow: func(raw interface{}) (bool, error) {
-					vol := raw.(*structs.CSIVolume)
+			selector := func(vol *structs.CSIVolume) bool {
+				// Remove (possibly again) by PluginID to handle passing both
+				// NodeID and PluginID
+				if args.PluginID != "" && args.PluginID != vol.PluginID {
+					return false
+				}
 
-					// Remove (possibly again) by PluginID to handle passing both
-					// NodeID and PluginID
-					if args.PluginID != "" && args.PluginID != vol.PluginID {
-						return false, nil
-					}
+				// Remove by Namespace, since CSIVolumesByNodeID hasn't used
+				// the Namespace yet
+				if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
+					return false
+				}
 
-					// Remove by Namespace, since CSIVolumesByNodeID hasn't used
-					// the Namespace yet
-					if ns != structs.AllNamespacesSentinel && vol.Namespace != ns {
-						return false, nil
-					}
-
-					return true, nil
-				},
+				return true
 			}
-			filters := []paginator.Filter{volFilter}
 
-			// Collect results, filter by ACL access
-			vs := []*structs.CSIVolListStub{}
-
-			paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-				func(raw interface{}) error {
-					vol := raw.(*structs.CSIVolume)
-
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				selector,
+				paginator.NamespaceIDTokenizer[*structs.CSIVolume](args.NextToken),
+				func(vol *structs.CSIVolume) (*structs.CSIVolListStub, error) {
 					vol, err := snap.CSIVolumeDenormalizePlugins(ws, vol.Copy())
 					if err != nil {
-						return err
+						return nil, err
 					}
-
-					vs = append(vs, vol.Stub())
-					return nil
+					return vol.Stub(), nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := paginator.Page()
+			vs, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

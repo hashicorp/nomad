@@ -1033,17 +1033,18 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	assert.Nil(t, state.UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p0, p1, p2, p3}))
 
 	// Simulate a remote list
-	p2Stub := p2.Stub()
+	p2Stub, _ := p2.Stub()
 	p2Stub.ModifyIndex = 50 // Ignored, same index
-	p3Stub := p3.Stub()
+	p3Stub, _ := p3.Stub()
 	p3Stub.ModifyIndex = 100 // Updated, higher index
 	p3Stub.Hash = []byte{0, 1, 2, 3}
 	p4 := mock.ACLToken()
 	p4.Global = true
+	p4Stub, _ := p4.Stub()
 	remoteList := []*structs.ACLTokenListStub{
 		p2Stub,
 		p3Stub,
-		p4.Stub(),
+		p4Stub,
 	}
 	delete, update := diffACLTokens(state, 50, remoteList)
 
