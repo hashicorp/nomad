@@ -25,17 +25,15 @@
 				class="namespace-editor-wrapper boxed-section-body is-full-bleed
 				{{if this.JSONError 'error'}}"
 			>
+				{{!-- TODO: Needs to support extraKeys=(hash Cmd-Enter=this.save) --}}
 				<div
 					class="namespace-editor"
 					data-test-namespace-editor
-					{{code-mirror
-						screenReaderLabel="Namespace definition"
-						theme="hashi"
-						mode="javascript"
-						content=this.definitionString
-						onUpdate=this.updateNamespaceDefinition
-						autofocus=false
-						extraKeys=(hash Cmd-Enter=this.save)
+					{{hds-code-editor
+						ariaLabel="Namespace definition"
+						language="javascript"
+						value=this.definitionString
+						onInput=this.updateNamespaceDefinition
 					}}
 				/>
 				{{#if this.JSONError}}

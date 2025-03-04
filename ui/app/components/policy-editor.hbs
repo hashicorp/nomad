@@ -22,18 +22,17 @@
 		</div>
 		<div class="boxed-section-body is-full-bleed">
 
+			{{!-- TODO: extraKeys=(hash Cmd-Enter=this.save) --}}
 			<div
 				class="policy-editor"
 				data-test-policy-editor
-				{{code-mirror
-					screenReaderLabel="Policy definition"
-					theme="hashi"
-					mode="ruby"
-					content=@policy.rules
-					onUpdate=this.updatePolicyRules
-					autofocus=false
-					extraKeys=(hash Cmd-Enter=this.save)
-				}} />
+				{{hds-code-editor
+					ariaLabel="Policy definition"
+					language="ruby"
+					value=@policy.rules
+					onInput=this.updatePolicyRules
+				}}
+			/>
 		</div>
 	</div>
 

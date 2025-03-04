@@ -25,12 +25,10 @@
     </span>
     <div
       data-test-template-json
-      {{code-mirror
-        theme="hashi"
-        mode="ruby"
-        autofocus=false
-        content=this.template
-        onUpdate=(action this.updateTemplate)
+      {{hds-code-editor
+        language="ruby"
+        value=this.template
+        onInput=this.updateTemplate
       }}
     ></div>
   </label>

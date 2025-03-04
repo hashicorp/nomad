@@ -125,13 +125,12 @@
   <div class="boxed-section-body is-full-bleed">
     <div
       data-test-editor
-      {{code-mirror
-        screenReaderLabel="Job definition"
-        content=@data.job._newDefinition
-        theme="hashi"
-        onUpdate=@fns.onUpdate
-        mode=(if (eq @data.format "json") "javascript" "ruby")
-        lineWrapping=@data.shouldWrap
+      {{hds-code-editor
+        ariaLabel="Job definition"
+        value=@data.job._newDefinition
+        onInput=@fns.onUpdate
+        language=(if (eq @data.format "json") "javascript" "ruby")
+        hasLineWrapping=@data.shouldWrap
       }}
     ></div>
   </div>
@@ -148,15 +147,12 @@
         <div
           class="json-viewer is-variable-editor"
           data-test-variable-editor
-          {{code-mirror
-            autofocus=false
-            screenReaderLabel="HLC Variables for Job Spec"
-            content=@data.job._newDefinitionVariables
-            theme="hashi"
-            onUpdate=@fns.onUpdate
-            type="hclVariables"
-            mode="ruby"
-            lineWrapping=@data.shouldWrap
+          {{hds-code-editor
+            ariaLabel="HLC Variables for Job Spec"
+            value=@data.job._newDefinitionVariables
+            language="ruby"
+            hasLineWrapping=@data.shouldWrap
+            onInput=@fns.onUpdate
           }}
         ></div>
       </div>

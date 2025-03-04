@@ -117,14 +117,14 @@
         class="editor-wrapper boxed-section-body is-full-bleed
           {{if this.JSONError 'error'}}"
       >
+        {{!-- TODO: extraKeys=(hash Cmd-Enter=(action "save")) --}}
         <div
           data-test-json-editor
-          {{code-mirror
-            content=this.JSONItems
-            onUpdate=this.updateCode
-            extraKeys=(hash Cmd-Enter=(action "save"))
+          {{hds-code-editor
+            value=this.JSONItems
+            onInput=this.updateCode
           }}
-        ></div>
+        />
         {{#if this.JSONError}}
           <p class="help is-danger">
             {{this.JSONError}}

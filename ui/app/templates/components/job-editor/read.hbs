@@ -50,27 +50,20 @@
     </div>
     <div class="boxed-section-body is-full-bleed">
     {{#if (eq @data.view "job-spec")}}
-        <div 
+        <Hds::CodeBlock
             data-test-job-spec-view
-            {{code-mirror
-            content=@data.definition
-            mode=(if (eq @data.format "json") "javascript" "ruby")
-            readOnly=true
-            screenReaderLabel="Job specification"          
-            theme="hashi-read-only"
-            lineWrapping=@data.shouldWrap
-            }} 
+            aria-label="Job specification"
+            @value={{@data.Definition}}
+            @language={{if (eq @data.format "json") "javascript" "ruby"}}
+            @hasLineWrapping={{@data.shouldWrap}}
         />
     {{else}}
-        <div
+        <Hds::CodeBlock
             data-test-json-viewer
-            {{code-mirror
-            content=@data.definition
-            theme="hashi-read-only"
-            readOnly=true
-            screenReaderLabel="JSON Viewer"
-            lineWrapping=@data.shouldWrap
-            }}
+            aria-label="JSON Viewer"
+            @value={{@data.Definition}}
+            @language="json"
+            @hasLineWrapping={{@data.shouldWrap}}
         />
     {{/if}}
     </div>
@@ -80,17 +73,13 @@
             HCL Variable Values
         </div>
         <div class="boxed-section-body is-full-bleed">
-            <div
+            <Hds::CodeBlock
                 class="json-viewer is-variable-editor"
                 data-test-variable-editor
-                {{code-mirror
-                    screenReaderLabel="HLC Variables for Job Spec"
-                    content=@data.job._newDefinitionVariables
-                    mode="ruby"
-                    theme="hashi-read-only"
-                    readOnly=true
-                    lineWrapping=@data.shouldWrap
-                }}
+                aria-label="HLC Variables for Job Spec"
+                @value={{@data.job._newDefinitionVariables}}
+                @language="ruby"
+                @hasLineWrapping={{@data.shouldWrap}}
             />
         </div>
     </div>
