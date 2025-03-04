@@ -262,34 +262,6 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		}
 	}
 
-	// StopAfterClientDisconnect diff
-	if oldPrimitiveFlat != nil && newPrimitiveFlat != nil {
-		if tg.StopAfterClientDisconnect == nil {
-			oldPrimitiveFlat["StopAfterClientDisconnect"] = ""
-		} else {
-			oldPrimitiveFlat["StopAfterClientDisconnect"] = fmt.Sprintf("%d", *tg.StopAfterClientDisconnect)
-		}
-		if other.StopAfterClientDisconnect == nil {
-			newPrimitiveFlat["StopAfterClientDisconnect"] = ""
-		} else {
-			newPrimitiveFlat["StopAfterClientDisconnect"] = fmt.Sprintf("%d", *other.StopAfterClientDisconnect)
-		}
-	}
-
-	// MaxClientDisconnect diff
-	if oldPrimitiveFlat != nil && newPrimitiveFlat != nil {
-		if tg.MaxClientDisconnect == nil {
-			oldPrimitiveFlat["MaxClientDisconnect"] = ""
-		} else {
-			oldPrimitiveFlat["MaxClientDisconnect"] = fmt.Sprintf("%d", *tg.MaxClientDisconnect)
-		}
-		if other.MaxClientDisconnect == nil {
-			newPrimitiveFlat["MaxClientDisconnect"] = ""
-		} else {
-			newPrimitiveFlat["MaxClientDisconnect"] = fmt.Sprintf("%d", *other.MaxClientDisconnect)
-		}
-	}
-
 	// Diff the primitive fields.
 	diff.Fields = fieldDiffs(oldPrimitiveFlat, newPrimitiveFlat, false)
 

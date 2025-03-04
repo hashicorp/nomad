@@ -505,9 +505,6 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// which ones later and which ones can't be rescheduled at all.
 	timeoutLaterEvals := map[string]string{}
 	if len(disconnecting) > 0 {
-		// If MaxClientDisconnect is enabled as well as tg.PreventRescheduleOnLost,
-		// the reschedule policy won't be enabled and the lost allocations
-		// wont be rescheduled, and PreventRescheduleOnLost is ignored.
 		if tg.GetDisconnectLostTimeout() != 0 {
 			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
 
@@ -518,9 +515,6 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 			// Find delays for any disconnecting allocs that have max_client_disconnect,
 			// create followup evals, and update the ClientStatus to unknown.
 			timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
-
-		} else if tg.PreventRescheduleOnLost {
-			untainted = untainted.union(disconnecting)
 		}
 
 		a.appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals)
@@ -531,7 +525,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	lostLater := []*delayedRescheduleInfo{}
 
 	if len(lost) > 0 {
-		lostLater = lost.delayByStopAfterClientDisconnect()
+		lostLater = lost.delayByStopAfter()
 		lostLaterEvals = a.createLostLaterEvals(lostLater, tg.Name)
 	}
 
@@ -1415,7 +1409,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 		return map[string]string{}
 	}
 
-	timeoutDelays, err := disconnecting.delayByMaxClientDisconnect(a.now)
+	timeoutDelays, err := disconnecting.delayByLostAfter(a.now)
 	if err != nil {
 		a.logger.Error("error for task_group",
 			"task_group", tgName, "error", err)

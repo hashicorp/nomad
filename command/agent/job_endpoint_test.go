@@ -2800,7 +2800,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Disconnect: &api.DisconnectStrategy{
 					LostAfter: pointer.Of(30 * time.Second),
 				},
-				MaxClientDisconnect: pointer.Of(30 * time.Second),
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
@@ -3113,7 +3112,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Operand: "z",
 					},
 				},
-				PreventRescheduleOnLost: false,
 				Affinities: []*structs.Affinity{
 					{
 						LTarget: "x",
@@ -3248,7 +3246,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Replace:   pointer.Of(true),
 					Reconcile: structs.ReconcileOptionBestScore,
 				},
-				MaxClientDisconnect: pointer.Of(30 * time.Second),
 				Tasks: []*structs.Task{
 					{
 						Name:   "task1",
@@ -3625,9 +3622,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:                    "group1",
-				Count:                   5,
-				PreventRescheduleOnLost: false,
+				Name:  "group1",
+				Count: 5,
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "x",

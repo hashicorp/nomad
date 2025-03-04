@@ -151,7 +151,7 @@ func TestReconcileStrategy(t *testing.T) {
 	}
 }
 
-func TestJobConfig_Validate_StopAfterClient_Disconnect(t *testing.T) {
+func TestJobConfig_Validate_StopOnClientAfter_Disconnect(t *testing.T) {
 	ci.Parallel(t)
 	// Setup a system Job with Disconnect.StopOnClientAfter set, which is invalid
 	job := testJob()
@@ -181,36 +181,6 @@ func TestJobConfig_Validate_StopAfterClient_Disconnect(t *testing.T) {
 	job.TaskGroups[0].Disconnect = &DisconnectStrategy{
 		StopOnClientAfter: &stop,
 	}
-	err = job.Validate()
-	must.NoError(t, err)
-}
-
-// Test using stop_after_client_disconnect, remove after its deprecated  in favor
-// of Disconnect.StopOnClientAfter introduced in 1.8.0.
-func TestJobConfig_Validate_StopAfterClientDisconnect(t *testing.T) {
-	ci.Parallel(t)
-	// Setup a system Job with stop_after_client_disconnect set, which is invalid
-	job := testJob()
-	job.Type = JobTypeSystem
-	stop := 1 * time.Minute
-	job.TaskGroups[0].StopAfterClientDisconnect = &stop
-
-	err := job.Validate()
-	must.Error(t, err)
-	must.StrContains(t, err.Error(), "stop_after_client_disconnect can only be set in batch and service jobs")
-
-	// Modify the job to a batch job with an invalid stop_after_client_disconnect value
-	job.Type = JobTypeBatch
-	invalid := -1 * time.Minute
-	job.TaskGroups[0].StopAfterClientDisconnect = &invalid
-
-	err = job.Validate()
-	must.Error(t, err)
-	must.StrContains(t, err.Error(), "stop_after_client_disconnect must be a positive value")
-
-	// Modify the job to a batch job with a valid stop_after_client_disconnect value
-	job.Type = JobTypeBatch
-	job.TaskGroups[0].StopAfterClientDisconnect = &stop
 	err = job.Validate()
 	must.NoError(t, err)
 }
@@ -248,26 +218,4 @@ func TestJob_Validate_DisconnectRescheduleLost(t *testing.T) {
 	testDisconnectRescheduleLostJob.Canonicalize()
 
 	must.NoError(t, testDisconnectRescheduleLostJob.Validate())
-}
-
-// Test using max_client_disconnect, remove after its deprecated  in favor
-// of Disconnect.LostAfter introduced in 1.8.0.
-func TestJobConfig_Validate_MaxClientDisconnect(t *testing.T) {
-	// Set up a job with an invalid max_client_disconnect value
-	job := testJob()
-	timeout := -1 * time.Minute
-	job.TaskGroups[0].MaxClientDisconnect = &timeout
-	job.TaskGroups[0].StopAfterClientDisconnect = &timeout
-
-	err := job.Validate()
-	must.Error(t, errors.Unwrap(err))
-	must.StrContains(t, err.Error(), "max_client_disconnect cannot be negative")
-	must.StrContains(t, err.Error(), "Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect")
-
-	// Modify the job with a valid max_client_disconnect value
-	timeout = 1 * time.Minute
-	job.TaskGroups[0].MaxClientDisconnect = &timeout
-	job.TaskGroups[0].StopAfterClientDisconnect = nil
-	err = job.Validate()
-	must.NoError(t, err)
 }

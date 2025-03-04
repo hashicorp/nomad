@@ -65,28 +65,6 @@ job "docs" {
   requirements and configuration, including static and dynamic port allocations,
   for the group.
 
-- `prevent_reschedule_on_lost` `(bool: false)` - Defines the replacement
-  behavior of an allocation when the node it is running on misses heartbeats.
-  When enabled, if the node disconnects or goes down,
-  Nomad does not replace this allocation and shows it as `unknown` until the node
-  reconnects or you manually restart the node.
-
-  This behavior only modifies the replacement process on the server.  To
-  modify the allocation behavior on the client, refer to
-  [`stop_after_client_disconnect`](#stop_after_client_disconnect).
-
-  The `unknown` allocation has to be manually stopped to run it again.
-
-  ```plaintext
-  `nomad alloc stop  <alloc ID>`
-  ```
-
-  Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the
-  same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
-
-  We deprecated this field in favor of `replace` on the [`disconnect`] block,
-  see [example below][disconect_migration] for more details about migrating.
-
 - `reschedule` <code>([Reschedule][]: nil)</code> - Allows to specify a
   rescheduling strategy. Nomad will then attempt to schedule the task on another
   node if any of the group allocation statuses become "failed".
@@ -110,29 +88,6 @@ job "docs" {
   and only applies to these services. In addition, tasks may have their own
   [`shutdown_delay`](/nomad/docs/job-specification/task#shutdown_delay) which waits
   between de-registering task services and stopping the task.
-
-- `stop_after_client_disconnect` `(string: "")` - Specifies a duration after
-  which a Nomad client will stop allocations, if it cannot communicate with the
-  servers. By default, a client will not stop an allocation until explicitly
-  told to by a server. A client that fails to heartbeat to a server within the
-  [`heartbeat_grace`] window and any allocations running on it will be marked
-  "lost" and Nomad will schedule replacement allocations. The replaced
-  allocations will normally continue to run on the non-responsive client. But
-  you may want them to stop instead — for example, allocations requiring
-  exclusive access to an external resource. When specified, the Nomad client
-  will stop them after this duration.
-  The Nomad client process must be running for this to occur. This setting
-  cannot be used with [`max_client_disconnect`].
-
-  This field was deprecated in favour of `stop_after` on the [`disconnect`] block.
-
-- `max_client_disconnect` `(string: "")` - Specifies a duration during which a
-  Nomad client will attempt to reconnect allocations after it fails to heartbeat
-  in the [`heartbeat_grace`] window. See [the example code
-  below][max-client-disconnect] for more details. This setting cannot be used
-  with [`stop_after_client_disconnect`].
-
-  This field was deprecated in favour of `lost_after` on the [`disconnect`] block.
 
 - `task` <code>([Task][]: &lt;required&gt;)</code> - Specifies one or more tasks to run
   within this group. This can be specified multiple times, to add a task as part
@@ -244,189 +199,6 @@ group "example" {
 }
 ```
 
-### Stop After Client Disconnect
-
-This example shows how `stop_after_client_disconnect` interacts with
-other blocks. For the `first` group, after the default 10 second
-[`heartbeat_grace`] window expires and 90 more seconds passes, the
-server will reschedule the allocation. The client will wait 90 seconds
-before sending a stop signal (`SIGTERM`) to the `first-task`
-task. After 15 more seconds because of the task's `kill_timeout`, the
-client will send `SIGKILL`. The `second` group does not have
-`stop_after_client_disconnect`, so the server will reschedule the
-allocation after the 10 second [`heartbeat_grace`] expires. It will
-not be stopped on the client, regardless of how long the client is out
-of touch.
-
-Note that if the server's clocks are not closely synchronized with
-each other, the server may reschedule the group before the client has
-stopped the allocation. Operators should ensure that clock drift
-between servers is as small as possible.
-
-Note also that a group using this feature will be stopped on the
-client if the Nomad server cluster fails, since the client will be
-unable to contact any server in that case. Groups opting in to this
-feature are therefore exposed to an additional runtime dependency and
-potential point of failure.
-
-```hcl
-group "first" {
-  stop_after_client_disconnect = "90s"
-
-  task "first-task" {
-    kill_timeout = "15s"
-  }
-}
-
-group "second" {
-
-  task "second-task" {
-    kill_timeout = "5s"
-  }
-}
-```
-
-### Max Client Disconnect
-
-`max_client_disconnect` specifies a duration during which a Nomad client will
-attempt to reconnect allocations after it fails to heartbeat in the
-[`heartbeat_grace`] window.
-
-By default, allocations running on a client that fails to heartbeat will be
-marked "lost". When a client reconnects, its allocations, which may still be
-healthy, will restart because they have been marked "lost". This can cause
-issues with stateful tasks or tasks with long restart times.
-
-Instead, an operator may desire that these allocations reconnect without a
-restart. When `max_client_disconnect` or `disconnect.lost_after` is specified,
-the Nomad server marks clients that fail to heartbeat as "disconnected"
-rather than "down", and will mark allocations on a disconnected client as
-"unknown" rather than "lost". These allocations may continue to run on the
-disconnected client. Replacement allocations will be scheduled according to the
-allocations' `disconnect.replace` settings. until the disconnected client
-reconnects. Once a disconnected client reconnects, Nomad compares the "unknown"
-allocations with their replacements and decides which ones to keep according
-to the `disconnect.replace` setting. If the `max_client_disconnect` or
-`disconnect.losta_after` duration expires before the client reconnects,
-the allocations will be marked "lost".
-Clients that contain "unknown" allocations will transition to "disconnected"
-rather than "down" until the last `max_client_disconnect` or `disconnect.lost_after`
-duration has expired.
-
-In the example code below, if both of these task groups were placed on the same
-client and that client experienced a network outage, both of the group's
-allocations would be marked as "disconnected" at two minutes because of the
-client's `heartbeat_grace` value of "2m". If the network outage continued for
-eight hours, and the client continued to fail to heartbeat, the client would
-remain in a "disconnected" state, as the first group's `max_client_disconnect`
-is twelve hours. Once all groups' `max_client_disconnect` durations are
-exceeded, in this case in twelve hours, the client node will be marked as "down"
-and the allocation will be marked as "lost". If the client had reconnected
-before twelve hours had passed, the allocations would gracefully reconnect
-without a restart.
-
-Max Client Disconnect is useful for edge deployments, or scenarios when
-operators want zero on-client downtime due to node connectivity issues. This
-setting cannot be used with [`stop_after_client_disconnect`].
-
-```hcl
-# server_config.hcl
-
-server {
-  enabled         = true
-  heartbeat_grace = "2m"
-}
-```
-
-```hcl
-# jobspec.nomad
-
-group "first" {
-  max_client_disconnect = "12h"
-
-  task "first-task" {
-    ...
-  }
-}
-
-group "second" {
-  max_client_disconnect = "6h"
-
-  task "second-task" {
-    ...
-  }
-}
-```
-
-#### Max Client Disconnect and Prevent Reschedule On Lost
-
-Setting `max_client_disconnect` and `prevent_reschedule_on_lost = true` at the
-same time requires that [rescheduling is disabled entirely][`disable_rescheduling`].
-
-```hcl
-# jobspec.nomad
-
-group "first" {
-  max_client_disconnect      = "12h"
-  prevent_reschedule_on_lost = true
-
-  reschedule {
-    attempts  = 0
-    unlimited = false
-  }
-
-  task "first-task" {
-    ...
-  }
-}
-```
-
-If [`max_client_disconnect`](#max_client_disconnect) is set and
-`prevent_reschedule_on_lost = true`, allocations on disconnected nodes will be
-`unknown` until the `max_client_disconnect` window expires, at which point
-the node will be transition from `disconnected` to `down`. The allocation
-will remain as `unknown` and won't be rescheduled.
-
-#### Migration to `disconnect` block
-
-The new configuration fileds in the disconnect block work exactly the same as the
-ones they are replacing:
-  * `stop_after_client_disconnect` is replaced by `stop_after`
-  * `max_client_disconnect` is replaced by `lost_after`
-  * `prevent_reschedule_on_lost` is replaced by `replace`
-
-To keep the same behaviour as the old configuration upon reconnection, the
-`reconcile` option should be set to `best_score`.
-
-The following example shows how to migrate from the old configuration to the new one:
-
-```hcl
-job "docs" {
-  group "example" {
-    max_client_disconnect        = "6h"
-    stop_after_client_disconnect = "2h"
-    prevent_reschedule_on_lost   = true
-  }
-}
-```
-Can be directly translated to:
-
-```hcl
-job "docs" {
-  	group "example" {
-      disconnect {
-        lost_after = "6h"
-        stop_after = "2h"
-        replace = false
-        reconcile = "best_score"
-      }
-    }
-  }
-```
-
-All use constrains still apply with the disconnect block as they did before:
- - `stop_after` and `lost_after` can't be used together.
-
 [task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
 [job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
 [constraint]: /nomad/docs/job-specification/constraint 'Nomad constraint Job Specification'
@@ -436,10 +208,7 @@ All use constrains still apply with the disconnect block as they did before:
 [affinity]: /nomad/docs/job-specification/affinity 'Nomad affinity Job Specification'
 [ephemeraldisk]: /nomad/docs/job-specification/ephemeral_disk 'Nomad ephemeral_disk Job Specification'
 [`heartbeat_grace`]: /nomad/docs/configuration/server#heartbeat_grace
-[`max_client_disconnect`]: /nomad/docs/job-specification/group#max_client_disconnect
 [`disable_rescheduling`]: /nomad/docs/job-specification/reschedule#disabling-rescheduling
-[max-client-disconnect]: /nomad/docs/job-specification/group#max-client-disconnect 'the example code below'
-[`stop_after_client_disconnect`]: /nomad/docs/job-specification/group#stop_after_client_disconnect
 [meta]: /nomad/docs/job-specification/meta 'Nomad meta Job Specification'
 [migrate]: /nomad/docs/job-specification/migrate 'Nomad migrate Job Specification'
 [network]: /nomad/docs/job-specification/network 'Nomad network Job Specification'

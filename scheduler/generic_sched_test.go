@@ -3756,7 +3756,7 @@ func TestServiceSched_NodeDown(t *testing.T) {
 	}
 }
 
-func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
+func TestServiceSched_StopOnClientAfter(t *testing.T) {
 	ci.Parallel(t)
 
 	cases := []struct {
@@ -3767,38 +3767,6 @@ func TestServiceSched_StopAfterClientDisconnect(t *testing.T) {
 		expectUpdate        bool
 		expectedAllocStates int
 	}{
-		// Test using stop_after_client_disconnect, remove after its deprecated  in favor
-		// of Disconnect.StopOnClientAfter introduced in 1.8.0.
-		{
-			name: "legacy no stop_after_client_disconnect",
-			jobSpecFn: func(job *structs.Job) {
-				job.TaskGroups[0].Count = 1
-				job.TaskGroups[0].StopAfterClientDisconnect = nil
-			},
-			expectBlockedEval:   true,
-			expectedAllocStates: 1,
-		},
-		{
-			name: "legacy stop_after_client_disconnect reschedule now",
-			jobSpecFn: func(job *structs.Job) {
-				job.TaskGroups[0].Count = 1
-				job.TaskGroups[0].StopAfterClientDisconnect = pointer.Of(1 * time.Second)
-			},
-			previousStopWhen:    time.Now().UTC().Add(-10 * time.Second),
-			expectBlockedEval:   true,
-			expectedAllocStates: 2,
-		},
-		{
-			name: "legacy stop_after_client_disconnect reschedule later",
-			jobSpecFn: func(job *structs.Job) {
-				job.TaskGroups[0].Count = 1
-				job.TaskGroups[0].StopAfterClientDisconnect = pointer.Of(1 * time.Second)
-			},
-			expectBlockedEval:   false,
-			expectUpdate:        true,
-			expectedAllocStates: 1,
-		},
-		// Tests using the new disconnect block
 		{
 			name: "no StopOnClientAfter reschedule now",
 			jobSpecFn: func(job *structs.Job) {
@@ -7347,17 +7315,6 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 		name    string
 		jobSpec func(time.Duration) *structs.Job
 	}{
-		// Test using max_client_disconnect, remove after its deprecated  in favor
-		// of Disconnect.LostAfter introduced in 1.8.0.
-		{
-			name: "job-with-max-client-disconnect-deprecated",
-			jobSpec: func(maxClientDisconnect time.Duration) *structs.Job {
-				job := mock.Job()
-				job.TaskGroups[0].MaxClientDisconnect = &maxClientDisconnect
-
-				return job
-			},
-		},
 		{
 			name: "job-with-disconnect-block",
 			jobSpec: func(lostAfter time.Duration) *structs.Job {

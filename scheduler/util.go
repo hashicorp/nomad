@@ -150,7 +150,7 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 		}
 
 		// Disconnected nodes are included in the tainted set so that their
-		// MaxClientDisconnect configuration can be included in the
+		// disconnect.lost_after configuration can be included in the
 		// timeout calculation.
 		if node.Status == structs.NodeStatusDisconnected {
 			out[alloc.NodeID] = node
