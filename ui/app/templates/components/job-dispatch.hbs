@@ -55,11 +55,10 @@
       <div class="boxed-section-body is-full-bleed">
         <div
           data-test-payload-editor
-          {{code-mirror
-            theme="hashi"
-            onUpdate=(action (mut this.payload))
-            mode="javascript"
-            screenReaderLabel="Payload definition"
+          {{hds-code-editor
+            language="javascript"
+            ariaLabel="Payload definition"
+            onInput=(fn (mut this.payload))
           }}
         />
       </div>
