@@ -4,18 +4,26 @@
 
 set -euo pipefail
 
-# note: it can a very long time for plugins to come up
-TIMEOUT=60
+# note: it can a very long time for CSI plugins and volumes to come up, and they
+# are being created in parallel with this pre_start script
+TIMEOUT=120
 INTERVAL=2
 last_error=
 start_time=$(date +%s)
 
 checkPlugin() {
-    local pluginStatus foundNodes
-    pluginStatus=$(nomad plugin status aws-efs0) || {
+    local pluginStatus foundNodes foundControllers
+    pluginStatus=$(nomad plugin status rocketduck-nfs) || {
         last_error="could not read CSI plugin status"
         return 1
     }
+
+    foundControllers=$(echo "$pluginStatus" | awk -F'= +' '/Controllers Healthy/{print $2}')
+    if [[ "$foundControllers" != 1 ]]; then
+        last_error="expected plugin to have 1 healthy controller, found $foundControllers"
+        return 1
+    fi
+
 
     foundNodes=$(echo "$pluginStatus" | awk -F'= +' '/Nodes Healthy/{print $2}')
     if [[ "$foundNodes" == 0 ]]; then
@@ -25,18 +33,9 @@ checkPlugin() {
     return 0
 }
 
-registerVolume() {
-    local externalID idempotencyToken dir
-    idempotencyToken=$(uuidgen)
+createVolume() {
     dir=$(dirname "${BASH_SOURCE[0]}")
-    externalID=$(aws efs describe-file-systems | jq -r ".FileSystems[] | select(.Tags[0].Value == \"$VOLUME_TAG\")| .FileSystemId") || {
-        echo "Could not find volume for $VOLUME_TAG"
-        exit 1
-    }
-
-    sed -e "s/IDEMPOTENCY_TOKEN/$idempotencyToken/" \
-        -e "s/EXTERNAL_ID/$externalID/" \
-        "${dir}/volume.hcl.tpl" | nomad volume register - || {
+    nomad volume create "${dir}/volume.hcl" || {
         echo "Could not register volume"
         exit 1
     }
@@ -56,5 +55,4 @@ do
     sleep "$INTERVAL"
 done
 
-registerVolume
-nomad volume status -type csi
+createVolume && echo "Created volume"

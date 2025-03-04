@@ -5,4 +5,8 @@ client {
   meta {
     "rack" = "r2"
   }
+
+  host_volume "shared_data" {
+    path = "/srv/data"
+  }
 }

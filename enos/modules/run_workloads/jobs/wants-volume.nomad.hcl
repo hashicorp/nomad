@@ -20,9 +20,15 @@ job "wants-efs-volume" {
 
     volume "test" {
       type            = "csi"
-      source          = "efsTestVolume"
+      source          = "nfsTestVolume"
       attachment_mode = "file-system"
-      access_mode     = "single-node-writer"
+      access_mode     = "multi-node-single-writer"
+    }
+
+    network {
+      port "web" {
+        to = 8001
+      }
     }
 
     task "task" {
@@ -31,7 +37,8 @@ job "wants-efs-volume" {
       config {
         image   = "busybox:1"
         command = "httpd"
-        args    = ["-vv", "-f", "-p", "8001", "-h", "/local"]
+        args    = ["-vv", "-f", "-p", "8001", "-h", "/alloc"]
+        ports   = ["web"]
       }
 
       volume_mount {
@@ -40,8 +47,20 @@ job "wants-efs-volume" {
         read_only   = false
       }
 
+      service {
+        provider = "nomad"
+        port     = "web"
+        check {
+          type     = "http"
+          path     = "/index.html"
+          interval = "3s"
+          timeout  = "3s"
+        }
+      }
+
+
       resources {
-        cpu    = 100
+        cpu    = 64
         memory = 64
       }
     }
@@ -52,7 +71,7 @@ job "wants-efs-volume" {
       config {
         image   = "busybox:1"
         command = "/bin/sh"
-        args    = ["-c", "echo '${NOMAD_ALLOC_ID}' > ${NOMAD_TASK_DIR}/index.html"]
+        args    = ["-c", "echo '${NOMAD_ALLOC_ID}' > ${NOMAD_ALLOC_DIR}/index.html"]
       }
 
       lifecycle {

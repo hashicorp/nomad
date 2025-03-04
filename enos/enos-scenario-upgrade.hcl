@@ -142,20 +142,32 @@ scenario "upgrade" {
         batch_raw_exec   = { job_spec = "jobs/raw-exec-batch.nomad.hcl", alloc_count = 3, type = "batch" }
         system_raw_exec  = { job_spec = "jobs/raw-exec-system.nomad.hcl", alloc_count = 0, type = "system" }
 
-        # TODO(tgross): temporarily disabled while this gets redesigned
-        # csi_plugin_efs_node = {
-        #   job_spec    = "jobs/plugin-aws-efs-nodes.nomad.hcl"
-        #   alloc_count = 0
-        #   type        = "system"
-        #   post_script = "scripts/wait_for_efs_plugin.sh"
-        # }
+        nfs = {
+          job_spec    = "jobs/nfs.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+        }
 
-        # wants_csi = {
-        #   job_spec    = "jobs/wants-volume.nomad.hcl"
-        #   alloc_count = 1
-        #   type        = "service"
-        #   pre_script  = "scripts/wait_for_efs_volume.sh"
-        # }
+        csi_plugin_nfs_controllers = {
+          job_spec    = "jobs/plugin-nfs-controllers.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+          pre_script  = "scripts/wait_for_nfs.sh"
+        }
+
+        csi_plugin_nfs_nodes = {
+          job_spec    = "jobs/plugin-nfs-nodes.nomad.hcl"
+          alloc_count = 0
+          type        = "system"
+          pre_script  = "scripts/wait_for_nfs.sh"
+        }
+
+        wants_csi = {
+          job_spec    = "jobs/wants-volume.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+          pre_script  = "scripts/wait_for_nfs_volume.sh"
+        }
 
       }
     }
