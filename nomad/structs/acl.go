@@ -843,9 +843,9 @@ func (a *ACLAuthMethod) SetHash() []byte {
 				_, _ = hash.Write([]byte(v))
 			}
 			if a.Config.OIDCClientAssertion.PrivateKey != nil {
-				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemKeyBase64))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemKey))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemKeyFile))
-				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemCertBase64))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemCert))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemCertFile))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.KeyID))
 			}
@@ -1324,12 +1324,12 @@ func (c *OIDCClientAssertion) Validate() error {
 // to use to sign the private key JWT.
 // See api.OIDCClientAssertionKey for full field descriptions.
 type OIDCClientAssertionKey struct {
-	PemKeyBase64 string
-	PemKeyFile   string
+	PemKey     string
+	PemKeyFile string
 
-	PemCertBase64 string
-	PemCertFile   string
-	KeyID         string
+	PemCert     string
+	PemCertFile string
+	KeyID       string
 }
 
 func (k *OIDCClientAssertionKey) Copy() *OIDCClientAssertionKey {
@@ -1342,10 +1342,10 @@ func (k *OIDCClientAssertionKey) Copy() *OIDCClientAssertionKey {
 }
 
 var (
-	ErrMissingClientAssertionKey     = errors.New("missing PemKeyBase64 or PemKeyFile")
-	ErrAmbiguousClientAssertionKey   = errors.New("require only one of PemKeyBase64 or PemKeyFile")
-	ErrMissingClientAssertionKeyID   = errors.New("missing PemCertBase64, PemCertFile, or KeyID")
-	ErrAmbiguousClientAssertionKeyID = errors.New("require only one of PemCertBase64, PemCertFile, or KeyID")
+	ErrMissingClientAssertionKey     = errors.New("missing PemKey or PemKeyFile")
+	ErrAmbiguousClientAssertionKey   = errors.New("require only one of PemKey or PemKeyFile")
+	ErrMissingClientAssertionKeyID   = errors.New("missing PemCert, PemCertFile, or KeyID")
+	ErrAmbiguousClientAssertionKeyID = errors.New("require only one of PemCert, PemCertFile, or KeyID")
 )
 
 // Validate ensures that one Key and one Cert or KeyID are provided.
@@ -1360,25 +1360,25 @@ func (k *OIDCClientAssertionKey) Validate() error {
 
 	// mutual exclusive key fields
 	// must have key file or base64, but not both
-	if k.PemKeyBase64 == "" && k.PemKeyFile == "" {
+	if k.PemKey == "" && k.PemKeyFile == "" {
 		errs = append(errs, ErrMissingClientAssertionKey)
 	}
-	if k.PemKeyBase64 != "" && k.PemKeyFile != "" {
+	if k.PemKey != "" && k.PemKeyFile != "" {
 		errs = append(errs, ErrAmbiguousClientAssertionKey)
 	}
 
 	// mutual exclusive cert fields
 	// must have exactly one of: cert file or base64, or keyid
-	if k.PemCertBase64 == "" && k.PemCertFile == "" && k.KeyID == "" {
+	if k.PemCert == "" && k.PemCertFile == "" && k.KeyID == "" {
 		errs = append(errs, ErrMissingClientAssertionKeyID)
 	}
-	if k.PemCertBase64 != "" && (k.PemCertFile != "" || k.KeyID != "") {
+	if k.PemCert != "" && (k.PemCertFile != "" || k.KeyID != "") {
 		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
 	}
-	if k.PemCertFile != "" && (k.PemCertBase64 != "" || k.KeyID != "") {
+	if k.PemCertFile != "" && (k.PemCert != "" || k.KeyID != "") {
 		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
 	}
-	if k.KeyID != "" && (k.PemCertBase64 != "" || k.PemCertFile != "") {
+	if k.KeyID != "" && (k.PemCert != "" || k.PemCertFile != "") {
 		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
 	}
 

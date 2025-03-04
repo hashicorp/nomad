@@ -1297,8 +1297,8 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 				// then fail validation nested way down in here
 				PrivateKey: &OIDCClientAssertionKey{
 					// cannot set both of these
-					PemKeyBase64: "test-b64",
-					PemKeyFile:   "test-file",
+					PemKey:     "test-b64",
+					PemKeyFile: "test-file",
 				}},
 		}
 		err = deeplyBadClientAssertion.Validate(minTTL, maxTTL)
@@ -1493,52 +1493,46 @@ func TestOIDCClientAssertion_Validate(t *testing.T) {
 	must.NoError(t, ca.Validate())
 
 	cases := []struct {
-		name string
-		mod  func(*OIDCClientAssertion)
-		err  string
+		err string
+		mod func(*OIDCClientAssertion)
 	}{
 		{
-			name: "require audience",
+			err: "missing Audience",
 			mod: func(ca *OIDCClientAssertion) {
 				ca.Audience = nil
 			},
-			err: "Audience is required",
 		},
 		{
-			name: "missing PrivateKey",
+			err: "PrivateKey is required",
 			mod: func(ca *OIDCClientAssertion) {
 				ca.KeySource = OIDCKeySourcePrivateKey
 				ca.PrivateKey = nil
 			},
-			err: "PrivateKey is required",
 		},
 		{
-			name: "invalid PrivateKey",
+			err: "invalid PrivateKey",
 			mod: func(ca *OIDCClientAssertion) {
 				ca.KeySource = OIDCKeySourcePrivateKey
 				ca.PrivateKey.KeyID = ""
 			},
-			err: "invalid PrivateKey",
 		},
 		{
-			name: "missing ClientSecret",
+			err: "OIDCClientSecret is required",
 			mod: func(ca *OIDCClientAssertion) {
 				ca.KeySource = OIDCKeySourceClientSecret
 				ca.ClientSecret = ""
 			},
-			err: "OIDCClientSecret is required",
 		},
 		{
-			name: "invalid KeySource",
+			err: "invalid KeySource",
 			mod: func(ca *OIDCClientAssertion) {
 				ca.KeySource = "bogus"
 			},
-			err: "invalid KeySource",
 		},
 	}
 
 	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.err, func(t *testing.T) {
 			ca := ca.Copy()
 			if tc.mod != nil {
 				tc.mod(ca)
@@ -1568,11 +1562,11 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 		test.ErrorIs(t, err, ErrMissingClientAssertionKey)
 		test.ErrorIs(t, err, ErrMissingClientAssertionKeyID)
 		key = &OIDCClientAssertionKey{
-			PemKeyFile:    "/any.key",
-			PemKeyBase64:  "anykey",
-			PemCertFile:   "/any.crt",
-			PemCertBase64: "anycert",
-			KeyID:         "key-id",
+			PemKeyFile:  "/any.key",
+			PemKey:      "anykey",
+			PemCertFile: "/any.crt",
+			PemCert:     "anycert",
+			KeyID:       "key-id",
 		}
 		err = key.Validate()
 		test.ErrorIs(t, err, ErrAmbiguousClientAssertionKey)
@@ -1596,8 +1590,8 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 		{
 			name: "ok base64s",
 			key: &OIDCClientAssertionKey{
-				PemKeyBase64:  "anykey",
-				PemCertBase64: "anycert",
+				PemKey:  "anykey",
+				PemCert: "anycert",
 			},
 		},
 		{
@@ -1624,16 +1618,16 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 		{
 			name: "ambiguous key",
 			key: &OIDCClientAssertionKey{
-				PemKeyFile:   "/any.key",
-				PemKeyBase64: "anykey",
+				PemKeyFile: "/any.key",
+				PemKey:     "anykey",
 			},
 			err: ErrAmbiguousClientAssertionKey,
 		},
 		{
 			name: "ambiguous keyid - cert file and b64",
 			key: &OIDCClientAssertionKey{
-				PemCertFile:   "/any.cert",
-				PemCertBase64: "anycert",
+				PemCertFile: "/any.cert",
+				PemCert:     "anycert",
 			},
 			err: ErrAmbiguousClientAssertionKeyID,
 		},
@@ -1648,8 +1642,8 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 		{
 			name: "ambiguous keyid - cert file and b64",
 			key: &OIDCClientAssertionKey{
-				PemCertBase64: "anycert",
-				KeyID:         "key-id",
+				PemCert: "anycert",
+				KeyID:   "key-id",
 			},
 			err: ErrAmbiguousClientAssertionKeyID,
 		},
