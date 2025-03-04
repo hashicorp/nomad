@@ -299,6 +299,62 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
+	t.Run("waits for shutdown delay", func(t *testing.T) {
+		alloc := mock.Alloc()
+		alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
+		tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
+		tg.Services = []*structs.Service{
+			{
+				Name:      "testconnect",
+				PortLabel: "9999",
+				Connect: &structs.ConsulConnect{
+					SidecarService: &structs.ConsulSidecarService{},
+				},
+			},
+		}
+		delay := 200 * time.Millisecond
+		tg.ShutdownDelay = &delay
+
+		consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+
+		regWrapper := wrapper.NewHandlerWrapper(
+			logger,
+			consulMockClient,
+			regMock.NewServiceRegistrationHandler(logger))
+
+		shutDownCtx, cancel := context.WithTimeout(context.Background(), delay*2)
+		defer cancel()
+
+		h := newGroupServiceHook(groupServiceHookConfig{
+			alloc:             alloc,
+			serviceRegWrapper: regWrapper,
+			shutdownDelayCtx:  shutDownCtx,
+			restarter:         agentconsul.NoopRestarter(),
+			taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+			logger:            logger,
+			hookResources:     cstructs.NewAllocHookResources(),
+		})
+
+		successChan := make(chan struct{}, 1)
+		go func() {
+			before := time.Now()
+			h.PreKill()
+			after := time.Now()
+			// we respected the shutdown_delay and did not return immediately
+			if after.Sub(before) < delay {
+				t.Fail()
+			}
+			successChan <- struct{}{}
+		}()
+
+		select {
+		case <-shutDownCtx.Done():
+			// we didn't wait longer than shutdown delay and get killed by the shutdownCtx
+			t.Fail()
+		case <-successChan:
+		}
+	})
+
 	t.Run("returns immediately when no shutdown delay", func(t *testing.T) {
 		alloc := mock.Alloc()
 		alloc.Job.TaskGroups[0].Networks = []*structs.NetworkResource{}
