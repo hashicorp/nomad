@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: alloc exec'
+page_title: 'nomad alloc exec reference'
 description: |
-  Runs a command in a container.
+  The `nomad alloc exec` runs a command inside a running task allocation, which is useful for debugging. Execute commands with or without an interactive shell inside the allocation.
 ---
 
-# Command: alloc exec
+# `nomad alloc exec` reference
 
 **Alias: `nomad exec`**
 
@@ -33,11 +33,11 @@ the task driver does not have file system isolation (as with `raw_exec`),
 this command requires the `alloc-node-exec`, `read-job`, and `list-jobs`
 capabilities for the allocation's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Exec Options
+## Exec options
 
 - `-task`: Sets the task to exec command in.
 

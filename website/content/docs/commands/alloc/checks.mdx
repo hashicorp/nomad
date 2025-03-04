@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: alloc checks'
+page_title: 'nomad alloc checks reference'
 description: |
-  Outputs service health check status information.
+  The `nomad alloc checks` command displays service health check status information for an allocation.
 ---
 
-# Command: alloc checks
+# `nomad alloc checks` reference
 
 
 The `alloc checks` command outputs the latest health check status information for checks in the allocation.
@@ -20,15 +20,15 @@ Outputs the latest health check status information for services in the allocatio
 using the Nomad service discovery provider. This command accepts an allocation
 ID or prefix as the sole argument.
 
-When ACLs are enabled, this command requires a token with the 'read-job' capability 
-for the allocation's namespace. The 'list-jobs' capability is required to run the 
+When ACLs are enabled, this command requires a token with the 'read-job' capability
+for the allocation's namespace. The 'list-jobs' capability is required to run the
 command with an allocation ID prefix instead of the exact allocation ID.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Checks Options
+## Checks options
 
 - `-verbose`: Display verbose output.
 

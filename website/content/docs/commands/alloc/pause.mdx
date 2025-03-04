@@ -1,19 +1,19 @@
 ---
 layout: docs
-page_title: 'Commands: alloc pause'
+page_title: 'nomad alloc pause reference'
 description: |
-  Override the schedule for tasks using time based execution.
+  The `nomad alloc pause` command overrides the schedule for tasks using time-based execution, forcing the task to either stop or run.
 ---
 
-# Command: alloc pause
+# `nomad alloc pause` reference
+
+Override the schedule for tasks using time based execution.
 
 <EnterpriseAlert />
 
 ~> **Note:** Time based task execution is an experimental feature and subject
 to change. This feature is supported for select customers. Please refer to the
-[Upgrade Guide][upgrade] to find breaking changes. 
-
-Override the schedule for tasks using time based execution.
+[Upgrade Guide][upgrade] to find breaking changes.
 
 ## Usage
 
@@ -29,11 +29,11 @@ ignored until a user resets the override.
 When ACLs are enabled, this command requires the `job-submit` capability for
 the allocation's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Pause Options
+## Pause options
 
 - `-state`: Override the current scheduled task state to be the specified state
   or reset to the scheduled state. Must be one of `pause`, `run`, or
