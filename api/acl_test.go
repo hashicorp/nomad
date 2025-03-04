@@ -604,6 +604,11 @@ func TestACLAuthMethods(t *testing.T) {
 		TokenLocality: ACLAuthMethodTokenLocalityLocal,
 		MaxTokenTTL:   15 * time.Minute,
 		Default:       true,
+		Config: &ACLAuthMethodConfig{
+			BoundAudiences:   []string{"test-aud"},
+			OIDCDiscoveryURL: "https://example.com",
+			OIDCClientID:     "test-client-id",
+		},
 	}
 	_, writeMeta, err := testClient.ACLAuthMethods().Create(&authMethod, nil)
 	must.NoError(t, err)
@@ -664,6 +669,11 @@ func TestACLBindingRules(t *testing.T) {
 		TokenLocality: ACLAuthMethodTokenLocalityGlobal,
 		MaxTokenTTL:   10 * time.Hour,
 		Default:       true,
+		Config: &ACLAuthMethodConfig{
+			BoundAudiences:   []string{"test-aud"},
+			OIDCDiscoveryURL: "https://example.com",
+			OIDCClientID:     "test-client-id",
+		},
 	}
 	_, _, err := testClient.ACLAuthMethods().Create(&aclAuthMethod, nil)
 	must.NoError(t, err)

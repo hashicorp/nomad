@@ -1240,6 +1240,11 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 				Type:          "OIDC",
 				TokenLocality: "local",
 				MaxTokenTTL:   goodTTL,
+				Config: &ACLAuthMethodConfig{
+					OIDCDiscoveryURL: "mock-discovery-url",
+					OIDCClientID:     "mock-client-id",
+					BoundAudiences:   []string{"mock-aud"},
+				},
 			},
 			false,
 			"",
@@ -1273,7 +1278,13 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 			Type:          "OIDC",
 			TokenLocality: "local",
 			MaxTokenTTL:   goodTTL,
+			Config: &ACLAuthMethodConfig{
+				OIDCDiscoveryURL: "mock-discovery-url",
+				OIDCClientID:     "mock-client-id",
+				BoundAudiences:   []string{"mock-aud"},
+			},
 		}
+		goodMethod.Canonicalize()
 		err := goodMethod.Validate(minTTL, maxTTL)
 		must.NoError(t, err)
 
