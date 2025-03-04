@@ -89,6 +89,17 @@ resource "aws_security_group" "servers" {
   }
 }
 
+# Allows consul to make requests to Nomad, which is necessary when creating
+# auth methods. Must be done in an aws_security_group_rule to avoid cycles.
+resource "aws_security_group_rule" "consul_ingress" {
+  type = "ingress"
+  from_port = 0
+  to_port = 0
+  protocol = "-1"
+  security_group_id = aws_security_group.servers.id
+  source_security_group_id = aws_security_group.consul_server.id
+}
+
 # the secondary VPC security group is intended only for internal traffic
 # and so that we can exercise behaviors with multiple IPs
 resource "aws_security_group" "servers_secondary" {

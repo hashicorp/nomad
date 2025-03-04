@@ -187,7 +187,7 @@ resource "null_resource" "setup_consul_workload_identity" {
       CONSUL_CACERT      = "${local.keys_dir}/tls_ca.crt"
       CONSUL_HTTP_TOKEN  = "${random_uuid.consul_initial_management_token.result}"
       CONSUL_AGENT_TOKEN = "${random_uuid.consul_agent_token.result}"
-      NOMAD_SERVER_ADDR  = "https://${aws_instance.server[0].public_ip}:4646"
+      NOMAD_SERVER_ADDR  = "https://${aws_instance.server[0].private_ip}:4646"
     }
   }
 }
