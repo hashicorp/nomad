@@ -614,7 +614,7 @@ func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	image := driverConfig.Image
 	repo, tag, err := parseDockerImage(image)
 	if err != nil {
-		return "", "", fmt.Errorf("unable to create local docker image: %w", err)
+		return "", "", fmt.Errorf("unable to create local docker image %q: %w", image, err)
 	}
 
 	// We're going to check whether the image is already downloaded. If the tag
