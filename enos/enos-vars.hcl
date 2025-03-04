@@ -1,6 +1,12 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+variable "prefix" {
+  type        = string
+  description = "Prefix for the cluster name"
+  default     = "upgrade"
+}
+
 # Variables for the fetch_artifactory module
 variable "artifactory_username" {
   type        = string

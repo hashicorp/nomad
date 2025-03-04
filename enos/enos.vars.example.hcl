@@ -1,6 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
+prefix               = "<your initials or name>"
 artifactory_username = "<your email address>"
 artifactory_token    = "<your ARTIFACTORY_TOKEN from above>"
 product_version      = "1.8.9"                     # starting version
