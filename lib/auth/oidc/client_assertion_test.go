@@ -454,8 +454,7 @@ func TestBuildClientAssertionJWT_NomadKey(t *testing.T) {
 func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
 	nomadKey := generateTestPrivateKey(t)
 	nomadKID := generateTestKeyID(nomadKey)
-	nomadCert := generateExpiredTestCertificate(t, nomadKey)
-	nomadCertPath := writeTestCertToFile(t, nomadCert)
+	nomadExpiredCert := generateExpiredTestCertificate(t, nomadKey)
 
 	tests := []struct {
 		name        string
@@ -472,8 +471,8 @@ func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
 					Audience:     []string{"test-audience"},
 					KeyAlgorithm: "RS256",
 					PrivateKey: &structs.OIDCClientAssertionKey{
-						PemKeyBase64: encodeTestPrivateKeyBase64(t, nomadKey),
-						PemCertFile:  nomadCertPath,
+						PemKeyBase64:  encodeTestPrivateKeyBase64(t, nomadKey),
+						PemCertBase64: encodeTestCertBase64(t, nomadExpiredCert),
 					},
 				},
 			},
