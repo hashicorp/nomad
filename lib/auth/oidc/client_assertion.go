@@ -73,12 +73,12 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.
 }
 
 // getCassPrivateKey parses the structs.OIDCClientAssertionKey PemKeyFile
-// or PemKeyBase64, depending on which is set.
+// or PemKey, depending on which is set.
 func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, err error) {
 	var bts []byte
 	var source string // for informative error messages
 
-	// file on disk
+	// pem file on disk
 	if k.PemKeyFile != "" {
 		source = "PemKeyFile"
 		bts, err = os.ReadFile(k.PemKeyFile)
@@ -86,14 +86,10 @@ func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, 
 			return nil, fmt.Errorf("error reading %s: %w", source, err)
 		}
 	}
-	// or base64 string
-	if k.PemKeyBase64 != "" {
-		source = "PemKeyBase64"
-		bts = make([]byte, base64.StdEncoding.DecodedLen(len(k.PemKeyBase64)))
-		_, err := base64.StdEncoding.Decode(bts, []byte(k.PemKeyBase64))
-		if err != nil {
-			return nil, fmt.Errorf("error decoding %s: %w", source, err)
-		}
+	// or pem string
+	if k.PemKey != "" {
+		source = "PemKey"
+		bts = []byte(k.PemKey)
 	}
 
 	key, err = gojwt.ParseRSAPrivateKeyFromPEM(bts)
@@ -104,13 +100,13 @@ func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, 
 }
 
 // getCassCert parses the structs.OIDCClientAssertionKey PemCertFile
-// or PemCertBase64, depending on which is set.
+// or PemCert, depending on which is set.
 func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 	var bts []byte
 	var err error
 	var source string // for informative error messages
 
-	// file on disk
+	// pem file on disk
 	if k.PemCertFile != "" {
 		source = "PemCertFile"
 		bts, err = os.ReadFile(k.PemCertFile)
@@ -118,14 +114,10 @@ func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 			return nil, fmt.Errorf("error reading %s: %w", source, err)
 		}
 	}
-	// or base64 string
-	if k.PemCertBase64 != "" {
-		source = "PemCertBase64"
-		bts = make([]byte, base64.StdEncoding.DecodedLen(len(k.PemCertBase64)))
-		_, err := base64.StdEncoding.Decode(bts, []byte(k.PemCertBase64))
-		if err != nil {
-			return nil, fmt.Errorf("error decoding %s: %w", source, err)
-		}
+	// or pem string
+	if k.PemCert != "" {
+		source = "PemCert"
+		bts = []byte(k.PemCert)
 	}
 
 	block, _ := pem.Decode(bts)
