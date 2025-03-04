@@ -186,7 +186,7 @@ func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *driver
 func (d *Driver) pullInfraImage(allocID string) error {
 	repo, tag, err := parseDockerImage(d.config.InfraImage)
 	if err != nil {
-		return fmt.Errorf("unable to pull infra docker image: %w", err)
+		return fmt.Errorf("unable to pull infra docker image %q: %w", d.config.InfraImage, err)
 	}
 
 	dockerClient, err := d.getDockerClient()
