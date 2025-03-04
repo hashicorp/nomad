@@ -88,25 +88,29 @@ func TestParseDockerImage(t *testing.T) {
 	ci.Parallel(t)
 
 	tests := []struct {
-		Image string
-		Repo  string
-		Tag   string
+		Image  string
+		Repo   string
+		Tag    string
+		ExpErr error
 	}{
-		{"host:5000/library/hello-world", "host:5000/library/hello-world", "latest"},
-		{"host:5000/library/hello-world:1.0", "host:5000/library/hello-world", "1.0"},
-		{"library/hello-world:1.0", "library/hello-world", "1.0"},
-		{"library/hello-world", "library/hello-world", "latest"},
-		{"library/hello-world:latest", "library/hello-world", "latest"},
-		{"library/hello-world@sha256:f5233545e43561214ca4891fd1157e1c3c563316ed8e237750d59bde73361e77", "library/hello-world@sha256:f5233545e43561214ca4891fd1157e1c3c563316ed8e237750d59bde73361e77", ""},
-		{"my-registry:9090/hello-world@sha256:c7e3309ebb8805855bc1ccc24d24588748710e43925b39e563bd5541cbcbad91", "my-registry:9090/hello-world@sha256:c7e3309ebb8805855bc1ccc24d24588748710e43925b39e563bd5541cbcbad91", ""},
-		{"my-registry:9090/hello-world:my-tag@sha256:c7e3309ebb8805855bc1ccc24d24588748710e43925b39e563bd5541cbcbad91", "my-registry:9090/hello-world@sha256:c7e3309ebb8805855bc1ccc24d24588748710e43925b39e563bd5541cbcbad91", ""},
+		{"host:5000/library/hello-world", "host:5000/library/hello-world", "latest", nil},
+		{"host:5000/library/hello-world:1.0", "host:5000/library/hello-world", "1.0", nil},
+		{"library/hello-world:1.0", "library/hello-world", "1.0", nil},
+		{"library/hello-world", "library/hello-world", "latest", nil},
+		{"library/hello-world:latest", "library/hello-world", "latest", nil},
+		{"library/hello-world@sha256:f5233545e43561214ca4891fd1157e1c3c563316ed8e237750d59bde73361e77", "library/hello-world@sha256:f5233545e43561214ca4891fd1157e1c3c563316ed8e237750d59bde73361e77", "", nil},
+		{"my-registry:9090/hello-world@sha256:c7e3309ebb8805855bc1ccc24d24588748710e43925b39e563bd5541cbcbad91", "my-registry:9090/hello-world@sha256:c7e3309ebb8805855bc1ccc24d24588748710e43925b39e563bd5541cbcbad91", "", nil},
+		{"my-registry:9090/hello-world:my-tag@sha256:c7e3309ebb8805855bc1ccc24d24588748710e43925b39e563bd5541cbcbad91", "my-registry:9090/hello-world@sha256:c7e3309ebb8805855bc1ccc24d24588748710e43925b39e563bd5541cbcbad91", "", nil},
+		{"wrong-docker-image:", "", "", NoPathInImageErr},
+		{"", "", "", NoPathInImageErr},
 	}
 	for _, test := range tests {
 		t.Run(test.Image, func(t *testing.T) {
-			repo, tag := parseDockerImage(test.Image)
+			repo, tag, err := parseDockerImage(test.Image)
 			print("repo", repo)
 			must.Eq(t, test.Repo, repo)
 			must.Eq(t, test.Tag, tag)
+			must.Eq(t, test.ExpErr, err)
 		})
 	}
 }

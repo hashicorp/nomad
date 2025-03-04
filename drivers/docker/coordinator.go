@@ -189,9 +189,9 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 	pullTimeout, pullActivityTimeout time.Duration) (string, string, error) {
 	defer d.clearPullLogger(imageID)
 	// Parse the repo and tag
-	repo, tag := parseDockerImage(imageID)
-	if repo == "" {
-		return "", "", errors.New("no image name or path found")
+	repo, tag, err := parseDockerImage(imageID)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to pull docker image: %w", err)
 	}
 
 	pullCtx, cancel := context.WithTimeout(d.ctx, pullTimeout)

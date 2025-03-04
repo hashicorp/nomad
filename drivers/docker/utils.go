@@ -6,6 +6,7 @@ package docker
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -21,14 +22,18 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-func parseDockerImage(image string) (repo, tag string) {
+var (
+	NoPathInImageErr = errors.New("no repo found on imageID")
+)
+
+func parseDockerImage(image string) (string, string, error) {
 	matches := reference.ReferenceRegexp.FindStringSubmatch(image)
 	if matches == nil {
-		return "", ""
+		return "", "", NoPathInImageErr
 	}
 
-	repo = matches[1]
-	tag = matches[2]
+	repo := matches[1]
+	tag := matches[2]
 	digest := matches[3]
 
 	if digest == "" {
@@ -42,7 +47,7 @@ func parseDockerImage(image string) (repo, tag string) {
 		tag = ""
 	}
 
-	return repo, tag
+	return repo, tag, nil
 }
 
 func dockerImageRef(repo string, tag string) string {
