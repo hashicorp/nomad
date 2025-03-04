@@ -190,10 +190,11 @@ func (d *dockerCoordinator) pullImageImpl(imageID string, authOptions *registry.
 	defer d.clearPullLogger(imageID)
 	// Parse the repo and tag
 	repo, tag := parseDockerImage(imageID)
+	if repo == "" {
+		return "", "", errors.New("no image name or path found")
+	}
 
 	pullCtx, cancel := context.WithTimeout(d.ctx, pullTimeout)
-	defer cancel()
-
 	pm := newImageProgressManager(imageID, cancel, pullActivityTimeout, d.handlePullInactivity,
 		d.handlePullProgressReport, d.handleSlowPullProgressReport)
 	defer pm.stop()

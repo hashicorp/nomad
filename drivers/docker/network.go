@@ -4,6 +4,7 @@
 package docker
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/docker/docker/api/types"
@@ -185,6 +186,9 @@ func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *driver
 // only if its name uses the "latest" tag or the image doesn't already exist locally.
 func (d *Driver) pullInfraImage(allocID string) error {
 	repo, tag := parseDockerImage(d.config.InfraImage)
+	if repo == "" {
+		return errors.New("no repo found on image name")
+	}
 
 	dockerClient, err := d.getDockerClient()
 	if err != nil {
