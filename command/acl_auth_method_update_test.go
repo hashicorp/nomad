@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/command/agent"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
 
@@ -64,6 +65,8 @@ func TestACLAuthMethodUpdateCommand_Run(t *testing.T) {
 		TokenLocality: "local",
 		Config: &structs.ACLAuthMethodConfig{
 			OIDCDiscoveryURL: "http://example.com",
+			OIDCClientID:     "example-id",
+			BoundAudiences:   []string{"example-aud"},
 		},
 	}
 	method.SetHash()
@@ -80,7 +83,8 @@ func TestACLAuthMethodUpdateCommand_Run(t *testing.T) {
 	// Update the token locality
 	code = cmd.Run([]string{
 		"-address=" + url, "-token=" + rootACLToken.SecretID, "-token-locality=global", method.Name})
-	must.Zero(t, code)
+	test.Zero(t, code)
+	test.Eq(t, "", ui.ErrorWriter.String())
 	s := ui.OutputWriter.String()
 	must.StrContains(t, s, method.Name)
 
@@ -92,7 +96,11 @@ func TestACLAuthMethodUpdateCommand_Run(t *testing.T) {
 	defer os.Remove(configFile.Name())
 	must.Nil(t, err)
 
-	conf := map[string]interface{}{"OIDCDiscoveryURL": "http://example.com"}
+	conf := map[string]interface{}{
+		"OIDCDiscoveryURL": "http://example.com",
+		"OIDCClientID":     "example-id",
+		"BoundAudiences":   []string{"example-aud"},
+	}
 	jsonData, err := json.Marshal(conf)
 	must.Nil(t, err)
 
@@ -105,7 +113,8 @@ func TestACLAuthMethodUpdateCommand_Run(t *testing.T) {
 		fmt.Sprintf("-config=@%s", configFile.Name()),
 		method.Name,
 	})
-	must.Zero(t, code)
+	test.Zero(t, code)
+	test.Eq(t, "", ui.ErrorWriter.String())
 	s = ui.OutputWriter.String()
 	must.StrContains(t, s, method.Name)
 

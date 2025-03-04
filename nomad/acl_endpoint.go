@@ -1912,19 +1912,17 @@ func (a *ACL) UpsertAuthMethods(
 			}
 		}
 
-		if authMethod.Config != nil { // TODO: Config is ostensibly required.
-			// if PKCE is not explicitly disabled, enable it.
-			if authMethod.Config.OIDCDisablePKCE == nil {
-				authMethod.Config.OIDCDisablePKCE = pointer.Of(false)
-			}
-			// if there is a client assertion, ensure it is valid.
-			if authMethod.Config.OIDCClientAssertion.IsSet() {
-				_, err := a.oidcClientAssertion(authMethod.Config)
-				if err != nil {
-					return structs.NewErrRPCCodedf(
-						http.StatusBadRequest, "invalid OIDCClientAssertion: %s", err,
-					)
-				}
+		// if PKCE is not explicitly disabled, enable it.
+		if authMethod.Config.OIDCDisablePKCE == nil {
+			authMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		}
+		// if there is a client assertion, ensure it is valid.
+		if authMethod.Config.OIDCClientAssertion.IsSet() {
+			_, err := a.oidcClientAssertion(authMethod.Config)
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "invalid OIDCClientAssertion: %s", err,
+				)
 			}
 		}
 

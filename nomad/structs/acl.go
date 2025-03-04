@@ -1115,12 +1115,22 @@ func (a *ACLAuthMethodConfig) Canonicalize() {
 
 func (a *ACLAuthMethodConfig) Validate() error {
 	if a == nil {
-		return nil
+		return errors.New("missing auth method Config")
+	}
+	mErr := &multierror.Error{}
+	if a.OIDCDiscoveryURL == "" {
+		mErr = multierror.Append(mErr, errors.New("missing OIDCDiscoveryURL"))
+	}
+	if a.OIDCClientID == "" {
+		mErr = multierror.Append(mErr, errors.New("missing OIDCClientID"))
+	}
+	if len(a.BoundAudiences) == 0 || a.BoundAudiences[0] == "" {
+		mErr = multierror.Append(mErr, errors.New("missing BoundAudiences"))
 	}
 	if err := a.OIDCClientAssertion.Validate(); err != nil {
-		return fmt.Errorf("invalid client assertion config: %w", err)
+		mErr = multierror.Append(mErr, fmt.Errorf("invalid client assertion config: %w", err))
 	}
-	return nil
+	return helper.FlattenMultierror(mErr)
 }
 
 func (a *ACLAuthMethodConfig) Copy() *ACLAuthMethodConfig {
@@ -1288,8 +1298,8 @@ func (c *OIDCClientAssertion) Validate() error {
 	if c == nil {
 		return nil
 	}
-	if len(c.Audience) == 0 {
-		return errors.New("Audience is required")
+	if len(c.Audience) == 0 || c.Audience[0] == "" {
+		return errors.New("missing Audience")
 	}
 	switch c.KeySource {
 	case OIDCKeySourceNomad:
