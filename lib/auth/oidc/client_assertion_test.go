@@ -453,7 +453,9 @@ func TestBuildClientAssertionJWT_NomadKey(t *testing.T) {
 
 func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
 	nomadKey := generateTestPrivateKey(t)
+	nomadInvalidKey := generateInvalidTestPrivateKey(t)
 	nomadKID := generateTestKeyID(nomadKey)
+	nomadCert := generateTestCertificate(t, nomadKey)
 	nomadExpiredCert := generateExpiredTestCertificate(t, nomadKey)
 
 	tests := []struct {
@@ -463,7 +465,24 @@ func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			name: "expired certificate",
+			name: "invalid PemKeyBase64",
+			config: &structs.ACLAuthMethodConfig{
+				OIDCClientID: "test-client-id",
+				OIDCClientAssertion: &structs.OIDCClientAssertion{
+					KeySource:    structs.OIDCKeySourcePrivateKey,
+					Audience:     []string{"test-audience"},
+					KeyAlgorithm: "RS256",
+					PrivateKey: &structs.OIDCClientAssertionKey{
+						PemKeyBase64:  encodeTestPrivateKeyBase64(t, nomadInvalidKey),
+						PemCertBase64: encodeTestCertBase64(t, nomadCert),
+					},
+				},
+			},
+			wantErr:     true,
+			expectedErr: "failed to parse private key",
+		},
+		{
+			name: "expired certificate PemCertBase64",
 			config: &structs.ACLAuthMethodConfig{
 				OIDCClientID: "test-client-id",
 				OIDCClientAssertion: &structs.OIDCClientAssertion{
@@ -605,4 +624,14 @@ func generateExpiredTestCertificate(t *testing.T, key *rsa.PrivateKey) *x509.Cer
 	must.NoError(t, err)
 
 	return cert
+}
+
+func generateInvalidTestPrivateKey(t *testing.T) *rsa.PrivateKey {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	must.NoError(t, err)
+
+	// Simulate an invalid key by modifying the key's modulus
+	key.N = big.NewInt(0) // This is just a placeholder to simulate an invalid key
+
+	return key
 }
