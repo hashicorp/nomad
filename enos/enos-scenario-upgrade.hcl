@@ -426,7 +426,7 @@ scenario "upgrade" {
     }
   }
 
-  step "upgrade_forth_client" {
+  step "upgrade_fourth_client" {
     depends_on = [step.upgrade_third_client]
 
     description = <<-EOF
