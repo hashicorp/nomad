@@ -33,7 +33,7 @@ resource "enos_local_exec" "get_nodes" {
   depends_on  = [enos_local_exec.wait_for_nomad_api]
   environment = local.nomad_env
 
-  inline = ["nomad node status -json | jq '[.[] | select(.Status == \"ready\")] | length'"]
+  inline = ["nomad node status -json | jq '[.[] | select(.SchedulingEligibility == \"eligible\" and .Status == \"ready\")] | length'"]
 }
 
 resource "enos_local_exec" "get_jobs" {

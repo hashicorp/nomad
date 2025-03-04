@@ -44,9 +44,9 @@ variable "ssh_key_path" {
   type        = string
 }
 
-variable "clients" {
-  description = "List of public IP address of the nomad clients that will be updated"
-  type        = list
+variable "client" {
+  description = "Public IP address of the nomad client that will be updated"
+  type        = string
 }
 
 variable "artifactory_username" {

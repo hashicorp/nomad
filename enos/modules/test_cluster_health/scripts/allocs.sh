@@ -41,12 +41,12 @@ while true; do
         error_exit "Some allocs are not running:\n$(nomad alloc status -json | jq -r '.[] | select(.ClientStatus != "running") | .ID')"
     fi
 
-    echo "Running allocs: $running_allocs, expected $ALLOC_COUNT. Waiting for $elapsed_time  Retrying in $POLL_INTERVAL seconds..."
+    echo "Running allocs: $allocs_length, expected $ALLOC_COUNT. Waiting for $elapsed_time  Retrying in $POLL_INTERVAL seconds..."
     sleep $POLL_INTERVAL
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done
 
-echo "All ALLOCS are running."
+echo "All $ALLOC_COUNT ALLOCS are running."
 
 if [ "$allocs_length" -eq 0 ]; then
     exit 0
@@ -54,8 +54,10 @@ fi
 
 # Quality: nomad_reschedule_alloc: A POST / PUT call to /v1/allocation/:alloc_id/stop results in the stopped allocation being rescheduled
 
-random_index=$((RANDOM % allocs_length))
-random_alloc_id=$(echo "$running_allocs" | jq -r ".[${random_index}].ID")
+service_batch_allocs=$(echo "$running_allocs" | jq  '[.[] |select(.JobType != "system")]')
+service_batch_allocs_length=$(echo "$service_batch_allocs" | jq 'length' )
+random_index=$((RANDOM % service_batch_allocs_length))
+random_alloc_id=$(echo "$service_batch_allocs" | jq -r ".[${random_index}].ID")
 
 nomad alloc stop "$random_alloc_id" \
     || error_exit "Failed to stop allocation $random_alloc_id"
@@ -89,10 +91,11 @@ while true; do
     checkAllocsCount && break
 
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
-        error_exit "Expected $ALLOC_COUNT running allocations, found $running_allocs after $elapsed_time seconds"
+        nomad alloc status -json > allocs.json
+        error_exit "Expected $ALLOC_COUNT running allocations, found $allocs_length after $elapsed_time seconds"
     fi
 
-    echo "Expected $ALLOC_COUNT running allocations, found $running_allocs Retrying in $POLL_INTERVAL seconds..."
+    echo "Expected $ALLOC_COUNT running allocations, found $allocs_length Retrying in $POLL_INTERVAL seconds..."
     sleep $POLL_INTERVAL
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done

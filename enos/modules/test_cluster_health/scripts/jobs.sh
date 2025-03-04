@@ -21,4 +21,4 @@ if [ "$jobs_length" -ne "$JOB_COUNT" ]; then
     error_exit "The number  of running jobs ($jobs_length) does not match the expected count ($JOB_COUNT) $(nomad job status | awk 'NR > 1 && $4 != "running" {print $4}') "
 fi
 
-echo "All JOBS are running."
+echo "All $JOB_COUNT JOBS are running."
