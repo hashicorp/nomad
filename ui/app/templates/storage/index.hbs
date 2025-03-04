@@ -19,10 +19,27 @@
           Storage configured by plugins run as Nomad jobs, with advanced features like snapshots and resizing.
           <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/concepts/plugins/csi" @icon="docs-link" @iconPosition="trailing">Read more</Hds::Link::Inline>
         </p>
+        <div class="search">
+          <Hds::Form::TextInput::Field
+            @type="search"
+            @value={{this.csiFilter}}
+            placeholder="Search CSI Volumes"
+            {{on "input"
+              (queue
+                (action (mut this.csiFilter) value="target.value")
+                (action this.handlePageChange "csi" 1)
+              )
+            }} />
+        </div>
       </header>
       {{#if this.sortedCSIVolumes.length}}
-        <Hds::Table @caption="CSI Volumes" @model={{this.sortedCSIVolumes}}
-          @columns={{this.csiColumns}} @sortBy="name">
+        <Hds::Table @caption="CSI Volumes"
+          @model={{this.paginatedCSIVolumes}}
+          @columns={{this.csiColumns}}
+          @sortBy={{this.csiSortProperty}}
+          @sortOrder={{if this.csiSortDescending "desc" "asc"}}
+          @onSort={{action this.handleSort "csi"}}
+          >
           <:body as |B|>
             <B.Tr>
               <B.Td>
@@ -34,13 +51,11 @@
                   {{B.data.name}}
                 </LinkTo>
               </B.Td>
-              <B.Td>
-                {{#if this.system.shouldShowNamespaces}}
+              {{#if this.system.shouldShowNamespaces}}
+                <B.Td>
                   {{B.data.namespace.name}}
-                {{else}}
-                  --
-                {{/if}}
-              </B.Td>
+                </B.Td>
+              {{/if}}
               <B.Td data-test-volume-schedulable>
                 {{if B.data.schedulable "Schedulable" "Unschedulable"}}
               </B.Td>
@@ -82,8 +97,25 @@
             </B.Tr>
           </:body>
         </Hds::Table>
+        {{#if (gt this.sortedCSIVolumes.length this.userSettings.pageSize)}}
+          <Hds::Pagination::Numbered
+            @totalItems={{this.filteredCSIVolumes.length}}
+            @currentPage={{this.csiPage}}
+            @pageSizes={{this.pageSizes}}
+            @currentPageSize={{this.userSettings.pageSize}}
+            @onPageChange={{action this.handlePageChange "csi"}}
+            @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+          />
+        {{/if}}
       {{else}}
-        <p>No CSI Volumes found</p>
+        <div class="empty-message">
+          {{#if this.csiFilter}}
+            <p>No CSI volumes match your search for "{{this.csiFilter}}"</p>
+            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.csiFilter) "") (action this.handlePageChange "csi" 1))}} />
+          {{else}}
+            <p>No CSI Volumes found</p>
+          {{/if}}
+        </div>
       {{/if}}
     </Hds::Card::Container>
 
@@ -94,10 +126,27 @@
           Storage provisioned via plugin scripts on a particular client, modifiable without requiring client restart.
           <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/commands/volume/create" @icon="docs-link" @iconPosition="trailing">Read more</Hds::Link::Inline>
         </p>
+        <div class="search">
+          <Hds::Form::TextInput::Field
+            @type="search"
+            @value={{this.dhvFilter}}
+            placeholder="Search Dynamic Host Volumes"
+            {{on "input"
+              (queue
+                (action (mut this.dhvFilter) value="target.value")
+                (action (mut this.dhvPage) 1)
+              )
+            }} />
+        </div>
       </header>
       {{#if this.sortedDynamicHostVolumes.length}}
-        <Hds::Table @caption="Dynamic Host Volumes" @model={{this.sortedDynamicHostVolumes}}
-          @columns={{this.dhvColumns}} @sortBy="name">
+        <Hds::Table @caption="Dynamic Host Volumes"
+          @model={{this.sortedDynamicHostVolumes}}
+          @columns={{this.dhvColumns}}
+          @sortBy={{this.dhvSortProperty}}
+          @sortOrder={{if this.dhvSortDescending "desc" "asc"}}
+          @onSort={{action this.handleSort "dhv"}}
+        >
           <:body as |B|>
             <B.Tr data-test-dhv-row>
               <B.Td>
@@ -106,7 +155,9 @@
                     {{B.data.name}}
                   </LinkTo>
               </B.Td>
-              <B.Td>{{B.data.namespace}}</B.Td>
+              {{#if this.system.shouldShowNamespaces}}
+                <B.Td>{{B.data.namespace}}</B.Td>
+              {{/if}}
               <B.Td>{{B.data.pluginID}}</B.Td>
               <B.Td>{{B.data.state}}</B.Td>
               <B.Td>
@@ -117,6 +168,25 @@
             </B.Tr>
           </:body>
         </Hds::Table>
+        {{#if (gt this.sortedDynamicHostVolumes.length this.userSettings.pageSize)}}
+          <Hds::Pagination::Numbered
+            @totalItems={{this.filteredDynamicHostVolumes.length}}
+            @currentPage={{this.dhvPage}}
+            @pageSizes={{this.pageSizes}}
+            @currentPageSize={{this.userSettings.pageSize}}
+            @onPageChange={{action this.handlePageChange "dhv"}}
+            @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+          />
+        {{/if}}
+      {{else}}
+        <div class="empty-message">
+          {{#if this.dhvFilter}}
+            <p>No dynamic host volumes match your search for "{{this.dhvFilter}}"</p>
+            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.dhvFilter) "") (action this.handlePageChange "dhv" 1))}} />
+          {{else}}
+            <p>No Dynamic Host Volumes found</p>
+          {{/if}}
+        </div>
       {{/if}}
     </Hds::Card::Container>
 
@@ -156,33 +226,69 @@
         <p class="intro">
           Defined in the Nomad agent's config file, best for infrequently changing storage
         </p>
+        <div class="search">
+          {{#if this.fetchedStaticHostVolumes.length}}
+            <Hds::Form::TextInput::Field
+              @type="search"
+              @value={{this.shvFilter}}
+              placeholder="Search Static Host Volumes"
+              autofocus
+              {{on "input"
+                (queue
+                  (action (mut this.shvFilter) value="target.value")
+                  (action this.handlePageChange "shv" 1)
+                )
+              }} />
+          {{/if}}
+        </div>
       </header>
-      {{#if this.sortedStaticHostVolumes.length}}
-        <Hds::Table @caption="Static Host Volumes" @model={{this.sortedStaticHostVolumes}}
-          @columns={{array
-            (hash key="name" label="Name" isSortable=true)
-            (hash key="path" label="Path" isSortable=true)
-            (hash key="readOnly" label="Read Only?" isSortable=true)
-          }}
-          @sortBy="name"
-        >
-          <:body as |B|>
-            <B.Tr>
-              <B.Td>
-                <LinkTo @route="clients.client" @models={{array B.data.nodeID}}>{{B.data.name}}</LinkTo>
-              </B.Td>
-              <B.Td>{{B.data.path}}</B.Td>
-              <B.Td>{{B.data.readOnly}}</B.Td>
-            </B.Tr>
-          </:body>
-        </Hds::Table>
+      {{#if this.fetchedStaticHostVolumes.length}}
+        {{#if this.paginatedStaticHostVolumes.length}}
+          <Hds::Table @caption="Static Host Volumes" @model={{this.paginatedStaticHostVolumes}}
+            @columns={{array
+              (hash key="name" label="Name" isSortable=true)
+              (hash key="path" label="Path" isSortable=true)
+              (hash key="readOnly" label="Read Only?" isSortable=true)
+            }}
+            @sortBy={{this.shvSortProperty}}
+            @sortOrder={{if this.shvSortDescending "desc" "asc"}}
+            @onSort={{action this.handleSort "shv"}}
+          >
+            <:body as |B|>
+              <B.Tr>
+                <B.Td>
+                  <LinkTo @route="clients.client" @models={{array B.data.nodeID}}>{{B.data.name}}</LinkTo>
+                </B.Td>
+                <B.Td>{{B.data.path}}</B.Td>
+                <B.Td>{{B.data.readOnly}}</B.Td>
+              </B.Tr>
+            </:body>
+          </Hds::Table>
+          {{#if (gt this.sortedStaticHostVolumes.length this.userSettings.pageSize)}}
+            <Hds::Pagination::Numbered
+              @totalItems={{this.filteredStaticHostVolumes.length}}
+              @currentPage={{this.shvPage}}
+              @pageSizes={{this.pageSizes}}
+              @currentPageSize={{this.userSettings.pageSize}}
+              @onPageChange={{action this.handlePageChange "shv"}}
+              @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+            />
+          {{/if}}
+        {{else}}
+          <div class="empty-message">
+            <p>No static host volumes match your search for "{{this.shvFilter}}"</p>
+            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.shvFilter) "") (action this.handlePageChange "shv" 1))}} />
+          </div>
+        {{/if}}
       {{else if
         (and
           (not this.scanForStaticHostVolumes.isRunning)
           this.scanForStaticHostVolumes.lastSuccessful
         )
       }}
-        <p>No Static Host Volumes found</p>
+        <div class="empty-message">
+          <p>No Static Host Volumes found</p>
+        </div>
       {{/if}}
     </Hds::Card::Container>
 
@@ -222,27 +328,64 @@
         <p class="intro">
           Best-effort persistence, ideal for rebuildable data. Stored in the <code>/alloc/data</code> directory in a given allocation.
         </p>
+        {{#if this.fetchedEphemeralDisks.length}}
+          <div class="search">
+            <Hds::Form::TextInput::Field
+              @type="search"
+              @value={{this.edFilter}}
+              placeholder="Search Ephemeral Disks"
+              {{on "input"
+                (queue
+                  (action (mut this.edFilter) value="target.value")
+                  (action this.handlePageChange "ed" 1)
+                )
+              }} />
+          </div>
+        {{/if}}
       </header>
-      {{#if this.sortedEphemeralDisks.length}}
-        <Hds::Table @caption="Ephemeral Disks" @model={{this.sortedEphemeralDisks}}
-          @columns={{array (hash key="name" label="Name") (hash key="size" label="Size" isSortable=true)}} @sortBy="size" @sortOrder="desc">
-          <:body as |B|>
-            <B.Tr>
-              <B.Td>
-                <LinkTo @route="allocations.allocation.fs" @models={{array B.data.id 'alloc/data'}}>{{B.data.name}}</LinkTo>
-              </B.Td>
-              <B.Td>{{B.data.size}}</B.Td>
-            </B.Tr>
-          </:body>
-        </Hds::Table>
-        {{!-- TODO: pagination for all tables here --}}
+      {{#if this.fetchedEphemeralDisks.length}}
+        {{#if this.paginatedEphemeralDisks.length}}
+          <Hds::Table @caption="Ephemeral Disks"
+            @model={{this.paginatedEphemeralDisks}}
+            @columns={{array (hash key="name" label="Name" isSortable=true) (hash key="sizeBytes" label="Size" isSortable=true)}}
+            @sortBy={{this.edSortProperty}}
+            @sortOrder={{if this.edSortDescending "desc" "asc"}}
+            @onSort={{action this.handleSort "ed"}}
+          >
+            <:body as |B|>
+              <B.Tr>
+                <B.Td>
+                  <LinkTo @route="allocations.allocation.fs" @models={{array B.data.id 'alloc/data'}}>{{B.data.name}}</LinkTo>
+                </B.Td>
+                <B.Td>{{B.data.size}}</B.Td>
+              </B.Tr>
+            </:body>
+          </Hds::Table>
+          {{#if (gt this.sortedEphemeralDisks.length this.userSettings.pageSize)}}
+            <Hds::Pagination::Numbered
+              @totalItems={{this.filteredEphemeralDisks.length}}
+              @currentPage={{this.edPage}}
+              @pageSizes={{this.pageSizes}}
+              @currentPageSize={{this.userSettings.pageSize}}
+              @onPageChange={{action this.handlePageChange "ed"}}
+              @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+            />
+          {{/if}}
+        {{else}}
+          <div class="empty-message">
+            <p>No ephemeral disks match your search for "{{this.edFilter}}"</p>
+            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.edFilter) "") (action this.handlePageChange "ed" 1))}} />
+          </div>
+        {{/if}}
       {{else if
         (and
           (not this.scanForEphemeralDisks.isRunning)
           this.scanForEphemeralDisks.lastSuccessful
         )
       }}
-        <p>No Ephemeral Disks found</p>
+        <div class="empty-message">
+          <p>No Ephemeral Disks found</p>
+        </div>
       {{/if}}
     </Hds::Card::Container>
 

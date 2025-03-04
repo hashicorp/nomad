@@ -16,23 +16,42 @@
     }
     header {
       display: grid;
-      grid-template-columns: 1fr auto;
+      gap: 0.5rem;
+      grid-template-areas:
+        'title actions'
+        'intro search';
+      grid-template-columns: 2fr 1fr;
       h3 {
         font-size: 1.5rem;
         font-weight: $weight-bold;
+        grid-area: title;
       }
       .actions {
         display: grid;
         gap: 1rem;
         grid-auto-flow: column;
+        grid-area: actions;
+        justify-content: end;
       }
       .intro {
-        grid-column: 1 / -1;
-        margin-top: 0.5rem;
+        grid-area: intro;
+      }
+      .search {
+        grid-area: search;
       }
     }
     table {
       margin-top: 1rem;
+    }
+    .empty-message {
+      margin-top: 1rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+
     }
   }
 }
