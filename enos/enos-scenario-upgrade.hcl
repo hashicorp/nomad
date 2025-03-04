@@ -142,19 +142,20 @@ scenario "upgrade" {
         batch_raw_exec   = { job_spec = "jobs/raw-exec-batch.nomad.hcl", alloc_count = 3, type = "batch" }
         system_raw_exec  = { job_spec = "jobs/raw-exec-system.nomad.hcl", alloc_count = 0, type = "system" }
 
-        csi_plugin_efs_node = {
-          job_spec    = "jobs/plugin-aws-efs-nodes.nomad.hcl"
-          alloc_count = 0
-          type        = "system"
-          post_script = "scripts/wait_for_efs_plugin.sh"
-        }
+        # TODO(tgross): temporarily disabled while this gets redesigned
+        # csi_plugin_efs_node = {
+        #   job_spec    = "jobs/plugin-aws-efs-nodes.nomad.hcl"
+        #   alloc_count = 0
+        #   type        = "system"
+        #   post_script = "scripts/wait_for_efs_plugin.sh"
+        # }
 
-        wants_csi = {
-          job_spec    = "jobs/wants-volume.nomad.hcl"
-          alloc_count = 1
-          type        = "service"
-          pre_script  = "scripts/wait_for_efs_volume.sh"
-        }
+        # wants_csi = {
+        #   job_spec    = "jobs/wants-volume.nomad.hcl"
+        #   alloc_count = 1
+        #   type        = "service"
+        #   pre_script  = "scripts/wait_for_efs_volume.sh"
+        # }
 
       }
     }
