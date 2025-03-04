@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	NoPathInImageErr = errors.New("no repo found on imageID")
+	NoPathInImageErr = errors.New("does not match registry specification")
 )
 
 func parseDockerImage(image string) (string, string, error) {
