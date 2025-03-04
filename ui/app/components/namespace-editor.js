@@ -41,9 +41,8 @@ export default class NamespaceEditorComponent extends Component {
   }
 
   @action async save(e) {
-    if (e instanceof Event) {
-      e.preventDefault(); // code-mirror "command+enter" submits the form, but doesnt have a preventDefault()
-    }
+    e?.preventDefault(); // code-mirror "command+enter" submits the form, but doesnt have a preventDefault()
+
     try {
       this.deserializeDefinitionJson(JSON.parse(this.definitionString));
 
