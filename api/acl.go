@@ -1005,32 +1005,31 @@ type OIDCClientAssertion struct {
 
 // OIDCClientAssertionKey contains key material provided by users for Nomad
 // to use to sign the private key JWT.
-// PemKeyBase64 or PemKeyFile must contain an RSA private key in PEM format.
-// PemCertBase64, PemCertFile may contain an x509 certificate created with
+// PemKey or PemKeyFile must contain an RSA private key in PEM format.
+// PemCert, PemCertFile may contain an x509 certificate created with
 // the Key, used to derive the KeyID. Alternatively, KeyID may be set manually.
 // PemKeyFile and PemCertFile, if set, must be present on disk on any Nomad
 // servers that may become cluster leaders.
 type OIDCClientAssertionKey struct {
-	// PemKeyBase64 is the private key, in pem format, base64-encoded.
-	// It is used to sign the JWT.
+	// PemKey is the private key, in pem format. It is used to sign the JWT.
 	// Mutually exclusive with PemKeyFile.
-	PemKeyBase64 string
+	PemKey string
 	// PemKeyFile is the path to a private key on server disk, in pem format.
 	// It is used to sign the JWT.
-	// Mutually exclusive with PemKeyBase64.
+	// Mutually exclusive with PemKey.
 	PemKeyFile string
 
-	// PemCertBase64 is a certificate, signed by the private key or a CA,
-	// in pem format, base64-encoded. It is used to derive an x5t-style KeyID.
+	// PemCert is a certificate, signed by the private key or a CA,
+	// in pem format. It is used to derive an x5t-style KeyID.
 	// Mutually exclusive with PemCertFile and KeyID.
-	PemCertBase64 string
+	PemCert string
 	// PemCertFile is a certificate, signed by the private key or a CA,
 	// on server disk, in pem format. It is used to derive an x5t-style KeyID.
-	// Mutually exclusive with PemCertBase64 and KeyID.
+	// Mutually exclusive with PemCert and KeyID.
 	PemCertFile string
 	// KeyID may be set manually if needed to satisfy an OIDC provider's
 	// unique requirements.
-	// Mutually exclusive with PemCertBase64 and PemCertFile.
+	// Mutually exclusive with PemCert and PemCertFile.
 	KeyID string
 }
 
