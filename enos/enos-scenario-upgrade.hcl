@@ -468,7 +468,7 @@ scenario "upgrade" {
   }
 
   step "client_upgrade_test_cluster_health" {
-    depends_on = [step.upgrade_forth_client]
+    depends_on = [step.upgrade_fourth_client]
 
     description = <<-EOF
     Verify the health of the cluster by checking the status of all servers, nodes,
