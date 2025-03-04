@@ -62,14 +62,15 @@ and binding rules in Consul before configuring the Nomad servers with
 Authentication][] for more details.
 
 <Warning>
+
 Starting in Nomad 1.10, the fallback options to use the -consul-token flag when
 submitting a job, the agent's consul.token configuration, or the
 CONSUL_HTTP_TOKEN environment variable, will be removed.  This means service and
 template blocks will not be able to use the agent's Consul token or one provided
 by the job submitter. You should be prepared to migrate to the Workload Identity
-workflow for Consul and Vault before upgrading to Nomad 1.10. Refer to <a
-href="/nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul">Migrating
-to Using Workload Identity with Consul</a>
+workflow for Consul and Vault before upgrading to Nomad 1.10. Refer to
+[Migrating to Using Workload Identity with Consul] for more information.
+
 </Warning>
 
 ### Access to Token
@@ -100,9 +101,12 @@ The [`template`][template] block can use the Consul token as well.
 - `partition` `(string: "")` - When this field is set, a constraint will be
   added to the group or task to ensure that the allocation is placed on a Nomad
   client that has a Consul Enterprise agent in the specified Consul [admin
-  partition][]. Note that Consul Community Edition agents are not assigned to
-  any admin partition, so this field should not be used without Consul
-  Enterprise.
+  partition][]. Using this field requires the following:
+
+  - [Consul Enterprise]
+  - Workload identity integration. The `partition` field does not work
+    with a legacy Consul token. Refer to [Nomad Workload Identities] for more
+    information on integrating Nomad's workload identity with Consul authentication.
 
 ## `consul` Examples
 
@@ -284,8 +288,8 @@ job "docs" {
 [`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
 [flag_consul_token]: /nomad/docs/commands/job/run#consul-token
 [`consul.token`]: /nomad/docs/configuration/consul#token
-[Configuring Consul Authentication]: /nomad/docs/integrations/consul-integration#TODO
-[Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul-integration#migrating-to-using-workload-identity-with-consul
+[Configuring Consul Authentication]: /nomad/docs/integrations/consul/acl#configuring-consul-authentication
+[Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul/acl#migrating-to-using-workload-identity-with-consul
 [config_consul_namespace]: /nomad/docs/configuration/consul#namespace
 [Consul Namespaces]: /consul/docs/enterprise/namespaces
 [Consul Admin Partitions]: /consul/docs/enterprise/admin-partitions
@@ -295,3 +299,5 @@ job "docs" {
 [Connect]: /nomad/docs/job-specification/connect
 [admin partition]: /consul/docs/enterprise/admin-partitions
 [agent configuration reference]: /consul/docs/agent/config/config-files#partition-1
+[Consul Enterprise]: /consul/docs/enterprise
+[Nomad Workload Identities]: /nomad/docs/integrations/consul/acl#nomad-workload-identities
