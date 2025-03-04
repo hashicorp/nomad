@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: acl binding-rule update'
-description: The binding-rule update command is used to update existing ACL Binding Rules.
+page_title: 'nomad acl binding-rule update reference'
+description: |
+    The `nomad acl binding-rule update` command modifies an existing access control list (ACL) binding rule. Update description, selector expression, bind name, and bind type.
 ---
 
-# Command: acl binding-rule update
+# `nomad acl binding-rule update` reference
 
 The `acl binding-rule update` command is used to update existing ACL Binding Rules.
 
@@ -16,11 +17,11 @@ nomad acl binding-rule update [options] <binding-rule_ID>
 
 The `acl binding-rule update` command requires an existing rule's ID.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Update Options
+## Update options
 
 - `-description`: A free form text description of the binding-rule that must not exceed
   256 characters.

@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: login'
+page_title: 'nomad login reference'
 description: |
-  Login to Nomad using an authentication method
+  The `nomad login` command uses OpenID Connect (OIDC) to authenticate a user with a single sign-on (SSO) provider. Nomad creates an access control list (ACL) token after successful authentication.
 ---
 
-# Command: login
+# `nomad login` reference
 
 The `login` command is used to log in to an SSO provider and exchange the third
 party credentials for a newly minted Nomad ACL token.
@@ -19,11 +19,11 @@ nomad login [options]
 The login command will exchange the provided third party credentials with the
 requested auth method for a newly minted Nomad ACL token.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Login Options
+## Login options
 
 - `-method`: The name of the ACL auth method to log in via. If the cluster
   administrator has configured a default, this flag is optional.
