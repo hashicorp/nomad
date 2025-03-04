@@ -25,7 +25,7 @@ scenario "upgrade" {
   ]
 
   locals {
-    cluster_name           = "mcj-${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
+    cluster_name           = "${var.prefix}-${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
     linux_count            = matrix.os == "linux" ? "4" : "0"
     windows_count          = matrix.os == "windows" ? "4" : "0"
     arch                   = matrix.arch
