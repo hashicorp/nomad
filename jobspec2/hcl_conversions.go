@@ -42,9 +42,20 @@ func newHCLDecoder() *gohcl.Decoder {
 
 func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) hcl.Diagnostics {
 	srcVal, diags := expr.Value(ctx)
+	if srcVal.IsNull() {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Unsuitable value",
+			Detail:   fmt.Sprintf("Unsuitable duration value: nil"),
+			Subject:  expr.StartRange().Ptr(),
+			Context:  expr.Range().Ptr(),
+		})
+		return diags
+	}
 
 	if srcVal.Type() == cty.String {
 		dur, err := time.ParseDuration(srcVal.AsString())
+
 		if err != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -68,7 +79,6 @@ func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) 
 			Context:  expr.Range().Ptr(),
 		})
 		return diags
-
 	}
 
 	err := gocty.FromCtyValue(srcVal, val)
@@ -81,7 +91,6 @@ func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) 
 			Context:  expr.Range().Ptr(),
 		})
 	}
-
 	return diags
 }
 
