@@ -10,7 +10,7 @@ nomad acl policy apply \
 namespace "default" {
   variables {
     path "nomad/jobs/writes-vars" {
-      capabilities = ["write"]
+      capabilities = ["write", "read"]
     }
   }
 }
