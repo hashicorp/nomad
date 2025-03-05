@@ -66,6 +66,7 @@ Router.map(function () {
   this.route('storage', function () {
     this.route('volumes', function () {
       this.route('volume', { path: '/:volume_name' });
+      this.route('dynamic-host-volume', { path: '/dynamic/:id' });
     });
 
     this.route('plugins', function () {
