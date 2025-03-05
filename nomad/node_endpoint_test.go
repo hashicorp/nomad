@@ -700,17 +700,6 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 		name    string
 		jobSpec func(time.Duration) *structs.Job
 	}{
-		// Test using max_client_disconnect, remove after its deprecated  in favor
-		// of Disconnect.LostAfter introduced in 1.8.0.
-		{
-			name: "job-with-max-client-disconnect-deprecated",
-			jobSpec: func(maxClientDisconnect time.Duration) *structs.Job {
-				job := mock.Job()
-				job.TaskGroups[0].MaxClientDisconnect = &maxClientDisconnect
-
-				return job
-			},
-		},
 		{
 			name: "job-with-disconnect-block",
 			jobSpec: func(lostAfter time.Duration) *structs.Job {

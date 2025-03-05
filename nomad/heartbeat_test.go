@@ -12,7 +12,6 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -345,76 +344,6 @@ func TestHeartbeat_InvalidateHeartbeat_DisconnectedClient(t *testing.T) {
 				Time:  tc.now,
 			}}
 
-			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
-
-			// Trigger status update
-			s1.invalidateHeartbeat(node.ID)
-			out, err := state.NodeByID(nil, node.ID)
-			must.NoError(t, err)
-			must.Eq(t, tc.expectedNodeStatus, out.Status)
-		})
-	}
-}
-
-// Test using max_client_disconnect, remove after its deprecated  in favor
-// of Disconnect.LostAfter introduced in 1.8.0.
-func TestHeartbeat_InvalidateHeartbeatDisconnectedClient(t *testing.T) {
-	ci.Parallel(t)
-
-	type testCase struct {
-		name                string
-		now                 time.Time
-		maxClientDisconnect *time.Duration
-		expectedNodeStatus  string
-	}
-
-	testCases := []testCase{
-		{
-			name:                "has-pending-reconnects",
-			now:                 time.Now().UTC(),
-			maxClientDisconnect: pointer.Of(5 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDisconnected,
-		},
-		{
-			name:                "has-expired-reconnects",
-			maxClientDisconnect: pointer.Of(5 * time.Second),
-			now:                 time.Now().UTC().Add(-10 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDown,
-		},
-		{
-			name:                "has-expired-reconnects-equal-timestamp",
-			maxClientDisconnect: pointer.Of(5 * time.Second),
-			now:                 time.Now().UTC().Add(-5 * time.Second),
-			expectedNodeStatus:  structs.NodeStatusDown,
-		},
-		{
-			name:                "has-no-reconnects",
-			now:                 time.Now().UTC(),
-			maxClientDisconnect: nil,
-			expectedNodeStatus:  structs.NodeStatusDown,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			s1, cleanupS1 := TestServer(t, nil)
-			defer cleanupS1()
-			testutil.WaitForLeader(t, s1.RPC)
-
-			// Create a node
-			node := mock.Node()
-			state := s1.fsm.State()
-			must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1, node))
-
-			alloc := mock.Alloc()
-			alloc.NodeID = node.ID
-			alloc.Job.TaskGroups[0].MaxClientDisconnect = tc.maxClientDisconnect
-			alloc.ClientStatus = structs.AllocClientStatusUnknown
-			alloc.AllocStates = []*structs.AllocState{{
-				Field: structs.AllocStateFieldClientStatus,
-				Value: structs.AllocClientStatusUnknown,
-				Time:  tc.now,
-			}}
 			must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 2, []*structs.Allocation{alloc}))
 
 			// Trigger status update

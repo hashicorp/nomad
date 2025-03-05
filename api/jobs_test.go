@@ -311,9 +311,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf(""),
-						Count:                   pointerOf(1),
-						PreventRescheduleOnLost: pointerOf(false),
+						Name:  pointerOf(""),
+						Count: pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -398,9 +397,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				JobModifyIndex:    pointerOf(uint64(0)),
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf(""),
-						Count:                   pointerOf(1),
-						PreventRescheduleOnLost: pointerOf(false),
+						Name:  pointerOf(""),
+						Count: pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -490,9 +488,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf("bar"),
-						PreventRescheduleOnLost: pointerOf(false),
-						Count:                   pointerOf(1),
+						Name:  pointerOf("bar"),
+						Count: pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -555,9 +552,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf("cache"),
-						Count:                   pointerOf(1),
-						PreventRescheduleOnLost: pointerOf(true),
+						Name:  pointerOf("cache"),
+						Count: pointerOf(1),
 						RestartPolicy: &RestartPolicy{
 							Interval: pointerOf(5 * time.Minute),
 							Attempts: pointerOf(10),
@@ -666,9 +662,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf("cache"),
-						Count:                   pointerOf(1),
-						PreventRescheduleOnLost: pointerOf(true),
+						Name:  pointerOf("cache"),
+						Count: pointerOf(1),
 						RestartPolicy: &RestartPolicy{
 							Interval:        pointerOf(5 * time.Minute),
 							Attempts:        pointerOf(10),
@@ -864,8 +859,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf("bar"),
-						PreventRescheduleOnLost: pointerOf(true),
+						Name: pointerOf("bar"),
 						Consul: &Consul{
 							Namespace: "",
 						},
@@ -885,8 +879,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name:                    pointerOf("baz"),
-						PreventRescheduleOnLost: pointerOf(false),
+						Name: pointerOf("baz"),
 						Tasks: []*Task{
 							{
 								Name: "task1",
@@ -930,9 +923,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf("bar"),
-						Count:                   pointerOf(1),
-						PreventRescheduleOnLost: pointerOf(true),
+						Name:  pointerOf("bar"),
+						Count: pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -980,9 +972,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name:                    pointerOf("baz"),
-						PreventRescheduleOnLost: pointerOf(false),
-						Count:                   pointerOf(1),
+						Name:  pointerOf("baz"),
+						Count: pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -1040,8 +1031,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 				ParentID: pointerOf("lol"),
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf("bar"),
-						PreventRescheduleOnLost: pointerOf(true),
+						Name: pointerOf("bar"),
 						RestartPolicy: &RestartPolicy{
 							Delay:    pointerOf(15 * time.Second),
 							Attempts: pointerOf(2),
@@ -1113,9 +1103,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 				},
 				TaskGroups: []*TaskGroup{
 					{
-						Name:                    pointerOf("bar"),
-						PreventRescheduleOnLost: pointerOf(true),
-						Count:                   pointerOf(1),
+						Name:  pointerOf("bar"),
+						Count: pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),
@@ -1169,9 +1158,8 @@ func TestJobs_Canonicalize(t *testing.T) {
 						},
 					},
 					{
-						Name:                    pointerOf("baz"),
-						PreventRescheduleOnLost: pointerOf(false),
-						Count:                   pointerOf(1),
+						Name:  pointerOf("baz"),
+						Count: pointerOf(1),
 						EphemeralDisk: &EphemeralDisk{
 							Sticky:  pointerOf(false),
 							Migrate: pointerOf(false),

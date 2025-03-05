@@ -4875,26 +4875,10 @@ func (j *Job) Validate() error {
 			mErr.Errors = append(mErr.Errors, errors.New("ShutdownDelay must be a positive value"))
 		}
 
-		if tg.StopAfterClientDisconnect != nil && *tg.StopAfterClientDisconnect != 0 {
-			if *tg.StopAfterClientDisconnect > 0 &&
-				!(j.Type == JobTypeBatch || j.Type == JobTypeService) {
-				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect can only be set in batch and service jobs"))
-			} else if *tg.StopAfterClientDisconnect < 0 {
-				mErr.Errors = append(mErr.Errors, errors.New("stop_after_client_disconnect must be a positive value"))
-			}
-		}
-
 		if j.Type == "system" && tg.Count > 1 {
 			mErr.Errors = append(mErr.Errors,
 				fmt.Errorf("Job task group %s has count %d. Count cannot exceed 1 with system scheduler",
 					tg.Name, tg.Count))
-		}
-
-		if tg.MaxClientDisconnect != nil &&
-			(tg.ReschedulePolicy != nil && tg.ReschedulePolicy.Attempts > 0) &&
-			tg.PreventRescheduleOnLost {
-			err := fmt.Errorf("max_client_disconnect and prevent_reschedule_on_lost cannot be enabled when rechedule.attempts > 0")
-			mErr.Errors = append(mErr.Errors, err)
 		}
 	}
 
@@ -6966,14 +6950,6 @@ func (tg *TaskGroup) Copy() *TaskGroup {
 		ntg.ShutdownDelay = tg.ShutdownDelay
 	}
 
-	if tg.StopAfterClientDisconnect != nil {
-		ntg.StopAfterClientDisconnect = tg.StopAfterClientDisconnect
-	}
-
-	if tg.MaxClientDisconnect != nil {
-		ntg.MaxClientDisconnect = tg.MaxClientDisconnect
-	}
-
 	return ntg
 }
 
@@ -7008,18 +6984,6 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 
 	if tg.Disconnect != nil {
 		tg.Disconnect.Canonicalize()
-
-		if tg.MaxClientDisconnect != nil && tg.Disconnect.LostAfter == 0 {
-			tg.Disconnect.LostAfter = *tg.MaxClientDisconnect
-		}
-
-		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopOnClientAfter == nil {
-			tg.Disconnect.StopOnClientAfter = tg.StopAfterClientDisconnect
-		}
-
-		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace == nil {
-			tg.Disconnect.Replace = pointer.Of(false)
-		}
 	}
 
 	// Canonicalize Migrate for service jobs
@@ -7099,27 +7063,7 @@ func (tg *TaskGroup) Validate(j *Job) error {
 		mErr = multierror.Append(mErr, errors.New("Missing tasks for task group"))
 	}
 
-	if tg.MaxClientDisconnect != nil && tg.StopAfterClientDisconnect != nil {
-		mErr = multierror.Append(mErr, errors.New("Task group cannot be configured with both max_client_disconnect and stop_after_client_disconnect"))
-	}
-
-	if tg.MaxClientDisconnect != nil && *tg.MaxClientDisconnect < 0 {
-		mErr = multierror.Append(mErr, errors.New("max_client_disconnect cannot be negative"))
-	}
-
 	if tg.Disconnect != nil {
-		if tg.MaxClientDisconnect != nil && tg.Disconnect.LostAfter > 0 {
-			return multierror.Append(mErr, errors.New("using both lost_after and max_client_disconnect is not allowed"))
-		}
-
-		if tg.StopAfterClientDisconnect != nil && tg.Disconnect.StopOnClientAfter != nil {
-			return multierror.Append(mErr, errors.New("using both stop_after_client_disconnect and stop_on_client_after is not allowed"))
-		}
-
-		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace != nil {
-			return multierror.Append(mErr, errors.New("using both prevent_reschedule_on_lost and replace is not allowed"))
-		}
-
 		if err := tg.Disconnect.Validate(j); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
@@ -7607,15 +7551,15 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 	}
 
 	if tg.MaxClientDisconnect != nil {
-		mErr.Errors = append(mErr.Errors, errors.New("MaxClientDisconnect will be deprecated favor of Disconnect.LostAfter"))
+		mErr.Errors = append(mErr.Errors, errors.New("MaxClientDisconnect is deprecated and ignored in favor of Disconnect.LostAfter"))
 	}
 
 	if tg.StopAfterClientDisconnect != nil {
-		mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect will be deprecated favor of Disconnect.StopOnClientAfter"))
+		mErr.Errors = append(mErr.Errors, errors.New("StopAfterClientDisconnect is deprecated and ignored favor of Disconnect.StopOnClientAfter"))
 	}
 
 	if tg.PreventRescheduleOnLost {
-		mErr.Errors = append(mErr.Errors, errors.New("PreventRescheduleOnLost will be deprecated favor of Disconnect.Replace"))
+		mErr.Errors = append(mErr.Errors, errors.New("PreventRescheduleOnLost is deprecated and ignored in favor of Disconnect.Replace"))
 	}
 
 	// Check for mbits network field
@@ -7684,14 +7628,9 @@ func (tg *TaskGroup) GoString() string {
 	return fmt.Sprintf("*%#v", *tg)
 }
 
-// Replace is a helper meant to simplify the future depracation of
-// PreventRescheduleOnLost in favor of Disconnect.Replace
-// introduced in 1.8.0.
+// Replace is a helper meant to simplify the logic for getting
+// the Disconnect.Replace field of a task group.
 func (tg *TaskGroup) Replace() bool {
-	if tg.PreventRescheduleOnLost {
-		return false
-	}
-
 	if tg.Disconnect == nil || tg.Disconnect.Replace == nil {
 		return true
 	}
@@ -7699,14 +7638,9 @@ func (tg *TaskGroup) Replace() bool {
 	return *tg.Disconnect.Replace
 }
 
-// GetDisconnectLostTimeout is a helper meant to simplify the future depracation of
-// MaxClientDisconnect in favor of Disconnect.LostAfter
-// introduced in 1.8.0.
+// GetDisconnectLostTimeout is a helper meant to simplify the logic for
+// getting the Disconnect.LostAfter field of a task group.
 func (tg *TaskGroup) GetDisconnectLostTimeout() time.Duration {
-	if tg.MaxClientDisconnect != nil {
-		return *tg.MaxClientDisconnect
-	}
-
 	if tg.Disconnect != nil {
 		return tg.Disconnect.LostAfter
 	}
@@ -7714,14 +7648,9 @@ func (tg *TaskGroup) GetDisconnectLostTimeout() time.Duration {
 	return 0
 }
 
-// GetDisconnectStopTimeout is a helper meant to simplify the future depracation of
-// StopAfterClientDisconnect in favor of Disconnect.StopOnClientAfter
-// introduced in 1.8.0.
+// GetDisconnectStopTimeout is a helper meant to simplify the logic for
+// getting the Disconnect.StopOnClientAfter field of a task group.
 func (tg *TaskGroup) GetDisconnectStopTimeout() *time.Duration {
-	if tg.StopAfterClientDisconnect != nil {
-		return tg.StopAfterClientDisconnect
-	}
-
 	if tg.Disconnect != nil && tg.Disconnect.StopOnClientAfter != nil {
 		return tg.Disconnect.StopOnClientAfter
 	}
@@ -11445,7 +11374,7 @@ func (a *Allocation) ShouldClientStop() bool {
 }
 
 // WaitClientStop uses the reschedule delay mechanism to block rescheduling until
-// StopAfterClientDisconnect's block interval passes
+// disconnect.stop_on_client_after's interval passes
 func (a *Allocation) WaitClientStop() time.Time {
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
 
@@ -11476,7 +11405,7 @@ func (a *Allocation) WaitClientStop() time.Time {
 	return t.Add(*tg.GetDisconnectStopTimeout() + kill)
 }
 
-// DisconnectTimeout uses the MaxClientDisconnect to compute when the allocation
+// DisconnectTimeout uses the Disconnect.LostAfter to compute when the allocation
 // should transition to lost.
 func (a *Allocation) DisconnectTimeout(now time.Time) time.Time {
 	if a == nil || a.Job == nil {
@@ -11511,15 +11440,13 @@ func (a *Allocation) SupportsDisconnectedClients(serverSupportsDisconnectedClien
 	return false
 }
 
-// PreventRescheduleOnLost determines if an alloc allows to have a replacement
+// PreventReplaceOnDisconnect determines if an alloc allows to have a replacement
 // when Disconnected.
-func (a *Allocation) PreventRescheduleOnDisconnect() bool {
+func (a *Allocation) PreventReplaceOnDisconnect() bool {
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return (tg.Disconnect != nil && tg.Disconnect.Replace != nil &&
-				!*tg.Disconnect.Replace) ||
-				tg.PreventRescheduleOnLost
+			return !tg.Replace()
 		}
 	}
 
