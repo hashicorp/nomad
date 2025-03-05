@@ -5,10 +5,8 @@ package executor
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -353,14 +351,6 @@ func (e *UniversalExecutor) Version() (*ExecutorVersion, error) {
 	return &ExecutorVersion{Version: ExecutorVersionLatest}, nil
 }
 
-func isErrorUserPermisions(err error) bool {
-	return errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission)
-}
-
-func isRoot() bool {
-	return os.Geteuid() == 0
-}
-
 // Launch launches the main process and returns its state. It also
 // configures an applies isolation on certain platforms.
 func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) {
@@ -392,15 +382,9 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	running, cleanup, err := e.configureResourceContainer(command, os.Getpid())
 	if err != nil {
 		e.logger.Error("failed to configure container, process isolation will not work", "error", err)
-
-		if isRoot() || e.usesCustomCgroup() {
+		if os.Geteuid() == 0 || e.usesCustomCgroup() {
 			return nil, fmt.Errorf("unable to configure cgroups: %w", err)
 		}
-
-		if !isRoot() || isErrorUserPermisions(err) {
-			return nil, errors.New("unable to configure cgroups, permission denied")
-		}
-
 		// keep going if we are not root; some folks run nomad as non-root and
 		// expect this driver to still work
 	} else {
