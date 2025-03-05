@@ -26,11 +26,6 @@
     "local:exam": "ember exam --server --load-balance --parallel=4",
     "seedless-test": "USE_PERCY=false ember test"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
   "lint-staged": {
     "{app,tests,config,lib,mirage}/**/*.js": [
       "prettier --write"
@@ -167,7 +162,7 @@
   },
   "dependencies": {
     "@babel/helper-string-parser": "^7.19.4",
-    "@hashicorp/design-system-components": "^4.13.0",
+    "@hashicorp/design-system-components": "^4.17.0",
     "@percy/cli": "^1.30.0",
     "@percy/ember": "^4.2.0",
     "curved-arrows": "^0.1.0",
