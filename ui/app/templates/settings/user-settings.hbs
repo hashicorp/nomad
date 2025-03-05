@@ -30,6 +30,165 @@
           <F.HelperText>When enabled, new or removed jobs will pop into and out of view on your jobs page. When disabled, you will be notified that changes are pending.</F.HelperText>
         </G.ToggleField>
       </Hds::Form::Toggle::Group>
+
+      <Hds::Separator/>
+      <Hds::Form::Label>
+        Default Namespace
+        <Hds::Dropdown @height="300px" @listPosition="bottom-left" as |dd|>
+          <dd.ToggleButton
+            @text={{this.namespaceDropdownLabel}}
+            @color="secondary"
+          />
+          <dd.Header @hasDivider={{true}}>
+            <Hds::Form::TextInput::Base
+              @type="search"
+              placeholder="Filter namespaces"
+              @value={{this.namespaceFilter}}
+              {{autofocus}}
+              {{on "input" (action (mut this.namespaceFilter) value="target.value") }}
+              data-test-namespace-filter-searchbox
+            />
+          </dd.Header>
+          {{#each this.namespaceOptions as |option|}}
+            <dd.Checkbox
+              {{on "change" (fn this.setDefaultNamespace option)}}
+              @value={{option.label}}
+              checked={{option.checked}}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{option.label}} {{#if (includes option.id this.namespaceDefaults)}}(default){{/if}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              {{#if this.namespaceFilter}}
+                No namespaces match "{{this.namespaceFilter}}"
+              {{else}}
+                No namespaces available
+              {{/if}}
+            </dd.Generic>
+          {{/each}}
+        </Hds::Dropdown>
+      </Hds::Form::Label>
+      <Hds::Form::HelperText>
+        You can set which namespaces are selected by default in the UI.
+        {{#if this.system.agentDefaults.Namespace}}
+          <br />
+          Your agent configuration has set the default namespace to <strong>{{this.system.agentDefaults.Namespace}}</strong>.
+        {{/if}}
+        {{#if this.system.userDefaultNamespace}}
+          <br />
+          Your user settings have set the default namespace to <strong>{{this.system.userDefaultNamespace}}</strong>.
+
+          <Hds::Button
+            @isInline={{true}}
+            @size="small"
+            @text="Clear user default namespaces"
+            @color="tertiary"
+            @icon="minus-circle"
+            {{on "click" this.clearUserDefaultNamespaces}}
+          />
+        {{/if}}
+      </Hds::Form::HelperText>
+
+      <Hds::Separator/>
+
+      <Hds::Form::Label>
+        Default Node Pool
+        <Hds::Dropdown @height="300px" @listPosition="bottom-left" as |dd|>
+          <dd.ToggleButton
+            @text={{this.nodepoolDropdownLabel}}
+            @color="secondary"
+          />
+          <dd.Header @hasDivider={{true}}>
+            <Hds::Form::TextInput::Base
+              @type="search"
+              placeholder="Filter node pools"
+              @value={{this.nodepoolFilter}}
+              {{autofocus}}
+              {{on "input" (action (mut this.nodepoolFilter) value="target.value") }}
+              data-test-nodepool-filter-searchbox
+            />
+          </dd.Header>
+          {{#each this.nodepoolOptions as |option|}}
+            <dd.Checkbox
+              {{on "change" (fn this.setDefaultNodePool option)}}
+              @value={{option.label}}
+              checked={{option.checked}}
+              data-test-dropdown-option={{option.label}}
+            >
+              {{option.label}} {{#if (includes option.id this.nodepoolDefaults)}}(default){{/if}}
+            </dd.Checkbox>
+          {{else}}
+            <dd.Generic data-test-dropdown-empty>
+              {{#if this.nodepoolFilter}}
+                No node pools match "{{this.nodepoolFilter}}"
+              {{else}}
+                No node pools available
+              {{/if}}
+            </dd.Generic>
+          {{/each}}
+        </Hds::Dropdown>
+      </Hds::Form::Label>
+      <Hds::Form::HelperText>
+        You can set which node pools are selected by default in the UI.
+        {{#if this.system.agentDefaults.NodePool}}
+          <br />
+          Your agent configuration has set the default node pool to <strong>{{this.system.agentDefaults.NodePool}}</strong>.
+        {{/if}}
+        {{#if this.system.userDefaultNodePool}}
+          <br />
+          Your user settings have set the default node pool to <strong>{{this.system.userDefaultNodePool}}</strong>.
+
+          <Hds::Button
+            @isInline={{true}}
+            @size="small"
+            @text="Clear user default node pools"
+            @color="tertiary"
+            @icon="minus-circle"
+            {{on "click" this.clearUserDefaultNodePools}}
+          />
+        {{/if}}
+      </Hds::Form::HelperText>
+
+      {{#if this.system.shouldShowRegions}}      
+        <Hds::Separator/>
+        <Hds::Form::Label>
+          Default Region
+          {{!-- <RegionSwitcher @onChange={{this.setDefaultRegion}} /> --}}
+          <Hds::Dropdown @height="300px" @listPosition="bottom-left" as |dd|>
+            <dd.ToggleButton
+              @text={{or this.system.userDefaultRegion "Set a default region"}}
+              @color="secondary"
+            />
+            {{#each this.sortedRegions as |option|}}
+              {{!-- <dd.Checkbox
+                {{on "change" (fn this.setDefaultRegion option)}}
+                @value={{option.label}}
+                checked={{option.checked}}
+                data-test-dropdown-option={{option.label}}
+              >
+                {{option.label}} {{#if (includes option.id this.regionDefaults)}}(default){{/if}}
+              </dd.Checkbox> --}}
+							<dd.Interactive
+                {{on "click" (action this.setDefaultRegion option)}} @text={{option}}
+              />
+            {{/each}}
+          </Hds::Dropdown>
+        </Hds::Form::Label>
+        <Hds::Form::HelperText>
+          You can set which region is selected by default in the UI.
+          {{#if this.system.agentDefaults.Region}}
+            <br />
+            Your agent configuration has set the default region to <strong>{{this.system.agentDefaults.Region}}</strong>.
+          {{/if}}
+          {{#if this.system.userDefaultRegion}}
+            <br />
+            Your user settings have set the default region to <strong>{{this.system.userDefaultRegion}}</strong> (This updates every time you change regions via the UI)
+          {{/if}}
+        </Hds::Form::HelperText>
+
+      {{/if}}
+
     </A.Generic>
   </Hds::Alert>
 </section>
