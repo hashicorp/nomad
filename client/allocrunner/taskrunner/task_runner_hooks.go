@@ -153,7 +153,6 @@ func (tr *TaskRunner) initHooks() {
 			tr.runnerHooks = append(tr.runnerHooks, newSIDSHook(sidsHookConfig{
 				alloc:              tr.Alloc(),
 				task:               tr.Task(),
-				sidsClient:         tr.siClient,
 				lifecycle:          tr,
 				logger:             hookLogger,
 				allocHookResources: tr.allocHookResources,

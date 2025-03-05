@@ -983,7 +983,6 @@ func (a *Agent) setupServer() error {
 	server, err := nomad.NewServer(conf,
 		a.consulCatalog,           // self service discovery
 		a.consulConfigEntriesFunc, // writing config entries for gateways
-		a.consulACLs,              // DEPRECATED(1.9): remove in 1.9
 	)
 	if err != nil {
 		return fmt.Errorf("server setup failed: %v", err)

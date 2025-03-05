@@ -17,22 +17,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
 
-// TokenDeriverFunc takes an allocation and a set of tasks and derives a service
-// identity token for each. Requests go through nomad server and the local
-// Consul agent.
-type TokenDeriverFunc func(context.Context, *structs.Allocation, []string) (map[string]string, error)
-
-// ServiceIdentityAPI is the interface the Nomad Client uses to request Consul
-// Service Identity tokens through Nomad Server. (Deprecated: will be removed in 1.9.0)
-//
-// ACL requirements
-// - acl:write (used by Server only)
-type ServiceIdentityAPI interface {
-	// DeriveSITokens contacts the nomad server and requests consul service
-	// identity tokens be generated for tasks in the allocation.
-	DeriveSITokens(ctx context.Context, alloc *structs.Allocation, tasks []string) (map[string]string, error)
-}
-
 // SupportedProxiesAPI is the interface the Nomad Client uses to request from
 // Consul the set of supported proxied to use for Consul Connect.
 //

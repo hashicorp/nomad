@@ -829,15 +829,6 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	if config.ConsulConfig != nil {
 		conf.Consul.Address = &config.ConsulConfig.Addr
 
-		// if we're using WI, use the token from consul_hook
-		// NOTE: from Nomad 1.9 on, WI will be the only supported way of
-		// getting Consul tokens
-		if config.ConsulToken != "" {
-			conf.Consul.Token = &config.ConsulToken
-		} else {
-			conf.Consul.Token = &config.ConsulConfig.Token
-		}
-
 		// Get the Consul namespace from agent config. This is the lower level
 		// of precedence (beyond default).
 		if config.ConsulConfig.Namespace != "" {

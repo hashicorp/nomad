@@ -330,9 +330,9 @@ func (n *nomadFSM) Apply(log *raft.Log) interface{} {
 	case structs.ClusterMetadataRequestType:
 		return n.applyClusterMetadata(buf[1:], log.Index)
 	case structs.ServiceIdentityAccessorRegisterRequestType:
-		return n.applyUpsertSIAccessor(buf[1:], log.Index)
+		return nil
 	case structs.ServiceIdentityAccessorDeregisterRequestType:
-		return n.applyDeregisterSIAccessor(buf[1:], log.Index)
+		return nil
 	case structs.CSIVolumeRegisterRequestType:
 		return n.applyCSIVolumeRegister(buf[1:], log.Index)
 	case structs.CSIVolumeDeregisterRequestType:
@@ -1038,36 +1038,6 @@ func (n *nomadFSM) applyUpsertNodeEvent(msgType structs.MessageType, buf []byte,
 	return nil
 }
 
-func (n *nomadFSM) applyUpsertSIAccessor(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "upsert_si_accessor"}, time.Now())
-	var request structs.SITokenAccessorsRequest
-	if err := structs.Decode(buf, &request); err != nil {
-		panic(fmt.Errorf("failed to decode request: %w", err))
-	}
-
-	if err := n.state.UpsertSITokenAccessors(index, request.Accessors); err != nil {
-		n.logger.Error("UpsertSITokenAccessors failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
-func (n *nomadFSM) applyDeregisterSIAccessor(buf []byte, index uint64) interface{} {
-	defer metrics.MeasureSince([]string{"nomad", "fsm", "deregister_si_accessor"}, time.Now())
-	var request structs.SITokenAccessorsRequest
-	if err := structs.Decode(buf, &request); err != nil {
-		panic(fmt.Errorf("failed to decode request: %w", err))
-	}
-
-	if err := n.state.DeleteSITokenAccessors(index, request.Accessors); err != nil {
-		n.logger.Error("DeregisterSITokenAccessor failed", "error", err)
-		return err
-	}
-
-	return nil
-}
-
 // applyPlanApply applies the results of a plan application
 func (n *nomadFSM) applyPlanResults(msgType structs.MessageType, buf []byte, index uint64) interface{} {
 	defer metrics.MeasureSince([]string{"nomad", "fsm", "apply_plan_results"}, time.Now())
@@ -1649,14 +1619,12 @@ func (n *nomadFSM) restoreImpl(old io.ReadCloser, filter *FSMFilter) error {
 			}
 
 		case ServiceIdentityTokenAccessorSnapshot:
+			// COMPAT: Nomad 1.10.0 removed the SI Token accessor table. This case
+			// kept to gracefully handle snapshot requests which include an
+			// object from this.
 			accessor := new(structs.SITokenAccessor)
 			if err := dec.Decode(accessor); err != nil {
 				return err
-			}
-			if filter.Include(accessor) {
-				if err := restore.SITokenAccessorRestore(accessor); err != nil {
-					return err
-				}
 			}
 
 		case JobVersionSnapshot:
@@ -2481,10 +2449,6 @@ func (s *nomadSnapshot) Persist(sink raft.SnapshotSink) error {
 		sink.Cancel()
 		return err
 	}
-	if err := s.persistSITokenAccessors(sink, encoder); err != nil {
-		sink.Cancel()
-		return err
-	}
 	if err := s.persistJobVersions(sink, encoder); err != nil {
 		sink.Cancel()
 		return err
@@ -2779,23 +2743,6 @@ func (s *nomadSnapshot) persistJobSummaries(sink raft.SnapshotSink,
 
 		sink.Write([]byte{byte(JobSummarySnapshot)})
 		if err := encoder.Encode(jobSummary); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *nomadSnapshot) persistSITokenAccessors(sink raft.SnapshotSink, encoder *codec.Encoder) error {
-	ws := memdb.NewWatchSet()
-	accessors, err := s.snap.SITokenAccessors(ws)
-	if err != nil {
-		return err
-	}
-
-	for raw := accessors.Next(); raw != nil; raw = accessors.Next() {
-		accessor := raw.(*structs.SITokenAccessor)
-		sink.Write([]byte{byte(ServiceIdentityTokenAccessorSnapshot)})
-		if err := encoder.Encode(accessor); err != nil {
 			return err
 		}
 	}

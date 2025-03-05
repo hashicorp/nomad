@@ -788,38 +788,6 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 	})
 }
 
-func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
-	ci.Parallel(t)
-	r := require.New(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// replace consul ACLs API with a mock for tracking calls in tests
-	var consulACLsAPI mockConsulACLsAPI
-	s1.consulACLs = &consulACLsAPI
-
-	// Insert a SI token accessor that should be revoked
-	fsmState := s1.fsm.State()
-	accessor := mock.SITokenAccessor()
-	err := fsmState.UpsertSITokenAccessors(100, []*structs.SITokenAccessor{accessor})
-	r.NoError(err)
-
-	// Do a restore
-	err = s1.revokeSITokenAccessorsOnRestore()
-	r.NoError(err)
-
-	// Check the accessor was revoked
-	exp := []revokeRequest{{
-		accessorID: accessor.AccessorID,
-		committed:  true,
-	}}
-	r.ElementsMatch(exp, consulACLsAPI.revokeRequests)
-}
-
 func TestLeader_ClusterID(t *testing.T) {
 	ci.Parallel(t)
 

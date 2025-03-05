@@ -29,7 +29,6 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/getter"
 	"github.com/hashicorp/nomad/client/config"
-	consulclient "github.com/hashicorp/nomad/client/consul"
 	"github.com/hashicorp/nomad/client/devicemanager"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/proclib"
@@ -50,7 +49,6 @@ import (
 	"github.com/hashicorp/nomad/drivers/rawexec"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
@@ -161,7 +159,6 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		TaskDir:               taskDir,
 		Logger:                clientConf.Logger,
 		ConsulServices:        consulRegMock,
-		ConsulSI:              consulclient.NewMockServiceIdentitiesClient(),
 		VaultFunc:             vaultFunc,
 		StateDB:               cstate.NoopDB{},
 		StateUpdater:          NewMockTaskStateUpdater(),
@@ -1446,182 +1443,6 @@ func useMockEnvoyBootstrapHook(tr *TaskRunner) {
 			tr.runnerHooks[i] = mock
 		}
 	}
-}
-
-// TestTaskRunner_BlockForSIDSToken asserts tasks do not start until a Consul
-// Service Identity token is derived.
-func TestTaskRunner_BlockForSIDSToken(t *testing.T) {
-	ci.Parallel(t)
-	r := require.New(t)
-
-	alloc := mock.BatchConnectAlloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config = map[string]interface{}{
-		"run_for": "0s",
-	}
-
-	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
-	defer cleanup()
-
-	// set a consul token on the Nomad client's consul config, because that is
-	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
-
-	// control when we get a Consul SI token
-	token := uuid.Generate()
-	waitCh := make(chan struct{})
-	deriveFn := func(context.Context, *structs.Allocation, []string) (map[string]string, error) {
-		<-waitCh
-		return map[string]string{task.Name: token}, nil
-	}
-	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
-	siClient.DeriveTokenFn = deriveFn
-
-	// start the task runner
-	tr, err := NewTaskRunner(trConfig)
-	r.NoError(err)
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap hook
-
-	go tr.Run()
-
-	// assert task runner blocks on SI token
-	select {
-	case <-tr.WaitCh():
-		r.Fail("task_runner exited before si unblocked")
-	case <-time.After(100 * time.Millisecond):
-	}
-
-	// assert task state is still pending
-	r.Equal(structs.TaskStatePending, tr.TaskState().State)
-
-	// unblock service identity token
-	close(waitCh)
-
-	// task runner should exit now that it has been unblocked and it is a batch
-	// job with a zero sleep time
-	testWaitForTaskToDie(t, tr)
-
-	// assert task exited successfully
-	finalState := tr.TaskState()
-	r.Equal(structs.TaskStateDead, finalState.State)
-	r.False(finalState.Failed)
-
-	// assert the token is on disk
-	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
-	data, err := os.ReadFile(tokenPath)
-	r.NoError(err)
-	r.Equal(token, string(data))
-}
-
-func TestTaskRunner_DeriveSIToken_Retry(t *testing.T) {
-	ci.Parallel(t)
-	r := require.New(t)
-
-	alloc := mock.BatchConnectAlloc()
-	task := alloc.Job.TaskGroups[0].Tasks[0]
-	task.Config = map[string]interface{}{
-		"run_for": "0s",
-	}
-
-	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
-	defer cleanup()
-
-	// set a consul token on the Nomad client's consul config, because that is
-	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
-
-	// control when we get a Consul SI token (recoverable failure on first call)
-	token := uuid.Generate()
-	deriveCount := 0
-	deriveFn := func(context.Context, *structs.Allocation, []string) (map[string]string, error) {
-		if deriveCount > 0 {
-
-			return map[string]string{task.Name: token}, nil
-		}
-		deriveCount++
-		return nil, structs.NewRecoverableError(errors.New("try again later"), true)
-	}
-	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
-	siClient.DeriveTokenFn = deriveFn
-
-	// start the task runner
-	tr, err := NewTaskRunner(trConfig)
-	r.NoError(err)
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap
-	go tr.Run()
-
-	// assert task runner blocks on SI token
-	testWaitForTaskToDie(t, tr)
-
-	// assert task exited successfully
-	finalState := tr.TaskState()
-	r.Equal(structs.TaskStateDead, finalState.State)
-	r.False(finalState.Failed)
-
-	// assert the token is on disk
-	tokenPath := filepath.Join(trConfig.TaskDir.SecretsDir, sidsTokenFile)
-	data, err := os.ReadFile(tokenPath)
-	r.NoError(err)
-	r.Equal(token, string(data))
-}
-
-// TestTaskRunner_DeriveSIToken_Unrecoverable asserts that an unrecoverable error
-// from deriving a service identity token will fail a task.
-func TestTaskRunner_DeriveSIToken_Unrecoverable(t *testing.T) {
-	ci.Parallel(t)
-	r := require.New(t)
-
-	alloc := mock.BatchConnectAlloc()
-	tg := alloc.Job.TaskGroups[0]
-	tg.RestartPolicy.Attempts = 0
-	tg.RestartPolicy.Interval = 0
-	tg.RestartPolicy.Delay = 0
-	tg.RestartPolicy.Mode = structs.RestartPolicyModeFail
-	task := tg.Tasks[0]
-	task.Config = map[string]interface{}{
-		"run_for": "0s",
-	}
-
-	trConfig, cleanup := testTaskRunnerConfig(t, alloc, task.Name, nil)
-	defer cleanup()
-
-	// set a consul token on the Nomad client's consul config, because that is
-	// what gates the action of requesting SI token(s)
-	trConfig.ClientConfig.GetDefaultConsul().Token = uuid.Generate()
-
-	// SI token derivation suffers a non-retryable error
-	siClient := trConfig.ConsulSI.(*consulclient.MockServiceIdentitiesClient)
-	siClient.SetDeriveTokenError(alloc.ID, []string{task.Name}, errors.New("non-recoverable"))
-
-	tr, err := NewTaskRunner(trConfig)
-	r.NoError(err)
-
-	defer tr.Kill(context.Background(), structs.NewTaskEvent("cleanup"))
-	useMockEnvoyBootstrapHook(tr) // mock the envoy bootstrap hook
-	go tr.Run()
-
-	// Wait for the task to die
-	select {
-	case <-tr.WaitCh():
-	case <-time.After(time.Duration(testutil.TestMultiplier()*15) * time.Second):
-		require.Fail(t, "timed out waiting for task runner to fail")
-	}
-
-	// assert we have died and failed
-	finalState := tr.TaskState()
-	r.Equal(structs.TaskStateDead, finalState.State)
-	r.True(finalState.Failed)
-	r.Equal(5, len(finalState.Events))
-	/*
-	 + event: Task received by client
-	 + event: Building Task Directory
-	 + event: consul: failed to derive SI token: non-recoverable
-	 + event: consul_sids: context canceled
-	 + event: Policy allows no restarts
-	*/
-	r.Equal("true", finalState.Events[2].Details["fails_task"])
 }
 
 // TestTaskRunner_BlockForVaultToken asserts tasks do not start until a vault token

@@ -11,13 +11,6 @@ The `job revert` command is used to revert a job to a prior version of the
 job. The available versions to revert to can be found using [`job history`]
 command.
 
-The revert command will use a Consul token with the following preference:
-first the `-consul-token` flag, then the `$CONSUL_HTTP_TOKEN` environment variable.
-Because the consul token used to [run] the targeted job version was not
-persisted, it must be provided to revert if the targeted job version includes
-Consul Connect enabled services and the Nomad servers were configured to require
-[consul service identity] authentication.
-
 ## Usage
 
 ```shell-session
@@ -45,10 +38,6 @@ not used.
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
   [eval status] command.
-
-- `-consul-token`: If set, the passed Consul token is sent along with the revert
-  request to the Nomad servers. This overrides the token found in the
-  `$CONSUL_HTTP_TOKEN` environment variable.
 
 - `-verbose`: Show full information.
 
@@ -114,5 +103,4 @@ Submit Date = 07/25/17 21:27:18 UTC
 
 [`job history`]: /nomad/docs/commands/job/history
 [eval status]: /nomad/docs/commands/eval/status
-[consul service identity]: /nomad/docs/configuration/consul#allow_unauthenticated
 [run]: /nomad/docs/commands/job/run

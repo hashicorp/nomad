@@ -59,11 +59,11 @@ incremented. If you were relying on the previous behavior to redistribute
 workloads, you can force a destructive update by changing fields that require
 one, such as the `meta` block.
 
-#### Vault integration changes
+#### Vault and Consul integration changes
 
-Nomad 1.10.0 removes the previously deprecated token-based Vault authentication
-workflow. Nomad clients must now use a task's [Workload Identity][] to
-authenticate to Vault and obtain a Vault token specific to the task.
+Nomad 1.10.0 removes the previously deprecated token-based authentication workflow
+for Vault and Consul. Nomad clients must now use a task's [Workload Identity][]
+to authenticate to Vault and Consul and obtain a token specific to the task.
 
 This table lists removed fields and the new workflow.
 

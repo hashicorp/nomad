@@ -192,10 +192,6 @@ type TaskRunner struct {
 	// sidecar or gateway task.
 	consulProxiesClientFunc consul.SupportedProxiesAPIFunc
 
-	// sidsClient is the client used by the service identity hook for managing
-	// service identity tokens
-	siClient consul.ServiceIdentityAPI
-
 	// vaultClientFunc is the function to get a client to use to derive and
 	// renew Vault tokens
 	vaultClientFunc vaultclient.VaultClientFunc
@@ -316,9 +312,6 @@ type Config struct {
 	// from Consul.
 	ConsulProxiesFunc consul.SupportedProxiesAPIFunc
 
-	// ConsulSI is the client to use for managing Consul SI tokens
-	ConsulSI consul.ServiceIdentityAPI
-
 	// DynamicRegistry is where dynamic plugins should be registered.
 	DynamicRegistry dynamicplugins.Registry
 
@@ -414,7 +407,6 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		dynamicRegistry:         config.DynamicRegistry,
 		consulServiceClient:     config.ConsulServices,
 		consulProxiesClientFunc: config.ConsulProxiesFunc,
-		siClient:                config.ConsulSI,
 		vaultClientFunc:         config.VaultFunc,
 		state:                   tstate,
 		localState:              state.NewLocalState(),

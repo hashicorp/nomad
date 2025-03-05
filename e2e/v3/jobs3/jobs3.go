@@ -302,9 +302,6 @@ func (sub *Submission) run() {
 	if job.Type == nil {
 		job.Type = pointer.Of("service")
 	}
-	if sub.legacyConsulToken != "" {
-		job.ConsulToken = pointer.Of(sub.legacyConsulToken)
-	}
 
 	registerOpts := &nomadapi.RegisterOptions{
 		Submission: &nomadapi.JobSubmission{

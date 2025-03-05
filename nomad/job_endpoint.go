@@ -241,33 +241,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	// helper function that checks if the Consul token supplied with the job has
-	// sufficient ACL permissions for:
-	//   - registering services into namespace of each group
-	//   - reading kv store of each group
-	//   - establishing consul connect services
-	checkConsulToken := func(usages map[string]*structs.ConsulUsage) error {
-		if j.srv.config.GetDefaultConsul().AllowsUnauthenticated() {
-			// if consul.allow_unauthenticated is enabled (which is the default)
-			// just let the job through without checking anything
-			return nil
-		}
-
-		ctx := context.Background()
-		for namespace, usage := range usages {
-			if err := j.srv.consulACLs.CheckPermissions(ctx, namespace, usage, args.Job.ConsulToken); err != nil {
-				return fmt.Errorf("job-submitter consul token denied: %w", err)
-			}
-		}
-
-		return nil
-	}
-
-	// Enforce the job-submitter has a Consul token with necessary ACL permissions.
-	if err := checkConsulToken(args.Job.ConsulUsages()); err != nil {
-		return err
-	}
-
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
 	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
@@ -311,9 +284,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			}
 		}
 	}
-
-	// Clear the Consul token
-	args.Job.ConsulToken = ""
 
 	// Preserve the existing task group counts, if so requested
 	if existingJob != nil && args.PreserveCounts {
@@ -650,7 +620,6 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Build the register request
 	revJob := jobV.Copy()
-	revJob.ConsulToken = args.ConsulToken // use consul token from revert to perform (re)registration
 
 	// Clear out the VersionTag to prevent tag duplication
 	revJob.VersionTag = nil
