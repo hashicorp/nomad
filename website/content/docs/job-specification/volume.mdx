@@ -76,6 +76,11 @@ the [volume_mount][volume_mount] block in the `task` configuration.
   used for validating `host_volume` ACLs and for scheduling when a
   matching `host_volume` requires `read_only` usage.
 
+- `sticky` `(bool: false)` - Specifies that this volume is supposed to "stick"
+  to the allocation that uses it. This means that upon every reschedule and
+  replacement, the task group will always receive the volume with the same ID, if
+  available.
+
 - `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
   should have the suffix `[n]`, where `n` is the allocation index. This allows
   mounting a unique volume per allocation, so long as the volume's source is
@@ -84,7 +89,7 @@ the [volume_mount][volume_mount] block in the `task` configuration.
   volume ID `myvolume[0]`.
 
   The `per_alloc` field cannot be true for system jobs, sysbatch jobs, or jobs
-  that use canaries.
+  that use canaries. `per_alloc` is mutually exclusive with `sticky` property.
 
 The following fields are only valid for volumes with `type = "csi"` or dynamic
 host volumes with `type = "host"`:

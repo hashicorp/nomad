@@ -1,0 +1,56 @@
+---
+layout: docs
+page_title: Stateful Deployments
+description: |-
+  Learn how Nomad handles Stateful Deployments.
+---
+
+Nomad Stateful Deployments allow users to effectively bind their jobs to host
+[volumes]. On a lower level, this means taking Nomad's basic unit of workload
+placement—the [allocation]—and making it possible for users to have allocations
+that are ["sticky"] to volume IDs.
+
+<Note>
+Stateful Deployments support only Host Volumes. For CSI Volumes, we have
+[per_alloc] property that serves a similar purpose.
+</Note>
+
+Stateful Deployments work on a per-task-group basis, that is, each task group
+can indicate that a host volume it requires must be "sticky." This is done by
+setting the parameter in the jobspec:
+
+```hcl
+job "app" {
+  group "example" {
+    # ...
+    volume "example" {
+      type      = "host"
+      source    = "ca-certificates"
+      read_only = true
+      sticky    = true
+    }
+    # ...
+  }
+}
+```
+
+If a volume is set to be sticky, during the deployment the scheduler adds its
+ID to the allocation that uses it. Stateful deployments require that any
+allocation that has the new VolumeID field set will only be (re)scheduled on
+nodes that have this Volume ID attached.
+
+Allocations that need to be rescheduled due to a destructive update will only
+ever be rescheduled on a node that has the host volume ID they used before.
+Scaling jobs with sticky volumes up results in more volume IDs claimed by the
+task group, but scaling jobs down does not delete unused volumes, nor does it
+touch the data present on them.
+
+If the scheduler cannot find a node that has the right volume ID present
+(perhaps because the node is down or disconnected), the allocation will be
+stopped and the job will remain in `pending` status until it's either stopped
+by the user or a feasible node is found.
+
+[allocation]: /nomad/docs/glossary#allocation
+[per_alloc]: /nomad/docs/job-specification/volume#per_alloc
+["sticky"]: /nomad/docs/job-specification/volume#sticky
+[volumes]: /nomad/docs/other-specifications/volume
