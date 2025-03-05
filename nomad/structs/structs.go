@@ -11446,8 +11446,7 @@ func (a *Allocation) PreventReplaceOnDisconnect() bool {
 	if a.Job != nil {
 		tg := a.Job.LookupTaskGroup(a.TaskGroup)
 		if tg != nil {
-			return (tg.Disconnect != nil && tg.Disconnect.Replace != nil &&
-				!*tg.Disconnect.Replace)
+			return !tg.Replace()
 		}
 	}
 
