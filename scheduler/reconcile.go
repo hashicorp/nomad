@@ -495,7 +495,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	}
 
 	if len(expiring) > 0 {
-		if tg.PreventRescheduleOnLost {
+		if !tg.Replace() {
 			untainted = untainted.union(expiring)
 		} else {
 			lost = lost.union(expiring)

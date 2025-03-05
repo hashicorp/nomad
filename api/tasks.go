@@ -640,10 +640,6 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 		s.Canonicalize(nil, g, job)
 	}
 
-	if g.PreventRescheduleOnLost == nil {
-		g.PreventRescheduleOnLost = pointerOf(false)
-	}
-
 	if g.Disconnect != nil {
 		g.Disconnect.Canonicalize()
 	}

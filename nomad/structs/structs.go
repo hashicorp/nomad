@@ -6984,10 +6984,6 @@ func (tg *TaskGroup) Canonicalize(job *Job) {
 
 	if tg.Disconnect != nil {
 		tg.Disconnect.Canonicalize()
-
-		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace == nil {
-			tg.Disconnect.Replace = pointer.Of(false)
-		}
 	}
 
 	// Canonicalize Migrate for service jobs
@@ -7068,10 +7064,6 @@ func (tg *TaskGroup) Validate(j *Job) error {
 	}
 
 	if tg.Disconnect != nil {
-		if tg.PreventRescheduleOnLost && tg.Disconnect.Replace != nil {
-			return multierror.Append(mErr, errors.New("using both prevent_reschedule_on_lost and replace is not allowed"))
-		}
-
 		if err := tg.Disconnect.Validate(j); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
@@ -7567,7 +7559,7 @@ func (tg *TaskGroup) Warnings(j *Job) error {
 	}
 
 	if tg.PreventRescheduleOnLost {
-		mErr.Errors = append(mErr.Errors, errors.New("PreventRescheduleOnLost will be deprecated favor of Disconnect.Replace"))
+		mErr.Errors = append(mErr.Errors, errors.New("PreventRescheduleOnLost is deprecated and ignored in favor of Disconnect.Replace"))
 	}
 
 	// Check for mbits network field
