@@ -1276,6 +1276,14 @@
             "path": "commands/volume"
           },
           {
+            "title": "claim delete",
+            "path": "commands/volume/claim-delete"
+          },
+          {
+            "title": "claim list",
+            "path": "commands/volume/claim-list"
+          },
+          {
             "title": "create",
             "path": "commands/volume/create"
           },
