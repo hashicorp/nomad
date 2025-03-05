@@ -1,0 +1,51 @@
+---
+layout: docs
+page_title: 'Commands: volume claim delete'
+description: |
+  Delete task group host volume claim.
+---
+
+# Command: volume claim delete
+
+The `volume claim delete` deletes a task group host volume claim. These claims
+are used by [stateful deployments].
+
+## Usage
+
+```plaintext
+nomad volume claim delete [options] [claim_id]
+```
+
+This command accepts claim ID or prefix as the sole argument. If there is an
+exact match based on the provided claim ID or prefix, it is deleted.  Otherwise,
+a list of matching claims and information will be displayed.
+
+When ACLs are enabled, this command requires a token with the `host-volume-write`
+capability in the volume's namespace.
+
+## General Options
+
+@include 'general_options.mdx'
+
+## Status Options
+
+- `-y`: Automatically answers "yes" to all the questions, making the deletion
+  non-interactive. Defaults to "false."
+
+## Examples
+
+List of all volumes:
+
+```shell-session
+$ nomad volume claim delete 3f25be9a
+
+  If you delete a volume claim, the allocation that uses this claim to "stick"
+  to a particular volume ID will no longer use it upon its next reschedule or
+  migration. The deployment of the task group the allocation runs will still
+  claim another feasible volume ID during reschedule or replacement.
+
+[?] Are you sure you want to delete task group host volume claim 3f25be9a? [Y/n]
+Task group host volume claim 3f25be9a-a2ee-3d7f-c248-45099fd54939 successfully deleted
+```
+
+[stateful deployments]: /nomad/docs/concepts/stateful-deployments
