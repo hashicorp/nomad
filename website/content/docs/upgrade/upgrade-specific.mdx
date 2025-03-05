@@ -75,6 +75,16 @@ Before upgrading to Nomad 1.10, perform the following tasks:
 Refer to [Migrating to Using Workload Identity with Vault][] for more
 details.
 
+#### Consul template implicit workload identity removal
+Nomad will no longer create an implicit Consul block for workloads that don't
+register services with Consul. Jobs that require Consul tokens for template
+rendering will be required to provide an identity.
+
+Tasks that include template blocks utilizing Consul API functionality such as
+`key`, `node`, and `service` will now need to specify an [`identity`][] block,
+so the template runner is presented with workload permissions to access the
+Consul API.
+
 ## Nomad 1.9.5
 
 #### CNI plugins
@@ -2332,3 +2342,4 @@ deleted and then Nomad 0.3.0 can be launched.
 [Process Isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container#process-isolation
 [reschedule]: /nomad/docs/jobs-specification/reschedule
 [`infra_image`]: /nomad/docs/drivers/docker#infra_image
+[`identity`]: /nomad/docs/job-specification/identity#identity-block

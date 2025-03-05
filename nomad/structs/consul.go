@@ -103,25 +103,14 @@ func ValidateConsulClusterName(cluster string) error {
 	return nil
 }
 
-// ConsulUsage is provides meta information about how Consul is used by a job,
-// noting which connect services and normal services will be registered, and
-// whether the keystore will be read via template.
+// ConsulUsage provides meta information about how Consul is used by a job,
+// noting which connect services and normal services will be registered.
 type ConsulUsage struct {
 	Services []string
-	KV       bool
 }
 
-// Used returns true if Consul is used for registering services or reading from
-// the keystore.
-func (cu *ConsulUsage) Used() bool {
-	switch {
-	case cu.KV:
-		return true
-	case len(cu.Services) > 0:
-		return true
-	}
-	return false
-}
+// Used returns true if Consul is used for registering services.
+func (cu *ConsulUsage) Used() bool { return len(cu.Services) > 0 }
 
 // ConsulUsages returns a map from Consul namespace to things that will use Consul,
 // including ConsulConnect TaskKinds, Consul Services from groups and tasks, and
@@ -145,7 +134,7 @@ func (j *Job) ConsulUsages() map[string]*ConsulUsage {
 			}
 		}
 
-		// Gather task services and KV usage
+		// Gather task services.
 		for _, task := range tg.Tasks {
 			taskNamespace := namespace
 			if task.Consul != nil && task.Consul.Namespace != "" {
@@ -159,12 +148,6 @@ func (j *Job) ConsulUsages() map[string]*ConsulUsage {
 					}
 					m[taskNamespace].Services = append(m[taskNamespace].Services, service.Name)
 				}
-			}
-			if len(task.Templates) > 0 {
-				if _, exists := m[taskNamespace]; !exists {
-					m[taskNamespace] = new(ConsulUsage)
-				}
-				m[taskNamespace].KV = true
 			}
 		}
 	}

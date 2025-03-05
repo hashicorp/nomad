@@ -237,16 +237,6 @@ func (c *consulACLsAPI) CheckPermissions(ctx context.Context, namespace string, 
 		return err
 	}
 
-	// verify token has keystore read permission, if using template
-	if usage.KV {
-		allowable, err := c.canReadKeystore(namespace, token)
-		if err != nil {
-			return err
-		} else if !allowable {
-			return errors.New("insufficient Consul ACL permissions to use template")
-		}
-	}
-
 	// verify token has service write permission for group+task services
 	for _, service := range usage.Services {
 		allowable, err := c.canWriteService(namespace, service, token)

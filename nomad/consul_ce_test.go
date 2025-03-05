@@ -38,33 +38,6 @@ func TestConsulACLsAPI_CheckPermissions_oss(t *testing.T) {
 		}
 	}
 
-	t.Run("check-permissions kv read", func(t *testing.T) {
-		t.Run("uses kv has permission", func(t *testing.T) {
-			u := &structs.ConsulUsage{KV: true}
-			try(t, "", u, consul.ExampleOperatorTokenID5, nil)
-		})
-
-		t.Run("uses kv without permission", func(t *testing.T) {
-			u := &structs.ConsulUsage{KV: true}
-			try(t, "", u, consul.ExampleOperatorTokenID1, errors.New("insufficient Consul ACL permissions to use template"))
-		})
-
-		t.Run("uses kv no token", func(t *testing.T) {
-			u := &structs.ConsulUsage{KV: true}
-			try(t, "", u, "", errors.New("missing consul token"))
-		})
-
-		t.Run("uses kv nonsense token", func(t *testing.T) {
-			u := &structs.ConsulUsage{KV: true}
-			try(t, "", u, "47d33e22-720a-7fe6-7d7f-418bf844a0be", errors.New("unable to read consul token: no such token"))
-		})
-
-		t.Run("no kv no token", func(t *testing.T) {
-			u := &structs.ConsulUsage{KV: false}
-			try(t, "", u, "", nil)
-		})
-	})
-
 	t.Run("check-permissions service write", func(t *testing.T) {
 		usage := &structs.ConsulUsage{Services: []string{"service1"}}
 

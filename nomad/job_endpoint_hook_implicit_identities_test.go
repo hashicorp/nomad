@@ -227,42 +227,6 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 		},
 		{
-			name: "mutate task to inject identity for templates",
-			inputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Name: "group",
-					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
-					}},
-				}},
-			},
-			inputConfig: &Config{
-				ConsulConfigs: map[string]*config.ConsulConfig{
-					structs.ConsulDefaultCluster: {
-						TaskIdentity: &config.WorkloadIdentityConfig{
-							Audience: []string{"consul.io"},
-						},
-					},
-				},
-			},
-			expectedOutputJob: &structs.Job{
-				TaskGroups: []*structs.TaskGroup{{
-					Name: "group",
-					Constraints: []*structs.Constraint{
-						implicitIdentityClientVersionConstraint()},
-					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
-						Identities: []*structs.WorkloadIdentity{{
-							Name:     "consul_default",
-							Audience: []string{"consul.io"},
-						}},
-					}},
-				}},
-			},
-		},
-		{
 			name: "no mutation for templates when no task identity is configured",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
