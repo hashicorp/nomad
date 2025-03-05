@@ -15,7 +15,7 @@ job "nfs-node" {
       driver = "docker"
 
       config {
-        image = "registry.gitlab.com/rocketduck/csi-plugin-nfs:0.6.1"
+        image = "registry.gitlab.com/rocketduck/csi-plugin-nfs:latest"
         args = [
           "--type=node",
           "--endpoint=${CSI_ENDPOINT}",
@@ -32,6 +32,10 @@ job "nfs-node" {
       csi_plugin {
         id   = "rocketduck-nfs"
         type = "node"
+
+        # the NFS workload is launched in parallel and can take a long time to
+        # start up
+        health_timeout = "2m"
       }
 
       template {

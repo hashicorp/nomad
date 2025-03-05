@@ -152,14 +152,12 @@ scenario "upgrade" {
           job_spec    = "jobs/plugin-nfs-controllers.nomad.hcl"
           alloc_count = 1
           type        = "service"
-          pre_script  = "scripts/wait_for_nfs.sh"
         }
 
         csi_plugin_nfs_nodes = {
           job_spec    = "jobs/plugin-nfs-nodes.nomad.hcl"
           alloc_count = 0
           type        = "system"
-          pre_script  = "scripts/wait_for_nfs.sh"
         }
 
         wants_csi = {
