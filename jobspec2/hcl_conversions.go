@@ -46,7 +46,7 @@ func decodeDuration(expr hcl.Expression, ctx *hcl.EvalContext, val interface{}) 
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unsuitable value",
-			Detail:   fmt.Sprintf("Unsuitable duration value: nil"),
+			Detail:   "Unsuitable duration value: nil",
 			Subject:  expr.StartRange().Ptr(),
 			Context:  expr.Range().Ptr(),
 		})
