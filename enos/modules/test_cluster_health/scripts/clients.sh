@@ -11,7 +11,7 @@ error_exit() {
 
 # Quality: "nomad_CLIENTS_status: A GET call to /v1/nodes returns the correct number of clients and they are all eligible and ready"
 
-MAX_WAIT_TIME=20  # Maximum wait time in seconds
+MAX_WAIT_TIME=30  # Maximum wait time in seconds
 POLL_INTERVAL=2   # Interval between status checks
 
 elapsed_time=0

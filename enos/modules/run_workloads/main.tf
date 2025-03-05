@@ -16,7 +16,6 @@ locals {
     NOMAD_CLIENT_CERT = var.cert_file
     NOMAD_CLIENT_KEY  = var.key_file
     NOMAD_TOKEN       = var.nomad_token
-    VOLUME_TAG        = random_pet.volume_tag.id
   }
 
   system_job_count     = length({ for k, v in var.workloads : k => v if v.type == "system" })
@@ -54,7 +53,6 @@ resource "enos_local_exec" "workloads" {
   depends_on = [
     enos_local_exec.get_jobs,
     enos_local_exec.get_allocs,
-    aws_efs_file_system.test_volume
   ]
   for_each = var.workloads
 
