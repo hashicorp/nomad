@@ -17,7 +17,8 @@
   },
   "overrides": {
     "eslint-plugin-prettier": "5.0.0",
-    "ws": "^7.5.10"
+    "ws": "^7.5.10",
+    "trim-newlines": "^3.0.1"
   },
   "scripts": {
     "build": "./scripts/website-build.sh",
