@@ -9,6 +9,7 @@ import { tracked } from '@glimmer/tracking';
 import Controller from '@ember/controller';
 import { restartableTask } from 'ember-concurrency';
 import { reduceBytes } from 'nomad-ui/utils/units';
+import { scheduleOnce } from '@ember/runloop';
 
 export default class IndexController extends Controller {
   @service router;
@@ -16,7 +17,7 @@ export default class IndexController extends Controller {
   @service system;
 
   queryParams = [
-    'qpNamespace',
+    { qpNamespace: 'namespace' },
     'dhvPage',
     'csiPage',
     'shvPage',
@@ -35,9 +36,32 @@ export default class IndexController extends Controller {
     'edSortDescending',
   ];
 
-  qpNamespace = 'default';
+  @tracked qpNamespace = '*';
 
   pageSizes = [10, 25, 50];
+
+  get optionsNamespaces() {
+    const availableNamespaces = this.model.namespaces.map((namespace) => ({
+      key: namespace.name,
+      label: namespace.name,
+    }));
+
+    availableNamespaces.unshift({
+      key: '*',
+      label: 'All (*)',
+    });
+
+    // Unset the namespace selection if it was server-side deleted
+    if (!availableNamespaces.mapBy('key').includes(this.qpNamespace)) {
+      // eslint-disable-next-line ember/no-incorrect-calls-with-inline-anonymous-functions
+      scheduleOnce('actions', () => {
+        // eslint-disable-next-line ember/no-side-effects
+        this.qpNamespace = '*';
+      });
+    }
+
+    return availableNamespaces;
+  }
 
   get dhvColumns() {
     return [
@@ -255,7 +279,12 @@ export default class IndexController extends Controller {
   @action handleSort(type, sortBy, sortOrder) {
     this[`${type}SortProperty`] = sortBy;
     this[`${type}SortDescending`] = sortOrder === 'desc';
-    // this.handlePageChange(type, 1);
+  }
+
+  @action applyFilter(type, event) {
+    console.log('applyFilter', type, event);
+    this[`${type}Filter`] = event.target.value;
+    this[`${type}Page`] = 1;
   }
 
   @action openDHV(dhv) {
@@ -272,7 +301,11 @@ export default class IndexController extends Controller {
     this.edSortProperty = 'sizeBytes';
     this.edSortDescending = true;
 
-    const allAllocs = yield this.store.findAll('allocation', { reload: true });
+    const allAllocs = yield this.store.query(
+      'allocation',
+      { namespace: this.qpNamespace },
+      { reload: true }
+    );
     const allocDataDirs = yield Promise.all(
       allAllocs.map(async (alloc) => {
         return {
@@ -304,7 +337,11 @@ export default class IndexController extends Controller {
     this.shvSortProperty = 'name';
     this.shvSortDescending = false;
 
-    const allNodes = yield this.store.findAll('node', { reload: true });
+    const allNodes = yield this.store.query(
+      'node',
+      { namespace: this.qpNamespace },
+      { reload: true }
+    );
 
     yield (this.fetchedStaticHostVolumes = allNodes
       .map((node) => {

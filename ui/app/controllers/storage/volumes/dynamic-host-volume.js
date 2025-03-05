@@ -45,19 +45,4 @@ export default class DynamicHostVolumeController extends Controller {
   @action gotoAllocation(allocation) {
     this.transitionToRoute('allocations.allocation', allocation.id);
   }
-
-  // @computed('model.readAllocations.@each.modifyIndex')
-  // get sortedReadAllocations() {
-  //   return this.model.readAllocations.sortBy('modifyIndex').reverse();
-  // }
-
-  // @computed('model.writeAllocations.@each.modifyIndex')
-  // get sortedWriteAllocations() {
-  //   return this.model.writeAllocations.sortBy('modifyIndex').reverse();
-  // }
-
-  // @action
-  // gotoAllocation(allocation) {
-  //   this.transitionToRoute('allocations.allocation', allocation.id);
-  // }
 }

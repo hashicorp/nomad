@@ -29,10 +29,6 @@ export default class VolumeController extends Controller {
       return [];
     }
     return [
-      // {
-      //   label: 'Volumes',
-      //   args: ['storage.volumes'],
-      // },
       {
         label: volume.name,
         args: [
