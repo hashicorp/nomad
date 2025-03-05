@@ -5,6 +5,7 @@ package nomad
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -21,6 +22,7 @@ import (
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -3706,19 +3708,16 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	oidcTestProvider.SetExpectedAuthNonce("fsSPuaodKevKfDU3IeXa")
 	oidcTestProvider.SetExpectedAuthCode("codeABC")
 	oidcTestProvider.SetCustomAudience("mock")
-	oidcTestProvider.SetExpectedState("st_someweirdstateid")
 	oidcTestProvider.SetCustomClaims(map[string]interface{}{
 		"azp":                            "mock",
 		"http://nomad.internal/policies": []string{"engineering"},
 		"http://nomad.internal/roles":    []string{"engineering"},
 	})
 
-	// We should now be able to authenticate, however, we do not have any rule
-	// bindings that will match.
 	completeAuthReq3 := structs.ACLOIDCCompleteAuthRequest{
 		AuthMethodName: mockedAuthMethod.Name,
 		ClientNonce:    "fsSPuaodKevKfDU3IeXa",
-		State:          "st_",
+		State:          "st_someweirdstateid",
 		Code:           "codeABC",
 		RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
 		WriteRequest: structs.WriteRequest{
@@ -3726,7 +3725,19 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
+	// Simulate a case where OIDCAuthURL was never called, or expired,
+	// or a leadership transfer occurred between it and OIDCCompleteAuth.
 	var completeAuthResp3 structs.ACLLoginResponse
+	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq3, &completeAuthResp3)
+	must.Error(t, err)
+	must.ErrorContains(t, err, "no OIDC request found for client nonce")
+	must.False(t, strings.Contains(buf.String(), verboseLoggingMessage))
+
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, completeAuthReq3)
+
+	// We should now be able to authenticate, however, we do not have any rule
+	// bindings that will match.
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq3, &completeAuthResp3)
 	must.Error(t, err)
 	must.ErrorContains(t, err, "400")
@@ -3775,6 +3786,9 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, completeAuthReq4)
+
 	var completeAuthResp4 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq4, &completeAuthResp4)
 	must.NoError(t, err)
@@ -3809,10 +3823,13 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 		},
 	}
 
+	// Pretend that OIDCAuthURL was called as a separate request.
+	cacheOIDCRequest(t, testServer.oidcRequestCache, completeAuthReq5)
+
 	var completeAuthResp5 structs.ACLLoginResponse
 	err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &completeAuthReq5, &completeAuthResp5)
 	must.NoError(t, err)
-	must.NotNil(t, completeAuthResp4.ACLToken)
+	must.NotNil(t, completeAuthResp5.ACLToken)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Roles)
 	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
@@ -4008,4 +4025,20 @@ func TestACL_Login(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, completeAuthResp6.ACLToken)
 	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name+"-"+user, completeAuthResp6.ACLToken.Name)
+}
+
+// cacheOIDCRequest calls primes the oidc.Request cache, as OIDCAuthURL
+// usually would, to prepare for a subsequent OIDCCompleteAuth call.
+func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOIDCCompleteAuthRequest) {
+	oidcReq, err := capOIDC.NewRequest(time.Second, "http://127.0.0.1:4649/oidc/callback",
+		capOIDC.WithNonce(req.ClientNonce),
+		capOIDC.WithState(req.State),
+		capOIDC.WithNow(func() time.Time {
+			return time.Now().Add(time.Minute) // expire in the future
+		}),
+	)
+	must.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	t.Cleanup(cancel)
+	cache.Store(ctx, oidcReq)
 }
