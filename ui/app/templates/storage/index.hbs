@@ -9,6 +9,26 @@
 
 <StorageSubnav />
 <section class="section storage-index">
+
+<Hds::PageHeader @title="Storage" as |PH|>
+  <PH.Actions>
+    {{#if this.system.shouldShowNamespaces}}
+      <Hds::Dropdown data-test-namespace-facet as |dd|>
+        <dd.ToggleButton @text="Namespace ({{this.qpNamespace}})" @color="secondary" />
+        {{#each this.optionsNamespaces as |option|}}
+          <dd.Radio
+            name={{option.key}}
+            {{on "change" (action (mut this.qpNamespace) option.key)}}
+            checked={{eq this.qpNamespace option.key}}
+          >
+            {{option.label}}
+          </dd.Radio>
+        {{/each}}
+      </Hds::Dropdown>
+    {{/if}}
+  </PH.Actions>
+</Hds::PageHeader>
+
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
@@ -21,15 +41,12 @@
         </p>
         <div class="search">
           <Hds::Form::TextInput::Field
+            data-test-csi-volumes-search
             @type="search"
             @value={{this.csiFilter}}
             placeholder="Search CSI Volumes"
-            {{on "input"
-              (queue
-                (action (mut this.csiFilter) value="target.value")
-                (action this.handlePageChange "csi" 1)
-              )
-            }} />
+            {{on "input" (action this.applyFilter "csi")}}
+          />
         </div>
       </header>
       {{#if this.sortedCSIVolumes.length}}
@@ -41,8 +58,8 @@
           @onSort={{action this.handleSort "csi"}}
           >
           <:body as |B|>
-            <B.Tr>
-              <B.Td>
+            <B.Tr data-test-csi-volume-row>
+              <B.Td data-test-csi-volume-name>
                 <LinkTo
                   @route="storage.volumes.volume"
                   @model={{B.data.idWithNamespace}}
@@ -52,14 +69,14 @@
                 </LinkTo>
               </B.Td>
               {{#if this.system.shouldShowNamespaces}}
-                <B.Td>
+                <B.Td data-test-csi-volume-namespace>
                   {{B.data.namespace.name}}
                 </B.Td>
               {{/if}}
-              <B.Td data-test-volume-schedulable>
+              <B.Td data-test-csi-volume-schedulable>
                 {{if B.data.schedulable "Schedulable" "Unschedulable"}}
               </B.Td>
-              <B.Td data-test-volume-controller-health>
+              <B.Td data-test-csi-volume-controller-health>
                 {{#if B.data.controllerRequired}}
                   {{if (gt B.data.controllersHealthy 0) "Healthy" "Unhealthy"}}
                   (
@@ -80,7 +97,7 @@
                   </em>
                 {{/if}}
               </B.Td>
-              <B.Td data-test-volume-node-health>
+              <B.Td data-test-csi-volume-node-health>
                 {{if (gt B.data.nodesHealthy 0) "Healthy" "Unhealthy"}}
                 (
                 {{B.data.nodesHealthy}}
@@ -88,10 +105,10 @@
                 {{B.data.nodesExpected}}
                 )
               </B.Td>
-              <B.Td data-test-volume-provider>
+              <B.Td data-test-csi-volume-provider>
                 {{B.data.provider}}
               </B.Td>
-              <B.Td data-test-volume-allocations>
+              <B.Td data-test-csi-volume-allocations>
                 {{B.data.allocationCount}}
               </B.Td>
             </B.Tr>
@@ -108,7 +125,7 @@
           />
         {{/if}}
       {{else}}
-        <div class="empty-message">
+        <div class="empty-message" data-test-empty-csi-volumes-list-headline>
           {{#if this.csiFilter}}
             <p>No CSI volumes match your search for "{{this.csiFilter}}"</p>
             <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.csiFilter) "") (action this.handlePageChange "csi" 1))}} />
@@ -128,15 +145,12 @@
         </p>
         <div class="search">
           <Hds::Form::TextInput::Field
+            data-test-dynamic-host-volumes-search
             @type="search"
             @value={{this.dhvFilter}}
             placeholder="Search Dynamic Host Volumes"
-            {{on "input"
-              (queue
-                (action (mut this.dhvFilter) value="target.value")
-                (action (mut this.dhvPage) 1)
-              )
-            }} />
+            {{on "input" (action this.applyFilter "dhv")}}
+          />
         </div>
       </header>
       {{#if this.sortedDynamicHostVolumes.length}}
@@ -200,7 +214,7 @@
       <header aria-label="Static Host Volumes">
         <h3>
           Static Host Volumes
-          <Hds::TooltipButton @text="Static Host Volumes are scanned by reading all nodes in your cluster, so this list will not automatically load or update.">
+          <Hds::TooltipButton @text="Static Host Volumes are scanned by reading all nodes in your cluster, so this list will not automatically load or update." aria-label="Static Host Volumes are scanned by reading all nodes in your cluster, so this list will not automatically load or update.">
             <Hds::Icon @name="info" />
           </Hds::TooltipButton>
         </h3>
@@ -229,16 +243,13 @@
         <div class="search">
           {{#if this.fetchedStaticHostVolumes.length}}
             <Hds::Form::TextInput::Field
+              data-test-static-host-volumes-search
               @type="search"
               @value={{this.shvFilter}}
               placeholder="Search Static Host Volumes"
               autofocus
-              {{on "input"
-                (queue
-                  (action (mut this.shvFilter) value="target.value")
-                  (action this.handlePageChange "shv" 1)
-                )
-              }} />
+              {{on "input" (action this.applyFilter "shv")}}
+            />
           {{/if}}
         </div>
       </header>
@@ -302,7 +313,7 @@
       <header aria-label="Ephemeral Disks">
         <h3>
           Ephemeral Disks
-          <Hds::TooltipButton @text="Ephemeral Disks are scanned by reading all allocations in your cluster, so this list will not automatically load or update.">
+          <Hds::TooltipButton @text="Ephemeral Disks are scanned by reading all allocations in your cluster, so this list will not automatically load or update." aria-label="Ephemeral Disks are scanned by reading all allocations in your cluster, so this list will not automatically load or update.">
             <Hds::Icon @name="info" />
           </Hds::TooltipButton>
         </h3>
@@ -331,15 +342,12 @@
         {{#if this.fetchedEphemeralDisks.length}}
           <div class="search">
             <Hds::Form::TextInput::Field
+              data-test-ephemeral-disks-search
               @type="search"
               @value={{this.edFilter}}
               placeholder="Search Ephemeral Disks"
-              {{on "input"
-                (queue
-                  (action (mut this.edFilter) value="target.value")
-                  (action this.handlePageChange "ed" 1)
-                )
-              }} />
+              {{on "input" (action this.applyFilter "ed")}}
+            />
           </div>
         {{/if}}
       </header>

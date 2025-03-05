@@ -20,9 +20,12 @@ export default class IndexRoute extends Route.extend(
 ) {
   @service store;
 
-  // redirect() {
-  //   this.transitionTo('storage.volumes');
-  // }
+  queryParams = {
+    qpNamespace: {
+      refreshModel: true,
+    },
+  };
+
   model(params) {
     return RSVP.hash({
       csiVolumes: this.store
@@ -35,9 +38,6 @@ export default class IndexRoute extends Route.extend(
           namespace: params.qpNamespace,
         })
         .catch(notifyForbidden(this)),
-      // staticHostVolumes: this.store
-      //   .query('volume', { type: 'host', namespace: params.qpNamespace })
-      //   .catch(notifyForbidden(this)),
     });
   }
 
