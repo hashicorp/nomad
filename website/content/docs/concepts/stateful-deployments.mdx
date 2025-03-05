@@ -5,14 +5,17 @@ description: |-
   Learn how Nomad handles Stateful Deployments.
 ---
 
+# Stateful Deployments
+
 Nomad Stateful Deployments allow users to effectively bind their jobs to host
 [volumes]. On a lower level, this means taking Nomad's basic unit of workload
 placement—the [allocation]—and making it possible for users to have allocations
 that are ["sticky"] to volume IDs.
 
 <Note>
-Stateful Deployments support only Host Volumes. For CSI Volumes, we have
-[per_alloc] property that serves a similar purpose.
+Stateful Deployments support only Host Volumes. For CSI Volumes, we have <a
+href="/nomad/docs/job-specification/volume#per_alloc">per_alloc</a> property
+that serves a similar purpose.
 </Note>
 
 Stateful Deployments work on a per-task-group basis, that is, each task group
@@ -51,6 +54,5 @@ stopped and the job will remain in `pending` status until it's either stopped
 by the user or a feasible node is found.
 
 [allocation]: /nomad/docs/glossary#allocation
-[per_alloc]: /nomad/docs/job-specification/volume#per_alloc
 ["sticky"]: /nomad/docs/job-specification/volume#sticky
 [volumes]: /nomad/docs/other-specifications/volume
