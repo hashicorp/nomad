@@ -14,7 +14,7 @@ job "nfs-controller" {
       driver = "docker"
 
       config {
-        image = "registry.gitlab.com/rocketduck/csi-plugin-nfs:latest"
+        image = "registry.gitlab.com/rocketduck/csi-plugin-nfs:1.1.0"
         args = [
           "--type=controller",
           "--endpoint=${CSI_ENDPOINT}",

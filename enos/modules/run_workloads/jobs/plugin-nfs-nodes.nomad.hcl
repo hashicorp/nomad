@@ -15,7 +15,7 @@ job "nfs-node" {
       driver = "docker"
 
       config {
-        image = "registry.gitlab.com/rocketduck/csi-plugin-nfs:latest"
+        image = "registry.gitlab.com/rocketduck/csi-plugin-nfs:1.1.0"
         args = [
           "--type=node",
           "--endpoint=${CSI_ENDPOINT}",
