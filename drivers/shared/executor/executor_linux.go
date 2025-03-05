@@ -170,6 +170,10 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path)
+
+	// TODO: Hack - need to fix "error setting cgroup config for procHooks process: Cgroup manager is not configured to set device rules"
+	containerCfg.Cgroups.Devices = nil
+
 	container, err := libcontainer.Create(path.Join(command.TaskDir, "../alloc/container"), l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
