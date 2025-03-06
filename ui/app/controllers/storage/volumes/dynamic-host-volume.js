@@ -5,7 +5,7 @@
 
 import Controller from '@ember/controller';
 import { inject as service } from '@ember/service';
-import { action } from '@ember/object';
+import { action, computed } from '@ember/object';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
 export default class DynamicHostVolumeController extends Controller {
@@ -40,6 +40,11 @@ export default class DynamicHostVolumeController extends Controller {
         ],
       },
     ];
+  }
+
+  @computed('model.allocations.@each.modifyIndex')
+  get sortedAllocations() {
+    return this.model.allocations.sortBy('modifyIndex').reverse();
   }
 
   @action gotoAllocation(allocation) {

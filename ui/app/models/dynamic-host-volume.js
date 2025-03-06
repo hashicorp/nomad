@@ -17,6 +17,9 @@ export default class DynamicHostVolumeModel extends Model {
   @attr('date') createTime;
   @attr('date') modifyTime;
   @hasMany('allocation', { async: false }) allocations;
+  @attr('string') accessMode;
+  @attr('string') attachmentMode;
+  @attr('number') capacityBytes;
 
   get idWithNamespace() {
     return `${this.plainId}@${this.namespace}`;

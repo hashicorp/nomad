@@ -10,13 +10,15 @@
 <section class="section with-headspace">
   <h1 class="title" data-test-title>{{this.model.name}}</h1>
 
+  {{!-- TODO: add capabilities add capacitybytes --}}
+
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Volume Details</span>
       {{#if this.system.shouldShowNamespaces}}
         <span class="pair" data-test-volume-namespace>
           <span class="term">Namespace</span>
-          {{this.model.namespace.name}}
+          {{this.model.namespace}}
         </span>
       {{/if}}
       <span class="pair" data-test-volume-node>
@@ -42,16 +44,14 @@
     </div>
   </div>
 
-
   <div class="boxed-section">
     <div class="boxed-section-head">
       Allocations
     </div>
     <div class="boxed-section-body {{if this.model.allocations.length "is-full-bleed"}}">
-      {{#if this.model.allocations.length}}
+      {{#if this.sortedAllocations.length}}
         <ListTable
-          @source={{this.model.allocations}}
-          {{!-- TODO: sortedAllocations on the controller --}}
+          @source={{this.sortedAllocations}}
           @class="with-foot" as |t|>
           <t.head>
             <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
@@ -71,44 +71,18 @@
                 enumerated=true
                 action=(action "gotoAllocation" row.model)
               }}
-              @data-test-write-allocation={{row.model.id}}
+              @data-test-allocation={{row.model.id}}
               @allocation={{row.model}}
               @context="volume"
               @onClick={{action "gotoAllocation" row.model}} />
           </t.body>
         </ListTable>
       {{else}}
-        <div class="empty-message" data-test-empty-write-allocations>
-          <h3 class="empty-message-headline" data-test-empty-write-allocations-headline>No Allocations</h3>
-          <p class="empty-message-body" data-test-empty-write-allocations-message>No allocations are making use of this volume.</p>
+        <div class="empty-message" data-test-empty-allocations>
+          <h3 class="empty-message-headline" data-test-empty-allocations-headline>No Allocations</h3>
+          <p class="empty-message-body" data-test-empty-allocations-message>No allocations are making use of this volume.</p>
         </div>
       {{/if}}
-    </div>
-  </div>
-
-
-  <div class="boxed-section">
-    <div class="boxed-section-head">
-      Constraints
-    </div>
-    <div class="boxed-section-body is-full-bleed">
-      {{!-- TODO: 1. HDS table, 2. controller-defined columns and stuff --}}
-      <table class="table">
-        <thead>
-            <th>Setting</th>
-            <th>&nbsp;</th>
-            <th>Value</th>
-        </thead>
-        <tbody>
-          {{#each this.model.constraints as |constraint|}}
-            <tr>
-              <td>{{constraint.LTarget}}</td>
-              <td>{{constraint.Operand}}</td>
-              <td>{{constraint.RTarget}}</td>
-            </tr>
-          {{/each}}
-        </tbody>
-      </table>
     </div>
   </div>
 </section>

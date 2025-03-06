@@ -80,6 +80,11 @@ export default class IndexController extends Controller {
           ]
         : []),
       {
+        key: 'node.name',
+        label: 'Node',
+        isSortable: true,
+      },
+      {
         key: 'pluginID',
         label: 'Plugin ID',
         isSortable: true,
@@ -293,6 +298,8 @@ export default class IndexController extends Controller {
 
   @tracked fetchedEphemeralDisks = [];
   @tracked fetchedStaticHostVolumes = [];
+
+  // TODO: decomission Ephemeral Disk stuff, short of explaining it
 
   @restartableTask *scanForEphemeralDisks() {
     // Reset filters and pagination

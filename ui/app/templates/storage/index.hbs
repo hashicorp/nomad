@@ -65,7 +65,7 @@
                   @model={{B.data.idWithNamespace}}
                   class="is-primary"
                 >
-                  {{B.data.name}}
+                  {{B.data.plainId}}
                 </LinkTo>
               </B.Td>
               {{#if this.system.shouldShowNamespaces}}
@@ -172,6 +172,7 @@
               {{#if this.system.shouldShowNamespaces}}
                 <B.Td>{{B.data.namespace}}</B.Td>
               {{/if}}
+              <B.Td>{{B.data.node.name}}</B.Td>
               <B.Td>{{B.data.pluginID}}</B.Td>
               <B.Td>{{B.data.state}}</B.Td>
               <B.Td>
@@ -259,6 +260,7 @@
             @columns={{array
               (hash key="name" label="Name" isSortable=true)
               (hash key="path" label="Path" isSortable=true)
+              (hash key="nodeID" label="Node" isSortable=true)
               (hash key="readOnly" label="Read Only?" isSortable=true)
             }}
             @sortBy={{this.shvSortProperty}}
@@ -271,6 +273,7 @@
                   <LinkTo @route="clients.client" @models={{array B.data.nodeID}}>{{B.data.name}}</LinkTo>
                 </B.Td>
                 <B.Td>{{B.data.path}}</B.Td>
+                <B.Td>{{B.data.nodeID}}</B.Td>
                 <B.Td>{{B.data.readOnly}}</B.Td>
               </B.Tr>
             </:body>
