@@ -21,7 +21,9 @@ the [allocation], and making it possible for you to have allocations that are
 [sticky] to volume IDs. Since stateful deployments only support dynamic host
 volumes, using them effectively means binding a job to a particular node.
 
-Stateful deployments work on a per-task-group basis. Use the `volume.sticky` parameter in your job specification to indicate that each task group requires a sticky host volume.
+Stateful deployments work on a per-task-group basis. Use the `volume.sticky`
+parameter in your job specification to indicate that each task group requires a
+sticky host volume.
 
 This example sets the volume's `sticky` parameter to `true`.
 
@@ -40,21 +42,23 @@ job "app" {
 }
 ```
 
-If you set the volume to sticky, during the deployment the scheduler
-associates its ID with the task group that uses it. Stateful deployments require
-that any allocations belonging to that task group must be places or replaced on
-nodes that have this volume ID available.
+If you set the volume to sticky, during the deployment the scheduler associates
+its ID with the task group that uses it. Stateful deployments require that any
+allocations belonging to that task group must be places or replaced on nodes
+that have this volume ID available.
 
 Scaling jobs with sticky volumes up results in more volume IDs claimed by the
 task group, but scaling jobs down does not delete unused volumes, nor does it
 touch the data present on them.
 
 If the scheduler cannot find a node that has the right volume ID present,
-perhaps because the node is down or disconnected, Nomad creates a blocked evaluation.
+perhaps because the node is down or disconnected, Nomad creates a blocked
+evaluation.
 
 ## Related resources
 
-Refer to the following Nomad pages for more information about stateful workloads and volumes:
+Refer to the following Nomad pages for more information about stateful workloads
+and volumes:
 
 - [Considerations for Stateful Workloads](/nomad/docs/operations/stateful-workloads) explores the options for persistent storage of workloads running in Nomad.
 - The [Nomad volume specification][volumes] defines the schema for creating and registering volumes. 
