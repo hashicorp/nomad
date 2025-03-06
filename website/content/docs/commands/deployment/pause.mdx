@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: deployment pause'
+page_title: 'nomad deployment pause reference'
 description: >
-  The deployment pause command is used to pause a deployment and disallow new
-  placements.
+  The `nomad deployment pause` command pauses a deployment and does not allow new allocations.
 ---
 
-# Command: deployment pause
+# `nomad deployment pause` reference
 
 The `deployment pause` command is used to pause a deployment. Pausing a
 deployment will pause the placement of new allocations as part of rolling
@@ -24,11 +23,11 @@ prefix.
 When ACLs are enabled, this command requires a token with the `submit-job`
 and `read-job` capabilities for the deployment's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Pause Options
+## Pause options
 
 - `-verbose`: Show full information.
 

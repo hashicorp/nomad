@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: deployment status'
+page_title: 'nomad deployment status reference'
 description: |
-  The deployment status command is used to display the status of a deployment.
+  The `nomad deployment status` command displays the status of a deployment.
 ---
 
-# Command: deployment status
+# `nomad deployment status` reference
 
 The `deployment status` command is used to display the status of a deployment.
 The status will display the number of desired changes as well as the currently
@@ -28,11 +28,11 @@ the entire process, showing the failure and then monitoring the deployment of th
 When ACLs are enabled, this command requires a token with the 'read-job'
 capability for the deployment's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Status Options
+## Status options
 
 - `-json` : Output the deployment in its JSON format.
 - `-t` : Format and display the deployment using a Go template.
@@ -135,8 +135,8 @@ $ nomad deployment status -monitor e45
     web         false        1        1       1        0          2021-06-09T15:59:58-07:00
 ```
 
-**Please note**: The library used for updating terminal output in place currently isn't fully 
-Windows compatible so there may be some formatting differences (different margins, no spinner 
+**Please note**: The library used for updating terminal output in place currently isn't fully
+Windows compatible so there may be some formatting differences (different margins, no spinner
 indicating deployment is in progress).
 
 [`auto_revert`]: /nomad/docs/job-specification/update#auto_revert

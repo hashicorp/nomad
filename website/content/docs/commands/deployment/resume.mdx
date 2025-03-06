@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: deployment resume'
+page_title: 'nomad deployment resume reference'
 description: |
-  The deployment resume command is used to resume a paused deployment.
+  The `nomad deployment resume` command resumes a paused deployment.
 ---
 
-# Command: deployment resume
+# `nomad deployment resume` reference
 
 The `deployment resume` command is used to unpause a paused deployment.
 Resuming a deployment will resume the placement of new allocations as part of
@@ -23,11 +23,11 @@ prefix.
 When ACLs are enabled, this command requires a token with the `submit-job`
 and `read-job` capabilities for the deployment's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Resume Options
+## Resume options
 
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the

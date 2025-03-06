@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: deployment fail'
+page_title: 'nomad deployment fail reference'
 description: |
-  The deployment fail command is used to manually fail a deployment.
+  The `nomad deployment fail` command manually fails a deployment, which stops the placement of new allocations.
 ---
 
-# Command: deployment fail
+# `nomad deployment fail` reference
 
 The `deployment fail` command is used to mark a deployment as failed. Failing a
 deployment will stop the placement of new allocations as part of rolling
@@ -24,11 +24,11 @@ prefix.
 When ACLs are enabled, this command requires a token with the `submit-job`
 and `read-job` capabilities for the deployment's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Fail Options
+## Fail options
 
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the
