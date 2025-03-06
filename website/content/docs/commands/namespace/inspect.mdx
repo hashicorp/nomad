@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: 'nomad namespace inspect'
+page_title: 'nomad namespace inspect reference'
 description: >
-  The namespace inspect command is used to view raw information about a
+  The `nomad namespace inspect` command displays raw information about a
   particular namespace.
 ---
 
-# Command: namespace inspect
+# `nomad namespace inspect` reference
 
 The `namespace inspect` command is used to view raw information about a particular
 namespace.
@@ -26,11 +26,11 @@ nomad namespace inspect [options] <namespace_name>
 If ACLs are enabled, this command requires a management ACL token or a token
 that has a capability associated with the namespace.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Inspect Options
+## Inspect options
 
 - `-t` : Format and display the namespace using a Go template.
 
