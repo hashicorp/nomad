@@ -7,8 +7,7 @@ description: |
 
 # Command: volume claim list
 
-The `volume claim list` command displays all task group host volume claims. These claims
-are used by [stateful deployments].
+The `volume claim list` command displays all task group host volume claims.  [Stateful deployments][stateful deployments] use these claims.
 
 ## Usage
 
@@ -18,20 +17,20 @@ nomad volume claim list [options]
 
 This command accepts an optional claim ID or prefix as the sole argument. If
 there is an exact match based on the provided volume ID or prefix, then
-information about the specific claim is queried and displayed. Otherwise, a
-list of matching claims and information will be displayed.
+the command displays information about the specific claim. Otherwise, the command 
+displays a list of matching claims.
 
-If the ID is omitted, the command lists out all of the existing claims and a
+If you omit the ID, the command lists out all of the existing claims and a
 few of the most useful status fields for each.
 
 When ACLs are enabled, this command requires a token with the `host-volume-read`
 capability in the volume's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## List Options
+## List options
 
 - `-job`: Show only volume claims from a particular job ID.
 

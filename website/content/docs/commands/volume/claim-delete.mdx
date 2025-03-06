@@ -1,14 +1,13 @@
 ---
 layout: docs
-page_title: 'Commands: volume claim delete'
+page_title: 'nomad volume claim delete reference'
 description: |
-  Delete task group host volume claim.
+  The `nomad volume claim delete` command deletes a task group host volume claim.
 ---
 
-# Command: volume claim delete
+# `nomad volume claim delete` reference
 
-The `volume claim delete` deletes a task group host volume claim. These claims
-are used by [stateful deployments].
+The `volume claim delete` command deletes a task group host volume claim. [Stateful deployments][stateful deployments] use these claims.
 
 ## Usage
 
@@ -16,25 +15,26 @@ are used by [stateful deployments].
 nomad volume claim delete [options] [claim_id]
 ```
 
-This command accepts claim ID or prefix as the sole argument. If there is an
-exact match based on the provided claim ID or prefix, it is deleted.  Otherwise,
-a list of matching claims and information will be displayed.
+This command accepts claim ID or prefix as the sole argument.  The command
+deletes the claim if there is an exact match based on the provided claim ID or
+prefix, Otherwise, the command displays a list of matching claims and
+information.
 
 When ACLs are enabled, this command requires a token with the `host-volume-write`
 capability in the volume's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Delete Options
+## Delete options
 
 - `-y`: Automatically answers "yes" to all the questions, making the deletion
   non-interactive. Defaults to "false."
 
 ## Example
 
-List of all volumes:
+List all volumes.
 
 ```shell-session
 $ nomad volume claim delete 3f25be9a

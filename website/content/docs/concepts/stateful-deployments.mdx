@@ -53,18 +53,18 @@ If the scheduler cannot find a node that has the right volume ID present
 stopped and the job will remain in `pending` status until it's either stopped
 by the user or a feasible node is found.
 
-## Task Group Host Volume Claims
+## Task group host volume claims
 
-Nomad stores associations of host volume IDs and their task groups (as well as
-job IDs, volume names and namespaces) in its state store. There is an API
-available to [list] and [delete] these associations. If a task group host volume
-claim is deleted, the task group will get a different volume ID (assuming the
-old volume ID is unavailable and another feasible host volume with matching name
-is), but once placed, Nomad will once again record the claim in its state store.
-This is to say, that claim deletions should only ever be used in operational
-emergency situations, or while debugging problems with nodes (for example in
-situations where operators want to drain a node with a stateful deployment on
-it, but do not want to stop the job).
+Nomad uses its state store to save associations of host volume IDs and their
+task groups, as well as job IDs, volume names, and namespaces. Use the API to
+[list] and [delete] these associations. If you delete a task group host volume
+claim, Nomad assigns a different volume ID to the task group, assuming the old
+volume ID is unavailable and another feasible host volume with matching name is.
+However, after placement, Nomad once again records the claim in its state store.
+You should only use claim deletions in operational emergency situations or while
+debugging problems with nodes. For example, use claim deletions in situations
+where you want to drain a node with a stateful deployment on it, but do not want
+to stop the job.
 
 [allocation]: /nomad/docs/glossary#allocation
 [delete]: /nomad/api-docs/volumes#delete-task-group-host-volume-claims
