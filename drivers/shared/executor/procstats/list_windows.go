@@ -10,7 +10,7 @@ import (
 	"github.com/mitchellh/go-ps"
 )
 
-// List will scan the process table and return a set of the process family
+// ListByPid will scan the process table and return a set of the process family
 // tree starting with executorPID as the root.
 //
 // The implementation here specifically avoids using more than one system
@@ -25,7 +25,7 @@ import (
 // See https://github.com/hashicorp/nomad/issues/20042 as an example of what
 // happens when you use syscalls to work your way from the root down to its
 // descendants.
-func List(executorPID int) set.Collection[ProcessID] {
+func ListByPid(executorPID int) set.Collection[ProcessID] {
 	procs := list(executorPID, ps.Processes)
 	return procs
 }
