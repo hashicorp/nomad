@@ -55,6 +55,19 @@ If the scheduler cannot find a node that has the right volume ID present,
 perhaps because the node is down or disconnected, Nomad creates a blocked
 evaluation.
 
+## Task group host volume claims
+
+Nomad uses its state store to save associations of host volume IDs and their
+task groups, as well as job IDs, volume names, and namespaces. Use the API to
+[list] and [delete] these associations. If you delete a task group host volume
+claim, Nomad assigns a different volume ID to the task group, assuming the old
+volume ID is unavailable and another feasible host volume with matching name is.
+However, after placement, Nomad once again records the claim in its state store.
+You should only use claim deletions in operational emergency situations or while
+debugging problems with nodes. For example, use claim deletions in situations
+where you want to drain a node with a stateful deployment on it, but do not want
+to stop the job.
+
 ## Related resources
 
 Refer to the following Nomad pages for more information about stateful workloads
@@ -66,5 +79,7 @@ and volumes:
 - The [Stateful Workloads](/nomad/tutorials/stateful-workloads) tutorials explore techniques to run jobs that require access to persistent storage.
  
 [allocation]: /nomad/docs/glossary#allocation
+[delete]: /nomad/api-docs/volumes#delete-task-group-host-volume-claims
+[list]: /nomad/api-docs/volumes#list-task-group-host-volume-claims
 [sticky]: /nomad/docs/job-specification/volume#sticky
 [volumes]: /nomad/docs/other-specifications/volume
