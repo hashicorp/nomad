@@ -92,4 +92,4 @@ for ip in $SERVERS; do
     done
 done
 
-echo "All servers are alive and up to date."
+echo "All $SERVER_COUNT SERVERS are alive and up to date."

@@ -97,7 +97,6 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 		Config: &config.VaultConfig{
 			Name:    structs.VaultDefaultCluster,
 			Enabled: &enable,
-			Token:   token,
 			Addr:    http,
 		},
 	}
@@ -179,7 +178,6 @@ func NewTestVaultDelayedFromPath(t testing.T, binary string) *TestVault {
 		Client:    client,
 		Config: &config.VaultConfig{
 			Enabled: &enable,
-			Token:   token,
 			Addr:    http,
 		},
 	}

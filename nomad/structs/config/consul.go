@@ -97,14 +97,9 @@ type ConsulConfig struct {
 	Timeout    time.Duration `mapstructure:"-"`
 	TimeoutHCL string        `mapstructure:"timeout" json:"-"`
 
-	// Token is used to provide a per-request ACL token. This options overrides
-	// the agent's default token
+	// Token is used by clients to deregisters services and by servers
+	// to create configuration entries for Consul Service Mesh
 	Token string `mapstructure:"token"`
-
-	// AllowUnauthenticated allows users to submit jobs requiring Consul
-	// Service Identity tokens without providing a Consul token proving they
-	// have access to such policies.
-	AllowUnauthenticated *bool `mapstructure:"allow_unauthenticated"`
 
 	// Auth is the information to use for http access to Consul agent
 	Auth string `mapstructure:"auth"`
@@ -208,7 +203,6 @@ func DefaultConsulConfig() *ConsulConfig {
 		ChecksUseAdvertise:        pointer.Of(false),
 		ServerAutoJoin:            pointer.Of(true),
 		ClientAutoJoin:            pointer.Of(true),
-		AllowUnauthenticated:      pointer.Of(true),
 		Timeout:                   5 * time.Second,
 		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
 		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
@@ -220,15 +214,6 @@ func DefaultConsulConfig() *ConsulConfig {
 		CAFile:    def.TLSConfig.CAFile,
 		Namespace: def.Namespace,
 	}
-}
-
-// AllowsUnauthenticated returns whether the config allows unauthenticated
-// creation of Consul Service Identity tokens for Consul Connect enabled Tasks.
-//
-// If allow_unauthenticated is false, the operator must provide a token on
-// job submission (i.e. -consul-token or $CONSUL_HTTP_TOKEN).
-func (c *ConsulConfig) AllowsUnauthenticated() bool {
-	return c.AllowUnauthenticated != nil && *c.AllowUnauthenticated
 }
 
 // Merge merges two Consul Configurations together.
@@ -319,9 +304,6 @@ func (c *ConsulConfig) Merge(b *ConsulConfig) *ConsulConfig {
 	}
 	if b.ChecksUseAdvertise != nil {
 		result.ChecksUseAdvertise = pointer.Of(*b.ChecksUseAdvertise)
-	}
-	if b.AllowUnauthenticated != nil {
-		result.AllowUnauthenticated = pointer.Of(*b.AllowUnauthenticated)
 	}
 	if b.Namespace != "" {
 		result.Namespace = b.Namespace
@@ -438,7 +420,6 @@ func (c *ConsulConfig) Copy() *ConsulConfig {
 		Timeout:                      c.Timeout,
 		TimeoutHCL:                   c.TimeoutHCL,
 		Token:                        c.Token,
-		AllowUnauthenticated:         c.AllowUnauthenticated,
 		Auth:                         c.Auth,
 		EnableSSL:                    c.EnableSSL,
 		ShareSSL:                     c.ShareSSL,

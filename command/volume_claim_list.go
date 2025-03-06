@@ -30,7 +30,7 @@ type VolumeClaimListCommand struct {
 
 func (c *VolumeClaimListCommand) Help() string {
 	helpText := `
-Usage: nomad volume claim list [options]
+Usage: nomad volume claim list [options] [claim_id]
 
   volume claim list is used to list existing host volume claims.
 
@@ -98,9 +98,10 @@ func (c *VolumeClaimListCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we got no arguments
-	if len(flags.Args()) != 0 {
-		c.Ui.Error("This command takes no arguments")
+	// Check that we either got no arguments or exactly one
+	args = flags.Args()
+	if len(args) > 1 {
+		c.Ui.Error("This command takes either no arguments or one: <id>")
 		c.Ui.Error(commandErrorText(c))
 		return 1
 	}
@@ -118,11 +119,20 @@ func (c *VolumeClaimListCommand) Run(args []string) int {
 		return 1
 	}
 
-	claims, _, err := client.TaskGroupHostVolumeClaims().List(&api.TaskGroupHostVolumeClaimsListRequest{
-		JobID:      c.job,
-		TaskGroup:  c.taskGroup,
-		VolumeName: c.volumeName,
-	}, nil)
+	id := ""
+	if len(args) == 1 {
+		id = args[0]
+	}
+
+	claims, _, err := client.TaskGroupHostVolumeClaims().List(
+		&api.TaskGroupHostVolumeClaimsListRequest{
+			JobID:      c.job,
+			TaskGroup:  c.taskGroup,
+			VolumeName: c.volumeName,
+		},
+		&api.QueryOptions{
+			Prefix: id,
+		})
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error listing task group host volume claims: %s", err))
 		return 1

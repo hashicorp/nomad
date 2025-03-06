@@ -92,7 +92,6 @@
                 "Services": null,
                 "ShutdownDelay": null,
                 "StopAfterClientDisconnect": null,
-                "MaxClientDisconnect": null,
                 "Disconnect": null,
                 "Scaling": null,
                 "Consul": null
@@ -106,7 +105,6 @@
         "Reschedule": null,
         "Migrate": null,
         "Meta": null,
-        "ConsulToken": null,
         "VaultToken": null,
         "Stop": null,
         "ParentID": null,

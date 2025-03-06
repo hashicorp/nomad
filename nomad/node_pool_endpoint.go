@@ -68,30 +68,18 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 				return err
 			}
 
-			pageOpts := paginator.StructsTokenizerOptions{WithID: true}
-			tokenizer := paginator.NewStructsTokenizer(iter, pageOpts)
-			filters := []paginator.Filter{
-				// Filter out node pools based on ACL token capabilities.
-				paginator.GenericFilter{
-					Allow: func(raw interface{}) (bool, error) {
-						pool := raw.(*structs.NodePool)
-						return aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityRead), nil
-					},
-				},
+			selector := func(pool *structs.NodePool) bool {
+				return aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityRead)
 			}
 
-			var pools []*structs.NodePool
-			pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-				func(raw interface{}) error {
-					pool := raw.(*structs.NodePool)
-					pools = append(pools, pool)
-					return nil
-				})
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
+				paginator.IDTokenizer[*structs.NodePool](args.NextToken),
+				(*structs.NodePool).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := pager.Page()
+			pools, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to read result page: %v", err)
 			}
@@ -440,58 +428,42 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 			} else if err != nil {
 				return err
 			} else {
-
-				filters := []paginator.Filter{
-					paginator.NamespaceFilter{
-						AllowableNamespaces: allowableNamespaces,
-					},
-				}
+				var selector paginator.SelectorFunc[*structs.Job]
 
 				if namespace == structs.AllNamespacesSentinel {
 					iter, err = store.JobsByPool(ws, args.Name)
+					selector = paginator.NamespaceSelectorFunc[*structs.Job](allowableNamespaces)
 				} else {
 					iter, err = store.JobsByNamespace(ws, namespace, sort)
-					filters = append(filters,
-						paginator.GenericFilter{
-							Allow: func(raw interface{}) (bool, error) {
-								job := raw.(*structs.Job)
-								if job == nil || job.NodePool != args.Name {
-									return false, nil
-								}
-								return true, nil
-							},
-						})
+					selector = func(job *structs.Job) bool {
+						if allowableNamespaces != nil && !allowableNamespaces[job.Namespace] {
+							return false
+						}
+						if job.NodePool != args.Name {
+							return false
+						}
+						return true
+					}
 				}
 				if err != nil {
 					return err
 				}
 
-				tokenizer := paginator.NewStructsTokenizer(
-					iter,
-					paginator.StructsTokenizerOptions{
-						WithNamespace: true,
-						WithID:        true,
-					},
-				)
-
-				var jobs []*structs.JobListStub
-
-				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-					func(raw interface{}) error {
-						job := raw.(*structs.Job)
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
+					paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken),
+					func(job *structs.Job) (*structs.JobListStub, error) {
 						summary, err := store.JobSummaryByID(ws, job.Namespace, job.ID)
 						if err != nil || summary == nil {
-							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
+							return nil, fmt.Errorf("unable to look up summary for job: %v", job.ID)
 						}
-						jobs = append(jobs, job.Stub(summary, args.Fields))
-						return nil
+						return job.Stub(summary, args.Fields), nil
 					})
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
 
-				nextToken, err := paginator.Page()
+				jobs, nextToken, err := pager.Page()
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to read result page: %v", err)
@@ -570,24 +542,16 @@ func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.
 				return err
 			}
 
-			// Setup paginator by node ID.
-			pageOpts := paginator.StructsTokenizerOptions{
-				WithID: true,
-			}
-			tokenizer := paginator.NewStructsTokenizer(iter, pageOpts)
-
-			var nodes []*structs.NodeListStub
-			pager, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					node := raw.(*structs.Node)
-					nodes = append(nodes, node.Stub(args.Fields))
-					return nil
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
+				paginator.IDTokenizer[*structs.Node](args.NextToken),
+				func(node *structs.Node) (*structs.NodeListStub, error) {
+					return node.Stub(args.Fields), nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := pager.Page()
+			nodes, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(http.StatusBadRequest, "failed to read result page: %v", err)
 			}

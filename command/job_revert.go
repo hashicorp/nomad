@@ -49,10 +49,6 @@ Revert Options:
    The Consul token used to verify that the caller has access to the Service
    Identity policies associated in the targeted version of the job.
 
-  -vault-token
-   The Vault token used to verify that the caller has access to the Vault
-   policies in the targeted version of the job.
-
   -verbose
     Display full information.
 `
@@ -90,14 +86,13 @@ func (c *JobRevertCommand) Name() string { return "job revert" }
 
 func (c *JobRevertCommand) Run(args []string) int {
 	var detach, verbose bool
-	var consulToken, vaultToken string
+	var consulToken string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.BoolVar(&detach, "detach", false, "")
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.StringVar(&consulToken, "consul-token", "", "")
-	flags.StringVar(&vaultToken, "vault-token", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -130,12 +125,6 @@ func (c *JobRevertCommand) Run(args []string) int {
 		consulToken = os.Getenv("CONSUL_HTTP_TOKEN")
 	}
 
-	// Parse the Vault token
-	if vaultToken == "" {
-		// Check the environment variable
-		vaultToken = os.Getenv("VAULT_TOKEN")
-	}
-
 	// Parse the job version or version tag
 	var revertVersion uint64
 
@@ -161,7 +150,7 @@ func (c *JobRevertCommand) Run(args []string) int {
 
 	// Prefix lookup matched a single job
 	q := &api.WriteOptions{Namespace: namespace}
-	resp, _, err := client.Jobs().Revert(jobID, revertVersion, nil, q, consulToken, vaultToken)
+	resp, _, err := client.Jobs().Revert(jobID, revertVersion, nil, q, consulToken, "")
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error retrieving job versions: %s", err))
 		return 1

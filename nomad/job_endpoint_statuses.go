@@ -108,53 +108,46 @@ func (j *Job) Statuses(
 				return err
 			}
 
-			// set up tokenizer and filters
-			tokenizer := paginator.NewStructsTokenizer(
-				iter,
-				paginator.StructsTokenizerOptions{
-					OnlyModifyIndex: true,
-				},
-			)
-			filters := []paginator.Filter{
-				paginator.NamespaceFilter{
-					AllowableNamespaces: allowableNamespaces,
-				},
-				// skip child jobs unless requested to include them
-				paginator.GenericFilter{Allow: func(i interface{}) (bool, error) {
-					if args.IncludeChildren {
-						return true, nil
-					}
-					job := i.(*structs.Job)
-					return job.ParentID == "", nil
-				}},
+			baseSelector := func(job *structs.Job) bool {
+				if allowableNamespaces != nil && !allowableNamespaces[job.Namespace] {
+					return false
+				}
+				if args.IncludeChildren {
+					return true
+				}
+				return job.ParentID == ""
 			}
+
 			// only provide specific jobs if requested.
+			var selector paginator.SelectorFunc[*structs.Job]
 			if len(args.Jobs) > 0 {
 				// set per-page to avoid iterating the whole table
 				args.QueryOptions.PerPage = int32(len(args.Jobs))
 				// filter in the requested jobs
 				jobSet := set.From[structs.NamespacedID](args.Jobs)
-				filters = append(filters, paginator.GenericFilter{
-					Allow: func(i interface{}) (bool, error) {
-						job := i.(*structs.Job)
-						return jobSet.Contains(job.NamespacedID()), nil
-					},
-				})
+				selector = func(job *structs.Job) bool {
+					if !baseSelector(job) {
+						return false
+					}
+					return jobSet.Contains(job.NamespacedID())
+				}
+
+			} else {
+				selector = baseSelector
 			}
 
-			jobs := make([]structs.JobStatusesJob, 0)
 			newJobs := set.New[structs.NamespacedID](0)
-			pager, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-				func(raw interface{}) error {
-					job := raw.(*structs.Job)
-
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				selector,
+				paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken),
+				func(job *structs.Job) (structs.JobStatusesJob, error) {
+					var none structs.JobStatusesJob
 					// this is where the sausage is made
 					jsj, highestIndexOnPage, err := jobStatusesJobFromJob(ws, state, job)
 					if err != nil {
-						return err
+						return none, err
 					}
 
-					jobs = append(jobs, jsj)
 					newJobs.Insert(job.NamespacedID())
 
 					// by using the highest index we find on any job/alloc/
@@ -164,14 +157,14 @@ func (j *Job) Statuses(
 					if highestIndexOnPage > reply.Index {
 						reply.Index = highestIndexOnPage
 					}
-					return nil
+					return jsj, nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusInternalServerError, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := pager.Page()
+			jobs, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusInternalServerError, "failed to read result page: %v", err)

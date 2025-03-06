@@ -79,7 +79,7 @@ func connectGatewayDriverConfig(hostNetwork bool) map[string]interface{} {
 // connectSidecarVersionConstraint is used when building the sidecar task to ensure
 // the proper Consul version is used that supports the necessary Connect
 // features. This includes bootstrapping envoy with a unix socket for Consul's
-// gRPC xDS API, and support for generating local service identity tokens.
+// gRPC xDS API.
 func connectSidecarVersionConstraint(cluster string) *structs.Constraint {
 	if cluster != structs.ConsulDefaultCluster && cluster != "" {
 		return &structs.Constraint{

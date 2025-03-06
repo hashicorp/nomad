@@ -48,27 +48,7 @@ func TestValidateCommand_Files(t *testing.T) {
 		cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
 		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-vault.nomad"}
 		code := cmd.Run(args)
-		must.StrContains(t, ui.ErrorWriter.String(), "* Vault used in the job but missing Vault token")
-		must.One(t, code)
-	})
-
-	t.Run("vault bad token via flag", func(t *testing.T) {
-		ui := cli.NewMockUi()
-		cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
-		args := []string{"-address", "http://" + s.HTTPAddr, "-vault-token=abc123", "testdata/example-vault.nomad"}
-		code := cmd.Run(args)
-		must.StrContains(t, ui.ErrorWriter.String(), "* bad token")
-		must.One(t, code)
-	})
-
-	t.Run("vault token bad via env", func(t *testing.T) {
-		t.Setenv("VAULT_TOKEN", "abc123")
-		ui := cli.NewMockUi()
-		cmd := &JobValidateCommand{Meta: Meta{Ui: ui}}
-		args := []string{"-address", "http://" + s.HTTPAddr, "testdata/example-vault.nomad"}
-		code := cmd.Run(args)
-		must.StrContains(t, ui.ErrorWriter.String(), "* bad token")
-		must.One(t, code)
+		must.Zero(t, code)
 	})
 }
 

@@ -4,7 +4,6 @@
 package client
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -67,7 +66,6 @@ import (
 	nconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/csi"
 	"github.com/hashicorp/nomad/plugins/device"
-	vaultapi "github.com/hashicorp/vault/api"
 	"github.com/shirou/gopsutil/v3/host"
 )
 
@@ -256,10 +254,6 @@ type Client struct {
 	// shutdownGroup are goroutines that exit when shutdownCh is closed.
 	// Shutdown() blocks on Wait() after closing shutdownCh.
 	shutdownGroup group.Group
-
-	// tokensClient is Nomad Client's custom Consul client for requesting Consul
-	// Service Identity tokens through Nomad Server.
-	tokensClient consulApiShim.ServiceIdentityAPI
 
 	// vaultClients is used to interact with Vault for token and secret renewals
 	vaultClients map[string]vaultclient.VaultClient
@@ -596,10 +590,6 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 			// No configured servers; trigger discovery manually
 			c.triggerDiscoveryCh <- struct{}{}
 		}
-	}
-
-	if err := c.setupConsulTokenClient(); err != nil {
-		return nil, fmt.Errorf("failed to setup consul tokens client: %w", err)
 	}
 
 	// Setup the vault client for token and secret renewals
@@ -2746,7 +2736,7 @@ func (c *Client) updateAlloc(update *structs.Allocation) {
 	// Reconnect unknown allocations if they were updated and are not terminal.
 	reconnect := update.ClientStatus == structs.AllocClientStatusUnknown &&
 		update.AllocModifyIndex > alloc.AllocModifyIndex &&
-		(!update.ServerTerminalStatus() || !alloc.PreventRescheduleOnDisconnect())
+		(!update.ServerTerminalStatus() || !alloc.PreventReplaceOnDisconnect())
 	if reconnect {
 		err = ar.Reconnect(update)
 		if err != nil {
@@ -2834,7 +2824,6 @@ func (c *Client) newAllocRunnerConfig(
 		ClientConfig:        c.GetConfig(),
 		ConsulServices:      c.consulServices,
 		ConsulProxiesFunc:   c.consulProxiesFunc,
-		ConsulSI:            c.tokensClient,
 		DeviceManager:       c.devicemanager,
 		DeviceStatsReporter: c,
 		DriverManager:       c.drivermanager,
@@ -2855,15 +2844,6 @@ func (c *Client) newAllocRunnerConfig(
 	}
 }
 
-// setupConsulTokenClient configures a tokenClient for managing consul service
-// identity tokens.
-// DEPRECATED: remove in 1.9.0
-func (c *Client) setupConsulTokenClient() error {
-	tc := consulApiShim.NewIdentitiesClient(c.logger, c.deriveSIToken)
-	c.tokensClient = tc
-	return nil
-}
-
 // setupVaultClients creates the objects that periodically renew tokens and
 // secrets with vault.
 func (c *Client) setupVaultClients() error {
@@ -2871,7 +2851,7 @@ func (c *Client) setupVaultClients() error {
 	c.vaultClients = map[string]vaultclient.VaultClient{}
 	vaultConfigs := c.GetConfig().GetVaultConfigs(c.logger)
 	for _, vaultConfig := range vaultConfigs {
-		vaultClient, err := vaultclient.NewVaultClient(vaultConfig, c.logger, c.deriveToken)
+		vaultClient, err := vaultclient.NewVaultClient(vaultConfig, c.logger)
 		if err != nil {
 			return err
 		}
@@ -2915,169 +2895,6 @@ func (c *Client) setupNomadServiceRegistrationHandler() {
 		),
 	}
 	c.nomadService = nsd.NewServiceRegistrationHandler(c.logger, &cfg)
-}
-
-// deriveToken takes in an allocation and a set of tasks and derives vault
-// tokens for each of the tasks, unwraps all of them using the supplied vault
-// client and returns a map of unwrapped tokens, indexed by the task name.
-func (c *Client) deriveToken(alloc *structs.Allocation, taskNames []string, vclient *vaultapi.Client) (map[string]string, error) {
-	vlogger := c.logger.Named("vault")
-
-	verifiedTasks, err := verifiedTasks(vlogger, alloc, taskNames)
-	if err != nil {
-		return nil, err
-	}
-
-	// DeriveVaultToken of nomad server can take in a set of tasks and
-	// creates tokens for all the tasks.
-	req := &structs.DeriveVaultTokenRequest{
-		NodeID:   c.NodeID(),
-		SecretID: c.secretNodeID(),
-		AllocID:  alloc.ID,
-		Tasks:    verifiedTasks,
-		QueryOptions: structs.QueryOptions{
-			Region:        c.Region(),
-			AllowStale:    false,
-			MinQueryIndex: alloc.CreateIndex,
-			AuthToken:     c.secretNodeID(),
-		},
-	}
-
-	// Derive the tokens
-	// namespace is handled via nomad/vault
-	var resp structs.DeriveVaultTokenResponse
-	if err := c.RPC("Node.DeriveVaultToken", &req, &resp); err != nil {
-		vlogger.Error("error making derive token RPC", "error", err)
-		return nil, fmt.Errorf("DeriveVaultToken RPC failed: %v", err)
-	}
-	if resp.Error != nil {
-		vlogger.Error("error deriving vault tokens", "error", resp.Error)
-		return nil, structs.NewWrappedServerError(resp.Error)
-	}
-	if resp.Tasks == nil {
-		vlogger.Error("error derivng vault token", "error", "invalid response")
-		return nil, fmt.Errorf("failed to derive vault tokens: invalid response")
-	}
-
-	unwrappedTokens := make(map[string]string)
-
-	// Retrieve the wrapped tokens from the response and unwrap it
-	for _, taskName := range verifiedTasks {
-		// Get the wrapped token
-		wrappedToken, ok := resp.Tasks[taskName]
-		if !ok {
-			vlogger.Error("wrapped token missing for task", "task_name", taskName)
-			return nil, fmt.Errorf("wrapped token missing for task %q", taskName)
-		}
-
-		// Unwrap the vault token
-		unwrapResp, err := vclient.Logical().Unwrap(wrappedToken)
-		if err != nil {
-			if structs.VaultUnrecoverableError.MatchString(err.Error()) {
-				return nil, err
-			}
-
-			// The error is recoverable
-			return nil, structs.NewRecoverableError(
-				fmt.Errorf("failed to unwrap the token for task %q: %v", taskName, err), true)
-		}
-
-		// Validate the response
-		var validationErr error
-		if unwrapResp == nil {
-			validationErr = fmt.Errorf("Vault returned nil secret when unwrapping")
-		} else if unwrapResp.Auth == nil {
-			validationErr = fmt.Errorf("Vault returned unwrap secret with nil Auth. Secret warnings: %v", unwrapResp.Warnings)
-		} else if unwrapResp.Auth.ClientToken == "" {
-			validationErr = fmt.Errorf("Vault returned unwrap secret with empty Auth.ClientToken. Secret warnings: %v", unwrapResp.Warnings)
-		}
-		if validationErr != nil {
-			vlogger.Warn("error unwrapping token", "error", err)
-			return nil, structs.NewRecoverableError(validationErr, true)
-		}
-
-		// Append the unwrapped token to the return value
-		unwrappedTokens[taskName] = unwrapResp.Auth.ClientToken
-	}
-
-	return unwrappedTokens, nil
-}
-
-// deriveSIToken takes an allocation and a set of tasks and derives Consul
-// Service Identity tokens for each of the tasks by requesting them from the
-// Nomad Server.
-func (c *Client) deriveSIToken(ctx context.Context, alloc *structs.Allocation, taskNames []string) (map[string]string, error) {
-	tasks, err := verifiedTasks(c.logger, alloc, taskNames)
-	if err != nil {
-		return nil, err
-	}
-
-	req := &structs.DeriveSITokenRequest{
-		NodeID:   c.NodeID(),
-		SecretID: c.secretNodeID(),
-		AllocID:  alloc.ID,
-		Tasks:    tasks,
-		QueryOptions: structs.QueryOptions{
-			Region:    c.Region(),
-			AuthToken: c.secretNodeID(),
-		},
-	}
-
-	// Nicely ask Nomad Server for the tokens.
-	var resp structs.DeriveSITokenResponse
-	if err := c.RPC("Node.DeriveSIToken", &req, &resp); err != nil {
-		c.logger.Error("error making derive token RPC", "error", err)
-		return nil, fmt.Errorf("DeriveSIToken RPC failed: %v", err)
-	}
-	if err := resp.Error; err != nil {
-		c.logger.Error("error deriving SI tokens", "error", err)
-		return nil, structs.NewWrappedServerError(err)
-	}
-	if len(resp.Tokens) == 0 {
-		c.logger.Error("error deriving SI tokens", "error", "invalid_response")
-		return nil, fmt.Errorf("failed to derive SI tokens: invalid response")
-	}
-
-	// NOTE: Unlike with the Vault integration, Nomad Server replies with the
-	// actual Consul SI token (.SecretID), because otherwise each Nomad
-	// Client would need to be blessed with 'acl:write' permissions to read the
-	// secret value given the .AccessorID, which does not fit well in the Consul
-	// security model.
-	//
-	// https://www.consul.io/api/acl/tokens.html#read-a-token
-	// https://www.consul.io/docs/internals/security.html
-
-	consulConfigs := c.config.GetConsulConfigs(c.logger)
-	consulClientConstructor := consulApiShim.NewConsulClientFactory(c.config)
-
-	tg := alloc.Job.LookupTaskGroup(alloc.TaskGroup)
-	tgNs := tg.Consul.GetNamespace()
-
-	for task, secretID := range resp.Tokens {
-		t := tg.LookupTask(task)
-		ns := t.Consul.GetNamespace()
-		if ns == "" {
-			ns = tgNs
-		}
-		cluster := tg.LookupTask(task).GetConsulClusterName(tg)
-		consulConfig := consulConfigs[cluster]
-		consulClient, err := consulClientConstructor(consulConfig, c.logger)
-		if err != nil {
-			return nil, err
-		}
-
-		err = consulClient.TokenPreflightCheck(ctx, &consulapi.ACLToken{
-			Namespace: ns,
-			SecretID:  secretID,
-		})
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	m := maps.Clone(resp.Tokens)
-
-	return m, nil
 }
 
 // verifiedTasks asserts each task in taskNames actually exists in the given alloc,
@@ -3282,7 +3099,7 @@ func (c *Client) emitStats() {
 }
 
 // setGaugeForMemoryStats proxies metrics for memory specific statistics
-func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForMemoryStats(hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "total"}, float32(hStats.Memory.Total), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "available"}, float32(hStats.Memory.Available), baseLabels)
 	metrics.SetGaugeWithLabels([]string{"client", "host", "memory", "used"}, float32(hStats.Memory.Used), baseLabels)
@@ -3290,7 +3107,7 @@ func (c *Client) setGaugeForMemoryStats(nodeID string, hStats *hoststats.HostSta
 }
 
 // setGaugeForCPUStats proxies metrics for CPU specific statistics
-func (c *Client) setGaugeForCPUStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForCPUStats(hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 
 	labels := make([]metrics.Label, len(baseLabels))
 	copy(labels, baseLabels)
@@ -3313,7 +3130,7 @@ func (c *Client) setGaugeForCPUStats(nodeID string, hStats *hoststats.HostStats,
 }
 
 // setGaugeForDiskStats proxies metrics for disk specific statistics
-func (c *Client) setGaugeForDiskStats(nodeID string, hStats *hoststats.HostStats, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForDiskStats(hStats *hoststats.HostStats, baseLabels []metrics.Label) {
 
 	labels := make([]metrics.Label, len(baseLabels))
 	copy(labels, baseLabels)
@@ -3333,7 +3150,7 @@ func (c *Client) setGaugeForDiskStats(nodeID string, hStats *hoststats.HostStats
 }
 
 // setGaugeForAllocationStats proxies metrics for allocation specific statistics
-func (c *Client) setGaugeForAllocationStats(nodeID string, baseLabels []metrics.Label) {
+func (c *Client) setGaugeForAllocationStats(baseLabels []metrics.Label) {
 	node := c.GetConfig().Node
 	total := node.NodeResources
 	res := node.ReservedResources
@@ -3391,22 +3208,20 @@ func (c *Client) setGaugeForUptime(hStats *hoststats.HostStats, baseLabels []met
 
 // emitHostStats pushes host resource usage stats to remote metrics collection sinks
 func (c *Client) emitHostStats() {
-	nodeID := c.NodeID()
 	hStats := c.hostStatsCollector.Stats()
 	labels := c.labels()
 
-	c.setGaugeForMemoryStats(nodeID, hStats, labels)
+	c.setGaugeForMemoryStats(hStats, labels)
 	c.setGaugeForUptime(hStats, labels)
-	c.setGaugeForCPUStats(nodeID, hStats, labels)
-	c.setGaugeForDiskStats(nodeID, hStats, labels)
+	c.setGaugeForCPUStats(hStats, labels)
+	c.setGaugeForDiskStats(hStats, labels)
 }
 
 // emitClientMetrics emits lower volume client metrics
 func (c *Client) emitClientMetrics() {
-	nodeID := c.NodeID()
 	labels := c.labels()
 
-	c.setGaugeForAllocationStats(nodeID, labels)
+	c.setGaugeForAllocationStats(labels)
 
 	// Emit allocation metrics
 	blocked, migrating, pending, running, terminal := 0, 0, 0, 0, 0

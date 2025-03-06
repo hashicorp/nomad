@@ -9,7 +9,7 @@ error_exit() {
     exit 1
 }
 
-MAX_WAIT_TIME=10  # Maximum wait time in seconds
+MAX_WAIT_TIME=60  # Maximum wait time in seconds
 POLL_INTERVAL=2   # Interval between status checks
 
 elapsed_time=0
@@ -47,8 +47,10 @@ while true; do
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done
 
-# Quality: "nomad_node_metadata: A GET call to /v1/node/:node-id returns the same  node.Meta for each node before and after a node upgrade"
+echo "Client $client_id at $CLIENT_IP is ready"
 
+# Quality: "nomad_node_metadata: A GET call to /v1/node/:node-id returns the same  node.Meta for each node before and after a node upgrade"
+echo "Reading metadata for client at $CLIENT_IP"
 if ! client_meta=$(nomad node meta read -json -node-id "$client_id"); then
     echo "Failed to read metadata for node: $client_id"
     exit 1

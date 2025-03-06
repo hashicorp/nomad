@@ -22,6 +22,13 @@ under the `region_limit` block. Existing quotas will be automatically migrated
 during server upgrade. The `variables_limit` field will be removed from the
 quota specification in Nomad 1.12.0.
 
+#### Deprecated Disconnect fields removed
+
+In Nomad 1.8, the `disconnect` block was introduced to replace the `max_client_disconnect`
+`stop_after_client_disconnect`, and `prevent_reschedule_on_list` fields.
+In Nomad 1.10 these fields have been removed and will be ignored if specified. Jobs
+should migrate to using the `disconnect` block prior to upgrading.
+
 #### Go SDK API change for quota limits
 
 In Nomad 1.10.0, the Go API for quotas has a breaking change. The
@@ -51,6 +58,29 @@ these blocks, existing allocations remain running with their job version
 incremented. If you were relying on the previous behavior to redistribute
 workloads, you can force a destructive update by changing fields that require
 one, such as the `meta` block.
+
+#### Vault and Consul integration changes
+
+Nomad 1.10.0 removes the previously deprecated token-based authentication workflow
+for Vault and Consul. Nomad clients must now use a task's [Workload Identity][]
+to authenticate to Vault and Consul and obtain a token specific to the task.
+
+This table lists removed fields and the new workflow.
+
+| Field | Configuration | New Workflow |
+| ------ | ------------ | ------------ |
+| [`vault.allow_unauthenticated`][] | Agent | Tasks should use a workload identity. Do not use a Vault token. |
+| [`vault.task_token_ttl`][] | Agent | With workload identity, tasks receive their TTL configuration from the Vault role. |
+| [`vault.token`][] | Agent | Nomad agents use the workload identity when making requests to authenticated endpoints. |
+| [`vault.policies`][]  | Job specification  |  Configure and use a Vault role.  |
+
+Before upgrading to Nomad 1.10, perform the following tasks:
+
+1. Configure Vault to work with workload identity.
+1. Migrate all workloads to use workload identity.
+
+Refer to [Migrating to Using Workload Identity with Vault][] for more
+details.
 
 ## Nomad 1.9.5
 

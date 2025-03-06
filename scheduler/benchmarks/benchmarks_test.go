@@ -5,9 +5,10 @@ package benchmarks
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -38,7 +39,7 @@ func BenchmarkSchedulerExample(b *testing.B) {
 		upsertNodes(h, 5000, 100)
 
 		iter, err := h.State.Nodes(nil)
-		require.NoError(b, err)
+		must.NoError(b, err)
 		nodes := 0
 		for {
 			raw := iter.Next()
@@ -47,8 +48,8 @@ func BenchmarkSchedulerExample(b *testing.B) {
 			}
 			nodes++
 		}
-		require.Equal(b, 5000, nodes)
-		job := generateJob(true, 600)
+		must.Eq(b, 5000, nodes)
+		job := generateJob(true, 600, 100)
 		eval = upsertJob(h, job)
 	}
 
@@ -58,14 +59,14 @@ func BenchmarkSchedulerExample(b *testing.B) {
 	// benchmarking a successful run and not a failed plan.
 	{
 		err := h.Process(scheduler.NewServiceScheduler, eval)
-		require.NoError(b, err)
-		require.Len(b, h.Plans, 1)
-		require.False(b, h.Plans[0].IsNoOp())
+		must.NoError(b, err)
+		must.Len(b, 1, h.Plans)
+		must.False(b, h.Plans[0].IsNoOp())
 	}
 
 	for i := 0; i < b.N; i++ {
 		err := h.Process(scheduler.NewServiceScheduler, eval)
-		require.NoError(b, err)
+		must.NoError(b, err)
 	}
 }
 
@@ -73,9 +74,9 @@ func BenchmarkSchedulerExample(b *testing.B) {
 // variety of cluster sizes, with both spread and non-spread jobs
 func BenchmarkServiceScheduler(b *testing.B) {
 
-	clusterSizes := []int{1000, 5000, 10000}
-	rackSets := []int{10, 25, 50, 75}
-	jobSizes := []int{300, 600, 900, 1200}
+	clusterSizes := []int{500, 1000, 5000, 10000}
+	rackSets := []int{25, 50, 75}
+	jobSizes := []int{50, 300, 600, 900, 1200}
 
 	type benchmark struct {
 		name        string
@@ -112,18 +113,21 @@ func BenchmarkServiceScheduler(b *testing.B) {
 	}
 
 	for _, bm := range benchmarks {
+		job := generateJob(bm.withSpread, bm.jobSize, bm.racks)
+		h := scheduler.NewHarness(b)
+		h.SetNoSubmit()
+		upsertNodes(h, bm.clusterSize, bm.racks)
+		eval := upsertJob(h, job)
+		b.ResetTimer()
+
 		b.Run(bm.name, func(b *testing.B) {
-			h := scheduler.NewHarness(b)
-			upsertNodes(h, bm.clusterSize, bm.racks)
-			job := generateJob(bm.withSpread, bm.jobSize)
-			eval := upsertJob(h, job)
-			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				err := h.Process(scheduler.NewServiceScheduler, eval)
-				require.NoError(b, err)
+				must.NoError(b, err)
 			}
 		})
 	}
+
 }
 
 func upsertJob(h *scheduler.Harness, job *structs.Job) *structs.Evaluation {
@@ -147,13 +151,26 @@ func upsertJob(h *scheduler.Harness, job *structs.Job) *structs.Evaluation {
 	return eval
 }
 
-func generateJob(withSpread bool, jobSize int) *structs.Job {
+func generateJob(withSpread bool, jobSize int, racks int) *structs.Job {
 	job := mock.Job()
 	job.Datacenters = []string{"dc-1", "dc-2"}
 	if withSpread {
 		job.Spreads = []*structs.Spread{{Attribute: "${meta.rack}"}}
 	}
-	job.Constraints = []*structs.Constraint{}
+
+	// only half the racks will be considered eligibble
+	rackTargets := []string{}
+	for i := range racks / 2 {
+		rackTargets = append(rackTargets, fmt.Sprintf("r%d", i))
+	}
+	rackTarget := strings.Join(rackTargets, ",")
+	job.Constraints = []*structs.Constraint{
+		{
+			LTarget: "${meta.rack}",
+			RTarget: rackTarget,
+			Operand: "set_contains_any",
+		},
+	}
 	job.TaskGroups[0].Count = jobSize
 	job.TaskGroups[0].Networks = nil
 	job.TaskGroups[0].Services = []*structs.Service{}
@@ -173,6 +190,7 @@ func upsertNodes(h *scheduler.Harness, count, racks int) {
 		node.Datacenter = datacenters[i%2]
 		node.Meta = map[string]string{}
 		node.Meta["rack"] = fmt.Sprintf("r%d", i%racks)
+		node.Attributes["unique.advertise.address"] = fmt.Sprintf("192.168.%d.%d", i%10, i%120)
 		memoryMB := 32000
 		diskMB := 100 * 1024
 
@@ -196,6 +214,7 @@ func upsertNodes(h *scheduler.Harness, count, racks int) {
 			},
 		}
 		node.NodeResources.Compatibility()
+		node.ComputeClass()
 
 		err := h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node)
 		if err != nil {

@@ -788,93 +788,6 @@ func TestLeader_ReapDuplicateEval(t *testing.T) {
 	})
 }
 
-func TestLeader_revokeVaultAccessorsOnRestore(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Insert a vault accessor that should be revoked
-	fsmState := s1.fsm.State()
-	va := mock.VaultAccessor()
-	if err := fsmState.UpsertVaultAccessor(100, []*structs.VaultAccessor{va}); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-
-	// Swap the Vault client
-	tvc := &TestVaultClient{}
-	s1.vault = tvc
-
-	// Do a restore
-	if err := s1.revokeVaultAccessorsOnRestore(); err != nil {
-		t.Fatalf("Failed to restore: %v", err)
-	}
-
-	if len(tvc.RevokedTokens) != 1 && tvc.RevokedTokens[0].Accessor != va.Accessor {
-		t.Fatalf("Bad revoked accessors: %v", tvc.RevokedTokens)
-	}
-}
-
-func TestLeader_revokeVaultAccessorsOnRestore_workloadIdentity(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Insert a Vault accessor that should be revoked
-	fsmState := s1.fsm.State()
-	va := mock.VaultAccessor()
-	err := fsmState.UpsertVaultAccessor(100, []*structs.VaultAccessor{va})
-	must.NoError(t, err)
-
-	// Do a restore
-	err = s1.revokeVaultAccessorsOnRestore()
-	must.NoError(t, err)
-
-	// Verify accessor was removed from state.
-	got, err := fsmState.VaultAccessor(nil, va.Accessor)
-	must.NoError(t, err)
-	must.Nil(t, got)
-}
-
-func TestLeader_revokeSITokenAccessorsOnRestore(t *testing.T) {
-	ci.Parallel(t)
-	r := require.New(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 0
-	})
-	defer cleanupS1()
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// replace consul ACLs API with a mock for tracking calls in tests
-	var consulACLsAPI mockConsulACLsAPI
-	s1.consulACLs = &consulACLsAPI
-
-	// Insert a SI token accessor that should be revoked
-	fsmState := s1.fsm.State()
-	accessor := mock.SITokenAccessor()
-	err := fsmState.UpsertSITokenAccessors(100, []*structs.SITokenAccessor{accessor})
-	r.NoError(err)
-
-	// Do a restore
-	err = s1.revokeSITokenAccessorsOnRestore()
-	r.NoError(err)
-
-	// Check the accessor was revoked
-	exp := []revokeRequest{{
-		accessorID: accessor.AccessorID,
-		committed:  true,
-	}}
-	r.ElementsMatch(exp, consulACLsAPI.revokeRequests)
-}
-
 func TestLeader_ClusterID(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1088,17 +1001,18 @@ func TestLeader_DiffACLTokens(t *testing.T) {
 	assert.Nil(t, state.UpsertACLTokens(structs.MsgTypeTestSetup, 100, []*structs.ACLToken{p0, p1, p2, p3}))
 
 	// Simulate a remote list
-	p2Stub := p2.Stub()
+	p2Stub, _ := p2.Stub()
 	p2Stub.ModifyIndex = 50 // Ignored, same index
-	p3Stub := p3.Stub()
+	p3Stub, _ := p3.Stub()
 	p3Stub.ModifyIndex = 100 // Updated, higher index
 	p3Stub.Hash = []byte{0, 1, 2, 3}
 	p4 := mock.ACLToken()
 	p4.Global = true
+	p4Stub, _ := p4.Stub()
 	remoteList := []*structs.ACLTokenListStub{
 		p2Stub,
 		p3Stub,
-		p4.Stub(),
+		p4Stub,
 	}
 	delete, update := diffACLTokens(state, 50, remoteList)
 

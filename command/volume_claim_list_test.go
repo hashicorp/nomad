@@ -127,4 +127,20 @@ func TestVolumeClaimListCommand_Run(t *testing.T) {
 	}
 
 	ui.OutputWriter.Reset()
+
+	// Prefix list
+	must.Zero(t, cmd.Run([]string{
+		"-address=" + url,
+		"-token=" + token.SecretID,
+		"-verbose",
+		existingClaims[0].ID[0:2],
+	}))
+	out = ui.OutputWriter.String()
+
+	must.StrContains(t, out, existingClaims[0].ID)
+	for _, id := range []string{existingClaims[1].ID, existingClaims[2].ID, existingClaims[3].ID, existingClaims[4].ID} {
+		must.StrNotContains(t, out, id, must.Sprintf("did not expect to find %s in %s", id, out))
+	}
+
+	ui.OutputWriter.Reset()
 }

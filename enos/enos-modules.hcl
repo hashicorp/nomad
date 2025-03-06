@@ -21,6 +21,6 @@ module "upgrade_servers" {
   source = "./modules/upgrade_servers"
 }
 
-module "upgrade_clients" {
-  source = "./modules/upgrade_clients"
+module "upgrade_client" {
+  source = "./modules/upgrade_client"
 }

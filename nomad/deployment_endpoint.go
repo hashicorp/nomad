@@ -477,51 +477,32 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 
 			// Capture all the deployments
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
+			var tokenizer paginator.Tokenizer[*structs.Deployment]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.DeploymentsByIDPrefix(ws, namespace, prefix, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
+				tokenizer = paginator.IDTokenizer[*structs.Deployment](args.NextToken)
 			} else if namespace != structs.AllNamespacesSentinel {
 				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Deployment](args.NextToken)
 			} else {
 				iter, err = store.Deployments(ws, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Deployment](args.NextToken)
 			}
 			if err != nil {
 				return err
 			}
 
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
-
-			filters := []paginator.Filter{
-				paginator.NamespaceFilter{
-					AllowableNamespaces: allowableNamespaces,
-				},
-			}
-
-			var deploys []*structs.Deployment
-			pnator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-				func(raw interface{}) error {
-					deploy := raw.(*structs.Deployment)
-					deploys = append(deploys, deploy)
-					return nil
-				})
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+				paginator.NamespaceSelectorFunc[*structs.Deployment](allowableNamespaces),
+				tokenizer,
+				(*structs.Deployment).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := pnator.Page()
+			deploys, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

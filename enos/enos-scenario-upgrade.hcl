@@ -25,7 +25,7 @@ scenario "upgrade" {
   ]
 
   locals {
-    cluster_name           = "mcj-${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
+    cluster_name           = "${var.prefix}-${matrix.os}-${matrix.arch}-${matrix.edition}-${var.product_version}"
     linux_count            = matrix.os == "linux" ? "4" : "0"
     windows_count          = matrix.os == "windows" ? "4" : "0"
     arch                   = matrix.arch
@@ -76,12 +76,50 @@ scenario "upgrade" {
       consul_license            = var.consul_license
       volumes                   = false
       region                    = var.aws_region
+      availability_zone         = var.availability_zone
       instance_arch             = matrix.arch
     }
   }
 
-  step "run_initial_workloads" {
+  step "initial_test_cluster_health" {
     depends_on = [step.provision_cluster]
+
+    description = <<-EOF
+    Verify the health of the cluster by checking the status of all servers, nodes,
+    jobs and allocs and stopping random allocs to check for correct reschedules"
+    EOF
+
+    module = module.test_cluster_health
+    variables {
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # configuring assertions
+      server_count    = var.server_count
+      client_count    = local.clients_count
+      jobs_count      = 0
+      alloc_count     = 0
+      servers         = step.provision_cluster.servers
+      clients_version = local.test_product_version
+      servers_version = local.test_product_version
+    }
+
+    verifies = [
+      quality.nomad_agent_info,
+      quality.nomad_agent_info_self,
+      quality.nomad_nodes_status,
+      quality.nomad_job_status,
+      quality.nomad_allocs_status,
+      quality.nomad_reschedule_alloc,
+    ]
+  }
+
+  step "run_initial_workloads" {
+    depends_on = [step.initial_test_cluster_health]
 
     description = <<-EOF
     Verify the health of the cluster by running new workloads
@@ -89,11 +127,13 @@ scenario "upgrade" {
 
     module = module.run_workloads
     variables {
-      nomad_addr  = step.provision_cluster.nomad_addr
-      ca_file     = step.provision_cluster.ca_file
-      cert_file   = step.provision_cluster.cert_file
-      key_file    = step.provision_cluster.key_file
-      nomad_token = step.provision_cluster.nomad_token
+      nomad_addr        = step.provision_cluster.nomad_addr
+      ca_file           = step.provision_cluster.ca_file
+      cert_file         = step.provision_cluster.cert_file
+      key_file          = step.provision_cluster.key_file
+      nomad_token       = step.provision_cluster.nomad_token
+      availability_zone = var.availability_zone
+
       workloads = {
         service_raw_exec = { job_spec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3, type = "service" }
         service_docker   = { job_spec = "jobs/docker-service.nomad.hcl", alloc_count = 3, type = "service" }
@@ -101,6 +141,32 @@ scenario "upgrade" {
         batch_docker     = { job_spec = "jobs/docker-batch.nomad.hcl", alloc_count = 3, type = "batch" }
         batch_raw_exec   = { job_spec = "jobs/raw-exec-batch.nomad.hcl", alloc_count = 3, type = "batch" }
         system_raw_exec  = { job_spec = "jobs/raw-exec-system.nomad.hcl", alloc_count = 0, type = "system" }
+
+        nfs = {
+          job_spec    = "jobs/nfs.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+        }
+
+        csi_plugin_nfs_controllers = {
+          job_spec    = "jobs/plugin-nfs-controllers.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+        }
+
+        csi_plugin_nfs_nodes = {
+          job_spec    = "jobs/plugin-nfs-nodes.nomad.hcl"
+          alloc_count = 0
+          type        = "system"
+        }
+
+        wants_csi = {
+          job_spec    = "jobs/wants-volume.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+          pre_script  = "scripts/wait_for_nfs_volume.sh"
+        }
+
       }
     }
 
@@ -109,7 +175,7 @@ scenario "upgrade" {
     ]
   }
 
-  step "initial_test_cluster_health" {
+  step "workloads_test_cluster_health" {
     depends_on = [step.run_initial_workloads]
 
     description = <<-EOF
@@ -147,13 +213,13 @@ scenario "upgrade" {
   }
 
   step "fetch_upgrade_binary" {
-    depends_on = [step.provision_cluster, step.initial_test_cluster_health]
+    depends_on = [step.provision_cluster, step.workloads_test_cluster_health]
 
     description = <<-EOF
     Determine which Nomad artifact we want to use for the scenario, depending on the
     'arch', 'edition' and 'os' and fetches the URL and SHA to identify the upgraded
     binary.
-EOF
+    EOF
 
     module = module.fetch_binaries
 
@@ -248,12 +314,12 @@ EOF
     ]
   }
 
-  step "upgrade_clients" {
+  step "upgrade_first_client" {
     depends_on = [step.server_upgrade_test_cluster_health]
 
     description = <<-EOF
-     Takes the clients one by one, writes some dynamic metadata to them,
-    updates the binary with the new one previously fetched and restarts them.
+    Takes a client, writes some dynamic metadata to it,
+    updates the binary with the new one previously fetched and restarts it.
 
     Important: The path where the binary will be placed is hardcoded to match
     what the provision-cluster module does. It can be configurable in the future
@@ -261,12 +327,9 @@ EOF
 
      * "C:/opt/nomad.exe" for windows
      * "/usr/local/bin/nomad" for linux
-
-    To ensure the clients are upgraded one by one, they use the depends_on meta,
-    there are ONLY 4 CLIENTS being upgraded in the module.
     EOF
 
-    module = module.upgrade_clients
+    module = module.upgrade_client
 
     verifies = [
       quality.nomad_nodes_status,
@@ -283,7 +346,130 @@ EOF
       nomad_token = step.provision_cluster.nomad_token
 
       # configuring assertions
-      clients              = step.provision_cluster.clients
+      client               = step.provision_cluster.clients[0]
+      ssh_key_path         = step.provision_cluster.ssh_key_file
+      artifactory_username = var.artifactory_username
+      artifactory_token    = var.artifactory_token
+      artifact_url         = step.fetch_upgrade_binary.artifact_url[matrix.os]
+      artifact_sha         = step.fetch_upgrade_binary.artifact_sha[matrix.os]
+    }
+  }
+
+  step "upgrade_second_client" {
+    depends_on = [step.upgrade_first_client]
+
+    description = <<-EOF
+    Takes a client, writes some dynamic metadata to it,
+    updates the binary with the new one previously fetched and restarts it.
+
+    Important: The path where the binary will be placed is hardcoded to match
+    what the provision-cluster module does. It can be configurable in the future
+    but for now it is:
+
+     * "C:/opt/nomad.exe" for windows
+     * "/usr/local/bin/nomad" for linux
+    EOF
+
+    module = module.upgrade_client
+
+    verifies = [
+      quality.nomad_nodes_status,
+      quality.nomad_job_status,
+      quality.nomad_node_metadata
+    ]
+
+    variables {
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # configuring assertions
+      client               = step.provision_cluster.clients[1]
+      ssh_key_path         = step.provision_cluster.ssh_key_file
+      artifactory_username = var.artifactory_username
+      artifactory_token    = var.artifactory_token
+      artifact_url         = step.fetch_upgrade_binary.artifact_url[matrix.os]
+      artifact_sha         = step.fetch_upgrade_binary.artifact_sha[matrix.os]
+    }
+  }
+
+  step "upgrade_third_client" {
+    depends_on = [step.upgrade_second_client]
+
+    description = <<-EOF
+    Takes a client, writes some dynamic metadata to it,
+    updates the binary with the new one previously fetched and restarts it.
+
+    Important: The path where the binary will be placed is hardcoded to match
+    what the provision-cluster module does. It can be configurable in the future
+    but for now it is:
+
+     * "C:/opt/nomad.exe" for windows
+     * "/usr/local/bin/nomad" for linux
+    EOF
+
+    module = module.upgrade_client
+
+    verifies = [
+      quality.nomad_nodes_status,
+      quality.nomad_job_status,
+      quality.nomad_node_metadata
+    ]
+
+    variables {
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # configuring assertions
+      client               = step.provision_cluster.clients[2]
+      ssh_key_path         = step.provision_cluster.ssh_key_file
+      artifactory_username = var.artifactory_username
+      artifactory_token    = var.artifactory_token
+      artifact_url         = step.fetch_upgrade_binary.artifact_url[matrix.os]
+      artifact_sha         = step.fetch_upgrade_binary.artifact_sha[matrix.os]
+    }
+  }
+
+  step "upgrade_fourth_client" {
+    depends_on = [step.upgrade_third_client]
+
+    description = <<-EOF
+    Takes a client, writes some dynamic metadata to it,
+    updates the binary with the new one previously fetched and restarts it.
+
+    Important: The path where the binary will be placed is hardcoded to match
+    what the provision-cluster module does. It can be configurable in the future
+    but for now it is:
+
+     * "C:/opt/nomad.exe" for windows
+     * "/usr/local/bin/nomad" for linux
+    EOF
+
+    module = module.upgrade_client
+
+    verifies = [
+      quality.nomad_nodes_status,
+      quality.nomad_job_status,
+      quality.nomad_node_metadata
+    ]
+
+    variables {
+      # connecting to the Nomad API
+      nomad_addr  = step.provision_cluster.nomad_addr
+      ca_file     = step.provision_cluster.ca_file
+      cert_file   = step.provision_cluster.cert_file
+      key_file    = step.provision_cluster.key_file
+      nomad_token = step.provision_cluster.nomad_token
+
+      # configuring assertions
+      client               = step.provision_cluster.clients[3]
       ssh_key_path         = step.provision_cluster.ssh_key_file
       artifactory_username = var.artifactory_username
       artifactory_token    = var.artifactory_token
@@ -293,7 +479,7 @@ EOF
   }
 
   step "client_upgrade_test_cluster_health" {
-    depends_on = [step.upgrade_clients]
+    depends_on = [step.upgrade_fourth_client]
 
     description = <<-EOF
     Verify the health of the cluster by checking the status of all servers, nodes,
@@ -376,5 +562,13 @@ EOF
 
   output "allocs" {
     value = step.run_initial_workloads.allocs_count
+  }
+
+  output "new_allocs" {
+    value = step.run_initial_workloads.new_allocs_count
+  }
+
+  output "nodes" {
+    value = step.run_initial_workloads.nodes
   }
 }

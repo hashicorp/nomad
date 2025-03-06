@@ -63,9 +63,6 @@ type AllocRunnerConfig struct {
 	// versions of the Consul agent.
 	ConsulProxiesFunc consul.SupportedProxiesAPIFunc
 
-	// ConsulSI is the Consul client used to manage service identity tokens.
-	ConsulSI consul.ServiceIdentityAPI
-
 	// VaultFunc is the function to get a Vault client to use to retrieve Vault
 	// tokens
 	VaultFunc vaultclient.VaultClientFunc

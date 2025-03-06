@@ -255,12 +255,6 @@ type Server struct {
 	// consulConfigEntries is used for managing Consul Configuration Entries.
 	consulConfigEntries ConsulConfigsAPI
 
-	// consulACLs is used for managing Consul Service Identity tokens.
-	consulACLs ConsulACLsAPI
-
-	// vault is the client for communicating with Vault.
-	vault VaultClient
-
 	// Worker used for processing
 	workers          []*Worker
 	workerLock       sync.RWMutex
@@ -322,7 +316,7 @@ type Server struct {
 
 // NewServer is used to construct a new Nomad server from the
 // configuration, potentially returning an error
-func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) (*Server, error) {
+func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc consul.ConfigAPIFunc) (*Server, error) {
 	// Configure TLS
 	tlsConf, err := tlsutil.NewTLSConfiguration(config.TLSConfig, true, true)
 	if err != nil {
@@ -402,15 +396,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// Initialize the stats fetcher that autopilot will use.
 	s.statsFetcher = NewStatsFetcher(s.logger, s.connPool, s.config.Region)
 
-	// Setup Consul (more)
-	s.setupConsul(consulConfigFunc, consulACLs)
-
-	// Setup Vault
-	if err := s.setupVaultClient(); err != nil {
-		s.Shutdown()
-		s.logger.Error("failed to setup Vault client", "error", err)
-		return nil, fmt.Errorf("Failed to setup Vault client: %v", err)
-	}
+	// Setup Consul
+	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)
 
 	// Set up the keyring
 	keystorePath := filepath.Join(s.config.DataDir, "keystore")
@@ -534,9 +521,6 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Emit metrics for the blocked eval tracker.
 	go s.blockedEvals.EmitStats(time.Second, s.shutdownCh)
-
-	// Emit metrics for the Vault client.
-	go s.vault.EmitStats(time.Second, s.shutdownCh)
 
 	// Emit metrics
 	go s.heartbeatStats()
@@ -760,14 +744,6 @@ func (s *Server) Shutdown() error {
 		s.fsm.Close()
 	}
 
-	// Stop Vault token renewal and revocations
-	if s.vault != nil {
-		s.vault.Stop()
-	}
-
-	// Stop the Consul ACLs token revocations
-	s.consulACLs.Stop()
-
 	// Stop being able to set Configuration Entries
 	s.consulConfigEntries.Stop()
 
@@ -892,30 +868,6 @@ func (s *Server) Reload(newConfig *Config) error {
 	}
 
 	var mErr multierror.Error
-
-	// Handle the Vault reload. Vault should never be nil but just guard.
-	if s.vault != nil {
-		vconfig := newConfig.GetDefaultVault()
-
-		// Verify if the new configuration would cause the client type to
-		// change.
-		var err error
-		switch s.vault.(type) {
-		case *NoopVault:
-			if vconfig != nil && vconfig.Token != "" {
-				err = fmt.Errorf("setting a Vault token requires restarting the Nomad agent")
-			}
-		case *vaultClient:
-			if vconfig != nil && vconfig.Token == "" {
-				err = fmt.Errorf("removing the Vault token requires restarting the Nomad agent")
-			}
-		}
-		if err != nil {
-			_ = multierror.Append(&mErr, err)
-		} else if err := s.vault.SetConfig(newConfig.GetDefaultVault()); err != nil {
-			_ = multierror.Append(&mErr, err)
-		}
-	}
 
 	shouldReloadTLS, err := tlsutil.ShouldReloadRPCConnections(s.config.TLSConfig, newConfig.TLSConfig)
 	if err != nil {
@@ -1200,29 +1152,6 @@ func (s *Server) setupNodeDrainer() {
 		BatchUpdateInterval:   drainer.BatchUpdateInterval,
 	}
 	s.nodeDrainer = drainer.NewNodeDrainer(c)
-}
-
-// setupConsul is used to setup Server specific consul components.
-func (s *Server) setupConsul(consulConfigFunc consul.ConfigAPIFunc, consulACLs consul.ACLsAPI) {
-	s.consulConfigEntries = NewConsulConfigsAPI(consulConfigFunc, s.logger)
-	s.consulACLs = NewConsulACLsAPI(consulACLs, s.logger, s.purgeSITokenAccessors)
-}
-
-// setupVaultClient is used to set up the Vault API client.
-func (s *Server) setupVaultClient() error {
-	vconfig := s.config.GetDefaultVault()
-	if vconfig != nil && vconfig.Token == "" {
-		s.vault = NewNoopVault(vconfig, s.logger, s.purgeVaultAccessors)
-		return nil
-	}
-
-	delegate := s.entVaultDelegate()
-	v, err := NewVaultClient(vconfig, s.logger, s.purgeVaultAccessors, delegate)
-	if err != nil {
-		return err
-	}
-	s.vault = v
-	return nil
 }
 
 // setupRPC is used to setup the RPC listener
@@ -2065,7 +1994,6 @@ func (s *Server) Stats() map[string]map[string]string {
 		"raft":    s.raft.Stats(),
 		"serf":    s.serf.Stats(),
 		"runtime": goruntime.RuntimeStats(),
-		"vault":   s.vault.Stats(),
 	}
 
 	return stats

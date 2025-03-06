@@ -185,9 +185,6 @@ func ParseConfigFile(path string) (*Config, error) {
 
 	// Parse durations for Consul and Vault config blocks if provided.
 	for _, consulConfig := range c.Consuls {
-		// Capture consulConfig inside the loop so the parse duration function
-		// modifies the right configuration.
-		consulConfig := consulConfig
 
 		if consulConfig.ServiceIdentity != nil {
 			tds = append(tds, durationConversionMap{
@@ -209,9 +206,6 @@ func ParseConfigFile(path string) (*Config, error) {
 	}
 
 	for _, vaultConfig := range c.Vaults {
-		// Capture vaultConfig inside the loop so the parse duration function
-		// modifies the right configuration.
-		vaultConfig := vaultConfig
 
 		if vaultConfig.DefaultIdentity != nil {
 			tds = append(tds, durationConversionMap{

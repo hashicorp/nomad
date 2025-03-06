@@ -253,45 +253,6 @@ func TestStateStore_RestoreAlloc(t *testing.T) {
 	must.False(t, watchFired(ws))
 }
 
-func TestStateStore_RestoreVaultAccessor(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	a := mock.VaultAccessor()
-
-	restore, err := state.Restore()
-	must.NoError(t, err)
-
-	err = restore.VaultAccessorRestore(a)
-	must.NoError(t, err)
-	must.NoError(t, restore.Commit())
-
-	ws := memdb.NewWatchSet()
-	out, err := state.VaultAccessor(ws, a.Accessor)
-	must.NoError(t, err)
-	must.Eq(t, a, out)
-	must.False(t, watchFired(ws))
-}
-
-func TestStateStore_RestoreSITokenAccessor(t *testing.T) {
-	ci.Parallel(t)
-
-	state := testStateStore(t)
-	a1 := mock.SITokenAccessor()
-
-	restore, err := state.Restore()
-	must.NoError(t, err)
-
-	must.NoError(t, restore.SITokenAccessorRestore(a1))
-	must.NoError(t, restore.Commit())
-
-	ws := memdb.NewWatchSet()
-	result, err := state.SITokenAccessor(ws, a1.AccessorID)
-	must.NoError(t, err)
-	must.Eq(t, a1, result)
-	must.False(t, watchFired(ws))
-}
-
 func TestStateStore_RestoreACLPolicy(t *testing.T) {
 	ci.Parallel(t)
 
