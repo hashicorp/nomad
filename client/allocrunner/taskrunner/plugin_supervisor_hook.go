@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/LK4D4/joincontext"
 	hclog "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
@@ -45,9 +46,10 @@ type csiPluginSupervisorHook struct {
 	eventEmitter ti.EventEmitter
 	lifecycle    ti.TaskLifecycle
 
-	shutdownCtx      context.Context
-	shutdownCancelFn context.CancelFunc
-	runOnce          sync.Once
+	supervisorIsRunningLock sync.Mutex
+	supervisorIsRunning     bool
+	shutdownCtx             context.Context
+	shutdownCancelFn        context.CancelFunc
 
 	// previousHealthstate is used by the supervisor goroutine to track historic
 	// health states for gating task events.
@@ -120,6 +122,7 @@ func newCSIPluginSupervisorHook(config *csiPluginSupervisorHookConfig) *csiPlugi
 		task.CSIPluginConfig.HealthTimeout = 30 * time.Second
 	}
 
+	// this context will be closed only csiPluginSupervisorHookConfig.Stop
 	shutdownCtx, cancelFn := context.WithCancel(context.Background())
 
 	hook := &csiPluginSupervisorHook{
@@ -230,19 +233,23 @@ func (h *csiPluginSupervisorHook) setSocketHook() {
 	h.socketPath = filepath.Join(h.socketMountPoint, structs.CSISocketName)
 }
 
-// Poststart is called after the task has started. Poststart is not
-// called if the allocation is terminal.
+// Poststart is called after the task has started (or restarted). Poststart is
+// not called if the allocation is terminal.
 //
 // The context is cancelled if the task is killed.
-func (h *csiPluginSupervisorHook) Poststart(_ context.Context, _ *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
+func (h *csiPluginSupervisorHook) Poststart(ctx context.Context, _ *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
 
-	// If we're already running the supervisor routine, then we don't need to try
-	// and restart it here as it only terminates on `Stop` hooks.
-	h.runOnce.Do(func() {
-		h.setSocketHook()
-		go h.ensureSupervisorLoop(h.shutdownCtx)
-	})
+	// If we're already running the supervisor routine, then we don't need to
+	// try and restart it here as it only terminates on `Stop` hooks and health
+	// timeouts (which restart the task)
+	h.supervisorIsRunningLock.Lock()
+	h.supervisorIsRunningLock.Unlock()
+	if h.supervisorIsRunning {
+		return nil
+	}
 
+	h.setSocketHook()
+	go h.ensureSupervisorLoop(ctx)
 	return nil
 }
 
@@ -263,14 +270,26 @@ func (h *csiPluginSupervisorHook) ensureSupervisorLoop(ctx context.Context) {
 	client := csi.NewClient(h.socketPath, h.logger.Named("csi_client").With(
 		"plugin.name", h.task.CSIPluginConfig.ID,
 		"plugin.type", h.task.CSIPluginConfig.Type))
-	defer client.Close()
+
+	// this context joins the context we get from the Poststart hook (closed by
+	// task failure) and the one closed by the Stop hook (triggered by task
+	// stop)
+	supervisorCtx, supervisorCtxCancel := joincontext.Join(ctx, h.shutdownCtx)
+
+	// this context is used for the health timeout. If we can't connect within
+	// this deadline, assume the plugin is broken so we can restart the task
+	startCtx, startCancelFn := context.WithTimeout(ctx, h.task.CSIPluginConfig.HealthTimeout)
+
+	defer func() {
+		h.supervisorIsRunningLock.Lock()
+		h.supervisorIsRunning = false
+		client.Close()
+		supervisorCtxCancel()
+		startCancelFn()
+		h.supervisorIsRunningLock.Unlock()
+	}()
 
 	t := time.NewTimer(0)
-
-	// We're in Poststart at this point, so if we can't connect within
-	// this deadline, assume it's broken so we can restart the task
-	startCtx, startCancelFn := context.WithTimeout(ctx, h.task.CSIPluginConfig.HealthTimeout)
-	defer startCancelFn()
 
 	var err error
 	var pluginHealthy bool
@@ -280,7 +299,9 @@ WAITFORREADY:
 	for {
 		select {
 		case <-startCtx.Done():
-			h.kill(ctx, fmt.Errorf("CSI plugin failed probe: %v", err))
+			h.restartTask(ctx, fmt.Errorf("CSI plugin failed probe: %v", err))
+			return
+		case <-supervisorCtx.Done():
 			return
 		case <-t.C:
 			pluginHealthy, err = h.supervisorLoopOnce(startCtx, client)
@@ -306,7 +327,7 @@ WAITFORREADY:
 	// Step 2: Register the plugin with the catalog.
 	deregisterPluginFn, err := h.registerPlugin(client, h.socketPath)
 	if err != nil {
-		h.kill(ctx, fmt.Errorf("CSI plugin failed to register: %v", err))
+		h.restartTask(ctx, fmt.Errorf("CSI plugin failed to register: %v", err))
 		return
 	}
 	// De-register plugins on task shutdown
@@ -317,10 +338,10 @@ WAITFORREADY:
 	t.Reset(0)
 	for {
 		select {
-		case <-ctx.Done():
+		case <-supervisorCtx.Done():
 			return
 		case <-t.C:
-			pluginHealthy, err := h.supervisorLoopOnce(ctx, client)
+			pluginHealthy, err := h.supervisorLoopOnce(supervisorCtx, client)
 			if err != nil {
 				h.logger.Error("CSI plugin fingerprinting failed", "error", err)
 			}
@@ -448,18 +469,17 @@ func (h *csiPluginSupervisorHook) Stop(_ context.Context, req *interfaces.TaskSt
 	return nil
 }
 
-func (h *csiPluginSupervisorHook) kill(ctx context.Context, reason error) {
-	h.logger.Error("killing task because plugin failed", "error", reason)
+func (h *csiPluginSupervisorHook) restartTask(ctx context.Context, reason error) {
+	h.logger.Error("restarting task because plugin failed", "error", reason)
 	event := structs.NewTaskEvent(structs.TaskPluginUnhealthy)
 	event.SetMessage(fmt.Sprintf("Error: %v", reason.Error()))
 	h.eventEmitter.EmitEvent(event)
 
-	if err := h.lifecycle.Kill(ctx,
-		structs.NewTaskEvent(structs.TaskKilling).
-			SetFailsTask().
+	if err := h.lifecycle.Restart(ctx,
+		structs.NewTaskEvent(structs.TaskRestarting).
 			SetDisplayMessage(fmt.Sprintf("CSI plugin did not become healthy before configured %v health timeout", h.task.CSIPluginConfig.HealthTimeout.String())),
-	); err != nil {
-		h.logger.Error("failed to kill task", "kill_reason", reason, "error", err)
+		true); err != nil {
+		h.logger.Error("failed to restart task", "restart_reason", reason, "error", err)
 	}
 }
 
