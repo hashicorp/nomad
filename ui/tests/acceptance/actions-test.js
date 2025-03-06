@@ -324,7 +324,7 @@ module('Acceptance | actions', function (hooks) {
   });
 
   test('Actions flyout gets dynamic actions list', async function (assert) {
-    assert.expect(6);
+    assert.expect(8);
     let managementToken = server.create('token', {
       type: 'management',
       name: 'Management Token',
@@ -367,47 +367,43 @@ module('Acceptance | actions', function (hooks) {
     // head back into the job, and into a task
     await Actions.visitIndex({ id: 'actionable-job' });
     await click('[data-test-task-group="actionable-group"] a');
-    console.log(
-      'pre-click, do I see the task-name element?',
-      document.querySelector('.task-name')
-    );
     await percySnapshot('DEBUG: Task name click after flyout');
-    //   await click('.task-name');
-    //   // Click global button
-    //   await Actions.globalButton.click();
-    //   // Dropdown present
-    //   assert.ok(
-    //     Actions.flyout.actions.isPresent,
-    //     'Flyout has actions dropdown on task page'
-    //   );
-    //   await percySnapshot(assert, {
-    //     percyCSS: `
-    //         g.tick { visibility: hidden; }
-    //         .recent-events-table td {
-    //           display: none;
-    //         }
-    //         .inline-definitions { visibility: hidden; }
-    //       `,
-    //   });
+    await click('.task-name');
+    // Click global button
+    await Actions.globalButton.click();
+    // Dropdown present
+    assert.ok(
+      Actions.flyout.actions.isPresent,
+      'Flyout has actions dropdown on task page'
+    );
+    await percySnapshot(assert, {
+      percyCSS: `
+          g.tick { visibility: hidden; }
+          .recent-events-table td {
+            display: none;
+          }
+          .inline-definitions { visibility: hidden; }
+        `,
+    });
 
-    //   // Clear finished actions and take a snapshot
-    //   await click('button[data-test-clear-finished-actions]');
+    // Clear finished actions and take a snapshot
+    await click('button[data-test-clear-finished-actions]');
 
-    //   await percySnapshot('Cleared actions/flyout open state', {
-    //     percyCSS: `
-    //         g.tick { visibility: hidden; }
-    //         .recent-events-table td {
-    //           display: none;
-    //         }
-    //         .inline-definitions { visibility: hidden; }
-    //       `,
-    //   });
+    await percySnapshot('Cleared actions/flyout open state', {
+      percyCSS: `
+          g.tick { visibility: hidden; }
+          .recent-events-table td {
+            display: none;
+          }
+          .inline-definitions { visibility: hidden; }
+        `,
+    });
 
-    //   // Close flyout; global button is no longer present
-    //   await Actions.flyout.close();
-    //   assert.notOk(
-    //     Actions.globalButton.isPresent,
-    //     'Global button is not present after flyout close'
-    //   );
+    // Close flyout; global button is no longer present
+    await Actions.flyout.close();
+    assert.notOk(
+      Actions.globalButton.isPresent,
+      'Global button is not present after flyout close'
+    );
   });
 });

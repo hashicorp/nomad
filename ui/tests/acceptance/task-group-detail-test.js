@@ -20,7 +20,6 @@ import TaskGroup from 'nomad-ui/tests/pages/jobs/job/task-group';
 import Layout from 'nomad-ui/tests/pages/layout';
 import pageSizeSelect from './behaviors/page-size-select';
 import moment from 'moment';
-import faker from 'nomad-ui/mirage/faker';
 
 let job;
 let taskGroup;
@@ -697,10 +696,13 @@ module('Acceptance | task group detail', function (hooks) {
       'Unknown',
     ],
     async beforeEach() {
-      faker.seed(4);
       ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
         (s) => {
-          server.createList('allocation', 5, { clientStatus: s });
+          server.createList('allocation', 5, {
+            jobId: job.id,
+            taskGroup: taskGroup.name,
+            clientStatus: s,
+          });
         }
       );
       await TaskGroup.visit({ id: job.id, name: taskGroup.name });
