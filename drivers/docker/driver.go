@@ -612,7 +612,10 @@ START:
 // loading it from the file system
 func (d *Driver) createImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *client.Client) (string, string, error) {
 	image := driverConfig.Image
-	repo, tag := parseDockerImage(image)
+	repo, tag, err := parseDockerImage(image)
+	if err != nil {
+		return "", "", fmt.Errorf("unable to create local docker image %q: %w", image, err)
+	}
 
 	// We're going to check whether the image is already downloaded. If the tag
 	// is "latest", or ForcePull is set, we have to check for a new version every time so we don't

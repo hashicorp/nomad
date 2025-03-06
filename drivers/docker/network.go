@@ -184,7 +184,10 @@ func (d *Driver) createSandboxContainerConfig(allocID string, createSpec *driver
 // pullInfraImage conditionally pulls the `infra_image` from the Docker registry
 // only if its name uses the "latest" tag or the image doesn't already exist locally.
 func (d *Driver) pullInfraImage(allocID string) error {
-	repo, tag := parseDockerImage(d.config.InfraImage)
+	repo, tag, err := parseDockerImage(d.config.InfraImage)
+	if err != nil {
+		return fmt.Errorf("unable to pull infra docker image %q: %w", d.config.InfraImage, err)
+	}
 
 	dockerClient, err := d.getDockerClient()
 	if err != nil {
