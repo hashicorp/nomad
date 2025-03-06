@@ -30,12 +30,13 @@ checkPlugin() {
         last_error="expected plugin to have at least 1 healthy nodes, found none"
         return 1
     fi
+    last_error=
     return 0
 }
 
 createVolume() {
     dir=$(dirname "${BASH_SOURCE[0]}")
-    nomad volume create "${dir}/volume.hcl" || {
+    nomad volume create "${dir}/nfs-volume.hcl" || {
         echo "Could not register volume"
         exit 1
     }
