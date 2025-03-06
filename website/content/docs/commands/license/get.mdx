@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad license get'
+page_title: 'nomad license get reference'
 description: |
-  The license get command is used to get the current license.
+  The `nomad license get` command fetches the Nomad Enterprise license from the Nomad server.
 ---
 
-# Command: license get
+# `nomad license get` reference
 
 The `license get` command is used to retrieve the current Nomad Enterprise
 license. The command is not forwarded to the Nomad leader, and will return
@@ -22,7 +22,7 @@ nomad license get [options]
 When ACLs are enabled, this command requires a token with the 'operator:read'
 capability.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
