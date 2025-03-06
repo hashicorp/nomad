@@ -18,6 +18,7 @@ export default create({
   plugin: text('[data-test-volume-plugin]'),
   hasNamespace: isPresent('[data-test-volume-namespace]'),
   namespace: text('[data-test-volume-namespace]'),
+  capacity: text('[data-test-volume-capacity]'),
 
   ...allocations('[data-test-allocation]', 'allocations'),
 

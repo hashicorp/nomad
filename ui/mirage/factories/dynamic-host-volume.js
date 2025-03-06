@@ -22,6 +22,18 @@ export default Factory.extend({
     return 'ready';
   },
 
+  capacityBytes() {
+    return 10000000;
+  },
+
+  accessMode() {
+    return 'single-node-writer';
+  },
+
+  attachmentMode() {
+    return 'file-system';
+  },
+
   path: () => faker.system.filePath(),
 
   afterCreate(volume, server) {

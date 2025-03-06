@@ -10,8 +10,6 @@
 <section class="section with-headspace">
   <h1 class="title" data-test-title>{{this.model.name}}</h1>
 
-  {{!-- TODO: add capabilities add capacitybytes --}}
-
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Volume Details</span>
@@ -41,6 +39,12 @@
           {{moment-from-now this.model.modifyTime}}
         </span>
       </span>
+      {{#if this.model.capacityBytes}}
+        <span class="pair" data-test-volume-capacity>
+          <span class="term">Capacity</span>
+          {{format-bytes this.model.capacityBytes}}
+        </span>
+      {{/if}}
     </div>
   </div>
 
@@ -85,4 +89,29 @@
       {{/if}}
     </div>
   </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Capabilities
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      <table class="table">
+        <thead>
+          <th>Setting</th>
+          <th>Value</th>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Access Mode</td>
+            <td data-test-access-mode>{{this.model.accessMode}}</td>
+          </tr>
+          <tr>
+            <td>Attachment Mode</td>
+            <td data-test-attachment-mode>{{this.model.attachmentMode}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </section>

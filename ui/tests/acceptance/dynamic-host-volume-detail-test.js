@@ -67,6 +67,7 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
       VolumeDetail.hasNamespace,
       'Namespace is omitted when there is only one namespace'
     );
+    assert.equal(VolumeDetail.capacity, 'Capacity 9.54 MiB');
   });
 
   test('/storage/volumes/:id should list all allocations the volume is attached to', async function (assert) {
@@ -184,6 +185,12 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
 
     assert.ok(VolumeDetail.allocationsTableIsEmpty);
     assert.equal(VolumeDetail.allocationsEmptyState.headline, 'No Allocations');
+  });
+
+  test('Capabilities table shows access mode and attachment mode', async function (assert) {
+    await VolumeDetail.visit({ id: `${volume.id}@default` });
+    assert.equal(VolumeDetail.capabilities.accessMode, 'single-node-writer');
+    assert.equal(VolumeDetail.capabilities.attachmentMode, 'file-system');
   });
 });
 
