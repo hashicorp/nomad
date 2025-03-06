@@ -28,6 +28,18 @@ variable "nomad_token" {
   sensitive   = true
 }
 
+variable "consul_addr" {
+  description = "The Consul API HTTP address."
+  type        = string
+  default     = "http://localhost:8500"
+}
+
+variable "consul_token" {
+  description = "The Secret ID of an ACL token to make requests to Consul with"
+  type        = string
+  sensitive   = true
+}
+
 variable "availability_zone" {
   description = "The AZ where the cluster is being run"
   type        = string

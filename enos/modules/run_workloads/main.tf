@@ -16,6 +16,9 @@ locals {
     NOMAD_CLIENT_CERT = var.cert_file
     NOMAD_CLIENT_KEY  = var.key_file
     NOMAD_TOKEN       = var.nomad_token
+    CONSUL_HTTP_TOKEN = var.consul_token
+    CONSUL_CACERT     = var.ca_file
+    CONSUL_HTTP_ADDR  = var.consul_addr
   }
 
   system_job_count     = length({ for k, v in var.workloads : k => v if v.type == "system" })
