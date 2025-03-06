@@ -16,7 +16,9 @@ that serves a similar purpose.
 Nomad stateful deployments allow users to effectively bind their jobs to host
 [volumes]. On a lower level, this means taking Nomad's basic unit of workload
 placement—the [allocation]—and making it possible for users to have allocations
-that are ["sticky"] to volume IDs.
+that are ["sticky"] to volume IDs. Since stateful deployments only support
+dynamic host volumes, using them effectively means binding a job to a particular
+node.
 
 Stateful Deployments work on a per-task-group basis, that is, each task group
 can indicate that a host volume it requires must be "sticky." This is done by
