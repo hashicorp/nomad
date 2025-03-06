@@ -2625,6 +2625,7 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 		if err != nil {
 			return err
 		}
+		a.oidcRequestCache.Store(a.srv.shutdownCtx, oidcReq)
 	}
 
 	// Use the cache to provide us with an OIDC provider for the auth method
@@ -3091,7 +3092,6 @@ func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodC
 		return nil, fmt.Errorf("failed to create OIDC request: %v", err)
 	}
 
-	a.oidcRequestCache.Store(a.srv.shutdownCtx, req)
 	return req, nil
 }
 

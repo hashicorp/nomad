@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -3632,6 +3633,84 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 	must.StrContains(t, escapedURL, "&response_type=code")
 	must.StrContains(t, escapedURL, "&scope=openid")
 	must.StrContains(t, escapedURL, "&state=st_")
+
+	t.Run("pkce", func(t *testing.T) {
+		authMethod := mockedAuthMethod.Copy()
+		authMethod.Name = mockedAuthMethod.Name + "-pkce"
+		authMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		authMethod.SetHash()
+		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(20, []*structs.ACLAuthMethod{authMethod}))
+
+		urlReq := structs.ACLOIDCAuthURLRequest{
+			AuthMethodName: authMethod.Name,
+			RedirectURI:    authMethod.Config.AllowedRedirectURIs[0],
+			ClientNonce:    "pkce_nonce",
+			WriteRequest: structs.WriteRequest{
+				Region: DefaultRegion,
+			},
+		}
+		var resp structs.ACLOIDCAuthURLResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCAuthURLRPCMethod, &urlReq, &resp)
+		must.NoError(t, err)
+
+		// The oidc.Req should have been cached with a PKCE verifier
+		// for use later in OIDCCompleteAuth
+		cachedReq := testServer.oidcRequestCache.Load(urlReq.ClientNonce)
+		must.NotNil(t, cachedReq, must.Sprint("oidc Req should be cached"))
+		must.NotNil(t, cachedReq.PKCEVerifier(), must.Sprint("cached req should have a PKCE verifier"))
+	})
+
+	t.Run("client assertion", func(t *testing.T) {
+		authMethod := mockedAuthMethod.Copy()
+		authMethod.Config.VerboseLogging = true
+		authMethod.Name = mockedAuthMethod.Name + "-client-assertion"
+		// we'll test a representative input variant of
+		// oidc.BuildClientAssertionJWT to make sure it gets called.
+		cassConfig := &structs.OIDCClientAssertion{
+			// different key sources are tested in oidc helper lib.
+			KeySource: "nomad",
+			Audience:  []string{"test-audience"},
+		}
+		authMethod.Config.OIDCClientAssertion = cassConfig
+		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(30, []*structs.ACLAuthMethod{authMethod}))
+
+		// Ensure keyring is initialized, so we can assert that we pass the
+		// right key into getClientAssertionJWT
+		testutil.WaitForKeyring(t, testServer.RPC, DefaultRegion)
+		nomadKey, _, err := testServer.encrypter.GetActiveKey()
+		must.NoError(t, err)
+
+		// Make the RPC call
+		urlReq := structs.ACLOIDCAuthURLRequest{
+			AuthMethodName: authMethod.Name,
+			RedirectURI:    authMethod.Config.AllowedRedirectURIs[0],
+			ClientNonce:    "client_assertion_nonce",
+			WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+		}
+		var urlResp structs.ACLOIDCAuthURLResponse
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLOIDCAuthURLRPCMethod, &urlReq, &urlResp))
+
+		// The oidc.Req should have been cached with a PKCE verifier
+		// for use later in OIDCCompleteAuth
+		oidcReq := testServer.oidcRequestCache.Load(urlReq.ClientNonce)
+		must.NotNil(t, oidcReq)
+		cachedJWT := oidcReq.ClientAssertionJWT()
+		must.NotNil(t, cachedJWT)
+
+		// The cap library will run this method internally.
+		signed, err := cachedJWT.Serialize()
+		must.NoError(t, err)
+
+		// This just verifies that it was signed by our public key.
+		// Extra validation of the headers/claims on the JWT are tested
+		// in our oidc helper lib.
+		token, err := jwt.Parse(signed, func(tok *jwt.Token) (any, error) {
+			return &nomadKey.PublicKey, nil
+		})
+		must.NoError(t, err)
+		must.NotNil(t, token, must.Sprint("nil parsed token"))
+		must.True(t, token.Valid, must.Sprint("parsed token invalid"))
+	})
 }
 
 func TestACL_OIDCCompleteAuth(t *testing.T) {
@@ -3833,6 +3912,102 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 	must.Len(t, 0, completeAuthResp5.ACLToken.Policies)
 	must.Len(t, 0, completeAuthResp5.ACLToken.Roles)
 	must.Eq(t, structs.ACLManagementToken, completeAuthResp5.ACLToken.Type)
+
+	// Now that we have a happy setup, test additional features.
+	// Note: these mutate mockedAuthMethod and oidcTestProvider.
+
+	// PKCE will apply to all subsequent tests
+	pkceVerifier, err := capOIDC.NewCodeVerifier()
+	must.NoError(t, err)
+	// because this does not allow setting it back to `nil`
+	oidcTestProvider.SetPKCEVerifier(pkceVerifier)
+
+	t.Run("pkce", func(t *testing.T) {
+
+		mockedAuthMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(60, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+		req := structs.ACLOIDCCompleteAuthRequest{
+			AuthMethodName: mockedAuthMethod.Name,
+			RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+			ClientNonce:    "pkce_nonce",
+			State:          "pkce_state",
+			Code:           "pkce_code",
+			WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+		}
+		oidcTestProvider.SetExpectedAuthNonce(req.ClientNonce)
+		oidcTestProvider.SetExpectedState(req.State)
+		oidcTestProvider.SetExpectedAuthCode(req.Code)
+
+		// Pretend that OIDCAuthURL was called as a separate request.
+		cacheOIDCRequest(t, testServer.oidcRequestCache, req,
+			// this is what we are here to test
+			capOIDC.WithPKCE(pkceVerifier))
+
+		var resp structs.ACLLoginResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &req, &resp)
+		must.NoError(t, err)
+		must.NotNil(t, resp.ACLToken)
+		must.Eq(t, structs.ACLManagementToken, resp.ACLToken.Type)
+	})
+
+	// We've already tested the actual JWT logic in TestACL_OIDCAuthURL,
+	// so here we can use a bogus serializer for the test provider to check.
+	mockJWT := &mockSerializer{s: "mock-it-to-me"}
+	// Client assertions apply to all subsequent tests,
+	// because this does not allow setting it back to "".
+	oidcTestProvider.SetClientAssertionJWT(mockJWT.s)
+
+	t.Run("client assertion", func(t *testing.T) {
+		mockedAuthMethod.Config.OIDCClientAssertion = &structs.OIDCClientAssertion{
+			// these fields will not be used, they just need to be valid.
+			KeySource: "nomad",
+			Audience:  []string{"mock-aud"},
+		}
+		// there's some extra logging if verbose, so toggle it on to make sure
+		// there's no errors or panics.
+		mockedAuthMethod.Config.VerboseLogging = true
+		t.Cleanup(func() {
+			mockedAuthMethod.Config.VerboseLogging = false
+		})
+		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(70, []*structs.ACLAuthMethod{mockedAuthMethod}))
+
+		req := structs.ACLOIDCCompleteAuthRequest{
+			AuthMethodName: mockedAuthMethod.Name,
+			RedirectURI:    mockedAuthMethod.Config.AllowedRedirectURIs[0],
+			ClientNonce:    "cass_nonce",
+			State:          "cass_state",
+			Code:           "cass_code",
+			WriteRequest:   structs.WriteRequest{Region: DefaultRegion},
+		}
+		oidcTestProvider.SetExpectedAuthNonce(req.ClientNonce)
+		oidcTestProvider.SetExpectedState(req.State)
+		oidcTestProvider.SetExpectedAuthCode(req.Code)
+
+		// Pretend that OIDCAuthURL was called as a separate request.
+		cacheOIDCRequest(t, testServer.oidcRequestCache, req,
+			capOIDC.WithPKCE(pkceVerifier), // needed from previous test
+			// this is what we care about
+			capOIDC.WithClientAssertionJWT(mockJWT),
+		)
+
+		var resp structs.ACLLoginResponse
+		err = msgpackrpc.CallWithCodec(codec, structs.ACLOIDCCompleteAuthRPCMethod, &req, &resp)
+		must.NoError(t, err)
+		must.NotNil(t, resp.ACLToken)
+		must.Eq(t, structs.ACLManagementToken, resp.ACLToken.Type)
+
+	})
+}
+
+// mockSerializer implements the capOIDC.JWTSerializer interface,
+// which is used to provide a client assertion JWT.
+type mockSerializer struct {
+	s string
+}
+
+func (s *mockSerializer) Serialize() (string, error) {
+	return s.s, nil
 }
 
 func TestACL_Login(t *testing.T) {
@@ -4027,18 +4202,25 @@ func TestACL_Login(t *testing.T) {
 	must.Eq(t, mockedAuthMethod.Type+"-"+mockedAuthMethod.Name+"-"+user, completeAuthResp6.ACLToken.Name)
 }
 
-// cacheOIDCRequest calls primes the oidc.Request cache, as OIDCAuthURL
-// usually would, to prepare for a subsequent OIDCCompleteAuth call.
-func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOIDCCompleteAuthRequest) {
-	oidcReq, err := capOIDC.NewRequest(time.Second, "http://127.0.0.1:4649/oidc/callback",
+// cacheOIDCRequest primes the oidc.Request cache, as OIDCAuthURL usually would,
+// to prepare for a subsequent OIDCCompleteAuth call.
+func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOIDCCompleteAuthRequest, opts ...capOIDC.Option) {
+	t.Helper()
+	opts = append(opts,
 		capOIDC.WithNonce(req.ClientNonce),
 		capOIDC.WithState(req.State),
 		capOIDC.WithNow(func() time.Time {
 			return time.Now().Add(time.Minute) // expire in the future
 		}),
 	)
+	oidcReq, err := capOIDC.NewRequest(
+		time.Second, "http://127.0.0.1:4649/oidc/callback",
+		opts...,
+	)
 	must.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	t.Cleanup(cancel)
+	// make sure the cache is clean first
+	cache.LoadAndDelete(req.ClientNonce)
 	cache.Store(ctx, oidcReq)
 }
