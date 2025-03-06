@@ -47,7 +47,8 @@ linters-settings:
     # exclude: /path/to/file.txt
   govet:
     # report about shadowed variables
-    check-shadowing: false
+    disable:
+      - shadow
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
     simplify: true
@@ -86,7 +87,6 @@ linters:
     - durationcheck
     # - errchkjson (todo)
     # - errorlint (todo)
-    - exportloopref
+    - copyloopvar
     - usestdlibvars
   fast: false
-

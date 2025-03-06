@@ -148,7 +148,6 @@ func (c *JobStopCommand) Run(args []string) int {
 
 	var wg sync.WaitGroup
 	for _, jobID := range jobIDs {
-		jobID := jobID
 
 		wg.Add(1)
 		go func() {
