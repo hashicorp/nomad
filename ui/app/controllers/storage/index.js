@@ -7,8 +7,6 @@ import { inject as service } from '@ember/service';
 import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import Controller from '@ember/controller';
-import { restartableTask } from 'ember-concurrency';
-import { reduceBytes } from 'nomad-ui/utils/units';
 import { scheduleOnce } from '@ember/runloop';
 
 export default class IndexController extends Controller {
@@ -20,20 +18,12 @@ export default class IndexController extends Controller {
     { qpNamespace: 'namespace' },
     'dhvPage',
     'csiPage',
-    'shvPage',
-    'edPage',
     'dhvFilter',
     'csiFilter',
-    'shvFilter',
-    'edFilter',
     'dhvSortProperty',
     'csiSortProperty',
-    'shvSortProperty',
-    'edSortProperty',
     'dhvSortDescending',
     'csiSortDescending',
-    'shvSortDescending',
-    'edSortDescending',
   ];
 
   @tracked qpNamespace = '*';
@@ -198,86 +188,21 @@ export default class IndexController extends Controller {
     );
   }
 
-  get filteredEphemeralDisks() {
-    if (!this.edFilter) {
-      return this.fetchedEphemeralDisks;
-    } else {
-      return this.fetchedEphemeralDisks.filter((disk) => {
-        return disk.name.toLowerCase().includes(this.edFilter.toLowerCase());
-      });
-    }
-  }
-
-  get sortedEphemeralDisks() {
-    let sorted = this.filteredEphemeralDisks.sortBy(this.edSortProperty);
-    if (this.edSortDescending) {
-      sorted.reverse();
-    }
-    return sorted;
-  }
-
-  get paginatedEphemeralDisks() {
-    return this.sortedEphemeralDisks.slice(
-      (this.edPage - 1) * this.userSettings.pageSize,
-      this.edPage * this.userSettings.pageSize
-    );
-  }
-
-  get filteredStaticHostVolumes() {
-    if (!this.shvFilter) {
-      return this.fetchedStaticHostVolumes;
-    } else {
-      return this.fetchedStaticHostVolumes.filter((volume) => {
-        return volume.name.toLowerCase().includes(this.shvFilter.toLowerCase());
-      });
-    }
-  }
-
-  get sortedStaticHostVolumes() {
-    let sorted = this.filteredStaticHostVolumes.sortBy(this.shvSortProperty);
-    if (this.shvSortDescending) {
-      sorted.reverse();
-    }
-    return sorted;
-  }
-
-  get paginatedStaticHostVolumes() {
-    return this.sortedStaticHostVolumes.slice(
-      (this.shvPage - 1) * this.userSettings.pageSize,
-      this.shvPage * this.userSettings.pageSize
-    );
-  }
-
   @tracked csiSortProperty = 'name';
   @tracked csiSortDescending = false;
   @tracked csiPage = 1;
+  @tracked csiFilter = '';
 
   @tracked dhvSortProperty = 'name';
   @tracked dhvSortDescending = false;
   @tracked dhvPage = 1;
-
-  @tracked shvSortProperty = 'name';
-  @tracked shvSortDescending = false;
-  @tracked shvPage = 1;
-
-  @tracked edSortProperty = 'sizeBytes';
-  @tracked edSortDescending = true;
-  @tracked edPage = 1;
-
-  @tracked csiFilter = '';
   @tracked dhvFilter = '';
-  @tracked shvFilter = '';
-  @tracked edFilter = '';
 
   @action handlePageChange(type, page) {
     if (type === 'csi') {
       this.csiPage = page;
     } else if (type === 'dhv') {
       this.dhvPage = page;
-    } else if (type === 'shv') {
-      this.shvPage = page;
-    } else if (type === 'ed') {
-      this.edPage = page;
     }
   }
 
@@ -287,101 +212,11 @@ export default class IndexController extends Controller {
   }
 
   @action applyFilter(type, event) {
-    console.log('applyFilter', type, event);
     this[`${type}Filter`] = event.target.value;
     this[`${type}Page`] = 1;
   }
 
   @action openDHV(dhv) {
     this.router.transitionTo('storage.dhv', dhv.name);
-  }
-
-  @tracked fetchedEphemeralDisks = [];
-  @tracked fetchedStaticHostVolumes = [];
-
-  // TODO: decomission Ephemeral Disk stuff, short of explaining it
-
-  @restartableTask *scanForEphemeralDisks() {
-    // Reset filters and pagination
-    this.edPage = 1;
-    this.edFilter = '';
-    this.edSortProperty = 'sizeBytes';
-    this.edSortDescending = true;
-
-    const allAllocs = yield this.store.query(
-      'allocation',
-      { namespace: this.qpNamespace },
-      { reload: true }
-    );
-    const allocDataDirs = yield Promise.all(
-      allAllocs.map(async (alloc) => {
-        return {
-          alloc,
-          files: await alloc.ls('alloc/data'),
-        };
-      })
-    );
-
-    yield (this.fetchedEphemeralDisks = allocDataDirs.map((dir) => {
-      const files = dir.files;
-      const totalFileSize = files.reduce((acc, file) => {
-        return acc + file.Size;
-      }, 0);
-      const [size, unit] = reduceBytes(totalFileSize);
-      return {
-        name: dir.alloc.name,
-        id: dir.alloc.id,
-        sizeBytes: totalFileSize,
-        size: `${+size.toFixed(2)} ${unit}`,
-      };
-    }));
-  }
-
-  @restartableTask *scanForStaticHostVolumes() {
-    // Reset filters and pagination
-    this.shvPage = 1;
-    this.shvFilter = '';
-    this.shvSortProperty = 'name';
-    this.shvSortDescending = false;
-
-    const allNodes = yield this.store.query(
-      'node',
-      { namespace: this.qpNamespace },
-      { reload: true }
-    );
-
-    yield (this.fetchedStaticHostVolumes = allNodes
-      .map((node) => {
-        const hostVolumes = node.hostVolumes.filter((volume) => {
-          return !volume.volumeID;
-        });
-        return hostVolumes.map((volume) => {
-          return {
-            name: volume.name,
-            path: volume.path,
-            readOnly: volume.readOnly,
-            nodeID: node.id,
-          };
-        });
-      })
-      .flat());
-  }
-
-  // keyboard-shortcut-friendly actions
-
-  @action performScanForEphemeralDisks() {
-    this.scanForEphemeralDisks.perform();
-  }
-
-  @action performScanForStaticHostVolumes() {
-    this.scanForStaticHostVolumes.perform();
-  }
-
-  @action pauseScanForEphemeralDisks() {
-    this.scanForEphemeralDisks.cancelAll();
-  }
-
-  @action pauseScanForStaticHostVolumes() {
-    this.scanForStaticHostVolumes.cancelAll();
   }
 }

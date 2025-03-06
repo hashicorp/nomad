@@ -205,199 +205,28 @@
       {{/if}}
     </Hds::Card::Container>
 
-    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card"
-      {{keyboard-shortcut
-        label="Scan for Static Host Volumes"
-        pattern=(array "s" "c" "a" "n")
-        action=(action "performScanForStaticHostVolumes")
-      }}
-    >
-      <header aria-label="Static Host Volumes">
-        <h3>
-          Static Host Volumes
-          <Hds::TooltipButton @text="Static Host Volumes are scanned by reading all nodes in your cluster, so this list will not automatically load or update." aria-label="Static Host Volumes are scanned by reading all nodes in your cluster, so this list will not automatically load or update.">
-            <Hds::Icon @name="info" />
-          </Hds::TooltipButton>
-        </h3>
-        <div class="actions">
-          <Hds::Button
-            @color="secondary"
-            disabled={{this.scanForStaticHostVolumes.isRunning}}
-            @icon={{if this.scanForStaticHostVolumes.isRunning "loading" "search"}}
-            @text="{{if this.scanForStaticHostVolumes.isRunning "Scanning" "Scan"}} for Static Host Volumes"
-            {{on "click" (perform this.scanForStaticHostVolumes)}}
-          />
-          {{#if this.scanForStaticHostVolumes.isRunning}}
-            <Hds::Button
-              autofocus
-              @icon="x"
-              @iconPosition="trailing"
-              @text="cancel"
-              @color="tertiary"
-              {{on "click" (action this.pauseScanForStaticHostVolumes)}}
-            />
-          {{/if}}
-        </div>
-        <p class="intro">
-          Defined in the Nomad agent's config file, best for infrequently changing storage
-        </p>
-        <div class="search">
-          {{#if this.fetchedStaticHostVolumes.length}}
-            <Hds::Form::TextInput::Field
-              data-test-static-host-volumes-search
-              @type="search"
-              @value={{this.shvFilter}}
-              placeholder="Search Static Host Volumes"
-              autofocus
-              {{on "input" (action this.applyFilter "shv")}}
-            />
-          {{/if}}
-        </div>
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="info-panels storage-index-table-card">
+      <header aria-label="Other Storage Types">
+        <h3>Other Storage Types</h3>
       </header>
-      {{#if this.fetchedStaticHostVolumes.length}}
-        {{#if this.paginatedStaticHostVolumes.length}}
-          <Hds::Table @caption="Static Host Volumes" @model={{this.paginatedStaticHostVolumes}}
-            @columns={{array
-              (hash key="name" label="Name" isSortable=true)
-              (hash key="path" label="Path" isSortable=true)
-              (hash key="nodeID" label="Node" isSortable=true)
-              (hash key="readOnly" label="Read Only?" isSortable=true)
-            }}
-            @sortBy={{this.shvSortProperty}}
-            @sortOrder={{if this.shvSortDescending "desc" "asc"}}
-            @onSort={{action this.handleSort "shv"}}
-          >
-            <:body as |B|>
-              <B.Tr>
-                <B.Td>
-                  <LinkTo @route="clients.client" @models={{array B.data.nodeID}}>{{B.data.name}}</LinkTo>
-                </B.Td>
-                <B.Td>{{B.data.path}}</B.Td>
-                <B.Td>{{B.data.nodeID}}</B.Td>
-                <B.Td>{{B.data.readOnly}}</B.Td>
-              </B.Tr>
-            </:body>
-          </Hds::Table>
-          {{#if (gt this.sortedStaticHostVolumes.length this.userSettings.pageSize)}}
-            <Hds::Pagination::Numbered
-              @totalItems={{this.filteredStaticHostVolumes.length}}
-              @currentPage={{this.shvPage}}
-              @pageSizes={{this.pageSizes}}
-              @currentPageSize={{this.userSettings.pageSize}}
-              @onPageChange={{action this.handlePageChange "shv"}}
-              @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
-            />
-          {{/if}}
-        {{else}}
-          <div class="empty-message">
-            <p>No static host volumes match your search for "{{this.shvFilter}}"</p>
-            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.shvFilter) "") (action this.handlePageChange "shv" 1))}} />
-          </div>
-        {{/if}}
-      {{else if
-        (and
-          (not this.scanForStaticHostVolumes.isRunning)
-          this.scanForStaticHostVolumes.lastSuccessful
-        )
-      }}
-        <div class="empty-message">
-          <p>No Static Host Volumes found</p>
-        </div>
-      {{/if}}
-    </Hds::Card::Container>
-
-    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card"
-      {{keyboard-shortcut
-        label="Scan for Ephemeral Disks"
-        pattern=(array "s" "c" "a" "n")
-        action=(action "performScanForEphemeralDisks")
-      }}
-    >
-      <header aria-label="Ephemeral Disks">
-        <h3>
-          Ephemeral Disks
-          <Hds::TooltipButton @text="Ephemeral Disks are scanned by reading all allocations in your cluster, so this list will not automatically load or update." aria-label="Ephemeral Disks are scanned by reading all allocations in your cluster, so this list will not automatically load or update.">
-            <Hds::Icon @name="info" />
-          </Hds::TooltipButton>
-        </h3>
-        <div class="actions">
-          <Hds::Button
-            @color="secondary"
-            disabled={{this.scanForEphemeralDisks.isRunning}}
-            @icon={{if this.scanForEphemeralDisks.isRunning "loading" "search"}}
-            @text="{{if this.scanForEphemeralDisks.isRunning "Scanning" "Scan"}} for Ephemeral Disks"
-            {{on "click" (perform this.scanForEphemeralDisks)}}
-          />
-          {{#if this.scanForEphemeralDisks.isRunning}}
-            <Hds::Button
-              autofocus
-              @icon="x"
-              @iconPosition="trailing"
-              @text="cancel"
-              @color="tertiary"
-              {{on "click" (action this.pauseScanForEphemeralDisks)}}
-            />
-          {{/if}}
-        </div>
-        <p class="intro">
-          Best-effort persistence, ideal for rebuildable data. Stored in the <code>/alloc/data</code> directory in a given allocation.
-        </p>
-        {{#if this.fetchedEphemeralDisks.length}}
-          <div class="search">
-            <Hds::Form::TextInput::Field
-              data-test-ephemeral-disks-search
-              @type="search"
-              @value={{this.edFilter}}
-              placeholder="Search Ephemeral Disks"
-              {{on "input" (action this.applyFilter "ed")}}
-            />
-          </div>
-        {{/if}}
-      </header>
-      {{#if this.fetchedEphemeralDisks.length}}
-        {{#if this.paginatedEphemeralDisks.length}}
-          <Hds::Table @caption="Ephemeral Disks"
-            @model={{this.paginatedEphemeralDisks}}
-            @columns={{array (hash key="name" label="Name" isSortable=true) (hash key="sizeBytes" label="Size" isSortable=true)}}
-            @sortBy={{this.edSortProperty}}
-            @sortOrder={{if this.edSortDescending "desc" "asc"}}
-            @onSort={{action this.handleSort "ed"}}
-          >
-            <:body as |B|>
-              <B.Tr>
-                <B.Td>
-                  <LinkTo @route="allocations.allocation.fs" @models={{array B.data.id 'alloc/data'}}>{{B.data.name}}</LinkTo>
-                </B.Td>
-                <B.Td>{{B.data.size}}</B.Td>
-              </B.Tr>
-            </:body>
-          </Hds::Table>
-          {{#if (gt this.sortedEphemeralDisks.length this.userSettings.pageSize)}}
-            <Hds::Pagination::Numbered
-              @totalItems={{this.filteredEphemeralDisks.length}}
-              @currentPage={{this.edPage}}
-              @pageSizes={{this.pageSizes}}
-              @currentPageSize={{this.userSettings.pageSize}}
-              @onPageChange={{action this.handlePageChange "ed"}}
-              @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
-            />
-          {{/if}}
-        {{else}}
-          <div class="empty-message">
-            <p>No ephemeral disks match your search for "{{this.edFilter}}"</p>
-            <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.edFilter) "") (action this.handlePageChange "ed" 1))}} />
-          </div>
-        {{/if}}
-      {{else if
-        (and
-          (not this.scanForEphemeralDisks.isRunning)
-          this.scanForEphemeralDisks.lastSuccessful
-        )
-      }}
-        <div class="empty-message">
-          <p>No Ephemeral Disks found</p>
-        </div>
-      {{/if}}
+        <Hds::Alert @type="inline" @color="highlight" @icon="hard-drive" as |A|>
+          <A.Title>
+            Static Host Volumes
+          </A.Title>
+          <A.Description>
+            Defined in the Nomad agent's config file, best for infrequently changing storage
+          </A.Description>
+           <A.Button @color="secondary" @icon="arrow-right" @iconPosition="trailing" @text="Learn more" @href="https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads-host-volumes" />
+        </Hds::Alert>
+        <Hds::Alert @type="inline" @color="highlight" @icon="hard-drive" as |A|>
+          <A.Title>
+            Ephemeral Disks
+          </A.Title>
+          <A.Description>
+            Best-effort persistence, ideal for rebuildable data. Stored in the <code>/alloc/data</code> directory in a given allocation.
+          </A.Description>
+           <A.Button @color="secondary" @icon="arrow-right" @iconPosition="trailing" @text="Learn more" @href="https://developer.hashicorp.com/nomad/docs/operations/stateful-workloads#ephemeral-disks" />
+        </Hds::Alert>
     </Hds::Card::Container>
 
   {{/if}}

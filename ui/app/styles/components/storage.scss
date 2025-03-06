@@ -52,4 +52,14 @@
       gap: 1rem;
     }
   }
+
+  .info-panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    header {
+      grid-column: -1 / 1;
+      grid-template-areas: "title";
+    }
+  }
 }
