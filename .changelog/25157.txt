@@ -1,0 +1,3 @@
+```release-note:bug
+client: skip a task groups shutdown_delay when all tasks have already been deregistered
+```
