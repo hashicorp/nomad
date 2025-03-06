@@ -7,7 +7,8 @@ description: |
 
 # `nomad volume claim delete` reference
 
-The `volume claim delete` command deletes a task group host volume claim. [Stateful deployments][stateful deployments] use these claims.
+The `volume claim delete` command deletes a task group host volume claim.
+[Stateful deployments][stateful deployments] use these claims.
 
 ## Usage
 
@@ -15,13 +16,13 @@ The `volume claim delete` command deletes a task group host volume claim. [State
 nomad volume claim delete [options] <claim_id>
 ```
 
-This command accepts claim ID or prefix as the sole argument.  The command
-deletes the claim if there is an exact match based on the provided claim ID or
-prefix, Otherwise, the command displays a list of matching claims and
+This command accepts claim ID or prefix as the sole argument. The command
+deletes the claim if there is an exact match based on the provided claim
+ID or prefix, Otherwise, the command displays a list of matching claims and
 information.
 
-When ACLs are enabled, this command requires a token with the `host-volume-write`
-capability in the volume's namespace.
+When ACLs are enabled, this command requires a token with the
+`host-volume-write` capability in the volume's namespace.
 
 ## General options
 
