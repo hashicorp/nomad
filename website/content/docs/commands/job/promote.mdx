@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: job promote'
+page_title: 'nomad job promote reference'
 description: |
-  The promote command is used to promote a job's canaries.
+  The `nomad job promote` command promotes healthy task group canaries in a deployment.
 ---
 
-# Command: job promote
+# `nomad job promote` reference
 
 The `job promote` command is used to promote task groups in the most recent
 deployment for the given job. Promotion should occur when the deployment has
@@ -32,11 +32,11 @@ and `read-job` capabilities for the job's namespace. The `list-jobs`
 capability is required to run the command with a job prefix instead of the
 exact job ID.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Promote Options
+## Promote options
 
 - `-group`: Group may be specified many times and is used to promote that
   particular group. If no specific groups are specified, all groups are

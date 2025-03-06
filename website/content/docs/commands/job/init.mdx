@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: job init'
+page_title: 'nomad job init reference'
 description: |
-  The job init command is used to generate a skeleton jobspec template.
+  The `nomad job init` command generates a job specification with example configurations for tasks, task groups, runtime constraints, and resource allocation.
 ---
 
-# Command: job init
+# `nomad job init` reference
 
 **Alias: `nomad init`**
 
@@ -25,7 +25,7 @@ default filename for the generated file is "example.nomad.hcl".
 Please refer to the [jobspec] and [drivers] pages to learn how to customize the
 template.
 
-## Init Options
+## Init options
 
 - `-short`: If set, a minimal jobspec without comments is emitted.
 - `-connect`: If set, the jobspec includes Consul Connect integration.

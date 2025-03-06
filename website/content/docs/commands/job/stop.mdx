@@ -1,11 +1,12 @@
 ---
 layout: docs
-page_title: 'Commands: job stop'
+page_title: 'nomad job stop reference'
 description: |
-  The job stop command is used to stop a running job.
+  The `nomad job stop` command stops a running job and signals the scheduler
+  to cancel all of the job's running allocations.
 ---
 
-# Command: job stop
+# `nomad job stop` reference
 
 **Alias: `nomad stop`**
 
@@ -32,11 +33,11 @@ and `read-job` capabilities for the job's namespace. The `list-jobs`
 capability is required to run the command with job prefixes instead of exact
 job IDs.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Stop Options
+## Stop options
 
 - `-detach`: Return immediately instead of entering monitor mode. After the
   deregister command is submitted, a new evaluation ID is printed to the screen,

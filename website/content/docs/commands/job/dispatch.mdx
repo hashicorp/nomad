@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: job dispatch'
+page_title: 'nomad job dispatch reference'
 description: |
-  The dispatch command is used to create an instance of a parameterized job.
+  The `nomad job dispatch` creates an instance of a parameterized job.
 ---
 
-# Command: job dispatch
+# `nomad job dispatch` reference
 
 The `job dispatch` command is used to create new instances of a [parameterized
 job]. The parameterized job captures a job's configuration and runtime
@@ -53,11 +53,11 @@ not used.
 See the [multiregion] documentation for additional considerations when
 dispatching parameterized jobs.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Dispatch Options
+## Dispatch options
 
 - `-meta`: Meta takes a key/value pair separated by "=". The metadata key will
   be merged into the job's metadata. The job may define a default value for the
