@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: eval delete'
+page_title: 'nomad eval delete reference'
 description: |
-  The eval delete command is used to delete evaluations.
+  The `nomad eval delete` command deletes an evaluation by ID or a group of evaluations that match a filter.
 ---
 
-# Command: eval delete
+# `nomad eval delete` reference
 
 The `eval delete` command is used to delete evaluations. It should be used
 cautiously and only in outage situations where there is a large backlog of
@@ -29,11 +29,11 @@ and delete a set of evaluations.
 
 When ACLs are enabled, this command requires a `management` token.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Delete Options
+## Delete options
 
 - `-filter`: Specifies an expression used to filter evaluations by for
   deletion. When using this flag, it is advisable to ensure the syntax is
