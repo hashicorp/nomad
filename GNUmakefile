@@ -136,16 +136,16 @@ deps:  ## Install build and development dependencies
 	go install github.com/hashicorp/go-msgpack/v2/codec/codecgen@v2.1.2
 	go install github.com/bufbuild/buf/cmd/buf@v0.36.0
 	go install github.com/hashicorp/go-changelog/cmd/changelog-build@latest
-	go install golang.org/x/tools/cmd/stringer@v0.18.0
+	go install golang.org/x/tools/cmd/stringer@v0.30.0
 	go install github.com/hashicorp/hc-install/cmd/hc-install@v0.9.0
 	go install github.com/shoenig/go-modtool@v0.2.0
 
 .PHONY: lint-deps
 lint-deps: ## Install linter dependencies
 	@echo "==> Updating linter dependencies..."
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.5
 	go install github.com/client9/misspell/cmd/misspell@v0.3.4
-	go install github.com/hashicorp/go-hclog/hclogvet@v0.2.0
+	go install github.com/hashicorp/go-hclog/hclogvet@feaf6d2ec20fd895e711195c99e3fde93a68afc5
 
 .PHONY: git-hooks
 git-dir = $(shell git rev-parse --git-dir)
