@@ -18,7 +18,6 @@ Nomad stateful deployments allow users to effectively bind their jobs to host
 placement—the [allocation]—and making it possible for users to have allocations
 that are ["sticky"] to volume IDs.
 
-
 Stateful Deployments work on a per-task-group basis, that is, each task group
 can indicate that a host volume it requires must be "sticky." This is done by
 setting the parameter in the jobspec:
@@ -38,19 +37,19 @@ job "app" {
 }
 ```
 
-If a volume is set to be sticky, during the deployment the scheduler associates
-its ID with the task group that uses it. Stateful deployments require that any
-allocations belonging to that task group will only be (re)placed on nodes that
-have this volume ID available.
+If you set the volume to "sticky," during the deployment the scheduler
+associates its ID with the task group that uses it. Stateful deployments require
+that any allocations belonging to that task group will only be (re)placed on
+nodes that have this volume ID available.
 
 Scaling jobs with sticky volumes up results in more volume IDs claimed by the
 task group, but scaling jobs down does not delete unused volumes, nor does it
 touch the data present on them.
 
 If the scheduler cannot find a node that has the right volume ID present
-(perhaps because the node is down or disconnected), a blocked evaluation will be
-created and the job will remain in `pending` status until it's either stopped by
-the user or a feasible node is found.
+(perhaps because the node is down or disconnected), a blocked evaluation is
+created and the job remains in `pending` status until it's either stopped by the
+user or a feasible node is found.
 
 [allocation]: /nomad/docs/glossary#allocation
 ["sticky"]: /nomad/docs/job-specification/volume#sticky
