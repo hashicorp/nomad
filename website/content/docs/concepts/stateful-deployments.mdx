@@ -1,28 +1,29 @@
 ---
 layout: docs
-page_title: Stateful Deployments
+page_title: Stateful deployments
 description: |-
-  Learn how Nomad handles Stateful Deployments.
+  Learn how Nomad handles stateful deployments. Use a dynamic host volume for your stateful workload and bind an allocation to a volume ID with the sticky parameter. Learn how Nomad scales jobs with sticky volumes. 
 ---
 
-# Stateful Deployments
+# Stateful deployments
 
 <Note>
-Stateful deployments support only dynamic host volumes. For CSI volumes, we have
-<a href="/nomad/docs/job-specification/volume#per_alloc">per_alloc</a> property
-that serves a similar purpose.
+
+Stateful deployments support only dynamic host volumes. For CSI volumes, use the
+[`per_alloc` property](/nomad/docs/job-specification/volume#per_alloc), 
+which serves a similar purpose.
+
 </Note>
 
-Nomad stateful deployments allow users to effectively bind their jobs to host
-[volumes]. On a lower level, this means taking Nomad's basic unit of workload
-placement—the [allocation]—and making it possible for users to have allocations
-that are ["sticky"] to volume IDs. Since stateful deployments only support
-dynamic host volumes, using them effectively means binding a job to a particular
-node.
+Nomad stateful deployments let you effectively bind your jobs to host [volumes].
+On a lower level, this means taking Nomad's basic unit of workload placement,
+the [allocation], and making it possible for you to have allocations that are
+[sticky] to volume IDs. Since stateful deployments only support dynamic host
+volumes, using them effectively means binding a job to a particular node.
 
-Stateful Deployments work on a per-task-group basis, that is, each task group
-can indicate that a host volume it requires must be "sticky." This is done by
-setting the parameter in the jobspec:
+Stateful deployments work on a per-task-group basis. Use the `volume.sticky` parameter in your job specification to indicate that each task group requires a sticky host volume.
+
+This example sets the volume's `sticky` parameter to `true`.
 
 ```hcl
 job "app" {
@@ -39,19 +40,27 @@ job "app" {
 }
 ```
 
-If you set the volume to "sticky," during the deployment the scheduler
+If you set the volume to sticky, during the deployment the scheduler
 associates its ID with the task group that uses it. Stateful deployments require
-that any allocations belonging to that task group will only be (re)placed on
+that any allocations belonging to that task group must be places or replaced on
 nodes that have this volume ID available.
 
 Scaling jobs with sticky volumes up results in more volume IDs claimed by the
 task group, but scaling jobs down does not delete unused volumes, nor does it
 touch the data present on them.
 
-If the scheduler cannot find a node that has the right volume ID present
-(perhaps because the node is down or disconnected), a blocked evaluation is
-created.
+If the scheduler cannot find a node that has the right volume ID present,
+perhaps because the node is down or disconnected, Nomad creates a blocked evaluation.
 
+## Related resources
+
+Refer to the following Nomad pages for more information about stateful workloads and volumes:
+
+- [Considerations for Stateful Workloads](/nomad/docs/operations/stateful-workloads) explores the options for persistent storage of workloads running in Nomad.
+- The [Nomad volume specification][volumes] defines the schema for creating and registering volumes. 
+- The [job specification `volume` block](/nomad/docs/job-specification/volume) lets you configure a group that requires a specific volume from the cluster.
+- The [Stateful Workloads](/nomad/tutorials/stateful-workloads) tutorials explore techniques to run jobs that require access to persistent storage.
+ 
 [allocation]: /nomad/docs/glossary#allocation
-["sticky"]: /nomad/docs/job-specification/volume#sticky
+[sticky]: /nomad/docs/job-specification/volume#sticky
 [volumes]: /nomad/docs/other-specifications/volume

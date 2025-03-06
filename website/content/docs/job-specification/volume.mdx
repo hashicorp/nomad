@@ -76,12 +76,12 @@ the [volume_mount][volume_mount] block in the `task` configuration.
   used for validating `host_volume` ACLs and for scheduling when a
   matching `host_volume` requires `read_only` usage.
 
-- `sticky` `(bool: false)` - Specifies that this volume is supposed to "stick"
-  to the allocation that uses it. This means that upon every reschedule and
-  replacement, the task group will always receive the volume with the same ID, if
-  available. "Sticky" volumes are used for [stateful deployments].
-  The `sticky` field can only be used for dynamic host volumes. For CSI volumes,
-  `per_alloc` field provides similar functionality.
+- `sticky` `(bool: false)` - Specifies that this volume sticks to the allocation
+  that uses it. Upon every reschedule and replacement, the task
+  group always receives the volume with the same ID, if available. Use sticky
+  volumes for [stateful deployments]. You may only use the `sticky` field for
+  dynamic host volumes. For CSI volumes, the `per_alloc` field provides similar
+  functionality
 
 - `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
   should have the suffix `[n]`, where `n` is the allocation index. This allows
@@ -91,8 +91,8 @@ the [volume_mount][volume_mount] block in the `task` configuration.
   volume ID `myvolume[0]`.
 
   The `per_alloc` field cannot be true for system jobs, sysbatch jobs, or jobs
-  that use canaries. `per_alloc` is mutually exclusive with `sticky`
-  property—the former can only be used with CSI volumes, and the latter only
+  that use canaries. `per_alloc` is mutually exclusive with the `sticky`
+  property. Use `per_alloc` only with CSI volumes and `sticky` only
   with dynamic host volumes.
 
 The following fields are only valid for volumes with `type = "csi"` or dynamic
