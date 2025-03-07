@@ -31,12 +31,12 @@ export default class VolumeController extends Controller {
     return [
       {
         label: 'Volumes',
-        args: ['csi.volumes'],
+        args: ['storage.volumes'],
       },
       {
         label: volume.name,
         args: [
-          'csi.volumes.volume',
+          'storage.volumes.volume',
           volume.plainId,
           qpBuilder({
             volumeNamespace: volume.get('namespace.name') || 'default',

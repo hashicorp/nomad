@@ -134,7 +134,7 @@ module('Acceptance | search', function (hooks) {
 
     await selectSearch(Layout.navbar.search.scope, 'xy');
     await Layout.navbar.search.groups[4].options[0].click();
-    assert.equal(currentURL(), '/csi/plugins/xyz-plugin');
+    assert.equal(currentURL(), '/storage/plugins/xyz-plugin');
 
     const fuzzySearchQueries = server.pretender.handledRequests.filterBy(
       'url',

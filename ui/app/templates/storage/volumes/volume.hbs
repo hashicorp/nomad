@@ -7,6 +7,7 @@
   <Breadcrumb @crumb={{crumb}} />
 {{/each}}
 {{page-title "CSI Volume " this.model.name}}
+{{!-- TODO: determine if /volumes/volume will just be CSI or if we ought to generalize it --}}
 <section class="section with-headspace">
   <h1 class="title" data-test-title>{{this.model.name}}</h1>
 
@@ -57,7 +58,7 @@
           </t.head>
           <t.body as |row|>
             <AllocationRow
-              {{keyboard-shortcut 
+              {{keyboard-shortcut
                 enumerated=true
                 action=(action "gotoAllocation" row.model)
               }}
@@ -99,7 +100,7 @@
           </t.head>
           <t.body as |row|>
             <AllocationRow
-              {{keyboard-shortcut 
+              {{keyboard-shortcut
                 enumerated=true
                 action=(action "gotoAllocation" row.model)
               }}

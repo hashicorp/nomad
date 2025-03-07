@@ -6,12 +6,12 @@
 <div class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
   <ul>
     <li data-test-tab="volumes">
-      <LinkTo @route="csi.volumes.index" @activeClass="is-active">
+      <LinkTo @route="storage.volumes.index" @activeClass="is-active">
         Volumes
       </LinkTo>
     </li>
     <li data-test-tab="plugins">
-      <LinkTo @route="csi.plugins.index" @activeClass="is-active">
+      <LinkTo @route="storage.plugins.index" @activeClass="is-active">
         Plugins
       </LinkTo>
     </li>
