@@ -1,17 +1,16 @@
 ---
 layout: docs
-page_title: 'nomad quota status'
+page_title: 'nomad quota status reference'
 description: >
-  The quota status command is used to view the status of a particular quota
-  specification.
+  The `nomad quota status` command displays status information for a particular quota specification in Nomad Enterprise.
 ---
 
-# Command: quota status
+# `nomad quota status` reference
 
 The `quota status` command is used to view the status of a particular quota
 specification.
 
-~> Quota commands are only available with Nomad Enterprise.
+<EnterpriseAlert product="nomad"/>
 
 ## Usage
 
@@ -22,11 +21,11 @@ nomad quota status [options] <quota_name>
 If ACLs are enabled, this command requires a token with the `quota:read`
 capability and access to any namespaces that the quota is applied to.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Inspect Options
+## Inspect options
 
 - `-json`: Output the quota specifications in a JSON format.
 

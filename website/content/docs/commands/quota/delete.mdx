@@ -1,15 +1,15 @@
 ---
 layout: docs
-page_title: 'nomad quota delete'
+page_title: 'nomad quota delete reference'
 description: |
-  The quota delete command is used to delete an existing quota specification.
+  The `nomad quota delete` command deletes an existing quota specification in Nomad Enterprise.
 ---
 
-# Command: quota delete
+# `nomad quota delete` reference
 
 The `quota delete` command is used to delete an existing quota specification.
 
-~> Quota commands are only available with Nomad Enterprise.
+<EnterpriseAlert product="nomad"/>
 
 ## Usage
 
@@ -22,7 +22,7 @@ The `quota delete` command requires the quota specification name as an argument.
 If ACLs are enabled, this command requires a token with the `quota:write`
 capability.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 

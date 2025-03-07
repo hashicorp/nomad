@@ -1,17 +1,17 @@
 ---
 layout: docs
-page_title: 'nomad quota inspect'
+page_title: 'nomad quota inspect reference'
 description: >
-  The quota inspect command is used to view raw information about a particular
-  quota specification.
+  The `nomad quota inspect` command displays raw information about a particular
+  quota specification in Nomad Enterprise.
 ---
 
-# Command: quota inspect
+# `nomad quota inspect` reference
 
 The `quota inspect` command is used to view raw information about a particular
 quota. The default output is in JSON format.
 
-~> Quota commands are only available with Nomad Enterprise.
+<EnterpriseAlert product="nomad"/>
 
 ## Usage
 
@@ -22,11 +22,11 @@ nomad quota inspect [options] <quota_name>
 If ACLs are enabled, this command requires a token with the `quota:read`
 capability and access to any namespaces that the quota is applied to.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Inspect Options
+## Inspect options
 
 - `-json`: Output the quota specifications in a JSON format.
 
