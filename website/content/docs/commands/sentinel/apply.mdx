@@ -1,17 +1,16 @@
 ---
 layout: docs
-page_title: 'nomad sentinel apply'
+page_title: 'nomad sentinel apply reference'
 description: >
-  The sentinel apply command is used to write a new, or update an existing,
-  Sentinel policy.
+  The `nomad sentinel apply` command creates or updates a Sentinel policy in Nomad Enterprise.
 ---
 
-# Command: sentinel apply
+# `nomad sentinel apply` reference
 
 The `sentinel apply` command is used to write a new, or update an existing,
 Sentinel policy.
 
-~> Sentinel commands are only available with Nomad Enterprise.
+<EnterpriseAlert product="nomad"/>
 
 ## Usage
 
@@ -26,11 +25,11 @@ file name.
 Sentinel commands are only available when ACLs are enabled. This command
 requires a management token.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Apply Options
+## Apply options
 
 - `-description` : Sets a human readable description for the policy
 
