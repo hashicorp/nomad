@@ -28,6 +28,9 @@ type UIConfig struct {
 
 	// Label configures UI label styles
 	Label *LabelUIConfig `hcl:"label"`
+
+	// Defaults
+	Defaults *DefaultsUIConfig `hcl:"defaults"`
 }
 
 // only covers the elements of
@@ -133,6 +136,14 @@ type LabelUIConfig struct {
 	TextColor       string `hcl:"text_color"`
 }
 
+// Defaults let you pre-set filter values for the UI configuration
+type DefaultsUIConfig struct {
+	// Namespace is the default namespace to filter by
+	Namespace string `hcl:"namespace"`
+	Region    string `hcl:"region"`
+	NodePool  string `hcl:"node_pool"`
+}
+
 // DefaultUIConfig returns the canonical defaults for the Nomad
 // `ui` configuration.
 func DefaultUIConfig() *UIConfig {
@@ -142,6 +153,7 @@ func DefaultUIConfig() *UIConfig {
 		Vault:                 &VaultUIConfig{},
 		Label:                 &LabelUIConfig{},
 		ContentSecurityPolicy: DefaultCSPConfig(),
+		Defaults:              &DefaultsUIConfig{},
 	}
 }
 
@@ -176,6 +188,7 @@ func (old *UIConfig) Merge(other *UIConfig) *UIConfig {
 	result.Vault = result.Vault.Merge(other.Vault)
 	result.Label = result.Label.Merge(other.Label)
 	result.ContentSecurityPolicy = result.ContentSecurityPolicy.Merge(other.ContentSecurityPolicy)
+	result.Defaults = result.Defaults.Merge(other.Defaults)
 
 	return result
 }
@@ -266,6 +279,37 @@ func (old *LabelUIConfig) Merge(other *LabelUIConfig) *LabelUIConfig {
 	}
 	if other.TextColor != "" {
 		result.TextColor = other.TextColor
+	}
+	return result
+}
+
+func (old *DefaultsUIConfig) Copy() *DefaultsUIConfig {
+	if old == nil {
+		return nil
+	}
+
+	nc := new(DefaultsUIConfig)
+	*nc = *old
+	return nc
+}
+
+func (old *DefaultsUIConfig) Merge(other *DefaultsUIConfig) *DefaultsUIConfig {
+	result := old.Copy()
+	if result == nil {
+		result = &DefaultsUIConfig{}
+	}
+	if other == nil {
+		return result
+	}
+
+	if other.Namespace != "" {
+		result.Namespace = other.Namespace
+	}
+	if other.Region != "" {
+		result.Region = other.Region
+	}
+	if other.NodePool != "" {
+		result.NodePool = other.NodePool
 	}
 	return result
 }

@@ -20,7 +20,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
     this.server = startMirage();
 
     this.initialize = async ({ region } = {}) => {
-      if (region) window.localStorage.nomadActiveRegion = region;
+      if (region) window.localStorage.nomadActiveRegion = `"${region}"`;
 
       this.server.create('region', { id: 'region-1' });
       this.server.create('region', { id: 'region-2' });
@@ -87,6 +87,7 @@ module('Unit | Adapter | Deployment', function (hooks) {
 
       const request = this.server.pretender.handledRequests[0];
 
+      console.log('req', request);
       assert.equal(
         `${request.method} ${request.url}`,
         testCase.fail(deployment.id)

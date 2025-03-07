@@ -25,6 +25,7 @@ export default class IndexRoute extends Route.extend(
   @service store;
   @service watchList;
   @service notifications;
+  @service system;
 
   queryParams = {
     cursorAt: {
@@ -59,6 +60,78 @@ export default class IndexRoute extends Route.extend(
     return { ...queryParams };
   }
 
+  async beforeModel(transition) {
+    // Handle defaults from localStorage properties
+    if (!this.hasBeenInitialized) {
+      // Get current filter from query params
+      // let filter = transition.to.queryParams.filter || '';
+      // let updatedFilter = this.establishDefaults(filter);
+      let filter = transition.to.queryParams.filter || '';
+      let globalDefaults = await this.getGlobalDefaults();
+      let updatedFilter = this.establishDefaults(filter, globalDefaults);
+      if (updatedFilter !== filter) {
+        transition.abort();
+        this.replaceWith('jobs.index', {
+          queryParams: {
+            filter: updatedFilter,
+          },
+        });
+      }
+    }
+  }
+
+  // TODO: import this typedef
+  /**
+   * @typedef {Object} RenderedDefaults
+   * @property {string} [region]
+   * @property {string[]} [namespace]
+   * @property {string[]} [nodePool]
+   */
+
+  async getGlobalDefaults() {
+    try {
+      let config = await this.system.defaults;
+      return config;
+    } catch (error) {
+      console.error('Error fetching global defaults:', error);
+      return null;
+    }
+  }
+
+  /**
+   * @param {string} filter
+   * @param {RenderedDefaults} globalDefaults
+   * @returns string
+   */
+  establishDefaults(filter, globalDefaults = {}) {
+    let namespaceDefaults = globalDefaults.namespace || [];
+
+    let nodePoolDefaults = globalDefaults.nodePool || [];
+
+    if (namespaceDefaults.length > 0) {
+      if (!filter.includes('Namespace')) {
+        let namespaceFilter = namespaceDefaults
+          .map((ns) => `Namespace == "${ns}"`)
+          .join(' or ');
+        filter = filter
+          ? `${filter} and (${namespaceFilter})`
+          : `(${namespaceFilter})`;
+      }
+
+      if (nodePoolDefaults.length > 0) {
+        if (!filter.includes('NodePool')) {
+          let nodePoolFilter = nodePoolDefaults
+            .map((np) => `NodePool == "${np}"`)
+            .join(' or ');
+          filter = filter
+            ? `${filter} and (${nodePoolFilter})`
+            : `(${nodePoolFilter})`;
+        }
+      }
+    }
+    return filter;
+  }
+
   async model(/*params*/) {
     let currentParams = this.getCurrentParams();
     this.watchList.jobsIndexIDsController.abort();
@@ -73,6 +146,7 @@ export default class IndexRoute extends Route.extend(
         jobs,
         namespaces: this.store.findAll('namespace'),
         nodePools: this.store.findAll('node-pool'),
+        defaults: await this.getGlobalDefaults(),
       });
     } catch (error) {
       try {

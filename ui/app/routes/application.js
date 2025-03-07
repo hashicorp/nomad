@@ -93,6 +93,7 @@ export default class ApplicationRoute extends Route {
       this.store.unloadAll();
     }
 
+    // TODO: This resets region on refresh. Should it?
     this.set('system.activeRegion', queryParam || defaultRegion);
 
     return promises;
