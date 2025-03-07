@@ -31,9 +31,10 @@ func (h jobImplicitIdentitiesHook) Mutate(job *structs.Job) (*structs.Job, []err
 				h.handleConsulService(s, tg)
 				hasIdentity = hasIdentity || s.Identity != nil
 			}
-			if len(t.Templates) > 0 {
-				h.handleConsulTasks(t, tg)
-			}
+
+			h.handleConsulTask(t, tg)
+			hasIdentity = hasIdentity || (len(t.Identities) > 0)
+
 			h.handleVault(t)
 			hasIdentity = hasIdentity || (len(t.Identities) > 0)
 		}
@@ -90,7 +91,23 @@ func (h jobImplicitIdentitiesHook) handleConsulService(s *structs.Service, tg *s
 	s.Identity = serviceWID
 }
 
-func (h jobImplicitIdentitiesHook) handleConsulTasks(t *structs.Task, tg *structs.TaskGroup) {
+// handleConsulTask injects a workload identity into the task for Consul if the
+// task or task group includes a Consul block. The identity is generated in the
+// following priority list:
+//
+//  1. A Consul identity configured in the task by an identity block.
+//  2. Generated using the Consul block at the task level.
+//  3. Generated using the Consul block at the task group level.
+func (h jobImplicitIdentitiesHook) handleConsulTask(t *structs.Task, tg *structs.TaskGroup) {
+
+	// If neither the task nor task group includes a Consul block, exit as we
+	// do not need to generate an identity. Operators can still specify
+	// identity blocks for Consul tasks which will allow workload access to the
+	// Consul API.
+	if t.Consul == nil && tg.Consul == nil {
+		return
+	}
+
 	widName := t.Consul.IdentityName()
 
 	// Use the Consul identity specified in the task if present
