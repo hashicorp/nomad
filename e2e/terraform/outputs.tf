@@ -38,6 +38,15 @@ output "nomad_token" {
   sensitive = true
 }
 
+output "consul_token" {
+  value     = module.provision-infra.consul_token
+  sensitive = true
+}
+
+output "consul_addr" {
+  value = module.provision-infra.consul_addr
+}
+
 output "cluster_unique_identifier" {
   value = module.provision-infra.cluster_unique_identifier
 }

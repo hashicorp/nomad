@@ -133,6 +133,8 @@ scenario "upgrade" {
       key_file          = step.provision_cluster.key_file
       nomad_token       = step.provision_cluster.nomad_token
       availability_zone = var.availability_zone
+      consul_addr       = step.provision_cluster.consul_addr
+      consul_token      = step.provision_cluster.consul_token
 
       workloads = {
         service_raw_exec = { job_spec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3, type = "service" }
@@ -165,6 +167,13 @@ scenario "upgrade" {
           alloc_count = 1
           type        = "service"
           pre_script  = "scripts/wait_for_nfs_volume.sh"
+        }
+
+        tproxy = {
+          job_spec    = "jobs/tproxy.nomad.hcl"
+          alloc_count = 2
+          type        = "service"
+          pre_script  = "scripts/create-consul-intention.sh"
         }
 
       }

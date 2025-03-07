@@ -66,7 +66,7 @@ EOM
 }
 
 output "cluster_unique_identifier" {
-  value = "${local.random_name}"
+  value = local.random_name
 }
 
 output "nomad_addr" {
@@ -91,5 +91,14 @@ output "ssh_key_file" {
 
 output "nomad_token" {
   value     = chomp(data.local_sensitive_file.nomad_token.content)
+  sensitive = true
+}
+
+output "consul_addr" {
+  value = "https://${aws_instance.consul_server.public_ip}:8501"
+}
+
+output "consul_token" {
+  value     = chomp(local_sensitive_file.consul_initial_management_token.content)
   sensitive = true
 }
