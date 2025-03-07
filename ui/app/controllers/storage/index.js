@@ -215,8 +215,4 @@ export default class IndexController extends Controller {
     this[`${type}Filter`] = event.target.value;
     this[`${type}Page`] = 1;
   }
-
-  @action openDHV(dhv) {
-    this.router.transitionTo('storage.dhv', dhv.name);
-  }
 }
