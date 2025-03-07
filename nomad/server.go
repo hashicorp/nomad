@@ -439,7 +439,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// Set up OIDC requests cache for state that persists between calls to
 	// ACL.OIDCAuthURL and ACL.OIDCCompleteAuth.
 	// It needs no special handling to handle agent shutdowns (its Store method
-	// handles this lifecycle); it's mainly here to be easy to read in tests.
+	// handles this lifecycle).
 	s.oidcRequestCache = oidc.NewRequestCache()
 
 	// Initialize the RPC layer
