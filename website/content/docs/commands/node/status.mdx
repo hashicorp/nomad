@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad node status'
+page_title: 'nomad node status reference'
 description: |
-  The node status command is used to display information about nodes.
+  The `nomad node status` command displays status information about registered client nodes.
 ---
 
-# Command: node status
+# `nomad node status` reference
 
 The `node status` command is used to display information about client nodes. A
 node must first be registered with the servers before it will be visible in this
@@ -30,11 +30,11 @@ information will be displayed. If running the command on a Nomad Client, the
 If ACLs are enabled, this option requires a token with the 'node:read'
 capability.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Status Options
+## Status options
 
 - `-self`: Query the status of the local node.
 
@@ -334,7 +334,7 @@ Host Volumes
 Name  ReadOnly  Source
 
 CSI Volumes
-ID        Name  Namespace  Plugin ID  Schedulable  Access Mode         Mount Options
+ID        Name  Namespace  Plugin ID  Schedulable  Access Mode         Mount options
 402f2c83  vol   default    plug       true         single-node-writer  <none>
 
 Drivers

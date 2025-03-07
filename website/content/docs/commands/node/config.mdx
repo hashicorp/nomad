@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad node config'
+page_title: 'nomad node config reference'
 description: |
-  The node config command is used to view or modify client configuration.
+  The `nomad node config` command displays configuration details for the specified client. You can also update the client's server list with this command.
 ---
 
-# Command: node config
+# `nomad node config` reference
 
 The `node config` command is used to view or modify client configuration
 details. This command only works on client nodes, and can be used to update
@@ -20,11 +20,11 @@ nomad node config [options]
 The arguments behave differently depending on the flags given. See each flag's
 description below for specific usage information and requirements.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Node Config Options
+## Node Config options
 
 - `-servers`: List the client's known servers. Client nodes do not participate
   in the gossip pool, and instead register with these servers periodically over

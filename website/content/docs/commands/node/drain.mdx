@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad node drain'
+page_title: 'nomad node drain reference'
 description: |
-  The node drain command is used to configure a node's drain strategy.
+  The `nomad node drain` command turns on or turns off a node's drain mode. Drain mode prevents any new tasks from being allocated to the node and beings migrating all existing allocations to other nodes.
 ---
 
-# Command: node drain
+# `nomad node drain` reference
 
 The `node drain` command is used to toggle drain mode on a given node. Drain
 mode prevents any new tasks from being allocated to the node, and begins
@@ -56,11 +56,11 @@ operation is desired.
 If ACLs are enabled, this option requires a token with the 'node:write'
 capability.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Drain Options
+## Drain options
 
 - `-enable`: Enable node drain mode.
 
