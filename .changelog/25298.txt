@@ -1,0 +1,5 @@
+```release-note:breaking-change
+consul: Identities are no longer added to tasks by default when they include a template block.
+Please see [Nomad's upgrade guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific)
+for more detail.
+```

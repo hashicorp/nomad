@@ -83,7 +83,7 @@ job "docs" {
   readable by that user. Otherwise the file is readable by everyone but is
   protected by parent directory permissions.
 - `filepath` `(string: "")` - If not empty and file is `true`, the workload
-  identity will be available at the specified location relative to the 
+  identity is available at the specified location relative to the
   [task working directory][] instead of the `NOMAD_SECRETS_DIR`.
 - `ttl` `(string: "")` - The lifetime of the identity before it expires. The
   client will renew the identity at roughly half the TTL. This is specified
@@ -104,8 +104,13 @@ inside the task or service that will access Consul.
 You can configure Nomad servers to automatically add default identities for
 Consul using the [`consul.service_identity`][] and [`consul.task_identity`][]
 agent configuration. Upon job registration, the Nomad server updates tasks that
-have a [`consul`][] or [`template`][] block and services that use the Consul
-service provider to include the default identities.
+have a [`consul`][] block and services that use the Consul service provider to
+include the default identities.
+
+Job specifications that include [`template`][] blocks are not provided with
+default identities because Nomad is unable to decipher the contents of the
+template data. You must specify the identities required for Consul in the job
+specification.
 
 You can also specify these identities directly in the job. When provided, they
 override the default identities configured in the Nomad servers. Identities for
