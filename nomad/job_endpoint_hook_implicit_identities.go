@@ -108,7 +108,17 @@ func (h jobImplicitIdentitiesHook) handleConsulTask(t *structs.Task, tg *structs
 		return
 	}
 
-	widName := t.Consul.IdentityName()
+	// The task or task group have a Consul block, now identify the workload
+	// identity name. The priority order is task followed by task group. It is
+	// important to be careful with the IdentityName() function as it returns a
+	// default non-empty value.
+	var widName string
+
+	if t.Consul != nil {
+		widName = t.Consul.IdentityName()
+	} else if tg.Consul != nil {
+		widName = tg.Consul.IdentityName()
+	}
 
 	// Use the Consul identity specified in the task if present
 	for _, wid := range t.Identities {

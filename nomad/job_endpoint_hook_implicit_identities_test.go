@@ -355,11 +355,11 @@ func Test_jobImplicitIdentitiesHook_Mutate_consulTask(t *testing.T) {
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
 						Name:   "web-task",
-						Consul: &structs.Consul{},
+						Consul: &structs.Consul{Cluster: "alternative"},
 						Identities: []*structs.WorkloadIdentity{
 							{
-								Name:     "consul_default",
-								Audience: []string{"consul.io"},
+								Name:     "consul_alternative",
+								Audience: []string{"consul_alternative.io"},
 							},
 						},
 					}},
@@ -370,6 +370,11 @@ func Test_jobImplicitIdentitiesHook_Mutate_consulTask(t *testing.T) {
 					structs.ConsulDefaultCluster: {
 						TaskIdentity: &config.WorkloadIdentityConfig{
 							Audience: []string{"consul.io"},
+						},
+					},
+					"alternative": {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul_alternative.io"},
 						},
 					},
 				},
@@ -381,11 +386,11 @@ func Test_jobImplicitIdentitiesHook_Mutate_consulTask(t *testing.T) {
 					},
 					Tasks: []*structs.Task{{
 						Name:   "web-task",
-						Consul: &structs.Consul{},
+						Consul: &structs.Consul{Cluster: "alternative"},
 						Identities: []*structs.WorkloadIdentity{
 							{
-								Name:     "consul_default",
-								Audience: []string{"consul.io"},
+								Name:     "consul_alternative",
+								Audience: []string{"consul_alternative.io"},
 							},
 						},
 					}},
@@ -396,13 +401,13 @@ func Test_jobImplicitIdentitiesHook_Mutate_consulTask(t *testing.T) {
 			name: "consul block in task group and task consul identity block",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
-					Consul: &structs.Consul{},
+					Consul: &structs.Consul{Cluster: "alternative"},
 					Tasks: []*structs.Task{{
 						Name: "web-task",
 						Identities: []*structs.WorkloadIdentity{
 							{
-								Name:     "consul_default",
-								Audience: []string{"consul.io"},
+								Name:     "consul_alternative",
+								Audience: []string{"consul_alternative.io"},
 							},
 						},
 					}},
@@ -415,11 +420,16 @@ func Test_jobImplicitIdentitiesHook_Mutate_consulTask(t *testing.T) {
 							Audience: []string{"consul.io"},
 						},
 					},
+					"alternative": {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul_alternative.io"},
+						},
+					},
 				},
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
-					Consul: &structs.Consul{},
+					Consul: &structs.Consul{Cluster: "alternative"},
 					Constraints: []*structs.Constraint{
 						implicitIdentityClientVersionConstraint(),
 					},
@@ -427,15 +437,14 @@ func Test_jobImplicitIdentitiesHook_Mutate_consulTask(t *testing.T) {
 						Name: "web-task",
 						Identities: []*structs.WorkloadIdentity{
 							{
-								Name:     "consul_default",
-								Audience: []string{"consul.io"},
+								Name:     "consul_alternative",
+								Audience: []string{"consul_alternative.io"},
 							},
 						},
 					}},
 				}},
 			},
 		},
-
 		{
 			name: "consul block in task with existing non-consul identity",
 			inputJob: &structs.Job{
@@ -530,7 +539,6 @@ func Test_jobImplicitIdentitiesHook_Mutate_consulTask(t *testing.T) {
 				}},
 			},
 		},
-
 		{
 			name: "no mutation for task when no task identity is configured",
 			inputJob: &structs.Job{
