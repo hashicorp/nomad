@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	gojwt "github.com/golang-jwt/jwt/v5"
 	cass "github.com/hashicorp/cap/oidc/clientassertion"
@@ -96,6 +97,9 @@ func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, 
 	if err != nil {
 		return nil, fmt.Errorf("error parsing %s: %w", source, err)
 	}
+	if err := key.Validate(); err != nil {
+		return nil, fmt.Errorf("error validating %s: %w", source, err)
+	}
 	return key, nil
 }
 
@@ -127,6 +131,10 @@ func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse %s bytes: %w", source, err)
+	}
+	now := time.Now()
+	if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
+		return nil, errors.New("cert expired or not yet valid")
 	}
 	return cert, nil
 }
