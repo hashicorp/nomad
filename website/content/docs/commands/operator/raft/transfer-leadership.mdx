@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad operator raft transfer-leadership'
+page_title: 'nomad operator raft transfer-leadership reference'
 description: |
-  Transfer leadership to a specific a Nomad server.
+  The `nomad operator raft transfer-leadership` command transfers leadership to a specific Nomad server.
 ---
 
-# Command: operator raft transfer-leadership
+# `nomad operator raft transfer-leadership` reference
 
 Transfer leadership from the current leader to the given server member.
 
@@ -31,11 +31,11 @@ nomad operator raft transfer-leadership [options]
 If ACLs are enabled, this command requires a management token.
 </Tip>
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Transfer Leadership Options
+## Transfer Leadership options
 
 - `-peer-address`: Specifies the Raft **Address** of the target server as
   provided in the output of the [`nomad operator raft list-peers`][] command or

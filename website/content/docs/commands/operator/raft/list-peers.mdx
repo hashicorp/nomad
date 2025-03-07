@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad operator raft list-peers'
+page_title: 'nomad operator raft list-peers reference'
 description: |
-  Display the current Raft peer configuration.
+  The `nomad operator raft list-peers` command displays the current Raft peer configuration.
 ---
 
-# Command: operator raft list-peers
+# `nomad operator raft list-peers` reference
 
 The `raft list-peers` command is used to display the current Raft peer
 configuration.
@@ -22,11 +22,11 @@ nomad operator raft list-peers [options]
 
 If ACLs are enabled, this command requires a management token.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## List Peers Options
+## List Peers options
 
 - `-stale`: The stale argument defaults to "false" which means the leader
   provides the result. If the cluster is in an outage state without a leader, you

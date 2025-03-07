@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad operator root keyring rotate'
+page_title: 'nomad operator root keyring rotate reference'
 description: |
-  Rotate encryption key
+  The `nomad operator root keyring rotate` command rotates the encryption key by generating a new encryption key for all future variables.
 ---
 
-# Command: operator root keyring rotate
+# `nomad operator root keyring rotate` reference
 
 The `operator root keyring rotate` command generates a new encryption key for
 all future variables.
@@ -18,11 +18,11 @@ If ACLs are enabled, this command requires a management token.
 nomad operator root keyring rotate [options]
 ```
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Rotate Options
+## Rotate options
 
 - `-full`: Decrypt all existing variables and re-encrypt with the new key. This
   command will immediately return and the re-encryption process will run

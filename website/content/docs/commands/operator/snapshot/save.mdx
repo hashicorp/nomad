@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad operator snapshot save'
+page_title: 'nomad operator snapshot save reference'
 description: |
-  Saves snapshot of Nomad server state
+  The `nomad operator snapshot save` command saves an atomic, point-in-time snapshot of state of the Nomad servers, including jobs, nodes, allocations,periodic jobs, ACLs for outage recovery, and the keyring.
 ---
 
-# Command: operator snapshot save
+# `nomad operator snapshot save` reference
 
 The `operator snapshot save` command retrieves an atomic, point-in-time
 snapshot of the state of the Nomad servers, which includes jobs, nodes,
@@ -50,11 +50,11 @@ $ nomad operator snapshot save -stale backup.snap
 nomad operator snapshot save [options] <file>
 ```
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Snapshot Save Options
+## Snapshot save options
 
 - `-redact`: The redact option will locally edit the snapshot to remove any
   cleartext key material from the root keyring. Only the AEAD keyring provider
