@@ -10,6 +10,8 @@ import { fragmentOwner } from 'ember-data-model-fragments/attributes';
 export default class HostVolume extends Fragment {
   @fragmentOwner() node;
 
+  @attr('string') volumeID;
+
   @attr('string') name;
   @attr('string') path;
   @attr('boolean') readOnly;

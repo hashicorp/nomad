@@ -18,7 +18,7 @@ export default [
     from: '/csi/volumes/',
     to: (path) => {
       const volumeName = path.split('/csi/volumes/')[1];
-      return `/storage/volumes/${volumeName}`;
+      return `/storage/volumes/csi/${volumeName}`;
     },
     method: 'pattern',
     pattern: /^\/csi\/volumes\/(.+)$/,

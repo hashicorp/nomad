@@ -105,7 +105,7 @@ export default class KeyboardService extends Service {
       },
       {
         label: 'Go to Storage',
-        action: () => this.router.transitionTo('storage.volumes'),
+        action: () => this.router.transitionTo('storage'),
         rebindable: true,
       },
       {

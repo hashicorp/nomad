@@ -8,7 +8,7 @@ import { inject as service } from '@ember/service';
 import { action, computed } from '@ember/object';
 import { qpBuilder } from 'nomad-ui/utils/classes/query-params';
 
-export default class VolumeController extends Controller {
+export default class DynamicHostVolumeController extends Controller {
   // Used in the template
   @service system;
 
@@ -32,7 +32,7 @@ export default class VolumeController extends Controller {
       {
         label: volume.name,
         args: [
-          'storage.volumes.volume',
+          'storage.volumes.dynamic-host-volume',
           volume.plainId,
           qpBuilder({
             volumeNamespace: volume.get('namespace.name') || 'default',
@@ -42,18 +42,12 @@ export default class VolumeController extends Controller {
     ];
   }
 
-  @computed('model.readAllocations.@each.modifyIndex')
-  get sortedReadAllocations() {
-    return this.model.readAllocations.sortBy('modifyIndex').reverse();
+  @computed('model.allocations.@each.modifyIndex')
+  get sortedAllocations() {
+    return this.model.allocations.sortBy('modifyIndex').reverse();
   }
 
-  @computed('model.writeAllocations.@each.modifyIndex')
-  get sortedWriteAllocations() {
-    return this.model.writeAllocations.sortBy('modifyIndex').reverse();
-  }
-
-  @action
-  gotoAllocation(allocation) {
+  @action gotoAllocation(allocation) {
     this.transitionToRoute('allocations.allocation', allocation.id);
   }
 }

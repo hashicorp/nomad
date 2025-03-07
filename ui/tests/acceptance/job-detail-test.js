@@ -274,6 +274,7 @@ moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
       running: 1,
     },
     noActiveDeployment: true,
+    withPreviousStableVersion: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -292,6 +293,7 @@ moduleForJob(
       },
       // Child's gotta be non-queued to be able to run
       status: 'running', //  TODO: TEMP
+      withPreviousStableVersion: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }

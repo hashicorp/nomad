@@ -575,6 +575,14 @@ function smallCluster(server) {
     volume.save();
   });
 
+  server.create('dynamic-host-volume', {
+    name: 'dynamic-host-volume',
+    namespaceId: 'default',
+    createTime: new Date().getTime() * 1000000,
+    modifyTime: new Date().getTime() * 1000000,
+    allocations: csiAllocations,
+  });
+
   server.create('auth-method', { name: 'vault' });
   server.create('auth-method', { name: 'auth0' });
   server.create('auth-method', { name: 'cognito' });
