@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
+	"github.com/hashicorp/cap/util"
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
@@ -57,6 +59,8 @@ type Meta struct {
 
 	// token is used for ACLs to access privileged information
 	token string
+
+	showCLIHints *bool
 
 	caCert        string
 	caPath        string
@@ -272,6 +276,16 @@ func (m *Meta) SetupUi(args []string) {
 			Ui:         m.Ui,
 		}
 	}
+
+	// Check to see if the user has disabled hints via env var.
+	showCLIHints := os.Getenv(EnvNomadCLIShowHints)
+	if showCLIHints != "" {
+		if show, err := strconv.ParseBool(showCLIHints); err == nil {
+			m.showCLIHints = pointer.Of(show)
+		} else {
+			m.Ui.Warn(fmt.Sprintf("Invalid value %q for %s: %v", showCLIHints, EnvNomadCLIShowHints, err))
+		}
+	}
 }
 
 // FormatWarnings returns a string with the warnings formatted for CLI output.
@@ -451,3 +465,197 @@ type funcVar func(s string) error
 func (f funcVar) Set(s string) error { return f(s) }
 func (f funcVar) String() string     { return "" }
 func (f funcVar) IsBoolFlag() bool   { return false }
+
+type UIRoute struct {
+	Path        string
+	Description string
+}
+
+type UIHintContext struct {
+	Command    string
+	PathParams map[string]string
+	OpenURL    bool
+}
+
+const (
+	// Colors and styles
+	resetter = "\033[0m"
+	magenta  = "\033[35m"
+	blue     = "\033[34m"
+	bold     = "\033[1m"
+
+	// Output formatting
+	uiHintDelimiter = "\n\n==> "
+	defaultHint     = "See more in the Web UI:"
+)
+
+var CommandUIRoutes = map[string]UIRoute{
+	"server members": {
+		Path:        "/servers",
+		Description: "View and manage Nomad servers",
+	},
+	"node status": {
+		Path:        "/clients",
+		Description: "View and manage Nomad clients",
+	},
+	"node status single": {
+		Path:        "/clients/:nodeID",
+		Description: "View client details and metrics",
+	},
+	"job status": {
+		Path:        "/jobs",
+		Description: "View and manage Nomad jobs",
+	},
+	"job status single": {
+		Path:        "/jobs/:jobID@:namespace",
+		Description: "View job details and metrics",
+	},
+	"job run": {
+		Path:        "/jobs/:jobID@:namespace",
+		Description: "View this job",
+	},
+	"alloc status": {
+		Path:        "/allocations/:allocID",
+		Description: "View allocation details",
+	},
+	"var list": {
+		Path:        "/variables",
+		Description: "View Nomad variables",
+	},
+	"var list prefix": {
+		Path:        "/variables/path/:prefix",
+		Description: "View Nomad variables at this path",
+	},
+	"var get": {
+		Path:        "/variables/var/:path@:namespace",
+		Description: "View variable details",
+	},
+	"var put": {
+		Path:        "/variables/var/:path@:namespace",
+		Description: "View variable details",
+	},
+	"job dispatch": {
+		Path:        "/jobs/:dispatchID@:namespace",
+		Description: "View this job",
+	},
+	"eval list": {
+		Path:        "/evaluations",
+		Description: "View evaluations",
+	},
+	"eval status": {
+		Path:        "/evaluations?currentEval=:evalID",
+		Description: "View evaluation details",
+	},
+	"deployment status": {
+		Path:        "/jobs/:jobID/deployments",
+		Description: "View all deployments for this job",
+	},
+}
+
+func (m *Meta) formatUIHint(url string, description string) string {
+	if description == "" {
+		description = defaultHint
+	}
+
+	description = fmt.Sprintf("%s in the Web UI:", description)
+
+	// Basic version without colors
+	hint := fmt.Sprintf("%s%s %s", uiHintDelimiter, description, url)
+
+	// If colors are disabled, return basic version
+	_, coloredUi := m.Ui.(*cli.ColoredUi)
+	if m.noColor || !coloredUi {
+		return hint
+	}
+
+	return fmt.Sprintf("%[1]s%[2]s%[3]s%[4]s%[5]s %[6]s%[7]s%[8]s",
+		bold,
+		magenta,
+		uiHintDelimiter[1:], // "==> "
+		description,
+		resetter,
+		blue,
+		url,
+		resetter,
+	)
+}
+
+func (m *Meta) buildUIPath(route UIRoute, params map[string]string) (string, error) {
+	client, err := m.Client()
+	if err != nil {
+		return "", fmt.Errorf("error getting client config: %v", err)
+	}
+
+	path := route.Path
+	for k, v := range params {
+		path = strings.ReplaceAll(path, fmt.Sprintf(":%s", k), v)
+	}
+
+	return fmt.Sprintf("%s/ui%s", client.Address(), path), nil
+}
+
+func (m *Meta) showUIPath(ctx UIHintContext) (string, error) {
+	route, exists := CommandUIRoutes[ctx.Command]
+	if !exists {
+		return "", nil
+	}
+
+	url, err := m.buildUIPath(route, ctx.PathParams)
+	if err != nil {
+		return "", err
+	}
+
+	if ctx.OpenURL {
+		if err := util.OpenURL(url); err != nil {
+			m.Ui.Warn(fmt.Sprintf("Failed to open browser: %v", err))
+		}
+	}
+
+	if m.uiHintsDisabled() {
+		return "", nil
+	}
+
+	return m.formatUIHint(url, route.Description), nil
+}
+
+func (m *Meta) uiHintsDisabled() bool {
+	// Either the local env var is set to false,
+	// or the agent config is set to false nad the local config isn't set to true
+
+	// First check if the user/env var is set to false. If it is, return early.
+	if m.showCLIHints != nil && !*m.showCLIHints {
+		return true
+	}
+
+	// Next, check if the agent config is set to false. If it is, return early.
+	client, err := m.Client()
+	if err != nil {
+		return true
+	}
+
+	agent, err := client.Agent().Self()
+	if err != nil {
+		return true
+	}
+
+	agentConfig := agent.Config
+	agentUIConfig, ok := agentConfig["UI"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	agentShowCLIHints, ok := agentUIConfig["ShowCLIHints"].(bool)
+	if !ok {
+		return false
+	}
+
+	if !agentShowCLIHints {
+		// check to see if env var is set to true, overriding the agent setting
+		if m.showCLIHints != nil && *m.showCLIHints {
+			return false
+		}
+		return true
+	}
+
+	return false
+}

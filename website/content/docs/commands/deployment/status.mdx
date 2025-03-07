@@ -40,6 +40,7 @@ capability for the deployment's namespace.
 - `-monitor`: Enter monitor mode to poll for updates to the deployment status.
 - `-wait`: How long to wait before polling an update, used in conjunction with monitor
     mode. Defaults to 2s.
+- `-ui`: Open the deployment page in the browser.
 
 ## Examples
 
@@ -135,8 +136,8 @@ $ nomad deployment status -monitor e45
     web         false        1        1       1        0          2021-06-09T15:59:58-07:00
 ```
 
-**Please note**: The library used for updating terminal output in place currently isn't fully 
-Windows compatible so there may be some formatting differences (different margins, no spinner 
+**Please note**: The library used for updating terminal output in place currently isn't fully
+Windows compatible so there may be some formatting differences (different margins, no spinner
 indicating deployment is in progress).
 
 [`auto_revert`]: /nomad/docs/job-specification/update#auto_revert
