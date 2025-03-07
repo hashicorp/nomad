@@ -58,7 +58,12 @@
           @onSort={{action this.handleSort "csi"}}
           >
           <:body as |B|>
-            <B.Tr data-test-csi-volume-row>
+            <B.Tr data-test-csi-volume-row
+              {{keyboard-shortcut
+                enumerated=true
+                action=(action this.openCSI B.data)
+              }}
+            >
               <B.Td data-test-csi-volume-name>
                 <LinkTo
                   @route="storage.volumes.volume"
@@ -162,7 +167,12 @@
           @onSort={{action this.handleSort "dhv"}}
         >
           <:body as |B|>
-            <B.Tr data-test-dhv-row>
+            <B.Tr data-test-dhv-row
+              {{keyboard-shortcut
+                enumerated=true
+                action=(action this.openDHV B.data)
+              }}
+            >
               <B.Td>
                 <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.volumes.dynamic-host-volume"
                   @model={{B.data.idWithNamespace}}>

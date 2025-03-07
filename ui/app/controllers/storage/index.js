@@ -13,6 +13,7 @@ export default class IndexController extends Controller {
   @service router;
   @service userSettings;
   @service system;
+  @service keyboard;
 
   queryParams = [
     { qpNamespace: 'namespace' },
@@ -214,5 +215,13 @@ export default class IndexController extends Controller {
   @action applyFilter(type, event) {
     this[`${type}Filter`] = event.target.value;
     this[`${type}Page`] = 1;
+  }
+
+  @action openCSI(csi) {
+    this.router.transitionTo('storage.volumes.volume', csi.idWithNamespace);
+  }
+
+  @action openDHV(dhv) {
+    this.router.transitionTo('storage.volumes.dynamic-host-volume', dhv.idWithNamespace);
   }
 }

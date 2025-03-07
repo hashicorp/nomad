@@ -18,7 +18,7 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
   // the REST serializer and Nomad does not.
   normalize(typeHash, hash) {
     hash.PlainId = hash.ID;
-    hash.ID = JSON.stringify([hash.ID, hash.NamespaceID || 'default']);
+    hash.ID = JSON.stringify([hash.ID, hash.Namespace || 'default']);
     if (hash.RequestedCapabilities && hash.RequestedCapabilities.length) {
       hash.AccessMode = hash.RequestedCapabilities[0].AccessMode;
       hash.AttachmentMode = hash.RequestedCapabilities[0].AttachmentMode;

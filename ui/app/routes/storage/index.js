@@ -50,9 +50,17 @@ export default class IndexRoute extends Route.extend(
         namespace: controller.qpNamespace,
       })
     );
+    controller.set(
+      'modelWatch',
+      this.watchDynamicHostVolumes.perform({
+        type: 'host',
+        namespace: controller.qpNamespace,
+      })
+    );
   }
 
   @watchQuery('volume') watchVolumes;
+  @watchQuery('dynamic-host-volume') watchDynamicHostVolumes;
   @watchAll('namespace') watchNamespaces;
   @collect('watchVolumes', 'watchNamespaces') watchers;
 }
