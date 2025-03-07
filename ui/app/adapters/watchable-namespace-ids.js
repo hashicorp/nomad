@@ -22,10 +22,6 @@ export default class WatchableNamespaceIDs extends Watchable {
 
   query(store, type, { namespace }) {
     return super.query(...arguments).then((data) => {
-      // TODO: /volumes?type=host returns null, but ?type=csi returns [], when there are no volumes for a given query.
-      if (data === null) {
-        return [];
-      }
       data.forEach((record) => {
         if (!record.Namespace) record.Namespace = namespace;
       });

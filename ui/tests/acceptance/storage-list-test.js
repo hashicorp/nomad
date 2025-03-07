@@ -119,7 +119,7 @@ module('Acceptance | storage list', function (hooks) {
     await StorageList.csiVolumes.objectAt(0).clickName();
     assert.equal(
       currentURL(),
-      `/storage/volumes/${volume.id}@${secondNamespace.id}`
+      `/storage/volumes/csi/${volume.id}@${secondNamespace.id}`
     );
 
     await StorageList.visit({ namespace: '*' });

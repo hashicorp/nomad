@@ -31,7 +31,7 @@ module('Unit | Utility | handle-route-redirects', function () {
           intent: { url: '/csi/volumes/my-volume' },
           to: { queryParams: { region: 'us-east' } },
         },
-        expectedPath: '/storage/volumes/my-volume',
+        expectedPath: '/storage/volumes/csi/my-volume',
         expectedQueryParams: { region: 'us-east' },
       },
       {
