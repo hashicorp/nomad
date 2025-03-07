@@ -4222,5 +4222,5 @@ func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOID
 	t.Cleanup(cancel)
 	// make sure the cache is clean first
 	cache.LoadAndDelete(req.ClientNonce)
-	cache.Store(ctx, oidcReq)
+	must.NoError(t, cache.Store(ctx, oidcReq))
 }
