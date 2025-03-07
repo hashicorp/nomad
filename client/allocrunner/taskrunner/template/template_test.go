@@ -2525,6 +2525,65 @@ func TestTaskTemplateManager_Template_Wait_Set(t *testing.T) {
 	}
 }
 
+func Test_newRunnerConfig_consul(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                 string
+		inputConfig          *TaskTemplateManagerConfig
+		expectedOutputConfig *ctconf.ConsulConfig
+	}{
+		{
+			name: "consul WI token",
+			inputConfig: &TaskTemplateManagerConfig{
+				ConsulConfig: sconfig.DefaultConsulConfig(),
+				ConsulToken:  "token",
+				ClientConfig: config.DefaultConfig(),
+			},
+			expectedOutputConfig: &ctconf.ConsulConfig{
+				Address:   pointer.Of("127.0.0.1:8500"),
+				Namespace: pointer.Of(""),
+				Auth:      ctconf.DefaultAuthConfig(),
+				Retry:     ctconf.DefaultRetryConfig(),
+				SSL:       ctconf.DefaultSSLConfig(),
+				Token:     pointer.Of("token"),
+				TokenFile: pointer.Of(""),
+				Transport: ctconf.DefaultTransportConfig(),
+			},
+		},
+		{
+			name: "no consul WI token",
+			inputConfig: &TaskTemplateManagerConfig{
+				ConsulConfig: sconfig.DefaultConsulConfig(),
+				ClientConfig: config.DefaultConfig(),
+			},
+			expectedOutputConfig: &ctconf.ConsulConfig{
+				Address:   pointer.Of("127.0.0.1:8500"),
+				Namespace: pointer.Of(""),
+				Auth:      ctconf.DefaultAuthConfig(),
+				Retry:     ctconf.DefaultRetryConfig(),
+				SSL:       ctconf.DefaultSSLConfig(),
+				Token:     pointer.Of(""),
+				TokenFile: pointer.Of(""),
+				Transport: ctconf.DefaultTransportConfig(),
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// Finalize the expected configuration, so we don't have to set up
+			// all the pointers.
+			tc.expectedOutputConfig.Finalize()
+
+			actualOutputConfig, err := newRunnerConfig(tc.inputConfig, nil)
+			must.NoError(t, err)
+			must.Eq(t, tc.expectedOutputConfig, actualOutputConfig.Consul)
+		})
+	}
+}
+
 // TestTaskTemplateManager_Template_ErrMissingKey_Set asserts that all template level
 // configuration is accurately mapped from the template to the TaskTemplateManager's
 // template config.
