@@ -157,11 +157,11 @@ func (h *csiPluginSupervisorHook) Prestart(ctx context.Context,
 	// Create the mount directory that the container will access if it doesn't
 	// already exist. Default to only nomad user access.
 	if err := os.MkdirAll(h.mountPoint, 0700); err != nil && !os.IsExist(err) {
-		return fmt.Errorf("failed to create mount point: %v", err)
+		return fmt.Errorf("failed to create mount point: %w", err)
 	}
 
 	if err := os.MkdirAll(h.socketMountPoint, 0700); err != nil && !os.IsExist(err) {
-		return fmt.Errorf("failed to create socket mount point: %v", err)
+		return fmt.Errorf("failed to create socket mount point: %w", err)
 	}
 
 	// where the socket will be mounted
@@ -243,7 +243,7 @@ func (h *csiPluginSupervisorHook) Poststart(ctx context.Context, _ *interfaces.T
 	// try and restart it here as it only terminates on `Stop` hooks and health
 	// timeouts (which restart the task)
 	h.supervisorIsRunningLock.Lock()
-	h.supervisorIsRunningLock.Unlock()
+	defer h.supervisorIsRunningLock.Unlock()
 	if h.supervisorIsRunning {
 		return nil
 	}
@@ -299,7 +299,7 @@ WAITFORREADY:
 	for {
 		select {
 		case <-startCtx.Done():
-			h.restartTask(ctx, fmt.Errorf("CSI plugin failed probe: %v", err))
+			h.restartTask(ctx, fmt.Errorf("CSI plugin failed probe: %w", err))
 			return
 		case <-supervisorCtx.Done():
 			return
@@ -327,7 +327,7 @@ WAITFORREADY:
 	// Step 2: Register the plugin with the catalog.
 	deregisterPluginFn, err := h.registerPlugin(client, h.socketPath)
 	if err != nil {
-		h.restartTask(ctx, fmt.Errorf("CSI plugin failed to register: %v", err))
+		h.restartTask(ctx, fmt.Errorf("CSI plugin failed to register: %w", err))
 		return
 	}
 	// De-register plugins on task shutdown
@@ -378,7 +378,7 @@ func (h *csiPluginSupervisorHook) registerPlugin(client csi.CSIPlugin, socketPat
 	// to get its vendor name and version
 	info, err := client.PluginInfo()
 	if err != nil {
-		return nil, fmt.Errorf("failed to probe plugin: %v", err)
+		return nil, fmt.Errorf("failed to probe plugin: %w", err)
 	}
 
 	mkInfoFn := func(pluginType string) *dynamicplugins.PluginInfo {
