@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad scaling policy info'
+page_title: 'nomad scaling policy info reference'
 description: |
-  Display an individual Nomad scaling policy.
+  The `nomad scaling policy info` command displays detailed information for the specified scaling policy.
 ---
 
-# Command: scaling policy info
+# `nomad scaling policy info` reference
 
 Info is used to return detailed information on the specified scaling policy.
 
@@ -18,11 +18,11 @@ nomad scaling policy info [options] <policy_id>
 If ACLs are enabled, this command requires a token with the `read-job` and
 `list-jobs` capabilities for the policy's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Policy Info Options
+## Policy Info options
 
 - `-json` : Output the scaling policy in its JSON format.
 - `-t` : Format and display the scaling policy using a Go template.

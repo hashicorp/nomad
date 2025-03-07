@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad scaling policy list'
+page_title: 'nomad scaling policy list reference'
 description: |
-  Display all Nomad scaling policies.
+  The `nomad scaling policy list` command displays all Nomad scaling policies. Filter options include job and policy type.
 ---
 
-# Command: scaling policy list
+# `nomad scaling policy list` reference
 
 List is used to list all scaling policies stored in Nomad.
 
@@ -20,11 +20,11 @@ If ACLs are enabled, this command requires a token with the `read-job` and
 that the token does not have access to will have its policies filtered from
 the results.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Policy List Options
+## Policy List options
 
 - `-job` : Specifies the job ID to filter the scaling policies list by.
 - `-type` : Filter scaling policies by type.
