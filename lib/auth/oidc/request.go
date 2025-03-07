@@ -5,12 +5,15 @@ package oidc
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
 	//"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/hashicorp/cap/oidc"
 )
+
+var ErrNonceReuse = errors.New("nonce reuse detected")
 
 // expiringRequest ensures that OIDC requests that are only partially fulfilled
 // do not get stuck in memory forever.
@@ -39,7 +42,7 @@ type RequestCache struct {
 
 // Store saves the request, to be Loaded later with its Nonce.
 // If LoadAndDelete is not called, the stale request will be auto-deleted.
-func (rc *RequestCache) Store(ctx context.Context, req *oidc.Req) {
+func (rc *RequestCache) Store(ctx context.Context, req *oidc.Req) error {
 	ctx, cancel := context.WithTimeout(ctx, rc.timeout)
 	er := &expiringRequest{
 		req:    req,
@@ -47,15 +50,17 @@ func (rc *RequestCache) Store(ctx context.Context, req *oidc.Req) {
 		cancel: cancel,
 	}
 	if _, loaded := rc.m.LoadOrStore(req.Nonce(), er); loaded {
-		// we already had this one, so don't need a new timeout
+		// we already had a request for this nonce, which should never happen,
+		// so cancel the new request and error to notify caller of a bug.
 		cancel()
-		return
+		return ErrNonceReuse
 	}
-	// auto-delete after timeout
+	// auto-delete after timeout or context canceled
 	go func() {
 		<-ctx.Done()
 		rc.m.Delete(req.Nonce())
 	}()
+	return nil
 }
 
 func (rc *RequestCache) Load(nonce string) *oidc.Req {
@@ -67,9 +72,10 @@ func (rc *RequestCache) Load(nonce string) *oidc.Req {
 
 func (rc *RequestCache) LoadAndDelete(nonce string) *oidc.Req {
 	if er, loaded := rc.m.LoadAndDelete(nonce); loaded {
-		// there is a tiny race condition here, if by massive coincidence,
-		// or a bug, the same nonce makes its way in here, because
-		// this cancel() also triggers a Delete()
+		// there is a tiny race condition here. if by massive coincidence,
+		// or a bug, the same nonce makes its way in here, this cancel()
+		// triggers a map Delete() up in Store(), which could delete a request
+		// out from under a subsequent Store()
 		er.(*expiringRequest).cancel()
 		return er.(*expiringRequest).req
 	}
