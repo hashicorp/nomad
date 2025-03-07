@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
-	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -1451,6 +1450,7 @@ func TestACLAuthMethod_TokenLocalityIsGlobal(t *testing.T) {
 }
 
 func TestOIDCClientAssertion_Copy(t *testing.T) {
+	ci.Parallel(t)
 	ca1 := &OIDCClientAssertion{
 		KeySource:    "keyy",                                // plain value
 		Audience:     []string{"aud"},                       // slice
@@ -1468,6 +1468,7 @@ func TestOIDCClientAssertion_Copy(t *testing.T) {
 }
 
 func TestOIDCClientAssertion_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
 	cases := []struct {
 		keySource  OIDCClientAssertionKeySource
 		expectAlgo string // varies based on he key source
@@ -1489,6 +1490,7 @@ func TestOIDCClientAssertion_Canonicalize(t *testing.T) {
 }
 
 func TestOIDCClientAssertion_Validate(t *testing.T) {
+	ci.Parallel(t)
 	ca := validClientAssertion()
 	must.NoError(t, ca.Validate())
 
@@ -1544,6 +1546,7 @@ func TestOIDCClientAssertion_Validate(t *testing.T) {
 }
 
 func TestOIDCClientAssertionKey_Copy(t *testing.T) {
+	ci.Parallel(t)
 	k1 := &OIDCClientAssertionKey{
 		KeyID: "kid",
 	}
@@ -1554,25 +1557,7 @@ func TestOIDCClientAssertionKey_Copy(t *testing.T) {
 }
 
 func TestOIDCClientAssertionKey_Validate(t *testing.T) {
-	// standalone multierror test, because permutations would be excessive
-	// in a table test.
-	t.Run("multierror", func(t *testing.T) {
-		key := &OIDCClientAssertionKey{}
-		err := key.Validate()
-		test.ErrorIs(t, err, ErrMissingClientAssertionKey)
-		test.ErrorIs(t, err, ErrMissingClientAssertionKeyID)
-		key = &OIDCClientAssertionKey{
-			PemKeyFile:  "/any.key",
-			PemKey:      "anykey",
-			PemCertFile: "/any.crt",
-			PemCert:     "anycert",
-			KeyID:       "key-id",
-		}
-		err = key.Validate()
-		test.ErrorIs(t, err, ErrAmbiguousClientAssertionKey)
-		test.ErrorIs(t, err, ErrAmbiguousClientAssertionKeyID)
-	})
-
+	ci.Parallel(t)
 	cases := []struct {
 		name string
 		key  *OIDCClientAssertionKey
@@ -1626,6 +1611,7 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 		{
 			name: "ambiguous keyid - cert file and b64",
 			key: &OIDCClientAssertionKey{
+				PemKey:      "anykey", // checked before cert
 				PemCertFile: "/any.cert",
 				PemCert:     "anycert",
 			},
@@ -1634,6 +1620,7 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 		{
 			name: "ambiguous keyid - cert file and keyid",
 			key: &OIDCClientAssertionKey{
+				PemKey:      "anykey", // checked before cert
 				PemCertFile: "/any.cert",
 				KeyID:       "key-id",
 			},
@@ -1642,6 +1629,7 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 		{
 			name: "ambiguous keyid - cert file and b64",
 			key: &OIDCClientAssertionKey{
+				PemKey:  "anykey", // checked before cert
 				PemCert: "anycert",
 				KeyID:   "key-id",
 			},

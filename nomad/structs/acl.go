@@ -1354,36 +1354,31 @@ func (k *OIDCClientAssertionKey) Validate() error {
 		return nil
 	}
 
-	// there should be at most 2 errors:
-	// one for key file/b64, one for cert file/b64 or keyid
-	var errs []error
-
 	// mutual exclusive key fields
 	// must have key file or base64, but not both
 	if k.PemKey == "" && k.PemKeyFile == "" {
-		errs = append(errs, ErrMissingClientAssertionKey)
+		return ErrMissingClientAssertionKey
 	}
 	if k.PemKey != "" && k.PemKeyFile != "" {
-		errs = append(errs, ErrAmbiguousClientAssertionKey)
+		return ErrAmbiguousClientAssertionKey
 	}
 
 	// mutual exclusive cert fields
 	// must have exactly one of: cert file or base64, or keyid
 	if k.PemCert == "" && k.PemCertFile == "" && k.KeyID == "" {
-		errs = append(errs, ErrMissingClientAssertionKeyID)
+		return ErrMissingClientAssertionKeyID
 	}
 	if k.PemCert != "" && (k.PemCertFile != "" || k.KeyID != "") {
-		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
+		return ErrAmbiguousClientAssertionKeyID
 	}
 	if k.PemCertFile != "" && (k.PemCert != "" || k.KeyID != "") {
-		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
+		return ErrAmbiguousClientAssertionKeyID
 	}
 	if k.KeyID != "" && (k.PemCert != "" || k.PemCertFile != "") {
-		errs = append(errs, ErrAmbiguousClientAssertionKeyID)
+		return ErrAmbiguousClientAssertionKeyID
 	}
 
-	merry := multierror.Append(nil, errs...)
-	return helper.FlattenMultierror(merry)
+	return nil
 }
 
 // ACLAuthClaims is the claim mapping of the OIDC auth method in a format that
