@@ -3,7 +3,13 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { create, isPresent, text, visitable } from 'ember-cli-page-object';
+import {
+  create,
+  isPresent,
+  text,
+  visitable,
+  collection,
+} from 'ember-cli-page-object';
 
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 
@@ -27,8 +33,8 @@ export default create({
     headline: text('[data-test-empty-allocations-headline]'),
   },
 
-  capabilities: {
-    accessMode: text('[data-test-access-mode]'),
-    attachmentMode: text('[data-test-attachment-mode]'),
-  },
+  capabilities: collection('[data-test-capability-row]', {
+    key: text('[data-test-capability-key]'),
+    value: text('[data-test-capability-value]'),
+  }),
 });

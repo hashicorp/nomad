@@ -189,8 +189,13 @@ module('Acceptance | dynamic host volume detail', function (hooks) {
 
   test('Capabilities table shows access mode and attachment mode', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-    assert.equal(VolumeDetail.capabilities.accessMode, 'single-node-writer');
-    assert.equal(VolumeDetail.capabilities.attachmentMode, 'file-system');
+    assert.equal(VolumeDetail.capabilities.objectAt(0).key, 'Access Mode');
+    assert.equal(
+      VolumeDetail.capabilities.objectAt(0).value,
+      'single-node-writer'
+    );
+    assert.equal(VolumeDetail.capabilities.objectAt(1).key, 'Attachment Mode');
+    assert.equal(VolumeDetail.capabilities.objectAt(1).value, 'file-system');
   });
 });
 

@@ -20,8 +20,12 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
     hash.PlainId = hash.ID;
     hash.ID = JSON.stringify([hash.ID, hash.Namespace || 'default']);
     if (hash.RequestedCapabilities && hash.RequestedCapabilities.length) {
-      hash.AccessMode = hash.RequestedCapabilities[0].AccessMode;
-      hash.AttachmentMode = hash.RequestedCapabilities[0].AttachmentMode;
+      hash.AccessModes = hash.RequestedCapabilities.map(
+        (capability) => capability.AccessMode
+      );
+      hash.AttachmentModes = hash.RequestedCapabilities.map(
+        (capability) => capability.AttachmentMode
+      );
       delete hash.RequestedCapabilities;
     }
 

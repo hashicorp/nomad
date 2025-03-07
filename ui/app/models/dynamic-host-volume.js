@@ -17,11 +17,32 @@ export default class DynamicHostVolumeModel extends Model {
   @attr('date') createTime;
   @attr('date') modifyTime;
   @hasMany('allocation', { async: false }) allocations;
-  @attr('string') accessMode;
-  @attr('string') attachmentMode;
+  @attr() accessModes;
+  @attr() attachmentModes;
   @attr('number') capacityBytes;
 
   get idWithNamespace() {
     return `${this.plainId}@${this.namespace}`;
+  }
+
+  get capabilities() {
+    let capabilities = [];
+    if (this.accessModes) {
+      this.accessModes.forEach((mode) => {
+        capabilities.push({
+          key: 'Access Mode',
+          value: mode,
+        });
+      });
+    }
+    if (this.attachmentModes) {
+      this.attachmentModes.forEach((mode) => {
+        capabilities.push({
+          key: 'Attachment Mode',
+          value: mode,
+        });
+      });
+    }
+    return capabilities;
   }
 }

@@ -101,14 +101,12 @@
           <th>Value</th>
         </thead>
         <tbody>
-          <tr>
-            <td>Access Mode</td>
-            <td data-test-access-mode>{{this.model.accessMode}}</td>
-          </tr>
-          <tr>
-            <td>Attachment Mode</td>
-            <td data-test-attachment-mode>{{this.model.attachmentMode}}</td>
-          </tr>
+          {{#each this.model.capabilities as |capability|}}
+            <tr data-test-capability-row>
+              <td data-test-capability-key>{{capability.key}}</td>
+              <td data-test-capability-value>{{capability.value}}</td>
+            </tr>
+          {{/each}}
         </tbody>
       </table>
     </div>

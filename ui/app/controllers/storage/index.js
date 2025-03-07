@@ -57,6 +57,11 @@ export default class IndexController extends Controller {
   get dhvColumns() {
     return [
       {
+        key: 'plainId',
+        label: 'ID',
+        isSortable: true,
+      },
+      {
         key: 'name',
         label: 'Name',
         isSortable: true,
@@ -96,8 +101,8 @@ export default class IndexController extends Controller {
   get csiColumns() {
     let cols = [
       {
-        key: 'name',
-        label: 'Name',
+        key: 'plainId',
+        label: 'ID',
         isSortable: true,
       },
       ...(this.system.shouldShowNamespaces
@@ -144,7 +149,10 @@ export default class IndexController extends Controller {
       return this.model.csiVolumes;
     } else {
       return this.model.csiVolumes.filter((volume) => {
-        return volume.name.toLowerCase().includes(this.csiFilter.toLowerCase());
+        return (
+          volume.plainId.toLowerCase().includes(this.csiFilter.toLowerCase()) ||
+          volume.name.toLowerCase().includes(this.csiFilter.toLowerCase())
+        );
       });
     }
   }
@@ -169,7 +177,10 @@ export default class IndexController extends Controller {
       return this.model.dynamicHostVolumes;
     } else {
       return this.model.dynamicHostVolumes.filter((volume) => {
-        return volume.name.toLowerCase().includes(this.dhvFilter.toLowerCase());
+        return (
+          volume.plainId.toLowerCase().includes(this.dhvFilter.toLowerCase()) ||
+          volume.name.toLowerCase().includes(this.dhvFilter.toLowerCase())
+        );
       });
     }
   }
@@ -189,13 +200,13 @@ export default class IndexController extends Controller {
     );
   }
 
-  @tracked csiSortProperty = 'name';
+  @tracked csiSortProperty = 'id';
   @tracked csiSortDescending = false;
   @tracked csiPage = 1;
   @tracked csiFilter = '';
 
-  @tracked dhvSortProperty = 'name';
-  @tracked dhvSortDescending = false;
+  @tracked dhvSortProperty = 'modifyTime';
+  @tracked dhvSortDescending = true;
   @tracked dhvPage = 1;
   @tracked dhvFilter = '';
 
@@ -222,6 +233,9 @@ export default class IndexController extends Controller {
   }
 
   @action openDHV(dhv) {
-    this.router.transitionTo('storage.volumes.dynamic-host-volume', dhv.idWithNamespace);
+    this.router.transitionTo(
+      'storage.volumes.dynamic-host-volume',
+      dhv.idWithNamespace
+    );
   }
 }

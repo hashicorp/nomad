@@ -37,7 +37,7 @@
         <h3>CSI Volumes</h3>
         <p class="intro">
           Storage configured by plugins run as Nomad jobs, with advanced features like snapshots and resizing.
-          <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/concepts/plugins/csi" @icon="docs-link" @iconPosition="trailing">Read more</Hds::Link::Inline>
+          <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/other-specifications/volume/csi" @icon="docs-link" @iconPosition="trailing">Read more</Hds::Link::Inline>
         </p>
         <div class="search">
           <Hds::Form::TextInput::Field
@@ -111,7 +111,9 @@
                 )
               </B.Td>
               <B.Td data-test-csi-volume-provider>
-                {{B.data.provider}}
+                <LinkTo @route="storage.plugins.plugin" @model={{B.data.plugin.plainId}}>
+                  {{B.data.provider}}
+                </LinkTo>
               </B.Td>
               <B.Td data-test-csi-volume-allocations>
                 {{B.data.allocationCount}}
@@ -146,7 +148,7 @@
         <h3>Dynamic Host Volumes</h3>
         <p class="intro">
           Storage provisioned via plugin scripts on a particular client, modifiable without requiring client restart.
-          <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/commands/volume/create" @icon="docs-link" @iconPosition="trailing">Read more</Hds::Link::Inline>
+          <Hds::Link::Inline @href="https://developer.hashicorp.com/nomad/docs/other-specifications/volume/host" @icon="docs-link" @iconPosition="trailing">Read more</Hds::Link::Inline>
         </p>
         <div class="search">
           <Hds::Form::TextInput::Field
@@ -176,13 +178,20 @@
               <B.Td>
                 <LinkTo data-test-dhv-name={{B.data.name}} @route="storage.volumes.dynamic-host-volume"
                   @model={{B.data.idWithNamespace}}>
-                    {{B.data.name}}
+                    {{B.data.plainId}}
                   </LinkTo>
+              </B.Td>
+              <B.Td>
+                {{B.data.name}}
               </B.Td>
               {{#if this.system.shouldShowNamespaces}}
                 <B.Td>{{B.data.namespace}}</B.Td>
               {{/if}}
-              <B.Td>{{B.data.node.name}}</B.Td>
+              <B.Td>
+                <LinkTo @route="clients.client" @model={{B.data.node.id}}>
+                  {{B.data.node.name}}
+                </LinkTo>
+              </B.Td>
               <B.Td>{{B.data.pluginID}}</B.Td>
               <B.Td>{{B.data.state}}</B.Td>
               <B.Td>

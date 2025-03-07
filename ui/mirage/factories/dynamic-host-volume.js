@@ -6,12 +6,11 @@
 import { Factory } from 'ember-cli-mirage';
 import faker from 'nomad-ui/mirage/faker';
 import { pickOne } from '../utils';
-import { dasherize } from '@ember/string';
 
 export default Factory.extend({
-  id: (i) => `${dasherize(faker.hacker.noun())}-${i}`.toLowerCase(),
+  id: () => `${faker.random.uuid()}`,
   name() {
-    return this.id;
+    return faker.hacker.noun();
   },
 
   pluginID() {
@@ -26,12 +25,12 @@ export default Factory.extend({
     return 10000000;
   },
 
-  accessMode() {
-    return 'single-node-writer';
+  accessModes() {
+    return ['single-node-writer'];
   },
 
-  attachmentMode() {
-    return 'file-system';
+  attachmentModes() {
+    return ['file-system'];
   },
 
   path: () => faker.system.filePath(),
