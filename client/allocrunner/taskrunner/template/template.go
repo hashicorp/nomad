@@ -829,6 +829,11 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 	if config.ConsulConfig != nil {
 		conf.Consul.Address = &config.ConsulConfig.Addr
 
+		// Populate the Consul configuration using any potential token that has
+		// been generated via workload identity. In the case no token has been
+		// generated, the empty string is safe to blindly add.
+		conf.Consul.Token = &config.ConsulToken
+
 		// Get the Consul namespace from agent config. This is the lower level
 		// of precedence (beyond default).
 		if config.ConsulConfig.Namespace != "" {
