@@ -51,7 +51,7 @@ resource "enos_local_exec" "set_metadata" {
   scripts = [abspath("${path.module}/scripts/set_metadata.sh")]
 }
 
-module upgrade_client {
+module "upgrade_client" {
   depends_on = [enos_local_exec.set_metadata]
 
   source = "../upgrade_instance"
@@ -66,6 +66,7 @@ module upgrade_client {
 }
 
 resource "enos_local_exec" "wait_for_nomad_api_post_update" {
+  depends_on  = [module.upgrade_client]
   environment = local.nomad_env
 
   scripts = [abspath("${path.module}/scripts/wait_for_nomad_api.sh")]
