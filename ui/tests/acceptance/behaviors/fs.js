@@ -5,7 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { test } from 'qunit';
-import { currentURL, visit } from '@ember/test-helpers';
+import { currentURL, visit, waitUntil } from '@ember/test-helpers';
 
 import { filesForPath } from 'nomad-ui/mirage/config';
 import { formatBytes } from 'nomad-ui/utils/units';
@@ -363,6 +363,19 @@ export default function browseFilesystem({
     assert.ok(FS.fileViewer.isPresent);
 
     const requests = this.server.pretender.handledRequests;
+    await waitUntil(() => {
+      return (
+        requests.some((req) =>
+          req.url.includes(`${node.httpAddr}/v1/client/fs/readat`)
+        ) &&
+        requests.some(
+          (req) =>
+            req.url.includes('/v1/client/fs/readat') &&
+            !req.url.includes(node.httpAddr)
+        )
+      );
+    });
+
     const secondAttempt = requests.pop();
     const firstAttempt = requests.pop();
 
