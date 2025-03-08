@@ -27,7 +27,8 @@
   {{#if this.system.fuzzySearchEnabled}}
     {{! template-lint-disable simple-unless }}
     {{#unless (media "isMobile")}}
-      <GlobalSearch::Control />
+      <GlobalSearch />
+      {{!-- <GlobalSearch::Control /> --}}
     {{/unless}}
   {{/if}}
   <div class="navbar-end">
