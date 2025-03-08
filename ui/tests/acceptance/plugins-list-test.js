@@ -27,14 +27,14 @@ module('Acceptance | plugins list', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('visiting /csi/plugins', async function (assert) {
+  test('visiting /storage/plugins', async function (assert) {
     await PluginsList.visit();
 
-    assert.equal(currentURL(), '/csi/plugins');
+    assert.equal(currentURL(), '/storage/plugins');
     assert.equal(document.title, 'CSI Plugins - Nomad');
   });
 
-  test('/csi/plugins should list the first page of plugins sorted by id', async function (assert) {
+  test('/storage/plugins should list the first page of plugins sorted by id', async function (assert) {
     const pluginCount = PluginsList.pageSize + 1;
     server.createList('csi-plugin', pluginCount, { shallow: true });
 
@@ -98,13 +98,13 @@ module('Acceptance | plugins list', function (hooks) {
     await PluginsList.visit();
 
     await PluginsList.plugins.objectAt(0).clickName();
-    assert.equal(currentURL(), `/csi/plugins/${plugin.id}`);
+    assert.equal(currentURL(), `/storage/plugins/${plugin.id}`);
 
     await PluginsList.visit();
-    assert.equal(currentURL(), '/csi/plugins');
+    assert.equal(currentURL(), '/storage/plugins');
 
     await PluginsList.plugins.objectAt(0).clickRow();
-    assert.equal(currentURL(), `/csi/plugins/${plugin.id}`);
+    assert.equal(currentURL(), `/storage/plugins/${plugin.id}`);
   });
 
   test('when there are no plugins, there is an empty message', async function (assert) {
@@ -133,11 +133,11 @@ module('Acceptance | plugins list', function (hooks) {
     await PluginsList.visit();
     await PluginsList.nextPage();
 
-    assert.equal(currentURL(), '/csi/plugins?page=2');
+    assert.equal(currentURL(), '/storage/plugins?page=2');
 
     await PluginsList.search('foobar');
 
-    assert.equal(currentURL(), '/csi/plugins?search=foobar');
+    assert.equal(currentURL(), '/storage/plugins?search=foobar');
   });
 
   test('when accessing plugins is forbidden, a message is shown with a link to the tokens page', async function (assert) {

@@ -20,7 +20,7 @@ import pageSizeSelect from 'nomad-ui/tests/pages/components/page-size-select';
 export default create({
   pageSize: 25,
 
-  visit: visitable('/csi/volumes'),
+  visit: visitable('/storage/volumes'),
 
   search: fillable('[data-test-volumes-search] input'),
 

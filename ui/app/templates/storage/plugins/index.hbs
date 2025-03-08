@@ -44,7 +44,7 @@
                   action=(action "gotoPlugin" row.model)
                 }}
               >
-                <LinkTo @route="csi.plugins.plugin" @model={{row.model.plainId}} class="is-primary">{{row.model.plainId}}</LinkTo>
+                <LinkTo @route="storage.plugins.plugin" @model={{row.model.plainId}} class="is-primary">{{row.model.plainId}}</LinkTo>
               </td>
               <td data-test-plugin-controller-health>
                 {{#if row.model.controllerRequired}}

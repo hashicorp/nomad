@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+// @ts-check
+
 /* eslint-disable ember/no-controller-access-in-routes */
 import { inject as service } from '@ember/service';
 import { later, next } from '@ember/runloop';
@@ -11,6 +13,7 @@ import { AbortError } from '@ember-data/adapter/error';
 import RSVP from 'rsvp';
 import { action } from '@ember/object';
 import classic from 'ember-classic-decorator';
+import { handleRouteRedirects } from '../utils/route-redirector';
 
 @classic
 export default class ApplicationRoute extends Route {
@@ -33,6 +36,10 @@ export default class ApplicationRoute extends Route {
   }
 
   async beforeModel(transition) {
+    if (handleRouteRedirects(transition, this.router)) {
+      return;
+    }
+
     let promises;
 
     // service:router#transitionTo can cause this to rerun because of refreshModel on
