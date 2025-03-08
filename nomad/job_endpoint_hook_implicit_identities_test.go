@@ -226,14 +226,35 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 				}},
 			},
 		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			impl := jobImplicitIdentitiesHook{srv: &Server{
+				config: tc.inputConfig,
+			}}
+			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
+			must.Eq(t, tc.expectedOutputJob, actualJob)
+			must.NoError(t, actualError)
+			must.Nil(t, actualWarnings)
+		})
+	}
+}
+
+func Test_jobImplicitIdentitiesHook_Mutate_consulTask(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name              string
+		inputJob          *structs.Job
+		inputConfig       *Config
+		expectedOutputJob *structs.Job
+	}{
 		{
-			name: "mutate task to inject identity for templates",
+			name: "no consul block in task or task group",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
-					Name: "group",
 					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
+						Name: "web-task",
 					}},
 				}},
 			},
@@ -248,27 +269,283 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 			},
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
-					Name: "group",
-					Constraints: []*structs.Constraint{
-						implicitIdentityClientVersionConstraint()},
 					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
-						Identities: []*structs.WorkloadIdentity{{
-							Name:     "consul_default",
-							Audience: []string{"consul.io"},
-						}},
+						Name: "web-task",
 					}},
 				}},
 			},
 		},
 		{
-			name: "no mutation for templates when no task identity is configured",
+			name: "consul block in task without identity block",
 			inputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
+						Name:   "web-task",
+						Consul: &structs.Consul{},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Constraints: []*structs.Constraint{
+						implicitIdentityClientVersionConstraint(),
+					},
+					Tasks: []*structs.Task{{
+						Name:   "web-task",
+						Consul: &structs.Consul{},
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+						},
+					}},
+				}},
+			},
+		},
+		{
+			name: "consul block in task group without identity block",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Consul: &structs.Consul{},
+					Tasks: []*structs.Task{{
+						Name: "web-task",
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Consul: &structs.Consul{},
+					Constraints: []*structs.Constraint{
+						implicitIdentityClientVersionConstraint(),
+					},
+					Tasks: []*structs.Task{{
+						Name: "web-task",
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+						},
+					}},
+				}},
+			},
+		},
+		{
+			name: "consul block in task and task consul identity block",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:   "web-task",
+						Consul: &structs.Consul{Cluster: "alternative"},
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "consul_alternative",
+								Audience: []string{"consul_alternative.io"},
+							},
+						},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
+					},
+					"alternative": {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul_alternative.io"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Constraints: []*structs.Constraint{
+						implicitIdentityClientVersionConstraint(),
+					},
+					Tasks: []*structs.Task{{
+						Name:   "web-task",
+						Consul: &structs.Consul{Cluster: "alternative"},
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "consul_alternative",
+								Audience: []string{"consul_alternative.io"},
+							},
+						},
+					}},
+				}},
+			},
+		},
+		{
+			name: "consul block in task group and task consul identity block",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Consul: &structs.Consul{Cluster: "alternative"},
+					Tasks: []*structs.Task{{
+						Name: "web-task",
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "consul_alternative",
+								Audience: []string{"consul_alternative.io"},
+							},
+						},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
+					},
+					"alternative": {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul_alternative.io"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Consul: &structs.Consul{Cluster: "alternative"},
+					Constraints: []*structs.Constraint{
+						implicitIdentityClientVersionConstraint(),
+					},
+					Tasks: []*structs.Task{{
+						Name: "web-task",
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "consul_alternative",
+								Audience: []string{"consul_alternative.io"},
+							},
+						},
+					}},
+				}},
+			},
+		},
+		{
+			name: "consul block in task with existing non-consul identity",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:   "web-task",
+						Consul: &structs.Consul{},
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Constraints: []*structs.Constraint{
+						implicitIdentityClientVersionConstraint(),
+					},
+					Tasks: []*structs.Task{{
+						Name:   "web-task",
+						Consul: &structs.Consul{},
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+						},
+					}},
+				}},
+			},
+		},
+		{
+			name: "consul block in task group with existing non-consul identity",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Consul: &structs.Consul{},
+					Tasks: []*structs.Task{{
+						Name: "web-task",
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+						},
+					}},
+				}},
+			},
+			inputConfig: &Config{
+				ConsulConfigs: map[string]*config.ConsulConfig{
+					structs.ConsulDefaultCluster: {
+						TaskIdentity: &config.WorkloadIdentityConfig{
+							Audience: []string{"consul.io"},
+						},
+					},
+				},
+			},
+			expectedOutputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Consul: &structs.Consul{},
+					Constraints: []*structs.Constraint{
+						implicitIdentityClientVersionConstraint(),
+					},
+					Tasks: []*structs.Task{{
+						Name: "web-task",
+						Identities: []*structs.WorkloadIdentity{
+							{
+								Name:     "vault_default",
+								Audience: []string{"vault.io"},
+							},
+							{
+								Name:     "consul_default",
+								Audience: []string{"consul.io"},
+							},
+						},
+					}},
+				}},
+			},
+		},
+		{
+			name: "no mutation for task when no task identity is configured",
+			inputJob: &structs.Job{
+				TaskGroups: []*structs.TaskGroup{{
+					Tasks: []*structs.Task{{
+						Name:   "web-task",
+						Consul: &structs.Consul{},
 					}},
 				}},
 			},
@@ -278,18 +555,17 @@ func Test_jobImplicitIdentitiesHook_Mutate_consul_service(t *testing.T) {
 			expectedOutputJob: &structs.Job{
 				TaskGroups: []*structs.TaskGroup{{
 					Tasks: []*structs.Task{{
-						Name:      "web-task",
-						Templates: []*structs.Template{{}},
+						Name:   "web-task",
+						Consul: &structs.Consul{},
 					}},
 				}},
 			},
 		},
 	}
+
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			impl := jobImplicitIdentitiesHook{srv: &Server{
-				config: tc.inputConfig,
-			}}
+			impl := jobImplicitIdentitiesHook{srv: &Server{config: tc.inputConfig}}
 			actualJob, actualWarnings, actualError := impl.Mutate(tc.inputJob)
 			must.Eq(t, tc.expectedOutputJob, actualJob)
 			must.NoError(t, actualError)
