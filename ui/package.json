@@ -180,7 +180,7 @@
     "title-case": "^3.0.3"
   },
   "resolutions": {
-    "ember-auto-import": "^2.4.0",
+    "ember-auto-import": "^2.7.3",
     "prop-types": "^15.8.1",
     "**/express/**/path-to-regexp": "0.1.10",
     "**/nise/**/path-to-regexp": "1.9.0",
