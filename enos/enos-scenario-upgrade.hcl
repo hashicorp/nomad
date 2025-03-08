@@ -176,6 +176,13 @@ scenario "upgrade" {
           pre_script  = "scripts/create-consul-intention.sh"
         }
 
+        writes_variable = {
+          job_spec    = "jobs/writes-vars.nomad.hcl"
+          alloc_count = 1
+          type        = "service"
+          pre_script  = "scripts/configure-variables-acls.sh"
+        }
+
       }
     }
 
