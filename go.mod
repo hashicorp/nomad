@@ -19,7 +19,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.29.8
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.30
 	github.com/aws/smithy-go v1.22.3
-	github.com/container-storage-interface/spec v1.10.0
+	github.com/container-storage-interface/spec v1.11.0
 	github.com/containerd/go-cni v1.1.12
 	github.com/containernetworking/cni v1.2.3
 	github.com/coreos/go-iptables v0.8.0
