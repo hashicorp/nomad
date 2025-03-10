@@ -1139,6 +1139,7 @@ func TestACLAuthMethod_Equal(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCClientAssertion: validClientAssertion(),
 			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
@@ -1192,6 +1193,7 @@ func TestACLAuthMethod_Copy(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCClientAssertion: validClientAssertion(),
 			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
@@ -1219,6 +1221,8 @@ func TestACLAuthMethod_Copy(t *testing.T) {
 func TestACLAuthMethod_Validate(t *testing.T) {
 	ci.Parallel(t)
 
+	minTTL, _ := time.ParseDuration("10s")
+	maxTTL, _ := time.ParseDuration("10h")
 	goodTTL, _ := time.ParseDuration("3600s")
 	badTTL, _ := time.ParseDuration("3600h")
 
@@ -1235,6 +1239,11 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 				Type:          "OIDC",
 				TokenLocality: "local",
 				MaxTokenTTL:   goodTTL,
+				Config: &ACLAuthMethodConfig{
+					OIDCDiscoveryURL: "mock-discovery-url",
+					OIDCClientID:     "mock-client-id",
+					BoundAudiences:   []string{"mock-aud"},
+				},
 			},
 			false,
 			"",
@@ -1246,8 +1255,6 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			minTTL, _ := time.ParseDuration("10s")
-			maxTTL, _ := time.ParseDuration("10h")
 			got := tt.method.Validate(minTTL, maxTTL)
 			if tt.wantErr {
 				must.Error(t, got, must.Sprintf(
@@ -1261,6 +1268,41 @@ func TestACLAuthMethod_Validate(t *testing.T) {
 			}
 		})
 	}
+
+	// test that Validate calls relevant fields' Validate, and so on
+	t.Run("validate cascade", func(t *testing.T) {
+		goodMethod := &ACLAuthMethod{
+			// min need to pass top-level validation
+			Name:          "test-name",
+			Type:          "OIDC",
+			TokenLocality: "local",
+			MaxTokenTTL:   goodTTL,
+			Config: &ACLAuthMethodConfig{
+				OIDCDiscoveryURL: "mock-discovery-url",
+				OIDCClientID:     "mock-client-id",
+				BoundAudiences:   []string{"mock-aud"},
+			},
+		}
+		goodMethod.Canonicalize()
+		err := goodMethod.Validate(minTTL, maxTTL)
+		must.NoError(t, err)
+
+		deeplyBadClientAssertion := goodMethod.Copy()
+		deeplyBadClientAssertion.Config = &ACLAuthMethodConfig{
+			OIDCClientAssertion: &OIDCClientAssertion{
+				// need these to pass
+				Audience:  []string{"test-audience"},
+				KeySource: OIDCKeySourcePrivateKey,
+				// then fail validation nested way down in here
+				PrivateKey: &OIDCClientAssertionKey{
+					// cannot set both of these
+					PemKey:     "test-b64",
+					PemKeyFile: "test-file",
+				}},
+		}
+		err = deeplyBadClientAssertion.Validate(minTTL, maxTTL)
+		must.ErrorIs(t, err, ErrAmbiguousClientAssertionKey)
+	})
 }
 
 // Sanitize method should redact sensitive values
@@ -1279,6 +1321,30 @@ func TestACLAuthMethod_Sanitize(t *testing.T) {
 		must.Eq(t, "very private secret", dirty)
 		must.Eq(t, "redacted", clean)
 	})
+
+	t.Run("client assertion", func(t *testing.T) {
+		am := am.Copy()
+		am.Config.OIDCClientAssertion = &OIDCClientAssertion{}
+		am.Sanitize() // no nil panic
+		// client secret gets inherited
+		am.Config.OIDCClientSecret = "very private secret"
+		am.Canonicalize()
+		dirty := am.Config.OIDCClientAssertion.ClientSecret
+		clean := am.Sanitize().Config.OIDCClientAssertion.ClientSecret
+		must.Eq(t, "very private secret", dirty)
+		must.Eq(t, "redacted", clean)
+		// private key material
+		am.Config.OIDCClientAssertion.PrivateKey = &OIDCClientAssertionKey{
+			PemKey: "very private key",
+		}
+		// dirty should remain dirty, because it only cleans a copy.
+		dirty = am.Config.OIDCClientAssertion.PrivateKey.PemKey
+		am.Sanitize()
+		clean = am.Sanitize().Config.OIDCClientAssertion.PrivateKey.PemKey
+		must.Eq(t, "very private key", dirty)
+		must.Eq(t, "redacted", clean)
+	})
+
 }
 
 func TestACLAuthMethod_Merge(t *testing.T) {
@@ -1303,6 +1369,7 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 			OIDCDiscoveryURL:    "http://example.com",
 			OIDCClientID:        "mock",
 			OIDCClientSecret:    "very secret secret",
+			OIDCClientAssertion: validClientAssertion(),
 			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"audience1", "audience2"},
 			AllowedRedirectURIs: []string{"foo", "bar"},
@@ -1322,6 +1389,7 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 	minTTL, _ := time.ParseDuration("10s")
 	maxTTL, _ := time.ParseDuration("10h")
 	must.NoError(t, am1.Validate(minTTL, maxTTL))
+	must.Eq(t, am1.Config.OIDCClientAssertion.PrivateKey.KeyID, "test-key-id")
 }
 
 func TestACLAuthMethodConfig_Copy(t *testing.T) {
@@ -1331,6 +1399,7 @@ func TestACLAuthMethodConfig_Copy(t *testing.T) {
 		OIDCDiscoveryURL:    "http://example.com",
 		OIDCClientID:        "mock",
 		OIDCClientSecret:    "very secret secret",
+		OIDCClientAssertion: validClientAssertion(),
 		OIDCDisableUserInfo: false,
 		OIDCScopes:          []string{"groups"},
 		BoundAudiences:      []string{"audience1", "audience2"},
@@ -1346,6 +1415,7 @@ func TestACLAuthMethodConfig_Copy(t *testing.T) {
 
 	amc3 := amc1.Copy()
 	amc3.AllowedRedirectURIs = []string{"new", "urls"}
+	amc3.OIDCClientAssertion.PrivateKey.KeyID = "new-key-id"
 	must.NotEq(t, amc1, amc3)
 }
 
@@ -1401,6 +1471,233 @@ func TestACLAuthMethod_TokenLocalityIsGlobal(t *testing.T) {
 
 	localAuthMethod := &ACLAuthMethod{TokenLocality: "local"}
 	must.False(t, localAuthMethod.TokenLocalityIsGlobal())
+}
+
+func TestOIDCClientAssertion_Copy(t *testing.T) {
+	ci.Parallel(t)
+	ca1 := &OIDCClientAssertion{
+		KeySource:    "keyy",                                // plain value
+		Audience:     []string{"aud"},                       // slice
+		ExtraHeaders: map[string]string{"foo": "bar"},       // map
+		PrivateKey:   &OIDCClientAssertionKey{KeyID: "kid"}, // struct
+	}
+	ca2 := ca1.Copy()
+	must.Eq(t, ca1, ca2)
+	must.Eq(t, ca2.KeySource, "keyy")
+	must.Eq(t, ca2.Audience, []string{"aud"})
+	must.Eq(t, ca2.PrivateKey.KeyID, "kid")
+	must.Eq(t, ca2.ExtraHeaders, map[string]string{"foo": "bar"})
+	ca2.KeySource = "another"
+	must.NotEq(t, ca1, ca2)
+}
+
+func TestOIDCClientAssertion_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		keySource  OIDCClientAssertionKeySource
+		expectAlgo string // varies based on he key source
+	}{
+		{OIDCKeySourcePrivateKey, "RS256"},
+		{OIDCKeySourceNomad, "RS256"},
+		{OIDCKeySourceClientSecret, "HS256"},
+	}
+	for _, tc := range cases {
+		t.Run(string(tc.keySource), func(t *testing.T) {
+			ca := &OIDCClientAssertion{
+				KeyAlgorithm: "", // explicitly empty
+				KeySource:    tc.keySource,
+			}
+			ca.Canonicalize()
+			must.Eq(t, tc.expectAlgo, ca.KeyAlgorithm)
+		})
+	}
+}
+
+func TestOIDCClientAssertion_Validate(t *testing.T) {
+	ci.Parallel(t)
+	ca := validClientAssertion()
+	must.NoError(t, ca.Validate())
+
+	cases := []struct {
+		err string
+		mod func(*OIDCClientAssertion)
+	}{
+		{
+			err: "missing Audience",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.Audience = nil
+			},
+		},
+		{
+			err: "PrivateKey is required",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.KeySource = OIDCKeySourcePrivateKey
+				ca.PrivateKey = nil
+			},
+		},
+		{
+			err: "invalid PrivateKey",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.KeySource = OIDCKeySourcePrivateKey
+				ca.PrivateKey.KeyID = ""
+			},
+		},
+		{
+			err: "OIDCClientSecret is required",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.KeySource = OIDCKeySourceClientSecret
+				ca.ClientSecret = ""
+			},
+		},
+		{
+			err: "invalid KeySource",
+			mod: func(ca *OIDCClientAssertion) {
+				ca.KeySource = "bogus"
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.err, func(t *testing.T) {
+			ca := ca.Copy()
+			if tc.mod != nil {
+				tc.mod(ca)
+			}
+			err := ca.Validate()
+			must.ErrorContains(t, err, tc.err)
+		})
+	}
+}
+
+func TestOIDCClientAssertionKey_Copy(t *testing.T) {
+	ci.Parallel(t)
+	k1 := &OIDCClientAssertionKey{
+		KeyID: "kid",
+	}
+	k2 := k1.Copy()
+	must.Eq(t, k1, k2)
+	k2.KeyID = "another"
+	must.NotEq(t, k1, k2)
+}
+
+func TestOIDCClientAssertionKey_Validate(t *testing.T) {
+	ci.Parallel(t)
+	cases := []struct {
+		name string
+		key  *OIDCClientAssertionKey
+		err  error
+	}{
+		{
+			name: "ok files",
+			// Validate only checks that they are set to something.
+			// their existence and contents are validated later.
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:  "/any.key",
+				PemCertFile: "/any.crt",
+			},
+		},
+		{
+			name: "ok pems",
+			key: &OIDCClientAssertionKey{
+				PemKey:  "anykey",
+				PemCert: "anycert",
+			},
+		},
+		{
+			name: "ok keyid",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile: "/any.key",
+				KeyID:      "key-id",
+			},
+		},
+		{
+			name: "missing key",
+			key: &OIDCClientAssertionKey{
+				KeyID: "key-id",
+			},
+			err: ErrMissingClientAssertionKey,
+		},
+		{
+			name: "missing kid or cert",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile: "/any.key",
+			},
+			err: ErrMissingClientAssertionKeyID,
+		},
+		{
+			name: "ambiguous key",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile: "/any.key",
+				PemKey:     "anykey",
+			},
+			err: ErrAmbiguousClientAssertionKey,
+		},
+		{
+			name: "ambiguous keyid - cert file and pem",
+			key: &OIDCClientAssertionKey{
+				PemKey:      "anykey", // checked before cert
+				PemCertFile: "/any.cert",
+				PemCert:     "anycert",
+			},
+			err: ErrAmbiguousClientAssertionKeyID,
+		},
+		{
+			name: "ambiguous keyid - cert file and keyid",
+			key: &OIDCClientAssertionKey{
+				PemKey:      "anykey", // checked before cert
+				PemCertFile: "/any.cert",
+				KeyID:       "key-id",
+			},
+			err: ErrAmbiguousClientAssertionKeyID,
+		},
+		{
+			name: "ambiguous keyid - cert pem and keyid",
+			key: &OIDCClientAssertionKey{
+				PemKey:  "anykey", // checked before cert
+				PemCert: "anycert",
+				KeyID:   "key-id",
+			},
+			err: ErrAmbiguousClientAssertionKeyID,
+		},
+		{
+			name: "bad key header for keyid",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:  "/any.key",
+				KeyID:       "key-id",
+				KeyIDHeader: OIDCClientAssertionHeaderX5t,
+			},
+			err: ErrInvalidKeyIDHeader,
+		},
+		{
+			name: "bad key header for cert",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:  "/any.key",
+				PemCert:     "anycert",
+				KeyIDHeader: OIDCClientAssertionHeaderKid,
+			},
+			err: ErrInvalidKeyIDHeader,
+		},
+		{
+			name: "bad key header for cert file",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:  "/any.key",
+				PemCertFile: "/any.crt",
+				KeyIDHeader: OIDCClientAssertionHeaderKid,
+			},
+			err: ErrInvalidKeyIDHeader,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.key.Canonicalize()
+			err := tc.key.Validate()
+			if tc.err == nil {
+				must.NoError(t, err)
+			} else {
+				must.ErrorIs(t, err, tc.err)
+			}
+		})
+	}
 }
 
 func TestACLBindingRule_Canonicalize(t *testing.T) {
@@ -1785,4 +2082,20 @@ func TestACLOIDCCompleteAuthRequest_Validate(t *testing.T) {
 	must.StrContains(t, err.Error(), "missing state")
 	must.StrContains(t, err.Error(), "missing code")
 	must.StrContains(t, err.Error(), "missing redirect URI")
+}
+
+func validClientAssertion() *OIDCClientAssertion {
+	return &OIDCClientAssertion{
+		KeySource: OIDCKeySourcePrivateKey,
+		Audience:  []string{"test-audience"},
+		PrivateKey: &OIDCClientAssertionKey{
+			PemKeyFile:  "test-key-file",
+			KeyIDHeader: OIDCClientAssertionHeaderKid,
+			KeyID:       "test-key-id",
+		},
+		ExtraHeaders: map[string]string{"test-header": "test-value"},
+		KeyAlgorithm: "test-key-algo",
+		// clientSecret is ordinarily inherited from parent ACLAuthMethodConfig
+		ClientSecret: "test-client-secret",
+	}
 }

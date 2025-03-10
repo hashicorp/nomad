@@ -270,6 +270,11 @@ type Server struct {
 	// shutting down, the oidcProviderCache.Shutdown() function must be called.
 	oidcProviderCache *oidc.ProviderCache
 
+	// oidcRequestCache stores a cache of OIDC requests, so request state
+	// (mainly PKCE challenge/verification) can persist between calls to
+	// OIDCAuthURL and OIDCCompleteAuth.
+	oidcRequestCache *oidc.RequestCache
+
 	// lockTTLTimer and lockDelayTimer are used to track variable lock timers.
 	// These are held in memory on the leader rather than in state to avoid
 	// large amount of Raft writes.
@@ -430,6 +435,12 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// must be done separately so that the server can stop all background
 	// processes when it shuts down itself.
 	s.oidcProviderCache = oidc.NewProviderCache()
+
+	// Set up OIDC requests cache for state that persists between calls to
+	// ACL.OIDCAuthURL and ACL.OIDCCompleteAuth.
+	// It needs no special handling to handle agent shutdowns (its Store method
+	// handles this lifecycle).
+	s.oidcRequestCache = oidc.NewRequestCache()
 
 	// Initialize the RPC layer
 	if err := s.setupRPC(tlsWrap); err != nil {

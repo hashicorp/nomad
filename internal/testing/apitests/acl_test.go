@@ -11,6 +11,7 @@ import (
 	capOIDC "github.com/hashicorp/cap/oidc"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
 
@@ -94,9 +95,12 @@ func TestACLOIDC_CompleteAuth(t *testing.T) {
 		MaxTokenTTL:   10 * time.Hour,
 		Default:       true,
 		Config: &api.ACLAuthMethodConfig{
-			OIDCDiscoveryURL:    oidcTestProvider.Addr(),
-			OIDCClientID:        "mock",
-			OIDCClientSecret:    "verysecretsecret",
+			OIDCDiscoveryURL: oidcTestProvider.Addr(),
+			OIDCClientID:     "mock",
+			OIDCClientSecret: "verysecretsecret",
+			// PKCE is hard to test at this level, because the verifier only
+			// exists on the server. this functionality is covered elsewhere.
+			OIDCDisablePKCE:     pointer.Of(true),
 			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"mock"},
 			AllowedRedirectURIs: []string{"http://127.0.0.1:4649/oidc/callback"},
@@ -120,7 +124,6 @@ func TestACLOIDC_CompleteAuth(t *testing.T) {
 	oidcTestProvider.SetExpectedAuthNonce("fpSPuaodKevKfDU3IeXb")
 	oidcTestProvider.SetExpectedAuthCode("codeABC")
 	oidcTestProvider.SetCustomAudience("mock")
-	oidcTestProvider.SetExpectedState("st_someweirdstateid")
 	oidcTestProvider.SetCustomClaims(map[string]interface{}{
 		"azp":                            "mock",
 		"http://nomad.internal/policies": []string{"engineering"},
@@ -166,12 +169,24 @@ func TestACLOIDC_CompleteAuth(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, createBindingRole2Resp)
 
+	// Request Auth URL first, as a user would. This primes the request cache
+	// on the server, and the response includes the expected state.
+	authURLresp, _, err := testClient.ACLAuth().GetAuthURL(&api.ACLOIDCAuthURLRequest{
+		AuthMethodName: createdAuthMethod.Name,
+		RedirectURI:    createdAuthMethod.Config.AllowedRedirectURIs[0],
+		ClientNonce:    "fpSPuaodKevKfDU3IeXb",
+	}, nil)
+	must.NoError(t, err)
+	u, err := url.Parse(authURLresp.AuthURL)
+	must.NoError(t, err)
+	state := u.Query().Get("state")
+
 	// Generate and make the request.
 	authURLRequest := api.ACLOIDCCompleteAuthRequest{
 		AuthMethodName: createdAuthMethod.Name,
 		RedirectURI:    createdAuthMethod.Config.AllowedRedirectURIs[0],
 		ClientNonce:    "fpSPuaodKevKfDU3IeXb",
-		State:          "st_someweirdstateid",
+		State:          state,
 		Code:           "codeABC",
 	}
 
