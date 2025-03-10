@@ -1321,6 +1321,30 @@ func TestACLAuthMethod_Sanitize(t *testing.T) {
 		must.Eq(t, "very private secret", dirty)
 		must.Eq(t, "redacted", clean)
 	})
+
+	t.Run("client assertion", func(t *testing.T) {
+		am := am.Copy()
+		am.Config.OIDCClientAssertion = &OIDCClientAssertion{}
+		am.Sanitize() // no nil panic
+		// client secret gets inherited
+		am.Config.OIDCClientSecret = "very private secret"
+		am.Canonicalize()
+		dirty := am.Config.OIDCClientAssertion.ClientSecret
+		clean := am.Sanitize().Config.OIDCClientAssertion.ClientSecret
+		must.Eq(t, "very private secret", dirty)
+		must.Eq(t, "redacted", clean)
+		// private key material
+		am.Config.OIDCClientAssertion.PrivateKey = &OIDCClientAssertionKey{
+			PemKey: "very private key",
+		}
+		// dirty should remain dirty, because it only cleans a copy.
+		dirty = am.Config.OIDCClientAssertion.PrivateKey.PemKey
+		am.Sanitize()
+		clean = am.Sanitize().Config.OIDCClientAssertion.PrivateKey.PemKey
+		must.Eq(t, "very private key", dirty)
+		must.Eq(t, "redacted", clean)
+	})
+
 }
 
 func TestACLAuthMethod_Merge(t *testing.T) {

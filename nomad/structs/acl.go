@@ -1019,6 +1019,17 @@ func (a *ACLAuthMethod) Sanitize() *ACLAuthMethod {
 	if clean.Config.OIDCClientSecret != "" {
 		clean.Config.OIDCClientSecret = "redacted"
 	}
+	if clean.Config.OIDCClientAssertion != nil {
+		// this ClientSecret gets inherited by the above one
+		if clean.Config.OIDCClientAssertion.ClientSecret != "" {
+			clean.Config.OIDCClientAssertion.ClientSecret = "redacted"
+		}
+		if clean.Config.OIDCClientAssertion.PrivateKey != nil &&
+			clean.Config.OIDCClientAssertion.PrivateKey.PemKey != "" {
+			clean.Config.OIDCClientAssertion.PrivateKey.PemKey = "redacted"
+		}
+	}
+
 	return clean
 }
 
