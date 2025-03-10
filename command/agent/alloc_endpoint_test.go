@@ -6,6 +6,7 @@ package agent
 import (
 	"archive/tar"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -759,7 +760,7 @@ func TestHTTP_AllocSnapshot_Atomic(t *testing.T) {
 				return false, err
 			}
 
-			return serverAlloc.ClientStatus == structs.AllocClientStatusRunning, fmt.Errorf(serverAlloc.ClientStatus)
+			return serverAlloc.ClientStatus == structs.AllocClientStatusRunning, errors.New(serverAlloc.ClientStatus)
 		}, func(err error) {
 			t.Fatalf("client not running alloc: %v", err)
 		})

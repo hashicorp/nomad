@@ -369,17 +369,17 @@ func TestLeader_PeriodicDispatcher_Restore_Adds(t *testing.T) {
 		leader.periodicDispatcher.l.Lock()
 		defer leader.periodicDispatcher.l.Unlock()
 		if _, tracked := leader.periodicDispatcher.tracked[tuplePeriodic]; !tracked {
-			return false, fmt.Errorf("periodic job not tracked")
+			return false, errors.New("periodic job not tracked")
 		}
 		if _, tracked := leader.periodicDispatcher.tracked[tupleNonPeriodic]; tracked {
-			return false, fmt.Errorf("non periodic job tracked")
+			return false, errors.New("non periodic job tracked")
 		}
 		if _, tracked := leader.periodicDispatcher.tracked[tupleParameterized]; tracked {
-			return false, fmt.Errorf("parameterized periodic job tracked")
+			return false, errors.New("parameterized periodic job tracked")
 		}
 		return true, nil
 	}, func(err error) {
-		t.Fatalf(err.Error())
+		t.Fatal(err)
 	})
 }
 

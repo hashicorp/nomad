@@ -54,12 +54,12 @@ func newMockConsulServer() *mockConsulServer {
 				SecretID: secretID,
 			}
 			buf, _ := json.Marshal(token)
-			fmt.Fprintf(w, string(buf))
+			fmt.Fprint(w, string(buf))
 			return
 		}
 
 		w.WriteHeader(srv.errorCodeOnTokenSelf)
-		fmt.Fprintf(w, "{}")
+		fmt.Fprint(w, "{}")
 	})
 
 	srv.httpSrv = httptest.NewServer(mux)
