@@ -110,6 +110,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 			if !ok {
 				return structs.Event{}, false
 			}
+			before = before.Sanitize()
 			return structs.Event{
 				Topic: structs.TopicACLAuthMethod,
 				Key:   before.Name,
@@ -283,6 +284,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 		if !ok {
 			return structs.Event{}, false
 		}
+		after = after.Sanitize()
 		return structs.Event{
 			Topic: structs.TopicACLAuthMethod,
 			Key:   after.Name,

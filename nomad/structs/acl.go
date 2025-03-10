@@ -978,6 +978,21 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 	return mErr.ErrorOrNil()
 }
 
+// Sanitize returns a copy of the ACLAuthMethod with any secrets redacted
+func (a *ACLAuthMethod) Sanitize() *ACLAuthMethod {
+	if a == nil || a.Config == nil {
+		return a
+	}
+	// copy to ensure we do not mutate a pointer pulled directly out of state.
+	clean := a.Copy()
+	// clean nested structs here, so it's obvious what all is being cleaned
+	// in one spot, rather than follow a stack of sanitization calls.
+	if clean.Config.OIDCClientSecret != "" {
+		clean.Config.OIDCClientSecret = "redacted"
+	}
+	return clean
+}
+
 // TokenLocalityIsGlobal returns whether the auth method creates global ACL
 // tokens or not.
 func (a *ACLAuthMethod) TokenLocalityIsGlobal() bool {
