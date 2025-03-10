@@ -553,11 +553,10 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 
 	// Merge job.consul onto group.consul
-	if g.Consul == nil {
-		g.Consul = new(Consul)
+	if g.Consul != nil {
+		g.Consul.MergeNamespace(job.ConsulNamespace)
+		g.Consul.Canonicalize()
 	}
-	g.Consul.MergeNamespace(job.ConsulNamespace)
-	g.Consul.Canonicalize()
 
 	// Merge the update policy from the job
 	if ju, tu := job.Update != nil, g.Update != nil; ju && tu {
