@@ -44,22 +44,24 @@ module('Acceptance | volume detail', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('/csi/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function (assert) {
+  test('/storage/volumes/:id should have a breadcrumb trail linking back to Volumes and Storage', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.equal(Layout.breadcrumbFor('csi.index').text, 'Storage');
-    assert.equal(Layout.breadcrumbFor('csi.volumes').text, 'Volumes');
-    assert.equal(Layout.breadcrumbFor('csi.volumes.volume').text, volume.name);
+    assert.equal(Layout.breadcrumbFor('storage.index').text, 'Storage');
+    assert.equal(
+      Layout.breadcrumbFor('storage.volumes.volume').text,
+      volume.name
+    );
   });
 
-  test('/csi/volumes/:id should show the volume name in the title', async function (assert) {
+  test('/storage/volumes/:id should show the volume name in the title', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.equal(document.title, `CSI Volume ${volume.name} - Nomad`);
     assert.equal(VolumeDetail.title, volume.name);
   });
 
-  test('/csi/volumes/:id should list additional details for the volume below the title', async function (assert) {
+  test('/storage/volumes/:id should list additional details for the volume below the title', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
     assert.ok(
@@ -75,7 +77,7 @@ module('Acceptance | volume detail', function (hooks) {
     );
   });
 
-  test('/csi/volumes/:id should list all write allocations the volume is attached to', async function (assert) {
+  test('/storage/volumes/:id should list all write allocations the volume is attached to', async function (assert) {
     const writeAllocations = server.createList('allocation', 2);
     const readAllocations = server.createList('allocation', 3);
     writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
@@ -95,7 +97,7 @@ module('Acceptance | volume detail', function (hooks) {
       });
   });
 
-  test('/csi/volumes/:id should list all read allocations the volume is attached to', async function (assert) {
+  test('/storage/volumes/:id should list all read allocations the volume is attached to', async function (assert) {
     const writeAllocations = server.createList('allocation', 2);
     const readAllocations = server.createList('allocation', 3);
     writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
@@ -250,7 +252,7 @@ module('Acceptance | volume detail (with namespaces)', function (hooks) {
     volume = server.create('csi-volume');
   });
 
-  test('/csi/volumes/:id detail ribbon includes the namespace of the volume', async function (assert) {
+  test('/storage/volumes/:id detail ribbon includes the namespace of the volume', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@${volume.namespaceId}` });
 
     assert.ok(VolumeDetail.hasNamespace);

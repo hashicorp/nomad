@@ -31,22 +31,25 @@ module('Acceptance | plugin detail', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('/csi/plugins/:id should have a breadcrumb trail linking back to Plugins and Storage', async function (assert) {
+  test('/storage/plugins/:id should have a breadcrumb trail linking back to Plugins and Storage', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
-    assert.equal(Layout.breadcrumbFor('csi.index').text, 'Storage');
-    assert.equal(Layout.breadcrumbFor('csi.plugins').text, 'Plugins');
-    assert.equal(Layout.breadcrumbFor('csi.plugins.plugin').text, plugin.id);
+    assert.equal(Layout.breadcrumbFor('storage.index').text, 'Storage');
+    assert.equal(Layout.breadcrumbFor('storage.plugins').text, 'Plugins');
+    assert.equal(
+      Layout.breadcrumbFor('storage.plugins.plugin').text,
+      plugin.id
+    );
   });
 
-  test('/csi/plugins/:id should show the plugin name in the title', async function (assert) {
+  test('/storage/plugins/:id should show the plugin name in the title', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
     assert.equal(document.title, `CSI Plugin ${plugin.id} - Nomad`);
     assert.equal(PluginDetail.title, plugin.id);
   });
 
-  test('/csi/plugins/:id should list additional details for the plugin below the title', async function (assert) {
+  test('/storage/plugins/:id should list additional details for the plugin below the title', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
     assert.ok(
@@ -74,7 +77,7 @@ module('Acceptance | plugin detail', function (hooks) {
     assert.ok(PluginDetail.provider.includes(plugin.provider));
   });
 
-  test('/csi/plugins/:id should list all the controller plugin allocations for the plugin', async function (assert) {
+  test('/storage/plugins/:id should list all the controller plugin allocations for the plugin', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
     assert.equal(
@@ -92,7 +95,7 @@ module('Acceptance | plugin detail', function (hooks) {
       });
   });
 
-  test('/csi/plugins/:id should list all the node plugin allocations for the plugin', async function (assert) {
+  test('/storage/plugins/:id should list all the node plugin allocations for the plugin', async function (assert) {
     await PluginDetail.visit({ id: plugin.id });
 
     assert.equal(PluginDetail.nodeAllocations.length, plugin.nodes.length);
@@ -267,7 +270,9 @@ module('Acceptance | plugin detail', function (hooks) {
     await PluginDetail.goToControllerAllocations();
     assert.equal(
       currentURL(),
-      `/csi/plugins/${plugin.id}/allocations?type=${serialize(['controller'])}`
+      `/storage/plugins/${plugin.id}/allocations?type=${serialize([
+        'controller',
+      ])}`
     );
 
     await PluginDetail.visit({ id: plugin.id });
@@ -277,7 +282,7 @@ module('Acceptance | plugin detail', function (hooks) {
     await PluginDetail.goToNodeAllocations();
     assert.equal(
       currentURL(),
-      `/csi/plugins/${plugin.id}/allocations?type=${serialize(['node'])}`
+      `/storage/plugins/${plugin.id}/allocations?type=${serialize(['node'])}`
     );
   });
 });

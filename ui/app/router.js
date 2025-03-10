@@ -60,9 +60,13 @@ Router.map(function () {
 
   this.route('topology');
 
-  this.route('csi', function () {
+  // Only serves as a redirect to storage
+  this.route('csi');
+
+  this.route('storage', function () {
     this.route('volumes', function () {
-      this.route('volume', { path: '/:volume_name' });
+      this.route('volume', { path: '/csi/:volume_name' });
+      this.route('dynamic-host-volume', { path: '/dynamic/:id' });
     });
 
     this.route('plugins', function () {

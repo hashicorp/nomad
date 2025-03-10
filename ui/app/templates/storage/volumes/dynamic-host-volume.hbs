@@ -1,0 +1,119 @@
+{{!
+  Copyright (c) HashiCorp, Inc.
+  SPDX-License-Identifier: BUSL-1.1
+~}}
+
+{{#each this.breadcrumbs as |crumb|}}
+  <Breadcrumb @crumb={{crumb}} />
+{{/each}}
+{{page-title "Dynamic Host Volume " this.model.name}}
+<section class="section with-headspace">
+  <h1 class="title" data-test-title>{{this.model.name}}</h1>
+
+  <div class="boxed-section is-small">
+    <div class="boxed-section-body inline-definitions">
+      <span class="label">Volume Details</span>
+      <span class="pair" data-test-volume-id>
+        <span class="term">ID</span>
+        {{this.model.plainId}}
+      </span>
+      {{#if this.system.shouldShowNamespaces}}
+        <span class="pair" data-test-volume-namespace>
+          <span class="term">Namespace</span>
+          {{this.model.namespace}}
+        </span>
+      {{/if}}
+      <span class="pair" data-test-volume-node>
+        <span class="term">Client</span>
+        {{this.model.node.name}}
+      </span>
+      <span class="pair" data-test-volume-plugin>
+        <span class="term">Plugin</span>
+        {{this.model.pluginID}}
+      </span>
+      <span class="pair" data-test-volume-create-time>
+        <span class="term">Create Time</span>
+        <span class="tooltip" aria-label="{{format-month-ts this.model.createTime}}">
+          {{moment-from-now this.model.createTime}}
+        </span>
+      </span>
+      <span class="pair" data-test-volume-modify-time>
+        <span class="term">Modify Time</span>
+        <span class="tooltip" aria-label="{{format-month-ts this.model.modifyTime}}">
+          {{moment-from-now this.model.modifyTime}}
+        </span>
+      </span>
+      {{#if this.model.capacityBytes}}
+        <span class="pair" data-test-volume-capacity>
+          <span class="term">Capacity</span>
+          {{format-bytes this.model.capacityBytes}}
+        </span>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Allocations
+    </div>
+    <div class="boxed-section-body {{if this.model.allocations.length "is-full-bleed"}}">
+      {{#if this.sortedAllocations.length}}
+        <ListTable
+          @source={{this.sortedAllocations}}
+          @class="with-foot" as |t|>
+          <t.head>
+            <th class="is-narrow"><span class="visually-hidden">Driver Health, Scheduling, and Preemption</span></th>
+            <th>ID</th>
+            <th>Created</th>
+            <th>Modified</th>
+            <th>Status</th>
+            <th>Client</th>
+            <th>Job</th>
+            <th>Version</th>
+            <th>CPU</th>
+            <th>Memory</th>
+          </t.head>
+          <t.body as |row|>
+            <AllocationRow
+              {{keyboard-shortcut
+                enumerated=true
+                action=(action "gotoAllocation" row.model)
+              }}
+              @data-test-allocation={{row.model.id}}
+              @allocation={{row.model}}
+              @context="volume"
+              @onClick={{action "gotoAllocation" row.model}} />
+          </t.body>
+        </ListTable>
+      {{else}}
+        <div class="empty-message" data-test-empty-allocations>
+          <h3 class="empty-message-headline" data-test-empty-allocations-headline>No Allocations</h3>
+          <p class="empty-message-body" data-test-empty-allocations-message>No allocations are making use of this volume.</p>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="boxed-section">
+    <div class="boxed-section-head">
+      Capabilities
+    </div>
+    <div class="boxed-section-body is-full-bleed">
+      <table class="table">
+        <thead>
+          <th>Access Mode</th>
+          <th>Attachment Mode</th>
+        </thead>
+        <tbody>
+          {{#each this.model.capabilities as |capability|}}
+            <tr data-test-capability-row>
+              <td data-test-capability-access-mode>{{capability.access_mode}}</td>
+              <td data-test-capability-attachment-mode>{{capability.attachment_mode}}</td>
+            </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</section>

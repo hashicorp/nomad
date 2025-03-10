@@ -5,14 +5,14 @@
 
 <div class="tabs is-subnav" {{did-insert this.keyboard.registerNav type="subnav"}} {{will-destroy this.keyboard.unregisterSubnav}}>
   <ul>
-    <li data-test-tab="volumes">
-      <LinkTo @route="csi.volumes.index" @activeClass="is-active">
-        Volumes
+    <li data-test-tab="overview">
+      <LinkTo @route="storage.index" @activeClass="is-active">
+        Overview
       </LinkTo>
     </li>
     <li data-test-tab="plugins">
-      <LinkTo @route="csi.plugins.index" @activeClass="is-active">
-        Plugins
+      <LinkTo @route="storage.plugins.index" @activeClass="is-active">
+        CSI Plugins
       </LinkTo>
     </li>
   </ul>
