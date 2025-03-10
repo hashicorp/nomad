@@ -24,7 +24,7 @@ export default class AdministrationRoute extends Route.extend(
       this.can.cannot('list tokens') ||
       this.can.cannot('list namespaces')
     ) {
-      this.router.transitionTo('/jobs');
+      // this.router.transitionTo('/jobs');
     }
   }
 

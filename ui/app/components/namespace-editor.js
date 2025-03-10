@@ -20,24 +20,21 @@ export default class NamespaceEditorComponent extends Component {
 
   @alias('args.namespace') namespace;
 
-  @tracked JSONError = null;
   @tracked definitionString = this.definitionStringFromNamespace(
     this.args.namespace
   );
+  @tracked hasLintingErrors = false;
 
   @action updateNamespaceName({ target: { value } }) {
     this.namespace.set('name', value);
   }
 
   @action updateNamespaceDefinition(value) {
-    this.JSONError = null;
     this.definitionString = value;
+  }
 
-    try {
-      JSON.parse(this.definitionString);
-    } catch (error) {
-      this.JSONError = 'Invalid JSON';
-    }
+  @action onLint(diagnostics) {
+    this.hasLintingErrors = diagnostics.length > 0;
   }
 
   @action async save(e) {
