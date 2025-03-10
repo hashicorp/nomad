@@ -128,8 +128,8 @@ export default class IndexController extends Controller {
         label: 'Node Health',
       },
       {
-        key: 'provider',
-        label: 'Provider',
+        key: 'plugin.plainId',
+        label: 'Plugin',
       },
       {
         key: 'allocationCount',

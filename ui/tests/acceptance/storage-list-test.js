@@ -105,7 +105,7 @@ module('Acceptance | storage list', function (hooks) {
       volumeRow.nodeHealth,
       `${nodeHealthStr} ( ${volume.nodesHealthy} / ${volume.nodesExpected} )`
     );
-    assert.equal(volumeRow.provider, volume.provider);
+    assert.equal(volumeRow.plugin, volume.PluginId);
     assert.equal(volumeRow.allocations, readAllocs.length + writeAllocs.length);
   });
 

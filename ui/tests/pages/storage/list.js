@@ -37,7 +37,7 @@ export default create({
     schedulable: text('[data-test-csi-volume-schedulable]'),
     controllerHealth: text('[data-test-csi-volume-controller-health]'),
     nodeHealth: text('[data-test-csi-volume-node-health]'),
-    provider: text('[data-test-csi-volume-provider]'),
+    plugin: text('[data-test-csi-volume-plugin]'),
     allocations: text('[data-test-csi-volume-allocations]'),
 
     hasNamespace: isPresent('[data-test-csi-volume-namespace]'),

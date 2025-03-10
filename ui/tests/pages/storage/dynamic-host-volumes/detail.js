@@ -34,7 +34,7 @@ export default create({
   },
 
   capabilities: collection('[data-test-capability-row]', {
-    key: text('[data-test-capability-key]'),
-    value: text('[data-test-capability-value]'),
+    accessMode: text('[data-test-capability-access-mode]'),
+    attachmentMode: text('[data-test-capability-attachment-mode]'),
   }),
 });

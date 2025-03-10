@@ -25,12 +25,17 @@ export default Factory.extend({
     return 10000000;
   },
 
-  accessModes() {
-    return ['single-node-writer'];
-  },
-
-  attachmentModes() {
-    return ['file-system'];
+  requestedCapabilities() {
+    return [
+      {
+        AccessMode: 'single-node-writer',
+        AttachmentMode: 'file-system',
+      },
+      {
+        AccessMode: 'single-node-reader-only',
+        AttachmentMode: 'block-device',
+      },
+    ];
   },
 
   path: () => faker.system.filePath(),
