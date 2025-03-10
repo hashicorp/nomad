@@ -82,8 +82,14 @@ blocks.
 To avoid having to add these additional identities to every job, you can
 configure Nomad servers with the [`consul.service_identity`][] and
 [`consul.task_identity`][] agent configuration. Upon job registration, the
-Nomad servers update tasks that have a [`consul`][] or [`template`][] block and
-services that use the Consul service provider with these default identities.
+Nomad servers update tasks that have a [`consul`][] block and services that use
+the Consul service provider with these default identities.
+
+Job specifications that include [`template`][] blocks are not provided with
+default identities because Nomad is unable to decipher the contents of the
+template data. You must specify the identities required for Consul in the job
+specification. Refer to the [Workload Identities for Consul][jobspec_identity_consul]
+section of the `identity` block documentation for more information.
 
 You can also specify identities for Consul directly in the job. When provided,
 they override the Nomad server configuration. Refer to the [Workload Identities
