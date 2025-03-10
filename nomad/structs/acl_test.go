@@ -1573,7 +1573,7 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 			},
 		},
 		{
-			name: "ok base64s",
+			name: "ok pems",
 			key: &OIDCClientAssertionKey{
 				PemKey:  "anykey",
 				PemCert: "anycert",
@@ -1609,7 +1609,7 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 			err: ErrAmbiguousClientAssertionKey,
 		},
 		{
-			name: "ambiguous keyid - cert file and b64",
+			name: "ambiguous keyid - cert file and pem",
 			key: &OIDCClientAssertionKey{
 				PemKey:      "anykey", // checked before cert
 				PemCertFile: "/any.cert",
@@ -1627,7 +1627,7 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 			err: ErrAmbiguousClientAssertionKeyID,
 		},
 		{
-			name: "ambiguous keyid - cert file and b64",
+			name: "ambiguous keyid - cert pem and keyid",
 			key: &OIDCClientAssertionKey{
 				PemKey:  "anykey", // checked before cert
 				PemCert: "anycert",
@@ -1635,9 +1635,37 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 			},
 			err: ErrAmbiguousClientAssertionKeyID,
 		},
+		{
+			name: "bad key header for keyid",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:  "/any.key",
+				KeyID:       "key-id",
+				KeyIDHeader: OIDCClientAssertionHeaderX5t,
+			},
+			err: ErrInvalidKeyIDHeader,
+		},
+		{
+			name: "bad key header for cert",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:  "/any.key",
+				PemCert:     "anycert",
+				KeyIDHeader: OIDCClientAssertionHeaderKid,
+			},
+			err: ErrInvalidKeyIDHeader,
+		},
+		{
+			name: "bad key header for cert file",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile:  "/any.key",
+				PemCertFile: "/any.crt",
+				KeyIDHeader: OIDCClientAssertionHeaderKid,
+			},
+			err: ErrInvalidKeyIDHeader,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			tc.key.Canonicalize()
 			err := tc.key.Validate()
 			if tc.err == nil {
 				must.NoError(t, err)
@@ -2037,8 +2065,9 @@ func validClientAssertion() *OIDCClientAssertion {
 		KeySource: OIDCKeySourcePrivateKey,
 		Audience:  []string{"test-audience"},
 		PrivateKey: &OIDCClientAssertionKey{
-			PemKeyFile: "test-key-file",
-			KeyID:      "test-key-id",
+			PemKeyFile:  "test-key-file",
+			KeyIDHeader: OIDCClientAssertionHeaderKid,
+			KeyID:       "test-key-id",
 		},
 		ExtraHeaders: map[string]string{"test-header": "test-value"},
 		KeyAlgorithm: "test-key-algo",

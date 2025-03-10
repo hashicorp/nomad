@@ -843,11 +843,12 @@ func (a *ACLAuthMethod) SetHash() []byte {
 				_, _ = hash.Write([]byte(v))
 			}
 			if a.Config.OIDCClientAssertion.PrivateKey != nil {
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.KeyIDHeader))
+				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.KeyID))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemKey))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemKeyFile))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemCert))
 				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.PemCertFile))
-				_, _ = hash.Write([]byte(a.Config.OIDCClientAssertion.PrivateKey.KeyID))
 			}
 		}
 	}
@@ -1288,6 +1289,7 @@ func (c *OIDCClientAssertion) Canonicalize() {
 			c.KeyAlgorithm = "RS256"
 		}
 	}
+	c.PrivateKey.Canonicalize()
 }
 
 func (c *OIDCClientAssertion) IsSet() bool {
@@ -1320,6 +1322,14 @@ func (c *OIDCClientAssertion) Validate() error {
 	return nil
 }
 
+type OIDCClientAssertionKeyIDHeader string
+
+const (
+	OIDCClientAssertionHeaderKid     OIDCClientAssertionKeyIDHeader = "kid"
+	OIDCClientAssertionHeaderX5t     OIDCClientAssertionKeyIDHeader = "x5t"
+	OIDCClientAssertionHeaderX5tS256 OIDCClientAssertionKeyIDHeader = "x5t#S256"
+)
+
 // OIDCClientAssertionKey contains key material provided by users for Nomad
 // to use to sign the private key JWT.
 // See api.OIDCClientAssertionKey for full field descriptions.
@@ -1327,6 +1337,7 @@ type OIDCClientAssertionKey struct {
 	PemKey     string
 	PemKeyFile string
 
+	KeyIDHeader OIDCClientAssertionKeyIDHeader
 	PemCert     string
 	PemCertFile string
 	KeyID       string
@@ -1341,20 +1352,36 @@ func (k *OIDCClientAssertionKey) Copy() *OIDCClientAssertionKey {
 	return n
 }
 
+func (k *OIDCClientAssertionKey) Canonicalize() {
+	if k == nil {
+		return
+	}
+	if k.KeyIDHeader == "" {
+		if k.KeyID != "" {
+			k.KeyIDHeader = OIDCClientAssertionHeaderKid
+		}
+		if k.PemCert != "" || k.PemCertFile != "" {
+			k.KeyIDHeader = OIDCClientAssertionHeaderX5tS256
+		}
+	}
+}
+
 var (
 	ErrMissingClientAssertionKey     = errors.New("missing PemKey or PemKeyFile")
 	ErrAmbiguousClientAssertionKey   = errors.New("require only one of PemKey or PemKeyFile")
 	ErrMissingClientAssertionKeyID   = errors.New("missing PemCert, PemCertFile, or KeyID")
 	ErrAmbiguousClientAssertionKeyID = errors.New("require only one of PemCert, PemCertFile, or KeyID")
+	ErrInvalidKeyIDHeader            = errors.New("invalid KeyIDHeader")
 )
 
-// Validate ensures that one Key and one Cert or KeyID are provided.
+// Validate ensures that one Key and one Cert or KeyID are provided,
+// and that the key ID header is valid for the provided KeyID or cert.
 func (k *OIDCClientAssertionKey) Validate() error {
 	if k == nil {
 		return nil
 	}
 
-	// mutual exclusive key fields
+	// mutually exclusive key fields
 	// must have key file or base64, but not both
 	if k.PemKey == "" && k.PemKeyFile == "" {
 		return ErrMissingClientAssertionKey
@@ -1363,7 +1390,7 @@ func (k *OIDCClientAssertionKey) Validate() error {
 		return ErrAmbiguousClientAssertionKey
 	}
 
-	// mutual exclusive cert fields
+	// mutually exclusive cert fields
 	// must have exactly one of: cert file or base64, or keyid
 	if k.PemCert == "" && k.PemCertFile == "" && k.KeyID == "" {
 		return ErrMissingClientAssertionKeyID
@@ -1376,6 +1403,20 @@ func (k *OIDCClientAssertionKey) Validate() error {
 	}
 	if k.KeyID != "" && (k.PemCert != "" || k.PemCertFile != "") {
 		return ErrAmbiguousClientAssertionKeyID
+	}
+
+	// only allow certain key id headers
+	// only "kid" for KeyID
+	if k.KeyID != "" && k.KeyIDHeader != OIDCClientAssertionHeaderKid {
+		return fmt.Errorf("%w; key header for key ID must be %q",
+			ErrInvalidKeyIDHeader, OIDCClientAssertionHeaderKid)
+	}
+	// only "x5t*" for certs
+	if k.PemCert != "" || k.PemCertFile != "" {
+		if k.KeyIDHeader != OIDCClientAssertionHeaderX5t && k.KeyIDHeader != OIDCClientAssertionHeaderX5tS256 {
+			return fmt.Errorf("%w; certificate-derived key header must be one of: %q, %q",
+				ErrInvalidKeyIDHeader, OIDCClientAssertionHeaderX5tS256, OIDCClientAssertionHeaderX5t)
+		}
 	}
 
 	return nil

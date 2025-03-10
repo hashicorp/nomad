@@ -5,12 +5,22 @@ package oidc
 
 import (
 	"crypto/rsa"
+	// sha1 is used to derive an "x5t" jwt header from an x509 certificate,
+	// per the OIDC JWS spec:
+	// https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.7
+	// sha1 is not a security risk here, but it is less reliable than sha256
+	// (for "x5t#S256" headers) in terms of possible value collisions,
+	// so "x5t" must be set explicitly by the user in their auth method config
+	// if their provider does not allow "x5t#S256" (the default).
+	// None of this applies if the user sets the KeyID ("kid" header) manually.
 	"crypto/sha1"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"hash"
 	"os"
 	"time"
 
@@ -55,17 +65,26 @@ func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.
 		if err != nil {
 			return nil, err
 		}
-		keyID := as.PrivateKey.KeyID
-		if keyID == "" {
+
+		if as.PrivateKey.KeyID != "" {
+			// if the user provides a verbatim KeyID, set it as "kid" header
+			opts = append(opts,
+				cass.WithKeyID(as.PrivateKey.KeyID),
+			)
+		} else {
+			// otherwise, derive it from the cert
 			cert, err := getCassCert(as.PrivateKey)
 			if err != nil {
 				return nil, err
 			}
-			keyID = X5T(cert)
+			keyID, err := hashKeyID(cert, as.PrivateKey.KeyIDHeader)
+			if err != nil {
+				return nil, err
+			}
+			opts = append(opts, cass.WithHeaders(map[string]string{
+				string(as.PrivateKey.KeyIDHeader): keyID,
+			}))
 		}
-		opts = append(opts,
-			cass.WithKeyID(keyID),
-		)
 		return cass.NewJWTWithRSAKey(clientID, as.Audience, algo, rsaKey, opts...)
 
 	default: // this shouldn't happen, but just in case
@@ -139,11 +158,21 @@ func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 	return cert, nil
 }
 
-// X5T parses the certificate to an "x5t" header to set as the key ID.
+// hashKeyID derives a "certificate thumbprint" that the OIDC provider uses
+// to find the certificate to verify the private key JWT signature.
 // https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.7
-func X5T(cert *x509.Certificate) string {
-	hasher := sha1.New()
+func hashKeyID(cert *x509.Certificate, header structs.OIDCClientAssertionKeyIDHeader) (string, error) {
+	var hasher hash.Hash
+	switch header {
+	case structs.OIDCClientAssertionHeaderX5t:
+		hasher = sha1.New()
+	case structs.OIDCClientAssertionHeaderX5tS256:
+		hasher = sha256.New()
+	default:
+		// this should be validated long before here, at upsert
+		return "", fmt.Errorf(`%w; must be one of: "x5t", "x5t#S256"`, structs.ErrInvalidKeyIDHeader)
+	}
 	hasher.Write(cert.Raw)
 	hashed := hasher.Sum(nil)
-	return base64.RawURLEncoding.EncodeToString(hashed)
+	return base64.RawURLEncoding.EncodeToString(hashed), nil
 }

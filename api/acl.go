@@ -1000,14 +1000,29 @@ type OIDCClientAssertion struct {
 	KeyAlgorithm string
 
 	// ExtraHeaders are added to the JWT headers, alongside "kid" and "type"
+	// Setting the "kid" header here is not allowed; use PrivateKey.KeyID.
 	ExtraHeaders map[string]string
 }
 
+// OIDCClientAssertionKeyIDHeader is the header that the OIDC provider will use
+// to look up the certificate or public key that it needs to verify the
+// private key JWT signature.
+type OIDCClientAssertionKeyIDHeader string
+
+const (
+	OIDCClientAssertionHeaderKid     OIDCClientAssertionKeyIDHeader = "kid"
+	OIDCClientAssertionHeaderX5t     OIDCClientAssertionKeyIDHeader = "x5t"
+	OIDCClientAssertionHeaderX5tS256 OIDCClientAssertionKeyIDHeader = "x5t#S256"
+)
+
 // OIDCClientAssertionKey contains key material provided by users for Nomad
 // to use to sign the private key JWT.
+//
 // PemKey or PemKeyFile must contain an RSA private key in PEM format.
+//
 // PemCert, PemCertFile may contain an x509 certificate created with
 // the Key, used to derive the KeyID. Alternatively, KeyID may be set manually.
+//
 // PemKeyFile and PemCertFile, if set, must be present on disk on any Nomad
 // servers that may become cluster leaders.
 type OIDCClientAssertionKey struct {
@@ -1019,18 +1034,39 @@ type OIDCClientAssertionKey struct {
 	// Mutually exclusive with PemKey.
 	PemKeyFile string
 
+	// KeyIDHeader is which header to set for they provider to identify the
+	// public key to use to verify the signed JWT. Its default values vary
+	// based on which of the other required fields is set:
+	// KeyID: "kid"
+	// PemCert: "x5t#S256"
+	// PemCertFile: "x5t#S256"
+	//
+	// Valid values are: "kid", "x5t", "x5t#S256"
+	// If "x5t" is selected, Nomad uses sha1 to derive the x5t header
+	// from the provided certificate.
+	//
+	// Refer to the RFC for more information on JWT key headers:
+	// "kid": https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.4
+	// "x5t": https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.7
+	// "x5t#S256": https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.8
+	//
+	// If you need to set some other header not supported here,
+	// you may use OIDCClientAssertion.ExtraHeaders.
+	KeyIDHeader OIDCClientAssertionKeyIDHeader
+	// KeyID may be set manually and becomes the "kid" header.
+	// Mutually exclusive with PemCert and PemCertFile.
+	// Allowed KeyIDHeader values: "kid" (the default)
+	KeyID string
 	// PemCert is a certificate, signed by the private key or a CA,
 	// in pem format. It is used to derive an x5t-style KeyID.
 	// Mutually exclusive with PemCertFile and KeyID.
+	// Allowed KeyIDHeader values: "x5t", "x5t#S256" (default "x5t#S256")
 	PemCert string
 	// PemCertFile is a certificate, signed by the private key or a CA,
 	// on server disk, in pem format. It is used to derive an x5t-style KeyID.
 	// Mutually exclusive with PemCert and KeyID.
+	// Allowed KeyIDHeader values: "x5t", "x5t#S256" (default "x5t#S256")
 	PemCertFile string
-	// KeyID may be set manually if needed to satisfy an OIDC provider's
-	// unique requirements.
-	// Mutually exclusive with PemCert and PemCertFile.
-	KeyID string
 }
 
 // ACLAuthMethodListStub is the stub object returned when performing a listing
