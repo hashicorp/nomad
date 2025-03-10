@@ -5,7 +5,6 @@ package nomad
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io"
 	"net/url"
@@ -4218,9 +4217,7 @@ func cacheOIDCRequest(t *testing.T, cache *oidc.RequestCache, req structs.ACLOID
 		opts...,
 	)
 	must.NoError(t, err)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	t.Cleanup(cancel)
 	// make sure the cache is clean first
 	cache.LoadAndDelete(req.ClientNonce)
-	must.NoError(t, cache.Store(ctx, oidcReq))
+	must.NoError(t, cache.Store(oidcReq))
 }

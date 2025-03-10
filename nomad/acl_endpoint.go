@@ -2625,7 +2625,7 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 		if err != nil {
 			return err
 		}
-		if err = a.oidcRequestCache.Store(a.srv.shutdownCtx, oidcReq); err != nil {
+		if err = a.oidcRequestCache.Store(oidcReq); err != nil {
 			return fmt.Errorf("error storing OIDC request: %w", err)
 		}
 	}

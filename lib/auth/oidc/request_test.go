@@ -4,7 +4,6 @@
 package oidc
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -17,41 +16,25 @@ import (
 func TestRequestCache(t *testing.T) {
 	// using a top-level cache and running each sub-test in parallel exercises
 	// a little bit of thread safety.
-	rc := NewRequestCache()
+	rc := NewRequestCache(time.Minute)
 
 	t.Run("reuse nonce", func(t *testing.T) {
 		t.Parallel()
 		req := getRequest(t)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
-		must.NoError(t, rc.Store(ctx, req))
-		must.ErrorIs(t, rc.Store(ctx, req), ErrNonceReuse)
-	})
-
-	t.Run("cancel parent ctx", func(t *testing.T) {
-		t.Parallel()
-		req := getRequest(t)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		must.NoError(t, rc.Store(ctx, req))
-		must.Eq(t, req, rc.Load(req.Nonce()))
-
-		cancel() // triggers delete
-		waitUntilGone(t, rc, req.Nonce())
+		must.NoError(t, rc.Store(req))
+		must.ErrorIs(t, rc.Store(req), ErrNonceReuse)
 	})
 
 	t.Run("load and delete", func(t *testing.T) {
 		t.Parallel()
 		req := getRequest(t)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
-		must.NoError(t, rc.Store(ctx, req))
+		must.NoError(t, rc.Store(req))
 		must.Eq(t, req, rc.Load(req.Nonce()))
 
-		must.Eq(t, req, rc.LoadAndDelete(req.Nonce())) // triggers delete
+		must.Eq(t, req, rc.LoadAndDelete(req.Nonce()))
+
 		waitUntilGone(t, rc, req.Nonce())
 		must.Nil(t, rc.LoadAndDelete(req.Nonce()))
 	})
@@ -59,14 +42,11 @@ func TestRequestCache(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		// this test needs its own cache to reduce the timeout
 		// without affecting any other tests.
-		rc := NewRequestCache()
-		rc.timeout = time.Millisecond
+		rc := NewRequestCache(50 * time.Millisecond)
 
 		req := getRequest(t)
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
 
-		must.NoError(t, rc.Store(ctx, req))
+		must.NoError(t, rc.Store(req))
 
 		// timeout triggers delete behind the scenes
 		waitUntilGone(t, rc, req.Nonce())
@@ -74,9 +54,7 @@ func TestRequestCache(t *testing.T) {
 
 	t.Run("too many requests", func(t *testing.T) {
 		// not Parallel, would make other tests flaky
-
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
+		defer rc.c.Purge()
 
 		var gotErr error
 		for i := range MaxRequests + 5 {
@@ -84,7 +62,7 @@ func TestRequestCache(t *testing.T) {
 				oidc.WithNonce(fmt.Sprintf("too-many-cooks-%d", i)))
 			must.NoError(t, err)
 
-			if err := rc.Store(ctx, req); err != nil {
+			if err := rc.Store(req); err != nil {
 				gotErr = err
 				break
 			}
