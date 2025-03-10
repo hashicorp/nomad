@@ -6,7 +6,7 @@ BREAKING CHANGES:
 
 SECURITY:
 
-* api: sanitize the SignedIdentities in allocations of events to clean the identity token. [[GH-24966](https://github.com/hashicorp/nomad/issues/24966)]
+* api: sanitize the SignedIdentities in allocations of events to clean the identity token to resolve CVE-2025-1296. [[GH-24966](https://github.com/hashicorp/nomad/issues/24966)]
 * build: Updated Go to 1.23.6 [[GH-25041](https://github.com/hashicorp/nomad/issues/25041)]
 * event stream: fixes vulnerability CVE-2025-0937, where using a wildcard namespace to subscribe to the events API grants a user with "read" capabilites on any namespace, the ability to read events from all namespaces. [[GH-25089](https://github.com/hashicorp/nomad/issues/25089)]
 
