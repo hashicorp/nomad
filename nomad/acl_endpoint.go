@@ -2097,7 +2097,7 @@ func (a *ACL) GetAuthMethod(
 
 			// We didn't encounter an error looking up the index; set the auth
 			// method on the reply and exit successfully.
-			reply.AuthMethod = out
+			reply.AuthMethod = out.Sanitize()
 			return nil
 		},
 	})
