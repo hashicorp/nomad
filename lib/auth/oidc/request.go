@@ -12,7 +12,15 @@ import (
 	"github.com/hashicorp/cap/oidc"
 )
 
-var ErrNonceReuse = errors.New("nonce reuse detected")
+var (
+	ErrNonceReuse      = errors.New("nonce reuse detected")
+	ErrTooManyRequests = errors.New("too many auth requests")
+)
+
+// MaxRequests is how many requests are allowed to be stored at a time.
+// It needs to be large enough for legitimate user traffic, but small enough
+// to prevent a DOS from eating up server memory.
+const MaxRequests = 10000
 
 // expiringRequest ensures that OIDC requests that are only partially fulfilled
 // do not get stuck in memory forever.
@@ -56,6 +64,10 @@ func (rc *RequestCache) Store(ctx context.Context, req *oidc.Req) error {
 	if _, ok := rc.m[req.Nonce()]; ok {
 		// we already had a request for this nonce (should never happen)
 		return ErrNonceReuse
+	}
+
+	if len(rc.m) > MaxRequests {
+		return ErrTooManyRequests
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, rc.timeout)

@@ -5,6 +5,7 @@ package oidc
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -70,6 +71,27 @@ func TestRequestCache(t *testing.T) {
 		// timeout triggers delete behind the scenes
 		waitUntilGone(t, rc, req.Nonce())
 	})
+
+	t.Run("too many requests", func(t *testing.T) {
+		// not Parallel, would make other tests flaky
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		var gotErr error
+		for i := range MaxRequests + 5 {
+			req, err := oidc.NewRequest(time.Minute, "test-redirect-url",
+				oidc.WithNonce(fmt.Sprintf("too-many-cooks-%d", i)))
+			must.NoError(t, err)
+
+			if err := rc.Store(ctx, req); err != nil {
+				gotErr = err
+				break
+			}
+		}
+		must.ErrorIs(t, gotErr, ErrTooManyRequests)
+	})
+
 }
 
 func getRequest(t *testing.T) *oidc.Req {
