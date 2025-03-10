@@ -9,8 +9,7 @@ import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
-import pageSizeSelect from './behaviors/page-size-select';
-import VolumesList from 'nomad-ui/tests/pages/storage/volumes/list';
+import StorageList from 'nomad-ui/tests/pages/storage/list';
 import percySnapshot from '@percy/ember';
 import faker from 'nomad-ui/mirage/faker';
 
@@ -26,7 +25,7 @@ const assignReadAlloc = (volume, alloc) => {
   volume.save();
 };
 
-module('Acceptance | volumes list', function (hooks) {
+module('Acceptance | storage list', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
@@ -39,40 +38,35 @@ module('Acceptance | volumes list', function (hooks) {
   });
 
   test('it passes an accessibility audit', async function (assert) {
-    await VolumesList.visit();
+    await StorageList.visit();
     await a11yAudit(assert);
   });
 
-  test('visiting /storage redirects to /storage/volumes', async function (assert) {
-    await visit('/storage');
-
-    assert.equal(currentURL(), '/storage/volumes');
-  });
-
-  test('visiting the now-deprecated /csi redirects to /storage/volumes', async function (assert) {
+  test('visiting the now-deprecated /csi redirects to /storage', async function (assert) {
     await visit('/csi');
 
-    assert.equal(currentURL(), '/storage/volumes');
+    assert.equal(currentURL(), '/storage');
   });
 
-  test('visiting /storage/volumes', async function (assert) {
-    await VolumesList.visit();
+  test('visiting /storage', async function (assert) {
+    await StorageList.visit();
 
-    assert.equal(currentURL(), '/storage/volumes');
-    assert.equal(document.title, 'Volumes - Nomad');
+    assert.equal(currentURL(), '/storage');
+    assert.equal(document.title, 'Storage - Nomad');
   });
 
   test('/storage/volumes should list the first page of volumes sorted by name', async function (assert) {
-    const volumeCount = VolumesList.pageSize + 1;
+    const volumeCount = StorageList.pageSize + 1;
     server.createList('csi-volume', volumeCount);
 
-    await VolumesList.visit();
+    await StorageList.visit();
 
     await percySnapshot(assert);
 
     const sortedVolumes = server.db.csiVolumes.sortBy('id');
-    assert.equal(VolumesList.volumes.length, VolumesList.pageSize);
-    VolumesList.volumes.forEach((volume, index) => {
+
+    assert.equal(StorageList.csiVolumes.length, StorageList.pageSize);
+    StorageList.csiVolumes.forEach((volume, index) => {
       assert.equal(volume.name, sortedVolumes[index].id, 'Volumes are ordered');
     });
   });
@@ -84,9 +78,9 @@ module('Acceptance | volumes list', function (hooks) {
     readAllocs.forEach((alloc) => assignReadAlloc(volume, alloc));
     writeAllocs.forEach((alloc) => assignWriteAlloc(volume, alloc));
 
-    await VolumesList.visit();
+    await StorageList.visit();
 
-    const volumeRow = VolumesList.volumes.objectAt(0);
+    const volumeRow = StorageList.csiVolumes.objectAt(0);
 
     let controllerHealthStr = 'Node Only';
     if (volume.controllerRequired || volume.controllersExpected > 0) {
@@ -111,7 +105,7 @@ module('Acceptance | volumes list', function (hooks) {
       volumeRow.nodeHealth,
       `${nodeHealthStr} ( ${volume.nodesHealthy} / ${volume.nodesExpected} )`
     );
-    assert.equal(volumeRow.provider, volume.provider);
+    assert.equal(volumeRow.plugin, volume.PluginId);
     assert.equal(volumeRow.allocations, readAllocs.length + writeAllocs.length);
   });
 
@@ -121,64 +115,58 @@ module('Acceptance | volumes list', function (hooks) {
       namespaceId: secondNamespace.id,
     });
 
-    await VolumesList.visit({ namespace: '*' });
-
-    await VolumesList.volumes.objectAt(0).clickName();
+    await StorageList.visit({ namespace: '*' });
+    await StorageList.csiVolumes.objectAt(0).clickName();
     assert.equal(
       currentURL(),
-      `/storage/volumes/${volume.id}@${secondNamespace.id}`
+      `/storage/volumes/csi/${volume.id}@${secondNamespace.id}`
     );
 
-    await VolumesList.visit({ namespace: '*' });
-    assert.equal(currentURL(), '/storage/volumes?namespace=*');
-
-    await VolumesList.volumes.objectAt(0).clickRow();
-    assert.equal(
-      currentURL(),
-      `/storage/volumes/${volume.id}@${secondNamespace.id}`
-    );
+    await StorageList.visit({ namespace: '*' });
+    assert.equal(currentURL(), '/storage');
   });
 
-  test('when there are no volumes, there is an empty message', async function (assert) {
-    await VolumesList.visit();
+  test('when there are no csi volumes, there is an empty message', async function (assert) {
+    await StorageList.visit();
 
     await percySnapshot(assert);
 
-    assert.ok(VolumesList.isEmpty);
-    assert.equal(VolumesList.emptyState.headline, 'No Volumes');
+    assert.ok(StorageList.csiIsEmpty);
+    assert.equal(StorageList.csiEmptyState, 'No CSI Volumes found');
   });
 
   test('when there are volumes, but no matches for a search, there is an empty message', async function (assert) {
     server.create('csi-volume', { id: 'cat 1' });
     server.create('csi-volume', { id: 'cat 2' });
 
-    await VolumesList.visit();
-
-    await VolumesList.search('dog');
-    assert.ok(VolumesList.isEmpty);
-    assert.equal(VolumesList.emptyState.headline, 'No Matches');
+    await StorageList.visit();
+    await StorageList.csiSearch('dog');
+    assert.ok(StorageList.csiIsEmpty);
+    assert.ok(
+      StorageList.csiEmptyState.includes('No CSI volumes match your search')
+    );
   });
 
   test('searching resets the current page', async function (assert) {
-    server.createList('csi-volume', VolumesList.pageSize + 1);
+    server.createList('csi-volume', StorageList.pageSize + 1);
 
-    await VolumesList.visit();
-    await VolumesList.nextPage();
+    await StorageList.visit();
+    await StorageList.csiNextPage();
 
-    assert.equal(currentURL(), '/storage/volumes?page=2');
+    assert.equal(currentURL(), '/storage?csiPage=2');
 
-    await VolumesList.search('foobar');
+    await StorageList.csiSearch('foobar');
 
-    assert.equal(currentURL(), '/storage/volumes?search=foobar');
+    assert.equal(currentURL(), '/storage?csiFilter=foobar');
   });
 
   test('when the cluster has namespaces, each volume row includes the volume namespace', async function (assert) {
     server.createList('namespace', 2);
     const volume = server.create('csi-volume');
 
-    await VolumesList.visit({ namespace: '*' });
+    await StorageList.visit({ namespace: '*' });
 
-    const volumeRow = VolumesList.volumes.objectAt(0);
+    const volumeRow = StorageList.csiVolumes.objectAt(0);
     assert.equal(volumeRow.namespace, volume.namespaceId);
   });
 
@@ -191,43 +179,33 @@ module('Acceptance | volumes list', function (hooks) {
       namespaceId: server.db.namespaces[1].id,
     });
 
-    await VolumesList.visit();
-    assert.equal(VolumesList.volumes.length, 2);
+    await StorageList.visit();
+    assert.equal(StorageList.csiVolumes.length, 2);
 
     const firstNamespace = server.db.namespaces[0];
-    await VolumesList.visit({ namespace: firstNamespace.id });
-    assert.equal(VolumesList.volumes.length, 1);
-    assert.equal(VolumesList.volumes.objectAt(0).name, volume1.id);
+    await StorageList.visit({ namespace: firstNamespace.id });
+    assert.equal(StorageList.csiVolumes.length, 1);
+    assert.equal(StorageList.csiVolumes.objectAt(0).name, volume1.id);
 
     const secondNamespace = server.db.namespaces[1];
-    await VolumesList.visit({ namespace: secondNamespace.id });
+    await StorageList.visit({ namespace: secondNamespace.id });
 
-    assert.equal(VolumesList.volumes.length, 1);
-    assert.equal(VolumesList.volumes.objectAt(0).name, volume2.id);
+    assert.equal(StorageList.csiVolumes.length, 1);
+    assert.equal(StorageList.csiVolumes.objectAt(0).name, volume2.id);
   });
 
   test('when accessing volumes is forbidden, a message is shown with a link to the tokens page', async function (assert) {
     server.pretender.get('/v1/volumes', () => [403, {}, null]);
 
-    await VolumesList.visit();
-    assert.equal(VolumesList.error.title, 'Not Authorized');
+    await StorageList.visit();
+    assert.equal(StorageList.error.title, 'Not Authorized');
 
-    await VolumesList.error.seekHelp();
+    await StorageList.error.seekHelp();
     assert.equal(currentURL(), '/settings/tokens');
   });
 
-  pageSizeSelect({
-    resourceName: 'volume',
-    pageObject: VolumesList,
-    pageObjectList: VolumesList.volumes,
-    async setup() {
-      server.createList('csi-volume', VolumesList.pageSize);
-      await VolumesList.visit();
-    },
-  });
-
   testSingleSelectFacet('Namespace', {
-    facet: VolumesList.facets.namespace,
+    facet: StorageList.facets.namespace,
     paramName: 'namespace',
     expectedOptions: ['All (*)', 'default', 'namespace-2'],
     optionToSelect: 'namespace-2',
@@ -236,7 +214,7 @@ module('Acceptance | volumes list', function (hooks) {
       server.create('namespace', { id: 'namespace-2' });
       server.createList('csi-volume', 2, { namespaceId: 'default' });
       server.createList('csi-volume', 2, { namespaceId: 'namespace-2' });
-      await VolumesList.visit();
+      await StorageList.visit();
     },
     filter(volume, selection) {
       return volume.namespaceId === selection;
@@ -270,14 +248,14 @@ module('Acceptance | volumes list', function (hooks) {
       await facet.toggle();
 
       const option = facet.options.findOneBy('label', optionToSelect);
-      const selection = option.key;
-      await option.select();
+      const selection = option.label;
+      await option.toggle();
 
       const expectedVolumes = server.db.csiVolumes
         .filter((volume) => filter(volume, selection))
         .sortBy('id');
 
-      VolumesList.volumes.forEach((volume, index) => {
+      StorageList.csiVolumes.forEach((volume, index) => {
         assert.equal(
           volume.name,
           expectedVolumes[index].name,
@@ -291,11 +269,11 @@ module('Acceptance | volumes list', function (hooks) {
       await facet.toggle();
 
       const option = facet.options.objectAt(1);
-      const selection = option.key;
-      await option.select();
+      const label = option.label;
+      await option.toggle();
 
       assert.ok(
-        currentURL().includes(`${paramName}=${selection}`),
+        currentURL().includes(`${paramName}=${label}`),
         'URL has the correct query param key and value'
       );
     });

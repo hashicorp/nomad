@@ -698,7 +698,11 @@ module('Acceptance | task group detail', function (hooks) {
     async beforeEach() {
       ['pending', 'running', 'complete', 'failed', 'lost', 'unknown'].forEach(
         (s) => {
-          server.createList('allocation', 5, { clientStatus: s });
+          server.createList('allocation', 5, {
+            jobId: job.id,
+            taskGroup: taskGroup.name,
+            clientStatus: s,
+          });
         }
       );
       await TaskGroup.visit({ id: job.id, name: taskGroup.name });
@@ -767,9 +771,7 @@ function testFacet(
 
   test(`facet ${label} | the ${label} facet filters the allocations list by ${label}`, async function (assert) {
     let option;
-
     await beforeEach();
-
     await facet.toggle();
     option = facet.options.objectAt(0);
     await option.toggle();

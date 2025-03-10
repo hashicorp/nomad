@@ -11,22 +11,16 @@ import { setupMirage } from 'ember-cli-mirage/test-support';
 import a11yAudit from 'nomad-ui/tests/helpers/a11y-audit';
 import moment from 'moment';
 import { formatBytes, formatHertz } from 'nomad-ui/utils/units';
-import VolumeDetail from 'nomad-ui/tests/pages/storage/volumes/detail';
+import VolumeDetail from 'nomad-ui/tests/pages/storage/dynamic-host-volumes/detail';
 import Layout from 'nomad-ui/tests/pages/layout';
+import percySnapshot from '@percy/ember';
 
-const assignWriteAlloc = (volume, alloc) => {
-  volume.writeAllocs.add(alloc);
+const assignAlloc = (volume, alloc) => {
   volume.allocations.add(alloc);
   volume.save();
 };
 
-const assignReadAlloc = (volume, alloc) => {
-  volume.readAllocs.add(alloc);
-  volume.allocations.add(alloc);
-  volume.save();
-};
-
-module('Acceptance | volume detail', function (hooks) {
+module('Acceptance | dynamic host volume detail', function (hooks) {
   setupApplicationTest(hooks);
   setupMirage(hooks);
 
@@ -35,8 +29,12 @@ module('Acceptance | volume detail', function (hooks) {
   hooks.beforeEach(function () {
     server.create('node-pool');
     server.create('node');
-    server.create('csi-plugin', { createVolumes: false });
-    volume = server.create('csi-volume');
+    server.create('job', {
+      name: 'dhv-job',
+    });
+    volume = server.create('dynamic-host-volume', {
+      nodeId: server.db.nodes[0].id,
+    });
   });
 
   test('it passes an accessibility audit', async function (assert) {
@@ -49,7 +47,7 @@ module('Acceptance | volume detail', function (hooks) {
 
     assert.equal(Layout.breadcrumbFor('storage.index').text, 'Storage');
     assert.equal(
-      Layout.breadcrumbFor('storage.volumes.volume').text,
+      Layout.breadcrumbFor('storage.volumes.dynamic-host-volume').text,
       volume.name
     );
   });
@@ -57,69 +55,40 @@ module('Acceptance | volume detail', function (hooks) {
   test('/storage/volumes/:id should show the volume name in the title', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.equal(document.title, `CSI Volume ${volume.name} - Nomad`);
+    assert.equal(document.title, `Dynamic Host Volume ${volume.name} - Nomad`);
     assert.equal(VolumeDetail.title, volume.name);
   });
 
   test('/storage/volumes/:id should list additional details for the volume below the title', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-
-    assert.ok(
-      VolumeDetail.health.includes(
-        volume.schedulable ? 'Schedulable' : 'Unschedulable'
-      )
-    );
-    assert.ok(VolumeDetail.provider.includes(volume.provider));
-    assert.ok(VolumeDetail.externalId.includes(volume.externalId));
+    assert.ok(VolumeDetail.node.includes(volume.node.name));
+    assert.ok(VolumeDetail.plugin.includes(volume.pluginID));
     assert.notOk(
       VolumeDetail.hasNamespace,
       'Namespace is omitted when there is only one namespace'
     );
+    assert.equal(VolumeDetail.capacity, 'Capacity 9.54 MiB');
   });
 
-  test('/storage/volumes/:id should list all write allocations the volume is attached to', async function (assert) {
-    const writeAllocations = server.createList('allocation', 2);
-    const readAllocations = server.createList('allocation', 3);
-    writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
-    readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
+  test('/storage/volumes/:id should list all allocations the volume is attached to', async function (assert) {
+    const allocations = server.createList('allocation', 3);
+    allocations.forEach((alloc) => assignAlloc(volume, alloc));
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.equal(VolumeDetail.writeAllocations.length, writeAllocations.length);
-    writeAllocations
+    assert.equal(VolumeDetail.allocations.length, allocations.length);
+    allocations
       .sortBy('modifyIndex')
       .reverse()
       .forEach((allocation, idx) => {
-        assert.equal(
-          allocation.id,
-          VolumeDetail.writeAllocations.objectAt(idx).id
-        );
+        assert.equal(allocation.id, VolumeDetail.allocations.objectAt(idx).id);
       });
-  });
-
-  test('/storage/volumes/:id should list all read allocations the volume is attached to', async function (assert) {
-    const writeAllocations = server.createList('allocation', 2);
-    const readAllocations = server.createList('allocation', 3);
-    writeAllocations.forEach((alloc) => assignWriteAlloc(volume, alloc));
-    readAllocations.forEach((alloc) => assignReadAlloc(volume, alloc));
-
-    await VolumeDetail.visit({ id: `${volume.id}@default` });
-
-    assert.equal(VolumeDetail.readAllocations.length, readAllocations.length);
-    readAllocations
-      .sortBy('modifyIndex')
-      .reverse()
-      .forEach((allocation, idx) => {
-        assert.equal(
-          allocation.id,
-          VolumeDetail.readAllocations.objectAt(idx).id
-        );
-      });
+    await percySnapshot(assert);
   });
 
   test('each allocation should have high-level details for the allocation', async function (assert) {
     const allocation = server.create('allocation', { clientStatus: 'running' });
-    assignWriteAlloc(volume, allocation);
+    assignAlloc(volume, allocation);
 
     const allocStats = server.db.clientAllocationStats.find(allocation.id);
     const taskGroup = server.db.taskGroups.findBy({
@@ -135,8 +104,7 @@ module('Acceptance | volume detail', function (hooks) {
     );
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-
-    VolumeDetail.writeAllocations.objectAt(0).as((allocationRow) => {
+    VolumeDetail.allocations.objectAt(0).as((allocationRow) => {
       assert.equal(
         allocationRow.shortId,
         allocation.id.split('-')[0],
@@ -204,58 +172,65 @@ module('Acceptance | volume detail', function (hooks) {
 
   test('each allocation should link to the allocation detail page', async function (assert) {
     const allocation = server.create('allocation');
-    assignWriteAlloc(volume, allocation);
+    assignAlloc(volume, allocation);
 
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-    await VolumeDetail.writeAllocations.objectAt(0).visit();
+    await VolumeDetail.allocations.objectAt(0).visit();
 
     assert.equal(currentURL(), `/allocations/${allocation.id}`);
   });
 
-  test('when there are no write allocations, the table presents an empty state', async function (assert) {
+  test('when there are no allocations, the table presents an empty state', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
 
-    assert.ok(VolumeDetail.writeTableIsEmpty);
-    assert.equal(VolumeDetail.writeEmptyState.headline, 'No Write Allocations');
+    assert.ok(VolumeDetail.allocationsTableIsEmpty);
+    assert.equal(VolumeDetail.allocationsEmptyState.headline, 'No Allocations');
   });
 
-  test('when there are no read allocations, the table presents an empty state', async function (assert) {
+  test('Capabilities table shows access mode and attachment mode', async function (assert) {
     await VolumeDetail.visit({ id: `${volume.id}@default` });
-
-    assert.ok(VolumeDetail.readTableIsEmpty);
-    assert.equal(VolumeDetail.readEmptyState.headline, 'No Read Allocations');
-  });
-
-  test('the constraints table shows access mode and attachment mode', async function (assert) {
-    await VolumeDetail.visit({ id: `${volume.id}@default` });
-
-    assert.equal(VolumeDetail.constraints.accessMode, volume.accessMode);
     assert.equal(
-      VolumeDetail.constraints.attachmentMode,
-      volume.attachmentMode
+      VolumeDetail.capabilities.objectAt(0).accessMode,
+      'single-node-writer'
+    );
+    assert.equal(
+      VolumeDetail.capabilities.objectAt(0).attachmentMode,
+      'file-system'
+    );
+    assert.equal(
+      VolumeDetail.capabilities.objectAt(1).accessMode,
+      'single-node-reader-only'
+    );
+    assert.equal(
+      VolumeDetail.capabilities.objectAt(1).attachmentMode,
+      'block-device'
     );
   });
 });
 
 // Namespace test: details shows the namespace
-module('Acceptance | volume detail (with namespaces)', function (hooks) {
-  setupApplicationTest(hooks);
-  setupMirage(hooks);
+module(
+  'Acceptance | dynamic volume detail (with namespaces)',
+  function (hooks) {
+    setupApplicationTest(hooks);
+    setupMirage(hooks);
 
-  let volume;
+    let volume;
 
-  hooks.beforeEach(function () {
-    server.createList('namespace', 2);
-    server.create('node-pool');
-    server.create('node');
-    server.create('csi-plugin', { createVolumes: false });
-    volume = server.create('csi-volume');
-  });
+    hooks.beforeEach(function () {
+      server.createList('namespace', 2);
+      server.create('node-pool');
+      server.create('node');
+      volume = server.create('dynamic-host-volume');
+    });
 
-  test('/storage/volumes/:id detail ribbon includes the namespace of the volume', async function (assert) {
-    await VolumeDetail.visit({ id: `${volume.id}@${volume.namespaceId}` });
+    test('/storage/volumes/:id detail ribbon includes the namespace of the volume', async function (assert) {
+      await VolumeDetail.visit({ id: `${volume.id}@${volume.namespaceId}` });
 
-    assert.ok(VolumeDetail.hasNamespace);
-    assert.ok(VolumeDetail.namespace.includes(volume.namespaceId || 'default'));
-  });
-});
+      assert.ok(VolumeDetail.hasNamespace);
+      assert.ok(
+        VolumeDetail.namespace.includes(volume.namespaceId || 'default')
+      );
+    });
+  }
+);
