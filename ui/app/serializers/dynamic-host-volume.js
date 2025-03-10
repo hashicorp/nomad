@@ -19,16 +19,6 @@ export default class DynamicHostVolumeSerializer extends ApplicationSerializer {
   normalize(typeHash, hash) {
     hash.PlainId = hash.ID;
     hash.ID = JSON.stringify([hash.ID, hash.Namespace || 'default']);
-    if (hash.RequestedCapabilities && hash.RequestedCapabilities.length) {
-      hash.AccessModes = hash.RequestedCapabilities.map(
-        (capability) => capability.AccessMode
-      );
-      hash.AttachmentModes = hash.RequestedCapabilities.map(
-        (capability) => capability.AttachmentMode
-      );
-      delete hash.RequestedCapabilities;
-    }
-
     const normalizedHash = super.normalize(typeHash, hash);
     return this.extractEmbeddedRecords(
       this,

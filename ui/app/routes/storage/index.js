@@ -62,5 +62,6 @@ export default class IndexRoute extends Route.extend(
   @watchQuery('volume') watchVolumes;
   @watchQuery('dynamic-host-volume') watchDynamicHostVolumes;
   @watchAll('namespace') watchNamespaces;
-  @collect('watchVolumes', 'watchNamespaces') watchers;
+  @collect('watchVolumes', 'watchNamespaces', 'watchDynamicHostVolumes')
+  watchers;
 }

@@ -13,6 +13,10 @@
   <div class="boxed-section is-small">
     <div class="boxed-section-body inline-definitions">
       <span class="label">Volume Details</span>
+      <span class="pair" data-test-volume-id>
+        <span class="term">ID</span>
+        {{this.model.plainId}}
+      </span>
       {{#if this.system.shouldShowNamespaces}}
         <span class="pair" data-test-volume-namespace>
           <span class="term">Namespace</span>
@@ -97,14 +101,14 @@
     <div class="boxed-section-body is-full-bleed">
       <table class="table">
         <thead>
-          <th>Setting</th>
-          <th>Value</th>
+          <th>Access Mode</th>
+          <th>Attachment Mode</th>
         </thead>
         <tbody>
           {{#each this.model.capabilities as |capability|}}
             <tr data-test-capability-row>
-              <td data-test-capability-key>{{capability.key}}</td>
-              <td data-test-capability-value>{{capability.value}}</td>
+              <td data-test-capability-access-mode>{{capability.access_mode}}</td>
+              <td data-test-capability-attachment-mode>{{capability.attachment_mode}}</td>
             </tr>
           {{/each}}
         </tbody>

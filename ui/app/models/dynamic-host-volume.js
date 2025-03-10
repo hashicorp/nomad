@@ -17,8 +17,7 @@ export default class DynamicHostVolumeModel extends Model {
   @attr('date') createTime;
   @attr('date') modifyTime;
   @hasMany('allocation', { async: false }) allocations;
-  @attr() accessModes;
-  @attr() attachmentModes;
+  @attr() requestedCapabilities;
   @attr('number') capacityBytes;
 
   get idWithNamespace() {
@@ -27,19 +26,11 @@ export default class DynamicHostVolumeModel extends Model {
 
   get capabilities() {
     let capabilities = [];
-    if (this.accessModes) {
-      this.accessModes.forEach((mode) => {
+    if (this.requestedCapabilities) {
+      this.requestedCapabilities.forEach((capability) => {
         capabilities.push({
-          key: 'Access Mode',
-          value: mode,
-        });
-      });
-    }
-    if (this.attachmentModes) {
-      this.attachmentModes.forEach((mode) => {
-        capabilities.push({
-          key: 'Attachment Mode',
-          value: mode,
+          access_mode: capability.AccessMode,
+          attachment_mode: capability.AttachmentMode,
         });
       });
     }
