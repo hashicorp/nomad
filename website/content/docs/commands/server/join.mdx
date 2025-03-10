@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: 'nomad server join'
+page_title: 'nomad server join reference'
 description: >
-  The server join command is used to join the local server to one or more Nomad
+  The `nomad server join` command joins the local server to one or more Nomad
   servers.
 ---
 
-# Command: server join
+# `nomad server join` reference
 
 The `server join` command joins the local server to one or more Nomad servers.
 Joining is only required for server nodes, and only needs to succeed against
@@ -28,7 +28,7 @@ Joining servers in different regions will [federate][] the regions. This assumes
 that ACLs have been bootstrapped in the authoritative region. See [Configure for
 multiple regions][] in the ACLs tutorial.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
