@@ -206,7 +206,7 @@ func TestCheckHook_Checks_ResultsSet(t *testing.T) {
 				return true, nil
 			},
 			func(err error) {
-				t.Fatalf(err.Error())
+				t.Fatal(err)
 			},
 		)
 
@@ -271,7 +271,7 @@ func TestCheckHook_Checks_UpdateSet(t *testing.T) {
 			return true, nil
 		},
 		func(err error) {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		},
 	)
 
@@ -308,7 +308,7 @@ func TestCheckHook_Checks_UpdateSet(t *testing.T) {
 			return true, nil
 		},
 		func(err error) {
-			t.Fatalf(err.Error())
+			t.Fatal(err)
 		},
 	)
 
