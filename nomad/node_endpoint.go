@@ -143,29 +143,34 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 		}
 	}
 
+	// RPC arguments are not safe for mutation due to the InmemCodec allowing
+	// sharing of pointers between callers and RPC handlers. Deep copy before
+	// mutation.
+	incomingNode := args.Node.Copy()
+
 	// Default the status if none is given
-	if args.Node.Status == "" {
-		args.Node.Status = structs.NodeStatusInit
+	if incomingNode.Status == "" {
+		incomingNode.Status = structs.NodeStatusInit
 	}
-	if !structs.ValidNodeStatus(args.Node.Status) {
+	if !structs.ValidNodeStatus(incomingNode.Status) {
 		return fmt.Errorf("invalid status for node")
 	}
 
 	// Default to eligible for scheduling if unset
-	if args.Node.SchedulingEligibility == "" {
-		args.Node.SchedulingEligibility = structs.NodeSchedulingEligible
+	if incomingNode.SchedulingEligibility == "" {
+		incomingNode.SchedulingEligibility = structs.NodeSchedulingEligible
 	}
 
 	// Default the node pool if none is given.
-	if args.Node.NodePool == "" {
-		args.Node.NodePool = structs.NodePoolDefault
+	if incomingNode.NodePool == "" {
+		incomingNode.NodePool = structs.NodePoolDefault
 	}
 
 	// Set the timestamp when the node is registered
-	args.Node.StatusUpdatedAt = time.Now().Unix()
+	incomingNode.StatusUpdatedAt = time.Now().Unix()
 
 	// Compute the node class
-	if err := args.Node.ComputeClass(); err != nil {
+	if err := incomingNode.ComputeClass(); err != nil {
 		return fmt.Errorf("failed to computed node class: %v", err)
 	}
 
@@ -176,21 +181,21 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	ws := memdb.NewWatchSet()
-	originalNode, err := snap.NodeByID(ws, args.Node.ID)
+	originalNode, err := snap.NodeByID(ws, incomingNode.ID)
 	if err != nil {
 		return err
 	}
 
 	if originalNode != nil {
 		// Check if the SecretID has been tampered with
-		if args.Node.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
+		if incomingNode.SecretID != originalNode.SecretID && originalNode.SecretID != "" {
 			return fmt.Errorf("node secret ID does not match. Not registering node.")
 		}
 
 		// Don't allow the Register method to update the node status. Only the
 		// UpdateStatus method should be able to do this.
 		if originalNode.Status != "" {
-			args.Node.Status = originalNode.Status
+			incomingNode.Status = originalNode.Status
 		}
 	}
 
@@ -198,7 +203,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	// connection and allow the server to send RPCs to the client. We only cache
 	// the connection if it is not being forwarded from another server.
 	if n.ctx != nil && n.ctx.NodeID == "" && !args.IsForwarded() {
-		n.ctx.NodeID = args.Node.ID
+		n.ctx.NodeID = incomingNode.ID
 		n.srv.addNodeConn(n.ctx)
 	}
 
@@ -222,8 +227,8 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	reply.NodeModifyIndex = index
 
 	// Check if we should trigger evaluations
-	if shouldCreateNodeEval(originalNode, args.Node) {
-		evalIDs, evalIndex, err := n.createNodeEvals(args.Node, index)
+	if shouldCreateNodeEval(originalNode, incomingNode) {
+		evalIDs, evalIndex, err := n.createNodeEvals(incomingNode, index)
 		if err != nil {
 			n.logger.Error("eval creation failed", "error", err)
 			return err
@@ -233,8 +238,8 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	// Check if we need to setup a heartbeat
-	if !args.Node.TerminalStatus() {
-		ttl, err := n.srv.resetHeartbeatTimer(args.Node.ID)
+	if !incomingNode.TerminalStatus() {
+		ttl, err := n.srv.resetHeartbeatTimer(incomingNode.ID)
 		if err != nil {
 			n.logger.Error("heartbeat reset failed", "error", err)
 			return err
@@ -251,7 +256,7 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 
 	n.srv.peerLock.RLock()
 	defer n.srv.peerLock.RUnlock()
-	if err := n.constructNodeServerInfoResponse(args.Node.ID, snap, reply); err != nil {
+	if err := n.constructNodeServerInfoResponse(incomingNode.ID, snap, reply); err != nil {
 		n.logger.Error("failed to populate NodeUpdateResponse", "error", err)
 		return err
 	}
