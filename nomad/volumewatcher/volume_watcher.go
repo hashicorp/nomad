@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/time/rate"
 )
 
 // volumeWatcher is used to watch a single volume and trigger the
@@ -41,6 +42,8 @@ type volumeWatcher struct {
 	// before stopping the child watcher goroutines
 	quiescentTimeout time.Duration
 
+	limiter *rate.Limiter
+
 	// updateCh is triggered when there is an updated volume
 	updateCh chan *structs.CSIVolume
 
@@ -62,6 +65,7 @@ func newVolumeWatcher(parent *Watcher, vol *structs.CSIVolume) *volumeWatcher {
 		shutdownCtx:      parent.ctx,
 		deleteFn:         func() { parent.remove(vol.ID + vol.Namespace) },
 		quiescentTimeout: parent.quiescentTimeout,
+		limiter:          rate.NewLimiter(rate.Limit(1), 3),
 	}
 
 	// Start the long lived watcher that scans for allocation updates
@@ -123,6 +127,10 @@ func (vw *volumeWatcher) watch() {
 		case <-vw.shutdownCtx.Done():
 			return
 		case vol := <-vw.updateCh:
+			err := vw.limiter.Wait(vw.shutdownCtx)
+			if err != nil {
+				// TODO: now what?
+			}
 			vol = vw.getVolume(vol)
 			if vol == nil {
 				return
