@@ -177,6 +177,8 @@ type HostVolumeDeleteRequest struct {
 	ID string
 }
 
+type HostVolumeDeleteResponse struct{}
+
 // Create forwards to client agents so a host volume can be created on those
 // hosts, and registers the volume with Nomad servers.
 func (hv *HostVolumes) Create(req *HostVolumeCreateRequest, opts *WriteOptions) (*HostVolumeCreateResponse, *WriteMeta, error) {
@@ -236,11 +238,12 @@ func (hv *HostVolumes) List(req *HostVolumeListRequest, opts *QueryOptions) ([]*
 }
 
 // Delete deletes a host volume
-func (hv *HostVolumes) Delete(req *HostVolumeDeleteRequest, opts *WriteOptions) (*WriteMeta, error) {
+func (hv *HostVolumes) Delete(req *HostVolumeDeleteRequest, opts *WriteOptions) (*HostVolumeDeleteResponse, *WriteMeta, error) {
+	var resp *HostVolumeDeleteResponse
 	path, err := url.JoinPath("/v1/volume/host/", url.PathEscape(req.ID))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	wm, err := hv.client.delete(path, nil, nil, opts)
-	return wm, err
+	wm, err := hv.client.delete(path, nil, resp, opts)
+	return resp, wm, err
 }

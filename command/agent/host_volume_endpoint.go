@@ -139,5 +139,5 @@ func (s *HTTPServer) hostVolumeDelete(id string, resp http.ResponseWriter, req *
 
 	setIndex(resp, out.Index)
 
-	return nil, nil
+	return out, nil
 }
