@@ -48,6 +48,7 @@ scenario "upgrade" {
     variables {
       artifactory_username   = var.artifactory_username
       artifactory_token      = var.artifactory_token
+      artifactory_repo       = var.artifactory_repo_start
       arch                   = local.arch
       edition                = matrix.edition
       product_version        = var.product_version
@@ -242,6 +243,7 @@ scenario "upgrade" {
     variables {
       artifactory_username = var.artifactory_username
       artifactory_token    = var.artifactory_token
+      artifactory_repo     = var.artifactory_repo_upgrade
       arch                 = local.arch
       edition              = matrix.edition
       product_version      = var.upgrade_version
