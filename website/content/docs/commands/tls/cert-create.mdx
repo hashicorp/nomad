@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad TLS Cert Create'
+page_title: 'nomad tls cert create reference'
 description: |
-  This command creates a Certificate that can be used for Nomad TLS setup.
+  The `nomad tls cert create` command creates a server, client, or command-line interface (CLI) certificate for Transport Layer Security (TLS) configuration in your Nomad cluster.
 ---
 
-# Command: nomad tls cert create
+# `nomad tls cert create` reference
 
 The `tls cert create` command is used to create certificates to be used for
 [TLS encryption][] for your Nomad cluster. You can then copy these to your
@@ -16,7 +16,7 @@ configuration of the agents.
 
 Usage: `nomad tls cert create [options]`
 
-#### Command Options
+#### Options
 
 - `-additional-dnsname=<string>`: Provide an additional dnsname for Subject
   Alternative Names. `localhost` is always included. This flag may be provided

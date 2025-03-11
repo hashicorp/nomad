@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad tls ca create'
+page_title: 'nomad tls ca create reference'
 description: |
-  This command creates a Certificate Authority that can be used to create
-  self signed certificates to be used for Nomad TLS setup.
+  The `nomad tls ca create` command creates a certificate authority that you then use to create a self-signed certificate for Nomad Transport Layer Security (TLS) configuration.
 ---
 
-# Command: nomad tls ca create
+# `nomad tls ca create` reference
 
 Create is used to create a self signed Certificate Authority to be used for
 Nomad TLS setup.
@@ -17,7 +16,7 @@ Nomad TLS setup.
 nomad tls ca create [options]
 ```
 
-## CA Create Options
+## Options
 
 - `-additional-domain=<value>`: Add name constraints for the CA. The server will
   reject certificates for DNS names other than those specified in `-domain` and
