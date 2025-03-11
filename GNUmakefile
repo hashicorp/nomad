@@ -46,7 +46,7 @@ PROTO_COMPARE_TAG ?= v1.0.3$(if $(findstring ent,$(GO_TAGS)),+ent,)
 # or backport version, without the leading "v". main should have the latest
 # published release here, and release branches should point to the latest
 # published release in their X.Y release line.
-LAST_RELEASE ?= 1.9.6
+LAST_RELEASE ?= 1.9.7
 
 default: help
 
