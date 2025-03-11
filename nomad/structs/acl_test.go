@@ -1392,6 +1392,22 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 	must.Eq(t, am1.Config.OIDCClientAssertion.PrivateKey.KeyID, "test-key-id")
 }
 
+func TestACLAuthMethodConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	// fail everything
+	am := &ACLAuthMethodConfig{}
+	am.Canonicalize() // there is insufficient info for this to help
+	err := am.Validate()
+	must.ErrorContains(t, err, "missing OIDCDiscoveryURL")
+	must.ErrorContains(t, err, "missing OIDCClientID")
+	must.ErrorContains(t, err, "missing BoundAudiences") // TODO: BoundIssuer? it's not even documented...
+	am.OIDCClientAssertion = &OIDCClientAssertion{}
+	am.Canonicalize()
+	err = am.Validate()
+	must.ErrorContains(t, err, "invalid client assertion config:")
+}
+
 func TestACLAuthMethodConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 
