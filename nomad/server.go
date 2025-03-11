@@ -440,7 +440,8 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// ACL.OIDCAuthURL and ACL.OIDCCompleteAuth.
 	// It needs no special handling to handle agent shutdowns (its Store method
 	// handles this lifecycle).
-	s.oidcRequestCache = oidc.NewRequestCache()
+	// 6 minutes is 1 minute longer than the JWT expiration time in the cap lib.
+	s.oidcRequestCache = oidc.NewRequestCache(6 * time.Minute)
 
 	// Initialize the RPC layer
 	if err := s.setupRPC(tlsWrap); err != nil {

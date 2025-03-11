@@ -4,80 +4,64 @@
 package oidc
 
 import (
-	"context"
 	"errors"
-	"sync"
 	"time"
 
-	//"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/hashicorp/cap/oidc"
+	"github.com/hashicorp/golang-lru/v2/expirable"
 )
 
-var ErrNonceReuse = errors.New("nonce reuse detected")
+var (
+	ErrNonceReuse      = errors.New("nonce reuse detected")
+	ErrTooManyRequests = errors.New("too many auth requests")
+)
 
-// expiringRequest ensures that OIDC requests that are only partially fulfilled
-// do not get stuck in memory forever.
-type expiringRequest struct {
-	// req is what we actually care about
-	req *oidc.Req
-	// ctx lets us clean up stale requests automatically
-	ctx    context.Context
-	cancel context.CancelFunc
-}
+// MaxRequests is how many requests are allowed to be stored at a time.
+// It needs to be large enough for legitimate user traffic, but small enough
+// to prevent a DOS from eating up server memory.
+const MaxRequests = 10000
 
 // NewRequestCache creates a cache for OIDC requests.
-func NewRequestCache() *RequestCache {
+// The JWT expiration time in the cap library is 5 minutes,
+// so timeout should be around that long.
+func NewRequestCache(timeout time.Duration) *RequestCache {
 	return &RequestCache{
-		m: sync.Map{},
-		// the JWT expiration time in cap library is 5 minutes,
-		// so auto-delete from our request cache after 6.
-		timeout: 6 * time.Minute,
+		c: expirable.NewLRU[string, *oidc.Req](MaxRequests, nil, timeout),
 	}
 }
 
 type RequestCache struct {
-	m       sync.Map
-	timeout time.Duration
+	c *expirable.LRU[string, *oidc.Req]
 }
 
 // Store saves the request, to be Loaded later with its Nonce.
 // If LoadAndDelete is not called, the stale request will be auto-deleted.
-func (rc *RequestCache) Store(ctx context.Context, req *oidc.Req) error {
-	ctx, cancel := context.WithTimeout(ctx, rc.timeout)
-	er := &expiringRequest{
-		req:    req,
-		ctx:    ctx,
-		cancel: cancel,
+func (rc *RequestCache) Store(req *oidc.Req) error {
+	if rc.c.Len() >= MaxRequests {
+		return ErrTooManyRequests
 	}
-	if _, loaded := rc.m.LoadOrStore(req.Nonce(), er); loaded {
-		// we already had a request for this nonce, which should never happen,
-		// so cancel the new request and error to notify caller of a bug.
-		cancel()
+
+	if _, ok := rc.c.Get(req.Nonce()); ok {
+		// we already had a request for this nonce (should never happen)
 		return ErrNonceReuse
 	}
-	// auto-delete after timeout or context canceled
-	go func() {
-		<-ctx.Done()
-		rc.m.Delete(req.Nonce())
-	}()
+
+	rc.c.Add(req.Nonce(), req)
+
 	return nil
 }
 
 func (rc *RequestCache) Load(nonce string) *oidc.Req {
-	if er, ok := rc.m.Load(nonce); ok {
-		return er.(*expiringRequest).req
+	if req, ok := rc.c.Get(nonce); ok {
+		return req
 	}
 	return nil
 }
 
 func (rc *RequestCache) LoadAndDelete(nonce string) *oidc.Req {
-	if er, loaded := rc.m.LoadAndDelete(nonce); loaded {
-		// there is a tiny race condition here. if by massive coincidence,
-		// or a bug, the same nonce makes its way in here, this cancel()
-		// triggers a map Delete() up in Store(), which could delete a request
-		// out from under a subsequent Store()
-		er.(*expiringRequest).cancel()
-		return er.(*expiringRequest).req
+	if req, ok := rc.c.Get(nonce); ok {
+		rc.c.Remove(nonce)
+		return req
 	}
 	return nil
 }
