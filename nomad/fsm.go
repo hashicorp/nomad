@@ -4,6 +4,7 @@
 package nomad
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -1385,7 +1386,7 @@ func (n *nomadFSM) applyCSIPluginDelete(buf []byte, index uint64) interface{} {
 	if err := n.state.DeleteCSIPlugin(index, req.ID); err != nil {
 		// "plugin in use" is an error for the state store but not for typical
 		// callers, so reduce log noise by not logging that case here
-		if err.Error() != "plugin in use" {
+		if !errors.Is(err, structs.ErrCSIPluginInUse) {
 			n.logger.Error("DeleteCSIPlugin failed", "error", err)
 		}
 		return err
