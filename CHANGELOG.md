@@ -1,3 +1,35 @@
+## 1.9.7 (March 11, 2025)
+
+BREAKING CHANGES:
+
+* node: The node attribute `consul.addr.dns` has been changed to `unique.consul.addr.dns`. The node attribute `nomad.advertise.address` has been changed to `unique.advertise.address`. [[GH-24942](https://github.com/hashicorp/nomad/issues/24942)]
+
+SECURITY:
+
+* auth: Redact OIDC client secret from API responses and event stream ([CVE-2025-1296](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2025-1296)) [[GH-25328](https://github.com/hashicorp/nomad/issues/25328)]
+
+IMPROVEMENTS:
+
+* build: Updated Go to 1.24.1 [[GH-25249](https://github.com/hashicorp/nomad/issues/25249)]
+* config: Allow disabling `wait` in client config [[GH-25255](https://github.com/hashicorp/nomad/issues/25255)]
+* cpustats: Add config "cpu_disable_dmidecode" to disable cpu detection using dmidecode [[GH-25108](https://github.com/hashicorp/nomad/issues/25108)]
+* metrics: Fix the process lookup for raw_exec when running rootless [[GH-25198](https://github.com/hashicorp/nomad/issues/25198)]
+* ui: System, Batch and Sysbatch jobs get a "Revert to prev version" button on their main pages [[GH-25104](https://github.com/hashicorp/nomad/issues/25104)]
+
+BUG FIXES:
+
+* cli: Add node_prefix read when setting up the task workload identity Consul policy [[GH-25310](https://github.com/hashicorp/nomad/issues/25310)]
+* cni: Fixed a bug where CNI state was not migrated after upgrade, resulting in IP collisions [[GH-25093](https://github.com/hashicorp/nomad/issues/25093)]
+* csi: Fixed a bug where plugins that failed initial fingerprints would not be restarted [[GH-25307](https://github.com/hashicorp/nomad/issues/25307)]
+* fingerprint: Fixed a bug where Consul/Vault would never be fingerprinted if not available on agent start [[GH-25102](https://github.com/hashicorp/nomad/issues/25102)]
+* hcl: Avoid panics by checking null values on durations [[GH-25294](https://github.com/hashicorp/nomad/issues/25294)]
+* rpc: Fixed a bug that would cause the reader side of RPC connections to hang indefinitely [[GH-25201](https://github.com/hashicorp/nomad/issues/25201)]
+* scheduler: Fixed a bug where node class hashes included unique attributes, making scheduling more costly [[GH-24942](https://github.com/hashicorp/nomad/issues/24942)]
+* template: Fixed a bug where unset client.template retry blocks ignored defaults [[GH-25113](https://github.com/hashicorp/nomad/issues/25113)]
+* template: Updated the consul-template dependency to v0.40.0 which included a bug fix in the
+quiescence timers. This bug could cause increased Nomad client CPU usage for tasks which use two or
+more template blocks. [[GH-25140](https://github.com/hashicorp/nomad/issues/25140)]
+
 ## 1.9.6 (February 11, 2025)
 
 BREAKING CHANGES:
