@@ -76,6 +76,13 @@ the [volume_mount][volume_mount] block in the `task` configuration.
   used for validating `host_volume` ACLs and for scheduling when a
   matching `host_volume` requires `read_only` usage.
 
+- `sticky` `(bool: false)` - Specifies that this volume sticks to the allocation
+  that uses it. Upon every reschedule and replacement, the task
+  group always receives the volume with the same ID, if available. Use sticky
+  volumes for [stateful deployments]. You may only use the `sticky` field for
+  dynamic host volumes. For CSI volumes, the `per_alloc` field provides similar
+  functionality
+
 - `per_alloc` `(bool: false)` - Specifies that the `source` of the volume
   should have the suffix `[n]`, where `n` is the allocation index. This allows
   mounting a unique volume per allocation, so long as the volume's source is
@@ -84,7 +91,9 @@ the [volume_mount][volume_mount] block in the `task` configuration.
   volume ID `myvolume[0]`.
 
   The `per_alloc` field cannot be true for system jobs, sysbatch jobs, or jobs
-  that use canaries.
+  that use canaries. `per_alloc` is mutually exclusive with the `sticky`
+  property. Use `per_alloc` only with CSI volumes and `sticky` only
+  with dynamic host volumes.
 
 The following fields are only valid for volumes with `type = "csi"` or dynamic
 host volumes with `type = "host"`:
@@ -235,5 +244,6 @@ ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
 [attachment mode]: /nomad/docs/commands/volume/register#attachment_mode
 [volume registration]: /nomad/docs/commands/volume/register#mount_options
 [dynamic host volumes]: /nomad/docs/other-specifications/volume/host
+[stateful deployments]: /nomad/docs/concepts/stateful-deployments
 [`volume create`]: /nomad/docs/commands/volume/create
 [`volume register`]: /nomad/docs/commands/volume/register

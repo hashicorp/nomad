@@ -63,9 +63,6 @@ Usage: nomad setup consul [options]
   environment variables as documented in
   https://developer.hashicorp.com/consul/commands#environment-variables
 
-  WARNING: This command is an experimental feature and may change its behavior
-  in future versions of Nomad.
-
 Setup Consul options:
 
   -jwks-url <url>
@@ -584,30 +581,6 @@ func (s *SetupConsulCommand) createPolicy() error {
 	s.Ui.Info(fmt.Sprintf("[✔] Created policy %q.", consulPolicyName))
 
 	return nil
-}
-
-// askQuestion asks question to user until they provide a valid response.
-func (s *SetupConsulCommand) askQuestion(question string) bool {
-	for {
-		answer, err := s.Ui.Ask(s.Colorize().Color(fmt.Sprintf("[?] %s", question)))
-		if err != nil {
-			if err.Error() != "interrupted" {
-				s.Ui.Output(err.Error())
-				os.Exit(1)
-			}
-			os.Exit(0)
-		}
-
-		switch strings.TrimSpace(strings.ToLower(answer)) {
-		case "", "y", "yes":
-			return true
-		case "n", "no":
-			return false
-		default:
-			s.Ui.Output(fmt.Sprintf(`%q is not a valid response, please answer "yes" or "no".`, answer))
-			continue
-		}
-	}
 }
 
 func (s *SetupConsulCommand) handleNo() {

@@ -14,7 +14,7 @@ import {
 import allocations from 'nomad-ui/tests/pages/components/allocations';
 
 export default create({
-  visit: visitable('/csi/plugins/:id'),
+  visit: visitable('/storage/plugins/:id'),
 
   title: text('[data-test-title]'),
 

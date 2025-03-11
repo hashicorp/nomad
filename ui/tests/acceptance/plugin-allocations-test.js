@@ -36,7 +36,7 @@ module('Acceptance | plugin allocations', function (hooks) {
     await a11yAudit(assert);
   });
 
-  test('/csi/plugins/:id/allocations shows all allocations in a single table', async function (assert) {
+  test('/storage/plugins/:id/allocations shows all allocations in a single table', async function (assert) {
     plugin = server.create('csi-plugin', {
       shallow: true,
       controllerRequired: true,
@@ -172,7 +172,7 @@ module('Acceptance | plugin allocations', function (hooks) {
 
       assert.equal(
         currentURL(),
-        `/csi/plugins/${plugin.id}/allocations?${queryString}`
+        `/storage/plugins/${plugin.id}/allocations?${queryString}`
       );
     });
   }

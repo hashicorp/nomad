@@ -512,13 +512,13 @@ type TaskGroup struct {
 	Meta             map[string]string         `hcl:"meta,block"`
 	Services         []*Service                `hcl:"service,block"`
 	ShutdownDelay    *time.Duration            `mapstructure:"shutdown_delay" hcl:"shutdown_delay,optional"`
-	// Deprecated: StopAfterClientDisconnect is deprecated in Nomad 1.8. Use Disconnect.StopOnClientAfter instead.
+	// Deprecated: StopAfterClientDisconnect is deprecated in Nomad 1.8 and ignored in Nomad 1.10. Use Disconnect.StopOnClientAfter.
 	StopAfterClientDisconnect *time.Duration `mapstructure:"stop_after_client_disconnect" hcl:"stop_after_client_disconnect,optional"`
-	// To be deprecated after 1.8.0 infavour of Disconnect.LostAfter
+	// Deprecated: MaxClientDisconnect is deprecated in Nomad 1.8.0 and ignored in Nomad 1.10. Use Disconnect.LostAfter.
 	MaxClientDisconnect *time.Duration `mapstructure:"max_client_disconnect" hcl:"max_client_disconnect,optional"`
 	Scaling             *ScalingPolicy `hcl:"scaling,block"`
 	Consul              *Consul        `hcl:"consul,block"`
-	// To be deprecated after 1.8.0 infavour of Disconnect.Replace
+	// Deprecated: PreventRescheduleOnLost is deprecated in Nomad 1.8.0 and ignored in Nomad 1.10. Use Disconnect.Replace.
 	PreventRescheduleOnLost *bool `hcl:"prevent_reschedule_on_lost,optional"`
 }
 
@@ -553,11 +553,10 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 
 	// Merge job.consul onto group.consul
-	if g.Consul == nil {
-		g.Consul = new(Consul)
+	if g.Consul != nil {
+		g.Consul.MergeNamespace(job.ConsulNamespace)
+		g.Consul.Canonicalize()
 	}
-	g.Consul.MergeNamespace(job.ConsulNamespace)
-	g.Consul.Canonicalize()
 
 	// Merge the update policy from the job
 	if ju, tu := job.Update != nil, g.Update != nil; ju && tu {
@@ -638,10 +637,6 @@ func (g *TaskGroup) Canonicalize(job *Job) {
 	}
 	for _, s := range g.Services {
 		s.Canonicalize(nil, g, job)
-	}
-
-	if g.PreventRescheduleOnLost == nil {
-		g.PreventRescheduleOnLost = pointerOf(false)
 	}
 
 	if g.Disconnect != nil {

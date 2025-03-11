@@ -79,7 +79,6 @@ variable "volumes" {
   default     = true
 }
 
-
 variable "hcp_vault_cluster_id" {
   description = "The ID of the HCP Vault cluster"
   type        = string
@@ -90,6 +89,12 @@ variable "hcp_vault_namespace" {
   description = "The namespace where the HCP Vault cluster policy works"
   type        = string
   default     = "admin"
+}
+
+variable "hcp_hvn_cidr" {
+  description = "The CIDR block of the HVN peered into the account."
+  type        = string
+  default     = "172.25.16.0/20"
 }
 
 variable "aws_kms_alias" {

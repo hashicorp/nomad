@@ -252,6 +252,10 @@
         "path": "concepts/job"
       },
       {
+        "title": "Stateful Deployments",
+        "path": "concepts/stateful-deployments"
+      },
+      {
         "title": "Workload Identity",
         "path": "concepts/workload-identity"
       },
@@ -1270,6 +1274,14 @@
           {
             "title": "Overview",
             "path": "commands/volume"
+          },
+          {
+            "title": "claim delete",
+            "path": "commands/volume/claim-delete"
+          },
+          {
+            "title": "claim list",
+            "path": "commands/volume/claim-list"
           },
           {
             "title": "create",

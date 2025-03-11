@@ -892,23 +892,6 @@ func TestTaskGroup_Canonicalize_Consul(t *testing.T) {
 		must.Eq(t, "ns2", tg.Consul.Namespace)
 	})
 
-	t.Run("inherit job consul in group", func(t *testing.T) {
-		job := &Job{
-			ID:              pointerOf("job"),
-			ConsulNamespace: pointerOf("ns1"),
-		}
-		job.Canonicalize()
-
-		tg := &TaskGroup{
-			Name:   pointerOf("group"),
-			Consul: nil, // not set, inherit from job
-		}
-		tg.Canonicalize(job)
-
-		must.Eq(t, "ns1", *job.ConsulNamespace)
-		must.Eq(t, "ns1", tg.Consul.Namespace)
-	})
-
 	t.Run("set in group only", func(t *testing.T) {
 		job := &Job{
 			ID:              pointerOf("job"),

@@ -103,7 +103,13 @@ func (e *UniversalExecutor) setSubCmdCgroup(cmd *exec.Cmd, cgroup string) (func(
 }
 
 func (e *UniversalExecutor) ListProcesses() set.Collection[procstats.ProcessID] {
-	return procstats.List(e.command)
+	switch cgroupslib.GetMode() {
+	case cgroupslib.OFF:
+		// cgroup is unavailable, could possibly due to rootless nomad client
+		return procstats.ListByPid(e.childCmd.Process.Pid)
+	default:
+		return procstats.List(e.command)
+	}
 }
 
 func (e *UniversalExecutor) statCG(cgroup string) (int, func(), error) {
@@ -156,6 +162,9 @@ func (e *UniversalExecutor) configureResourceContainer(
 			return moveProcess, deleteCgroup, err
 		}
 		moveProcess, deleteCgroup = e.enterCG1(cgroup, command.CpusetCgroup())
+	case cgroupslib.OFF:
+		deleteCgroup = func() {}
+		moveProcess = func() error { return nil }
 	default:
 		e.configureCG2(cgroup, command)
 		// configure child process to spawn in the cgroup

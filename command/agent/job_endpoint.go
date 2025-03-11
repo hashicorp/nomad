@@ -1147,8 +1147,6 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		NodePool:       *job.NodePool,
 		Payload:        job.Payload,
 		Meta:           job.Meta,
-		ConsulToken:    *job.ConsulToken,
-		VaultToken:     *job.VaultToken,
 		VaultNamespace: *job.VaultNamespace,
 		Constraints:    ApiConstraintsToStructs(job.Constraints),
 		Affinities:     ApiAffinitiesToStructs(job.Affinities),
@@ -1250,22 +1248,8 @@ func ApiTgToStructsTG(job *structs.Job, taskGroup *api.TaskGroup, tg *structs.Ta
 		RenderTemplates: *taskGroup.RestartPolicy.RenderTemplates,
 	}
 
-	if taskGroup.PreventRescheduleOnLost == nil {
-		tg.PreventRescheduleOnLost = false
-	} else {
-		tg.PreventRescheduleOnLost = *taskGroup.PreventRescheduleOnLost
-	}
-
 	if taskGroup.ShutdownDelay != nil {
 		tg.ShutdownDelay = taskGroup.ShutdownDelay
-	}
-
-	if taskGroup.StopAfterClientDisconnect != nil {
-		tg.StopAfterClientDisconnect = taskGroup.StopAfterClientDisconnect
-	}
-
-	if taskGroup.MaxClientDisconnect != nil {
-		tg.MaxClientDisconnect = taskGroup.MaxClientDisconnect
 	}
 
 	if taskGroup.ReschedulePolicy != nil {
@@ -1472,7 +1456,6 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 	if apiTask.Vault != nil {
 		structsTask.Vault = &structs.Vault{
 			Role:                 apiTask.Vault.Role,
-			Policies:             apiTask.Vault.Policies,
 			Namespace:            *apiTask.Vault.Namespace,
 			Cluster:              apiTask.Vault.Cluster,
 			Env:                  *apiTask.Vault.Env,

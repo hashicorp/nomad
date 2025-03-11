@@ -15,10 +15,12 @@ import (
 	"time"
 
 	capOIDC "github.com/hashicorp/cap/oidc"
+	cass "github.com/hashicorp/cap/oidc/clientassertion"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-set/v3"
+	"github.com/hashicorp/nomad/helper/pointer"
 
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
@@ -69,6 +71,11 @@ type ACL struct {
 	// hashicorp/cap library. When performing an OIDC login flow, this cache
 	// should be used to obtain a provider from an auth-method.
 	oidcProviderCache *oidc.ProviderCache
+
+	// oidcRequestCache stores a cache of OIDC requests, so request state
+	// (mainly PKCE challenge/verification) can persist between calls to
+	// OIDCAuthURL and OIDCCompleteAuth.
+	oidcRequestCache *oidc.RequestCache
 }
 
 func NewACLEndpoint(srv *Server, ctx *RPCContext) *ACL {
@@ -77,6 +84,7 @@ func NewACLEndpoint(srv *Server, ctx *RPCContext) *ACL {
 		ctx:               ctx,
 		logger:            srv.logger.Named("acl"),
 		oidcProviderCache: srv.oidcProviderCache,
+		oidcRequestCache:  srv.oidcRequestCache,
 	}
 }
 
@@ -884,44 +892,31 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			// Iterate over all the tokens
 			var err error
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
+			var tokenizer paginator.Tokenizer[*structs.ACLToken]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
+				tokenizer = paginator.IDTokenizer[*structs.ACLToken](args.NextToken)
 			} else if args.GlobalOnly {
 				iter, err = state.ACLTokensByGlobal(ws, true, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithID: true,
-				}
+				tokenizer = paginator.IDTokenizer[*structs.ACLToken](args.NextToken)
 			} else {
 				iter, err = state.ACLTokens(ws, sort)
-				opts = paginator.StructsTokenizerOptions{
-					WithCreateIndex: true,
-					WithID:          true,
-				}
+				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.ACLToken](args.NextToken)
 			}
 			if err != nil {
 				return err
 			}
 
-			tokenizer := paginator.NewStructsTokenizer(iter, opts)
-
-			var tokens []*structs.ACLTokenListStub
-			paginator, err := paginator.NewPaginator(iter, tokenizer, nil, args.QueryOptions,
-				func(raw interface{}) error {
-					token := raw.(*structs.ACLToken)
-					tokens = append(tokens, token.Stub())
-					return nil
-				})
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
+				tokenizer,
+				(*structs.ACLToken).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
 			}
 
-			nextToken, err := paginator.Page()
+			tokens, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)
@@ -1897,6 +1892,8 @@ func (a *ACL) UpsertAuthMethods(
 		existingMethod, _ := stateSnapshot.GetACLAuthMethodByName(nil, authMethod.Name)
 		authMethod.Merge(existingMethod)
 
+		authMethod.Canonicalize()
+
 		if err := authMethod.Validate(
 			a.srv.config.ACLTokenMinExpirationTTL,
 			a.srv.config.ACLTokenMaxExpirationTTL); err != nil {
@@ -1914,7 +1911,21 @@ func (a *ACL) UpsertAuthMethods(
 				)
 			}
 		}
-		authMethod.Canonicalize()
+
+		// if PKCE is not explicitly disabled, enable it.
+		if authMethod.Config.OIDCDisablePKCE == nil {
+			authMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		}
+		// if there is a client assertion, ensure it is valid.
+		if authMethod.Config.OIDCClientAssertion.IsSet() {
+			_, err := a.oidcClientAssertion(authMethod.Config)
+			if err != nil {
+				return structs.NewErrRPCCodedf(
+					http.StatusBadRequest, "invalid OIDCClientAssertion: %s", err,
+				)
+			}
+		}
+
 		authMethod.SetHash()
 	}
 
@@ -2097,7 +2108,7 @@ func (a *ACL) GetAuthMethod(
 
 			// We didn't encounter an error looking up the index; set the auth
 			// method on the reply and exit successfully.
-			reply.AuthMethod = out
+			reply.AuthMethod = out.Sanitize()
 			return nil
 		},
 	})
@@ -2608,21 +2619,15 @@ func (a *ACL) OIDCAuthURL(args *structs.ACLOIDCAuthURLRequest, reply *structs.AC
 	}
 
 	// Generate our OIDC request.
-	oidcReqOpts := []capOIDC.Option{
-		capOIDC.WithNonce(args.ClientNonce),
-	}
-
-	if len(authMethod.Config.OIDCScopes) > 0 {
-		oidcReqOpts = append(oidcReqOpts, capOIDC.WithScopes(authMethod.Config.OIDCScopes...))
-	}
-
-	oidcReq, err := capOIDC.NewRequest(
-		aclOIDCAuthURLRequestExpiryTime,
-		args.RedirectURI,
-		oidcReqOpts...,
-	)
-	if err != nil {
-		return fmt.Errorf("failed to generate OIDC request: %v", err)
+	oidcReq := a.oidcRequestCache.Load(args.ClientNonce)
+	if oidcReq == nil {
+		oidcReq, err = a.oidcRequest(args.ClientNonce, args.RedirectURI, authMethod.Config)
+		if err != nil {
+			return err
+		}
+		if err = a.oidcRequestCache.Store(oidcReq); err != nil {
+			return fmt.Errorf("error storing OIDC request: %w", err)
+		}
 	}
 
 	// Use the cache to provide us with an OIDC provider for the auth method
@@ -2721,22 +2726,12 @@ func (a *ACL) OIDCCompleteAuth(
 		return fmt.Errorf("failed to generate OIDC provider: %v", err)
 	}
 
-	// Build our OIDC request options and request object.
-	oidcReqOpts := []capOIDC.Option{
-		capOIDC.WithNonce(args.ClientNonce),
-		capOIDC.WithState(args.State),
-	}
-
-	if len(authMethod.Config.OIDCScopes) > 0 {
-		oidcReqOpts = append(oidcReqOpts, capOIDC.WithScopes(authMethod.Config.OIDCScopes...))
-	}
-	if len(authMethod.Config.BoundAudiences) > 0 {
-		oidcReqOpts = append(oidcReqOpts, capOIDC.WithAudiences(authMethod.Config.BoundAudiences...))
-	}
-
-	oidcReq, err := capOIDC.NewRequest(aclOIDCCallbackRequestExpiryTime, args.RedirectURI, oidcReqOpts...)
-	if err != nil {
-		return fmt.Errorf("failed to generate OIDC request: %v", err)
+	// Retrieve the request generated in OIDCAuthURL()
+	oidcReq := a.oidcRequestCache.LoadAndDelete(args.ClientNonce) // I am so done with this NONCENSE
+	if oidcReq == nil {
+		// note: this may happen if there is a leader election between getting
+		// the auth url and completing the login flow here.
+		return errors.New("no OIDC request found for client nonce")
 	}
 
 	// Generate a context with a deadline. This is passed to the OIDC provider
@@ -3057,4 +3052,74 @@ func formatTokenName(format, authType, authName string, claims map[string]string
 	}
 
 	return tokenName, nil
+}
+
+// oidcRequest builds the request to send to the cap library.
+// The way the cap lib is structured, you can build the request once,
+// and use it for different request types.
+func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodConfig) (*capOIDC.Req, error) {
+	opts := []capOIDC.Option{
+		capOIDC.WithNonce(nonce),
+	}
+
+	if len(config.OIDCScopes) > 0 {
+		opts = append(opts, capOIDC.WithScopes(config.OIDCScopes...))
+	}
+	if len(config.BoundAudiences) > 0 {
+		opts = append(opts, capOIDC.WithAudiences(config.BoundAudiences...))
+	}
+
+	if config.OIDCDisablePKCE != nil && !*config.OIDCDisablePKCE {
+		verifier, err := capOIDC.NewCodeVerifier()
+		if err != nil {
+			return nil, fmt.Errorf("failed to make pkce verifier: %w", err)
+		}
+		opts = append(opts, capOIDC.WithPKCE(verifier))
+	}
+
+	if config.OIDCClientAssertion.IsSet() {
+		j, err := a.oidcClientAssertion(config)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, capOIDC.WithClientAssertionJWT(j))
+	}
+
+	req, err := capOIDC.NewRequest(
+		aclOIDCAuthURLRequestExpiryTime,
+		redirect,
+		opts...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OIDC request: %v", err)
+	}
+
+	return req, nil
+}
+
+func (a *ACL) oidcClientAssertion(config *structs.ACLAuthMethodConfig) (*cass.JWT, error) {
+	// this nomad key will only actually be used if the client assertion config
+	// KeySource = "nomad", but we get it here to avoid exposing more of the
+	// codebase to the encrypter.
+	nomadKey, nomadKID, err := a.srv.encrypter.GetActiveKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active nomad key: %w", err)
+	}
+	j, err := oidc.BuildClientAssertionJWT(config, nomadKey, nomadKID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build client_assertion jwt: %w", err)
+	}
+	if config.VerboseLogging {
+		// a user initially setting up the auth method, as one might with
+		// VerboseLogging enabled, may benefit from not having to do a full
+		// login flow to see the jwt (and any possible Serialize() error).
+		// we say "example" in the log, because the cap library will run
+		// Serialize() again internally, so it won't use this same jwt.
+		token, err := j.Serialize()
+		if err != nil {
+			return nil, fmt.Errorf("failed to serialize client_assertion jwt: %w", err)
+		}
+		a.logger.Debug("example client_assertion", "oidc_client_id", config.OIDCClientID, "jwt", token)
+	}
+	return j, nil
 }

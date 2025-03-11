@@ -330,4 +330,26 @@ func TestStateStore_UpdateHostVolumesFromFingerprint(t *testing.T) {
 	must.Eq(t, index, vol0.ModifyIndex,
 		must.Sprint("recovered node should update unavailable volume"))
 	must.Eq(t, structs.HostVolumeStateReady, vol0.State)
+
+	// down a node
+	node = node.Copy()
+	node.Status = structs.NodeStatusDown
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+	vol0, err = store.HostVolumeByID(nil, ns, vols[0].ID, false)
+	must.NoError(t, err)
+	must.Eq(t, index, vol0.ModifyIndex,
+		must.Sprint("downed node should mark volume unavailable"))
+	must.Eq(t, structs.HostVolumeStateUnavailable, vol0.State)
+
+	// bring the node back up
+	node = node.Copy()
+	node.Status = structs.NodeStatusReady
+	index++
+	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, index, node))
+	vol0, err = store.HostVolumeByID(nil, ns, vols[0].ID, false)
+	must.NoError(t, err)
+	must.Eq(t, index, vol0.ModifyIndex,
+		must.Sprint("ready node should update unavailable volume"))
+	must.Eq(t, structs.HostVolumeStateReady, vol0.State)
 }

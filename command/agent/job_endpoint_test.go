@@ -2800,7 +2800,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				Disconnect: &api.DisconnectStrategy{
 					LostAfter: pointer.Of(30 * time.Second),
 				},
-				MaxClientDisconnect: pointer.Of(30 * time.Second),
 				Tasks: []*api.Task{
 					{
 						Name:   "task1",
@@ -3018,8 +3017,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
-		ConsulToken:       pointer.Of("abc123"),
-		VaultToken:        pointer.Of("def456"),
 		VaultNamespace:    pointer.Of("ghi789"),
 		Status:            pointer.Of("status"),
 		StatusDescription: pointer.Of("status_desc"),
@@ -3114,7 +3111,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 						Operand: "z",
 					},
 				},
-				PreventRescheduleOnLost: false,
 				Affinities: []*structs.Affinity{
 					{
 						LTarget: "x",
@@ -3249,7 +3245,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 					Replace:   pointer.Of(true),
 					Reconcile: structs.ReconcileOptionBestScore,
 				},
-				MaxClientDisconnect: pointer.Of(30 * time.Second),
 				Tasks: []*structs.Task{
 					{
 						Name:   "task1",
@@ -3435,7 +3430,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Role:                 "nomad-task",
 							Namespace:            "ns1",
 							Cluster:              structs.VaultDefaultCluster,
-							Policies:             []string{"a", "b", "c"},
 							Env:                  true,
 							DisableFile:          false,
 							ChangeMode:           "c",
@@ -3476,9 +3470,6 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 				},
 			},
 		},
-
-		ConsulToken: "abc123",
-		VaultToken:  "def456",
 	}
 
 	structsJob := ApiJobToStructJob(apiJob)
@@ -3628,9 +3619,8 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 		},
 		TaskGroups: []*structs.TaskGroup{
 			{
-				Name:                    "group1",
-				Count:                   5,
-				PreventRescheduleOnLost: false,
+				Name:  "group1",
+				Count: 5,
 				Constraints: []*structs.Constraint{
 					{
 						LTarget: "x",

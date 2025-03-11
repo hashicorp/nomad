@@ -1,0 +1,3 @@
+```release-note:bug
+rpc: Fixed a bug that would cause the reader side of RPC connections to hang indefinitely
+```

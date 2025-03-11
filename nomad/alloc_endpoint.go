@@ -64,7 +64,6 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			// Scan all the allocations
 			var err error
 			var iter memdb.ResultIterator
-			var opts paginator.StructsTokenizerOptions
 
 			// get list of accessible namespaces
 			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
@@ -75,48 +74,35 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			} else if err != nil {
 				return err
 			} else {
+				var tokenizer paginator.Tokenizer[*structs.Allocation]
+
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
 					iter, err = state.AllocsByIDPrefix(ws, namespace, prefix, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithID: true,
-					}
+					tokenizer = paginator.IDTokenizer[*structs.Allocation](args.NextToken)
 				} else if namespace != structs.AllNamespacesSentinel {
 					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithCreateIndex: true,
-						WithID:          true,
-					}
+					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Allocation](args.NextToken)
 				} else {
 					iter, err = state.Allocs(ws, sort)
-					opts = paginator.StructsTokenizerOptions{
-						WithCreateIndex: true,
-						WithID:          true,
-					}
+					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Allocation](args.NextToken)
 				}
 				if err != nil {
 					return err
 				}
 
-				tokenizer := paginator.NewStructsTokenizer(iter, opts)
-				filters := []paginator.Filter{
-					paginator.NamespaceFilter{
-						AllowableNamespaces: allowableNamespaces,
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+					paginator.NamespaceSelectorFunc[*structs.Allocation](allowableNamespaces),
+					tokenizer,
+					func(a *structs.Allocation) (*structs.AllocListStub, error) {
+						return a.Stub(args.Fields), nil
 					},
-				}
-
-				var stubs []*structs.AllocListStub
-				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-					func(raw interface{}) error {
-						allocation := raw.(*structs.Allocation)
-						stubs = append(stubs, allocation.Stub(args.Fields))
-						return nil
-					})
+				)
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
 
-				nextToken, err := paginator.Page()
+				stubs, nextToken, err := pager.Page()
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to read result page: %v", err)

@@ -33,7 +33,7 @@ A development environment is supplied via Vagrant to make getting started easier
 
 Developing without Vagrant
 ---
-1. Install [Go 1.23.6+](https://golang.org/) *(Note: `gcc-go` is not supported)*
+1. Install [Go 1.24.1+](https://golang.org/) *(Note: `gcc-go` is not supported)*
 1. Clone this repo
    ```sh
    $ git clone https://github.com/hashicorp/nomad.git
@@ -108,14 +108,38 @@ Only the `api/` and `plugins/` packages are intended to be imported by other pro
 
 ## Architecture
 
-The code for Nomad's major components is organized as:
+When working on Nomad, there are a few major packages that are the entrypoint
+for most tasks you might be working on:
 
-* `api/` provides a Go client for Nomad's HTTP API.
-* `client/` contains Nomad's client agent code.
-* `command/` contains Nomad's CLI code.
-* `nomad/` contains Nomad's server agent code.
-* `ui/` contains Nomad's UI code.
-* `website/` contains Nomad's website and documentation.
+* `acl/`: The definition of ACL policies and authorization methods
+* `api/`: The public-facing Go SDK for the HTTP API.
+* `client/`: Most of the code that runs in the Nomad client agents.
+  * `client/allocrunner/`: The code that manages a single allocation, including
+    hooks for workload identity, CSI, and networking. The allocrunner calls into
+    `taskrunner` for each task.
+  * `client/allocrunner/taskrunner/`: The code that manages a single task within
+    an allocation, including hooks for artifacts, templates, Consul service
+    mesh, logging, etc. The task runner invokes the task driver found in
+    `drivers`.
+* `command/`: The definition of Nomad CLI commands, most of which use the HTTP
+  API.
+  * `command/agent/`: The parts of the Nomad agent that are neither server or
+    client, including the HTTP API server and configuration parsing.
+  * `command/agent/consul/`: The Consul API client for service registration.
+* `drivers/`: The implementations of the built-in `docker`, `exec`, `raw_exec`,
+  `java`, and `qemu` task drivers, as well as shared "executor" code.
+* `e2e/` and `enos/`: Packages defining infrastructure and tests for nightly
+  end-to-end testing.
+* `nomad/`: The Nomad server code, including RPC handlers, running a Raft node,
+  the plan applier, the eval broker, and the keyring.
+  * `nomad/state/`: The in-memory state (memdb) of the Nomad servers
+  * `nomad/structs/`: Type definitions used in RPC and state.
+* `plugins/`: Interface definitions for task drivers, device drivers, and CSI
+  drivers. Implementations can be found in `drivers` (and as external repos).
+* `scheduler/`: The logic for scheduling workloads lives here, called from the
+  server code in `nomad`.
+* `ui/`: The web UI.
+* `website/`: The documentation website.
 
 The high level control flow for many Nomad actions (via the CLI or UI) are:
 

@@ -2892,7 +2892,9 @@ func TestSystemSched_NodeDisconnected(t *testing.T) {
 				require.FailNow(t, "invalid jobType")
 			}
 
-			job.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
+			job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+				LostAfter: 5 * time.Second,
+			}
 
 			if !tc.required {
 				job.Stop = true

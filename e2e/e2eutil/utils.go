@@ -81,9 +81,6 @@ func RegisterAllocs(t *testing.T, nomadClient *api.Client, jobFile, jobID, cToke
 	// Set custom job ID (distinguish among tests)
 	job.ID = pointer.Of(jobID)
 
-	// Set a Consul "operator" token for the job, if provided.
-	job.ConsulToken = stringToPtrOrNil(cToken)
-
 	// Register job
 	var idx uint64
 	jobs := nomadClient.Jobs()

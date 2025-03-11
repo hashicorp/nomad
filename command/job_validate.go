@@ -5,7 +5,6 @@ package command
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/hashicorp/go-multierror"
@@ -33,10 +32,6 @@ Alias: nomad validate
   it is read from the file at the supplied path or downloaded and
   read from URL specified.
 
-  The run command will set the vault_token of the job based on the following
-  precedence, going from highest to lowest: the -vault-token flag, the
-  $VAULT_TOKEN environment variable and finally the value in the job file.
-
   When ACLs are enabled, this command requires a token with the 'read-job'
   capability for the job's namespace.
 
@@ -55,18 +50,6 @@ Validate Options:
     Whether an error should be produced from the HCL2 parser where a variable
     has been supplied which is not defined within the root variables. Defaults
     to true.
-
-  -vault-token
-    Used to validate if the user submitting the job has permission to run the job
-    according to its Vault policies. A Vault token must be supplied if the vault
-    block allow_unauthenticated is disabled in the Nomad server configuration.
-    If the -vault-token flag is set, the passed Vault token is added to the jobspec
-    before sending to the Nomad servers. This allows passing the Vault token
-    without storing it in the job file. This overrides the token found in the
-    $VAULT_TOKEN environment variable and the vault_token field in the job file.
-    This token is cleared from the job after validating and cannot be used within
-    the job executing environment. Use the vault block when templating in a job
-    with a Vault token.
 
   -vault-namespace
     If set, the passed Vault namespace is stored in the job before sending to the
@@ -88,7 +71,6 @@ func (c *JobValidateCommand) Synopsis() string {
 func (c *JobValidateCommand) AutocompleteFlags() complete.Flags {
 	return complete.Flags{
 		"-hcl2-strict":     complete.PredictNothing,
-		"-vault-token":     complete.PredictAnything,
 		"-vault-namespace": complete.PredictAnything,
 		"-var":             complete.PredictAnything,
 		"-var-file":        complete.PredictFiles("*.var"),
@@ -106,13 +88,12 @@ func (c *JobValidateCommand) AutocompleteArgs() complete.Predictor {
 func (c *JobValidateCommand) Name() string { return "job validate" }
 
 func (c *JobValidateCommand) Run(args []string) int {
-	var vaultToken, vaultNamespace string
+	var vaultNamespace string
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
 	flagSet.BoolVar(&c.JobGetter.JSON, "json", false, "")
 	flagSet.BoolVar(&c.JobGetter.Strict, "hcl2-strict", true, "")
-	flagSet.StringVar(&vaultToken, "vault-token", "", "")
 	flagSet.StringVar(&vaultNamespace, "vault-namespace", "", "")
 	flagSet.Var(&c.JobGetter.Vars, "var", "")
 	flagSet.Var(&c.JobGetter.VarFiles, "var-file", "")
@@ -151,16 +132,6 @@ func (c *JobValidateCommand) Run(args []string) int {
 	// Force the region to be that of the job.
 	if r := job.Region; r != nil {
 		client.SetRegion(*r)
-	}
-
-	// Parse the Vault token
-	if vaultToken == "" {
-		// Check the environment variable
-		vaultToken = os.Getenv("VAULT_TOKEN")
-	}
-
-	if vaultToken != "" {
-		job.VaultToken = pointer.Of(vaultToken)
 	}
 
 	if vaultNamespace != "" {

@@ -9,74 +9,46 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
+	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
 
-func TestStructsTokenizer(t *testing.T) {
+func TestTokenizer(t *testing.T) {
 	ci.Parallel(t)
 
 	j := mock.Job()
 
 	cases := []struct {
-		name     string
-		opts     StructsTokenizerOptions
-		expected any
+		name      string
+		tokenizer Tokenizer[*structs.Job]
+		expected  string
 	}{
 		{
-			name: "ID",
-			opts: StructsTokenizerOptions{
-				WithID: true,
-			},
-			expected: fmt.Sprintf("%v", j.ID),
+			name:      "ID",
+			tokenizer: IDTokenizer[*structs.Job](""),
+			expected:  fmt.Sprintf("%v", j.ID),
 		},
 		{
-			name: "Namespace.ID",
-			opts: StructsTokenizerOptions{
-				WithNamespace: true,
-				WithID:        true,
-			},
-			expected: fmt.Sprintf("%v.%v", j.Namespace, j.ID),
+			name:      "Namespace.ID",
+			tokenizer: NamespaceIDTokenizer[*structs.Job](""),
+			expected:  fmt.Sprintf("%v.%v", j.Namespace, j.ID),
 		},
 		{
-			name: "CreateIndex.Namespace.ID",
-			opts: StructsTokenizerOptions{
-				WithCreateIndex: true,
-				WithNamespace:   true,
-				WithID:          true,
-			},
-			expected: fmt.Sprintf("%v.%v.%v", j.CreateIndex, j.Namespace, j.ID),
+			name:      "CreateIndex.ID",
+			tokenizer: CreateIndexAndIDTokenizer[*structs.Job](""),
+			expected:  fmt.Sprintf("%v.%v", j.CreateIndex, j.ID),
 		},
 		{
-			name: "CreateIndex.ID",
-			opts: StructsTokenizerOptions{
-				WithCreateIndex: true,
-				WithID:          true,
-			},
-			expected: fmt.Sprintf("%v.%v", j.CreateIndex, j.ID),
-		},
-		{
-			name: "CreateIndex.Namespace",
-			opts: StructsTokenizerOptions{
-				WithCreateIndex: true,
-				WithNamespace:   true,
-			},
-			expected: fmt.Sprintf("%v.%v", j.CreateIndex, j.Namespace),
-		},
-		{
-			name: "ModifyIndex",
-			opts: StructsTokenizerOptions{
-				OnlyModifyIndex: true,
-				// note: all others options will be ignored
-				WithNamespace: true,
-			},
-			expected: j.ModifyIndex,
+			name:      "ModifyIndex",
+			tokenizer: ModifyIndexTokenizer[*structs.Job](""),
+			expected:  fmt.Sprintf("%d", j.ModifyIndex),
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			tokenizer := StructsTokenizer{opts: tc.opts}
-			must.Eq(t, tc.expected, tokenizer.GetToken(j))
+			token, _ := tc.tokenizer(j)
+			must.Eq(t, tc.expected, token)
 		})
 	}
 }

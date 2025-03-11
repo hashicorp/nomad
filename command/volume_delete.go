@@ -195,7 +195,7 @@ func (c *VolumeDeleteCommand) deleteHostVolume(client *api.Client, volID string)
 		c.namespace = stub.Namespace
 	}
 
-	_, err := client.HostVolumes().Delete(&api.HostVolumeDeleteRequest{ID: volID}, nil)
+	_, _, err := client.HostVolumes().Delete(&api.HostVolumeDeleteRequest{ID: volID}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting volume: %s", err))
 		return 1

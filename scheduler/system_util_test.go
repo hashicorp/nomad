@@ -398,7 +398,9 @@ func TestDiffSystemAllocsForNode_DisconnectedNode(t *testing.T) {
 
 	// Create job.
 	job := mock.SystemJob()
-	job.TaskGroups[0].MaxClientDisconnect = pointer.Of(time.Hour)
+	job.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
+		LostAfter: time.Hour,
+	}
 
 	// Create nodes.
 	readyNode := mock.Node()

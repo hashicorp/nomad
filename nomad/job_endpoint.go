@@ -241,33 +241,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	// helper function that checks if the Consul token supplied with the job has
-	// sufficient ACL permissions for:
-	//   - registering services into namespace of each group
-	//   - reading kv store of each group
-	//   - establishing consul connect services
-	checkConsulToken := func(usages map[string]*structs.ConsulUsage) error {
-		if j.srv.config.GetDefaultConsul().AllowsUnauthenticated() {
-			// if consul.allow_unauthenticated is enabled (which is the default)
-			// just let the job through without checking anything
-			return nil
-		}
-
-		ctx := context.Background()
-		for namespace, usage := range usages {
-			if err := j.srv.consulACLs.CheckPermissions(ctx, namespace, usage, args.Job.ConsulToken); err != nil {
-				return fmt.Errorf("job-submitter consul token denied: %w", err)
-			}
-		}
-
-		return nil
-	}
-
-	// Enforce the job-submitter has a Consul token with necessary ACL permissions.
-	if err := checkConsulToken(args.Job.ConsulUsages()); err != nil {
-		return err
-	}
-
 	// Enforce Sentinel policies. Pass a copy of the job to prevent
 	// sentinel from altering it.
 	ns, err := snap.NamespaceByName(nil, args.RequestNamespace())
@@ -311,12 +284,6 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 			}
 		}
 	}
-
-	// Clear the Vault token
-	args.Job.VaultToken = ""
-
-	// Clear the Consul token
-	args.Job.ConsulToken = ""
 
 	// Preserve the existing task group counts, if so requested
 	if existingJob != nil && args.PreserveCounts {
@@ -653,8 +620,6 @@ func (j *Job) Revert(args *structs.JobRevertRequest, reply *structs.JobRegisterR
 
 	// Build the register request
 	revJob := jobV.Copy()
-	revJob.VaultToken = args.VaultToken   // use vault token from revert to perform (re)registration
-	revJob.ConsulToken = args.ConsulToken // use consul token from revert to perform (re)registration
 
 	// Clear out the VersionTag to prevent tag duplication
 	revJob.VersionTag = nil
@@ -1488,36 +1453,24 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 					return err
 				}
 
-				tokenizer := paginator.NewStructsTokenizer(
-					iter,
-					paginator.StructsTokenizerOptions{
-						WithNamespace: true,
-						WithID:        true,
-					},
-				)
-				filters := []paginator.Filter{
-					paginator.NamespaceFilter{
-						AllowableNamespaces: allowableNamespaces,
-					},
+				stubFn := func(job *structs.Job) (*structs.JobListStub, error) {
+					summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+					if err != nil || summary == nil {
+						return nil, fmt.Errorf("unable to look up summary for job: %v", job.ID)
+					}
+					return job.Stub(summary, args.Fields), nil
 				}
 
-				var jobs []*structs.JobListStub
-				paginator, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-					func(raw interface{}) error {
-						job := raw.(*structs.Job)
-						summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
-						if err != nil || summary == nil {
-							return fmt.Errorf("unable to look up summary for job: %v", job.ID)
-						}
-						jobs = append(jobs, job.Stub(summary, args.Fields))
-						return nil
-					})
+				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
+					paginator.NamespaceSelectorFunc[*structs.Job](allowableNamespaces),
+					paginator.NamespaceIDTokenizer[*structs.Job](args.NextToken),
+					stubFn)
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to create result paginator: %v", err)
 				}
 
-				nextToken, err := paginator.Page()
+				jobs, nextToken, err := pager.Page()
 				if err != nil {
 					return structs.NewErrRPCCodedf(
 						http.StatusBadRequest, "failed to read result page: %v", err)

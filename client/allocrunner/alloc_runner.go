@@ -92,10 +92,6 @@ type allocRunner struct {
 	// looking up supported envoy versions of the consul agent.
 	consulProxiesClientFunc consul.SupportedProxiesAPIFunc
 
-	// sidsClient is the client used by the service identity hook for
-	// managing SI tokens
-	sidsClient consul.ServiceIdentityAPI
-
 	// vaultClientFunc is used to get the client used to manage Vault tokens
 	vaultClientFunc vaultclient.VaultClientFunc
 
@@ -249,7 +245,6 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 		clientBaseLabels:         config.BaseLabels,
 		consulServicesHandler:    config.ConsulServices,
 		consulProxiesClientFunc:  config.ConsulProxiesFunc,
-		sidsClient:               config.ConsulSI,
 		vaultClientFunc:          config.VaultFunc,
 		tasks:                    make(map[string]*taskrunner.TaskRunner, len(tg.Tasks)),
 		waitCh:                   make(chan struct{}),
@@ -343,7 +338,6 @@ func (ar *allocRunner) initTaskRunners(tasks []*structs.Task) error {
 			DynamicRegistry:     ar.dynamicRegistry,
 			ConsulServices:      ar.consulServicesHandler,
 			ConsulProxiesFunc:   ar.consulProxiesClientFunc,
-			ConsulSI:            ar.sidsClient,
 			VaultFunc:           ar.vaultClientFunc,
 			DeviceStatsReporter: ar.deviceStatsReporter,
 			CSIManager:          ar.csiManager,

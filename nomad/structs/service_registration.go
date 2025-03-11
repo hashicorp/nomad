@@ -177,6 +177,11 @@ func (s *ServiceRegistration) GetNamespace() string {
 	return s.Namespace
 }
 
+// Stub implements support for pagination
+func (s *ServiceRegistration) Stub() (*ServiceRegistration, error) {
+	return s, nil
+}
+
 // HashWith generates a unique value representative of s based on the contents of s.
 func (s *ServiceRegistration) HashWith(key string) string {
 	buf := make([]byte, 8)

@@ -55,6 +55,10 @@ type consulState struct {
 	// tracks that we've successfully fingerprinted this cluster at least once
 	// since the last Fingerprint call
 	fingerprintedOnce bool
+
+	// we currently can't disable Consul fingerprinting, so for users who aren't
+	// using it we want to make sure we report the periodic failure only once
+	reportedOnce bool
 }
 
 // valueReader is used to parse out one attribute from consulInfo. Returns
@@ -186,34 +190,34 @@ func (cfs *consulState) initialize(cfg *config.ConsulConfig, logger hclog.Logger
 
 	if cfg.Name == structs.ConsulDefaultCluster {
 		cfs.readers = map[string]valueReader{
-			"consul.server":        cfs.server,
-			"consul.version":       cfs.version,
-			"consul.sku":           cfs.sku,
-			"consul.revision":      cfs.revision,
-			"unique.consul.name":   cfs.name, // note: won't have this for non-default clusters
-			"consul.datacenter":    cfs.dc,
-			"consul.segment":       cfs.segment,
-			"consul.connect":       cfs.connect,
-			"consul.grpc":          cfs.grpc(consulConfig.Scheme, logger),
-			"consul.ft.namespaces": cfs.namespaces,
-			"consul.partition":     cfs.partition,
-			"consul.dns.port":      cfs.dnsPort,
-			"consul.dns.addr":      cfs.dnsAddr(logger),
+			"consul.server":          cfs.server,
+			"consul.version":         cfs.version,
+			"consul.sku":             cfs.sku,
+			"consul.revision":        cfs.revision,
+			"unique.consul.name":     cfs.name, // note: won't have this for non-default clusters
+			"consul.datacenter":      cfs.dc,
+			"consul.segment":         cfs.segment,
+			"consul.connect":         cfs.connect,
+			"consul.grpc":            cfs.grpc(consulConfig.Scheme, logger),
+			"consul.ft.namespaces":   cfs.namespaces,
+			"consul.partition":       cfs.partition,
+			"consul.dns.port":        cfs.dnsPort,
+			"unique.consul.dns.addr": cfs.dnsAddr(logger),
 		}
 	} else {
 		cfs.readers = map[string]valueReader{
-			fmt.Sprintf("consul.%s.server", cfg.Name):        cfs.server,
-			fmt.Sprintf("consul.%s.version", cfg.Name):       cfs.version,
-			fmt.Sprintf("consul.%s.sku", cfg.Name):           cfs.sku,
-			fmt.Sprintf("consul.%s.revision", cfg.Name):      cfs.revision,
-			fmt.Sprintf("consul.%s.datacenter", cfg.Name):    cfs.dc,
-			fmt.Sprintf("consul.%s.segment", cfg.Name):       cfs.segment,
-			fmt.Sprintf("consul.%s.connect", cfg.Name):       cfs.connect,
-			fmt.Sprintf("consul.%s.grpc", cfg.Name):          cfs.grpc(consulConfig.Scheme, logger),
-			fmt.Sprintf("consul.%s.ft.namespaces", cfg.Name): cfs.namespaces,
-			fmt.Sprintf("consul.%s.partition", cfg.Name):     cfs.partition,
-			fmt.Sprintf("consul.%s.dns.port", cfg.Name):      cfs.dnsPort,
-			fmt.Sprintf("consul.%s.dns.addr", cfg.Name):      cfs.dnsAddr(logger),
+			fmt.Sprintf("consul.%s.server", cfg.Name):          cfs.server,
+			fmt.Sprintf("consul.%s.version", cfg.Name):         cfs.version,
+			fmt.Sprintf("consul.%s.sku", cfg.Name):             cfs.sku,
+			fmt.Sprintf("consul.%s.revision", cfg.Name):        cfs.revision,
+			fmt.Sprintf("consul.%s.datacenter", cfg.Name):      cfs.dc,
+			fmt.Sprintf("consul.%s.segment", cfg.Name):         cfs.segment,
+			fmt.Sprintf("consul.%s.connect", cfg.Name):         cfs.connect,
+			fmt.Sprintf("consul.%s.grpc", cfg.Name):            cfs.grpc(consulConfig.Scheme, logger),
+			fmt.Sprintf("consul.%s.ft.namespaces", cfg.Name):   cfs.namespaces,
+			fmt.Sprintf("consul.%s.partition", cfg.Name):       cfs.partition,
+			fmt.Sprintf("consul.%s.dns.port", cfg.Name):        cfs.dnsPort,
+			fmt.Sprintf("unique.consul.%s.dns.addr", cfg.Name): cfs.dnsAddr(logger),
 		}
 	}
 
@@ -225,9 +229,15 @@ func (cfs *consulState) query(logger hclog.Logger) agentconsul.Self {
 	// If we can't hit this URL consul is probably not running on this machine.
 	info, err := cfs.client.Agent().Self()
 	if err != nil {
+		if cfs.reportedOnce {
+			return nil
+		}
+		cfs.reportedOnce = true
 		logger.Warn("failed to acquire consul self endpoint", "error", err)
 		return nil
 	}
+
+	cfs.reportedOnce = false
 	return info
 }
 

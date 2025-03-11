@@ -58,7 +58,7 @@ jobs:
       - name: Retrieve Vault-hosted Secrets
         if: endsWith(github.repository, '-enterprise')
         id: vault
-        uses: hashicorp/vault-action@d1720f055e0635fd932a1d2a48f87a666a57906c # v3.0.0
+        uses: hashicorp/vault-action@a1b77a09293a4366e48a5067a86692ac6e94fdc0 # v3.1.0
         with:
           url: ${{ vars.CI_VAULT_URL }}
           method: ${{ vars.CI_VAULT_METHOD }}
@@ -82,12 +82,12 @@ jobs:
           echo "go-version=$(cat .go-version)" >> "$GITHUB_OUTPUT"
 
       - name: Setup go
-        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: ${{ steps.get-go-version.outputs.go-version }}
 
       - name: Setup node and yarn
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: "18"
           cache-dependency-path: "ui/yarn.lock"

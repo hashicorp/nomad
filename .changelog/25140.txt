@@ -1,0 +1,5 @@
+```release-note:bug
+template: Updated the consul-template dependency to v0.40.0 which included a bug fix in the
+quiescence timers. This bug could cause increased Nomad client CPU usage for tasks which use two or
+more template blocks.
+```

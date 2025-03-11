@@ -82,8 +82,14 @@ blocks.
 To avoid having to add these additional identities to every job, you can
 configure Nomad servers with the [`consul.service_identity`][] and
 [`consul.task_identity`][] agent configuration. Upon job registration, the
-Nomad servers update tasks that have a [`consul`][] or [`template`][] block and
-services that use the Consul service provider with these default identities.
+Nomad servers update tasks that have a [`consul`][] block and services that use
+the Consul service provider with these default identities.
+
+Job specifications that include [`template`][] blocks are not provided with
+default identities because Nomad is unable to decipher the contents of the
+template data. You must specify the identities required for Consul in the job
+specification. Refer to the [Workload Identities for Consul][jobspec_identity_consul]
+section of the `identity` block documentation for more information.
 
 You can also specify identities for Consul directly in the job. When provided,
 they override the Nomad server configuration. Refer to the [Workload Identities
@@ -373,35 +379,10 @@ The [`nomad setup consul`][nomad_cli_setup_consul] command and the
 module can help you automate the process of applying configuration to a Consul
 cluster.
 
-## Authenticating Without Workload Identity (Legacy)
-
-If [Consul ACLs][consul_acls] are enabled, the [`allow_unauthenticated`][]
-configuration parameter will control whether a Consul token will be required
-when submitting a job with Consul namespace configured. The provided Consul
-token must belong to the correct namespace, and must be backed by a Consul ACL
-Policy with sufficient `service:write` and `kv:read` permissions. An example
-policy might look like the following.
-
-```hcl
-key_prefix "" {
-  policy = "read"
-}
-
-service_prefix "" {
-  policy = "write"
-}
-```
-
-<Note title="Deprecation Warning">
-
-This legacy workflow will be removed in Nomad 1.10. Before upgrading to Nomad 1.10,
-you need to configure authentication with Consul as described in
-[Nomad Workload Identities](#nomad-workload-identities).
-
-</Note>
-
 ## Migrating to Using Workload Identity with Consul
 
+Nomad version 1.7.0 introduced Workload Identity authentication, and deprecated
+token authentication.  Token authentication was then removed in Nomad 1.10.0.
 Migrating from the legacy (pre-1.7) workflow where workload use the agent's
 Consul token requires configuation on your Consul cluster and your Nomad server
 agents. It does not require updating your running Nomad jobs. To migrate:
@@ -423,7 +404,6 @@ Consul token to submit a job.
 [`JWTValidationPubKeys`]: /consul/docs/security/acl/auth-methods/jwt#jwtvalidationpubkeys
 [`NamespaceRules`]: /consul/api-docs/acl/auth-methods#namespacerules
 [`Selector`]: /consul/api-docs/acl/auth-methods#selector
-[`allow_unauthenticated`]: /nomad/docs/configuration/consul#allow_unauthenticated
 [`aud`]: /nomad/docs/job-specification/identity#aud
 [`consul.namespace`]: /nomad/docs/job-specification/consul#namespace
 [`consul.service_auth_method`]: /nomad/docs/configuration/consul#service_auth_method

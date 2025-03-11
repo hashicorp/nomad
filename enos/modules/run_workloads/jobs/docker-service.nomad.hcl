@@ -6,22 +6,42 @@ variable "alloc_count" {
 }
 
 job "service-docker" {
-
   group "service-docker" {
     count = var.alloc_count
-    task "alpine" {
+
+    network {
+      port "db" {
+        to = 6379
+      }
+    }
+
+    service {
+      provider = "consul"
+      name     = "service-docker"
+      port     = "db"
+
+      check {
+        name     = "service-docker_probe"
+        type     = "tcp"
+        interval = "10s"
+        timeout  = "1s"
+      }
+    }
+
+    task "service-docker" {
       driver = "docker"
 
       config {
-        image   = "alpine:latest"
-        command = "sh"
-        args    = ["-c", "while true; do sleep 30000; done"]
-
+        image = "redis:7.2"
+        ports = ["db"]
+        labels {
+          workload = "docker-service"
+        }
       }
 
       resources {
-        cpu    = 100
-        memory = 128
+        cpu    = 50
+        memory = 64
       }
     }
   }

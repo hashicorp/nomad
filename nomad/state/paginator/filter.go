@@ -3,42 +3,19 @@
 
 package paginator
 
-// Filter is the interface that must be implemented to skip values when using
-// the Paginator.
-type Filter interface {
-	// Evaluate returns true if the element should be added to the page.
-	Evaluate(interface{}) (bool, error)
-}
+// SelectorFunc is an interface for functions that return true if the object
+// evaluated should be included in the page.
+//
+// Warning: this is the opposite of a memdb.FilterFunc, where returning true
+// excludes the object!
+type SelectorFunc[T any] func(T) bool
 
-// GenericFilter wraps a function that can be used to provide simple or in
-// scope filtering.
-type GenericFilter struct {
-	Allow func(interface{}) (bool, error)
-}
-
-func (f GenericFilter) Evaluate(raw interface{}) (bool, error) {
-	return f.Allow(raw)
-}
-
-// NamespaceFilter skips elements with a namespace value that is not in the
-// allowable set.
-type NamespaceFilter struct {
-	AllowableNamespaces map[string]bool
-}
-
-func (f NamespaceFilter) Evaluate(raw interface{}) (bool, error) {
-	if raw == nil {
-		return false, nil
+func NamespaceSelectorFunc[T namespaceGetter](allowedNS map[string]bool) func(obj T) bool {
+	return func(obj T) bool {
+		if allowedNS == nil {
+			return true // management tokens always have nil here
+		}
+		ns := obj.GetNamespace()
+		return allowedNS[ns]
 	}
-
-	item, _ := raw.(NamespaceGetter)
-	namespace := item.GetNamespace()
-
-	if f.AllowableNamespaces == nil {
-		return true, nil
-	}
-	if f.AllowableNamespaces[namespace] {
-		return true, nil
-	}
-	return false, nil
 }

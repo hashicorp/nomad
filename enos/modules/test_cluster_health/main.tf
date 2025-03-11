@@ -27,6 +27,7 @@ resource "enos_local_exec" "wait_for_nomad_api" {
 }
 
 resource "enos_local_exec" "run_tests" {
+  depends_on = [enos_local_exec.wait_for_nomad_api]
   environment = merge(
     local.nomad_env, {
       SERVER_COUNT = var.server_count
@@ -45,6 +46,7 @@ resource "enos_local_exec" "run_tests" {
 }
 
 resource "enos_local_exec" "verify_versions" {
+  depends_on = [enos_local_exec.wait_for_nomad_api, enos_local_exec.run_tests]
   environment = merge(
     local.nomad_env, {
       SERVERS_VERSION = var.servers_version

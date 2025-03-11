@@ -130,54 +130,31 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 				return err
 			}
 
-			// Generate the tokenizer to use for pagination using namespace and
-			// ID to ensure complete uniqueness.
-			tokenizer := paginator.NewStructsTokenizer(iter,
-				paginator.StructsTokenizerOptions{
-					WithNamespace: true,
-					WithID:        true,
-				},
-			)
+			selector := func(vol *structs.HostVolume) bool {
+				if !strings.HasPrefix(vol.Name, args.Prefix) &&
+					!strings.HasPrefix(vol.ID, args.Prefix) {
+					return false
+				}
+				if args.NodeID != "" && vol.NodeID != args.NodeID {
+					return false
+				}
+				if args.NodePool != "" && vol.NodePool != args.NodePool {
+					return false
+				}
 
-			filters := []paginator.Filter{
-				paginator.GenericFilter{
-					Allow: func(raw any) (bool, error) {
-						vol := raw.(*structs.HostVolume)
-						// empty prefix doesn't filter
-						if !strings.HasPrefix(vol.Name, args.Prefix) &&
-							!strings.HasPrefix(vol.ID, args.Prefix) {
-							return false, nil
-						}
-						if args.NodeID != "" && vol.NodeID != args.NodeID {
-							return false, nil
-						}
-						if args.NodePool != "" && vol.NodePool != args.NodePool {
-							return false, nil
-						}
+				if ns != structs.AllNamespacesSentinel &&
+					vol.Namespace != ns {
+					return false
+				}
 
-						if ns != structs.AllNamespacesSentinel &&
-							vol.Namespace != ns {
-							return false, nil
-						}
+				allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
+				return allowVolume(aclObj, ns)
 
-						allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
-						return allowVolume(aclObj, ns), nil
-					},
-				},
 			}
 
-			// Set up our output after we have checked the error.
-			var vols []*structs.HostVolumeStub
-
-			// Build the paginator. This includes the function that is
-			// responsible for appending a variable to the variables
-			// stubs slice.
-			paginatorImpl, err := paginator.NewPaginator(iter, tokenizer, filters, args.QueryOptions,
-				func(raw any) error {
-					vol := raw.(*structs.HostVolume)
-					vols = append(vols, vol.Stub())
-					return nil
-				})
+			pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
+				paginator.NamespaceIDTokenizer[*structs.HostVolume](args.NextToken),
+				(*structs.HostVolume).Stub)
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to create result paginator: %v", err)
@@ -185,7 +162,7 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 
 			// Calling page populates our output variable stub array as well as
 			// returns the next token.
-			nextToken, err := paginatorImpl.Page()
+			vols, nextToken, err := pager.Page()
 			if err != nil {
 				return structs.NewErrRPCCodedf(
 					http.StatusBadRequest, "failed to read result page: %v", err)

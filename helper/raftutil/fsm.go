@@ -211,10 +211,8 @@ func StateAsMap(store *state.StateStore) map[string][]interface{} {
 		"Nodes":            toArray(store.Nodes(nil)),
 		"PeriodicLaunches": toArray(store.PeriodicLaunches(nil)),
 		"RootKeys":         rootKeyMeta(store),
-		"SITokenAccessors": toArray(store.SITokenAccessors(nil)),
 		"ScalingEvents":    toArray(store.ScalingEvents(nil)),
 		"ScalingPolicies":  toArray(store.ScalingPolicies(nil)),
-		"VaultAccessors":   toArray(store.VaultAccessors(nil)),
 	}
 
 	insertEnterpriseState(result, store)

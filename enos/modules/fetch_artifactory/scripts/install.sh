@@ -2,25 +2,15 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: BUSL-1.1
 
-set -xeuo pipefail
+set -euo pipefail
 
 wget --header="Authorization: Bearer $TOKEN" -O "$LOCAL_ZIP" "$URL"
 
-if [ $? -eq 0 ]; then
-    echo "File downloaded successfully: $LOCAL_ZIP"
-else
-    echo "Error downloading file." >&2
-    exit 1
-fi
+echo "File downloaded to $LOCAL_ZIP"
 
 mkdir -p "$BINARY_PATH"
 unzip -o "$LOCAL_ZIP" -d "$BINARY_PATH"
 
-if [ $? -eq 0 ]; then
-    echo "File unzipped successfully to $BINARY_PATH"
-else
-    echo "Error unzipping file." >&2
-    exit 1
-fi
+echo "File unzipped to $BINARY_PATH"
 
 rm "$LOCAL_ZIP"

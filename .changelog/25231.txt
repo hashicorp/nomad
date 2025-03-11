@@ -1,0 +1,3 @@
+```release-note:improvement
+oidc: Add private key JWT / client assertion option to auth flow, and default enable PKCE
+```

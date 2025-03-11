@@ -444,6 +444,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 	// claims are only present for node1
 	existingClaims := []*structs.TaskGroupHostVolumeClaim{
 		{
+			ID:            uuid.Generate(),
 			Namespace:     structs.DefaultNamespace,
 			JobID:         stickyJob.ID,
 			TaskGroupName: stickyJob.TaskGroups[0].Name,
@@ -451,6 +452,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 			VolumeName:    dhv1.Name,
 		},
 		{
+			ID:            uuid.Generate(),
 			Namespace:     "foo", // make sure we filter by ns correctly
 			JobID:         stickyJob.ID,
 			TaskGroupName: stickyJob.TaskGroups[0].Name,
@@ -458,6 +460,7 @@ func TestHostVolumeChecker_Sticky(t *testing.T) {
 			VolumeName:    dhv1.Name,
 		},
 		{
+			ID:            uuid.Generate(),
 			Namespace:     structs.DefaultNamespace,
 			JobID:         "fooooo", // make sure we filter by jobID correctly
 			TaskGroupName: stickyJob.TaskGroups[0].Name,

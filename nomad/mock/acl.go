@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/hashicorp/nomad/helper/pointer"
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/assert"
 
@@ -272,9 +273,12 @@ func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 		MaxTokenTTL:   maxTokenTTL,
 		Default:       false,
 		Config: &structs.ACLAuthMethodConfig{
-			OIDCDiscoveryURL:    "http://example.com",
-			OIDCClientID:        "mock",
-			OIDCClientSecret:    "very secret secret",
+			OIDCDiscoveryURL: "http://example.com",
+			OIDCClientID:     "mock",
+			OIDCClientSecret: "very secret secret",
+			// PKCE is hard to test outside the server/RPC layer,
+			// because the verifier is only accessible there.
+			OIDCDisablePKCE:     pointer.Of(true),
 			OIDCDisableUserInfo: false,
 			OIDCScopes:          []string{"groups"},
 			BoundAudiences:      []string{"sales", "engineering"},

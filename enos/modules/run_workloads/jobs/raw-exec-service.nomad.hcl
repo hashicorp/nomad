@@ -10,30 +10,57 @@ job "service-raw" {
 
   group "service-raw" {
     count = var.alloc_count
+
+    network {
+      port "server" {
+        to = 0
+      }
+    }
+
+    service {
+      provider = "consul"
+      name     = "service-raw-exec"
+
+      check {
+        name     = "service-raw-exec_probe"
+        type     = "http"
+        path     = "/index.html"
+        interval = "10s"
+        timeout  = "1s"
+        port     = "server"
+      }
+    }
+
     task "raw" {
       driver = "raw_exec"
 
       config {
-        command = "bash"
-        args    = ["-c", "./local/runme.sh"]
+        command = "python3"
+        args    = ["-m", "http.server", "${NOMAD_PORT_server}", "--directory", "local"]
       }
 
       template {
         data        = <<EOH
- #!/bin/bash
-
-sigkill_handler() {
-    echo "Received SIGKILL signal. Exiting..."
-    exit 0
-}
-
-echo "Sleeping until SIGKILL signal is received..."
-while true; do
-    sleep 300  
-done
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta ="UTF-8">
+  <meta name="jobName" content="{{env "NOMAD_JOB_NAME"}}">
+  <meta name="nodeID" content="{{env "node.unique.id"}}">
+  <meta name="allocID" content="{{env "NOMAD_ALLOC_ID"}}">
+</head>
+<body>
+<h1>All good and running for {{env "NOMAD_JOB_NAME"}} at {{env "node.unique.id"}}!</h1>
+</body>
+</html>
 EOH
-        destination = "local/runme.sh"
-        perms       = "755"
+        destination = "local/index.html"
+        perms       = "0644"
+      }
+
+      resources {
+        cpu    = 50
+        memory = 64
       }
     }
   }

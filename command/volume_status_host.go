@@ -4,6 +4,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -12,83 +13,70 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-func (c *VolumeStatusCommand) hostVolumeStatus(client *api.Client, id, nodeID, nodePool string) int {
+// hostVolumeListError is a non-fatal error for the 'volume status' command when
+// used with the -type option unset, because we want to continue on to list CSI
+// volumes
+var hostVolumeListError = errors.New("Error listing host volumes")
+
+func (c *VolumeStatusCommand) hostVolumeStatus(client *api.Client, id, nodeID, nodePool string, opts formatOpts) error {
 	if id == "" {
-		return c.listHostVolumes(client, nodeID, nodePool)
+		return c.hostVolumeList(client, nodeID, nodePool, opts)
 	}
-
 	if nodeID != "" || nodePool != "" {
-		c.Ui.Error("-node or -node-pool options can only be used when no ID is provided")
-		return 1
-	}
-
-	opts := formatOpts{
-		verbose:  c.verbose,
-		short:    c.short,
-		length:   c.length,
-		json:     c.json,
-		template: c.template,
+		return errors.New("-node or -node-pool options can only be used when no ID is provided")
 	}
 
 	// get a host volume that matches the given prefix or a list of all matches
 	// if an exact match is not found. note we can't use the shared getByPrefix
 	// helper here because the List API doesn't match the required signature
-
 	volStub, possible, err := getHostVolumeByPrefix(client, id, c.namespace)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error listing volumes: %s", err))
-		return 1
+		return fmt.Errorf("%w: %w", hostVolumeListError, err)
 	}
 	if len(possible) > 0 {
 		out, err := formatHostVolumes(possible, opts)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error formatting: %s", err))
-			return 1
+			return fmt.Errorf("Error formatting: %w", err)
 		}
-		c.Ui.Error(fmt.Sprintf("Prefix matched multiple volumes\n\n%s", out))
-		return 1
+		return fmt.Errorf("Prefix matched multiple host volumes\n\n%s", out)
 	}
 
 	vol, _, err := client.HostVolumes().Get(volStub.ID, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying volume: %s", err))
-		return 1
+		return fmt.Errorf("Error querying host volume: %w", err)
 	}
 
 	str, err := formatHostVolume(vol, opts)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error formatting volume: %s", err))
-		return 1
+		return fmt.Errorf("Error formatting host volume: %w", err)
 	}
 	c.Ui.Output(c.Colorize().Color(str))
-	return 0
+	return nil
 }
 
-func (c *VolumeStatusCommand) listHostVolumes(client *api.Client, nodeID, nodePool string) int {
+func (c *VolumeStatusCommand) hostVolumeList(client *api.Client, nodeID, nodePool string, opts formatOpts) error {
+	if !(opts.json || len(opts.template) > 0) {
+		c.Ui.Output(c.Colorize().Color("[bold]Dynamic Host Volumes[reset]"))
+	}
+
 	vols, _, err := client.HostVolumes().List(&api.HostVolumeListRequest{
 		NodeID:   nodeID,
 		NodePool: nodePool,
 	}, nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error querying volumes: %s", err))
-		return 1
+		return fmt.Errorf("Error querying host volumes: %w", err)
 	}
-
-	opts := formatOpts{
-		verbose:  c.verbose,
-		short:    c.short,
-		length:   c.length,
-		json:     c.json,
-		template: c.template,
+	if len(vols) == 0 {
+		c.Ui.Error("No dynamic host volumes")
+		return nil // empty is not an error
 	}
 
 	str, err := formatHostVolumes(vols, opts)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error formatting volumes: %s", err))
-		return 1
+		return fmt.Errorf("Error formatting host volumes: %w", err)
 	}
 	c.Ui.Output(c.Colorize().Color(str))
-	return 0
+	return nil
 }
 
 func getHostVolumeByPrefix(client *api.Client, prefix, ns string) (*api.HostVolumeStub, []*api.HostVolumeStub, error) {
@@ -98,7 +86,7 @@ func getHostVolumeByPrefix(client *api.Client, prefix, ns string) (*api.HostVolu
 	})
 
 	if err != nil {
-		return nil, nil, fmt.Errorf("error querying volumes: %s", err)
+		return nil, nil, fmt.Errorf("error querying volumes: %w", err)
 	}
 	switch len(vols) {
 	case 0:
@@ -127,7 +115,7 @@ func formatHostVolume(vol *api.HostVolume, opts formatOpts) (string, error) {
 	if opts.json || len(opts.template) > 0 {
 		out, err := Format(opts.json, opts.template, vol)
 		if err != nil {
-			return "", fmt.Errorf("format error: %v", err)
+			return "", fmt.Errorf("format error: %w", err)
 		}
 		return out, nil
 	}
@@ -151,8 +139,13 @@ func formatHostVolume(vol *api.HostVolume, opts formatOpts) (string, error) {
 
 	full := []string{formatKV(output)}
 
+	banner := "\n[bold]Capabilities[reset]"
+	caps := formatHostVolumeCapabilities(vol.RequestedCapabilities)
+	full = append(full, banner)
+	full = append(full, caps)
+
 	// Format the allocs
-	banner := "\n[bold]Allocations[reset]"
+	banner = "\n[bold]Allocations[reset]"
 	allocs := formatAllocListStubs(vol.Allocations, opts.verbose, opts.length)
 	full = append(full, banner)
 	full = append(full, allocs)
@@ -176,7 +169,7 @@ func formatHostVolumes(vols []*api.HostVolumeStub, opts formatOpts) (string, err
 	if opts.json || len(opts.template) > 0 {
 		out, err := Format(opts.json, opts.template, vols)
 		if err != nil {
-			return "", fmt.Errorf("format error: %v", err)
+			return "", fmt.Errorf("format error: %w", err)
 		}
 		return out, nil
 	}
@@ -195,4 +188,13 @@ func formatHostVolumes(vols []*api.HostVolumeStub, opts formatOpts) (string, err
 		)
 	}
 	return formatList(rows), nil
+}
+
+func formatHostVolumeCapabilities(caps []*api.HostVolumeCapability) string {
+	lines := make([]string, len(caps)+1)
+	lines[0] = "Access Mode|Attachment Mode"
+	for i, cap := range caps {
+		lines[i+1] = fmt.Sprintf("%s|%s", cap.AccessMode, cap.AttachmentMode)
+	}
+	return formatList(lines)
 }

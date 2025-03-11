@@ -54,6 +54,15 @@ resource "aws_security_group" "servers" {
     cidr_blocks = [local.ingress_cidr]
   }
 
+  # Nomad HTTP access from the HashiCorp Cloud virtual network CIDR. This is
+  # used for the workload identity authentication method JWKS callback.
+  ingress {
+    from_port   = 4646
+    to_port     = 4646
+    protocol    = "tcp"
+    cidr_blocks = [var.hcp_hvn_cidr]
+  }
+
   # Nomad HTTP and RPC from clients
   ingress {
     from_port       = 4646
@@ -78,6 +87,17 @@ resource "aws_security_group" "servers" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+# Allows Consul network access to Nomad, which is necessary when creating
+# auth methods. Must be done in an aws_security_group_rule to avoid cycles.
+resource "aws_security_group_rule" "consul_ingress" {
+  type                     = "ingress"
+  from_port                = 0
+  to_port                  = 0
+  protocol                 = "-1"
+  security_group_id        = aws_security_group.servers.id
+  source_security_group_id = aws_security_group.consul_server.id
 }
 
 # the secondary VPC security group is intended only for internal traffic

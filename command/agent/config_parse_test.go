@@ -228,7 +228,6 @@ var basicConfig = &Config{
 		ClientServiceName:         "nomad-client",
 		ClientHTTPCheckName:       "nomad-client-http-health-check",
 		Addr:                      "127.0.0.1:9500",
-		AllowUnauthenticated:      &trueValue,
 		Token:                     "token1",
 		Auth:                      "username:pass",
 		EnableSSL:                 &trueValue,
@@ -260,21 +259,18 @@ var basicConfig = &Config{
 		},
 	}},
 	Vaults: []*config.VaultConfig{{
-		Name:                 structs.VaultDefaultCluster,
-		Addr:                 "127.0.0.1:9500",
-		JWTAuthBackendPath:   "nomad_jwt",
-		ConnectionRetryIntv:  30 * time.Second,
-		AllowUnauthenticated: &trueValue,
-		Enabled:              &falseValue,
-		Role:                 "test_role",
-		TLSCaFile:            "/path/to/ca/file",
-		TLSCaPath:            "/path/to/ca",
-		TLSCertFile:          "/path/to/cert/file",
-		TLSKeyFile:           "/path/to/key/file",
-		TLSServerName:        "foobar",
-		TLSSkipVerify:        &trueValue,
-		TaskTokenTTL:         "1s",
-		Token:                "12345",
+		Name:                structs.VaultDefaultCluster,
+		Addr:                "127.0.0.1:9500",
+		JWTAuthBackendPath:  "nomad_jwt",
+		ConnectionRetryIntv: 30 * time.Second,
+		Enabled:             &falseValue,
+		Role:                "test_role",
+		TLSCaFile:           "/path/to/ca/file",
+		TLSCaPath:           "/path/to/ca",
+		TLSCertFile:         "/path/to/cert/file",
+		TLSKeyFile:          "/path/to/key/file",
+		TLSServerName:       "foobar",
+		TLSSkipVerify:       &trueValue,
 		DefaultIdentity: &config.WorkloadIdentityConfig{
 			Audience: []string{"vault.io", "nomad.io"},
 			Env:      pointer.Of(false),
@@ -868,7 +864,6 @@ var sample1 = &Config{
 		ClientHTTPCheckName:       "Nomad Client HTTP Check",
 		AutoAdvertise:             pointer.Of(true),
 		ChecksUseAdvertise:        pointer.Of(false),
-		AllowUnauthenticated:      pointer.Of(true),
 		Timeout:                   5 * time.Second,
 		ServiceIdentityAuthMethod: structs.ConsulWorkloadsDefaultAuthMethodName,
 		TaskIdentityAuthMethod:    structs.ConsulWorkloadsDefaultAuthMethodName,
@@ -876,13 +871,12 @@ var sample1 = &Config{
 		VerifySSL:                 pointer.Of(true),
 	}},
 	Vaults: []*config.VaultConfig{{
-		Name:                 structs.VaultDefaultCluster,
-		Enabled:              pointer.Of(true),
-		Role:                 "nomad-cluster",
-		Addr:                 "http://host.example.com:8200",
-		JWTAuthBackendPath:   "jwt-nomad",
-		ConnectionRetryIntv:  30 * time.Second,
-		AllowUnauthenticated: pointer.Of(true),
+		Name:                structs.VaultDefaultCluster,
+		Enabled:             pointer.Of(true),
+		Role:                "nomad-cluster",
+		Addr:                "http://host.example.com:8200",
+		JWTAuthBackendPath:  "jwt-nomad",
+		ConnectionRetryIntv: 30 * time.Second,
 	}},
 	TLSConfig: &config.TLSConfig{
 		EnableHTTP:           true,
@@ -1025,7 +1019,6 @@ func TestConfig_MultipleVault(t *testing.T) {
 			must.Equal(t, config.DefaultVaultConfig(), defaultVault)
 			must.Nil(t, defaultVault.Enabled) // unset
 			must.Eq(t, "https://vault.service.consul:8200", defaultVault.Addr)
-			must.Eq(t, "", defaultVault.Token)
 			must.Eq(t, "jwt-nomad", defaultVault.JWTAuthBackendPath)
 
 			// merge in the user's configuration
@@ -1040,7 +1033,6 @@ func TestConfig_MultipleVault(t *testing.T) {
 			must.False(t, *defaultVault.Enabled)
 			must.Eq(t, "127.0.0.1:9500", defaultVault.Addr)
 			must.Eq(t, "nomad_jwt", defaultVault.JWTAuthBackendPath)
-			must.Eq(t, "12345", defaultVault.Token)
 
 			// add an extra Vault config and override fields in the default
 			fc, err = LoadConfig("testdata/extra-vault." + suffix)
@@ -1053,12 +1045,10 @@ func TestConfig_MultipleVault(t *testing.T) {
 			must.Eq(t, structs.VaultDefaultCluster, defaultVault.Name)
 			must.True(t, *defaultVault.Enabled)
 			must.Eq(t, "127.0.0.1:9500", defaultVault.Addr)
-			must.Eq(t, "abracadabra", defaultVault.Token)
 
 			must.Eq(t, "alternate", cfg.Vaults[1].Name)
 			must.True(t, *cfg.Vaults[1].Enabled)
 			must.Eq(t, "127.0.0.1:9501", cfg.Vaults[1].Addr)
-			must.Eq(t, "xyzzy", cfg.Vaults[1].Token)
 
 			must.Eq(t, "other", cfg.Vaults[2].Name)
 			must.Nil(t, cfg.Vaults[2].Enabled)
@@ -1083,7 +1073,6 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			defaultConsul := cfg.Consuls[0]
 			must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
 			must.Eq(t, config.DefaultConsulConfig(), defaultConsul)
-			must.True(t, *defaultConsul.AllowUnauthenticated)
 			must.Eq(t, "127.0.0.1:8500", defaultConsul.Addr)
 			must.Eq(t, "", defaultConsul.Token)
 
@@ -1096,7 +1085,6 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			must.Len(t, 1, cfg.Consuls)
 			defaultConsul = cfg.Consuls[0]
 			must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
-			must.True(t, *defaultConsul.AllowUnauthenticated)
 			must.Eq(t, "127.0.0.1:9500", defaultConsul.Addr)
 			must.Eq(t, "token1", defaultConsul.Token)
 
@@ -1108,12 +1096,10 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			must.Len(t, 3, cfg.Consuls)
 			defaultConsul = cfg.Consuls[0]
 			must.Eq(t, structs.ConsulDefaultCluster, defaultConsul.Name)
-			must.False(t, *defaultConsul.AllowUnauthenticated)
 			must.Eq(t, "127.0.0.1:9501", defaultConsul.Addr)
 			must.Eq(t, "abracadabra", defaultConsul.Token)
 
 			must.Eq(t, "alternate", cfg.Consuls[1].Name)
-			must.True(t, *cfg.Consuls[1].AllowUnauthenticated)
 			must.Eq(t, "127.0.0.2:8501", cfg.Consuls[1].Addr)
 			must.Eq(t, "xyzzy", cfg.Consuls[1].Token)
 

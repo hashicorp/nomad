@@ -4,6 +4,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -38,7 +39,8 @@ General Options:
 Status Options:
 
   -type <type>
-    List only volumes of type <type>.
+    List only volumes of type <type> (one of "host" or "csi"). If omitted, the
+    command will query for both dynamic host volumes and CSI volumes.
 
   -short
     Display short output. Used only when a single volume is being
@@ -147,17 +149,65 @@ func (c *VolumeStatusCommand) Run(args []string) int {
 		id = args[0]
 	}
 
+	opts := formatOpts{
+		verbose:  c.verbose,
+		short:    c.short,
+		length:   c.length,
+		json:     c.json,
+		template: c.template,
+	}
+
 	switch typeArg {
-	case "csi", "":
+	case "csi":
 		if nodeID != "" || nodePool != "" {
 			c.Ui.Error("-node and -node-pool can only be used with -type host")
 			return 1
 		}
-		return c.csiStatus(client, id)
+		if err := c.csiVolumeStatus(client, id, opts); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
 	case "host":
-		return c.hostVolumeStatus(client, id, nodeID, nodePool)
+		if err := c.hostVolumeStatus(client, id, nodeID, nodePool, opts); err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+	case "":
+		if id == "" {
+			// for list, we want to show both
+			dhvErr := c.hostVolumeList(client, nodeID, nodePool, opts)
+			if dhvErr != nil {
+				c.Ui.Error(dhvErr.Error())
+			}
+			c.Ui.Output("")
+			csiErr := c.csiVolumesList(client, opts)
+			if csiErr != nil {
+				c.Ui.Error(csiErr.Error())
+			}
+			if dhvErr == nil && csiErr == nil {
+				return 0
+			}
+			return 1
+		} else {
+			// for read, we only want to show whichever has results
+			hostErr := c.hostVolumeStatus(client, id, nodeID, nodePool, opts)
+			if hostErr != nil {
+				if !errors.Is(hostErr, hostVolumeListError) {
+					c.Ui.Error(hostErr.Error())
+					return 1 // we found a host volume but had some other error
+				}
+				csiErr := c.csiVolumeStatus(client, id, opts)
+				if csiErr != nil {
+					c.Ui.Error(hostErr.Error())
+					c.Ui.Error(csiErr.Error())
+					return 1
+				}
+			}
+		}
 	default:
 		c.Ui.Error(fmt.Sprintf("No such volume type %q", typeArg))
 		return 1
 	}
+
+	return 0
 }

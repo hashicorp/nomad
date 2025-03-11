@@ -4,6 +4,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/hashicorp/go-memdb"
@@ -95,9 +96,18 @@ func (s *StateStore) GetTaskGroupHostVolumeClaims(ws memdb.WatchSet) (memdb.Resu
 	return iter, nil
 }
 
-// GetTaskGroupHostVolumeClaimsForTaskGroup returns all volume claims for a given
-// task group
-func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet, ns, jobID, tg string) (memdb.ResultIterator, error) {
+// TgvcSearchableFields lists fields that task group volume claims can be
+// searched by
+type TgvcSearchableFields struct {
+	Namespace     string
+	JobID         string
+	TaskGroupName string
+	VolumeName    string
+}
+
+// TaskGroupHostVolumeClaimsByFields returns all claims that match the fields,
+// and handles namespace wildcards
+func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields TgvcSearchableFields) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
 	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
@@ -106,20 +116,36 @@ func (s *StateStore) GetTaskGroupHostVolumeClaimsForTaskGroup(ws memdb.WatchSet,
 	}
 	ws.Add(iter.WatchCh())
 
-	// Filter out by ns, jobID and tg
 	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
 		claim, ok := raw.(*structs.TaskGroupHostVolumeClaim)
 		if !ok {
 			return true
 		}
-		return claim.Namespace != ns || claim.JobID != jobID || claim.TaskGroupName != tg
+
+		// check which fields we should filter by
+		if fields.Namespace != structs.AllNamespacesSentinel && fields.Namespace != "" {
+			if claim.Namespace != fields.Namespace {
+				return true
+			}
+		}
+		if fields.JobID != "" && claim.JobID != fields.JobID {
+			return true
+		}
+		if fields.TaskGroupName != "" && claim.TaskGroupName != fields.TaskGroupName {
+			return true
+		}
+		if fields.VolumeName != "" && claim.VolumeName != fields.VolumeName {
+			return true
+		}
+		return false
 	})
 
 	return filter, nil
 }
 
-// deleteTaskGroupHostVolumeClaim deletes all claims for a given namespace and job ID
-func (s *StateStore) deleteTaskGroupHostVolumeClaim(index uint64, txn *txn, namespace, jobID string) error {
+// deleteTaskGroupHostVolumeClaimByNamespaceAndJob deletes all claims for a
+// given namespace and job ID
+func (s *StateStore) deleteTaskGroupHostVolumeClaimByNamespaceAndJob(index uint64, txn *txn, namespace, jobID string) error {
 	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
 	if err != nil {
 		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
@@ -135,4 +161,29 @@ func (s *StateStore) deleteTaskGroupHostVolumeClaim(index uint64, txn *txn, name
 	}
 
 	return nil
+}
+
+// DeleteTaskGroupHostVolumeClaim deletes a claim by its ID
+func (s *StateStore) DeleteTaskGroupHostVolumeClaim(index uint64, claimID string) error {
+	txn := s.db.WriteTxnMsgT(structs.TaskGroupHostVolumeClaimDeleteRequestType, index)
+	defer txn.Abort()
+
+	obj, err := txn.First(TableTaskGroupHostVolumeClaim, indexClaimID, claimID)
+	if err != nil {
+		return fmt.Errorf("Task group volume claim lookup failed: %v", err)
+	}
+
+	if obj == nil {
+		return errors.New("Task group volume claim does not exist")
+	}
+
+	if err := txn.Delete(TableTaskGroupHostVolumeClaim, obj); err != nil {
+		return err
+	}
+
+	if err := txn.Insert(tableIndex, &IndexEntry{TableTaskGroupHostVolumeClaim, index}); err != nil {
+		return fmt.Errorf("index update failed: %w", err)
+	}
+
+	return txn.Commit()
 }

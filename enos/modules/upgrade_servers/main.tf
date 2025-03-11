@@ -42,24 +42,26 @@ resource "enos_local_exec" "wait_for_leader" {
   scripts = [abspath("${path.module}/scripts/wait_for_stable_cluster.sh")]
 }
 
-////////////////////////////////////////////////////////////////////////////////
-//                    Upgrading the first server
-////////////////////////////////////////////////////////////////////////////////
-// Taking a snapshot forces the cluster to store a new snapshot that will be 
-// used to restore the cluster after the restart, because it will be the most 
-// recent available, the resulting file wont be used..
-resource "enos_local_exec" "take_first_cluster_snapshot" {
+// Forcing a snapshot from the leader drives the cluster to store the most recent
+// state and exercise the snapshot restore at least once when upgrading.
+// The resulting file wont be used. 
+// The stale flag defaults to "false" but it is included to reinforce the fact
+// that it has to be taken from the leader for future readers.
+resource "enos_local_exec" "take_cluster_snapshot" {
   depends_on = [enos_local_exec.wait_for_leader]
 
   environment = local.nomad_env
 
   inline = [
-    "nomad operator snapshot save -stale -address https://${var.servers[0]}:4646 ${random_pet.upgrade.id}-0.snap",
+    "nomad operator snapshot save -stale=false ${random_pet.upgrade.id}-0.snap",
   ]
 }
 
+////////////////////////////////////////////////////////////////////////////////
+//                    Upgrading the first server (leader)
+////////////////////////////////////////////////////////////////////////////////
 module upgrade_first_server {
-  depends_on = [enos_local_exec.take_first_cluster_snapshot]
+  depends_on = [enos_local_exec.take_cluster_snapshot]
 
   source = "../upgrade_instance"
 
@@ -83,21 +85,8 @@ resource "enos_local_exec" "first_leader_verification" {
 ////////////////////////////////////////////////////////////////////////////////
 //                    Upgrading the second server
 ////////////////////////////////////////////////////////////////////////////////
-// Taking a snapshot forces the cluster to store a new snapshot that will be 
-// used to restore the cluster after the restart, because it will be the most 
-// recent available, the resulting file wont be used..
-resource "enos_local_exec" "take_second_cluster_snapshot" {
-  depends_on = [enos_local_exec.first_leader_verification]
-
-  environment = local.nomad_env
-
-  inline = [
-    "nomad operator snapshot save -stale -address https://${var.servers[1]}:4646 ${random_pet.upgrade.id}-1.snap",
-  ]
-}
-
 module upgrade_second_server {
-  depends_on = [enos_local_exec.take_second_cluster_snapshot]
+  depends_on = [enos_local_exec.first_leader_verification]
 
   source = "../upgrade_instance"
 
@@ -121,21 +110,8 @@ resource "enos_local_exec" "second_leader_verification" {
 ////////////////////////////////////////////////////////////////////////////////
 //                    Upgrading the third server
 ////////////////////////////////////////////////////////////////////////////////
-// Taking a snapshot forces the cluster to store a new snapshot that will be 
-// used to restore the cluster after the restart, because it will be the most 
-// recent available, the resulting file wont be used.
-resource "enos_local_exec" "take_third_cluster_snapshot" {
-  depends_on = [enos_local_exec.first_leader_verification]
-
-  environment = local.nomad_env
-
-  inline = [
-    "nomad operator snapshot save -stale -address https://${var.servers[2]}:4646 ${random_pet.upgrade.id}-1.snap",
-  ]
-}
-
 module upgrade_third_server {
-  depends_on = [enos_local_exec.take_third_cluster_snapshot]
+  depends_on = [enos_local_exec.second_leader_verification]
 
   source = "../upgrade_instance"
 

@@ -753,11 +753,11 @@ func getByPrefix[T any](
 ) (*T, []*T, error) {
 	objs, _, err := queryFn(opts)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error querying %s: %s", objName, err)
+		return nil, nil, fmt.Errorf("error querying %s: %s", objName, err)
 	}
 	switch len(objs) {
 	case 0:
-		return nil, nil, fmt.Errorf("No %s with prefix or ID %q found", objName, opts.Prefix)
+		return nil, nil, fmt.Errorf("no %s with prefix or ID %q found", objName, opts.Prefix)
 	case 1:
 		return objs[0], nil, nil
 	default:

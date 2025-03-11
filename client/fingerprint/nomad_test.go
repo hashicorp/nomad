@@ -57,7 +57,7 @@ func TestNomadFingerprint(t *testing.T) {
 		t.Fatalf("incorrect revision")
 	}
 
-	if response.Attributes["nomad.advertise.address"] != h {
+	if response.Attributes["unique.advertise.address"] != h {
 		t.Fatalf("incorrect advertise address")
 	}
 

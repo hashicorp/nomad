@@ -1,0 +1,63 @@
+---
+layout: docs
+page_title: 'Commands: volume claim list'
+description: |
+  List task group host volume claims.
+---
+
+# Command: volume claim list
+
+The `volume claim list` command displays all task group host volume claims.
+[Stateful deployments][stateful deployments] use these claims.
+
+## Usage
+
+```plaintext
+nomad volume claim list [options] [claim_id]
+```
+
+This command accepts an optional claim ID or prefix as the sole argument. If
+there is an exact match based on the provided volume ID or prefix, then
+the command displays information about the specific claim. Otherwise, the command 
+displays a list of matching claims.
+
+If you omit the ID, the command lists out all of the existing claims and a
+few of the most useful status fields for each.
+
+When ACLs are enabled, this command requires a token with the `host-volume-read`
+capability in the volume's namespace.
+
+## General options
+
+@include 'general_options.mdx'
+
+## List options
+
+- `-job`: Show only volume claims from a particular job ID.
+
+- `-group`: Show only volume claims from a particular task group name.
+
+- `-volume-name`: Show only volume claims from a particular volume name.
+
+- `-verbose`: Display full information.
+
+## Examples
+
+List of all task group host volume claim for job ID "example".
+
+```shell-session
+$ nomad volume claim list -job=example
+ID        Namespace  Job ID   Volume ID  Volume Name
+81b43af2  default    example  18377894   sticky-volume
+7ce38017  default    example  c3c27514   example-volume
+```
+
+List of all task group host volume claims, prefix by 81.
+.
+```shell-session
+$ nomad volume claim list 81
+ID        Namespace  Job ID   Volume ID  Volume Name
+81b43af2  default    example  18377894   sticky-volume
+```
+
+[stateful deployments]: /nomad/docs/concepts/stateful-deployments

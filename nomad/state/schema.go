@@ -46,6 +46,7 @@ const (
 	indexSigningKey    = "signing_key"
 	indexAuthMethod    = "auth_method"
 	indexNodePool      = "node_pool"
+	indexClaimID       = "claim_id"
 )
 
 var (
@@ -83,7 +84,6 @@ func init() {
 		evalTableSchema,
 		allocTableSchema,
 		vaultAccessorTableSchema,
-		siTokenAccessorTableSchema,
 		aclPolicyTableSchema,
 		aclTokenTableSchema,
 		oneTimeTokenTableSchema,
@@ -839,44 +839,6 @@ func vaultAccessorTableSchema() *memdb.TableSchema {
 				Unique:       true,
 				Indexer: &memdb.StringFieldIndex{
 					Field: "Accessor",
-				},
-			},
-
-			"alloc_id": {
-				Name:         "alloc_id",
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "AllocID",
-				},
-			},
-
-			indexNodeID: {
-				Name:         indexNodeID,
-				AllowMissing: false,
-				Unique:       false,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "NodeID",
-				},
-			},
-		},
-	}
-}
-
-// siTokenAccessorTableSchema returns the MemDB schema for the Service Identity
-// token accessor table. This table tracks accessors for tokens created on behalf
-// of allocations with Consul connect enabled tasks that need SI tokens.
-func siTokenAccessorTableSchema() *memdb.TableSchema {
-	return &memdb.TableSchema{
-		Name: siTokenAccessorTable,
-		Indexes: map[string]*memdb.IndexSchema{
-			// The primary index is the accessor id
-			"id": {
-				Name:         "id",
-				AllowMissing: false,
-				Unique:       true,
-				Indexer: &memdb.StringFieldIndex{
-					Field: "AccessorID",
 				},
 			},
 
@@ -1738,6 +1700,14 @@ func taskGroupHostVolumeClaimSchema() *memdb.TableSchema {
 							Field: "VolumeID",
 						},
 					},
+				},
+			},
+			indexClaimID: {
+				Name:         indexClaimID,
+				AllowMissing: false,
+				Unique:       true,
+				Indexer: &memdb.StringFieldIndex{
+					Field: "ID",
 				},
 			},
 		},

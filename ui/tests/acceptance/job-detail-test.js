@@ -27,6 +27,7 @@ moduleForJob('Acceptance | job detail (batch)', 'allocations', () =>
     allocStatusDistribution: {
       running: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -39,6 +40,7 @@ moduleForJob('Acceptance | job detail (system)', 'allocations', () =>
     allocStatusDistribution: {
       running: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -52,6 +54,7 @@ moduleForJob('Acceptance | job detail (sysbatch)', 'allocations', () =>
       running: 1,
       failed: 1,
     },
+    withPreviousStableVersion: true,
   })
 );
 
@@ -65,6 +68,7 @@ moduleForJobWithClientStatus(
       type: 'sysbatch',
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -80,6 +84,7 @@ moduleForJobWithClientStatus(
       namespaceId: namespace.name,
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -95,6 +100,7 @@ moduleForJobWithClientStatus(
       namespaceId: namespace.name,
       createAllocations: false,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     });
   }
 );
@@ -109,6 +115,7 @@ moduleForJob('Acceptance | job detail (sysbatch child)', 'allocations', () => {
       running: 1,
     },
     noActiveDeployment: true,
+    withPreviousStableVersion: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -212,6 +219,7 @@ moduleForJob(
     server.create('job', 'parameterized', {
       shallow: true,
       noActiveDeployment: true,
+      withPreviousStableVersion: true,
     }),
   {
     'the default sort is submitTime descending': async (job, assert) => {
@@ -266,6 +274,7 @@ moduleForJob('Acceptance | job detail (periodic child)', 'allocations', () => {
       running: 1,
     },
     noActiveDeployment: true,
+    withPreviousStableVersion: true,
   });
   return server.db.jobs.where({ parentId: parent.id })[0];
 });
@@ -284,6 +293,7 @@ moduleForJob(
       },
       // Child's gotta be non-queued to be able to run
       status: 'running', //  TODO: TEMP
+      withPreviousStableVersion: true,
     });
     return server.db.jobs.where({ parentId: parent.id })[0];
   }
@@ -292,7 +302,15 @@ moduleForJob(
 moduleForJob(
   'Acceptance | job detail (service)',
   'allocations',
-  () => server.create('job', { type: 'service', noActiveDeployment: true }),
+  () =>
+    server.create('job', {
+      type: 'service',
+      noActiveDeployment: true,
+      withPreviousStableVersion: true,
+      allocStatusDistribution: {
+        running: 1,
+      },
+    }),
   {
     'the subnav links to deployment': async (job, assert) => {
       await JobDetail.tabFor('deployments').visit();
@@ -846,6 +864,15 @@ module('Job Start/Stop/Revert/Edit and Resubmit', function (hooks) {
     await JobDetail.visit({ id: nonRevertableJob.id });
     assert.notOk(JobDetail.revert.isPresent);
     assert.ok(JobDetail.editAndResubmit.isPresent);
+  });
+
+  test('A batch job with a previous version can be reverted', async function (assert) {
+    const revertableSystemJob = server.db.jobs.findBy(
+      (j) => j.name === 'revertable-batch-job'
+    );
+    await JobDetail.visit({ id: revertableSystemJob.id });
+    assert.ok(JobDetail.revert.isPresent);
+    assert.equal(JobDetail.revert.text, 'Revert to last version (v0)');
   });
 
   test('Clicking the resubmit button navigates to the job definition page in edit mode', async function (assert) {

@@ -15,36 +15,6 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func testJob_Deprecated() *structs.Job {
-	testJob := mock.Job()
-	testJob.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
-
-	return testJob
-}
-
-func testJobSingle_Deprecated() *structs.Job {
-	testJobSingle := mock.Job()
-	testJobSingle.TaskGroups[0].MaxClientDisconnect = pointer.Of(5 * time.Second)
-	testJobSingle.TaskGroups[0].PreventRescheduleOnLost = true
-
-	return testJobSingle
-}
-
-func testJobNoMaxDisconnect_Deprecated() *structs.Job {
-	testJobNoMaxDisconnect := mock.Job()
-	testJobNoMaxDisconnect.TaskGroups[0].MaxClientDisconnect = nil
-
-	return testJobNoMaxDisconnect
-}
-
-func testJobNoMaxDisconnectSingle_Deprecated() *structs.Job {
-	testJobNoMaxDisconnectSingle := mock.Job()
-	testJobNoMaxDisconnectSingle.TaskGroups[0].MaxClientDisconnect = nil
-	testJobNoMaxDisconnectSingle.TaskGroups[0].PreventRescheduleOnLost = true
-
-	return testJobNoMaxDisconnectSingle
-}
-
 func testJob_Disconnected() *structs.Job {
 	testJob := mock.Job()
 	testJob.TaskGroups[0].Disconnect = &structs.DisconnectStrategy{
@@ -137,15 +107,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 		testJobNoMaxDisconnect       func() *structs.Job
 		testJobNoMaxDisconnectSingle func() *structs.Job
 	}{
-		// Test using max_client_disconnect, remove after its deprecated in
-		// favor of Disconnect.LostAfter introduced in 1.8.0.
-		{
-			name:                         "old_definitions_deprecated",
-			testJob:                      testJob_Deprecated,
-			testJobSingle:                testJobSingle_Deprecated,
-			testJobNoMaxDisconnect:       testJobNoMaxDisconnect_Deprecated,
-			testJobNoMaxDisconnectSingle: testJobNoMaxDisconnectSingle_Deprecated,
-		},
 		{
 			name:                         "new_definitions_using_disconnect_block",
 			testJob:                      testJob_Disconnected,
@@ -169,7 +130,6 @@ func TestAllocSet_filterByTainted(t *testing.T) {
 				supportsDisconnectedClients bool
 				skipNilNodeTest             bool
 				now                         time.Time
-				PreventRescheduleOnLost     bool
 				// expected results
 				untainted     allocSet
 				migrate       allocSet

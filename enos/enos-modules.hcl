@@ -1,8 +1,8 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-module "build_artifactory" {
-  source = "./modules/fetch_artifactory"
+module "fetch_binaries" {
+  source = "./modules/fetch_binaries"
 }
 
 module "provision_cluster" {
@@ -21,6 +21,6 @@ module "upgrade_servers" {
   source = "./modules/upgrade_servers"
 }
 
-module "upgrade_clients" {
-  source = "./modules/upgrade_clients"
+module "upgrade_client" {
+  source = "./modules/upgrade_client"
 }

@@ -18,6 +18,15 @@ export default class NodeSerializer extends ApplicationSerializer {
 
   mapToArray = ['Drivers', 'HostVolumes'];
 
+  normalize(modelClass, hash) {
+    if (hash.HostVolumes) {
+      Object.entries(hash.HostVolumes).forEach(([key, value]) => {
+        hash.HostVolumes[key].VolumeID = value.ID || undefined;
+      });
+    }
+    return super.normalize(...arguments);
+  }
+
   extractRelationships(modelClass, hash) {
     const { modelName } = modelClass;
     const nodeURL = this.store
