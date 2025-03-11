@@ -1023,14 +1023,14 @@ const (
 // PemCert, PemCertFile may contain an x509 certificate created with
 // the Key, used to derive the KeyID. Alternatively, KeyID may be set manually.
 //
-// PemKeyFile and PemCertFile, if set, must be present on disk on any Nomad
-// servers that may become cluster leaders.
+// PemKeyFile and PemCertFile, if set, must be an absolute path to a file
+// present on disk on any Nomad servers that may become cluster leaders.
 type OIDCClientAssertionKey struct {
 	// PemKey is the private key, in pem format. It is used to sign the JWT.
 	// Mutually exclusive with PemKeyFile.
 	PemKey string
-	// PemKeyFile is the path to a private key on server disk, in pem format.
-	// It is used to sign the JWT.
+	// PemKeyFile is an absolute path to a private key on Nomad servers' disk,
+	// in pem format. It is used to sign the JWT.
 	// Mutually exclusive with PemKey.
 	PemKeyFile string
 
@@ -1057,13 +1057,14 @@ type OIDCClientAssertionKey struct {
 	// Mutually exclusive with PemCert and PemCertFile.
 	// Allowed KeyIDHeader values: "kid" (the default)
 	KeyID string
-	// PemCert is a certificate, signed by the private key or a CA,
-	// in pem format. It is used to derive an x5t-style KeyID.
+	// PemCert is an x509 certificate, signed by the private key or a CA,
+	// in pem format. It is used to derive an x5t#S256 (or x5t) KeyID.
 	// Mutually exclusive with PemCertFile and KeyID.
 	// Allowed KeyIDHeader values: "x5t", "x5t#S256" (default "x5t#S256")
 	PemCert string
-	// PemCertFile is a certificate, signed by the private key or a CA,
-	// on server disk, in pem format. It is used to derive an x5t-style KeyID.
+	// PemCertFile is an absolute path to an x509 certificate on Nomad servers'
+	// disk, signed by the private key or a CA, in pem format.
+	// It is used to derive an x5t#S256 (or x5t) KeyID.
 	// Mutually exclusive with PemCert and KeyID.
 	// Allowed KeyIDHeader values: "x5t", "x5t#S256" (default "x5t#S256")
 	PemCertFile string

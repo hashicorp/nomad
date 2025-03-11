@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"math/big"
 	"os"
+	"path"
 	"path/filepath"
 	"testing"
 	"time"
@@ -176,6 +177,8 @@ func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 	nomadKID := "anything"
 	nomadCert := generateTestCertificate(t, nomadKey)
 	nomadCertPath := writeTestCertToFile(t, nomadCert)
+	nonKeyCertFile := path.Join(t.TempDir(), "bad.key.cert.pem")
+	must.NoError(t, os.WriteFile(nonKeyCertFile, []byte("not a key or cert"), 0644))
 
 	tests := []struct {
 		name        string
@@ -272,9 +275,9 @@ func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 			wantErr:     true,
 			expectedErr: "error reading PemKeyFile",
 		},
-		// path traversal in pem key file
+		// file does exist but is not an rsa key
 		{
-			name: "invalid private key source with pem key file path traversal",
+			name: "invalid private key file contents",
 			config: &structs.ACLAuthMethodConfig{
 				OIDCClientID: "test-client-id",
 				OIDCClientAssertion: &structs.OIDCClientAssertion{
@@ -282,7 +285,7 @@ func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 					Audience:     []string{"test-audience"},
 					KeyAlgorithm: "RS256",
 					PrivateKey: &structs.OIDCClientAssertionKey{
-						PemKeyFile: "../../../../../../../../../../../../etc/passwd", // TODO: this gets read, but errors as "invalid key"
+						PemKeyFile: nonKeyCertFile,
 						KeyID:      nomadKID,
 					},
 				},
@@ -291,7 +294,7 @@ func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 			expectedErr: "error parsing PemKeyFile: invalid key:",
 		},
 		{
-			name: "invalid private key source with pem cert file path traversal",
+			name: "invalid certificate file contents",
 			config: &structs.ACLAuthMethodConfig{
 				OIDCClientID: "test-client-id",
 				OIDCClientAssertion: &structs.OIDCClientAssertion{
@@ -300,7 +303,7 @@ func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 					KeyAlgorithm: "RS256",
 					PrivateKey: &structs.OIDCClientAssertionKey{
 						PemKey:      encodeTestPrivateKey(nomadKey),
-						PemCertFile: "../../../../../../../../../../../../etc/passwd", // TODO: this gets read, but "failed to decode"
+						PemCertFile: nonKeyCertFile,
 					},
 				},
 			},
