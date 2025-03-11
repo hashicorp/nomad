@@ -2121,7 +2121,7 @@ func validClientAssertion() *OIDCClientAssertion {
 		KeySource: OIDCKeySourcePrivateKey,
 		Audience:  []string{"test-audience"},
 		PrivateKey: &OIDCClientAssertionKey{
-			PemKeyFile:  "test-key-file",
+			PemKeyFile:  "/test.key",
 			KeyIDHeader: OIDCClientAssertionHeaderKid,
 			KeyID:       "test-key-id",
 		},
