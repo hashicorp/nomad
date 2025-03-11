@@ -124,3 +124,78 @@ $ $(./debug-environment .enos/c545bbc25c5eec0ca86c99595a9034b5451a91aa10b586da2b
 
 Note that this won't be fully populated until the Enos scenario is far enough
 along to bootstrap the Nomad cluster.
+
+## Adding New Workloads
+
+All workloads executed as part of the test suite are stored under 
+`enos/modules/run_workloads/jobs` and must be defined with the following 
+attributes:
+
+### Required Attributes
+
+- **`job_spec`** *(string)*: Path to the job specification for your workload.
+ The path should be relative to the `run_workloads` module. 
+ For example: `jobs/raw-exec-service.nomad.hcl`.
+
+- **`alloc_count`** *(number)*: This variable serves two purposes:
+  1. Every workload must define the `alloc_count` variable, regardless of 
+  whether it is actively used.
+   This is because jobs are executed using [this command](https://github.com/hashicorp/nomad/blob/1ffb7ab3fb0dffb0e530fd3a8a411c7ad8c72a6a/enos/modules/run_workloads/main.tf#L66):
+     
+     ```hcl
+     variable "alloc_count" {
+       type = number
+     }
+     ```
+  
+  2. It is used to calculate the expected number of allocations in the cluster 
+  once all jobs are running.
+     
+     If the variable is missing or left undefined, the job will fail to run, 
+     which will impact the upgrade scenario.
+     
+     For `system` jobs, the number of allocations is determined by the number 
+     of nodes. In such cases, `alloc_count` is conventionally set to `0`,
+    as it is not directly used.
+
+- **`type`** *(string)*: Specifies the type of workload—`service`, `batch`, or 
+`system`. Setting the correct type is important, as it affects the calculation
+of the total number of expected allocations in the cluster.
+
+### Optional Attributes
+
+The following attributes are only required if your workload has prerequisites 
+or final configurations before it is fully operational. For example, a job using
+`tproxy` may require a new intention to be configured in Consul.
+
+- **`pre_script`** *(optional, string)*: Path to a script that should be 
+executed before the job runs.
+- **`post_script`** *(optional, string)*: Path to a script that should be
+ executed after the job runs.
+  
+All scripts are located in `enos/modules/run_workloads/scripts`.
+Similar to `job_spec`, the path should be relative to the `run_workloads`
+module. Example: `scripts/wait_for_nfs_volume.sh`.
+
+### Adding a New Workload
+
+If you want to add a new workload to test a specific feature, follow these steps:
+
+1. Modify the `run_initial_workloads` [step](https://github.com/hashicorp/nomad/blob/main/enos/enos-scenario-upgrade.hcl) 
+in `enos-scenario-upgrade.hcl` and include your workload in the `workloads` 
+variable.
+
+2. Add the job specification and any necessary pre/post scripts to the
+appropriate directories:
+   - [`enos/modules/run_workloads/jobs`](https://github.com/hashicorp/nomad/tree/main/enos/modules/run_workloads/jobs)
+   - [`enos/modules/run_workloads/scripts`](https://github.com/hashicorp/nomad/tree/main/enos/modules/run_workloads/scripts)
+
+**Important:** Ensure that the `alloc_count` variable is included in the job
+specification. If it is missing or undefined, the job will fail to run, 
+potentially disrupting the upgrade scenario.
+
+If you want to verify your workload without having to run all the scenario, 
+you can manually pass values to variables with flags or a `.tfvars`
+files and run the module from the `run_workloads` directory like you would any
+other terraform module.
+
