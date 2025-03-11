@@ -833,6 +833,9 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation, customThreshold *t
 
 	for i := iter.Next(); i != nil; i = iter.Next() {
 		plugin := i.(*structs.CSIPlugin)
+		if !plugin.IsEmpty() {
+			continue
+		}
 
 		// Ignore new plugins
 		mt := time.Unix(0, plugin.ModifyTime)
