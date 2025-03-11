@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: "Command: var get"
+page_title: nomad var get reference
 description: |-
-  The "var get" command retrieves the variable at the given path from
-  Nomad. If no variable exists at that path, an error is returned.
+  The `nomad var get` command retrieves the variable at the given path from
+  Nomad.
 ---
 
-# Command: var get
+# `nomad var get` reference
 
 The `var get` command is used to get the contents of an existing [variable][].
 
@@ -20,11 +20,11 @@ If ACLs are enabled, this command requires a token with the `variables:read`
 capability for the target variable's namespace and path. See the [ACL policy][]
 documentation for details.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Output Options
+## Output options
 
 - `-item` `(string: "")`: Print only the value of the given item. Specifying
    this option will take precedence over other formatting directives. The result

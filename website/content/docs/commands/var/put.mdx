@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: "Command: var put"
+page_title: nomad var put reference
 description: |-
-  The "var put" command writes a variable to the given path in Nomad.
+  The `nomad var put` command creates or updates a Nomad variable.
 ---
 
-# Command: var put
+# `nomad var put` reference
 
 The `var put` command creates or updates an existing [variable][].
 
@@ -54,11 +54,11 @@ values are read using the `range` function.
 Variable items are restricted to 64KiB in size. This limit is calculated by
 taking the sum of the length in bytes of all of the unencrypted keys and values.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Put Options
+## Put options
 
 - `-check-index` `(int: <unset>)`: If set, the variable is only acted upon if
   the server-side version's index matches the provided value. When a variable

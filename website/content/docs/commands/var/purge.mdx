@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: "Command: var purge"
+page_title: nomad var purge reference
 description: |-
-  The "var purge" command permanently removes the specified variable
+  The `nomad var purge` command permanently removes the specified variable
   from Nomad.
 ---
 
-# Command: var purge
+# `nomad var purge` reference
 
 The `var purge` command permanently deletes an existing [variable][] from Nomad's
 variable storage.
@@ -23,11 +23,11 @@ If ACLs are enabled, this command requires a token with the `variables:destroy`
 capability for the target variable's namespace and path. See the [ACL policy][]
 documentation for details.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Command Options
+## Command options
 
 - `-check-index` `(int: <unset>)`: If set, the variable is only acted upon if
   the server-side version's index matches the provided value. When a variable
