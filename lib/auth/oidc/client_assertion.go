@@ -153,7 +153,7 @@ func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 	}
 	now := time.Now()
 	if now.Before(cert.NotBefore) || now.After(cert.NotAfter) {
-		return nil, errors.New("cert expired or not yet valid")
+		return nil, errors.New("certificate has expired or is not yet valid")
 	}
 	return cert, nil
 }

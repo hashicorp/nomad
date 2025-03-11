@@ -1392,6 +1392,22 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 	must.Eq(t, am1.Config.OIDCClientAssertion.PrivateKey.KeyID, "test-key-id")
 }
 
+func TestACLAuthMethodConfig_Validate(t *testing.T) {
+	ci.Parallel(t)
+
+	// fail everything
+	am := &ACLAuthMethodConfig{}
+	am.Canonicalize() // there is insufficient info for this to help
+	err := am.Validate()
+	must.ErrorContains(t, err, "missing OIDCDiscoveryURL")
+	must.ErrorContains(t, err, "missing OIDCClientID")
+	must.ErrorContains(t, err, "missing BoundAudiences") // TODO: BoundIssuer? it's not even documented...
+	am.OIDCClientAssertion = &OIDCClientAssertion{}
+	am.Canonicalize()
+	err = am.Validate()
+	must.ErrorContains(t, err, "invalid client assertion config:")
+}
+
 func TestACLAuthMethodConfig_Copy(t *testing.T) {
 	ci.Parallel(t)
 
@@ -1618,19 +1634,19 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 			err: ErrMissingClientAssertionKey,
 		},
 		{
-			name: "missing kid or cert",
-			key: &OIDCClientAssertionKey{
-				PemKeyFile: "/any.key",
-			},
-			err: ErrMissingClientAssertionKeyID,
-		},
-		{
 			name: "ambiguous key",
 			key: &OIDCClientAssertionKey{
 				PemKeyFile: "/any.key",
 				PemKey:     "anykey",
 			},
 			err: ErrAmbiguousClientAssertionKey,
+		},
+		{
+			name: "missing keyid or cert",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile: "/any.key",
+			},
+			err: ErrMissingClientAssertionKeyID,
 		},
 		{
 			name: "ambiguous keyid - cert file and pem",
@@ -1658,6 +1674,22 @@ func TestOIDCClientAssertionKey_Validate(t *testing.T) {
 				KeyID:   "key-id",
 			},
 			err: ErrAmbiguousClientAssertionKeyID,
+		},
+		{
+			name: "non-absolute key path",
+			key: &OIDCClientAssertionKey{
+				PemKeyFile: "./who-knows-where-this-might-be.key",
+				KeyID:      "key-id",
+			},
+			err: ErrInvalidClientAssertionKeyPath,
+		},
+		{
+			name: "non-absolute cert path",
+			key: &OIDCClientAssertionKey{
+				PemKey:      "anykey",
+				PemCertFile: "./who-knows-where-this-might-be.cert",
+			},
+			err: ErrInvalidClientAssertionCertPath,
 		},
 		{
 			name: "bad key header for keyid",
@@ -2089,7 +2121,7 @@ func validClientAssertion() *OIDCClientAssertion {
 		KeySource: OIDCKeySourcePrivateKey,
 		Audience:  []string{"test-audience"},
 		PrivateKey: &OIDCClientAssertionKey{
-			PemKeyFile:  "test-key-file",
+			PemKeyFile:  "/test.key",
 			KeyIDHeader: OIDCClientAssertionHeaderKid,
 			KeyID:       "test-key-id",
 		},

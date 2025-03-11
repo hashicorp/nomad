@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"path"
 	"regexp"
 	"slices"
 	"strconv"
@@ -1378,11 +1379,13 @@ func (k *OIDCClientAssertionKey) Canonicalize() {
 }
 
 var (
-	ErrMissingClientAssertionKey     = errors.New("missing PemKey or PemKeyFile")
-	ErrAmbiguousClientAssertionKey   = errors.New("require only one of PemKey or PemKeyFile")
-	ErrMissingClientAssertionKeyID   = errors.New("missing PemCert, PemCertFile, or KeyID")
-	ErrAmbiguousClientAssertionKeyID = errors.New("require only one of PemCert, PemCertFile, or KeyID")
-	ErrInvalidKeyIDHeader            = errors.New("invalid KeyIDHeader")
+	ErrMissingClientAssertionKey      = errors.New("missing PemKey or PemKeyFile")
+	ErrAmbiguousClientAssertionKey    = errors.New("require only one of PemKey or PemKeyFile")
+	ErrMissingClientAssertionKeyID    = errors.New("missing PemCert, PemCertFile, or KeyID")
+	ErrAmbiguousClientAssertionKeyID  = errors.New("require only one of PemCert, PemCertFile, or KeyID")
+	ErrInvalidClientAssertionKeyPath  = errors.New("invalid PemKeyFile")
+	ErrInvalidClientAssertionCertPath = errors.New("invalid PemCertFile")
+	ErrInvalidKeyIDHeader             = errors.New("invalid KeyIDHeader")
 )
 
 // Validate ensures that one Key and one Cert or KeyID are provided,
@@ -1400,6 +1403,11 @@ func (k *OIDCClientAssertionKey) Validate() error {
 	if k.PemKey != "" && k.PemKeyFile != "" {
 		return ErrAmbiguousClientAssertionKey
 	}
+	if k.PemKeyFile != "" {
+		if !path.IsAbs(k.PemKeyFile) {
+			return fmt.Errorf("%w: must be absolute; got: %s", ErrInvalidClientAssertionKeyPath, k.PemKeyFile)
+		}
+	}
 
 	// mutually exclusive cert fields
 	// must have exactly one of: cert file or base64, or keyid
@@ -1414,6 +1422,11 @@ func (k *OIDCClientAssertionKey) Validate() error {
 	}
 	if k.KeyID != "" && (k.PemCert != "" || k.PemCertFile != "") {
 		return ErrAmbiguousClientAssertionKeyID
+	}
+	if k.PemCertFile != "" {
+		if !path.IsAbs(k.PemCertFile) {
+			return fmt.Errorf("%w: must be absolute; got: %s", ErrInvalidClientAssertionCertPath, k.PemCertFile)
+		}
 	}
 
 	// only allow certain key id headers
