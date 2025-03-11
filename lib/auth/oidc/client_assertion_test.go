@@ -3,9 +3,7 @@ package oidc
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/pem"
 	"math/big"
 	"os"
@@ -172,7 +170,7 @@ func TestBuildClientAssertionJWT_ClientSecret(t *testing.T) {
 func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 	nomadKey := generateTestPrivateKey(t)
 	nomadKeyPath := writeTestPrivateKeyToFile(t, nomadKey)
-	nomadKID := generateTestKeyID(nomadKey)
+	nomadKID := "anything"
 	nomadCert := generateTestCertificate(t, nomadKey)
 	nomadCertPath := writeTestCertToFile(t, nomadCert)
 
@@ -325,7 +323,7 @@ func TestBuildClientAssertionJWT_PrivateKey(t *testing.T) {
 
 func TestBuildClientAssertionJWT_NomadKey(t *testing.T) {
 	nomadKey := generateTestPrivateKey(t)
-	nomadKID := generateTestKeyID(nomadKey)
+	nomadKID := "anything"
 
 	tests := []struct {
 		name    string
@@ -370,7 +368,7 @@ func TestBuildClientAssertionJWT_NomadKey(t *testing.T) {
 func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
 	nomadKey := generateTestPrivateKey(t)
 	nomadInvalidKey := generateInvalidTestPrivateKey(t)
-	nomadKID := generateTestKeyID(nomadKey)
+	nomadKID := "anything"
 	nomadCert := generateTestCertificate(t, nomadKey)
 	nomadExpiredCert := generateExpiredTestCertificate(t, nomadKey)
 
@@ -431,31 +429,9 @@ func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
 	}
 }
 
-func generateTestKeyID(key *rsa.PrivateKey) string {
-	keyBytes := x509.MarshalPKCS1PublicKey(&key.PublicKey)
-	thumbprint := sha256.Sum256(keyBytes)
-	return base64.URLEncoding.EncodeToString(thumbprint[:])
-}
-
 func generateTestPrivateKey(t *testing.T) *rsa.PrivateKey {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	must.NoError(t, err)
-
-	tmpDir := t.TempDir()
-	keyPath := filepath.Join(tmpDir, "testkey.pem")
-
-	keyFile, err := os.Create(keyPath)
-	must.NoError(t, err)
-	defer keyFile.Close()
-
-	keyBytes := x509.MarshalPKCS1PrivateKey(key)
-	block := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: keyBytes,
-	}
-	err = pem.Encode(keyFile, block)
-	must.NoError(t, err)
-
 	return key
 }
 
