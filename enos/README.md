@@ -181,7 +181,7 @@ module. Example: `scripts/wait_for_nfs_volume.sh`.
 
 If you want to add a new workload to test a specific feature, follow these steps:
 
-1. Modify the `run_initial_workloads` [step](https://github.com/hashicorp/nomad/blob/main/enos/enos-scenario-upgrade.hcl) 
+1. Modify the `run_initial_workloads` [step](https://github.com/hashicorp/nomad/blob/04db81951fd0f6b7cc543410585a4da0d70a354a/enos/enos-scenario-upgrade.hcl#L139) 
 in `enos-scenario-upgrade.hcl` and include your workload in the `workloads` 
 variable.
 
