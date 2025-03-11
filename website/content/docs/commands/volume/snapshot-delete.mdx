@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad volume snapshot delete'
+page_title: 'nomad volume snapshot delete reference'
 description: |
-  Delete external volume snapshots.
+  The `nomad volume snapshot delete` command deletes a snapshot of an existing Container Storage Interface (CSI) volume.
 ---
 
-# Command: volume snapshot delete
+# `nomad volume snapshot delete` reference
 
 The `volume snapshot delete` command deletes a snapshot of an existing
 [Container Storage Interface (CSI)][csi] volume. Only CSI plugins that
@@ -25,11 +25,11 @@ need to be [registered] with Nomad in order to be deleted.
 When ACLs are enabled, this command requires a token with the `csi-write-
 volume` and `plugin:read` capabilities.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Snapshot Delete Options
+## Snapshot delete options
 
 - `-secret`: Secrets to pass to the plugin to delete the
   snapshot. Accepts multiple flags in the form `-secret key=value`

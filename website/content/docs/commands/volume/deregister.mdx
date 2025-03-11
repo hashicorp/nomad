@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad volume deregister'
+page_title: 'nomad volume deregister reference'
 description: |
   The `nomad volume deregister` command deregisters Container Storage Interface (CSI) storage volumes.
 ---
 
-# Command: volume deregister
+# `nomad volume deregister` reference
 
 The `volume deregister` command deregisters external storage volumes with
 Nomad's [Container Storage Interface (CSI)][csi] support. The volume will be
@@ -30,11 +30,11 @@ unpublished.
 When ACLs are enabled, this command requires a token with the
 `csi-write-volume` capability for the volume's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Deregister Options
+## Deregister options
 
 - `-force`: Force deregistration of the volume and immediately drop claims for
   terminal allocations. Returns an error if the volume has running
