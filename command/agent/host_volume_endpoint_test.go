@@ -87,8 +87,9 @@ func TestHostVolumeEndpoint_CRUD(t *testing.T) {
 
 		req, err = http.NewRequest(http.MethodDelete, fmt.Sprintf("/v1/volume/host/%s", volID), nil)
 		must.NoError(t, err)
-		_, err = s.Server.HostVolumeSpecificRequest(respW, req)
+		obj, err = s.Server.HostVolumeSpecificRequest(respW, req)
 		must.NoError(t, err)
+		must.NotNil(t, obj)
 
 		// Verify volume was deleted
 

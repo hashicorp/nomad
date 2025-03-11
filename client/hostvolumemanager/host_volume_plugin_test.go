@@ -188,7 +188,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			&cstructs.ClientHostVolumeCreateRequest{
 				ID: volID,
 			})
-		must.EqError(t, err, `error creating volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1`)
+		must.EqError(t, err, `error creating volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1: create: sad plugin is sad`)
 		must.Nil(t, resp)
 		logged = getLogs()
 		must.StrContains(t, logged, "create: sad plugin is sad")
@@ -201,7 +201,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 			&cstructs.ClientHostVolumeDeleteRequest{
 				ID: volID,
 			})
-		must.EqError(t, err, `error deleting volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1`)
+		must.EqError(t, err, `error deleting volume "test-vol-id" with plugin "test_plugin_sad.sh": exit status 1: delete: sad plugin is sad`)
 		logged = getLogs()
 		must.StrContains(t, logged, "delete: sad plugin is sad")
 		must.StrContains(t, logged, "delete: it tells you all about it in stderr")
