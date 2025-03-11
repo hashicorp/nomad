@@ -196,6 +196,6 @@ potentially disrupting the upgrade scenario.
 
 If you want to verify your workload without having to run all the scenario, 
 you can manually pass values to variables with flags or a `.tfvars`
-files and run the module from the `run_workloads` directory like you would any
+file and run the module from the `run_workloads` directory like you would any
 other terraform module.
 
