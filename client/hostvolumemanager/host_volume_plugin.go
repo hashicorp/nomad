@@ -52,12 +52,20 @@ type PluginFingerprint struct {
 	Version *version.Version `json:"version"`
 }
 
-// HostVolumePluginCreateResponse gets stored on the volume in server state.
-// Plugins are expected to respond to 'create' calls with json that
-// unmarshals to this struct.
+// HostVolumePluginCreateResponse returns values to the server that may be shown
+// to the user or stored in server state. Plugins are expected to respond to
+// 'create' calls with json that unmarshals to this struct.
 type HostVolumePluginCreateResponse struct {
 	Path      string `json:"path"`
 	SizeBytes int64  `json:"bytes"`
+	Error     string `json:"error"`
+}
+
+// HostVolumePluginDeleteResponse returns values to the server that may be shown
+// to the user or stored in server state. Plugins are expected to respond to
+// 'delete' calls with json that unmarshals to this struct.
+type HostVolumePluginDeleteResponse struct {
+	Error string `json:"error"`
 }
 
 const HostVolumePluginMkdirID = "mkdir"
@@ -255,13 +263,21 @@ func (p *HostVolumePluginExternal) Create(ctx context.Context,
 		fmt.Sprintf("%s=%s", EnvParameters, params),
 	}
 
+	var pluginResp HostVolumePluginCreateResponse
 	log := p.log.With("volume_name", req.Name, "volume_id", req.ID)
 	stdout, _, err := p.runPlugin(ctx, log, "create", envVars)
 	if err != nil {
-		return nil, fmt.Errorf("error creating volume %q with plugin %q: %w", req.ID, p.ID, err)
+		jsonErr := json.Unmarshal(stdout, &pluginResp)
+		if jsonErr != nil {
+			// if we got an error, we can't actually count on getting JSON, so
+			// optimistically look for it and return the original error
+			// otherwise
+			return nil, fmt.Errorf(
+				"error creating volume %q with plugin %q: %w", req.ID, p.ID, err)
+		}
+		return nil, fmt.Errorf("error creating volume %q with plugin %q: %w: %s",
+			req.ID, p.ID, err, pluginResp.Error)
 	}
-
-	var pluginResp HostVolumePluginCreateResponse
 	err = json.Unmarshal(stdout, &pluginResp)
 	if err != nil {
 		// note: if a plugin does not return valid json, a volume may be
@@ -313,10 +329,20 @@ func (p *HostVolumePluginExternal) Delete(ctx context.Context,
 	}
 
 	log := p.log.With("volume_name", req.Name, "volume_id", req.ID)
-	_, _, err = p.runPlugin(ctx, log, "delete", envVars)
+	stdout, _, err := p.runPlugin(ctx, log, "delete", envVars)
 	if err != nil {
-		return fmt.Errorf("error deleting volume %q with plugin %q: %w", req.ID, p.ID, err)
+		var pluginResp HostVolumePluginDeleteResponse
+		jsonErr := json.Unmarshal(stdout, &pluginResp)
+		if jsonErr != nil {
+			// if we got an error, we can't actually count on getting JSON, so
+			// optimistically look for it and return the original error
+			// otherwise
+			return fmt.Errorf("error reading plugin response when deleting volume %q with plugin %q: original error: %w", req.ID, p.ID, err)
+		}
+		return fmt.Errorf("error deleting volume %q with plugin %q: %w: %s",
+			req.ID, p.ID, err, pluginResp.Error)
 	}
+
 	return nil
 }
 

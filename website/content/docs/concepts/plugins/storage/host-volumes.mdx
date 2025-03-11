@@ -291,6 +291,15 @@ DHV_PARAMETERS={stringified json of parameters from the volume spec}
 {"path": "/path/to/created/volume", "bytes": 50000000}
 ```
 
+**Expected stdout on error:**
+
+```
+{"error": "error message"}
+```
+
+Returning an error message is optional. Nomad returns the error message in any
+error returned to the user.
+
 **Requirements:**
 
 * Must complete within 60 seconds, or Nomad will kill it.
@@ -332,6 +341,15 @@ DHV_PARAMETERS={stringified json of parameters from the volume spec}
 ```
 
 **Expected stdout:** none (stdout is discarded)
+
+**Expected stdout on error:**
+
+```
+{"error": "error message"}
+```
+
+Returning an error message is optional. Nomad returns the error message in any
+error returned to the user.
 
 **Requirements:**
 
