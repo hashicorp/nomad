@@ -23,7 +23,7 @@
     {{on "keyup" (action "openOnArrowDown" dd)}}
   >
     {{this.label}}
-    {{x-icon "chevron-down" class="is-text"}}
+    <Hds::Icon @name="chevron-down" @isInline={{true}} />
   </dd.Trigger>
   <dd.Content data-test-popover-menu class="popover-content">
     {{yield dd}}

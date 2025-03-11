@@ -162,20 +162,22 @@ $button-box-shadow-standard: 0 2px 0 0 rgba($grey, 0.2);
     }
   }
 
-  // When an icon in a button should be treated like text,
-  // override the default Bulma behavior
-  .icon.is-text {
-    &:first-child:not(:last-child) {
-      margin-left: 0;
-      margin-right: 0;
-    }
-    &:last-child:not(:first-child) {
-      margin-left: 0;
-      margin-right: 0;
-    }
-    &:first-child:last-child {
-      margin-left: 0;
-      margin-right: 0;
-    }
-  }
+  // TODO: make sure we can safely remove this
+
+  // // When an icon in a button should be treated like text,
+  // // override the default Bulma behavior
+  // .icon.is-text {
+  //   &:first-child:not(:last-child) {
+  //     margin-left: 0;
+  //     margin-right: 0;
+  //   }
+  //   &:last-child:not(:first-child) {
+  //     margin-left: 0;
+  //     margin-right: 0;
+  //   }
+  //   &:first-child:last-child {
+  //     margin-left: 0;
+  //     margin-right: 0;
+  //   }
+  // }
 }

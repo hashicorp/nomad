@@ -13,9 +13,9 @@
       >
         {{or @title "Deployment History"}}
         {{#if this.isHidden}}
-          {{x-icon "chevron-down"}}
+          <Hds::Icon @name="chevron-down" />
         {{else}}
-          {{x-icon "chevron-up"}}
+          <Hds::Icon @name="chevron-up" />
         {{/if}}
       </button>
     </h4>
