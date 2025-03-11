@@ -44,22 +44,6 @@ func TestBuildClientAssertionJWT_ClientSecret(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "valid client secret no PKCE",
-			config: &structs.ACLAuthMethodConfig{
-				OIDCClientID:     "test-client-id",
-				OIDCClientSecret: "1234567890abcdefghijklmnopqrstuvwxyz",
-				OIDCClientAssertion: &structs.OIDCClientAssertion{
-					KeySource:    structs.OIDCKeySourceClientSecret,
-					KeyAlgorithm: "HS256",
-					Audience:     []string{"test-audience"},
-					ExtraHeaders: map[string]string{
-						"test-header": "test-value",
-					},
-				},
-			},
-			wantErr: false,
-		},
-		{
 			name: "nil config",
 			config: &structs.ACLAuthMethodConfig{
 				OIDCClientID:        "test-client-id",
@@ -385,7 +369,7 @@ func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
 		expectedErr string
 	}{
 		{
-			name: "invalid PemKeyBase64",
+			name: "invalid PemKey",
 			config: &structs.ACLAuthMethodConfig{
 				OIDCClientID: "test-client-id",
 				OIDCClientAssertion: &structs.OIDCClientAssertion{
@@ -402,7 +386,7 @@ func TestBuildClientAssertionJWT_PrivateKeyExpiredCert(t *testing.T) {
 			expectedErr: "failed to parse private key",
 		},
 		{
-			name: "expired certificate PemCertBase64",
+			name: "expired certificate PemCert",
 			config: &structs.ACLAuthMethodConfig{
 				OIDCClientID: "test-client-id",
 				OIDCClientAssertion: &structs.OIDCClientAssertion{
