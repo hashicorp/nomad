@@ -411,9 +411,9 @@ func TestJobGetter_HTTPServer(t *testing.T) {
 	}
 	if !reflect.DeepEqual(expectedApiJob, aj) {
 		for _, d := range pretty.Diff(expectedApiJob, aj) {
-			t.Logf(d)
+			t.Log(d)
 		}
-		t.Fatalf("Unexpected file")
+		t.Fatal("Unexpected file")
 	}
 }
 
