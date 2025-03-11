@@ -147,7 +147,7 @@ attributes:
        type = number
      }
      ```
-  
+  This is done to force the job spec author to add a value to the `alloc_count`.
   2. It is used to calculate the expected number of allocations in the cluster 
   once all jobs are running.
      
