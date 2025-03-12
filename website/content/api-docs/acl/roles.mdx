@@ -13,9 +13,9 @@ The `/acl/roles` and `/acl/role/` endpoints are used to manage ACL Roles.
 This endpoint creates an ACL Role. The request is always forwarded to the
 authoritative region.
 
-| Method | Path        | Produces           |
-| ------ | ----------- | ------------------ |
-| `POST` | `/acl/role` | `application/json` |
+| Method | Path           | Produces           |
+| ------ | -------------- | ------------------ |
+| `POST` | `/v1/acl/role` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -84,9 +84,9 @@ $ curl \
 This endpoint updates an existing ACL Role. The request is always forwarded to the
 authoritative region.
 
-| Method | Path                 | Produces           |
-| ------ | -------------------- | ------------------ |
-| `POST` | `/acl/role/:role_id` | `application/json` |
+| Method | Path                    | Produces           |
+| ------ | ----------------------- | ------------------ |
+| `POST` | `/v1/acl/role/:role_id` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -159,9 +159,9 @@ $ curl \
 This endpoint lists all ACL Roles. This lists the roles that have been replicated
 to the region, and may lag behind the authoritative region.
 
-| Method | Path         | Produces           |
-| ------ | ------------ | ------------------ |
-| `GET`  | `/acl/roles` | `application/json` |
+| Method | Path            | Produces           |
+| ------ | --------------- | ------------------ |
+| `GET`  | `/v1/acl/roles` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries),
@@ -265,9 +265,9 @@ $ curl \
 This endpoint reads an ACL Role with the given name. This queries the role that
 has been replicated to the region, and may lag behind the authoritative region.
 
-| Method | Path                        | Produces           |
-| ------ | --------------------------- | ------------------ |
-| `GET`  | `/acl/role/name/:role_name` | `application/json` |
+| Method | Path                           | Produces           |
+| ------ | ------------------------------ | ------------------ |
+| `GET`  | `/v1/acl/role/name/:role_name` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries),
@@ -313,9 +313,9 @@ $ curl \
 This endpoint deletes the ACL role as identified by the ID. This request is
 always forwarded to the authoritative region.
 
-| Method   | Path                 | Produces       |
-| -------- | -------------------- | -------------- |
-| `DELETE` | `/acl/role/:role_id` | `(empty body)` |
+| Method   | Path                    | Produces       |
+| -------- | ----------------------- | -------------- |
+| `DELETE` | `/v1/acl/role/:role_id` | `(empty body)` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
