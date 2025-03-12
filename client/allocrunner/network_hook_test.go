@@ -82,9 +82,12 @@ func TestNetworkHook_Prerun_Postrun_group(t *testing.T) {
 		expectedStatus: nil,
 	}
 
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
+
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder)
 	must.NoError(t, hook.Prerun())
 	must.True(t, setter.called)
 	must.False(t, destroyCalled)
@@ -125,9 +128,11 @@ func TestNetworkHook_Prerun_Postrun_host(t *testing.T) {
 		expectedStatus: nil,
 	}
 
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder)
 	must.NoError(t, hook.Prerun())
 	must.False(t, setter.called)
 	must.False(t, destroyCalled)
@@ -184,8 +189,9 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 		cni:      fakePlugin,
 		nsOpts:   &nsOpts{},
 	}
-
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 
 	testCases := []struct {
 		name                             string
@@ -251,7 +257,7 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			fakePlugin.checkErrors = tc.checkErrs
 			configurator.nodeAttrs["plugins.cni.version.bridge"] = tc.cniVersion
 			hook := newNetworkHook(testlog.HCLogger(t), isolationSetter,
-				alloc, nm, configurator, statusSetter, envBuilder.Build())
+				alloc, nm, configurator, statusSetter, envBuilder)
 
 			err := hook.Prerun()
 			if tc.expectPrerunError == "" {

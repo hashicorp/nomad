@@ -164,9 +164,11 @@ func TestCheckHook_Checks_ResultsSet(t *testing.T) {
 
 		alloc := allocWithNomadChecks(addr, port, tc.onGroup)
 
-		envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+		envBuilder := func() *taskenv.Builder {
+			return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+		}
 
-		h := newChecksHook(logger, alloc, checkStore, network, envBuilder.Build())
+		h := newChecksHook(logger, alloc, checkStore, network, envBuilder)
 
 		// initialize is called; observers are created but not started yet
 		must.MapEmpty(t, h.observers)
@@ -231,9 +233,11 @@ func TestCheckHook_Checks_UpdateSet(t *testing.T) {
 
 	alloc := allocWithNomadChecks(addr, port, true)
 
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 
-	h := newChecksHook(logger, alloc, shim, network, envBuilder.Build())
+	h := newChecksHook(logger, alloc, shim, network, envBuilder)
 
 	// calling pre-run starts the observers
 	err := h.Prerun()

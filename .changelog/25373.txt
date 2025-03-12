@@ -1,0 +1,3 @@
+```release-note:improvement
+client: Improve memory usage by dropping references to task environment
+```

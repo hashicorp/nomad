@@ -104,19 +104,16 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 	}
 
 	// Create a new taskenv.Builder which is used by hooks that mutate them to
-	// build new taskenv.TaskEnv.
+	// build new taskenv.TaskEnv. We use this factory function to avoid holding
+	// onto copies of the node attributes and task environment
 	newEnvBuilder := func() *taskenv.Builder {
 		return taskenv.NewBuilder(
-			config.Node,
+			config.GetNode(),
 			ar.Alloc(),
 			nil,
 			config.Region,
 		).SetAllocDir(ar.allocDir.AllocDirPath())
 	}
-
-	// Create a *taskenv.TaskEnv which is used for read only purposes by the
-	// newNetworkHook and newChecksHook.
-	builtTaskEnv := newEnvBuilder().Build()
 
 	// Create the alloc directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
@@ -139,14 +136,14 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newDiskMigrationHook(hookLogger, ar.prevAllocMigrator, ar.allocDir),
 		newCPUPartsHook(hookLogger, ar.partitions, alloc),
 		newAllocHealthWatcherHook(hookLogger, alloc, newEnvBuilder, hs, ar.Listener(), ar.consulServicesHandler, ar.checkStore),
-		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, builtTaskEnv),
+		newNetworkHook(hookLogger, ns, alloc, nm, nc, ar, newEnvBuilder),
 		newGroupServiceHook(groupServiceHookConfig{
 			alloc:             alloc,
 			providerNamespace: alloc.ServiceProviderNamespace(),
 			serviceRegWrapper: ar.serviceRegWrapper,
 			hookResources:     ar.hookResources,
 			restarter:         ar,
-			taskEnvBuilder:    newEnvBuilder(),
+			envBuilderFactory: newEnvBuilder,
 			networkStatus:     ar,
 			logger:            hookLogger,
 			shutdownDelayCtx:  ar.shutdownDelayCtx,
@@ -156,7 +153,7 @@ func (ar *allocRunner) initRunnerHooks(config *clientconfig.Config) error {
 		newConsulHTTPSocketHook(hookLogger, alloc, ar.allocDir,
 			config.GetConsulConfigs(ar.logger)),
 		newCSIHook(alloc, hookLogger, ar.csiManager, ar.rpcClient, ar, ar.hookResources, ar.clientConfig.Node.SecretID),
-		newChecksHook(hookLogger, alloc, ar.checkStore, ar, builtTaskEnv),
+		newChecksHook(hookLogger, alloc, ar.checkStore, ar, newEnvBuilder),
 	}
 	if config.ExtraAllocHooks != nil {
 		ar.runnerHooks = append(ar.runnerHooks, config.ExtraAllocHooks...)
