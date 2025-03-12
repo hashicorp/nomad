@@ -41,6 +41,9 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -51,7 +54,7 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		envBuilder:        envBuilder,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -82,6 +85,9 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -93,7 +99,7 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		envBuilder:        envBuilder,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -125,6 +131,9 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	alloc.Job.Canonicalize()
 	logger := testlog.HCLogger(t)
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -135,7 +144,7 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		envBuilder:        envBuilder,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -174,6 +183,9 @@ func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
 	nomadMockClient := regMock.NewServiceRegistrationHandler(logger)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 
 	regWrapper := wrapper.NewHandlerWrapper(logger, consulMockClient, nomadMockClient)
 
@@ -181,7 +193,7 @@ func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		envBuilder:        envBuilder,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -226,6 +238,9 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -236,7 +251,7 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		envBuilder:        envBuilder,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -275,6 +290,9 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
+	envBuilder := func() *taskenv.Builder {
+		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	}
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -285,7 +303,7 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		taskEnvBuilder:    taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region),
+		envBuilder:        envBuilder,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})

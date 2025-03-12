@@ -78,12 +78,12 @@ func (o *observer) stop() {
 //
 // Does not manage Consul service checks; see groupServiceHook instead.
 type checksHook struct {
-	logger  hclog.Logger
-	network structs.NetworkStatus
-	shim    checkstore.Shim
-	checker checks.Checker
-	allocID string
-	taskEnv *taskenv.TaskEnv
+	logger     hclog.Logger
+	network    structs.NetworkStatus
+	shim       checkstore.Shim
+	checker    checks.Checker
+	allocID    string
+	envBuilder func() *taskenv.Builder
 
 	// fields that get re-initialized on allocation update
 	lock      sync.RWMutex
@@ -98,16 +98,16 @@ func newChecksHook(
 	alloc *structs.Allocation,
 	shim checkstore.Shim,
 	network structs.NetworkStatus,
-	taskEnv *taskenv.TaskEnv,
+	envBuilder func() *taskenv.Builder,
 ) *checksHook {
 	h := &checksHook{
-		logger:  logger.Named(checksHookName),
-		allocID: alloc.ID,
-		alloc:   alloc,
-		shim:    shim,
-		network: network,
-		checker: checks.New(logger),
-		taskEnv: taskEnv,
+		logger:     logger.Named(checksHookName),
+		allocID:    alloc.ID,
+		alloc:      alloc,
+		shim:       shim,
+		network:    network,
+		checker:    checks.New(logger),
+		envBuilder: envBuilder,
 	}
 	h.initialize(alloc)
 	return h
@@ -212,7 +212,8 @@ func (h *checksHook) Prerun() error {
 		return nil
 	}
 
-	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, group.NomadServices())
+	interpolatedServices := taskenv.InterpolateServices(
+		h.envBuilder().Build(), group.NomadServices())
 
 	// create and start observers of nomad service checks in alloc
 	h.observe(h.alloc, interpolatedServices)
