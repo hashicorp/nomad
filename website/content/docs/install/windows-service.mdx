@@ -72,10 +72,9 @@ launch Nomad from the command-line again.
 ## Increasing the non-interactive desktop heap size
 
 If you run Nomad as a Windows service and you intend to run many allocations
-(e.g., more than 50), you may encounter issues with Nomad plugin processes
-being terminated by Windows with errors such as `exit status 0xc0000142`
+, such as more than 50, you may encounter issues with Windows terminating Nomad plugin processes with errors such as `exit status 0xc0000142`
 appearing in the logs. This is due to Nomad's inability to spawn more
-concurrent processes, and can be fixed by manipulating the value of
+concurrent processes, and you may fix this by manipulating the value of
 `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session
 Manager\SubSystems` Windows registry key.
 
@@ -84,10 +83,10 @@ that accepts a value of three comma-separated integers, for example,
 `1024,20480,768`. The first integer indicates the maximum size of the
 system-wide heap, the second is the size of each desktop heap, and the third is
 the size of the desktop heap that is associated with a noninteractive Windows
-instance (all values are in kilobytes). For large Windows nodes that run large
+instance. All values are in kilobytes. For large Windows nodes that run large
 numbers of allocations, we recommend setting the final integer value to 2048 or
 4096 kB. Remember that any registry change requires restarting Windows, a
-restart of Nomad service will not be sufficient.
+restart of Nomad service is not sufficient.
 
 [`sc.exe`]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms682107(v=vs.85).aspx
 [download]: /nomad/downloads
