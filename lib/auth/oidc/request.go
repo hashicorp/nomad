@@ -12,14 +12,17 @@ import (
 )
 
 var (
-	ErrNonceReuse      = errors.New("nonce reuse detected")
+	ErrNonceReuse = errors.New("nonce reuse detected")
+	// ErrTooManyRequests is returned if the request cache is full.
+	// Realistically, we expect this only to happen if the auth-url
+	// API endpoint is being DOS'd.
 	ErrTooManyRequests = errors.New("too many auth requests")
 )
 
 // MaxRequests is how many requests are allowed to be stored at a time.
 // It needs to be large enough for legitimate user traffic, but small enough
 // to prevent a DOS from eating up server memory.
-const MaxRequests = 10000
+const MaxRequests = 1000
 
 // NewRequestCache creates a cache for OIDC requests.
 // The JWT expiration time in the cap library is 5 minutes,
