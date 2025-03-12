@@ -45,8 +45,8 @@ export default create({
   directoryEntries: collection('[data-test-entry]', {
     name: text('[data-test-name]'),
 
-    isFile: isPresent('.icon-is-file-outline'),
-    isDirectory: isPresent('.icon-is-folder-outline'),
+    isFile: isPresent('.hds-icon-file'),
+    isDirectory: isPresent('.hds-icon-folder'),
 
     size: text('[data-test-size]'),
     lastModified: text('[data-test-last-modified]'),
