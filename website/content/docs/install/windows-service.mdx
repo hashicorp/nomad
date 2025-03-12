@@ -79,8 +79,8 @@ concurrent processes, and can be fixed by manipulating the value of
 `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session
 Manager\SubSystems` Windows registry key.
 
-This key accepts a value of three comma-separated integers:
-`xxxx`,`yyyy`,`zzzz`. The first integer indicates the maximum size of the
+This key accepts a value of three comma-separated integers, e.g.,
+`1024,20480,768`. The first integer indicates the maximum size of the
 system-wide heap, the second is the size of each desktop heap, and the third is
 the size of the desktop heap that is associated with a noninteractive Windows
 instance (all values are in kilobytes). For large Windows nodes that run large
