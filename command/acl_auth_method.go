@@ -93,6 +93,10 @@ func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) string {
 		fmt.Sprintf("OIDC Discovery URL|%s", config.OIDCDiscoveryURL),
 		fmt.Sprintf("OIDC Client ID|%s", config.OIDCClientID),
 		fmt.Sprintf("OIDC Client Secret|%s", config.OIDCClientSecret),
+	}
+	out = append(out, formatClientAssertion(config.OIDCClientAssertion)...)
+	out = append(out,
+		fmt.Sprintf("OIDC Disable PKCE|%t", config.OIDCDisablePKCE != nil && *config.OIDCDisablePKCE),
 		fmt.Sprintf("OIDC Disable UserInfo|%t", config.OIDCDisableUserInfo),
 		fmt.Sprintf("OIDC Scopes|%s", strings.Join(config.OIDCScopes, ",")),
 		fmt.Sprintf("Bound audiences|%s", strings.Join(config.BoundAudiences, ",")),
@@ -106,7 +110,7 @@ func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) string {
 		fmt.Sprintf("ClockSkew Leeway|%s", config.ClockSkewLeeway.String()),
 		fmt.Sprintf("Claim mappings|%s", strings.Join(formatMap(config.ClaimMappings), "; ")),
 		fmt.Sprintf("List claim mappings|%s", strings.Join(formatMap(config.ListClaimMappings), "; ")),
-	}
+	)
 	return formatKV(out)
 }
 
@@ -114,6 +118,23 @@ func formatMap(m map[string]string) []string {
 	out := []string{}
 	for k, v := range m {
 		out = append(out, fmt.Sprintf("{%s: %s}", k, v))
+	}
+	return out
+}
+
+func formatClientAssertion(cass *api.OIDCClientAssertion) []string {
+	var out []string
+	if cass == nil {
+		return out
+	}
+	prefix := "OIDC Client Assertion"
+	out = []string{
+		fmt.Sprintf("%s KeySource|%s", prefix, cass.KeySource),
+		fmt.Sprintf("%s Algorithm|%s", prefix, cass.KeyAlgorithm),
+		fmt.Sprintf("%s Audience|%s", prefix, strings.Join(cass.Audience, ",")),
+	}
+	if len(cass.ExtraHeaders) > 0 {
+		out = append(out, fmt.Sprintf("%s Headers|%s", prefix, strings.Join(formatMap(cass.ExtraHeaders), "; ")))
 	}
 	return out
 }
