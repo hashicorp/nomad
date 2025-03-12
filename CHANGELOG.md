@@ -1,5 +1,11 @@
 ## 1.10.0 (Unreleased)
 
+FEATURES:
+
+* **Dynamic Host Volumes:** Nomad now supports creating host volumes via the API. [[GH-24479](https://github.com/hashicorp/nomad/issues/24479)]
+* **Stateful Deployments:** Nomad now supports stateful deployments when using dynamic host volumes. [[GH-24993](https://github.com/hashicorp/nomad/issues/24993)]
+* **OIDC PKCE:** Nomad now supports PKCE for OIDC logins, and supports the private key JWT / client assertion option in the OIDC authentication flow. [[GH-25231](https://github.com/hashicorp/nomad/issues/25231)]
+
 BREAKING CHANGES:
 
 * agent: Plugins stored within the `plugin_dir` will now only be executed when they have a corresponding `plugin` configuration block. Any plugin found without a corresponding configuration block will be skipped. [[GH-18530](https://github.com/hashicorp/nomad/issues/18530)]
@@ -21,7 +27,6 @@ IMPROVEMENTS:
 * csi: Accept ID prefixes and wildcard namespace for the volume delete command [[GH-24997](https://github.com/hashicorp/nomad/issues/24997)]
 * csi: Added CSI volume and plugin events to the event stream [[GH-24724](https://github.com/hashicorp/nomad/issues/24724)]
 * csi: Show volume capabilities in the volume status command [[GH-25173](https://github.com/hashicorp/nomad/issues/25173)]
-* oidc: Add private key JWT / client assertion option to auth flow, and default enable PKCE [[GH-25231](https://github.com/hashicorp/nomad/issues/25231)]
 * ui: Added Dynamic Host Volumes to the web UI [[GH-25224](https://github.com/hashicorp/nomad/issues/25224)]
 
 DEPRECATIONS:
