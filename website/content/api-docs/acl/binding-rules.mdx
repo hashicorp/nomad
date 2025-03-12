@@ -14,9 +14,9 @@ This endpoint reads an ACL Binding Rule with the given name. This queries the
 Binding Rule that has been replicated to the region, and may lag behind the
 authoritative region.
 
-| Method | Path                         | Produces           |
-| ------ | ---------------------------- | ------------------ |
-| `GET`  | `/acl/binding-rule/:rule_id` | `application/json` |
+| Method | Path                            | Produces           |
+| ------ | ------------------------------- | ------------------ |
+| `GET`  | `/v1/acl/binding-rule/:rule_id` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries),
@@ -62,9 +62,9 @@ $ curl \
 This endpoint lists all ACL Binding Rules. This lists the Binding Rules that have
 been replicated to the region, and may lag behind the authoritative region.
 
-| Method | Path                | Produces           |
-| ------ | ------------------- | ------------------ |
-| `GET`  | `/acl/binding-rules` | `application/json` |
+| Method | Path                    | Produces           |
+| ------ | ----------------------- | ------------------ |
+| `GET`  | `/v1/acl/binding-rules` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries),
@@ -103,9 +103,9 @@ $ curl \
 This endpoint creates an ACL Binding Rule. The request is always forwarded to the
 authoritative region.
 
-| Method | Path                | Produces           |
-| ------ | ------------------- | ------------------ |
-| `POST` | `/acl/binding-rule` | `application/json` |
+| Method | Path                   | Produces           |
+| ------ | ---------------------- | ------------------ |
+| `POST` | `/v1/acl/binding-rule` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -189,9 +189,9 @@ $ curl \
 This endpoint updates an existing ACL Binding Rule. The request is always
 forwarded to the authoritative region.
 
-| Method | Path                           | Produces           |
-| ------ | ------------------------------ | ------------------ |
-| `POST` | `/acl/binding-rule/:rule_id` | `application/json` |
+| Method | Path                            | Produces           |
+| ------ | ------------------------------- | ------------------ |
+| `POST` | `/v1/acl/binding-rule/:rule_id` | `application/json` |
 
 The table below shows this endpoint's support for [blocking
 queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#acls).
@@ -260,9 +260,9 @@ $ curl \
 This endpoint deletes the ACL Binding Rule as identified by its ID. This request
 is always forwarded to the authoritative region.
 
-| Method   | Path                         | Produces       |
-| -------- | ---------------------------- | -------------- |
-| `DELETE` | `/acl/binding-rule/:rule_id` | `(empty body)` |
+| Method   | Path                            | Produces       |
+| -------- | ------------------------------- | -------------- |
+| `DELETE` | `/v1/acl/binding-rule/:rule_id` | `(empty body)` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
