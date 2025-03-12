@@ -13,9 +13,9 @@ The `/acl/auth-methods` and `/acl/auth-method` endpoints are used to manage ACL 
 This endpoint creates an ACL auth method. The request is always forwarded to the
 authoritative region.
 
-| Method | Path               | Produces           |
-| ------ | ------------------ | ------------------ |
-| `POST` | `/acl/auth-method` | `application/json` |
+| Method | Path                  | Produces           |
+| ------ | --------------------- | ------------------ |
+| `POST` | `/v1/acl/auth-method` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -205,9 +205,9 @@ $ curl \
 This endpoint updates an existing ACL auth method. The request is always
 forwarded to the authoritative region.
 
-| Method | Path                            | Produces           |
-| ------ | ------------------------------- | ------------------ |
-| `POST` | `/acl/auth-method/:method_name` | `application/json` |
+| Method | Path                               | Produces           |
+| ------ | ---------------------------------- | ------------------ |
+| `POST` | `/v1/acl/auth-method/:method_name` | `application/json` |
 
 The table below shows this endpoint's support for [blocking
 queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#acls).
@@ -373,9 +373,9 @@ $ curl \
 This endpoint lists all ACL auth methods. This lists the auth methods that have
 been replicated to the region, and may lag behind the authoritative region.
 
-| Method | Path                | Produces           |
-| ------ | ------------------- | ------------------ |
-| `GET`  | `/acl/auth-methods` | `application/json` |
+| Method | Path                   | Produces           |
+| ------ | ---------------------- | ------------------ |
+| `GET`  | `/v1/acl/auth-methods` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries),
@@ -414,9 +414,9 @@ This endpoint reads an ACL Auth Method with the given name. This queries the
 auth method that has been replicated to the region, and may lag behind the
 authoritative region.
 
-| Method | Path                            | Produces           |
-| ------ | ------------------------------- | ------------------ |
-| `GET`  | `/acl/auth-method/:method_name` | `application/json` |
+| Method | Path                               | Produces           |
+| ------ | ---------------------------------- | ------------------ |
+| `GET`  | `/v1/acl/auth-method/:method_name` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries),
@@ -483,9 +483,9 @@ $ curl \
 This endpoint deletes the ACL auth method as identified by its name. This
 request is always forwarded to the authoritative region.
 
-| Method   | Path                            | Produces       |
-| -------- | ------------------------------- | -------------- |
-| `DELETE` | `/acl/auth-method/:method_name` | `(empty body)` |
+| Method   | Path                               | Produces       |
+| -------- | ---------------------------------- | -------------- |
+| `DELETE` | `/v1/acl/auth-method/:method_name` | `(empty body)` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
