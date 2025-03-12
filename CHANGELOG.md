@@ -1,3 +1,44 @@
+## 1.10.0 (Unreleased)
+
+FEATURES:
+
+* **Dynamic Host Volumes:** Nomad now supports creating host volumes via the API. [[GH-24479](https://github.com/hashicorp/nomad/issues/24479)]
+* **Stateful Deployments:** Nomad now supports stateful deployments when using dynamic host volumes. [[GH-24993](https://github.com/hashicorp/nomad/issues/24993)]
+* **OIDC Login:** Nomad now enables PKCE for OIDC logins, and supports the private key JWT / client assertion option in the OIDC authentication flow. [[GH-25231](https://github.com/hashicorp/nomad/issues/25231)]
+
+BREAKING CHANGES:
+
+* agent: Plugins stored within the `plugin_dir` will now only be executed when they have a corresponding `plugin` configuration block. Any plugin found without a corresponding configuration block will be skipped. [[GH-18530](https://github.com/hashicorp/nomad/issues/18530)]
+* api: QuotaSpec.RegionLimit is now of type QuotaResources instead of Resources [[GH-24785](https://github.com/hashicorp/nomad/issues/24785)]
+* consul: Identities are no longer added to tasks by default when they include a template block.
+Please see [Nomad's upgrade guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific)
+for more detail. [[GH-25298](https://github.com/hashicorp/nomad/issues/25298)]
+* consul: The deprecated token-based authentication workflow for allocations has been removed. Please see [Nomad's upgrade guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific) for more detail. [[GH-25217](https://github.com/hashicorp/nomad/issues/25217)]
+* disconnected nodes: ignore the previously deprecated disconnect group fields in favor of the disconnect block introduced in Nomad 1.8 [[GH-25284](https://github.com/hashicorp/nomad/issues/25284)]
+* drivers: remove remote task support for task drivers [[GH-24909](https://github.com/hashicorp/nomad/issues/24909)]
+* sentinel: The sentinel apply command now requires the -scope option [[GH-24601](https://github.com/hashicorp/nomad/issues/24601)]
+* vault: The deprecated token-based authentication workflow for allocations has been removed. Please
+see [Nomad's upgrade guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific) for
+more detail. [[GH-25155](https://github.com/hashicorp/nomad/issues/25155)]
+
+IMPROVEMENTS:
+
+* cli: Added UI URL hints to the end of common CLI commands and a `-ui` flag to auto-open them [[GH-24454](https://github.com/hashicorp/nomad/issues/24454)]
+* csi: Accept ID prefixes and wildcard namespace for the volume delete command [[GH-24997](https://github.com/hashicorp/nomad/issues/24997)]
+* csi: Added CSI volume and plugin events to the event stream [[GH-24724](https://github.com/hashicorp/nomad/issues/24724)]
+* csi: Show volume capabilities in the volume status command [[GH-25173](https://github.com/hashicorp/nomad/issues/25173)]
+* ui: Added Dynamic Host Volumes to the web UI [[GH-25224](https://github.com/hashicorp/nomad/issues/25224)]
+
+DEPRECATIONS:
+
+* api: QuotaSpec.VariablesLimit field is deprecated and will be removed in Nomad 1.12.0. Use QuotaSpec.RegionLimit.Storage.Variables instead. [[GH-24785](https://github.com/hashicorp/nomad/issues/24785)]
+* quotas: the variables_limit field in the quota specification is deprecated and replaced by a new storage block under the region_limit block, with a variables field. The variables_limit field will be removed in Nomad 1.12.0 [[GH-24785](https://github.com/hashicorp/nomad/issues/24785)]
+
+BUG FIXES:
+
+* client: fixed a bug where AMD CPUs were not correctly fingerprinting base speed [[GH-24415](https://github.com/hashicorp/nomad/issues/24415)]
+* scheduler: Fixed a bug that made affinity and spread updates destructive [[GH-25109](https://github.com/hashicorp/nomad/issues/25109)]
+
 ## 1.9.7 (March 11, 2025)
 
 BREAKING CHANGES:
