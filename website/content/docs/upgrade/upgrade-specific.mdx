@@ -87,6 +87,12 @@ Nomad no longer creates an implicit Consul identity for workloads that don't
 register services with Consul. Tasks that require Consul tokens for template
 rendering must include a [`consul` block][] or specify an [`identity`][].
 
+#### OIDC login with PKCE
+Nomad now enables [PKCE](https://oauth.net/2/pkce/) by default for new or
+updated auth methods. The
+[`OIDCDisablePKCE`](/nomad/api-docs/acl/auth-methods#oidcdisablepkce)
+option may be set to turn off this extra security.
+
 ## Nomad 1.9.5
 
 #### CNI plugins

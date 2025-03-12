@@ -103,4 +103,27 @@ Example config file:
 }
 ```
 
+Example config with private key JWT [client assertion][]
+instead of a client secret:
+
+```json
+{
+  "OIDCDiscoveryURL": "https://my-keycloak-instance.com/realms/nomad",
+  "OIDCClientID": "my-great-client-id",
+  "OIDCClientAssertion": {
+    "KeySource": "nomad"
+  },
+  "BoundAudiences": [
+    "my-great-client-id"
+  ],
+  "AllowedRedirectURIs": [
+    "http://localhost:4646/oidc/callback"
+  ],
+  "ListClaimMappings": {
+    "groups": "groups"
+  }
+}
+```
+
 [configuration]: /nomad/api-docs/acl/auth-methods#config
+[client assertion]: /nomad/api-docs/acl/auth-methods#oidcclientassertion

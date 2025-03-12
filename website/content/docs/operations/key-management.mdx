@@ -6,9 +6,10 @@ description: Learn about the key management in Nomad.
 
 # Key Management
 
-Nomad servers maintain an encryption keyring used to encrypt [Variables][] and
-sign task [workload identities][]. The servers encrypt these data encryption
-keys (DEK) and store the wrapped keys in Raft.
+Nomad servers maintain an encryption keyring used to encrypt [Variables][],
+sign task [workload identities][], and sign OIDC [client assertion JWTs][].
+The servers encrypt these data encryption keys (DEK) and store the wrapped keys
+in Raft.
 
 The key encryption key (KEK) used to encrypt the DEK is controlled by the
 [`keyring`][] provider. When using an external KMS or Vault transit encryption
@@ -89,6 +90,7 @@ keyring rotate`][] once the servers have joined.
 
 [variables]: /nomad/docs/concepts/variables
 [workload identities]: /nomad/docs/concepts/workload-identity
+[client assertion JWTs]: /nomad/docs/concepts/acl/auth-methods/oidc#client-assertions
 [data directory]: /nomad/docs/configuration#data_dir
 [`keyring`]: /nomad/docs/configuration/keyring
 [`nomad operator root keyring rotate -full`]: /nomad/docs/commands/operator/root/keyring-rotate
