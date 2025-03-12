@@ -18,9 +18,9 @@ The provided token should be presented in a UUID format.
 This request is always forwarded to the authoritative region. It can only be invoked once
 until a [bootstrap reset](/nomad/tutorials/access-control/access-control-bootstrap#re-bootstrap-acl-system) is performed.
 
-| Method | Path             | Produces           |
-| ------ | ---------------- | ------------------ |
-| `POST` | `/acl/bootstrap` | `application/json` |
+| Method | Path                | Produces           |
+| ------ | ------------------- | ------------------ |
+| `POST` | `/v1/acl/bootstrap` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -92,9 +92,9 @@ $ curl \
 This endpoint lists all ACL tokens. This lists the local tokens and the global
 tokens which have been replicated to the region, and may lag behind the authoritative region.
 
-| Method | Path          | Produces           |
-| ------ | ------------- | ------------------ |
-| `GET`  | `/acl/tokens` | `application/json` |
+| Method | Path             | Produces           |
+| ------ | ---------------- | ------------------ |
+| `GET`  | `/v1/acl/tokens` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
@@ -168,9 +168,9 @@ $ curl \
 This endpoint creates an ACL Token. If the token is a global token, the request
 is forwarded to the authoritative region.
 
-| Method | Path         | Produces           |
-| ------ | ------------ | ------------------ |
-| `POST` | `/acl/token` | `application/json` |
+| Method | Path            | Produces           |
+| ------ | --------------- | ------------------ |
+| `POST` | `/v1/acl/token` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -246,9 +246,9 @@ This endpoint updates an existing ACL Token. If the token is a global token, the
 is forwarded to the authoritative region. Note that a token cannot be switched from global
 to local or visa versa.
 
-| Method | Path                      | Produces           |
-| ------ | ------------------------- | ------------------ |
-| `POST` | `/acl/token/:accessor_id` | `application/json` |
+| Method | Path                         | Produces           |
+| ------ | ---------------------------- | ------------------ |
+| `POST` | `/v1/acl/token/:accessor_id` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -309,9 +309,9 @@ $ curl \
 This endpoint reads an ACL token with the given accessor. If the token is a global token
 which has been replicated to the region it may lag behind the authoritative region.
 
-| Method | Path                      | Produces           |
-| ------ | ------------------------- | ------------------ |
-| `GET`  | `/acl/token/:accessor_id` | `application/json` |
+| Method | Path                         | Produces           |
+| ------ | ---------------------------- | ------------------ |
+| `GET`  | `/v1/acl/token/:accessor_id` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
@@ -349,9 +349,9 @@ $ curl \
 This endpoint reads the ACL token given by the passed SecretID. If the token is a global token
 which has been replicated to the region it may lag behind the authoritative region.
 
-| Method | Path              | Produces           |
-| ------ | ----------------- | ------------------ |
-| `GET`  | `/acl/token/self` | `application/json` |
+| Method | Path                 | Produces           |
+| ------ | -------------------- | ------------------ |
+| `GET`  | `/v1/acl/token/self` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
@@ -390,9 +390,9 @@ $ curl \
 This endpoint deletes the ACL token by accessor. This request is forwarded to the
 authoritative region for global tokens.
 
-| Method   | Path                      | Produces       |
-| -------- | ------------------------- | -------------- |
-| `DELETE` | `/acl/token/:accessor_id` | `(empty body)` |
+| Method   | Path                         | Produces       |
+| -------- | ---------------------------- | -------------- |
+| `DELETE` | `/v1/acl/token/:accessor_id` | `(empty body)` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -419,9 +419,9 @@ $ curl \
 This endpoint creates a one-time token for the ACL token provided in the
 `X-Nomad-Token` header. Returns 403 if the token header is not set.
 
-| Method | Path                 | Produces           |
-| ------ | -------------------- | ------------------ |
-| `POST` | `/acl/token/onetime` | `application/json` |
+| Method | Path                    | Produces           |
+| ------ | ----------------------- | ------------------ |
+| `POST` | `/v1/acl/token/onetime` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
@@ -460,9 +460,9 @@ $ curl \
 This endpoint exchanges a one-time token for the original ACL token used to
 create it.
 
-| Method | Path                          | Produces           |
-| ------ | ----------------------------- | ------------------ |
-| `POST` | `/acl/token/onetime/exchange` | `application/json` |
+| Method | Path                             | Produces           |
+| ------ | -------------------------------- | ------------------ |
+| `POST` | `/v1/acl/token/onetime/exchange` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries) and
