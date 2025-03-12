@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'nomad alloc stop reference'
+page_title: 'nomad alloc stop command reference'
 description: |
   The `nomad alloc stop` command perform an in-place restart of an entire allocation or an individual task.
 ---
 
-# `nomad alloc stop` reference
+# `nomad alloc stop` command reference
 
 The `alloc stop` command allows a user to perform an in-place restart of an
 entire allocation or individual task.
@@ -20,7 +20,7 @@ The `alloc stop` command requires a single argument, specifying the alloc ID or
 prefix to stop. If there is an exact match based on the provided alloc ID or
 prefix, then the alloc will be stopped, otherwise, a list of
 matching allocs and information will be displayed. If the stopped allocation
-belongs to a service or batch job they will rescheduled according to their 
+belongs to a service or batch job they will rescheduled according to their
 reschedule policy. [System allocs will not][] and will show up as completed.
 
 Stop will issue a request to stop and reschedule the allocation. An interactive
