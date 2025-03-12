@@ -127,7 +127,8 @@ along to bootstrap the Nomad cluster.
 
 ## Adding New Workloads
 
-All workloads executed as part of the test suite are stored under 
+As part of the testing process some test workloads are dispatched and are 
+expected to run during all the update process, they are stored under 
 `enos/modules/run_workloads/jobs` and must be defined with the following 
 attributes:
 
@@ -190,9 +191,16 @@ appropriate directories:
    - [`enos/modules/run_workloads/jobs`](https://github.com/hashicorp/nomad/tree/main/enos/modules/run_workloads/jobs)
    - [`enos/modules/run_workloads/scripts`](https://github.com/hashicorp/nomad/tree/main/enos/modules/run_workloads/scripts)
 
-**Important:** Ensure that the `alloc_count` variable is included in the job
+**Important:** 
+* Ensure that the `alloc_count` variable is included in the job
 specification. If it is missing or undefined, the job will fail to run, 
 potentially disrupting the upgrade scenario.
+
+* During normal execution of the test and to verify the health of the cluster,
+the number of jobs and allocs running is verified multiple times at different 
+stages of the process. Make sure your job has a health check, to ensure it will 
+be restarted in case of unexpected failures and if it is a batch job,
+it will not exit before the test has concluded. 
 
 If you want to verify your workload without having to run all the scenario, 
 you can manually pass values to variables with flags or a `.tfvars`
