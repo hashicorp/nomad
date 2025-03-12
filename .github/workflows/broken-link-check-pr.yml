@@ -1,0 +1,139 @@
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+# Based on a PR in hashicorp/web-unified-docs
+# Run lychee link check PR contents
+# If broken links, display
+
+name: Broken Link Check PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: 'Preview URL from dev-portal-preview workflow'
+        required: true
+        type: string
+      pr_number:
+        description: 'PR number'
+        required: true
+        type: string
+      base_sha:
+        description: 'Base SHA for changed files comparison'
+        required: true
+        type: string
+      head_sha:
+        description: 'Head SHA for changed files comparison'
+        required: true
+        type: string
+
+permissions:
+  pull-requests: write
+  checks: write
+  contents: read
+  actions: read
+
+jobs:
+  get-changed-files:
+    runs-on: ubuntu-latest
+    outputs:
+      changed_files: ${{ steps.changed-files.outputs.all_changed_files }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files in the content/ subdirectories
+        id: changed-files
+        uses: tj-actions/changed-files@dcc7a0cba800f454d79fff4b993e8c3555bcc0a8 # v45.0.7
+        with:
+          files: |
+            website/content/**/*.mdx
+          base_sha: ${{ inputs.base_sha }}
+          sha: ${{ inputs.head_sha }}
+
+      - name: Print changed files
+        run: |
+          echo "Changed files:"
+          echo ${{ steps.changed-files.outputs.all_changed_files }}
+
+  linkChecker:
+    name: link checker
+    needs: [get-changed-files]
+    if: needs.get-changed-files.outputs.changed_files != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Run lychee link checker
+        id: lychee
+        uses: lycheeverse/lychee-action@f613c4a64e50d792e0b31ec34bbcbba12263c6a6 # v2.3.0
+        with:
+          args: ${{ needs.get-changed-files.outputs.changed_files }} -b ${{ inputs.preview_url }} --exclude-all-private --exclude '\.(svg|gif|jpg|png)' --accept 200,429 --timeout=60 --max-concurrency 24 --no-progress --verbose
+          jobSummary: true
+          fail: false
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Print lychee exit code
+        run: |
+          echo "Lychee exit code:"
+          echo ${{ steps.lychee.outputs.exit_code }}
+
+      # Comment on PR with lychee output; subsequent runs will modify existing PR comment with latest results
+      - name: Comment on PR with GitHub action context
+        uses: marocchino/sticky-pull-request-comment@52423e01640425a022ef5fd42c6fb5f633a02728 # v2.9.1
+        with:
+          header: Link Checker Report
+          path: ./lychee/out.md
+          number: ${{ inputs.pr_number }}
+
+      - name: Report broken links check
+        uses: actions/github-script@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            github.checks.create({
+              name: 'Broken links check',
+              head_sha: '${{ inputs.head_sha }}',
+              status: 'completed',
+              conclusion: '${{ (steps.lychee.outputs.exit_code != 0) && 'failure' || 'success' }}',
+              output: {
+                title: 'Broken links check - ${{ (steps.lychee.outputs.exit_code != 0) && 'failure' || 'success' }}',
+                summary: ./lychee/out.md
+              },
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            })
+
+      # Fail github action if lychee exit code is anything other than the success code (0)
+      - name: lychee exit code check
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        if: steps.lychee.outputs.exit_code != 0
+        with:
+          script: |
+              core.setFailed('lychee failed with exit code ${{steps.lychee.outputs.exit_code}}')
+
+      # If all previous Github actions run (indicating success), this one will run and overwrite the comment with a success message
+      - name: Clean up PR comments if all previous steps succeed
+        uses: marocchino/sticky-pull-request-comment@52423e01640425a022ef5fd42c6fb5f633a02728 # v2.9.1
+        with:
+          header: Link Checker Report
+          message: |
+            No broken links found! ✅
+          number: ${{ inputs.pr_number }}
+
+  # Update PR comment when there are no changed files
+  update-pr-comment:
+    name: Update PR comment
+    if: needs.get-changed-files.outputs.changed_files == ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update PR comment
+        uses: marocchino/sticky-pull-request-comment@52423e01640425a022ef5fd42c6fb5f633a02728 # v2.9.1
+        with:
+          header: Link Checker Report
+          message: |
+            No changed files. Broken link check skipped.
+          number: ${{ inputs.pr_number }}
