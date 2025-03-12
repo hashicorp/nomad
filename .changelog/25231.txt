@@ -1,3 +1,3 @@
 ```release-note:feature
-**OIDC PKCE:** Nomad now supports PKCE for OIDC logins, and supports the private key JWT / client assertion option in the OIDC authentication flow.
+**OIDC Login:** Nomad now enables PKCE for OIDC logins, and supports the private key JWT / client assertion option in the OIDC authentication flow.
 ```

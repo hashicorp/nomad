@@ -4,7 +4,7 @@ FEATURES:
 
 * **Dynamic Host Volumes:** Nomad now supports creating host volumes via the API. [[GH-24479](https://github.com/hashicorp/nomad/issues/24479)]
 * **Stateful Deployments:** Nomad now supports stateful deployments when using dynamic host volumes. [[GH-24993](https://github.com/hashicorp/nomad/issues/24993)]
-* **OIDC PKCE:** Nomad now supports PKCE for OIDC logins, and supports the private key JWT / client assertion option in the OIDC authentication flow. [[GH-25231](https://github.com/hashicorp/nomad/issues/25231)]
+* **OIDC Login:** Nomad now enables PKCE for OIDC logins, and supports the private key JWT / client assertion option in the OIDC authentication flow. [[GH-25231](https://github.com/hashicorp/nomad/issues/25231)]
 
 BREAKING CHANGES:
 
