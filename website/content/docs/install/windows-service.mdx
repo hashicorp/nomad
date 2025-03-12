@@ -71,10 +71,11 @@ launch Nomad from the command-line again.
 
 ## Increasing the non-interactive desktop heap size
 
-If you run Nomad as a Windows service and you intend to run many allocations
-, such as more than 50, you may encounter issues with Windows terminating Nomad plugin processes with errors such as `exit status 0xc0000142`
-appearing in the logs. This is due to Nomad's inability to spawn more
-concurrent processes, and you may fix this by manipulating the value of
+If you run Nomad as a Windows service and you intend to run many allocations,
+such as more than 50, you may encounter issues with Windows terminating Nomad
+plugin processes with errors such as `exit status 0xc0000142` appearing in the
+logs. This is due to Nomad's inability to spawn more concurrent processes, and
+you may fix this by manipulating the value of
 `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session
 Manager\SubSystems` Windows registry key.
 
