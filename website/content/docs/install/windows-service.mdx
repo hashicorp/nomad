@@ -79,14 +79,15 @@ concurrent processes, and can be fixed by manipulating the value of
 `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session
 Manager\SubSystems` Windows registry key.
 
-This key accepts a value of three comma-separated integers, e.g.,
-`1024,20480,768`. The first integer indicates the maximum size of the
-system-wide heap, the second is the size of each desktop heap, and the third is
-the size of the desktop heap that is associated with a noninteractive Windows
-instance (all values are in kilobytes). For large Windows nodes that run large
-numbers of allocations, we recommend setting the final integer value to 2048 or
-4096 kB. Remember that any registry change requires restarting Windows, a
-restart of Nomad service will not be sufficient.
+This key has a `Windows` value which in turn has a `SharedSection` parameter
+that accepts a value of three comma-separated integers, e.g., `1024,20480,768`.
+The first integer indicates the maximum size of the system-wide heap, the
+second is the size of each desktop heap, and the third is the size of the
+desktop heap that is associated with a noninteractive Windows instance (all
+values are in kilobytes). For large Windows nodes that run large numbers of
+allocations, we recommend setting the final integer value to 2048 or 4096 kB.
+Remember that any registry change requires restarting Windows, a restart of
+Nomad service will not be sufficient.
 
 [`sc.exe`]: https://msdn.microsoft.com/en-us/library/windows/desktop/ms682107(v=vs.85).aspx
 [download]: /nomad/downloads
