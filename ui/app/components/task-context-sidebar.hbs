@@ -33,7 +33,7 @@
 				type="button"
 				{{on "click" @fns.closeSidebar}}
 			>
-				{{x-icon "cancel"}}
+        <Hds::Icon @name="x" />
 			</button>
 		</header>
 		{{#if @task.events.length}}
@@ -99,7 +99,7 @@
 			{{else}}
 				{{keyboard-commands (array this.widenCommand)}}
 			{{/if}}
-			{{x-icon (if this.wide "arrow-right" "arrow-left")}}
+			<Hds::Icon @name={{if this.wide "arrow-right" "arrow-left"}} />
 		</button>
 	</div>
 </Portal>

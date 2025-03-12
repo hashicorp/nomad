@@ -14,8 +14,6 @@
 </div>
 {{#if this.shouldOpenInNewWindow}}
   <span class="tooltip" aria-label="Open in a new window">
-    {{x-icon "exit" class="show-on-hover"}}
+    <Hds::Icon @name="external-link" @color="faint" @isInline={{true}} class="show-on-hover" />
   </span>
-{{else}}
-  {{x-icon "exit"}}
 {{/if}}

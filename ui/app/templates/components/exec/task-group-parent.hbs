@@ -4,7 +4,7 @@
 ~}}
 
 <button {{action "toggleOpen"}} class="toggle-button {{if this.hasPendingAllocations "is-loading"}}" data-test-task-group-name type="button">
-  {{x-icon (if this.isOpen "chevron-down" "chevron-right")}}
+  <Hds::Icon @name={{if this.isOpen "chevron-down" "chevron-right"}} @isInline={{true}} />
   {{this.taskGroup.name}}
 </button>
 {{#if this.isOpen}}

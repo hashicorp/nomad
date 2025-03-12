@@ -128,13 +128,13 @@
           width: 100%;
         }
 
-        .icon {
+        .hds-icon {
           visibility: hidden;
           width: 16px;
           flex-shrink: 0;
         }
 
-        &:hover .icon.show-on-hover {
+        &:hover .hds-icon.show-on-hover {
           visibility: visible;
         }
       }
