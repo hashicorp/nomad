@@ -112,9 +112,7 @@ func TestClient_ACL_resolvePolicies(t *testing.T) {
 	test.Len(t, 2, out2)
 
 	// Check we get the same objects back (ignore ordering)
-	if out[0] != out2[0] && out[0] != out2[1] {
-		t.Fatalf("bad caching")
-	}
+	must.SliceContainsAll(t, out, out2)
 }
 
 func TestClient_resolveTokenACLRoles(t *testing.T) {
