@@ -392,9 +392,17 @@ service_prefix "" {
 }
 ```
 
+<Note title="Admin Partitions">
+
+This legacy workflow is not compatible with [Consul Admin
+Partitions](https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions). If you
+are using Admin Partitions, you must use [Nomad Workload Identities](#nomad-workload-identities).
+
+</Note>
+
 <Note title="Deprecation Warning">
 
-This legacy workflow will be removed in Nomad 1.10. Before upgrading to Nomad 1.10,
+This legacy workflow was removed in Nomad 1.10. Before upgrading to Nomad 1.10,
 you need to configure authentication with Consul as described in
 [Nomad Workload Identities](#nomad-workload-identities).
 
