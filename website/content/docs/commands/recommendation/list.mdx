@@ -1,15 +1,15 @@
 ---
 layout: docs
-page_title: 'Commands: recommendation list'
+page_title: 'nomad recommendation list command reference'
 description: |
-  The recommendation list command is used to list the available recommendations.
+  The `nomad recommendation list` command displays a list of available recommendations in Nomad Enterprise. Filter options include job, group, and task.
 ---
 
-# Command: recommendation list
+# `nomad recommendation list` command reference
 
 The `recommendation list` command is used to list the available recommendations.
 
-~> Recommendation commands are only available with Nomad Enterprise.
+<EnterpriseAlert product="nomad"/>
 
 ## Usage
 
@@ -23,11 +23,11 @@ When ACLs are enabled, this command requires a token with the `submit-job`,
 `read-job`, and `submit-recommendation` capabilities for the namespace being
 queried.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## List Options
+## List options
 
 - `-job`: Specifies the job ID to filter the recommendations list by.
 

@@ -1,54 +1,48 @@
 ---
 layout: docs
-page_title: Commands (CLI)
+page_title: Nomad command-line interface (CLI) reference
 description: >
-  Nomad can be controlled via a command-line interface. This page documents all
-  the commands Nomad accepts.
+  The Nomad command-line interface (CLI) interacts with a Nomad cluster. This page contains reference information on how to install CLI autocomplete, configure remote usage, and specify CLI options. Review connection, access control list (ACL), mutual TLS (mTLS), and license environment variables.
 ---
 
-# Nomad Commands (CLI)
+# Nomad command-line interface (CLI) reference
 
-Nomad is controlled via a very easy to use command-line interface (CLI).
-Nomad is only a single command-line application: `nomad`, which
-takes a subcommand such as "agent" or "status". The complete list of
-subcommands is in the navigation to the left.
-
-The Nomad CLI is a well-behaved command line application. In erroneous cases,
-a non-zero exit status will be returned. It also responds to `-h` and `--help`
-as you would most likely expect.
-
-To view a list of the available commands at any time, just run Nomad
-with no arguments. To get help for any specific subcommand, run the subcommand
-with the `-h` argument.
-
-Each command has been conveniently documented on this website. Links to each
-command can be found on the left.
+The Nomad CLI is a well-behaved command-line application. In erroneous cases,
+the CLI returns a non-zero exit status. To view a list of available commands,
+run the `nomad` command with no arguments, `-h`, or `--help`. To access help for
+any specific subcommand, run the subcommand with the `-h` argument.
 
 ## Autocomplete
 
-Nomad's CLI supports command autocomplete. Autocomplete can be installed or
-uninstalled by running the following on bash, zsh or fish shells:
+Nomad's CLI supports command autocomplete.
+
+To install autocomplete, run the `nomad` command with the
+`-autocomplete-install` option.
 
 ```shell-session
 $ nomad -autocomplete-install
+```
+
+To uninstall autocomplete, run the `nomad` command with the
+`-autocomplete-uninstall` option.
+
+```shell-session
 $ nomad -autocomplete-uninstall
 ```
 
-## Command Contexts
+## Command contexts
 
 Nomad's CLI commands have implied contexts in their naming convention. Because
 the CLI is most commonly used to manipulate or query jobs, you can assume that
 any given command is working in that context unless the command name implies
-otherwise.
-
-For example, the `nomad job run` command is used to run a new job, the `nomad status` command queries information about existing jobs, etc. Conversely,
+otherwise. For example, the `nomad job run` command runs a new job and the `nomad status` command queries information about existing jobs. Conversely,
 commands with a prefix in their name likely operate in a different context.
 Examples include the `nomad agent-info` or `nomad node drain` commands,
 which operate in the agent or node contexts respectively.
 
-### Remote Usage
+### Remote usage
 
-The Nomad CLI may be used to interact with a remote Nomad cluster, even when the
+You may use the Nomad CLI to interact with a remote Nomad cluster, even when the
 local machine does not have a running Nomad agent. To do so, set the
 `NOMAD_ADDR` environment variable or use the `-address=<addr>` flag when running
 commands.
@@ -58,17 +52,16 @@ $ NOMAD_ADDR=https://remote-address:4646 nomad status
 $ nomad status -address=https://remote-address:4646
 ```
 
-The provided address must be reachable from your local machine. There are a
-variety of ways to accomplish this (VPN, SSH Tunnel, etc). If the port is
-exposed to the public internet it is highly recommended to configure TLS.
+The Nomad address must be reachable from your local machine. If the Nomad
+port is exposed to the public internet, we recommend configuring TLS. Refer to
+the [`tls` block in agent configuration] for details.
 
-### Environment Variables
+### Environment variables
 
-Nomad can use environment variables to configure command-line tool options.
-These environment variables can be overridden as needed using individual
-flags.
+Nomad can use environment variables to configure command-line tool options. You
+may override these environment variables with individual flags.
 
-#### Connection Environment Variables
+#### Connection environment variables
 
 - `NOMAD_ADDR` - The address of the Nomad server. Defaults to
   `http://127.0.0.1:4646`.
@@ -85,18 +78,18 @@ flags.
   information in environments where the Nomad API is behind an authenticating
   proxy server.
 
-#### ACL Environment Variables
+#### Access control list (ACL) environment variables
 
 - `NOMAD_TOKEN` - The SecretID of an ACL token to use to authenticate API
   requests with.
 
-#### CLI Environment Variables
+#### CLI environment variables
 
 - `NOMAD_CLI_NO_COLOR` - Disables colored command output.
 
-- `NOMAD_CLI_SHOW_HINTS` - Enables ui-hints in common CLI command output.
+#### Mutual TLS (mTLS) environment variables
 
-#### mTLS Environment Variables
+- `NOMAD_CLI_SHOW_HINTS` - Enables ui-hints in common CLI command output.
 
 - `NOMAD_CLIENT_CERT` - Path to a PEM encoded client certificate for TLS
   authentication to the Nomad server. Must also specify `NOMAD_CLIENT_KEY`.
@@ -117,9 +110,12 @@ flags.
 - `NOMAD_TLS_SERVER_NAME` - The server name to use as the SNI host when
   connecting via TLS.
 
-#### Nomad Enterprise Licensing Environment Variables
+#### Nomad Enterprise license environment variables
 
 - `NOMAD_LICENSE_PATH` - An absolute path to a Nomad Enterprise license file,
   for example `/etc/nomad.d/license.hclic`.
 
 - `NOMAD_LICENSE` - The Nomad Enterprise license file contents as a string.
+
+
+[`tls` block in agent configuration]: /nomad/docs/configuration/tls

@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: service info'
+page_title: 'nomad service info command reference'
 description: |
-  The service info command is used to read the specified Nomad registered
-  service by name.
+  The `nomad service info` command displays information about the specified registered service. Search by service name to review namespace, job, allocation, node, datacenter, address, and tags.
 ---
 
-# Command: service info
+# `nomad service info` command reference
 
 The `service info` command is used to read the specified Nomad registered
 service by name.
@@ -22,11 +21,11 @@ The `service info` command requires a single argument, a service name.
 When ACLs are enabled, this command requires a token with the `read-job`
 capability for the service's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Info Options
+## Info options
 
 - `-per-page`: How many results to show per page.
 

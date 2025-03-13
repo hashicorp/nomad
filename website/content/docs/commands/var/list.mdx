@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: "Command: var list"
+page_title: nomad var list reference
 description: |-
-  The "var list" command lists data from Nomad's variables datastore at
+  The `nomad var list` command displays data from Nomad's variables datastore at
   or beginning with the given prefix.
 ---
 
-# Command: var list
+# `nomad var list` command reference
 
 The `var list` command returns a list of [variable][] paths accessible to the
 current user, optionally filtered to paths containing a provided prefix. Do not
@@ -30,11 +30,11 @@ If ACLs are enabled, this command requires the `variables:list` capability for
 the namespaces and paths containing the variables to list. See the [ACL policy][]
 documentation for details.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## List Options
+## List options
 
 - `-per-page` `(int: <unset>)`: How many results to show per page.
 

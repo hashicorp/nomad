@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: namespace status'
+page_title: 'nomad namespace status command reference'
 description: >
-  The namespace status command is used to view the status of a particular
-  namespace.
+  The `nomad namespace status` command displays status information for the specified namespace.
 ---
 
-# Command: namespace status
+# `nomad namespace status` command reference
 
 The `namespace status` command is used to view the status of a particular
 namespace.
@@ -26,11 +25,11 @@ nomad namespace status [options] <namespace_name>
 If ACLs are enabled, this command requires a management ACL token or a token
 that has a capability associated with the namespace.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Status Options
+## Status options
 
 - `-json` : Output the namespace status in its JSON format.
 - `-t` : Format and display the namespace status using a Go template.

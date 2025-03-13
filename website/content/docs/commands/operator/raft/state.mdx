@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: operator raft state'
+page_title: 'nomad operator raft state command reference'
 description: |
-  Display Raft server state.
+  The `nomad operator raft state` command displays Raft server state obtained by replaying Raft log entries persisted in the Nomad data directory.
 ---
 
-# Command: operator raft state
+# `nomad operator raft state` command reference
 
 The `raft state` command is used to display the server state obtained by
 replaying raft log entries persisted in the Nomad [data directory] in
@@ -25,7 +25,7 @@ being used by a running Nomad server.
 nomad operator raft state [options] <path to data dir>
 ```
 
-## Raft State Options
+## Raft State options
 
 - `-last-index=<last_index>`: Set the last log index to be applied, to
   drop spurious log entries not properly committed. If the

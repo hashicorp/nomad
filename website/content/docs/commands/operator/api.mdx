@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: operator api'
+page_title: 'nomad operator api command reference'
 description: |
-  operator api is a utility command for accessing Nomad's HTTP API similar to
-  the popular open source program curl.
+  The `nomad operator api` command is a cURL-like utility command for accessing Nomad's HTTP API.
 ---
 
-# Command: operator api
+# `nomad operator api` command reference
 
 The `operator api` command allows easy access to Nomad's HTTP API similar to
 the popular [curl] program. Nomad's `operator api` command reads [environment
@@ -43,11 +42,11 @@ curl \
   https://client.global.nomad:4646/v1/jobs
 ```
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Operator API Options
+## Operator API options
 
 - `-dryrun`: output a curl command instead of performing the HTTP request
   immediately. Note that you do *not* need the 3rd party `curl` command

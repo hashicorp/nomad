@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: job history'
+page_title: 'nomad job history command reference'
 description: |
-  The history command is used to display all tracked versions of a job.
+  The `nomad job history` command displays the history of a single version or all tracked versions of a job. Optionally display the difference between two versions or tags or differences between each job and its predecessor.
 ---
 
-# Command: job history
+# `nomad job history` command reference
 
 The `job history` command is used to display the known versions of a particular
 job. The command can display the diff between job versions and can be useful for
@@ -25,11 +25,11 @@ When ACLs are enabled, this command requires a token with the `read-job`
 capability for the job's namespace. The `list-jobs` capability is required to
 run the command with a job prefix instead of the exact job ID.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## History Options
+## History options
 
 - `-p`: Display the differences between each job and its predecessor.
 - `-full`: Display the full job definition for each version.

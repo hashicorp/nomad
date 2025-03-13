@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: acl bootstrap'
+page_title: 'nomad acl bootstrap command reference'
 description: |
-  The bootstrap command is used to create the initial ACL token.
+  The `nomad acl bootstrap` command creates the initial access control list (ACL) token. Nomad generates the token unless you provide a user-generated token.
 ---
 
-# Command: acl bootstrap
+# `nomad acl bootstrap` command reference
 
 The `acl bootstrap` command is used to bootstrap the initial ACL token.
 
@@ -15,17 +15,17 @@ The `acl bootstrap` command is used to bootstrap the initial ACL token.
 nomad acl bootstrap [options]
 ```
 
-The `acl bootstrap` command can be used in two ways: 
+The `acl bootstrap` command can be used in two ways:
 - If you provide no arguments it will return a system generated bootstrap token.
 - If you would like to provide an operator generated token it is possible to provide the token
-using a file `acl bootstrap [path]`. The Token can be read from stdin by setting the path to "-". 
+using a file `acl bootstrap [path]`. The Token can be read from stdin by setting the path to "-".
 Please make sure you secure this token in an appropriate manner as it could be written to your terminal history.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Bootstrap Options
+## Bootstrap options
 
 - `-json` : Output the bootstrap response in JSON format.
 - `-t` : Format and display the deployments using a Go template.
@@ -67,7 +67,7 @@ Create Index = 7
 Modify Index = 7
 ```
 
-Bootstrap the initial token with provided token using stdin 
+Bootstrap the initial token with provided token using stdin
 
 ```shell-session
 $ nomad acl bootstrap -

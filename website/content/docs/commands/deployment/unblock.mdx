@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: deployment unblock'
+page_title: 'nomad deployment unblock command reference'
 description: |
-  The deployment unblock command is used to manually unblock a deployment.
+  The`nomad deployment unblock` command marks a blocked multi-region deployment as successful so you can force completion when there is a failed peer region.
 ---
 
-# Command: deployment unblock
+# `nomad deployment unblock` command reference
 
 The `deployment unblock` command is used to manually mark a blocked
 multiregion deployment as successful. A blocked deployment is a multiregion
@@ -26,11 +26,11 @@ prefix.
 When ACLs are enabled, this command requires a token with the `submit-job`
 and `read-job` capabilities for the deployment's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Unblock Options
+## Unblock options
 
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
   will be output, which can be used to examine the evaluation using the

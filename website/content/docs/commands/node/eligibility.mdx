@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: node eligibility'
+page_title: 'nomad node eligibility command reference'
 description: >
-  The node eligibility command is used to configure a node's scheduling
-  eligibility.
+  The `nomad node eligibility` command turns on or turns off a node's eligibility to receive placements and run new allocations.
 ---
 
-# Command: node eligibility
+# `nomad node eligibility` command reference
 
 The `node eligibility` command is used to toggle scheduling eligibility for a
 given node. By default nodes are eligible for scheduling meaning they can
@@ -42,11 +41,11 @@ operation is desired.
 If ACLs are enabled, this option requires a token with the 'node:write'
 capability.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Eligibility Options
+## Eligibility options
 
 - `-enable`: Enable scheduling eligibility.
 - `-disable`: Disable scheduling eligibility.

@@ -1,12 +1,12 @@
 ---
 layout: docs
 
-page_title: 'Commands: volume snapshot create'
+page_title: 'nomad volume snapshot create command reference'
 description: |
-  Create external volume snapshots.
+  The `nomad volume snapshot create` command creates a snapshot of an existing Container Storage Interface (CSI) volume.
 ---
 
-# Command: volume snapshot create
+# `nomad volume snapshot create` command reference
 
 The `volume snapshot create` command creates a snapshot of an existing
 [Container Storage Interface (CSI)][csi] volume. Only CSI plugins that
@@ -32,11 +32,11 @@ accept this name and it may be ignored.
 When ACLs are enabled, this command requires a token with the
 `csi-write-volume` capability for the volume's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Snapshot Create Options
+## Snapshot create options
 
 - `-parameter`: Parameters to pass to the plugin to create a
   snapshot. Accepts multiple flags in the form `-parameter key=value`

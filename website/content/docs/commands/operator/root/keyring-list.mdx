@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: operator root keyring list'
+page_title: 'nomad operator root keyring list command reference'
 description: |
-  List encryption key metadata
+  The `nomad operator root keyring list` command displays encryption key metadata for installed keys. This command does not display sensitive key material.
 ---
 
-# Command: operator root keyring list
+# `nomad operator root keyring list` command reference
 
 The `operator root keyring list` command lists the currently installed
 keys. This list returns key metadata and not sensitive key material.
@@ -18,11 +18,11 @@ If ACLs are enabled, this command requires a management token.
 nomad operator root keyring list [options]
 ```
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## List Options
+## List options
 
 - `-verbose`: Enable verbose output
 

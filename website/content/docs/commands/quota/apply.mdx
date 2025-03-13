@@ -1,15 +1,15 @@
 ---
 layout: docs
-page_title: 'Commands: quota apply'
+page_title: 'nomad quota apply command reference'
 description: |
-  The quota apply command is used to create or update quota specifications.
+  The `nomad quota apply` command creates or updates a Nomad Enterprise quota specification.
 ---
 
-# Command: quota apply
+# `nomad quota apply` command reference
 
 The `quota apply` command is used to create or update [quota specifications][].
 
-~> Quota commands are only available with Nomad Enterprise.
+<EnterpriseAlert product="nomad"/>
 
 ## Usage
 
@@ -23,11 +23,11 @@ specification can be read from stdin by setting the path to "-".
 If ACLs are enabled, this command requires a token with the `quota:write`
 capability.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Apply Options
+## Apply options
 
 - `-json`: Parse the input as a JSON quota specification.
 

@@ -1,15 +1,15 @@
 ---
 layout: docs
-page_title: 'Commands: sentinel read'
+page_title: 'nomad sentinel read command reference'
 description: |
-  The sentinel read command is used to inspect a Sentinel policies.
+  The `nomad sentinel read` command displays detailed information about the specified Sentinel policy in Nomad Enterprise.
 ---
 
-# Command: sentinel read
+# `nomad sentinel read` command reference
 
 The `sentinel read` command is used to inspect a Sentinel policy.
 
-~> Sentinel commands are only available with Nomad Enterprise.
+<EnterpriseAlert product="nomad"/>
 
 ## Usage
 
@@ -22,11 +22,11 @@ The `sentinel read` command requires a single argument, the policy name.
 Sentinel commands are only available when ACLs are enabled. This command
 requires a management token.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Read Options
+## Read options
 
 - `-raw` : Output the raw policy only.
 
