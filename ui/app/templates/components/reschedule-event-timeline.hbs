@@ -12,7 +12,7 @@
   {{/if}}
   {{#if @allocation.hasStoppedRescheduling}}
     <li class="timeline-note" data-test-stop-warning>
-      <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} /> Nomad has stopped attempting to reschedule this allocation.
+      <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} class="icon-vertical-bump-down" /> Nomad has stopped attempting to reschedule this allocation.
     </li>
   {{/if}}
   {{#if (and @allocation.followUpEvaluation.waitUntil (not @allocation.nextAllocation))}}
