@@ -27,10 +27,26 @@ variable "product_version" {
   default     = null
 }
 
+variable "artifactory_repo_start" {
+  description = "The Artifactory repository we'll download the starting binary from"
+  type        = string
+
+  # note: this default only works for released binaries
+  default = "hashicorp-crt-staging-local*"
+}
+
 variable "upgrade_version" {
   description = "The version of Nomad we want to upgrade the cluster to"
   type        = string
   default     = null
+}
+
+variable "artifactory_repo_upgrade" {
+  description = "The Artifactory repository we'll download the upgraded binary from"
+  type        = string
+
+  # note: this default only works for released binaries
+  default = "hashicorp-crt-staging-local*"
 }
 
 variable "download_binary_path" {
