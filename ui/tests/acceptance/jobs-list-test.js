@@ -188,7 +188,7 @@ module('Acceptance | jobs list', function (hooks) {
 
     assert.equal(
       currentURL(),
-      '/jobs?filter=Name%20contains%20%22foobar%22',
+      '/jobs?filter=Name%20matches%20%22(%3Fi)foobar%22',
       'No page query param'
     );
   });
@@ -1271,7 +1271,7 @@ module('Acceptance | jobs list', function (hooks) {
         assert.ok(
           server.pretender.handledRequests.find((req) =>
             decodeURIComponent(req.url).includes(
-              '?filter=Name contains "something-that-surely-doesnt-exist"'
+              '?filter=Name matches "(?i)something-that-surely-doesnt-exist"'
             )
           ),
           'A request was made with a filter query param that assumed job name'
@@ -1384,6 +1384,28 @@ module('Acceptance | jobs list', function (hooks) {
           );
 
         localStorage.removeItem('nomadPageSize');
+      });
+
+      test('Searching by name filters the list case-insensitively', async function (assert) {
+        localStorage.setItem('nomadPageSize', '10');
+        createJobs(server, 10);
+        server.create('job', {
+          name: 'hashi-one',
+          id: 'hashi-one',
+          modifyIndex: 0,
+        });
+        server.create('job', {
+          name: 'Hashi-two',
+          id: 'hashi-two',
+          modifyIndex: 0,
+        });
+
+        await JobsList.visit();
+
+        await JobsList.search.fillIn('Hashi');
+        assert.dom('.job-row').exists({ count: 2 });
+        assert.dom('[data-test-job-row="hashi-one"]').exists();
+        assert.dom('[data-test-job-row="hashi-two"]').exists();
       });
 
       test('Searching by type filters the list', async function (assert) {
