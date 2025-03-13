@@ -3,6 +3,9 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
- .hds-icon {
-  vertical-align: text-top;
-}
+ td > .hds-icon:only-child,
+ td > a:only-child > .hds-icon,
+ td > .tooltip:only-child > .hds-icon {
+  position: relative;
+  top: 3px;
+ }
