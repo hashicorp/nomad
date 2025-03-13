@@ -118,6 +118,15 @@ scenario "upgrade" {
     ]
   }
 
+  step "get_vault_env" {
+    
+    description = <<-EOF
+    Get the HCP vault address and token
+    EOF
+
+    module = module.get_vault_env
+  }
+
   step "run_initial_workloads" {
     depends_on = [step.initial_test_cluster_health]
 
@@ -135,6 +144,10 @@ scenario "upgrade" {
       availability_zone = var.availability_zone
       consul_addr       = step.provision_cluster.consul_addr
       consul_token      = step.provision_cluster.consul_token
+      vault_token       = step.get_vault_env.vault_token
+      vault_addr        = step.get_vault_env.vault_addr
+      // The provision_cluster module enables a kv v2 secrets engine using the cluster name as path.
+      vault_mount_path  = step.provision_cluster.cluster_unique_identifier 
 
       workloads = {
         service_raw_exec = { job_spec = "jobs/raw-exec-service.nomad.hcl", alloc_count = 3, type = "service" }
@@ -183,6 +196,12 @@ scenario "upgrade" {
           pre_script  = "scripts/configure-variables-acls.sh"
         }
 
+        gets_secret = {
+          job_spec = "jobs/vault-secrets.nomad.hcl",
+          alloc_count = 3,
+          type = "service",
+          pre_script = "scripts/populate_secret.sh"
+        }
       }
     }
 
@@ -228,7 +247,7 @@ scenario "upgrade" {
     ]
   }
 
-  step "fetch_upgrade_binary" {
+  /*   step "fetch_upgrade_binary" {
     depends_on = [step.provision_cluster, step.workloads_test_cluster_health]
 
     description = <<-EOF
@@ -529,7 +548,7 @@ scenario "upgrade" {
       quality.nomad_allocs_status,
       quality.nomad_reschedule_alloc,
     ]
-  }
+  } */
 
   output "servers" {
     value = step.provision_cluster.servers

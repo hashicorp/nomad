@@ -24,3 +24,7 @@ module "upgrade_servers" {
 module "upgrade_client" {
   source = "./modules/upgrade_client"
 }
+
+module "get_vault_env" {
+  source = "../e2e/terraform/hcp-vault-auth"
+}
