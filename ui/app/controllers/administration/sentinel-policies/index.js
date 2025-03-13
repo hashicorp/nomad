@@ -44,6 +44,11 @@ export default class SentinelPoliciesIndexController extends Controller {
         isSortable: true,
       },
       {
+        key: 'scope',
+        label: 'Scope',
+        isSortable: true,
+      },
+      {
         key: 'delete',
         label: 'Delete',
       },

@@ -77,6 +77,18 @@
 		</Hds::Form::Radio::Group>
 	</div>
 
+  <div>
+    <Hds::Form::Radio::Group @layout="horizontal" @name="method-demo1" {{on "change" this.updatePolicyScope}} as |G|>
+      <G.Legend>Scope</G.Legend>
+      <G.RadioField @id="submit-job" checked={{eq @policy.scope "submit-job"}} data-test-scope="submit-job" as |F|>
+        <F.Label>Submit Job</F.Label>
+      </G.RadioField>
+      <G.RadioField @id="submit-host-volume" checked={{eq @policy.scope "submit-host-volume"}} data-test-scope="submit-host-volume" as |F|>
+        <F.Label>Submit Host Volume</F.Label>
+      </G.RadioField>
+    </Hds::Form::Radio::Group>
+  </div>
+
 	<footer>
 		{{#if (can "update sentinel-policy")}}
 		<Hds::Button

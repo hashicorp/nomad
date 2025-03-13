@@ -106,6 +106,30 @@ module('Acceptance | sentinel policies', function (hooks) {
       .hasText('hard-mandatory');
   });
 
+  test('Edit Sentinel Policy: Scope', async function (assert) {
+    const policy = server.db.sentinelPolicies.findBy(
+      (sp) => sp.name === 'host-volume-policy'
+    );
+    await click('[data-test-sentinel-policy-name="host-volume-policy"]');
+    assert.equal(
+      currentURL(),
+      `/administration/sentinel-policies/${policy.id}`
+    );
+
+    await click('[data-test-scope="submit-host-volume"]');
+    await click('button[data-test-save-policy]');
+    assert.dom('.flash-message.alert-success').exists();
+
+    await Administration.visitSentinelPolicies();
+    const policyRow = find(
+      '[data-test-sentinel-policy-name="host-volume-policy"]'
+    ).closest('[data-test-sentinel-policy-row]');
+    assert.dom(policyRow).exists();
+    assert
+      .dom(policyRow.querySelector('[data-test-sentinel-policy-scope]'))
+      .hasText('submit-host-volume');
+  });
+
   test('New Sentinel Policy from Scratch', async function (assert) {
     await click('[data-test-create-sentinel-policy]');
     assert.equal(currentURL(), '/administration/sentinel-policies/new');
