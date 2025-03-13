@@ -653,7 +653,7 @@ export default class JobsIndexController extends Controller {
       this.searchText = newFilter;
     } else {
       // If it's a string without a filter operator, assume the user is trying to look up a job name
-      this.searchText = `Name contains "${newFilter}"`;
+      this.searchText = `Name matches "(?i)${newFilter}"`;
     }
   }
 

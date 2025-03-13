@@ -231,6 +231,12 @@ export default function () {
                   job[condition.field] &&
                   job[condition.field].includes(condition.value)
                 );
+              } else if (condition.operator === 'matches') {
+                // strip the (?i) bit out of the value; used for case-insensitive matching
+                // but JS doesn't support PCRE-style regex modifiers the way our backend does,
+                // so strip 'em out here.
+                const value = condition.value.replace('(?i)', '');
+                return new RegExp(value, 'i').test(job[condition.field]);
               } else if (condition.operator === '==') {
                 return job[condition.field] === condition.value;
               } else if (condition.operator === '!=') {
