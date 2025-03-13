@@ -98,7 +98,8 @@ The table below shows this endpoint's support for
       - `KeyIDHeader` `(string)` - Which header the provider will use to find
         the public key to verify the signed JWT.
         Allowed values are: "kid", "x5t", or "x5t#S256".
-        The default depends on which of the following options is set.
+        The default and allowed values depend on which of the following options
+        is set.
 
       - `KeyID` `(string)` - Becomes the JWT's "kid" header.
         Mutually exclusive with `PemCert` and `PemCertFile`.
@@ -121,7 +122,8 @@ The table below shows this endpoint's support for
       use `PrivateKey.KeyID`.
 
   - `OIDCDisablePKCE` `(bool: false)` - When set to `true`, Nomad will not
-    include [PKCE][] verification in the auth flow.
+    include [PKCE][] verification in the auth flow. Even with PKCE enabled in
+    Nomad (the default), you may still need to enable it in the OIDC provider.
 
   - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not make
     a request to the identity provider to get OIDC UserInfo. You may wish to set this
@@ -353,7 +355,8 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
       - `KeyIDHeader` `(string)` - Which header the provider will use to find
         the public key to verify the signed JWT.
         Allowed values are: "kid", "x5t", or "x5t#S256".
-        The default depends on which of the following options is set.
+        The default and allowed values depend on which of the following options
+        is set.
 
       - `KeyID` `(string)` - Becomes the JWT's "kid" header.
         Mutually exclusive with `PemCert` and `PemCertFile`.
@@ -376,7 +379,8 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
       use `PrivateKey.KeyID`.
 
   - `OIDCDisablePKCE` `(bool: false)` - When set to `true`, Nomad will not
-    include [PKCE][] verification in the auth flow.
+    include [PKCE][] verification in the auth flow. Even with PKCE enabled in
+    Nomad (the default), you may still need to enable it in the OIDC provider.
 
   - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not make
     a request to the identity provider to get OIDC UserInfo. You may wish to set this
