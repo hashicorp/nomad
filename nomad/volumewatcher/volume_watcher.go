@@ -42,6 +42,7 @@ type volumeWatcher struct {
 	// before stopping the child watcher goroutines
 	quiescentTimeout time.Duration
 
+	// limiter slows the rate at which we can attempt to clean up a given volume
 	limiter *rate.Limiter
 
 	// updateCh is triggered when there is an updated volume
@@ -65,7 +66,7 @@ func newVolumeWatcher(parent *Watcher, vol *structs.CSIVolume) *volumeWatcher {
 		shutdownCtx:      parent.ctx,
 		deleteFn:         func() { parent.remove(vol.ID + vol.Namespace) },
 		quiescentTimeout: parent.quiescentTimeout,
-		limiter:          rate.NewLimiter(rate.Limit(1), 3),
+		limiter:          rate.NewLimiter(rate.Limit(1), 1),
 	}
 
 	// Start the long lived watcher that scans for allocation updates
@@ -80,7 +81,7 @@ func (vw *volumeWatcher) Notify(v *structs.CSIVolume) {
 	}
 	select {
 	case vw.updateCh <- v:
-	case <-vw.shutdownCtx.Done(): // prevent deadlock if we stopped
+	default: // don't block on full notification channel
 	}
 }
 
@@ -129,7 +130,7 @@ func (vw *volumeWatcher) watch() {
 		case vol := <-vw.updateCh:
 			err := vw.limiter.Wait(vw.shutdownCtx)
 			if err != nil {
-				// TODO: now what?
+				return // only returns error on context close
 			}
 			vol = vw.getVolume(vol)
 			if vol == nil {
