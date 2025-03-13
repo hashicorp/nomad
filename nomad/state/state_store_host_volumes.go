@@ -294,7 +294,7 @@ func upsertHostVolumeForNode(txn *txn, node *structs.Node, index uint64) error {
 func (s *StateStore) NodeHasHostVolume(nodeID, volName string) bool {
 	iter, err := s.HostVolumesByNodeID(nil, nodeID, SortDefault)
 	if err != nil {
-		return false
+		return true
 	}
 	for {
 		raw := iter.Next()

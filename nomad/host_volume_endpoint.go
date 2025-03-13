@@ -550,9 +550,9 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 
 		// note: this is a race if multiple users create volumes of the same
 		// name concurrently, but we can't completely solve it on the server
-		// because we haven't yet written to state. The client will reject
-		// requests to create/register a volume with the same name with a
-		// different ID.
+		// because we haven't yet written to state. The client single-threads
+		// requests by volume name, so will reject requests to create/register a
+		// volume with the same name but a different ID.
 		if snap.NodeHasHostVolume(candidate.ID, vol.Name) {
 			filteredByExisting++
 			continue
