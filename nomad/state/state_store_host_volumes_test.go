@@ -234,12 +234,22 @@ func TestStateStore_UpdateHostVolumesFromFingerprint(t *testing.T) {
 	vols[3].Name = "dhv-two"
 	vols[3].NodeID = node.ID
 
+	must.False(t, store.NodeHasHostVolume(node.ID, "dhv-zero"))
+	must.False(t, store.NodeHasHostVolume(node.ID, "dhv-one"))
+	must.False(t, store.NodeHasHostVolume(node.ID, "dhv-two"))
+	must.False(t, store.NodeHasHostVolume(otherNode.ID, "dhv-one"))
+
 	index++
 	oldIndex := index
 	must.NoError(t, store.UpsertHostVolume(index, vols[0]))
 	must.NoError(t, store.UpsertHostVolume(index, vols[1]))
 	must.NoError(t, store.UpsertHostVolume(index, vols[2]))
 	must.NoError(t, store.UpsertHostVolume(index, vols[3]))
+
+	must.True(t, store.NodeHasHostVolume(node.ID, "dhv-zero"))
+	must.True(t, store.NodeHasHostVolume(node.ID, "dhv-one"))
+	must.True(t, store.NodeHasHostVolume(node.ID, "dhv-two"))
+	must.True(t, store.NodeHasHostVolume(otherNode.ID, "dhv-one"))
 
 	vol0, err := store.HostVolumeByID(nil, ns, vols[0].ID, false)
 	must.NoError(t, err)
