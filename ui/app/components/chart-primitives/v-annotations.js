@@ -9,8 +9,8 @@ import { action, get } from '@ember/object';
 import styleString from 'nomad-ui/utils/properties/glimmer-style-string';
 
 const iconFor = {
-  error: 'cancel-circle-fill',
-  info: 'info-circle-fill',
+  error: 'x-circle-fill',
+  info: 'info-fill',
 };
 
 const iconClassFor = {

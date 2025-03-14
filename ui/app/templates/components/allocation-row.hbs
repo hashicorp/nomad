@@ -11,7 +11,7 @@
       role="tooltip"
       aria-label="Allocation depends on unhealthy drivers"
     >
-      {{x-icon "alert-triangle" class="is-warning"}}
+      <Hds::Icon @name="alert-triangle-fill" @color="warning" class="icon-vertical-bump-down" />
     </span>
   {{/if}}
   {{#if this.allocation.nextAllocation}}
@@ -21,7 +21,7 @@
       role="tooltip"
       aria-label="Allocation was rescheduled"
     >
-      {{x-icon "history" class="is-faded"}}
+      <Hds::Icon @name="history" @color="faint" />
     </span>
   {{/if}}
   {{#if this.allocation.wasPreempted}}
@@ -31,7 +31,7 @@
       role="tooltip"
       aria-label="Allocation was preempted"
     >
-      {{x-icon "boot" class="is-faded"}}
+      <Hds::Icon @name="cloud-lightning" @color="faint" />
     </span>
   {{/if}}
 </td>

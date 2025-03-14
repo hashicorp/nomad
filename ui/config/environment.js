@@ -33,7 +33,9 @@ module.exports = function (environment) {
         Date: false,
       },
     },
-
+    emberFlightIcons: {
+      lazyEmbed: true,
+    },
     APP: {
       blockingQueries: true,
       mirageScenario: 'smallCluster',

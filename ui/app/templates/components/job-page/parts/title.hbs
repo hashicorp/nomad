@@ -8,7 +8,7 @@
     {{or this.title this.job.name}}
     {{#if @job.meta.structured.root.children.pack}}
       <span data-test-pack-tag class="tag is-hollow">
-        {{x-icon "box" class= "test"}}
+        <Hds::Icon @name="box" @color="faint" />
         <span>Pack</span>
       </span>
     {{/if}}
