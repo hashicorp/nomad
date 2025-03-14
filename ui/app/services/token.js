@@ -10,7 +10,6 @@ import { getOwner } from '@ember/application';
 import { assign } from '@ember/polyfills';
 import { task, timeout } from 'ember-concurrency';
 import queryString from 'query-string';
-import fetch from 'nomad-ui/utils/fetch';
 import classic from 'ember-classic-decorator';
 import moment from 'moment';
 

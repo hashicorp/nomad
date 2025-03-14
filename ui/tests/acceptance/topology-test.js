@@ -5,7 +5,7 @@
 
 /* eslint-disable qunit/require-expect */
 import { get } from '@ember/object';
-import { currentURL, typeIn, click } from '@ember/test-helpers';
+import { currentURL, typeIn, click, waitUntil } from '@ember/test-helpers';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 import { setupMirage } from 'ember-cli-mirage/test-support';
@@ -175,6 +175,7 @@ module('Acceptance | topology', function (hooks) {
       await Topology.viz.datacenters[dcIndex].nodes[
         nodeIndex
       ].memoryRects[0].select();
+      await waitUntil(() => Topology.infoPanelTitle === 'Allocation Details');
     };
 
     await reset();
@@ -233,13 +234,17 @@ module('Acceptance | topology', function (hooks) {
       jobId: job2.id,
       taskGroup2,
     });
-
     await Topology.visit();
     await Topology.viz.datacenters[0].nodes[0].memoryRects[0].select();
     const firstAllocationTaskNames =
       Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
 
     await Topology.viz.datacenters[0].nodes[0].memoryRects[1].select();
+
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // TODO: This is hackier than hacky but proves that awaiting methods dont seem to be waiting for things being settled.
+    // noting that await settled() here does nothing.
+
     const secondAllocationTaskNames =
       Topology.allocInfoPanel.charts[0].areas.mapBy('taskName');
 
