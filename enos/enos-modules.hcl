@@ -24,3 +24,7 @@ module "upgrade_servers" {
 module "upgrade_client" {
   source = "./modules/upgrade_client"
 }
+
+module "drain_client" {
+  source = "./modules/drain_nodes"
+}

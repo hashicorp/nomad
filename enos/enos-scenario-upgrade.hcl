@@ -414,8 +414,19 @@ scenario "upgrade" {
     }
   }
 
-  step "upgrade_third_client" {
+  step "drain_client" {
     depends_on = [step.upgrade_second_client]
+
+    description = <<-EOF 
+    Selects one client to drain, waits for all allocs to be rescheduled and
+    brings back the node eligibility
+    EOF
+
+    module = module.drain_client
+  }
+
+  step "upgrade_third_client" {
+    depends_on = [step.drain_client]
 
     description = <<-EOF
     Takes a client, writes some dynamic metadata to it,
