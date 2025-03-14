@@ -124,19 +124,18 @@ func (l *LibcontainerExecutor) ListProcesses() set.Collection[int] {
 	return procstats.List(l.command)
 }
 
-// cleanOldProcessesInCGroup kills processes that might ended up orphans when the
-// executor was unexpectedly killed and nomad can't reconnect to them.
-func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) {
+// cleanOldProcessesInCGroup kills processes that might ended up orphans when
+// the executor was unexpectedly killed and nomad can't reconnect to them.
+func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) error {
 	l.logger.Debug("looking for old processes", "path", nomadRelativePath)
 
 	root := cgroupslib.GetDefaultRoot()
-	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
-	if err != nil {
-		l.logger.Error("unable to get orphaned task PIDs", "error", err)
-		return
+	orphanedPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("unable to get orphaned task PIDs: %v", err)
 	}
 
-	for _, pid := range orphansPIDs {
+	for _, pid := range orphanedPIDs {
 		l.logger.Info("killing orphaned process", "pid", pid)
 
 		// Avoid bringing down the whole node by mistake, very unlikely case,
@@ -145,11 +144,25 @@ func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath strin
 			continue
 		}
 
-		err := syscall.Kill(pid, syscall.SIGKILL)
-		if err != nil {
-			l.logger.Error("unable to send signal to process", "pid", pid, "error", err)
+		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+			return fmt.Errorf("unable to send signal to process %d: %v", pid, err)
 		}
 	}
+
+	// Make sure the PID was removed from the cgroup file, otherwise
+	// libcontainer will not be able to launch. Five retries every 100 ms should be
+	// more than enough.
+	for i := 100; i < 501; i += 100 {
+		orphanedPIDs, _ = cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
+		if len(orphanedPIDs) > 0 {
+			time.Sleep(time.Duration(i) * time.Millisecond)
+			continue
+		} else {
+			l.logger.Info("all orphaned processes killed and removed from cgroup PID file")
+			return nil
+		}
+	}
+	return fmt.Errorf("orphaned processes %v have not been removed from cgroups pid file", orphanedPIDs)
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
@@ -170,7 +183,9 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
 
-	l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path)
+	if err := l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path); err != nil {
+		return nil, err
+	}
 
 	container, err := libcontainer.Create(path.Join(command.TaskDir, "../alloc/container"), l.id, containerCfg)
 	if err != nil {
