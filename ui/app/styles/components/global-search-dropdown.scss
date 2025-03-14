@@ -36,7 +36,8 @@
 
     &[role='listbox'] {
       border: 1px solid $grey-blue;
-      box-shadow: 0 6px 8px -2px rgba($black, 0.05), 0 8px 4px -4px rgba($black, 0.1);
+      box-shadow: 0 6px 8px -2px rgba($black, 0.05),
+        0 8px 4px -4px rgba($black, 0.1);
     }
 
     .ember-power-select-option {
@@ -58,3 +59,111 @@
     font-weight: $weight-semibold;
   }
 }
+
+.mega-search-input-container {
+  z-index: 301;
+  position: absolute;
+  width: 100%;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  .mega-search-input {
+    width: 350px;
+  }
+}
+
+.mega-search {
+  position: fixed;
+  background: #fff;
+  z-index: 300;
+  width: 800px;
+  left: calc(50% - 400px);
+  top: -30vh;
+  height: 30vh;
+  overflow: hidden;
+  z-index: $z-mega-menu;
+  transition: top 0.1s ease-out, box-shadow 0.5s ease-out;
+  // transition: box-shadow 0.5s ease-out;
+  box-shadow: 2px 2px 12px 3000px rgb(0, 0, 0, 0);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 0.5rem;
+  color: $black;
+  border-radius: 0 0 0.5rem 0.5rem;
+  overflow: auto;
+
+  &.expanded {
+    // animation-name: megaSearchSlideIn;
+    // animation-duration: 2s;
+    // animation-fill-mode: both;
+    // height: 30vh;
+    top: 0;
+    padding: 50px; // offset search box
+    box-shadow: 2px 2px 12px 3000px rgb(0, 0, 0, 0.8);
+  }
+
+  .recents {
+    display: grid;
+    // grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    // width: 100%;
+    gap: 0.5rem;
+    padding: 0.5rem;
+
+    h3 {
+      font-weight: bold;
+      font-size: 1.5rem;
+      // grid-column: -1 / 1;
+    }
+
+    .recent a {
+      // border-radius: 0.25rem;
+      // padding: 0.5rem;
+      // background-color: $grey-blue;
+      // background-color: var(--token-color-surface-faint);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      // height: 100%;
+      color: $black;
+      // border: 1px solid #ddd;
+      transition: 0.2s;
+      text-decoration: none;
+
+      &:hover {
+        background-color: var(--token-color-surface-strong);
+        box-shadow: 0px 0px 5px 0px rgba(0, 0, 0, 0.2);
+      }
+      h4 {
+        font-size: 1rem;
+        font-weight: bold;
+        flex-grow: 1;
+        display: flex;
+        gap: 0.25rem;
+        align-items: baseline;
+        small {
+          font-size: 0.75rem;
+          font-weight: normal;
+          font-style: italic;
+          opacity: 0.75;
+        }
+      }
+      // header,
+      footer {
+        font-size: 0.75rem;
+      }
+    }
+  }
+}
+// @keyframes megaSearchSlideIn {
+//   from {
+//     opacity: 0;
+//     height: 0;
+//   }
+//   to {
+//     opacity: 1;
+//     height: 20vh;
+//   }
+// }

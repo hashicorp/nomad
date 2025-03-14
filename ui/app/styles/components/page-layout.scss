@@ -11,7 +11,8 @@
   .page-header {
     position: fixed;
     width: 100%;
-    z-index: $z-header;
+    // z-index: $z-header;
+    z-index: $z-mega-menu;
     top: 0;
 
     // Defensive styles in case header height goes over 100px, causing

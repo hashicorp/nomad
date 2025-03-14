@@ -22,7 +22,9 @@ $secondaryNavbarHeight: 4.5rem;
     overflow: visible;
     align-items: center;
     justify-content: space-between;
-    z-index: $z-gutter;
+    // z-index: $z-gutter;
+    position: relative;
+    z-index: $z-mega-menu;
 
     .navbar-item {
       color: rgba($primary-invert, 0.8);
