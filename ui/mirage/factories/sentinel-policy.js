@@ -22,6 +22,6 @@ export default Factory.extend({
 
   main = rule { false }`,
 
-  scope: 'submit-job',
+  scope: pickOne(['submit-job', 'submit-host-volume']),
   enforcementLevel: pickOne(['advisory', 'soft-mandatory', 'hard-mandatory']),
 });

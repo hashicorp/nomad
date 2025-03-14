@@ -52,7 +52,7 @@ module('Acceptance | jobs list', function (hooks) {
   });
 
   test('/jobs should list the first page of jobs sorted by modify index', async function (assert) {
-    faker.seed(1);
+    faker.seed(2);
     const jobsCount = JobsList.pageSize + 1;
     server.createList('job', jobsCount, { createAllocations: true });
 
@@ -2087,6 +2087,7 @@ function testFacet(
   });
 
   test(`selecting multiple options in the ${label} facet results in a broader search`, async function (assert) {
+    faker.seed(2);
     const selection = [];
 
     await beforeEach();

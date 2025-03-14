@@ -30,6 +30,10 @@ export default class SentinelPolicyEditorComponent extends Component {
     this.policy.set('enforcementLevel', id);
   }
 
+  @action updatePolicyScope({ target: { id } }) {
+    this.policy.set('scope', id);
+  }
+
   @action async save(e) {
     if (e instanceof Event) {
       e.preventDefault(); // code-mirror "command+enter" submits the form, but doesnt have a preventDefault()
