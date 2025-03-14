@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	_ "github.com/opencontainers/runc/libcontainer/cgroups/devices"
 	runc "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
@@ -170,9 +171,6 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 	}
 
 	l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path)
-
-	// TODO: Hack - need to fix "error setting cgroup config for procHooks process: Cgroup manager is not configured to set device rules"
-	containerCfg.Cgroups.Devices = nil
 
 	container, err := libcontainer.Create(path.Join(command.TaskDir, "../alloc/container"), l.id, containerCfg)
 	if err != nil {
