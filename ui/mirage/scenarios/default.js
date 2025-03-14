@@ -672,7 +672,7 @@ function variableTestCluster(server) {
   });
 }
 
-function policiesTestCluster(server, options = { sentinel: true }) {
+function policiesTestCluster(server, options = { sentinel: false }) {
   if (options.sentinel) {
     server.create('feature', { name: 'Sentinel Policies' });
     server.create('sentinel-policy', {
