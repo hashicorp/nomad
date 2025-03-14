@@ -202,44 +202,6 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 	return result.ErrorOrNil()
 }
 
-func (vw *volumeWatcher) collectPastClaims(vol *structs.CSIVolume) *structs.CSIVolume {
-
-	collect := func(allocs map[string]*structs.Allocation,
-		claims map[string]*structs.CSIVolumeClaim) {
-
-		for allocID, alloc := range allocs {
-			if alloc == nil {
-				_, exists := vol.PastClaims[allocID]
-				if !exists {
-					vol.PastClaims[allocID] = &structs.CSIVolumeClaim{
-						AllocationID: allocID,
-						State:        structs.CSIVolumeClaimStateReadyToFree,
-					}
-				}
-			} else if alloc.Terminated() {
-				// don't overwrite the PastClaim if we've seen it before,
-				// so that we can track state between subsequent calls
-				_, exists := vol.PastClaims[allocID]
-				if !exists {
-					claim, ok := claims[allocID]
-					if !ok {
-						claim = &structs.CSIVolumeClaim{
-							AllocationID: allocID,
-							NodeID:       alloc.NodeID,
-						}
-					}
-					claim.State = structs.CSIVolumeClaimStateTaken
-					vol.PastClaims[allocID] = claim
-				}
-			}
-		}
-	}
-
-	collect(vol.ReadAllocs, vol.ReadClaims)
-	collect(vol.WriteAllocs, vol.WriteClaims)
-	return vol
-}
-
 func (vw *volumeWatcher) unpublish(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
 	vw.logger.Trace("unpublishing volume", "alloc", claim.AllocationID)
 	req := &structs.CSIVolumeUnpublishRequest{
