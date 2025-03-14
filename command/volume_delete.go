@@ -146,7 +146,7 @@ func (c *VolumeDeleteCommand) deleteCSIVolume(client *api.Client, volID string, 
 			Namespace: c.namespace,
 		})
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Could not find existing volume to delete: %s", err))
+		c.Ui.Error(fmt.Sprintf(`Could not find existing CSI volume to delete: %s`, err))
 		return 1
 	}
 	if len(possible) > 0 {
@@ -179,7 +179,7 @@ func (c *VolumeDeleteCommand) deleteHostVolume(client *api.Client, volID string)
 	if !helper.IsUUID(volID) {
 		stub, possible, err := getHostVolumeByPrefix(client, volID, c.namespace)
 		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Could not find existing volume to delete: %s", err))
+			c.Ui.Error(fmt.Sprintf(`Could not find existing host volume to delete: %s`, err))
 			return 1
 		}
 		if len(possible) > 0 {
