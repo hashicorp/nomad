@@ -8,6 +8,10 @@ import { action } from '@ember/object';
 import { tracked } from '@glimmer/tracking';
 import Controller from '@ember/controller';
 import { scheduleOnce } from '@ember/runloop';
+import { restartableTask, timeout } from 'ember-concurrency';
+import Ember from 'ember';
+
+const TASK_THROTTLE = 1000;
 
 export default class IndexController extends Controller {
   @service router;
@@ -144,11 +148,12 @@ export default class IndexController extends Controller {
   // Filter, then Sort, then Paginate
   // all handled client-side
 
+  @tracked csiVolumes = this.model.csiVolumes;
   get filteredCSIVolumes() {
     if (!this.csiFilter) {
-      return this.model.csiVolumes;
+      return this.csiVolumes;
     } else {
-      return this.model.csiVolumes.filter((volume) => {
+      return this.csiVolumes.filter((volume) => {
         return (
           volume.plainId.toLowerCase().includes(this.csiFilter.toLowerCase()) ||
           volume.name.toLowerCase().includes(this.csiFilter.toLowerCase())
@@ -172,11 +177,12 @@ export default class IndexController extends Controller {
     );
   }
 
+  @tracked dynamicHostVolumes = this.model.dynamicHostVolumes;
   get filteredDynamicHostVolumes() {
     if (!this.dhvFilter) {
-      return this.model.dynamicHostVolumes;
+      return this.dynamicHostVolumes;
     } else {
-      return this.model.dynamicHostVolumes.filter((volume) => {
+      return this.dynamicHostVolumes.filter((volume) => {
         return (
           volume.plainId.toLowerCase().includes(this.dhvFilter.toLowerCase()) ||
           volume.name.toLowerCase().includes(this.dhvFilter.toLowerCase())
@@ -237,5 +243,80 @@ export default class IndexController extends Controller {
       'storage.volumes.dynamic-host-volume',
       dhv.idWithNamespace
     );
+  }
+
+  @restartableTask *watchDHV(
+    params,
+    throttle = Ember.testing ? 0 : TASK_THROTTLE
+  ) {
+    while (true) {
+      const abortController = new AbortController();
+      try {
+        const result = yield this.store.query('dynamic-host-volume', params, {
+          reload: true,
+          adapterOptions: {
+            watch: true,
+            abortController: abortController,
+          },
+        });
+
+        this.dynamicHostVolumes = result;
+      } catch (e) {
+        console.error('Error fetching dynamic host volumes:', e);
+        yield timeout(throttle);
+      } finally {
+        abortController.abort();
+      }
+
+      yield timeout(throttle);
+
+      if (Ember.testing) {
+        break;
+      }
+    }
+  }
+
+  @restartableTask *watchCSI(
+    params,
+    throttle = Ember.testing ? 0 : TASK_THROTTLE
+  ) {
+    while (true) {
+      const abortController = new AbortController();
+      try {
+        const result = yield this.store.query('volume', params, {
+          reload: true,
+          adapterOptions: {
+            watch: true,
+            abortController: abortController,
+          },
+        });
+
+        this.csiVolumes = result;
+      } catch (e) {
+        console.error('Error fetching CSI volumes:', e);
+        yield timeout(throttle);
+      } finally {
+        abortController.abort();
+      }
+
+      yield timeout(throttle);
+
+      if (Ember.testing) {
+        break;
+      }
+    }
+  }
+
+  @action
+  cancelQueryWatch() {
+    this.watchDHV.cancelAll();
+    this.watchCSI.cancelAll();
+  }
+
+  // (called from route)
+  @action
+  startQueryWatch(dhvQuery, csiQuery) {
+    this.watchDHV.perform(dhvQuery.queryParams);
+    this.watchCSI.perform(csiQuery.queryParams);
   }
 }
