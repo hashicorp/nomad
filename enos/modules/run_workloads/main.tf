@@ -61,10 +61,18 @@ resource "enos_local_exec" "get_allocs" {
   inline = ["nomad alloc status -json | jq '[.[] | select(.ClientStatus == \"running\")] | length'"]
 }
 
+resource "local_file" "vault_workload" {
+  filename = "${path.module}/jobs/vault-secrets.nomad.hcl"
+  content = templatefile("${path.module}/templates/vault-secrets.nomad.hcl.tpl", {
+    secret_path = "${var.vault_mount_path}/default/get-secret"
+  })
+}
+
 resource "enos_local_exec" "workloads" {
   depends_on = [
     enos_local_exec.get_jobs,
     enos_local_exec.get_allocs,
+    local_file.vault_workload
   ]
   for_each = var.workloads
 

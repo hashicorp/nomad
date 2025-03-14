@@ -9,6 +9,13 @@ job "get-secret" {
   group "group" {
     count = var.alloc_count
 
+  restart {
+    interval         = "5s"
+    delay            = "1s"
+    mode             = "delay"
+    render_templates = true
+  }
+
     network {
       port "web" {
         to = 8001
@@ -17,44 +24,42 @@ job "get-secret" {
 
     service {
       provider = "consul"
-      name     = "writes-vars-checker"
+      name     = "get-secret"
       port     = "web"
-      task     = "task"
+      task     = "read-secrets"
 
-      /* check {
-        type     = "script"
+    check {
         interval = "10s"
         timeout  = "1s"
-        command  = "/bin/sh"
-        args     = ["/local/read-script.sh"]
 
-        # this check will read from the Task API, so we need to ensure that we
-        # can tolerate the listener going away during client upgrades
-        check_restart {
-          limit = 10
-        }
-      } */
+    type    = "script"
+    command = "/bin/bash"
+    args    = ["-c", "test -f local/config.json"]
+
+      }
     }
 
     task "read-secrets" {
       driver = "raw_exec"
 
-      config {
+     config {
         command = "/bin/bash"
-        args    = ["-c", "cat local/config.json && sleep 30"]
+        args    = ["-c", "while true; do cat local/config.json; sleep 1; done"]
       }
 
       vault {}
 
       template {
         destination = "local/config.json"
-        change_mode = "restart"
+        change_mode   = "signal"
+        change_signal = "SIGHUP"
 
         data = <<EOT
-{{ with secret "{{}}/data/default/get-secret" }}
+{{ with secret "${secret_path}" }}
 {
   "username": "{{ .Data.data.username }}",
   "password": "{{ .Data.data.password }}"
+  {{ timestamp "unix" }}
 }
 {{ end }}
 EOT

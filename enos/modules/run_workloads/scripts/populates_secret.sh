@@ -4,4 +4,8 @@
 
 set -euo pipefail
 
-vault kv put "$VAULT_PATH/default/get-secret" username="admin" password="supersecret"
+# Path enabled by the provision_cluster module: 
+# https://github.com/hashicorp/nomad/e2e/terraform/provision-infra/hcp_vault.tf
+secret_path="$VAULT_PATH/default/get-secret"
+
+vault kv put "$secret_path" username="admin" password="supersecret"

@@ -50,11 +50,11 @@ EOM
 }
 
 output "vault_token" {
-  sensitive   = true
-  value       = hcp_vault_cluster_admin_token.admin.token
+  sensitive = true
+  value     = hcp_vault_cluster_admin_token.admin.token
 }
 
 output "vault_addr" {
-  value       = data.hcp_vault_cluster.e2e_shared_vault.vault_public_endpoint_url
+  value = data.hcp_vault_cluster.e2e_shared_vault.vault_public_endpoint_url
 }
 
