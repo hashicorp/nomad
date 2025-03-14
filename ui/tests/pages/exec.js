@@ -39,7 +39,7 @@ export default create({
 
     tasks: collection('[data-test-task]', {
       name: text(),
-      isActive: isPresent('[data-test-task-active]'),
+      isActive: isPresent('.active-identifier'),
     }),
   }),
 
