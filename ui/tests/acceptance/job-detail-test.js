@@ -167,7 +167,11 @@ moduleForJobWithClientStatus(
 moduleForJob(
   'Acceptance | job detail (periodic)',
   'children',
-  () => server.create('job', 'periodic', { shallow: true }),
+  () =>
+    server.create('job', 'periodic', {
+      shallow: true,
+      withPreviousStableVersion: true,
+    }),
   {
     'the default sort is submitTime descending': async function (job, assert) {
       const mostRecentLaunch = server.db.jobs
