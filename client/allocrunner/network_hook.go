@@ -78,8 +78,8 @@ type networkHook struct {
 	// the alloc network has been created
 	networkConfigurator NetworkConfigurator
 
-	// taskEnv is used to perform interpolation within the network blocks.
-	taskEnv *taskenv.TaskEnv
+	// envBuilder is used to perform interpolation within the network blocks.
+	envBuilder func() *taskenv.Builder
 
 	logger hclog.Logger
 }
@@ -90,7 +90,7 @@ func newNetworkHook(logger hclog.Logger,
 	netManager drivers.DriverNetworkManager,
 	netConfigurator NetworkConfigurator,
 	networkStatusSetter networkStatusSetter,
-	taskEnv *taskenv.TaskEnv,
+	envBuilder func() *taskenv.Builder,
 ) *networkHook {
 	return &networkHook{
 		isolationSetter:     ns,
@@ -98,7 +98,7 @@ func newNetworkHook(logger hclog.Logger,
 		alloc:               alloc,
 		manager:             netManager,
 		networkConfigurator: netConfigurator,
-		taskEnv:             taskEnv,
+		envBuilder:          envBuilder,
 		logger:              logger,
 	}
 }
@@ -119,7 +119,8 @@ func (h *networkHook) Prerun() error {
 	}
 
 	// Perform our networks block interpolation.
-	interpolatedNetworks := taskenv.InterpolateNetworks(h.taskEnv, tg.Networks)
+	interpolatedNetworks := taskenv.InterpolateNetworks(
+		h.envBuilder().Build(), tg.Networks)
 
 	// Interpolated values need to be validated. It is also possible a user
 	// supplied hostname avoids the validation on job registrations because it

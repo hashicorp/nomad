@@ -49,12 +49,12 @@ type groupServiceHook struct {
 	logger hclog.Logger
 
 	// The following fields may be updated
-	canary         bool
-	services       []*structs.Service
-	networks       structs.Networks
-	ports          structs.AllocatedPorts
-	taskEnvBuilder *taskenv.Builder
-	delay          time.Duration
+	canary     bool
+	services   []*structs.Service
+	networks   structs.Networks
+	ports      structs.AllocatedPorts
+	envBuilder func() *taskenv.Builder
+	delay      time.Duration
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -64,7 +64,7 @@ type groupServiceHook struct {
 type groupServiceHookConfig struct {
 	alloc            *structs.Allocation
 	restarter        serviceregistration.WorkloadRestarter
-	taskEnvBuilder   *taskenv.Builder
+	envBuilder       func() *taskenv.Builder
 	networkStatus    structs.NetworkStatus
 	shutdownDelayCtx context.Context
 	logger           hclog.Logger
@@ -95,7 +95,7 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		namespace:         cfg.alloc.Namespace,
 		restarter:         cfg.restarter,
 		providerNamespace: cfg.providerNamespace,
-		taskEnvBuilder:    cfg.taskEnvBuilder,
+		envBuilder:        cfg.envBuilder,
 		delay:             shutdownDelay,
 		networkStatus:     cfg.networkStatus,
 		logger:            cfg.logger.Named(groupServiceHookName),
@@ -175,7 +175,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 	h.services = tg.Services
 	h.canary = canary
 	h.delay = shutdown
-	h.taskEnvBuilder.UpdateTask(req.Alloc, nil)
+	h.envBuilder().UpdateTask(req.Alloc, nil)
 
 	// An update may change the service provider, therefore we need to account
 	// for how namespaces work across providers also.
@@ -263,7 +263,7 @@ func (h *groupServiceHook) deregisterLocked() {
 // caller must hold h.lock
 func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.WorkloadServices {
 	// Interpolate with the task's environment
-	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
+	interpolatedServices := taskenv.InterpolateServices(h.envBuilder().Build(), h.services)
 
 	allocTokens := h.hookResources.GetConsulTokens()
 
