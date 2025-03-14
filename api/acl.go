@@ -827,6 +827,7 @@ type ACLAuthMethodConfig struct {
 	// The OAuth Client Secret configured with the OIDC provider
 	OIDCClientSecret string
 	// Optionally send a signed JWT ("private key jwt") as a client assertion
+	// to the OIDC provider
 	OIDCClientAssertion *OIDCClientAssertion
 	// Disable S256 PKCE challenge verification
 	OIDCDisablePKCE *bool
@@ -972,35 +973,35 @@ const (
 
 // OIDCClientAssertion (a.k.a private_key_jwt) is used to send
 // a client_assertion along with an OIDC token request.
+// Reference: https://oauth.net/private-key-jwt/
 // See also: structs.OIDCClientAssertion
 type OIDCClientAssertion struct {
+	// Audience is/are who will be processing the assertion.
+	// Defaults to the parent `ACLAuthMethodConfig`'s `OIDCDiscoveryURL`
+	Audience []string
+
 	// KeySource is where to get the private key to sign the JWT.
 	// It is the one field that *must* be set to enable client assertions.
 	// Available sources:
-	// * "nomad" = Use current active key in Nomad's keyring
-	// * "private_key" = Use key material in the PrivateKey field of this struct
-	// * "client_secret" = Use the OIDCClientSecret inherited from the parent
-	//   ACLAuthMethodConfig struct
+	// - "nomad": Use current active key in Nomad's keyring
+	// - "private_key": Use key material in the `PrivateKey` field
+	// - "client_secret": Use the `OIDCClientSecret` inherited from the parent
+	//   `ACLAuthMethodConfig` as an HMAC key
 	KeySource OIDCClientAssertionKeySource
 
-	// Audience is/are who will be processing the assertion.
-	// Defaults to the parent ACLAuthMethodConfig's OIDCDiscoveryURL
-	Audience []string
-
-	// PrivateKey contains external key material provided by users.
-	// KeySource must be "private_key" to enable this.
-	PrivateKey *OIDCClientAssertionKey
-
 	// KeyAlgorithm is the key's algorithm.
-	// Its default values are based on the KeySource:
-	// * nomad = "RS256" -- pulled from the keyring
-	// * private_key = "RS256"
-	// * client_secret = "HS256"
-	// Only RSA algorithms are supported for nomad and private_key.
+	// Its default values are based on the `KeySource`:
+	// - "nomad": "RS256" (from Nomad's keyring, must not be changed)
+	// - "private_key": "RS256" (must be RS256, RS384, or RS512)
+	// - "client_secret": "HS256" (must be HS256, HS384, or HS512)
 	KeyAlgorithm string
 
+	// PrivateKey contains external key material provided by users.
+	// `KeySource` must be "private_key" to enable this.
+	PrivateKey *OIDCClientAssertionKey
+
 	// ExtraHeaders are added to the JWT headers, alongside "kid" and "type"
-	// Setting the "kid" header here is not allowed; use PrivateKey.KeyID.
+	// Setting the "kid" header here is not allowed; use `PrivateKey.KeyID`.
 	ExtraHeaders map[string]string
 }
 
@@ -1026,47 +1027,43 @@ const (
 // PemKeyFile and PemCertFile, if set, must be an absolute path to a file
 // present on disk on any Nomad servers that may become cluster leaders.
 type OIDCClientAssertionKey struct {
-	// PemKey is the private key, in pem format. It is used to sign the JWT.
-	// Mutually exclusive with PemKeyFile.
+	// PemKey is an RSA private key, in pem format. It is used to sign the JWT.
+	// Mutually exclusive with `PemKeyFile`.
 	PemKey string
 	// PemKeyFile is an absolute path to a private key on Nomad servers' disk,
 	// in pem format. It is used to sign the JWT.
-	// Mutually exclusive with PemKey.
+	// Mutually exclusive with `PemKey`.
 	PemKeyFile string
 
-	// KeyIDHeader is which header to set for they provider to identify the
-	// public key to use to verify the signed JWT. Its default values vary
+	// KeyIDHeader is which header the provider will use to find the
+	// public key to verify the signed JWT. Its default values vary
 	// based on which of the other required fields is set:
-	// KeyID: "kid"
-	// PemCert: "x5t#S256"
-	// PemCertFile: "x5t#S256"
+	// - KeyID: "kid"
+	// - PemCert: "x5t#S256"
+	// - PemCertFile: "x5t#S256"
 	//
-	// Valid values are: "kid", "x5t", "x5t#S256"
-	// If "x5t" is selected, Nomad uses sha1 to derive the x5t header
-	// from the provided certificate.
-	//
-	// Refer to the RFC for more information on JWT key headers:
-	// "kid": https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.4
-	// "x5t": https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.7
-	// "x5t#S256": https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.8
+	// Refer to the JWS RFC for information on these headers:
+	// - "kid":  https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.4
+	// - "x5t":  https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.7
+	// - "x5t#S256": https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.8
 	//
 	// If you need to set some other header not supported here,
 	// you may use OIDCClientAssertion.ExtraHeaders.
 	KeyIDHeader OIDCClientAssertionKeyIDHeader
 	// KeyID may be set manually and becomes the "kid" header.
-	// Mutually exclusive with PemCert and PemCertFile.
-	// Allowed KeyIDHeader values: "kid" (the default)
+	// Mutually exclusive with `PemCert` and `PemCertFile`.
+	// Allowed `KeyIDHeader` values: "kid" (the default)
 	KeyID string
 	// PemCert is an x509 certificate, signed by the private key or a CA,
-	// in pem format. It is used to derive an x5t#S256 (or x5t) KeyID.
-	// Mutually exclusive with PemCertFile and KeyID.
-	// Allowed KeyIDHeader values: "x5t", "x5t#S256" (default "x5t#S256")
+	// in pem format. It is used to derive an x5t#S256 (or x5t) header.
+	// Mutually exclusive with `PemCertFile` and `KeyID`.
+	// Allowed `KeyIDHeader` values: "x5t", "x5t#S256" (default "x5t#S256")
 	PemCert string
 	// PemCertFile is an absolute path to an x509 certificate on Nomad servers'
 	// disk, signed by the private key or a CA, in pem format.
-	// It is used to derive an x5t#S256 (or x5t) KeyID.
-	// Mutually exclusive with PemCert and KeyID.
-	// Allowed KeyIDHeader values: "x5t", "x5t#S256" (default "x5t#S256")
+	// It is used to derive an x5t#S256 (or x5t) header.
+	// Mutually exclusive with `PemCert` and `KeyID`.
+	// Allowed `KeyIDHeader` values: "x5t", "x5t#S256" (default "x5t#S256")
 	PemCertFile string
 }
 

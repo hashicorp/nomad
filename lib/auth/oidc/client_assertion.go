@@ -29,6 +29,25 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// BuildClientAssertionJWT makes a JWT to be included in an OIDC auth request.
+// Reference: https://oauth.net/private-key-jwt/
+//
+// There are three input variations depending on OIDCClientAssertion.KeySource:
+//   - "client_secret": uses the config's ClientSecret as an HMAC key to sign
+//     the JWT. This is marginally more secure than a bare ClientSecret, as the
+//     JWT is time-bound, and signed by the secret rather than sending the
+//     secret itself over the network.
+//   - "nomad": uses the RS256 nomadKey (Nomad's private key) to sign the JWT,
+//     and the nomadKID as the JWT's "kid" header, which the OIDC provider uses
+//     to find the public key at Nomad's JWKS endpoint (/.well-known/jwks.json)
+//     to verify the JWT signature. This is arguably the most secure option,
+//     because only Nomad has the private key.
+//   - "private_key": uses an RSA private key provided by the user. They may
+//     provide a KeyID to use as the JWT's "kid" header, or an x509 public
+//     certificate to derive an x5t#S256 (or x5t) header, which the OIDC
+//     provider uses to find the cert on their end to verify the JWT signature.
+//     This is the most flexible option, allowing users to manage their own
+//     keys however they like.
 func BuildClientAssertionJWT(config *structs.ACLAuthMethodConfig, nomadKey *rsa.PrivateKey, nomadKID string) (*cass.JWT, error) {
 	// should already be validated by caller, but just in case.
 	if config == nil || config.OIDCClientAssertion == nil {

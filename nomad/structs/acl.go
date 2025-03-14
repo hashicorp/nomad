@@ -995,14 +995,14 @@ func (a *ACLAuthMethod) Validate(minTTL, maxTTL time.Duration) error {
 			mErr.Errors, fmt.Errorf("invalid token type '%s'", a.Type))
 	}
 
+	if err := a.Config.Validate(a.Type); err != nil {
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid config: %w", err))
+	}
+
 	if minTTL > a.MaxTokenTTL || a.MaxTokenTTL > maxTTL {
 		mErr.Errors = append(mErr.Errors, fmt.Errorf(
 			"invalid MaxTokenTTL value '%s' (should be between %s and %s)",
 			a.MaxTokenTTL.String(), minTTL.String(), maxTTL.String()))
-	}
-
-	if err := a.Config.Validate(); err != nil {
-		mErr.Errors = append(mErr.Errors, fmt.Errorf("invalid config: %w", err))
 	}
 
 	return mErr.ErrorOrNil()
@@ -1121,28 +1121,36 @@ func (a *ACLAuthMethodConfig) Canonicalize() {
 		if len(a.OIDCClientAssertion.Audience) == 0 {
 			a.OIDCClientAssertion.Audience = []string{a.OIDCDiscoveryURL}
 		}
+		// move the client secret into the client assertion
 		a.OIDCClientAssertion.ClientSecret = a.OIDCClientSecret
+		// do not also send the client secret normally
+		a.OIDCClientSecret = ""
 		a.OIDCClientAssertion.Canonicalize()
 	}
 }
 
-func (a *ACLAuthMethodConfig) Validate() error {
+func (a *ACLAuthMethodConfig) Validate(methodType string) error {
 	if a == nil {
 		return errors.New("missing auth method Config")
 	}
 	mErr := &multierror.Error{}
-	if a.OIDCDiscoveryURL == "" {
-		mErr = multierror.Append(mErr, errors.New("missing OIDCDiscoveryURL"))
+
+	switch methodType {
+	case ACLAuthMethodTypeOIDC:
+		if a.OIDCDiscoveryURL == "" {
+			mErr = multierror.Append(mErr, errors.New("missing OIDCDiscoveryURL"))
+		}
+		if a.OIDCClientID == "" {
+			mErr = multierror.Append(mErr, errors.New("missing OIDCClientID"))
+		}
+		if err := a.OIDCClientAssertion.Validate(); err != nil {
+			mErr = multierror.Append(mErr, fmt.Errorf("invalid client assertion config: %w", err))
+		}
+
+	case ACLAuthMethodTypeJWT:
+		// TODO: check JWT fields: https://hashicorp.atlassian.net/browse/NET-12309
 	}
-	if a.OIDCClientID == "" {
-		mErr = multierror.Append(mErr, errors.New("missing OIDCClientID"))
-	}
-	if len(a.BoundAudiences) == 0 || a.BoundAudiences[0] == "" {
-		mErr = multierror.Append(mErr, errors.New("missing BoundAudiences"))
-	}
-	if err := a.OIDCClientAssertion.Validate(); err != nil {
-		mErr = multierror.Append(mErr, fmt.Errorf("invalid client assertion config: %w", err))
-	}
+
 	return helper.FlattenMultierror(mErr)
 }
 
