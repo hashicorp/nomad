@@ -16,9 +16,18 @@ locals {
     NOMAD_CLIENT_CERT = var.cert_file
     NOMAD_CLIENT_KEY  = var.key_file
     NOMAD_TOKEN       = var.nomad_token
+  }
+
+  consul_env = {
     CONSUL_HTTP_TOKEN = var.consul_token
     CONSUL_CACERT     = var.ca_file
     CONSUL_HTTP_ADDR  = var.consul_addr
+  }
+
+  vault_env = {
+    VAULT_TOKEN = var.vault_token
+    VAULT_PATH  = var.vault_mount_path
+    VAULT_ADDR  = var.vault_addr
   }
 
   system_job_count     = length({ for k, v in var.workloads : k => v if v.type == "system" })
@@ -52,14 +61,26 @@ resource "enos_local_exec" "get_allocs" {
   inline = ["nomad alloc status -json | jq '[.[] | select(.ClientStatus == \"running\")] | length'"]
 }
 
+resource "local_file" "vault_workload" {
+  filename = "${path.module}/jobs/vault-secrets.nomad.hcl"
+  content = templatefile("${path.module}/templates/vault-secrets.nomad.hcl.tpl", {
+    secret_path = "${var.vault_mount_path}/default/get-secret"
+  })
+}
+
 resource "enos_local_exec" "workloads" {
   depends_on = [
     enos_local_exec.get_jobs,
     enos_local_exec.get_allocs,
+    local_file.vault_workload
   ]
   for_each = var.workloads
 
-  environment = local.nomad_env
+  environment = merge(
+    local.nomad_env,
+    local.vault_env,
+    local.consul_env,
+  )
 
   inline = [
     each.value.pre_script != null ? abspath("${path.module}/${each.value.pre_script}") : "echo ok",
