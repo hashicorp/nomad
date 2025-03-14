@@ -86,6 +86,12 @@ on the client assertion feature; they are not complete, functional examples.
 
 #### Nomad keyring
 
+In this example for Keycloak, Nomad signs the JWT with its own internal private
+key. It sets the JWT's "kid" header as the key ID, as presented by Nomad's
+[jwks.json][] endpoint.
+
+This is arguably the most secure option, because only Nomad has the private key.
+
 ```json
 {
   "OIDCDiscoveryURL": "https://your-keycloak-instance.com/realms/nomad",
@@ -98,27 +104,28 @@ on the client assertion feature; they are not complete, functional examples.
 }
 ```
 
-In this example for Keycloak, Nomad signs the JWT with its own internal private
-key. It sets the JWT's "kid" header as the key ID, as presented by Nomad's
-[jwks.json][] endpoint.
-
-This is arguably the most secure option, because only Nomad has the private key.
-
 Notice the distinction between the two "audience" fields:
 * `BoundAudiences` is often the application client ID (Nomad being the client),
-  which Nomad will verify against what the OIDC provider sends to Nomad. Nomad
+  which Nomad verifies against what the OIDC provider sends to Nomad. Nomad
   uses this to make sure that requests are for Nomad, and not some other client.
   This applies to all OIDC configuration, not only client assertions.
 * `OIDCClientAssertion.Audience` is the OIDC provider, because that is the
   target audience of the client assertion JWT. The provider uses this to make
   sure that requests are for it and not some other provider. This is often the
-  same as the `OIDCDiscoveryURL`, so defaults to that.
+  same as the `OIDCDiscoveryURL`, so defaults to that. This applies to all
+  client assertion configuration.
 
 This option requires that the OIDC provider have network access to Nomad's JWKS,
 either directly or via proxy, but otherwise requires no extra management of key
 material beyond Nomad's built-in [keyring][key-management].
 
 #### User provided key
+
+This Microsoft Entra ID (formerly Azure Active Directory) example uses an RSA
+private key generated separately from Nomad to sign the JWT.
+- The `PemKey` value is the private RSA key contents in PEM format.
+- The `PemCert` value is the contents of an X509 certificate from the key or a
+  CA. Nomad uses this certificate to derive an [x5t#S256][] thumbprint header.
 
 ```json
 {
@@ -136,27 +143,32 @@ material beyond Nomad's built-in [keyring][key-management].
 }
 ```
 
-In this example for Microsoft Entra ID (formerly Azure Active Directory),
-we use a private RSA key that we generated separate from Nomad to sign the JWT.
-We also provide an x509 certificate created from the key (or a CA), which Nomad
-uses to derive an [x5t#S256][] thumbprint header. The certificate also must be
-uploaded to the Entra ID app, so that when you try to log in, Entra ID can use
-the "x5t#S256" header to look up the public key that it has stored.
+Note that if you implement this approach, you must upload the certificate to
+the Entra ID app, so that when you try to log in, Entra ID can use the
+"x5t#S256" header to look up the public key that it has stored.
 
-The key and/or certificate may also be configured as filenames on disk on Nomad
-servers with the `PemKeyFile` and `PemCertFile` options, respectively. These
-allow you to rotate your key/cert without needing to update the auth method,
-but they must be present on the disk of any server that may become Nomad leader.
+You may also configure the key and/or certificate as filenames on disk on Nomad
+servers with the `PemKeyFile` and `PemCertFile` options, respectively. This
+approach lets you rotate your key/cert without needing to update the auth
+method, but the files must be present on the disk of any server that may become
+Nomad leader.
 
-Or, the `KeyID` may be provided directly, instead of a certificate, depending on
-your OIDC provider's requirements.
+Or, depending on your OIDC provider's requirements, you may provide the `KeyID`
+directly, instead of providing a certificate.
 
-This allows you to bring your own RSA key for OIDC providers that do not
-support JWKS, network topologies that do not allow connectivity between the
-provider and Nomad JWKS, or if you want a signing key that is specifically
-and only for this purpose.
+This approach lets you bring your own RSA key for the following scenarios:
+- Your OIDC provider does not support JWKS
+- Your network topology does not allow connectivity between the provider and
+Nomad JWKS, even via proxy
+- You want a signing key that is specifically and only for this purpose.
 
 #### Client secret HMAC
+
+This example uses the `OIDCClientSecret` as an HMAC key to sign the JWT.
+This configuration is marginally more secure than a bare client secret, as the
+JWT is time-bound, and signed by the secret rather than sending the secret
+itself over the network. As with a normal client secret, both Nomad and the
+OIDC provider need to have the same secret.
 
 ```json
 {
@@ -168,12 +180,6 @@ and only for this purpose.
   }
 }
 ```
-
-This example uses the `OIDCClientSecret` as an HMAC key to sign the JWT.
-This is marginally more secure than a bare client secret, as the JWT is
-time-bound, and signed by the secret, rather than sending the secret itself
-over the network. As with a normal client secret, both Nomad and the OIDC
-provider need to have the same secret.
 
 ## OIDC Configuration Troubleshooting
 
@@ -212,9 +218,9 @@ port numbers, and whether trailing slashes are present.
   sensitive information, do not use this option in production.
 
 - For client assertions, if `VerboseLogging` is enabled, then the Nomad leader
-  server will log a JWT when the auth method is created, and when someone makes
+  server logs a JWT when the auth method is created, and when someone makes
   a login attempt. These JWTs are not 100% identical to what gets sent to the
-  OIDC provider (due to being time-bounded), but you can check the JWT headers
+  OIDC provider due to being time-bounded, but you can check the JWT headers
   and claims to compare with your OIDC provider's requirements.
 
 @include 'jwt_claim_mapping_details.mdx'

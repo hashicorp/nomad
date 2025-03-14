@@ -68,7 +68,7 @@ The table below shows this endpoint's support for
     ("[private key jwt][]") as a client assertion to the OIDC provider.
     Browse to the [OIDC concepts][concepts-assertions] page to learn more.
 
-    - `Audience` `(array<string>)` - Who will be processing the assertion.
+    - `Audience` `(array<string>)` - Who processes the assertion.
       Defaults to the parent `ACLAuthMethodConfig`'s `OIDCDiscoveryURL`
 
     - `KeySource` `(string: <required>)` - Specifies where to get the private
@@ -81,9 +81,9 @@ The table below shows this endpoint's support for
 
     - `KeyAlgorithm` `(string)` is the key's algorithm. Its default values are
       based on the `KeySource`:
-        - "nomad": "RS256" (from Nomad's keyring, must not be changed)
-        - "private_key": "RS256" (must be RS256, RS384, or RS512)
-        - "client_secret": "HS256" (must be HS256, HS384, or HS512)
+        - "nomad": "RS256"; this is from Nomad's keyring and must not be changed
+        - "private_key": "RS256"; must be RS256, RS384, or RS512
+        - "client_secret": "HS256"; must be HS256, HS384, or HS512
 
     - `PrivateKey` `(OIDCClientAssertionKey)` - External key material to sign
       the JWT. `KeySource` must be "private_key" to enable this.
@@ -95,26 +95,26 @@ The table below shows this endpoint's support for
         servers' disk, in pem format. It is used to sign the JWT.
         Mutually exclusive with `PemKey`.
 
-      - `KeyIDHeader` `(string)` - Which header the provider will use to find
+      - `KeyIDHeader` `(string)` - Which header the provider uses to find
         the public key to verify the signed JWT.
-        Allowed values are: "kid", "x5t", or "x5t#S256".
-        The default and allowed values depend on which of the following options
-        is set.
+        The default and allowed values depend on whether you set `KeyID`,
+        `PemCert`, or `PemCertFile`. You must set exactly one of those options,
+        so refer to them for their requirements.
 
       - `KeyID` `(string)` - Becomes the JWT's "kid" header.
         Mutually exclusive with `PemCert` and `PemCertFile`.
         Allowed `KeyIDHeader` values: "kid" (the default)
 
       - `PemCert` `(string)` - An x509 certificate, signed by the private key
-        or a CA, in pem format. It is used to derive an [x5t#S256][]
-        (or [x5t][]) KeyID.
+        or a CA, in pem format. Nomad uses this certificate to derive an
+        [x5t#S256][] (or [x5t][]) KeyID.
         Mutually exclusive with `PemCertFile` and `KeyID`.
         Allowed `KeyIDHeader` values: "x5t", "x5t#S256" (default "x5t#S256")
 
       - `PemCertFile` `(string)` - An absolute path to an x509 certificate on
         Nomad servers' disk, signed by the private key or a CA, in pem format.
-        It is used to derive an [x5t#S256][] (or [x5t][]) KeyID.
-        Mutually exclusive with `PemCert` and KeyID.
+        Nomad uses this certificate to derive an [x5t#S256][] (or [x5t][])
+        header. Mutually exclusive with `PemCert` and KeyID.
         Allowed `KeyIDHeader` values: "x5t", "x5t#S256" (default "x5t#S256")
 
     - `ExtraHeaders` `(map[string]string)` - Added to the JWT headers,
@@ -123,7 +123,8 @@ The table below shows this endpoint's support for
 
   - `OIDCDisablePKCE` `(bool: false)` - When set to `true`, Nomad will not
     include [PKCE][] verification in the auth flow. Even with PKCE enabled in
-    Nomad (the default), you may still need to enable it in the OIDC provider.
+    Nomad, which is the default setting, you may still need to enable it in the
+    OIDC provider.
 
   - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not make
     a request to the identity provider to get OIDC UserInfo. You may wish to set this
@@ -325,7 +326,7 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
     ("[private key jwt][]") as a client assertion to the OIDC provider.
     Browse to the [OIDC concepts][concepts-assertions] page to learn more.
 
-    - `Audience` `(array<string>)` - Who will be processing the assertion.
+    - `Audience` `(array<string>)` - Who processes the assertion.
       Defaults to the parent `ACLAuthMethodConfig`'s `OIDCDiscoveryURL`
 
     - `KeySource` `(string: <required>)` - Specifies where to get the private
@@ -338,9 +339,9 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
 
     - `KeyAlgorithm` `(string)` is the key's algorithm. Its default values are
       based on the `KeySource`:
-        - "nomad": "RS256" (from Nomad's keyring, must not be changed)
-        - "private_key": "RS256" (must be RS256, RS384, or RS512)
-        - "client_secret": "HS256" (must be HS256, HS384, or HS512)
+        - "nomad": "RS256"; this is from Nomad's keyring and must not be changed
+        - "private_key": "RS256"; must be RS256, RS384, or RS512
+        - "client_secret": "HS256"; must be HS256, HS384, or HS512
 
     - `PrivateKey` `(OIDCClientAssertionKey)` - External key material to sign
       the JWT. `KeySource` must be "private_key" to enable this.
@@ -352,7 +353,7 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
         servers' disk, in pem format. It is used to sign the JWT.
         Mutually exclusive with `PemKey`.
 
-      - `KeyIDHeader` `(string)` - Which header the provider will use to find
+      - `KeyIDHeader` `(string)` - Which header the provider uses to find
         the public key to verify the signed JWT.
         Allowed values are: "kid", "x5t", or "x5t#S256".
         The default and allowed values depend on which of the following options
@@ -363,15 +364,15 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
         Allowed `KeyIDHeader` values: "kid" (the default)
 
       - `PemCert` `(string)` - An x509 certificate, signed by the private key
-        or a CA, in pem format. It is used to derive an [x5t#S256][]
-        (or [x5t][]) KeyID.
+        or a CA, in pem format. Nomad uses this certificate to derive an
+        [x5t#S256][] (or [x5t][]) KeyID.
         Mutually exclusive with `PemCertFile` and `KeyID`.
         Allowed `KeyIDHeader` values: "x5t", "x5t#S256" (default "x5t#S256")
 
       - `PemCertFile` `(string)` - An absolute path to an x509 certificate on
         Nomad servers' disk, signed by the private key or a CA, in pem format.
-        It is used to derive an [x5t#S256][] (or [x5t][]) KeyID.
-        Mutually exclusive with `PemCert` and KeyID.
+        Nomad uses this certificate to derive an [x5t#S256][] (or [x5t][])
+        header. Mutually exclusive with `PemCert` and KeyID.
         Allowed `KeyIDHeader` values: "x5t", "x5t#S256" (default "x5t#S256")
 
     - `ExtraHeaders` `(map[string]string)` - Added to the JWT headers,
@@ -380,7 +381,8 @@ queries](/nomad/api-docs#blocking-queries) and [required ACLs](/nomad/api-docs#a
 
   - `OIDCDisablePKCE` `(bool: false)` - When set to `true`, Nomad will not
     include [PKCE][] verification in the auth flow. Even with PKCE enabled in
-    Nomad (the default), you may still need to enable it in the OIDC provider.
+    Nomad, which is the default setting, you may still need to enable it in the
+    OIDC provider.
 
   - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not make
     a request to the identity provider to get OIDC UserInfo. You may wish to set this

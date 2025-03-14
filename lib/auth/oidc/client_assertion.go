@@ -34,7 +34,9 @@ import (
 //
 // There are three input variations depending on OIDCClientAssertion.KeySource:
 //   - "client_secret": uses the config's ClientSecret as an HMAC key to sign
-//     the JWT. This is marginally more secure than a bare ClientSecret.
+//     the JWT. This is marginally more secure than a bare ClientSecret, as the
+//     JWT is time-bound, and signed by the secret rather than sending the
+//     secret itself over the network.
 //   - "nomad": uses the RS256 nomadKey (Nomad's private key) to sign the JWT,
 //     and the nomadKID as the JWT's "kid" header, which the OIDC provider uses
 //     to find the public key at Nomad's JWKS endpoint (/.well-known/jwks.json)
