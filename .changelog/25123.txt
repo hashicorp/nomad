@@ -1,0 +1,3 @@
+```release-note:bug
+client: remove blocking call during client gc
+```
