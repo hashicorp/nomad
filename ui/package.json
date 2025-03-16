@@ -126,7 +126,7 @@
     "http-proxy": "^1.1.6",
     "husky": "^4.2.5",
     "is-ip": "^3.1.0",
-    "lint-staged": "^11.2.6",
+    "lint-staged": "^15.5.0",
     "loader.js": "^4.7.0",
     "lodash.intersection": "^4.4.0",
     "lodash.isequal": "^4.5.0",
