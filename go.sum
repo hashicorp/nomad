@@ -1207,8 +1207,8 @@ github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.10 h1:YOSmJpqZt2X3K
 github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.10/go.mod h1:eX4b0InOUfJ3NjfNWlJruBDT3rHXxOVw+7qNFmtjNbo=
 github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.14 h1:oK4OQ5EPbx/66dAvitksV+OdrQ86SZEj3B6VSZrbdEY=
 github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.14/go.mod h1:fWxrv9YkAMqtsISde5mcutoMvuiH4kyg1AlDzzmqRh8=
-github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.12 h1:PCqWzT/Hii0KL07JsBZ3lJbv/wx02IAHYlhWQq8rxRY=
-github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.12/go.mod h1:HSaOaX/lv3ShCdilUYbOTPnSvmoZ9xtQhgw+8hYcZkg=
+github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.13 h1:NGBZnF+yPRZ3gjFl69Y2m58/U0iyB2oH9HaznL9tekA=
+github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.13/go.mod h1:4Xb+6d8VPeDcUNuh4toPqJlDpkajeJyIQeg36TtWhKw=
 github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.13 h1:UuDeq3nr0e+H9CrZM3dvpDGkWFSJYTtuTqVekn2za2k=
 github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.13/go.mod h1:E2dYgXYNkvKe84PIxD9eJqqhFRA4guCTDweJR4i0gds=
 github.com/hashicorp/go-memdb v1.3.5 h1:b3taDMxCBCBVgyRrS1AZVHO14ubMYZB++QpNhBg+Nyo=
