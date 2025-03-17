@@ -149,6 +149,10 @@ func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath strin
 		}
 	}
 
+	if len(orphanedPIDs) == 0 {
+		return nil
+	}
+
 	// Make sure the PID was removed from the cgroup file, otherwise
 	// libcontainer will not be able to launch. Five retries every 100 ms should be
 	// more than enough.
@@ -157,10 +161,8 @@ func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath strin
 		if len(orphanedPIDs) > 0 {
 			time.Sleep(time.Duration(i) * time.Millisecond)
 			continue
-		} else {
-			l.logger.Info("all orphaned processes killed and removed from cgroup PID file")
-			return nil
 		}
+		return nil
 	}
 	return fmt.Errorf("orphaned processes %v have not been removed from cgroups pid file", orphanedPIDs)
 }
@@ -358,7 +360,6 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			return err
 		}
 
-		// nosemgrep
 		select {
 		case <-l.userProcExited:
 			return nil
