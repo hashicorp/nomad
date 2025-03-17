@@ -277,5 +277,166 @@ module('Acceptance | storage list', function (hooks) {
         'URL has the correct query param key and value'
       );
     });
+
+    module('Live updates are reflected in the list', function () {
+      test('When you visit the storage list page, the watch process is kicked off', async function (assert) {
+        await StorageList.visit();
+        const requests = server.pretender.handledRequests;
+        const dhvRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+        );
+        const csiRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi')
+        );
+        assert.equal(dhvRequests.length, 2, '2 DHV requests were made');
+        assert.equal(csiRequests.length, 2, '2 CSI requests were made');
+      });
+
+      test('When a new dynamic host volume is created, the page should reflect the changes', async function (assert) {
+        server.create('dynamic-host-volume', {
+          name: 'initial-volume',
+        });
+        const controller = this.owner.lookup('controller:storage.index');
+        await visit('/storage');
+
+        // Check pretender to see 2 requests related to DHV: the initial one, and another one with an index on it
+        const requests = server.pretender.handledRequests;
+
+        // Should be 2 DHV requests made: the initial one, and the watcher
+        let dhvRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+        );
+        assert.equal(dhvRequests.length, 2, '2 DHV requests were made');
+
+        assert.dom('[data-test-dhv-row]').exists({ count: 1 });
+        assert.dom('[data-test-dhv-row]').containsText('initial-volume');
+
+        server.create('dynamic-host-volume', {
+          name: 'new-volume',
+        });
+
+        await controller.watchDHV.perform({
+          type: 'host',
+          namespace: controller.qpNamespace,
+        });
+
+        // Now there should be a third DHV request
+        dhvRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+        );
+        assert.equal(dhvRequests.length, 3, '3 DHV requests were made');
+
+        // and a second row
+        assert.dom('[data-test-dhv-row]').exists({ count: 2 });
+      });
+
+      test('When a new csi volume is created, the page should reflect the changes', async function (assert) {
+        server.create('csi-volume', {
+          id: 'initial-volume',
+        });
+        const controller = this.owner.lookup('controller:storage.index');
+        await visit('/storage');
+
+        // Check pretender to see 2 requests related to DHV: the initial one, and another one with an index on it
+        const requests = server.pretender.handledRequests;
+
+        // Should be 2 DHV requests made: the initial one, and the watcher
+        let csiRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi')
+        );
+        assert.equal(csiRequests.length, 2, '2 CSI requests were made');
+        assert.dom('[data-test-csi-volume-row]').exists({ count: 1 });
+        assert.dom('[data-test-csi-volume-row]').containsText('initial-volume');
+
+        server.create('csi-volume', {
+          id: 'new-volume',
+        });
+
+        await controller.watchCSI.perform({
+          type: 'csi',
+          namespace: controller.qpNamespace,
+        });
+
+        // Now there should be a third DHV request
+        csiRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=csi')
+        );
+        assert.equal(csiRequests.length, 3, '3 CSI requests were made');
+
+        // and a second row
+        assert.dom('[data-test-csi-volume-row]').exists({ count: 2 });
+      });
+
+      test('When a dynamic host volume is updated, the page should reflect the changes', async function (assert) {
+        const dhv = server.create('dynamic-host-volume', {
+          name: 'initial-volume',
+        });
+        const controller = this.owner.lookup('controller:storage.index');
+        await visit('/storage');
+
+        // Check pretender to see 2 requests related to DHV: the initial one, and another one with an index on it
+        const requests = server.pretender.handledRequests;
+
+        // Should be 2 DHV requests made: the initial one, and the watcher
+        let dhvRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+        );
+        assert.equal(dhvRequests.length, 2, '2 DHV requests were made');
+
+        assert.dom('[data-test-dhv-row]').exists({ count: 1 });
+        assert.dom('[data-test-dhv-row]').containsText('initial-volume');
+
+        dhv.update('name', 'updated-volume');
+
+        await controller.watchDHV.perform({
+          type: 'host',
+          namespace: controller.qpNamespace,
+        });
+
+        dhvRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+        );
+        assert.equal(dhvRequests.length, 3, '3 DHV requests were made');
+
+        // Still just one row
+        assert.dom('[data-test-dhv-row]').exists({ count: 1 });
+        assert.dom('[data-test-dhv-row]').containsText('updated-volume');
+      });
+
+      test('When a dynamic host volume is deleted, the page should reflect the changes', async function (assert) {
+        const dhv = server.create('dynamic-host-volume', {
+          name: 'initial-volume',
+        });
+        const controller = this.owner.lookup('controller:storage.index');
+        await visit('/storage');
+
+        // Check pretender to see 2 requests related to DHV: the initial one, and another one with an index on it
+        const requests = server.pretender.handledRequests;
+
+        // Should be 2 DHV requests made: the initial one, and the watcher
+        let dhvRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+        );
+        assert.equal(dhvRequests.length, 2, '2 DHV requests were made');
+
+        assert.dom('[data-test-dhv-row]').exists({ count: 1 });
+        assert.dom('[data-test-dhv-row]').containsText('initial-volume');
+
+        dhv.destroy();
+
+        await controller.watchDHV.perform({
+          type: 'host',
+          namespace: controller.qpNamespace,
+        });
+
+        dhvRequests = requests.filter((request) =>
+          request.url.startsWith('/v1/volumes?namespace=%2A&type=host')
+        );
+        assert.equal(dhvRequests.length, 3, '3 DHV requests were made');
+
+        assert.dom('[data-test-dhv-row]').exists({ count: 0 });
+        assert.ok(StorageList.dhvIsEmpty);
+      });
+    });
   }
 });

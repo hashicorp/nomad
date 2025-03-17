@@ -213,7 +213,7 @@
           />
         {{/if}}
       {{else}}
-        <div class="empty-message">
+        <div class="empty-message" data-test-empty-dhv-list-headline>
           {{#if this.dhvFilter}}
             <p>No dynamic host volumes match your search for "{{this.dhvFilter}}"</p>
             <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.dhvFilter) "") (action this.handlePageChange "dhv" 1))}} />

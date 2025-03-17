@@ -48,6 +48,9 @@ export default create({
   csiIsEmpty: isPresent('[data-test-empty-csi-volumes-list-headline]'),
   csiEmptyState: text('[data-test-empty-csi-volumes-list-headline]'),
 
+  dhvIsEmpty: isPresent('[data-test-empty-dhv-list-headline]'),
+  dhvEmptyState: text('[data-test-empty-dhv-list-headline]'),
+
   csiNextPage: clickable('.hds-pagination-nav__arrow--direction-next'),
   csiPrevPage: clickable('.hds-pagination-nav__arrow--direction-prev'),
 
