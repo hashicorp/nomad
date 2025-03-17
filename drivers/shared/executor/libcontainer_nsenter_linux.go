@@ -5,9 +5,7 @@ package executor
 
 import (
 	"os"
-	"runtime"
 
-	hclog "github.com/hashicorp/go-hclog"
 	"github.com/opencontainers/runc/libcontainer"
 	_ "github.com/opencontainers/runc/libcontainer/nsenter"
 )
@@ -19,14 +17,9 @@ import (
 // This subcommand handler is implemented as an `init`, libcontainer shim is handled anywhere
 // this package is used (including tests) without needing to write special command handler.
 func init() {
-	if len(os.Args) > 1 && os.Args[1] == "libcontainer-shim" {
-		runtime.GOMAXPROCS(1)
-		runtime.LockOSThread()
-		factory, _ := libcontainer.New("")
-		if err := factory.StartInitialization(); err != nil {
-			hclog.L().Error("failed to initialize libcontainer-shim", "error", err)
-			os.Exit(1)
-		}
-		panic("--this line should have never been executed, congratulations--")
+	if len(os.Args) > 1 && os.Args[1] == "init" {
+		// This is the golang entry point for runc init, executed
+		// before main() but after libcontainer/nsenter's nsexec().
+		libcontainer.Init()
 	}
 }
