@@ -14,7 +14,7 @@ DRAIN_DEADLINE="5s"
 nodes=$(nomad node status -json | jq -r "[.[] | select(.Status == \"ready\") | .ID] | sort | .[:${NODES_TO_DRAIN}] | join(\" \")"  )
 
 for node in $nodes; do
-    echo "Drainning the node $node"
+    echo "Draining the node $node"
     
     nomad node drain --enable --deadline "$DRAIN_DEADLINE" "$node" \
       || error_exit "Failed to drain node $node"
