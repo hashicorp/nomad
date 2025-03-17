@@ -1,7 +1,7 @@
 # Copyright (c) HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 # Based on hashicorp/consul/.github/workflows/broken-link-check.yml
-# Run lychee link check on the 1st of the month
+# Run lychee link check every Sat at 2am
 # Create GH issue from lychee output; assign issue to Aimee Ukasick
 
 name: Broken Link Check Scheduled
