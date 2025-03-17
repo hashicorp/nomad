@@ -3,7 +3,7 @@
 
 # Consul agents only need to register themselves and read services
 
-node "*" {
+node_prefix "" {
   policy = "write"
 }
 
