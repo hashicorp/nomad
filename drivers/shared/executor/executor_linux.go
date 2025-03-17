@@ -360,6 +360,7 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 			return err
 		}
 
+		// nosemgrep
 		select {
 		case <-l.userProcExited:
 			return nil
