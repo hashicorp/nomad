@@ -35,9 +35,9 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/opencontainers/runc/libcontainer"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
+	_ "github.com/opencontainers/runc/libcontainer/cgroups/devices"
 	runc "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
-	ldevices "github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/specconv"
 	lutils "github.com/opencontainers/runc/libcontainer/utils"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -75,7 +75,7 @@ type LibcontainerExecutor struct {
 	systemCpuStats *cpustats.Tracker
 	processStats   procstats.ProcessStats
 
-	container      libcontainer.Container
+	container      *libcontainer.Container
 	userProc       *libcontainer.Process
 	userProcExited chan interface{}
 	exitState      *ProcessState
@@ -96,7 +96,7 @@ func (l *LibcontainerExecutor) catchSignals() {
 		}
 
 		if l.container != nil {
-			l.container.Signal(signal, false)
+			l.container.Signal(signal)
 		}
 	}
 }
@@ -124,19 +124,18 @@ func (l *LibcontainerExecutor) ListProcesses() set.Collection[int] {
 	return procstats.List(l.command)
 }
 
-// cleanOldProcessesInCGroup kills processes that might ended up orphans when the
-// executor was unexpectedly killed and nomad can't reconnect to them.
-func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) {
+// cleanOldProcessesInCGroup kills processes that might ended up orphans when
+// the executor was unexpectedly killed and nomad can't reconnect to them.
+func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath string) error {
 	l.logger.Debug("looking for old processes", "path", nomadRelativePath)
 
 	root := cgroupslib.GetDefaultRoot()
-	orphansPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
-	if err != nil {
-		l.logger.Error("unable to get orphaned task PIDs", "error", err)
-		return
+	orphanedPIDs, err := cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("unable to get orphaned task PIDs: %v", err)
 	}
 
-	for _, pid := range orphansPIDs {
+	for _, pid := range orphanedPIDs {
 		l.logger.Info("killing orphaned process", "pid", pid)
 
 		// Avoid bringing down the whole node by mistake, very unlikely case,
@@ -145,11 +144,27 @@ func (l *LibcontainerExecutor) cleanOldProcessesInCGroup(nomadRelativePath strin
 			continue
 		}
 
-		err := syscall.Kill(pid, syscall.SIGKILL)
-		if err != nil {
-			l.logger.Error("unable to send signal to process", "pid", pid, "error", err)
+		if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
+			return fmt.Errorf("unable to send signal to process %d: %v", pid, err)
 		}
 	}
+
+	if len(orphanedPIDs) == 0 {
+		return nil
+	}
+
+	// Make sure the PID was removed from the cgroup file, otherwise
+	// libcontainer will not be able to launch. Five retries every 100 ms should be
+	// more than enough.
+	for i := 100; i < 501; i += 100 {
+		orphanedPIDs, _ = cgroups.GetAllPids(filepath.Join(root, nomadRelativePath))
+		if len(orphanedPIDs) > 0 {
+			time.Sleep(time.Duration(i) * time.Millisecond)
+			continue
+		}
+		return nil
+	}
+	return fmt.Errorf("orphaned processes %v have not been removed from cgroups pid file", orphanedPIDs)
 }
 
 // Launch creates a new container in libcontainer and starts a new process with it
@@ -164,26 +179,17 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 
 	l.command = command
 
-	// create a new factory which will store the container state in the allocDir
-	factory, err := libcontainer.New(
-		path.Join(command.TaskDir, "../alloc/container"),
-		// note that os.Args[0] refers to the executor shim typically
-		// and first args arguments is ignored now due
-		// until https://github.com/opencontainers/runc/pull/1888 is merged
-		libcontainer.InitArgs(os.Args[0], "libcontainer-shim"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create factory: %v", err)
-	}
-
 	// A container groups processes under the same isolation enforcement
 	containerCfg, err := l.newLibcontainerConfig(command)
 	if err != nil {
 		return nil, fmt.Errorf("failed to configure container(%s): %v", l.id, err)
 	}
 
-	l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path)
-	container, err := factory.Create(l.id, containerCfg)
+	if err := l.cleanOldProcessesInCGroup(containerCfg.Cgroups.Path); err != nil {
+		return nil, err
+	}
+
+	container, err := libcontainer.Create(path.Join(command.TaskDir, "../alloc/container"), l.id, containerCfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container(%s): %v", l.id, err)
 	}
@@ -349,23 +355,22 @@ func (l *LibcontainerExecutor) Shutdown(signal string, grace time.Duration) erro
 
 		// Signal initial container processes only during graceful
 		// shutdown; hence `false` arg.
-		err = l.container.Signal(sig, false)
+		err = l.container.Signal(sig)
 		if err != nil {
 			return err
 		}
 
+		// nosemgrep
 		select {
 		case <-l.userProcExited:
 			return nil
 		case <-time.After(grace):
-			// Force kill all container processes after grace period,
-			// hence `true` argument.
-			if err := l.container.Signal(os.Kill, true); err != nil {
+			if err := l.container.Signal(os.Kill); err != nil {
 				return err
 			}
 		}
 	} else {
-		err := l.container.Signal(os.Kill, true)
+		err := l.container.Signal(os.Kill)
 		if err != nil {
 			l.logger.Info("no grace fail", "error", err)
 			return err
@@ -541,7 +546,7 @@ func (l *LibcontainerExecutor) newTerminalSocket() (pty func() (*os.File, error)
 		return nil, nil, fmt.Errorf("failed to create terminal: %v", err)
 	}
 
-	return func() (*os.File, error) { return lutils.RecvFd(parent) }, child, err
+	return func() (*os.File, error) { return lutils.RecvFile(parent) }, child, err
 
 }
 
@@ -894,7 +899,7 @@ func cmdDevices(driverDevices []*drivers.DeviceConfig) ([]*devices.Device, error
 	r := make([]*devices.Device, len(driverDevices))
 
 	for i, d := range driverDevices {
-		ed, err := ldevices.DeviceFromPath(d.HostPath, d.Permissions)
+		ed, err := devices.DeviceFromPath(d.HostPath, d.Permissions)
 		if err != nil {
 			return nil, fmt.Errorf("failed to make device out for %s: %v", d.HostPath, err)
 		}
