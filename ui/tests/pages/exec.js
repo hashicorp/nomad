@@ -32,14 +32,14 @@ export default create({
     isLoading: hasClass('is-loading', '[data-test-task-group-name]'),
 
     chevron: {
-      scope: '.toggle-button .icon',
-      isDown: hasClass('icon-is-chevron-down'),
-      isRight: hasClass('icon-is-chevron-right'),
+      scope: '.toggle-button .hds-icon',
+      isDown: hasClass('hds-icon-chevron-down'),
+      isRight: hasClass('hds-icon-chevron-right'),
     },
 
     tasks: collection('[data-test-task]', {
       name: text(),
-      isActive: isPresent('[data-test-task-active]'),
+      isActive: isPresent('.active-identifier'),
     }),
   }),
 

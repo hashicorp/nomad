@@ -15,7 +15,8 @@ ui_config {
 }
 
 acl {
-  enabled = true
+  enabled        = true
+  default_policy = "deny"
   tokens {
     initial_management = "${management_token}"
     agent              = "${token}"

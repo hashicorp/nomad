@@ -48,6 +48,7 @@ scenario "upgrade" {
     variables {
       artifactory_username   = var.artifactory_username
       artifactory_token      = var.artifactory_token
+      artifactory_repo       = var.artifactory_repo_start
       arch                   = local.arch
       edition                = matrix.edition
       product_version        = var.product_version
@@ -261,6 +262,7 @@ scenario "upgrade" {
     variables {
       artifactory_username = var.artifactory_username
       artifactory_token    = var.artifactory_token
+      artifactory_repo     = var.artifactory_repo_upgrade
       arch                 = local.arch
       edition              = matrix.edition
       product_version      = var.upgrade_version
@@ -431,8 +433,28 @@ scenario "upgrade" {
     }
   }
 
-  step "upgrade_third_client" {
+  step "drain_client" {
     depends_on = [step.upgrade_second_client]
+
+    description = <<-EOF
+    Selects one client to drain, waits for all allocs to be rescheduled and
+    brings back the node eligibility
+    EOF
+
+    module = module.drain_client
+    variables {
+      # connecting to the Nomad API
+      nomad_addr     = step.provision_cluster.nomad_addr
+      ca_file        = step.provision_cluster.ca_file
+      cert_file      = step.provision_cluster.cert_file
+      key_file       = step.provision_cluster.key_file
+      nomad_token    = step.provision_cluster.nomad_token
+      nodes_to_drain = 1
+    }
+  }
+
+  step "upgrade_third_client" {
+    depends_on = [step.drain_client]
 
     description = <<-EOF
     Takes a client, writes some dynamic metadata to it,

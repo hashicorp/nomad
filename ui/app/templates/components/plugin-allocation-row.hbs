@@ -7,17 +7,17 @@
   <td data-test-indicators class="is-narrow">
     {{#if this.allocation.unhealthyDrivers.length}}
       <span data-test-icon="unhealthy-driver" class="tooltip text-center" role="tooltip" aria-label="Allocation depends on unhealthy drivers">
-        {{x-icon "alert-triangle" class="is-warning"}}
+        <Hds::Icon @name="alert-triangle-fill" @color="warning" class="icon-vertical-bump-down" />
       </span>
     {{/if}}
     {{#if this.allocation.nextAllocation}}
       <span data-test-icon="reschedule" class="tooltip text-center" role="tooltip" aria-label="Allocation was rescheduled">
-        {{x-icon "history" class="is-faded"}}
+        <Hds::Icon @name="history" @color="faint" class="icon-vertical-bump-down" />
       </span>
     {{/if}}
     {{#if this.allocation.wasPreempted}}
       <span data-test-icon="preemption" class="tooltip text-center" role="tooltip" aria-label="Allocation was preempted">
-        {{x-icon "boot" class="is-faded"}}
+        <Hds::Icon @name="cloud-lightning" @color="faint" class="icon-vertical-bump-down" />
       </span>
     {{/if}}
   </td>
@@ -42,9 +42,7 @@
 
   <td data-test-health>
     <span class="nowrap">
-      {{x-icon
-        (if this.pluginAllocation.healthy "check-circle-outline" "minus-circle-outline")
-        class=(if this.pluginAllocation.healthy "is-success" "is-danger")}}
+      <Hds::Icon @name={{if this.pluginAllocation.healthy "check-circle" "minus-circle"}} @color={{if this.pluginAllocation.healthy "success" "critical"}} @isInline={{true}} />
       {{if this.pluginAllocation.healthy "Healthy" "Unhealthy"}}
     </span>
   </td>

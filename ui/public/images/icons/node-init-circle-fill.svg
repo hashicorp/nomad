@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-  <g fill="none" fill-rule="evenodd">
-    <circle cx="10" cy="10" r="10" fill="currentColor" transform="translate(2 2)"/>
-    <path fill="#FFF" d="M18 13v4H6v-4h12zM8 14a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-    <path class="blinking" fill="#FFF" d="M18 7v4H6V7h12zM8 8a1 1 0 1 0 0 2 1 1 0 0 0 0-2z" opacity=".502"/>
-  </g>
-</svg>

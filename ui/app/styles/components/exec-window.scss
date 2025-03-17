@@ -112,29 +112,25 @@
           height: 100%;
         }
 
-        .is-active {
-          position: absolute;
-          top: 7.5px;
-          left: -9.75px;
-
-          stroke: $ui-gray-900;
-          stroke-width: 5px;
-          fill: white;
-        }
-
         .task-label {
           padding: 6px 0 5px 13px;
           overflow-wrap: break-word;
           width: 100%;
+          align-items: start;
+          .active-identifier {
+            visibility: visible;
+            width: 12px;
+            margin-right: 0.25rem;
+          }
         }
 
-        .icon {
+        .hds-icon {
           visibility: hidden;
           width: 16px;
           flex-shrink: 0;
         }
 
-        &:hover .icon.show-on-hover {
+        &:hover .hds-icon.show-on-hover {
           visibility: visible;
         }
       }

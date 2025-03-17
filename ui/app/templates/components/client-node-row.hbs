@@ -6,7 +6,7 @@
 <td data-test-icon class="is-narrow">
   {{#if this.node.unhealthyDrivers.length}}
     <span class="tooltip text-center" role="tooltip" aria-label="Client has unhealthy drivers">
-      {{x-icon "alert-triangle" class="is-warning"}}
+      <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} class="icon-vertical-bump-down" />
     </span>
   {{/if}}
 </td>

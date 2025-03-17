@@ -157,7 +157,7 @@
           data-test-node-status="{{this.model.compositeStatus}}"
           class="node-status-light {{this.model.compositeStatus}}"
         >
-          {{x-icon this.model.compositeStatusIcon}}
+          <Hds::Icon @name={{this.model.compositeStatusIcon}} @isInline={{true}} />
         </span>
       </span>
     </div>
@@ -263,7 +263,7 @@
           Drivers
         </span>
         {{#if this.model.unhealthyDrivers.length}}
-          {{x-icon "alert-triangle" class="is-text is-warning"}}
+          <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} />
           {{this.model.unhealthyDrivers.length}}
           of
           {{this.model.detectedDrivers.length}}
@@ -341,7 +341,7 @@
                 Force Drain
               </span>
               {{#if this.model.drainStrategy.isForced}}
-                {{x-icon "alert-triangle" class="is-text is-warning"}}Yes
+                <Hds::Icon @name="alert-triangle-fill" @color="warning" @isInline={{true}} />Yes
               {{else}}
                 No
               {{/if}}

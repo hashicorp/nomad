@@ -46,6 +46,7 @@ SPDX-License-Identifier: BUSL-1.1
         </B.Td>
         <B.Td data-test-sentinel-policy-description>{{B.data.description}}</B.Td>
         <B.Td data-test-sentinel-policy-enforcement>{{B.data.enforcementLevel}}</B.Td>
+        <B.Td data-test-sentinel-policy-scope>{{B.data.scope}}</B.Td>
         {{#if (can "destroy sentinel-policy")}}
           <B.Td>
             <TwoStepButton

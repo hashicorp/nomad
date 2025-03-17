@@ -7,9 +7,9 @@
   <td>
     <Fs::Link @allocation={{this.allocation}} @taskState={{this.taskState}} @path={{this.pathToEntry}}>
       {{#if this.entry.IsDir}}
-        {{x-icon "folder-outline"}}
+        <Hds::Icon @name="folder" @isInline={{true}} />
       {{else}}
-        {{x-icon "file-outline"}}
+        <Hds::Icon @name="file" @isInline={{true}} />
       {{/if}}
 
       <span class="name" data-test-name>{{this.entry.Name}}</span>

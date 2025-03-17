@@ -36,7 +36,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/golang/protobuf v1.5.4
 	github.com/golang/snappy v0.0.4
-	github.com/google/go-cmp v0.6.0
+	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/gosuri/uilive v0.0.4
@@ -60,9 +60,9 @@ require (
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.18
 	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.10
 	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.14
-	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.12
+	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.13
 	github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.13
-	github.com/hashicorp/go-memdb v1.3.4
+	github.com/hashicorp/go-memdb v1.3.5
 	github.com/hashicorp/go-metrics v0.5.4
 	github.com/hashicorp/go-msgpack/v2 v2.1.3
 	github.com/hashicorp/go-multierror v1.1.1
@@ -110,11 +110,11 @@ require (
 	github.com/moby/term v0.5.2
 	github.com/muesli/reflow v0.3.0
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/opencontainers/runc v1.1.14
+	github.com/opencontainers/runc v1.2.5
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.21.0
-	github.com/prometheus/common v0.62.0
+	github.com/prometheus/common v0.63.0
 	github.com/rs/cors v1.11.1
 	github.com/ryanuber/columnize v2.1.2+incompatible
 	github.com/ryanuber/go-glob v1.0.0
@@ -132,8 +132,8 @@ require (
 	golang.org/x/sync v0.12.0
 	golang.org/x/sys v0.31.0
 	golang.org/x/time v0.10.0
-	google.golang.org/grpc v1.69.4
-	google.golang.org/protobuf v1.36.3
+	google.golang.org/grpc v1.71.0
+	google.golang.org/protobuf v1.36.5
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	oss.indeed.com/go/libtime v1.6.0
 )
@@ -199,9 +199,9 @@ require (
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/checkpoint-restore/go-criu/v5 v5.3.0 // indirect
+	github.com/checkpoint-restore/go-criu/v6 v6.3.0 // indirect
 	github.com/cheggaaa/pb/v3 v3.0.5 // indirect
-	github.com/cilium/ebpf v0.7.0 // indirect
+	github.com/cilium/ebpf v0.16.0 // indirect
 	github.com/circonus-labs/circonus-gometrics v2.3.1+incompatible // indirect
 	github.com/circonus-labs/circonusllhist v0.1.3 // indirect
 	github.com/cncf/xds/go v0.0.0-20241223141626-cff3c89139a3 // indirect
@@ -209,7 +209,7 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/coreos/go-oidc/v3 v3.11.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
-	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
+	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/denverdino/aliyungo v0.0.0-20190125010748-a747050bb1ba // indirect
 	github.com/digitalocean/godo v1.10.0 // indirect
@@ -218,8 +218,8 @@ require (
 	github.com/docker/docker-credential-helpers v0.7.0 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7 // indirect
-	github.com/envoyproxy/go-control-plane/envoy v1.32.3 // indirect
-	github.com/envoyproxy/protoc-gen-validate v1.1.0 // indirect
+	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
+	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
@@ -271,6 +271,8 @@ require (
 	github.com/mitchellh/cli v1.1.5 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
+	github.com/moby/sys/user v0.3.0 // indirect
+	github.com/moby/sys/userns v0.1.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/morikuni/aec v1.0.0 // indirect

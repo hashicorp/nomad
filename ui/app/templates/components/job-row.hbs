@@ -2,7 +2,7 @@
   Copyright (c) HashiCorp, Inc.
   SPDX-License-Identifier: BUSL-1.1
 ~}}
-
+{{!-- TODO: <JobRow> is not currently used in the UI. It should be re-implemented in jobs/index.hbs --}}
 <td data-test-job-name
   {{keyboard-shortcut
     enumerated=true
@@ -18,7 +18,6 @@
 
     {{#if this.job.meta.structured.pack}}
       <span data-test-pack-tag class="tag is-pack">
-        {{x-icon "box" class= "test"}}
         <span>Pack</span>
       </span>
     {{/if}}

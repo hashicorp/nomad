@@ -697,6 +697,10 @@ func TestHostVolumeEndpoint_placeVolume(t *testing.T) {
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node2))
 	must.NoError(t, store.UpsertNode(structs.MsgTypeTestSetup, 1000, node3))
 
+	vol := mock.HostVolume()
+	vol.NodeID = node3.ID
+	must.NoError(t, store.UpsertHostVolume(1000, vol))
+
 	testCases := []struct {
 		name      string
 		vol       *structs.HostVolume
