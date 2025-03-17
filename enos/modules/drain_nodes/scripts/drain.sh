@@ -26,7 +26,4 @@ for node in $nodes; do
 
     nomad node drain --disable  "$node" \
       || error_exit "Failed to disable drain for node $node"
-    
-    nomad node eligibility -enable  "$node" \
-      || error_exit "Failed to set node $node back to eligible"
 done
