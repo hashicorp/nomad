@@ -343,7 +343,9 @@ jobs:
 
   minimum-os:
     name: OS Compatibility
-    # A quick smoke test of our binaries on our minimum target OS (RHEL 7). Why RHEL 7? Because the glibc version is that old (2.17).
+    # A quick smoke test of our binaries on our minimum target OS (Debian
+    # Jessie). Why Jessie? Because it's the distribution with the oldest glibc still
+    # supported (2.19)
     needs:
       - get-go-version
       - get-product-version
@@ -366,7 +368,7 @@ jobs:
           artifact_name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
         run: |
           echo "::group::Unpack and Prep"
-          docker pull debian:jessie-slim
+          docker pull --platform linux/${{ matrix.goarch }} debian:jessie-slim
           unzip "$artifact_name"
           echo "::group::Diagnostics"
           echo "CGO related build information:"
@@ -374,7 +376,7 @@ jobs:
           echo "GLIBC links:"
           go tool nm ./nomad | grep -i glibc | cut -d @ -f 2-3 | sort --version-sort | uniq
           echo "::group::Smoke test binary"
-          docker run --rm -v "$PWD:/src" debian:jessie-slim /src/nomad version
+          docker run --rm -v "$PWD:/src" --platform linux/${{ matrix.goarch }} debian:jessie-slim /src/nomad version
 
   handle-failure:
     needs:
