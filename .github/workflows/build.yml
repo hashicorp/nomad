@@ -355,9 +355,9 @@ jobs:
         goarch: [amd64, arm64]
         runner: [ubuntu-22.04, ubuntu-22.04-arm]
         exclude:
-          - runner: amd64
+          - runner: ubuntu-22.04
             goarch: arm64
-          - runner: arm64
+          - runner: ubuntu-22.04-arm
             goarch: amd64
     runs-on: ${{ matrix.os }}
     steps:
