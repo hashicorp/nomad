@@ -286,8 +286,8 @@ determine when the rule should be applied and a [`BindNamespace`][] value that
 defines the namespace used.
 
 Auth methods with a namespace rule create Consul tokens in that Consul
-namespace. Binding rules with `-bind-type role` will also target a role (and
-associated policies) in that same Consul namespace. So you should create the
+namespace. Binding rules with `-bind-type role` also target a role and
+associated policies in that same Consul namespace. So you should create the
 auth method and binding rules in the default namespace, and the role and
 policies in the target namespaces.
 
