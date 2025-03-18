@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
+@use "sass:color";
+
 $orange: #fa8e23;
 $green: #2eb039;
 $blue: $vagrant-blue;
@@ -19,8 +21,8 @@ $danger: $red;
 $info: $blue;
 $unknown: $yellow;
 $dark: #234;
-$dark-2: darken($dark, 5%);
-$dark-3: darken($dark, 10%);
+$dark-2: color.scale($dark, $lightness: 5%);
+$dark-3: color.scale($dark, $lightness: 10%);
 
 $radius: 2px;
 
