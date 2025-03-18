@@ -144,6 +144,10 @@ type Server struct {
 	// rpcHandler is used to serve and handle RPCs
 	*rpcHandler
 
+	// rpcs contains static RPC handlers to allow bypassing net/rpc and codecs
+	// when calling RPCs locally.
+	rpcs *staticRPCs
+
 	// rpcServer is the static RPC server that is used by the local agent.
 	rpcServer *rpc.Server
 
@@ -1170,6 +1174,7 @@ func (s *Server) setupNodeDrainer() {
 func (s *Server) setupRPC(tlsWrap tlsutil.RegionWrapper) error {
 	// Populate the static RPC server
 	s.setupRpcServer(s.rpcServer, nil)
+	s.rpcs = newStaticRPCs(s)
 
 	// Setup streaming endpoints
 	s.setupStreamingEndpoints(s.rpcServer)

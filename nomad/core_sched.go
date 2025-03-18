@@ -34,6 +34,9 @@ type CoreScheduler struct {
 	// (e.g., structs.CoreJobEvalGC) and time.Duration that will be used as GC
 	// threshold value.
 	customThresholdForObject map[string]*time.Duration
+
+	// rpcs is used to call local RPC handlers directly
+	rpcs *staticRPCs
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
@@ -43,6 +46,7 @@ func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) scheduler.Schedule
 		snap:                     snap,
 		logger:                   srv.logger.ResetNamed("core.sched"),
 		customThresholdForObject: make(map[string]*time.Duration),
+		rpcs:                     srv.rpcs,
 	}
 	return s
 }
@@ -219,7 +223,7 @@ func (c *CoreScheduler) jobReap(jobs []*structs.Job, leaderACL string) error {
 	// Call to the leader to issue the reap
 	for _, req := range c.partitionJobReap(jobs, leaderACL, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.JobBatchDeregisterResponse
-		if err := c.srv.RPC(structs.JobBatchDeregisterRPCMethod, req, &resp); err != nil {
+		if err := c.rpcs.jobs.BatchDeregister(req, &resp); err != nil {
 			c.logger.Error("batch job reap failed", "error", err)
 			return err
 		}
@@ -408,7 +412,7 @@ func (c *CoreScheduler) evalReap(evals, allocs []string) error {
 	// Call to the leader to issue the reap
 	for _, req := range c.partitionEvalReap(evals, allocs, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.GenericResponse
-		if err := c.srv.RPC("Eval.Reap", req, &resp); err != nil {
+		if err := c.rpcs.evals.Reap(req, &resp); err != nil {
 			c.logger.Error("eval reap failed", "error", err)
 			return err
 		}
@@ -540,7 +544,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 				},
 			}
 			var resp structs.NodeUpdateResponse
-			if err := c.srv.RPC("Node.Deregister", &req, &resp); err != nil {
+			if err := c.rpcs.nodes.Deregister(&req, &resp); err != nil {
 				c.logger.Error("node reap failed", "node_id", id, "error", err)
 				return err
 			}
@@ -558,7 +562,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 			},
 		}
 		var resp structs.NodeUpdateResponse
-		if err := c.srv.RPC("Node.BatchDeregister", &req, &resp); err != nil {
+		if err := c.rpcs.nodes.BatchDeregister(&req, &resp); err != nil {
 			c.logger.Error("node reap failed", "node_ids", ids, "error", err)
 			return err
 		}
@@ -634,7 +638,7 @@ func (c *CoreScheduler) deploymentReap(deployments []string) error {
 	// Call to the leader to issue the reap
 	for _, req := range c.partitionDeploymentReap(deployments, structs.MaxUUIDsPerWriteRequest) {
 		var resp structs.GenericResponse
-		if err := c.srv.RPC("Deployment.Reap", req, &resp); err != nil {
+		if err := c.rpcs.deployments.Reap(req, &resp); err != nil {
 			c.logger.Error("deployment reap failed", "error", err)
 			return err
 		}
@@ -753,7 +757,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation, customThresho
 				AuthToken: eval.LeaderACL,
 			},
 		}
-		err := c.srv.RPC("CSIVolume.Claim", req, &structs.CSIVolumeClaimResponse{})
+		err := c.rpcs.csiVols.Claim(req, &structs.CSIVolumeClaimResponse{})
 		return err
 	}
 
@@ -845,7 +849,7 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation, customThreshold *t
 				Region:    c.srv.Region(),
 				AuthToken: eval.LeaderACL,
 			}}
-		err := c.srv.RPC("CSIPlugin.Delete", req, &structs.CSIPluginDeleteResponse{})
+		err := c.rpcs.csiPlugins.Delete(req, &structs.CSIPluginDeleteResponse{})
 		if err != nil {
 			if strings.Contains(err.Error(), "plugin in use") {
 				continue
@@ -864,7 +868,7 @@ func (c *CoreScheduler) expiredOneTimeTokenGC(eval *structs.Evaluation) error {
 			AuthToken: eval.LeaderACL,
 		},
 	}
-	return c.srv.RPC("ACL.ExpireOneTimeTokens", req, &structs.GenericResponse{})
+	return c.rpcs.acls.ExpireOneTimeTokens(req, &structs.GenericResponse{})
 }
 
 // expiredACLTokenGC handles running the garbage collector for expired ACL
@@ -957,14 +961,14 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool,
 
 	// Set up and make the RPC request which will return any error performing
 	// the deletion.
-	req := structs.ACLTokenDeleteRequest{
+	req := &structs.ACLTokenDeleteRequest{
 		AccessorIDs: expiredAccessorIDs,
 		WriteRequest: structs.WriteRequest{
 			Region:    c.srv.Region(),
 			AuthToken: eval.LeaderACL,
 		},
 	}
-	return c.srv.RPC(structs.ACLDeleteTokensRPCMethod, req, &structs.GenericResponse{})
+	return c.rpcs.acls.DeleteTokens(req, &structs.GenericResponse{})
 }
 
 // rootKeyRotateOrGC is used to rotate or garbage collect root keys
@@ -1048,7 +1052,7 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 				AuthToken: eval.LeaderACL,
 			},
 		}
-		if err := c.srv.RPC("Keyring.Delete",
+		if err := c.rpcs.keyring.Delete(
 			req, &structs.KeyringDeleteRootKeyResponse{}); err != nil {
 			c.logger.Error("root key delete failed", "error", err)
 			return err
@@ -1093,7 +1097,7 @@ func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
 			},
 		}
 
-		if err := c.srv.RPC("Keyring.Update",
+		if err := c.rpcs.keyring.Update(
 			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
 			c.logger.Error("migrating legacy key material failed",
 				"error", err, "key_id", wrappedKeys.KeyID)
@@ -1162,7 +1166,7 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (
 			},
 		}
 
-		if err := c.srv.RPC("Keyring.Update",
+		if err := c.rpcs.keyring.Update(
 			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
 			c.logger.Error("setting prepublished key active failed", "error", err)
 			return false, err
@@ -1199,7 +1203,7 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (
 			AuthToken: eval.LeaderACL,
 		},
 	}
-	if err := c.srv.RPC("Keyring.Rotate",
+	if err := c.rpcs.keyring.Rotate(
 		req, &structs.KeyringRotateRootKeyResponse{}); err != nil {
 		c.logger.Error("root key rotation failed", "error", err)
 		return false, err
@@ -1251,7 +1255,7 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 				Region:    c.srv.config.Region,
 				AuthToken: eval.LeaderACL},
 		}
-		if err := c.srv.RPC("Keyring.Update",
+		if err := c.rpcs.keyring.Update(
 			req, &structs.KeyringUpdateRootKeyResponse{}); err != nil {
 			c.logger.Error("rekey complete but failed to mark key as inactive", "error", err)
 			return err
@@ -1306,7 +1310,7 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 				Status:      structs.EvalStatusPending,
 				LeaderACL:   eval.LeaderACL,
 			}
-			return c.srv.RPC("Eval.Create", &structs.EvalUpdateRequest{
+			return c.rpcs.evals.Create(&structs.EvalUpdateRequest{
 				Evals:     []*structs.Evaluation{newEval},
 				EvalToken: uuid.Generate(),
 				WriteRequest: structs.WriteRequest{
@@ -1338,7 +1342,7 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 			return err
 		}
 
-		err = c.srv.RPC("Variables.Apply", args, reply)
+		err = c.rpcs.vars.Apply(args, reply)
 		if err != nil {
 			return err
 		}
