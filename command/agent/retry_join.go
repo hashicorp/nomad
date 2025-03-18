@@ -98,17 +98,6 @@ func (d autoDiscover) Addrs(cfg string, logger log.Logger) (addrs []string, err 
 // retryJoiner is used to handle retrying a join until it succeeds or all of
 // its tries are exhausted.
 type retryJoiner struct {
-	// serverJoin adds the specified servers to the serf cluster
-	serverJoin func([]string) (int, error)
-
-	// serverEnabled indicates whether the nomad agent will run in server mode
-	serverEnabled bool
-
-	// clientJoin adds the specified servers to the serf cluster
-	clientJoin func([]string) (int, error)
-
-	// clientEnabled indicates whether the nomad agent will run in client mode
-	clientEnabled bool
 
 	// autoDiscover is either an agent.autoDiscover, or a mock used for testing
 	autoDiscover AutoDiscoverInterface
@@ -116,6 +105,14 @@ type retryJoiner struct {
 	// errCh is used to communicate with the agent when the max retry attempt
 	// limit has been reached
 	errCh chan struct{}
+
+	// joinCfg is the server or client configuration block which details the
+	// server join functionality.
+	joinCfg *ServerJoin
+
+	// joinFunc is the function which executes the join process and is dependent
+	// on the agent mode.
+	joinFunc func([]string) (int, error)
 
 	// logger is the retry joiners logger
 	logger log.Logger
@@ -160,22 +157,23 @@ func (r *retryJoiner) Validate(config *Config) error {
 
 // RetryJoin is used to handle retrying a join until it succeeds or all retries
 // are exhausted.
-func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
-	if len(serverJoin.RetryJoin) == 0 {
+func (r *retryJoiner) RetryJoin() {
+	if len(r.joinCfg.RetryJoin) == 0 {
 		return
 	}
 
 	attempt := 0
 
-	addrsToJoin := strings.Join(serverJoin.RetryJoin, " ")
+	addrsToJoin := strings.Join(r.joinCfg.RetryJoin, " ")
 	r.logger.Info("starting retry join", "servers", addrsToJoin)
 
 	for {
-		var addrs []string
-		var n int
-		var err error
+		var (
+			addrs []string
+			err   error
+		)
 
-		for _, addr := range serverJoin.RetryJoin {
+		for _, addr := range r.joinCfg.RetryJoin {
 
 			// If auto-discovery returns an error, log the error and
 			// fall-through, so we reach the retry logic and loop back around
@@ -188,33 +186,24 @@ func (r *retryJoiner) RetryJoin(serverJoin *ServerJoin) {
 			}
 		}
 
-		if len(addrs) > 0 {
-			if r.serverEnabled && r.serverJoin != nil {
-				n, err = r.serverJoin(addrs)
-				if err == nil {
-					r.logger.Info("retry join completed", "initial_servers", n, "agent_mode", "server")
-					return
-				}
-			}
-			if r.clientEnabled && r.clientJoin != nil {
-				n, err = r.clientJoin(addrs)
-				if err == nil {
-					r.logger.Info("retry join completed", "initial_servers", n, "agent_mode", "client")
-					return
-				}
+		if len(addrs) > 0 && r.joinFunc != nil {
+			numJoined, err := r.joinFunc(addrs)
+			if err == nil {
+				r.logger.Info("retry join completed", "initial_servers", numJoined)
+				return
 			}
 		}
 
 		attempt++
-		if serverJoin.RetryMaxAttempts > 0 && attempt > serverJoin.RetryMaxAttempts {
+		if r.joinCfg.RetryMaxAttempts > 0 && attempt > r.joinCfg.RetryMaxAttempts {
 			r.logger.Error("max join retry exhausted, exiting")
 			close(r.errCh)
 			return
 		}
 
 		if err != nil {
-			r.logger.Warn("join failed", "error", err, "retry", serverJoin.RetryInterval)
+			r.logger.Warn("join failed", "error", err, "retry", r.joinCfg.RetryInterval)
 		}
-		time.Sleep(serverJoin.RetryInterval)
+		time.Sleep(r.joinCfg.RetryInterval)
 	}
 }

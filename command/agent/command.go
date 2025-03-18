@@ -925,13 +925,8 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	c.retryJoinErrCh = make(chan struct{})
 
 	if config.Server.Enabled && len(config.Server.RetryJoin) != 0 {
-		joiner := retryJoiner{
-			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
-			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger.Named("joiner"),
-			serverJoin:    c.agent.server.Join,
-			serverEnabled: true,
-		}
+
+		joiner := retryJoiner{}
 
 		if err := joiner.Validate(config); err != nil {
 			return err
@@ -959,36 +954,36 @@ func (c *Command) handleRetryJoin(config *Config) error {
 		len(config.Server.ServerJoin.RetryJoin) != 0 {
 
 		joiner := retryJoiner{
-			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
-			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger.Named("joiner"),
-			serverJoin:    c.agent.server.Join,
-			serverEnabled: true,
+			autoDiscover: autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
+			errCh:        c.retryJoinErrCh,
+			joinCfg:      config.Server.ServerJoin,
+			joinFunc:     c.agent.server.Join,
+			logger:       c.agent.logger.Named("joiner").With("agent_mode", "server"),
 		}
 
 		if err := joiner.Validate(config); err != nil {
 			return err
 		}
 
-		go joiner.RetryJoin(config.Server.ServerJoin)
+		go joiner.RetryJoin()
 	}
 
 	if config.Client.Enabled &&
 		config.Client.ServerJoin != nil &&
 		len(config.Client.ServerJoin.RetryJoin) != 0 {
 		joiner := retryJoiner{
-			autoDiscover:  autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
-			errCh:         c.retryJoinErrCh,
-			logger:        c.agent.logger.Named("joiner"),
-			clientJoin:    c.agent.client.SetServers,
-			clientEnabled: true,
+			autoDiscover: autoDiscover{goDiscover: &discover.Discover{}, netAddrs: &netAddrs{}},
+			errCh:        c.retryJoinErrCh,
+			joinCfg:      config.Client.ServerJoin,
+			joinFunc:     c.agent.client.SetServers,
+			logger:       c.agent.logger.Named("joiner").With("agent_mode", "client"),
 		}
 
 		if err := joiner.Validate(config); err != nil {
 			return err
 		}
 
-		go joiner.RetryJoin(config.Client.ServerJoin)
+		go joiner.RetryJoin()
 	}
 
 	return nil
