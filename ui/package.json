@@ -152,7 +152,7 @@
     "ember-cli-string-utils": "^1.1.0"
   },
   "engines": {
-    "node": "16.* || 18.* || 20.*"
+    "node": "20.x || 22.*"
   },
   "ember": {
     "edition": "octane"
