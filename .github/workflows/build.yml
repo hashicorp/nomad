@@ -341,7 +341,7 @@ jobs:
             docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-dev
             docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-${{env.revision}}
 
-  minimum-os:
+  minimum-os-amd64:
     name: OS Compatibility
     # A quick smoke test of our binaries on our minimum target OS (Debian
     # Jessie). Why Jessie? Because it's the distribution with the oldest glibc still
@@ -355,7 +355,7 @@ jobs:
       fail-fast: false
       matrix:
         goos: [linux]
-        goarch: [amd64, arm64]
+        goarch: [amd64]
     steps:
       - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
@@ -368,7 +368,6 @@ jobs:
           artifact_name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
         run: |
           echo "::group::Unpack and Prep"
-          docker pull --platform linux/${{ matrix.goarch }} debian:jessie-slim
           unzip "$artifact_name"
           echo "::group::Diagnostics"
           echo "CGO related build information:"
@@ -376,7 +375,43 @@ jobs:
           echo "GLIBC links:"
           go tool nm ./nomad | grep -i glibc | cut -d @ -f 2-3 | sort --version-sort | uniq
           echo "::group::Smoke test binary"
-          docker run --rm -v "$PWD:/src" --platform linux/${{ matrix.goarch }} debian:jessie-slim /src/nomad version
+          docker run --rm -v "$PWD:/src" debian:jessie-slim /src/nomad version
+
+  minimum-os-arm64:
+    name: OS Compatibility
+    # A quick smoke test of our binaries on our minimum target OS (Debian
+    # Jessie). Why Jessie? Because it's the distribution with the oldest glibc still
+    # supported (2.19)
+    needs:
+      - get-go-version
+      - get-product-version
+      - build-linux
+    runs-on: ubuntu-22.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux]
+        goarch: [arm64]
+    steps:
+      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version: ${{needs.get-go-version.outputs.go-version}}
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+      - name: Test binary
+        env:
+          artifact_name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+        run: |
+          echo "::group::Unpack and Prep"
+          unzip "$artifact_name"
+          echo "::group::Diagnostics"
+          echo "CGO related build information:"
+          go version -m ./nomad | grep CGO
+          echo "GLIBC links:"
+          go tool nm ./nomad | grep -i glibc | cut -d @ -f 2-3 | sort --version-sort | uniq
+          echo "::group::Smoke test binary"
+          docker run --rm -v "$PWD:/src" debian:jessie-slim /src/nomad version
 
   handle-failure:
     needs:
