@@ -121,16 +121,14 @@
             </B.Tr>
           </:body>
         </Hds::Table>
-        {{#if (gt this.sortedCSIVolumes.length this.userSettings.pageSize)}}
-          <Hds::Pagination::Numbered
-            @totalItems={{this.filteredCSIVolumes.length}}
-            @currentPage={{this.csiPage}}
-            @pageSizes={{this.pageSizes}}
-            @currentPageSize={{this.userSettings.pageSize}}
-            @onPageChange={{action this.handlePageChange "csi"}}
-            @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
-          />
-        {{/if}}
+        <Hds::Pagination::Numbered
+          @totalItems={{this.filteredCSIVolumes.length}}
+          @currentPage={{this.csiPage}}
+          @pageSizes={{this.pageSizes}}
+          @currentPageSize={{this.userSettings.pageSize}}
+          @onPageChange={{action this.handlePageChange "csi"}}
+          @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+        />
       {{else}}
         <div class="empty-message" data-test-empty-csi-volumes-list-headline>
           {{#if this.csiFilter}}
@@ -162,7 +160,7 @@
       </header>
       {{#if this.sortedDynamicHostVolumes.length}}
         <Hds::Table @caption="Dynamic Host Volumes"
-          @model={{this.sortedDynamicHostVolumes}}
+          @model={{this.paginatedDynamicHostVolumes}}
           @columns={{this.dhvColumns}}
           @sortBy={{this.dhvSortProperty}}
           @sortOrder={{if this.dhvSortDescending "desc" "asc"}}
@@ -202,16 +200,14 @@
             </B.Tr>
           </:body>
         </Hds::Table>
-        {{#if (gt this.sortedDynamicHostVolumes.length this.userSettings.pageSize)}}
-          <Hds::Pagination::Numbered
-            @totalItems={{this.filteredDynamicHostVolumes.length}}
-            @currentPage={{this.dhvPage}}
-            @pageSizes={{this.pageSizes}}
-            @currentPageSize={{this.userSettings.pageSize}}
-            @onPageChange={{action this.handlePageChange "dhv"}}
-            @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
-          />
-        {{/if}}
+        <Hds::Pagination::Numbered
+          @totalItems={{this.filteredDynamicHostVolumes.length}}
+          @currentPage={{this.dhvPage}}
+          @pageSizes={{this.pageSizes}}
+          @currentPageSize={{this.userSettings.pageSize}}
+          @onPageChange={{action this.handlePageChange "dhv"}}
+          @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+        />
       {{else}}
         <div class="empty-message" data-test-empty-dhv-list-headline>
           {{#if this.dhvFilter}}
