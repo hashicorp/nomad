@@ -422,7 +422,8 @@ jobs:
       - build-linux
       - build-darwin
       - build-docker
-      - minimum-os
+      - minimum-os-amd64
+      - minimum-os-arm64
     if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
     uses: ./.github/workflows/test-failure-notification.yml
     secrets: inherit
