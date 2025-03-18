@@ -96,7 +96,8 @@ The [`template`][template] block can use the Consul token as well.
   which group and task-level services within the group will be registered. Use
   of `template` to access Consul KV will read from the specified Consul
   namespace.  Specifying `namespace` takes precedence over the
-  [`-consul-namespace`][flag_consul_namespace] command line argument in `job run`.
+  [`-consul-namespace`][flag_consul_namespace] command line argument in `job
+  run`. In Nomad Community Edition, this field is ignored.
 
 - `partition` `(string: "")` - When this field is set, a constraint will be
   added to the group or task to ensure that the allocation is placed on a Nomad
