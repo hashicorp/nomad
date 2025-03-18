@@ -15,8 +15,7 @@
     <CE.Title>Job Definition</CE.Title>
 
     {{#if @data.cancelable}}
-      <CE.Generic>
-        {{!-- TODO: Fix header styles --}}
+      <CE.Generic class="job-definition-editor-header">
         <span class="header-toggle">
           <Hds::Form::Toggle::Field
             {{keyboard-shortcut
