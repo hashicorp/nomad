@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: Upgrade Guides
+page_title: Nomad version-specific upgrade guides
 description: |-
   Review upgrade details for specific versions of Nomad.
 ---
 
-# Upgrade Guides
+# Nomad version-specific upgrade guides
 
 The [upgrading page](/nomad/docs/upgrade) covers the details of doing a standard
 upgrade. However, specific versions of Nomad may have more details provided for
@@ -14,78 +14,23 @@ used to document those details separately from the standard upgrade flow.
 
 ## Nomad 1.10.0
 
-#### Quota specification variable_limits deprecated
+@include 'release-notes/v1-10/deprecate-variable-limits.mdx'
 
-In Nomad 1.10.0, the quota specification's `variable_limits` field is
-deprecated. It is replaced by a new `storage` block with a `variables` field,
-under the `region_limit` block. Existing quotas will be automatically migrated
-during server upgrade. The `variables_limit` field will be removed from the
-quota specification in Nomad 1.12.0.
+@include 'release-notes/v1-10/breaking-disconnect-fields-removed.mdx'
 
-#### Deprecated Disconnect fields removed
+@include 'release-notes/v1-10/breaking-go-sdk.mdx'
 
-In Nomad 1.8, the `disconnect` block was introduced to replace the `max_client_disconnect`
-`stop_after_client_disconnect`, and `prevent_reschedule_on_list` fields.
-In Nomad 1.10 these fields have been removed and will be ignored if specified. Jobs
-should migrate to using the `disconnect` block prior to upgrading.
+@include 'release-notes/v1-10/breaking-remove-remote-task-driver-support.mdx'
 
-#### Go SDK API change for quota limits
+@include 'release-notes/v1-10/breaking-plugin-dir.mdx'
 
-In Nomad 1.10.0, the Go API for quotas has a breaking change. The
-`QuotaSpec.RegionLimit` field is now of type `QuotaResources` instead of
-`Resources`. The `QuotaSpec.VariablesLimit` field is deprecated in lieu of
-`QuotaSpec.RegionLimit.Storage.Variables` and will be removed in Nomad 1.12.0.
+@include 'release-notes/v1-10/breaking-sentinel-apply.mdx'
 
-#### Remote task driver support removed
+@include 'release-notes/v1-10/breaking-affinity-spread.mdx'
 
-All support for remote task driver capabilities has been removed in Nomad 1.10.0.
-Drivers with the `RemoteTasks` capability will no longer be detached in the event
-the allocation is lost, nor will remote tasks be detached when a node is drained.
-Workloads running as remote tasks should be migrated prior to upgrading.
+@include 'release-notes/v1-10/breaking-vault-consul-token.mdx'
 
-#### Loading Binaries from `plugin_dir` Without Configuration
-
-Plugins stored within the [`plugin_dir`](/nomad/docs/configuration#plugin_dir)
-will now only be loaded when they have a corresponding
-[`plugin`](/nomad/docs/configuration/plugin) block in the agent configuration
-file.
-
-#### Affinity and spread updates are non-destructive
-
-In Nomad 1.10.0, a scheduler bug was fixed so that updates to `affinity` and
-`spread` blocks are no longer destructive. After a job update that changes only
-these blocks, existing allocations remain running with their job version
-incremented. If you were relying on the previous behavior to redistribute
-workloads, you can force a destructive update by changing fields that require
-one, such as the `meta` block.
-
-#### Vault and Consul integration changes
-
-Nomad 1.10.0 removes the previously deprecated token-based authentication workflow
-for Vault and Consul. Nomad clients must now use a task's [Workload Identity][]
-to authenticate to Vault and Consul and obtain a token specific to the task.
-
-This table lists removed fields and the new workflow.
-
-| Field | Configuration | New Workflow |
-| ------ | ------------ | ------------ |
-| [`vault.allow_unauthenticated`][] | Agent | Tasks should use a workload identity. Do not use a Vault token. |
-| [`vault.task_token_ttl`][] | Agent | With workload identity, tasks receive their TTL configuration from the Vault role. |
-| [`vault.token`][] | Agent | Nomad agents use the workload identity when making requests to authenticated endpoints. |
-| [`vault.policies`][]  | Job specification  |  Configure and use a Vault role.  |
-
-Before upgrading to Nomad 1.10, perform the following tasks:
-
-1. Configure Vault to work with workload identity.
-1. Migrate all workloads to use workload identity.
-
-Refer to [Migrating to Using Workload Identity with Vault][] for more
-details.
-
-#### Consul template implicit workload identity removal
-Nomad no longer creates an implicit Consul identity for workloads that don't
-register services with Consul. Tasks that require Consul tokens for template
-rendering must include a [`consul` block][] or specify an [`identity`][].
+@include 'release-notes/v1-10/breaking-consul-template.mdx'
 
 ## Nomad 1.9.5
 

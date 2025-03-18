@@ -1,0 +1,147 @@
+---
+layout: docs
+page_title: Nomad v1.10.x release notes
+description: >-
+  HashiCorp Nomad version 1.10.x release notes. New features include dynamic host volumes, OIDC. Updates to the Container Storage Interface (CSI) volume delete and volume status commands. CSI volume and plugin events added to the event stream. Added UI URL hints to the end of common CLI commands and a -ui flag to auto-open them in a browser.
+---
+
+# Nomad 1.10.x release notes
+
+We are pleased to announce the following Nomad updates.
+
+## Release highlights
+
+#### Dynamic host volumes
+
+The dynamic host volumes feature brings a persistent storage option to your
+workload allocations.
+
+Nomad dynamic host volumes manage storage for stateful workloads without
+requiring a restart of the Nomad nodes to apply configuration changes. They
+provide a workload-agnostic way to specify resources and work with the `exec`,
+`java`, and `docker` task drivers. You create dynamic host volumes via the CLI
+or API and then configure the job with the
+[`volume`](/nomad/docs/job-specification/volume) and
+[`volume_mount`](/nomad/docs/job-specification/volume_mount) blocks in the job
+specification.
+
+Host volumes mount paths from the Nomad client into allocations. Nomad is aware
+of host volume availability and makes use of it for job scheduling. However,
+Nomad does not know about the volume's underlying characteristics, so you can
+use host volumes for both local persistent storage and for highly
+persistent, networked storage.
+
+Resources:
+
+- [Host volumes section](/nomad/docs/operations/stateful-workloads#host-volumes)
+  in the _Considerations for stateful workloads_ guide for an overview and
+  comparison of storage options
+- [Host volumes plugin
+  specification](/nomad/docs/concepts/plugins/storage/host-volumes) for examples
+  of how to write your own plugin to dynamically configure persistent storage on your Nomad client nodes
+- [Use Nomad dynamic host volumes to persist data for stateful workloads
+  tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes)
+  to learn how to create and use a dynamic host volume for persistent storage
+
+
+#### OpenID Connect (OIDC) with Proof Key for Code Exchange (PKCE)
+
+Nomad now enables [PKCE](https://oauth.net/2/pkce/) by default for new or
+updated OIDC auth methods. Existing auth methods remain unaffected until changed
+with one of the following:
+
+- The [`nomad acl auth-method create`](/nomad/docs/commands/acl/auth-method/create) CLI command
+- The [`nomad acl auth-method update`](/nomad/docs/commands/acl/auth-method/update) CLI command
+- The [auth method API](/nomad/api-docs/acl/auth-methods)
+
+Set the [`OIDCDisablePKCE`](/nomad/api-docs/acl/auth-methods#oidcdisablepkce)
+option to turn off this extra security.
+
+Note that although Nomad enables PKCE by default, some OIDC providers may
+require you to also enable it in their configuration.
+
+#### Container Storage Interface (CSI) enhancements
+
+We added the following:
+
+- CSI volume and plugin events to the event stream
+- Volume capabilities to the `nomad volume status` command output
+- The ability to use a volume ID prefix search and wildcard namespace with the
+  [`nomad volume delete` command](/nomad/docs/commands/volume/delete). Refer to
+  the [GitHub pull request](https://github.com/hashicorp/nomad/pull/24997) for
+  details. Example usage:
+
+  ```shell-session
+  $ nomad volume create ./internal-plugin.volume.hcl
+  ==> Created host volume internal-plugin with ID aeea91a0-06df-c16e-5403-ff82a2f28fd4
+  ✓ Host volume "aeea91a0" ready
+
+    2025-01-31T15:55:14-05:00
+    ID        = aeea91a0-06df-c16e-5403-ff82a2f28fd4
+    Name      = internal-plugin
+    Namespace = default
+    Plugin ID = mkdir
+    Node ID   = b4611abd-d4a8-c83a-b05e-7d9f5b44a179
+    Node Pool = default
+    Capacity  = 0 B
+    State     = ready
+    Host Path = /run/nomad/dev/data/host_volumes/aeea91a0-06df-c16e-5403-ff82a2f28fd4
+
+  $ nomad volume delete -type host aeea91a0
+  Successfully deleted volume "aeea91a0-06df-c16e-5403-ff82a2f28fd4"!
+  ```
+
+#### UI URL hints added to CLI commands
+
+We added UI URL hints to the end of common CLI commands and a `-ui` flag to
+automatically open the generated link in your browser.
+
+Showing UI URL hints is enabled by default. Modify the [`show_cli_hints`
+parameter](/nomad/docs/configuration/ui#show_cli_hints) in your agent's `ui`
+block configuration to turn off this feature.
+
+## Breaking changes
+
+@include 'release-notes/v1-10/breaking-go-sdk.mdx'
+
+@include 'release-notes/v1-10/breaking-plugin-dir.mdx'
+
+@include 'release-notes/v1-10/breaking-vault-consul-token.mdx'
+
+@include 'release-notes/v1-10/breaking-consul-template.mdx'
+
+@include 'release-notes/v1-10/breaking-disconnect-fields-removed.mdx'
+
+@include 'release-notes/v1-10/breaking-remove-remote-task-driver-support.mdx'
+
+@include 'release-notes/v1-10/breaking-sentinel-apply.mdx'
+
+@include 'release-notes/v1-10/breaking-affinity-spread.mdx'
+
+## Deprecations
+
+@include 'release-notes/v1-10/deprecate-variable-limits.mdx'
+
+## Upgrade details
+
+For more detailed information, refer to the [upgrade details
+page][upgrade] and the [GitHub releases changelogs][github-releases].
+
+## Known issues
+
+None.
+
+## Changelogs
+
+These links take you to the changelogs on the GitHub website.
+
+- [v1.10.0-beta.1](https://github.com/hashicorp/nomad/releases/tag/v1.10.0-beta.1)
+
+
+
+
+[consul-integration]: /nomad/docs/integrations/consul/acl
+[vault-integration]: /nomad/docs/integrations/vault/acl
+[GH-18529]: https://github.com/hashicorp/nomad/issues/18529
+[upgrade]: /nomad/docs/upgrade/upgrade-specific#nomad-1-10-0
+[github-releases]: https://github.com/hashicorp/nomad/releases/
