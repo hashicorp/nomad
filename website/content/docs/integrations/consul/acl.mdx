@@ -279,6 +279,12 @@ Similarly to binding rules, namespace rules have a [`Selector`][] expression to
 determine when the rule should be applied and a [`BindNamespace`][] value that
 defines the namespace used.
 
+Auth methods with a namespace rule create Consul tokens in that Consul
+namespace. Binding rules with `-bind-type role` also target a role and
+associated policies in that same Consul namespace. So you should create the
+auth method and binding rules in the default namespace, and the role and
+policies in the target namespaces.
+
 In Nomad Enterprise, workload identities for tasks and services placed within
 the scope of a `consul` block with a `namespace` value, have an additional
 claim called `consul_namespace` that represents the Consul namespace defined

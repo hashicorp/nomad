@@ -102,7 +102,8 @@ agents.
   namespace](/consul/docs/enterprise/namespaces) used by the Consul
   integration. If non-empty, this namespace will be used on all Consul API calls
   and for Consul Connect configurations, unless overridden by the job's
-  [`consul.namespace`][] field.
+  [`consul.namespace`][] field. In Nomad Community Edition, only the `"default"`
+  namespace is used, so you should omit this field.
 
 - `ssl` `(bool: false)` - Specifies if the transport scheme should use HTTPS to
   communicate with the Consul agent. Will default to the `CONSUL_HTTP_SSL`
