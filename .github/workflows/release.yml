@@ -89,7 +89,7 @@ jobs:
       - name: Setup node and yarn
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
-          node-version: "18"
+          node-version: "20"
           cache-dependency-path: "ui/yarn.lock"
 
       - name: Install Yarn
