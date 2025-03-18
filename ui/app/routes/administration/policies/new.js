@@ -95,7 +95,7 @@ export default class AccessControlPoliciesNewRoute extends Route {
 
   beforeModel() {
     if (this.can.cannot('write policy')) {
-      // this.router.transitionTo('/administration/policies');
+      this.router.transitionTo('/administration/policies');
     }
   }
 
