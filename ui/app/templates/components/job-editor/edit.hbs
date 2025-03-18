@@ -4,159 +4,83 @@
 ~}}
 
 <div class="boxed-section">
-  {{!-- http://localhost:4200/ui/jobs/sas-circuit-5@default/definition?isEditing=true&view=full-definition --}}
   <Hds::CodeEditor
     @value={{@data.job._newDefinition}}
-    @onChange={{@fns.onUpdate}}
+    @onInput={{@fns.onUpdate}}
     @language={{if (eq @data.format "json") "javascript" "ruby"}}
-    {{!-- lineWrapping=@data.shouldWrap --}}
+    @hasLineWrapping={{@data.shouldWrap}}
+    @onSetup={{fn (mut this.jobDefinitionEditor)}}
     as |CE|
   >
     <CE.Title>Job Definition</CE.Title>
-    <CE.Generic style="display: flex;">
-      <span class="header-toggle">
-        <Hds::Form::Toggle::Field
-          {{keyboard-shortcut
-            label="Toggle word wrap"
-            action=(action @fns.onToggleWrap)
-            pattern=(array "w" "w")
-            menuLevel=true
-          }}
-          checked={{@data.shouldWrap}}
-          {{on "change" @fns.onToggleWrap}}
-          as |F|
-        >
-          <F.Label>Word Wrap</F.Label>
-        </Hds::Form::Toggle::Field>
-      </span>
-      <Tooltip
-        @condition={{unless @data.hasSpecification true false}}
-        @isFullText={{true}}
-        @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format."
-      >
-        <div
-          class="job-definition-select
-            {{unless @data.hasSpecification ' disabled'}}"
-          data-test-select={{@data.view}}
-        >
-          <button
-            class="button is-small is-borderless
-              {{if (eq @data.view 'job-spec') 'is-active'}}"
-            type="button"
-            {{on "click" (fn @fns.onSelect "job-spec")}}
-          >
-            Job Spec
-          </button>
-          <button
-            class="button is-small is-borderless
-              {{if (eq @data.view 'full-definition') 'is-active'}}"
-            type="button"
-            {{on "click" (fn @fns.onSelect "full-definition")}}
-            data-test-select-full
-          >
-            Full Definition
-          </button>
-        </div>
-      </Tooltip>
-      <button
-        class="button is-light is-compact pull-right"
-        onclick={{@fns.onCancel}}
-        type="button"
-        data-test-cancel-editing
-      >
-        Cancel
-      </button>
-    </CE.Generic>
-  </Hds::CodeEditor>
 
-  <div class="boxed-section-head">
-    Job Definition
     {{#if @data.cancelable}}
-    <div class="pull-right" style="display: flex">
-      <span class="header-toggle">
-        <Hds::Form::Toggle::Field
-          {{keyboard-shortcut label="Toggle word wrap" action=(action @fns.onToggleWrap) pattern=(array "w" "w") menuLevel=true }}
-          checked={{@data.shouldWrap}}
-          {{on "change" @fns.onToggleWrap}}
-        as |F|>
-          <F.Label>Word Wrap</F.Label>
-        </Hds::Form::Toggle::Field>
-      </span>
-      <Tooltip
-        @condition={{unless @data.hasSpecification true false}}
-        @isFullText={{true}}
-        @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format."
-      >
-        <div
-          class="job-definition-select
-            {{unless @data.hasSpecification ' disabled'}}"
-          data-test-select={{@data.view}}
+      <CE.Generic>
+        {{!-- TODO: Fix header styles --}}
+        <span class="header-toggle">
+          <Hds::Form::Toggle::Field
+            {{keyboard-shortcut
+              label="Toggle word wrap"
+              action=(action @fns.onToggleWrap)
+              pattern=(array "w" "w")
+              menuLevel=true
+            }}
+            checked={{@data.shouldWrap}}
+            {{on "change" @fns.onToggleWrap}}
+            as |F|
+          >
+            <F.Label>Word Wrap</F.Label>
+          </Hds::Form::Toggle::Field>
+        </span>
+        
+        <Tooltip
+          @condition={{unless @data.hasSpecification true false}}
+          @isFullText={{true}}
+          @text="A jobspec file was not submitted when this job was run. You can still view and edit the expanded JSON format."
         >
-          <button
-            class="button is-small is-borderless
-              {{if (eq @data.view 'job-spec') 'is-active'}}"
-            type="button"
-            {{on "click" (fn @fns.onSelect "job-spec")}}
+          <div
+            class="job-definition-select {{unless @data.hasSpecification ' disabled'}}"
+            data-test-select={{@data.view}}
           >
-            Job Spec
-          </button>
-          <button
-            class="button is-small is-borderless
-              {{if (eq @data.view 'full-definition') 'is-active'}}"
-            type="button"
-            {{on "click" (fn @fns.onSelect "full-definition")}}
-            data-test-select-full
-          >
-            Full Definition
-          </button>
-        </div>
-      </Tooltip>
-        <button
-          class="button is-light is-compact pull-right"
-          onclick={{@fns.onCancel}}
-          type="button"
+            <Hds::Button
+              class={{if (eq @data.view 'job-spec') 'is-active'}}
+              @size="small"
+              @text="Job Spec"
+              {{on "click" (fn @fns.onSelect "job-spec")}}
+            />
+            <Hds::Button
+              data-test-select-full
+              class={{if (eq @data.view 'full-definition') 'is-active'}}
+              @size="small"
+              @text="Full Definition"
+              {{on "click" (fn @fns.onSelect "full-definition")}}
+            />
+          </div>
+        </Tooltip>
+        <Hds::Button
           data-test-cancel-editing
-        >
-          Cancel
-        </button>
-    </div>
+          @size="small"
+          @text="Cancel"
+          {{on "click" @fns.onCancel}} 
+        />
+      </CE.Generic>
     {{/if}}
-  </div>
-  <div class="boxed-section-body is-full-bleed">
-    <div
-      data-test-editor
-      {{hds-code-editor
-        ariaLabel="Job definition"
-        value=@data.job._newDefinition
-        onInput=@fns.onUpdate
-        language=(if (eq @data.format "json") "javascript" "ruby")
-        hasLineWrapping=@data.shouldWrap
-      }}
-    ></div>
-  </div>
+  </Hds::CodeEditor>
+  
   {{#if (or (eq @data.view "job-spec") @data.job.isNew)}}
-    <div class="boxed-section" style="margin-top: 10px">
-      <div class="boxed-section-head">
-        {{#if @data.job.isNew}}
-        HCL Variable Values
-        {{else}}
-        Edit HCL Variable Values
-        {{/if}}
-      </div>
-      <div class="boxed-section-body is-full-bleed">
-        <div
-          class="json-viewer is-variable-editor"
-          data-test-variable-editor
-          {{hds-code-editor
-            ariaLabel="HLC Variables for Job Spec"
-            value=@data.job._newDefinitionVariables
-            language="ruby"
-            hasLineWrapping=@data.shouldWrap
-            onInput=@fns.onUpdate
-          }}
-        ></div>
-      </div>
-    </div>
+    <Hds::CodeEditor
+      style="margin-top: 10px"
+      @language="ruby"
+      @value={{@data.job._newDefinitionVariables}}
+      @hasLineWrapping={{@data.shouldWrap}}
+      @onInput={{this.updateHclVariables}}
+      @onSetup={{fn (mut this.updateHclVariablesEditor)}}
+      as |CE|
+    >
+      <CE.Title>
+        {{if @data.job.isNew "HCL Variable Values" "Edit HCL Variable Values"}}
+      </CE.Title>
+    </Hds::CodeEditor>
   {{/if}}
 </div>
 <Hds::ButtonSet class="is-associative buttonset sticky pull-left">

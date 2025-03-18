@@ -117,11 +117,11 @@
         class="editor-wrapper boxed-section-body is-full-bleed
           {{if this.hasJSONErrors 'error'}}"
       >
-        {{!-- TODO: extraKeys=(hash Cmd-Enter=(action "save")) --}}
         <div
           data-test-json-editor
           {{hds-code-editor
             ariaLabel="Variable JSON Editor"
+            extraKeys=(hash Cmd-Enter=this.save)
             language="json"
             value=this.JSONItems
             isLintingEnabled=true

@@ -18,6 +18,7 @@
 
 	<Hds::CodeEditor
 		data-test-namespace-editor
+		@extraKeys={{hash Cmd-Enter=this.save}}
 		@language="json"
 		@isLintingEnabled={{true}}
 		@value={{this.definitionString}}
