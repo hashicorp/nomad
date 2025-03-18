@@ -51,8 +51,19 @@ export default create({
   dhvIsEmpty: isPresent('[data-test-empty-dhv-list-headline]'),
   dhvEmptyState: text('[data-test-empty-dhv-list-headline]'),
 
-  csiNextPage: clickable('.hds-pagination-nav__arrow--direction-next'),
-  csiPrevPage: clickable('.hds-pagination-nav__arrow--direction-prev'),
+  csiNextPage: clickable(
+    '[data-test-csi-volumes-card] .hds-pagination-nav__arrow--direction-next'
+  ),
+  csiPrevPage: clickable(
+    '[data-test-csi-volumes-card] .hds-pagination-nav__arrow--direction-prev'
+  ),
+
+  dhvNextPage: clickable(
+    '[data-test-dynamic-host-volumes-card] .hds-pagination-nav__arrow--direction-next'
+  ),
+  dhvPrevPage: clickable(
+    '[data-test-dynamic-host-volumes-card] .hds-pagination-nav__arrow--direction-prev'
+  ),
 
   error: error(),
   pageSizeSelect: pageSizeSelect(),

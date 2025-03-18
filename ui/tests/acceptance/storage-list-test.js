@@ -438,5 +438,65 @@ module('Acceptance | storage list', function (hooks) {
         assert.ok(StorageList.dhvIsEmpty);
       });
     });
+
+    test('Pagination is adhered to when live updates happen', async function (assert) {
+      localStorage.setItem('nomadPageSize', 10);
+      server.createList('dynamic-host-volume', 9);
+      const controller = this.owner.lookup('controller:storage.index');
+
+      await StorageList.visit();
+
+      // 9 rows should be present
+      assert.dom('[data-test-dhv-row]').exists({ count: 9 });
+
+      server.create('dynamic-host-volume', { name: 'tenth-volume' });
+
+      await controller.watchDHV.perform({
+        type: 'host',
+        namespace: controller.qpNamespace,
+      });
+
+      // 10 rows should be present
+      assert.dom('[data-test-dhv-row]').exists({ count: 10 });
+
+      // Newest (sorted by modified date by default) should show up first
+      assert
+        .dom('[data-test-dhv-row]:first-child')
+        .containsText('tenth-volume');
+
+      // There should still only be 1 page of pagination
+      assert.dom('.hds-pagination-nav__number').exists({ count: 1 });
+      // 10 rows should be present
+      assert.dom('[data-test-dhv-row]').exists({ count: 10 });
+
+      // Create one more
+      server.create('dynamic-host-volume', { name: 'eleventh-volume' });
+
+      await controller.watchDHV.perform({
+        type: 'host',
+        namespace: controller.qpNamespace,
+      });
+
+      // 10 rows still present
+      assert.dom('[data-test-dhv-row]').exists({ count: 10 });
+
+      // Newest should show up first
+      assert
+        .dom('[data-test-dhv-row]:first-child')
+        .containsText('eleventh-volume');
+
+      // There should now be 2 pages of pagination
+      assert.dom('.hds-pagination-nav__number').exists({ count: 2 });
+
+      // Clicking through to the second page changes the URL and only shows 1 row
+      await StorageList.dhvNextPage();
+      assert.equal(currentURL(), '/storage?dhvPage=2');
+
+      // 1 row should be present
+      assert.dom('[data-test-dhv-row]').exists({ count: 1 });
+
+      // cleanup
+      localStorage.removeItem('nomadPageSize');
+    });
   }
 });

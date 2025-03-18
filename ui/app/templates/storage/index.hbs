@@ -32,7 +32,7 @@
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card">
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card" data-test-csi-volumes-card>
       <header aria-label="CSI Volumes">
         <h3>CSI Volumes</h3>
         <p class="intro">
@@ -141,7 +141,7 @@
       {{/if}}
     </Hds::Card::Container>
 
-    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card">
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card" data-test-dynamic-host-volumes-card>
       <header aria-label="Dynamic Host Volumes">
         <h3>Dynamic Host Volumes</h3>
         <p class="intro">
