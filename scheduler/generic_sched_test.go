@@ -4631,7 +4631,7 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	node := mock.Node()
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
-	// Generate a fake job with an allocation and an update policy.
+	// Generate a fake job with a newly-failed allocation and an update policy.
 	job := mock.Job()
 	job.TaskGroups[0].Count = 1
 	delayDuration := 15 * time.Second
@@ -4679,8 +4679,8 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	// Process the evaluation and assert we have a plan
 	must.NoError(t, h.Process(NewServiceScheduler, eval))
 	must.Len(t, 1, h.Plans)
-	must.MapLen(t, 0, h.Plans[0].NodeUpdate)     // stop
-	must.MapLen(t, 1, h.Plans[0].NodeAllocation) // place
+	must.MapLen(t, 0, h.Plans[0].NodeUpdate)     // no stop
+	must.MapLen(t, 1, h.Plans[0].NodeAllocation) // ignore but update with follow-up eval
 
 	// Lookup the allocations by JobID and verify no new allocs created
 	ws := memdb.NewWatchSet()
@@ -4704,8 +4704,8 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	// in a replacement and stop
 	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
 	must.Len(t, 2, h.Plans)
-	must.MapLen(t, 1, h.Plans[1].NodeUpdate)     // stop
-	must.MapLen(t, 1, h.Plans[1].NodeAllocation) // place
+	must.MapLen(t, 1, h.Plans[1].NodeUpdate)     // stop original
+	must.MapLen(t, 1, h.Plans[1].NodeAllocation) // place new
 
 	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
 	must.NoError(t, err)
@@ -4718,7 +4718,8 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 				must.Sprint("replacement alloc should have reschedule tracker"))
 			must.Len(t, 1, alloc.RescheduleTracker.Events)
 			replacementAllocID = alloc.ID
-			break
+		} else {
+			must.Eq(t, structs.AllocDesiredStatusStop, alloc.DesiredStatus)
 		}
 	}
 
