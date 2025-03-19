@@ -339,9 +339,8 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 		go func() {
 			before := time.Now()
 			h.PreKill()
-			after := time.Now()
-			// we respected the shutdown_delay and did not return immediately
-			if after.Sub(before) < delay {
+			// we did not respect the shutdown_delay and returned immediately
+			if time.Since(before) < delay {
 				t.Fail()
 			}
 			successChan <- struct{}{}
