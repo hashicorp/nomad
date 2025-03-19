@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: 'Commands: eval status'
+page_title: 'nomad eval status command reference'
 description: >
-  The eval status command is used to see the status and potential failed
-  allocations of an evaluation.
+  The `nomad eval status` command displays the status and potential failed
+  allocations of an evaluation. Use with the `monitor` flag to start an interactive monitoring session.
 ---
 
-# Command: eval status
+# `nomad eval status` command reference
 
 The `eval status` command is used to display information about an existing
 evaluation. In the case an evaluation could not place all the requested
@@ -37,11 +37,11 @@ resource exhaustion, etc), then the exit code will be 2. Any other
 errors, including client connection issues or internal errors, are
 indicated by exit code 1.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Eval Status Options
+## Eval status options
 
 - `-monitor`: Monitor an outstanding evaluation
 - `-verbose`: Show full information.
