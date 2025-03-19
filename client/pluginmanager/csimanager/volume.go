@@ -293,7 +293,7 @@ func (v *volumeManager) unstageVolume(ctx context.Context, volNS, volID, remoteI
 	// plugin to perform unstaging
 	stagingPath := v.stagingDirForVolume(v.containerMountPoint, volNS, volID, usage)
 
-	// This it the path from the host, which we need to use to verify whether
+	// This is the path from the host, which we need to use to verify whether
 	// the path is the right one to pass to the plugin container
 	hostStagingPath := v.stagingDirForVolume(v.mountRoot, volNS, volID, usage)
 	_, err := os.Stat(hostStagingPath)
@@ -420,7 +420,7 @@ func (v *volumeManager) ExpandVolume(ctx context.Context, volNS, volID, remoteID
 	// plugin to perform expansion
 	stagingPath := v.stagingDirForVolume(v.containerMountPoint, volNS, volID, usage)
 
-	// This it the path from the host, which we need to use to verify whether
+	// This is the path from the host, which we need to use to verify whether
 	// the path is the right one to pass to the plugin container
 	hostStagingPath := v.stagingDirForVolume(v.mountRoot, volNS, volID, usage)
 	_, err = os.Stat(hostStagingPath)
