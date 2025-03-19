@@ -2350,6 +2350,10 @@ func TestCoreScheduler_CSIPluginGC(t *testing.T) {
 	index++
 	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
 
+	snap, err = store.Snapshot()
+	must.NoError(t, err)
+	core = NewCoreScheduler(srv, snap)
+
 	// Retry
 	index++
 	gc = srv.coreJobEval(structs.CoreJobCSIPluginGC, index)
