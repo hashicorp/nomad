@@ -220,7 +220,7 @@ port numbers, and whether trailing slashes are present.
 - For client assertions, if `VerboseLogging` is enabled, then the Nomad leader
   server logs a JWT when the auth method is created, and when someone makes
   a login attempt. These JWTs are not 100% identical to what gets sent to the
-  OIDC provider due to being time-bounded, but you can check the JWT headers
+  OIDC provider due to being time-bound, but you can check the JWT headers
   and claims to compare with your OIDC provider's requirements.
 
 @include 'jwt_claim_mapping_details.mdx'
