@@ -256,7 +256,7 @@ func TestAllocGarbageCollector_KeepUsageBelowThreshold(t *testing.T) {
 
 			// gc
 			err := gc.keepUsageBelowThreshold()
-			must.Nil(t, err)
+			must.NoError(t, err)
 
 			gcAlloc := gc.allocRunners.Pop()
 			if tc.expGC {
