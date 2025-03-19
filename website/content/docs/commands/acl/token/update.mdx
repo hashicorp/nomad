@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: acl token update'
+page_title: 'nomad acl token update command reference'
 description: |
-  The token update command is used to update existing ACL tokens.
+  The `nomad acl token update` command modifies an access control list (ACL) token. Update name, client or management type, policy, and role.
 ---
 
-# Command: acl token update
+# `nomad acl token update` command reference
 
 The `acl token update` command is used to update existing ACL tokens.
 
@@ -17,11 +17,11 @@ nomad acl token update [options] <token_accessor_id>
 
 The `acl token update` command requires an existing token's accessor ID.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Update Options
+## Update options
 
 - `-name`: Sets the human readable name for the ACL token.
 

@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: system gc'
+page_title: 'nomad system gc command reference'
 description: |
-  Run the system garbage collection process.
+  The `nomad system gc` command runs the system garbage collection process on jobs, evaluations, allocations, and nodes.
 ---
 
-# Command: system gc
+# `nomad system gc` command reference
 
 Initializes a garbage collection of jobs, evaluations, allocations, and nodes.
 This is an asynchronous operation.
@@ -32,7 +32,7 @@ nomad system gc [options]
 
 If ACLs are enabled, this option requires a management token.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 

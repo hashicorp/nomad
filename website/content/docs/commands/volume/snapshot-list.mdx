@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: volume snapshot list'
+page_title: 'nomad volume snapshot list command reference'
 description: |
-  List external volume snapshots.
+  The `nomad volume snapshot list` command displays a list external Container Storage Interface (CSI) volume snapshots along with the source volume ID as known to the external storage provider.
 ---
 
-# Command: volume snapshot list
+# `nomad volume snapshot list` command reference
 
 The `volume snapshot list` command lists volume snapshots known to a
 [Container Storage Interface (CSI)][csi] storage provider. Only CSI plugins
@@ -23,11 +23,11 @@ source volume ID as known to the external storage provider. This is not the
 same as the Nomad volume ID, as the source volume may not be [registered] with
 Nomad.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Snapshot List Options
+## Snapshot list options
 
 - `-page-token`: Where to start pagination.
 - `-per-page`: How many results to show per page.

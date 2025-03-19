@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: node pool info'
+page_title: 'nomad node pool info command reference'
 description: |
-  The node pool info command is used to fetch information about a node pool.
+  The `nomad node pool info` command displays information about a node pool.
 ---
 
-# Command: node pool info
+# `nomad node pool info` command reference
 
 The `node pool info` command is used to fetch information about an existing
 node pool.
@@ -19,11 +19,11 @@ nomad node pool info [options] <node-pool>
 If ACLs are enabled, this command requires a token with the `read` capability
 in a `node_pool` policy that matches the node pool being targeted.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Info Options
+## Info options
 
 - `-json`: Output the node pool in its JSON format.
 

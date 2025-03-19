@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: operator root keyring remove'
+page_title: 'nomad operator root keyring remove command reference'
 description: |
-  Remove an unused encryption key
+  The `nomad operator root keyring remove` command removes an unused encryption key from the cluster.
 ---
 
-# Command: operator root keyring remove
+# `nomad operator root keyring remove` command reference
 
 The `operator root keyring remove` command removes an encryption key from the
 cluster. This operation may only be performed on keys that are not the active
@@ -19,11 +19,11 @@ If ACLs are enabled, this command requires a management token.
 nomad operator root keyring remove [options] <key ID>
 ```
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Remove Options
+## Remove options
 
 - `-force`: Remove the key even if it was used to sign an existing variable
 or workload identity.
