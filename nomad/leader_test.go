@@ -6,6 +6,7 @@ package nomad
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"sort"
 	"strconv"
 	"testing"
@@ -1426,11 +1427,11 @@ func TestLeader_PausingWorkers(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 12
+		c.NumSchedulers = runtime.NumCPU()
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
-	require.Len(t, s1.workers, 12)
+	require.Len(t, s1.workers, runtime.NumCPU())
 
 	// this satisfies the require.Eventually test interface
 	checkPaused := func(count int) func() bool {
@@ -1450,7 +1451,7 @@ func TestLeader_PausingWorkers(t *testing.T) {
 	}
 
 	// acquiring leadership should have paused 3/4 of the workers
-	require.Eventually(t, checkPaused(9), 1*time.Second, 10*time.Millisecond, "scheduler workers did not pause within a second at leadership change")
+	require.Eventually(t, checkPaused(3*runtime.NumCPU()/4), 1*time.Second, 10*time.Millisecond, "scheduler workers did not pause within a second at leadership change")
 
 	err := s1.revokeLeadership()
 	require.NoError(t, err)
