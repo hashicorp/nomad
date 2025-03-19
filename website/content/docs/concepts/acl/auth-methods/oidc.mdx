@@ -77,9 +77,13 @@ Enter the URL manually if the browser does not automatically open.
 ### Client assertions
 
 Also known as "[private key JWT][]", client assertions offer a more secure
-authentication mechanism compared to client secrets. The OIDC client (in this
-case, Nomad) signs a JWT with an RSA private key (or HMAC key) that the OIDC
-provider verifies with an associated public key (or the same HMAC key).
+authentication mechanism compared to client secrets.
+
+Instead of sending a simple secret, Nomad builds a JWT and signs it with
+an RSA private key (or HMAC) that the OIDC provider can verify with an
+associated public key (or the same HMAC). In this way, Nomad "asserts"
+that it is a valid OIDC client without sending any secret information over
+the network.
 
 Here are some partial [auth method configuration][] examples. They focus only
 on the client assertion feature; they are not complete, functional examples.
