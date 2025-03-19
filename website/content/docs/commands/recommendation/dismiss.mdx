@@ -1,15 +1,15 @@
 ---
 layout: docs
-page_title: 'Commands: recommendation dismiss'
+page_title: 'nomad recommendation dismiss command reference'
 description: |
-  The recommendation dismiss command is used to dismiss recommendations.
+  The `nomad recommendation dismiss` command dismisses one or more recommendations in Nomad Enterprise.
 ---
 
-# Command: recommendation dismiss
+# `nomad recommendation dismiss` command reference
 
 The `recommendation dismiss` command is used to dismiss recommendations.
 
-~> Recommendation commands are only available with Nomad Enterprise.
+<EnterpriseAlert product="nomad"/>
 
 ## Usage
 
@@ -25,7 +25,7 @@ When ACLs are enabled, this command requires a token with the `submit-job`,
 `read-job`, and `submit-recommendation` capabilities for the recommendation's
 namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 

@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: monitor'
+page_title: 'nomad monitor command reference'
 description: |
-  Stream the logs of a running nomad agent.
+  The `nomad monitor` command streams log messages for a given agent. Configure log level, log output, node ID, and server ID.
 ---
 
-# Command: monitor
+# `nomad monitor` command reference
 
 The `nomad monitor` command streams log messages for a given agent.
 
@@ -27,11 +27,11 @@ The monitor command also allows you to specify a single client node id to follow
 When ACLs are enabled, this command requires a token with the `agent:read`
 capability.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Monitor Options
+## Monitor options
 
 - `-log-level`: The log level to use for log streaming. Defaults to `info`.
   Possible values include `trace`, `debug`, `info`, `warn`, `error`

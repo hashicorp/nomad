@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: alloc signal'
+page_title: 'nomad alloc signal command reference'
 description: |
-  Signal a running allocation or task
+  The `nomad alloc signal` command sends a signal to a running allocation or task.
 ---
 
-# Command: alloc signal
+# `nomad alloc signal` command reference
 
 The `alloc signal` command allows a user to perform an in place signal of an
 an entire allocation or individual task.
@@ -20,19 +20,19 @@ This command accepts a single allocation ID and a task name. The task name must
 be part of the allocation and the task must be currently running. The task name
 is optional and if omitted every task in the allocation will be signaled.
 
-Task name may also be specified using the `-task`  option rather than a command 
-argument. If task name is given with both an argument and the `-task` option, 
+Task name may also be specified using the `-task`  option rather than a command
+argument. If task name is given with both an argument and the `-task` option,
 preference is given to the `-task` option.
 
 When ACLs are enabled, this command requires a token with the
 `alloc-lifecycle`, `read-job`, and `list-jobs` capabilities for the
 allocation's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Signal Options
+## Signal options
 
 - `-s`: Signal to send to the tasks. Valid options depend on the driver.
 

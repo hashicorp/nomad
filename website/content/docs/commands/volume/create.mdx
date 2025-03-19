@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: volume create'
+page_title: 'nomad volume create command reference'
 description: |
   Create volumes with CSI plugins.
 ---
 
-# Command: volume create
+# `nomad volume create` command reference
 
 The `volume create` command creates external storage volumes with Nomad's
 [Container Storage Interface (CSI)][csi] support. Only CSI plugins that
@@ -27,7 +27,7 @@ read from the file at the supplied path.
 When ACLs are enabled, this command requires a token with the
 `csi-write-volume` capability for the volume's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 

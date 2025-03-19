@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: acl token create'
+page_title: 'nomad acl token create command reference'
 description: |
-  The token create command is used to create new ACL tokens.
+  The `nomad acl token create` command creates an access control list (ACL) token. Set name, client or management type, policy, role, time to live (TTL), and whether the policy should be global.
 ---
 
-# Command: acl token create
+# `nomad acl token create` command reference
 
 The `acl token create` command is used to create new ACL tokens.
 
@@ -17,11 +17,11 @@ nomad acl token create [options]
 
 The `acl token create` command requires no arguments.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Create Options
+## Create options
 
 - `-name`: Sets the human readable name for the ACL token.
 
