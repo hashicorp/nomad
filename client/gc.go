@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/hoststats"
-	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 const (
@@ -165,8 +164,7 @@ func (a *AllocGarbageCollector) keepUsageBelowThreshold() error {
 			break
 		}
 
-		// Destroy the alloc runner and wait until it exits
-		a.destroyAllocRunner(gcAlloc.allocID, gcAlloc.allocRunner, reason)
+		go a.destroyAllocRunner(gcAlloc.allocID, gcAlloc.allocRunner, reason)
 	}
 	return nil
 }
@@ -230,112 +228,6 @@ func (a *AllocGarbageCollector) CollectAll() {
 
 		go a.destroyAllocRunner(gcAlloc.allocID, gcAlloc.allocRunner, "forced full node collection")
 	}
-}
-
-// MakeRoomFor garbage collects enough number of allocations in the terminal
-// state to make room for new allocations
-func (a *AllocGarbageCollector) MakeRoomFor(allocations []*structs.Allocation) error {
-	if len(allocations) == 0 {
-		// Nothing to make room for!
-		return nil
-	}
-
-	// GC allocs until below the max limit + the new allocations
-	max := a.config.MaxAllocs - len(allocations)
-	for a.allocCounter.NumAllocs() > max {
-		select {
-		case <-a.shutdownCh:
-			return nil
-		default:
-		}
-
-		gcAlloc := a.allocRunners.Pop()
-		if gcAlloc == nil {
-			// It's fine if we can't lower below the limit here as
-			// we'll keep trying to drop below the limit with each
-			// periodic gc
-			break
-		}
-
-		// Destroy the alloc runner and wait until it exits
-		a.destroyAllocRunner(gcAlloc.allocID, gcAlloc.allocRunner, fmt.Sprintf("new allocations and over max (%d)", a.config.MaxAllocs))
-	}
-
-	totalResource := &structs.AllocatedSharedResources{}
-	for _, alloc := range allocations {
-		// COMPAT(0.11): Remove in 0.11
-		if alloc.AllocatedResources != nil {
-			totalResource.Add(&alloc.AllocatedResources.Shared)
-		} else {
-			totalResource.DiskMB += int64(alloc.Resources.DiskMB)
-		}
-	}
-
-	// If the host has enough free space to accommodate the new allocations then
-	// we don't need to garbage collect terminated allocations
-	if hostStats := a.statsCollector.Stats(); hostStats != nil {
-		var availableForAllocations uint64
-		if hostStats.AllocDirStats.Available < uint64(a.config.ReservedDiskMB*MB) {
-			availableForAllocations = 0
-		} else {
-			availableForAllocations = hostStats.AllocDirStats.Available - uint64(a.config.ReservedDiskMB*MB)
-		}
-		if uint64(totalResource.DiskMB*MB) < availableForAllocations {
-			return nil
-		}
-	}
-
-	var diskCleared int64
-	for {
-		select {
-		case <-a.shutdownCh:
-			return nil
-		default:
-		}
-
-		// Collect host stats and see if we still need to remove older
-		// allocations
-		var allocDirStats *hoststats.DiskStats
-		if err := a.statsCollector.Collect(); err == nil {
-			if hostStats := a.statsCollector.Stats(); hostStats != nil {
-				allocDirStats = hostStats.AllocDirStats
-			}
-		}
-
-		if allocDirStats != nil {
-			if allocDirStats.Available >= uint64(totalResource.DiskMB*MB) {
-				break
-			}
-		} else {
-			// Falling back to a simpler model to know if we have enough disk
-			// space if stats collection fails
-			if diskCleared >= totalResource.DiskMB {
-				break
-			}
-		}
-
-		gcAlloc := a.allocRunners.Pop()
-		if gcAlloc == nil {
-			break
-		}
-
-		ar := gcAlloc.allocRunner
-		alloc := ar.Alloc()
-
-		// COMPAT(0.11): Remove in 0.11
-		var allocDiskMB int64
-		if alloc.AllocatedResources != nil {
-			allocDiskMB = alloc.AllocatedResources.Shared.DiskMB
-		} else {
-			allocDiskMB = int64(alloc.Resources.DiskMB)
-		}
-
-		// Destroy the alloc runner and wait until it exits
-		a.destroyAllocRunner(gcAlloc.allocID, ar, fmt.Sprintf("freeing %d MB for new allocations", allocDiskMB))
-
-		diskCleared += allocDiskMB
-	}
-	return nil
 }
 
 // MarkForCollection starts tracking an allocation for Garbage Collection
