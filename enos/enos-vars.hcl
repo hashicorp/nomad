@@ -58,12 +58,14 @@ variable "download_binary_path" {
 variable "nomad_license" {
   type        = string
   description = "If nomad_license is set, deploy a license"
+  sensitive   = true
   default     = ""
 }
 
 variable "consul_license" {
   type        = string
   description = "If consul_license is set, deploy a license"
+  sensitive   = true
   default     = ""
 }
 
