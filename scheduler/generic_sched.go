@@ -687,7 +687,15 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
+						original := prevAllocation
+						prevAllocation = prevAllocation.Copy()
 						updateRescheduleTracker(alloc, prevAllocation, now)
+						if stopPrevAlloc {
+							s.plan.PopUpdate(original)
+							s.plan.AppendStoppedAlloc(prevAllocation, stopPrevAllocDesc, "", "")
+						} else {
+							s.plan.AppendAlloc(prevAllocation, nil)
+						}
 					}
 				}
 
@@ -727,7 +735,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
 					if missing.IsRescheduling() {
+						prevAllocation = prevAllocation.Copy()
 						annotateRescheduleTracker(prevAllocation, structs.LastRescheduleFailedToPlace)
+						s.plan.AppendAlloc(prevAllocation, nil)
 					}
 				}
 
