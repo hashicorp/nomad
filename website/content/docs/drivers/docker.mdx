@@ -163,6 +163,23 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
+   <Warning>
+
+   If you are creating your job specification in JSON, you must use an array of
+   maps, not a single map as in HCL.
+
+   ```json
+   config {
+     "sysctl": [
+      {
+       "net.core.somaxconn": "16384"
+      }
+    ]
+   }
+   ```
+
+   </Warning>
+
 - `ulimit` - (Optional) A key-value map of ulimit configurations to set to the
   containers on start.
 
