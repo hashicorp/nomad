@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: operator debug'
+page_title: 'nomad operator debug command reference'
 description: |
-  Build an archive of debug data.
+  The `nomad operator debug` command builds an archive containing Nomad cluster configuration and state information, Nomad server and client node logs, and pprof profiles from the selected servers and client nodes.
 ---
 
-# Command: operator debug
+# `nomad operator debug` command reference
 
 The `operator debug` command builds an archive containing Nomad cluster
 configuration and state information, Nomad server and client node
@@ -41,11 +41,11 @@ require the 'agent:read' and 'operator:read' capabilities, as well as the
 token will also require 'agent:write', or enable_debug configuration set to
 true.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Debug Options
+## Debug options
 
 - `-duration=5m`: Set the duration of the debug capture. Logs will be captured from
   specified servers and nodes at `log-level`. Defaults to `5m`.

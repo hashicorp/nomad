@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: acl binding-rule info'
+page_title: 'nomad acl binding-rule info command reference'
 description: |
-  The binding-rule info command is used to fetch information about an existing
-  ACL Binding Rule.
+  The `nomad acl binding-rule info` command fetches information about an existing access control list (ACL) binding rule. Review ID, description, authentication method, selector, bind type, bind name, and time to live (TTL).
 ---
 
-# Command: acl binding-rule info
+# `nomad acl binding-rule info` command reference
 
 The `acl binding-rule info` command is used to fetch information about an existing ACL Binding Rule.
 
@@ -18,11 +17,11 @@ nomad acl binding-rule info [options] <binding-rule_id>
 
 The `acl binding-rule info` command requires an existing rule's ID.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Info Options
+## Info options
 
 - `-json`: Output the ACL Binding Rule in a JSON format.
 
