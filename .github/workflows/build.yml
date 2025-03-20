@@ -341,9 +341,9 @@ jobs:
             docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-dev
             docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-${{env.revision}}
 
-  minimum-os:
+  minimum-os-amd64:
     # test glibc 2.28 compatibility (RHEL 8.10)
-    name: OS Compatibility
+    name: OS Compatibility (AMD64)
     needs:
       - get-go-version
       - get-product-version
@@ -352,14 +352,43 @@ jobs:
       fail-fast: false
       matrix:
         goos: [linux]
-        goarch: [amd64, arm64]
-        runner: [ubuntu-22.04, ubuntu-22.04-arm]
-        exclude:
-          - runner: ubuntu-22.04
-            goarch: arm64
-          - runner: ubuntu-22.04-arm
-            goarch: amd64
-    runs-on: ${{ matrix.runner }}
+        goarch: [amd64]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version: ${{needs.get-go-version.outputs.go-version}}
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+      - name: Test binary
+        env:
+          artifact_name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+        run: |
+          echo "::group::Unpack and Prep"
+          unzip "$artifact_name"
+          echo "::group::Diagnostics"
+          echo "CGO related build information:"
+          go version -m ./nomad | grep CGO
+          echo "GLIBC links:"
+          go tool nm ./nomad | grep -i glibc | cut -d @ -f 2-3 | sort --version-sort | uniq
+          echo "::group::Smoke test binary"
+          docker run --rm -v "$PWD:/src" redhat/ubi8:8.10 /src/nomad version
+
+  minimum-os-arm64:
+    # test glibc 2.28 compatibility (RHEL 8.10)
+    name: OS Compatibility (ARM64)
+    if: github.repository != 'hashicorp/nomad-enterprise' # arm runners do not support private repositories
+    needs:
+      - get-go-version
+      - get-product-version
+      - build-linux
+    strategy:
+      fail-fast: false
+      matrix:
+        goos: [linux]
+        goarch: [arm64]
+    runs-on: ubuntu-22.04-arm
     steps:
       - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
@@ -390,7 +419,8 @@ jobs:
       - build-linux
       - build-darwin
       - build-docker
-      - minimum-os
+      - minimum-os-amd64
+      - minimum-os-arm64
     if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
     uses: ./.github/workflows/test-failure-notification.yml
     secrets: inherit
