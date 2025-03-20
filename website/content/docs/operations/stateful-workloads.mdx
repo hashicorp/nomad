@@ -108,8 +108,9 @@ There are three CSI plugin subtypes:
 - **Monolithic**: Combines both the above roles.
 
 All types can and should be run as Nomad jobs - `system` jobs for Node and
-Monolithic, `service` for Controllers. More information can be found on the CSI
-concepts [documentation page](/nomad/docs/concepts/plugins/csi).
+Monolithic, `service` for Controllers. Refer to the [Container Storage Interface
+(CSI) plugins page][csi-concepts] for more information.
+
 
 CSI plugins are useful when storage requirements are quickly and constantly
 evolving. For example, an environment that sees new workloads with persistent
@@ -169,7 +170,7 @@ volumes or distributed storage with GlusterFS or Ceph, host volumes provide a qu
 option to consume highly available and reliable storage.
 
 Refer to the [Stateful workloads with Nomad host
-volumes](/nomad/tutorials/stateful-workloads/stateful-workloads-host-volumes)
+volumes][csi-tutorial]
 tutorial to learn more about using host volumes with Nomad.
 
 #### NFS caveats
@@ -234,9 +235,9 @@ following resources:
 
 ### CSI
 
-- [Nomad CSI plugin concepts](/nomad/docs/concepts/plugins/storage/csi)
+- [Nomad CSI plugin concepts][csi-concepts]
 - [Nomad CSI
-  tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes)
+  tutorial][csi-tutorial]
 - [Nomad CSI examples](https://github.com/hashicorp/nomad/tree/main/demo/csi)
 - [Ceph RBD CSI with Nomad](https://docs.ceph.com/en/latest/rbd/rbd-nomad/)
 - [Democratic CSI with
@@ -249,3 +250,6 @@ following resources:
 
 - [Dynamic host volume plugins](/nomad/docs/concepts/plugins/storage/host-volumes)
 - [Dynamic host volume tutorial](/nomad/tutorial/stateful-workloads/stateful-workloads-dynamic-host-volumes)
+
+[csi-concepts]: /nomad/docs/concepts/plugins/storage/csi
+[csi-tutorial]: /nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes
