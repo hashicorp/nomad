@@ -435,6 +435,7 @@ func TestRawExecDriver_ExecutorKilled_ExitCode(t *testing.T) {
 	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 	testtask.SetTaskConfigEnv(task)
 
+	harness.MakeTaskCgroup(allocID, taskName)
 	handle, _, err := harness.StartTask(task)
 	must.NoError(t, err)
 
