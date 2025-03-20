@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -1713,6 +1714,14 @@ type schedulerWorkerConfigTest_testExpect struct {
 // These test cases are run for both the ACL and Non-ACL enabled servers. When
 // ACLS are not enabled, the request.aclTokens are ignored.
 func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequestTest {
+
+	numCPU := runtime.NumCPU()
+
+	halfCPU := numCPU / 2
+	if halfCPU == 0 {
+		halfCPU = 1
+	}
+
 	forbidden := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusForbidden,
 		expectedResponse:     structs.ErrPermissionDenied.Error(),
@@ -1727,12 +1736,11 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 	}
 	success1 := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusOK,
-		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 8},
+		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: numCPU},
 	}
-
 	success2 := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusOK,
-		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 9},
+		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: halfCPU},
 	}
 
 	return []scheduleWorkerConfigTest_workerRequestTest{
@@ -1791,7 +1799,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPost,
 				aclToken:    "",
-				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, halfCPU),
 			},
 			whenACLNotEnabled: success2,
 			whenACLEnabled:    forbidden,
@@ -1801,7 +1809,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPut,
 				aclToken:    "",
-				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, numCPU),
 			},
 			whenACLNotEnabled: success1,
 			whenACLEnabled:    forbidden,
@@ -1811,7 +1819,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPost,
 				aclToken:    "node_write",
-				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, halfCPU),
 			},
 			whenACLNotEnabled: success2,
 			whenACLEnabled:    forbidden,
@@ -1821,7 +1829,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPut,
 				aclToken:    "node_write",
-				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, numCPU),
 			},
 			whenACLNotEnabled: success1,
 			whenACLEnabled:    forbidden,
@@ -1831,7 +1839,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPost,
 				aclToken:    "agent_write",
-				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, halfCPU),
 			},
 			whenACLNotEnabled: success2,
 			whenACLEnabled:    success2,
@@ -1841,7 +1849,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPut,
 				aclToken:    "agent_write",
-				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, numCPU),
 			},
 			whenACLNotEnabled: success1,
 			whenACLEnabled:    success1,
@@ -1906,6 +1914,26 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			whenACLNotEnabled: invalidRequest,
 			whenACLEnabled:    invalidRequest,
 		},
+		{
+			name: "post with too many schedulers",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        http.MethodPost,
+				aclToken:    "agent_write",
+				requestBody: `{"num_schedulers":9223372036854775807,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    invalidRequest,
+		},
+		{
+			name: "put with too many schedulers",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        http.MethodPut,
+				aclToken:    "agent_write",
+				requestBody: `{"num_schedulers":9223372036854775807,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    invalidRequest,
+		},
 	}
 }
 
@@ -1913,8 +1941,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_NoACL(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		var numSchedulers = 8
-		c.Server.NumSchedulers = &numSchedulers
+		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}
@@ -1946,8 +1973,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_ACL(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		var numSchedulers = 8
-		c.Server.NumSchedulers = &numSchedulers
+		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}

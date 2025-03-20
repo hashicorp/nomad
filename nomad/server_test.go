@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -597,14 +598,14 @@ func TestServer_ReloadSchedulers_NumSchedulers(t *testing.T) {
 	ci.Parallel(t)
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.NumSchedulers = 8
+		c.NumSchedulers = runtime.NumCPU()
 	})
 	defer cleanupS1()
 
 	require.Equal(t, s1.config.NumSchedulers, len(s1.workers))
 
 	config := DefaultConfig()
-	config.NumSchedulers = 4
+	config.NumSchedulers = runtime.NumCPU() / 2
 	require.NoError(t, s1.Reload(config))
 
 	time.Sleep(1 * time.Second)

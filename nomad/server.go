@@ -14,6 +14,7 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -1698,12 +1699,12 @@ func (swpa SchedulerWorkerPoolArgs) IsInvalid() bool {
 	return !swpa.IsValid()
 }
 
-// IsValid verifies that the pool arguments are valid. That is, they have a non-negative
-// numSchedulers value and the enabledSchedulers list has _core and only refers to known
+// IsValid verifies that the pool arguments are valid. That is, they have a
+// non-negative numSchedulers value which is less than the number of CPUs on the
+// machine and the enabledSchedulers list has _core and only refers to known
 // schedulers.
 func (swpa SchedulerWorkerPoolArgs) IsValid() bool {
-	if swpa.NumSchedulers < 0 {
-		// the pool has to be non-negative
+	if swpa.NumSchedulers < 0 || swpa.NumSchedulers > runtime.NumCPU() {
 		return false
 	}
 
@@ -1742,7 +1743,7 @@ func getSchedulerWorkerPoolArgsFromConfigLocked(c *Config) *SchedulerWorkerPoolA
 	}
 }
 
-// GetSchedulerWorkerInfo returns a slice of WorkerInfos from all of
+// GetSchedulerWorkersInfo returns a slice of WorkerInfos from all of
 // the running scheduler workers.
 func (s *Server) GetSchedulerWorkersInfo() []WorkerInfo {
 	s.workerLock.RLock()
