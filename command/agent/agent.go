@@ -535,7 +535,6 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			AcceptBacklog:          agentConfig.RPCMUX.AcceptBacklog,
 			KeepAliveInterval:      agentConfig.RPCMUX.KeepAliveInterval,
 			ConnectionWriteTimeout: agentConfig.RPCMUX.ConnectionWriteTimeout,
-			MaxStreamWindowSize:    uint32(agentConfig.RPCMUX.MaxStreamWindowSize),
 			StreamCloseTimeout:     agentConfig.RPCMUX.StreamCloseTimeout,
 			StreamOpenTimeout:      agentConfig.RPCMUX.StreamOpenTimeout,
 		}

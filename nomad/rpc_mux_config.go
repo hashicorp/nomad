@@ -27,10 +27,6 @@ type RPCMuxConfig struct {
 	// an expectation that things will move along quickly.
 	ConnectionWriteTimeout time.Duration
 
-	// MaxStreamWindowSize is used to control the maximum
-	// window size that we allow for a stream.
-	MaxStreamWindowSize uint32
-
 	// StreamOpenTimeout is the maximum amount of time that a stream will
 	// be allowed to remain in pending state while waiting for an ack from the peer.
 	// Once the timeout is reached the session will be gracefully closed.
@@ -67,9 +63,6 @@ func (c *RPCMuxConfig) GetYamuxConfig() *yamux.Config {
 		}
 		if c.ConnectionWriteTimeout > 0 {
 			cfg.ConnectionWriteTimeout = c.ConnectionWriteTimeout
-		}
-		if c.MaxStreamWindowSize > 0 {
-			cfg.MaxStreamWindowSize = c.MaxStreamWindowSize
 		}
 		if c.StreamCloseTimeout > 0 {
 			cfg.StreamCloseTimeout = c.StreamCloseTimeout
