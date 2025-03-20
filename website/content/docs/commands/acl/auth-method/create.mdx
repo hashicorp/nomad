@@ -45,9 +45,9 @@ via flags detailed below.
 - `-default`: Specifies whether this auth method should be treated as a default
   one in case no auth method is explicitly specified for a login command.
 
-- `-config`: Auth method [configuration] in JSON format. May be prefixed with '@'
-  to indicate that the value is a file path to load the config from. '-' may also
-  be given to indicate that the config is available on stdin.
+- `-config`: Auth method [configuration][] in JSON format. You may provide '-'
+  to send the config through stdin, or prefix a file path with '@' to indicate
+  that the config should be loaded from the file.
 
 - `-json`: Output the ACL auth-method in a JSON format.
 
@@ -104,4 +104,27 @@ Example config file:
 }
 ```
 
+This example config uses a private key JWT [client assertion][]
+instead of a client secret.
+
+```json
+{
+  "OIDCDiscoveryURL": "https://my-keycloak-instance.com/realms/nomad",
+  "OIDCClientID": "my-great-client-id",
+  "OIDCClientAssertion": {
+    "KeySource": "nomad"
+  },
+  "BoundAudiences": [
+    "my-great-client-id"
+  ],
+  "AllowedRedirectURIs": [
+    "http://localhost:4646/oidc/callback"
+  ],
+  "ListClaimMappings": {
+    "groups": "groups"
+  }
+}
+```
+
 [configuration]: /nomad/api-docs/acl/auth-methods#config
+[client assertion]: /nomad/api-docs/acl/auth-methods#oidcclientassertion
