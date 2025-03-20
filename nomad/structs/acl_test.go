@@ -1392,20 +1392,37 @@ func TestACLAuthMethod_Merge(t *testing.T) {
 	must.Eq(t, am1.Config.OIDCClientAssertion.PrivateKey.KeyID, "test-key-id")
 }
 
+func TestACLAuthMethodConfig_Canonicalize(t *testing.T) {
+	// client assertions get some defaults from their parent
+	cass := &OIDCClientAssertion{}
+	am := &ACLAuthMethodConfig{
+		OIDCDiscoveryURL:    "test-disco-url",
+		OIDCClientSecret:    "super secret",
+		OIDCClientAssertion: cass, // not nil
+	}
+	am.Canonicalize()
+	must.Eq(t, []string{"test-disco-url"}, cass.Audience, must.Sprint("should inherit audience"))
+	must.Eq(t, "super secret", cass.ClientSecret, must.Sprint("should inherit secret"))
+	must.Eq(t, "", am.OIDCClientSecret, must.Sprint("secret should move to assertion"))
+}
+
 func TestACLAuthMethodConfig_Validate(t *testing.T) {
 	ci.Parallel(t)
 
 	// fail everything
 	am := &ACLAuthMethodConfig{}
 	am.Canonicalize() // there is insufficient info for this to help
-	err := am.Validate()
+	err := am.Validate("OIDC")
 	must.ErrorContains(t, err, "missing OIDCDiscoveryURL")
 	must.ErrorContains(t, err, "missing OIDCClientID")
-	must.ErrorContains(t, err, "missing BoundAudiences") // TODO: BoundIssuer? it's not even documented...
 	am.OIDCClientAssertion = &OIDCClientAssertion{}
 	am.Canonicalize()
-	err = am.Validate()
+	err = am.Validate("OIDC")
 	must.ErrorContains(t, err, "invalid client assertion config:")
+
+	// do not fail, because no JWT validation at the moment
+	err = am.Validate("JWT")
+	must.NoError(t, err)
 }
 
 func TestACLAuthMethodConfig_Copy(t *testing.T) {
