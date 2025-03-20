@@ -550,7 +550,6 @@ func (c *csiHook) unmountImpl(result *volumePublishResult) error {
 // stopping. Cancel our shutdown context so that we don't block client
 // shutdown while in the CSI RPC retry loop.
 func (c *csiHook) Shutdown() {
-	c.logger.Trace("shutting down hook")
 	c.shutdownCancelFn()
 }
 
@@ -559,7 +558,6 @@ func (c *csiHook) Shutdown() {
 // so that we don't block client shutdown while in the CSI RPC retry
 // loop.
 func (c *csiHook) Destroy() error {
-	c.logger.Trace("destroying hook")
 	c.shutdownCancelFn()
 	return nil
 }
