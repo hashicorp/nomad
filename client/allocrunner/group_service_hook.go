@@ -55,8 +55,6 @@ type groupServiceHook struct {
 	ports    structs.AllocatedPorts
 	delay    time.Duration
 
-	envBuilderFactory func() *taskenv.Builder
-
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
 	mu sync.Mutex
@@ -78,8 +76,6 @@ type groupServiceHookConfig struct {
 	serviceRegWrapper *wrapper.HandlerWrapper
 
 	hookResources *cstructs.AllocHookResources
-
-	envBuilderFactory func() *taskenv.Builder
 }
 
 func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
@@ -105,7 +101,6 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		tg:                tg,
 		hookResources:     cfg.hookResources,
 		shutdownDelayCtx:  cfg.shutdownDelayCtx,
-		envBuilderFactory: cfg.envBuilderFactory,
 	}
 
 	if cfg.alloc.AllocatedResources != nil {
@@ -133,7 +128,7 @@ func (*groupServiceHook) Name() string {
 	return groupServiceHookName
 }
 
-func (h *groupServiceHook) Prerun() error {
+func (h *groupServiceHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	h.mu.Lock()
 	defer func() {
 		// Mark prerun as true to unblock Updates
@@ -143,8 +138,7 @@ func (h *groupServiceHook) Prerun() error {
 		h.mu.Unlock()
 	}()
 
-	env := h.envBuilderFactory().Build()
-	return h.preRunLocked(env)
+	return h.preRunLocked(allocEnv)
 }
 
 // caller must hold h.mu
@@ -190,8 +184,7 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 
 	// Update group service hook fields
 	h.networks = networks
-	env := h.envBuilderFactory().UpdateTask(req.Alloc, nil).Build()
-	h.services = taskenv.InterpolateServices(env, tg.Services)
+	h.services = taskenv.InterpolateServices(req.AllocEnv, tg.Services)
 
 	h.canary = canary
 	h.delay = shutdown

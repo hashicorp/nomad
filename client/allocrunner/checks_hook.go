@@ -78,12 +78,11 @@ func (o *observer) stop() {
 //
 // Does not manage Consul service checks; see groupServiceHook instead.
 type checksHook struct {
-	logger     hclog.Logger
-	network    structs.NetworkStatus
-	shim       checkstore.Shim
-	checker    checks.Checker
-	allocID    string
-	envBuilder func() *taskenv.Builder
+	logger  hclog.Logger
+	network structs.NetworkStatus
+	shim    checkstore.Shim
+	checker checks.Checker
+	allocID string
 
 	// fields that get re-initialized on allocation update
 	lock      sync.RWMutex
@@ -98,16 +97,14 @@ func newChecksHook(
 	alloc *structs.Allocation,
 	shim checkstore.Shim,
 	network structs.NetworkStatus,
-	envBuilder func() *taskenv.Builder,
 ) *checksHook {
 	h := &checksHook{
-		logger:     logger.Named(checksHookName),
-		allocID:    alloc.ID,
-		alloc:      alloc,
-		shim:       shim,
-		network:    network,
-		checker:    checks.New(logger),
-		envBuilder: envBuilder,
+		logger:  logger.Named(checksHookName),
+		allocID: alloc.ID,
+		alloc:   alloc,
+		shim:    shim,
+		network: network,
+		checker: checks.New(logger),
 	}
 	h.initialize(alloc)
 	return h
@@ -210,7 +207,7 @@ func (h *checksHook) Name() string {
 	return checksHookName
 }
 
-func (h *checksHook) Prerun() error {
+func (h *checksHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
@@ -220,7 +217,7 @@ func (h *checksHook) Prerun() error {
 	}
 
 	interpolatedServices := taskenv.InterpolateServices(
-		h.envBuilder().Build(), group.NomadServices())
+		allocEnv, group.NomadServices())
 
 	// create and start observers of nomad service checks in alloc
 	h.observe(h.alloc, interpolatedServices)
@@ -239,7 +236,7 @@ func (h *checksHook) Update(request *interfaces.RunnerUpdateRequest) error {
 
 	// get all group and task level services using nomad provider
 	interpolatedServices := taskenv.InterpolateServices(
-		h.envBuilder().UpdateTask(request.Alloc, nil).Build(), group.NomadServices())
+		request.AllocEnv, group.NomadServices())
 
 	// create a set of the updated set of checks
 	next := make([]structs.CheckID, 0, len(h.observers))

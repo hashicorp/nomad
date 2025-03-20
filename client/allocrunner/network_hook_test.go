@@ -82,13 +82,11 @@ func TestNetworkHook_Prerun_Postrun_group(t *testing.T) {
 		expectedStatus: nil,
 	}
 
-	envBuilder := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
-
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder)
-	must.NoError(t, hook.Prerun())
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	must.NoError(t, hook.Prerun(env))
 	must.True(t, setter.called)
 	must.False(t, destroyCalled)
 	must.NoError(t, hook.Postrun())
@@ -128,12 +126,11 @@ func TestNetworkHook_Prerun_Postrun_host(t *testing.T) {
 		expectedStatus: nil,
 	}
 
-	envBuilder := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder)
-	must.NoError(t, hook.Prerun())
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	must.NoError(t, hook.Prerun(env))
 	must.False(t, setter.called)
 	must.False(t, destroyCalled)
 	must.NoError(t, hook.Postrun())
@@ -189,9 +186,7 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 		cni:      fakePlugin,
 		nsOpts:   &nsOpts{},
 	}
-	envBuilder := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	testCases := []struct {
 		name                             string
@@ -257,9 +252,9 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			fakePlugin.checkErrors = tc.checkErrs
 			configurator.nodeAttrs["plugins.cni.version.bridge"] = tc.cniVersion
 			hook := newNetworkHook(testlog.HCLogger(t), isolationSetter,
-				alloc, nm, configurator, statusSetter, envBuilder)
+				alloc, nm, configurator, statusSetter)
 
-			err := hook.Prerun()
+			err := hook.Prerun(env)
 			if tc.expectPrerunError == "" {
 				must.NoError(t, err)
 			} else {

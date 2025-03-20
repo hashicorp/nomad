@@ -36,9 +36,7 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
-	envBuilderFactory := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -49,13 +47,12 @@ func TestGroupServiceHook_NoGroupServices(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		envBuilderFactory: envBuilderFactory,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
-	must.NoError(t, h.Prerun())
+	must.NoError(t, h.Prerun(env))
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env}
 	must.NoError(t, h.Update(req))
 
 	must.NoError(t, h.Postrun())
@@ -80,9 +77,7 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
-	envBuilderFactory := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -94,15 +89,14 @@ func TestGroupServiceHook_ShutdownDelayUpdate(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		envBuilderFactory: envBuilderFactory,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
-	must.NoError(t, h.Prerun())
+	must.NoError(t, h.Prerun(env))
 
 	// Incease shutdown Delay
 	alloc.Job.TaskGroups[0].ShutdownDelay = pointer.Of(15 * time.Second)
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env}
 	must.NoError(t, h.Update(req))
 
 	// Assert that update updated the delay value
@@ -126,9 +120,7 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 	alloc.Job.Canonicalize()
 	logger := testlog.HCLogger(t)
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
-	envBuilderFactory := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -139,13 +131,12 @@ func TestGroupServiceHook_GroupServices(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		envBuilderFactory: envBuilderFactory,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
-	must.NoError(t, h.Prerun())
+	must.NoError(t, h.Prerun(env))
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env}
 	must.NoError(t, h.Update(req))
 
 	must.NoError(t, h.Postrun())
@@ -178,9 +169,7 @@ func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
 	logger := testlog.HCLogger(t)
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
 	nomadMockClient := regMock.NewServiceRegistrationHandler(logger)
-	envBuilderFactory := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	regWrapper := wrapper.NewHandlerWrapper(logger, consulMockClient, nomadMockClient)
 
@@ -188,14 +177,13 @@ func TestGroupServiceHook_GroupServices_Nomad(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		envBuilderFactory: envBuilderFactory,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
-	must.NoError(t, h.Prerun())
+	must.NoError(t, h.Prerun(env))
 
 	// Trigger our hook requests.
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env}
 	must.NoError(t, h.Update(req))
 	must.NoError(t, h.Postrun())
 	must.NoError(t, h.PreTaskRestart())
@@ -233,9 +221,7 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
-	envBuilderFactory := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -246,13 +232,12 @@ func TestGroupServiceHook_NoNetwork(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		envBuilderFactory: envBuilderFactory,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
-	must.NoError(t, h.Prerun())
+	must.NoError(t, h.Prerun(env))
 
-	req := &interfaces.RunnerUpdateRequest{Alloc: alloc}
+	req := &interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env}
 	must.NoError(t, h.Update(req))
 
 	must.NoError(t, h.Postrun())
@@ -285,9 +270,6 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 	logger := testlog.HCLogger(t)
 
 	consulMockClient := regMock.NewServiceRegistrationHandler(logger)
-	envBuilderFactory := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
 
 	regWrapper := wrapper.NewHandlerWrapper(
 		logger,
@@ -298,7 +280,6 @@ func TestGroupServiceHook_getWorkloadServices(t *testing.T) {
 		alloc:             alloc,
 		serviceRegWrapper: regWrapper,
 		restarter:         agentconsul.NoopRestarter(),
-		envBuilderFactory: envBuilderFactory,
 		logger:            logger,
 		hookResources:     cstructs.NewAllocHookResources(),
 	})
@@ -337,16 +318,11 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 		shutDownCtx, cancel := context.WithTimeout(context.Background(), delay*2)
 		defer cancel()
 
-		envBuilderFactory := func() *taskenv.Builder {
-			return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-		}
-
 		h := newGroupServiceHook(groupServiceHookConfig{
 			alloc:             alloc,
 			serviceRegWrapper: regWrapper,
 			shutdownDelayCtx:  shutDownCtx,
 			restarter:         agentconsul.NoopRestarter(),
-			envBuilderFactory: envBuilderFactory,
 			logger:            logger,
 			hookResources:     cstructs.NewAllocHookResources(),
 		})
@@ -391,15 +367,10 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 			consulMockClient,
 			regMock.NewServiceRegistrationHandler(logger))
 
-		envBuilderFactory := func() *taskenv.Builder {
-			return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-		}
-
 		h := newGroupServiceHook(groupServiceHookConfig{
 			alloc:             alloc,
 			serviceRegWrapper: regWrapper,
 			restarter:         agentconsul.NoopRestarter(),
-			envBuilderFactory: envBuilderFactory,
 			logger:            logger,
 			hookResources:     cstructs.NewAllocHookResources(),
 		})
@@ -443,10 +414,6 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 			consulMockClient,
 			regMock.NewServiceRegistrationHandler(logger))
 
-		envBuilderFactory := func() *taskenv.Builder {
-			return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-		}
-
 		// wait a shorter amount of time than shutdown_delay. If this triggers, the shutdown delay
 		// is being waited on, so we did not skip it.
 		shutDownCtx, cancel := context.WithTimeout(context.Background(), delay-300*time.Millisecond)
@@ -456,7 +423,6 @@ func TestGroupServiceHook_PreKill(t *testing.T) {
 			alloc:             alloc,
 			serviceRegWrapper: regWrapper,
 			restarter:         agentconsul.NoopRestarter(),
-			envBuilderFactory: envBuilderFactory,
 			logger:            logger,
 			hookResources:     cstructs.NewAllocHookResources(),
 		})

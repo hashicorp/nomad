@@ -361,7 +361,7 @@ func TestCSIHook(t *testing.T) {
 				vm.NextUnmountVolumeErr = errors.New("bad first attempt")
 			}
 
-			err := hook.Prerun()
+			err := hook.Prerun(nil)
 			if tc.expectedClaimErr != nil {
 				must.EqError(t, err, tc.expectedClaimErr.Error())
 			} else {
@@ -474,11 +474,11 @@ func TestCSIHook_Prerun_Validation(t *testing.T) {
 			must.NotNil(t, hook)
 
 			if tc.expectedErr != "" {
-				must.EqError(t, hook.Prerun(), tc.expectedErr)
+				must.EqError(t, hook.Prerun(nil), tc.expectedErr)
 				mounts := ar.res.GetCSIMounts()
 				must.Nil(t, mounts)
 			} else {
-				must.NoError(t, hook.Prerun())
+				must.NoError(t, hook.Prerun(nil))
 				mounts := ar.res.GetCSIMounts()
 				must.NotNil(t, mounts)
 				must.NoError(t, hook.Postrun())
