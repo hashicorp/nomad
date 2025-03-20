@@ -22,12 +22,6 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-var _ interfaces.RunnerPrerunHook = (*groupServiceHook)(nil)
-var _ interfaces.RunnerUpdateHook = (*groupServiceHook)(nil)
-var _ interfaces.RunnerPostrunHook = (*groupServiceHook)(nil)
-var _ interfaces.RunnerPreKillHook = (*groupServiceHook)(nil)
-var _ interfaces.RunnerTaskRestartHook = (*groupServiceHook)(nil)
-
 // TestGroupServiceHook_NoGroupServices asserts calling group service hooks
 // without group services does not error.
 func TestGroupServiceHook_NoGroupServices(t *testing.T) {

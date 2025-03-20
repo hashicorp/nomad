@@ -9,6 +9,7 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 )
 
@@ -32,6 +33,9 @@ func newDiskMigrationHook(
 	h.logger = logger.Named(h.Name())
 	return h
 }
+
+// statically assert the hook implements the expected interfaces
+var _ interfaces.RunnerPrerunHook = (*diskMigrationHook)(nil)
 
 func (h *diskMigrationHook) Name() string {
 	return "migrate_disk"

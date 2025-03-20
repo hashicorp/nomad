@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -19,10 +18,6 @@ import (
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
-
-// statically assert network hook implements the expected interfaces
-var _ interfaces.RunnerPrerunHook = (*networkHook)(nil)
-var _ interfaces.RunnerPostrunHook = (*networkHook)(nil)
 
 type mockNetworkIsolationSetter struct {
 	t            *testing.T

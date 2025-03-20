@@ -11,6 +11,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/client/taskenv"
@@ -69,6 +70,14 @@ func newConsulHook(cfg consulHookConfig) *consulHook {
 	h.logger = cfg.logger.Named(h.Name())
 	return h
 }
+
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*consulHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*consulHook)(nil)
+	_ interfaces.RunnerDestroyHook = (*consulHook)(nil)
+	_ interfaces.ShutdownHook      = (*consulHook)(nil)
+)
 
 func (*consulHook) Name() string {
 	return "consul"

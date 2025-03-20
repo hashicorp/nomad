@@ -118,6 +118,15 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 	return h
 }
 
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook      = (*groupServiceHook)(nil)
+	_ interfaces.RunnerPreKillHook     = (*groupServiceHook)(nil)
+	_ interfaces.RunnerPostrunHook     = (*groupServiceHook)(nil)
+	_ interfaces.RunnerUpdateHook      = (*groupServiceHook)(nil)
+	_ interfaces.RunnerTaskRestartHook = (*groupServiceHook)(nil)
+)
+
 func (*groupServiceHook) Name() string {
 	return groupServiceHookName
 }

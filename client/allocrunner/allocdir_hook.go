@@ -6,6 +6,7 @@ package allocrunner
 import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 )
 
 // allocDirHook creates and destroys the root directory and shared directories
@@ -22,6 +23,12 @@ func newAllocDirHook(logger hclog.Logger, allocDir allocdir.Interface) *allocDir
 	ad.logger = logger.Named(ad.Name())
 	return ad
 }
+
+// statically assert that the hook meets the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*allocDirHook)(nil)
+	_ interfaces.RunnerDestroyHook = (*allocDirHook)(nil)
+)
 
 func (h *allocDirHook) Name() string {
 	return "alloc_dir"

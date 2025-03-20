@@ -113,6 +113,13 @@ func newChecksHook(
 	return h
 }
 
+// statically assert that the hook meets the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*checksHook)(nil)
+	_ interfaces.RunnerUpdateHook  = (*checksHook)(nil)
+	_ interfaces.RunnerPreKillHook = (*checksHook)(nil)
+)
+
 // initialize the dynamic fields of checksHook, which is to say setup all the
 // observers and query context things associated with the alloc.
 //

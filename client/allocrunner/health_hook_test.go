@@ -23,12 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// statically assert health hook implements the expected interfaces
-var _ interfaces.RunnerPrerunHook = (*allocHealthWatcherHook)(nil)
-var _ interfaces.RunnerUpdateHook = (*allocHealthWatcherHook)(nil)
-var _ interfaces.RunnerPostrunHook = (*allocHealthWatcherHook)(nil)
-var _ interfaces.ShutdownHook = (*allocHealthWatcherHook)(nil)
-
 // allocHealth is emitted to a chan whenever SetHealth is called
 type allocHealth struct {
 	healthy    bool
