@@ -407,6 +407,61 @@ func TestRawExecDriver_Start_Kill_Wait_Cgroup(t *testing.T) {
 	must.NoError(t, harness.DestroyTask(task.ID, true))
 }
 
+func TestRawExecDriver_ExecutorKilled_ExitCode(t *testing.T) {
+	ci.Parallel(t)
+	ctestutil.ExecCompatible(t)
+
+	d := newEnabledRawExecDriver(t)
+	harness := dtestutil.NewDriverHarness(t, d)
+	defer harness.Kill()
+
+	allocID := uuid.Generate()
+	taskName := "sleep"
+	task := &drivers.TaskConfig{
+		AllocID:   allocID,
+		ID:        uuid.Generate(),
+		Name:      taskName,
+		Env:       defaultEnv(),
+		Resources: testResources(allocID, taskName),
+	}
+
+	cleanup := harness.MkAllocDir(task, false)
+	defer cleanup()
+
+	tc := &TaskConfig{
+		Command: testtask.Path(),
+		Args:    []string{"sleep", "10s"},
+	}
+	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
+	testtask.SetTaskConfigEnv(task)
+
+	handle, _, err := harness.StartTask(task)
+	must.NoError(t, err)
+
+	// Decode driver state to get executor PID
+	var driverState TaskState
+	must.NoError(t, handle.GetDriverState(&driverState))
+
+	// Kill the executor and wait until it's gone
+	pid := driverState.ReattachConfig.Pid
+	must.NoError(t, err)
+	must.NoError(t, syscall.Kill(pid, syscall.SIGKILL))
+
+	// Make sure the right exit code is set
+	waitCh, err := harness.WaitTask(context.Background(), task.ID)
+	must.NoError(t, err)
+	select {
+	case res := <-waitCh:
+		must.False(t, res.Successful())
+		must.Eq(t, -1, res.ExitCode)
+		must.Eq(t, false, res.OOMKilled)
+	case <-time.After(10 * time.Second):
+		must.Unreachable(t, must.Sprint("exceeded wait timeout"))
+	}
+
+	must.NoError(t, harness.DestroyTask(task.ID, true))
+}
+
 func TestRawExecDriver_ParentCgroup(t *testing.T) {
 	t.Skip("TODO: seth will fix this during the cpuset partitioning work")
 
