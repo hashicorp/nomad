@@ -106,6 +106,9 @@ type RPCContext struct {
 
 	// NodeID marks the NodeID that initiated the connection.
 	NodeID string
+
+	// MuxConfig allowing to change default yamux configs value for advanced configuration
+	MuxConfig *RPCMuxConfig
 }
 
 func (ctx *RPCContext) IsTLS() bool {
@@ -218,7 +221,7 @@ func (r *rpcHandler) listen(ctx context.Context) {
 			conn = connlimit.Wrap(conn, free)
 		}
 
-		go r.handleConn(ctx, conn, &RPCContext{Conn: conn})
+		go r.handleConn(ctx, conn, &RPCContext{Conn: conn, MuxConfig: r.srv.GetConfig().RPCMuxConfig})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
 	}
 }
@@ -406,7 +409,7 @@ func (r *rpcHandler) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx 
 		conn.Close()
 	}()
 
-	conf := yamux.DefaultConfig()
+	conf := rpcCtx.MuxConfig.GetYamuxConfig()
 	conf.LogOutput = nil
 	conf.Logger = r.gologger
 	server, err := yamux.Server(conn, conf)
@@ -515,7 +518,7 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 		conn.Close()
 	}()
 
-	conf := yamux.DefaultConfig()
+	conf := rpcCtx.MuxConfig.GetYamuxConfig()
 	conf.LogOutput = nil
 	conf.Logger = r.gologger
 	server, err := yamux.Server(conn, conf)

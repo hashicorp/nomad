@@ -181,6 +181,10 @@ func ParseConfigFile(path string) (*Config, error) {
 		},
 		{"reporting.export_interval",
 			&c.Reporting.ExportInterval, &c.Reporting.ExportIntervalHCL, nil},
+		{"rpc_mux.keep_alive_interval", &c.RPCMUX.KeepAliveInterval, &c.RPCMUX.KeepAliveIntervalHCL, nil},
+		{"rpc_mux.connection_write_timeout", &c.RPCMUX.ConnectionWriteTimeout, &c.RPCMUX.ConnectionWriteTimeoutHCL, nil},
+		{"rpc_mux.stream_open_timeout", &c.RPCMUX.StreamOpenTimeout, &c.RPCMUX.StreamOpenTimeoutHCL, nil},
+		{"rpc_mux.stream_close_timeout", &c.RPCMUX.StreamCloseTimeout, &c.RPCMUX.StreamCloseTimeoutHCL, nil},
 	}
 
 	// Parse durations for Consul and Vault config blocks if provided.

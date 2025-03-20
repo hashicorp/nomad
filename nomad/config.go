@@ -403,6 +403,9 @@ type Config struct {
 	// connections from a single IP address. nil/0 means no limit.
 	RPCMaxConnsPerClient int
 
+	// RPCMuxConfig configures yamux multiplex
+	RPCMuxConfig *RPCMuxConfig
+
 	// LicenseConfig stores information about the Enterprise license loaded for the server.
 	LicenseConfig *LicenseConfig
 
