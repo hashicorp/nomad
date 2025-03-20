@@ -1620,8 +1620,7 @@ func TestHTTP_AgentSchedulerWorkerInfoRequest(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		var numSchedulers = 4
-		c.Server.NumSchedulers = &numSchedulers
+		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}
