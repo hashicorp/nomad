@@ -616,6 +616,15 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	conf.KEKProviderConfigs = agentConfig.KEKProviders
 
+	// Ensure the passed number of scheduler is between the bounds of zero and
+	// the number of CPU cores on the machine. The runtime CPU count object is
+	// populated at process start time, so there is no overhead in calling the
+	// function compared to saving the value.
+	if conf.NumSchedulers < 0 || conf.NumSchedulers > runtime.NumCPU() {
+		return nil, fmt.Errorf("number of schedulers should be between 0 and %d",
+			runtime.NumCPU())
+	}
+
 	return conf, nil
 }
 
