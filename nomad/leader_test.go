@@ -1778,6 +1778,11 @@ func waitForStableLeadership(t *testing.T, servers []*Server) *Server {
 		require.NoError(t, err)
 	})
 
+	// wait for keyring to be initialized to ensure cluster is working
+	for _, s := range servers {
+		testutil.WaitForKeyring(t, s.RPC, leader.config.Region)
+	}
+
 	return leader
 }
 
@@ -1860,7 +1865,7 @@ func TestServer_handleEvalBrokerStateChange(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			// Create a new server and wait for leadership to be established.
-			testServer, cleanupFn := TestServer(t, nil)
+			testServer, cleanupFn := TestServer(t, tc.testServerCallBackConfig)
 			_ = waitForStableLeadership(t, []*Server{testServer})
 			defer cleanupFn()
 

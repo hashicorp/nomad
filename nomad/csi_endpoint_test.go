@@ -388,7 +388,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, node)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, node.Copy())
 	require.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
