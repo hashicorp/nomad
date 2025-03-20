@@ -528,6 +528,19 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
 	}
 
+	// handle rpc yamux configuration
+	if agentConfig.RPCMUX != nil {
+		conf.RPCMuxConfig = &nomad.RPCMuxConfig{
+			EnableKeepAlive:        agentConfig.RPCMUX.EnableKeepAlive,
+			AcceptBacklog:          agentConfig.RPCMUX.AcceptBacklog,
+			KeepAliveInterval:      agentConfig.RPCMUX.KeepAliveInterval,
+			ConnectionWriteTimeout: agentConfig.RPCMUX.ConnectionWriteTimeout,
+			MaxStreamWindowSize:    uint32(agentConfig.RPCMUX.MaxStreamWindowSize),
+			StreamCloseTimeout:     agentConfig.RPCMUX.StreamCloseTimeout,
+			StreamOpenTimeout:      agentConfig.RPCMUX.StreamOpenTimeout,
+		}
+	}
+
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig
 
