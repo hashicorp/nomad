@@ -1,0 +1,3 @@
+```release-note:improvement
+feat: Added ability to configure yamux rpc connections multiplexor
+```
