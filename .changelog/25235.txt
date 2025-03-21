@@ -1,0 +1,3 @@
+```release-note:improvement
+build: Upgrade from ubuntu 20.04 to 22.04 for runners used in GitHub Actions prior to it's deprecation on April 1, 2025
+```
