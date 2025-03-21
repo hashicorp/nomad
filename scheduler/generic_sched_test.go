@@ -4661,6 +4661,9 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup,
 		h.NextIndex(), []*structs.Allocation{alloc}))
 
+	// DEBUG
+	t.Logf("Failed alloc ID: %s", failedAllocID)
+
 	// Create a mock evaluation for the allocation failure
 	eval := &structs.Evaluation{
 		Namespace:   structs.DefaultNamespace,
@@ -4714,6 +4717,10 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	var replacementAllocID string
 	for _, alloc := range out {
 		if alloc.ID != failedAllocID {
+
+			// DEBUG
+			t.Logf("Replacement alloc ID: %s", alloc.ID)
+
 			must.NotNil(t, alloc.RescheduleTracker,
 				must.Sprint("replacement alloc should have reschedule tracker"))
 			must.Len(t, 1, alloc.RescheduleTracker.Events)
@@ -4750,6 +4757,8 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	must.NoError(t, err)
 	must.Len(t, 2, out)
 
+	t.Log("No new allocs created!")
+
 	// Verify follow-up eval was created for the failed alloc
 	// and write the eval to the state store
 	alloc, err = h.State.AllocByID(ws, replacementAllocID)
@@ -4766,15 +4775,35 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 	node.NodeResources.Memory.MemoryMB = 200
 	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
+	t.Log("--------------------------------------------")
+
 	// Process the follow-up eval, which results in a stop but not a replacement
 	must.NoError(t, h.Process(NewServiceScheduler, followupEval))
 	must.Len(t, 4, h.Plans)
+
+	for nodeID, nodeUpdates := range h.Plans[3].NodeUpdate {
+		allocIDs := helper.ConvertSlice(nodeUpdates, func(a *structs.Allocation) string {
+			return a.ID
+		})
+		t.Logf("[NodeUpdate node:%s] allocs: %v", nodeID[:8], allocIDs)
+	}
+	for nodeID, nodeUpdates := range h.Plans[3].NodeAllocation {
+		allocIDs := helper.ConvertSlice(nodeUpdates, func(a *structs.Allocation) string {
+			return a.ID
+		})
+		t.Logf("[NodeAllocation node:%s] allocs: %v", nodeID[:8], allocIDs)
+	}
+
 	must.MapLen(t, 1, h.Plans[3].NodeUpdate)     // stop
 	must.MapLen(t, 0, h.Plans[3].NodeAllocation) // place
+
+	// TODO: don't we need to UpsertAlloc ?
 
 	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
 	must.NoError(t, err)
 	must.Len(t, 2, out)
+
+	t.Log("--------------------------------------------")
 
 	// Verify blocked eval was created and write it to state
 	must.Len(t, 3, h.CreateEvals)

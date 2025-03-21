@@ -12937,6 +12937,7 @@ func (p *Plan) NormalizeAllocations() {
 				DesiredDescription: alloc.DesiredDescription,
 				ClientStatus:       alloc.ClientStatus,
 				FollowupEvalID:     alloc.FollowupEvalID,
+				RescheduleTracker:  alloc.RescheduleTracker,
 			}
 		}
 	}

@@ -686,6 +686,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// set the record the older allocation id so that they are chained
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
+					fmt.Printf("[*] new alloc replacing older %s\n", prevAllocation.ID)
 					if missing.IsRescheduling() {
 						original := prevAllocation
 						prevAllocation = prevAllocation.Copy()
@@ -727,16 +728,34 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// If we weren't able to find a placement for the allocation, back
 				// out the fact that we asked to stop the allocation.
 				if stopPrevAlloc {
+					fmt.Printf("[*] popped NodeUpdate (stop/evict) for %s\n", prevAllocation.ID)
 					s.plan.PopUpdate(prevAllocation)
 				}
+
+				nodeUpdates := s.plan.NodeUpdate[prevAllocation.NodeID]
+				allocIDs := helper.ConvertSlice(nodeUpdates, func(a *structs.Allocation) string {
+					return a.ID
+				})
+				fmt.Printf("[*] NodeUpdates for node:%s allocs: %v\n", prevAllocation.NodeID[:8], allocIDs)
 
 				// If we were trying to replace a rescheduling alloc, mark the
 				// reschedule as failed so that we can retry it in the following
 				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
+					fmt.Printf("[*] reschedule failed for %s\n", prevAllocation.ID)
 					if missing.IsRescheduling() {
+						fmt.Printf("[*] missing.IsRescheduling=true stopPrevAlloc=%v\n", stopPrevAlloc)
 						prevAllocation = prevAllocation.Copy()
 						annotateRescheduleTracker(prevAllocation, structs.LastRescheduleFailedToPlace)
+
+						for _, stoppingAlloc := range s.plan.NodeUpdate[prevAllocation.NodeID] {
+							if stoppingAlloc.ID == prevAllocation.ID {
+								s.plan.PopUpdate(prevAllocation)
+								s.plan.AppendStoppedAlloc(prevAllocation, "", "", "")
+								break
+							}
+						}
+
 						s.plan.AppendAlloc(prevAllocation, nil)
 					}
 				}
