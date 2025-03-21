@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -105,7 +106,7 @@ func (h *consulHTTPSockHook) shouldRun() bool {
 	return false
 }
 
-func (h *consulHTTPSockHook) Prerun() error {
+func (h *consulHTTPSockHook) Prerun(_ *taskenv.TaskEnv) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 

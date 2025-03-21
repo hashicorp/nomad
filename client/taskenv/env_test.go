@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/shoenig/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -707,54 +708,41 @@ func TestEnvironment_DashesInTaskName(t *testing.T) {
 	}
 }
 
-// TestEnvironment_UpdateTask asserts env vars and task meta are updated when a
-// task is updated.
-func TestEnvironment_UpdateTask(t *testing.T) {
+// TestEnvironment_WithTask asserts env vars are updated in an
+// alloc environment when a task is updated.
+func TestEnvironment_WithTask(t *testing.T) {
 	ci.Parallel(t)
 
 	a := mock.Alloc()
 	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta": "tgmetaval"}
-	task := a.Job.TaskGroups[0].Tasks[0]
-	task.Name = "orig"
-	task.Env = map[string]string{"env": "envval"}
-	task.Meta = map[string]string{"taskmeta": "taskmetaval"}
-	builder := NewBuilder(mock.Node(), a, task, "global")
+	builder := NewBuilder(mock.Node(), a, nil, "global")
 
 	origMap := builder.Build().Map()
-	if origMap["NOMAD_TASK_NAME"] != "orig" {
-		t.Errorf("Expected NOMAD_TASK_NAME=orig but found %q", origMap["NOMAD_TASK_NAME"])
-	}
-	if origMap["NOMAD_META_taskmeta"] != "taskmetaval" {
-		t.Errorf("Expected NOMAD_META_taskmeta=taskmetaval but found %q", origMap["NOMAD_META_taskmeta"])
-	}
-	if origMap["env"] != "envval" {
-		t.Errorf("Expected env=envva but found %q", origMap["env"])
-	}
-	if origMap["NOMAD_META_tgmeta"] != "tgmetaval" {
-		t.Errorf("Expected NOMAD_META_tgmeta=tgmetaval but found %q", origMap["NOMAD_META_tgmeta"])
-	}
+	test.Eq(t, "web", origMap["NOMAD_GROUP_NAME"])
+	test.Eq(t, "armon", origMap["NOMAD_META_owner"])
+	test.Eq(t, "", origMap["NOMAD_META_taskmeta"])
 
-	a.Job.TaskGroups[0].Meta = map[string]string{"tgmeta2": "tgmetaval2"}
-	task.Name = "new"
+	task := a.Job.TaskGroups[0].Tasks[0]
+	task.Name = "task1"
+	task.Env = map[string]string{"env": "envval"}
+	task.Meta = map[string]string{"taskmeta": "taskmetaval"}
+
+	newMap1 := builder.Build().WithTask(a, task).Map()
+	test.Eq(t, "task1", newMap1["NOMAD_TASK_NAME"])
+	test.Eq(t, "taskmetaval", newMap1["NOMAD_META_taskmeta"])
+	test.Eq(t, "envval", newMap1["env"])
+
+	task.Name = "task2"
 	task.Env = map[string]string{"env2": "envval2"}
 	task.Meta = map[string]string{"taskmeta2": "taskmetaval2"}
 
-	newMap := builder.UpdateTask(a, task).Build().Map()
-	if newMap["NOMAD_TASK_NAME"] != "new" {
-		t.Errorf("Expected NOMAD_TASK_NAME=new but found %q", newMap["NOMAD_TASK_NAME"])
-	}
-	if newMap["NOMAD_META_taskmeta2"] != "taskmetaval2" {
-		t.Errorf("Expected NOMAD_META_taskmeta=taskmetaval but found %q", newMap["NOMAD_META_taskmeta2"])
-	}
-	if newMap["env2"] != "envval2" {
-		t.Errorf("Expected env=envva but found %q", newMap["env2"])
-	}
-	if newMap["NOMAD_META_tgmeta2"] != "tgmetaval2" {
-		t.Errorf("Expected NOMAD_META_tgmeta=tgmetaval but found %q", newMap["NOMAD_META_tgmeta2"])
-	}
-	if v, ok := newMap["NOMAD_META_taskmeta"]; ok {
-		t.Errorf("Expected NOMAD_META_taskmeta to be unset but found: %q", v)
-	}
+	// original env should not have been mutated
+	newMap2 := builder.Build().WithTask(a, task).Map()
+	test.Eq(t, "task2", newMap2["NOMAD_TASK_NAME"])
+	test.Eq(t, "taskmetaval2", newMap2["NOMAD_META_taskmeta2"])
+	test.Eq(t, "envval2", newMap2["env2"])
+	test.Eq(t, "", newMap2["NOMAD_META_taskmeta"])
+	test.Eq(t, "", newMap2["env"])
 }
 
 // TestEnvironment_InterpolateEmptyOptionalMeta asserts that in a parameterized

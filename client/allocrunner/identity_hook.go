@@ -6,6 +6,7 @@ package allocrunner
 import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
 )
 
@@ -34,7 +35,7 @@ func (*identityHook) Name() string {
 	return "identity"
 }
 
-func (h *identityHook) Prerun() error {
+func (h *identityHook) Prerun(_ *taskenv.TaskEnv) error {
 	// run the renewal
 	if err := h.widmgr.Run(); err != nil {
 		return err

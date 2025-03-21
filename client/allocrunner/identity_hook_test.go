@@ -40,13 +40,11 @@ func TestIdentityHook_Prerun(t *testing.T) {
 
 	logger := testlog.HCLogger(t)
 	db := cstate.NewMemDB(logger)
-
-	// the WIDMgr env builder never has the task available
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
 
 	// setup mock signer and WIDMgr
 	mockSigner := widmgr.NewMockWIDSigner(task.Identities)
-	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, envBuilder)
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, env)
 	allocrunner.widmgr = mockWIDMgr
 	allocrunner.widsigner = mockSigner
 
@@ -65,7 +63,7 @@ func TestIdentityHook_Prerun(t *testing.T) {
 	start := time.Now()
 	hook := newIdentityHook(logger, mockWIDMgr)
 	must.Eq(t, hook.Name(), "identity")
-	must.NoError(t, hook.Prerun())
+	must.NoError(t, hook.Prerun(env))
 
 	time.Sleep(time.Second) // give goroutines a moment to run
 	sid, err := hook.widmgr.Get(structs.WIHandle{

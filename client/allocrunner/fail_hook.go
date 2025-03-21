@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsimple"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 )
 
 var ErrFailHookError = errors.New("failed successfully")
@@ -67,7 +68,7 @@ var (
 	_ interfaces.ShutdownHook          = (*FailHook)(nil)
 )
 
-func (h *FailHook) Prerun() error {
+func (h *FailHook) Prerun(_ *taskenv.TaskEnv) error {
 	if h.Fail.Prerun {
 		return fmt.Errorf("prerun %w", ErrFailHookError)
 	}

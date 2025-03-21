@@ -99,8 +99,8 @@ func setupTestVaultHook(t *testing.T, config *vaultHookConfig) *vaultHook {
 	if config.widmgr == nil {
 		db := cstate.NewMemDB(config.logger)
 		signer := widmgr.NewMockWIDSigner(config.task.Identities)
-		envBuilder := taskenv.NewBuilder(mock.Node(), config.alloc, nil, "global")
-		config.widmgr = widmgr.NewWIDMgr(signer, config.alloc, db, config.logger, envBuilder)
+		allocEnv := taskenv.NewBuilder(mock.Node(), config.alloc, nil, "global").Build()
+		config.widmgr = widmgr.NewWIDMgr(signer, config.alloc, db, config.logger, allocEnv)
 		err := config.widmgr.Run()
 		must.NoError(t, err)
 	}

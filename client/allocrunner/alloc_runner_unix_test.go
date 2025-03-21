@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	regMock "github.com/hashicorp/nomad/client/serviceregistration/mock"
 	"github.com/hashicorp/nomad/client/state"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
@@ -303,6 +304,6 @@ type allocFailingPrestartHook struct{}
 
 func (*allocFailingPrestartHook) Name() string { return "failing_prestart" }
 
-func (*allocFailingPrestartHook) Prerun() error {
+func (*allocFailingPrestartHook) Prerun(_ *taskenv.TaskEnv) error {
 	return fmt.Errorf("failing prestart hooks")
 }

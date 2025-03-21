@@ -164,15 +164,15 @@ func TestCheckHook_Checks_ResultsSet(t *testing.T) {
 
 		alloc := allocWithNomadChecks(addr, port, tc.onGroup)
 
-		envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+		env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-		h := newChecksHook(logger, alloc, checkStore, network, envBuilder.Build())
+		h := newChecksHook(logger, alloc, checkStore, network)
 
 		// initialize is called; observers are created but not started yet
 		must.MapEmpty(t, h.observers)
 
 		// calling pre-run starts the observers
-		err := h.Prerun()
+		err := h.Prerun(env)
 		must.NoError(t, err)
 
 		testutil.WaitForResultUntil(
@@ -231,12 +231,12 @@ func TestCheckHook_Checks_UpdateSet(t *testing.T) {
 
 	alloc := allocWithNomadChecks(addr, port, true)
 
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	h := newChecksHook(logger, alloc, shim, network, envBuilder.Build())
+	h := newChecksHook(logger, alloc, shim, network)
 
 	// calling pre-run starts the observers
-	err := h.Prerun()
+	err := h.Prerun(env)
 	must.NoError(t, err)
 
 	// initial set of checks
@@ -269,8 +269,12 @@ func TestCheckHook_Checks_UpdateSet(t *testing.T) {
 		},
 	)
 
+	updatedAlloc := allocWithDifferentNomadChecks(alloc.ID, addr, port)
+	updatedEnv := taskenv.NewBuilder(mock.Node(), updatedAlloc, nil, alloc.Job.Region).Build()
+
 	request := &interfaces.RunnerUpdateRequest{
-		Alloc: allocWithDifferentNomadChecks(alloc.ID, addr, port),
+		Alloc:    updatedAlloc,
+		AllocEnv: updatedEnv,
 	}
 
 	err = h.Update(request)

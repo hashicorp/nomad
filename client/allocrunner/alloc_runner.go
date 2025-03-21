@@ -297,17 +297,15 @@ func NewAllocRunner(config *config.AllocRunnerConfig) (interfaces.AllocRunner, e
 	ar.shutdownDelayCtx = shutdownDelayCtx
 	ar.shutdownDelayCancelFn = shutdownDelayCancel
 
-	// Create a *taskenv.Builder for the allocation so the WID manager can
-	// interpolate services with the allocation and tasks as needed
-	envBuilder := taskenv.NewBuilder(
+	allocEnv := taskenv.NewBuilder(
 		config.ClientConfig.Node,
 		ar.Alloc(),
 		nil,
 		config.ClientConfig.Region,
-	).SetAllocDir(ar.allocDir.AllocDirPath())
+	).SetAllocDir(ar.allocDir.AllocDirPath()).Build()
 
 	// initialize the workload identity manager
-	widmgr := widmgr.NewWIDMgr(ar.widsigner, alloc, ar.stateDB, ar.logger, envBuilder)
+	widmgr := widmgr.NewWIDMgr(ar.widsigner, alloc, ar.stateDB, ar.logger, allocEnv)
 	ar.widmgr = widmgr
 
 	// Initialize the runners hooks.

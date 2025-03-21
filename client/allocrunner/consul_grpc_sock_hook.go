@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 )
@@ -130,7 +131,7 @@ func (h *consulGRPCSocketHook) shouldRun() bool {
 	return false
 }
 
-func (h *consulGRPCSocketHook) Prerun() error {
+func (h *consulGRPCSocketHook) Prerun(_ *taskenv.TaskEnv) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 

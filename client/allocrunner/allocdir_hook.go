@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 )
 
 // allocDirHook creates and destroys the root directory and shared directories
@@ -34,7 +35,7 @@ func (h *allocDirHook) Name() string {
 	return "alloc_dir"
 }
 
-func (h *allocDirHook) Prerun() error {
+func (h *allocDirHook) Prerun(_ *taskenv.TaskEnv) error {
 	return h.allocDir.Build()
 }
 

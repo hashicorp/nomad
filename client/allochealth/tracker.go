@@ -119,7 +119,7 @@ func NewTracker(
 	logger hclog.Logger,
 	alloc *structs.Allocation,
 	allocUpdates *cstructs.AllocListener,
-	taskEnvBuilder *taskenv.Builder,
+	allocEnv *taskenv.TaskEnv,
 	consulClient serviceregistration.Handler,
 	checkStore checkstore.Shim,
 	minHealthyTime time.Duration,
@@ -145,7 +145,7 @@ func NewTracker(
 	// first because taskEnvBuilder is mutated in every loop and we can't undo
 	// a call to UpdateTask().
 	t.taskEnvs = make(map[string]*taskenv.TaskEnv, len(t.tg.Tasks)+1)
-	t.taskEnvs[""] = taskEnvBuilder.Build()
+	t.taskEnvs[""] = allocEnv
 
 	t.taskHealth = make(map[string]*taskHealthState, len(t.tg.Tasks))
 	for _, task := range t.tg.Tasks {
@@ -155,7 +155,7 @@ func NewTracker(
 			t.lifecycleTasks[task.Name] = task.Lifecycle.Hook
 		}
 
-		t.taskEnvs[task.Name] = taskEnvBuilder.UpdateTask(alloc, task).Build()
+		t.taskEnvs[task.Name] = allocEnv.WithTask(alloc, task)
 
 		c, n := countChecks(task.Services)
 		t.consulCheckCount += c
