@@ -3,12 +3,9 @@
   SPDX-License-Identifier: BUSL-1.1
 ~}}
 
-<div
+<Hds::CodeBlock
   data-test-json-viewer
-  {{code-mirror
-    content=(stringify-object @json)
-    theme="hashi-read-only"
-    readOnly=true
-    screenReaderLabel="JSON Viewer"
-  }}
+  aria-label="JSON Viewer"
+  @language="json"
+  @value={{stringify-object @json}}
 />
