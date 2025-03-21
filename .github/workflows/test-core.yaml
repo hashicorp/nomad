@@ -89,7 +89,7 @@ jobs:
           sudo -E env "PATH=$PATH" make test-nomad-module
   tests-groups:
     needs: [checks]
-    runs-on: ubuntu-22.04
+    runs-on: custom-linux-xl-nomad-22.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
