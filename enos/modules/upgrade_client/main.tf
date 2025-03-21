@@ -51,8 +51,25 @@ resource "enos_local_exec" "set_metadata" {
   scripts = [abspath("${path.module}/scripts/set_metadata.sh")]
 }
 
+resource "enos_local_exec" "get_alloc_ids" {
+
+  environment = merge(
+    local.nomad_env,
+    {
+      CLIENT_IP = var.client
+    }
+  )
+
+  inline = [
+    "nomad alloc status -json | jq -r --arg NODE_ID \"$(nomad node status -allocs -address https://$CLIENT_IP:4646 -self -json | jq -r '.ID')\" '[.[] | select(.ClientStatus == \"running\" and .NodeID == $NODE_ID) | .ID] | join(\" \")'"
+  ]
+}
+
 module "upgrade_client" {
-  depends_on = [enos_local_exec.set_metadata]
+  depends_on = [
+    enos_local_exec.set_metadata,
+    enos_local_exec.get_alloc_ids,
+  ]
 
   source = "../upgrade_instance"
 
@@ -82,4 +99,17 @@ resource "enos_local_exec" "verify_metadata" {
   })
 
   scripts = [abspath("${path.module}/scripts/verify_metadata.sh")]
+}
+
+resource "enos_local_exec" "verify_allocs" {
+  depends_on = [enos_local_exec.wait_for_nomad_api_post_update]
+
+  environment = merge(
+    local.nomad_env,
+    {
+      CLIENT_IP = var.client
+      ALLOCS = enos_local_exec.get_alloc_ids.stdout
+  })
+
+  scripts = [abspath("${path.module}/scripts/verify_allocs.sh")]
 }
