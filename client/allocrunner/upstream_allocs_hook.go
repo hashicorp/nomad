@@ -7,6 +7,7 @@ import (
 	"context"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
 )
 
@@ -24,6 +25,9 @@ func newUpstreamAllocsHook(logger log.Logger, allocWatcher config.PrevAllocWatch
 	h.logger = logger.Named(h.Name())
 	return h
 }
+
+// statically assert the hook implements the expected interfaces
+var _ interfaces.RunnerPrerunHook = (*upstreamAllocsHook)(nil)
 
 func (h *upstreamAllocsHook) Name() string {
 	return "await_previous_allocations"

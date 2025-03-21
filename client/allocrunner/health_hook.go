@@ -118,6 +118,14 @@ func newAllocHealthWatcherHook(
 	return h
 }
 
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*allocHealthWatcherHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*allocHealthWatcherHook)(nil)
+	_ interfaces.RunnerUpdateHook  = (*allocHealthWatcherHook)(nil)
+	_ interfaces.ShutdownHook      = (*allocHealthWatcherHook)(nil)
+)
+
 func (h *allocHealthWatcherHook) Name() string {
 	return "alloc_health_watcher"
 }

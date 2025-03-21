@@ -100,6 +100,13 @@ func newConsulGRPCSocketHook(
 	}
 }
 
+// statically assert that the hook meets the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*consulGRPCSocketHook)(nil)
+	_ interfaces.RunnerUpdateHook  = (*consulGRPCSocketHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*consulGRPCSocketHook)(nil)
+)
+
 func (*consulGRPCSocketHook) Name() string {
 	return consulGRPCSockHookName
 }

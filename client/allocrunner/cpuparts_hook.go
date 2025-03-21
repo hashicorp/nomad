@@ -5,6 +5,7 @@ package allocrunner
 
 import (
 	"github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
@@ -45,6 +46,12 @@ func newCPUPartsHook(
 func (h *cpuPartsHook) Name() string {
 	return cpuPartsHookName
 }
+
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*cpuPartsHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*cpuPartsHook)(nil)
+)
 
 func (h *cpuPartsHook) Prerun() error {
 	return h.partitions.Reserve(h.reservations)
