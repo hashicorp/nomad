@@ -293,7 +293,7 @@ func (v *volumeManager) unstageVolume(ctx context.Context, volNS, volID, remoteI
 	// plugin to perform unstaging
 	stagingPath := v.stagingDirForVolume(v.containerMountPoint, volNS, volID, usage)
 
-	// This it the path from the host, which we need to use to verify whether
+	// This is the path from the host, which we need to use to verify whether
 	// the path is the right one to pass to the plugin container
 	hostStagingPath := v.stagingDirForVolume(v.mountRoot, volNS, volID, usage)
 	_, err := os.Stat(hostStagingPath)
@@ -416,8 +416,14 @@ func (v *volumeManager) ExpandVolume(ctx context.Context, volNS, volID, remoteID
 			"volume_id", volID, "alloc_id", allocID, "error", err)
 	}
 
+	// This is the staging path inside the container, which we pass to the
+	// plugin to perform expansion
 	stagingPath := v.stagingDirForVolume(v.containerMountPoint, volNS, volID, usage)
-	_, err = os.Stat(stagingPath)
+
+	// This is the path from the host, which we need to use to verify whether
+	// the path is the right one to pass to the plugin container
+	hostStagingPath := v.stagingDirForVolume(v.mountRoot, volNS, volID, usage)
+	_, err = os.Stat(hostStagingPath)
 	if err != nil && errors.Is(err, fs.ErrNotExist) {
 		// COMPAT: it's possible to get an unmount request that includes the
 		// namespace even for volumes that were mounted before the path included
