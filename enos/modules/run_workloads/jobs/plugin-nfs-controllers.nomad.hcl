@@ -32,7 +32,7 @@ job "nfs-controller" {
 
         # the NFS workload is launched in parallel and can take a long time to
         # start up
-        health_timeout = "2m"
+        health_timeout = "4m"
       }
 
       template {
