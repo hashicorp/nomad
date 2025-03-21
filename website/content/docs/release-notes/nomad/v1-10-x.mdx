@@ -115,9 +115,24 @@ We added the following:
 We added UI URL hints to the end of common CLI commands and a `-ui` flag to
 automatically open the generated link in your browser.
 
-Showing UI URL hints is enabled by default. Modify the [`show_cli_hints`
-parameter](/nomad/docs/configuration/ui#show_cli_hints) in your agent's `ui`
-block configuration to turn off this feature.
+Showing UI URL hints is enabled by default. You have two options for turning off
+this feature:
+
+- Server: Modify the [`show_cli_hints`
+  parameter](/nomad/docs/configuration/ui#show_cli_hints) in your agent's `ui`
+  block configuration.
+- CLI: Set the `NOMAD_CLI_SHOW_HINTS` environment variable to `0` or `false`.
+
+  ```shell-session
+  $ nomad status
+  No running jobs
+
+  ==> View and manage Nomad jobs in the Web UI: https://localhost:4646/ui/jobs
+
+  $ export NOMAD_CLI_SHOW_HINTS=0
+  $ nomad status
+  No running jobs
+  ```
 
 ## Breaking changes
 
