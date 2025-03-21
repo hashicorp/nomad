@@ -25,12 +25,6 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-var (
-	_ interfaces.RunnerPrerunHook  = (*checksHook)(nil)
-	_ interfaces.RunnerUpdateHook  = (*checksHook)(nil)
-	_ interfaces.RunnerPreKillHook = (*checksHook)(nil)
-)
-
 func makeCheckStore(logger hclog.Logger) checkstore.Shim {
 	db := state.NewMemDB(logger)
 	checkStore := checkstore.NewStore(logger, db)

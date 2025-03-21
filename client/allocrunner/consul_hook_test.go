@@ -11,7 +11,6 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/consul"
 	cstate "github.com/hashicorp/nomad/client/state"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -23,9 +22,6 @@ import (
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/shoenig/test/must"
 )
-
-// statically assert consul hook implements the expected interfaces
-var _ interfaces.RunnerPrerunHook = (*consulHook)(nil)
 
 func consulHookTestHarness(t *testing.T) *consulHook {
 	logger := testlog.HCLogger(t)

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
@@ -23,9 +22,6 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
-
-var _ interfaces.RunnerPrerunHook = (*csiHook)(nil)
-var _ interfaces.RunnerPostrunHook = (*csiHook)(nil)
 
 func TestCSIHook(t *testing.T) {
 	ci.Parallel(t)

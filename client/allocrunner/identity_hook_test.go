@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstate "github.com/hashicorp/nomad/client/state"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
@@ -17,12 +16,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
 )
-
-// statically assert network hook implements the expected interfaces
-var _ interfaces.RunnerPrerunHook = (*identityHook)(nil)
-var _ interfaces.ShutdownHook = (*identityHook)(nil)
-var _ interfaces.RunnerPreKillHook = (*identityHook)(nil)
-var _ interfaces.RunnerDestroyHook = (*identityHook)(nil)
 
 func TestIdentityHook_Prerun(t *testing.T) {
 	ci.Parallel(t)

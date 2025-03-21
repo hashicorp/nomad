@@ -74,6 +74,13 @@ func newConsulHTTPSocketHook(
 	}
 }
 
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*consulHTTPSockHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*consulHTTPSockHook)(nil)
+	_ interfaces.RunnerUpdateHook  = (*consulHTTPSockHook)(nil)
+)
+
 func (*consulHTTPSockHook) Name() string {
 	return consulHTTPSocketHookName
 }
