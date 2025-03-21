@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: Consul Integration
-description: Learn how to integrate Nomad with Consul and add service discovery to jobs
+page_title: Consul integration
+description: |-
+  Integrate Consul with Nomad to use Consul features such as automatic clustering, service discovery, service mesh, Consul Template, Consul DNS, Consul ACL, and Consul namespaces with your Nomad clusters and workloads.
 ---
 
-# Consul Integration
+# Consul integration
 
 [Consul][] is a tool for discovering and configuring services in your
 infrastructure. Consul's key features include service discovery, health checking,
@@ -22,14 +23,14 @@ run Consul for you.
 To enable Consul integration, please refer to the [Nomad agent Consul
 configuration][] documentation.
 
-## Automatic Clustering with Consul
+## Automatic clustering with Consul
 
 Nomad servers and clients will be automatically informed of each other's
 existence when a running Consul cluster already exists and the Consul agent is
 installed and configured on each host. Please refer to the [Automatic Clustering
 with Consul][] guide for more information.
 
-## Service Discovery
+## Service discovery
 
 Nomad schedules workloads of various types across a cluster of generic hosts.
 Because of this, placement is not known in advance and you will need to use
@@ -40,7 +41,7 @@ monitoring.
 To configure a job to register with service discovery, please refer to the
 [`service` job specification documentation][service].
 
-## Service Mesh
+## Service mesh
 
 Consul service mesh provides service-to-service connection authorization and
 encryption using mutual Transport Layer Security (TLS). Nomad can automatically
@@ -50,7 +51,7 @@ service mesh.
 Refer to the [Consul Service Mesh integration page][int_consul_mesh] for more
 information.
 
-## Dynamic Configuration
+## Dynamic configuration
 
 Nomad's job specification includes a [`template`][] block that uses a Consul
 ecosystem tool called [Consul Template][]. This mechanism creates a convenient
@@ -80,7 +81,7 @@ configuration value for `systemd-resolved`.
 An simpler solution is to use Consul Connect [transparent proxy][] mode to
 automatically configure tasks to use Consul DNS.
 
-## Consul ACL
+## Consul access control list (ACL)
 
 The Consul ACL system protects the cluster from unauthorized access. When
 enabled, both Consul and Nomad must be properly configured in order for their
@@ -89,7 +90,7 @@ integrations to work.
 Refer to the [Consul ACL integration page][int_consul_acl] for more
 information.
 
-## Consul Namespaces <EnterpriseAlert inline/>
+## Consul namespaces <EnterpriseAlert inline/>
 
 Nomad provides integration with [Consul Namespaces][consul_namespaces] for
 service registrations specified in `service` blocks and Consul KV reads in
@@ -129,7 +130,7 @@ following hierarchy from highest to lowest precedence:
 * Consul default: If no Consul namespace options are configured, Consul will
   automatically make use of the `"default"` namespace.
 
-## Multiple Consul Clusters <EnterpriseAlert inline />
+## Multiple Consul clusters <EnterpriseAlert inline />
 
 Nomad Enterprise supports access to multiple Consul clusters. They can be
 configured using multiple [`consul`][nomad_config_consul] blocks with different

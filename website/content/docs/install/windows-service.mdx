@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: Nomad as a Windows Service
-description: Discusses how to register and run Nomad as a native Windows service.
+page_title: Install Nomad as a Windows service
+description: |-
+  Learn how to run Nomad as a Windows service. Register Nomad with the Windows Service Control Manager. Configure Nomad to log to file, and increase the non-interactive desktop heap size.
 ---
 
-# Installing Nomad as a Windows service
+# Install Nomad as a Windows service
 
 Nomad can be run as a native Windows service. In order to do this, you will need
 to register the Nomad application with the Windows Service Control Manager using
@@ -69,7 +70,7 @@ You have two ways to start the service.
 The service automatically starts up during/after boot, so you don't need to
 launch Nomad from the command-line again.
 
-## Increasing the non-interactive desktop heap size
+## Increase the non-interactive desktop heap size
 
 If you run Nomad as a Windows service and you intend to run many allocations,
 such as more than 50, you may encounter issues with Windows terminating Nomad

@@ -1,14 +1,17 @@
 ---
 layout: docs
-page_title: Requirements
+page_title: Nomad installation requirements
 description: |-
-  Learn about Nomad client and server requirements such as memory and CPU
-  recommendations, network topologies, and more.
+  Learn about the hardware and networking resources that Nomad requires. Review RAM, CPU, network topology and ports, user permissions, and Linux capabilities.
 ---
 
-# Requirements
+# Nomad installation requirements
 
-## Resources (RAM, CPU, etc.)
+This page contains an overview of the hardware and networking resources that
+Nomad requires. Review RAM, CPU, network topology and ports, user
+permissions, and Linux capabilities.
+
+## Resources
 
 **Nomad servers** may need to be run on large machine instances. We suggest
 having between 4-8+ cores, 16-32 GB+ of memory, 40-80 GB+ of **fast** disk and
@@ -31,7 +34,7 @@ supervision such as Consul and the operating system itself.
 Please see the [reservation configuration](/nomad/docs/configuration/client#reserved) for
 more detail.
 
-## Network Topology
+## Network topology
 
 **Nomad servers** are expected to have sub 10 millisecond network latencies
 between each other to ensure liveness and high throughput scheduling. Nomad
@@ -60,7 +63,7 @@ of having a single "global" region and many datacenter.
 Nomad clients make connections to servers on the RPC port and then maintain a
 persistent TCP connection. The server and client use this TCP connection for
 two-way communication. As a result, clients that are geographically distributed
-from the servers do not need to have publically routable IP addresses in order
+from the servers do not need to have publicly routable IP addresses in order
 to communicate with the servers (although the workloads running on the clients
 may need public IPs). All connections between Nomad servers and between clients
 and servers must be secured with [mTLS][].
@@ -70,7 +73,7 @@ your workloads need to communicate with each other. The optional [ephemeral disk
 migration][] field is one exception, and requires that clients can reach each
 other on their HTTP ports.
 
-## Ports Used
+## Ports used
 
 Nomad requires 3 different ports to work properly on servers and 2 on clients,
 some on TCP, UDP, or both protocols. Below we document the requirements for each
@@ -101,11 +104,11 @@ $ cat /proc/sys/net/ipv4/ip_local_port_range
 $ echo "49152 65535" > /proc/sys/net/ipv4/ip_local_port_range
 ```
 
-## Bridge Networking and `iptables`
+## Bridge networking and `iptables`
 
 @include 'install/bridge-iptables.mdx'
 
-## Cgroup Controllers
+## Cgroup controllers
 
 @include 'install/cgroup-controllers.mdx'
 
@@ -113,7 +116,7 @@ $ echo "49152 65535" > /proc/sys/net/ipv4/ip_local_port_range
 
 As noted in the [Security Model][] guide, Nomad is not **secure-by-default**.
 
-### User Permissions
+### User permissions
 
 Nomad servers and Nomad clients have different requirements for permissions.
 
@@ -130,7 +133,7 @@ require root privileges (see also [Linux Capabilities][] below). The Nomad
 client's data directory should be owned by `root` with filesystem permissions
 set to `0700`.
 
-### Linux Capabilities
+### Linux capabilities
 
 On Linux, Nomad clients require privileged capabilities for isolating
 tasks. Nomad clients require `CAP_SYS_ADMIN` for creating the tmpfs used for
@@ -162,7 +165,7 @@ to do so. This includes the built-in `exec` and `java` task drivers. The
 built-in task drivers run in the same process as the Nomad client, so this
 requires that the Nomad client agent is also running as `root`.
 
-### Rootless Nomad Clients
+### Rootless Nomad clients
 
 Although it's possible to run a Nomad client agent as a non-root user or as
 `root` in a user namespace, to perform the privileged operations described above
