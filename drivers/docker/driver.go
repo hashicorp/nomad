@@ -343,6 +343,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	driverConfig.Image = strings.TrimPrefix(driverConfig.Image, "https://")
 
+	driverConfig.ImagePullTimeout = getValue(driverConfig.ImagePullTimeout, d.config.ImagePullTimeout)
+
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 

@@ -114,3 +114,24 @@ func TestParseDockerImage(t *testing.T) {
 		})
 	}
 }
+
+func TestGetValue(t *testing.T) {
+	ci.Parallel(t)
+
+	tests := []struct {
+		value        string
+		defaultValue string
+		expected     string
+	}{
+		{value: "value", defaultValue: "default", expected: "value"},
+		{value: "", defaultValue: "default", expected: "default"},
+		{value: "value", defaultValue: "", expected: "value"},
+		{value: "", defaultValue: "", expected: ""},
+	}
+
+	for _, test := range tests {
+		t.Run(test.expected, func(t *testing.T) {
+			must.Eq(t, test.expected, getValue(test.value, test.defaultValue))
+		})
+	}
+}
