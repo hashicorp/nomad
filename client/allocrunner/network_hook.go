@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -102,6 +103,12 @@ func newNetworkHook(logger hclog.Logger,
 		logger:              logger,
 	}
 }
+
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*networkHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*networkHook)(nil)
+)
 
 func (h *networkHook) Name() string {
 	return "network"

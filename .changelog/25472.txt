@@ -1,0 +1,3 @@
+```release-note:bug
+csi: Fixed a bug where in-flight CSI RPCs would not be cancelled on client GC or dev agent shutdown
+```
