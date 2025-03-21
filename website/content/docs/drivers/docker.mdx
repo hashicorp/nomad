@@ -1037,6 +1037,10 @@ host system.
   wait before cancelling an in-progress pull of the Docker image as specified in
   `infra_image`. Defaults to `"5m"`.
 
+- `image_pull_timeout` - (Optional) A default time duration that controls how long Nomad
+  waits before cancelling an in-progress pull of the Docker image as specified
+  in `image` across all tasks. Defaults to `"5m"`.
+
 - `windows_allow_insecure_container_admin` - Indicates that on windows, docker
   checks the `task.user` field or, if unset, the container image manifest after
   pulling the container, to see if it's running as `ContainerAdmin`. If so, exits
