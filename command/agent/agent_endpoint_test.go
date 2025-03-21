@@ -1527,39 +1527,23 @@ func schedulerWorkerInfoTest_testCases() []schedulerWorkerAPITest_testCase {
 		response:   ErrInvalidMethod,
 		isError:    true,
 	}
+
+	successSchedulers := make([]api.AgentSchedulerWorkerInfo, runtime.NumCPU())
+
+	for i := 0; i < runtime.NumCPU(); i++ {
+		successSchedulers[i] = api.AgentSchedulerWorkerInfo{
+			ID:                fmt.Sprintf("9b3713e0-6f74-0e1b-3b3e-d94f0c22dbf9-%d", i),
+			EnabledSchedulers: []string{"_core", "batch"},
+			Started:           "2021-12-10 22:13:12.595366 -0500 EST m=+0.039016232",
+			Status:            "Pausing",
+			WorkloadStatus:    "WaitingToDequeue",
+		}
+	}
+
 	success := schedulerWorkerAPITest_testExpect{
 		statusCode: http.StatusOK,
 		response: &api.AgentSchedulerWorkersInfo{
-			Schedulers: []api.AgentSchedulerWorkerInfo{
-				{
-					ID:                "9b3713e0-6f74-0e1b-3b3e-d94f0c22dbf9",
-					EnabledSchedulers: []string{"_core", "batch"},
-					Started:           "2021-12-10 22:13:12.595366 -0500 EST m=+0.039016232",
-					Status:            "Pausing",
-					WorkloadStatus:    "WaitingToDequeue",
-				},
-				{
-					ID:                "ebda23e2-7f68-0c82-f0b2-f91d4581094d",
-					EnabledSchedulers: []string{"_core", "batch"},
-					Started:           "2021-12-10 22:13:12.595478 -0500 EST m=+0.039127886",
-					Status:            "Pausing",
-					WorkloadStatus:    "WaitingToDequeue",
-				},
-				{
-					ID:                "b3869c9b-64ff-686c-a003-e7d059d3a573",
-					EnabledSchedulers: []string{"_core", "batch"},
-					Started:           "2021-12-10 22:13:12.595501 -0500 EST m=+0.039151276",
-					Status:            "Pausing",
-					WorkloadStatus:    "WaitingToDequeue",
-				},
-				{
-					ID:                "cc5907c0-552e-bf36-0ca1-f150af7273c2",
-					EnabledSchedulers: []string{"_core", "batch"},
-					Started:           "2021-12-10 22:13:12.595691 -0500 EST m=+0.039341541",
-					Status:            "Starting",
-					WorkloadStatus:    "WaitingToDequeue",
-				},
-			},
+			Schedulers: successSchedulers,
 		},
 	}
 	return []schedulerWorkerAPITest_testCase{
