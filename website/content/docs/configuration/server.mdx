@@ -127,12 +127,11 @@ server {
   expired ACL token before it is eligible for garbage collection. This is
   specified using a label suffix like "30s" or "1h".
 
-- `default_scheduler_config` <code>([scheduler_configuration][update-scheduler-config]:
-  nil)</code> - Specifies the initial default scheduler config when
-  bootstrapping cluster. The parameter is ignored once the cluster is bootstrapped or
-  value is updated through the [API endpoint][update-scheduler-config]. See [the
-  example section](#configuring-scheduler-config) for more details
-  `default_scheduler_config` was introduced in Nomad 0.10.4.
+- `default_scheduler_config` <code>(<a href="/nomad/api-docs/operator/scheduler#update-scheduler-configuration">scheduler_configuration:</a></code>`nil`) - Specifies the initial default scheduler config when
+  bootstrapping cluster. The parameter is ignored once the cluster is
+  bootstrapped or value is updated through the [API
+  endpoint][update-scheduler-config]. Refer to [the example
+  section](#configuring-scheduler-config) for more details.
 
 - `heartbeat_grace` `(string: "10s")` - Specifies the additional time given
   beyond the heartbeat TTL of Clients to account for network and processing
