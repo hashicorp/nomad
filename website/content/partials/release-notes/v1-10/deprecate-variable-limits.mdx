@@ -1,0 +1,7 @@
+#### Quota specification variable_limits deprecated <EnterpriseAlert product="nomad" inline/>
+
+The quota specification's `variable_limits` field is deprecated. We replaced it
+with a new [`storage` block](/nomad/docs/other-specifications/quota#storage)
+with a `variables` field, under the `region_limit` block. Existing quotas will
+be automatically migrated during server upgrade. We will remove the
+`variables_limit` field from the quota specification in Nomad 1.12.0.
