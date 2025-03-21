@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"golang.org/x/time/rate"
 )
 
 // volumeWatcher is used to watch a single volume and trigger the
@@ -41,6 +42,9 @@ type volumeWatcher struct {
 	// before stopping the child watcher goroutines
 	quiescentTimeout time.Duration
 
+	// limiter slows the rate at which we can attempt to clean up a given volume
+	limiter *rate.Limiter
+
 	// updateCh is triggered when there is an updated volume
 	updateCh chan *structs.CSIVolume
 
@@ -62,6 +66,7 @@ func newVolumeWatcher(parent *Watcher, vol *structs.CSIVolume) *volumeWatcher {
 		shutdownCtx:      parent.ctx,
 		deleteFn:         func() { parent.remove(vol.ID + vol.Namespace) },
 		quiescentTimeout: parent.quiescentTimeout,
+		limiter:          rate.NewLimiter(rate.Limit(1), 3),
 	}
 
 	// Start the long lived watcher that scans for allocation updates
@@ -76,7 +81,7 @@ func (vw *volumeWatcher) Notify(v *structs.CSIVolume) {
 	}
 	select {
 	case vw.updateCh <- v:
-	case <-vw.shutdownCtx.Done(): // prevent deadlock if we stopped
+	default: // don't block on full notification channel
 	}
 }
 
@@ -123,6 +128,10 @@ func (vw *volumeWatcher) watch() {
 		case <-vw.shutdownCtx.Done():
 			return
 		case vol := <-vw.updateCh:
+			err := vw.limiter.Wait(vw.shutdownCtx)
+			if err != nil {
+				return // only returns error on context close
+			}
 			vol = vw.getVolume(vol)
 			if vol == nil {
 				return
@@ -191,44 +200,6 @@ func (vw *volumeWatcher) volumeReapImpl(vol *structs.CSIVolume) error {
 		}
 	}
 	return result.ErrorOrNil()
-}
-
-func (vw *volumeWatcher) collectPastClaims(vol *structs.CSIVolume) *structs.CSIVolume {
-
-	collect := func(allocs map[string]*structs.Allocation,
-		claims map[string]*structs.CSIVolumeClaim) {
-
-		for allocID, alloc := range allocs {
-			if alloc == nil {
-				_, exists := vol.PastClaims[allocID]
-				if !exists {
-					vol.PastClaims[allocID] = &structs.CSIVolumeClaim{
-						AllocationID: allocID,
-						State:        structs.CSIVolumeClaimStateReadyToFree,
-					}
-				}
-			} else if alloc.Terminated() {
-				// don't overwrite the PastClaim if we've seen it before,
-				// so that we can track state between subsequent calls
-				_, exists := vol.PastClaims[allocID]
-				if !exists {
-					claim, ok := claims[allocID]
-					if !ok {
-						claim = &structs.CSIVolumeClaim{
-							AllocationID: allocID,
-							NodeID:       alloc.NodeID,
-						}
-					}
-					claim.State = structs.CSIVolumeClaimStateTaken
-					vol.PastClaims[allocID] = claim
-				}
-			}
-		}
-	}
-
-	collect(vol.ReadAllocs, vol.ReadClaims)
-	collect(vol.WriteAllocs, vol.WriteClaims)
-	return vol
 }
 
 func (vw *volumeWatcher) unpublish(vol *structs.CSIVolume, claim *structs.CSIVolumeClaim) error {
