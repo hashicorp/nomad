@@ -108,7 +108,7 @@ resource "enos_local_exec" "verify_allocs" {
     local.nomad_env,
     {
       CLIENT_IP = var.client
-      ALLOCS = enos_local_exec.get_alloc_ids.stdout
+      ALLOCS    = enos_local_exec.get_alloc_ids.stdout
   })
 
   scripts = [abspath("${path.module}/scripts/verify_allocs.sh")]
