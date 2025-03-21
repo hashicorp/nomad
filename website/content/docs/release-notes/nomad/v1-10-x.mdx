@@ -36,7 +36,8 @@ Resources:
   comparison of storage options
 - [Host volumes plugin
   specification](/nomad/docs/concepts/plugins/storage/host-volumes) for examples
-  of how to write your own plugin to dynamically configure persistent storage on your Nomad client nodes
+  of how to write your own plugin to dynamically configure persistent storage on
+  your Nomad client nodes
 - [Use Nomad dynamic host volumes to persist data for stateful workloads
   tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes)
   to learn how to create and use a dynamic host volume for persistent storage
@@ -60,8 +61,10 @@ Nomad now enables PKCE by default for new or updated OIDC auth methods, which
 brings extra security for both traditional client secrets and client assertions.
 Existing auth methods remain unaffected until changed with one of the following:
 
-- The [`nomad acl auth-method create`](/nomad/docs/commands/acl/auth-method/create) CLI command
-- The [`nomad acl auth-method update`](/nomad/docs/commands/acl/auth-method/update) CLI command
+- The [`nomad acl auth-method
+  create`](/nomad/docs/commands/acl/auth-method/create) CLI command
+- The [`nomad acl auth-method
+  update`](/nomad/docs/commands/acl/auth-method/update) CLI command
 - The [auth method API](/nomad/api-docs/acl/auth-methods)
 
 Set the [`OIDCDisablePKCE`](/nomad/api-docs/acl/auth-methods#oidcdisablepkce)
@@ -73,8 +76,8 @@ require you to also enable it in their configuration.
 #### Resources
 
 - [OIDC auth method guide][oidc-concepts] for details on using OIDC with Nomad
-- [OIDC troubleshooting guide][oidc-trouble] to review common issues and
-  tips for setting up OIDC
+- [OIDC troubleshooting guide][oidc-trouble] to review common issues and tips
+  for setting up OIDC
 - [Authenticate users with SSO and Keycloak tutorial][oidc-tutorial] to
   configure Nomad and the Keycloak identity provider to automatically grant
   permissions in Nomad ACL.
