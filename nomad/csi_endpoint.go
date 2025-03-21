@@ -243,7 +243,6 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 		return nil
 	}
 
-	method := "ClientCSI.ControllerValidateVolume"
 	cReq := &cstructs.ClientCSIControllerValidateVolumeRequest{
 		VolumeID:           vol.RemoteID(),
 		VolumeCapabilities: vol.RequestedCapabilities,
@@ -254,7 +253,7 @@ func (v *CSIVolume) controllerValidateVolume(req *structs.CSIVolumeRegisterReque
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerValidateVolumeResponse{}
 
-	return v.srv.RPC(method, cReq, cResp)
+	return v.srv.rpcs.csiClients.ControllerValidateVolume(cReq, cResp)
 }
 
 // Register registers a new volume or updates an existing volume.
@@ -550,7 +549,6 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		req.ExternalNodeID = externalNodeID
 	}
 
-	method := "ClientCSI.ControllerAttachVolume"
 	cReq := &cstructs.ClientCSIControllerAttachVolumeRequest{
 		VolumeID:        vol.RemoteID(),
 		ClientCSINodeID: req.ExternalNodeID,
@@ -565,7 +563,7 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 	cResp := &cstructs.ClientCSIControllerAttachVolumeResponse{}
 
 	err = v.serializedControllerRPC(plug.ID, func() error {
-		return v.srv.RPC(method, cReq, cResp)
+		return v.srv.rpcs.csiClients.ControllerAttachVolume(cReq, cResp)
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), "FailedPrecondition") {
@@ -843,7 +841,7 @@ func (v *CSIVolume) nodeUnpublishVolumeImpl(vol *structs.CSIVolume, claim *struc
 		AccessMode:      claim.AccessMode,
 		ReadOnly:        claim.Mode == structs.CSIVolumeClaimRead,
 	}
-	err := v.srv.RPC("ClientCSI.NodeDetachVolume",
+	err := v.srv.rpcs.csiClients.NodeDetachVolume(
 		req, &cstructs.ClientCSINodeDetachVolumeResponse{})
 	if err != nil {
 		// we should only get this error if the Nomad node disconnects and
@@ -938,8 +936,8 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 	req.PluginID = vol.PluginID
 
 	err = v.serializedControllerRPC(vol.PluginID, func() error {
-		return v.srv.RPC("ClientCSI.ControllerDetachVolume", req,
-			&cstructs.ClientCSIControllerDetachVolumeResponse{})
+		return v.srv.rpcs.csiClients.ControllerDetachVolume(
+			req, &cstructs.ClientCSIControllerDetachVolumeResponse{})
 	})
 	if err != nil {
 		return fmt.Errorf("could not detach from controller: %v", err)
@@ -1145,7 +1143,6 @@ func (v *CSIVolume) Create(args *structs.CSIVolumeCreateRequest, reply *structs.
 
 func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlugin) error {
 
-	method := "ClientCSI.ControllerCreateVolume"
 	cReq := &cstructs.ClientCSIControllerCreateVolumeRequest{
 		Name:                vol.Name,
 		VolumeCapabilities:  vol.RequestedCapabilities,
@@ -1160,7 +1157,7 @@ func (v *CSIVolume) createVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	}
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerCreateVolumeResponse{}
-	err := v.srv.RPC(method, cReq, cResp)
+	err := v.srv.rpcs.csiClients.ControllerCreateVolume(cReq, cResp)
 	if err != nil {
 		return err
 	}
@@ -1241,7 +1238,6 @@ func (v *CSIVolume) expandVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 		// attachment mode (likely not attached) is acceptable per the spec.
 	}
 
-	method := "ClientCSI.ControllerExpandVolume"
 	cReq := &cstructs.ClientCSIControllerExpandVolumeRequest{
 		ExternalVolumeID: vol.ExternalID,
 		Secrets:          vol.Secrets,
@@ -1255,7 +1251,7 @@ func (v *CSIVolume) expandVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	// This is the real work. The client RPC sends a gRPC to the controller plugin,
 	// then that controller may reach out to cloud APIs, etc.
 	err = v.serializedControllerRPC(plugin.ID, func() error {
-		return v.srv.RPC(method, cReq, cResp)
+		return v.srv.rpcs.csiClients.ControllerExpandVolume(cReq, cResp)
 	})
 	if err != nil {
 		return fmt.Errorf("unable to expand volume: %w", err)
@@ -1295,7 +1291,7 @@ func (v *CSIVolume) nodeExpandVolume(vol *structs.CSIVolume, plugin *structs.CSI
 			Capacity:        capacity,
 			Claim:           claim,
 		}
-		if err := v.srv.RPC("ClientCSI.NodeExpandVolume", req, resp); err != nil {
+		if err := v.srv.rpcs.csiClients.NodeExpandVolume(req, resp); err != nil {
 			mErr.Errors = append(mErr.Errors, err)
 		}
 
@@ -1389,7 +1385,6 @@ func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 		combinedSecrets[k] = v
 	}
 
-	method := "ClientCSI.ControllerDeleteVolume"
 	cReq := &cstructs.ClientCSIControllerDeleteVolumeRequest{
 		ExternalVolumeID: vol.ExternalID,
 		Secrets:          combinedSecrets,
@@ -1398,7 +1393,7 @@ func (v *CSIVolume) deleteVolume(vol *structs.CSIVolume, plugin *structs.CSIPlug
 	cResp := &cstructs.ClientCSIControllerDeleteVolumeResponse{}
 
 	return v.serializedControllerRPC(plugin.ID, func() error {
-		return v.srv.RPC(method, cReq, cResp)
+		return v.srv.rpcs.csiClients.ControllerDeleteVolume(cReq, cResp)
 	})
 }
 
@@ -1444,7 +1439,6 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 		return fmt.Errorf("unimplemented for this plugin")
 	}
 
-	method := "ClientCSI.ControllerListVolumes"
 	cReq := &cstructs.ClientCSIControllerListVolumesRequest{
 		MaxEntries:    args.PerPage,
 		StartingToken: args.NextToken,
@@ -1452,7 +1446,7 @@ func (v *CSIVolume) ListExternal(args *structs.CSIVolumeExternalListRequest, rep
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerListVolumesResponse{}
 
-	err = v.srv.RPC(method, cReq, cResp)
+	err = v.srv.rpcs.csiClients.ControllerListVolumes(cReq, cResp)
 	if err != nil {
 		return err
 	}
@@ -1493,7 +1487,6 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 		return err
 	}
 
-	method := "ClientCSI.ControllerCreateSnapshot"
 	var mErr multierror.Error
 	for _, snap := range args.Snapshots {
 		if snap == nil {
@@ -1547,7 +1540,7 @@ func (v *CSIVolume) CreateSnapshot(args *structs.CSISnapshotCreateRequest, reply
 		cReq.PluginID = pluginID
 		cResp := &cstructs.ClientCSIControllerCreateSnapshotResponse{}
 		err = v.serializedControllerRPC(pluginID, func() error {
-			return v.srv.RPC(method, cReq, cResp)
+			return v.srv.rpcs.csiClients.ControllerCreateSnapshot(cReq, cResp)
 		})
 		if err != nil {
 			multierror.Append(&mErr, fmt.Errorf("could not create snapshot: %v", err))
@@ -1617,13 +1610,11 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 			continue
 		}
 
-		method := "ClientCSI.ControllerDeleteSnapshot"
-
 		cReq := &cstructs.ClientCSIControllerDeleteSnapshotRequest{ID: snap.ID}
 		cReq.PluginID = plugin.ID
 		cResp := &cstructs.ClientCSIControllerDeleteSnapshotResponse{}
 		err = v.serializedControllerRPC(plugin.ID, func() error {
-			return v.srv.RPC(method, cReq, cResp)
+			return v.srv.rpcs.csiClients.ControllerDeleteSnapshot(cReq, cResp)
 		})
 		if err != nil {
 			multierror.Append(&mErr, fmt.Errorf("could not delete %q: %v", snap.ID, err))
@@ -1674,7 +1665,6 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 		return fmt.Errorf("plugin does not support listing snapshots")
 	}
 
-	method := "ClientCSI.ControllerListSnapshots"
 	cReq := &cstructs.ClientCSIControllerListSnapshotsRequest{
 		MaxEntries:    args.PerPage,
 		StartingToken: args.NextToken,
@@ -1683,7 +1673,7 @@ func (v *CSIVolume) ListSnapshots(args *structs.CSISnapshotListRequest, reply *s
 	cReq.PluginID = plugin.ID
 	cResp := &cstructs.ClientCSIControllerListSnapshotsResponse{}
 
-	err = v.srv.RPC(method, cReq, cResp)
+	err = v.srv.rpcs.csiClients.ControllerListSnapshots(cReq, cResp)
 	if err != nil {
 		return err
 	}
