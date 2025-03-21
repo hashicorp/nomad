@@ -3021,6 +3021,7 @@ func (s *StateStore) csiVolumeDenormalizeTxn(txn Txn, ws memdb.WatchSet, vol *st
 				// so create one now
 				pastClaim = &structs.CSIVolumeClaim{
 					AllocationID:   id,
+					ExternalNodeID: currentClaim.ExternalNodeID,
 					NodeID:         currentClaim.NodeID,
 					Mode:           currentClaim.Mode,
 					State:          structs.CSIVolumeClaimStateUnpublishing,
