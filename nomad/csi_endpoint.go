@@ -554,7 +554,7 @@ func (v *CSIVolume) controllerPublishVolume(req *structs.CSIVolumeClaimRequest, 
 		return err
 	}
 	if targetNode == nil {
-		return fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, alloc.NodeID)
+		return fmt.Errorf("%w %s", structs.ErrUnknownNode, alloc.NodeID)
 	}
 
 	// if the RPC is sent by a client node, it may not know the claim's
@@ -942,6 +942,14 @@ func (v *CSIVolume) controllerUnpublishVolume(vol *structs.CSIVolume, claim *str
 	if claim.ExternalNodeID == "" {
 		externalNodeID, err := v.lookupExternalNodeID(vol, claim)
 		if err != nil {
+			// if the node has been GC'd, there's no path for us to ever send
+			// the controller detach, so assume the node is gone
+			if errors.Is(err, structs.ErrUnknownNode) {
+				v.logger.Trace("controller detach skipped for missing node", "vol", vol.ID)
+				claim.State = structs.CSIVolumeClaimStateReadyToFree
+				return v.checkpointClaim(vol, claim)
+			}
+
 			return fmt.Errorf("missing external node ID: %v", err)
 		}
 		claim.ExternalNodeID = externalNodeID
@@ -995,7 +1003,7 @@ func (v *CSIVolume) lookupExternalNodeID(vol *structs.CSIVolume, claim *structs.
 		return "", err
 	}
 	if targetNode == nil {
-		return "", fmt.Errorf("%s: %s", structs.ErrUnknownNodePrefix, claim.NodeID)
+		return "", fmt.Errorf("%w %s", structs.ErrUnknownNode, claim.NodeID)
 	}
 
 	// get the storage provider's ID for the client node (not
