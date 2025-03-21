@@ -71,7 +71,7 @@ jobs:
           # Fail GitHub action at this step when broken links are found?
           fail: false
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GITHUB_TOKEN: ${{secrets.ELEVATED_GITHUB_TOKEN}}
 
       - name: Append text to beginning of Lychee output file if broken links found
         # Append lychee output file under any lychee condition
