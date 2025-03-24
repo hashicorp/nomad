@@ -50,14 +50,14 @@ echo "Client $client_id at $CLIENT_IP is ready"
 
 # Quality: "nomad_alloc_reconect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
 echo "Reading allocs for client at $CLIENT_IP"
-if ! current_allocs=$("nomad alloc status -json | jq -r --arg NODE_ID \"$(nomad node status -allocs -address https://$CLIENT_IP:4646 -self -json | jq -r '.ID')\" '[.[] | select(.ClientStatus == \"running\" and .NodeID == $NODE_ID) | .ID] | join(\" \")'"); then
-    error_exi "Failed to read allocs for node: $client_id"
+
+current_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id) | .ID] | join(" ")')
+if [ -z "$current_allocs" ]; then
+    error_exit "Failed to read allocs for node: $client_id"
 fi
 
-RUNNING_ALLOCS=$(nomad alloc status -json | jq -r --arg NODE_ID "$NODE_ID" '[.[] | select(.ClientStatus == "running" and .NodeID == $NODE_ID) | .ID] | join(" ")')
-
 IFS=' ' read -r -a INPUT_ARRAY <<< "${ALLOCS[*]}"
-IFS=' ' read -r -a RUNNING_ARRAY <<< "$RUNNING_ALLOCS"
+IFS=' ' read -r -a RUNNING_ARRAY <<< "$current_allocs"
 
 sorted_input=($(printf "%s\n" "${INPUT_ARRAY[@]}" | sort))
 sorted_running=($(printf "%s\n" "${RUNNING_ARRAY[@]}" | sort))
