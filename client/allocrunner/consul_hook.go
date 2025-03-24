@@ -27,7 +27,6 @@ type consulHook struct {
 	consulConfigs           map[string]*structsc.ConsulConfig
 	consulClientConstructor consul.ConsulClientFunc
 	hookResources           *cstructs.AllocHookResources
-	envBuilder              *taskenv.Builder
 
 	logger           log.Logger
 	shutdownCtx      context.Context
@@ -48,9 +47,6 @@ type consulHookConfig struct {
 	// hookResources is used for storing and retrieving Consul tokens
 	hookResources *cstructs.AllocHookResources
 
-	// envBuilder is used to interpolate services
-	envBuilder func() *taskenv.Builder
-
 	logger log.Logger
 }
 
@@ -63,7 +59,6 @@ func newConsulHook(cfg consulHookConfig) *consulHook {
 		consulConfigs:           cfg.consulConfigs,
 		consulClientConstructor: cfg.consulClientConstructor,
 		hookResources:           cfg.hookResources,
-		envBuilder:              cfg.envBuilder(),
 		shutdownCtx:             shutdownCtx,
 		shutdownCancelFn:        shutdownCancelFn,
 	}
@@ -83,7 +78,7 @@ func (*consulHook) Name() string {
 	return "consul"
 }
 
-func (h *consulHook) Prerun() error {
+func (h *consulHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	job := h.alloc.Job
 
 	if job == nil {
@@ -102,12 +97,12 @@ func (h *consulHook) Prerun() error {
 	}
 
 	var mErr *multierror.Error
-	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens, h.envBuilder.Build()); err != nil {
+	if err := h.prepareConsulTokensForServices(tg.Services, tg, tokens, allocEnv); err != nil {
 		mErr = multierror.Append(mErr, err)
 	}
 	for _, task := range tg.Tasks {
-		h.envBuilder.UpdateTask(h.alloc, task)
-		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens, h.envBuilder.Build()); err != nil {
+		taskEnv := allocEnv.WithTask(h.alloc, task)
+		if err := h.prepareConsulTokensForServices(task.Services, tg, tokens, taskEnv); err != nil {
 			mErr = multierror.Append(mErr, err)
 		}
 		if err := h.prepareConsulTokensForTask(task, tg, tokens); err != nil {
