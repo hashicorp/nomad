@@ -121,7 +121,7 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/shoenig/go-landlock v1.2.2
 	github.com/shoenig/go-m1cpu v0.1.6
-	github.com/shoenig/test v1.12.0
+	github.com/shoenig/test v1.12.1
 	github.com/stretchr/testify v1.10.0
 	github.com/zclconf/go-cty v1.16.2
 	github.com/zclconf/go-cty-yaml v1.1.0
