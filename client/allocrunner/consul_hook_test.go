@@ -58,9 +58,9 @@ func consulHookTestHarness(t *testing.T) *consulHook {
 	db := cstate.NewMemDB(logger)
 
 	// the WIDMgr env builder never has the task available
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
 
-	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, envBuilder)
+	mockWIDMgr := widmgr.NewWIDMgr(mockSigner, alloc, db, logger, env)
 	mockWIDMgr.SignForTesting()
 
 	consulConfigs := map[string]*structsc.ConsulConfig{
@@ -68,9 +68,6 @@ func consulHookTestHarness(t *testing.T) *consulHook {
 	}
 
 	hookResources := cstructs.NewAllocHookResources()
-	envBuilderFn := func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
-	}
 
 	consulHookCfg := consulHookConfig{
 		alloc:                   alloc,
@@ -79,7 +76,6 @@ func consulHookTestHarness(t *testing.T) *consulHook {
 		consulConfigs:           consulConfigs,
 		consulClientConstructor: consul.NewMockConsulClient,
 		hookResources:           hookResources,
-		envBuilder:              envBuilderFn,
 		logger:                  logger,
 	}
 	return newConsulHook(consulHookCfg)
@@ -184,8 +180,8 @@ func Test_consulHook_prepareConsulTokensForServices(t *testing.T) {
 	hook := consulHookTestHarness(t)
 	task := hook.alloc.LookupTask("web")
 	services := task.Services
-	hook.envBuilder.UpdateTask(hook.alloc, task)
-	env := hook.envBuilder.Build()
+	env := taskenv.NewBuilder(mock.Node(), hook.alloc, task, "global").
+		Build().WithTask(hook.alloc, task)
 	hashedJWT := make(map[string]string)
 
 	for _, s := range services {

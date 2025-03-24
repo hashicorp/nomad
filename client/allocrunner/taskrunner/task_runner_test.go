@@ -148,9 +148,9 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 	if vault != nil {
 		vaultFunc = func(_ string) (vaultclient.VaultClient, error) { return vault, nil }
 	}
-	// the envBuilder for the WIDMgr never has access to the task, so don't
-	// include it here
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+	// the env for the WIDMgr never has access to the task, so don't include it
+	// here
+	allocEnv := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
 
 	conf := &Config{
 		Alloc:                 alloc,
@@ -172,7 +172,7 @@ func testTaskRunnerConfig(t *testing.T, alloc *structs.Allocation, taskName stri
 		ServiceRegWrapper:     wrapperMock,
 		Getter:                getter.TestSandbox(t),
 		Wranglers:             proclib.MockWranglers(t),
-		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger, envBuilder),
+		WIDMgr:                widmgr.NewWIDMgr(widsigner, alloc, db, logger, allocEnv),
 		AllocHookResources:    cstructs.NewAllocHookResources(),
 	}
 
