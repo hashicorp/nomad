@@ -350,3 +350,11 @@ func registryResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *r
 	// When all else fails, return an empty auth config
 	return types.AuthConfig{}
 }
+
+// getValue returns the val if provided, or returns the defaultVal as a fallback
+func getValue(val, defaultVal string) string {
+	if val == "" {
+		return defaultVal
+	}
+	return val
+}
