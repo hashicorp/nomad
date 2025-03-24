@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: Monitoring Nomad
+page_title: Monitor Nomad
 description: |-
-  Overview of runtime metrics available in Nomad along with monitoring and
-  alerting.
+  Learn how to monitor the health and performance of Nomad clusters. Export data to Prometheus or DataDog. Review metrics for the Raft consensus protocol, scheduling, performance, capacity, task resource consumption, job and task status, runtime, and federated deployments.
 ---
 
-# Monitoring Nomad
+# Monitor Nomad
 
 The Nomad client and server agents collect a wide range of runtime metrics.
 These metrics are useful for monitoring the health and performance of Nomad
@@ -70,16 +69,14 @@ patterns.
   system as appropriate. In many cases, it may be ok if a given batch job fails
   occasionally, as long as it goes back to passing.
 
-# Key Performance Indicators
+## Key performance indicators
 
 Nomad servers' memory, CPU, disk, and network usage all scales linearly with
 cluster size and scheduling throughput. The most important aspect of ensuring
 Nomad operates normally is monitoring these system resources to ensure the
 servers are not encountering resource constraints.
 
-The sections below cover a number of other important metrics.
-
-## Consensus Protocol (Raft)
+## Raft consensus protocol
 
 Nomad uses the Raft consensus protocol for leader election and state
 replication. Spurious leader elections can be caused by networking
@@ -261,18 +258,18 @@ a per client basis.
 - **nomad.client.allocated.memory**
 - **nomad.client.unallocated.memory**
 
-## Task Resource Consumption
+## Task resource consumption
 
 The metrics listed [here][allocation-metrics] can be used to track resource
 consumption on a per task basis. For user facing services, it is common to alert
 when the CPU is at or above the reserved resources for the task.
 
-## Job and Task Status
+## Job and task status
 
 See [Job Summary Metrics] for monitoring the health and status of workloads
 running on Nomad.
 
-## Runtime Metrics
+## Runtime metrics
 
 Runtime metrics apply to all clients and servers. The following metrics are
 general indicators of load and memory pressure.
@@ -284,7 +281,7 @@ general indicators of load and memory pressure.
 It is recommended to alert on upticks in any of the above, server memory usage
 in particular.
 
-## Federated Deployments (Serf)
+## Serf federated deployments
 
 Nomad uses the membership and failure detection capabilities of the Serf library
 to maintain a single, global gossip pool for all servers in a federated
