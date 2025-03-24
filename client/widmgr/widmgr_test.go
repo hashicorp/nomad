@@ -30,10 +30,10 @@ func TestWIDMgr_Restore(t *testing.T) {
 	}
 	alloc.Job.TaskGroups[0].Tasks[0].Services[0].Identity = widSpecs[0]
 	alloc.Job.TaskGroups[0].Tasks[0].Identities = widSpecs[1:]
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, "global")
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, "global").Build()
 
 	signer := NewMockWIDSigner(widSpecs)
-	mgr := NewWIDMgr(signer, alloc, db, logger, envBuilder)
+	mgr := NewWIDMgr(signer, alloc, db, logger, env)
 
 	// restore, but we haven't previously saved to the db
 	hasExpired, err := mgr.restoreStoredIdentities()
@@ -54,7 +54,7 @@ func TestWIDMgr_Restore(t *testing.T) {
 	widSpecs[2].TTL = time.Second
 	signer.setWIDs(widSpecs)
 
-	wiHandle := service.IdentityHandle(envBuilder.Build().ReplaceEnv)
+	wiHandle := service.IdentityHandle(env.ReplaceEnv)
 	mgr.widSpecs[*wiHandle].TTL = time.Second
 
 	// force a re-sign to re-populate the lastToken and save to the db

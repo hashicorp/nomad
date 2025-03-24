@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/taskenv"
 )
 
 // diskMigrationHook migrates ephemeral disk volumes. Depends on alloc dir
@@ -41,7 +42,7 @@ func (h *diskMigrationHook) Name() string {
 	return "migrate_disk"
 }
 
-func (h *diskMigrationHook) Prerun() error {
+func (h *diskMigrationHook) Prerun(_ *taskenv.TaskEnv) error {
 	ctx := context.TODO()
 
 	// Wait for a previous alloc - if any - to terminate

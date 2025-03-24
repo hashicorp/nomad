@@ -39,7 +39,7 @@ func TestConsulSocketHook_PrerunPostrun_Ok(t *testing.T) {
 
 	// start unix socket proxy
 	h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs)
-	require.NoError(t, h.Prerun())
+	require.NoError(t, h.Prerun(nil))
 
 	httpSocket := filepath.Join(allocDir.AllocDir, allocdir.AllocHTTPSocket)
 	taskCon, err := net.Dial("unix", httpSocket)
@@ -112,7 +112,7 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 	{
 		// an alloc without a connect native task should not return an error
 		h := newConsulHTTPSocketHook(logger, alloc, allocDir, consulConfigs)
-		must.NoError(t, h.Prerun())
+		must.NoError(t, h.Prerun(nil))
 
 		// postrun should be a noop
 		must.NoError(t, h.Postrun())
@@ -122,7 +122,7 @@ func TestConsulHTTPSocketHook_Prerun_Error(t *testing.T) {
 		// an alloc with a native task should return an error when consul is not
 		// configured
 		h := newConsulHTTPSocketHook(logger, connectNativeAlloc, allocDir, consulConfigs)
-		must.ErrorContains(t, h.Prerun(), "consul address must be set on nomad client")
+		must.ErrorContains(t, h.Prerun(nil), "consul address must be set on nomad client")
 
 		// Postrun should be a noop
 		must.NoError(t, h.Postrun())

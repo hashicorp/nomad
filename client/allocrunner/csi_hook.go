@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -89,7 +90,7 @@ func (c *csiHook) Name() string {
 	return "csi_hook"
 }
 
-func (c *csiHook) Prerun() error {
+func (c *csiHook) Prerun(_ *taskenv.TaskEnv) error {
 	if !c.shouldRun() {
 		return nil
 	}
