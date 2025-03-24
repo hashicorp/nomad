@@ -29,7 +29,7 @@ require (
 	github.com/coreos/go-iptables v0.8.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v27.5.1+incompatible
+	github.com/docker/cli v28.0.2+incompatible
 	github.com/docker/docker v28.0.1+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0
@@ -37,7 +37,7 @@ require (
 	github.com/elazarl/go-bindata-assetfs v1.0.1
 	github.com/fatih/color v1.18.0
 	github.com/go-jose/go-jose/v3 v3.0.4
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang/protobuf v1.5.4
 	github.com/golang/snappy v0.0.4
 	github.com/google/go-cmp v0.7.0
@@ -46,7 +46,7 @@ require (
 	github.com/gosuri/uilive v0.0.4
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/hashicorp/cap v0.9.0
-	github.com/hashicorp/cli v1.1.6
+	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/consul-template v0.40.0
 	github.com/hashicorp/consul/api v1.30.0
 	github.com/hashicorp/consul/sdk v0.16.1
@@ -71,7 +71,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-netaddrs v0.1.0
 	github.com/hashicorp/go-plugin v1.6.2
-	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.9
+	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.10
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/go-set/v3 v3.0.0
 	github.com/hashicorp/go-sockaddr v1.0.7
@@ -92,7 +92,7 @@ require (
 	github.com/hashicorp/vault/api v1.15.0
 	github.com/hashicorp/yamux v0.1.2
 	github.com/hpcloud/tail v1.0.1-0.20170814160653-37f427138745
-	github.com/klauspost/cpuid/v2 v2.2.9
+	github.com/klauspost/cpuid/v2 v2.2.10
 	github.com/kr/pretty v0.3.1
 	github.com/kr/text v0.2.0
 	github.com/mattn/go-colorable v0.1.14
@@ -231,7 +231,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/gojuno/minimock/v3 v3.0.6 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/btree v1.1.2 // indirect
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
@@ -270,7 +270,6 @@ require (
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.12 // indirect
-	github.com/mitchellh/cli v1.1.5 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/sys/user v0.3.0 // indirect
