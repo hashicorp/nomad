@@ -48,20 +48,22 @@ done
 
 echo "Client $client_id at $CLIENT_IP is ready"
 
-# Quality: "nomad_node_metadata: A GET call to /v1/node/:node-id returns the same  node.Meta for each node before and after a node upgrade"
-echo "Reading metadata for client at $CLIENT_IP"
-if ! client_meta=$(nomad node meta read -json -node-id "$client_id"); then
-    error_exit "Failed to read metadata for node: $client_id"
+# Quality: "nomad_alloc_reconect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
+echo "Reading allocs for client at $CLIENT_IP"
+
+current_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id) | .ID] | join(" ")')
+if [ -z "$current_allocs" ]; then
+    error_exit "Failed to read allocs for node: $client_id"
 fi
 
-meta_node_ip=$(echo "$client_meta" | jq -r '.Dynamic.node_ip' )
-if [ "$meta_node_ip" != "$CLIENT_IP" ]; then
-  error_exit "Wrong value returned for node_ip: $meta_node_ip"
+IFS=' ' read -r -a INPUT_ARRAY <<< "${ALLOCS[*]}"
+IFS=' ' read -r -a RUNNING_ARRAY <<< "$current_allocs"
+
+sorted_input=($(printf "%s\n" "${INPUT_ARRAY[@]}" | sort))
+sorted_running=($(printf "%s\n" "${RUNNING_ARRAY[@]}" | sort))
+
+if [[ "${sorted_input[*]}" != "${sorted_running[*]}" ]]; then
+    error_exi "Different allocs found, expected: ${sorted_input[*]} found: ${sorted_running[*]}"
 fi
 
-meta_nomad_addr=$(echo "$client_meta" | jq -r '.Dynamic.nomad_addr' )
-if [ "$meta_nomad_addr" != "$NOMAD_ADDR" ]; then
-   error_exit "Wrong value returned for nomad_addr: $meta_nomad_addr"
-fi
-
-echo "Metadata correct in  $client_id at $CLIENT_IP"
+echo "All allocs reattached correctly for node at $CLIENT_IP"

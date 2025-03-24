@@ -371,7 +371,8 @@ scenario "upgrade" {
     verifies = [
       quality.nomad_nodes_status,
       quality.nomad_job_status,
-      quality.nomad_node_metadata
+      quality.nomad_node_metadata,
+      quality.nomad_alloc_reconnect
     ]
 
     variables {
@@ -412,7 +413,8 @@ scenario "upgrade" {
     verifies = [
       quality.nomad_nodes_status,
       quality.nomad_job_status,
-      quality.nomad_node_metadata
+      quality.nomad_node_metadata,
+      quality.nomad_alloc_reconnect
     ]
 
     variables {
@@ -473,7 +475,8 @@ scenario "upgrade" {
     verifies = [
       quality.nomad_nodes_status,
       quality.nomad_job_status,
-      quality.nomad_node_metadata
+      quality.nomad_node_metadata,
+      quality.nomad_alloc_reconnect
     ]
 
     variables {
@@ -514,7 +517,8 @@ scenario "upgrade" {
     verifies = [
       quality.nomad_nodes_status,
       quality.nomad_job_status,
-      quality.nomad_node_metadata
+      quality.nomad_node_metadata,
+      quality.nomad_alloc_reconnect
     ]
 
     variables {
