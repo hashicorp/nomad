@@ -9,7 +9,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -26,6 +30,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/ryanuber/go-glob"
 )
 
 const (
@@ -84,6 +89,7 @@ var (
 		),
 		"denied_host_uids": hclspec.NewAttr("denied_host_uids", "string", false),
 		"denied_host_gids": hclspec.NewAttr("denied_host_gids", "string", false),
+		"denied_envvars":   hclspec.NewAttr("denied_envvars", "list(string)", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -95,6 +101,7 @@ var (
 		"cgroup_v1_override": hclspec.NewAttr("cgroup_v1_override", "list(map(string))", false),
 		"oom_score_adj":      hclspec.NewAttr("oom_score_adj", "number", false),
 		"work_dir":           hclspec.NewAttr("work_dir", "string", false),
+		"denied_envvars":     hclspec.NewAttr("denied_envvars", "list(string)", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -150,8 +157,9 @@ type Config struct {
 	// Enabled is set to true to enable the raw_exec driver
 	Enabled bool `codec:"enabled"`
 
-	DeniedHostUids string `codec:"denied_host_uids"`
-	DeniedHostGids string `codec:"denied_host_gids"`
+	DeniedHostUids string   `codec:"denied_host_uids"`
+	DeniedHostGids string   `codec:"denied_host_gids"`
+	DeniedEnvvars  []string `codec:"denied_envvars"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -176,6 +184,9 @@ type TaskConfig struct {
 
 	// WorkDir sets the working directory of the task
 	WorkDir string `codec:"work_dir"`
+
+	//DeniedEnvvars enables the removal of specified environment variables from a given job environment
+	DeniedEnvvars []string `codec:"denied_envvars"`
 }
 
 func (t *TaskConfig) validate() error {
@@ -358,6 +369,53 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func (d *Driver) buildEnvList(tc *TaskConfig, cfg *drivers.TaskConfig) []string {
+
+	// combine tc and cfg denyLists
+	denyList := slices.Concat(d.config.DeniedEnvvars, tc.DeniedEnvvars)
+
+	envList := make([]string, 0, len(cfg.Env))    // to return final envvar list
+	deniedList := make([]string, 0, len(cfg.Env)) // to capture envvars that match globs
+	keyList := make([]string, 0, len(cfg.Env))    // to create key string for capturing matches
+
+	for k := range cfg.Env {
+		//make a key list
+		keyList = append(keyList, k)
+	}
+
+	keyString := strings.Join(keyList, " ")
+
+	for _, v := range denyList {
+		//wrap in glob
+		envVar := "*" + v + "*"
+		found := glob.Glob(envVar, keyString)
+		if found {
+			// if deny list pattern is present convert glob to regex
+			// pattern replaces each glob with "match all but whitespace" char
+			// to remove each key from the keyString
+			pattern := strings.ReplaceAll(v, "*", "\\S*")
+			r, err := regexp.Compile(pattern)
+			if err != nil {
+				// log and continue to next item if compilation fails
+				d.logger.Error("failed to compile regex, matched denyList entry not denied", v)
+				continue
+			}
+
+			matches := r.FindAllString(keyString, -1)
+			// and append all matched keys to deniedList
+			deniedList = append(deniedList, matches...)
+
+		}
+	}
+	for k, v := range cfg.Env {
+		if found := slices.Contains(deniedList, k); !found {
+			envList = append(envList, k+"="+v)
+		}
+	}
+	sort.Strings(envList)
+	return envList
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if !d.config.Enabled {
 		return nil, nil, errDisabledDriver
@@ -402,7 +460,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	execCmd := &executor.ExecCommand{
 		Cmd:              driverConfig.Command,
 		Args:             driverConfig.Args,
-		Env:              cfg.EnvList(),
+		Env:              d.buildEnvList(&driverConfig, cfg),
 		User:             cfg.User,
 		TaskDir:          cfg.TaskDir().Dir,
 		WorkDir:          driverConfig.WorkDir,

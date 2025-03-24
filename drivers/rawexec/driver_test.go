@@ -11,7 +11,9 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -31,6 +33,7 @@ import (
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/ryanuber/go-glob"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
@@ -40,6 +43,20 @@ import (
 func defaultEnv() map[string]string {
 	m := make(map[string]string)
 	return m
+}
+
+// genEnv returns a populated map of environment variables
+func genEnv() map[string]string {
+	return map[string]string{
+		"NOMAD_TOKEN":    "abcd",
+		"GITHUB_TOKEN":   "efg",
+		"AWS_SECRET_KEY": "hij",
+		"NOMAD_ADDR":     "klm",
+		"TEST_TOKEN":     "nop",
+		"TEST_AWS_VAR":   "qrs",
+		"VAR_TEST_AWS":   "tuv",
+		"PORT":           "wxyz",
+	}
 }
 
 func testResources(allocID, task string) *drivers.Resources {
@@ -661,4 +678,256 @@ func TestRawExecDriver_validate(t *testing.T) {
 			must.Eq(t, i.exp, err)
 		})
 	}
+}
+
+func TestRawExecDriver_buildEnvList(t *testing.T) {
+	defaultEnvironment := genEnv()
+
+	testCases := []struct {
+		name             string
+		taskConfig       *TaskConfig
+		driverTaskConfig *drivers.TaskConfig
+		driverConfig     *Config
+		deniedPresent    bool
+	}{
+		{name: "OK, no globs",
+			taskConfig: &TaskConfig{
+				DeniedEnvvars: []string{"AWS_SECRET_KEY"},
+			},
+			driverTaskConfig: &drivers.TaskConfig{
+				Env: defaultEnvironment,
+			},
+			driverConfig: &Config{
+				DeniedEnvvars: []string{"NOMAD_TOKEN", "GITHUB_TOKEN", "GITHUB_PASSWORD"},
+			},
+			deniedPresent: false,
+		},
+		{name: "OK, globs",
+			taskConfig: &TaskConfig{
+				DeniedEnvvars: []string{"AWS_SECRET_KEY"},
+			},
+			driverTaskConfig: &drivers.TaskConfig{
+				Env: defaultEnvironment,
+			},
+			driverConfig: &Config{
+				DeniedEnvvars: []string{"*_TOKEN"},
+			},
+			deniedPresent: false,
+		}, {name: "OK, only one set",
+			taskConfig: &TaskConfig{
+				DeniedEnvvars: []string{},
+			},
+			driverTaskConfig: &drivers.TaskConfig{
+				Env: defaultEnvironment,
+			},
+			driverConfig: &Config{
+				DeniedEnvvars: []string{"*_TOKEN"},
+			},
+			deniedPresent: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			present := false
+			foundVars := []string{}
+
+			d := newEnabledRawExecDriver(t)
+			d.config = tc.driverConfig
+			envList := d.buildEnvList(tc.taskConfig, tc.driverTaskConfig)
+			deniedList := strings.Join(slices.Concat(tc.taskConfig.DeniedEnvvars, tc.driverConfig.DeniedEnvvars), ", ")
+
+			for _, v := range envList {
+				key, _, found := strings.Cut(v, "=")
+				if !found {
+					t.Fatalf("Unable to parse environment variable list, cannot evaluate")
+				}
+				keyGlob := "*" + key + "*"
+				if glob.Glob(keyGlob, deniedList) {
+					present = true
+					foundVars = append(foundVars, key)
+				}
+			}
+
+			if present != tc.deniedPresent {
+				t.Fatalf("Expected deniedPresent to be %t, got %t, list= %#v", tc.deniedPresent, present, foundVars)
+			}
+		})
+	}
+}
+
+func TestRawExecDriver_Env(t *testing.T) {
+	ci.Parallel(t)
+
+	require := require.New(t)
+
+	d := newEnabledRawExecDriver(t)
+	allocID := uuid.Generate()
+	taskName := "sleep"
+
+	testCases := []struct {
+		name         string
+		driver       *Driver
+		driverConfig *Config
+		taskConfig   *TaskConfig
+		varsExpected bool
+		checkVars    []string
+	}{
+		{name: "no denied vars",
+			driver:       d,
+			driverConfig: nil,
+			taskConfig: &TaskConfig{
+				Command: testtask.Path(),
+			},
+			checkVars:    []string{"NOMAD_TOKEN", "GITHUB_TOKEN", "AWS_SECRET_KEY", "NOMAD_ADDR", "TEST_TOKEN", "TEST_AWS_VAR", "VAR_TEST_AWS", "PORT"},
+			varsExpected: true,
+		},
+		{name: "both levels, named vars",
+			driver: d,
+			driverConfig: &Config{
+				Enabled:       true,
+				DeniedEnvvars: []string{"NOMAD_ADDR"},
+			},
+			taskConfig: &TaskConfig{
+				Command:       testtask.Path(),
+				DeniedEnvvars: []string{"NOMAD_TOKEN"},
+			},
+			checkVars:    []string{"NOMAD_TOKEN", "NOMAD_ADDR"},
+			varsExpected: false,
+		}, {name: "driver level, glob suffix vars",
+			driver: d,
+			driverConfig: &Config{
+				Enabled:       true,
+				DeniedEnvvars: []string{"NOMAD_*"},
+			},
+			taskConfig: &TaskConfig{
+				Command: testtask.Path(),
+			},
+			varsExpected: false,
+			checkVars:    []string{"NOMAD_TOKEN", "NOMAD_ADDR"},
+		}, {name: "driver level, glob prefix vars",
+			driver: d,
+			driverConfig: &Config{
+				Enabled:       true,
+				DeniedEnvvars: []string{"*TOKEN"},
+			},
+			taskConfig: &TaskConfig{
+				Command: testtask.Path(),
+			},
+			checkVars:    []string{"NOMAD_TOKEN", "GITHUB_TOKEN", "TEST_TOKEN"},
+			varsExpected: false,
+		}, {name: "driver level, glob prefix & suffix",
+			driver: d,
+			driverConfig: &Config{
+				Enabled:       true,
+				DeniedEnvvars: []string{"*AWS*"},
+			},
+			taskConfig: &TaskConfig{
+				Command: testtask.Path(),
+			},
+			checkVars:    []string{"AWS_SECRET_KEY", "TEST_AWS_VAR", "VAR_TEST_AWS"},
+			varsExpected: false,
+		},
+		{name: "task level, glob suffix vars",
+			driver:       d,
+			driverConfig: nil,
+			taskConfig: &TaskConfig{
+				Command:       testtask.Path(),
+				DeniedEnvvars: []string{"NOMAD_*"},
+			},
+			varsExpected: false,
+			checkVars:    []string{"NOMAD_TOKEN", "NOMAD_ADDR"},
+		}, {name: "task level, glob prefix vars",
+			driver:       d,
+			driverConfig: nil,
+			taskConfig: &TaskConfig{
+				Command:       testtask.Path(),
+				DeniedEnvvars: []string{"*TOKEN"},
+			},
+			checkVars:    []string{"NOMAD_TOKEN", "GITHUB_TOKEN", "TEST_TOKEN"},
+			varsExpected: false,
+		},
+		{name: "task level, glob prefix & suffix",
+			driver:       d,
+			driverConfig: nil,
+			taskConfig: &TaskConfig{
+				Command:       testtask.Path(),
+				DeniedEnvvars: []string{"*AWS*"},
+			},
+			checkVars:    []string{"AWS_SECRET_KEY", "TEST_AWS_VAR", "VAR_TEST_AWS"},
+			varsExpected: false,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			task :=
+				&drivers.TaskConfig{
+					AllocID:   allocID,
+					ID:        uuid.Generate(),
+					Name:      taskName,
+					Env:       genEnv(),
+					Resources: testResources(allocID, taskName),
+				}
+			// if set, update driver config
+			if tc.driverConfig != nil {
+				tc.driver.config = tc.driverConfig
+			}
+
+			harness := dtestutil.NewDriverHarness(t, tc.driver)
+			defer harness.Kill()
+
+			cleanup := harness.MkAllocDir(task, false)
+			defer cleanup()
+
+			harness.MakeTaskCgroup(allocID, taskName)
+
+			// set and encode task config
+			taskConfig := tc.taskConfig
+			require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+
+			if runtime.GOOS == "windows" {
+				// set environment variables on task level for windows before starting task, because reasons
+				task.Env = genEnv()
+				_, _, err := harness.StartTask(task)
+				require.NoError(err)
+				// Exec a command that should work
+				res, err := harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "set"}, 1*time.Second)
+				require.NoError(err)
+				require.True(res.ExitResult.Successful())
+
+				// confirm checked variables are as expected in windows land
+				for _, v := range tc.checkVars {
+					if tc.varsExpected {
+						// confirm envvars are readable in control case
+						require.Contains(string(res.Stdout), v)
+					} else {
+						// use globbing to test for denied envvars
+						envGlob := "*" + v + "=*"
+						require.False(glob.Glob(envGlob, string(res.Stdout)))
+					}
+				}
+			} else {
+				// start task for non-windows runtimes
+				_, _, err := harness.StartTask(task)
+				require.NoError(err)
+				// exec an env to standard out
+				res, err := harness.ExecTask(task.ID, []string{"env"}, 1*time.Second)
+				require.NoError(err)
+				require.True(res.ExitResult.Successful())
+
+				// confirm checked variables are as expected in nix land
+				for _, v := range tc.checkVars {
+					if tc.varsExpected {
+						// confirm envvars are readable in control case
+						require.Contains(string(res.Stdout), v)
+					} else {
+						// use globbing to test for denied envvars
+						envGlob := "*" + v + "=*"
+						require.False(glob.Glob(envGlob, string(res.Stdout)))
+					}
+				}
+			}
+			require.NoError(harness.DestroyTask(task.ID, true))
+		})
+	}
+
 }

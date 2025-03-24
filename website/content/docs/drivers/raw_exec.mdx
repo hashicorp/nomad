@@ -57,6 +57,9 @@ the Nomad client has been hardened according to the [production][hardening] guid
   must be an absolute path. This will also change the working directory when
   using `nomad alloc exec`.
 
+- `denied_envvars` - (Optional) Passes a list of environment variables to be
+scrubbed from the task environment. Supports simple globbing, "*" wildcard
+accepted as prefix and/or suffix.
 
 ## Examples
 
@@ -158,6 +161,14 @@ config {
   denied_host_gids = "2,4-8"
 }
 ```
+
+- `denied_envvars` - (Optional) Passes a list of environment variables to be
+scrubbed from all task environments. Supports simple globbing, "*" wildcard
+accepted as prefix and/or suffix. This will not be checked on Windows clients.
+```
+config {
+  denied_envvars = "["AWS_SECRET_KEY", "*_TOKEN]
+}
 
 ## Client Options
 
