@@ -9,11 +9,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/consul-template/signals"
@@ -369,50 +367,25 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) buildEnvList(tc *TaskConfig, cfg *drivers.TaskConfig) ([]string, error) {
-
+func (d *Driver) buildEnvList(tc *TaskConfig, cfg *drivers.TaskConfig) []string {
 	// combine tc and cfg denyLists
 	denyList := slices.Concat(d.config.DeniedEnvvars, tc.DeniedEnvvars)
+	envList := make([]string, 0, len(cfg.Env))
 
-	envList := make([]string, 0, len(cfg.Env))    // to return final envvar list
-	deniedList := make([]string, 0, len(cfg.Env)) // to capture envvars that match globs
-	keyList := make([]string, 0, len(cfg.Env))    // to create key string for capturing matches
-
-	for k := range cfg.Env {
-		//make a key list
-		keyList = append(keyList, k)
-	}
-
-	keyString := strings.Join(keyList, " ")
-
-	for _, v := range denyList {
-		//wrap in glob
-		envVar := "*" + v + "*"
-		found := glob.Glob(envVar, keyString)
-		if found {
-			// if deny list pattern is present convert glob to regex
-			// pattern replaces each glob with "match all but whitespace" char
-			// to remove each key from the keyString
-			pattern := strings.ReplaceAll(v, "*", "\\S*")
-			r, err := regexp.Compile(pattern)
-			if err != nil {
-				d.logger.Error("failed to compile regex, matched denyList entry not denied", v)
-				return []string{}, errors.New(fmt.Sprintf("failed to compile regex, matched denyList entry not denied: %s", v))
-			}
-
-			matches := r.FindAllString(keyString, -1)
-			// and append all matched keys to deniedList
-			deniedList = append(deniedList, matches...)
-
-		}
-	}
 	for k, v := range cfg.Env {
-		if found := slices.Contains(deniedList, k); !found {
+		found := false
+		for _, denied := range denyList {
+			if found = glob.Glob(denied, k); found {
+				break
+			}
+		}
+
+		if !found {
 			envList = append(envList, k+"="+v)
 		}
 	}
 	sort.Strings(envList)
-	return envList, nil
+	return envList
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
@@ -455,14 +428,11 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
-	envList, err := d.buildEnvList(&driverConfig, cfg)
-	if err != nil {
-		return nil, nil, err
-	}
+
 	execCmd := &executor.ExecCommand{
 		Cmd:              driverConfig.Command,
 		Args:             driverConfig.Args,
-		Env:              envList,
+		Env:              d.buildEnvList(&driverConfig, cfg),
 		User:             cfg.User,
 		TaskDir:          cfg.TaskDir().Dir,
 		WorkDir:          driverConfig.WorkDir,
