@@ -110,7 +110,7 @@ require (
 	github.com/moby/term v0.5.2
 	github.com/muesli/reflow v0.3.0
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/opencontainers/runc v1.2.5
+	github.com/opencontainers/runc v1.2.6
 	github.com/opencontainers/runtime-spec v1.2.0
 	github.com/posener/complete v1.2.3
 	github.com/prometheus/client_golang v1.21.0
