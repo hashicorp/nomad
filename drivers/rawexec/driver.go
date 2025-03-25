@@ -369,7 +369,7 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
-func (d *Driver) buildEnvList(tc *TaskConfig, cfg *drivers.TaskConfig) []string {
+func (d *Driver) buildEnvList(tc *TaskConfig, cfg *drivers.TaskConfig) ([]string, error) {
 
 	// combine tc and cfg denyLists
 	denyList := slices.Concat(d.config.DeniedEnvvars, tc.DeniedEnvvars)
@@ -396,9 +396,8 @@ func (d *Driver) buildEnvList(tc *TaskConfig, cfg *drivers.TaskConfig) []string 
 			pattern := strings.ReplaceAll(v, "*", "\\S*")
 			r, err := regexp.Compile(pattern)
 			if err != nil {
-				// log and continue to next item if compilation fails
 				d.logger.Error("failed to compile regex, matched denyList entry not denied", v)
-				continue
+				return []string{}, errors.New(fmt.Sprintf("failed to compile regex, matched denyList entry not denied: %s", v))
 			}
 
 			matches := r.FindAllString(keyString, -1)
@@ -413,7 +412,7 @@ func (d *Driver) buildEnvList(tc *TaskConfig, cfg *drivers.TaskConfig) []string 
 		}
 	}
 	sort.Strings(envList)
-	return envList
+	return envList, nil
 }
 
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
@@ -456,11 +455,14 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create executor: %v", err)
 	}
-
+	envList, err := d.buildEnvList(&driverConfig, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
 	execCmd := &executor.ExecCommand{
 		Cmd:              driverConfig.Command,
 		Args:             driverConfig.Args,
-		Env:              d.buildEnvList(&driverConfig, cfg),
+		Env:              envList,
 		User:             cfg.User,
 		TaskDir:          cfg.TaskDir().Dir,
 		WorkDir:          driverConfig.WorkDir,
