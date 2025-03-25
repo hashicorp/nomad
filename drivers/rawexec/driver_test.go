@@ -754,12 +754,18 @@ func TestRawExecDriver_Env(t *testing.T) {
 	ci.Parallel(t)
 	ctestutil.RequireNotWindows(t)
 
-	require := require.New(t)
-
 	d := newEnabledRawExecDriver(t)
 	allocID := uuid.Generate()
 	taskName := "sleep"
 
+	task :=
+		&drivers.TaskConfig{
+			AllocID:   allocID,
+			ID:        uuid.Generate(),
+			Name:      taskName,
+			Env:       genEnv(),
+			Resources: testResources(allocID, taskName),
+		}
 	testCases := []struct {
 		name         string
 		driver       *Driver
@@ -888,14 +894,6 @@ func TestRawExecDriver_Env(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			task :=
-				&drivers.TaskConfig{
-					AllocID:   allocID,
-					ID:        uuid.Generate(),
-					Name:      taskName,
-					Env:       genEnv(),
-					Resources: testResources(allocID, taskName),
-				}
 			// if set, update driver config
 			if tc.driverConfig != nil {
 				tc.driver.config = tc.driverConfig
