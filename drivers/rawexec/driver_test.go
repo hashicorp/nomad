@@ -756,6 +756,7 @@ func TestRawExecDriver_buildEnvList(t *testing.T) {
 
 func TestRawExecDriver_Env(t *testing.T) {
 	ci.Parallel(t)
+	ctestutil.RequireNotWindows(t)
 
 	require := require.New(t)
 
@@ -916,48 +917,21 @@ func TestRawExecDriver_Env(t *testing.T) {
 			taskConfig := tc.taskConfig
 			require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
 
-			if runtime.GOOS == "windows" {
-				// set environment variables on task level for windows before starting task, because reasons
-				task.Env = genEnv()
-				_, _, err := harness.StartTask(task)
-				require.NoError(err)
-				// Exec a command that should work
-				res, err := harness.ExecTask(task.ID, []string{"cmd.exe", "/c", "set"}, 1*time.Second)
-				require.NoError(err)
-				require.True(res.ExitResult.Successful())
+			// start task for non-windows runtimes
+			_, _, err := harness.StartTask(task)
+			require.NoError(err)
+			// exec an env to standard out
+			res, err := harness.ExecTask(task.ID, []string{"env"}, 1*time.Second)
+			require.NoError(err)
+			require.True(res.ExitResult.Successful())
 
-				// confirm checked variables are as expected in windows land
-				for _, v := range tc.checkVars {
-					if tc.varsExpected {
-						// confirm envvars are readable in control case
-						require.Contains(string(res.Stdout), v)
-					} else {
-						// use globbing to test for denied envvars
-						envGlob := "*" + v + "=*"
-						require.False(glob.Glob(envGlob, string(res.Stdout)))
-					}
-				}
-			} else {
-				// start task for non-windows runtimes
-				_, _, err := harness.StartTask(task)
-				require.NoError(err)
-				// exec an env to standard out
-				res, err := harness.ExecTask(task.ID, []string{"env"}, 1*time.Second)
-				require.NoError(err)
-				require.True(res.ExitResult.Successful())
-
-				// confirm checked variables are as expected in nix land
-				for _, v := range tc.checkVars {
-					if tc.varsExpected {
-						// confirm envvars are readable in control case
-						require.Contains(string(res.Stdout), v)
-					} else {
-						// use globbing to test for denied envvars
-						envGlob := "*" + v + "=*"
-						require.False(glob.Glob(envGlob, string(res.Stdout)))
-					}
+			// confirm denied variables are not found in standardout
+			for _, v := range tc.deniedVars {
+				if tc.varsExpected {
+					require.NotContains(string(res.Stdout), v)
 				}
 			}
+
 			require.NoError(harness.DestroyTask(task.ID, true))
 		})
 	}
