@@ -4,6 +4,7 @@
 package oidc
 
 import (
+	"bytes"
 	"crypto/rsa"
 	// sha1 is used to derive an "x5t" jwt header from an x509 certificate,
 	// per the OIDC JWS spec:
@@ -131,6 +132,9 @@ func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, 
 		bts = []byte(k.PemKey)
 	}
 
+	// for easy copy-paste, users may leave off PEM header/footer
+	bts = wrapBeginEnd(bts, beginPrivateKey, endPrivateKey)
+
 	key, err = gojwt.ParseRSAPrivateKeyFromPEM(bts)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing %s: %w", source, err)
@@ -161,6 +165,9 @@ func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 		source = "PemCert"
 		bts = []byte(k.PemCert)
 	}
+
+	// for easy copy-paste, users may leave off PEM header/footer
+	bts = wrapBeginEnd(bts, beginCertificate, endCertificate)
 
 	block, _ := pem.Decode(bts)
 	if block == nil {
@@ -194,4 +201,23 @@ func hashKeyID(cert *x509.Certificate, header structs.OIDCClientAssertionKeyIDHe
 	hasher.Write(cert.Raw)
 	hashed := hasher.Sum(nil)
 	return base64.RawURLEncoding.EncodeToString(hashed), nil
+}
+
+var (
+	// for user convenience, they may exclude key/cert pem header/footer
+	beginPrivateKey  = []byte("-----BEGIN PRIVATE KEY-----")
+	endPrivateKey    = []byte("-----END PRIVATE KEY-----")
+	beginCertificate = []byte("-----BEGIN CERTIFICATE-----")
+	endCertificate   = []byte("-----END CERTIFICATE-----")
+)
+
+// wrapBeginEnd wraps the provided bts in "{begin}\n{bts}\n{end}".
+// if begin and end are already there, it ensures "\n" is between them and bts.
+func wrapBeginEnd(bts, begin, end []byte) []byte {
+	cp := bytes.Clone(bts)
+	cp = bytes.TrimPrefix(cp, begin)
+	cp = bytes.TrimSuffix(cp, end)
+	cp = bytes.TrimSpace(cp)
+	cp = bytes.Join([][]byte{begin, cp, end}, []byte("\n"))
+	return cp
 }

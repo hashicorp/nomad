@@ -518,3 +518,34 @@ func generateInvalidTestPrivateKey(t *testing.T) *rsa.PrivateKey {
 
 	return key
 }
+
+func TestWrapBeginEnd(t *testing.T) {
+	// strings instead of []byte for easier diff output on test failure
+	begin := "BEGIN"
+	end := "END"
+	expect := "BEGIN\nstuff\nEND"
+	cases := []struct {
+		name    string
+		content string
+		expect  string
+	}{
+		{
+			name:    "complete",
+			content: "BEGIN\nstuff\nEND",
+		},
+		{
+			name:    "missing",
+			content: "stuff",
+		},
+		{
+			name:    "no newlines",
+			content: "BEGINstuffEND",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := wrapBeginEnd([]byte(tc.content), []byte(begin), []byte(end))
+			must.Eq(t, expect, string(got))
+		})
+	}
+}
