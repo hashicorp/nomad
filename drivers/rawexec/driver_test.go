@@ -13,7 +13,6 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -21,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/numalib"
+
 	ctestutil "github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/helper/pluginutils/hclutils"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -33,7 +33,6 @@ import (
 	dtestutil "github.com/hashicorp/nomad/plugins/drivers/testutils"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/hashicorp/nomad/testutil"
-	"github.com/ryanuber/go-glob"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
@@ -682,13 +681,12 @@ func TestRawExecDriver_validate(t *testing.T) {
 
 func TestRawExecDriver_buildEnvList(t *testing.T) {
 	defaultEnvironment := genEnv()
-
 	testCases := []struct {
 		name             string
 		taskConfig       *TaskConfig
 		driverTaskConfig *drivers.TaskConfig
 		driverConfig     *Config
-		deniedPresent    bool
+		expectedVars     []string
 	}{
 		{name: "OK, no globs",
 			taskConfig: &TaskConfig{
@@ -698,9 +696,15 @@ func TestRawExecDriver_buildEnvList(t *testing.T) {
 				Env: defaultEnvironment,
 			},
 			driverConfig: &Config{
-				DeniedEnvvars: []string{"NOMAD_TOKEN", "GITHUB_TOKEN", "GITHUB_PASSWORD"},
+				DeniedEnvvars: []string{"NOMAD_TOKEN", "GITHUB_TOKEN"},
 			},
-			deniedPresent: false,
+			expectedVars: []string{
+				"NOMAD_ADDR=klm",
+				"PORT=wxyz",
+				"TEST_AWS_VAR=qrs",
+				"TEST_TOKEN=nop",
+				"VAR_TEST_AWS=tuv",
+			},
 		},
 		{name: "OK, globs",
 			taskConfig: &TaskConfig{
@@ -712,8 +716,13 @@ func TestRawExecDriver_buildEnvList(t *testing.T) {
 			driverConfig: &Config{
 				DeniedEnvvars: []string{"*_TOKEN"},
 			},
-			deniedPresent: false,
-		}, {name: "OK, only one set",
+			expectedVars: []string{
+				"NOMAD_ADDR=klm",
+				"PORT=wxyz",
+				"TEST_AWS_VAR=qrs",
+				"VAR_TEST_AWS=tuv",
+			},
+		}, {name: "OK, multiple globs",
 			taskConfig: &TaskConfig{
 				DeniedEnvvars: []string{},
 			},
@@ -721,35 +730,25 @@ func TestRawExecDriver_buildEnvList(t *testing.T) {
 				Env: defaultEnvironment,
 			},
 			driverConfig: &Config{
-				DeniedEnvvars: []string{"*_TOKEN"},
+				DeniedEnvvars: []string{"*AWS*"},
 			},
-			deniedPresent: false,
+			expectedVars: []string{
+				"GITHUB_TOKEN=efg",
+				"NOMAD_ADDR=klm",
+				"NOMAD_TOKEN=abcd",
+				"PORT=wxyz",
+				"TEST_TOKEN=nop",
+			},
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			present := false
-			foundVars := []string{}
-
 			d := newEnabledRawExecDriver(t)
 			d.config = tc.driverConfig
 			envList := d.buildEnvList(tc.taskConfig, tc.driverTaskConfig)
-			deniedList := strings.Join(slices.Concat(tc.taskConfig.DeniedEnvvars, tc.driverConfig.DeniedEnvvars), ", ")
 
-			for _, v := range envList {
-				key, _, found := strings.Cut(v, "=")
-				if !found {
-					t.Fatalf("Unable to parse environment variable list, cannot evaluate")
-				}
-				keyGlob := "*" + key + "*"
-				if glob.Glob(keyGlob, deniedList) {
-					present = true
-					foundVars = append(foundVars, key)
-				}
-			}
-
-			if present != tc.deniedPresent {
-				t.Fatalf("Expected deniedPresent to be %t, got %t, list= %#v", tc.deniedPresent, present, foundVars)
+			if !slices.Equal(envList, tc.expectedVars) {
+				t.Fatalf("fail and change to shoenig test")
 			}
 		})
 	}
@@ -770,15 +769,16 @@ func TestRawExecDriver_Env(t *testing.T) {
 		driverConfig *Config
 		taskConfig   *TaskConfig
 		varsExpected bool
-		checkVars    []string
+		deniedVars   []string
 	}{
 		{name: "no denied vars",
 			driver:       d,
 			driverConfig: nil,
 			taskConfig: &TaskConfig{
 				Command: testtask.Path(),
+				Args:    []string{"sleep", "10ms"},
 			},
-			checkVars:    []string{"NOMAD_TOKEN", "GITHUB_TOKEN", "AWS_SECRET_KEY", "NOMAD_ADDR", "TEST_TOKEN", "TEST_AWS_VAR", "VAR_TEST_AWS", "PORT"},
+			deniedVars:   []string{},
 			varsExpected: true,
 		},
 		{name: "both levels, named vars",
@@ -789,9 +789,13 @@ func TestRawExecDriver_Env(t *testing.T) {
 			},
 			taskConfig: &TaskConfig{
 				Command:       testtask.Path(),
+				Args:          []string{"sleep", "10ms"},
 				DeniedEnvvars: []string{"NOMAD_TOKEN"},
 			},
-			checkVars:    []string{"NOMAD_TOKEN", "NOMAD_ADDR"},
+			deniedVars: []string{
+				"NOMAD_ADDR=klm",
+				"NOMAD_TOKEN=abcd",
+			},
 			varsExpected: false,
 		}, {name: "driver level, glob suffix vars",
 			driver: d,
@@ -801,9 +805,13 @@ func TestRawExecDriver_Env(t *testing.T) {
 			},
 			taskConfig: &TaskConfig{
 				Command: testtask.Path(),
+				Args:    []string{"sleep", "10ms"},
 			},
 			varsExpected: false,
-			checkVars:    []string{"NOMAD_TOKEN", "NOMAD_ADDR"},
+			deniedVars: []string{
+				"NOMAD_ADDR=klm",
+				"NOMAD_TOKEN=abcd",
+			},
 		}, {name: "driver level, glob prefix vars",
 			driver: d,
 			driverConfig: &Config{
@@ -812,8 +820,13 @@ func TestRawExecDriver_Env(t *testing.T) {
 			},
 			taskConfig: &TaskConfig{
 				Command: testtask.Path(),
+				Args:    []string{"sleep", "10ms"},
 			},
-			checkVars:    []string{"NOMAD_TOKEN", "GITHUB_TOKEN", "TEST_TOKEN"},
+			deniedVars: []string{
+				"GITHUB_TOKEN=efg",
+				"NOMAD_TOKEN=abcd",
+				"TEST_TOKEN=nop",
+			},
 			varsExpected: false,
 		}, {name: "driver level, glob prefix & suffix",
 			driver: d,
@@ -823,8 +836,13 @@ func TestRawExecDriver_Env(t *testing.T) {
 			},
 			taskConfig: &TaskConfig{
 				Command: testtask.Path(),
+				Args:    []string{"sleep", "10ms"},
 			},
-			checkVars:    []string{"AWS_SECRET_KEY", "TEST_AWS_VAR", "VAR_TEST_AWS"},
+			deniedVars: []string{
+				"AWS_SECRET_KEY=hij",
+				"TEST_AWS_VAR=qrs",
+				"VAR_TEST_AWS=tuv",
+			},
 			varsExpected: false,
 		},
 		{name: "task level, glob suffix vars",
@@ -832,18 +850,27 @@ func TestRawExecDriver_Env(t *testing.T) {
 			driverConfig: nil,
 			taskConfig: &TaskConfig{
 				Command:       testtask.Path(),
+				Args:          []string{"sleep", "10ms"},
 				DeniedEnvvars: []string{"NOMAD_*"},
 			},
 			varsExpected: false,
-			checkVars:    []string{"NOMAD_TOKEN", "NOMAD_ADDR"},
+			deniedVars: []string{
+				"NOMAD_ADDR=klm",
+				"NOMAD_TOKEN=abcd",
+			},
 		}, {name: "task level, glob prefix vars",
 			driver:       d,
 			driverConfig: nil,
 			taskConfig: &TaskConfig{
 				Command:       testtask.Path(),
+				Args:          []string{"sleep", "10ms"},
 				DeniedEnvvars: []string{"*TOKEN"},
 			},
-			checkVars:    []string{"NOMAD_TOKEN", "GITHUB_TOKEN", "TEST_TOKEN"},
+			deniedVars: []string{
+				"GITHUB_TOKEN=efg",
+				"NOMAD_TOKEN=abcd",
+				"TEST_TOKEN=nop",
+			},
 			varsExpected: false,
 		},
 		{name: "task level, glob prefix & suffix",
@@ -851,9 +878,14 @@ func TestRawExecDriver_Env(t *testing.T) {
 			driverConfig: nil,
 			taskConfig: &TaskConfig{
 				Command:       testtask.Path(),
+				Args:          []string{"sleep", "10ms"},
 				DeniedEnvvars: []string{"*AWS*"},
 			},
-			checkVars:    []string{"AWS_SECRET_KEY", "TEST_AWS_VAR", "VAR_TEST_AWS"},
+			deniedVars: []string{
+				"AWS_SECRET_KEY=hij",
+				"TEST_AWS_VAR=qrs",
+				"VAR_TEST_AWS=tuv",
+			},
 			varsExpected: false,
 		},
 	}
