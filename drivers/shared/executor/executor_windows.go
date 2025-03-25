@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -47,15 +48,20 @@ func setCmdUser(cmd *exec.Cmd, user string) error {
 	if len(nameParts) != 2 {
 		return errors.New("user name must contain domain")
 	}
-	token, err := createUserToken(nameParts[1], nameParts[0])
+	token, err := createUserToken(nameParts[0], nameParts[1])
 	if err != nil {
-		return fmt.Errorf("failed to create user token: %v", err)
+		return fmt.Errorf("failed to create user token: %w", err)
 	}
 
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
 	cmd.SysProcAttr.Token = *token
+
+	runtime.AddCleanup(cmd, func(attr *syscall.SysProcAttr) {
+		_ = attr.Token.Close()
+	}, cmd.SysProcAttr)
+
 	return nil
 }
 
@@ -69,14 +75,14 @@ const (
 	_PROVIDER_DEFAULT uint32 = 0
 )
 
-func createUserToken(username, domain string) (*syscall.Token, error) {
+func createUserToken(domain, username string) (*syscall.Token, error) {
 	userw, err := syscall.UTF16PtrFromString(username)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert username to UTF-16: %v", err)
+		return nil, fmt.Errorf("failed to convert username to UTF-16: %w", err)
 	}
 	domainw, err := syscall.UTF16PtrFromString(domain)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert user domain to UTF-16: %v", err)
+		return nil, fmt.Errorf("failed to convert user domain to UTF-16: %w", err)
 	}
 	var token syscall.Token
 	ret, _, e := procLogonUserW.Call(
