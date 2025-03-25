@@ -11,7 +11,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"slices"
 	"strconv"
 	"syscall"
 	"testing"
@@ -746,10 +745,7 @@ func TestRawExecDriver_buildEnvList(t *testing.T) {
 			d := newEnabledRawExecDriver(t)
 			d.config = tc.driverConfig
 			envList := d.buildEnvList(tc.taskConfig, tc.driverTaskConfig)
-
-			if !slices.Equal(envList, tc.expectedVars) {
-				t.Fatalf("fail and change to shoenig test")
-			}
+			must.SliceEqOp(t, envList, tc.expectedVars)
 		})
 	}
 }
@@ -915,24 +911,24 @@ func TestRawExecDriver_Env(t *testing.T) {
 
 			// set and encode task config
 			taskConfig := tc.taskConfig
-			require.NoError(task.EncodeConcreteDriverConfig(&taskConfig))
+			must.NoError(t, task.EncodeConcreteDriverConfig(&taskConfig))
 
-			// start task for non-windows runtimes
+			// start task
 			_, _, err := harness.StartTask(task)
-			require.NoError(err)
+			must.NoError(t, err)
 			// exec an env to standard out
 			res, err := harness.ExecTask(task.ID, []string{"env"}, 1*time.Second)
-			require.NoError(err)
-			require.True(res.ExitResult.Successful())
+			must.NoError(t, err)
+			must.True(t, res.ExitResult.Successful())
 
-			// confirm denied variables are not found in standardout
+			// confirm denied variables are not found in stdout
 			for _, v := range tc.deniedVars {
 				if tc.varsExpected {
-					require.NotContains(string(res.Stdout), v)
+					must.StrNotContains(t, string(res.Stdout), v)
 				}
 			}
 
-			require.NoError(harness.DestroyTask(task.ID, true))
+			must.NoError(t, harness.DestroyTask(task.ID, true))
 		})
 	}
 
