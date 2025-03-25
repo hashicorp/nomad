@@ -1,19 +1,16 @@
 ---
 layout: docs
-page_title: CSI Volume Specification
+page_title: Nomad Container Storage Interface (CSI) volume specification
 description: |-
   Learn about the Nomad Container Storage Interface (CSI) volume
-  specification. Create and register CSI volumes using the `volume create`
-  and `volume register` commands and the
-  `PUT /v1/volume/csi/:volume_id/create` and
-  `PUT /v1/volume/csi/:volume_id` API endpoints. Define capacity, capabilities, mount
+  specification. Define capacity, capabilities, mount
   options, secrets, topology requests, and a context map of values passed
   directly to the CSI plugin to validate the volume. Learn how volume
   creation and registration are different. Additionally, learn how to
   expand the size of a volume and update a volume definition.
 ---
 
-# CSI Volume Specification
+# Nomad Container Storage Interface (CSI) volume specification
 
 This page provides reference information for the Nomad Container Storage
 Interface (CSI) volume specification. Create and register CSI volumes using the
@@ -33,7 +30,7 @@ differences.
 
 Provide the file as either HCL or JSON to the commands and as JSON to the API.
 
-## Volume Specification Parameters
+## Parameters
 
 - `capability` <code>([Capability][capability]: &lt;required&gt;)</code> -
   Option for validating the capability of a volume.
@@ -115,7 +112,7 @@ Provide the file as either HCL or JSON to the commands and as JSON to the API.
 - `type` `(string: <required>)` - The type of volume. Must be `"csi"` for CSI
   volumes.
 
-## Differences Between Create and Register
+## Differences between create and register
 
 Several fields are set automatically by the plugin when `volume create` or
 `volume register` commands are successful and you should not set their values if
@@ -127,7 +124,7 @@ or [`clone_id`](#clone_id) fields.
 On **volume creation** you should not set the [`external_id`](#external_id) or
 [`context`](#context) fields.
 
-## Updating a Volume Definition
+## Update a volume definition
 
 The `volume register` command allows updating a volume definition. However,
 after volume registration, you are only allowed to update the following fields:
@@ -145,7 +142,7 @@ after volume registration, you are only allowed to update the following fields:
 Additionally, you may add or remove `capability` blocks, but only if the
 capability is not currently in use by a mounted volume.
 
-## Volume Expansion
+## Volume expansion
 
 You may expand CSI Volumes if the CSI controller plugin and node plugin, if
 required, has the `EXPAND_VOLUME` capability.
@@ -208,7 +205,7 @@ context {
 ```
 
 
-### Example Volume Expansion
+### Volume expansion
 
 Either [`volume create`][] or [`volume register`][] commands can trigger
 an expand to occur, after the volume has already been created or registered.
