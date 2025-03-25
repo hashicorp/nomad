@@ -110,6 +110,9 @@ job "docs" {
   [Docker][] images specify their own default users. This can only be set
   on Linux platforms, and clients can restrict [which drivers][user_drivers]
   are allowed to run tasks as [certain users][user_denylist].
+  On the Windows platform, in case Nomad is running as [system service][service],
+  for the [`raw_exec`][raw_exec] driver less privileged service user can be
+  specified (example: `NT AUTHORITY\LocalService`, `NT AUTHORITY\NetworkService`).
 
 - `template` <code>([Template][]: nil)</code> - Specifies the set of templates
   to render for the task. Templates can be used to inject both static and
@@ -222,6 +225,7 @@ task "server" {
 [vault]: /nomad/docs/job-specification/vault 'Nomad vault Job Specification'
 [volumemount]: /nomad/docs/job-specification/volume_mount 'Nomad volume_mount Job Specification'
 [exec]: /nomad/docs/drivers/exec 'Nomad exec Driver'
+[raw_exec]: /nomad/docs/drivers/raw_exec 'Nomad raw_exec Driver'
 [java]: /nomad/docs/drivers/java 'Nomad Java Driver'
 [docker]: /nomad/docs/drivers/docker 'Nomad Docker Driver'
 [rkt]: /nomad/plugins/drivers/community/rkt 'Nomad rkt Driver'
@@ -232,3 +236,4 @@ task "server" {
 [max_kill]: /nomad/docs/configuration/client#max_kill_timeout
 [kill_signal]: /nomad/docs/job-specification/task#kill_signal
 [Workload Identity]: /nomad/docs/concepts/workload-identity 'Nomad Workload Identity'
+[service]: /nomad/docs/install/windows-service
