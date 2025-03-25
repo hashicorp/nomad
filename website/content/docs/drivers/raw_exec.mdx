@@ -119,17 +119,6 @@ plugin "raw_exec" {
 }
 ```
 
-Nomad versions before v0.9 use the following client configuration. This configuration is
-also supported in Nomad v0.9.0, but is deprecated in favor of the plugin block:
-
-```
-client {
-  options = {
-    "driver.raw_exec.enable" = "1"
-  }
-}
-```
-
 ## Plugin Options
 
 - `enabled` - Specifies whether the driver should be enabled or disabled.
