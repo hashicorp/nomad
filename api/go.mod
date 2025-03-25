@@ -12,7 +12,7 @@ require (
 	github.com/hashicorp/go-rootcerts v1.0.2
 	github.com/mitchellh/go-testing-interface v1.14.1
 	github.com/mitchellh/mapstructure v1.5.0
-	github.com/shoenig/test v1.7.1
+	github.com/shoenig/test v1.12.1
 )
 
 require (
