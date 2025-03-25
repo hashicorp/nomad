@@ -1,0 +1,7 @@
+#### Nomad 1.8 deprecated `disconnect` fields removed
+
+In Nomad 1.8, we introduced the `disconnect` block to replace the
+`max_client_disconnect`, `stop_after_client_disconnect`, and
+`prevent_reschedule_on_list` fields. In Nomad 1.10, we removed these fields, and
+Nomad will ignore them if specified. Jobs should migrate to using the
+[`disconnect` block](/nomad/docs/job-specification/disconnect) prior to upgrading.

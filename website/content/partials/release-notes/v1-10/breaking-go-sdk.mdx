@@ -1,0 +1,6 @@
+#### Go SDK API change for quota limits
+
+In Nomad 1.10.0, the Go API for quotas has a breaking change. The
+`QuotaSpec.RegionLimit` field is now of type `QuotaResources` instead of
+`Resources`. The `QuotaSpec.VariablesLimit` field is deprecated in lieu of
+`QuotaSpec.RegionLimit.Storage.Variables` and will be removed in Nomad 1.12.0.

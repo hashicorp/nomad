@@ -1,0 +1,6 @@
+#### Consul template implicit workload identity removal
+
+Nomad no longer creates an implicit Consul identity for workloads that don't
+register services with Consul. Tasks that require Consul tokens for template
+rendering must include a [`consul` block](/nomad/docs/job-specification/consul)
+or specify an [`identity`](/nomad/docs/job-specification/identity#identity-block).

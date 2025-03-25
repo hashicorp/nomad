@@ -71,6 +71,10 @@
           {
             "title": "v1.9.x",
             "path": "release-notes/nomad/v1_9_x"
+          },
+          {
+            "title": "v1.10.x",
+            "path": "release-notes/nomad/v1-10-x"
           }
         ]
       }
