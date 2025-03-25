@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/docker/go-units v0.5.0
-	github.com/felixge/httpsnoop v1.0.3
+	github.com/felixge/httpsnoop v1.0.4
 	github.com/gorilla/websocket v1.5.0
 	github.com/hashicorp/cronexpr v1.1.2
 	github.com/hashicorp/go-cleanhttp v0.5.2
