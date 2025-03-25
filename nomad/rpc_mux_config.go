@@ -4,8 +4,9 @@
 package nomad
 
 import (
-	"github.com/hashicorp/yamux"
 	"time"
+
+	"github.com/hashicorp/yamux"
 )
 
 // RPCMuxConfig allows for tunable yamux multiplex configuration
