@@ -105,6 +105,9 @@ func TestMonitor_Monitor_Remote_Client(t *testing.T) {
 
 OUTER:
 	for {
+		// Do something that will trigger a debug log
+		c.CollectAllocation("123")
+
 		select {
 		case <-timeout:
 			t.Fatal("timeout waiting for logs")
