@@ -8,7 +8,7 @@ inputs:
     description: 'node version'
     # https://github.com/ember-cli/ember-cli/blob/master/docs/node-support.md
     # package.json has ember-cli at version ~3.28.5 currently
-    default: '18'
+    default: '20'
 runs:
   using: composite
   steps:
