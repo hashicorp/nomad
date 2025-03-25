@@ -1786,8 +1786,10 @@ func (c *Client) retryIntv(base time.Duration) time.Duration {
 // registerAndHeartbeat is a long lived goroutine used to register the client
 // and then start heartbeating to the server.
 func (c *Client) registerAndHeartbeat() {
-	// Start watching for node updates. On startup, a node update will
-	// exist from fingerprinting so the client will attempt to register.
+	// Register the node
+	c.initNodeRegister()
+
+	// Start watching for node updates
 	go c.watchNodeUpdates()
 
 	// Start watching for emitting node events
@@ -2547,6 +2549,23 @@ OUTER:
 			return
 		}
 	}
+}
+
+// initNodeRegister performs an initial node registration. It is likely
+// but not guaranteed that node updates have been triggered prior to an
+// initial registration, so we empty the triggerNodeUpdate chan to reduce
+// the likelihood of duplicate registrations later on.
+func (c *Client) initNodeRegister() {
+L:
+	for {
+		select {
+		case <-c.triggerNodeUpdate:
+		default:
+			break L
+		}
+	}
+
+	c.retryRegisterNode()
 }
 
 // updateNode signals the client to send the updated
