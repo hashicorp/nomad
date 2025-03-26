@@ -4,20 +4,22 @@
 package hostvolumemanager
 
 import (
+	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
 	"testing"
 
 	"github.com/hashicorp/go-version"
+	"github.com/hashicorp/nomad/ci"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/shoenig/test/must"
 )
 
 func TestHostVolumePluginMkdir(t *testing.T) {
-	volID := "test-vol-id"
+	ci.Parallel(t)
 	tmp := t.TempDir()
-	target := filepath.Join(tmp, volID)
 
 	plug := &HostVolumePluginMkdir{
 		ID:         "test-mkdir-plugin",
@@ -31,6 +33,8 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 	must.NoError(t, err)
 
 	t.Run("happy", func(t *testing.T) {
+		volID := "happy"
+		target := filepath.Join(tmp, volID)
 		// run multiple times, should be idempotent
 		for range 2 {
 			resp, err := plug.Create(timeout(t),
@@ -43,6 +47,7 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 				SizeBytes: 0,
 			}, resp)
 			must.DirExists(t, target)
+			must.DirMode(t, target, 0o700+os.ModeDir)
 		}
 
 		// delete should be idempotent, too
@@ -57,25 +62,140 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 	})
 
 	t.Run("sad", func(t *testing.T) {
+		volID := "sad"
 		// can't mkdir inside a file
 		plug.VolumesDir = "host_volume_plugin_test.go"
+		t.Cleanup(func() {
+			plug.VolumesDir = tmp
+		})
 
 		resp, err := plug.Create(timeout(t),
 			&cstructs.ClientHostVolumeCreateRequest{
 				ID: volID, // minimum required by this plugin
 			})
-		must.ErrorContains(t, err, "host_volume_plugin_test.go/test-vol-id: not a directory")
+		must.ErrorContains(t, err, "host_volume_plugin_test.go/sad: not a directory")
 		must.Nil(t, resp)
 
 		err = plug.Delete(timeout(t),
 			&cstructs.ClientHostVolumeDeleteRequest{
 				ID: volID,
 			})
-		must.ErrorContains(t, err, "host_volume_plugin_test.go/test-vol-id: not a directory")
+		must.ErrorContains(t, err, "host_volume_plugin_test.go/sad: not a directory")
+	})
+
+	t.Run("happy params", func(t *testing.T) {
+		volID := "happy_params"
+		target := filepath.Join(tmp, volID)
+		currentUser, err := user.Current()
+		must.NoError(t, err)
+		// run multiple times, should be idempotent
+		for range 2 {
+			_, err := plug.Create(timeout(t),
+				&cstructs.ClientHostVolumeCreateRequest{
+					ID: volID,
+					Parameters: map[string]string{
+						"uid":  currentUser.Uid,
+						"gid":  currentUser.Gid,
+						"mode": "0400",
+					},
+				})
+			must.NoError(t, err)
+			must.DirExists(t, target)
+			must.DirMode(t, target, 0o400+os.ModeDir)
+		}
+
+		err = plug.Delete(timeout(t),
+			&cstructs.ClientHostVolumeDeleteRequest{
+				ID: volID,
+			})
+		must.NoError(t, err)
+		must.DirNotExists(t, target)
+	})
+
+	t.Run("sad params", func(t *testing.T) {
+		volID := "sad_params"
+		// test one representative error; decodeMkdirParams has its own tests
+		resp, err := plug.Create(timeout(t),
+			&cstructs.ClientHostVolumeCreateRequest{
+				ID: volID,
+				Parameters: map[string]string{
+					"mode": "invalid",
+				},
+			})
+		must.ErrorContains(t, err, "cannot parse")
+		must.Nil(t, resp)
 	})
 }
 
+func TestDecodeMkdirParams(t *testing.T) {
+	ci.Parallel(t)
+
+	cases := []struct {
+		name   string
+		params map[string]string
+		expect HostVolumePluginMkdirParams
+		err    string
+	}{
+		{
+			name:   "none ok",
+			params: nil,
+			expect: HostVolumePluginMkdirParams{
+				Uid:  -1,
+				Gid:  -1,
+				Mode: os.FileMode(0700),
+			},
+		},
+		{
+			name: "all ok",
+			params: map[string]string{
+				"uid":  "1",
+				"gid":  "2",
+				"mode": "0444",
+			},
+			expect: HostVolumePluginMkdirParams{
+				Uid:  1,
+				Gid:  2,
+				Mode: os.FileMode(0444),
+			},
+		},
+		{
+			name: "invalid mode",
+			params: map[string]string{
+				"mode": "consider the lobster",
+			},
+			err: "cannot parse 'mode' as uint",
+		},
+		{
+			name: "invalid uid",
+			params: map[string]string{
+				"uid": "a supposedly fun thing i'll never do again",
+			},
+			err: "cannot parse 'uid' as int",
+		},
+		{
+			name: "invalid gid",
+			params: map[string]string{
+				"gid": "surely you jest",
+			},
+			err: "cannot parse 'gid' as int",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := decodeMkdirParams(tc.params)
+			if tc.err != "" {
+				must.ErrorContains(t, err, tc.err)
+			} else {
+				must.NoError(t, err)
+				must.Eq(t, tc.expect, got)
+			}
+		})
+	}
+}
+
 func TestNewHostVolumePluginExternal(t *testing.T) {
+	ci.Parallel(t)
 	log := testlog.HCLogger(t)
 	var err error
 
@@ -104,6 +224,7 @@ func TestNewHostVolumePluginExternal(t *testing.T) {
 }
 
 func TestHostVolumePluginExternal(t *testing.T) {
+	ci.Parallel(t)
 	if runtime.GOOS == "windows" {
 		t.Skip("skipped because windows") // db TODO(1.10.0)
 	}

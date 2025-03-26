@@ -12,11 +12,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
+	"github.com/mitchellh/mapstructure"
+
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 )
@@ -36,6 +39,10 @@ const (
 	EnvCapacityMin = "DHV_CAPACITY_MIN_BYTES"
 	EnvCapacityMax = "DHV_CAPACITY_MAX_BYTES"
 	EnvParameters  = "DHV_PARAMETERS"
+
+	// DefaultMkdirFileMode sets the mode of directories created by the
+	// "mkdir" built-in plugin to "0700"
+	DefaultMkdirFileMode os.FileMode = 0o700
 )
 
 // HostVolumePlugin manages the lifecycle of volumes.
@@ -70,6 +77,14 @@ type HostVolumePluginDeleteResponse struct {
 
 const HostVolumePluginMkdirID = "mkdir"
 const HostVolumePluginMkdirVersion = "0.0.1"
+
+// HostVolumePluginMkdirParams represents the parameters{} that the "mkdir"
+// plugin will accept.
+type HostVolumePluginMkdirParams struct {
+	Uid  int         `mapstructure:"uid"`
+	Gid  int         `mapstructure:"gid"`
+	Mode os.FileMode `mapstructure:"mode"`
+}
 
 var _ HostVolumePlugin = &HostVolumePluginMkdir{}
 
@@ -110,18 +125,63 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 		return resp, nil
 	} else if !os.IsNotExist(err) {
 		// doesn't exist, but some other path error
-		log.Debug("error with plugin", "error", err)
+		log.Debug("error with path", "error", err)
 		return nil, err
 	}
 
-	err := os.MkdirAll(path, 0o700)
+	params, err := decodeMkdirParams(req.Parameters)
 	if err != nil {
-		log.Debug("error with plugin", "error", err)
+		log.Error("error with parameters", "error", err)
 		return nil, err
+	}
+
+	err = os.MkdirAll(path, params.Mode)
+	if err != nil {
+		log.Error("error creating directory", "error", err)
+		return nil, fmt.Errorf("error creating directory: %w", err)
+	}
+
+	// Chown note: A uid or gid of -1 means to not change that value.
+	if err = os.Chown(path, params.Uid, params.Gid); err != nil {
+		log.Error("error changing owner/group", "error", err, "uid", params.Uid, "gid", params.Gid)
+		return nil, fmt.Errorf("error changing owner/group: %w", err)
 	}
 
 	log.Debug("plugin ran successfully")
 	return resp, nil
+}
+
+func decodeMkdirParams(in map[string]string) (HostVolumePluginMkdirParams, error) {
+	var out HostVolumePluginMkdirParams
+
+	var meta mapstructure.Metadata
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:           &out,
+		Metadata:         &meta,
+		ErrorUnused:      true, // error on unexpected config fields
+		WeaklyTypedInput: true, // convert strings to target types
+	})
+	if err != nil {
+		return out, fmt.Errorf("error creating decoder: %w", err)
+	}
+	err = decoder.Decode(in)
+	if err != nil {
+		return out, fmt.Errorf("error decoding: %w", err)
+	}
+
+	// defaults
+	for _, field := range meta.Unset {
+		switch field {
+		case "mode":
+			out.Mode = DefaultMkdirFileMode
+		case "uid":
+			out.Uid = -1 // do not change
+		case "gid":
+			out.Gid = -1 // do not change
+		}
+	}
+
+	return out, nil
 }
 
 func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error {
