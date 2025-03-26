@@ -47,8 +47,8 @@ the API.
   volume is somewhere between `capacity_min` and `capacity_max`; the exact
   behavior is up to the plugin. If you want to specify an exact size, set
   `capacity_min` and `capacity_max` to the same value. Accepts human-friendly
-  suffixes such as `"100GiB"`. Plugins that cannot restrict the size of volumes
-  may ignore this field.
+  suffixes such as `"100GiB"`. Plugins that cannot restrict the size of volumes,
+  such as the built-in `mkdir` plugin, may ignore this field.
 
 - `capacity_max` `(string: <optional>)` - Option for requesting a maximum
   capacity, in bytes. The capacity of a volume may be the physical size of a
@@ -56,8 +56,8 @@ the API.
   volume is somewhere between `capacity_min` and `capacity_max`; the exact
   behavior is up to the plugin. If you want to specify an exact size, set
   `capacity_min` and `capacity_max` to the same value. Accepts human-friendly
-  suffixes such as `"100GiB"`. Plugins that cannot restrict the size of volumes
-  may ignore this field.
+  suffixes such as `"100GiB"`. Plugins that cannot restrict the size of volumes,
+  such as the built-in `mkdir` plugin, may ignore this field.
 
 - `capability` <code>([Capability][capability]: &lt;required&gt;)</code> -
   Option for validating the capability of a volume.
@@ -100,7 +100,9 @@ the API.
   of these parameters are specific to the plugin.
 
 - `plugin_id` `(string)` - The ID of the [dynamic host volume
-  plugin][dhv_plugin] that manages this volume. Required for volume creation.
+  plugin][dhv_plugin] that manages this volume. Required for volume
+  creation. Nomad has one built-in plugin called `mkdir`, which creates a
+  directory on the host in the Nomad agent's [host_volumes_dir][].
 
 - `type` `(string: <required>)` - The type of volume. Must be `"host"` for
   dynamic host volumes.
@@ -305,3 +307,4 @@ registered.
 [`volume register`]: /nomad/docs/commands/volume/register
 [`volume status`]: /nomad/docs/commands/volume/status
 [dhv_plugin]: /nomad/docs/concepts/plugins/storage/host-volumes
+[host_volumes_dir]: /nomad/docs/configuration/client#host_volumes_dir
