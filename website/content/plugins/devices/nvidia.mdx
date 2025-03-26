@@ -12,8 +12,9 @@ Use the NVIDIA device plugin to expose NVIDIA graphical processing units (GPUs)
 to Nomad. The driver automatically supports [Multi-Instance GPU (MIG)][mig].
 
 The NVIDIA device plugin uses [NVML] bindings to get data regarding available
-NVIDIA devices (for a list of supported cards, consult [NVIDIA's documentation](https://docs.nvidia.com/deploy/nvml-api/nvml-api-reference.html#nvml-api-reference))
-and then exposes them via [Fingerprint RPC]. The plugin detects
+NVIDIA devices and then exposes them via [Fingerprint RPC]. Consult [NVIDIA's
+documentation](https://docs.nvidia.com/deploy/nvml-api/nvml-api-reference.html#nvml-api-reference)
+for a list of supported cards. The plugin detects
 whether the GPU has Multi-Instance GPU enabled, and when enabled, the plugin
 fingerprints all instances as individual GPUs. You may exclude GPUs from
 fingerprinting by setting the [`ignored_gpu_ids` field](#plugin-configuration).
