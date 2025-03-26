@@ -1,15 +1,16 @@
 ---
 layout: docs
-page_title: Vault ACL
-description: Learn how to integrate Nomad with Vault when ACL is enabled.
+page_title: Integrate Vault access control list (ACL)
+description: |-
+  Learn how to protect your Nomad cluster with the Vault access control list (ACL) system and use workload identities with Vault. Configure Vault authentication.
 ---
 
-# Vault ACL
+# Integrate Vault access control list (ACL)
 
 The Vault ACL system protects the cluster from unauthorized access. It must be
 properly configured in order for the Vault and Nomad integrations to work.
 
-## Nomad Workload Identities
+## Nomad workload identities
 
 Starting in Nomad 1.7, Nomad clients can use a task's [Workload Identity][] to
 authenticate to Vault and obtain a Vault ACL token specific to the task. When
@@ -31,7 +32,7 @@ they override the Nomad server configuration. Refer to the [Workload Identities
 for Vault][jobspec_identity_vault] section of the `identity` block
 documentation for more information.
 
-### Configuring Vault Authentication
+### Configuring Vault authentication
 
 Vault must be configured to receive, validate, and trust these Nomad workload
 identities. Since they are encoded as [JSON Web Tokens (JWTs)][jwt], you must
@@ -42,7 +43,7 @@ tokens.
 Refer to Vault's [Authentication][vault_auth] documentation for more
 information.
 
-#### Vault Auth Method
+#### Vault auth method
 
 The auth method configuration points to Nomad's [JSON Web Key Set (JWKS)
 URL][nomad_jwks_url]. Vault servers call this URL to retrieve the public keys
@@ -77,7 +78,7 @@ tokens.
 
 [![Vault JWT Login][img_vault_wid_acl_token]][img_vault_wid_acl_token]
 
-#### Vault ACL Role
+#### Vault ACL role
 
 A Vault [ACL role][vault_role] groups multiple ACL policies to apply to a token
 and determine the permissions it receives.
@@ -206,7 +207,7 @@ renew them when configured to use Workload Identity.
 
 </CodeBlockConfig>
 
-#### Vault ACL Policy
+#### Vault ACL policy
 
 A Vault ACL role may have one or more ACL policies attached. Vault [ACL
 policies][vault_policies] define the permissions granted to an ACL
@@ -274,14 +275,14 @@ The overall configuration structure is illustrated in the following diagram.
 
 [![Vault Auth Overview][img_vault_auth_overview]][img_vault_auth_overview]
 
-#### Vault Namespaces <EnterpriseAlert inline />
+#### Vault namespaces <EnterpriseAlert inline />
 
 Vault Enterprise supports multiple namespaces and jobs in Nomad Enterprise can
 use the [`vault.namespace`][] parameter to specify which namespace to use. In a
 multi-namespace environment, the authentication setup described must be applied
 to each Vault namespace used by jobs.
 
-### Important Considerations About the JWKS URL
+### Important considerations about the JWKS URL
 
 The recommended configuration assumes Vault servers are able to connect to
 Nomad agents (either client or servers) to retrieve the JSON Web Key Set
@@ -304,7 +305,7 @@ Alternatively, you may expose Nomad's JWKS URL from a proxy or a load balancer
 that handles the mutual TLS connection to Nomad and exposes the JWKS URL
 endpoint over standard TLS.
 
-#### Vault Servers Not Able to Connect to Nomad
+#### Vault servers not able to connect to Nomad
 
 If the Vault servers are not able to reach Nomad's JWKS URL, you may read the
 public keys from Nomad's [`/.well-known/jwks.json`][nomad_jwks_url] endpoint
@@ -321,7 +322,7 @@ both approaches should be automated and done continually. The rotation frequency
 is controlled by the [`server.root_key_rotation_threshold`][] configuration of
 the Nomad servers. Keys will be prepublished at half the rotation threshold.
 
-### Additional References
+### Additional references
 
 The [Vault ACL with Nomad Workload Identities][vault_tutorial_wid] tutorial
 provides guided instructions on how to configure Vault and Nomad for workload
