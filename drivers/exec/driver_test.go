@@ -910,10 +910,7 @@ func TestExecDriver_OOMKilled(t *testing.T) {
 	ci.Parallel(t)
 	ctestutils.ExecCompatible(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	d := newExecDriverTest(t, ctx)
+	d := newExecDriverTest(t, t.Context())
 	harness := dtestutil.NewDriverHarness(t, d)
 	allocID := uuid.Generate()
 	name := "oom-killed"
@@ -923,12 +920,11 @@ func TestExecDriver_OOMKilled(t *testing.T) {
 		Name:      name,
 		Resources: testResources(allocID, name),
 	}
-	task.Resources.LinuxResources.MemoryLimitBytes = 10 * 1024 * 1024
-	task.Resources.NomadResources.Memory.MemoryMB = 10
 
 	tc := &TaskConfig{
 		Command: "/bin/tail",
 		Args:    []string{"/dev/zero"},
+		ModePID: "private",
 	}
 	must.NoError(t, task.EncodeConcreteDriverConfig(&tc))
 
@@ -938,7 +934,7 @@ func TestExecDriver_OOMKilled(t *testing.T) {
 	handle, _, err := harness.StartTask(task)
 	must.NoError(t, err)
 
-	ch, err := harness.WaitTask(context.Background(), handle.Config.ID)
+	ch, err := harness.WaitTask(t.Context(), handle.Config.ID)
 	must.NoError(t, err)
 	result := <-ch
 	must.False(t, result.Successful(), must.Sprint("container should OOM"))
