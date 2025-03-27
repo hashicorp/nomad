@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/hashicorp/yamux"
 	"maps"
 	"net"
 	"reflect"
@@ -270,6 +271,9 @@ type Config struct {
 	// This period is meant to be long enough for a leader election to take
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
+
+	// RPCYamuxConfig configures yamux multiplex
+	RPCYamuxConfig *yamux.Config
 
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog

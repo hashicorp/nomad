@@ -197,6 +197,9 @@ type ConnPool struct {
 	// TLS wrapper
 	tlsWrap tlsutil.RegionWrapper
 
+	// yamuxCfg is used for setup rpc client
+	yamuxCfg *yamux.Config
+
 	// Used to indicate the pool is shutdown
 	shutdown   bool
 	shutdownCh chan struct{}
@@ -211,7 +214,9 @@ type ConnPool struct {
 // Set maxTime to 0 to disable reaping. maxStreams is used to control
 // the number of idle streams allowed.
 // If TLS settings are provided outgoing connections use TLS.
-func NewPool(logger hclog.Logger, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper) *ConnPool {
+func NewPool(
+	logger hclog.Logger, maxTime time.Duration, maxStreams int, tlsWrap tlsutil.RegionWrapper, yamuxCfg *yamux.Config,
+) *ConnPool {
 	pool := &ConnPool{
 		logger:     logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
 		maxTime:    maxTime,
@@ -219,6 +224,7 @@ func NewPool(logger hclog.Logger, maxTime time.Duration, maxStreams int, tlsWrap
 		pool:       make(map[string]*Conn),
 		limiter:    make(map[string]chan struct{}),
 		tlsWrap:    tlsWrap,
+		yamuxCfg:   yamuxCfg,
 		shutdownCh: make(chan struct{}),
 	}
 	if maxTime > 0 {
@@ -389,7 +395,7 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 	}
 
 	// Setup the logger
-	conf := yamux.DefaultConfig()
+	conf := p.yamuxCfg
 	conf.LogOutput = nil
 	conf.Logger = p.logger
 

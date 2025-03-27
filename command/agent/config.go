@@ -109,8 +109,8 @@ type Config struct {
 	// Server has our server related settings
 	Server *ServerConfig `hcl:"server"`
 
-	// RPCMUX has yamux multiplex settings
-	RPCMUX *RPCMuxConfig `hcl:"rpc_mux"`
+	// RPC has yamux multiplex settings
+	RPC *RPCConfig `hcl:"rpc"`
 
 	// ACL has our acl related settings
 	ACL *ACLConfig `hcl:"acl"`
@@ -772,26 +772,22 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	return &ns
 }
 
-// RPCMuxConfig allows for tunable yamux multiplex configuration
-type RPCMuxConfig struct {
+// RPCConfig allows for tunable yamux multiplex configuration
+type RPCConfig struct {
 	// AcceptBacklog is used to limit how many streams may be
 	// waiting an accept.
-	AcceptBacklog int `hcl:"accept_backlog"`
-
-	// EnableKeepalive is used to do a period keep alive
-	// messages using a ping.
-	EnableKeepAlive bool `hcl:"enable_keep_alive"`
+	AcceptBacklog int `hcl:"accept_backlog,optional"`
 
 	// KeepAliveInterval is how often to perform the keep alive
 	KeepAliveInterval    time.Duration
-	KeepAliveIntervalHCL string `hcl:"keep_alive_interval"`
+	KeepAliveIntervalHCL string `hcl:"keep_alive_interval,optional"`
 
 	// ConnectionWriteTimeout is meant to be a "safety valve" timeout after
 	// we which will suspect a problem with the underlying connection and
 	// close it. This is only applied to writes, where's there's generally
 	// an expectation that things will move along quickly.
 	ConnectionWriteTimeout    time.Duration
-	ConnectionWriteTimeoutHCL string `hcl:"connection_write_timeout"`
+	ConnectionWriteTimeoutHCL string `hcl:"connection_write_timeout,optional"`
 
 	// StreamOpenTimeout is the maximum amount of time that a stream will
 	// be allowed to remain in pending state while waiting for an ack from the peer.
@@ -799,7 +795,7 @@ type RPCMuxConfig struct {
 	// A zero value disables the StreamOpenTimeout allowing unbounded
 	// blocking on OpenStream calls.
 	StreamOpenTimeout    time.Duration
-	StreamOpenTimeoutHCL string `hcl:"stream_open_timeout"`
+	StreamOpenTimeoutHCL string `hcl:"stream_open_timeout,optional"`
 
 	// StreamCloseTimeout is the maximum time that a stream will allowed to
 	// be in a half-closed state when `Close` is called before forcibly
@@ -807,16 +803,40 @@ type RPCMuxConfig struct {
 	// receive buffer, drop any future packets received for that stream,
 	// and send a RST to the remote side.
 	StreamCloseTimeout    time.Duration
-	StreamCloseTimeoutHCL string `hcl:"stream_close_timeout"`
+	StreamCloseTimeoutHCL string `hcl:"stream_close_timeout,optional"`
 }
 
-func (r *RPCMuxConfig) Copy() *RPCMuxConfig {
+func (r *RPCConfig) Copy() *RPCConfig {
 	if r == nil {
 		return nil
 	}
 
 	nr := *r
 	return &nr
+}
+
+func (r *RPCConfig) Validate() error {
+	if r != nil {
+		if r.AcceptBacklog < 0 {
+			return errors.New("rcp.accept_backlog interval must be greater than zero")
+		}
+
+		if r.KeepAliveInterval < 0 {
+			return errors.New("rcp.keep_alive_interval must be greater than zero")
+		}
+
+		if r.ConnectionWriteTimeout < 0 {
+			return errors.New("rcp.connection_write_timeout must be greater than zero")
+		}
+		if r.StreamCloseTimeout < 0 {
+			return errors.New("rcp.stream_close_timeout must be greater than zero")
+		}
+		if r.StreamOpenTimeout < 0 {
+			return errors.New("rcp.stream_open_timeout must be greater than zero")
+		}
+	}
+
+	return nil
 }
 
 // RaftBoltConfig is used in servers to configure parameters of the boltdb
@@ -1665,9 +1685,9 @@ func (c *Config) Merge(b *Config) *Config {
 	}
 
 	// Apply the rpc mux config
-	if result.RPCMUX == nil && b.RPCMUX != nil {
-		rpcMux := *b.RPCMUX
-		result.RPCMUX = &rpcMux
+	if result.RPC == nil && b.RPC != nil {
+		rpcMux := *b.RPC
+		result.RPC = &rpcMux
 	}
 
 	// Apply the acl config
