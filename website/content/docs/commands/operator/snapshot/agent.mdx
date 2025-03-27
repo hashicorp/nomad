@@ -7,10 +7,10 @@ description: |
 
 # `nomad operator snapshot agent` command reference
 
-<EnterpriseAlert />
-
 The snapshot agent takes snapshots of the state of the nomad servers and
 saves them locally, or pushes them to an optional remote storage service.
+
+<EnterpriseAlert />
 
 The agent can be run as a long-running daemon process or in a one-shot mode
 from a batch job. As a long-running daemon, the agent will perform a leader
@@ -165,4 +165,4 @@ Note that despite the AWS references, any S3-compatible endpoint can be specifie
 
 - `-google-bucket`: The bucket to use.
 
-[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup
+[restore the keyring]: /nomad/docs/operations/key-management

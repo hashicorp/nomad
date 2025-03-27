@@ -54,8 +54,7 @@ job "example" {
 - `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
   Unlike services, checks do not have an `auto` address mode as there's no way
   for Nomad to know which is the best address to use for checks. Consul needs
-  access to the address for any HTTP or TCP checks. See
-  [below for details.](#using-driver-address-mode) Unlike `port`, this setting
+  access to the address for any HTTP or TCP checks. Unlike `port`, this setting
   is _not_ inherited from the `service`.
   If the service `address` is set and the check `address_mode` is not set, the
   service `address` value will be used for the check address.
@@ -309,9 +308,7 @@ service {
 ```
 
 In this example Consul would health check the `example.Service` service on the
-`rpc` port defined in the task's [network resources][network] block. See
-[Using Driver Address Mode](#using-driver-address-mode) for details on address
-selection.
+`rpc` port defined in the task's [network resources][network] block. 
 
 ### Script Checks with Shells
 
