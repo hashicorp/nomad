@@ -14,7 +14,11 @@ export function codeFillable(selector) {
     get() {
       return function (code) {
         const cm = getCodeMirrorInstance(selector);
-        cm.setValue(code);
+
+        cm.dispatch({
+          changes: { from: 0, to: cm.state.doc.length, insert: code },
+        });
+
         return this;
       };
     },
@@ -31,7 +35,7 @@ export function code(selector) {
 
     get() {
       const cm = getCodeMirrorInstance(selector);
-      return cm.getValue();
+      return cm.state.doc.toString();
     },
   };
 }
