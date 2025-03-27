@@ -19,6 +19,7 @@
 	<Hds::CodeEditor
 		class="policy-editor"
 		data-test-policy-editor
+		@extraKeys={{hash Cmd-Enter=this.save}}
 		@language="ruby"
 		@value={{@policy.rules}}
 		@onInput={{this.updatePolicyRules}}
