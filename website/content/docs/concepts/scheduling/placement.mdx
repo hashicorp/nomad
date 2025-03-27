@@ -109,6 +109,20 @@ facilitate managing the relationships between jobs, namespaces, and node pools.
 
 Refer to the [Node Pools][concept_np] concept page for more information.
 
+## Understanding Evaluation Status
+
+When a job cannot be immediately placed, Nomad creates a chain of evaluations
+to manage placement. First, your initial evaluation may be marked complete even if 
+placement fails, then a blocked evaluation is created to retry placement when
+resources become available. Your job will remain pending till all allocations
+are placed.
+
+For example, if your job has specific constraints that are not available. You
+will get an initial completed evaluation and a blocked evaluation which tracks
+ongoing placement attempts till a node that fits your constraints is available.
+
+To troubleshoot placement issues, use `nomad eval status <eval_id>` and check
+for placement failures and linked evaluations in the output.
 
 [api_client_metadata]: /nomad/api-docs/client#update-node-metadata
 [cli_node_meta]: /nomad/docs/commands/node/meta
