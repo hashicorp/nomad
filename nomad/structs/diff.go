@@ -293,6 +293,12 @@ func (tg *TaskGroup) Diff(other *TaskGroup, contextual bool) (*TaskGroupDiff, er
 		diff.Objects = append(diff.Objects, rDiff)
 	}
 
+	// Migrate block diff.
+	migrateDiff := primitiveObjectDiff(tg.Migrate, other.Migrate, nil, "Migrate", contextual)
+	if migrateDiff != nil {
+		diff.Objects = append(diff.Objects, migrateDiff)
+	}
+
 	// Reschedule policy diff
 	reschedDiff := primitiveObjectDiff(tg.ReschedulePolicy, other.ReschedulePolicy, nil, "ReschedulePolicy", contextual)
 	if reschedDiff != nil {
