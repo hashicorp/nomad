@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/hashicorp/yamux"
 	"maps"
 	"net"
 	"reflect"
@@ -31,6 +30,7 @@ import (
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/version"
+	"github.com/hashicorp/yamux"
 )
 
 var (

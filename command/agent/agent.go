@@ -6,7 +6,6 @@ package agent
 import (
 	"context"
 	"fmt"
-	"github.com/hashicorp/yamux"
 	"io"
 	golog "log"
 	"net"
@@ -41,6 +40,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
+	"github.com/hashicorp/yamux"
 )
 
 const (
