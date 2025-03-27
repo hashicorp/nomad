@@ -44,6 +44,9 @@ repository {
   # periodically cleaned up to remove items that are no longer found by the scanner.
   triage {
     suppress {
+      vulnerabilities = [
+        "GO-2025-3543", // github.com/opencontainers/runc TODO(jrasell): remove once withdrawn from DBs.
+      ]
       paths = [
         "ui/tests/*",
         "internal/testing/*",
