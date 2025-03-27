@@ -42,9 +42,8 @@ export default class RoleEditorComponent extends Component {
 
   @action async save(e) {
     if (e instanceof Event) {
-      e?.preventDefault(); // code-mirror "command+enter" submits the form, but doesnt have a preventDefault()
+      e.preventDefault(); // code-mirror "command+enter" submits the form, but doesnt have a preventDefault()
     }
-
     try {
       const nameRegex = '^[a-zA-Z0-9-]{1,128}$';
       if (!this.role.name?.match(nameRegex)) {
