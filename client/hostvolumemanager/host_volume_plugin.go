@@ -119,7 +119,7 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 		return resp, nil
 	} else if !os.IsNotExist(err) {
 		// doesn't exist, but some other path error
-		log.Debug("error with path", "error", err)
+		log.Error("error with path", "error", err)
 		return nil, err
 	}
 
@@ -189,7 +189,7 @@ func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHo
 
 	err := os.RemoveAll(path)
 	if err != nil {
-		log.Debug("error with plugin", "error", err)
+		log.Error("error with plugin", "error", err)
 		return err
 	}
 
@@ -258,17 +258,20 @@ func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFing
 	cmd := exec.CommandContext(ctx, p.Executable, "fingerprint")
 	cmd.Env = []string{EnvOperation + "=fingerprint"}
 	stdout, stderr, err := runCommand(cmd)
+	log := p.log.With(
+		"operation", "fingerprint",
+		"stdout", string(stdout),
+		"stderr", string(stderr),
+	)
 	if err != nil {
-		p.log.Debug("error with plugin",
-			"operation", "version",
-			"stdout", string(stdout),
-			"stderr", string(stderr),
-			"error", err)
-		return nil, fmt.Errorf("error getting version from plugin %q: %w", p.ID, err)
+		log.Error("error running plugin", "error", err)
+		return nil, fmt.Errorf("error fingerprinting plugin %q: %w", p.ID, err)
 	}
 	fprint := &PluginFingerprint{}
 	if err := json.Unmarshal(stdout, fprint); err != nil {
-		return nil, fmt.Errorf("error parsing fingerprint output as json: %w", err)
+		err = fmt.Errorf("error parsing fingerprint output as json: %w", err)
+		log.Error("error parsing plugin output", "error", err)
+		return nil, err
 	}
 	return fprint, nil
 }
@@ -419,7 +422,7 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context, log hclog.Logg
 		"stderr", string(stderr),
 	)
 	if err != nil {
-		log.Debug("error with plugin", "error", err)
+		log.Error("error with plugin", "error", err)
 		return stdout, stderr, err
 	}
 	log.Debug("plugin ran successfully")

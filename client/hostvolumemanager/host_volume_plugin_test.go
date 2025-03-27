@@ -122,7 +122,7 @@ func TestHostVolumePluginMkdir(t *testing.T) {
 					"mode": "invalid",
 				},
 			})
-		must.ErrorContains(t, err, "cannot parse")
+		must.ErrorContains(t, err, "invalid value")
 		must.Nil(t, resp)
 	})
 }
@@ -165,7 +165,7 @@ func TestDecodeMkdirParams(t *testing.T) {
 				// mode="0700" in the HCL spec.
 				"mode": "493",
 			},
-			err: `invalid value for "mode" ahh`,
+			err: `invalid value for "mode"`,
 		},
 		{
 			name: "invalid mode: string",
@@ -311,7 +311,7 @@ func TestHostVolumePluginExternal(t *testing.T) {
 		must.NoError(t, err)
 
 		v, err := plug.Fingerprint(timeout(t))
-		must.EqError(t, err, `error getting version from plugin "test_plugin_sad.sh": exit status 1`)
+		must.EqError(t, err, `error fingerprinting plugin "test_plugin_sad.sh": exit status 1`)
 		must.Nil(t, v)
 		logged := getLogs()
 		must.StrContains(t, logged, "fingerprint: sad plugin is sad")

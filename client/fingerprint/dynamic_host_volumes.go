@@ -105,7 +105,7 @@ func GetHostVolumePluginVersions(log hclog.Logger, pluginDir, nodePool string) (
 
 			fprint, err := p.Fingerprint(ctx)
 			if err != nil {
-				log.Debug("failed to get version from plugin", "error", err)
+				// Fingerprint logs the error
 				return
 			}
 

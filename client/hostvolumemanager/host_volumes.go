@@ -153,15 +153,20 @@ func (hvm *HostVolumeManager) Create(ctx context.Context,
 func (hvm *HostVolumeManager) Register(ctx context.Context,
 	req *cstructs.ClientHostVolumeRegisterRequest) error {
 
+	log := hvm.log.With("volume_name", req.Name, "volume_id", req.ID)
+
 	// can't have two of the same volume name w/ different IDs per client node
 	if _, err := hvm.locker.lock(req.Name, req.ID); err != nil {
+		log.Error("duplicate volume name", "error", err)
 		return err
 	}
 
 	_, err := os.Stat(req.HostPath)
 	if err != nil {
 		hvm.locker.release(req.Name)
-		return fmt.Errorf("could not verify host path for %q: %w", req.Name, err)
+		err = fmt.Errorf("could not verify host path for %q: %w", req.Name, err)
+		log.Error("error registering volume", "error", err)
+		return err
 	}
 
 	// generate a stub create request and plugin response for the fingerprint
@@ -178,7 +183,7 @@ func (hvm *HostVolumeManager) Register(ctx context.Context,
 		HostPath:  req.HostPath,
 	}
 	if err := hvm.stateMgr.PutDynamicHostVolume(volState); err != nil {
-		hvm.log.Error("failed to save volume in state", "volume_id", req.ID, "error", err)
+		log.Error("failed to save volume in state", "error", err)
 		hvm.locker.release(req.Name)
 		return err
 	}
