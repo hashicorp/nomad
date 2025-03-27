@@ -159,25 +159,41 @@ func TestDecodeMkdirParams(t *testing.T) {
 			},
 		},
 		{
-			name: "invalid mode",
+			name: "invalid mode: bad number",
+			params: map[string]string{
+				// this is what happens if you put mode=0700 instead of
+				// mode="0700" in the HCL spec.
+				"mode": "493",
+			},
+			err: `invalid value for "mode" ahh`,
+		},
+		{
+			name: "invalid mode: string",
 			params: map[string]string{
 				"mode": "consider the lobster",
 			},
-			err: "cannot parse 'mode' as uint",
+			err: `invalid value for "mode"`,
 		},
 		{
 			name: "invalid uid",
 			params: map[string]string{
 				"uid": "a supposedly fun thing i'll never do again",
 			},
-			err: "cannot parse 'uid' as int",
+			err: `invalid value for "uid"`,
 		},
 		{
 			name: "invalid gid",
 			params: map[string]string{
 				"gid": "surely you jest",
 			},
-			err: "cannot parse 'gid' as int",
+			err: `invalid value for "gid"`,
+		},
+		{
+			name: "unknown param",
+			params: map[string]string{
+				"what": "the hell is water?",
+			},
+			err: `unknown mkdir parameter: "what"`,
 		},
 	}
 

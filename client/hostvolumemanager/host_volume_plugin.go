@@ -12,13 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/go-version"
-	"github.com/mitchellh/mapstructure"
-
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 )
@@ -38,10 +37,6 @@ const (
 	EnvCapacityMin = "DHV_CAPACITY_MIN_BYTES"
 	EnvCapacityMax = "DHV_CAPACITY_MAX_BYTES"
 	EnvParameters  = "DHV_PARAMETERS"
-
-	// DefaultMkdirFileMode sets the mode of directories created by the
-	// "mkdir" built-in plugin to "0700"
-	DefaultMkdirFileMode os.FileMode = 0o700
 )
 
 // HostVolumePlugin manages the lifecycle of volumes.
@@ -80,9 +75,9 @@ const HostVolumePluginMkdirVersion = "0.0.1"
 // HostVolumePluginMkdirParams represents the parameters{} that the "mkdir"
 // plugin will accept.
 type HostVolumePluginMkdirParams struct {
-	Uid  int         `mapstructure:"uid"`
-	Gid  int         `mapstructure:"gid"`
-	Mode os.FileMode `mapstructure:"mode"`
+	Uid  int
+	Gid  int
+	Mode os.FileMode
 }
 
 var _ HostVolumePlugin = &HostVolumePluginMkdir{}
@@ -151,32 +146,33 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 }
 
 func decodeMkdirParams(in map[string]string) (HostVolumePluginMkdirParams, error) {
-	var out HostVolumePluginMkdirParams
-
-	var meta mapstructure.Metadata
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Result:           &out,
-		Metadata:         &meta,
-		ErrorUnused:      true, // error on unexpected config fields
-		WeaklyTypedInput: true, // convert strings to target types
-	})
-	if err != nil {
-		return out, fmt.Errorf("error creating decoder: %w", err)
+	// default values if their associated keys are not in the input map
+	out := HostVolumePluginMkdirParams{
+		Mode: 0o700, // "0700"
+		Uid:  -1,    // this default translates to "do not set" in os.Chown
+		Gid:  -1,    // ditto
 	}
-	err = decoder.Decode(in)
-	if err != nil {
-		return out, fmt.Errorf("error decoding: %w", err)
-	}
+	var err error
 
-	// defaults
-	for _, field := range meta.Unset {
-		switch field {
+	for param, val := range in {
+		switch param {
 		case "mode":
-			out.Mode = DefaultMkdirFileMode
+			// mode needs special treatment - it's octal. note that this does
+			// not check whether it's a *reasonable* mode for a directory.
+			// that will be discovered during MkdirAll and subsequent usage
+			// by workloads (which we cannot predict).
+			var number uint64
+			number, err = strconv.ParseUint(val, 8, 32)
+			out.Mode = os.FileMode(number)
 		case "uid":
-			out.Uid = -1 // do not change
+			out.Uid, err = strconv.Atoi(val)
 		case "gid":
-			out.Gid = -1 // do not change
+			out.Gid, err = strconv.Atoi(val)
+		default:
+			err = fmt.Errorf("unknown mkdir parameter: %q", param)
+		}
+		if err != nil {
+			return out, fmt.Errorf("invalid value for %q: %w", param, err)
 		}
 	}
 
