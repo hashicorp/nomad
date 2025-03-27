@@ -79,9 +79,6 @@ Before upgrading to Nomad 1.10, perform the following tasks:
 1. Configure Vault to work with workload identity.
 1. Migrate all workloads to use workload identity.
 
-Refer to [Migrating to Using Workload Identity with Vault][] for more
-details.
-
 #### Consul template implicit workload identity removal
 Nomad no longer creates an implicit Consul identity for workloads that don't
 register services with Consul. Tasks that require Consul tokens for template
@@ -2331,7 +2328,6 @@ deleted and then Nomad 0.3.0 can be launched.
 [max_kill_timeout]: /nomad/docs/configuration/client#max_kill_timeout
 [migrate]: /nomad/docs/job-specification/migrate
 [Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul/acl#migrating-to-using-workload-identity-with-consul
-[Migrating to Using Workload Identity with Vault]: /nomad/docs/integrations/vault/acl#migrating-to-using-workload-identity-with-vault
 [no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
 [node drain]: /nomad/docs/upgrade#5-upgrade-clients
 [node pools]: /nomad/docs/concepts/node-pools
