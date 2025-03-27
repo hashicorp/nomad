@@ -11,12 +11,13 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/yamux"
 	"github.com/shoenig/test/must"
 )
 
 func newTestPool(t *testing.T) *ConnPool {
 	l := testlog.HCLogger(t)
-	p := NewPool(l, 1*time.Minute, 10, nil)
+	p := NewPool(l, 1*time.Minute, 10, nil, yamux.DefaultConfig())
 	return p
 }
 
