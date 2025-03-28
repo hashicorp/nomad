@@ -219,27 +219,25 @@ func (s *HTTPServer) aclTokenQuery(resp http.ResponseWriter, req *http.Request,
 	return out.Token, nil
 }
 
-func (s *HTTPServer) aclTokenSelf(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) aclTokenSelf(resp http.ResponseWriter, req *http.Request) (any, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(405, ErrInvalidMethod)
 	}
-	args := structs.ResolveACLTokenRequest{}
+	args := structs.GenericRequest{}
 	if s.parse(resp, req, &args.Region, &args.QueryOptions) {
 		return nil, nil
 	}
 
-	args.SecretID = args.AuthToken
-
-	var out structs.ResolveACLTokenResponse
-	if err := s.agent.RPC("ACL.ResolveToken", &args, &out); err != nil {
+	var out structs.ACLWhoAmIResponse
+	if err := s.agent.RPC("ACL.WhoAmI", &args, &out); err != nil {
 		return nil, err
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	if out.Token == nil {
+	if out.Identity.ACLToken == nil {
 		return nil, CodedError(404, "ACL token not found")
 	}
-	return out.Token, nil
+	return out.Identity.ACLToken, nil
 }
 
 func (s *HTTPServer) aclTokenUpdate(resp http.ResponseWriter, req *http.Request,
