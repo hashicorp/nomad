@@ -53,7 +53,7 @@
         <Hds::CodeBlock
             data-test-job-spec-view
             aria-label="Job specification"
-            @value={{@data.Definition}}
+            @value={{@data.definition}}
             @language={{if (eq @data.format "json") "javascript" "ruby"}}
             @hasLineWrapping={{@data.shouldWrap}}
         />
@@ -61,7 +61,7 @@
         <Hds::CodeBlock
             data-test-json-viewer
             aria-label="JSON Viewer"
-            @value={{@data.Definition}}
+            @value={{@data.definition}}
             @language="json"
             @hasLineWrapping={{@data.shouldWrap}}
         />
