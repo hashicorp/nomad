@@ -509,10 +509,19 @@ module('Integration | Component | variable-form', function (hooks) {
       await render(
         hbs`<VariableForm @model={{this.mockedModel}} @view={{this.view}} />`
       );
+      await waitFor('.cm-editor');
 
-      codeFillable('[data-test-json-editor]').get()(
-        JSON.stringify({ golden: 'gate' }, null, 2)
-      );
+      const editorElement = document.querySelector('[data-test-json-editor]');
+      const codeMirrorInstance = editorElement.editor;
+
+      codeMirrorInstance.dispatch({
+        changes: {
+          from: 0,
+          to: codeMirrorInstance.state.doc.length,
+          insert: JSON.stringify({ golden: 'gate' }, null, 2),
+        },
+      });
+
       this.set('view', 'table');
       assert.equal(
         find(`.key-value:last-of-type [data-test-var-key]`).value,
