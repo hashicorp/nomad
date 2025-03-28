@@ -17,7 +17,6 @@ import {
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
-import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 import percySnapshot from '@percy/ember';
 import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
 
