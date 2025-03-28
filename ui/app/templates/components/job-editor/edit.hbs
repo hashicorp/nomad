@@ -5,6 +5,7 @@
 
 <div class="boxed-section">
   <Hds::CodeEditor
+    data-test-editor
     @value={{@data.job._newDefinition}}
     @onInput={{@fns.onUpdate}}
     @language={{if (eq @data.format "json") "javascript" "ruby"}}
