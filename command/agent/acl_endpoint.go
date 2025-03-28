@@ -234,7 +234,7 @@ func (s *HTTPServer) aclTokenSelf(resp http.ResponseWriter, req *http.Request) (
 	}
 
 	setMeta(resp, &out.QueryMeta)
-	if out.Identity.ACLToken == nil {
+	if out.Identity == nil || out.Identity.ACLToken == nil {
 		return nil, CodedError(404, "ACL token not found")
 	}
 	return out.Identity.ACLToken, nil
