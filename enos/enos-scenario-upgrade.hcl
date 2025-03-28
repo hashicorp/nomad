@@ -8,7 +8,7 @@ scenario "upgrade" {
     EOF
 
   matrix {
-    arch = ["amd64"]
+    arch    = ["amd64"]
     edition = ["ce", "ent"]
     os      = ["linux"]
 
