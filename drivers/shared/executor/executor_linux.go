@@ -276,19 +276,17 @@ func (l *LibcontainerExecutor) wait() {
 	// Best effort detection of OOMs. It's possible for us to miss OOM notifications in
 	// the event that the wait returns before we read from the OOM notification channel
 	var oomKilled atomic.Bool
-	go func() {
-		oomCh, err := l.container.NotifyOOM()
-		if err != nil {
-			l.logger.Error("failed to get OOM notification channel for container(%s): %v", l.id, err)
-			return
-		}
-
-		for range oomCh {
-			oomKilled.Store(true)
-			// We can terminate this goroutine as soon as we've seen the first OOM
-			return
-		}
-	}()
+	oomCh, err := l.container.NotifyOOM()
+	if err != nil {
+		l.logger.Error("failed to get OOM notification channel for container(%s): %v", l.id, err)
+	} else {
+		go func() {
+			for range oomCh {
+				oomKilled.Store(true)
+				return // Exit goroutine on first OOM
+			}
+		}()
+	}
 
 	ps, err := l.userProc.Wait()
 	if err != nil {
