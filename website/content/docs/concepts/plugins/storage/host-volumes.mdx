@@ -13,12 +13,12 @@ This page describes the plugin specification for
 your own plugin to dynamically configure persistent storage on your Nomad
 client nodes.
 
-Nomad has one built-in plugin called `mkdir`, which creates a directory on the
-host in the Nomad agent's [host_volumes_dir][]. The `mkdir` plugin does not
-support the `capacity_min` or `capacity_max` fields.
+If you do not need to write your own plugin, consider Nomad's built-in
+[`mkdir` plugin][mkdir_plugin], which creates a directory on the host.
 
-Review the examples first to get a sense of the specification in action.
-A plugin can be as basic as a short shell script.
+If you have more complex needs than that, review the examples here to get a
+sense of the specification in action. A plugin can be as basic as a short shell
+script.
 
 The full [specification](#specification) is after the examples,
 followed by a list of [general considerations](#considerations).
@@ -425,4 +425,5 @@ Plugin authors should consider these details when writing plugins.
 [api-create]: /nomad/api-docs/volumes#create-dynamic-host-volume
 [cli-delete]: /nomad/docs/commands/volume/delete
 [api-delete]: /nomad/api-docs/volumes#delete-dynamic-host-volume
+[mkdir_plugin]: /nomad/docs/other-specifications/volume/host#mkdir-plugin
 [host_volumes_dir]: /nomad/docs/configuration/client#host_volumes_dir
