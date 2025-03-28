@@ -11,6 +11,7 @@ import (
 	capi "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/kr/pretty"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -197,6 +198,25 @@ func DeleteConsulPolicies(t *testing.T, client *capi.Client, policies map[string
 			assert.NoError(t, err)
 		}
 	}
+}
+
+// CreateConsulRole is used to create a Consul ACL role with capabilities from the given policy
+// in the specified namespace.
+//
+// Requires Consul Enterprise.
+func CreateConsulRole(t *testing.T, client *capi.Client, name string, namespace string, policyID string) {
+	aclClient := client.ACL()
+
+	opts := &capi.WriteOptions{Namespace: namespace}
+	role := &capi.ACLRole{
+		Name:        name,
+		Description: "role for nomad tasks",
+		Policies: []*capi.ACLLink{{
+			ID: policyID,
+		}},
+	}
+	_, _, err := aclClient.RoleCreate(role, opts)
+	must.NoError(t, err)
 }
 
 // CreateConsulToken is used to create a Consul ACL token backed by the policy of
