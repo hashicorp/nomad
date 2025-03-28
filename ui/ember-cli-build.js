@@ -12,9 +12,6 @@ const isTest = environment === 'test';
 
 module.exports = function (defaults) {
   let app = new EmberApp(defaults, {
-    codemirror: {
-      modes: ['javascript', 'ruby'],
-    },
     babel: {
       include: ['proposal-optional-chaining'],
       plugins: [
@@ -50,7 +47,6 @@ module.exports = function (defaults) {
   // along with the exports of each module as its value.
 
   app.import('node_modules/xterm/css/xterm.css');
-  app.import('node_modules/codemirror/lib/codemirror.css');
 
   return app.toTree();
 };

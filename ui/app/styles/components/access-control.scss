@@ -88,9 +88,6 @@
   .namespace-editor-wrapper {
     padding: 1rem 0;
     &.error {
-      .CodeMirror {
-        box-shadow: 0 0 0 3px $red;
-      }
       .help {
         padding: 1rem 0;
         font-size: 1rem;
