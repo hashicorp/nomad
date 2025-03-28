@@ -5,7 +5,7 @@
 
 export function getCodeMirrorInstance() {
   return function () {
-    return document.querySelector('.CodeMirror').CodeMirror;
+    return document.querySelector('.hds-code-editor__editor').editor;
   };
 }
 
