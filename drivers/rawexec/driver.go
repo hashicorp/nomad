@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strconv"
 	"time"
 
@@ -26,6 +28,7 @@ import (
 	"github.com/hashicorp/nomad/plugins/drivers/fsisolation"
 	"github.com/hashicorp/nomad/plugins/shared/hclspec"
 	pstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/ryanuber/go-glob"
 )
 
 const (
@@ -84,6 +87,7 @@ var (
 		),
 		"denied_host_uids": hclspec.NewAttr("denied_host_uids", "string", false),
 		"denied_host_gids": hclspec.NewAttr("denied_host_gids", "string", false),
+		"denied_envvars":   hclspec.NewAttr("denied_envvars", "list(string)", false),
 	})
 
 	// taskConfigSpec is the hcl specification for the driver config section of
@@ -95,6 +99,7 @@ var (
 		"cgroup_v1_override": hclspec.NewAttr("cgroup_v1_override", "list(map(string))", false),
 		"oom_score_adj":      hclspec.NewAttr("oom_score_adj", "number", false),
 		"work_dir":           hclspec.NewAttr("work_dir", "string", false),
+		"denied_envvars":     hclspec.NewAttr("denied_envvars", "list(string)", false),
 	})
 
 	// capabilities is returned by the Capabilities RPC and indicates what
@@ -150,8 +155,9 @@ type Config struct {
 	// Enabled is set to true to enable the raw_exec driver
 	Enabled bool `codec:"enabled"`
 
-	DeniedHostUids string `codec:"denied_host_uids"`
-	DeniedHostGids string `codec:"denied_host_gids"`
+	DeniedHostUids string   `codec:"denied_host_uids"`
+	DeniedHostGids string   `codec:"denied_host_gids"`
+	DeniedEnvvars  []string `codec:"denied_envvars"`
 }
 
 // TaskConfig is the driver configuration of a task within a job
@@ -176,6 +182,9 @@ type TaskConfig struct {
 
 	// WorkDir sets the working directory of the task
 	WorkDir string `codec:"work_dir"`
+
+	//DeniedEnvvars enables the removal of specified environment variables from a given job environment
+	DeniedEnvvars []string `codec:"denied_envvars"`
 }
 
 func (t *TaskConfig) validate() error {
@@ -358,6 +367,27 @@ func (d *Driver) RecoverTask(handle *drivers.TaskHandle) error {
 	return nil
 }
 
+func (d *Driver) buildEnvList(tc *TaskConfig, cfg *drivers.TaskConfig) []string {
+	// combine tc and cfg denyLists
+	denyList := slices.Concat(d.config.DeniedEnvvars, tc.DeniedEnvvars)
+	envList := make([]string, 0, len(cfg.Env))
+
+	for k, v := range cfg.Env {
+		found := false
+		for _, denied := range denyList {
+			if found = glob.Glob(denied, k); found {
+				break
+			}
+		}
+
+		if !found {
+			envList = append(envList, k+"="+v)
+		}
+	}
+	sort.Strings(envList)
+	return envList
+}
+
 func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drivers.DriverNetwork, error) {
 	if !d.config.Enabled {
 		return nil, nil, errDisabledDriver
@@ -402,7 +432,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 	execCmd := &executor.ExecCommand{
 		Cmd:              driverConfig.Command,
 		Args:             driverConfig.Args,
-		Env:              cfg.EnvList(),
+		Env:              d.buildEnvList(&driverConfig, cfg),
 		User:             cfg.User,
 		TaskDir:          cfg.TaskDir().Dir,
 		WorkDir:          driverConfig.WorkDir,
