@@ -1055,52 +1055,6 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 	return a.srv.blockingRPC(&opts)
 }
 
-// ResolveToken is used to lookup a specific token by a secret ID.
-//
-// Deprecated: Prior to Nomad 1.5 this RPC was used by clients for
-// authenticating local RPCs. Since Nomad 1.5 added workload identity support,
-// clients now use the more flexible ACL.WhoAmI RPC. The /v1/acl/token/self API
-// is the only remaining caller and should be switched to ACL.WhoAmI.
-func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.ResolveACLTokenResponse) error {
-	if !a.srv.config.ACLEnabled {
-		return aclDisabled
-	}
-	if done, err := a.srv.forward("ACL.ResolveToken", args, args, reply); done {
-		return err
-	}
-	a.srv.MeasureRPCRate("acl", structs.RateMetricRead, args)
-	defer metrics.MeasureSince([]string{"nomad", "acl", "resolve_token"}, time.Now())
-
-	// Setup the query meta
-	a.srv.setQueryMeta(&reply.QueryMeta)
-
-	// Snapshot the state
-	state, err := a.srv.State().Snapshot()
-	if err != nil {
-		return err
-	}
-
-	// Look for the token
-	out, err := state.ACLTokenBySecretID(nil, args.SecretID)
-	if err != nil {
-		return err
-	}
-
-	// Setup the output
-	reply.Token = out
-	if out != nil {
-		reply.Index = out.ModifyIndex
-	} else {
-		// Use the last index that affected the token table
-		index, err := state.Index("acl_token")
-		if err != nil {
-			return err
-		}
-		reply.Index = index
-	}
-	return nil
-}
-
 func (a *ACL) UpsertOneTimeToken(args *structs.OneTimeTokenUpsertRequest, reply *structs.OneTimeTokenUpsertResponse) error {
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled

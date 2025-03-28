@@ -1887,38 +1887,6 @@ func TestACLEndpoint_UpsertTokens(t *testing.T) {
 	}
 }
 
-func TestACLEndpoint_ResolveToken(t *testing.T) {
-	ci.Parallel(t)
-	s1, _, cleanupS1 := TestACLServer(t, nil)
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	// Create the register request
-	token := mock.ACLToken()
-	s1.fsm.State().UpsertACLTokens(structs.MsgTypeTestSetup, 1000, []*structs.ACLToken{token})
-
-	// Lookup the token
-	get := &structs.ResolveACLTokenRequest{
-		SecretID:     token.SecretID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
-	}
-	var resp structs.ResolveACLTokenResponse
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.ResolveToken", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.Equal(t, uint64(1000), resp.Index)
-	assert.Equal(t, token, resp.Token)
-
-	// Lookup non-existing token
-	get.SecretID = uuid.Generate()
-	if err := msgpackrpc.CallWithCodec(codec, "ACL.ResolveToken", get, &resp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	assert.Equal(t, uint64(1000), resp.Index)
-	assert.Nil(t, resp.Token)
-}
-
 func TestACLEndpoint_WhoAmI(t *testing.T) {
 	ci.Parallel(t)
 
