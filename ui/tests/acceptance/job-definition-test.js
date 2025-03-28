@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { click, currentURL } from '@ember/test-helpers';
+import { click, currentURL, waitFor } from '@ember/test-helpers';
 import percySnapshot from '@percy/ember';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -99,9 +99,12 @@ module('Acceptance | job definition', function (hooks) {
 
   test('when changes are submitted, the site redirects to the job overview page', async function (assert) {
     await Definition.edit();
+    await waitFor('.cm-editor');
 
     const cm = getCodeMirrorInstance(['data-test-editor']);
-    cm.setValue(`{}`);
+    cm.dispatch({
+      changes: { from: 0, to: cm.state.doc.length, insert: '{}' },
+    });
 
     await click('[data-test-plan]');
     await Definition.editor.run();
