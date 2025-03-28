@@ -128,6 +128,10 @@ agents.
   environment variable if set. Nomad cannot refresh this token; if the token is
   deleted, Nomad is not able to communicate with Consul.
 
+  In Nomad Enterprise, if the Consul agent running alongside Nomad is in a
+  Consul Enterprise admin partition, you must create the Consul token provided
+  to the Nomad client in the same partition.
+
 - `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
   when communicating to the Consul API client over HTTPS. Will default to the
   `CONSUL_HTTP_SSL_VERIFY` environment variable if set.
@@ -416,6 +420,12 @@ namespace "nomad-ns" {
   }
 }
 ```
+
+### Consul Admin Partition <EnterpriseAlert inline/>
+
+In Nomad Enterprise, if the Consul agent running alongside Nomad is in a Consul
+Enterprise admin partition, you must create the Consul ACL token and ACL policy
+for Nomad clients in the same partition.
 
 
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
