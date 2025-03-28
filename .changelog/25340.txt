@@ -1,0 +1,3 @@
+```release-note:bug
+scheduler: Use core ID when selecting cores. This fixes a panic in the scheduler when the `reservable_cores` is not a contiguous list of core IDs.
+```
