@@ -49,7 +49,7 @@ module.exports = [
   {
     source: '/nomad/s/vault-workload-identity-migration',
     destination:
-      'https://developer.hashicorp.com/nomad/docs/integrations/vault/acl#migrating-to-using-workload-identity-with-vault',
+      'https://developer.hashicorp.com/nomad/docs/v1.8.x/integrations/vault/acl#migrating-to-using-workload-identity-with-vault',
     permanent: false,
   },
   {

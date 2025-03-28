@@ -7,10 +7,10 @@ description: |
 
 # `nomad operator snapshot agent` command reference
 
-<EnterpriseAlert />
-
 The snapshot agent takes snapshots of the state of the nomad servers and
 saves them locally, or pushes them to an optional remote storage service.
+
+<EnterpriseAlert />
 
 The agent can be run as a long-running daemon process or in a one-shot mode
 from a batch job. As a long-running daemon, the agent will perform a leader
@@ -18,15 +18,6 @@ election so multiple processes can be run in a highly available fashion with
 automatic failover. In daemon mode, the agent will also register itself with
 Consul as a service, along with health checks that show the agent is alive
 and able to take snapshots.
-
-<Warning>
-
-This snapshot agent only saves a Raft snapshot. Key material for the Nomad
-keyring is stored on disk and must be saved separately. To use a snapshot saved
-by the agent to recover a cluster, you will also need to [restore the keyring][]
-onto at least one server.
-
-</Warning>
 
 If ACLs are enabled, a management token must be supplied in order to perform
 snapshot operations.
@@ -165,4 +156,3 @@ Note that despite the AWS references, any S3-compatible endpoint can be specifie
 
 - `-google-bucket`: The bucket to use.
 
-[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup
