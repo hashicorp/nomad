@@ -47,8 +47,10 @@ The `raw_exec` driver supports the following configuration in the job spec:
   conflict with other Nomad driver's cgroups and have unintended side
   effects.
 
-~> The `task.user` field cannot be set on a Task using the `raw_exec` driver if
+~> On Linux the `task.user` field cannot be set on a Task using the `raw_exec` driver if
 the Nomad client has been hardened according to the [production][hardening] guide.
+On Windows, when Nomad is running as [system service][service] less privileged service
+user can be specified (example: `NT AUTHORITY\LocalService`, `NT AUTHORITY\NetworkService`)
 
 - `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
   the task being OOM killed (valid only for Linux). Defaults to 0.
@@ -196,5 +198,6 @@ resources {
 ```
 
 [hardening]: /nomad/docs/install/production/requirements#user-permissions
+[service]: /nomad/docs/install/windows-service
 [plugin-options]: #plugin-options
 [plugin-block]: /nomad/docs/configuration/plugin
