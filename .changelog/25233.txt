@@ -1,0 +1,3 @@
+```release-note:improvement
+server: add the log output of the implicit constraints that are considered in the scheduling decision when the log level is `trace`.
+```
