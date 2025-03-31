@@ -6,6 +6,8 @@ package oidc
 import (
 	"bytes"
 	"crypto/rsa"
+
+	// sha1 is used to derive an "x5t" jwt header from an x509 certificate
 	// sha1 is used to derive an "x5t" jwt header from an x509 certificate,
 	// per the OIDC JWS spec:
 	// https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.7
