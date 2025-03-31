@@ -2194,6 +2194,9 @@ func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIRespo
 		}
 	}
 
+	// Setup the query meta
+	a.srv.setQueryMeta(&reply.QueryMeta)
+
 	reply.Identity = args.GetIdentity()
 
 	// COMPAT: originally these were time.Time objects but switching to go-jose
