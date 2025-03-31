@@ -28,14 +28,15 @@ func providerConfig(authMethod *structs.ACLAuthMethod) (*oidc.Config, error) {
 	// if client assertion is enabled, do not send a client secret normally;
 	// if it is set to anything, it will be used as an HMAC to sign the client
 	// assertion JWT, instead.
+	clientSecret := authMethod.Config.OIDCClientSecret
 	if authMethod.Config.OIDCClientAssertion != nil {
-		authMethod.Config.OIDCClientSecret = ""
+		clientSecret = ""
 	}
 
 	return oidc.NewConfig(
 		authMethod.Config.OIDCDiscoveryURL,
 		authMethod.Config.OIDCClientID,
-		oidc.ClientSecret(authMethod.Config.OIDCClientSecret),
+		oidc.ClientSecret(clientSecret),
 		algs,
 		authMethod.Config.AllowedRedirectURIs,
 		oidc.WithAudiences(authMethod.Config.BoundAudiences...),
