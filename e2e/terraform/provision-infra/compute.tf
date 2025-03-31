@@ -15,10 +15,6 @@ resource "aws_instance" "server" {
   count                  = var.server_count
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
-  metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
-  }
 
   # Instance tags
   tags = {
@@ -36,10 +32,6 @@ resource "aws_instance" "client_ubuntu_jammy" {
   count                  = var.client_count_linux
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
-  metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
-  }
 
   # Instance tags
   tags = {
@@ -60,10 +52,6 @@ resource "aws_instance" "client_windows_2016" {
   count                  = var.client_count_windows_2016
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
-  metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
-  }
 
   user_data = file("${path.module}/userdata/windows-2016.ps1")
 
@@ -83,10 +71,6 @@ resource "aws_instance" "consul_server" {
   vpc_security_group_ids = [aws_security_group.consul_server.id]
   iam_instance_profile   = data.aws_iam_instance_profile.nomad_e2e_cluster.name
   availability_zone      = var.availability_zone
-  metadata_options {
-    http_endpoint = "enabled"
-    http_tokens   = "required"
-  }
 
   # Instance tags
   tags = {
