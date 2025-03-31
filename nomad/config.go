@@ -674,5 +674,8 @@ func DefaultConfig() *Config {
 	// Default to Raft v3 since Nomad 1.3
 	c.RaftConfig.ProtocolVersion = 3
 
+	// Default to fast restore (see https://github.com/hashicorp/raft/pull/613)
+	c.RaftConfig.RestoreCommittedLogs = true
+
 	return c
 }
