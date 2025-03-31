@@ -134,8 +134,8 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
 
 ## Task Configuration
 
-- `apparmor_profile` - (Optional) Name of a apparmor profile to be used instead of
-  the default profile. The special value unconfined disables apparmor for this container.
+- `apparmor_profile` - (Optional) Name of an AppArmor profile to use instead of
+  the default profile. The special value `unconfined` disables AppArmor for this container.
 
   ```hcl
   config {
@@ -170,8 +170,7 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
-- `auth_soft_fail` - (Optional) Ignores errors returned from auth backend so
-  fallbacks can be tried.
+- `auth_soft_fail` - (Optional) Ignore errors returned from auth backend so Podman can fall back to a different auth method.
 
   ```hcl
   config {
@@ -209,12 +208,16 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
-- `cpu_hard_limit` (Optional) `true` or `false`. Use hard CPU limiting instead of
-  soft limiting. By default this is `false` which means soft limiting is used and
-  containers are able to burst above their CPU limit when there is idle capacity.
+- `cpu_hard_limit` (Optional) `true` or `false`. Use hard CPU limiting instead
+  of soft limiting. By default this is `false`, which means Podman uses soft
+  limiting so that containers are able to burst above their CPU limit when there
+  is idle capacity.
 
-- `cpu_cfs_period` - (Optional) Set the CPU persiod for the Completely Fair Scheduler (CFS),
-  which is a duration in microseconds. See podman --cpu-period for details.
+- `cpu_cfs_period` - (Optional) Set the CPU period for the [Completely Fair
+  Scheduler (CFS)](https://docs.kernel.org/scheduler/sched-design-CFS.html),
+  which is a duration in microseconds. Refer to [`podman run
+  --cpu-period`](https://docs.podman.io/en/latest/markdown/podman-run.1.html#cpu-period-limit)
+  for details.
 
 - `devices` - (Optional) A list of `host-device[:container-device][:permissions]`
   definitions. Each entry adds a host device to the container. Optional
@@ -408,7 +411,7 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
-- `pids_limit` - (Optional) An integer value that specified the pid limit for
+- `pids_limit` - (Optional) An integer value that specified the PID limit for
   the container.
 
   ```hcl
@@ -434,7 +437,7 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
-- `security_opt` - (Optional) A list of security-related options that are set
+- `security_opt` - (Optional) A list of security-related options that Podman sets
   in the container.
 
   ```hcl
@@ -446,7 +449,7 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
-- `selinux_opts` - (Optional) A list of prciess labels the container will use.
+- `selinux_opts` - (Optional) A list of process labels that the container uses.
 
   ```hcl
   config {
@@ -456,7 +459,8 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
-- `shm_size` - (Optional) Set the size of `/dev/shm`. See Podman --shm-size
+- `shm_size` - (Optional) Set the size of `/dev/shm`. Refer to `podman run
+  --shm-size](https://docs.podman.io/en/latest/markdown/podman-run.1.html#shm-size-number-unit)
   for more details.
 
 - `socket` - (Optional) The name of the socket as defined in the socket block in
