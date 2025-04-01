@@ -10,6 +10,9 @@ job "templating" {
 
   group "docker_downstream" {
 
+    // tasks in this group need a consul token
+    consul {}
+
     task "task" {
 
       driver = "docker"
@@ -49,6 +52,9 @@ EOT
   }
 
   group "exec_downstream" {
+
+    // tasks in this group need a consul token
+    consul {}
 
     task "task" {
 
