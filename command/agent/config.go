@@ -849,11 +849,9 @@ func (r *RPCConfig) Validate() error {
 		if r.AcceptBacklog < 0 {
 			return errors.New("rcp.accept_backlog interval must be greater than zero")
 		}
-
 		if r.KeepAliveInterval < 0 {
 			return errors.New("rcp.keep_alive_interval must be greater than zero")
 		}
-
 		if r.ConnectionWriteTimeout < 0 {
 			return errors.New("rcp.connection_write_timeout must be greater than zero")
 		}
