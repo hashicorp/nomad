@@ -43,6 +43,7 @@ var basicConfig = &Config{
 		RPC:  "127.0.0.3",
 		Serf: "127.0.0.4",
 	},
+	RPC: &RPCConfig{},
 	Client: &ClientConfig{
 		Enabled:        true,
 		StateDir:       "/tmp/client-state",
@@ -588,6 +589,9 @@ func (c *Config) addDefaults() {
 	if c.ACL == nil {
 		c.ACL = &ACLConfig{}
 	}
+	if c.RPC == nil {
+		c.RPC = &RPCConfig{}
+	}
 	if c.Audit == nil {
 		c.Audit = &config.AuditConfig{}
 	}
@@ -705,6 +709,7 @@ var sample0 = &Config{
 	ACL: &ACLConfig{
 		Enabled: true,
 	},
+	RPC: &RPCConfig{},
 	Audit: &config.AuditConfig{
 		Enabled: pointer.Of(true),
 		Sinks: []*config.AuditSink{
