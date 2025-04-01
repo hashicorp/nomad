@@ -24,25 +24,25 @@ rpc {
 
 ## `rpc` Parameters
 
-- `accept_backlog` `(int: 256)` - The accept backlog limits how many RPC streams (requests) can be waiting to be accepted by the RPC server.
+- `accept_backlog` `(int: 256)` - Limits how many RPC streams
+  (requests) can be waiting for acceptance by the RPC server.
 
-- `keep_alive_interval` `(string: 30s)` - KeepAliveInterval is how often to perform the keep alive
+- `keep_alive_interval` `(string: 30s)` - How often to perform the keep alive
 
-- `connection_write_timeout` `(string: 10s)` - ConnectionWriteTimeout is meant to be a "safety valve" timeout after
-  we which will suspect a problem with the underlying connection and
-  close it. This is only applied to writes, where's there's generally
-  an expectation that things will move along quickly.
+- `connection_write_timeout` `(string: 10s)` - Safety valve timeout after which
+  you should suspect a problem with the underlying connection and close it. This
+  is only applied to writes, where there is generally an expectation that things
+  move along quickly.
 
-- `max_stream_window_size` `(int: 262144)` - MaxStreamWindowSize is used to control the maximum window size
-  that we allow for a stream.
+- `max_stream_window_size` `(int: 262144)` - Controls the maximum window size
+  allowed for a stream.
 
-- `stream_open_timeout` `(string: 75s)` - StreamOpenTimeout is the maximum amount of time that a stream will be
-  allowed to remain in pending state while waiting for an ack from the peer.
-  Once the timeout is reached the session will be gracefully closed.
-  A zero value disables the StreamOpenTimeout allowing unbounded blocking on OpenStream calls.
+- `stream_open_timeout` `(string: 75s)` - Maximum amount of time that a stream
+  remains in pending state while waiting for an ACK from the peer. Once the
+  timeout is reached, Nomad gracefully closes the session. A zero value disables
+  the stream open timeout, allowing unbounded blocking on open stream calls.
 
-- `stream_close_timeout` `(string: 5m)` - StreamCloseTimeout is the maximum time that a stream will allowed to
-  be in a half-closed state when `Close` is called before forcibly
-  closing the connection. Forcibly closed connections will empty the
-  receive buffer, drop any future packets received for that stream,
-  and send a RST to the remote side.
+- `stream_close_timeout` `(string: 5m)` - When `close` is called, maximum time
+  that a stream is in a half-closed state before forcibly closing the
+  connection. Forcibly closed connections empty the receive buffer, drop any
+  future packets received for that stream, and send an RST to the remote side.
