@@ -779,22 +779,22 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 
 	// handle rpc yamux configuration
-	conf.RPCYamuxConfig = yamux.DefaultConfig()
+	conf.RPCSessionConfig = yamux.DefaultConfig()
 	if agentConfig.RPC != nil {
 		if agentConfig.RPC.AcceptBacklog > 0 {
-			conf.RPCYamuxConfig.AcceptBacklog = agentConfig.RPC.AcceptBacklog
+			conf.RPCSessionConfig.AcceptBacklog = agentConfig.RPC.AcceptBacklog
 		}
 		if agentConfig.RPC.KeepAliveInterval > 0 {
-			conf.RPCYamuxConfig.KeepAliveInterval = agentConfig.RPC.KeepAliveInterval
+			conf.RPCSessionConfig.KeepAliveInterval = agentConfig.RPC.KeepAliveInterval
 		}
 		if agentConfig.RPC.ConnectionWriteTimeout > 0 {
-			conf.RPCYamuxConfig.ConnectionWriteTimeout = agentConfig.RPC.ConnectionWriteTimeout
+			conf.RPCSessionConfig.ConnectionWriteTimeout = agentConfig.RPC.ConnectionWriteTimeout
 		}
 		if agentConfig.RPC.StreamCloseTimeout > 0 {
-			conf.RPCYamuxConfig.StreamCloseTimeout = agentConfig.RPC.StreamCloseTimeout
+			conf.RPCSessionConfig.StreamCloseTimeout = agentConfig.RPC.StreamCloseTimeout
 		}
 		if agentConfig.RPC.StreamOpenTimeout > 0 {
-			conf.RPCYamuxConfig.StreamOpenTimeout = agentConfig.RPC.StreamOpenTimeout
+			conf.RPCSessionConfig.StreamOpenTimeout = agentConfig.RPC.StreamOpenTimeout
 		}
 	}
 

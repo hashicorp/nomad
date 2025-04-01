@@ -272,8 +272,8 @@ type Config struct {
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
 
-	// RPCYamuxConfig configures yamux multiplex
-	RPCYamuxConfig *yamux.Config
+	// RPCSessionConfig configures yamux multiplex
+	RPCSessionConfig *yamux.Config
 
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog
