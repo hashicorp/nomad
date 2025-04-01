@@ -530,7 +530,7 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 	// Start the handler
 	doneCh := make(chan struct{})
 	go func() {
-		s.handleConn(context.Background(), p2, &RPCContext{Conn: p2})
+		s.handleConn(context.Background(), p2, &RPCContext{Conn: p2, SessionConfig: yamux.DefaultConfig()})
 		close(doneCh)
 	}()
 
