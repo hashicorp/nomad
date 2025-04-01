@@ -829,14 +829,26 @@ func (r *RPCConfig) Merge(rpc *RPCConfig) *RPCConfig {
 	if rpc.AcceptBacklog > 0 {
 		result.AcceptBacklog = rpc.AcceptBacklog
 	}
+	if rpc.KeepAliveIntervalHCL != "" {
+		result.KeepAliveIntervalHCL = rpc.KeepAliveIntervalHCL
+	}
 	if rpc.KeepAliveInterval > 0 {
 		result.KeepAliveInterval = rpc.KeepAliveInterval
+	}
+	if rpc.ConnectionWriteTimeoutHCL != "" {
+		result.ConnectionWriteTimeoutHCL = rpc.ConnectionWriteTimeoutHCL
 	}
 	if rpc.ConnectionWriteTimeout > 0 {
 		result.ConnectionWriteTimeout = rpc.ConnectionWriteTimeout
 	}
+	if rpc.StreamOpenTimeoutHCL != "" {
+		result.StreamOpenTimeoutHCL = rpc.StreamOpenTimeoutHCL
+	}
 	if rpc.StreamOpenTimeout > 0 {
 		result.StreamOpenTimeout = rpc.StreamOpenTimeout
+	}
+	if rpc.StreamCloseTimeoutHCL != "" {
+		result.StreamCloseTimeoutHCL = rpc.StreamCloseTimeoutHCL
 	}
 	if rpc.StreamCloseTimeout > 0 {
 		result.StreamCloseTimeout = rpc.StreamCloseTimeout
