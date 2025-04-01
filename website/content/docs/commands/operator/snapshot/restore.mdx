@@ -16,16 +16,6 @@ not designed to handle server failures during a restore. This command is
 primarily intended for recovering from a disaster, restoring into a
 fresh cluster of Nomad servers.
 
-<Warning>
-
-This command only restores the Raft snapshot, which does not include keyrings.
-
-If you are recovering a cluster, you also need to restore the keyring onto at
-least one server.  Refer to the Key Management's [Restoring the
-Keyring from Backup][restore the keyring] section for instructions.
-
-</Warning>
-
 If you enabled ACLs, you must supply a management token in order to perform
 snapshot operations.
 
@@ -46,4 +36,4 @@ nomad operator snapshot restore [options] <file>
 @include 'general_options_no_namespace.mdx'
 
 [outage recovery]: /nomad/tutorials/manage-clusters/outage-recovery
-[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup
+
