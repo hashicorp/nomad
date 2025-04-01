@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/servers"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 type fauxAddr struct {
@@ -53,38 +53,32 @@ func testManagerFailProb(t *testing.T, failPct float64) (m *servers.Manager) {
 func TestServers_SetServers(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	m := testManager(t)
-	var num int
-	num = m.NumServers()
-	if num != 0 {
-		t.Fatalf("Expected zero servers to start")
-	}
+	must.Zero(t, m.NumServers())
 
 	s1 := &servers.Server{Addr: &fauxAddr{"server1"}}
 	s2 := &servers.Server{Addr: &fauxAddr{"server2"}}
-	require.True(m.SetServers([]*servers.Server{s1, s2}))
-	require.False(m.SetServers([]*servers.Server{s1, s2}))
-	require.False(m.SetServers([]*servers.Server{s2, s1}))
-	require.Equal(2, m.NumServers())
-	require.Len(m.GetServers(), 2)
+	must.True(t, m.SetServers([]*servers.Server{s1, s2}))
+	must.False(t, m.SetServers([]*servers.Server{s1, s2}))
+	must.False(t, m.SetServers([]*servers.Server{s2, s1}))
+	must.Eq(t, 2, m.NumServers())
+	must.Len(t, 2, m.GetServers())
 
-	require.True(m.SetServers([]*servers.Server{s1}))
-	require.Equal(1, m.NumServers())
-	require.Len(m.GetServers(), 1)
+	must.True(t, m.SetServers([]*servers.Server{s1}))
+	must.Eq(t, 1, m.NumServers())
+	must.Len(t, 1, m.GetServers())
 
 	// Test that the list of servers does not get shuffled
 	// as a side effect when incoming list is equal
-	require.True(m.SetServers([]*servers.Server{s1, s2}))
+	must.True(t, m.SetServers([]*servers.Server{s1, s2}))
 	before := m.GetServers()
-	require.False(m.SetServers([]*servers.Server{s1, s2}))
+	must.False(t, m.SetServers([]*servers.Server{s1, s2}))
 	after := m.GetServers()
-	require.Equal(before, after)
+	must.Equal(t, before, after)
 
 	// Send a shuffled list, verify original order doesn't change
-	require.False(m.SetServers([]*servers.Server{s2, s1}))
-	afterShuffledInput := m.GetServers()
-	require.Equal(after, afterShuffledInput)
+	must.False(t, m.SetServers([]*servers.Server{s2, s1}))
+	must.Equal(t, after, m.GetServers())
 }
 
 func TestServers_FindServer(t *testing.T) {
@@ -92,35 +86,25 @@ func TestServers_FindServer(t *testing.T) {
 
 	m := testManager(t)
 
-	if m.FindServer() != nil {
-		t.Fatalf("Expected nil return")
-	}
+	must.Nil(t, m.FindServer())
 
 	var srvs []*servers.Server
 	srvs = append(srvs, &servers.Server{Addr: &fauxAddr{"s1"}})
 	m.SetServers(srvs)
-	if m.NumServers() != 1 {
-		t.Fatalf("Expected one server")
-	}
+	must.Eq(t, 1, m.NumServers())
 
 	s1 := m.FindServer()
-	if s1 == nil {
-		t.Fatalf("Expected non-nil server")
-	}
-	if s1.String() != "s1" {
-		t.Fatalf("Expected s1 server")
-	}
+	must.NotNil(t, s1)
+	must.StrEqFold(t, "s1", s1.String())
 
 	s1 = m.FindServer()
-	if s1 == nil || s1.String() != "s1" {
-		t.Fatalf("Expected s1 server (still)")
-	}
+	must.NotNil(t, s1)
+	must.StrEqFold(t, "s1", s1.String())
 
 	srvs = append(srvs, &servers.Server{Addr: &fauxAddr{"s2"}})
 	m.SetServers(srvs)
-	if m.NumServers() != 2 {
-		t.Fatalf("Expected two servers")
-	}
+	must.Eq(t, 2, m.NumServers())
+
 	s1 = m.FindServer()
 
 	for _, srv := range srvs {
@@ -128,20 +112,13 @@ func TestServers_FindServer(t *testing.T) {
 	}
 
 	s2 := m.FindServer()
-	if s1.Equal(s2) {
-		t.Fatalf("Expected different server")
-	}
+	must.NotEq(t, s1, s2)
 }
 
 func TestServers_New(t *testing.T) {
 	ci.Parallel(t)
 
-	logger := testlog.HCLogger(t)
-	shutdownCh := make(chan struct{})
-	m := servers.New(logger, shutdownCh, &fauxConnPool{})
-	if m == nil {
-		t.Fatalf("Manager nil")
-	}
+	must.NotNil(t, servers.New(testlog.HCLogger(t), make(chan struct{}), &fauxConnPool{}))
 }
 
 func TestServers_NotifyFailedServer(t *testing.T) {
@@ -149,30 +126,22 @@ func TestServers_NotifyFailedServer(t *testing.T) {
 
 	m := testManager(t)
 
-	if m.NumServers() != 0 {
-		t.Fatalf("Expected zero servers to start")
-	}
+	must.Zero(t, m.NumServers())
 
 	s1 := &servers.Server{Addr: &fauxAddr{"s1"}}
 	s2 := &servers.Server{Addr: &fauxAddr{"s2"}}
 
 	// Try notifying for a server that is not managed by Manager
 	m.NotifyFailedServer(s1)
-	if m.NumServers() != 0 {
-		t.Fatalf("Expected zero servers to start")
-	}
+	must.Zero(t, m.NumServers())
 	m.SetServers([]*servers.Server{s1})
 
 	// Test again w/ a server not in the list
 	m.NotifyFailedServer(s2)
-	if m.NumServers() != 1 {
-		t.Fatalf("Expected one server")
-	}
+	must.Eq(t, 1, m.NumServers())
 
 	m.SetServers([]*servers.Server{s1, s2})
-	if m.NumServers() != 2 {
-		t.Fatalf("Expected two servers")
-	}
+	must.Eq(t, 2, m.NumServers())
 
 	// Grab a server
 	first := m.FindServer()
@@ -186,41 +155,28 @@ func TestServers_NotifyFailedServer(t *testing.T) {
 	// Fail the other server
 	m.NotifyFailedServer(second)
 	next := m.FindServer()
-	if !next.Equal(first) {
-		t.Fatalf("Expected first server (still)")
-	}
+	must.Equal(t, first, next)
 
 	// Fail the first
 	m.NotifyFailedServer(first)
 	next = m.FindServer()
-	if !next.Equal(second) {
-		t.Fatalf("Expected second server")
-	}
+	must.True(t, next.Equal(second))
 
 	// Fail the second
 	m.NotifyFailedServer(second)
 	next = m.FindServer()
-	if !next.Equal(first) {
-		t.Fatalf("Expected first server")
-	}
+	must.True(t, next.Equal(first))
 }
 
 func TestServers_NumServers(t *testing.T) {
 	ci.Parallel(t)
 
 	m := testManager(t)
-	var num int
-	num = m.NumServers()
-	if num != 0 {
-		t.Fatalf("Expected zero servers to start")
-	}
+	must.Zero(t, m.NumServers())
 
 	s := &servers.Server{Addr: &fauxAddr{"server1"}}
 	m.SetServers([]*servers.Server{s})
-	num = m.NumServers()
-	if num != 1 {
-		t.Fatalf("Expected one server after SetServers")
-	}
+	must.Eq(t, 1, m.NumServers())
 }
 
 func TestServers_RebalanceServers(t *testing.T) {
@@ -258,7 +214,7 @@ func TestServers_RebalanceServers(t *testing.T) {
 	// We have to allow for the fact that there won't always be a unique
 	// shuffle each pass, so we just look for smell here without the test
 	// being flaky.
-	if len(uniques) < int(maxServers*uniquePassRate) {
-		t.Fatalf("unique shuffle ratio too low: %d/%d", len(uniques), maxServers)
-	}
+	must.Greater(t, int(maxServers*uniquePassRate), len(uniques), must.Sprintf(
+		"unique shuffle ratio too low: %d/%d", len(uniques), maxServers),
+	)
 }
