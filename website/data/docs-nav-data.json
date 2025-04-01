@@ -65,16 +65,16 @@
             "path": "release-notes/nomad/upcoming"
           },
           {
-            "title": "v1.8.x",
-            "path": "release-notes/nomad/v1_8_x"
+            "title": "v1.10.x",
+            "path": "release-notes/nomad/v1-10-x"
           },
           {
             "title": "v1.9.x",
             "path": "release-notes/nomad/v1_9_x"
           },
           {
-            "title": "v1.10.x",
-            "path": "release-notes/nomad/v1-10-x"
+            "title": "v1.8.x",
+            "path": "release-notes/nomad/v1_8_x"
           }
         ]
       }

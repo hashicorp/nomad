@@ -452,7 +452,7 @@ In practice this means that `exec` tasks such as Vault which use the `mlock`
 system call will now need to explicitly add the `ipc_lock` capability.
 
 First [allow the `ipc_lock` capability in the Client
-configuration](/nomad/docs/dv1.6.x/drivers/exec#allow_caps):
+configuration](/nomad/docs/v1.6.x/drivers/exec#allow_caps):
 
 ```hcl
 plugin "exec" {
