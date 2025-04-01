@@ -52,7 +52,7 @@ require (
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-connlimit v0.3.1
 	github.com/hashicorp/go-cty-funcs v0.0.0-20200930094925-2721b1e36840
-	github.com/hashicorp/go-discover v0.0.0-20220621183603-a413e131e836
+	github.com/hashicorp/go-discover v0.0.0-20250326123624-0160383ae25b
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/go-getter v1.7.8
 	github.com/hashicorp/go-hclog v1.6.3
@@ -187,6 +187,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.34 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.34 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.200.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ecs v1.53.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.25.1 // indirect
@@ -241,6 +243,7 @@ require (
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-discover/provider/gce v0.0.0-20241120163552-5eb1507d16b4 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.6-0.20240304204939-8824e8ccc35f // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
