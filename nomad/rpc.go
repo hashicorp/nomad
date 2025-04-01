@@ -107,8 +107,8 @@ type RPCContext struct {
 	// NodeID marks the NodeID that initiated the connection.
 	NodeID string
 
-	// MuxConfig allowing to change default yamux configs value for advanced configuration
-	YamuxConfig *yamux.Config
+	// SessionConfig allowing to change default yamux configs value for advanced configuration
+	SessionConfig *yamux.Config
 }
 
 func (ctx *RPCContext) IsTLS() bool {
