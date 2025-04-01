@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/shoenig/test/must"
 )
 
 type fauxAddr struct {
@@ -41,13 +42,6 @@ func testManager(t *testing.T) (m *Manager) {
 	return m
 }
 
-func testManagerFailProb(t *testing.T, failPct float64) (m *Manager) {
-	logger := testlog.HCLogger(t)
-	shutdownCh := make(chan struct{})
-	m = New(logger, shutdownCh, &fauxConnPool{failPct: failPct})
-	return m
-}
-
 func TestManagerInternal_cycleServer(t *testing.T) {
 	ci.Parallel(t)
 
@@ -57,45 +51,29 @@ func TestManagerInternal_cycleServer(t *testing.T) {
 	srvs := Servers([]*Server{server0, server1, server2})
 
 	srvs.cycle()
-	if len(srvs) != 3 {
-		t.Fatalf("server length incorrect: %d/3", len(srvs))
-	}
-	if srvs[0] != server1 &&
-		srvs[1] != server2 &&
-		srvs[2] != server0 {
-		t.Fatalf("server ordering after one cycle not correct")
-	}
+	must.Eq(t, len(srvs), 3)
+	must.SliceEqual(t, []*Server{server1, server2, server0}, srvs, must.Sprint(
+		"server ordering after one cycle not correct"),
+	)
 
 	srvs.cycle()
-	if srvs[0] != server2 &&
-		srvs[1] != server0 &&
-		srvs[2] != server1 {
-		t.Fatalf("server ordering after two cycles not correct")
-	}
+	must.SliceEqual(t, []*Server{server2, server0, server1}, srvs, must.Sprint(
+		"server ordering after two cycles not correct"),
+	)
 
 	srvs.cycle()
-	if srvs[0] != server0 &&
-		srvs[1] != server1 &&
-		srvs[2] != server2 {
-		t.Fatalf("server ordering after three cycles not correct")
-	}
+	must.SliceEqual(t, []*Server{server0, server1, server2}, srvs, must.Sprint(
+		"server ordering after three cycles not correct"),
+	)
 }
 
 func TestManagerInternal_New(t *testing.T) {
 	ci.Parallel(t)
 
 	m := testManager(t)
-	if m == nil {
-		t.Fatalf("Manager nil")
-	}
-
-	if m.logger == nil {
-		t.Fatalf("Manager.logger nil")
-	}
-
-	if m.shutdownCh == nil {
-		t.Fatalf("Manager.shutdownCh nil")
-	}
+	must.NotNil(t, m)
+	must.NotNil(t, m.logger)
+	must.NotNil(t, m.shutdownCh)
 }
 
 // func (l *serverList) refreshServerRebalanceTimer() {
@@ -156,8 +134,8 @@ func TestManagerInternal_refreshServerRebalanceTimer(t *testing.T) {
 
 		d := m.refreshServerRebalanceTimer()
 		t.Logf("Nodes: %d; Servers: %d; Refresh: %v; Min: %v", s.numNodes, s.numServers, d, s.minRebalance)
-		if d < s.minRebalance {
-			t.Errorf("duration too short for cluster of size %d and %d servers (%s < %s)", s.numNodes, s.numServers, d, s.minRebalance)
-		}
+		must.Greater(t, s.minRebalance, d, must.Sprintf(
+			"duration too short for cluster of size %d and %d servers (%s < %s)", s.numNodes, s.numServers, d, s.minRebalance,
+		))
 	}
 }
