@@ -192,6 +192,10 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "create"}, time.Now())
 
+	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	}
+
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeCreate)
 	aclObj, err := v.srv.ResolveACL(args)
 	if err != nil {
@@ -612,6 +616,10 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "delete"}, time.Now())
+
+	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	}
 
 	// Note that all deleted volumes need to be in the same namespace
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeDelete)
