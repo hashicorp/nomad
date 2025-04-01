@@ -294,6 +294,10 @@ func (v *HostVolume) Register(args *structs.HostVolumeRegisterRequest, reply *st
 	}
 	defer metrics.MeasureSince([]string{"nomad", "host_volume", "register"}, time.Now())
 
+	if !ServersMeetMinimumVersion(v.srv.Members(), v.srv.Region(), minVersionDynamicHostVolumes, false) {
+		return fmt.Errorf("all servers should be running version %v or later to use dynamic host volumes", minVersionDynamicHostVolumes)
+	}
+
 	allowVolume := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRegister)
 	aclObj, err := v.srv.ResolveACL(args)
 	if err != nil {
