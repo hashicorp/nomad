@@ -1,13 +1,12 @@
 ---
 layout: docs
-page_title: consul block in job specification
+page_title: consul block in the job specification
 description: |-
-  The "consul" block allows the group or task to specify that it requires a token
-  from a HashiCorp Consul server. Nomad will automatically retrieve a Consul token
-  for the group or task.
+  Configure Consul options in the `consul` block of the Nomad job specification. Specify that the group or task requires a Consul token. Configure the Consul cluster, namespace, and partition. Review template, group services, namespace, and admin partition examples.
+
 ---
 
-# `consul` Block
+# `consul` block in the job specification
 
 <Placement
   groups={[
@@ -35,7 +34,7 @@ job "docs" {
 }
 ```
 
-## Workload Identity
+## Workload identity
 
 Starting in Nomad 1.7, Nomad clients will use a task or service's [Workload
 Identity][] to authenticate to Consul and obtain a Consul token specific to the
@@ -73,7 +72,7 @@ workflow for Consul and Vault before upgrading to Nomad 1.10. Refer to
 
 </Warning>
 
-### Access to Token
+### Access to token
 
 The Nomad client will make the Consul token available to the task by writing it
 to the secret directory at `secrets/consul_token` and by injecting a
@@ -85,7 +84,7 @@ is set.
 
 The [`template`][template] block can use the Consul token as well.
 
-### `consul` Parameters
+### Parameters
 
 - `cluster` `(string: "default")` <EnterpriseAlert inline/> - Specifies the
   Consul cluster to use. The Nomad client will retrieve a Consul token from the
@@ -109,13 +108,13 @@ The [`template`][template] block can use the Consul token as well.
     with a legacy Consul token. Refer to [Nomad Workload Identities] for more
     information on integrating Nomad's workload identity with Consul authentication.
 
-## `consul` Examples
+## Examples
 
 The following examples only show the `consul` blocks or other relevant
 blocks. Remember that the `consul` block is only valid in the placements listed
 above.
 
-### Consul Token for Templates
+### Consul token for templates
 
 This example tells the Nomad client to obtain a Consul token using the task's
 Workload Identity. The token is available to the task via the canonical
@@ -159,7 +158,7 @@ job "example" {
 }
 ```
 
-### Consul Token for Group Services
+### Consul token for group services
 
 This example tells the Nomad client to obtain a Consul Service Identity token
 using the service's Workload Identity. The Consul token will be used to register
@@ -191,12 +190,10 @@ job "example" {
 }
 ```
 
-### Consul Namespace
+### Consul namespace <EnterpriseAlert product="nomad" inline />
 
 This example shows specifying a particular Consul namespace or Consul cluster
 for different tasks within a group.
-
-<EnterpriseAlert />
 
 The `template` block in the `web` task will use the default Consul cluster, and
 will obtain a token that allows it access to the `engineering/frontend` Consul
@@ -237,14 +234,12 @@ job "docs" {
 }
 ```
 
-### Consul Admin Partition
+### Consul admin partition <EnterpriseAlert product="nomad" inline />
 
 This example demonstrates how to configure Consul admin partitions for different
 tasks within a group. The Consul client agent must separately specify the admin
 partition in the agent configuration. Refer to the Consul documentation's
 [agent configuration reference][] for more information.
-
-<EnterpriseAlert />
 
 In the following example, the `web` and `app` tasks use the default Consul cluster
 and obtain a token that allows access to the `prod` admin partition in Consul. The

@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: change_script block in job specification
-description: The "change_script" block configures a script to be run on template re-render.
+page_title: change_script block in the job specification
+description: T|-
+  Configure template change scripts in the `change_script` block of the Nomad job specification. Nomad executes these scripts when a template changes. Configure the command, arguments, and timeout. Enable fail on error. Review an example of how to embed a script in the data block of a template block.
 ---
 
-# `change_script` Block
+# `change_script` block in the job specification
 
 <Placement groups={['job', 'group', 'task', 'template', 'change_script']} />
 
@@ -50,7 +51,7 @@ job "docs" {
   script execution fails. If `false`, script failure will be logged but the task
   will continue uninterrupted.
 
-### Template as a script example
+### Example
 
 Below is an example of how a script can be embedded in a `data` block of another
 `template` block:
