@@ -2,6 +2,9 @@ module github.com/hashicorp/nomad
 
 go 1.24
 
+//FIXME Temporary hack to test https://github.com/hashicorp/raft/pull/613
+replace github.com/hashicorp/raft => github.com/lalalalatt/raft v0.0.0-20250327164417-3a5d299222c6 // feat/commit-tracking-log-store-checker
+
 // Pinned dependencies are noted in github.com/hashicorp/nomad/issues/11826.
 replace (
 	github.com/Microsoft/go-winio => github.com/endocrimes/go-winio v0.4.13-0.20190628114223-fb47a8b41948
