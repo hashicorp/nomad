@@ -9,7 +9,13 @@ description: >-
 
 <Placement groups={['rpc']} />
 
-This page provides reference information for configuring Nomad's RPC behavior in the `rpc` block of a Nomad agent configuration. Modify RPC session configuration, change TPC backlog, keepalive interval, and open socket timeouts.
+This page provides reference information for configuring Nomad's RPC behavior in
+the `rpc` block of a Nomad agent configuration. Modify RPC session
+configuration, stream accept backlog, keepalive interval, and open stream
+timeouts. We strongly recommend leaving these values unconfigured to use the
+default values, which have been production-proven on clusters of thousands of
+nodes. You should only configure the `rpc` block if you have specific reason to
+believe it will improve your specific use case.
 
 ```hcl
 rpc {
