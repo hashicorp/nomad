@@ -1,14 +1,13 @@
 ---
 layout: docs
-page_title: 'Commands: setup consul'
+page_title: 'nomad setup consul command reference'
 description: |
-  Setup a Consul cluster for Nomad integration.
+  The `nomad setup consul` command configures a Consul cluster to allow Nomad workloads to authenticate themselves with workload identity.
 ---
 
-# Command: setup consul
+# `nomad setup consul` command reference
 
-This command sets up Consul for allowing Nomad workloads to authenticate
-themselves using Workload Identity.
+The `nomad setup consul` command configures a Consul cluster to allow Nomad workloads to authenticate themselves with workload identity.
 
 This command requires `acl:write` permissions for Consul and respects
 `CONSUL_HTTP_TOKEN`, `CONSUL_HTTP_ADDR`, and other [Consul-related environment
@@ -20,7 +19,7 @@ variables][consulenv].
 nomad setup consul [options]
 ```
 
-## Setup Consul Options
+## Options
 
 - `-jwks-url`: URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
   signatures. Defaults to `http://localhost:4646/.well-known/jwks.json`.

@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -673,6 +674,61 @@ func TestAgent_ServerConfig_RaftProtocol_3(t *testing.T) {
 			default:
 				exp := fmt.Sprintf("raft_protocol must be 3 in Nomad v1.4 and later, got %d", tc)
 				must.EqError(t, err, exp)
+			}
+		})
+	}
+}
+
+func Test_convertServerConfig_errors(t *testing.T) {
+	ci.Parallel(t)
+
+	// This helper function provides an easy way to modify individual parameters
+	// within the configuration, without having to populate all objects that
+	// cause a panic when missing.
+	overlayDefaultFunc := func(cb func(*Config)) *Config {
+		defaultConfig := DevConfig(nil)
+		if cb != nil {
+			cb(defaultConfig)
+		}
+		_ = defaultConfig.normalizeAddrs()
+		return defaultConfig
+	}
+
+	testCases := []struct {
+		name        string
+		inputConfig *Config
+		expectErr   bool
+	}{
+		{
+			name: "num schedulers too big",
+			inputConfig: overlayDefaultFunc(func(config *Config) {
+				config.Server.NumSchedulers = pointer.Of(1<<63 - 1)
+			}),
+			expectErr: true,
+		},
+		{
+			name: "num schedulers negative",
+			inputConfig: overlayDefaultFunc(func(config *Config) {
+				config.Server.NumSchedulers = pointer.Of(-100)
+			}),
+			expectErr: true,
+		},
+		{
+			name: "valid",
+			inputConfig: overlayDefaultFunc(func(config *Config) {
+				config.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
+			}),
+			expectErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, actualErr := convertServerConfig(tc.inputConfig)
+			if tc.expectErr {
+				must.Error(t, actualErr)
+			} else {
+				must.NoError(t, actualErr)
 			}
 		})
 	}

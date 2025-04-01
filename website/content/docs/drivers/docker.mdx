@@ -163,6 +163,24 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
+   <Warning>
+
+   If you are creating your job specification in JSON, you must use wrap the map in an
+   array. Do not use a bare map as you would in HCL.
+
+   ```json
+   config {
+     "sysctl": [
+      {
+       "net.core.somaxconn": "16384",
+       "net.ipv4.tw_reuse": "1"
+      }
+    ]
+   }
+   ```
+
+   </Warning>
+
 - `ulimit` - (Optional) A key-value map of ulimit configurations to set to the
   containers on start.
 
@@ -1036,6 +1054,10 @@ host system.
 - `infra_image_pull_timeout` - A time duration that controls how long Nomad will
   wait before cancelling an in-progress pull of the Docker image as specified in
   `infra_image`. Defaults to `"5m"`.
+
+- `image_pull_timeout` - (Optional) A default time duration that controls how long Nomad
+  waits before cancelling an in-progress pull of the Docker image as specified
+  in `image` across all tasks. Defaults to `"5m"`.
 
 - `windows_allow_insecure_container_admin` - Indicates that on windows, docker
   checks the `task.user` field or, if unset, the container image manifest after

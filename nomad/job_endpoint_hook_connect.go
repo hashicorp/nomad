@@ -273,10 +273,10 @@ func groupConnectHook(job *structs.Job, g *structs.TaskGroup) error {
 	// This should only be used to interpolate connect service names which are
 	// used in sidecar or gateway task names. Note that the service name might
 	// also be interpolated with job specifics during service canonicalization.
-	env := taskenv.NewEmptyBuilder().UpdateTask(&structs.Allocation{
+	env := taskenv.NewBuilder(nil, &structs.Allocation{
 		Job:       job,
 		TaskGroup: g.Name,
-	}, nil).Build()
+	}, nil, job.Region).Build()
 
 	for _, service := range g.Services {
 		switch {

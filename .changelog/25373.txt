@@ -1,0 +1,11 @@
+```release-note:improvement
+client: Improve memory usage by dropping references to task environment
+```
+
+```release-note:bug
+services: Fixed a bug where Nomad native services would not be correctly interpolated during in-place updates
+```
+
+```release-note:bug
+services: Fixed a bug where task-level services, checks, and identities could interpolate jobspec values from other tasks in the same group
+```

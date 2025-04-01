@@ -9,10 +9,11 @@ import { inject as service } from '@ember/service';
 import RSVP from 'rsvp';
 import Route from '@ember/routing/route';
 import { collect } from '@ember/object/computed';
-import { watchQuery, watchAll } from 'nomad-ui/utils/properties/watch';
+import { watchAll } from 'nomad-ui/utils/properties/watch';
 import WithWatchers from 'nomad-ui/mixins/with-watchers';
 import notifyForbidden from 'nomad-ui/utils/notify-forbidden';
 import WithForbiddenState from 'nomad-ui/mixins/with-forbidden-state';
+import { action } from '@ember/object';
 
 export default class IndexRoute extends Route.extend(
   WithWatchers,
@@ -43,25 +44,32 @@ export default class IndexRoute extends Route.extend(
 
   startWatchers(controller) {
     controller.set('namespacesWatch', this.watchNamespaces.perform());
-    controller.set(
-      'modelWatch',
-      this.watchVolumes.perform({
-        type: 'csi',
-        namespace: controller.qpNamespace,
-      })
-    );
-    controller.set(
-      'modelWatch',
-      this.watchDynamicHostVolumes.perform({
-        type: 'host',
-        namespace: controller.qpNamespace,
-      })
+    controller.startQueryWatch(
+      {
+        queryType: 'dynamic-host-volume',
+        queryParams: {
+          type: 'host',
+          namespace: controller.qpNamespace,
+        },
+      },
+      {
+        queryType: 'volume',
+        queryParams: {
+          type: 'csi',
+          namespace: controller.qpNamespace,
+        },
+      }
     );
   }
 
-  @watchQuery('volume') watchVolumes;
-  @watchQuery('dynamic-host-volume') watchDynamicHostVolumes;
+  @action
+  willTransition() {
+    // eslint-disable-next-line
+    this.controller.cancelQueryWatch();
+    this.cancelAllWatchers();
+  }
+
   @watchAll('namespace') watchNamespaces;
-  @collect('watchVolumes', 'watchNamespaces', 'watchDynamicHostVolumes')
+  @collect('watchNamespaces')
   watchers;
 }

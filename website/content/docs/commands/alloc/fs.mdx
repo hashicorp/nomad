@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: alloc fs'
+page_title: 'nomad alloc fs command reference'
 description: |
-  Introspect an allocation directory on a Nomad client
+  The `nomad alloc fs` lets you navigate an allocation working directory on a Nomad client.
 ---
 
-# Command: alloc fs
+# `nomad alloc fs` command reference
 
 **Alias: `nomad fs`**
 
@@ -38,18 +38,21 @@ directory].
 When ACLs are enabled, this command requires a token with the `read-fs`,
 `read-job`, and `list-jobs` capabilities for the allocation's namespace.
 
-## General Options
+## General options
 
 @include 'general_options.mdx'
 
-## Fs Options
+## Fs options
 
 - `-H`: Machine friendly output.
 
 - `-verbose`: Display verbose output.
 
-- `-job`: Use a random allocation from the specified job or job ID prefix,
-  preferring a running allocation.
+- `-job=<job-name|job-id>`: Use a random allocation from the specified job or
+  job ID prefix, preferring a running allocation.
+
+- `-group=<group-name>`: Specifies the task group where the task is located 
+  when a random allocation is selected
 
 - `-stat`: Show stat information instead of displaying the file, or listing the
   directory.

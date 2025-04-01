@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: Consul ACL
-description: Learn how to integrate Nomad with Consul when ACL is enabled.
+page_title: Integrate Consul access control list (ACL)
+description: |-
+  Learn how to integrate Consul access control list (ACL) with Nomad workload identity. Learn how to migrate to using Nomad workload identity with Consul. Configure Consul so it can receive, validate, and trust workload identities from Nomad. Create binding and namespace rules. Review considerations for using the JSON Web Key Set (JWKS) URL.
 ---
 
-# Consul ACL
+# Integrate Consul access control list (ACL)
 
 The [Consul ACL][consul_acls] system protects the cluster from unauthorized
 access. When enabled, both Consul and Nomad must be properly configured in
@@ -284,6 +285,12 @@ $ consul acl auth-method create \
 Similarly to binding rules, namespace rules have a [`Selector`][] expression to
 determine when the rule should be applied and a [`BindNamespace`][] value that
 defines the namespace used.
+
+Auth methods with a namespace rule create Consul tokens in that Consul
+namespace. Binding rules with `-bind-type role` also target a role and
+associated policies in that same Consul namespace. So you should create the
+auth method and binding rules in the default namespace, and the role and
+policies in the target namespaces.
 
 In Nomad Enterprise, workload identities for tasks and services placed within
 the scope of a `consul` block with a `namespace` value, have an additional

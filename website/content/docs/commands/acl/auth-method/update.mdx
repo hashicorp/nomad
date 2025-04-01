@@ -1,12 +1,14 @@
 ---
 layout: docs
-page_title: 'Commands: acl auth-method update'
-description: The auth-method update command is used to update existing ACL Auth Methods.
+page_title: 'nomad acl auth-method update command reference'
+description: |
+  The `nomad acl auth-method update` command updates an existing access control list (ACL) authentication method.  Modify name, name format, description, OIDC or JWT type, local or global, and time to live (TTL).
 ---
 
-# Command: acl auth-method update
+# `nomad acl auth-method update` command reference
 
-The `acl auth-method update` command is used to update existing ACL Auth Methods.
+The `acl auth-method update` command is used to update existing ACL Auth
+Methods.
 
 ## Usage
 
@@ -16,11 +18,11 @@ nomad acl auth-method update [options] <auth-method_name>
 
 The `acl auth-method update` command requires an existing method's name.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Update Options
+## Update options
 
 - `-name`: Sets the human-readable name for the ACL Role. It is required and
   can contain alphanumeric characters and dashes. This name must be unique and
@@ -37,7 +39,8 @@ The `acl auth-method update` command requires an existing method's name.
   to the command. Instead, overwrite all fields with the exception of the role
   ID which is immutable.
 
-- `-type`: Updates the type of the auth method. Supported types are `OIDC` and `JWT`.
+- `-type`: Updates the type of the auth method. Supported types are `OIDC` and
+  `JWT`.
 
 - `-max-token-ttl`: Updates the duration of time all tokens created by this auth
   method should be valid for.
@@ -52,9 +55,9 @@ The `acl auth-method update` command requires an existing method's name.
 - `-default`: Specifies whether this auth method should be treated as a default
   one in case no auth method is explicitly specified for a login command.
 
-- `-config`: Auth method [configuration] in JSON format. May be prefixed with '@'
-  to indicate that the value is a file path to load the config from. '-' may also
-  be given to indicate that the config is available on stdin.
+- `-config`: Auth method [configuration][] in JSON format. You may provide '-'
+  to send the config through stdin, or prefix a file path with '@' to indicate
+  that the config should be loaded from the file.
 
 - `-json`: Output the ACL auth method in a JSON format.
 
@@ -87,3 +90,5 @@ Signing algorithms     = <none>
 Claim mappings         = {http://example.com/first_name: first_name}; {http://example.com/last_name: last_name}
 List claim mappings    = {http://nomad.com/groups: groups}
 ```
+
+[configuration]: /nomad/api-docs/acl/auth-methods#config

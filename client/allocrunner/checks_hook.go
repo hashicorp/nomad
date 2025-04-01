@@ -83,7 +83,6 @@ type checksHook struct {
 	shim    checkstore.Shim
 	checker checks.Checker
 	allocID string
-	taskEnv *taskenv.TaskEnv
 
 	// fields that get re-initialized on allocation update
 	lock      sync.RWMutex
@@ -98,7 +97,6 @@ func newChecksHook(
 	alloc *structs.Allocation,
 	shim checkstore.Shim,
 	network structs.NetworkStatus,
-	taskEnv *taskenv.TaskEnv,
 ) *checksHook {
 	h := &checksHook{
 		logger:  logger.Named(checksHookName),
@@ -107,11 +105,17 @@ func newChecksHook(
 		shim:    shim,
 		network: network,
 		checker: checks.New(logger),
-		taskEnv: taskEnv,
 	}
 	h.initialize(alloc)
 	return h
 }
+
+// statically assert that the hook meets the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*checksHook)(nil)
+	_ interfaces.RunnerUpdateHook  = (*checksHook)(nil)
+	_ interfaces.RunnerPreKillHook = (*checksHook)(nil)
+)
 
 // initialize the dynamic fields of checksHook, which is to say setup all the
 // observers and query context things associated with the alloc.
@@ -203,7 +207,7 @@ func (h *checksHook) Name() string {
 	return checksHookName
 }
 
-func (h *checksHook) Prerun() error {
+func (h *checksHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 
@@ -212,7 +216,8 @@ func (h *checksHook) Prerun() error {
 		return nil
 	}
 
-	interpolatedServices := taskenv.InterpolateServices(h.taskEnv, group.NomadServices())
+	interpolatedServices := taskenv.InterpolateServices(
+		allocEnv, group.NomadServices())
 
 	// create and start observers of nomad service checks in alloc
 	h.observe(h.alloc, interpolatedServices)
@@ -230,11 +235,12 @@ func (h *checksHook) Update(request *interfaces.RunnerUpdateRequest) error {
 	}
 
 	// get all group and task level services using nomad provider
-	services := group.NomadServices()
+	interpolatedServices := taskenv.InterpolateServices(
+		request.AllocEnv, group.NomadServices())
 
 	// create a set of the updated set of checks
 	next := make([]structs.CheckID, 0, len(h.observers))
-	for _, service := range services {
+	for _, service := range interpolatedServices {
 		for _, check := range service.Checks {
 			next = append(next, structs.NomadCheckID(
 				request.Alloc.ID,
@@ -260,7 +266,7 @@ func (h *checksHook) Update(request *interfaces.RunnerUpdateRequest) error {
 	h.alloc = request.Alloc
 
 	// ensure we are observing new checks (idempotent)
-	h.observe(request.Alloc, services)
+	h.observe(request.Alloc, interpolatedServices)
 
 	return nil
 }

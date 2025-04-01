@@ -1,0 +1,163 @@
+<!--
+parameters for create/update auth method APIs
+used in website/content/api-docs/acl/auth-methods.mdx
+-->
+
+- `Name` `(string: <required>)` - Name is the identifier of the ACL auth method.
+The name can contain alphanumeric characters and dashes. This name must be
+unique and must not exceed 128 characters.
+
+- `Type` `(string: <required>)` - ACL auth method type, supports `OIDC` and
+`JWT`.
+
+- `TokenLocality` `(string: <required>)` - Defines whether the ACL auth method
+creates a local or global token when performing SSO login. This field must be
+set to either `local` or `global`.
+
+- `TokenNameFormat` `(string <optional>)` - Defines the token name format for
+the generated tokens This can be lightly templated using HIL `${foo}` syntax.
+Defaults to `${auth_method_type}-${auth_method_name}`.
+
+ - `MaxTokenTTL` `(duration: <required>)` - Defines the maximum life of a token
+created by this method. When set, it will initialize the `ExpirationTime` field
+on all tokens to a value of `Token.CreateTime + AuthMethod.MaxTokenTTL`. This
+field is not persisted beyond its initial use. Can be specified in the form of
+`"60s"` or `"5m"` (i.e., 60 seconds or 5 minutes, respectively).
+
+- `Default` `(bool: false)` - Defines whether this ACL Auth Method is to be
+set as default when running `nomad login` command.
+
+- `Config` `(ACLAuthMethodConfig: <required>)` - The raw configuration to use
+for the auth method.
+
+  - `OIDCDiscoveryURL` `(string: <required>)` - The OIDC discovery URL, without
+  any `.well-known` component (base path). Required for `OIDC` method type.
+  Either this, the `JWKSURL` or the `JWTValidationPubKeys` is required for
+  `JWT` method type.
+
+  - `OIDCClientID` `(string: <required>)` - The OAuth client ID configured with
+  your OIDC provider. Required for `OIDC` method type.
+
+  - `OIDCClientSecret` `(string: <required>)` - The OAuth client secret
+  configured with your OIDC provider. Required for `OIDC` method type.
+
+  - `OIDCClientAssertion` `(OIDCClientAssertion)` - Optionally send a signed
+  JWT ("[private key jwt][]") as a client assertion to the OIDC provider.
+  Browse to the [OIDC concepts][concepts-assertions] page to learn more.
+
+    - `Audience` `(array<string>)` - Who processes the assertion.
+    Defaults to the parent `ACLAuthMethodConfig`'s `OIDCDiscoveryURL`
+
+    - `KeySource` `(string: <required>)` - Specifies where to get the private
+    key to sign the JWT.
+    Available sources:
+      - "nomad": Use current active key in Nomad's keyring
+      - "private_key": Use key material in the `PrivateKey` field
+      - "client_secret": Use the `OIDCClientSecret` inherited from the parent
+      `ACLAuthMethodConfig` as an HMAC key
+
+    - `KeyAlgorithm` `(string)` is the key's algorithm. Its default values are
+    based on the `KeySource`:
+      - "nomad": "RS256"; this is from Nomad's keyring and must not be changed
+      - "private_key": "RS256"; must be RS256, RS384, or RS512
+      - "client_secret": "HS256"; must be HS256, HS384, or HS512
+
+    - `PrivateKey` `(OIDCClientAssertionKey)` - External key material to sign
+    the JWT. `KeySource` must be "private_key" to enable this.
+
+      - `PemKey` `(string)` - An RSA private key, in pem format. It is used to
+      sign the JWT. Mutually exclusive with `PemKeyFile`.
+
+      - `PemKeyFile` `(string)` - An absolute path to a private key on Nomad
+      servers' disk, in pem format. It is used to sign the JWT.
+      Mutually exclusive with `PemKey`.
+
+      - `KeyIDHeader` `(string)` - Which header the provider uses to find
+      the public key to verify the signed JWT.
+      The default and allowed values depend on whether you set `KeyID`,
+      `PemCert`, or `PemCertFile`. You must set exactly one of those options,
+      so refer to them for their requirements.
+
+      - `KeyID` `(string)` - Becomes the JWT's "kid" header.
+      Mutually exclusive with `PemCert` and `PemCertFile`.
+      Allowed `KeyIDHeader` values: "kid" (the default)
+
+      - `PemCert` `(string)` - An x509 certificate, signed by the private key
+      or a CA, in pem format. Nomad uses this certificate to derive an
+      [x5t#S256][] (or [x5t][]) KeyID.
+      Mutually exclusive with `PemCertFile` and `KeyID`.
+      Allowed `KeyIDHeader` values: "x5t", "x5t#S256" (default "x5t#S256")
+
+      - `PemCertFile` `(string)` - An absolute path to an x509 certificate on
+      Nomad servers' disk, signed by the private key or a CA, in pem format.
+      Nomad uses this certificate to derive an [x5t#S256][] (or [x5t][])
+      header. Mutually exclusive with `PemCert` and KeyID.
+      Allowed `KeyIDHeader` values: "x5t", "x5t#S256" (default "x5t#S256")
+
+    - `ExtraHeaders` `(map[string]string)` - Added to the JWT headers,
+    alongside "kid" and "type". Setting the "kid" header here is not allowed;
+    use `PrivateKey.KeyID`.
+
+  - `OIDCDisablePKCE` `(bool: false)` - When set to `true`, Nomad will not
+  include [PKCE][] verification in the auth flow. Even with PKCE enabled in
+  Nomad, which is the default setting, you may still need to enable it in the
+  OIDC provider.
+
+  - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not
+  make a request to the identity provider to get OIDC UserInfo. You may wish to
+  set this if your identity provider doesn't send any additional claims from the
+  UserInfo endpoint.
+
+  - `OIDCScopes` `(array<string>)` - List of OIDC scopes.
+
+  - `JWTValidationPubKeys` `(array<string>)` - A list of PEM-encoded public keys
+  to use to validate JWT signatures locally. Either this, the `JWKSURL` or the
+  `OIDCDiscoveryURL` is required for `JWT` method type.
+
+  - `JWKSURL` `(string)` - JSON Web Key Sets url for authenticating JWT
+  signatures. Either this, the `JWTValidationPubKeys` or the
+  `OIDCDiscoverURL` is required for `JWT` method type.
+
+  - `BoundAudiences` `(array<string>)` - List of aud claims that are valid for
+  login; any match is sufficient.
+
+  - `BoundIssuer` `(array<string>)` - The value against which to match the iss
+  claim in a JWT.
+
+  - `AllowedRedirectURIs` `(array<string>)` - A list of allowed values for
+  redirect_uri. Must be non-empty.
+
+  - `DiscoveryCaPem` `(array<string>)` - PEM encoded CA certs for use by the TLS
+  client used to talk with the OIDC discovery URL. If not set, system
+  certificates are used.
+
+  - `JWKSCACert` `(string)` - PEM encoded CA cert for use by the TLS client used
+  to talk with the JWKS server.
+
+  - `SigningAlgs` `(array<string>)` - A list of supported signing algorithms.
+  Defaults to `RS256`.
+
+  - `ExpirationLeeway` `(duration)` - Duration in seconds of leeway when
+  validating expiration of a JWT to account for clock skew.
+
+  - `NotBeforeLeeway` `(duration)` - Duration in seconds of leeway when
+  validating not before values of a JWT to account for clock skew.
+
+  - `ClockSkewLeeway` `(duration)` - Duration in seconds of leeway when
+  validating all JWT claims to account for clock skew.
+
+  - `ClaimMappings` `(map[string]string)` - Mappings of claims (key) that will
+  be copied to a metadata field (value). Use this if the claim you are capturing
+  is singular (such as an attribute).
+
+  When mapped, the values in each list can be any of a number, string, or
+  boolean and will all be stringified when returned.
+
+  - `ListClaimMappings` `(map[string]string)` - Mappings of claims (key) will be
+  copied to a metadata field (value). Use this if the claim you are capturing is
+  list-like (such as groups).
+
+  - `VerboseLogging` `(bool: false)` - When set to `true`, Nomad will log token
+  claims, information related to binding-rule and role/policy evaluations,
+  and client assertion JWTs, if applicable. Not recommended in production,
+  since sensitive information may be present.

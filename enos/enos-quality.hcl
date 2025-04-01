@@ -41,7 +41,7 @@ quality "nomad_allocs_status" {
   description = "A GET call to /v1/allocs returns the correct number of allocations and they are all running"
 }
 
-quality "nomad_alloc_reconect" {
-  description = "A GET call to /v1/alloc/:alloc_id will return the same alloc.CreateTime for each allocation before and after a client upgrade"
+quality "nomad_alloc_reconnect" {
+  description = "A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
 }
 

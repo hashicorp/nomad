@@ -51,8 +51,6 @@ service or task when the following conditions are met:
 As a fallback if none of these conditions are met, the Nomad client will instead
 use, in order of preference:
 
-* The token provided by the [`-consul-token`][flag_consul_token] flag for the
-  `nomad job run` command.
 * The Consul token as configured in the agent's [`consul.token`][] configuration.
 * The Consul token as configured by the agent's `CONSUL_HTTP_TOKEN` environment variable.
 
@@ -96,7 +94,8 @@ The [`template`][template] block can use the Consul token as well.
   which group and task-level services within the group will be registered. Use
   of `template` to access Consul KV will read from the specified Consul
   namespace.  Specifying `namespace` takes precedence over the
-  [`-consul-namespace`][flag_consul_namespace] command line argument in `job run`.
+  [`-consul-namespace`][flag_consul_namespace] command line argument in `job
+  run`. In Nomad Community Edition, this field is ignored.
 
 - `partition` `(string: "")` - When this field is set, a constraint will be
   added to the group or task to ensure that the allocation is placed on a Nomad
@@ -286,7 +285,6 @@ job "docs" {
 [`consul.task_identity`]: /nomad/docs/configuration/consul#task_identity
 [`identity`]: /nomad/docs/job-specification/identity
 [`consul.service_identity`]: /nomad/docs/configuration/consul#service_identity
-[flag_consul_token]: /nomad/docs/commands/job/run#consul-token
 [`consul.token`]: /nomad/docs/configuration/consul#token
 [Configuring Consul Authentication]: /nomad/docs/integrations/consul/acl#configuring-consul-authentication
 [Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul/acl#migrating-to-using-workload-identity-with-consul

@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: acl binding-rule create'
-description: The binding-rule create command is used to create new ACL Binding Rules.
+page_title: 'nomad acl binding-rule create command reference'
+description: |
+  The `nomad acl binding-rule create` command creates new access control list (ACL) binding rules. Set a description, associated authentication method, selector expression, or bind name. Configure role, policy, or management bind type.
 ---
 
-# Command: acl binding-rule create
+# `nomad acl binding-rule create` command reference
 
 The `acl binding-rule create` command is used to create new ACL Binding Rules.
 
@@ -17,11 +18,11 @@ nomad acl binding-rule create [options]
 The `acl binding-rule create` command requires the correct setting of the create options
 via flags detailed below.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Create Options
+## Create options
 
 - `-description`: A free form text description of the binding-rule that must not exceed
   256 characters.

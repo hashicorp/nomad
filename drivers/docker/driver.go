@@ -343,6 +343,8 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (*drivers.TaskHandle, *drive
 
 	driverConfig.Image = strings.TrimPrefix(driverConfig.Image, "https://")
 
+	driverConfig.ImagePullTimeout = getValue(driverConfig.ImagePullTimeout, d.config.ImagePullTimeout)
+
 	handle := drivers.NewTaskHandle(taskHandleVersion)
 	handle.Config = cfg
 
@@ -704,7 +706,7 @@ func (d *Driver) resolveRegistryAuthentication(driverConfig *TaskConfig, repo st
 }
 
 // loadImage creates an image by loading it from the file system
-func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, client *client.Client) (id string, user string, err error) {
+func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, dockerClient *client.Client) (id string, user string, err error) {
 
 	archive := filepath.Join(task.TaskDir().LocalDir, driverConfig.LoadImage)
 	d.logger.Debug("loading image from disk", "archive", archive)
@@ -714,12 +716,12 @@ func (d *Driver) loadImage(task *drivers.TaskConfig, driverConfig *TaskConfig, c
 		return "", "", fmt.Errorf("unable to open image archive: %v", err)
 	}
 
-	if _, err := client.ImageLoad(d.ctx, f, true); err != nil {
+	if _, err := dockerClient.ImageLoad(d.ctx, f, client.ImageLoadWithQuiet(true)); err != nil {
 		return "", "", err
 	}
 	f.Close()
 
-	dockerImage, _, err := client.ImageInspectWithRaw(d.ctx, driverConfig.Image)
+	dockerImage, _, err := dockerClient.ImageInspectWithRaw(d.ctx, driverConfig.Image)
 	if err != nil {
 		return "", "", recoverableErrTimeouts(err)
 	}

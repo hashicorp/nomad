@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -1515,39 +1516,23 @@ func schedulerWorkerInfoTest_testCases() []schedulerWorkerAPITest_testCase {
 		response:   ErrInvalidMethod,
 		isError:    true,
 	}
+
+	successSchedulers := make([]api.AgentSchedulerWorkerInfo, runtime.NumCPU())
+
+	for i := 0; i < runtime.NumCPU(); i++ {
+		successSchedulers[i] = api.AgentSchedulerWorkerInfo{
+			ID:                fmt.Sprintf("9b3713e0-6f74-0e1b-3b3e-d94f0c22dbf9-%d", i),
+			EnabledSchedulers: []string{"_core", "batch"},
+			Started:           "2021-12-10 22:13:12.595366 -0500 EST m=+0.039016232",
+			Status:            "Pausing",
+			WorkloadStatus:    "WaitingToDequeue",
+		}
+	}
+
 	success := schedulerWorkerAPITest_testExpect{
 		statusCode: http.StatusOK,
 		response: &api.AgentSchedulerWorkersInfo{
-			Schedulers: []api.AgentSchedulerWorkerInfo{
-				{
-					ID:                "9b3713e0-6f74-0e1b-3b3e-d94f0c22dbf9",
-					EnabledSchedulers: []string{"_core", "batch"},
-					Started:           "2021-12-10 22:13:12.595366 -0500 EST m=+0.039016232",
-					Status:            "Pausing",
-					WorkloadStatus:    "WaitingToDequeue",
-				},
-				{
-					ID:                "ebda23e2-7f68-0c82-f0b2-f91d4581094d",
-					EnabledSchedulers: []string{"_core", "batch"},
-					Started:           "2021-12-10 22:13:12.595478 -0500 EST m=+0.039127886",
-					Status:            "Pausing",
-					WorkloadStatus:    "WaitingToDequeue",
-				},
-				{
-					ID:                "b3869c9b-64ff-686c-a003-e7d059d3a573",
-					EnabledSchedulers: []string{"_core", "batch"},
-					Started:           "2021-12-10 22:13:12.595501 -0500 EST m=+0.039151276",
-					Status:            "Pausing",
-					WorkloadStatus:    "WaitingToDequeue",
-				},
-				{
-					ID:                "cc5907c0-552e-bf36-0ca1-f150af7273c2",
-					EnabledSchedulers: []string{"_core", "batch"},
-					Started:           "2021-12-10 22:13:12.595691 -0500 EST m=+0.039341541",
-					Status:            "Starting",
-					WorkloadStatus:    "WaitingToDequeue",
-				},
-			},
+			Schedulers: successSchedulers,
 		},
 	}
 	return []schedulerWorkerAPITest_testCase{
@@ -1608,8 +1593,7 @@ func TestHTTP_AgentSchedulerWorkerInfoRequest(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		var numSchedulers = 4
-		c.Server.NumSchedulers = &numSchedulers
+		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}
@@ -1702,6 +1686,14 @@ type schedulerWorkerConfigTest_testExpect struct {
 // These test cases are run for both the ACL and Non-ACL enabled servers. When
 // ACLS are not enabled, the request.aclTokens are ignored.
 func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequestTest {
+
+	numCPU := runtime.NumCPU()
+
+	halfCPU := numCPU / 2
+	if halfCPU == 0 {
+		halfCPU = 1
+	}
+
 	forbidden := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusForbidden,
 		expectedResponse:     structs.ErrPermissionDenied.Error(),
@@ -1716,12 +1708,11 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 	}
 	success1 := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusOK,
-		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 8},
+		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: numCPU},
 	}
-
 	success2 := schedulerWorkerConfigTest_testExpect{
 		expectedResponseCode: http.StatusOK,
-		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: 9},
+		expectedResponse:     &api.AgentSchedulerWorkerConfigResponse{EnabledSchedulers: []string{"_core", "batch"}, NumSchedulers: halfCPU},
 	}
 
 	return []scheduleWorkerConfigTest_workerRequestTest{
@@ -1780,7 +1771,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPost,
 				aclToken:    "",
-				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, halfCPU),
 			},
 			whenACLNotEnabled: success2,
 			whenACLEnabled:    forbidden,
@@ -1790,7 +1781,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPut,
 				aclToken:    "",
-				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, numCPU),
 			},
 			whenACLNotEnabled: success1,
 			whenACLEnabled:    forbidden,
@@ -1800,7 +1791,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPost,
 				aclToken:    "node_write",
-				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, halfCPU),
 			},
 			whenACLNotEnabled: success2,
 			whenACLEnabled:    forbidden,
@@ -1810,7 +1801,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPut,
 				aclToken:    "node_write",
-				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, numCPU),
 			},
 			whenACLNotEnabled: success1,
 			whenACLEnabled:    forbidden,
@@ -1820,7 +1811,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPost,
 				aclToken:    "agent_write",
-				requestBody: `{"num_schedulers":9,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, halfCPU),
 			},
 			whenACLNotEnabled: success2,
 			whenACLEnabled:    success2,
@@ -1830,7 +1821,7 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			request: schedulerWorkerConfigTest_testRequest{
 				verb:        http.MethodPut,
 				aclToken:    "agent_write",
-				requestBody: `{"num_schedulers":8,"enabled_schedulers":["_core", "batch"]}`,
+				requestBody: fmt.Sprintf(`{"num_schedulers":%d,"enabled_schedulers":["_core", "batch"]}`, numCPU),
 			},
 			whenACLNotEnabled: success1,
 			whenACLEnabled:    success1,
@@ -1895,6 +1886,26 @@ func schedulerWorkerConfigTest_testCases() []scheduleWorkerConfigTest_workerRequ
 			whenACLNotEnabled: invalidRequest,
 			whenACLEnabled:    invalidRequest,
 		},
+		{
+			name: "post with too many schedulers",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        http.MethodPost,
+				aclToken:    "agent_write",
+				requestBody: `{"num_schedulers":9223372036854775807,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    invalidRequest,
+		},
+		{
+			name: "put with too many schedulers",
+			request: schedulerWorkerConfigTest_testRequest{
+				verb:        http.MethodPut,
+				aclToken:    "agent_write",
+				requestBody: `{"num_schedulers":9223372036854775807,"enabled_schedulers":["_core", "batch"]}`,
+			},
+			whenACLNotEnabled: invalidRequest,
+			whenACLEnabled:    invalidRequest,
+		},
 	}
 }
 
@@ -1902,8 +1913,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_NoACL(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		var numSchedulers = 8
-		c.Server.NumSchedulers = &numSchedulers
+		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}
@@ -1935,8 +1945,7 @@ func TestHTTP_AgentSchedulerWorkerConfigRequest_ACL(t *testing.T) {
 	ci.Parallel(t)
 
 	configFn := func(c *Config) {
-		var numSchedulers = 8
-		c.Server.NumSchedulers = &numSchedulers
+		c.Server.NumSchedulers = pointer.Of(runtime.NumCPU())
 		c.Server.EnabledSchedulers = []string{"_core", "batch"}
 		c.Client.Enabled = false
 	}

@@ -108,7 +108,8 @@ agents.
   namespace](/consul/docs/enterprise/namespaces) used by the Consul
   integration. If non-empty, this namespace will be used on all Consul API calls
   and for Consul Connect configurations, unless overridden by the job's
-  [`consul.namespace`][] field.
+  [`consul.namespace`][] field. In Nomad Community Edition, only the `"default"`
+  namespace is used, so you should omit this field.
 
 - `ssl` `(bool: false)` - Specifies if the transport scheme should use HTTPS to
   communicate with the Consul agent. Will default to the `CONSUL_HTTP_SSL`
@@ -126,6 +127,10 @@ agents.
   which may or may not allow writes. Defaults to the `CONSUL_HTTP_TOKEN`
   environment variable if set. Nomad cannot refresh this token; if the token is
   deleted, Nomad is not able to communicate with Consul.
+
+  In Nomad Enterprise, if the Consul agent running alongside Nomad is in a
+  Consul Enterprise admin partition, you must create the Consul token provided
+  to the Nomad client in the same partition.
 
 - `verify_ssl` `(bool: true)`- Specifies if SSL peer verification should be used
   when communicating to the Consul API client over HTTPS. Will default to the
@@ -416,17 +421,23 @@ namespace "nomad-ns" {
 }
 ```
 
+### Consul Admin Partition <EnterpriseAlert inline/>
+
+In Nomad Enterprise, if the Consul agent running alongside Nomad is in a Consul
+Enterprise admin partition, you must create the Consul ACL token and ACL policy
+for Nomad clients in the same partition.
+
 
 [consul]: https://www.consul.io/ 'Consul by HashiCorp'
 [bootstrap]: /nomad/tutorials/manage-clusters/clustering 'Automatic Bootstrapping'
 [go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [grpc_port]: /consul/docs/agent/config/config-files#grpc_port
 [grpctls_port]: /consul/docs/agent/config/config-files#grpc_tls_port
-[`consul.cluster`]: /nomad/docs/job-specification/group#cluster
+[`consul.cluster`]: /nomad/docs/job-specification/consul#cluster
 [`service.cluster`]: /nomad/docs/job-specification/service#cluster
 [identity_block]: /nomad/docs/job-specification/identity
 [`template`]: /nomad/docs/job-specification/template
-[Migrating to Using Workload Identity with Consul]: /nomad/docs/integrations/consul/acl#migrating-to-using-workload-identity-with-consul
+[Migrating to Using Workload Identity with Consul]: /nomad/docs/v1.8.x/integrations/consul/acl#migrating-to-using-workload-identity-with-consul
 [auth-method]: /consul/docs/security/acl/auth-methods/jwt
 [`client.enabled`]: /nomad/docs/configuration/client#enabled
 [`server.enabled`]: /nomad/docs/configuration/server#enabled

@@ -34,7 +34,8 @@ EOF
 
 echo "writing Consul auth-method"
 
-if [ $(consul info | grep -q "version_metadata = ent") ]; then
+consul info | grep -q "version_metadata = ent"
+if [ $? -eq 0 ]; then
   consul acl auth-method create \
     -name 'nomad-workloads' \
     -type 'jwt' \

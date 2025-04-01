@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: acl auth-method create'
-description: The auth-method create command is used to create new ACL Auth Methods.
+page_title: 'nomad acl auth-method create command reference'
+description: |
+  The `nomad acl auth-method create` command creates new access control list (ACL) authentication methods. Set name, name format, description, OIDC or JWT type, local or global, and time to live (TTL).
 ---
 
-# Command: acl auth-method create
+# `nomad acl auth-method create` command reference
 
 The `acl auth-method create` command is used to create new ACL Auth Methods.
 
@@ -17,11 +18,11 @@ nomad acl auth-method create [options]
 The `acl auth-method create` command requires the correct setting of the create options
 via flags detailed below.
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Create Options
+## Create options
 
 - `-name`: Sets the human readable name for the ACL auth method. The name must
   be between 1-128 characters and is a required parameter.
@@ -44,9 +45,9 @@ via flags detailed below.
 - `-default`: Specifies whether this auth method should be treated as a default
   one in case no auth method is explicitly specified for a login command.
 
-- `-config`: Auth method [configuration] in JSON format. May be prefixed with '@'
-  to indicate that the value is a file path to load the config from. '-' may also
-  be given to indicate that the config is available on stdin.
+- `-config`: Auth method [configuration][] in JSON format. You may provide '-'
+  to send the config through stdin, or prefix a file path with '@' to indicate
+  that the config should be loaded from the file.
 
 - `-json`: Output the ACL auth-method in a JSON format.
 
@@ -103,4 +104,27 @@ Example config file:
 }
 ```
 
+This example config uses a private key JWT [client assertion][]
+instead of a client secret.
+
+```json
+{
+  "OIDCDiscoveryURL": "https://my-keycloak-instance.com/realms/nomad",
+  "OIDCClientID": "my-great-client-id",
+  "OIDCClientAssertion": {
+    "KeySource": "nomad"
+  },
+  "BoundAudiences": [
+    "my-great-client-id"
+  ],
+  "AllowedRedirectURIs": [
+    "http://localhost:4646/oidc/callback"
+  ],
+  "ListClaimMappings": {
+    "groups": "groups"
+  }
+}
+```
+
 [configuration]: /nomad/api-docs/acl/auth-methods#config
+[client assertion]: /nomad/api-docs/acl/auth-methods#oidcclientassertion

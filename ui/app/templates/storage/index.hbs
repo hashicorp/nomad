@@ -32,7 +32,7 @@
   {{#if this.isForbidden}}
     <ForbiddenMessage />
   {{else}}
-    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card">
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card" data-test-csi-volumes-card>
       <header aria-label="CSI Volumes">
         <h3>CSI Volumes</h3>
         <p class="intro">
@@ -121,16 +121,14 @@
             </B.Tr>
           </:body>
         </Hds::Table>
-        {{#if (gt this.sortedCSIVolumes.length this.userSettings.pageSize)}}
-          <Hds::Pagination::Numbered
-            @totalItems={{this.filteredCSIVolumes.length}}
-            @currentPage={{this.csiPage}}
-            @pageSizes={{this.pageSizes}}
-            @currentPageSize={{this.userSettings.pageSize}}
-            @onPageChange={{action this.handlePageChange "csi"}}
-            @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
-          />
-        {{/if}}
+        <Hds::Pagination::Numbered
+          @totalItems={{this.filteredCSIVolumes.length}}
+          @currentPage={{this.csiPage}}
+          @pageSizes={{this.pageSizes}}
+          @currentPageSize={{this.userSettings.pageSize}}
+          @onPageChange={{action this.handlePageChange "csi"}}
+          @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+        />
       {{else}}
         <div class="empty-message" data-test-empty-csi-volumes-list-headline>
           {{#if this.csiFilter}}
@@ -143,7 +141,7 @@
       {{/if}}
     </Hds::Card::Container>
 
-    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card">
+    <Hds::Card::Container @level="base" @hasBorder={{false}} class="storage-index-table-card" data-test-dynamic-host-volumes-card>
       <header aria-label="Dynamic Host Volumes">
         <h3>Dynamic Host Volumes</h3>
         <p class="intro">
@@ -162,7 +160,7 @@
       </header>
       {{#if this.sortedDynamicHostVolumes.length}}
         <Hds::Table @caption="Dynamic Host Volumes"
-          @model={{this.sortedDynamicHostVolumes}}
+          @model={{this.paginatedDynamicHostVolumes}}
           @columns={{this.dhvColumns}}
           @sortBy={{this.dhvSortProperty}}
           @sortOrder={{if this.dhvSortDescending "desc" "asc"}}
@@ -202,18 +200,16 @@
             </B.Tr>
           </:body>
         </Hds::Table>
-        {{#if (gt this.sortedDynamicHostVolumes.length this.userSettings.pageSize)}}
-          <Hds::Pagination::Numbered
-            @totalItems={{this.filteredDynamicHostVolumes.length}}
-            @currentPage={{this.dhvPage}}
-            @pageSizes={{this.pageSizes}}
-            @currentPageSize={{this.userSettings.pageSize}}
-            @onPageChange={{action this.handlePageChange "dhv"}}
-            @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
-          />
-        {{/if}}
+        <Hds::Pagination::Numbered
+          @totalItems={{this.filteredDynamicHostVolumes.length}}
+          @currentPage={{this.dhvPage}}
+          @pageSizes={{this.pageSizes}}
+          @currentPageSize={{this.userSettings.pageSize}}
+          @onPageChange={{action this.handlePageChange "dhv"}}
+          @onPageSizeChange={{action (mut this.userSettings.pageSize)}}
+        />
       {{else}}
-        <div class="empty-message">
+        <div class="empty-message" data-test-empty-dhv-list-headline>
           {{#if this.dhvFilter}}
             <p>No dynamic host volumes match your search for "{{this.dhvFilter}}"</p>
             <Hds::Button @text="Clear search" @color="secondary" {{on "click" (queue (action (mut this.dhvFilter) "") (action this.handlePageChange "dhv" 1))}} />

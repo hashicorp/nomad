@@ -1,14 +1,13 @@
 ---
 layout: docs
-page_title: 'Commands: setup vault'
+page_title: 'nomad setup vault command reference'
 description: |
-  Setup a Vault cluster for Nomad integration.
+  The `nomad setup vault` command configures a Vault installation to allow Nomad workloads to authenticate themselves with workload identity.
 ---
 
-# Command: setup vault
+# `nomad setup vault` command reference
 
-This command sets up Vault for allowing Nomad workloads to authenticate
-themselves using Workload Identity.
+The `nomad setup vault` command configures a Vault installation to allow Nomad workloads to authenticate themselves with workload identity.
 
 This command requires `acl:write` permissions for Vault and respects
 `VAULT_TOKEN`, `VAULT_ADDR`, and other [Vault-related environment
@@ -18,16 +17,13 @@ The `-check` option can be used to verify if the Nomad cluster is ready to
 migrate to use Workload Identities with Vault. This option requires
 `operator:read` permission for Nomad.
 
-Refer to [Migrating to Using Workload Identity with
-Vault][nomad_acl_vault_wid_migrate] for more information.
-
 ## Usage
 
 ```plaintext
 nomad setup vault [options]
 ```
 
-## Setup Vault Options
+## Options
 
 - `-jwks-url`: URL of Nomad's JWKS endpoint contacted by Consul to verify JWT
   signatures. Defaults to `http://localhost:4646/.well-known/jwks.json`.
@@ -44,7 +40,7 @@ nomad setup vault [options]
 - `-check`: Verify if the Nomad cluster is ready to migrate to Workload
   Identities.
 
-### Setup Vault Options When Using `-check`:
+### Options when using `-check`
 
 - `-json`: Output migration status information in its JSON format.
 
@@ -203,4 +199,3 @@ czh9MPcRXzAhxBL9XKyb3Kh1  f00893d4       049f7683  60
 ```
 
 [vaultenv]: /vault/docs/commands#environment-variables
-[nomad_acl_vault_wid_migrate]: /nomad/docs/integrations/vault/acl#migrating-to-using-workload-identity-with-vault

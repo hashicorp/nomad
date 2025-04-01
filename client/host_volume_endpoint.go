@@ -32,7 +32,6 @@ func (v *HostVolume) Create(
 
 	cresp, err := v.c.hostVolumeManager.Create(ctx, req)
 	if err != nil {
-		v.c.logger.Error("failed to create host volume", "name", req.Name, "error", err)
 		return err
 	}
 
@@ -53,7 +52,6 @@ func (v *HostVolume) Register(
 
 	err := v.c.hostVolumeManager.Register(ctx, req)
 	if err != nil {
-		v.c.logger.Error("failed to register host volume", "name", req.Name, "error", err)
 		return err
 	}
 
@@ -70,7 +68,6 @@ func (v *HostVolume) Delete(
 
 	_, err := v.c.hostVolumeManager.Delete(ctx, req)
 	if err != nil {
-		v.c.logger.Error("failed to delete host volume", "ID", req.ID, "error", err)
 		return err
 	}
 

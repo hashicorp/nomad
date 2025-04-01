@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: operator snapshot restore'
+page_title: 'nomad operator snapshot restore command reference'
 description: |
-  Restore snapshot of Nomad server state
+  The `nomad operator snapshot restore` command restores the specified Nomad snapshot.
 ---
 
-# Command: operator snapshot restore
+# `nomad operator snapshot restore` command reference
 
 The `operator snapshot restore` command restores an atomic, point-in-time
 snapshot of the state of the Nomad servers, which includes jobs, nodes,
@@ -15,16 +15,6 @@ Restoration involves a potentially dangerous low-level Raft operation that is
 not designed to handle server failures during a restore. This command is
 primarily intended for recovering from a disaster, restoring into a
 fresh cluster of Nomad servers.
-
-<Warning>
-
-This command only restores the Raft snapshot, which does not include keyrings.
-
-If you are recovering a cluster, you also need to restore the keyring onto at
-least one server.  Refer to the Key Management's [Restoring the
-Keyring from Backup][restore the keyring] section for instructions.
-
-</Warning>
 
 If you enabled ACLs, you must supply a management token in order to perform
 snapshot operations.
@@ -41,9 +31,9 @@ $ nomad operator snapshot restore backup.snap
 nomad operator snapshot restore [options] <file>
 ```
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
 [outage recovery]: /nomad/tutorials/manage-clusters/outage-recovery
-[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup
+

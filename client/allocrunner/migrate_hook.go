@@ -9,7 +9,9 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocdir"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/taskenv"
 )
 
 // diskMigrationHook migrates ephemeral disk volumes. Depends on alloc dir
@@ -33,11 +35,14 @@ func newDiskMigrationHook(
 	return h
 }
 
+// statically assert the hook implements the expected interfaces
+var _ interfaces.RunnerPrerunHook = (*diskMigrationHook)(nil)
+
 func (h *diskMigrationHook) Name() string {
 	return "migrate_disk"
 }
 
-func (h *diskMigrationHook) Prerun() error {
+func (h *diskMigrationHook) Prerun(_ *taskenv.TaskEnv) error {
 	ctx := context.TODO()
 
 	// Wait for a previous alloc - if any - to terminate

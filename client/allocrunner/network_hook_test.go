@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -19,10 +18,6 @@ import (
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
-
-// statically assert network hook implements the expected interfaces
-var _ interfaces.RunnerPrerunHook = (*networkHook)(nil)
-var _ interfaces.RunnerPostrunHook = (*networkHook)(nil)
 
 type mockNetworkIsolationSetter struct {
 	t            *testing.T
@@ -87,10 +82,11 @@ func TestNetworkHook_Prerun_Postrun_group(t *testing.T) {
 		expectedStatus: nil,
 	}
 
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
-	must.NoError(t, hook.Prerun())
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	must.NoError(t, hook.Prerun(env))
 	must.True(t, setter.called)
 	must.False(t, destroyCalled)
 	must.NoError(t, hook.Postrun())
@@ -130,10 +126,11 @@ func TestNetworkHook_Prerun_Postrun_host(t *testing.T) {
 		expectedStatus: nil,
 	}
 
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
 	logger := testlog.HCLogger(t)
-	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter, envBuilder.Build())
-	must.NoError(t, hook.Prerun())
+	hook := newNetworkHook(logger, setter, alloc, nm, &hostNetworkConfigurator{}, statusSetter)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+
+	must.NoError(t, hook.Prerun(env))
 	must.False(t, setter.called)
 	must.False(t, destroyCalled)
 	must.NoError(t, hook.Postrun())
@@ -189,8 +186,7 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 		cni:      fakePlugin,
 		nsOpts:   &nsOpts{},
 	}
-
-	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	testCases := []struct {
 		name                             string
@@ -256,9 +252,9 @@ func TestNetworkHook_Prerun_Postrun_ExistingNetNS(t *testing.T) {
 			fakePlugin.checkErrors = tc.checkErrs
 			configurator.nodeAttrs["plugins.cni.version.bridge"] = tc.cniVersion
 			hook := newNetworkHook(testlog.HCLogger(t), isolationSetter,
-				alloc, nm, configurator, statusSetter, envBuilder.Build())
+				alloc, nm, configurator, statusSetter)
 
-			err := hook.Prerun()
+			err := hook.Prerun(env)
 			if tc.expectPrerunError == "" {
 				must.NoError(t, err)
 			} else {

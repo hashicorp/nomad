@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: 'Commands: operator snapshot save'
+page_title: 'nomad operator snapshot save command reference'
 description: |
-  Saves snapshot of Nomad server state
+  The `nomad operator snapshot save` command saves an atomic, point-in-time snapshot of state of the Nomad servers, including jobs, nodes, allocations,periodic jobs, ACLs for outage recovery, and the keyring.
 ---
 
-# Command: operator snapshot save
+# `nomad operator snapshot save` command reference
 
 The `operator snapshot save` command retrieves an atomic, point-in-time
 snapshot of the state of the Nomad servers, which includes jobs, nodes,
@@ -19,11 +19,6 @@ snapshot operations.
 This command includes Nomad's keyring in the snapshot. If you are not using a
 [KMS provider][] to secure the keyring, you should use the `-redact` flag to
 remove key material before transmitting the snapshot to HashiCorp Support.
-
-Snapshots made before Nomad 1.9.0 will not include the keyrings. If you use
-older snapshots to recover a cluster, you also need to restore the keyring onto
-at least one server. Refer to the Key Management's [Restoring the Keyring from
-Backup][restore the keyring] section for instructions.
 
 </Warning>
 
@@ -50,11 +45,11 @@ $ nomad operator snapshot save -stale backup.snap
 nomad operator snapshot save [options] <file>
 ```
 
-## General Options
+## General options
 
 @include 'general_options_no_namespace.mdx'
 
-## Snapshot Save Options
+## Snapshot save options
 
 - `-redact`: The redact option will locally edit the snapshot to remove any
   cleartext key material from the root keyring. Only the AEAD keyring provider
@@ -67,5 +62,4 @@ nomad operator snapshot save [options] <file>
   non-leader server.
 
 [outage recovery]: /nomad/tutorials/manage-clusters/outage-recovery
-[restore the keyring]: /nomad/docs/operations/key-management#restoring-the-keyring-from-backup
 [KMS provider]: /nomad/docs/configuration/keyring
