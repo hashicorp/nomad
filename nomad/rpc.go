@@ -221,7 +221,7 @@ func (r *rpcHandler) listen(ctx context.Context) {
 			conn = connlimit.Wrap(conn, free)
 		}
 
-		go r.handleConn(ctx, conn, &RPCContext{Conn: conn, SessionConfig: r.srv.GetConfig().RPCYamuxConfig})
+		go r.handleConn(ctx, conn, &RPCContext{Conn: conn, SessionConfig: r.srv.GetConfig().RPCSessionConfig})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
 	}
 }
