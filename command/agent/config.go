@@ -1510,6 +1510,17 @@ func DefaultConfig() *Config {
 		Consuls:        []*config.ConsulConfig{config.DefaultConsulConfig()},
 		Vaults:         []*config.VaultConfig{config.DefaultVaultConfig()},
 		UI:             config.DefaultUIConfig(),
+		RPC: &RPCConfig{
+			AcceptBacklog:             256,
+			KeepAliveInterval:         30 * time.Second,
+			KeepAliveIntervalHCL:      "30s",
+			ConnectionWriteTimeout:    10 * time.Second,
+			ConnectionWriteTimeoutHCL: "10s",
+			StreamOpenTimeout:         75 * time.Second,
+			StreamOpenTimeoutHCL:      "75s",
+			StreamCloseTimeout:        5 * time.Minute,
+			StreamCloseTimeoutHCL:     "5m",
+		},
 		Client: &ClientConfig{
 			Enabled:               false,
 			NodePool:              structs.NodePoolDefault,

@@ -619,6 +619,7 @@ func DefaultConfig() *Config {
 		VaultConfigs: map[string]*config.VaultConfig{
 			structs.VaultDefaultCluster: config.DefaultVaultConfig()},
 		RPCHoldTimeout:           5 * time.Second,
+		RPCSessionConfig:         yamux.DefaultConfig(),
 		StatsCollectionInterval:  1 * time.Minute,
 		TLSConfig:                &config.TLSConfig{},
 		ReplicationBackoff:       30 * time.Second,
