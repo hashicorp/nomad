@@ -221,7 +221,7 @@ func (r *rpcHandler) listen(ctx context.Context) {
 			conn = connlimit.Wrap(conn, free)
 		}
 
-		go r.handleConn(ctx, conn, &RPCContext{Conn: conn, YamuxConfig: r.srv.GetConfig().RPCYamuxConfig})
+		go r.handleConn(ctx, conn, &RPCContext{Conn: conn, SessionConfig: r.srv.GetConfig().RPCYamuxConfig})
 		metrics.IncrCounter([]string{"nomad", "rpc", "accept_conn"}, 1)
 	}
 }
@@ -409,7 +409,7 @@ func (r *rpcHandler) handleMultiplex(ctx context.Context, conn net.Conn, rpcCtx 
 		conn.Close()
 	}()
 
-	conf := rpcCtx.YamuxConfig
+	conf := rpcCtx.SessionConfig
 	conf.LogOutput = nil
 	conf.Logger = r.gologger
 	server, err := yamux.Server(conn, conf)
@@ -518,7 +518,7 @@ func (r *rpcHandler) handleMultiplexV2(ctx context.Context, conn net.Conn, rpcCt
 		conn.Close()
 	}()
 
-	conf := rpcCtx.YamuxConfig
+	conf := rpcCtx.SessionConfig
 	conf.LogOutput = nil
 	conf.Logger = r.gologger
 	server, err := yamux.Server(conn, conf)

@@ -815,6 +815,35 @@ func (r *RPCConfig) Copy() *RPCConfig {
 	return &nr
 }
 
+func (r *RPCConfig) Merge(rpc *RPCConfig) *RPCConfig {
+	if r == nil {
+		return rpc
+	}
+
+	result := *r
+
+	if rpc == nil {
+		return &result
+	}
+
+	if rpc.AcceptBacklog > 0 {
+		result.AcceptBacklog = rpc.AcceptBacklog
+	}
+	if rpc.KeepAliveInterval > 0 {
+		result.KeepAliveInterval = rpc.KeepAliveInterval
+	}
+	if rpc.ConnectionWriteTimeout > 0 {
+		result.ConnectionWriteTimeout = rpc.ConnectionWriteTimeout
+	}
+	if rpc.StreamOpenTimeout > 0 {
+		result.StreamOpenTimeout = rpc.StreamOpenTimeout
+	}
+	if rpc.StreamCloseTimeout > 0 {
+		result.StreamCloseTimeout = rpc.StreamCloseTimeout
+	}
+	return &result
+}
+
 func (r *RPCConfig) Validate() error {
 	if r != nil {
 		if r.AcceptBacklog < 0 {
@@ -1688,6 +1717,8 @@ func (c *Config) Merge(b *Config) *Config {
 	if result.RPC == nil && b.RPC != nil {
 		rpcMux := *b.RPC
 		result.RPC = &rpcMux
+	} else if b.RPC != nil {
+		result.RPC = result.RPC.Merge(b.RPC)
 	}
 
 	// Apply the acl config
