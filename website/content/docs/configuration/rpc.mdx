@@ -1,0 +1,48 @@
+---
+layout: docs
+page_title: rpc Block in Agent Configuration
+description: >-
+   Configure Nomad's RPC Sessions multiplex protocol (rpc) system behavior in the `rpc` block of a Nomad agent configuration. Modify RPC multiplex session configuration, change tcp backlog, and keepalive interval, open socket timeout's.
+---
+
+# rpc Block in Agent Configuration
+
+<Placement groups={['rpc']} />
+
+This page provides reference information for configuring Nomad's RPC Session system behavior in the `rpc` block of a Nomad agent configuration. Modify RPC multiplex session configuration, change tcp backlog, and keepalive interval, open socket timeout's.
+
+```hcl
+rpc {
+  accept_backlog           = 256
+  keep_alive_interval      = "30s"
+  connection_write_timeout = "10s"
+  max_stream_window_size   = 262144
+  stream_open_timeout      = "75s"
+  stream_close_timeout     = "5m"
+}
+```
+
+## `rpc` Parameters
+
+- `accept_backlog` `(int: 256)` - AcceptBacklog is used to limit how many streams may be waiting an accept.
+
+- `keep_alive_interval` `(string: 30s)` - KeepAliveInterval is how often to perform the keep alive
+
+- `connection_write_timeout` `(string: 10s)` - ConnectionWriteTimeout is meant to be a "safety valve" timeout after
+  we which will suspect a problem with the underlying connection and
+  close it. This is only applied to writes, where's there's generally
+  an expectation that things will move along quickly.
+
+- `max_stream_window_size` `(int: 262144)` - MaxStreamWindowSize is used to control the maximum window size
+  that we allow for a stream.
+
+- `stream_open_timeout` `(string: 75s)` - StreamOpenTimeout is the maximum amount of time that a stream will be
+  allowed to remain in pending state while waiting for an ack from the peer.
+  Once the timeout is reached the session will be gracefully closed.
+  A zero value disables the StreamOpenTimeout allowing unbounded blocking on OpenStream calls.
+
+- `stream_close_timeout` `(string: 5m)` - StreamCloseTimeout is the maximum time that a stream will allowed to
+  be in a half-closed state when `Close` is called before forcibly
+  closing the connection. Forcibly closed connections will empty the
+  receive buffer, drop any future packets received for that stream,
+  and send a RST to the remote side.
