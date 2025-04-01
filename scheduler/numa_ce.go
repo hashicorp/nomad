@@ -13,7 +13,6 @@ import (
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
-	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -30,15 +29,16 @@ type coreSelector struct {
 func (cs *coreSelector) Select(ask *structs.Resources) ([]uint16, hw.MHz) {
 	cores := cs.availableCores.Slice()[0:ask.Cores]
 	mhz := hw.MHz(0)
+	ids := make([]uint16, 0, ask.Cores)
 	sortedTopologyCores := make([]numalib.Core, len(cs.topology.Cores))
 	copy(sortedTopologyCores, cs.topology.Cores)
 	slices.SortFunc(sortedTopologyCores, func(a, b numalib.Core) int { return cmp.Compare(a.ID, b.ID) })
 	for _, core := range cores {
 		if i, found := slices.BinarySearchFunc(sortedTopologyCores, core, func(c numalib.Core, id hw.CoreID) int { return cmp.Compare(c.ID, id) }); found {
 			mhz += cs.topology.Cores[i].MHz()
+			ids = append(ids, uint16(cs.topology.Cores[i].ID))
 		}
 	}
-	ids := helper.ConvertSlice(cores, func(id hw.CoreID) uint16 { return uint16(id) })
 	return ids, mhz
 }
 
