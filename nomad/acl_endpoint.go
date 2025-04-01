@@ -2208,6 +2208,10 @@ func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIRespo
 		reply.Identity.Claims.NotBefore = nil
 	}
 
+	if reply.Identity.ACLToken != nil {
+		reply.Index = reply.Identity.ACLToken.ModifyIndex
+	}
+
 	return nil
 }
 
