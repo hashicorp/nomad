@@ -4,7 +4,6 @@
 package nomad
 
 import (
-	"github.com/hashicorp/yamux"
 	"io"
 	"net"
 	"os"
@@ -24,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
+	"github.com/hashicorp/yamux"
 )
 
 const (
