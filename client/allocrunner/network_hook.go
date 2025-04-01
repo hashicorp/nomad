@@ -157,6 +157,7 @@ CREATE:
 			// ErrCNICheckFailed. We'll try to recover from this one time by
 			// recreating the netns from scratch before giving up
 			if errors.Is(err, ErrCNICheckFailed) && !checkedOnce {
+				h.logger.Warn("network configuration check failed", "error", err)
 				checkedOnce = true
 				destroyErr := h.manager.DestroyNetwork(h.alloc.ID, spec)
 				if destroyErr != nil {
