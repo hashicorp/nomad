@@ -68,13 +68,6 @@ type allocHealthWatcherHook struct {
 	// alloc set by new func or Update. Must hold hookLock to access.
 	alloc *structs.Allocation
 
-	// taskEnvBuilder is the current builder used to build task environments
-	// for the group and each of its tasks. Must hold hookLock to modify.
-	taskEnvBuilder *taskenv.Builder
-
-	// taskEnvBuilderFactory creates a new *taskenv.Builder instance.
-	taskEnvBuilderFactory func() *taskenv.Builder
-
 	// isDeploy is true if monitoring a deployment. Set in init(). Must
 	// hold hookLock to access.
 	isDeploy bool
@@ -85,7 +78,6 @@ type allocHealthWatcherHook struct {
 func newAllocHealthWatcherHook(
 	logger hclog.Logger,
 	alloc *structs.Allocation,
-	taskEnvBuilderFactory func() *taskenv.Builder,
 	hs healthSetter,
 	listener *cstructs.AllocListener,
 	consul serviceregistration.Handler,
@@ -103,20 +95,26 @@ func newAllocHealthWatcherHook(
 	close(closedDone)
 
 	h := &allocHealthWatcherHook{
-		alloc:                 alloc,
-		taskEnvBuilderFactory: taskEnvBuilderFactory,
-		taskEnvBuilder:        taskEnvBuilderFactory(),
-		cancelFn:              func() {}, // initialize to prevent nil func panics
-		watchDone:             closedDone,
-		consul:                consul,
-		checkStore:            checkStore,
-		healthSetter:          hs,
-		listener:              listener,
+		alloc:        alloc,
+		cancelFn:     func() {}, // initialize to prevent nil func panics
+		watchDone:    closedDone,
+		consul:       consul,
+		checkStore:   checkStore,
+		healthSetter: hs,
+		listener:     listener,
 	}
 
 	h.logger = logger.Named(h.Name())
 	return h
 }
+
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*allocHealthWatcherHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*allocHealthWatcherHook)(nil)
+	_ interfaces.RunnerUpdateHook  = (*allocHealthWatcherHook)(nil)
+	_ interfaces.ShutdownHook      = (*allocHealthWatcherHook)(nil)
+)
 
 func (h *allocHealthWatcherHook) Name() string {
 	return "alloc_health_watcher"
@@ -126,7 +124,7 @@ func (h *allocHealthWatcherHook) Name() string {
 // Prerun or Update. Caller must set/update alloc and logger fields.
 //
 // Not threadsafe so the caller should lock since Updates occur concurrently.
-func (h *allocHealthWatcherHook) init() error {
+func (h *allocHealthWatcherHook) init(allocEnv *taskenv.TaskEnv) error {
 	// No need to watch health as it's already set
 	if h.healthSetter.HasHealth() {
 		h.logger.Trace("not watching; already has health set")
@@ -158,7 +156,7 @@ func (h *allocHealthWatcherHook) init() error {
 	h.logger.Trace("watching", "deadline", deadline, "checks", useChecks, "min_healthy_time", minHealthyTime)
 	// Create a new tracker, start it, and watch for health results.
 	tracker := allochealth.NewTracker(
-		ctx, h.logger, h.alloc, h.listener, h.taskEnvBuilder, h.consul, h.checkStore, minHealthyTime, useChecks,
+		ctx, h.logger, h.alloc, h.listener, allocEnv, h.consul, h.checkStore, minHealthyTime, useChecks,
 	)
 	tracker.Start()
 
@@ -168,7 +166,7 @@ func (h *allocHealthWatcherHook) init() error {
 	return nil
 }
 
-func (h *allocHealthWatcherHook) Prerun() error {
+func (h *allocHealthWatcherHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	h.hookLock.Lock()
 	defer h.hookLock.Unlock()
 
@@ -178,7 +176,7 @@ func (h *allocHealthWatcherHook) Prerun() error {
 	}
 
 	h.ranOnce = true
-	return h.init()
+	return h.init(allocEnv)
 }
 
 func (h *allocHealthWatcherHook) Update(req *interfaces.RunnerUpdateRequest) error {
@@ -202,10 +200,7 @@ func (h *allocHealthWatcherHook) Update(req *interfaces.RunnerUpdateRequest) err
 	// Update alloc
 	h.alloc = req.Alloc
 
-	// Create a new taskEnvBuilder with the updated alloc and a nil task
-	h.taskEnvBuilder = h.taskEnvBuilderFactory().UpdateTask(req.Alloc, nil)
-
-	return h.init()
+	return h.init(req.AllocEnv)
 }
 
 func (h *allocHealthWatcherHook) Postrun() error {

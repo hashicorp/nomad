@@ -11,7 +11,7 @@ description: |
 The `volume create` command creates storage volumes as either [Container Storage
 Interface (CSI)][csi] volumes or dynamic host volumes.
 
-The [`volume create`][] command can create dynamic host volumes if host volume
+The `volume create` command can create dynamic host volumes if host volume
 plugins are installed on the node, or CSI volumes if the CSI plugins implement
 the [Controller][csi_plugins_internals] interface. The `volume create` command
 automatically [registers][] the volume as well.
@@ -89,7 +89,7 @@ the exact section.
 
 
 [csi]: https://github.com/container-storage-interface/spec
-[csi_plugins_internals]: /nomad/docs/concepts/plugins/csi#csi-plugins
+[csi_plugins_internals]: /nomad/docs/concepts/plugins/storage/csi
 [registers]: /nomad/docs/commands/volume/register
 [registered]: /nomad/docs/commands/volume/register
 [volume_specification]: /nomad/docs/other-specifications/volume

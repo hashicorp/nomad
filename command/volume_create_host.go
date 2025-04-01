@@ -52,7 +52,7 @@ func (c *VolumeCreateCommand) hostVolumeCreate(
 		Volume:         vol,
 		PolicyOverride: override,
 	}
-	resp, _, err := client.HostVolumes().Create(req, nil)
+	resp, meta, err := client.HostVolumes().Create(req, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error creating volume: %s", err))
 		return 1
@@ -75,7 +75,7 @@ func (c *VolumeCreateCommand) hostVolumeCreate(
 		c.Ui.Output(fmt.Sprintf(
 			"==> Created host volume %s with ID %s", vol.Name, vol.ID))
 		volID = vol.ID
-		lastIndex = vol.ModifyIndex
+		lastIndex = meta.LastIndex
 	}
 
 	if vol.Namespace != "" {

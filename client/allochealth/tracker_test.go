@@ -180,9 +180,9 @@ func TestTracker_ConsulChecks_Interpolation(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -253,9 +253,9 @@ func TestTracker_ConsulChecks_Healthy(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -306,9 +306,9 @@ func TestTracker_NomadChecks_Healthy(t *testing.T) {
 
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -375,9 +375,9 @@ func TestTracker_NomadChecks_Unhealthy(t *testing.T) {
 
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -436,9 +436,9 @@ func TestTracker_Checks_PendingPostStop_Healthy(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -479,9 +479,9 @@ func TestTracker_Succeeded_PostStart_Healthy(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, alloc.Job.TaskGroups[0].Migrate.MinHealthyTime, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -560,9 +560,9 @@ func TestTracker_ConsulChecks_Unhealthy(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -641,9 +641,9 @@ func TestTracker_ConsulChecks_HealthyToUnhealthy(t *testing.T) {
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
 	minHealthyTime := 2 * time.Second
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, minHealthyTime, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, minHealthyTime, true)
 	tracker.checkLookupInterval = checkInterval
 
 	assertChecksHealth := func(exp bool) {
@@ -732,9 +732,9 @@ func TestTracker_ConsulChecks_SlowCheckRegistration(t *testing.T) {
 	consul := regmock.NewServiceRegistrationHandler(logger)
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 
 	assertChecksHealth := func(exp bool) {
@@ -785,8 +785,8 @@ func TestTracker_Healthy_IfBothTasksAndConsulChecksAreHealthy(t *testing.T) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	defer cancelFn()
 
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	tracker := NewTracker(ctx, logger, alloc, nil, taskEnvBuilder, nil, nil, time.Millisecond, true)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+	tracker := NewTracker(ctx, logger, alloc, nil, env, nil, nil, time.Millisecond, true)
 
 	assertNoHealth := func() {
 		require.NoError(t, tracker.ctx.Err())
@@ -895,9 +895,9 @@ func TestTracker_Checks_Healthy_Before_TaskHealth(t *testing.T) {
 
 	checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 	checkInterval := 10 * time.Millisecond
-	taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-	tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+	tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 	tracker.checkLookupInterval = checkInterval
 	tracker.Start()
 
@@ -1042,9 +1042,9 @@ func TestTracker_ConsulChecks_OnUpdate(t *testing.T) {
 
 			checks := checkstore.NewStore(logger, state.NewMemDB(logger))
 			checkInterval := 10 * time.Millisecond
-			taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+			env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-			tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, time.Millisecond, true)
+			tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, time.Millisecond, true)
 			tracker.checkLookupInterval = checkInterval
 			tracker.Start()
 
@@ -1162,9 +1162,9 @@ func TestTracker_NomadChecks_OnUpdate(t *testing.T) {
 
 			consul := regmock.NewServiceRegistrationHandler(logger)
 			minHealthyTime := 1 * time.Millisecond
-			taskEnvBuilder := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
+			env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
-			tracker := NewTracker(ctx, logger, alloc, b.Listen(), taskEnvBuilder, consul, checks, minHealthyTime, true)
+			tracker := NewTracker(ctx, logger, alloc, b.Listen(), env, consul, checks, minHealthyTime, true)
 			tracker.checkLookupInterval = 10 * time.Millisecond
 			tracker.Start()
 

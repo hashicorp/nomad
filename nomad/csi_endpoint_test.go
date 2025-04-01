@@ -388,7 +388,7 @@ func TestCSIVolumeEndpoint_Claim(t *testing.T) {
 		},
 	}
 	index++
-	err = state.UpsertNode(structs.MsgTypeTestSetup, index, node)
+	err = state.UpsertNode(structs.MsgTypeTestSetup, index, node.Copy())
 	require.NoError(t, err)
 
 	vols := []*structs.CSIVolume{{
@@ -615,20 +615,23 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 		endState       structs.CSIVolumeClaimState
 		nodeID         string
 		otherNodeID    string
+		externalNodeID string
 		expectedErrMsg string
 	}
 	testCases := []tc{
 		{
-			name:          "success",
-			startingState: structs.CSIVolumeClaimStateControllerDetached,
-			nodeID:        node.ID,
-			otherNodeID:   uuid.Generate(),
+			name:           "success",
+			startingState:  structs.CSIVolumeClaimStateControllerDetached,
+			nodeID:         node.ID,
+			otherNodeID:    uuid.Generate(),
+			externalNodeID: "i-example",
 		},
 		{
-			name:          "non-terminal allocation on same node",
-			startingState: structs.CSIVolumeClaimStateNodeDetached,
-			nodeID:        node.ID,
-			otherNodeID:   node.ID,
+			name:           "non-terminal allocation on same node",
+			startingState:  structs.CSIVolumeClaimStateNodeDetached,
+			nodeID:         node.ID,
+			otherNodeID:    node.ID,
+			externalNodeID: "i-example",
 		},
 		{
 			name:           "unpublish previously detached node",
@@ -637,6 +640,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
 			nodeID:         node.ID,
 			otherNodeID:    uuid.Generate(),
+			externalNodeID: "i-example",
 		},
 		{
 			name:           "unpublish claim on garbage collected node",
@@ -645,6 +649,15 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
 			nodeID:         uuid.Generate(),
 			otherNodeID:    uuid.Generate(),
+			externalNodeID: "i-example",
+		},
+		{
+			name:           "unpublish claim on garbage collected node missing external ID",
+			startingState:  structs.CSIVolumeClaimStateTaken,
+			endState:       structs.CSIVolumeClaimStateNodeDetached,
+			nodeID:         uuid.Generate(),
+			otherNodeID:    uuid.Generate(),
+			externalNodeID: "",
 		},
 		{
 			name:           "first unpublish",
@@ -653,6 +666,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			expectedErrMsg: "could not detach from controller: controller detach volume: No path to node",
 			nodeID:         node.ID,
 			otherNodeID:    uuid.Generate(),
+			externalNodeID: "i-example",
 		},
 	}
 
@@ -693,7 +707,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			claim := &structs.CSIVolumeClaim{
 				AllocationID:   alloc.ID,
 				NodeID:         tc.nodeID,
-				ExternalNodeID: "i-example",
+				ExternalNodeID: tc.externalNodeID,
 				Mode:           structs.CSIVolumeClaimRead,
 			}
 
@@ -708,7 +722,7 @@ func TestCSIVolumeEndpoint_Unpublish(t *testing.T) {
 			otherClaim := &structs.CSIVolumeClaim{
 				AllocationID:   otherAlloc.ID,
 				NodeID:         tc.otherNodeID,
-				ExternalNodeID: "i-example",
+				ExternalNodeID: tc.externalNodeID,
 				Mode:           structs.CSIVolumeClaimRead,
 			}
 

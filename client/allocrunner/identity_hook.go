@@ -5,6 +5,8 @@ package allocrunner
 
 import (
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/widmgr"
 )
 
@@ -21,11 +23,19 @@ func newIdentityHook(logger log.Logger, widmgr widmgr.IdentityManager) *identity
 	return h
 }
 
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*identityHook)(nil)
+	_ interfaces.RunnerPreKillHook = (*identityHook)(nil)
+	_ interfaces.RunnerDestroyHook = (*identityHook)(nil)
+	_ interfaces.ShutdownHook      = (*identityHook)(nil)
+)
+
 func (*identityHook) Name() string {
 	return "identity"
 }
 
-func (h *identityHook) Prerun() error {
+func (h *identityHook) Prerun(_ *taskenv.TaskEnv) error {
 	// run the renewal
 	if err := h.widmgr.Run(); err != nil {
 		return err

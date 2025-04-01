@@ -78,6 +78,16 @@ func (tc *ConsulNamespacesE2ETest) BeforeAll(f *framework.F) {
 	// create a set of consul namespaces in which to register services
 	e2eutil.CreateConsulNamespaces(f.T(), tc.Consul(), consulNamespaces)
 
+	// Create a nomad task policy and role with that policy in each namespace.
+	// They will be deleted when their associated namespaces are deleted.
+	for _, n := range consulNamespaces {
+		policyID := e2eutil.CreateConsulPolicy(f.T(), tc.Consul(), n, e2eutil.ConsulPolicy{
+			Name:  "policy-nomad-tasks",
+			Rules: `service_prefix "" {policy="read"} key_prefix "" {policy="read"}`,
+		})
+		e2eutil.CreateConsulRole(f.T(), tc.Consul(), "nomad-default-tasks", n, policyID)
+	}
+
 	// insert a key of the same name into KV for each namespace, where the value
 	// contains the namespace name making it easy to determine which namespace
 	// consul template actually accessed

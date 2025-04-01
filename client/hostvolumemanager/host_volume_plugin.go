@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -71,6 +72,14 @@ type HostVolumePluginDeleteResponse struct {
 const HostVolumePluginMkdirID = "mkdir"
 const HostVolumePluginMkdirVersion = "0.0.1"
 
+// HostVolumePluginMkdirParams represents the parameters{} that the "mkdir"
+// plugin will accept.
+type HostVolumePluginMkdirParams struct {
+	Uid  int
+	Gid  int
+	Mode os.FileMode
+}
+
 var _ HostVolumePlugin = &HostVolumePluginMkdir{}
 
 // HostVolumePluginMkdir is a plugin that creates a directory within the
@@ -110,18 +119,64 @@ func (p *HostVolumePluginMkdir) Create(_ context.Context,
 		return resp, nil
 	} else if !os.IsNotExist(err) {
 		// doesn't exist, but some other path error
-		log.Debug("error with plugin", "error", err)
+		log.Error("error with path", "error", err)
 		return nil, err
 	}
 
-	err := os.MkdirAll(path, 0o700)
+	params, err := decodeMkdirParams(req.Parameters)
 	if err != nil {
-		log.Debug("error with plugin", "error", err)
+		log.Error("error with parameters", "error", err)
 		return nil, err
+	}
+
+	err = os.MkdirAll(path, params.Mode)
+	if err != nil {
+		log.Error("error creating directory", "error", err)
+		return nil, fmt.Errorf("error creating directory: %w", err)
+	}
+
+	// Chown note: A uid or gid of -1 means to not change that value.
+	if err = os.Chown(path, params.Uid, params.Gid); err != nil {
+		log.Error("error changing owner/group", "error", err, "uid", params.Uid, "gid", params.Gid)
+		return nil, fmt.Errorf("error changing owner/group: %w", err)
 	}
 
 	log.Debug("plugin ran successfully")
 	return resp, nil
+}
+
+func decodeMkdirParams(in map[string]string) (HostVolumePluginMkdirParams, error) {
+	// default values if their associated keys are not in the input map
+	out := HostVolumePluginMkdirParams{
+		Mode: 0o700, // "0700"
+		Uid:  -1,    // this default translates to "do not set" in os.Chown
+		Gid:  -1,    // ditto
+	}
+	var err error
+
+	for param, val := range in {
+		switch param {
+		case "mode":
+			// mode needs special treatment - it's octal. note that this does
+			// not check whether it's a *reasonable* mode for a directory.
+			// that will be discovered during MkdirAll and subsequent usage
+			// by workloads (which we cannot predict).
+			var number uint64
+			number, err = strconv.ParseUint(val, 8, 32)
+			out.Mode = os.FileMode(number)
+		case "uid":
+			out.Uid, err = strconv.Atoi(val)
+		case "gid":
+			out.Gid, err = strconv.Atoi(val)
+		default:
+			err = fmt.Errorf("unknown mkdir parameter: %q", param)
+		}
+		if err != nil {
+			return out, fmt.Errorf("invalid value for %q: %w", param, err)
+		}
+	}
+
+	return out, nil
 }
 
 func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHostVolumeDeleteRequest) error {
@@ -134,7 +189,7 @@ func (p *HostVolumePluginMkdir) Delete(_ context.Context, req *cstructs.ClientHo
 
 	err := os.RemoveAll(path)
 	if err != nil {
-		log.Debug("error with plugin", "error", err)
+		log.Error("error with plugin", "error", err)
 		return err
 	}
 
@@ -203,17 +258,20 @@ func (p *HostVolumePluginExternal) Fingerprint(ctx context.Context) (*PluginFing
 	cmd := exec.CommandContext(ctx, p.Executable, "fingerprint")
 	cmd.Env = []string{EnvOperation + "=fingerprint"}
 	stdout, stderr, err := runCommand(cmd)
+	log := p.log.With(
+		"operation", "fingerprint",
+		"stdout", string(stdout),
+		"stderr", string(stderr),
+	)
 	if err != nil {
-		p.log.Debug("error with plugin",
-			"operation", "version",
-			"stdout", string(stdout),
-			"stderr", string(stderr),
-			"error", err)
-		return nil, fmt.Errorf("error getting version from plugin %q: %w", p.ID, err)
+		log.Error("error running plugin", "error", err)
+		return nil, fmt.Errorf("error fingerprinting plugin %q: %w", p.ID, err)
 	}
 	fprint := &PluginFingerprint{}
 	if err := json.Unmarshal(stdout, fprint); err != nil {
-		return nil, fmt.Errorf("error parsing fingerprint output as json: %w", err)
+		err = fmt.Errorf("error parsing fingerprint output as json: %w", err)
+		log.Error("error parsing plugin output", "error", err)
+		return nil, err
 	}
 	return fprint, nil
 }
@@ -364,7 +422,7 @@ func (p *HostVolumePluginExternal) runPlugin(ctx context.Context, log hclog.Logg
 		"stderr", string(stderr),
 	)
 	if err != nil {
-		log.Debug("error with plugin", "error", err)
+		log.Error("error with plugin", "error", err)
 		return stdout, stderr, err
 	}
 	log.Debug("plugin ran successfully")

@@ -2287,7 +2287,7 @@ func TestJobEndpoint_Register_PortCollistion(t *testing.T) {
 			}
 			job.TaskGroups[0].Tasks[0].Services = nil
 
-			testutil.RegisterJob(t, s1.RPC, job)
+			testutil.RegisterJob(t, s1.RPC, job.Copy())
 			testutil.WaitForJobAllocStatus(t, s1.RPC, job, map[string]int{
 				structs.AllocClientStatusPending: 1,
 			})

@@ -12,11 +12,13 @@ import (
 
 	hclog "github.com/hashicorp/go-hclog"
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/state"
 	"github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/dynamicplugins"
 	"github.com/hashicorp/nomad/client/pluginmanager/csimanager"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -76,11 +78,19 @@ func newCSIHook(alloc *structs.Allocation, logger hclog.Logger, csi csimanager.M
 	}
 }
 
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*csiHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*csiHook)(nil)
+	_ interfaces.RunnerDestroyHook = (*csiHook)(nil)
+	_ interfaces.ShutdownHook      = (*csiHook)(nil)
+)
+
 func (c *csiHook) Name() string {
 	return "csi_hook"
 }
 
-func (c *csiHook) Prerun() error {
+func (c *csiHook) Prerun(_ *taskenv.TaskEnv) error {
 	if !c.shouldRun() {
 		return nil
 	}
@@ -541,7 +551,6 @@ func (c *csiHook) unmountImpl(result *volumePublishResult) error {
 // stopping. Cancel our shutdown context so that we don't block client
 // shutdown while in the CSI RPC retry loop.
 func (c *csiHook) Shutdown() {
-	c.logger.Trace("shutting down hook")
 	c.shutdownCancelFn()
 }
 
@@ -549,7 +558,7 @@ func (c *csiHook) Shutdown() {
 // or when a -dev mode client is stopped. Cancel our shutdown context
 // so that we don't block client shutdown while in the CSI RPC retry
 // loop.
-func (c *csiHook) Destroy() {
-	c.logger.Trace("destroying hook")
+func (c *csiHook) Destroy() error {
 	c.shutdownCancelFn()
+	return nil
 }

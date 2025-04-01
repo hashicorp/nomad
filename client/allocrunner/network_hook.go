@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	hclog "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -78,9 +79,6 @@ type networkHook struct {
 	// the alloc network has been created
 	networkConfigurator NetworkConfigurator
 
-	// taskEnv is used to perform interpolation within the network blocks.
-	taskEnv *taskenv.TaskEnv
-
 	logger hclog.Logger
 }
 
@@ -90,7 +88,6 @@ func newNetworkHook(logger hclog.Logger,
 	netManager drivers.DriverNetworkManager,
 	netConfigurator NetworkConfigurator,
 	networkStatusSetter networkStatusSetter,
-	taskEnv *taskenv.TaskEnv,
 ) *networkHook {
 	return &networkHook{
 		isolationSetter:     ns,
@@ -98,16 +95,21 @@ func newNetworkHook(logger hclog.Logger,
 		alloc:               alloc,
 		manager:             netManager,
 		networkConfigurator: netConfigurator,
-		taskEnv:             taskEnv,
 		logger:              logger,
 	}
 }
+
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook  = (*networkHook)(nil)
+	_ interfaces.RunnerPostrunHook = (*networkHook)(nil)
+)
 
 func (h *networkHook) Name() string {
 	return "network"
 }
 
-func (h *networkHook) Prerun() error {
+func (h *networkHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	tg := h.alloc.Job.LookupTaskGroup(h.alloc.TaskGroup)
 	if len(tg.Networks) == 0 || tg.Networks[0].Mode == "host" || tg.Networks[0].Mode == "" {
 		return nil
@@ -119,7 +121,7 @@ func (h *networkHook) Prerun() error {
 	}
 
 	// Perform our networks block interpolation.
-	interpolatedNetworks := taskenv.InterpolateNetworks(h.taskEnv, tg.Networks)
+	interpolatedNetworks := taskenv.InterpolateNetworks(allocEnv, tg.Networks)
 
 	// Interpolated values need to be validated. It is also possible a user
 	// supplied hostname avoids the validation on job registrations because it

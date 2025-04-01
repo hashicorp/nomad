@@ -777,7 +777,7 @@ func TestClientEndpoint_UpdateStatus_Reconnect(t *testing.T) {
 			}
 
 			jobReq := &structs.JobRegisterRequest{
-				Job: job,
+				Job: job.Copy(),
 				WriteRequest: structs.WriteRequest{
 					Region:    "global",
 					Namespace: job.Namespace,

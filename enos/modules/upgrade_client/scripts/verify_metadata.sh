@@ -39,7 +39,6 @@ while true; do
     checkClientReady && break
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
         error_exit "$last_error within $elapsed_time seconds."
-        exit 1
     fi
 
     echo "$last_error within $elapsed_time seconds. Retrying in $POLL_INTERVAL seconds..."
@@ -52,20 +51,17 @@ echo "Client $client_id at $CLIENT_IP is ready"
 # Quality: "nomad_node_metadata: A GET call to /v1/node/:node-id returns the same  node.Meta for each node before and after a node upgrade"
 echo "Reading metadata for client at $CLIENT_IP"
 if ! client_meta=$(nomad node meta read -json -node-id "$client_id"); then
-    echo "Failed to read metadata for node: $client_id"
-    exit 1
+    error_exit "Failed to read metadata for node: $client_id"
 fi
 
 meta_node_ip=$(echo "$client_meta" | jq -r '.Dynamic.node_ip' )
 if [ "$meta_node_ip" != "$CLIENT_IP" ]; then
-  echo "Wrong value returned for node_ip: $meta_node_ip"
-  exit 1
+  error_exit "Wrong value returned for node_ip: $meta_node_ip"
 fi
 
 meta_nomad_addr=$(echo "$client_meta" | jq -r '.Dynamic.nomad_addr' )
 if [ "$meta_nomad_addr" != "$NOMAD_ADDR" ]; then
-  echo "Wrong value returned for nomad_addr: $meta_nomad_addr"
-  exit 1
+   error_exit "Wrong value returned for nomad_addr: $meta_nomad_addr"
 fi
 
 echo "Metadata correct in  $client_id at $CLIENT_IP"

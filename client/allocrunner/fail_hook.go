@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsimple"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/client/taskenv"
 )
 
 var ErrFailHookError = errors.New("failed successfully")
@@ -56,24 +57,29 @@ func (h *FailHook) LoadConfig(path string) *FailHook {
 	return h
 }
 
-var _ interfaces.RunnerPrerunHook = &FailHook{}
+// statically assert the hook implements the expected interfaces
+var (
+	_ interfaces.RunnerPrerunHook      = (*FailHook)(nil)
+	_ interfaces.RunnerPreKillHook     = (*FailHook)(nil)
+	_ interfaces.RunnerPostrunHook     = (*FailHook)(nil)
+	_ interfaces.RunnerDestroyHook     = (*FailHook)(nil)
+	_ interfaces.RunnerUpdateHook      = (*FailHook)(nil)
+	_ interfaces.RunnerTaskRestartHook = (*FailHook)(nil)
+	_ interfaces.ShutdownHook          = (*FailHook)(nil)
+)
 
-func (h *FailHook) Prerun() error {
+func (h *FailHook) Prerun(_ *taskenv.TaskEnv) error {
 	if h.Fail.Prerun {
 		return fmt.Errorf("prerun %w", ErrFailHookError)
 	}
 	return nil
 }
 
-var _ interfaces.RunnerPreKillHook = &FailHook{}
-
 func (h *FailHook) PreKill() {
 	if h.Fail.PreKill {
 		h.logger.Error("prekill", "error", ErrFailHookError)
 	}
 }
-
-var _ interfaces.RunnerPostrunHook = &FailHook{}
 
 func (h *FailHook) Postrun() error {
 	if h.Fail.Postrun {
@@ -82,16 +88,12 @@ func (h *FailHook) Postrun() error {
 	return nil
 }
 
-var _ interfaces.RunnerDestroyHook = &FailHook{}
-
 func (h *FailHook) Destroy() error {
 	if h.Fail.Destroy {
 		return fmt.Errorf("destroy %w", ErrFailHookError)
 	}
 	return nil
 }
-
-var _ interfaces.RunnerUpdateHook = &FailHook{}
 
 func (h *FailHook) Update(request *interfaces.RunnerUpdateRequest) error {
 	if h.Fail.Update {
@@ -100,16 +102,12 @@ func (h *FailHook) Update(request *interfaces.RunnerUpdateRequest) error {
 	return nil
 }
 
-var _ interfaces.RunnerTaskRestartHook = &FailHook{}
-
 func (h *FailHook) PreTaskRestart() error {
 	if h.Fail.PreTaskRestart {
 		return fmt.Errorf("destroy %w", ErrFailHookError)
 	}
 	return nil
 }
-
-var _ interfaces.ShutdownHook = &FailHook{}
 
 func (h *FailHook) Shutdown() {
 	if h.Fail.Shutdown {

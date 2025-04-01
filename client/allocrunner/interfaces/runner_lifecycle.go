@@ -4,6 +4,7 @@
 package interfaces
 
 import (
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -16,7 +17,7 @@ type RunnerHook interface {
 // non-terminal allocations. Terminal allocations do *not* call prerun.
 type RunnerPrerunHook interface {
 	RunnerHook
-	Prerun() error
+	Prerun(*taskenv.TaskEnv) error
 }
 
 // A RunnerPreKillHook is executed inside of KillTasks before
@@ -55,7 +56,8 @@ type RunnerUpdateHook interface {
 }
 
 type RunnerUpdateRequest struct {
-	Alloc *structs.Allocation
+	Alloc    *structs.Allocation
+	AllocEnv *taskenv.TaskEnv
 }
 
 // A RunnerTaskRestartHook is executed just before the allocation runner is

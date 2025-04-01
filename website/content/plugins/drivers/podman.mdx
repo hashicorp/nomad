@@ -134,6 +134,15 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
 
 ## Task Configuration
 
+- `apparmor_profile` - (Optional) Name of an AppArmor profile to use instead of
+  the default profile. The special value `unconfined` disables AppArmor for this container.
+
+  ```hcl
+  config {
+    apparmor_profile = "your-profile"
+  }
+  ```
+
 - `args` - (Optional) A list of arguments to the optional command. If no
   [`command`] is specified, the arguments are passed directly to the container.
 
@@ -158,6 +167,14 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
       password = "sup3rs3creT"
       tlsVerify = false
     }
+  }
+  ```
+
+- `auth_soft_fail` - (Optional) Ignore errors returned from auth backend so Podman can fall back to a different auth method.
+
+  ```hcl
+  config {
+    auth_soft_fail = true
   }
   ```
 
@@ -191,6 +208,17 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
+- `cpu_hard_limit` (Optional) `true` or `false`. Use hard CPU limiting instead
+  of soft limiting. By default this is `false`, which means Podman uses soft
+  limiting so that containers are able to burst above their CPU limit when there
+  is idle capacity.
+
+- `cpu_cfs_period` - (Optional) Set the CPU period for the [Completely Fair
+  Scheduler (CFS)](https://docs.kernel.org/scheduler/sched-design-CFS.html),
+  which is a duration in microseconds. Refer to [`podman run
+  --cpu-period`](https://docs.podman.io/en/latest/markdown/podman-run.1.html#cpu-period-limit)
+  for details.
+
 - `devices` - (Optional) A list of `host-device[:container-device][:permissions]`
   definitions. Each entry adds a host device to the container. Optional
   permissions can be used to specify device permissions, it is a combination of
@@ -214,6 +242,14 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
+- `extra_hosts` - (Optional) Set additional hosts in the container.
+
+  ```hcl
+  config {
+    extra_hosts = ["test4.localhost:127.0.0.2", "test6.localhost:[::1]"]
+  }
+  ```
+
 - `force_pull` - (Optional) `true` or `false` (default). Always pull the latest
   image on container start.
 
@@ -234,14 +270,6 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   ```hcl
   config {
     image = "docker://redis"
-  }
-  ```
-
-- `extra_hosts` - (Optional) Set additional hosts in the container
-
-  ```hcl
-  config {
-    extra_hosts = ["test4.localhost:127.0.0.2", "test6.localhost:[::1]"]
   }
   ```
 
@@ -383,6 +411,15 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   }
   ```
 
+- `pids_limit` - (Optional) An integer value that specified the PID limit for
+  the container.
+
+  ```hcl
+  config {
+    pids_limit = 64
+  }
+  ```
+
 - `ports` - (Optional) Forward and expose ports. Refer to
   [Docker driver configuration][nomad_driver_ports] for details.
 
@@ -397,6 +434,41 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   ```hcl
   config {
     readonly_rootfs = true
+  }
+  ```
+
+- `security_opt` - (Optional) A list of security-related options that Podman sets
+  in the container.
+
+  ```hcl
+  config {
+    security_opt = [
+      "no-new-privileges"
+    ]
+
+  }
+  ```
+
+- `selinux_opts` - (Optional) A list of process labels that the container uses.
+
+  ```hcl
+  config {
+    selinux_opts = [
+      "type:my_container.process"
+    ]
+  }
+  ```
+
+- `shm_size` - (Optional) Set the size of `/dev/shm`. Refer to [`podman run
+  --shm-size](https://docs.podman.io/en/latest/markdown/podman-run.1.html#shm-size-number-unit)
+  for more details.
+
+- `socket` - (Optional) The name of the socket as defined in the socket block in
+  the client agent's plugin configuration. Defaults to the socket named "default".
+
+  ```hcl
+  config {
+    socket = "app1"
   }
   ```
 
@@ -454,6 +526,14 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
       nproc  = "4242"
       nofile = "2048:4096"
     }
+  }
+  ```
+
+- `userns` - (Optional) Ser the user namespace mode for the container.
+
+  ```hcl
+  config {
+    userns = "keep-id:uid=200,gid=210"
   }
   ```
 

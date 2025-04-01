@@ -39,10 +39,13 @@ capabilities for the allocation's namespace.
 
 ## Exec options
 
-- `-task`: Sets the task to exec command in.
+- `-task=<task-name>`: Sets the task to exec command in.
 
-- `-job`: Use a random allocation from the specified job or job ID prefix,
-  preferring a running allocation.
+- `-job=<job-name|job-id>`: Use a random allocation from the specified job or
+  job ID prefix, preferring a running allocation.
+
+- `-group=<group-name>`: Specifies the task group where the task is located 
+  when a random allocation is selected
 
 - `-i`: Pass stdin to the container, defaults to true. Pass `-i=false` to
   disable explicitly.
