@@ -178,6 +178,15 @@ func (a *ACLTokens) Self(q *QueryOptions) (*ACLToken, *QueryMeta, error) {
 	return &resp, wm, nil
 }
 
+func (a *ACLTokens) SelfWI(q *QueryOptions) (map[string]*ACLPolicy, *QueryMeta, error) {
+	var resp map[string]*ACLPolicy
+	wm, err := a.client.query("/v1/acl/whoami", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, wm, nil
+}
+
 // UpsertOneTimeToken is used to create a one-time token
 func (a *ACLTokens) UpsertOneTimeToken(q *WriteOptions) (*OneTimeToken, *WriteMeta, error) {
 	var resp *OneTimeTokenUpsertResponse

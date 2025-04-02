@@ -424,6 +424,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/acl/tokens", s.wrap(s.ACLTokensRequest))
 	s.mux.HandleFunc("/v1/acl/token", s.wrap(s.ACLTokenSpecificRequest))
 	s.mux.HandleFunc("/v1/acl/token/", s.wrap(s.ACLTokenSpecificRequest))
+	s.mux.HandleFunc("/v1/acl/whoami/", s.wrap(s.ACLWIPoliciesRequest))
 
 	// Register our ACL role handlers.
 	s.mux.HandleFunc("/v1/acl/roles", s.wrap(s.ACLRoleListRequest))

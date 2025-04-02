@@ -180,6 +180,31 @@ func (s *HTTPServer) ACLTokenSpecificRequest(resp http.ResponseWriter, req *http
 	return s.aclTokenCrud(resp, req, accessor)
 }
 
+func (s *HTTPServer) ACLWIPoliciesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	if req.Method != http.MethodGet {
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
+	}
+
+	policyArgs := structs.GenericRequest{}
+	if s.parse(resp, req, &policyArgs.Region, &policyArgs.QueryOptions) {
+		return nil, nil
+	}
+
+	// Resolve policies for workload identities
+	policyReply := structs.ACLPolicySetResponse{}
+	if err := s.agent.RPC("ACL.GetClaimPolicies", &policyArgs, &policyReply); err != nil {
+		return nil, err
+	}
+
+	setMeta(resp, &policyReply.QueryMeta)
+
+	if policyReply.Policies == nil {
+		policyReply.Policies = make(map[string]*structs.ACLPolicy, 0)
+	}
+
+	return policyReply.Policies, nil
+}
+
 func (s *HTTPServer) aclTokenCrud(resp http.ResponseWriter, req *http.Request,
 	tokenAccessor string) (interface{}, error) {
 	if tokenAccessor == "" {
