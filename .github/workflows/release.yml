@@ -23,7 +23,7 @@ env:
 
 jobs:
   prepare-release:
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-20.04' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-22.04' }}
     outputs:
       build-ref: ${{ steps.commit-change-push.outputs.build-ref }}
     steps:
