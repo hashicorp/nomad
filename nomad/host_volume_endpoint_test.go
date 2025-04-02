@@ -33,7 +33,7 @@ import (
 func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 	ci.Parallel(t)
 
-	srv, _, cleanupSrv := TestACLServer(t, func(c *Config) {
+	srv, rootToken, cleanupSrv := TestACLServer(t, func(c *Config) {
 		c.NumSchedulers = 0
 	})
 	t.Cleanup(cleanupSrv)
@@ -135,6 +135,19 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		req.Volume.NodeID = ""
 		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Register", req, &resp)
 		must.EqError(t, err, "cannot register volume: node ID is required")
+
+		volInInvalidNs := mock.HostVolumeRequest("apps")
+		volInInvalidNs.Namespace = "does-not-exist"
+		invalidNsReq := &structs.HostVolumeCreateRequest{
+			Volume: volInInvalidNs,
+			WriteRequest: structs.WriteRequest{
+				Region:    srv.Region(),
+				AuthToken: rootToken.SecretID,
+			},
+		}
+		err = msgpackrpc.CallWithCodec(codec, "HostVolume.Create", invalidNsReq, &resp)
+		must.EqError(t, err,
+			`volume validation failed: no such namespace "does-not-exist"`)
 	})
 
 	var expectIndex uint64
