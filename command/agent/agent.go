@@ -40,6 +40,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
+	"github.com/hashicorp/yamux"
 )
 
 const (
@@ -528,6 +529,26 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		conf.DefaultSchedulerConfig = *agentConfig.Server.DefaultSchedulerConfig
 	}
 
+	// handle rpc yamux configuration
+	conf.RPCSessionConfig = yamux.DefaultConfig()
+	if agentConfig.RPC != nil {
+		if agentConfig.RPC.AcceptBacklog > 0 {
+			conf.RPCSessionConfig.AcceptBacklog = agentConfig.RPC.AcceptBacklog
+		}
+		if agentConfig.RPC.KeepAliveInterval > 0 {
+			conf.RPCSessionConfig.KeepAliveInterval = agentConfig.RPC.KeepAliveInterval
+		}
+		if agentConfig.RPC.ConnectionWriteTimeout > 0 {
+			conf.RPCSessionConfig.ConnectionWriteTimeout = agentConfig.RPC.ConnectionWriteTimeout
+		}
+		if agentConfig.RPC.StreamCloseTimeout > 0 {
+			conf.RPCSessionConfig.StreamCloseTimeout = agentConfig.RPC.StreamCloseTimeout
+		}
+		if agentConfig.RPC.StreamOpenTimeout > 0 {
+			conf.RPCSessionConfig.StreamOpenTimeout = agentConfig.RPC.StreamOpenTimeout
+		}
+	}
+
 	// Set the TLS config
 	conf.TLSConfig = agentConfig.TLSConfig
 
@@ -755,6 +776,26 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	}
 	if agentConfig.Client.NetworkInterface != "" {
 		conf.NetworkInterface = agentConfig.Client.NetworkInterface
+	}
+
+	// handle rpc yamux configuration
+	conf.RPCSessionConfig = yamux.DefaultConfig()
+	if agentConfig.RPC != nil {
+		if agentConfig.RPC.AcceptBacklog > 0 {
+			conf.RPCSessionConfig.AcceptBacklog = agentConfig.RPC.AcceptBacklog
+		}
+		if agentConfig.RPC.KeepAliveInterval > 0 {
+			conf.RPCSessionConfig.KeepAliveInterval = agentConfig.RPC.KeepAliveInterval
+		}
+		if agentConfig.RPC.ConnectionWriteTimeout > 0 {
+			conf.RPCSessionConfig.ConnectionWriteTimeout = agentConfig.RPC.ConnectionWriteTimeout
+		}
+		if agentConfig.RPC.StreamCloseTimeout > 0 {
+			conf.RPCSessionConfig.StreamCloseTimeout = agentConfig.RPC.StreamCloseTimeout
+		}
+		if agentConfig.RPC.StreamOpenTimeout > 0 {
+			conf.RPCSessionConfig.StreamOpenTimeout = agentConfig.RPC.StreamOpenTimeout
+		}
 	}
 
 	conf.PreferredAddressFamily = agentConfig.Client.PreferredAddressFamily

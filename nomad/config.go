@@ -23,6 +23,7 @@ import (
 	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
+	"github.com/hashicorp/yamux"
 )
 
 const (
@@ -403,6 +404,9 @@ type Config struct {
 	// connections from a single IP address. nil/0 means no limit.
 	RPCMaxConnsPerClient int
 
+	// RPCSessionConfig configures the yamux session configuration for RPC
+	RPCSessionConfig *yamux.Config
+
 	// LicenseConfig stores information about the Enterprise license loaded for the server.
 	LicenseConfig *LicenseConfig
 
@@ -615,6 +619,7 @@ func DefaultConfig() *Config {
 		VaultConfigs: map[string]*config.VaultConfig{
 			structs.VaultDefaultCluster: config.DefaultVaultConfig()},
 		RPCHoldTimeout:           5 * time.Second,
+		RPCSessionConfig:         yamux.DefaultConfig(),
 		StatsCollectionInterval:  1 * time.Minute,
 		TLSConfig:                &config.TLSConfig{},
 		ReplicationBackoff:       30 * time.Second,

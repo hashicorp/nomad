@@ -30,6 +30,7 @@ import (
 	structsc "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/plugins/base"
 	"github.com/hashicorp/nomad/version"
+	"github.com/hashicorp/yamux"
 )
 
 var (
@@ -270,6 +271,9 @@ type Config struct {
 	// This period is meant to be long enough for a leader election to take
 	// place, and a small jitter is applied to avoid a thundering herd.
 	RPCHoldTimeout time.Duration
+
+	// RPCSessionConfig configures yamux multiplex
+	RPCSessionConfig *yamux.Config
 
 	// PluginLoader is used to load plugins.
 	PluginLoader loader.PluginCatalog
@@ -895,6 +899,7 @@ func DefaultConfig() *Config {
 		DisableRemoteExec:       false,
 		TemplateConfig:          DefaultTemplateConfig(),
 		RPCHoldTimeout:          5 * time.Second,
+		RPCSessionConfig:        yamux.DefaultConfig(),
 		CNIPath:                 "/opt/cni/bin",
 		CNIConfigDir:            "/opt/cni/config",
 		CNIInterfacePrefix:      "eth",

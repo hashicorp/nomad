@@ -57,6 +57,7 @@ func ParseConfigFile(path string) (*Config, error) {
 			ServerJoin:           &ServerJoin{},
 		},
 		ACL:       &ACLConfig{},
+		RPC:       &RPCConfig{},
 		Audit:     &config.AuditConfig{},
 		Consuls:   []*config.ConsulConfig{},
 		Autopilot: &config.AutopilotConfig{},
@@ -181,6 +182,10 @@ func ParseConfigFile(path string) (*Config, error) {
 		},
 		{"reporting.export_interval",
 			&c.Reporting.ExportInterval, &c.Reporting.ExportIntervalHCL, nil},
+		{"rpc.keep_alive_interval", &c.RPC.KeepAliveInterval, &c.RPC.KeepAliveIntervalHCL, nil},
+		{"rpc.connection_write_timeout", &c.RPC.ConnectionWriteTimeout, &c.RPC.ConnectionWriteTimeoutHCL, nil},
+		{"rpc.stream_open_timeout", &c.RPC.StreamOpenTimeout, &c.RPC.StreamOpenTimeoutHCL, nil},
+		{"rpc.stream_close_timeout", &c.RPC.StreamCloseTimeout, &c.RPC.StreamCloseTimeoutHCL, nil},
 	}
 
 	// Parse durations for Consul and Vault config blocks if provided.

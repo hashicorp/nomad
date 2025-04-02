@@ -375,7 +375,7 @@ func NewClient(cfg *config.Config, consulCatalog consul.CatalogAPI, consulProxie
 		consulProxiesFunc:    consulProxiesFunc,
 		consulServices:       consulServices,
 		start:                time.Now(),
-		connPool:             pool.NewPool(logger, clientRPCCache, clientMaxStreams, tlsWrap),
+		connPool:             pool.NewPool(logger, clientRPCCache, clientMaxStreams, tlsWrap, cfg.RPCSessionConfig),
 		tlsWrap:              tlsWrap,
 		streamingRpcs:        structs.NewStreamingRpcRegistry(),
 		logger:               logger,
