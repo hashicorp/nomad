@@ -44,9 +44,14 @@ func testIgnoreSystem(t *testing.T) {
 
 	// Figure out how many system alloc we'll expect to see
 	nodes, err := e2eutil.NodeStatusListFiltered(
-		func(section string) bool {
-			kernelName, err := e2eutil.GetField(section, "kernel.name")
-			return err == nil && kernelName == "linux"
+		func(nodeStatus string) bool {
+			eligible, _ := e2eutil.GetField(nodeStatus, "Eligibility")
+			status, _ := e2eutil.GetField(nodeStatus, "Status")
+			kernelName, err := e2eutil.GetField(nodeStatus, "kernel.name")
+			return err == nil &&
+				kernelName == "linux" &&
+				eligible == "eligible" &&
+				status == "ready"
 		})
 	must.NoError(t, err, must.Sprint("could not get node status listing"))
 	count := len(nodes)

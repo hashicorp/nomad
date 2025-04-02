@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 )
 
 type ScalingE2ETest struct {
@@ -182,14 +183,21 @@ func (tc *ScalingE2ETest) TestScalingBasicWithSystemSchedule(f *framework.F) {
 	initialAllocs, _, err := jobs.Allocations(jobID, true, nil)
 	f.NoError(err)
 
-	nodeStubList, _, err := nomadClient.Nodes().List(&api.QueryOptions{Namespace: "default"})
-	f.NoError(err)
+	// Figure out how many system alloc we'll expect to see
+	nodes, err := e2eutil.NodeStatusListFiltered(
+		func(nodeStatus string) bool {
+			eligible, _ := e2eutil.GetField(nodeStatus, "Eligibility")
+			status, _ := e2eutil.GetField(nodeStatus, "Status")
+			kernelName, err := e2eutil.GetField(nodeStatus, "kernel.name")
+			return err == nil &&
+				kernelName == "linux" &&
+				eligible == "eligible" &&
+				status == "ready"
+		})
+	must.NoError(t, err, must.Sprint("could not get node status listing"))
+	count := len(nodes)
 
-	// A system job will spawn an allocation per node, we need to know how many nodes
-	// there are to know how many allocations to expect.
-	numberOfNodes := len(nodeStubList)
-
-	f.Equal(numberOfNodes, len(initialAllocs))
+	f.Equal(count, len(initialAllocs))
 	allocIDs := e2eutil.AllocIDsFromAllocationListStubs(initialAllocs)
 
 	// Wait for allocations to get past initial pending state
