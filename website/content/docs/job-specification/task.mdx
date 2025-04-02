@@ -110,9 +110,9 @@ job "docs" {
   [Docker][] images specify their own default users. This can only be set
   on Linux platforms, and clients can restrict [which drivers][user_drivers]
   are allowed to run tasks as [certain users][user_denylist].
-  On the Windows platform, in case Nomad is running as [system service][service],
-  for the [`raw_exec`][raw_exec] driver less privileged service user can be
-  specified (example: `NT AUTHORITY\LocalService`, `NT AUTHORITY\NetworkService`).
+  On Windows, when Nomad is running as a [system service][service] for the
+  [`raw_exec`][raw_exec] driver, you may specify a less-privileged service user.
+  For example, `NT AUTHORITY\LocalService`, `NT AUTHORITY\NetworkService`.
 
 - `template` <code>([Template][]: nil)</code> - Specifies the set of templates
   to render for the task. Templates can be used to inject both static and
