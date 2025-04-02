@@ -96,7 +96,7 @@ func formatAuthMethodConfig(config *api.ACLAuthMethodConfig) string {
 	}
 	out = append(out, formatClientAssertion(config.OIDCClientAssertion)...)
 	out = append(out,
-		fmt.Sprintf("OIDC Disable PKCE|%t", config.OIDCDisablePKCE != nil && *config.OIDCDisablePKCE),
+		fmt.Sprintf("OIDC Enable PKCE|%t", config.OIDCEnablePKCE != nil && *config.OIDCEnablePKCE),
 		fmt.Sprintf("OIDC Disable UserInfo|%t", config.OIDCDisableUserInfo),
 		fmt.Sprintf("OIDC Scopes|%s", strings.Join(config.OIDCScopes, ",")),
 		fmt.Sprintf("Bound audiences|%s", strings.Join(config.BoundAudiences, ",")),

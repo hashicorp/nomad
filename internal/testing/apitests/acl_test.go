@@ -100,7 +100,7 @@ func TestACLOIDC_CompleteAuth(t *testing.T) {
 			OIDCClientSecret: "verysecretsecret",
 			// PKCE is hard to test at this level, because the verifier only
 			// exists on the server. this functionality is covered elsewhere.
-			OIDCDisablePKCE:     pointer.Of(true),
+			OIDCEnablePKCE:      pointer.Of(false),
 			OIDCDisableUserInfo: false,
 			BoundAudiences:      []string{"mock"},
 			AllowedRedirectURIs: []string{"http://127.0.0.1:4649/oidc/callback"},
