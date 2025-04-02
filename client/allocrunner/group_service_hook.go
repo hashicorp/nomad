@@ -49,12 +49,11 @@ type groupServiceHook struct {
 	logger hclog.Logger
 
 	// The following fields may be updated
-	canary         bool
-	services       []*structs.Service
-	networks       structs.Networks
-	ports          structs.AllocatedPorts
-	taskEnvBuilder *taskenv.Builder
-	delay          time.Duration
+	canary   bool
+	services []*structs.Service
+	networks structs.Networks
+	ports    structs.AllocatedPorts
+	delay    time.Duration
 
 	// Since Update() may be called concurrently with any other hook all
 	// hook methods must be fully serialized
@@ -64,7 +63,6 @@ type groupServiceHook struct {
 type groupServiceHookConfig struct {
 	alloc            *structs.Allocation
 	restarter        serviceregistration.WorkloadRestarter
-	taskEnvBuilder   *taskenv.Builder
 	networkStatus    structs.NetworkStatus
 	shutdownDelayCtx context.Context
 	logger           hclog.Logger
@@ -95,7 +93,6 @@ func newGroupServiceHook(cfg groupServiceHookConfig) *groupServiceHook {
 		namespace:         cfg.alloc.Namespace,
 		restarter:         cfg.restarter,
 		providerNamespace: cfg.providerNamespace,
-		taskEnvBuilder:    cfg.taskEnvBuilder,
 		delay:             shutdownDelay,
 		networkStatus:     cfg.networkStatus,
 		logger:            cfg.logger.Named(groupServiceHookName),
@@ -131,7 +128,7 @@ func (*groupServiceHook) Name() string {
 	return groupServiceHookName
 }
 
-func (h *groupServiceHook) Prerun() error {
+func (h *groupServiceHook) Prerun(allocEnv *taskenv.TaskEnv) error {
 	h.mu.Lock()
 	defer func() {
 		// Mark prerun as true to unblock Updates
@@ -140,15 +137,21 @@ func (h *groupServiceHook) Prerun() error {
 		h.deregistered = false
 		h.mu.Unlock()
 	}()
-	return h.preRunLocked()
+
+	return h.preRunLocked(allocEnv)
 }
 
 // caller must hold h.mu
-func (h *groupServiceHook) preRunLocked() error {
+func (h *groupServiceHook) preRunLocked(env *taskenv.TaskEnv) error {
 	if len(h.services) == 0 {
 		return nil
 	}
 
+	// TODO(tgross): this will be nil in PreTaskKill method because we have some
+	// false sharing of this method
+	if env != nil {
+		h.services = taskenv.InterpolateServices(env, h.services)
+	}
 	services := h.getWorkloadServicesLocked()
 	return h.serviceRegWrapper.RegisterWorkload(services)
 }
@@ -181,10 +184,10 @@ func (h *groupServiceHook) Update(req *interfaces.RunnerUpdateRequest) error {
 
 	// Update group service hook fields
 	h.networks = networks
-	h.services = tg.Services
+	h.services = taskenv.InterpolateServices(req.AllocEnv, tg.Services)
+
 	h.canary = canary
 	h.delay = shutdown
-	h.taskEnvBuilder.UpdateTask(req.Alloc, nil)
 
 	// An update may change the service provider, therefore we need to account
 	// for how namespaces work across providers also.
@@ -213,7 +216,7 @@ func (h *groupServiceHook) PreTaskRestart() error {
 	}()
 
 	h.preKillLocked()
-	return h.preRunLocked()
+	return h.preRunLocked(nil)
 }
 
 func (h *groupServiceHook) PreKill() {
@@ -278,9 +281,6 @@ func (h *groupServiceHook) deregisterLocked() {
 //
 // caller must hold h.lock
 func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.WorkloadServices {
-	// Interpolate with the task's environment
-	interpolatedServices := taskenv.InterpolateServices(h.taskEnvBuilder.Build(), h.services)
-
 	allocTokens := h.hookResources.GetConsulTokens()
 
 	tokens := map[string]string{}
@@ -308,7 +308,7 @@ func (h *groupServiceHook) getWorkloadServicesLocked() *serviceregistration.Work
 		AllocInfo:         info,
 		ProviderNamespace: h.providerNamespace,
 		Restarter:         h.restarter,
-		Services:          interpolatedServices,
+		Services:          h.services,
 		Networks:          h.networks,
 		NetworkStatus:     netStatus,
 		Ports:             h.ports,

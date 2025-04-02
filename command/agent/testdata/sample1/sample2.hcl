@@ -17,6 +17,15 @@
   "token"            = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
 }
 
+rpc {
+  accept_backlog           = 256
+  keep_alive_interval      = "30s"
+  connection_write_timeout = "10s"
+  max_stream_window_size   = 262144
+  stream_open_timeout      = "75s"
+  stream_close_timeout     = "5m"
+}
+
 vault = {
   enabled = true
 }

@@ -57,7 +57,7 @@ capability {
 }
 
 parameters {
-  foo = "bar"
+  mode = "0700"
 }
 `
 

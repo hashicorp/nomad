@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
+	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -53,7 +54,7 @@ var (
 	_ interfaces.RunnerPostrunHook = (*cpuPartsHook)(nil)
 )
 
-func (h *cpuPartsHook) Prerun() error {
+func (h *cpuPartsHook) Prerun(_ *taskenv.TaskEnv) error {
 	return h.partitions.Reserve(h.reservations)
 }
 

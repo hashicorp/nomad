@@ -96,7 +96,7 @@ func TestHealthHook_PrerunPostrun(t *testing.T) {
 
 	checks := new(mock.CheckShim)
 	alloc := mock.Alloc()
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks)
 
 	// Assert we implemented the right interfaces
 	prerunh, ok := h.(interfaces.RunnerPrerunHook)
@@ -107,7 +107,8 @@ func TestHealthHook_PrerunPostrun(t *testing.T) {
 	require.True(ok)
 
 	// Prerun
-	require.NoError(prerunh.Prerun())
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
+	require.NoError(prerunh.Prerun(env))
 
 	// Assert isDeploy is false (other tests peek at isDeploy to determine
 	// if an Update applied)
@@ -135,10 +136,11 @@ func TestHealthHook_PrerunUpdatePostrun(t *testing.T) {
 	hs := &mockHealthSetter{}
 
 	checks := new(mock.CheckShim)
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	// Prerun
-	require.NoError(h.Prerun())
+	require.NoError(h.Prerun(env))
 
 	// Update multiple times in a goroutine to mimic Client behavior
 	// (Updates are concurrent with alloc runner but are applied serially).
@@ -175,7 +177,8 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	hs := &mockHealthSetter{}
 
 	checks := new(mock.CheckShim)
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	// Set a DeploymentID to cause ClearHealth to be called
 	alloc.DeploymentID = uuid.Generate()
@@ -184,7 +187,7 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	// concurrent with alloc runner).
 	errs := make(chan error, 1)
 	go func(alloc *structs.Allocation) {
-		errs <- h.Update(&interfaces.RunnerUpdateRequest{Alloc: alloc})
+		errs <- h.Update(&interfaces.RunnerUpdateRequest{Alloc: alloc, AllocEnv: env})
 		close(errs)
 	}(alloc.Copy())
 
@@ -193,7 +196,7 @@ func TestHealthHook_UpdatePrerunPostrun(t *testing.T) {
 	}
 
 	// Prerun should be a noop
-	require.NoError(h.Prerun())
+	require.NoError(h.Prerun(env))
 
 	// Assert that the Update took affect by isDeploy being true
 	h.hookLock.Lock()
@@ -218,7 +221,7 @@ func TestHealthHook_Postrun(t *testing.T) {
 
 	alloc := mock.Alloc()
 	checks := new(mock.CheckShim)
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
 
 	// Postrun
 	require.NoError(h.Postrun())
@@ -285,10 +288,11 @@ func TestHealthHook_SetHealth_healthy(t *testing.T) {
 	hs := newMockHealthSetter()
 
 	checks := new(mock.CheckShim)
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	// Prerun
-	require.NoError(h.Prerun())
+	require.NoError(h.Prerun(env))
 
 	// Wait for health to be set (healthy)
 	select {
@@ -374,10 +378,11 @@ func TestHealthHook_SetHealth_unhealthy(t *testing.T) {
 	hs := newMockHealthSetter()
 
 	checks := new(mock.CheckShim)
-	h := newAllocHealthWatcherHook(logger, alloc.Copy(), taskEnvBuilderFactory(alloc), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	h := newAllocHealthWatcherHook(logger, alloc.Copy(), hs, b.Listen(), consul, checks).(*allocHealthWatcherHook)
+	env := taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region).Build()
 
 	// Prerun
-	require.NoError(h.Prerun())
+	require.NoError(h.Prerun(env))
 
 	// Wait to ensure we don't get a healthy status
 	select {
@@ -396,7 +401,7 @@ func TestHealthHook_SystemNoop(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.SystemAlloc()
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), taskEnvBuilderFactory(alloc), nil, nil, nil, nil)
+	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), nil, nil, nil, nil)
 
 	// Assert that it's the noop impl
 	_, ok := h.(noopAllocHealthWatcherHook)
@@ -418,15 +423,9 @@ func TestHealthHook_BatchNoop(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
-	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), taskEnvBuilderFactory(alloc), nil, nil, nil, nil)
+	h := newAllocHealthWatcherHook(testlog.HCLogger(t), alloc.Copy(), nil, nil, nil, nil)
 
 	// Assert that it's the noop impl
 	_, ok := h.(noopAllocHealthWatcherHook)
 	require.True(t, ok)
-}
-
-func taskEnvBuilderFactory(alloc *structs.Allocation) func() *taskenv.Builder {
-	return func() *taskenv.Builder {
-		return taskenv.NewBuilder(mock.Node(), alloc, nil, alloc.Job.Region)
-	}
 }

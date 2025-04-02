@@ -327,6 +327,12 @@ testing.
   no local state remains from the previous region before running the agent
   again.
 
+- `rpc` `(`[`RPC`]`: nil)` - Specifies configuration which is specific to RPC.
+	We strongly recommend that you do not configure RPC values. Use the default
+	values, which have been production-proven on clusters of thousands of nodes.
+	You should only configure the `rpc` block if you have a specific reason to
+	believe it will improve your particular use case.
+
 - `sentinel` `(`[`Sentinel`]`: nil)` - Specifies configuration for Sentinel
   policies.
 
@@ -390,6 +396,7 @@ http_api_response_headers {
 ```
 
 [`acl`]: /nomad/docs/configuration/acl 'Nomad Agent ACL Configuration'
+[`rpc`]: /nomad/docs/configuration/rpc
 [`audit`]: /nomad/docs/configuration/audit 'Nomad Agent Audit Logging Configuration'
 [`client`]: /nomad/docs/configuration/client 'Nomad Agent client Configuration'
 [`consul`]: /nomad/docs/configuration/consul 'Nomad Agent consul Configuration'

@@ -9,6 +9,7 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	"github.com/hashicorp/nomad/client/config"
+	"github.com/hashicorp/nomad/client/taskenv"
 )
 
 // upstreamAllocsHook waits for a PrevAllocWatcher to exit before allowing
@@ -33,7 +34,7 @@ func (h *upstreamAllocsHook) Name() string {
 	return "await_previous_allocations"
 }
 
-func (h *upstreamAllocsHook) Prerun() error {
+func (h *upstreamAllocsHook) Prerun(_ *taskenv.TaskEnv) error {
 	// Wait for a previous alloc - if any - to terminate
 	return h.allocWatcher.Wait(context.Background())
 }

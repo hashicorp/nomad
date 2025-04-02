@@ -109,6 +109,9 @@ type Config struct {
 	// Server has our server related settings
 	Server *ServerConfig `hcl:"server"`
 
+	// RPC has yamux multiplex settings
+	RPC *RPCConfig `hcl:"rpc"`
+
 	// ACL has our acl related settings
 	ACL *ACLConfig `hcl:"acl"`
 
@@ -769,6 +772,112 @@ func (s *ServerConfig) Copy() *ServerConfig {
 	return &ns
 }
 
+// RPCConfig allows for tunable yamux multiplex configuration
+type RPCConfig struct {
+	// AcceptBacklog is used to limit how many streams may be
+	// waiting an accept.
+	AcceptBacklog int `hcl:"accept_backlog,optional"`
+
+	// KeepAliveInterval is how often to perform the keep alive
+	KeepAliveInterval    time.Duration
+	KeepAliveIntervalHCL string `hcl:"keep_alive_interval,optional"`
+
+	// ConnectionWriteTimeout is meant to be a "safety valve" timeout after
+	// we which will suspect a problem with the underlying connection and
+	// close it. This is only applied to writes, where's there's generally
+	// an expectation that things will move along quickly.
+	ConnectionWriteTimeout    time.Duration
+	ConnectionWriteTimeoutHCL string `hcl:"connection_write_timeout,optional"`
+
+	// StreamOpenTimeout is the maximum amount of time that a stream will
+	// be allowed to remain in pending state while waiting for an ack from the peer.
+	// Once the timeout is reached the session will be gracefully closed.
+	// A zero value disables the StreamOpenTimeout allowing unbounded
+	// blocking on OpenStream calls.
+	StreamOpenTimeout    time.Duration
+	StreamOpenTimeoutHCL string `hcl:"stream_open_timeout,optional"`
+
+	// StreamCloseTimeout is the maximum time that a stream will allowed to
+	// be in a half-closed state when `Close` is called before forcibly
+	// closing the connection. Forcibly closed connections will empty the
+	// receive buffer, drop any future packets received for that stream,
+	// and send a RST to the remote side.
+	StreamCloseTimeout    time.Duration
+	StreamCloseTimeoutHCL string `hcl:"stream_close_timeout,optional"`
+}
+
+func (r *RPCConfig) Copy() *RPCConfig {
+	if r == nil {
+		return nil
+	}
+
+	nr := *r
+	return &nr
+}
+
+func (r *RPCConfig) Merge(rpc *RPCConfig) *RPCConfig {
+	if r == nil {
+		return rpc
+	}
+
+	result := *r
+
+	if rpc == nil {
+		return &result
+	}
+
+	if rpc.AcceptBacklog > 0 {
+		result.AcceptBacklog = rpc.AcceptBacklog
+	}
+	if rpc.KeepAliveIntervalHCL != "" {
+		result.KeepAliveIntervalHCL = rpc.KeepAliveIntervalHCL
+	}
+	if rpc.KeepAliveInterval > 0 {
+		result.KeepAliveInterval = rpc.KeepAliveInterval
+	}
+	if rpc.ConnectionWriteTimeoutHCL != "" {
+		result.ConnectionWriteTimeoutHCL = rpc.ConnectionWriteTimeoutHCL
+	}
+	if rpc.ConnectionWriteTimeout > 0 {
+		result.ConnectionWriteTimeout = rpc.ConnectionWriteTimeout
+	}
+	if rpc.StreamOpenTimeoutHCL != "" {
+		result.StreamOpenTimeoutHCL = rpc.StreamOpenTimeoutHCL
+	}
+	if rpc.StreamOpenTimeout > 0 {
+		result.StreamOpenTimeout = rpc.StreamOpenTimeout
+	}
+	if rpc.StreamCloseTimeoutHCL != "" {
+		result.StreamCloseTimeoutHCL = rpc.StreamCloseTimeoutHCL
+	}
+	if rpc.StreamCloseTimeout > 0 {
+		result.StreamCloseTimeout = rpc.StreamCloseTimeout
+	}
+	return &result
+}
+
+func (r *RPCConfig) Validate() error {
+	if r != nil {
+		if r.AcceptBacklog < 0 {
+			return errors.New("rcp.accept_backlog interval must be greater than zero")
+		}
+		if r.KeepAliveInterval < 0 {
+			return errors.New("rcp.keep_alive_interval must be greater than zero")
+		}
+		if r.ConnectionWriteTimeout < 0 {
+			return errors.New("rcp.connection_write_timeout must be greater than zero")
+		}
+		if r.StreamCloseTimeout < 0 {
+			return errors.New("rcp.stream_close_timeout must be greater than zero")
+		}
+		if r.StreamOpenTimeout < 0 {
+			return errors.New("rcp.stream_open_timeout must be greater than zero")
+		}
+	}
+
+	return nil
+}
+
 // RaftBoltConfig is used in servers to configure parameters of the boltdb
 // used for raft consensus.
 type RaftBoltConfig struct {
@@ -1401,6 +1510,17 @@ func DefaultConfig() *Config {
 		Consuls:        []*config.ConsulConfig{config.DefaultConsulConfig()},
 		Vaults:         []*config.VaultConfig{config.DefaultVaultConfig()},
 		UI:             config.DefaultUIConfig(),
+		RPC: &RPCConfig{
+			AcceptBacklog:             256,
+			KeepAliveInterval:         30 * time.Second,
+			KeepAliveIntervalHCL:      "30s",
+			ConnectionWriteTimeout:    10 * time.Second,
+			ConnectionWriteTimeoutHCL: "10s",
+			StreamOpenTimeout:         75 * time.Second,
+			StreamOpenTimeoutHCL:      "75s",
+			StreamCloseTimeout:        5 * time.Minute,
+			StreamCloseTimeoutHCL:     "5m",
+		},
 		Client: &ClientConfig{
 			Enabled:               false,
 			NodePool:              structs.NodePoolDefault,
@@ -1612,6 +1732,14 @@ func (c *Config) Merge(b *Config) *Config {
 		result.Server = &server
 	} else if b.Server != nil {
 		result.Server = result.Server.Merge(b.Server)
+	}
+
+	// Apply the rpc mux config
+	if result.RPC == nil && b.RPC != nil {
+		rpcMux := *b.RPC
+		result.RPC = &rpcMux
+	} else if b.RPC != nil {
+		result.RPC = result.RPC.Merge(b.RPC)
 	}
 
 	// Apply the acl config

@@ -61,6 +61,9 @@ FS Specific Options:
   -job <job-id>
     Use a random allocation from the specified job ID or prefix.
 
+  -group <group-name>
+    Specifies the task group with the task when a random allocation is selected.
+
   -stat
     Show file stat information instead of displaying the file, or listing the directory.
 
@@ -92,6 +95,7 @@ func (f *AllocFSCommand) AutocompleteFlags() complete.Flags {
 			"-H":       complete.PredictNothing,
 			"-verbose": complete.PredictNothing,
 			"-job":     complete.PredictAnything,
+			"-group":   complete.PredictAnything,
 			"-stat":    complete.PredictNothing,
 			"-f":       complete.PredictNothing,
 			"-tail":    complete.PredictNothing,
@@ -120,12 +124,14 @@ func (f *AllocFSCommand) Name() string { return "alloc fs" }
 func (f *AllocFSCommand) Run(args []string) int {
 	var verbose, machine, job, stat, tail, follow bool
 	var numLines, numBytes int64
+	var group string
 
 	flags := f.Meta.FlagSet(f.Name(), FlagSetClient)
 	flags.Usage = func() { f.Ui.Output(f.Help()) }
 	flags.BoolVar(&verbose, "verbose", false, "")
 	flags.BoolVar(&machine, "H", false, "")
 	flags.BoolVar(&job, "job", false, "")
+	flags.StringVar(&group, "group", "", "")
 	flags.BoolVar(&stat, "stat", false, "")
 	flags.BoolVar(&follow, "f", false, "")
 	flags.BoolVar(&tail, "tail", false, "")
@@ -173,7 +179,7 @@ func (f *AllocFSCommand) Run(args []string) int {
 			return 1
 		}
 
-		allocID, err = getRandomJobAllocID(client, jobID, "", ns)
+		allocID, err = getRandomJobAllocID(client, jobID, group, ns)
 		if err != nil {
 			f.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1

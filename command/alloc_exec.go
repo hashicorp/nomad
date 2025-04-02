@@ -53,6 +53,9 @@ Exec Specific Options:
   -job
     Use a random allocation from the specified job ID or prefix.
 
+  -group <group-name>
+    Specifies the task group with the task when a random allocation is selected.
+
   -i
     Pass stdin to the container, defaults to true.  Pass -i=false to disable.
 
@@ -78,6 +81,7 @@ func (l *AllocExecCommand) AutocompleteFlags() complete.Flags {
 		complete.Flags{
 			"--task": complete.PredictAnything,
 			"-job":   complete.PredictAnything,
+			"-group": complete.PredictAnything,
 			"-i":     complete.PredictNothing,
 			"-t":     complete.PredictNothing,
 			"-e":     complete.PredictSet("none", "~"),
@@ -103,7 +107,7 @@ func (l *AllocExecCommand) Name() string { return "alloc exec" }
 
 func (l *AllocExecCommand) Run(args []string) int {
 	var job, stdinOpt, ttyOpt bool
-	var task, escapeChar string
+	var task, group, escapeChar string
 
 	flags := l.Meta.FlagSet(l.Name(), FlagSetClient)
 	flags.Usage = func() { l.Ui.Output(l.Help()) }
@@ -112,6 +116,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 	flags.BoolVar(&ttyOpt, "t", isTty(), "")
 	flags.StringVar(&escapeChar, "e", "~", "")
 	flags.StringVar(&task, "task", "", "")
+	flags.StringVar(&group, "group", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -168,7 +173,7 @@ func (l *AllocExecCommand) Run(args []string) int {
 			return 1
 		}
 
-		allocStub, err = getRandomJobAlloc(client, jobID, "", ns)
+		allocStub, err = getRandomJobAlloc(client, jobID, group, ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1

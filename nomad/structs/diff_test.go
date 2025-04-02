@@ -5271,6 +5271,61 @@ func TestTaskGroupDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			TestCase:   "edited migrate",
+			Contextual: false,
+			Old: &TaskGroup{
+				Migrate: &MigrateStrategy{
+					MaxParallel:     1,
+					HealthCheck:     "checks",
+					MinHealthyTime:  1 * time.Second,
+					HealthyDeadline: 1 * time.Minute,
+				},
+			},
+			New: &TaskGroup{
+				Migrate: &MigrateStrategy{
+					MaxParallel:     5,
+					HealthCheck:     "task_states",
+					MinHealthyTime:  5 * time.Second,
+					HealthyDeadline: 5 * time.Minute,
+				},
+			},
+			Expected: &TaskGroupDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Migrate",
+						Fields: []*FieldDiff{
+							{
+								Type: "Edited",
+								Name: "HealthCheck",
+								Old:  "checks",
+								New:  "task_states",
+							},
+							{
+								Type: "Edited",
+								Name: "HealthyDeadline",
+								Old:  "60000000000",
+								New:  "300000000000",
+							},
+							{
+								Type: "Edited",
+								Name: "MaxParallel",
+								Old:  "1",
+								New:  "5",
+							},
+							{
+								Type: "Edited",
+								Name: "MinHealthyTime",
+								Old:  "1000000000",
+								New:  "5000000000",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for i, c := range cases {
