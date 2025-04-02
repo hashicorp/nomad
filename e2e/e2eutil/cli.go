@@ -109,7 +109,7 @@ func ParseColumns(section string) ([]map[string]string, error) {
 	fieldNames := breakFields(rows[0])
 
 	for _, row := range rows[1:] {
-		if row == "" {
+		if row == "" || strings.HasPrefix(row, "==> View") {
 			continue
 		}
 		r := map[string]string{}
