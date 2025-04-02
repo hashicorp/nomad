@@ -229,7 +229,7 @@ func (v *HostVolume) Create(args *structs.HostVolumeCreateRequest, reply *struct
 	now := time.Now()
 	vol.CanonicalizeForCreate(existing, now)
 
-	// make sure any nodes or pools actually exist
+	// make sure any namespaces, nodes, or pools actually exist
 	err = v.validateVolumeForState(vol, snap)
 	if err != nil {
 		return fmt.Errorf("validating volume %q against state failed: %v", vol.Name, err)
@@ -390,7 +390,15 @@ func (v *HostVolume) validateVolumeUpdate(
 	// validate the volume spec
 	err := vol.Validate()
 	if err != nil {
-		return nil, fmt.Errorf("volume validation failed: %v", err)
+		return nil, fmt.Errorf("volume validation failed: %w", err)
+	}
+
+	ns, err := snap.NamespaceByName(nil, vol.Namespace)
+	if err != nil {
+		return nil, err // should never hit, bail out
+	}
+	if ns == nil {
+		return nil, fmt.Errorf("volume validation failed: no such namespace %q", vol.Namespace)
 	}
 
 	// validate any update we're making
