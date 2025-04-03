@@ -10,6 +10,7 @@ import {
   currentURL,
   fillIn,
   visit,
+  waitFor,
   settled,
 } from '@ember/test-helpers';
 import { assign } from '@ember/polyfills';
@@ -95,10 +96,12 @@ module('Acceptance | job run', function (hooks) {
     const spec = jsonJob();
 
     await JobRun.visit();
+    await waitFor('.cm-editor');
 
     await JobRun.editor.editor.fillIn(spec);
     await JobRun.editor.plan();
     await JobRun.editor.run();
+
     assert.equal(
       currentURL(),
       `/jobs/${newJobName}@${newJobNamespace}`,
@@ -113,6 +116,7 @@ module('Acceptance | job run', function (hooks) {
     const spec = jsonJob({ Namespace: newNamespace });
 
     await JobRun.visit();
+    await waitFor('.cm-editor');
 
     await JobRun.editor.editor.fillIn(spec);
     await JobRun.editor.plan();
@@ -235,13 +239,16 @@ module('Acceptance | job run', function (hooks) {
         currentURL(),
         '/jobs/run?template=nomad%2Fjob-templates%2Ffoo%40default'
       );
-      assert.dom('[data-test-editor]').containsText('Hello World!');
+      await waitFor('.cm-editor');
+
+      assert.dom('.hds-code-editor__editor').containsText('Hello World!');
     });
 
     test('a user can create their own job template', async function (assert) {
       assert.expect(7);
       // Arrange
       await JobRun.visit();
+      await waitFor('.cm-editor');
       await click('[data-test-choose-template]');
 
       // Assert
@@ -258,7 +265,13 @@ module('Acceptance | job run', function (hooks) {
       await fillIn('[data-test-template-name]', 'foo');
       await fillIn('[data-test-template-description]', 'foo-bar-baz');
       const codeMirror = getCodeMirrorInstance('[data-test-template-json]');
-      codeMirror.setValue(jsonJob());
+      codeMirror.dispatch({
+        changes: {
+          from: 0,
+          to: codeMirror.state.doc.length,
+          insert: jsonJob(),
+        },
+      });
 
       server.put('/var/:varId', function (_server, fakeRequest) {
         assert.deepEqual(
@@ -350,7 +363,13 @@ module('Acceptance | job run', function (hooks) {
       await fillIn('[data-test-template-name]', 'try@');
       await fillIn('[data-test-template-description]', 'foo-bar-baz');
       const codeMirror = getCodeMirrorInstance('[data-test-template-json]');
-      codeMirror.setValue(jsonJob());
+      codeMirror.dispatch({
+        changes: {
+          from: 0,
+          to: codeMirror.state.doc.length,
+          insert: jsonJob(),
+        },
+      });
 
       server.put('/var/:varId?cas=0', function () {
         return new AdapterError({
@@ -418,6 +437,7 @@ module('Acceptance | job run', function (hooks) {
       assert.expect(4);
       // Arrange
       await JobRun.visit();
+      await waitFor('.cm-editor');
       await JobRun.editor.editor.fillIn(jsonJob());
 
       await click('[data-test-save-as-template]');
@@ -436,7 +456,7 @@ module('Acceptance | job run', function (hooks) {
         .hasNoText('No template description is prefilled.');
 
       const codeMirror = getCodeMirrorInstance('[data-test-template-json]');
-      const json = codeMirror.getValue();
+      const json = codeMirror.state.doc.toString();
 
       assert.equal(
         json,
@@ -604,7 +624,9 @@ module('Acceptance | job run', function (hooks) {
         currentURL(),
         '/jobs/run?template=nomad%2Fjob-templates%2Fdefault%2Fhello-world'
       );
-      assert.dom('[data-test-editor]').includesText('job "hello-world"');
+      await waitFor('.cm-editor');
+
+      assert.dom('.hds-code-editor__editor').includesText('job "hello-world"');
     });
   });
 });

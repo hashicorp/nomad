@@ -1,0 +1,31 @@
+.job-editor {
+  .job-definition-editor-header {
+    align-items: center;
+    display: flex;
+    color: var(--token-color-palette-neutral-100);
+
+    .job-definition-select {
+      border: 1px solid var(--token-color-palette-neutral-500);
+      border-radius: 5px;
+      display: grid;
+      gap: 0.25rem;
+      grid-template-columns: 1fr 1fr;
+      padding: 0.25rem;
+      margin: 0rem 1rem;
+
+      &.disabled {
+        opacity: 0.5;
+        pointer-events: none;
+      }
+
+      .hds-button.is-active {
+        background: var(--token-color-palette-neutral-100);
+        color: var(--token-color-foreground-strong);
+      }
+    }
+
+    .hds-form-label {
+      color: var(--token-color-palette-neutral-100);
+    }
+  }
+}
