@@ -158,30 +158,33 @@ scenario "upgrade" {
         batch_raw_exec   = { job_spec = "jobs/raw-exec-batch.nomad.hcl", alloc_count = 3, type = "batch" }
         system_raw_exec  = { job_spec = "jobs/raw-exec-system.nomad.hcl", alloc_count = 0, type = "system" }
 
-        nfs = {
-          job_spec    = "jobs/nfs.nomad.hcl"
-          alloc_count = 1
-          type        = "service"
-        }
+        # TODO(tgross): temporarily disabled until we can get CSI plugins to
+        # come up reliably
 
-        csi_plugin_nfs_controllers = {
-          job_spec    = "jobs/plugin-nfs-controllers.nomad.hcl"
-          alloc_count = 1
-          type        = "service"
-        }
+        # nfs = {
+        #   job_spec    = "jobs/nfs.nomad.hcl"
+        #   alloc_count = 1
+        #   type        = "service"
+        # }
 
-        csi_plugin_nfs_nodes = {
-          job_spec    = "jobs/plugin-nfs-nodes.nomad.hcl"
-          alloc_count = 0
-          type        = "system"
-        }
+        # csi_plugin_nfs_controllers = {
+        #   job_spec    = "jobs/plugin-nfs-controllers.nomad.hcl"
+        #   alloc_count = 1
+        #   type        = "service"
+        # }
 
-        wants_csi = {
-          job_spec    = "jobs/wants-volume.nomad.hcl"
-          alloc_count = 1
-          type        = "service"
-          pre_script  = "scripts/wait_for_nfs_volume.sh"
-        }
+        # csi_plugin_nfs_nodes = {
+        #   job_spec    = "jobs/plugin-nfs-nodes.nomad.hcl"
+        #   alloc_count = 0
+        #   type        = "system"
+        # }
+
+        # wants_csi = {
+        #   job_spec    = "jobs/wants-volume.nomad.hcl"
+        #   alloc_count = 1
+        #   type        = "service"
+        #   pre_script  = "scripts/wait_for_nfs_volume.sh"
+        # }
 
         tproxy = {
           job_spec    = "jobs/tproxy.nomad.hcl"
