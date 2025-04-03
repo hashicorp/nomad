@@ -278,7 +278,7 @@ func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 			OIDCClientSecret: "very secret secret",
 			// PKCE is hard to test outside the server/RPC layer,
 			// because the verifier is only accessible there.
-			OIDCDisablePKCE:     pointer.Of(true),
+			OIDCEnablePKCE:      pointer.Of(false),
 			OIDCDisableUserInfo: false,
 			OIDCScopes:          []string{"groups"},
 			BoundAudiences:      []string{"sales", "engineering"},

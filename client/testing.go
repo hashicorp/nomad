@@ -19,6 +19,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/yamux"
 	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/shoenig/test/must"
 )
@@ -118,7 +119,7 @@ func TestRPCOnlyClient(t testing.T, cb func(c *config.Config), srvAddr net.Addr,
 	}
 	client.heartbeatStop = newHeartbeatStop(
 		client.getAllocRunner, time.Second, client.logger, client.shutdownCh)
-	client.connPool = pool.NewPool(testlog.HCLogger(t), 10*time.Second, 10, nil)
+	client.connPool = pool.NewPool(testlog.HCLogger(t), 10*time.Second, 10, nil, yamux.DefaultConfig())
 	client.init()
 
 	cancelFunc := func() {

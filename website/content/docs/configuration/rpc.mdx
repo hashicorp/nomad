@@ -1,0 +1,54 @@
+---
+layout: docs
+page_title: rpc Block in Agent Configuration
+description: >-
+   Configure Nomad's RPC behavior in the `rpc` block of a Nomad agent configuration. Modify RPC session configuration, change stream accept backlog, keepalive interval, and open stream timeouts.
+---
+
+# rpc Block in Agent Configuration
+
+<Placement groups={['rpc']} />
+
+This page provides reference information for configuring Nomad's RPC behavior in
+the `rpc` block of a Nomad agent configuration. Modify RPC session
+configuration, stream accept backlog, keepalive interval, and open stream
+timeouts. We strongly recommend leaving these values unconfigured to use the
+default values, which have been production-proven on clusters of thousands of
+nodes. You should only configure the `rpc` block if you have specific reason to
+believe it will improve your specific use case.
+
+```hcl
+rpc {
+  accept_backlog           = 256
+  keep_alive_interval      = "30s"
+  connection_write_timeout = "10s"
+  max_stream_window_size   = 262144
+  stream_open_timeout      = "75s"
+  stream_close_timeout     = "5m"
+}
+```
+
+## `rpc` Parameters
+
+- `accept_backlog` `(int: 256)` - Limits how many RPC streams
+  (requests) can be waiting for acceptance by the RPC server.
+
+- `keep_alive_interval` `(string: 30s)` - How often to perform the keep alive
+
+- `connection_write_timeout` `(string: 10s)` - Safety valve timeout after which
+  you should suspect a problem with the underlying connection and close it. This
+  is only applied to writes, where there is generally an expectation that things
+  move along quickly.
+
+- `max_stream_window_size` `(int: 262144)` - Controls the maximum window size
+  allowed for a stream, in bytes.
+
+- `stream_open_timeout` `(string: 75s)` - Maximum amount of time that a stream
+  remains in pending state while waiting for an ACK from the peer. Once the
+  timeout is reached, Nomad gracefully closes the session. A zero value disables
+  the stream open timeout, allowing unbounded blocking on open stream calls.
+
+- `stream_close_timeout` `(string: 5m)` - When `close` is called, maximum time
+  that a stream is in a half-closed state before forcibly closing the
+  connection. Forcibly closed connections empty the receive buffer, drop any
+  future packets received for that stream, and send an RST to the remote side.

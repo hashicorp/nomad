@@ -330,6 +330,10 @@
         "path": "configuration/reporting"
       },
       {
+        "title": "rpc",
+        "path": "configuration/rpc"
+      },
+      {
         "title": "search",
         "path": "configuration/search"
       },

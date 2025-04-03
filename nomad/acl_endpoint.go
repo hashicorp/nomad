@@ -1912,9 +1912,11 @@ func (a *ACL) UpsertAuthMethods(
 			}
 		}
 
-		// if PKCE is not explicitly disabled, enable it.
-		if authMethod.Config.OIDCDisablePKCE == nil {
-			authMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		// if this is a new auth method, and PKCE is not explicitly disabled
+		// (by setting Enable=false), then enable it. existing auth methods
+		// need it to be enabled explicitly (Enable=True).
+		if existingMethod == nil && authMethod.Config.OIDCEnablePKCE == nil {
+			authMethod.Config.OIDCEnablePKCE = pointer.Of(true)
 		}
 		// if there is a client assertion, ensure it is valid.
 		if authMethod.Config.OIDCClientAssertion.IsSet() {
@@ -3069,7 +3071,7 @@ func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodC
 		opts = append(opts, capOIDC.WithAudiences(config.BoundAudiences...))
 	}
 
-	if config.OIDCDisablePKCE != nil && !*config.OIDCDisablePKCE {
+	if config.OIDCEnablePKCE != nil && *config.OIDCEnablePKCE {
 		verifier, err := capOIDC.NewCodeVerifier()
 		if err != nil {
 			return nil, fmt.Errorf("failed to make pkce verifier: %w", err)

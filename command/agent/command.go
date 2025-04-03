@@ -480,6 +480,10 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		)
 		return false
 	}
+	if err := config.RPC.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("rpc block invalid: %v)", err))
+		return false
+	}
 
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.

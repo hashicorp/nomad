@@ -3141,6 +3141,38 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	}
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
 	must.Eq(t, resp.AuthMethods[0].TokenLocality, am3.TokenLocality)
+
+	// default PKCE behavior
+	// * for new auth methods, it should default to true
+	// * for existing auth methods, it should remain nil
+	t.Run("pkce", func(t *testing.T) {
+		amPKCE := mock.ACLOIDCAuthMethod()
+
+		// new auth method, should default to true
+		amPKCE.Config.OIDCEnablePKCE = nil
+		req = &structs.ACLAuthMethodUpsertRequest{
+			AuthMethods: []*structs.ACLAuthMethod{amPKCE},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: root.SecretID,
+			},
+		}
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
+		out, err = s1.fsm.State().GetACLAuthMethodByName(nil, amPKCE.Name)
+		must.NoError(t, err)
+		must.NotNil(t, out)
+		must.NotNil(t, out.Config)
+		must.True(t, *out.Config.OIDCEnablePKCE, must.Sprint("pkce should be enabled on new auth methods"))
+
+		// but should remain disabled on existing auth methods
+		// upsert it directly to state to set it back to nil (not possible in rpc upsert)
+		must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(resp.Index+1, []*structs.ACLAuthMethod{amPKCE}))
+		must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
+		out, err = s1.fsm.State().GetACLAuthMethodByName(nil, amPKCE.Name)
+		must.NoError(t, err)
+		must.NotNil(t, out)
+		must.Nil(t, out.Config.OIDCEnablePKCE, must.Sprint("pkce should remain disabled on existing auth methods"))
+	})
 }
 
 func TestACL_UpsertBindingRules(t *testing.T) {
@@ -3636,7 +3668,7 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 	t.Run("pkce", func(t *testing.T) {
 		authMethod := mockedAuthMethod.Copy()
 		authMethod.Name = mockedAuthMethod.Name + "-pkce"
-		authMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		authMethod.Config.OIDCEnablePKCE = pointer.Of(true)
 		authMethod.SetHash()
 		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(20, []*structs.ACLAuthMethod{authMethod}))
 
@@ -3923,7 +3955,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 
 	t.Run("pkce", func(t *testing.T) {
 
-		mockedAuthMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		mockedAuthMethod.Config.OIDCEnablePKCE = pointer.Of(true)
 		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(60, []*structs.ACLAuthMethod{mockedAuthMethod}))
 
 		req := structs.ACLOIDCCompleteAuthRequest{
