@@ -40,13 +40,20 @@ func (s *HTTPServer) ACLPolicySpecificRequest(resp http.ResponseWriter, req *htt
 	}
 	switch req.Method {
 	case http.MethodGet:
-		return s.aclPolicyQuery(resp, req, name)
+		switch req.URL.Path {
+		case "/v1/acl/policy":
+			return s.aclPolicyQuery(resp, req, name)
+		case "/v1/acl/policy/self":
+			return s.aclSelfPolicy(resp, req)
+		default:
+			return nil, CodedError(http.StatusNotFound, "Invalid path")
+		}
 	case http.MethodPut, http.MethodPost:
 		return s.aclPolicyUpdate(resp, req, name)
 	case http.MethodDelete:
 		return s.aclPolicyDelete(resp, req, name)
 	default:
-		return nil, CodedError(405, ErrInvalidMethod)
+		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 }
 
@@ -180,7 +187,7 @@ func (s *HTTPServer) ACLTokenSpecificRequest(resp http.ResponseWriter, req *http
 	return s.aclTokenCrud(resp, req, accessor)
 }
 
-func (s *HTTPServer) ACLWIPoliciesRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) aclSelfPolicy(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodGet {
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}

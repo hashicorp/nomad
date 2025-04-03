@@ -178,7 +178,8 @@ func (a *ACLTokens) Self(q *QueryOptions) (*ACLToken, *QueryMeta, error) {
 	return &resp, wm, nil
 }
 
-func (a *ACLTokens) SelfWI(q *QueryOptions) (map[string]*ACLPolicy, *QueryMeta, error) {
+// SelfPolicy is used to query policies attached to a workload identity
+func (a *ACLTokens) SelfPolicy(q *QueryOptions) (map[string]*ACLPolicy, *QueryMeta, error) {
 	var resp map[string]*ACLPolicy
 	wm, err := a.client.query("/v1/acl/whoami", &resp, q)
 	if err != nil {
