@@ -1,0 +1,39 @@
+---
+layout: docs
+page_title: 'nomad acl policy self command reference'
+description: >
+  The `nomad acl policy self` command fetches information about the currently set access control list (ACL) policies attached to the workload.
+---
+
+# `nomad acl policy self` command reference
+
+The `acl policy self` command is used to fetch information about the currently
+set ACL policies attached to the workload.
+
+## Usage
+
+```plaintext
+nomad acl policy self [options]
+```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
+
+## Self options
+
+- `-json` : Output the ACL policies in a JSON format.
+
+- `-t` : Format and display the ACL policies using a Go template.
+
+## Examples
+
+Fetch information about an existing ACL policies attached to the workload:
+
+```shell-session
+$ echo $NOMAD_TOKEN
+eyJhbGciOiJSUzI1NiIsImtpZCI6ImJiMmUwYjI5LTIyZTYtYjk0My0yN2M1LThkYmNmMjc5ODM0MCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJub21hZHByb2plY3QuaW8iLCJpYXQiOjE3NDM2OTI5NzksImp0aSI6IjJmOWI3ZGRmLWU1M2ItZGMxNS1kMzU4LTAyMDk5NjE1NThlMyIsIm5iZiI6MTc0MzY5Mjk3OSwibm9tYWRfYWxsb2NhdGlvbl9pZCI6IjhjMGJjMWFjLWRlMzMtYTNlYi03YWUwLTZiZjM3OGY5YzcxYiIsIm5vbWFkX2pvYl9pZCI6Im5vbWFkIiwibm9tYWRfbmFtZXNwYWNlIjoiZGVmYXVsdCIsIm5vbWFkX3Rhc2siOiJzZXJ2ZXIiLCJzdWIiOiJnbG9iYWw6ZGVmYXVsdDpub21hZDpub21hZDpzZXJ2ZXI6ZGVmYXVsdCJ9.IDZWTqGWRURDwI5OvO3LLjCsU1qzg6LEG4q5S7CfZawUXzMqAOoYajI_nynOGJp2aU77MqUyJmdFtrIBMoQnIxclEwNl9DkhfOrgjBsWefn9JqKEpORGD-0OLzaoYUgbu0k6aXCNktfpvHZN5uUsfL6nLOG-osQvHn9ZdboT31tjp1v6d-MfP96ZLG0NrXgLWMfwan2AAzuqMabIS9iO6OrZDNp2-TeeY_sqM-7sNEgfDo33GAeyhqTi8CAZhsDOv4wtJuFfMhrsbb33wHdAiltjXlafBtncMMaLHr07gbLvOMfty2_193i4Yi3H2PgPr7c4BYHoXyQJhFchDyYmFA
+$ nomad acl policy self
+Name          Description
+nomad-policy  A Nomad policy
+```
