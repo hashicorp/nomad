@@ -57,18 +57,11 @@ a valid OIDC client without sending any secret information over the network.
 
 #### Proof Key for Code Exchange (PKCE)
 
-Nomad now enables PKCE by default for new or updated OIDC auth methods, which
-brings extra security for both traditional client secrets and client assertions.
-Existing auth methods remain unaffected until changed with one of the following:
+Nomad now enables PKCE by default by default for new OIDC auth methods. Existing
+auth methods remain unaffected.
 
-- The [`nomad acl auth-method
-  create`](/nomad/docs/commands/acl/auth-method/create) CLI command
-- The [`nomad acl auth-method
-  update`](/nomad/docs/commands/acl/auth-method/update) CLI command
-- The [auth method API](/nomad/api-docs/acl/auth-methods)
-
-Set the [`OIDCDisablePKCE`](/nomad/api-docs/acl/auth-methods#oidcdisablepkce)
-option to turn off this extra security.
+Set the [`OIDCEnablePKCE`](/nomad/api-docs/acl/auth-methods#oidcenablepkce)
+option to `false` to turn off this extra security.
 
 Note that although Nomad enables PKCE by default, some OIDC providers may
 require you to also enable it in their configuration.
