@@ -66,7 +66,17 @@ func (c *ACLTokenSelfCommand) Run(args []string) int {
 	// Get the specified token information
 	token, _, err := client.ACLTokens().Self(nil)
 	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error fetching self token: %s", err))
+		if !strings.Contains(err.Error(), "Unexpected response code: 404") {
+			c.Ui.Error(fmt.Sprintf("Error fetching self token: %s", err))
+			return 1
+		}
+		// Check if perhaps there's a WI
+		policies, _, err := client.ACLPolicies().Self(nil)
+		if err == nil && len(policies) > 0 {
+			c.Ui.Info("No ACL token found but there are ACL policies attached to this workload identity. You can query them with acl policy self command.")
+			return 0
+		}
+		c.Ui.Error("No ACL tokens or ACL policies attached to a workload identity found.")
 		return 1
 	}
 
