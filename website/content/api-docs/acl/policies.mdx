@@ -155,6 +155,52 @@ $ curl \
 }
 ```
 
+## Read Self Policy
+
+This endpoint reads the ACL policies associated with the current workload
+identity.
+
+| Method | Path                 | Produces           |
+| ------ | -------------------- | ------------------ |
+| `GET`  | `/v1/acl/policy/self` | `application/json` |
+
+The table below shows this endpoint's support for
+[blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
+[required ACLs](/nomad/api-docs#acls).
+
+| Blocking Queries | Consistency Modes | ACL Required        |
+| ---------------- | ----------------- | ------------------- |
+| `YES`            | `all`             | Any valid Workload Identity JWT |
+
+### Sample Request
+
+```shell-session
+$ curl --header "X-Nomad-Token: eyJhbGciOiJSUzI1NiIsImtpZCI6ImJiMmUwYjI5LTIyZTYtYjk0My0yN2M1LThkYmNmMjc5ODM0MCIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJub21hZHByb2plY3QuaW8iLCJpYXQiOjE3NDM2OTI5NzksImp0aSI6IjJmOWI3ZGRmLWU1M2ItZGMxNS1kMzU4LTAyMDk5NjE1NThlMyIsIm5iZiI6MTc0MzY5Mjk3OSwibm9tYWRfYWxsb2NhdGlvbl9pZCI6IjhjMGJjMWFjLWRlMzMtYTNlYi03YWUwLTZiZjM3OGY5YzcxYiIsIm5vbWFkX2pvYl9pZCI6Im5vbWFkIiwibm9tYWRfbmFtZXNwYWNlIjoiZGVmYXVsdCIsIm5vbWFkX3Rhc2siOiJzZXJ2ZXIiLCJzdWIiOiJnbG9iYWw6ZGVmYXVsdDpub21hZDpub21hZDpzZXJ2ZXI6ZGVmYXVsdCJ9.IDZWTqGWRURDwI5OvO3LLjCsU1qzg6LEG4q5S7CfZawUXzMqAOoYajI_nynOGJp2aU77MqUyJmdFtrIBMoQnIxclEwNl9DkhfOrgjBsWefn9JqKEpORGD-0OLzaoYUgbu0k6aXCNktfpvHZN5uUsfL6nLOG-osQvHn9ZdboT31tjp1v6d-MfP96ZLG0NrXgLWMfwan2AAzuqMabIS9iO6OrZDNp2-TeeY_sqM-7sNEgfDo33GAeyhqTi8CAZhsDOv4wtJuFfMhrsbb33wHdAiltjXlafBtncMMaLHr07gbLvOMfty2_193i4Yi3H2PgPr7c4BYHoXyQJhFchDyYmFA" \
+    https://localhost:4646/v1/acl/policy/self
+```
+
+### Sample Response
+
+```json
+{
+  "nomad-policy": {
+    "CreateIndex": 26,
+    "Description": "",
+    "Hash": "muyvHRRlNwx+lKBxv4VKIJVlPn4ozcbo0zLcQcI16u0=",
+    "JobACL": {
+      "Group": "",
+      "JobID": "nomad",
+      "Namespace": "default",
+      "Task": ""
+    },
+    "ModifyIndex": 26,
+    "Name": "nomad-policy",
+    "Rules": "# Allow read only access to the default namespace\nnamespace \"default\" {\n  policy = \"read\"\n}\n\n# Allow writing to the `foo` namespace\nnamespace \"foo\" {\n  policy = \"write\"\n}\n\nagent {\n  policy = \"read\"\n}\n\nnode {\n  policy = \"read\"\n}\n\nquota {\n  policy = \"read\"\n}\n",
+    "RulesJSON": null
+  }
+}
+```
+
 ## Delete Policy
 
 This endpoint deletes the named ACL policy. This request is always forwarded to the
