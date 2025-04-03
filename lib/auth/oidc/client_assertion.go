@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"crypto/rsa"
 
-	// sha1 is used to derive an "x5t" jwt header from an x509 certificate
 	// sha1 is used to derive an "x5t" jwt header from an x509 certificate,
 	// per the OIDC JWS spec:
 	// https://datatracker.ietf.org/doc/html/rfc7515#section-4.1.7
@@ -134,8 +133,8 @@ func getCassPrivateKey(k *structs.OIDCClientAssertionKey) (key *rsa.PrivateKey, 
 		bts = []byte(k.PemKey)
 	}
 
-	// for easy copy-paste, users may leave off PEM header/footer
-	bts = wrapBeginEnd(bts, beginPrivateKey, endPrivateKey)
+	// ensure newlines around pem header/footer
+	bts = newlineHeaders(bts)
 
 	key, err = gojwt.ParseRSAPrivateKeyFromPEM(bts)
 	if err != nil {
@@ -168,8 +167,8 @@ func getCassCert(k *structs.OIDCClientAssertionKey) (*x509.Certificate, error) {
 		bts = []byte(k.PemCert)
 	}
 
-	// for easy copy-paste, users may leave off PEM header/footer
-	bts = wrapBeginEnd(bts, beginCertificate, endCertificate)
+	// ensure newlines around pem header/footer
+	bts = newlineHeaders(bts)
 
 	block, _ := pem.Decode(bts)
 	if block == nil {
@@ -205,21 +204,19 @@ func hashKeyID(cert *x509.Certificate, header structs.OIDCClientAssertionKeyIDHe
 	return base64.RawURLEncoding.EncodeToString(hashed), nil
 }
 
-var (
-	// for user convenience, they may exclude key/cert pem header/footer
-	beginPrivateKey  = []byte("-----BEGIN PRIVATE KEY-----")
-	endPrivateKey    = []byte("-----END PRIVATE KEY-----")
-	beginCertificate = []byte("-----BEGIN CERTIFICATE-----")
-	endCertificate   = []byte("-----END CERTIFICATE-----")
-)
-
-// wrapBeginEnd wraps the provided bts in "{begin}\n{bts}\n{end}".
-// if begin and end are already there, it ensures "\n" is between them and bts.
-func wrapBeginEnd(bts, begin, end []byte) []byte {
+// newlineHeaders allows flexible copy-paste of a one-line key/cert PEM
+// by adding newlines around "----BEGIN.*-----" and
+// "-----END.*(KEY|CERTIFICATE)-----"
+// it's okay to have extra whitespace, but it's imperative that there be
+// at least one newline between the header/footer and the content.
+func newlineHeaders(bts []byte) []byte {
 	cp := bytes.Clone(bts)
-	cp = bytes.TrimPrefix(cp, begin)
-	cp = bytes.TrimSuffix(cp, end)
 	cp = bytes.TrimSpace(cp)
-	cp = bytes.Join([][]byte{begin, cp, end}, []byte("\n"))
+	cp = bytes.ReplaceAll(cp, []byte("-----BEGIN"), []byte("\n-----BEGIN"))
+	cp = bytes.ReplaceAll(cp, []byte("-----END"), []byte("\n-----END"))
+	// key may be "PRIVATE KEY" or "RSA PRIVATE KEY", so just look for "KEY"
+	cp = bytes.ReplaceAll(cp, []byte("KEY-----"), []byte("KEY-----\n"))
+	cp = bytes.ReplaceAll(cp, []byte("CERTIFICATE-----"), []byte("CERTIFICATE-----\n"))
+	cp = bytes.TrimSpace(cp)
 	return cp
 }

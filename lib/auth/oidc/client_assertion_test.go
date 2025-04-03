@@ -518,34 +518,64 @@ func generateInvalidTestPrivateKey(t *testing.T) *rsa.PrivateKey {
 
 	return key
 }
-
-func TestWrapBeginEnd(t *testing.T) {
-	// strings instead of []byte for easier diff output on test failure
-	begin := "BEGIN"
-	end := "END"
-	expect := "BEGIN\nstuff\nEND"
+func TestNewlineHeaders(t *testing.T) {
 	cases := []struct {
 		name    string
 		content string
 		expect  string
 	}{
 		{
-			name:    "complete",
-			content: "BEGIN\nstuff\nEND",
+			name:    "empty",
+			content: "",
+			expect:  "",
 		},
 		{
-			name:    "missing",
-			content: "stuff",
+			name:    "nonsense",
+			content: "not a key or cert",
+			expect:  "not a key or cert",
 		},
 		{
-			name:    "no newlines",
-			content: "BEGINstuffEND",
+			name:    "pem-shaped nonsense",
+			content: "-----BEGIN RANDOM PEM-----stuff-----END RANDOM PEM-----",
+			expect:  "-----BEGIN RANDOM PEM-----stuff\n-----END RANDOM PEM-----",
+		},
+		{
+			name:    "no newlines key",
+			content: "-----BEGIN ANY KIND OF PRIVATE KEY-----stuff-----END ANY PRIVATE KEY-----",
+			expect:  "-----BEGIN ANY KIND OF PRIVATE KEY-----\nstuff\n-----END ANY PRIVATE KEY-----",
+		},
+		{
+			name:    "no newlines cert",
+			content: "-----BEGIN ANY KIND OF CERTIFICATE-----stuff-----END ANY CERTIFICATE-----",
+			expect:  "-----BEGIN ANY KIND OF CERTIFICATE-----\nstuff\n-----END ANY CERTIFICATE-----",
+		},
+		// extra newlines between header/footer and content is okay.
+		{
+			name:    "with newlines key",
+			content: "-----BEGIN ANY KIND OF PRIVATE KEY-----\nstuff\n-----END ANY PRIVATE KEY-----",
+			expect:  "-----BEGIN ANY KIND OF PRIVATE KEY-----\n\nstuff\n\n-----END ANY PRIVATE KEY-----",
+		},
+		{
+			name:    "with newlines cert",
+			content: "-----BEGIN ANY KIND OF CERTIFICATE-----\nstuff\nmore\nstuff\n-----END ANY CERTIFICATE-----",
+			expect:  "-----BEGIN ANY KIND OF CERTIFICATE-----\n\nstuff\nmore\nstuff\n\n-----END ANY CERTIFICATE-----",
+		},
+		// extra junk outside the header/footer is okay.
+		{
+			name:    "extra junk key",
+			content: "note to self\n-----BEGIN ANY KIND OF PRIVATE KEY-----\nstuff\n-----END ANY PRIVATE KEY-----\nanother note",
+			expect:  "note to self\n\n-----BEGIN ANY KIND OF PRIVATE KEY-----\n\nstuff\n\n-----END ANY PRIVATE KEY-----\n\nanother note",
+		},
+		{
+			name:    "extra junk cert",
+			content: "note to self\n-----BEGIN ANY KIND OF CERTIFICATE-----\nstuff\n-----END ANY CERTIFICATE-----\nanother note",
+			expect:  "note to self\n\n-----BEGIN ANY KIND OF CERTIFICATE-----\n\nstuff\n\n-----END ANY CERTIFICATE-----\n\nanother note",
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := wrapBeginEnd([]byte(tc.content), []byte(begin), []byte(end))
-			must.Eq(t, expect, string(got))
+			got := newlineHeaders([]byte(tc.content))
+			must.Eq(t, tc.expect, string(got))
 		})
 	}
 }
