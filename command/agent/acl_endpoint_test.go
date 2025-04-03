@@ -18,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -120,6 +121,58 @@ func TestHTTP_ACLPolicyQuery(t *testing.T) {
 		if n.Name != p1.Name {
 			t.Fatalf("bad: %#v", n)
 		}
+	})
+}
+
+func TestHTTP_ACLPolicySelfQuery(t *testing.T) {
+	ci.Parallel(t)
+	httpACLTest(t, nil, func(s *TestAgent) {
+		job := mock.MinJob()
+		p1 := &structs.ACLPolicy{
+			Name:        "nw",
+			Description: "test job can write to nodes",
+			Rules:       `node { policy = "write" }`,
+			JobACL: &structs.JobACL{
+				Namespace: job.Namespace,
+				JobID:     job.ID,
+			},
+		}
+		args := structs.ACLPolicyUpsertRequest{
+			Policies: []*structs.ACLPolicy{p1},
+			WriteRequest: structs.WriteRequest{
+				Region:    "global",
+				AuthToken: s.RootToken.SecretID,
+			},
+		}
+		var resp structs.GenericResponse
+		must.NoError(t, s.Agent.RPC("ACL.UpsertPolicies", &args, &resp))
+
+		// get the WI JWT from state
+		allocs := testutil.WaitForRunningWithToken(t, s.RPC, job, s.RootToken.SecretID)
+		must.Len(t, 1, allocs)
+
+		state := s.Agent.server.State()
+
+		alloc, err := state.AllocByID(nil, allocs[0].ID)
+		must.NoError(t, err)
+		must.MapContainsKey(t, alloc.SignedIdentities, "t")
+		wid := alloc.SignedIdentities["t"]
+
+		// Make the HTTP request
+		req, err := http.NewRequest(http.MethodGet, "/v1/acl/policy/self", nil)
+		must.NoError(t, err)
+
+		respW := httptest.NewRecorder()
+		req.Header.Set("X-Nomad-Token", wid)
+
+		// Make the request
+		obj, err := s.Server.ACLPolicySpecificRequest(respW, req)
+		must.NoError(t, err)
+
+		// Check the output
+		n := obj.(map[string]*structs.ACLPolicy)
+		must.MapContainsKey(t, n, "nw")
+		must.Eq(t, n["nw"].JobACL, p1.JobACL)
 	})
 }
 
