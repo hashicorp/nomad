@@ -91,18 +91,13 @@ rendering must include a [`consul` block](/nomad/docs/job-specification/consul) 
 #### OIDC login with PKCE
 Nomad now enables
 [Proof Key for Code Exchange (PKCE)](https://oauth.net/2/pkce/)
-by default for new or updated OIDC auth methods. Existing auth methods remain
-unaffected until changed using the
-[acl auth-method create](/nomad/docs/commands/acl/auth-method/create) or
-[acl auth-method update](/nomad/docs/commands/acl/auth-method/update)
-CLI commands, or with the
-[auth method API](/nomad/api-docs/acl/auth-methods) directly.
+by default for new OIDC auth methods. Existing auth methods remain unaffected.
 
-Set the [`OIDCDisablePKCE`](/nomad/api-docs/acl/auth-methods#oidcdisablepkce)
-option to turn off this extra security.
+Note that even if PKCE is enabled in Nomad, some OIDC providers may require you
+to also enable it in their configuration.
 
-Note that although Nomad enables PKCE by default, some OIDC providers may
-require you to also enable it in their configuration.
+Set the [`OIDCEnablePKCE`](/nomad/api-docs/acl/auth-methods#oidcenablepkce)
+option to `false` to turn off this extra security.
 
 ## Nomad 1.9.5
 

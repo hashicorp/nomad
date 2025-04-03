@@ -829,8 +829,9 @@ type ACLAuthMethodConfig struct {
 	// Optionally send a signed JWT ("private key jwt") as a client assertion
 	// to the OIDC provider
 	OIDCClientAssertion *OIDCClientAssertion
-	// Disable S256 PKCE challenge verification
-	OIDCDisablePKCE *bool
+	// Enable S256 PKCE challenge verification. If nil, the Nomad server sets
+	// this to true when creating an auth method. I.e. it is enabled by default.
+	OIDCEnablePKCE *bool
 	// Disable claims from the OIDC UserInfo endpoint
 	OIDCDisableUserInfo bool
 	// List of OIDC scopes
