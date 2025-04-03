@@ -1123,10 +1123,9 @@ func (a *ACLAuthMethodConfig) Canonicalize() {
 		if len(a.OIDCClientAssertion.Audience) == 0 {
 			a.OIDCClientAssertion.Audience = []string{a.OIDCDiscoveryURL}
 		}
-		// move the client secret into the client assertion
+		// the client assertion inherits the client secret,
+		// in case KeySource = "client_secret"
 		a.OIDCClientAssertion.ClientSecret = a.OIDCClientSecret
-		// do not also send the client secret normally
-		a.OIDCClientSecret = ""
 		a.OIDCClientAssertion.Canonicalize()
 	}
 }
