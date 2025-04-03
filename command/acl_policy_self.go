@@ -80,7 +80,7 @@ func (c *ACLPolicySelfCommand) Run(args []string) int {
 		return 1
 	}
 
-	policies, _, err := client.ACLTokens().SelfPolicy(nil)
+	policies, _, err := client.ACLPolicies().Self(nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error fetching WI policies: %s", err))
 		return 1

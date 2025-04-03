@@ -34,20 +34,18 @@ func (s *HTTPServer) ACLPoliciesRequest(resp http.ResponseWriter, req *http.Requ
 }
 
 func (s *HTTPServer) ACLPolicySpecificRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// handle the special case for "self" call
+	if req.URL.Path == "/v1/acl/policy/self" {
+		return s.aclSelfPolicy(resp, req)
+	}
+
 	name := strings.TrimPrefix(req.URL.Path, "/v1/acl/policy/")
 	if len(name) == 0 {
 		return nil, CodedError(400, "Missing Policy Name")
 	}
 	switch req.Method {
 	case http.MethodGet:
-		switch req.URL.Path {
-		case "/v1/acl/policy":
-			return s.aclPolicyQuery(resp, req, name)
-		case "/v1/acl/policy/self":
-			return s.aclSelfPolicy(resp, req)
-		default:
-			return nil, CodedError(http.StatusNotFound, "Invalid path")
-		}
+		return s.aclPolicyQuery(resp, req, name)
 	case http.MethodPut, http.MethodPost:
 		return s.aclPolicyUpdate(resp, req, name)
 	case http.MethodDelete:
