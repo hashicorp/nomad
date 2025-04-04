@@ -35,7 +35,8 @@ $ nomad -autocomplete-uninstall
 Nomad's CLI commands have implied contexts in their naming convention. Because
 the CLI is most commonly used to manipulate or query jobs, you can assume that
 any given command is working in that context unless the command name implies
-otherwise. For example, the `nomad job run` command runs a new job and the `nomad status` command queries information about existing jobs. Conversely,
+otherwise. For example, the `nomad job run` command runs a new job and the
+`nomad status` command queries information about existing jobs. Conversely,
 commands with a prefix in their name likely operate in a different context.
 Examples include the `nomad agent-info` or `nomad node drain` commands,
 which operate in the agent or node contexts respectively.
@@ -64,7 +65,8 @@ may override these environment variables with individual flags.
 #### Connection environment variables
 
 - `NOMAD_ADDR` - The address of the Nomad server. Defaults to
-  `http://127.0.0.1:4646`.
+  `http://127.0.0.1:4646`. For unix sockets, as with the [task API][],
+  the format is `unix:/path/to/api.sock`.
 
 - `NOMAD_REGION` - The region of the Nomad server to forward commands to.
   Defaults to the Agent's local region
@@ -118,4 +120,5 @@ may override these environment variables with individual flags.
 - `NOMAD_LICENSE` - The Nomad Enterprise license file contents as a string.
 
 
+[task API]: /nomad/api-docs/task-api
 [`tls` block in agent configuration]: /nomad/docs/configuration/tls
