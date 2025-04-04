@@ -101,12 +101,28 @@ func (c *ACLPolicySelfCommand) Run(args []string) int {
 		}
 
 		output := make([]string, 0, len(policies)+1)
-		output = append(output, "Name|Description")
+		output = append(output, "Name|Job ID|Group Name|Task Name")
 		for _, p := range policies {
-			output = append(output, fmt.Sprintf("%s|%s", p.Name, p.Description))
+			var outputString string
+			if p.JobACL == nil {
+				outputString = fmt.Sprintf("%s|%s|%s|%s", p.Name, "<unavailable>", "<unavailable>", "<unavailable>")
+			} else {
+				outputString = fmt.Sprintf(
+					"%s|%s|%s|%s",
+					p.Name, formatJobACL(p.JobACL.JobID), formatJobACL(p.JobACL.Group), formatJobACL(p.JobACL.Task),
+				)
+			}
+			output = append(output, outputString)
 		}
 
 		c.Ui.Output(formatList(output))
 	}
 	return 0
+}
+
+func formatJobACL(jobACL string) string {
+	if jobACL == "" {
+		return "<not specified>"
+	}
+	return jobACL
 }

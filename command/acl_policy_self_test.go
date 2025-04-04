@@ -65,7 +65,7 @@ func TestACLPolicySelfCommand_ViaEnvVar(t *testing.T) {
 	must.MapContainsKey(t, alloc.SignedIdentities, "t")
 	wid := alloc.SignedIdentities["t"]
 
-	// Fetch info on a token with a JWT
+	// Fetch info on policies with a JWT
 	t.Setenv("NOMAD_TOKEN", wid)
 	code := cmd.Run([]string{"-address=" + url})
 	must.Zero(t, code)
@@ -73,4 +73,7 @@ func TestACLPolicySelfCommand_ViaEnvVar(t *testing.T) {
 	// Check the output
 	out := ui.OutputWriter.String()
 	must.StrContains(t, out, polArgs.Policies[0].Name)
+
+	// make sure we put the job ACLs in there, too
+	must.StrContains(t, out, polArgs.Policies[0].JobACL.JobID)
 }
