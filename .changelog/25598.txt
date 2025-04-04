@@ -1,0 +1,3 @@
+```release-note:improvement
+task environment: add NOMAD_UNIX_ADDR env var when using workload identity
+```
