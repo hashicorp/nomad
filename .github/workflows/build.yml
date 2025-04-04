@@ -1,10 +1,30 @@
+# The build workflow is responsible for building Nomad on all our supported
+# platforms. The compiled artifacts are then uploaded to GitHub. This upload
+# triggers the CRT prepare workflow, which downloads the artifacts and then
+# uploads them to our internal store.
+#
+# The workflow can be triggered in two ways:
+#  - pushes to main or long-lived release line branches (eg. 1.10.x)
+#  - dispatched via the release workflow (release.yml).
+#
+# The workflow should not be triggered from short-lived release branches;
+# branches that are cut from the long-lived ones in order to release Nomad. The
+# release workflow should be the only process responsible for triggering the
+# build workflow. This is because the release workflow performs a commit and
+# push of updated generated assets to the release branch. If this push triggers
+# a build, it will conflict with the release build process which shares the same
+# Git SHA and result in a last-write-wins to our internal store.
 name: build
 
 on:
   push:
     branches:
+      # 'main' is our forever branch where all changes get merged.
+      # 'release/[0-9].[0-9]+.x*' matches our long-lived release lines such as
+      # '1.10.x' and '1.10.x+ent' but excludes short-lived release branches such
+      # as '1.10.0' and '1.10.0+ent'.
       - main
-      - release/**
+      - 'release/[0-9].[0-9]+.x*'
   workflow_dispatch:
     inputs:
       build-ref:
