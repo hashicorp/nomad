@@ -160,16 +160,16 @@ $ curl \
 This endpoint reads the ACL policies associated with the current workload
 identity.
 
-| Method | Path                 | Produces           |
-| ------ | -------------------- | ------------------ |
+| Method | Path                  | Produces           |
+|--------|-----------------------|--------------------|
 | `GET`  | `/v1/acl/policy/self` | `application/json` |
 
 The table below shows this endpoint's support for
 [blocking queries](/nomad/api-docs#blocking-queries), [consistency modes](/nomad/api-docs#consistency-modes) and
 [required ACLs](/nomad/api-docs#acls).
 
-| Blocking Queries | Consistency Modes | ACL Required        |
-| ---------------- | ----------------- | ------------------- |
+| Blocking Queries | Consistency Modes | ACL Required                    |
+|------------------|-------------------|---------------------------------|
 | `YES`            | `all`             | Any valid Workload Identity JWT |
 
 ### Sample Request
