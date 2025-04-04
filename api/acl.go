@@ -67,6 +67,16 @@ func (a *ACLPolicies) Info(policyName string, q *QueryOptions) (*ACLPolicy, *Que
 	return &resp, wm, nil
 }
 
+// Self is used to query policies attached to a workload identity
+func (a *ACLPolicies) Self(q *QueryOptions) (map[string]*ACLPolicy, *QueryMeta, error) {
+	var resp map[string]*ACLPolicy
+	wm, err := a.client.query("/v1/acl/policy/self", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, wm, nil
+}
+
 // ACLTokens is used to query the ACL token endpoints.
 type ACLTokens struct {
 	client *Client
