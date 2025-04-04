@@ -82,6 +82,10 @@ func (op *Operator) RaftGetConfiguration(q *QueryOptions) (*RaftConfiguration, e
 // RaftRemovePeerByAddress is used to kick a stale peer (one that it in the Raft
 // quorum but no longer known to Serf or the catalog) by address in the form of
 // "IP:port".
+//
+// DEPRECATED: this method supported Raft Protocol v2, which was removed from
+// Nomad in 1.4.0. The address parameter of the HTTP endpoint has been made
+// non-function in Nomad 1.10.x and will be removed in Nomad 1.12.0.
 func (op *Operator) RaftRemovePeerByAddress(address string, q *WriteOptions) error {
 	r, err := op.c.newRequest("DELETE", "/v1/operator/raft/peer")
 	if err != nil {

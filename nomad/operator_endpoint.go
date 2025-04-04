@@ -104,62 +104,11 @@ func (op *Operator) RaftGetConfiguration(args *structs.GenericRequest, reply *st
 	return nil
 }
 
-// RaftRemovePeerByAddress is used to kick a stale peer (one that it in the Raft
-// quorum but no longer known to Serf or the catalog) by address in the form of
-// "IP:port". The reply argument is not used, but it required to fulfill the RPC
-// interface.
-func (op *Operator) RaftRemovePeerByAddress(args *structs.RaftPeerByAddressRequest, reply *struct{}) error {
-
-	authErr := op.srv.Authenticate(op.ctx, args)
-	if done, err := op.srv.forward("Operator.RaftRemovePeerByAddress", args, args, reply); done {
-		return err
-	}
-	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)
-	if authErr != nil {
-		return structs.ErrPermissionDenied
-	}
-
-	// Check management permissions
-	if aclObj, err := op.srv.ResolveACL(args); err != nil {
-		return err
-	} else if !aclObj.IsManagement() {
-		return structs.ErrPermissionDenied
-	}
-
-	// Since this is an operation designed for humans to use, we will return
-	// an error if the supplied address isn't among the peers since it's
-	// likely a mistake.
-	{
-		future := op.srv.raft.GetConfiguration()
-		if err := future.Error(); err != nil {
-			return err
-		}
-		for _, s := range future.Configuration().Servers {
-			if s.Address == args.Address {
-				goto REMOVE
-			}
-		}
-		return fmt.Errorf("address %q was not found in the Raft configuration",
-			args.Address)
-	}
-
-REMOVE:
-	// The Raft library itself will prevent various forms of foot-shooting,
-	// like making a configuration with no voters. Some consideration was
-	// given here to adding more checks, but it was decided to make this as
-	// low-level and direct as possible. We've got ACL coverage to lock this
-	// down, and if you are an operator, it's assumed you know what you are
-	// doing if you are calling this. If you remove a peer that's known to
-	// Serf, for example, it will come back when the leader does a reconcile
-	// pass.
-	future := op.srv.raft.RemovePeer(args.Address)
-	if err := future.Error(); err != nil {
-		op.logger.Warn("failed to remove Raft peer", "peer", args.Address, "error", err)
-		return err
-	}
-
-	op.logger.Warn("removed Raft peer", "peer", args.Address)
-	return nil
+// COMPAT(1.12.0): RaftRemovePeerByAddress was used to support Raft Protocol v2,
+// which was removed in Nomad 1.4.0 but the API was not removed. Remove this RPC
+// entirely in Nomad 1.12.0.
+func (op *Operator) RaftRemovePeerByAddress(_ *structs.RaftPeerByAddressRequest, _ *struct{}) error {
+	return structs.NewErrRPCCoded(400, "Operator.RaftRemovePeerByAddress has been removed")
 }
 
 // RaftRemovePeerByID is used to kick a stale peer (one that is in the Raft

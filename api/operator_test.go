@@ -24,19 +24,6 @@ func TestOperator_RaftGetConfiguration(t *testing.T) {
 	must.True(t, out.Servers[0].Voter)
 }
 
-func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
-	testutil.Parallel(t)
-
-	c, s := makeClient(t, nil, nil)
-	defer s.Stop()
-
-	// If we get this error, it proves we sent the address all the way
-	// through.
-	operator := c.Operator()
-	err := operator.RaftRemovePeerByAddress("nope", nil)
-	must.ErrorContains(t, err, `address "nope" was not found in the Raft configuration`)
-}
-
 func TestOperator_RaftRemovePeerByID(t *testing.T) {
 	testutil.Parallel(t)
 

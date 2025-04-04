@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/posener/complete"
 )
 
@@ -19,7 +18,7 @@ func (c *OperatorRaftRemoveCommand) Help() string {
 	helpText := `
 Usage: nomad operator raft remove-peer [options]
 
-  Remove the Nomad server with given -peer-address from the Raft configuration.
+  Remove the Nomad server with given -peer-id from the Raft configuration.
 
   There are rare cases where a peer may be left behind in the Raft quorum even
   though the server is no longer present and known to the cluster. This command
@@ -36,9 +35,6 @@ General Options:
 
 Remove Peer Options:
 
-  -peer-address="IP:port"
-	Remove a Nomad server with given address from the Raft configuration.
-
   -peer-id="id"
 	Remove a Nomad server with the given ID from the Raft configuration.
 `
@@ -48,8 +44,7 @@ Remove Peer Options:
 func (c *OperatorRaftRemoveCommand) AutocompleteFlags() complete.Flags {
 	return mergeAutocompleteFlags(c.Meta.AutocompleteFlags(FlagSetClient),
 		complete.Flags{
-			"-peer-address": complete.PredictAnything,
-			"-peer-id":      complete.PredictAnything,
+			"-peer-id": complete.PredictAnything,
 		})
 }
 
@@ -64,16 +59,18 @@ func (c *OperatorRaftRemoveCommand) Synopsis() string {
 func (c *OperatorRaftRemoveCommand) Name() string { return "operator raft remove-peer" }
 
 func (c *OperatorRaftRemoveCommand) Run(args []string) int {
-	var peerAddress string
 	var peerID string
 
 	flags := c.Meta.FlagSet("raft", FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 
-	flags.StringVar(&peerAddress, "peer-address", "", "")
 	flags.StringVar(&peerID, "peer-id", "", "")
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse args: %v", err))
+		return 1
+	}
+	if peerID == "" {
+		c.Ui.Error("Missing peer id required")
 		return 1
 	}
 
@@ -85,37 +82,11 @@ func (c *OperatorRaftRemoveCommand) Run(args []string) int {
 	}
 	operator := client.Operator()
 
-	if err := raftRemovePeers(peerAddress, peerID, operator); err != nil {
+	if err := operator.RaftRemovePeerByID(peerID, nil); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error removing peer: %v", err))
 		return 1
 	}
-	if peerAddress != "" {
-		c.Ui.Output(fmt.Sprintf("Removed peer with address %q", peerAddress))
-	} else {
-		c.Ui.Output(fmt.Sprintf("Removed peer with id %q", peerID))
-	}
 
+	c.Ui.Output(fmt.Sprintf("Removed peer with id %q", peerID))
 	return 0
-}
-
-func raftRemovePeers(address, id string, operator *api.Operator) error {
-	if len(address) == 0 && len(id) == 0 {
-		return fmt.Errorf("an address or id is required for the peer to remove")
-	}
-	if len(address) > 0 && len(id) > 0 {
-		return fmt.Errorf("cannot give both an address and id")
-	}
-
-	// Try to kick the peer.
-	if len(address) > 0 {
-		if err := operator.RaftRemovePeerByAddress(address, nil); err != nil {
-			return err
-		}
-	} else {
-		if err := operator.RaftRemovePeerByID(id, nil); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

@@ -130,19 +130,9 @@ The table below shows this endpoint's support for
 
 ### Parameters
 
-- `address` `(string: <optional>)` - Specifies the Raft **Address** of the
-  server to remove as provided in the output of `/v1/operator/raft/configuration`
-  API endpoint or the `nomad operator raft list-peers` command.
-
 - `id` `(string: <optional>)` - Specifies the Raft **ID** of the server to
   remove as provided in the output of `/v1/operator/raft/configuration`
   API endpoint or the `nomad operator raft list-peers` command.
-
-  <Note>
-
-  Either `address` or `id` must be provided, but not both.
-
-  </Note>
 
 ### Sample Request
 
