@@ -1912,12 +1912,19 @@ func (a *ACL) UpsertAuthMethods(
 			}
 		}
 
-		// if this is a new auth method, and PKCE is not explicitly disabled
-		// (by setting Enable=false), then enable it. existing auth methods
-		// need it to be enabled explicitly (Enable=True).
-		if existingMethod == nil && authMethod.Config.OIDCEnablePKCE == nil {
-			authMethod.Config.OIDCEnablePKCE = pointer.Of(true)
+		// PKCE backcompat:
+		// * on new auth methods, if unset (nil) in the request, default enable
+		// * on existing auth methods, if unset, default to exististing value
+		// i.e. it must be explicitly disabled (Enable=false) on new methods,
+		// and explicitly enabled on existing methods.
+		if authMethod.Config.OIDCEnablePKCE == nil {
+			if existingMethod == nil {
+				authMethod.Config.OIDCEnablePKCE = pointer.Of(true)
+			} else {
+				authMethod.Config.OIDCEnablePKCE = existingMethod.Config.OIDCEnablePKCE
+			}
 		}
+
 		// if there is a client assertion, ensure it is valid.
 		if authMethod.Config.OIDCClientAssertion.IsSet() {
 			_, err := a.oidcClientAssertion(authMethod.Config)
