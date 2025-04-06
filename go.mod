@@ -82,7 +82,7 @@ require (
 	github.com/hashicorp/memberlist v0.5.3
 	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.1
 	github.com/hashicorp/nomad/api v0.0.0-20230103221135-ce00d683f9be
-	github.com/hashicorp/raft v1.7.2
+	github.com/hashicorp/raft v1.7.3
 	github.com/hashicorp/raft-autopilot v0.1.6
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1
 	github.com/hashicorp/serf v0.10.2
