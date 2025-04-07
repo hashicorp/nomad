@@ -796,9 +796,7 @@ func (a *ACLAuthMethod) SetHash() []byte {
 		_, _ = hash.Write([]byte(a.Config.OIDCDiscoveryURL))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientID))
 		_, _ = hash.Write([]byte(a.Config.OIDCClientSecret))
-		if a.Config.OIDCEnablePKCE != nil {
-			_, _ = hash.Write([]byte(strconv.FormatBool(*a.Config.OIDCEnablePKCE)))
-		}
+		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCEnablePKCE)))
 		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.OIDCDisableUserInfo)))
 		_, _ = hash.Write([]byte(strconv.FormatBool(a.Config.VerboseLogging)))
 		_, _ = hash.Write([]byte(a.Config.ExpirationLeeway.String()))
@@ -1062,9 +1060,7 @@ type ACLAuthMethodConfig struct {
 	OIDCClientAssertion *OIDCClientAssertion
 
 	// Enable PKCE challenge verification
-	// If nil, the ACL Upsert RPC endpoint sets it to &true,
-	// if the auth method is brand new.
-	OIDCEnablePKCE *bool
+	OIDCEnablePKCE bool
 
 	// Disable claims from the OIDC UserInfo endpoint
 	OIDCDisableUserInfo bool
