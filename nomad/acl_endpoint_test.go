@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -3141,53 +3140,6 @@ func TestACLEndpoint_UpsertACLAuthMethods(t *testing.T) {
 	}
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
 	must.Eq(t, resp.AuthMethods[0].TokenLocality, am3.TokenLocality)
-
-	// PKCE *bool behvior
-	t.Run("pkce", func(t *testing.T) {
-		nilPKCE := mock.ACLOIDCAuthMethod()
-		nilPKCE.Config.OIDCEnablePKCE = nil
-
-		// callUpsertRPC runs the RPC we're testing with the given PKCE value,
-		// and returns what actually got saved in state.
-		callUpsertRPC := func(enablePKCE *bool) *bool {
-			t.Helper()
-			method := nilPKCE.Copy()
-			method.Config.OIDCEnablePKCE = enablePKCE
-			req = &structs.ACLAuthMethodUpsertRequest{
-				AuthMethods:  []*structs.ACLAuthMethod{method},
-				WriteRequest: structs.WriteRequest{Region: "global", AuthToken: root.SecretID},
-			}
-			must.NoError(t, msgpackrpc.CallWithCodec(codec, structs.ACLUpsertAuthMethodsRPCMethod, req, &resp))
-			fetched, err := s1.fsm.State().GetACLAuthMethodByName(nil, method.Name)
-			must.NoError(t, err)
-			must.NotNil(t, fetched)
-			must.NotNil(t, fetched.Config)
-			return fetched.Config.OIDCEnablePKCE
-		}
-
-		// new auth method, and identical follow-up, should be enabled by default
-		result := callUpsertRPC(nil)
-		must.NotNil(t, result, must.Sprint("pkce should be enabled by default on new auth methods"))
-		must.True(t, *result, must.Sprint("pkce should be enabled by default on new auth methods"))
-		result = callUpsertRPC(nil)
-		must.NotNil(t, result, must.Sprint("pkce should remain enabled by default"))
-		must.True(t, *result, must.Sprint("pkce should remain enabled by default"))
-
-		// existing auth method (created prior to this feature) should stay disabled.
-		// upsert it directly to state to set it back to nil (not possible in rpc upsert)
-		must.NoError(t, s1.fsm.State().UpsertACLAuthMethods(resp.Index+1, []*structs.ACLAuthMethod{nilPKCE}))
-		result = callUpsertRPC(nil)
-		must.Nil(t, result, must.Sprint("pkce should remain disabled by default on existing auth methods"))
-
-		// explicitly enable it
-		result = callUpsertRPC(pointer.Of(true))
-		must.NotNil(t, result, must.Sprint("pkce should be enableable on existing auth methods"))
-		must.True(t, *result, must.Sprint("pkce should be enableable on existing auth methods"))
-		// ditto disable
-		result = callUpsertRPC(pointer.Of(false))
-		must.NotNil(t, result, must.Sprint("pkce should be disableable on existing auth methods"))
-		must.False(t, *result, must.Sprint("pkce should be disableable on existing auth methods"))
-	})
 }
 
 func TestACL_UpsertBindingRules(t *testing.T) {
@@ -3683,7 +3635,7 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 	t.Run("pkce", func(t *testing.T) {
 		authMethod := mockedAuthMethod.Copy()
 		authMethod.Name = mockedAuthMethod.Name + "-pkce"
-		authMethod.Config.OIDCEnablePKCE = pointer.Of(true)
+		authMethod.Config.OIDCEnablePKCE = true
 		authMethod.SetHash()
 		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(20, []*structs.ACLAuthMethod{authMethod}))
 
@@ -3970,7 +3922,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 
 	t.Run("pkce", func(t *testing.T) {
 
-		mockedAuthMethod.Config.OIDCEnablePKCE = pointer.Of(true)
+		mockedAuthMethod.Config.OIDCEnablePKCE = true
 		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(60, []*structs.ACLAuthMethod{mockedAuthMethod}))
 
 		req := structs.ACLOIDCCompleteAuthRequest{

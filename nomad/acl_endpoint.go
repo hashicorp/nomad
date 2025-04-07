@@ -20,8 +20,6 @@ import (
 	"github.com/hashicorp/go-memdb"
 	metrics "github.com/hashicorp/go-metrics/compat"
 	"github.com/hashicorp/go-set/v3"
-	"github.com/hashicorp/nomad/helper/pointer"
-
 	policy "github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -1912,19 +1910,6 @@ func (a *ACL) UpsertAuthMethods(
 			}
 		}
 
-		// PKCE backcompat:
-		// * on new auth methods, if unset (nil) in the request, default enable
-		// * on existing auth methods, if unset, default to exististing value
-		// i.e. it must be explicitly disabled (Enable=false) on new methods,
-		// and explicitly enabled on existing methods.
-		if authMethod.Config.OIDCEnablePKCE == nil {
-			if existingMethod == nil {
-				authMethod.Config.OIDCEnablePKCE = pointer.Of(true)
-			} else {
-				authMethod.Config.OIDCEnablePKCE = existingMethod.Config.OIDCEnablePKCE
-			}
-		}
-
 		// if there is a client assertion, ensure it is valid.
 		if authMethod.Config.OIDCClientAssertion.IsSet() {
 			_, err := a.oidcClientAssertion(authMethod.Config)
@@ -3078,7 +3063,7 @@ func (a *ACL) oidcRequest(nonce, redirect string, config *structs.ACLAuthMethodC
 		opts = append(opts, capOIDC.WithAudiences(config.BoundAudiences...))
 	}
 
-	if config.OIDCEnablePKCE != nil && *config.OIDCEnablePKCE {
+	if config.OIDCEnablePKCE {
 		verifier, err := capOIDC.NewCodeVerifier()
 		if err != nil {
 			return nil, fmt.Errorf("failed to make pkce verifier: %w", err)

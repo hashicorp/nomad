@@ -98,10 +98,9 @@ for the auth method.
     alongside "kid" and "type". Setting the "kid" header here is not allowed;
     use `PrivateKey.KeyID`.
 
-  - `OIDCEnablePKCE` `(bool: true)` - When set to `true`, Nomad will include
+  - `OIDCEnablePKCE` `(bool: false)` - When set to `true`, Nomad will include
   [PKCE][] verification in the auth flow. Even with PKCE enabled in Nomad,
-  which is the default setting, you may still need to enable it in your OIDC
-  provider.
+  you may still need to enable it in your OIDC provider.
 
   - `OIDCDisableUserInfo` `(bool: false)` - When set to `true`, Nomad will not
   make a request to the identity provider to get OIDC UserInfo. You may wish to
