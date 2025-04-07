@@ -264,7 +264,7 @@ func TestEnvironment_AsList(t *testing.T) {
 		fmt.Sprintf("NOMAD_SHORT_ALLOC_ID=%s", a.ID[:8]),
 		"NOMAD_ALLOC_INDEX=0",
 		"NOMAD_TOKEN=test-wi-token",
-		"NOMAD_UNIX_ADDR=unix:api.sock",
+		"NOMAD_UNIX_ADDR=unix://api.sock",
 	}
 	sort.Strings(act)
 	sort.Strings(exp)
@@ -456,7 +456,7 @@ func TestEnvironment_AllValues(t *testing.T) {
 		"NOMAD_ALLOC_IP_admin":                      "172.26.64.19",
 		"NOMAD_ALLOC_ADDR_admin":                    "172.26.64.19:9000",
 		"NOMAD_TOKEN":                               "test-wi-token",
-		"NOMAD_UNIX_ADDR":                           "unix:api.sock",
+		"NOMAD_UNIX_ADDR":                           "unix://api.sock",
 
 		// Env vars from the host.
 		"LC_CTYPE": "C.UTF-8",
