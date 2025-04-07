@@ -66,7 +66,7 @@ may override these environment variables with individual flags.
 
 - `NOMAD_ADDR` - The address of the Nomad server. Defaults to
   `http://127.0.0.1:4646`. For unix sockets, as with the [task API][],
-  the format is `unix:/path/to/api.sock`.
+  the format is either `unix:/path/to/api.sock` or `unix:///path/to/api.sock`.
 
 - `NOMAD_REGION` - The region of the Nomad server to forward commands to.
   Defaults to the Agent's local region

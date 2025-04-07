@@ -99,7 +99,7 @@ const (
 	HostAddrPrefix = "NOMAD_HOST_ADDR_"
 
 	// UnixAddr is the task api unix socket, in the appropriate format
-	// for use in a NOMAD_ADDR (i.e. prefixed with "unix:")
+	// for use in a NOMAD_ADDR (i.e. prefixed with "unix://")
 	UnixAddr = "NOMAD_UNIX_ADDR"
 
 	// IpPrefix is the prefix for passing the host IP of a port allocation
@@ -624,12 +624,12 @@ func (b *Builder) buildEnv(allocDir, localDir, secretsDir string,
 	// Build the Nomad Workload Token
 	if b.workloadTokenDefault != "" {
 		envMap[WorkloadToken] = b.workloadTokenDefault
-		envMap[UnixAddr] = "unix:" + filepath.Join(secretsDir, "api.sock")
+		envMap[UnixAddr] = "unix://" + filepath.Join(secretsDir, "api.sock")
 	}
 
 	for name, token := range b.workloadTokens {
 		envMap[WorkloadToken+"_"+name] = token
-		envMap[UnixAddr] = "unix:" + filepath.Join(secretsDir, "api.sock")
+		envMap[UnixAddr] = "unix://" + filepath.Join(secretsDir, "api.sock")
 	}
 
 	// Copy and interpolate task meta
