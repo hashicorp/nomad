@@ -29,7 +29,47 @@ Nomad does not know about the volume's underlying characteristics, so you can
 use host volumes for both local persistent storage and for highly
 available networked storage.
 
-Resources:
+#### Dynamic host volume governance <EnterpriseAlert inline product="nomad"/>
+
+Providing guardrails to platform consumers is an important aspect of the storage
+provisioning workflow when leveraging host volumes across a shared Nomad
+cluster.  Nomad Enterprise supports these new capabilities to provide
+governance when provisioning host volumes:
+
+- **Sentinel dynamic host volume objects**
+
+  During volume creation, Nomad can evaluate all of the details within the
+  dynamic host volume specification against Sentinel policies
+  that define and enforce specific patterns.
+
+  For example, a policy that enforces the storage tier based on the environment
+  or namespace specified would allow reserving more expensive NVME storage for
+  specific workloads. Being able to apply policy to the volume specification
+  gives you a method to enforce specific patterns while providing platform
+  consumers with more flexibility around self-service volume provisioning. Refer
+  to the [Sentinel policy reference](/nomad/docs/enterprise/sentinel#sentinel-dynamic-host-volume-objects) for more information.
+
+- **Resource quota support**
+
+  Nomad’s resource quota system now includes coverage for host volume capacity
+  limits that you can apply to provisioned storage within a specific namespace.
+  This helps control storage consumption within a namespace based on the maximum
+  capacities defined during creation or when making updates to the maximum
+  capacities over the lifecycle of the volume. Refer to the [Resource quota
+  specification](/nomad/docs/other-specifications/quota) for more information.
+
+- **Namespace and node pool validation**:
+
+  Dynamic host volumes live within the context of a specific namespace when
+  created. When Nomad provisions volumes in a namespace targeting a specific
+  node pool, Nomad evaluates the namespace node pool configuration to ensure
+  that volume creation aligns with job placement rules for node pools. Refer to
+  the [Namespace specification](/nomad/docs/other-specifications/namespace) for
+  details on `node_pool_config` parameters.
+
+#### Resources
+
+Refer to the following resources to learn more about dynamic host volumes:
 
 - [Host volumes section](/nomad/docs/operations/stateful-workloads#host-volumes)
   in the _Considerations for stateful workloads_ guide for an overview and
@@ -41,7 +81,6 @@ Resources:
 - [Use Nomad dynamic host volumes to persist data for stateful workloads
   tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes)
   to learn how to create and use a dynamic host volume for persistent storage
-
 
 ### OpenID Connect (OIDC) enhancements
 
