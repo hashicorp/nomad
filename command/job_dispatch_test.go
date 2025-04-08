@@ -4,6 +4,7 @@
 package command
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -206,6 +207,87 @@ namespace "default" {
 			} else {
 				must.One(t, code)
 				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
+			}
+		})
+	}
+}
+
+func TestJobDispatchCommand_Priority(t *testing.T) {
+	ci.Parallel(t)
+
+	// Start server
+	srv, client, url := testServer(t, true, nil)
+	t.Cleanup(srv.Shutdown)
+
+	waitForNodes(t, client)
+
+	// Create a parameterized job.
+	job := mock.MinJob()
+	job.Type = "batch"
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	state := srv.Agent.Server().State()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	must.NoError(t, err)
+
+	testCases := []struct {
+		name            string
+		priority        string
+		expectedErr     string
+		additionalFlags []string
+		payload         map[string]string
+	}{
+		{
+			name:     "one flag",
+			priority: "50",
+		},
+		{
+			name:            "two flags",
+			priority:        "30",
+			additionalFlags: []string{"-verbose"},
+		},
+		{
+			name:            "three flags",
+			priority:        "20",
+			additionalFlags: []string{"-verbose", "-detach"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &JobDispatchCommand{Meta: Meta{Ui: ui}}
+			args := []string{
+				"-address", url,
+				"-priority", tc.priority,
+			}
+
+			// Add additional flags, if present
+			if len(tc.additionalFlags) >= 1 {
+				args = append(args, tc.additionalFlags...)
+			}
+
+			// Add job ID to the command.
+			args = append(args, job.ID)
+
+			// Run command.
+			code := cmd.Run(args)
+			if tc.expectedErr == "" {
+				must.Zero(t, code)
+			}
+
+			// Confirm dispatched job priority set correctly
+			job, _, err := client.Jobs().List(nil)
+			must.NoError(t, err)
+			must.NotNil(t, job)
+
+			priority, err := strconv.Atoi(tc.priority)
+			must.NoError(t, err)
+
+			// TODO: find out if I be trying to parse the dispatched job ID by calling something like ( ui.OutputWriter.String()) instead of using List this way?
+			for _, got := range job {
+				if !got.ParameterizedJob {
+					must.Eq(t, got.Priority, priority)
+				}
 			}
 		})
 	}
