@@ -122,6 +122,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	var idempotencyToken string
 	var meta []string
 	var idPrefixTemplate string
+	var priority string
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -131,7 +132,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&idPrefixTemplate, "id-prefix-template", "", "")
 	flags.BoolVar(&openURL, "ui", false, "")
-
+	flags.StringVar(&priority, "priority", "", "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
@@ -201,7 +202,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		IdempotencyToken: idempotencyToken,
 		Namespace:        namespace,
 	}
-	resp, _, err := client.Jobs().Dispatch(jobID, metaMap, payload, idPrefixTemplate, w)
+	resp, _, err := client.Jobs().Dispatch(jobID, metaMap, payload, idPrefixTemplate, priority, w)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to dispatch job: %s", err))
 		return 1
