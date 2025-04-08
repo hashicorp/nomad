@@ -1,3 +1,66 @@
+## 1.10.0 (April 08, 2025)
+
+FEATURES:
+
+* **Dynamic Host Volumes:** Nomad now supports creating host volumes via the API [[GH-24479](https://github.com/hashicorp/nomad/issues/24479)]
+* **OIDC Login:** Nomad now enables PKCE for OIDC logins, and supports the private key JWT / client assertion option in the OIDC authentication flow. [[GH-25231](https://github.com/hashicorp/nomad/issues/25231)]
+* **Stateful Deployments:** Nomad now supports stateful deployments when using dynamic host volumes. [[GH-24993](https://github.com/hashicorp/nomad/issues/24993)]
+
+BREAKING CHANGES:
+
+* agent: Plugins stored within the `plugin_dir` will now only be executed when they have a corresponding `plugin` configuration block. Any plugin found without a corresponding configuration block will be skipped. [[GH-18530](https://github.com/hashicorp/nomad/issues/18530)]
+* api: QuotaSpec.RegionLimit is now of type QuotaResources instead of Resources [[GH-24785](https://github.com/hashicorp/nomad/issues/24785)]
+* consul: Identities are no longer added to tasks by default when they include a template block.
+Please see [Nomad's upgrade guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific)
+for more detail. [[GH-25298](https://github.com/hashicorp/nomad/issues/25298)]
+* consul: The deprecated token-based authentication workflow for allocations has been removed. Please see [Nomad's upgrade guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific) for more detail. [[GH-25217](https://github.com/hashicorp/nomad/issues/25217)]
+* disconnected nodes: ignore the previously deprecated disconnect group fields in favor of the disconnect block introduced in Nomad 1.8 [[GH-25284](https://github.com/hashicorp/nomad/issues/25284)]
+* drivers: remove remote task support for task drivers [[GH-24909](https://github.com/hashicorp/nomad/issues/24909)]
+* sentinel: The sentinel apply command now requires the -scope option [[GH-24601](https://github.com/hashicorp/nomad/issues/24601)]
+* vault: The deprecated token-based authentication workflow for allocations has been removed. Please
+see [Nomad's upgrade guide](https://developer.hashicorp.com/nomad/docs/upgrade/upgrade-specific) for
+more detail. [[GH-25155](https://github.com/hashicorp/nomad/issues/25155)]
+
+IMPROVEMENTS:
+
+* cli: Add -group option to `alloc exec`, `alloc logs`, `alloc fs` commands [[GH-25568](https://github.com/hashicorp/nomad/issues/25568)]
+* cli: Added UI URL hints to the end of common CLI commands and a `-ui` flag to auto-open them [[GH-24454](https://github.com/hashicorp/nomad/issues/24454)]
+* client: Fixed a bug where JSON formatted logs would not show the requested and overlapping cores when failing to reserve cores [[GH-25523](https://github.com/hashicorp/nomad/issues/25523)]
+* client: Improve memory usage by dropping references to task environment [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
+* cni: Add a warning log when CNI check commands fail [[GH-25581](https://github.com/hashicorp/nomad/issues/25581)]
+* csi: Accept ID prefixes and wildcard namespace for the volume delete command [[GH-24997](https://github.com/hashicorp/nomad/issues/24997)]
+* csi: Added CSI volume and plugin events to the event stream [[GH-24724](https://github.com/hashicorp/nomad/issues/24724)]
+* csi: Show volume capabilities in the volume status command [[GH-25173](https://github.com/hashicorp/nomad/issues/25173)]
+* drivers/docker: adds image_pull_timeout to plugin config options [[GH-25489](https://github.com/hashicorp/nomad/issues/25489)]
+* drivers/rawexec: adds denied_envvars to driver and task config options [[GH-25511](https://github.com/hashicorp/nomad/issues/25511)]
+* rawexec: add support for setting the task user on windows platform [[GH-25496](https://github.com/hashicorp/nomad/issues/25496)]
+* rpc: Added ability to configure yamux session parameters [[GH-25466](https://github.com/hashicorp/nomad/issues/25466)]
+* ui: Added Dynamic Host Volumes to the web UI [[GH-25224](https://github.com/hashicorp/nomad/issues/25224)]
+* ui: Added a scope selector for sentinel policy page [[GH-25390](https://github.com/hashicorp/nomad/issues/25390)]
+* ui: Makes jobs list filtering case-insensitive [[GH-25378](https://github.com/hashicorp/nomad/issues/25378)]
+* ui: Updated icons to the newest design system [[GH-25353](https://github.com/hashicorp/nomad/issues/25353)]
+
+DEPRECATIONS:
+
+* api: QuotaSpec.VariablesLimit field is deprecated and will be removed in Nomad 1.12.0. Use QuotaSpec.RegionLimit.Storage.Variables instead. [[GH-24785](https://github.com/hashicorp/nomad/issues/24785)]
+* quotas: the variables_limit field in the quota specification is deprecated and replaced by a new storage block under the region_limit block, with a variables field. The variables_limit field will be removed in Nomad 1.12.0 [[GH-24785](https://github.com/hashicorp/nomad/issues/24785)]
+
+BUG FIXES:
+
+* client: fixed a bug where AMD CPUs were not correctly fingerprinting base speed [[GH-24415](https://github.com/hashicorp/nomad/issues/24415)]
+* client: remove blocking call during client gc [[GH-25123](https://github.com/hashicorp/nomad/issues/25123)]
+* client: skip a task groups shutdown_delay when all tasks have already been deregistered [[GH-25157](https://github.com/hashicorp/nomad/issues/25157)]
+* csi: Fixed a CSI ExpandVolume bug where the namespace was left out of the staging path [[GH-25253](https://github.com/hashicorp/nomad/issues/25253)]
+* csi: Fixed a bug where GC would attempt and fail to delete plugins that had volumes [[GH-25432](https://github.com/hashicorp/nomad/issues/25432)]
+* csi: Fixed a bug where cleaning up volume claims on GC'd nodes would cause errors on the leader [[GH-25428](https://github.com/hashicorp/nomad/issues/25428)]
+* csi: Fixed a bug where in-flight CSI RPCs would not be cancelled on client GC or dev agent shutdown [[GH-25472](https://github.com/hashicorp/nomad/issues/25472)]
+* drivers: set -1 exit code in case of executor failure for the exec, raw_exec, java, and qemu task drivers [[GH-25453](https://github.com/hashicorp/nomad/issues/25453)]
+* job: Ensure migrate block difference is added to planning diff object [[GH-25528](https://github.com/hashicorp/nomad/issues/25528)]
+* scheduler: Fixed a bug that made affinity and spread updates destructive [[GH-25109](https://github.com/hashicorp/nomad/issues/25109)]
+* server: Validate `num_schedulers` configuration parameter is between 0 and the number of CPUs available on the machine [[GH-25441](https://github.com/hashicorp/nomad/issues/25441)]
+* services: Fixed a bug where Nomad native services would not be correctly interpolated during in-place updates [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
+* services: Fixed a bug where task-level services, checks, and identities could interpolate jobspec values from other tasks in the same group [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
+
 ## 1.10.0 (Unreleased)
 
 FEATURES:
