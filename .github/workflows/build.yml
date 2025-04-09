@@ -94,6 +94,42 @@ jobs:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
 
+  # this builds the "nomad-builder" docker image that is used to build Nomad
+  build-docker-image:
+    needs:
+      - get-product-version
+      - get-go-version
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        arch: ["arm64", "amd64"]
+      fail-fast: true
+    env:
+      version: ${{ needs.get-product-version.outputs.product-version }}
+
+    name: Docker ${{ matrix.arch }} nomad-builder image build
+
+    steps:
+      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - name: Docker Build (Action)
+        uses: hashicorp/actions-docker-build@11d43ef520c65f58683d048ce9b47d6617893c9a # v2.0.0
+        with:
+          smoke_test: |
+            TEST_VERSION="$(docker run "${IMAGE_NAME}" version | awk '/nomad/{print $3}')"
+            if [ "${TEST_VERSION#v}" != "${version}" ]; then
+              echo "Test FAILED"
+              exit 1
+            fi
+            echo "Test PASSED"
+          version: ${{ env.version }}
+          target: release
+          arch: ${{ matrix.arch }}
+          tags: |
+            docker.io/hashicorp/${{ env.PKG_NAME }}:${{ env.version }}
+          dev_tags: |
+            docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-dev
+            docker.io/hashicorppreview/${{ env.PKG_NAME }}:${{ env.version }}-${{ github.sha }}
+
   build-other:
     needs: [get-go-version, get-product-version]
     runs-on: custom-linux-xxl-nomad-20.04
