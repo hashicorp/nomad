@@ -113,15 +113,15 @@ jobs:
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
       - name: Docker Buildx (Action)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@548776e8d0d44ea63feed0c8a944e6235fc63eee # v6
         with:
           version: ${{ env.nomad_version }}
           target: release
           arch: ${{ matrix.arch }}
-          tags: |
-            docker.io/hashicorp/nomad-builder:${{ env.nomad-version }}
+          build-args: |
+            GO_VERSION=${{ env.go-version }}
+            ARCH=${{ matrix.arch }}
           dev_tags: |
-            docker.io/hashicorppreview/nomad-builder:${{ env.nomad-version }}-dev
             docker.io/hashicorppreview/nomad-builder:${{ env.nomad-version }}-${{ github.sha }}
 
   build-other:
