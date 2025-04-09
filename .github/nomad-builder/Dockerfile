@@ -8,6 +8,10 @@ ENV DEBIAN_FRONTEND=noninteractive
 ARG ARCH="amd64"
 ARG GO_VERSION="1.24.1"
 
+# Best to map the internal user to host user
+ARG DOCKER_USER=default_user
+RUN addgroup -S $DOCKER_USER && adduser -S $DOCKER_USER -G $DOCKER_USER
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
  bash \
  build-essential \
