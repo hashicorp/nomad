@@ -100,6 +100,11 @@ jobs:
       - get-product-version
       - get-go-version
     runs-on: ubuntu-24.04
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     strategy:
       matrix:
         arch: ["arm64", "amd64"]
@@ -112,6 +117,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@fcd3152d8ad392d0e9c14d3f0de40f0a88b8ca0e # v3
       - name: Docker Buildx (Action)
         uses: docker/build-push-action@548776e8d0d44ea63feed0c8a944e6235fc63eee # v6
         with:
@@ -119,7 +126,8 @@ jobs:
           build-args: |
             GO_VERSION=${{ env.go-version }}
             ARCH=${{ matrix.arch }}
-          tags: docker.io/hashicorppreview/nomad-builder:${{ github.sha }}
+          push: true
+          tags: localhost:5000/nomad-builder:${{ github.sha }}
 
   build-other:
     needs: [get-go-version, get-product-version]
@@ -176,6 +184,11 @@ jobs:
   build-linux:
     needs: [get-go-version, get-product-version, build-builder-image]
     runs-on: custom-linux-xxl-nomad-20.04
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     strategy:
       matrix:
         goos: [linux]
@@ -215,7 +228,7 @@ jobs:
         run: |
           go clean -cache
           # hacky hacks!
-          docker run -v "$(pwd)":/build hashicorppreview/nomad-builder:${{ github.sha }} make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          docker run -v "$(pwd)":/build localhost:5000/nomad-builder:${{ github.sha }} make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
           mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
       - uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
