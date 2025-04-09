@@ -119,8 +119,7 @@ jobs:
           build-args: |
             GO_VERSION=${{ env.go-version }}
             ARCH=${{ matrix.arch }}
-          dev_tags: |
-            docker.io/hashicorppreview/nomad-builder:${{ env.nomad-version }}-${{ github.sha }}
+          tags: docker.io/hashicorppreview/nomad-builder:${{ github.sha }}
 
   build-other:
     needs: [get-go-version, get-product-version]
@@ -216,7 +215,7 @@ jobs:
         run: |
           go clean -cache
           # hacky hacks!
-          docker run -v "$(pwd)":/build nomad-builder make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          docker run -v "$(pwd)":/build hashicorppreview/nomad-builder:${{ github.sha }} make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
           mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
       - uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
