@@ -177,8 +177,6 @@ jobs:
   build-linux:
     needs: [get-go-version, get-product-version, build-builder-image]
     runs-on: custom-linux-xxl-nomad-20.04
-    container:
-      image: hashicorppreview/nomad-builder:latest
     strategy:
       matrix:
         goos: [linux]
@@ -195,24 +193,34 @@ jobs:
       - name: Build dependencies
         run: make deps
 
+      - name: Setup node and yarn
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: "20"
+          cache-dependency-path: "ui/yarn.lock"
+
+      - name: Install Yarn
+        run: |
+          npm install -g yarn
+
       - name: Build prerelease
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
-      - name: Install Linux build utilties
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils-aarch64-linux-gnu \
-            gcc-aarch64-linux-gnu
+      # - name: Install Linux build utilties
+      #   run: |
+      #     sudo apt-get update
+      #     sudo apt-get install -y software-properties-common
+      #     sudo apt-get update
+      #     sudo apt-get install -y \
+      #       binutils-aarch64-linux-gnu \
+      #       gcc-aarch64-linux-gnu
 
-      - name: Set gcc
-        run: |
-          if [ "${{ matrix.goarch }}" == "arm64" ]; then
-            echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-          fi
+      # - name: Set gcc
+      #   run: |
+      #     if [ "${{ matrix.goarch }}" == "arm64" ]; then
+      #       echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
+      #     fi
 
       - name: Build
         env:
