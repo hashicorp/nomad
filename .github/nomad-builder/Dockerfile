@@ -20,4 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN curl -L https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz | tar -C /opt -zxv
 ENV PATH="/root/go/bin:/opt/go/bin:$PATH"
 
+RUN git config --global --add safe.directory /build
+
 WORKDIR /build
