@@ -1,0 +1,7 @@
+#### Remote task driver support removed
+
+In Nomad 1.10.0, we removed all support for remote task driver
+capabilities. Nomad no longer detaches drivers with the `RemoteTasks` capability
+when an allocation is lost. Also, Nomad does not detach remote tasks
+when a node is drained. Workloads running as remote tasks should be migrated
+prior to upgrading.
