@@ -1,4 +1,5 @@
-# syntax=docker/dockerfile:1
+# Copyright (c) HashiCorp, Inc.
+# SPDX-License-Identifier: BUSL-1.1
 
 FROM ubuntu:bionic
 
