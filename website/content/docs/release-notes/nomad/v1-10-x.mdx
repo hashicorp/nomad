@@ -1,0 +1,220 @@
+---
+layout: docs
+page_title: Nomad v1.10.x release notes
+description: >-
+  HashiCorp Nomad version 1.10.x release notes. New features include dynamic host volumes, OIDC Private Key JWT (client assertions), and OIDC Proof Key for Code Exchange (PKCE). Updates to the Container Storage Interface (CSI) volume delete and volume status commands. CSI volume and plugin events added to the event stream. Added UI URL hints to the end of common CLI commands and a -ui flag to auto-open them in a browser.
+---
+
+# Nomad 1.10.x release notes
+
+We are pleased to announce the following Nomad updates.
+
+## Release highlights
+
+### Dynamic host volumes
+
+The dynamic host volumes feature brings a persistent storage option to your
+workload allocations.
+
+Nomad dynamic host volumes manage storage for stateful workloads without
+requiring a restart of the Nomad nodes to apply configuration changes. You
+create dynamic host volumes via the CLI or API and then configure the job with
+the [`volume`](/nomad/docs/job-specification/volume) and
+[`volume_mount`](/nomad/docs/job-specification/volume_mount) blocks in the job
+specification.
+
+Host volumes mount paths from the Nomad client into allocations. Nomad is aware
+of host volume availability and makes use of it for job scheduling. However,
+Nomad does not know about the volume's underlying characteristics, so you can
+use host volumes for both local persistent storage and for highly
+available networked storage.
+
+#### Dynamic host volume governance <EnterpriseAlert inline product="nomad"/>
+
+Providing guardrails to platform consumers is an important aspect of the storage
+provisioning workflow when leveraging host volumes across a shared Nomad
+cluster.  Nomad Enterprise supports these new capabilities to provide
+governance when provisioning host volumes:
+
+- **Sentinel dynamic host volume objects**
+
+  During volume creation, Nomad can evaluate all of the details within the
+  dynamic host volume specification against Sentinel policies
+  that define and enforce specific patterns.
+
+  For example, a policy that enforces the storage tier based on the environment
+  or namespace specified would allow reserving more expensive NVME storage for
+  specific workloads. Being able to apply policy to the volume specification
+  gives you a method to enforce specific patterns while providing platform
+  consumers with more flexibility around self-service volume provisioning. Refer
+  to the [Sentinel policy reference](/nomad/docs/enterprise/sentinel#sentinel-dynamic-host-volume-objects) for more information.
+
+- **Resource quota support**
+
+  Nomad’s resource quota system now includes coverage for host volume capacity
+  limits that you can apply to provisioned storage within a specific namespace.
+  This helps control storage consumption within a namespace based on the maximum
+  capacities defined during creation or when making updates to the maximum
+  capacities over the lifecycle of the volume. Refer to the [Resource quota
+  specification](/nomad/docs/other-specifications/quota) for more information.
+
+- **Namespace and node pool validation**:
+
+  Dynamic host volumes live within the context of a specific namespace when
+  created. When Nomad provisions volumes in a namespace targeting a specific
+  node pool, Nomad evaluates the namespace node pool configuration to ensure
+  that volume creation aligns with job placement rules for node pools. Refer to
+  the [Namespace specification](/nomad/docs/other-specifications/namespace) for
+  details on `node_pool_config` parameters.
+
+#### Resources
+
+Refer to the following resources to learn more about dynamic host volumes:
+
+- [Host volumes section](/nomad/docs/operations/stateful-workloads#host-volumes)
+  in the _Considerations for stateful workloads_ guide for an overview and
+  comparison of storage options
+- [Host volumes plugin
+  specification](/nomad/docs/concepts/plugins/storage/host-volumes) for examples
+  of how to write your own plugin to dynamically configure persistent storage on
+  your Nomad client nodes
+- [Use Nomad dynamic host volumes to persist data for stateful workloads
+  tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes)
+  to learn how to create and use a dynamic host volume for persistent storage
+
+### OpenID Connect (OIDC) enhancements
+
+Nomad 1.10 extends Nomad's OIDC SSO login feature with [Private Key JWT][pkjwt]
+and [Proof Key for Code Exchange (PKCE)][pkce].
+
+#### Private Key JWT
+
+Private Key JWT, also called client assertions, is a more secure alternative for
+client secrets. Instead of sending a simple secret, Nomad builds a JWT and signs
+it with a value that the OIDC provider verifies. In this approach, Nomad asserts
+a valid OIDC client without sending any secret information over the network.
+
+#### Proof Key for Code Exchange (PKCE)
+
+PKCE adds an extra layer of security to any OIDC auth method for both client
+secrets and client assertions.
+
+Set the [ACL auth method `OIDCEnablePKCE`
+parameter](/nomad/api-docs/acl/auth-methods#oidcenablepkce) to `true` to turn
+on this extra security.
+
+Note that not all OIDC providers support PKCE. In addition to enabling PKCE in
+Nomad, you may need to enable it in your OIDC provider's configuration.
+
+#### Resources
+
+- [OIDC auth method guide][oidc-concepts] for details on using OIDC with Nomad
+- [OIDC troubleshooting guide][oidc-trouble] to review common issues and tips
+  for setting up OIDC
+- [Authenticate users with SSO and Keycloak tutorial][oidc-tutorial] to
+  configure Nomad and the Keycloak identity provider to automatically grant
+  permissions in Nomad ACL.
+
+### Container Storage Interface (CSI) enhancements
+
+We added the following:
+
+- CSI volume and plugin events to the event stream
+- Volume capabilities to the `nomad volume status` command output
+- The ability to use a volume ID prefix search and wildcard namespace with the
+  [`nomad volume delete` command](/nomad/docs/commands/volume/delete). Refer to
+  the [GitHub pull request](https://github.com/hashicorp/nomad/pull/24997) for
+  details. Example usage:
+
+  ```shell-session
+  $ nomad volume create ./internal-plugin.volume.hcl
+  ==> Created host volume internal-plugin with ID aeea91a0-06df-c16e-5403-ff82a2f28fd4
+  ✓ Host volume "aeea91a0" ready
+
+    2025-01-31T15:55:14-05:00
+    ID        = aeea91a0-06df-c16e-5403-ff82a2f28fd4
+    Name      = internal-plugin
+    Namespace = default
+    Plugin ID = mkdir
+    Node ID   = b4611abd-d4a8-c83a-b05e-7d9f5b44a179
+    Node Pool = default
+    Capacity  = 0 B
+    State     = ready
+    Host Path = /run/nomad/dev/data/host_volumes/aeea91a0-06df-c16e-5403-ff82a2f28fd4
+
+  $ nomad volume delete -type host aeea91a0
+  Successfully deleted volume "aeea91a0-06df-c16e-5403-ff82a2f28fd4"!
+  ```
+
+### UI URL hints added to CLI commands
+
+We added UI URL hints to the end of common CLI commands and a `-ui` flag to
+automatically open the generated link in your browser.
+
+Showing UI URL hints is enabled by default. You have two options for turning off
+this feature:
+
+- Server: Modify the [`show_cli_hints`
+  parameter](/nomad/docs/configuration/ui#show_cli_hints) in your agent's `ui`
+  block configuration.
+- CLI: Set the `NOMAD_CLI_SHOW_HINTS` environment variable to `0` or `false`.
+
+  ```shell-session
+  $ nomad status
+  No running jobs
+
+  ==> View and manage Nomad jobs in the Web UI: https://localhost:4646/ui/jobs
+
+  $ export NOMAD_CLI_SHOW_HINTS=0
+  $ nomad status
+  No running jobs
+  ```
+
+## Breaking changes
+
+@include 'release-notes/v1-10/breaking-go-sdk.mdx'
+
+@include 'release-notes/v1-10/breaking-plugin-dir.mdx'
+
+@include 'release-notes/v1-10/breaking-vault-consul-token.mdx'
+
+@include 'release-notes/v1-10/breaking-consul-template.mdx'
+
+@include 'release-notes/v1-10/breaking-disconnect-fields-removed.mdx'
+
+@include 'release-notes/v1-10/breaking-remove-remote-task-driver-support.mdx'
+
+@include 'release-notes/v1-10/breaking-sentinel-apply.mdx'
+
+@include 'release-notes/v1-10/breaking-affinity-spread.mdx'
+
+## Deprecations
+
+@include 'release-notes/v1-10/deprecate-variable-limits.mdx'
+
+## Upgrade details
+
+For more detailed information, refer to the [upgrade details
+page][upgrade] and the [GitHub releases changelogs][github-releases].
+
+## Known issues
+
+None.
+
+## Changelogs
+
+These links take you to the changelogs on the GitHub website.
+
+- [v1.10.0-beta.1](https://github.com/hashicorp/nomad/releases/tag/v1.10.0-beta.1)
+
+
+[consul-integration]: /nomad/docs/integrations/consul/acl
+[vault-integration]: /nomad/docs/integrations/vault/acl
+[GH-18529]: https://github.com/hashicorp/nomad/issues/18529
+[upgrade]: /nomad/docs/upgrade/upgrade-specific#nomad-1-10-0
+[github-releases]: https://github.com/hashicorp/nomad/releases/
+[pkjwt]: https://oauth.net/private-key-jwt/
+[pkce]: https://oauth.net/2/pkce/
+[oidc-concepts]: /nomad/docs/concepts/acl/auth-methods/oidc#client-assertions
+[oidc-trouble]: /nomad/docs/concepts/acl/auth-methods/oidc#oidc-configuration-troubleshooting
+[oidc-tutorial]: /nomad/tutorials/single-sign-on/sso-oidc-keycloak
