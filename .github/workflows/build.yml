@@ -115,7 +115,6 @@ jobs:
       - name: Docker Buildx (Action)
         uses: docker/build-push-action@548776e8d0d44ea63feed0c8a944e6235fc63eee # v6
         with:
-          target: release
           context: .github/nomad-builder/
           build-args: |
             GO_VERSION=${{ env.go-version }}
