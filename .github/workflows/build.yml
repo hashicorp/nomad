@@ -94,41 +94,6 @@ jobs:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
 
-  # this builds the "nomad-builder" docker image that is used to build Nomad
-  build-builder-image:
-    needs:
-      - get-product-version
-      - get-go-version
-    runs-on: ubuntu-24.04
-    services:
-      registry:
-        image: registry:2
-        ports:
-          - 5000:5000
-    strategy:
-      matrix:
-        arch: ["arm64", "amd64"]
-      fail-fast: true
-    env:
-      nomad-version: ${{ needs.get-product-version.outputs.product-version }}
-      go-version: ${{ needs.get-go-version.outputs.go-version }}
-
-    name: Docker ${{ matrix.arch }} nomad-builder image build
-
-    steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@fcd3152d8ad392d0e9c14d3f0de40f0a88b8ca0e # v3
-      - name: Docker Buildx (Action)
-        uses: docker/build-push-action@548776e8d0d44ea63feed0c8a944e6235fc63eee # v6
-        with:
-          context: .github/nomad-builder/
-          build-args: |
-            GO_VERSION=${{ env.go-version }}
-            ARCH=${{ matrix.arch }}
-          push: true
-          tags: localhost:5000/nomad-builder:${{ github.sha }}
-
   build-other:
     needs: [get-go-version, get-product-version]
     runs-on: custom-linux-xxl-nomad-20.04
@@ -218,6 +183,19 @@ jobs:
       - name: Build prerelease
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
+
+      - name: Set up QEMU (for multiarch dockerx builds)
+        uses: docker/setup-qemu-action@fcd3152d8ad392d0e9c14d3f0de40f0a88b8ca0e # v3
+
+      - name: Build nomad-builder image
+        uses: docker/build-push-action@548776e8d0d44ea63feed0c8a944e6235fc63eee # v6
+        with:
+          context: .github/nomad-builder/
+          build-args: |
+            GO_VERSION=${{ env.go-version }}
+            ARCH=${{ matrix.arch }}
+          push: true
+          tags: localhost:5000/nomad-builder:${{ github.sha }}
 
       - name: Build
         env:
