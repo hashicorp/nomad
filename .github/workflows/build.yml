@@ -207,21 +207,6 @@ jobs:
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
-      # - name: Install Linux build utilties
-      #   run: |
-      #     sudo apt-get update
-      #     sudo apt-get install -y software-properties-common
-      #     sudo apt-get update
-      #     sudo apt-get install -y \
-      #       binutils-aarch64-linux-gnu \
-      #       gcc-aarch64-linux-gnu
-
-      # - name: Set gcc
-      #   run: |
-      #     if [ "${{ matrix.goarch }}" == "arm64" ]; then
-      #       echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-      #     fi
-
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -230,7 +215,8 @@ jobs:
           CGO_ENABLED: 1
         run: |
           go clean -cache
-          make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          # hacky hacks!
+          docker run -v "$(pwd)":/build nomad-builder make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
           mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
       - uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:

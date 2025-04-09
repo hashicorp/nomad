@@ -17,6 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Get Go and get Going ;)
 RUN curl -L https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz | tar -C /opt -zxv
-ENV PATH="/opt/go/bin:$PATH"
+ENV PATH="/root/go/bin:/opt/go/bin:$PATH"
 
-ENTRYPOINT /bin/bash
+WORKDIR /build
