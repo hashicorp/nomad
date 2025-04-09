@@ -115,9 +115,8 @@ jobs:
       - name: Docker Buildx (Action)
         uses: docker/build-push-action@548776e8d0d44ea63feed0c8a944e6235fc63eee # v6
         with:
-          version: ${{ env.nomad_version }}
           target: release
-          arch: ${{ matrix.arch }}
+          context: .github/nomad-builder/
           build-args: |
             GO_VERSION=${{ env.go-version }}
             ARCH=${{ matrix.arch }}
@@ -177,8 +176,10 @@ jobs:
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
   build-linux:
-    needs: [get-go-version, get-product-version]
+    needs: [get-go-version, get-product-version, build-builder-image]
     runs-on: custom-linux-xxl-nomad-20.04
+    container:
+      image: hashicorppreview/nomad-builder:latest
     strategy:
       matrix:
         goos: [linux]
@@ -191,23 +192,9 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.inputs.build-ref }}
-      - name: Setup go
-        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
-        with:
-          go-version: ${{ needs.get-go-version.outputs.go-version }}
 
       - name: Build dependencies
         run: make deps
-
-      - name: Setup node and yarn
-        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
-        with:
-          node-version: "20"
-          cache-dependency-path: "ui/yarn.lock"
-
-      - name: Install Yarn
-        run: |
-          npm install -g yarn
 
       - name: Build prerelease
         run: make prerelease
