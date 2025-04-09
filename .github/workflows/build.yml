@@ -147,7 +147,7 @@ jobs:
           path: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
   build-linux:
-    needs: [get-go-version, get-product-version, build-builder-image]
+    needs: [get-go-version, get-product-version]
     runs-on: custom-linux-xxl-nomad-20.04
     services:
       registry:
@@ -192,7 +192,7 @@ jobs:
         with:
           context: .github/nomad-builder/
           build-args: |
-            GO_VERSION=${{ env.go-version }}
+            GO_VERSION=${{ needs.get-go-version.outputs.go-version }}
             ARCH=${{ matrix.arch }}
           push: true
           tags: localhost:5000/nomad-builder:${{ github.sha }}
