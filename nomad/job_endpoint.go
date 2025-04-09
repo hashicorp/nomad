@@ -2107,7 +2107,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	// Commit this update via Raft
 	_, jobCreateIndex, err := j.srv.raftApply(structs.JobRegisterRequestType, regReq)
 	if err != nil {
-		j.logger.Error("dispatched job register failed", "error")
+		j.logger.Error("dispatched job register failed", "error", err)
 		return err
 	}
 

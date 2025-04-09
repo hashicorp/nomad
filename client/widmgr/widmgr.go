@@ -121,7 +121,8 @@ func (m *WIDMgr) Run() error {
 
 	hasExpired, err := m.restoreStoredIdentities()
 	if err != nil {
-		m.logger.Warn("failed to get signed identities from state DB, refreshing from server: %w", err)
+		m.logger.Warn("failed to get signed identities from state DB, refreshing from server",
+			"error", err)
 	}
 	if hasExpired {
 		if err := m.getInitialIdentities(); err != nil {
