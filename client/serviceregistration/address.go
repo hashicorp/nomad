@@ -134,7 +134,7 @@ func GetAddress(
 
 		return driverNet.IP, port, nil
 
-	case structs.AddressModeAlloc:
+	case structs.AddressModeAlloc, structs.AddressModeAllocAdvertiseIPv6:
 		// Cannot use address mode alloc with custom advertise address.
 		if address != "" {
 			return "", 0, fmt.Errorf("cannot use custom advertise address with %q address mode", structs.AddressModeAlloc)
@@ -147,6 +147,9 @@ func GetAddress(
 
 		// If no port label is specified just return the IP
 		if portLabel == "" {
+			if addressMode == structs.AddressModeAllocAdvertiseIPv6 {
+				return netStatus.AddressIPv6, 0, nil
+			}
 			return netStatus.Address, 0, nil
 		}
 
@@ -154,7 +157,13 @@ func GetAddress(
 		if port, ok := ports.Get(portLabel); ok {
 			// Use port.To value unless not set
 			if port.To > 0 {
+				if addressMode == structs.AddressModeAllocAdvertiseIPv6 {
+					return netStatus.AddressIPv6, port.To, nil
+				}
 				return netStatus.Address, port.To, nil
+			}
+			if addressMode == structs.AddressModeAllocAdvertiseIPv6 {
+				return netStatus.AddressIPv6, port.Value, nil
 			}
 			return netStatus.Address, port.Value, nil
 		}
@@ -167,6 +176,9 @@ func GetAddress(
 		}
 		if port <= 0 {
 			return "", 0, fmt.Errorf("invalid port: %q: port must be >0", portLabel)
+		}
+		if addressMode == structs.AddressModeAllocAdvertiseIPv6 {
+			return netStatus.AddressIPv6, port, nil
 		}
 		return netStatus.Address, port, nil
 
