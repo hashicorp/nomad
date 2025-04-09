@@ -202,7 +202,7 @@ jobs:
           build-args: |
             GO_VERSION=${{ needs.get-go-version.outputs.go-version }}
             ARCH=${{ matrix.goarch }}
-            DOCKER_USER=$(whoami)
+            DOCKER_USER=runner
           push: true
           tags: localhost:5000/nomad-builder:${{ github.sha }}
 

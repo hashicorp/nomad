@@ -8,10 +8,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 ARG ARCH="amd64"
 ARG GO_VERSION="1.24.1"
 
-# Best to map the internal user to host user
-ARG DOCKER_USER=default_user
-RUN addgroup -S $DOCKER_USER && adduser -S $DOCKER_USER -G $DOCKER_USER
-
 RUN apt-get update && apt-get install -y --no-install-recommends \
  bash \
  build-essential \
@@ -23,7 +19,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Get Go and get Going ;)
 RUN curl -L https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz | tar -C /opt -zxv
-ENV PATH="/root/go/bin:/opt/go/bin:$PATH"
+
+# Best to map the internal user to host user
+ARG DOCKER_USER=default_user
+RUN addgroup $DOCKER_USER && useradd -m -g $DOCKER_USER $DOCKER_USER
+USER $DOCKER_USER
+ENV PATH="/home/${DOCKER_USER}/go/bin:/opt/go/bin:$PATH"
 
 RUN git config --global --add safe.directory /build
 
