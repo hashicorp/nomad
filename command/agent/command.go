@@ -37,6 +37,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
+	"golang.org/x/sys/unix"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -983,9 +984,8 @@ func (c *Command) handleRetryJoin(config *Config) error {
 // also https://www.man7.org/linux/man-pages/man3/sd_notify.3.html
 const (
 	sdReady     = "READY=1"
-	sdReloading = "RELOADING=1"
+	sdReloading = "RELOADING=1\nMONOTONIC_USEC=%d"
 	sdStopping  = "STOPPING=1"
-	sdMonotonic = "MONOTONIC_USEC=%d"
 )
 
 // handleSignals blocks until we get an exit-causing signal
@@ -1026,8 +1026,13 @@ WAIT:
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
-		sdNotify(sdSock, sdReloading)
-		sdNotify(sdSock, fmt.Sprintf(sdMonotonic, time.Now().UnixMicro()))
+		var ts unix.Timespec
+		if err := unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts); err != nil {
+			c.agent.logger.Error("failed to get clock time", "error", err)
+			return 1
+		}
+		micro := ts.Nano() / 1000
+		sdNotify(sdSock, fmt.Sprintf(sdReloading, micro))
 		c.handleReload()
 		sdNotify(sdSock, sdReady)
 		goto WAIT
