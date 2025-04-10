@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/e2e/e2eutil"
 	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/e2e/v3/volumes3"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -59,6 +60,11 @@ func TestDynamicHostVolumes_RegisterWorkflow(t *testing.T) {
 		"register-volumes-policy", "./input/register-volumes.policy.hcl")
 	must.NoError(t, err)
 	t.Logf("[%v] ACL policy for job %q created", time.Since(start), submitted.JobID())
+
+	t.Cleanup(func() {
+		_, err := nomad.ACLPolicies().Delete("register-volumes-policy", nil)
+		test.NoError(t, err)
+	})
 
 	must.NoError(t, e2eutil.Dispatch(submitted.JobID(),
 		map[string]string{

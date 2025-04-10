@@ -48,7 +48,7 @@ the API.
   behavior is up to the plugin. If you want to specify an exact size, set
   `capacity_min` and `capacity_max` to the same value. Accepts human-friendly
   suffixes such as `"100GiB"`. Plugins that cannot restrict the size of volumes,
-  such as the built-in `mkdir` plugin, may ignore this field.
+  such as the built-in [`mkdir`][mkdir_plugin] plugin, may ignore this field.
 
 - `capacity_max` `(string: <optional>)` - Option for requesting a maximum
   capacity, in bytes. The capacity of a volume may be the physical size of a
@@ -57,7 +57,7 @@ the API.
   behavior is up to the plugin. If you want to specify an exact size, set
   `capacity_min` and `capacity_max` to the same value. Accepts human-friendly
   suffixes such as `"100GiB"`. Plugins that cannot restrict the size of volumes,
-  such as the built-in `mkdir` plugin, may ignore this field.
+  such as the built-in [`mkdir`][mkdir_plugin] plugin, may ignore this field.
 
 - `capability` <code>([Capability][capability]: &lt;required&gt;)</code> -
   Option for validating the capability of a volume.
@@ -101,11 +101,49 @@ the API.
 
 - `plugin_id` `(string)` - The ID of the [dynamic host volume
   plugin][dhv_plugin] that manages this volume. Required for volume
-  creation. Nomad has one built-in plugin called `mkdir`, which creates a
-  directory on the host in the Nomad agent's [host_volumes_dir][].
+  creation. Nomad has one built-in plugin called [`mkdir`][mkdir_plugin].
 
 - `type` `(string: <required>)` - The type of volume. Must be `"host"` for
   dynamic host volumes.
+
+## mkdir plugin
+
+Nomad has one built-in plugin called `mkdir`, which creates a directory on the
+host in the Nomad agent's [host_volumes_dir][]. The directory name is the
+volume's ID.
+
+`mkdir` ignores `capacity_min` and `capacity_max` volume configuration,
+since it has no way of enforcing them.
+
+### mkdir parameters
+
+- `mode` `(string: <optional>)` - [Numeric
+notation](https://en.wikipedia.org/wiki/File-system_permissions#Numeric_notation)
+to apply to the created directory. Defaults to "0700", so only the owner can
+access it. Must be a string, or you may get unexpected results.
+- `uid` `(int: <optional>)` - User ID to own the directory. Defaults to the
+user running the Nomad client agent, which is commonly `0` (root).
+- `gid` `(int: <optional>)` - Group ID to own the directory. Defaults to the
+user running the Nomad client agent, which is commonly `0` (root).
+
+The user and group IDs must be present on any node that may receive the volume.
+
+### mkdir example
+
+<CodeBlockConfig filename="mkdir.volume.hcl">
+
+```hcl
+type      = "host"
+name      = "cool-host-vol"
+plugin_id = "mkdir"
+parameters = {
+  mode = "0755"
+  uid  = 1000
+  gid  = 1000
+}
+```
+
+</CodeBlockConfig>
 
 ## Differences Between Create and Register
 
@@ -307,4 +345,5 @@ registered.
 [`volume register`]: /nomad/docs/commands/volume/register
 [`volume status`]: /nomad/docs/commands/volume/status
 [dhv_plugin]: /nomad/docs/concepts/plugins/storage/host-volumes
+[mkdir_plugin]: #mkdir-plugin
 [host_volumes_dir]: /nomad/docs/configuration/client#host_volumes_dir

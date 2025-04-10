@@ -47,8 +47,11 @@ The `raw_exec` driver supports the following configuration in the job spec:
   conflict with other Nomad driver's cgroups and have unintended side
   effects.
 
-~> The `task.user` field cannot be set on a Task using the `raw_exec` driver if
-the Nomad client has been hardened according to the [production][hardening] guide.
+~> On Linux, you cannot set the `task.user` field on a task using the `raw_exec`
+driver if you have hardened the Nomad client according to the
+[production][hardening] guide. On Windows, when Nomad is running as a [system
+service][service], you may specify a less-privileged service user. For example,
+`NT AUTHORITY\LocalService`, `NT AUTHORITY\NetworkService`.
 
 - `oom_score_adj` - (Optional) A positive integer to indicate the likelihood of
   the task being OOM killed (valid only for Linux). Defaults to 0.
@@ -57,6 +60,9 @@ the Nomad client has been hardened according to the [production][hardening] guid
   must be an absolute path. This will also change the working directory when
   using `nomad alloc exec`.
 
+- `denied_envvars` - (Optional) Passes a list of environment variables that
+  the driver should scrub from the task environment. Supports globbing, with "*"
+  wildcard accepted as prefix and/or suffix.
 
 ## Examples
 
@@ -159,6 +165,15 @@ config {
 }
 ```
 
+- `denied_envvars` - (Optional) Passes a list of environment variables that
+  the driver should scrub from all task environments. Supports globbing with "*"
+  wildcard accepted as prefix and/or suffix.
+
+```hcl
+config {
+  denied_envvars = ["AWS_SECRET_KEY", "*_TOKEN"]
+}
+```
 ## Client Options
 
 ~> Note: client configuration options will soon be deprecated. Please use
@@ -196,5 +211,6 @@ resources {
 ```
 
 [hardening]: /nomad/docs/install/production/requirements#user-permissions
+[service]: /nomad/docs/install/windows-service
 [plugin-options]: #plugin-options
 [plugin-block]: /nomad/docs/configuration/plugin

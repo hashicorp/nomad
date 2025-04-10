@@ -97,7 +97,7 @@ func (h *apiHook) Stop(ctx context.Context, req *interfaces.TaskStopRequest, res
 	if h.ln != nil {
 		if err := h.ln.Close(); err != nil {
 			if !errors.Is(err, net.ErrClosed) {
-				h.logger.Debug("error closing task listener: %v", err)
+				h.logger.Debug("error closing task listener", "error", err)
 			}
 		}
 		h.ln = nil

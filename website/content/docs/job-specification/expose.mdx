@@ -21,7 +21,7 @@ description: |-
 />
 
 The `expose` block allows configuration of additional listeners for the default
-Envoy sidecar proxy managed by Nomad for [Consul Connect][learn-consul-connect].
+Envoy sidecar proxy managed by Nomad for [Consul service mesh][learn-consul-connect].
 These listeners create a bypass of the Connect TLS and network namespace
 isolation, enabling non-Connect enabled services to make requests to specific
 HTTP paths through the sidecar proxy.
@@ -228,9 +228,10 @@ check {
 
 [network-to]: /nomad/docs/job-specification/network#to
 [consul-expose-path-config]: /consul/docs/connect/proxies/proxy-config-reference#expose-paths-configuration-reference
-[expose]: /nomad/docs/job-specification/service#expose
-[path]: /nomad/docs/job-specification/expose#path-parameters 'Nomad Expose Path Parameters'
-[port]: /nomad/docs/job-specification/network#port-parameters 'Nomad Port Parameters'
+[expose-path]: /nomad/docs/job-specification/expose#path-1
+[expose]: /nomad/docs/job-specification/check#expose
+[path]: /nomad/docs/job-specification/expose#path-parameters
+[port]: /nomad/docs/job-specification/network#port-parameters
 [network_interface]: /nomad/docs/configuration/client#network_interface
-[learn-consul-connect]: /nomad/tutorials/integrate-consul/consul-service-mesh
-[check]: /nomad/docs/job-specification/service#check-parameters
+[learn-consul-connect]: /nomad/tutorials/integrate/consul/service-mesh
+[check]: /nomad/docs/job-specification/service#check

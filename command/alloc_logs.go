@@ -26,7 +26,7 @@ type AllocLogsCommand struct {
 	verbose, job, tail, stderr, stdout, follow bool
 	numLines                                   int64
 	numBytes                                   int64
-	task                                       string
+	task, group                                string
 }
 
 func (l *AllocLogsCommand) Help() string {
@@ -59,6 +59,9 @@ Logs Specific Options:
   -task <task-name>
     Sets the task to view the logs. If task name is given with both an argument
 	and the '-task' option, preference is given to the '-task' option.
+
+  -group <group-name>
+    Specifies the task group with the task when a random allocation is selected.
 
   -job <job-id>
     Use a random allocation from the specified job ID or prefix.
@@ -100,6 +103,7 @@ func (l *AllocLogsCommand) AutocompleteFlags() complete.Flags {
 			"-verbose": complete.PredictNothing,
 			"-task":    complete.PredictAnything,
 			"-job":     complete.PredictAnything,
+			"-group":   complete.PredictAnything,
 			"-f":       complete.PredictNothing,
 			"-tail":    complete.PredictAnything,
 			"-n":       complete.PredictAnything,
@@ -137,6 +141,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 	flags.Int64Var(&l.numLines, "n", -1, "")
 	flags.Int64Var(&l.numBytes, "c", -1, "")
 	flags.StringVar(&l.task, "task", "", "")
+	flags.StringVar(&l.group, "group", "", "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -173,7 +178,7 @@ func (l *AllocLogsCommand) Run(args []string) int {
 			return 1
 		}
 
-		allocID, err = getRandomJobAllocID(client, jobID, "", ns)
+		allocID, err = getRandomJobAllocID(client, jobID, l.group, ns)
 		if err != nil {
 			l.Ui.Error(fmt.Sprintf("Error fetching allocations: %v", err))
 			return 1

@@ -13,7 +13,6 @@ import (
 	"os"
 	"path"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -147,198 +146,31 @@ func TestOperator_RaftGetConfiguration_ACL(t *testing.T) {
 	}
 }
 
-func TestOperator_RaftRemovePeerByAddress(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(2)
-	})
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-
-	ports := ci.PortAllocator.Grab(1)
-
-	// Try to remove a peer that's not there.
-	arg := structs.RaftPeerByAddressRequest{
-		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])),
-	}
-	arg.Region = s1.config.Region
-	var reply struct{}
-	err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByAddress", &arg, &reply)
-	if err == nil || !strings.Contains(err.Error(), "not found in the Raft configuration") {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Add it manually to Raft.
-	{
-		future := s1.raft.AddPeer(arg.Address)
-		if err := future.Error(); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	}
-
-	// Make sure it's there.
-	{
-		future := s1.raft.GetConfiguration()
-		if err := future.Error(); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		configuration := future.Configuration()
-		if len(configuration.Servers) != 2 {
-			t.Fatalf("bad: %v", configuration)
-		}
-	}
-
-	// Remove it, now it should go through.
-	if err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByAddress", &arg, &reply); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Make sure it's not there.
-	{
-		future := s1.raft.GetConfiguration()
-		if err := future.Error(); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		configuration := future.Configuration()
-		if len(configuration.Servers) != 1 {
-			t.Fatalf("bad: %v", configuration)
-		}
-	}
-}
-
-func TestOperator_RaftRemovePeerByAddress_ACL(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
-		c.RaftConfig.ProtocolVersion = raft.ProtocolVersion(2)
-	})
-
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
-	state := s1.fsm.State()
-
-	// Create ACL token
-	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
-
-	ports := ci.PortAllocator.Grab(1)
-
-	arg := structs.RaftPeerByAddressRequest{
-		Address: raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])),
-	}
-	arg.Region = s1.config.Region
-
-	// Add peer manually to Raft.
-	{
-		future := s1.raft.AddPeer(arg.Address)
-		assert.Nil(future.Error())
-	}
-
-	var reply struct{}
-
-	// Try with no token and expect permission denied
-	{
-		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByAddress", &arg, &reply)
-		assert.NotNil(err)
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-	}
-
-	// Try with an invalid token and expect permission denied
-	{
-		arg.AuthToken = invalidToken.SecretID
-		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByAddress", &arg, &reply)
-		assert.NotNil(err)
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
-	}
-
-	// Try with a management token
-	{
-		arg.AuthToken = root.SecretID
-		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByAddress", &arg, &reply)
-		assert.Nil(err)
-	}
-}
-
 func TestOperator_RaftRemovePeerByID(t *testing.T) {
 	ci.Parallel(t)
 
-	s1, cleanupS1 := TestServer(t, func(c *Config) {
-		c.RaftConfig.ProtocolVersion = 3
-	})
+	s1, root, cleanupS1 := TestACLServer(t, nil)
 	defer cleanupS1()
 	codec := rpcClient(t, s1)
 	testutil.WaitForLeader(t, s1.RPC)
+	store := s1.fsm.State()
+
+	var reply struct{}
 
 	// Try to remove a peer that's not there.
 	arg := structs.RaftPeerByIDRequest{
-		ID: raft.ServerID("e35bde83-4e9c-434f-a6ef-453f44ee21ea"),
+		ID: raft.ServerID(uuid.Generate()),
+		WriteRequest: structs.WriteRequest{
+			Region: s1.config.Region, AuthToken: root.SecretID},
 	}
-	arg.Region = s1.config.Region
-	var reply struct{}
 	err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByID", &arg, &reply)
-	if err == nil || !strings.Contains(err.Error(), "not found in the Raft configuration") {
-		t.Fatalf("err: %v", err)
-	}
-
-	ports := ci.PortAllocator.Grab(1)
-
-	// Add it manually to Raft.
-	{
-		future := s1.raft.AddVoter(arg.ID, raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])), 0, 0)
-		if err := future.Error(); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	}
-
-	// Make sure it's there.
-	{
-		future := s1.raft.GetConfiguration()
-		if err := future.Error(); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		configuration := future.Configuration()
-		if len(configuration.Servers) != 2 {
-			t.Fatalf("bad: %v", configuration)
-		}
-	}
-
-	// Remove it, now it should go through.
-	if err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByID", &arg, &reply); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Make sure it's not there.
-	{
-		future := s1.raft.GetConfiguration()
-		if err := future.Error(); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-		configuration := future.Configuration()
-		if len(configuration.Servers) != 1 {
-			t.Fatalf("bad: %v", configuration)
-		}
-	}
-}
-
-func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
-	ci.Parallel(t)
-
-	s1, root, cleanupS1 := TestACLServer(t, func(c *Config) {
-		c.RaftConfig.ProtocolVersion = 3
-	})
-	defer cleanupS1()
-	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
-	assert := assert.New(t)
-	state := s1.fsm.State()
+	must.ErrorContains(t, err, "not found in the Raft configuration")
 
 	// Create ACL token
-	invalidToken := mock.CreatePolicyAndToken(t, state, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
+	invalidToken := mock.CreatePolicyAndToken(t,
+		store, 1001, "test-invalid", mock.NodePolicy(acl.PolicyWrite))
 
-	arg := structs.RaftPeerByIDRequest{
+	arg = structs.RaftPeerByIDRequest{
 		ID: raft.ServerID("e35bde83-4e9c-434f-a6ef-453f44ee21ea"),
 	}
 	arg.Region = s1.config.Region
@@ -347,32 +179,49 @@ func TestOperator_RaftRemovePeerByID_ACL(t *testing.T) {
 
 	// Add peer manually to Raft.
 	{
-		future := s1.raft.AddVoter(arg.ID, raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])), 0, 0)
-		assert.Nil(future.Error())
+		future := s1.raft.AddVoter(arg.ID,
+			raft.ServerAddress(fmt.Sprintf("127.0.0.1:%d", ports[0])), 0, 0)
+		must.NoError(t, future.Error())
 	}
 
-	var reply struct{}
+	// Make sure it's there.
+	{
+		future := s1.raft.GetConfiguration()
+		err := future.Error()
+		must.NoError(t, err)
+
+		configuration := future.Configuration()
+		must.Len(t, 2, configuration.Servers)
+	}
 
 	// Try with no token and expect permission denied
 	{
 		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByID", &arg, &reply)
-		assert.NotNil(err)
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with an invalid token and expect permission denied
 	{
 		arg.AuthToken = invalidToken.SecretID
 		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByID", &arg, &reply)
-		assert.NotNil(err)
-		assert.Equal(err.Error(), structs.ErrPermissionDenied.Error())
+		must.EqError(t, err, structs.ErrPermissionDenied.Error())
 	}
 
 	// Try with a management token
 	{
 		arg.AuthToken = root.SecretID
 		err := msgpackrpc.CallWithCodec(codec, "Operator.RaftRemovePeerByID", &arg, &reply)
-		assert.Nil(err)
+		must.NoError(t, err)
+	}
+
+	// Make sure it's removed.
+	{
+		future := s1.raft.GetConfiguration()
+		err := future.Error()
+		must.NoError(t, err)
+
+		configuration := future.Configuration()
+		must.Len(t, 1, configuration.Servers)
 	}
 }
 

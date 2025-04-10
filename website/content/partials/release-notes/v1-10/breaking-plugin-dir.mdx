@@ -1,0 +1,6 @@
+#### Loading binaries from `plugin_dir` without configuration
+
+Plugins stored within the [`plugin_dir`](/nomad/docs/configuration#plugin_dir)
+will now only be loaded when they have a corresponding
+[`plugin`](/nomad/docs/configuration/plugin) block in the agent configuration
+file. Nomad now skips any plugin found without a corresponding configuration block.

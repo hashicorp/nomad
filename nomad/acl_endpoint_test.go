@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/go-memdb"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/lib/auth/oidc"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -3636,7 +3635,7 @@ func TestACL_OIDCAuthURL(t *testing.T) {
 	t.Run("pkce", func(t *testing.T) {
 		authMethod := mockedAuthMethod.Copy()
 		authMethod.Name = mockedAuthMethod.Name + "-pkce"
-		authMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		authMethod.Config.OIDCEnablePKCE = true
 		authMethod.SetHash()
 		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(20, []*structs.ACLAuthMethod{authMethod}))
 
@@ -3923,7 +3922,7 @@ func TestACL_OIDCCompleteAuth(t *testing.T) {
 
 	t.Run("pkce", func(t *testing.T) {
 
-		mockedAuthMethod.Config.OIDCDisablePKCE = pointer.Of(false)
+		mockedAuthMethod.Config.OIDCEnablePKCE = true
 		must.NoError(t, testServer.fsm.State().UpsertACLAuthMethods(60, []*structs.ACLAuthMethod{mockedAuthMethod}))
 
 		req := structs.ACLOIDCCompleteAuthRequest{

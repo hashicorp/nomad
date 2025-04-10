@@ -17,7 +17,8 @@ done
 
 consul acl bootstrap || echo "Consul ACLs already bootstrapped"
 
-if [ $(consul info | grep -q "version_metadata = ent") ]; then
+consul info | grep -q "version_metadata = ent"
+if [ $? -eq 0 ]; then
     echo "writing namespaces"
     consul namespace create -name "prod"
     consul namespace create -name "dev"
