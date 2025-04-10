@@ -15,7 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
  curl \
  git \
  xz-utils \
- zip
+ zip \
+ crossbuild-essential-arm64 \
+ gcc-aarch64-linux-gnu
 
 # Get Go and get Going ;)
 RUN curl -L https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz | tar -C /opt -zxv
