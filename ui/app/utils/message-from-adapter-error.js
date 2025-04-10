@@ -8,7 +8,8 @@ import { ForbiddenError } from '@ember-data/adapter/error';
 // Returns a single string based on the response the adapter received
 export default function messageFromAdapterError(error, actionMessage) {
   if (error instanceof ForbiddenError) {
-    if (!error.message?.toLowerCase().endsWith('permission denied')) {
+    const msg = error.message?.toLowerCase();
+    if (msg && !msg.endsWith('permission denied')) {
       return error.message;
     }
     return `Your ACL token does not grant permission to ${actionMessage}.`;
