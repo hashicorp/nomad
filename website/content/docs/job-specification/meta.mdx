@@ -1,10 +1,11 @@
 ---
 layout: docs
 page_title: meta block in the job specification
-description: The "meta" block allows for user-defined arbitrary key-value pairs.
+description: |-
+  Define arbitrary metadata in the `meta` block of the Nomad job specification. Configure runtime environment variables for tasks to consume. Review examples that use Nomad interpolation and templates.
 ---
 
-# `meta` Block
+# `meta` block in the job specification
 
 <Placement
   groups={[
@@ -43,14 +44,14 @@ group layer applies to all tasks within that group.
 
 Meta values are made available inside tasks as [runtime environment variables][env_meta].
 
-## `meta` Parameters
+## Parameters
 
 The "parameters" for the `meta` block can be any key-value. The keys and values
 are both of type `string`, but they can be specified as other types. They will
 automatically be converted to strings. Any character in a key other than
 `[A-Za-z0-9_.]` will be converted to `_`.
 
-## `meta` Examples
+## Examples
 
 The following examples only show the `meta` blocks. Remember that the
 `meta` block is only valid in the placements listed above.
@@ -92,9 +93,7 @@ meta = {
 }
 ```
 
-## `meta` Usage Examples
-
-### Templates
+## Template usage example
 
 To make use of a `meta` value in a template, refer to its environment variable
 form.

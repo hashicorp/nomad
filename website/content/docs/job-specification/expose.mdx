@@ -6,7 +6,7 @@ description: |-
   paths used in Consul Connect integration
 ---
 
-# `expose` Block
+# `expose` block in the job specification
 
 <Placement
   groups={[
@@ -131,12 +131,12 @@ job "expose-example" {
 }
 ```
 
-## `expose` Parameters
+## Parameters
 
-- `path` <code>([Path]: nil)</code> - A list of [Envoy Expose Path Configurations][expose_path]
+- `path` <code>([Path]: nil)</code> - A list of Envoy expose path configurations
   to expose through Envoy.
 
-### `path` Parameters
+### `path` parameters
 
 - `path` `(string: required)` - The HTTP or gRPC path to expose. The path must be prefixed
   with a slash.
@@ -153,9 +153,9 @@ job "expose-example" {
   for the exposed listener. The port should be configured to [map inside][network-to]
   the task's network namespace.
 
-## `expose` Examples
+## Examples
 
-The following example is configured to expose the `/metrics` endpoint of the
+The following example exposes the `/metrics` endpoint of the
 Connect-enabled `count-dashboard` service, using the `HTTP` protocol.
 `count-dashboard` is expected to listen inside its namespace to port `9001`, and
 external services will be able to reach its `/metrics` endpoint by connecting to
@@ -184,9 +184,7 @@ service {
 }
 ```
 
-## `path` Examples
-
-The following example is an expose configuration that exposes a `/metrics`
+The following example exposes a `/metrics`
 endpoint using the `http2` protocol (typical for gRPC), and an HTTP `/v2/health`
 endpoint.
 
@@ -209,7 +207,7 @@ proxy {
 }
 ```
 
-### Exposing Service Checks
+## Exposing service checks
 
 A common use case for `expose` is for exposing endpoints used in Consul service
 check definitions. For these cases the [expose][] parameter in the service check
@@ -230,7 +228,6 @@ check {
 
 [network-to]: /nomad/docs/job-specification/network#to
 [consul-expose-path-config]: /consul/docs/connect/proxies/proxy-config-reference#expose-paths-configuration-reference
-[expose-path]: /nomad/docs/job-specification/expose#path-1
 [expose]: /nomad/docs/job-specification/service#expose
 [path]: /nomad/docs/job-specification/expose#path-parameters 'Nomad Expose Path Parameters'
 [port]: /nomad/docs/job-specification/network#port-parameters 'Nomad Port Parameters'

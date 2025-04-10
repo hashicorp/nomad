@@ -2,12 +2,10 @@
 layout: docs
 page_title: ephemeral_disk block in the job specification
 description: |-
-  The "ephemeral_disk" block describes the ephemeral disk requirements of the
-  group. Ephemeral disks can be marked as sticky and support live data
-  migrations.
+  Describe a group's ephemeral disk requirements in the `ephemeral_disk` block of the Nomad job specification. Turn on data migration and allocation placement. Specify disk size.
 ---
 
-# `ephemeral_disk` Block
+# `ephemeral_disk` block in the job specification
 
 <Placement groups={['job', 'group', 'ephemeral_disk']} />
 
@@ -33,7 +31,7 @@ be found in the [filesystem internals][].
 Each job's logs will be written to ephemeral disk space. See the [logs
 documentation][] for more information.
 
-## `ephemeral_disk` Parameters
+## Parameters
 
 - `migrate` `(bool: false)` - This specifies that the Nomad client should make a
   best-effort attempt to migrate the data from the previous allocation, even if

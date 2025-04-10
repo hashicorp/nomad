@@ -2,12 +2,11 @@
 layout: docs
 page_title: migrate block in the job specification
 description: |-
-  The "migrate" block specifies the group's migrate strategy. The migrate
-  strategy is used to control the job's behavior when it is being migrated off
+  Define the group's allocation migration strategy in the `migrate` block of the Nomad job specification. The migration strategy is used to control the job's behavior when it is being migrated off
   of a draining node.
 ---
 
-# `migrate` Block
+# `migrate` block in the job specification
 
 <Placement
   groups={[
@@ -53,7 +52,7 @@ for system operators to put hard limits on how long a drain may take.
 See the [Workload Migration Guide](/nomad/tutorials/manage-clusters/node-drain) for details
 on node draining.
 
-## `migrate` Parameters
+## Parameters
 
 - `max_parallel` `(int: 1)` - Specifies the number of allocations that can be
   migrated at the same time. This number must be less than the total

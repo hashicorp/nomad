@@ -2,10 +2,10 @@
 layout: docs
 page_title: dispatch_payload block in the job specification
 description: |-
-  The "dispatch_payload" block allows a task to access dispatch payloads.
+  Configure a parameterized job task payload in the `dispatch_payload` block of the Nomad job specification.
 ---
 
-# `dispatch_payload` Block
+# `dispatch_payload` block in the job specification
 
 <Placement groups={['job', 'group', 'task', 'dispatch_payload']} />
 
@@ -27,13 +27,13 @@ job "docs" {
 }
 ```
 
-## `dispatch_payload` Parameters
+## Parameters
 
 - `file` `(string: "")` - Specifies the file name to write the content of
   dispatch payload to. The file is written relative to the [task's local
   directory][localdir].
 
-## `dispatch_payload` Example
+## Example
 
 This example shows a `dispatch_payload` block in a parameterized job that writes
 the payload to a `config.json` file.

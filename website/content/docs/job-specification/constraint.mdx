@@ -2,7 +2,7 @@
 layout: docs
 page_title: constraint block in the job specification
 description: |-
-  Restrict the set of eligible nodes in the `constraint` block of the Nomad job specification.  Configure attribute, comparison operator,and comparison value. Review kernal data, distinct property, operating system, and metadata examples.
+  Restrict the set of eligible nodes in the `constraint` block of the Nomad job specification. Configure attribute, comparison operator,and comparison value. Review kernal data, distinct property, operating system, and metadata examples.
 ---
 
 # `constraint` block in the job specification
@@ -27,6 +27,7 @@ Additionally constraints may be specified at the [job][job], [group][group], or
 For example, specifying different [`${attr.unique.hostname}`][node-variables]
 constraints at the task level will cause a job to be unplaceable because all
 [tasks within a group are scheduled on the same client node][group].
+
 </Warning>
 
 ```hcl

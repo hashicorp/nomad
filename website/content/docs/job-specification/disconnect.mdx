@@ -2,12 +2,10 @@
 layout: docs
 page_title: disconnect block in the job specification
 description: |-
-  The "disconnect" block describes the behavior of both the Nomad server and
-  client in case of a network partition, as well as how to reconcile the workloads
-  in case of a reconnection.
+  Describe system behavior for disconnected allocations in the `disconnect` block of the Nomad job specification. Specify whether Nomad should replace a disconnected allocation. Configure node reconciliation behavior. Set a duration for Nomad to attempt allocation reconnection and a duration after which a disconnected Nomad client stops its allocations. Review examples for stop after and lost after configuration.
 ---
 
-# `disconnect` Block
+# `disconnect` block in the job specification
 
 <Placement groups={['job', 'group', 'disconnect']} />
 
@@ -46,7 +44,7 @@ job "docs" {
 ~> Note that you cannot use both`lost_after` and `stop_on_client_after` in the
 same `disconnect` block.
 
-## `disconnect` Parameters
+## Parameters
 
 - `lost_after` `(string: "")` - Specifies a duration during which a Nomad client
   will attempt to reconnect allocations after it fails to heartbeat in the
@@ -100,7 +98,7 @@ same `disconnect` block.
     continuously for the longest time.
 
 
-## `disconnect` Examples
+## Examples
 
 The following examples only show the `disconnect` blocks. Remember that the
 `disconnect` block is only valid in the placements listed previously.

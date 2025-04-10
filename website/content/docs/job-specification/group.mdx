@@ -2,11 +2,10 @@
 layout: docs
 page_title: group block in the job specification
 description: |-
-  The "group" block defines a series of tasks that should be co-located on the
-  same Nomad client. Any task within a group will be placed on the same client.
+  Define a series of co-located tasks in the `group` block of the Nomad job specification. Specify constraints, affinities, spreads, number of instances, Consul settings, ephemeral disks, disconnect strategy, metadata, migration strategy, network requirements, rescheduling strategy, restart policy, service discovery, shutdown delay, task update strategy, Vault policies, and required volumes. Review count, constraints, metadata, network, and service discovery examples.
 ---
 
-# `group` Block
+# `group` block in the job specification
 
 <Placement groups={['job', 'group']} />
 
@@ -22,7 +21,7 @@ job "docs" {
 }
 ```
 
-## `group` Parameters
+## Parameters
 
 - `constraint` <code>([Constraint][]: nil)</code> -
   This can be provided multiple times to define additional constraints.
@@ -103,7 +102,7 @@ job "docs" {
 - `volume` <code>([Volume][]: nil)</code> - Specifies the volumes that are
   required by tasks within the group.
 
-## `group` Examples
+## Examples
 
 The following examples only show the `group` blocks. Remember that the
 `group` block is only valid in the placements listed above.
@@ -119,7 +118,7 @@ group "example" {
 }
 ```
 
-### Tasks with Constraint
+### Tasks with constraint
 
 This example shows two abbreviated tasks with a constraint on the group. This
 will restrict the tasks to 64-bit operating systems.
@@ -172,7 +171,7 @@ group "example" {
 }
 ```
 
-### Service Discovery
+### Service discovery
 
 This example creates a service in Consul. To read more about service discovery
 in Nomad, please see the [Nomad service discovery documentation][service_discovery].

@@ -2,11 +2,10 @@
 layout: docs
 page_title: csi_plugin block in the job specification
 description: >-
-  The "csi_plugin" block allows the task to specify it provides a
-  Container Storage Interface plugin to the cluster.
+  Specify that the task provides a Container Storage Interface plugin to the cluster in the `csi_plugin` block of the Nomad job specification. Configure plugin ID, type, mount directory, stage publish base directory, and health timeout. Review recommendations for deploying CSI plugins.
 ---
 
-# `csi_plugin` Block
+# `csi_plugin` block in the job specification
 
 <Placement groups={['job', 'group', 'task', 'csi_plugin']} />
 
@@ -25,7 +24,7 @@ csi_plugin {
 }
 ```
 
-## `csi_plugin` Parameters
+## Parameters
 
 - `id` `(string: <required>)` - This is the ID for the plugin. Some
   plugins will require both controller and node plugin types (see
@@ -63,7 +62,7 @@ host. With the Docker task driver, you can use the `privileged = true`
 configuration, but no other default task drivers currently have this
 option.
 
-## Recommendations for Deploying CSI Plugins
+## Recommendations for deploying CSI plugins
 
 CSI plugins run as Nomad tasks, but after mounting the volume are not in the
 data path for the volume. Tasks that mount volumes write and read directly to
@@ -88,7 +87,7 @@ volume. This has implications on how to deploy CSI plugins:
   your plugin task as recommended by the plugin's documentation to use
   the [`topology_request`] field in your volume specification.
 
-## `csi_plugin` Examples
+## Examples
 
 ```hcl
 job "plugin-efs" {
