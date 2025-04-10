@@ -4,6 +4,7 @@
 ~}}
 
 {{did-insert this.establishKeyValues}}
+
 <div>
   <label>
     <span>
@@ -18,20 +19,13 @@
     />
   </label>
 </div>
-<div>
-  <label>
-    <span>
-      Job Template
-    </span>
-    <div
-      data-test-template-json
-      {{code-mirror
-        theme="hashi"
-        mode="ruby"
-        autofocus=false
-        content=this.template
-        onUpdate=(action this.updateTemplate)
-      }}
-    ></div>
-  </label>
-</div>
+
+<Hds::CodeEditor
+  data-test-template-json
+  @language="ruby"
+  @value={{this.template}}
+  @onInput={{this.updateTemplate}}
+  as |CE|
+>
+  <CE.Title>Job Template</CE.Title>
+</Hds::CodeEditor>

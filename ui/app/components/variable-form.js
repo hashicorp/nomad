@@ -37,6 +37,8 @@ export default class VariableFormComponent extends Component {
   @tracked variableNamespace = null;
   @tracked namespaceOptions = null;
   @tracked hasConflict = false;
+  @tracked hasFormatErrors = false;
+  @tracked lintingErrors = [];
 
   /**
    * @typedef {Object} conflictingVariable
@@ -71,6 +73,10 @@ export default class VariableFormComponent extends Component {
     }
   }
 
+  get hasJSONErrors() {
+    return this.lintingErrors.length > 0 || this.hasFormatErrors;
+  }
+
   get shouldDisableSave() {
     const disallowedPath =
       this.path?.startsWith('nomad/') &&
@@ -79,7 +85,7 @@ export default class VariableFormComponent extends Component {
         (this.path?.startsWith('nomad/job-templates') &&
           trimPath([this.path]) !== 'nomad/job-templates')
       );
-    return !!this.JSONError || !this.path || disallowedPath;
+    return this.hasJSONErrors || !this.path || disallowedPath;
   }
 
   get isJobTemplateVariable() {
@@ -329,6 +335,10 @@ export default class VariableFormComponent extends Component {
     return this.args.view === 'json';
   }
 
+  @action onLint(diagnostics) {
+    this.lintingErrors = diagnostics;
+  }
+
   // Prevent duplicate onUpdate events when @view is set to its already-existing value,
   // which happens because parent's queryParams and toggle button both resolve independently.
   @action onViewChange([view]) {
@@ -381,35 +391,27 @@ export default class VariableFormComponent extends Component {
         this.appendRow();
       }
     }
-
-    // Reset any error state, since the errorring json will not persist
-    set(this, 'JSONError', null);
   }
 
-  /**
-   * @type {string}
-   */
-  @tracked JSONError = null;
+  // TODO: Review this
   /**
    *
    * @param {string} value
    */
   @action updateCode(value) {
+    // "myString" is valid JSON, but it's not a valid Variable.
+    // Ditto for an array of objects. We expect a single object to be a Variable.
     try {
-      // "myString" is valid JSON, but it's not a valid Variable.
-      // Ditto for an array of objects. We expect a single object to be a Variable.
       const hasFormatErrors =
         JSON.parse(value) instanceof Array ||
         typeof JSON.parse(value) !== 'object';
-      if (hasFormatErrors) {
-        throw new Error('A Variable must be formatted as a single JSON object');
-      }
 
-      set(this, 'JSONError', null);
-      set(this, 'JSONItems', value);
-    } catch (error) {
-      set(this, 'JSONError', error);
+      this.hasFormatErrors = hasFormatErrors;
+    } catch (e) {
+      this.hasFormatErrors = true;
     }
+
+    set(this, 'JSONItems', value);
   }
   //#endregion JSON Editing
 

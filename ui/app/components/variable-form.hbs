@@ -115,21 +115,20 @@
     {{#if (eq this.view "json")}}
       <div
         class="editor-wrapper boxed-section-body is-full-bleed
-          {{if this.JSONError 'error'}}"
+          {{if this.hasJSONErrors 'error'}}"
       >
         <div
           data-test-json-editor
-          {{code-mirror
-            content=this.JSONItems
-            onUpdate=this.updateCode
-            extraKeys=(hash Cmd-Enter=(action "save"))
+          {{hds-code-editor
+            ariaLabel="Variable JSON Editor"
+            extraKeys=(hash Cmd-Enter=this.save)
+            language="json"
+            value=this.JSONItems
+            isLintingEnabled=true
+            onInput=this.updateCode
+            onLint=this.onLint
           }}
-        ></div>
-        {{#if this.JSONError}}
-          <p class="help is-danger">
-            {{this.JSONError}}
-          </p>
-        {{/if}}
+        />
       </div>
     {{else}}
       {{#each this.keyValues as |entry iter|}}
