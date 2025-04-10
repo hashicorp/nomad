@@ -468,7 +468,7 @@ func (d *Driver) StartTask(cfg *drivers.TaskConfig) (handle *drivers.TaskHandle,
 	}
 
 	user := cfg.User
-	if user == "" {
+	if user == "" && runtime.GOOS != "windows" {
 		user = "nobody"
 	}
 
