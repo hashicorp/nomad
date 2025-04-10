@@ -13,15 +13,16 @@ key.
 
 If ACLs are enabled, this command requires a management token.
 
-<Note>
-  This command requires the full key ID (UUID) of the keys to be provided. Use the <code>-verbose</code> option with the <code>list</code> command to fetch the full key ID.
-</Note>
-
 ## Usage
 
 ```plaintext
 nomad operator root keyring remove [options] <key ID>
 ```
+
+The `key ID` must be the UUID. Use the `-verbose` option with the
+[`nomad operator root keyring list`
+command](/nomad/docs/commands/operator/root/keyring-list) to fetch the key
+UUID.
 
 ## General options
 
