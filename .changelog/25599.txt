@@ -1,0 +1,3 @@
+```release-note:breaking-change
+api: The non-functional option -peer-address has been removed from the operator raft remove-peer command and equivalent API
+```
