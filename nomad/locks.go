@@ -57,7 +57,7 @@ func (s *Server) CreateVariableLockTTLTimer(variable structs.VariableEncrypted) 
 	lock := s.lockTTLTimer.Get(lockID)
 	if lock != nil {
 		// If this was to happen, there is a sync issue somewhere else
-		s.logger.Error("attempting to recreate existing lock: %s", lockID)
+		s.logger.Error("attempting to recreate existing lock", "lock", lockID)
 		return
 	}
 
@@ -146,7 +146,7 @@ func (s *Server) RemoveVariableLockTTLTimer(variable structs.VariableEncrypted) 
 	lock := s.lockTTLTimer.Get(lockID)
 	if lock == nil {
 		// If this was to happen, there is a sync issue somewhere else.
-		s.logger.Error("attempting to removed missing lock: %s", lockID)
+		s.logger.Error("attempting to removed missing lock", "lock", lockID)
 		return
 	}
 

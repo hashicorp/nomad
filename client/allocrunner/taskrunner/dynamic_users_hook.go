@@ -77,7 +77,7 @@ func (h *dynamicUsersHook) Prestart(_ context.Context, request *interfaces.TaskP
 	// allocate an unused UID/GID from the pool
 	ugid, err := h.pool.Acquire()
 	if err != nil {
-		h.logger.Error("unable to acquire anonymous UID/GID: %v", err)
+		h.logger.Error("unable to acquire anonymous UID/GID", "error", err)
 		return err
 	}
 
