@@ -191,9 +191,6 @@ jobs:
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
-      - name: Set up QEMU (for multiarch dockerx builds)
-        uses: docker/setup-qemu-action@fcd3152d8ad392d0e9c14d3f0de40f0a88b8ca0e # v3
-
       - name: Build nomad-builder image
         uses: docker/build-push-action@548776e8d0d44ea63feed0c8a944e6235fc63eee # v6
         with:
@@ -201,8 +198,6 @@ jobs:
           context: .github/nomad-builder/
           build-args: |
             GO_VERSION=${{ needs.get-go-version.outputs.go-version }}
-            ARCH=${{ matrix.goarch }}
-            DOCKER_USER=root  # FIXME: this should be set to the GH runner username, but if set to 'runner' we get permission errors on mkdir from within the container
           push: true
           tags: localhost:5000/nomad-builder:${{ github.sha }}
 
@@ -214,9 +209,8 @@ jobs:
           CGO_ENABLED: 1
         run: |
           go clean -cache
-          docker run -v "$(pwd)":/build localhost:5000/nomad-builder:${{ github.sha }} make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
-          # FIXME: we 'cp' instead of 'mv' below due to the zipfile being owned by root (it should be owned by the same uid:gid as the host system user)
-          cp pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          docker run --user "$(id --user):$(id --group)" -v "$(pwd)":/build localhost:5000/nomad-builder:${{ github.sha }} make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
       - uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
