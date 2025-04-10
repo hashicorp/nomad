@@ -37,7 +37,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
 	"github.com/posener/complete"
-	"golang.org/x/sys/unix"
 )
 
 // gracefulTimeout controls how long we wait before forcefully terminating
@@ -979,15 +978,6 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	return nil
 }
 
-// These constants are for readiness signalling via the systemd notify protocol.
-// The functions we send these messages to are no-op on non-Linux systems. See
-// also https://www.man7.org/linux/man-pages/man3/sd_notify.3.html
-const (
-	sdReady     = "READY=1"
-	sdReloading = "RELOADING=1\nMONOTONIC_USEC=%d"
-	sdStopping  = "STOPPING=1"
-)
-
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
@@ -1026,13 +1016,7 @@ WAIT:
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
-		var ts unix.Timespec
-		if err := unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts); err != nil {
-			c.agent.logger.Error("failed to get clock time", "error", err)
-			return 1
-		}
-		micro := ts.Nano() / 1000
-		sdNotify(sdSock, fmt.Sprintf(sdReloading, micro))
+		sdNotifyReloading(sdSock)
 		c.handleReload()
 		sdNotify(sdSock, sdReady)
 		goto WAIT
