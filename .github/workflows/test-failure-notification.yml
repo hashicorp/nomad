@@ -23,7 +23,7 @@ on:
 
 jobs:
   send-notification:
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-22.04' }}
     steps:
       - name: Retrieve Vault-hosted Secrets
         if: endsWith(github.repository, '-enterprise')
@@ -69,7 +69,7 @@ jobs:
                 }
               ]
             }
-        
+
 permissions:
   contents: read
   id-token: write
