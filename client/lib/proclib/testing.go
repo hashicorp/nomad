@@ -4,11 +4,12 @@
 package proclib
 
 import (
+	"testing"
+
 	"github.com/hashicorp/nomad/helper/testlog"
-	testing "github.com/mitchellh/go-testing-interface"
 )
 
-func MockWranglers(t testing.T) *Wranglers {
+func MockWranglers(t testing.TB) *Wranglers {
 	return &Wranglers{
 		configs: &Configs{
 			Logger: testlog.HCLogger(t),
