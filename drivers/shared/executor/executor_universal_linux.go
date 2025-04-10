@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
 	"github.com/hashicorp/nomad/client/lib/nsutil"
@@ -30,7 +31,7 @@ const (
 
 // setCmdUser takes a user id as a string and looks up the user, and sets the command
 // to execute as that user.
-func setCmdUser(cmd *exec.Cmd, userid string) error {
+func setCmdUser(logger hclog.Logger, cmd *exec.Cmd, userid string) error {
 	u, err := users.Lookup(userid)
 	if err != nil {
 		return fmt.Errorf("failed to identify user %v: %v", userid, err)

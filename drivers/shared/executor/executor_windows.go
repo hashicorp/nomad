@@ -6,7 +6,6 @@
 package executor
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -19,6 +18,7 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
+	"github.com/hashicorp/nomad/drivers/shared/executor/s4u"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"golang.org/x/sys/windows"
 )
@@ -43,12 +43,8 @@ func withNetworkIsolation(f func() error, _ *drivers.NetworkIsolationSpec) error
 	return f()
 }
 
-func setCmdUser(cmd *exec.Cmd, user string) error {
-	nameParts := strings.Split(user, "\\")
-	if len(nameParts) != 2 {
-		return errors.New("user name must contain domain")
-	}
-	token, err := createUserToken(nameParts[0], nameParts[1])
+func setCmdUser(logger hclog.Logger, cmd *exec.Cmd, user string) error {
+	token, err := createUserToken(logger, user)
 	if err != nil {
 		return fmt.Errorf("failed to create user token: %w", err)
 	}
@@ -56,7 +52,7 @@ func setCmdUser(cmd *exec.Cmd, user string) error {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
 	}
-	cmd.SysProcAttr.Token = *token
+	cmd.SysProcAttr.Token = token
 
 	runtime.AddCleanup(cmd, func(attr *syscall.SysProcAttr) {
 		_ = attr.Token.Close()
@@ -75,7 +71,62 @@ const (
 	_PROVIDER_DEFAULT uint32 = 0
 )
 
-func createUserToken(domain, username string) (*syscall.Token, error) {
+// username can be of the form "domain\username", ".\username" or "username@domain"
+func createUserToken(logger hclog.Logger, username string) (syscall.Token, error) {
+	var token windows.Token
+	var err error
+
+	var runAsUpn string
+	if strings.IndexByte(username, '\\') != -1 {
+		runAsUpn, err = convertUserToUpn(username)
+		if err != nil {
+			return 0, fmt.Errorf("failed to convert username %q to UPN : %w", username, err)
+		}
+	} else if strings.IndexByte(username, '@') != -1 {
+		runAsUpn = username
+	}
+
+	logger.Debug("creating user token", "username", username, "runAsUpn", runAsUpn)
+
+	if runAsUpn != "" {
+		token, err = s4u.GetDomainS4uToken(runAsUpn)
+	} else {
+		token, err = s4u.GetLocalS4uToken(username)
+	}
+	if err != nil {
+		return 0, fmt.Errorf("failed to create S4U token for user : %w", err)
+	}
+
+	return syscall.Token(token), nil
+}
+
+func convertUserToUpn(username string) (string, error) {
+	usernameUtf16, err := windows.UTF16FromString(username)
+	if err != nil {
+		return "", fmt.Errorf("error converting username to UTF16 : %w", err)
+	}
+
+	upnUtf16, err := translateSamToUpn(usernameUtf16)
+	if err != nil {
+		return "", err
+	}
+
+	return windows.UTF16ToString(upnUtf16), nil
+}
+
+const MAX_UPN_LEN = 1024
+
+func translateSamToUpn(samAccountNameUtf16 []uint16) ([]uint16, error) {
+	var domainUpnLen uint32 = MAX_UPN_LEN + 1
+	domainUpn := make([]uint16, domainUpnLen)
+	err := windows.TranslateName(&samAccountNameUtf16[0], windows.NameSamCompatible, windows.NameUserPrincipal, &domainUpn[0], &domainUpnLen)
+	if err != nil {
+		return nil, err
+	}
+	return domainUpn[:domainUpnLen-1], nil
+}
+
+func createUserTokenOld(username, domain string) (*syscall.Token, error) {
 	userw, err := syscall.UTF16PtrFromString(username)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert username to UTF-16: %w", err)

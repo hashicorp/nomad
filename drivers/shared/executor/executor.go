@@ -361,7 +361,7 @@ func (e *UniversalExecutor) Launch(command *ExecCommand) (*ProcessState, error) 
 	// setting the user of the process
 	if command.User != "" {
 		e.logger.Debug("running command as user", "user", command.User)
-		if err := setCmdUser(&e.childCmd, command.User); err != nil {
+		if err := setCmdUser(e.logger, &e.childCmd, command.User); err != nil {
 			return nil, err
 		}
 	}
@@ -527,7 +527,7 @@ func (e *UniversalExecutor) ExecStreaming(ctx context.Context, command []string,
 		},
 		processStart: func() error {
 			if u := e.command.User; u != "" {
-				if err := setCmdUser(cmd, u); err != nil {
+				if err := setCmdUser(e.logger, cmd, u); err != nil {
 					return err
 				}
 			}
