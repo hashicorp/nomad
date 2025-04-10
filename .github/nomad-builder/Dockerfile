@@ -5,8 +5,8 @@ FROM ubuntu:bionic
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-ARG ARCH="amd64"
-ARG GO_VERSION="1.24.1"
+ARG ARCH
+ARG GO_VERSION
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
  bash \
