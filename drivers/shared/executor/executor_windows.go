@@ -44,6 +44,9 @@ func withNetworkIsolation(f func() error, _ *drivers.NetworkIsolationSpec) error
 }
 
 func setCmdUser(cmd *exec.Cmd, user string) error {
+	if user == "" {
+		return nil
+	}
 	nameParts := strings.Split(user, "\\")
 	if len(nameParts) != 2 {
 		return errors.New("user name must contain domain")
