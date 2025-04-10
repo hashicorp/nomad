@@ -70,7 +70,7 @@ jobs:
           make dev
   tests-api:
     needs: [checks]
-    runs-on: custom-linux-xl-nomad-22.04
+    runs-on: custom-linux-xl-nomad-24.04
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -89,7 +89,7 @@ jobs:
           sudo -E env "PATH=$PATH" make test-nomad-module
   tests-groups:
     needs: [checks]
-    runs-on: custom-linux-xl-nomad-22.04
+    runs-on: custom-linux-xl-nomad-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false

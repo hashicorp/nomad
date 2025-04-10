@@ -21,7 +21,7 @@ on:
 jobs:
   checks:
     # largest available self-hosted disk for extra iops because linting is io-intensive
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "disk_gb=255", "type=m7a.2xlarge;m6a.2xlarge"]') || 'custom-linux-xl-nomad-22.04' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "disk_gb=255", "type=m7a.2xlarge;m6a.2xlarge"]') || 'custom-linux-xl-nomad-24.04' }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
