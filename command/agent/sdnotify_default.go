@@ -14,3 +14,5 @@ func openNotify() (io.WriteCloser, error) {
 }
 
 func sdNotify(_ io.Writer, _ string) {}
+
+func sdNotifyReloading(_ io.Writer) {}

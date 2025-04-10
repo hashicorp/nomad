@@ -6,10 +6,13 @@
 package agent
 
 import (
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"time"
+
+	"golang.org/x/sys/unix"
 )
 
 const sdNotifySocketEnvVar = "NOTIFY_SOCKET"
@@ -37,4 +40,10 @@ func sdNotify(w io.Writer, msg string) {
 		return
 	}
 	w.Write([]byte(msg))
+}
+
+func sdNotifyReloading(w io.Writer) {
+	var ts unix.Timespec
+	unix.ClockGettime(unix.CLOCK_MONOTONIC, &ts)
+	sdNotify(w, fmt.Sprintf("RELOADING=1\nMONOTONIC_USEC=%d", ts.Nano()/1000))
 }
