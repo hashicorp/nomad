@@ -1333,7 +1333,7 @@ func (c *Client) restoreState() error {
 		allocState, err := c.stateDB.GetAcknowledgedState(alloc.ID)
 		if err != nil {
 			c.logger.Error("error restoring last acknowledged alloc state, will update again",
-				err, "alloc_id", alloc.ID)
+				"error", err, "alloc_id", alloc.ID)
 		} else {
 			ar.AcknowledgeState(allocState)
 		}

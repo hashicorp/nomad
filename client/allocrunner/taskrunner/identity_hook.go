@@ -134,12 +134,13 @@ func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity, runCh chan s
 			if signedWID == nil {
 				// The only way to hit this should be a bug as it indicates the server
 				// did not sign an identity for a task on this alloc.
-				h.logger.Error("missing workload identity %q", wid.Name)
+				h.logger.Error("missing workload identity", "identity", wid.Name)
 				return
 			}
 
 			if err := h.setAltToken(wid, signedWID.JWT); err != nil {
-				h.logger.Error(err.Error())
+				h.logger.Error("failed to set workload identity token",
+					"identity", wid.Name, "error", err)
 			}
 
 			// Skip ChangeMode on firstRun and notify caller it can proceed
@@ -148,7 +149,8 @@ func (h *identityHook) watchIdentity(wid *structs.WorkloadIdentity, runCh chan s
 				case runCh <- struct{}{}:
 				default:
 					// Not great but not necessarily fatal
-					h.logger.Warn("task started before identity %q was fetched", wid.Name)
+					h.logger.Warn("task started before identity was fetched",
+						"identity", wid.Name)
 				}
 
 				firstRun = false

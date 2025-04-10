@@ -2624,7 +2624,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 	store := s.fsm.State()
 	key, err := store.GetActiveRootKey(nil)
 	if err != nil {
-		logger.Error("failed to get active key: %v", err)
+		logger.Error("failed to get active key", "error", err)
 		return
 	}
 	if key != nil {
@@ -2653,7 +2653,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 	rootKey, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	rootKey = rootKey.MakeActive()
 	if err != nil {
-		logger.Error("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring", "error", err)
 		return
 	}
 
