@@ -29,7 +29,7 @@ concurrency:
 
 jobs:
   scan:
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-22.04' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-24.04' }}
     # The first check ensures this doesn't run on community-contributed PRs, who
     # won't have the permissions to run this job.
     if: ${{ (github.repository != 'hashicorp/nomad' || (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name))
