@@ -19,6 +19,11 @@ If ACLs are enabled, this command requires a management token.
 nomad operator root keyring remove [options] <key ID>
 ```
 
+The `key ID` must be the UUID. Use the `-verbose` option with the
+[`nomad operator root keyring list`
+command](/nomad/docs/commands/operator/root/keyring-list) to fetch the key
+UUID.
+
 ## General Options
 
 @include 'general_options.mdx'
