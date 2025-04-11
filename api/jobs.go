@@ -1572,7 +1572,7 @@ type JobDispatchRequest struct {
 	Payload          []byte
 	Meta             map[string]string
 	IdPrefixTemplate string
-	Priority         string
+	Priority         int
 }
 
 type JobDispatchResponse struct {

@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -2078,17 +2077,6 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		}
 	}
 
-	// Prepare priority string for use as int
-	var priority int
-	if args.Priority != "" {
-		priority, err = strconv.Atoi(args.Priority)
-		if err != nil {
-			const errMsg = "failed to parse priority to int"
-			j.logger.Error(errMsg, "error", err)
-			return fmt.Errorf(errMsg)
-		}
-	}
-
 	// Derive the child job and commit it via Raft - with initial status
 	dispatchJob := parameterizedJob.Copy()
 	dispatchJob.ID = structs.DispatchedID(parameterizedJob.ID, args.IdPrefixTemplate, time.Now())
@@ -2099,7 +2087,11 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.Status = ""
 	dispatchJob.StatusDescription = ""
 	dispatchJob.DispatchIdempotencyToken = args.IdempotencyToken
-	dispatchJob.Priority = priority
+
+	// Pass Priority argument if set
+	if args.Priority != 0 {
+		dispatchJob.Priority = args.Priority
+	}
 
 	// Merge in the meta data
 	for k, v := range args.Meta {

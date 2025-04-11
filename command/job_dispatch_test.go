@@ -258,7 +258,10 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 			cmd := &JobDispatchCommand{Meta: Meta{Ui: ui}}
 			args := []string{
 				"-address", url,
-				"-priority", tc.priority,
+			}
+			// Add priority, if present
+			if len(tc.priority) >= 1 {
+				args = append(args, []string{"-priority", tc.priority}...)
 			}
 
 			// Add additional flags, if present
@@ -280,14 +283,12 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 			must.NoError(t, err)
 			must.NotNil(t, job)
 
-			priority, err := strconv.Atoi(tc.priority)
-			must.NoError(t, err)
-
-			// TODO: find out if I be trying to parse the dispatched job ID by calling something like ( ui.OutputWriter.String()) instead of using List this way?
-			for _, got := range job {
-				if !got.ParameterizedJob {
-					must.Eq(t, got.Priority, priority)
-				}
+			if len(tc.priority) >= 1 {
+				priority, err := strconv.Atoi(tc.priority)
+				must.NoError(t, err)
+				must.Eq(t, job.Priority, &priority)
+			} else {
+				must.Eq(t, defaultJobPriority, *job.Priority)
 			}
 		})
 	}
