@@ -2035,9 +2035,9 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	if parameterizedJob.Stop {
 		return fmt.Errorf("Specified job %q is stopped", args.JobID)
 	}
-
-	// Validate the arguments
-	if err := validateDispatchRequest(args, parameterizedJob); err != nil {
+	// Validate the arguments and parameterized job
+	agentConfig := j.srv.config
+	if err := validateDispatchRequest(args, parameterizedJob, agentConfig); err != nil {
 		return err
 	}
 
@@ -2167,7 +2167,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 
 // validateDispatchRequest returns whether the request is valid given the
 // parameterized job.
-func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) error {
+func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job, config *Config) error {
 	// Check the payload constraint is met
 	hasInputData := len(req.Payload) != 0
 	if job.ParameterizedJob.Payload == structs.DispatchPayloadRequired && !hasInputData {
@@ -2226,6 +2226,11 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job) 
 		}
 
 		return fmt.Errorf("Dispatch did not provide required meta keys: %v", flat)
+	}
+
+	// Confirm that Priority is appropriately set on the parameterized job
+	if job.Priority < structs.JobMinPriority || job.Priority > config.JobMaxPriority {
+		return fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, config.JobMaxPriority)
 	}
 
 	return nil
