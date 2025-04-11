@@ -4,6 +4,7 @@
 package command
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -206,6 +207,93 @@ namespace "default" {
 			} else {
 				must.One(t, code)
 				must.StrContains(t, ui.ErrorWriter.String(), tc.expectedErr)
+			}
+		})
+	}
+}
+
+func TestJobDispatchCommand_Priority(t *testing.T) {
+	ci.Parallel(t)
+	defaultJobPriority := 50
+	// Start server
+	srv, client, url := testServer(t, true, nil)
+	t.Cleanup(srv.Shutdown)
+
+	waitForNodes(t, client)
+
+	// Create a parameterized job.
+	job := mock.MinJob()
+	job.Type = "batch"
+	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	job.Priority = defaultJobPriority // set default priority on parent job
+	state := srv.Agent.Server().State()
+	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
+	must.NoError(t, err)
+
+	testCases := []struct {
+		name            string
+		priority        string
+		expectedErr     string
+		additionalFlags []string
+		payload         map[string]string
+	}{
+		{
+			name: "no priority",
+		},
+		{
+			name:     "only priority",
+			priority: "80",
+		},
+		{
+			name:            "priority + flag",
+			priority:        "90",
+			additionalFlags: []string{"-verbose"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			ui := cli.NewMockUi()
+			cmd := &JobDispatchCommand{Meta: Meta{Ui: ui}}
+			args := []string{
+				"-address", url,
+			}
+			// Add priority, if present
+			if len(tc.priority) >= 1 {
+				args = append(args, []string{"-priority", tc.priority}...)
+			}
+
+			// Add additional flags, if present
+			if len(tc.additionalFlags) >= 1 {
+				args = append(args, tc.additionalFlags...)
+			}
+
+			// Add job ID to the command.
+			args = append(args, job.ID)
+
+			// Run command.
+			code := cmd.Run(args)
+			if tc.expectedErr == "" {
+				must.Zero(t, code)
+			}
+
+			// Confirm successful dispatch and parse job ID
+			out := ui.OutputWriter.String()
+			must.StrContains(t, out, "Dispatched Job ID =")
+			parts := strings.Fields(out)
+			id := strings.TrimSpace(parts[4])
+
+			// Confirm dispatched job priority set correctly
+			job, _, err := client.Jobs().Info(id, nil)
+			must.NoError(t, err)
+			must.NotNil(t, job)
+
+			if len(tc.priority) >= 1 {
+				priority, err := strconv.Atoi(tc.priority)
+				must.NoError(t, err)
+				must.Eq(t, job.Priority, &priority)
+			} else {
+				must.Eq(t, defaultJobPriority, *job.Priority)
 			}
 		})
 	}
