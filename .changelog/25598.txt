@@ -1,0 +1,3 @@
+```release-note:improvement
+task environment: new NOMAD_UNIX_ADDR env var points to the task API unix socket, for use with workload identity
+```
