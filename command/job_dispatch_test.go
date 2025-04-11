@@ -105,6 +105,7 @@ func TestJobDispatchCommand_ACL(t *testing.T) {
 	job := mock.MinJob()
 	job.Type = "batch"
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	job.Priority = 20 //set priority on parent job
 	state := srv.Agent.Server().State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
 	must.NoError(t, err)
@@ -214,7 +215,7 @@ namespace "default" {
 
 func TestJobDispatchCommand_Priority(t *testing.T) {
 	ci.Parallel(t)
-
+	defaultJobPriority := 50
 	// Start server
 	srv, client, url := testServer(t, true, nil)
 	t.Cleanup(srv.Shutdown)
@@ -225,6 +226,7 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 	job := mock.MinJob()
 	job.Type = "batch"
 	job.ParameterizedJob = &structs.ParameterizedJobConfig{}
+	job.Priority = defaultJobPriority // set default priority on parent job
 	state := srv.Agent.Server().State()
 	err := state.UpsertJob(structs.MsgTypeTestSetup, 100, nil, job)
 	must.NoError(t, err)
@@ -237,18 +239,16 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 		payload         map[string]string
 	}{
 		{
-			name:     "one flag",
-			priority: "50",
+			name: "no priority",
 		},
 		{
-			name:            "two flags",
-			priority:        "30",
+			name:     "only priority",
+			priority: "80",
+		},
+		{
+			name:            "priority + flag",
+			priority:        "90",
 			additionalFlags: []string{"-verbose"},
-		},
-		{
-			name:            "three flags",
-			priority:        "20",
-			additionalFlags: []string{"-verbose", "-detach"},
 		},
 	}
 
@@ -278,8 +278,14 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 				must.Zero(t, code)
 			}
 
+			// Confirm successful dispatch and parse job ID
+			out := ui.OutputWriter.String()
+			must.StrContains(t, out, "Dispatched Job ID =")
+			parts := strings.Fields(out)
+			id := strings.TrimSpace(parts[4])
+
 			// Confirm dispatched job priority set correctly
-			job, _, err := client.Jobs().List(nil)
+			job, _, err := client.Jobs().Info(id, nil)
 			must.NoError(t, err)
 			must.NotNil(t, job)
 
