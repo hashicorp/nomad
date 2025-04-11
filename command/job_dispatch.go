@@ -202,7 +202,14 @@ func (c *JobDispatchCommand) Run(args []string) int {
 		IdempotencyToken: idempotencyToken,
 		Namespace:        namespace,
 	}
-	resp, _, err := client.Jobs().Dispatch(jobID, metaMap, payload, idPrefixTemplate, priority, w)
+	opts := &api.DispatchOptions{
+		JobID:            jobID,
+		Meta:             metaMap,
+		Payload:          payload,
+		IdPrefixTemplate: idPrefixTemplate,
+		Priority:         priority,
+	}
+	resp, _, err := client.Jobs().DispatchOpts(opts, w)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to dispatch job: %s", err))
 		return 1

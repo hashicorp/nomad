@@ -529,17 +529,39 @@ func (j *Jobs) Summary(jobID string, q *QueryOptions) (*JobSummary, *QueryMeta, 
 	return &resp, qm, nil
 }
 
+// DispatchOptions is used to pass through job dispatch parameters
+type DispatchOptions struct {
+	JobID            string
+	Meta             map[string]string
+	Payload          []byte
+	IdPrefixTemplate string
+	Priority         int
+}
+
 func (j *Jobs) Dispatch(jobID string, meta map[string]string,
-	payload []byte, idPrefixTemplate string, priority string, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
-	var resp JobDispatchResponse
-	req := &JobDispatchRequest{
+	payload []byte, idPrefixTemplate string, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
+
+	return j.DispatchOpts(&DispatchOptions{
 		JobID:            jobID,
 		Meta:             meta,
 		Payload:          payload,
-		IdPrefixTemplate: idPrefixTemplate,
-		Priority:         priority,
+		IdPrefixTemplate: idPrefixTemplate},
+		q,
+	)
+}
+
+// DispatchOpts is used to dispatch a new job with the passed DispatchOpts. It
+// returns the ID of the evaluation, along with any errors encountered.
+func (j *Jobs) DispatchOpts(opts *DispatchOptions, q *WriteOptions) (*JobDispatchResponse, *WriteMeta, error) {
+	var resp JobDispatchResponse
+	req := &JobDispatchRequest{
+		JobID:            opts.JobID,
+		Meta:             opts.Meta,
+		Payload:          opts.Payload,
+		IdPrefixTemplate: opts.IdPrefixTemplate,
+		Priority:         opts.Priority,
 	}
-	wm, err := j.client.put("/v1/job/"+url.PathEscape(jobID)+"/dispatch", req, &resp, q)
+	wm, err := j.client.put("/v1/job/"+url.PathEscape(opts.JobID)+"/dispatch", req, &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}
