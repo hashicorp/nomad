@@ -60,10 +60,10 @@ Linux distribution's package manager.
 In Nomad 1.9.4, the default `function_denylist` includes `executeTemplate`, as
 a measure to prevent accidental or malicious infinitely recursive execution.
 Users that require `executeTemplate` should update their
-[configuration](/nomad/docs/job-specification/template#function_denylist).
+[configuration](/nomad/docs/v1.9.x/job-specification/template#function_denylist).
 
 Additionally, the [default client env deny
-list](/nomad/docs/configuration/client#env-denylist) includes more environment
+list](/nomad/docs/v1.9.x/configuration/client#env-denylist) includes more environment
 variables. Users who need some of these secure environment variables passed to
 their tasks should consult the list and overwrite it in the configuration.
 
@@ -92,13 +92,13 @@ block.
 Nomad 1.9.0 stores keys used for signing Workload Identity and encrypting
 Variables in Raft, instead of storing key material in the external
 keystore. When using external KMS or Vault transit encryption for the
-[`keyring`](/nomad/docs/configuration/keyring) provider, the key encryption key
+[`keyring`](/nomad/docs/v1.9.x/configuration/keyring) provider, the key encryption key
 (KEK) is stored outside of Nomad and no cleartext key material exists on disk.
 When using the default AEAD provider, the key encryption key (KEK) is stored in
 Raft alongside the encrypted data encryption keys (DEK).
 
 Nomad automatically migrates the key storage for all key material on the
-first [`root_key_gc_interval`](/nomad/docs/configuration/server#root_key_gc_interval) after all servers are upgraded to 1.9.0. The
+first [`root_key_gc_interval`](/nomad/docs/v1.9.x/configuration/server#root_key_gc_interval) after all servers are upgraded to 1.9.0. The
 existing on-disk keystore is required to restore servers from older snapshots,
 so you should continue to back up the on-disk keystore until you no longer need
 those older snapshots.
@@ -110,7 +110,7 @@ the `-hcl1` option for the `job run`, `job plan`, and `job validate` commands
 will no longer work.
 
 One common use of `-hcl1` was when specifying [Docker
-labels](/nomad/docs/drivers/docker#labels) with dots in their keys such as for
+labels](/nomad/docs/v1.9.x/drivers/docker#labels) with dots in their keys such as for
 DataDog autodiscovery:
 
 ```hcl
