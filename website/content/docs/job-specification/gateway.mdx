@@ -1,17 +1,15 @@
 ---
 layout: docs
-page_title: gateway Block - Job Specification
+page_title: gateway block in the job specification
 description: |-
-  The "gateway" block allows specifying options for configuring Consul Gateways
-  used in the Consul Connect integration
+  Configure a Consul mesh, ingress, or terminating gateway in the `gateway` block of the Nomad job specification. 
 ---
 
-# `gateway` Block
+# `gateway` block in the job specification
 
 <Placement groups={['job', 'group', 'service', 'connect', 'gateway']} />
 
-The `gateway` block allows configuration of [Consul Connect
-Gateways](/consul/docs/connect/gateways). Nomad will automatically create the
+The `gateway` block allows configuration of [Consul service mesh gateways](/consul/docs/connect/gateways). Nomad will automatically create the
 necessary Gateway [Configuration Entry](/consul/docs/agent/config-entries) as
 well as inject an Envoy proxy task into the Nomad job to serve as the Gateway.
 
@@ -34,7 +32,7 @@ service {
 }
 ```
 
-## `gateway` Parameters
+## Parameters
 
 Exactly one of `ingress`, `terminating`, or `mesh` must be configured.
 
@@ -47,7 +45,7 @@ Exactly one of `ingress`, `terminating`, or `mesh` must be configured.
 - `mesh` <code>([mesh]: nil)</code> - Indicates a mesh gateway will be associated
   with the service.
 
-### `proxy` Parameters
+### `proxy` parameters
 
 - `connect_timeout` `(string: "5s")` - The amount of time to allow when making
   upstream connections before timing out. Defaults to 5 seconds. If the upstream
@@ -67,12 +65,12 @@ Exactly one of `ingress`, `terminating`, or `mesh` must be configured.
   this map is automatically populated with additional listeners enabling the
   Envoy proxy to work from inside the network namespace.
 
-```
-envoy_gateway_bind_addresses "<service>" {
-  address = "0.0.0.0"
-  port    = <port>
-}
-```
+  ```hcl
+  envoy_gateway_bind_addresses "<service>" {
+    address = "0.0.0.0"
+    port    = <port>
+  }
+  ```
 
 - `envoy_gateway_no_default_bind` `(bool: false)` - Prevents binding to the default
   address of the gateway service. This should be used with one of the other options
@@ -87,12 +85,12 @@ envoy_gateway_bind_addresses "<service>" {
 - `config` `(map: nil)` - Escape hatch for [Advanced Configuration] of Envoy.
   Keys and values support [runtime variable interpolation][interpolation].
 
-#### `address` Parameters
+#### `address` parameters
 
 - `address` `(string: required)` - The address to bind to when combined with `port`.
 - `port` `(int: required)` - The port to listen to.
 
-### `ingress` Parameters
+### `ingress` parameters
 
 - `listener` <code>(array<[listener]> : required)</code> - One or more listeners
   that the ingress gateway should setup, uniquely identified by their port
@@ -100,7 +98,7 @@ envoy_gateway_bind_addresses "<service>" {
 
 - `tls` <code>([tls]: nil)</code> - TLS configuration for this gateway.
 
-#### `listener` Parameters
+#### `listener` parameters
 
 - `port` `(int: required)` - The port that the listener should receive traffic on.
 
@@ -115,7 +113,7 @@ envoy_gateway_bind_addresses "<service>" {
 - `service` <code>(array<[listener-service]>: required)</code> - One or more services to be
   exposed via this listener. For `tcp` listeners, only a single service is allowed.
 
-#### Listener `service` Parameters
+#### Listener `service` parameters
 
 The `service` blocks for a listener under an `ingress` gateway accept the
 following parameters. Note these are different than the `service` blocks under a
@@ -183,7 +181,7 @@ documentation][response-headers].
   removes only headers containing exact matches. Header names are not
   case-sensitive.
 
-#### `tls` Parameters
+#### `tls` parameters
 
 - `enabled` `(bool: false)` - Set this configuration to enable TLS for every
   listener on the gateway. If TLS is enabled, then each host defined in the
@@ -214,7 +212,7 @@ documentation][response-headers].
   [`TLSMinVersion`](/consul/docs/connect/config-entries/ingress-gateway#tlsminversion)
   in the Consul documentation for supported versions.
 
-### `terminating` Parameters
+### `terminating` parameters
 
 - `service` <code>(array<[linked-service]>: required)</code> - One or more services to be
   linked with the gateway. The gateway will proxy traffic to these services. These
@@ -222,7 +220,7 @@ documentation][response-headers].
   addresses. They must also be registered in the same Consul datacenter as the
   terminating gateway.
 
-#### linked `service` Parameters
+#### linked `service` parameters
 
 The `service` blocks for a `terminating` gateway accept the following
 parameters. Note these are different than the `service` blocks for listeners
@@ -252,7 +250,7 @@ under an `ingress` gateway.
 - `sni` `(string: <optional>)` - An optional hostname or domain name to specify
   during the TLS handshake.
 
-### `mesh` Parameters
+### `mesh` parameters
 
 The `mesh` block currently does not have any configurable parameters.
 
@@ -260,7 +258,7 @@ The `mesh` block currently does not have any configurable parameters.
 the additional piece of service metadata `{"consul-wan-federation":"1"}` must
 be applied. This can be done with the service [`meta`][meta] parameter.
 
-### Gateway with host networking
+## Gateway with host networking
 
 Nomad supports running gateways using host networking. A static port must be allocated
 for use by the [Envoy admin interface](https://www.envoyproxy.io/docs/envoy/latest/operations/admin)
@@ -271,7 +269,7 @@ accessible to any workload running on the same Nomad client. The admin interface
 information about the proxy, including a Consul Service Identity token if Consul ACLs
 are enabled.
 
-### Specify Envoy image
+## Specify Envoy image
 
 The Docker image used for Connect gateway tasks defaults to the official [Envoy
 Docker] image, `docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}`, where `${NOMAD_envoy_version}`
@@ -283,12 +281,12 @@ make use of the envoy version interpolation, e.g.
 meta.connect.gateway_image = custom/envoy-${NOMAD_envoy_version}:latest
 ```
 
-### Custom gateway task
+## Custom gateway task
 
 The task created for the gateway can be configured manually using the
 [`sidecar_task`][sidecar_task] block.
 
-```
+```hcl
 connect {
   gateway {
     # ...
@@ -300,9 +298,9 @@ connect {
 }
 ```
 
-### Examples
+## Examples
 
-#### ingress gateway
+### ingress gateway
 
 ```hcl
 job "ingress-demo" {
@@ -404,7 +402,7 @@ job "ingress-demo" {
 }
 ```
 
-#### terminating gateway
+### terminating gateway
 
 ```hcl
 job "countdash-terminating" {
@@ -527,7 +525,7 @@ job "countdash-terminating" {
 }
 ```
 
-#### mesh gateway
+### mesh gateway
 
 Mesh gateways are useful when Connect services need to make cross-datacenter
 requests where not all nodes in each datacenter have full connectivity. This example
