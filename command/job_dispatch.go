@@ -122,7 +122,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	var idempotencyToken string
 	var meta []string
 	var idPrefixTemplate string
-	var priority string
+	var priority int
 
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
@@ -132,7 +132,7 @@ func (c *JobDispatchCommand) Run(args []string) int {
 	flags.Var((*flaghelper.StringFlag)(&meta), "meta", "")
 	flags.StringVar(&idPrefixTemplate, "id-prefix-template", "", "")
 	flags.BoolVar(&openURL, "ui", false, "")
-	flags.StringVar(&priority, "priority", "", "")
+	flags.IntVar(&priority, "priority", 0, "")
 	if err := flags.Parse(args); err != nil {
 		return 1
 	}
