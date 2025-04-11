@@ -12,7 +12,7 @@ We are pleased to announce the following Nomad updates.
 ## Release highlights
 
 - **Long Term Support Release (Enterprise):** Nomad 1.8 introduces a [long term
-  support release](/nomad/docs/enterprise#long-term-support-lts-releases) which
+  support release](/nomad/docs/v1.8.x/enterprise#long-term-support-lts-releases) which
   provides extended maintenance (two years of critical fixes provided through
   minor releases and efficient upgrades (support for direct upgrades from one
   LTS release to the next).
@@ -25,7 +25,7 @@ We are pleased to announce the following Nomad updates.
   utility. Due these enhancements, tasks no longer require leveraging
   filesystem isolation based on chroot, which provide an enhanced security
   profile and improved performance for the Nomad operator. Refer to [Exec2 Task
-  Driver](/nomad/plugins/v1.8.x/drivers/exec2) for more details.
+  Driver](/nomad/plugins/drivers/exec2) for more details.
 
 - **Transparent proxy support for Consul service mesh:** Transparent Proxy
   introduces a more seamless way of dialing upstream services when Consul service
@@ -65,10 +65,10 @@ We are pleased to announce the following Nomad updates.
   on-page will be reflected in the status of that job in real-time.
 
 - **Time based task execution (Enterprise) :** Using a CRON-like syntax, operators can now
-  [schedule](/nomad/docs/job-specification/schedule) when tasks should execute
+  [schedule](/nomad/docs/v1.8.x/job-specification/schedule) when tasks should execute
   and when they should stop. This provides governance for tasks executed from
   jobs, and allows operators to easily opt-in or opt-out of a schedule that
-  governs when the task can run through the web based UI or through the [CLI](/nomad/docs/commands/alloc/pause).
+  governs when the task can run through the web based UI or through the [CLI](/nomad/docs/v1.8.x/commands/alloc/pause).
 
 - **Sentinel policy management in the Web UI (Enterprise):** Enterprise users can manage
   Sentinel policies directly within the Nomad UI. Users can create a Sentinel
@@ -92,17 +92,17 @@ We are pleased to announce the following Nomad updates.
   Driver](/nomad/plugins/drivers/community/lxc) is now deprecated. Official
   support will be removed and the repo will be archived when Nomad 1.9 is
   released. Users are encouraged to migrate their workloads to another task
-  driver such as the built-in Docker task [driver](/nomad/docs/drivers/docker).
+  driver such as the built-in Docker task [driver](/nomad/docs/v1.8.x/drivers/docker).
 
 - **ECS Task driver:** The remote [ECS Task
-  Driver](https://developer.hashicorp.com/nomad/plugins/drivers/remote/ecs) is
+  Driver](/nomad/plugins/drivers/remote/ecs) is
   now deprecated. Official support will be removed and the repo will be
   archived when Nomad 1.9 is released. Users are encouraged to migrate their
   workloads to Amazon ECS or to another Nomad task driver.
 
 - **`stop_after_client_disconnect`, `max_client_disconnect`,
   `prevent_reschedule_on_lost`:** Nomad 1.8.0 introduces a
-  [disconnect](/nomad/docs/job-specification/disconnect) block meant to group
+  [disconnect](/nomad/docs/v1.8.x/job-specification/disconnect) block meant to group
   all the configuration options related to disconnected client's and server's
   behavior, causing the deprecation of the fields stop_after_client_disconnect,
   max_client_disconnect and prevent_reschedule_on_lost. This block also
@@ -123,7 +123,7 @@ We are pleased to announce the following Nomad updates.
 ## Upgrading
 
 For more detailed information, please refer to the [upgrade details
-page](/nomad/docs/upgrade/upgrade-specific#nomad-1-8-0) and the changelogs.
+page](/nomad/docs/v1.8.x/upgrade/upgrade-specific#nomad-1-8-0) and the changelogs.
 
 ## Known issues
 
