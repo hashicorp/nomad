@@ -18,24 +18,24 @@ MIGs. Refer to the [NVIDIA driver docs](/nomad/plugins/devices/nvidia) for
 details.
 
 - **Quotas for device resources (Enterprise)**: This release extends quotas to
-allow limiting [device resources](/nomad/docs/job-specification/device). Refer
-to [Resource quotas](/nomad/docs/other-specifications/quota) for configuration details.
+allow limiting [device resources](/nomad/docs/v1.9.x/job-specification/device). Refer
+to [Resource quotas](/nomad/docs/v1.9.x/other-specifications/quota) for configuration details.
 
 - **NUMA awareness for device resources (Enterprise)**: Nomad is able to
   correlate CPU cores with memory nodes and assign tasks to run on specific CPU
   cores so as to minimize any cross-memory node access patterns. With Nomad 1.9,
   we are expanding this functionality to also correlate
-  [devices](/nomad/docs/concepts/plugins/devices) to memory nodes and enable
+  [devices](/nomad/docs/v1.9.x/concepts/plugins/devices) to memory nodes and enable
   NUMA-aware scheduling to take device associativity into account when making
   scheduling decisions. Refer to [numa
-  Block](/nomad/docs/job-specification/numa) for configuration details.
+  Block](/nomad/docs/v1.9.x/job-specification/numa) for configuration details.
 
 - **Golden job versions**: This feature introduces a way to preserve and compare
   historical versions of a job. Prior to this, any change to a job would push
   older versions into garbage collection. Now, you can tag a version to save it
   from garbage collection. Additionally, you can compare job versions by tag
   name and revert by tag name. Refer to [Job
-  versions](/nomad/docs/concepts/job.mdx#job-versions) for details and links to
+  versions](/nomad/docs/v1.9.x/concepts/job.mdx#job-versions) for details and links to
   how to use job version tagging.
 
 - **Virt task driver (beta)**: The new Virt task driver uses
@@ -99,7 +99,7 @@ The following are deprecated and will be removed in 1.10.
 
 - Support for HCLv1 job specifications and the `-hcl1` flag on `nomad job run` and other commands. Refer to [GH-20195](https://github.com/hashicorp/nomad/issues/20195) for more details.
 
-- Support for Nomad client agents older than v1.6.0. Older nodes will fail heartbeats. Nomad servers will mark the workloads on Nomad client agents older than 1.6.0 as lost and reschedule them normally according to the job's [reschedule](/nomad/docs/job-specification/reschedule) block.
+- Support for Nomad client agents older than v1.6.0. Older nodes will fail heartbeats. Nomad servers will mark the workloads on Nomad client agents older than 1.6.0 as lost and reschedule them normally according to the job's [reschedule](/nomad/docs/v1.9.x/job-specification/reschedule) block.
 
 - The [LXC task driver](https://github.com/hashicorp/nomad-driver-lxc) and [ECS
   task driver](https://github.com/hashicorp/nomad-driver-ecs) projects have been
@@ -107,13 +107,13 @@ The following are deprecated and will be removed in 1.10.
   plug-ins are maintained separately from the Nomad core project and are not
   subject to the LTS program.
 
-- Nomad has removed the `tls_prefer_server_cipher_suites` agent configuration from the [`tls` block](/nomad/docs/configuration/tls).
+- Nomad has removed the `tls_prefer_server_cipher_suites` agent configuration from the [`tls` block](/nomad/docs/v1.9.x/configuration/tls).
 
 
 ## Upgrading
 
 For more detailed information, please refer to the [upgrade details
-page](/nomad/docs/upgrade/upgrade-specific#nomad-1-9-0) and the changelogs.
+page](/nomad/docs/v1.9.x/upgrade/upgrade-specific#nomad-1-9-0) and the changelogs.
 
 ## Known issues
 
@@ -129,8 +129,8 @@ listed below.
 - [1.9.0](https://github.com/hashicorp/nomad/releases/tag/v1.9.0)
 
 
-[consul-integration]: /nomad/docs/integrations/consul/acl
-[vault-integration]: /nomad/docs/integrations/vault/acl
+[consul-integration]: /nomad/docs/v1.9.x/integrations/consul/acl
+[vault-integration]: /nomad/docs/v1.9.x/integrations/vault/acl
 [GH-18529]: https://github.com/hashicorp/nomad/issues/18529
-[`disconnect`]: /nomad/docs/job-specification/disconnect
-[Resource Quotas]: /nomad/docs/other-specifications/quota
+[`disconnect`]: /nomad/docs/v1.9.x/job-specification/disconnect
+[Resource Quotas]: /nomad/docs/v1.9.x/other-specifications/quota
