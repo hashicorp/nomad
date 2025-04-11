@@ -4,7 +4,7 @@
 package catalog
 
 import (
-	testing "github.com/mitchellh/go-testing-interface"
+	"testing"
 
 	"github.com/hashicorp/nomad/helper/pluginutils/loader"
 	"github.com/hashicorp/nomad/helper/testlog"
@@ -12,7 +12,7 @@ import (
 )
 
 // TestPluginLoader returns a plugin loader populated only with internal plugins
-func TestPluginLoader(t testing.T) loader.PluginCatalog {
+func TestPluginLoader(t testing.TB) loader.PluginCatalog {
 	driverConfigs := []*config.PluginConfig{
 		{
 			Name: "raw_exec",
@@ -25,7 +25,7 @@ func TestPluginLoader(t testing.T) loader.PluginCatalog {
 }
 
 // TestPluginLoaderWithOptions allows configuring the plugin loader fully.
-func TestPluginLoaderWithOptions(t testing.T,
+func TestPluginLoaderWithOptions(t testing.TB,
 	pluginDir string,
 	options map[string]string,
 	configs []*config.PluginConfig) loader.PluginCatalog {

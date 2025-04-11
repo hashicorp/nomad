@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net"
 	"sync/atomic"
+	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
@@ -17,7 +18,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	structsconfig "github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/version"
-	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/shoenig/test/must"
 )
 

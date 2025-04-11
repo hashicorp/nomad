@@ -6,8 +6,7 @@ package testutil
 import (
 	"maps"
 	"sync"
-
-	"github.com/mitchellh/go-testing-interface"
+	"testing"
 )
 
 func NewCallCounter() *CallCounter {
@@ -39,10 +38,10 @@ func (c *CallCounter) Reset() {
 	c.counts = make(map[string]int)
 }
 
-func (c *CallCounter) AssertCalled(t testing.T, name string) {
+func (c *CallCounter) AssertCalled(t testing.TB, name string) {
 	t.Helper()
 	counts := c.Get()
 	if _, ok := counts[name]; !ok {
-		t.Errorf("'%s' not called; all counts: %v", counts)
+		t.Errorf("'%s' not called; all counts: %v", name, counts)
 	}
 }
