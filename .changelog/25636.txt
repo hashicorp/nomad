@@ -1,3 +1,3 @@
 ```release-note:bug
-agent: implement sd-notify reload protocol correctly
+agent: Fixed a bug where reloading the agent with systemd notification enabled would cause the agent to be killed by system
 ```
