@@ -1,0 +1,3 @@
+```release-note:bug
+agent: implement sd-notify reload protocol correctly
+```
