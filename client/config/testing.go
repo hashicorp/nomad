@@ -8,18 +8,18 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/mock"
-	testing "github.com/mitchellh/go-testing-interface"
 )
 
 // TestClientConfig returns a default client configuration for test clients and
 // a cleanup func to remove the state and alloc dirs when finished.
-func TestClientConfig(t testing.T) (*Config, func()) {
+func TestClientConfig(t testing.TB) (*Config, func()) {
 	conf := DefaultConfig()
 	conf.Node = mock.Node()
 	conf.Logger = testlog.HCLogger(t)

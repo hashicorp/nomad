@@ -22,11 +22,11 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"testing"
 	"time"
 
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/nomad/api/internal/testutil/discover"
-	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/shoenig/test/must"
 	"github.com/shoenig/test/wait"
 )
@@ -105,7 +105,7 @@ type ServerConfigCallback func(c *TestServerConfig)
 
 // defaultServerConfig returns a new TestServerConfig struct pre-populated with
 // usable config for running as server.
-func defaultServerConfig(t testing.T) *TestServerConfig {
+func defaultServerConfig() *TestServerConfig {
 	ports := PortAllocator.Grab(3)
 
 	logLevel := "ERROR"
@@ -142,7 +142,7 @@ func defaultServerConfig(t testing.T) *TestServerConfig {
 type TestServer struct {
 	cmd    *exec.Cmd
 	Config *TestServerConfig
-	t      testing.T
+	t      testing.TB
 
 	HTTPAddr   string
 	SerfAddr   string
@@ -151,7 +151,7 @@ type TestServer struct {
 
 // NewTestServer creates a new TestServer, and makes a call to
 // an optional callback function to modify the configuration.
-func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
+func NewTestServer(t testing.TB, cb ServerConfigCallback) *TestServer {
 	path, err := discover.NomadExecutable()
 	if err != nil {
 		t.Skipf("nomad not found, skipping: %v", err)
@@ -167,7 +167,7 @@ func NewTestServer(t testing.T, cb ServerConfigCallback) *TestServer {
 	configFile, err := os.CreateTemp(dataDir, "nomad")
 	must.NoError(t, err)
 
-	nomadConfig := defaultServerConfig(t)
+	nomadConfig := defaultServerConfig()
 	nomadConfig.DataDir = dataDir
 
 	if cb != nil {

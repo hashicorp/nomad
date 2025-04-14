@@ -5,14 +5,14 @@ package allocdir
 
 import (
 	"os"
+	"testing"
 
 	hclog "github.com/hashicorp/go-hclog"
-	testing "github.com/mitchellh/go-testing-interface"
 )
 
 // TestAllocDir returns a built alloc dir in a temporary directory and cleanup
 // func.
-func TestAllocDir(t testing.T, l hclog.Logger, prefix, id string) (*AllocDir, func()) {
+func TestAllocDir(t testing.TB, l hclog.Logger, prefix, id string) (*AllocDir, func()) {
 	dir, err := os.MkdirTemp("", prefix)
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
