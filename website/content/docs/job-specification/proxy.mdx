@@ -6,7 +6,7 @@ description: |-
   sidecar proxies used in Consul Connect integration
 ---
 
-# `proxy` Block
+# `proxy` block in the job specification
 
 <Placement
   groups={['job', 'group', 'service', 'connect', 'sidecar_service', 'proxy']}
@@ -47,7 +47,7 @@ job "countdash" {
 }
 ```
 
-## `proxy` Parameters
+## Parameters
 
 - `config` `(map: nil)` - Proxy configuration that is opaque to Nomad and passed
   directly to Consul. See [Consul Connect documentation][envoy_dynamic_config]
@@ -68,7 +68,7 @@ job "countdash" {
 - `upstreams` <code>([upstreams][]: nil)</code> - Used to configure details of
   each upstream service that this sidecar proxy communicates with.
 
-## `proxy` Examples
+## Examples
 
 The following example is a proxy specification that includes upstreams
 configuration.

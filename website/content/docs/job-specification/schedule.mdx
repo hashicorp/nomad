@@ -5,18 +5,18 @@ description: |-
   Time based task execution is enabled by using the "schedule" task block.
 ---
 
-# `schedule` Block
-
-<EnterpriseAlert />
+# `schedule` block in the job specification
 
 <Placement groups={['job', 'group', 'task', 'periodic']} />
+
+Time based task execution is enabled by using the `schedule` block. The
+`schedule` block controls when a task is allowed to be running.
+
+<EnterpriseAlert product="nomad"/>
 
 ~> **Note:** Time based task execution is an experimental feature and subject
 to change. This feature is supported for select customers. Please refer to the
 [Upgrade Guide][upgrade] to find breaking changes.
-
-Time based task execution is enabled by using the `schedule` block. The
-`schedule` block controls when a task is allowed to be running.
 
 Unlike [`periodic`][periodic] jobs, the `schedule` block applies to individual
 tasks. The Nomad Client starts and stops tasks at the specified time without
@@ -40,7 +40,7 @@ job "docs" {
 }
 ```
 
-## `schedule` Parameters
+## Parameters
 
 The `schedule` block must have a `cron` block containing:
 

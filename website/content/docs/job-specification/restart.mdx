@@ -4,7 +4,7 @@ page_title: restart block in the job specification
 description: The "restart" block configures a group's behavior on task failure.
 ---
 
-# `restart` Block
+# `restart` block in the job specification
 
 <Placement
   groups={[
@@ -69,7 +69,7 @@ Because sidecar tasks don't accept a `restart` block, it's recommended
 that you set the `restart` for jobs with sidecar tasks at the task
 level, so that the Connect sidecar can inherit the default `restart`.
 
-## `restart` Parameters
+## Parameters
 
 - `attempts` `(int: <varies>)` - Specifies the number of restarts allowed in the
   configured interval. Defaults vary by job type, see below for more
@@ -94,7 +94,7 @@ templates when a task is restarted. If set to `true`, all templates will be re-r
 when the task restarts. This can be useful for re-fetching Vault secrets, even if the
 lease on the existing secrets has not yet expired.
 
-### `restart` Parameter Defaults
+### Parameter defaults
 
 The values for many of the `restart` parameters vary by job type. Here are the
 defaults by job type:
@@ -138,7 +138,7 @@ job "docs" {
 }
 ```
 
-### `mode` Values
+### `mode` values
 
 This section details the specific values for the "mode" parameter in the Nomad
 job specification for constraints. The mode is always specified as a string:
@@ -160,7 +160,7 @@ restart {
   allocation according to the
   [`reschedule`] block.
 
-### `restart` Examples
+### Examples
 
 With the following `restart` block, a failing task will restart 3
 times with 15 seconds between attempts, and then wait 10 minutes

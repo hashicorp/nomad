@@ -8,7 +8,7 @@ description: |-
   configurations within a Nomad task.
 ---
 
-# `template` Block
+# `template` block in the job specification
 
 <Placement groups={['job', 'group', 'task', 'template']} />
 
@@ -43,7 +43,7 @@ For a full list of the API template functions, please refer to the [Consul
 Template documentation][ct_api]. For a an introduction to Go templates, please
 refer to the [Learn Go Template Syntax][gt_learn] guide.
 
-## `template` Parameters
+## Parameters
 
 - `change_mode` `(string: "restart")` - Specifies the behavior Nomad should take
   if the rendered template changes. Nomad will always write the new contents of
@@ -154,12 +154,12 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
 
 - `vault_grace` `(string: "15s")` - [Deprecated](https://github.com/hashicorp/consul-template/issues/1268)
 
-## `template` Examples
+## Examples
 
 The following examples only show the `template` blocks. Remember that the
 `template` block is only valid in the placements listed above.
 
-### Inline Template
+### Inline template
 
 This example uses an inline template to render a file to disk. This file watches
 various keys in Consul for changes:
@@ -187,7 +187,7 @@ template {
 }
 ```
 
-### Remote Template
+### Remote template
 
 This example uses an [`artifact`][artifact] block to download an input template
 before passing it to the template engine:
@@ -221,7 +221,7 @@ EOH
 }
 ```
 
-### Node Variables
+### Node variables
 
 Use the `env` function to access the Node's attributes and metadata inside a
 template. Note the `meta.` syntax here applies only to node meta fields.
@@ -239,7 +239,7 @@ template {
 }
 ```
 
-### Environment Variables
+### Environment variables
 
 Templates may be used to create environment variables for tasks. These templates
 work exactly like other templates except once the templates are written, they
@@ -303,7 +303,7 @@ DB_PASSWD={{ .Data.data.DB_PASSWD | toJSON }}
 
 For more details see [go-envparser's README][go-envparse].
 
-### Template Destinations
+### Template destinations
 
 Templates are rendered into the task working directory. Drivers without
 filesystem isolation (such as `raw_exec`) or drivers that build a chroot in
@@ -344,9 +344,9 @@ in the Nomad client logs which reports "watching this many dependencies could
 DDoS your servers", referring to the Vault, Consul, or Nomad cluster being
 queried.
 
-## Nomad Integration
+## Nomad integration
 
-### Nomad Services
+### Nomad services
 
 Nomad service registrations can be queried using the `nomadService` and
 `nomadServices` functions. The requests are tied to the same namespace as the
@@ -376,7 +376,7 @@ EOF
   }
 ```
 
-### Simple Load Balancing with Nomad Services
+### Simple load balancing with Nomad services
 
 The `nomadService` function now supports simple load balancing by selecting
 instances of a service via [rendezvous hashing][rhash].
@@ -405,7 +405,7 @@ EOH
 }
 ```
 
-### Nomad Variables
+### Nomad variables
 
 <Warning>
 
@@ -584,7 +584,7 @@ EOH
 }
 ```
 
-## Consul Integration
+## Consul integration
 
 <Warning>
 
@@ -619,7 +619,7 @@ APP_NAME = "{{key "app/name"}}"
   }
 ```
 
-### Consul Services
+### Consul services
 
 The Consul service catalog can be queried using the [`service`][ct_api_service]
 and [`services`][ct_api_services] functions. For Connect-capable services, use
@@ -648,7 +648,7 @@ upstream {{ .Name | toLower }} {
   }
 ```
 
-## Vault Integration
+## Vault integration
 
 <Warning>
 
@@ -659,7 +659,7 @@ for more details and to adjust the retry behaviour.
 
 </Warning>
 
-### PKI Certificate
+### PKI certificate
 
 Vault is a popular open source tool for managing secrets. In addition to acting
 as an encrypted KV store, Vault can also generate dynamic secrets, like PKI/TLS
@@ -784,7 +784,7 @@ access it by index. This secret was set using
   }
 ```
 
-## Client Configuration
+## Client configuration
 
 The `template` block has the following [client configuration
 options](/nomad/docs/configuration/client#options):

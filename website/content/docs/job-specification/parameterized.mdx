@@ -8,7 +8,7 @@ description: |-
   cluster as a whole.
 ---
 
-# `parameterized` Block
+# `parameterized` block in the job specification
 
 <Placement groups={['job', 'parameterized']} />
 
@@ -56,11 +56,11 @@ job "docs" {
 See the [multiregion] documentation for additional considerations when
 dispatching parameterized jobs.
 
-## `parameterized` Requirements
+## Requirements
 
 - The job's [scheduler type][batch-type] must be `batch` or `sysbatch`.
 
-## `parameterized` Parameters
+## Parameters
 
 - `meta_optional` `(array<string>: nil)` - Specifies the set of metadata keys that
   may be provided when dispatching against the job.
@@ -79,11 +79,11 @@ dispatching parameterized jobs.
 
   - `"forbidden"` - A payload is forbidden when dispatching against the job.
 
-## `parameterized` Examples
+## Examples
 
 The following examples show non-runnable example parameterized jobs:
 
-### Required Inputs
+### Required inputs
 
 This example shows a parameterized job that requires both a payload and
 metadata:
@@ -121,7 +121,7 @@ job "video-encode" {
 }
 ```
 
-### Metadata Interpolation
+### Metadata interpolation
 
 ```hcl
 job "email-blast" {

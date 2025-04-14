@@ -6,7 +6,7 @@ description: |-
   upstream services
 ---
 
-# `upstreams` Block
+# `upstreams` block in the job specification
 
 <Placement
   groups={[
@@ -79,7 +79,7 @@ job "countdash" {
 
 ```
 
-## `upstreams` Parameters
+## Parameters
 
 - `config` `(map: nil)` - Upstream configuration that is opaque to Nomad and passed
   directly to Consul. See [Consul Connect documentation][consul_expose_path_ref]
@@ -123,7 +123,7 @@ Applications are encouraged to connect to `127.0.0.1` and a well defined port
 can be deployed with the Redis upstream's `local_bind_port = 6379` and require
 no explicit configuration.
 
-## `upstreams` Examples
+## Examples
 
 The following example is an upstream config with the name of the destination service
 and a local bind port.

@@ -6,7 +6,7 @@ description: |-
   should be mounted.
 ---
 
-# `volume_mount` Block
+# `volume_mount` block in the job specification
 
 <Placement groups={['job', 'group', 'task', 'volume_mount']} />
 
@@ -37,7 +37,7 @@ The Nomad client will make the volumes available to tasks according to this
 configuration, and it will fail the allocation if the client configuration
 updates to remove a volume that it depends on.
 
-## `volume_mount` Parameters
+## Parameters
 
 - `volume` `(string: "")` - Specifies the group volume that the mount is going
   to access.

@@ -6,7 +6,7 @@ description: |-
   in Consul Connect transparent proxy mode.
 ---
 
-# `transparent_proxy` Block
+# `transparent_proxy` block in the job specification
 
 <Placement
   groups={[
@@ -43,7 +43,7 @@ Using transparent proxy has some important restrictions:
 * The workload's task cannot use the same Unix user ID (UID) as the Envoy
   sidecar proxy.
 
-## `transparent_proxy` Parameters
+## Parameters
 
 * `exclude_inbound_ports` `([]string: nil)` - A list of inbound ports to exclude
   from the inbound traffic redirection. This allows traffic on these ports to
@@ -83,7 +83,7 @@ Using transparent proxy has some important restrictions:
   node via [client metadata](#client-metadata) (see below). Note that your
   workload's task cannot use the same UID as the Envoy sidecar proxy.
 
-## Client Metadata
+## Client metadata
 
 You can change the default [`outbound_port`](#outbound_port) and [`uid`](#uid)
 for a given client node by updating the node metadata via the [`nomad node meta
@@ -107,7 +107,7 @@ Envoy images.
 
 ## Examples
 
-### Minimal Example
+### Minimal
 
 The following example is a minimal transparent proxy specification. Note that
 with transparent proxy, you will not need to configure an `upstreams` block.

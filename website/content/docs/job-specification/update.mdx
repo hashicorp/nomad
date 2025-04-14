@@ -7,7 +7,7 @@ description: |-
   omitted, a default update strategy is applied.
 ---
 
-# `update` Block
+# `update` block in the job specification
 
 <Placement
   groups={[
@@ -45,7 +45,7 @@ job "docs" {
 The `system` scheduler will be updated to support the new `update` block in
 a future release.
 
-## `update` Parameters
+## Parameters
 
 - `max_parallel` `(int: 1)` - Specifies the number of allocations within a task group that can be
   updated at the same time. The task groups themselves are updated in parallel.
@@ -112,12 +112,12 @@ a future release.
   setting doesn't apply to service jobs which use
   [deployments][strategies] instead, with the equivalent parameter being [`min_healthy_time`](#min_healthy_time).
 
-## `update` Examples
+## Examples
 
 The following examples only show the `update` blocks. Remember that the
 `update` block is only valid in the placements listed above.
 
-### Parallel Upgrades Based on Checks
+### Parallel upgrades based on checks
 
 This example performs 3 upgrades at a time and requires the allocations be
 healthy for a minimum of 30 seconds before continuing the rolling upgrade. Each
@@ -132,7 +132,7 @@ update {
 }
 ```
 
-### Parallel Upgrades Based on Task State
+### Parallel upgrades based on task state
 
 This example is the same as the last but only requires the tasks to be healthy
 and does not require registered service checks to be healthy.
@@ -146,7 +146,7 @@ update {
 }
 ```
 
-### Canary Upgrades
+### Canary upgrades
 
 This example creates a canary allocation when the job is updated. The canary is
 created without stopping any previous allocations from the job and allows
@@ -169,7 +169,7 @@ version.
 $ nomad job promote <job-id>
 ```
 
-### Blue/Green Upgrades
+### Blue/Green upgrades
 
 By setting the canary count equal to that of the task group, blue/green
 deployments can be achieved. When a new version of the job is submitted, instead
@@ -200,7 +200,7 @@ old to new version.
 $ nomad job promote <job-id>
 ```
 
-### Serial Upgrades
+### Serial upgrades
 
 This example uses a serial upgrade strategy, meaning exactly one task group will
 be updated at a time. The allocation must be healthy for the default
@@ -212,7 +212,7 @@ update {
 }
 ```
 
-### Update Block Inheritance
+### Update block inheritance
 
 This example shows how inheritance can simplify the job when there are multiple
 task groups.

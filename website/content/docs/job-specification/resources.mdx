@@ -6,7 +6,7 @@ description: |-
   Resource requirements include memory, cpu, and more.
 ---
 
-# `resources` Block
+# `resources` block in the job specification
 
 <Placement groups={['job', 'group', 'task', 'resources']} />
 
@@ -30,7 +30,7 @@ job "docs" {
 }
 ```
 
-## `resources` Parameters
+## Parameters
 
 - `cpu` `(int: 100)` - Specifies the CPU required to run this task in MHz.
 
@@ -61,7 +61,7 @@ job "docs" {
   tmpfs is unsupported, because it will still be counted for scheduling
   purposes.
 
-## `resources` Examples
+## Examples
 
 The following examples only show the `resources` blocks. Remember that the
 `resources` block is only valid in the placements listed above.
@@ -103,7 +103,7 @@ resources {
   }
 }
 ```
-## Memory Oversubscription
+## Memory oversubscription
 
 Setting task memory limits requires balancing the risk of interrupting tasks
 against the risk of wasting resources. If a task memory limit is set too low,
