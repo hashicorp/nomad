@@ -10,7 +10,7 @@ on:
 jobs:
   backport:
     if: github.event.pull_request.merged
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container: hashicorpdev/backport-assistant:0.4.1
     steps:
       - name: Backport changes to stable-website
@@ -34,7 +34,7 @@ jobs:
           ENABLE_VERSION_MANIFESTS: true
   backport-ent:
     if: github.event.pull_request.merged && contains(join(github.event.pull_request.labels.*.name), 'backport/ent')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Trigger backport for Enterprise
         uses: peter-evans/repository-dispatch@ff45666b9427631e3450c54a1bcbee4d9ff4d7c0 # v3.0.0
@@ -48,7 +48,7 @@ jobs:
       - backport
       - backport-ent
     if: always() && (needs.backport.result == 'failure' || needs.backport-ent.result == 'failure')
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-latest' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-22.04' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Retrieve Vault-hosted Secrets
