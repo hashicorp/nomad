@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"testing"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -18,7 +19,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	vapi "github.com/hashicorp/vault/api"
-	testing "github.com/mitchellh/go-testing-interface"
 )
 
 // TestVault is a test helper. It uses a fork/exec model to create a test Vault
@@ -35,7 +35,7 @@ const (
 // testing.
 type TestVault struct {
 	cmd    *exec.Cmd
-	t      testing.T
+	t      testing.TB
 	waitCh chan error
 
 	Addr      string
@@ -45,7 +45,7 @@ type TestVault struct {
 	Client    *vapi.Client
 }
 
-func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
+func NewTestVaultFromPath(t testing.TB, binary string) *TestVault {
 	t.Helper()
 
 	if _, err := exec.LookPath(binary); err != nil {
@@ -132,14 +132,14 @@ func NewTestVaultFromPath(t testing.T, binary string) *TestVault {
 }
 
 // NewTestVault returns a new TestVault instance that is ready for API calls
-func NewTestVault(t testing.T) *TestVault {
+func NewTestVault(t testing.TB) *TestVault {
 	t.Helper()
 
 	// Lookup vault from the path
 	return NewTestVaultFromPath(t, "vault")
 }
 
-func NewTestVaultDelayedFromPath(t testing.T, binary string) *TestVault {
+func NewTestVaultDelayedFromPath(t testing.TB, binary string) *TestVault {
 	t.Helper()
 
 	if _, err := exec.LookPath(binary); err != nil {
@@ -188,7 +188,7 @@ func NewTestVaultDelayedFromPath(t testing.T, binary string) *TestVault {
 // NewTestVaultDelayed returns a test Vault server that has not been started.
 // Start must be called and it is the callers responsibility to deal with any
 // port conflicts that may occur and retry accordingly.
-func NewTestVaultDelayed(t testing.T) *TestVault {
+func NewTestVaultDelayed(t testing.TB) *TestVault {
 	t.Helper()
 
 	return NewTestVaultDelayedFromPath(t, "vault")
