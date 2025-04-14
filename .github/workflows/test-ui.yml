@@ -13,7 +13,7 @@ on:
 
 jobs:
   pre-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     defaults:
       run:
@@ -34,7 +34,7 @@ jobs:
   tests:
     needs:
       - pre-test
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-latest' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-22.04' }}
     timeout-minutes: 30
     defaults:
       run:
@@ -93,7 +93,7 @@ jobs:
     needs:
       - pre-test
       - tests
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-latest' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux", "type=m7a.2xlarge;m6a.2xlarge"]') || 'ubuntu-22.04' }}
     timeout-minutes: 30
     defaults:
       run:

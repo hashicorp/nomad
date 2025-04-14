@@ -54,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14, windows-2019]
+        os: [ubuntu-22.04, macos-14, windows-2019]
     runs-on: ${{matrix.os}}
     timeout-minutes: 20
     steps:
