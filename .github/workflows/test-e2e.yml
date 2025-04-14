@@ -36,7 +36,7 @@ on:
 
 jobs:
   test-e2e-vault:
-    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-latest' }}
+    runs-on: ${{ endsWith(github.repository, '-enterprise') && fromJSON('["self-hosted", "ondemand", "linux"]') || 'ubuntu-22.04' }}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
       - uses: ./.github/actions/vault-secrets
