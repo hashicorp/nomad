@@ -9,7 +9,7 @@ jobs:
   semgrep-validate:
     name: Semgrep Validate
     if: (github.actor != 'dependabot[bot]')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: returntocorp/semgrep:1.107.0
     steps:
@@ -19,7 +19,7 @@ jobs:
   semgrep:
     name: Semgrep Scan
     needs: [semgrep-validate]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: returntocorp/semgrep:1.107.0
     env:
