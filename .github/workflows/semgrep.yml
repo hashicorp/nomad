@@ -8,7 +8,7 @@ on:
 jobs:
   semgrep:
     name: Semgrep Scan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: returntocorp/semgrep:1.36.0
     env:
