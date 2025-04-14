@@ -12,12 +12,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"testing"
 	"text/template"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/hashicorp/nomad/helper/pointer"
-	testing "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -166,7 +165,7 @@ func PluginPolicy(policy string) string {
 }
 
 // CreatePolicy creates a policy with the given name and rule.
-func CreatePolicy(t testing.T, state StateStore, index uint64, name, rule string) {
+func CreatePolicy(t testing.TB, state StateStore, index uint64, name, rule string) {
 	t.Helper()
 
 	// Create the ACLPolicy
@@ -179,7 +178,7 @@ func CreatePolicy(t testing.T, state StateStore, index uint64, name, rule string
 }
 
 // CreateToken creates a local, client token for the given policies
-func CreateToken(t testing.T, state StateStore, index uint64, policies []string) *structs.ACLToken {
+func CreateToken(t testing.TB, state StateStore, index uint64, policies []string) *structs.ACLToken {
 	t.Helper()
 
 	// Create the ACLToken
@@ -192,7 +191,7 @@ func CreateToken(t testing.T, state StateStore, index uint64, policies []string)
 
 // CreatePolicyAndToken creates a policy and then returns a token configured for
 // just that policy. CreatePolicyAndToken uses the given index and index+1.
-func CreatePolicyAndToken(t testing.T, state StateStore, index uint64, name, rule string) *structs.ACLToken {
+func CreatePolicyAndToken(t testing.TB, state StateStore, index uint64, name, rule string) *structs.ACLToken {
 	CreatePolicy(t, state, index, name, rule)
 	return CreateToken(t, state, index+1, []string{name})
 }
@@ -273,12 +272,10 @@ func ACLOIDCAuthMethod() *structs.ACLAuthMethod {
 		MaxTokenTTL:   maxTokenTTL,
 		Default:       false,
 		Config: &structs.ACLAuthMethodConfig{
-			OIDCDiscoveryURL: "http://example.com",
-			OIDCClientID:     "mock",
-			OIDCClientSecret: "very secret secret",
-			// PKCE is hard to test outside the server/RPC layer,
-			// because the verifier is only accessible there.
-			OIDCDisablePKCE:     pointer.Of(true),
+			OIDCDiscoveryURL:    "http://example.com",
+			OIDCClientID:        "mock",
+			OIDCClientSecret:    "very secret secret",
+			OIDCEnablePKCE:      false,
 			OIDCDisableUserInfo: false,
 			OIDCScopes:          []string{"groups"},
 			BoundAudiences:      []string{"sales", "engineering"},

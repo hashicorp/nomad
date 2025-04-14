@@ -13,8 +13,12 @@ This page describes the plugin specification for
 your own plugin to dynamically configure persistent storage on your Nomad
 client nodes.
 
-Review the examples first to get a sense of the specification in action.
-A plugin can be as basic as a short shell script.
+If you do not need to write your own plugin, consider Nomad's built-in
+[`mkdir` plugin][mkdir_plugin], which creates a directory on the host.
+
+If you have more complex needs than that, review the examples here to get a
+sense of the specification in action. A plugin can be as basic as a short shell
+script.
 
 The full [specification](#specification) is after the examples,
 followed by a list of [general considerations](#considerations).
@@ -66,12 +70,12 @@ get_path() {
     stderr "DHV_VOLUMES_DIR must not be empty"
     exit 1
   fi
-  if [ -z "$DHV_VOLUME_NAME" ]; then
-    stderr "DHV_VOLUME_NAME must not be empty"
+  if [ -z "$DHV_VOLUME_ID" ]; then
+    stderr "DHV_VOLUME_ID must not be empty"
     exit 1
   fi
   # create and delete assign this echo output to a variable
-  echo "$DHV_VOLUMES_DIR/$DHV_VOLUME_NAME"
+  echo "$DHV_VOLUMES_DIR/$DHV_VOLUME_ID"
 }
 
 case "$DHV_OPERATION" in
@@ -132,11 +136,11 @@ get_path() {
     stderr "DHV_VOLUMES_DIR must not be empty"
     exit 1
   fi
-  if [ -z "$DHV_VOLUME_NAME" ]; then
-    stderr "DHV_VOLUME_NAME must not be empty"
+  if [ -z "$DHV_VOLUME_ID" ]; then
+    stderr "DHV_VOLUME_ID must not be empty"
     exit 1
   fi
-  echo "$DHV_VOLUMES_DIR/$DHV_VOLUME_NAME"
+  echo "$DHV_VOLUMES_DIR/$DHV_VOLUME_ID"
 }
 
 is_mounted() {
@@ -378,6 +382,10 @@ Plugin authors should consider these details when writing plugins.
 * Errors from `create` while restoring a volume during Nomad agent start
   do not halt the client. The error will be in client logs, and the volume
   is not registered as available on the node.
+* Be aware that the `DHV_VOLUME_NAME` and `DHV_PARAMETERS` fields are controlled
+  by the volume author. If the expected volume authors are not the Nomad
+  administrators, you should ensure your plugin handles these fields safely or
+  ignores them.
 
 ### Uniqueness
 
@@ -387,9 +395,10 @@ Plugin authors should consider these details when writing plugins.
   operations for different volume IDs may run concurrently, even on the same
   node.
 * We suggest placing volumes in `DHV_VOLUMES_DIR` for consistency, but it is not
-  required. Often `$DHV_VOLUMES_DIR/$DVH_VOLUME_NAME` will suffice, as the
-  volume `name` is unique per node, or `$DHV_VOLUMES_DIR/$DHV_VOLUME_ID` for
-  uniqueness per Nomad region.
+  required. The built-in `mkdir` plugin uses `$DHV_VOLUMES_DIR/$DHV_VOLUME_ID`
+  to ensure uniqueness across the cluster. We recommend against using
+  `DHV_VOLUME_NAME` in the path unless the plugin guards against path
+  traversal.
 * Plugins that write into network storage need to take care not to delete
   remote/shared state by `name`, unless they know that there are no other
   volumes with workloads using that name.
@@ -416,3 +425,5 @@ Plugin authors should consider these details when writing plugins.
 [api-create]: /nomad/api-docs/volumes#create-dynamic-host-volume
 [cli-delete]: /nomad/docs/commands/volume/delete
 [api-delete]: /nomad/api-docs/volumes#delete-dynamic-host-volume
+[mkdir_plugin]: /nomad/docs/other-specifications/volume/host#mkdir-plugin
+[host_volumes_dir]: /nomad/docs/configuration/client#host_volumes_dir

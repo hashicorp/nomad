@@ -63,7 +63,7 @@ sorted_input=($(printf "%s\n" "${INPUT_ARRAY[@]}" | sort))
 sorted_running=($(printf "%s\n" "${RUNNING_ARRAY[@]}" | sort))
 
 if [[ "${sorted_input[*]}" != "${sorted_running[*]}" ]]; then
-    error_exi "Different allocs found, expected: ${sorted_input[*]} found: ${sorted_running[*]}"
+    error_exit "Different allocs found, expected: ${sorted_input[*]} found: ${sorted_running[*]}"
 fi
 
 echo "All allocs reattached correctly for node at $CLIENT_IP"

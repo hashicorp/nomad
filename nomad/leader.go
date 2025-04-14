@@ -84,6 +84,11 @@ var minNodePoolsVersion = version.Must(version.NewVersion("1.6.0"))
 // automatically added to jobs that need access to Consul or Vault
 var minVersionMultiIdentities = version.Must(version.NewVersion("1.7.0"))
 
+// minVersionDynamicHostVolumes is the Nomad version at which the dynamic host
+// volumes feature was introduced. It forms the minimum version all local
+// servers must meet before the feature can be used.
+var minVersionDynamicHostVolumes = version.Must(version.NewVersion("1.10.0"))
+
 // monitorLeadership is used to monitor if we acquire or lose our role
 // as the leader in the Raft cluster. There is some work the leader is
 // expected to do, so we must react to changes
@@ -2619,7 +2624,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 	store := s.fsm.State()
 	key, err := store.GetActiveRootKey(nil)
 	if err != nil {
-		logger.Error("failed to get active key: %v", err)
+		logger.Error("failed to get active key", "error", err)
 		return
 	}
 	if key != nil {
@@ -2648,7 +2653,7 @@ func (s *Server) initializeKeyring(stopCh <-chan struct{}) {
 	rootKey, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	rootKey = rootKey.MakeActive()
 	if err != nil {
-		logger.Error("could not initialize keyring: %v", err)
+		logger.Error("could not initialize keyring", "error", err)
 		return
 	}
 

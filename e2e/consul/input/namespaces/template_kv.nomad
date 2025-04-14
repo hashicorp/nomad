@@ -33,7 +33,8 @@ job "template_kv" {
 
   group "group-z" {
 
-    # no consul namespace set
+    # no consul namespace set, but our task needs a consul token
+    consul {}
 
     task "task-z" {
       driver = "raw_exec"

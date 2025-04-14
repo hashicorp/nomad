@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/rpc"
+	"testing"
 	"time"
 
 	"github.com/hashicorp/nomad/client/config"
@@ -19,7 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pluginutils/singleton"
 	"github.com/hashicorp/nomad/helper/pool"
 	"github.com/hashicorp/nomad/helper/testlog"
-	testing "github.com/mitchellh/go-testing-interface"
+	"github.com/hashicorp/yamux"
 	"github.com/shoenig/test/must"
 )
 
@@ -29,11 +30,11 @@ import (
 // There is no need to override the AllocDir or StateDir as they are randomized
 // and removed in the returned cleanup function. If they are overridden in the
 // callback then the caller still must run the returned cleanup func.
-func TestClient(t testing.T, cb func(c *config.Config)) (*Client, func() error) {
+func TestClient(t testing.TB, cb func(c *config.Config)) (*Client, func() error) {
 	return TestClientWithRPCs(t, cb, nil)
 }
 
-func TestClientWithRPCs(t testing.T, cb func(c *config.Config), rpcs map[string]interface{}) (*Client, func() error) {
+func TestClientWithRPCs(t testing.TB, cb func(c *config.Config), rpcs map[string]interface{}) (*Client, func() error) {
 	conf, cleanup := config.TestClientConfig(t)
 
 	// Tighten the fingerprinter timeouts (must be done in client package
@@ -93,7 +94,7 @@ func TestClientWithRPCs(t testing.T, cb func(c *config.Config), rpcs map[string]
 // with the server and then returns mock RPC responses for those interfaces
 // passed in the `rpcs` parameter. Useful for testing client RPCs from the
 // server. Returns the Client, a shutdown function, and any error.
-func TestRPCOnlyClient(t testing.T, cb func(c *config.Config), srvAddr net.Addr, rpcs map[string]any) (*Client, func()) {
+func TestRPCOnlyClient(t testing.TB, cb func(c *config.Config), srvAddr net.Addr, rpcs map[string]any) (*Client, func()) {
 	t.Helper()
 	conf, cleanup := config.TestClientConfig(t)
 	conf.StateDBFactory = state.GetStateDBFactory(true)
@@ -118,7 +119,7 @@ func TestRPCOnlyClient(t testing.T, cb func(c *config.Config), srvAddr net.Addr,
 	}
 	client.heartbeatStop = newHeartbeatStop(
 		client.getAllocRunner, time.Second, client.logger, client.shutdownCh)
-	client.connPool = pool.NewPool(testlog.HCLogger(t), 10*time.Second, 10, nil)
+	client.connPool = pool.NewPool(testlog.HCLogger(t), 10*time.Second, 10, nil, yamux.DefaultConfig())
 	client.init()
 
 	cancelFunc := func() {

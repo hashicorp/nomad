@@ -25,8 +25,8 @@ require (
 	github.com/coreos/go-iptables v0.8.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
-	github.com/docker/cli v28.0.2+incompatible
-	github.com/docker/docker v28.0.1+incompatible
+	github.com/docker/cli v28.0.4+incompatible
+	github.com/docker/docker v28.0.4+incompatible
 	github.com/docker/go-connections v0.5.0
 	github.com/docker/go-units v0.5.0
 	github.com/dustin/go-humanize v1.0.1
@@ -35,7 +35,7 @@ require (
 	github.com/go-jose/go-jose/v3 v3.0.4
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang/protobuf v1.5.4
-	github.com/golang/snappy v0.0.4
+	github.com/golang/snappy v1.0.0
 	github.com/google/go-cmp v0.7.0
 	github.com/gorilla/handlers v1.5.2
 	github.com/gorilla/websocket v1.5.3
@@ -45,20 +45,20 @@ require (
 	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/consul-template v0.40.0
 	github.com/hashicorp/consul/api v1.30.0
-	github.com/hashicorp/consul/sdk v0.16.1
+	github.com/hashicorp/consul/sdk v0.16.2
 	github.com/hashicorp/cronexpr v1.1.2
 	github.com/hashicorp/go-bexpr v0.1.14
 	github.com/hashicorp/go-checkpoint v0.5.0
 	github.com/hashicorp/go-cleanhttp v0.5.2
 	github.com/hashicorp/go-connlimit v0.3.1
 	github.com/hashicorp/go-cty-funcs v0.0.0-20200930094925-2721b1e36840
-	github.com/hashicorp/go-discover v0.0.0-20220621183603-a413e131e836
+	github.com/hashicorp/go-discover v0.0.0-20250326123624-0160383ae25b
 	github.com/hashicorp/go-envparse v0.1.0
 	github.com/hashicorp/go-getter v1.7.8
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-immutable-radix/v2 v2.1.0
 	github.com/hashicorp/go-kms-wrapping/v2 v2.0.18
-	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.10
+	github.com/hashicorp/go-kms-wrapping/wrappers/awskms/v2 v2.0.11
 	github.com/hashicorp/go-kms-wrapping/wrappers/azurekeyvault/v2 v2.0.14
 	github.com/hashicorp/go-kms-wrapping/wrappers/gcpckms/v2 v2.0.13
 	github.com/hashicorp/go-kms-wrapping/wrappers/transit/v2 v2.0.13
@@ -67,7 +67,7 @@ require (
 	github.com/hashicorp/go-msgpack/v2 v2.1.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-netaddrs v0.1.0
-	github.com/hashicorp/go-plugin v1.6.2
+	github.com/hashicorp/go-plugin v1.6.3
 	github.com/hashicorp/go-secure-stdlib/listenerutil v0.1.10
 	github.com/hashicorp/go-secure-stdlib/strutil v0.1.2
 	github.com/hashicorp/go-set/v3 v3.0.0
@@ -82,7 +82,7 @@ require (
 	github.com/hashicorp/memberlist v0.5.3
 	github.com/hashicorp/net-rpc-msgpackrpc/v2 v2.0.1
 	github.com/hashicorp/nomad/api v0.0.0-20230103221135-ce00d683f9be
-	github.com/hashicorp/raft v1.7.2
+	github.com/hashicorp/raft v1.7.3
 	github.com/hashicorp/raft-autopilot v0.1.6
 	github.com/hashicorp/raft-boltdb/v2 v2.3.1
 	github.com/hashicorp/serf v0.10.2
@@ -93,13 +93,12 @@ require (
 	github.com/kr/pretty v0.3.1
 	github.com/kr/text v0.2.0
 	github.com/mattn/go-colorable v0.1.14
-	github.com/miekg/dns v1.1.62
+	github.com/miekg/dns v1.1.64
 	github.com/mitchellh/colorstring v0.0.0-20150917214807-8631ce90f286
 	github.com/mitchellh/copystructure v1.2.0
 	github.com/mitchellh/go-glint v0.0.0-20210722152315-6515ceb4a127
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/mitchellh/go-ps v1.0.0
-	github.com/mitchellh/go-testing-interface v1.14.2-0.20210821155943-2d9075ca8770
 	github.com/mitchellh/hashstructure v1.1.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/mitchellh/pointerstructure v1.2.1
@@ -109,11 +108,11 @@ require (
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/moby/term v0.5.2
 	github.com/muesli/reflow v0.3.0
-	github.com/opencontainers/image-spec v1.1.0
-	github.com/opencontainers/runc v1.2.5
-	github.com/opencontainers/runtime-spec v1.2.0
+	github.com/opencontainers/image-spec v1.1.1
+	github.com/opencontainers/runc v1.2.6
+	github.com/opencontainers/runtime-spec v1.2.1
 	github.com/posener/complete v1.2.3
-	github.com/prometheus/client_golang v1.21.0
+	github.com/prometheus/client_golang v1.22.0
 	github.com/prometheus/common v0.63.0
 	github.com/rs/cors v1.11.1
 	github.com/ryanuber/columnize v2.1.2+incompatible
@@ -121,18 +120,18 @@ require (
 	github.com/shirou/gopsutil/v3 v3.24.5
 	github.com/shoenig/go-landlock v1.2.2
 	github.com/shoenig/go-m1cpu v0.1.6
-	github.com/shoenig/test v1.12.0
+	github.com/shoenig/test v1.12.1
 	github.com/stretchr/testify v1.10.0
 	github.com/zclconf/go-cty v1.16.2
 	github.com/zclconf/go-cty-yaml v1.1.0
 	go.etcd.io/bbolt v1.4.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.36.0
-	golang.org/x/mod v0.23.0
-	golang.org/x/sync v0.12.0
-	golang.org/x/sys v0.31.0
-	golang.org/x/time v0.10.0
-	google.golang.org/grpc v1.71.0
+	golang.org/x/mod v0.24.0
+	golang.org/x/sync v0.13.0
+	golang.org/x/sys v0.32.0
+	golang.org/x/time v0.11.0
+	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.5
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	oss.indeed.com/go/libtime v1.6.0
@@ -187,6 +186,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.34 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.34 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.200.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ecs v1.53.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.12.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.12.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.25.1 // indirect
@@ -241,6 +242,7 @@ require (
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
+	github.com/hashicorp/go-discover/provider/gce v0.0.0-20241120163552-5eb1507d16b4 // indirect
 	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/hashicorp/go-msgpack v1.1.6-0.20240304204939-8824e8ccc35f // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
@@ -262,12 +264,13 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/joyent/triton-go v0.0.0-20190112182421-51ffac552869 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.17.11 // indirect
+	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/linode/linodego v0.7.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.12 // indirect
+	github.com/mitchellh/go-testing-interface v1.14.2-0.20210821155943-2d9075ca8770 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/sys/user v0.3.0 // indirect
@@ -325,11 +328,11 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67 // indirect
-	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/term v0.30.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
-	golang.org/x/tools v0.28.0 // indirect
+	golang.org/x/tools v0.30.0 // indirect
 	google.golang.org/api v0.217.0 // indirect
 	google.golang.org/genproto v0.0.0-20250115164207-1a7da9e5054f // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250115164207-1a7da9e5054f // indirect

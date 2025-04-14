@@ -480,6 +480,10 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 		)
 		return false
 	}
+	if err := config.RPC.Validate(); err != nil {
+		c.Ui.Error(fmt.Sprintf("rpc block invalid: %v)", err))
+		return false
+	}
 
 	if !config.DevMode {
 		// Ensure that we have the directories we need to run.
@@ -974,16 +978,6 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	return nil
 }
 
-// These constants are for readiness signalling via the systemd notify protocol.
-// The functions we send these messages to are no-op on non-Linux systems. See
-// also https://www.man7.org/linux/man-pages/man3/sd_notify.3.html
-const (
-	sdReady     = "READY=1"
-	sdReloading = "RELOADING=1"
-	sdStopping  = "STOPPING=1"
-	sdMonotonic = "MONOTONIC_USEC=%d"
-)
-
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
@@ -1022,8 +1016,7 @@ WAIT:
 
 	// Check if this is a SIGHUP
 	if sig == syscall.SIGHUP {
-		sdNotify(sdSock, sdReloading)
-		sdNotify(sdSock, fmt.Sprintf(sdMonotonic, time.Now().UnixMicro()))
+		sdNotifyReloading(sdSock)
 		c.handleReload()
 		sdNotify(sdSock, sdReady)
 		goto WAIT

@@ -23,7 +23,7 @@ func HostVolumeRequest(ns string) *structs.HostVolume {
 		},
 		RequestedCapacityMinBytes: 100000,
 		RequestedCapacityMaxBytes: 200000,
-		Parameters:                map[string]string{"foo": "bar"},
+		Parameters:                map[string]string{"mode": "0700"},
 		State:                     structs.HostVolumeStatePending,
 	}
 	return vol

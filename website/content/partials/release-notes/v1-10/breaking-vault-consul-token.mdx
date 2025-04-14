@@ -1,0 +1,25 @@
+#### Vault and Consul integration changes
+
+Nomad 1.10.0 removes the previously deprecated token-based authentication
+workflow for Vault and Consul. Nomad clients must now use a task's [workload
+identity](/nomad/docs/concepts/workload-identity) to authenticate to Vault and
+Consul and obtain a token specific to the task.
+
+This table lists removed Vault fields and the new workflow.
+
+| Field | Configuration | New Workflow |
+| ------ | ------------ | ------------ |
+| [`vault.allow_unauthenticated`](/nomad/docs/v1.9.x/configuration/vault#allow_unauthenticated) | Agent | Tasks should use a workload identity. Do not use a Vault token. |
+| [`vault.task_token_ttl`]( /nomad/docs/v1.9.x/configuration/vault#task_token_ttl) | Agent | With workload identity, tasks receive their TTL configuration from the Vault role. |
+| [`vault.token`](/nomad/docs/v1.9.x/configuration/vault#token) | Agent | Nomad agents use the workload identity when making requests to authenticated endpoints. |
+| [`vault.policies`](/nomad/docs/v1.9.x/job-specification/vault#policies) | Job specification  |  Configure and use a Vault role.  |
+
+Before upgrading to Nomad 1.10, perform the following tasks:
+
+1. Configure Vault and Consul to work with workload identity.
+1. Migrate all workloads to use workload identity.
+
+Refer to the following guides for more information:
+
+- [Migrating to using workload identity with Vault](/nomad/docs/v1.9.x/integrations/vault/acl#migrating-to-using-workload-identity-with-vault)
+- [Migrating to using workload identity with Consul](/nomad/docs/v1.9.x/integrations/consul/acl#migrating-to-using-workload-identity-with-consul)

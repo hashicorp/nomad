@@ -287,8 +287,6 @@ func TestExecutor_OOMKilled(t *testing.T) {
 	execCmd.ResourceLimits = true
 	execCmd.ModePID = "private"
 	execCmd.ModeIPC = "private"
-	execCmd.Resources.LinuxResources.MemoryLimitBytes = 10 * 1024 * 1024
-	execCmd.Resources.NomadResources.Memory.MemoryMB = 10
 
 	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("SIGKILL", 0)

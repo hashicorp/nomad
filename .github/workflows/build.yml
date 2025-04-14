@@ -1,10 +1,30 @@
+# The build workflow is responsible for building Nomad on all our supported
+# platforms. The compiled artifacts are then uploaded to GitHub. This upload
+# triggers the CRT prepare workflow, which downloads the artifacts and then
+# uploads them to our internal store.
+#
+# The workflow can be triggered in two ways:
+#  - pushes to main or long-lived release line branches (eg. 1.10.x)
+#  - dispatched via the release workflow (release.yml).
+#
+# The workflow should not be triggered from short-lived release branches;
+# branches that are cut from the long-lived ones in order to release Nomad. The
+# release workflow should be the only process responsible for triggering the
+# build workflow. This is because the release workflow performs a commit and
+# push of updated generated assets to the release branch. If this push triggers
+# a build, it will conflict with the release build process which shares the same
+# Git SHA and result in a last-write-wins to our internal store.
 name: build
 
 on:
   push:
     branches:
+      # 'main' is our forever branch where all changes get merged.
+      # 'release/[0-9].[0-9]+.x*' matches our long-lived release lines such as
+      # '1.10.x' and '1.10.x+ent' but excludes short-lived release branches such
+      # as '1.10.0' and '1.10.0+ent'.
       - main
-      - release/**
+      - 'release/[0-9].[0-9]+.x*'
   workflow_dispatch:
     inputs:
       build-ref:
@@ -129,6 +149,11 @@ jobs:
   build-linux:
     needs: [get-go-version, get-product-version]
     runs-on: custom-linux-xxl-nomad-20.04
+    services:
+      registry:
+        image: registry:2
+        ports:
+          - 5000:5000
     strategy:
       matrix:
         goos: [linux]
@@ -141,6 +166,9 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           ref: ${{ github.event.inputs.build-ref }}
+
+      # even though we build inside the container, go tooling is still needed
+      # for make prerelease
       - name: Setup go
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
@@ -163,20 +191,15 @@ jobs:
         run: make prerelease
         if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.make-prerelease == 'true' }}
 
-      - name: Install Linux build utilties
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y software-properties-common
-          sudo apt-get update
-          sudo apt-get install -y \
-            binutils-aarch64-linux-gnu \
-            gcc-aarch64-linux-gnu
-
-      - name: Set gcc
-        run: |
-          if [ "${{ matrix.goarch }}" == "arm64" ]; then
-            echo "CC=aarch64-linux-gnu-gcc" >> "$GITHUB_ENV"
-          fi
+      - name: Build nomad-builder image
+        uses: docker/build-push-action@471d1dc4e07e5cdedd4c2171150001c434f0b7a4 # v6
+        with:
+          platforms: linux/amd64 # we only ever build amd64 images because we always run on amd64 runners and cross-compile inside the container if needed
+          context: .github/nomad-builder/
+          build-args: |
+            GO_VERSION=${{ needs.get-go-version.outputs.go-version }}
+          push: true
+          tags: localhost:5000/nomad-builder:${{ github.sha }}
 
       - name: Build
         env:
@@ -186,7 +209,7 @@ jobs:
           CGO_ENABLED: 1
         run: |
           go clean -cache
-          make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          docker run --user "$(id --user):$(id --group)" --env HOME=/tmp -v "$(pwd)":/build localhost:5000/nomad-builder:${{ github.sha }} make pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip
           mv pkg/${{ matrix.goos }}_${{ matrix.goarch }}.zip ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
       - uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
         with:

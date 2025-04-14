@@ -1403,7 +1403,6 @@ func TestACLAuthMethodConfig_Canonicalize(t *testing.T) {
 	am.Canonicalize()
 	must.Eq(t, []string{"test-disco-url"}, cass.Audience, must.Sprint("should inherit audience"))
 	must.Eq(t, "super secret", cass.ClientSecret, must.Sprint("should inherit secret"))
-	must.Eq(t, "", am.OIDCClientSecret, must.Sprint("secret should move to assertion"))
 }
 
 func TestACLAuthMethodConfig_Validate(t *testing.T) {

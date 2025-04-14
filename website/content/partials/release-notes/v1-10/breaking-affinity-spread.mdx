@@ -1,0 +1,8 @@
+#### Affinity and spread updates are non-destructive
+
+We fixed a scheduler bug so that updates to `affinity` and
+`spread` blocks are no longer destructive. After a job update that changes only
+these blocks, existing allocations remain running with their job version
+incremented. If you were relying on the previous behavior to redistribute
+workloads, you can force a destructive update by changing fields that require
+one, such as the `meta` block.

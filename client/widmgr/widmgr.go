@@ -54,11 +54,9 @@ type WIDMgr struct {
 	logger hclog.Logger
 }
 
-func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, logger hclog.Logger, envBuilder *taskenv.Builder) *WIDMgr {
+func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, logger hclog.Logger, allocEnv *taskenv.TaskEnv) *WIDMgr {
 	widspecs := map[structs.WIHandle]*structs.WorkloadIdentity{}
 	tg := a.Job.LookupTaskGroup(a.TaskGroup)
-
-	allocEnv := envBuilder.Build()
 
 	for _, service := range tg.Services {
 		if service.Identity != nil {
@@ -74,7 +72,7 @@ func NewWIDMgr(signer IdentitySigner, a *structs.Allocation, db cstate.StateDB, 
 		}
 
 		// update the builder for this task
-		taskEnv := envBuilder.UpdateTask(a, task).Build()
+		taskEnv := allocEnv.WithTask(a, task)
 		for _, service := range task.Services {
 			if service.Identity != nil {
 				handle := *service.IdentityHandle(taskEnv.ReplaceEnv)
@@ -123,7 +121,8 @@ func (m *WIDMgr) Run() error {
 
 	hasExpired, err := m.restoreStoredIdentities()
 	if err != nil {
-		m.logger.Warn("failed to get signed identities from state DB, refreshing from server: %w", err)
+		m.logger.Warn("failed to get signed identities from state DB, refreshing from server",
+			"error", err)
 	}
 	if hasExpired {
 		if err := m.getInitialIdentities(); err != nil {

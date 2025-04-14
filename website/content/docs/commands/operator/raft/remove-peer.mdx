@@ -7,7 +7,7 @@ description: |
 
 # `nomad operator raft remove-peer` command reference
 
-Remove the Nomad server with given address from the Raft configuration.
+Remove the Nomad server with peer ID from the Raft configuration.
 
 There are rare cases where a peer may be left behind in the Raft quorum even
 though the server is no longer present and known to the cluster. This command
@@ -33,9 +33,6 @@ If ACLs are enabled, this command requires a management token.
 @include 'general_options_no_namespace.mdx'
 
 ## Remove Peer options
-
-- `-peer-address`: Remove a Nomad server with given address from the Raft
-  configuration. The format is "IP:port"
 
 - `-peer-id`: Remove a Nomad server with the given ID from the Raft
   configuration. The format is "id"

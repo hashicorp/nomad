@@ -48,8 +48,11 @@ When ACLs are enabled, this command requires a token with the `read-fs`,
 
 - `-verbose`: Display verbose output.
 
-- `-job`: Use a random allocation from the specified job or job ID prefix,
-  preferring a running allocation.
+- `-job=<job-name|job-id>`: Use a random allocation from the specified job or
+  job ID prefix, preferring a running allocation.
+
+- `-group=<group-name>`: Specifies the task group where the task is located 
+  when a random allocation is selected
 
 - `-stat`: Show stat information instead of displaying the file, or listing the
   directory.

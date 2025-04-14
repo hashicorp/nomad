@@ -286,6 +286,11 @@ var (
 			hclspec.NewAttr("infra_image_pull_timeout", "string", false),
 			hclspec.NewLiteral(`"5m"`),
 		),
+		// default timeout to use when pulling images.
+		"image_pull_timeout": hclspec.NewDefault(
+			hclspec.NewAttr("image_pull_timeout", "string", false),
+			hclspec.NewLiteral(`"5m"`),
+		),
 		// number of attempts to try to purge an existing container if it already exists
 		"container_exists_attempts": hclspec.NewDefault(
 			hclspec.NewAttr("container_exists_attempts", "number", false),
@@ -404,33 +409,30 @@ var (
 		// mount and mounts are effectively aliases, but `mounts` is meant for pre-1.0
 		// assignment syntax `mounts = [{type="..." ..."}]` while
 		// `mount` is 1.0 repeated block syntax `mount { type = "..." }`
-		"mount":           hclspec.NewBlockList("mount", mountBodySpec),
-		"mounts":          hclspec.NewBlockList("mounts", mountBodySpec),
-		"network_aliases": hclspec.NewAttr("network_aliases", "list(string)", false),
-		"network_mode":    hclspec.NewAttr("network_mode", "string", false),
-		"oom_score_adj":   hclspec.NewAttr("oom_score_adj", "number", false),
-		"runtime":         hclspec.NewAttr("runtime", "string", false),
-		"pids_limit":      hclspec.NewAttr("pids_limit", "number", false),
-		"pid_mode":        hclspec.NewAttr("pid_mode", "string", false),
-		"ports":           hclspec.NewAttr("ports", "list(string)", false),
-		"port_map":        hclspec.NewAttr("port_map", "list(map(number))", false),
-		"privileged":      hclspec.NewAttr("privileged", "bool", false),
-		"image_pull_timeout": hclspec.NewDefault(
-			hclspec.NewAttr("image_pull_timeout", "string", false),
-			hclspec.NewLiteral(`"5m"`),
-		),
-		"readonly_rootfs": hclspec.NewAttr("readonly_rootfs", "bool", false),
-		"security_opt":    hclspec.NewAttr("security_opt", "list(string)", false),
-		"shm_size":        hclspec.NewAttr("shm_size", "number", false),
-		"storage_opt":     hclspec.NewBlockAttrs("storage_opt", "string", false),
-		"sysctl":          hclspec.NewAttr("sysctl", "list(map(string))", false),
-		"tty":             hclspec.NewAttr("tty", "bool", false),
-		"ulimit":          hclspec.NewAttr("ulimit", "list(map(string))", false),
-		"uts_mode":        hclspec.NewAttr("uts_mode", "string", false),
-		"userns_mode":     hclspec.NewAttr("userns_mode", "string", false),
-		"volumes":         hclspec.NewAttr("volumes", "list(string)", false),
-		"volume_driver":   hclspec.NewAttr("volume_driver", "string", false),
-		"work_dir":        hclspec.NewAttr("work_dir", "string", false),
+		"mount":              hclspec.NewBlockList("mount", mountBodySpec),
+		"mounts":             hclspec.NewBlockList("mounts", mountBodySpec),
+		"network_aliases":    hclspec.NewAttr("network_aliases", "list(string)", false),
+		"network_mode":       hclspec.NewAttr("network_mode", "string", false),
+		"oom_score_adj":      hclspec.NewAttr("oom_score_adj", "number", false),
+		"runtime":            hclspec.NewAttr("runtime", "string", false),
+		"pids_limit":         hclspec.NewAttr("pids_limit", "number", false),
+		"pid_mode":           hclspec.NewAttr("pid_mode", "string", false),
+		"ports":              hclspec.NewAttr("ports", "list(string)", false),
+		"port_map":           hclspec.NewAttr("port_map", "list(map(number))", false),
+		"privileged":         hclspec.NewAttr("privileged", "bool", false),
+		"image_pull_timeout": hclspec.NewAttr("image_pull_timeout", "string", false),
+		"readonly_rootfs":    hclspec.NewAttr("readonly_rootfs", "bool", false),
+		"security_opt":       hclspec.NewAttr("security_opt", "list(string)", false),
+		"shm_size":           hclspec.NewAttr("shm_size", "number", false),
+		"storage_opt":        hclspec.NewBlockAttrs("storage_opt", "string", false),
+		"sysctl":             hclspec.NewAttr("sysctl", "list(map(string))", false),
+		"tty":                hclspec.NewAttr("tty", "bool", false),
+		"ulimit":             hclspec.NewAttr("ulimit", "list(map(string))", false),
+		"uts_mode":           hclspec.NewAttr("uts_mode", "string", false),
+		"userns_mode":        hclspec.NewAttr("userns_mode", "string", false),
+		"volumes":            hclspec.NewAttr("volumes", "list(string)", false),
+		"volume_driver":      hclspec.NewAttr("volume_driver", "string", false),
+		"work_dir":           hclspec.NewAttr("work_dir", "string", false),
 	})
 
 	// driverCapabilities represents the RPC response for what features are
@@ -673,6 +675,7 @@ type DriverConfig struct {
 	InfraImage                         string        `codec:"infra_image"`
 	InfraImagePullTimeout              string        `codec:"infra_image_pull_timeout"`
 	infraImagePullTimeoutDuration      time.Duration `codec:"-"`
+	ImagePullTimeout                   string        `codec:"image_pull_timeout"`
 	ContainerExistsAttempts            uint64        `codec:"container_exists_attempts"`
 	DisableLogCollection               bool          `codec:"disable_log_collection"`
 	PullActivityTimeout                string        `codec:"pull_activity_timeout"`
@@ -788,6 +791,13 @@ func (d *Driver) SetConfig(c *base.Config) error {
 			return fmt.Errorf("failed to parse 'infra_image_pull_timeout' duration: %v", err)
 		}
 		d.config.infraImagePullTimeoutDuration = dur
+	}
+
+	if d.config.ImagePullTimeout != "" {
+		_, err := time.ParseDuration(d.config.ImagePullTimeout)
+		if err != nil {
+			return fmt.Errorf("failed to parse 'image_pull_timeout' duration: %v", err)
+		}
 	}
 
 	d.config.allowRuntimes = make(map[string]struct{}, len(d.config.AllowRuntimesList))

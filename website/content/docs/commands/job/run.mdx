@@ -27,7 +27,7 @@ downloaded and read from URL specified. Nomad downloads the job file using
 
 By default, on successful job submission the run command will enter an
 interactive monitor and display log information detailing the scheduling
-decisions, placement information, and [deployment status] for the provided job
+decisions, placement information, and deployment status for the provided job
 if applicable ([`batch`] and [`system`] jobs don't create deployments). The monitor will
 exit after scheduling and deployment have finished or failed.
 
@@ -210,7 +210,6 @@ $ nomad job run example.nomad.hcl
 ```
 
 [`batch`]: /nomad/docs/schedulers#batch
-[deployment status]: /nomad/docs/commands/deployment#status
 [eval status]: /nomad/docs/commands/eval/status
 [`go-getter`]: https://github.com/hashicorp/go-getter
 [`job plan` command]: /nomad/docs/commands/job/plan
