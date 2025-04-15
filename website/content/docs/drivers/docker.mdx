@@ -329,8 +329,6 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `ports` - (Optional) A list of port labels to map into the container (see below).
 
-- `port_map` - (Optional) _Deprecated_ A key-value map of port labels (see below).
-
 - `security_opt` - (Optional) A list of string flags to pass directly to
   [`--security-opt`](https://docs.docker.com/engine/reference/run/#security-configuration).
   For example:
@@ -410,7 +408,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `work_dir` - (Optional) The working directory inside the container.
 
-- `mount` - _Since 1.0.1_ (Optional) Specify a
+- `mount` - (Optional) Specify a
   [mount](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
   to be mounted into the container. Volume, bind, and tmpfs type mounts are supported. May be specified multiple times.
 
@@ -456,55 +454,6 @@ The `docker` driver supports the following configuration in the job spec. Only
         size = 100000 # size in bytes
       }
     }
-  }
-  ```
-
-- `mounts` - (_deprecated_: Replaced by `mount` in 1.0.1) (Optional) A list of
-  [mounts](https://docs.docker.com/engine/reference/commandline/service_create/#add-bind-mounts-volumes-or-memory-filesystems)
-  to be mounted into the container. Volume, bind, and tmpfs type mounts are supported.
-
-  ```hcl
-  config {
-    mounts = [
-      # sample volume mount
-      {
-        type = "volume"
-        target = "/path/in/container"
-        source = "name-of-volume"
-        readonly = false
-        volume_options = {
-          no_copy = false
-          labels = {
-            foo = "bar"
-          }
-          driver_config = {
-            name = "pxd"
-            options = {
-              foo = "bar"
-            }
-          }
-        }
-      },
-      # sample bind mount
-      {
-        type = "bind"
-        target = "/path/in/container"
-        source = "/path/in/host"
-        readonly = false
-        bind_options = {
-          propagation = "rshared"
-        }
-      },
-      # sample tmpfs mount
-      {
-        type = "tmpfs"
-        target = "/path/in/container"
-        readonly = false
-        tmpfs_options = {
-          size = 100000 # size in bytes
-        }
-      }
-    ]
   }
   ```
 
@@ -784,16 +733,6 @@ Note that by default this only works with `bridged` networking mode. It may
 also work with custom networking plugins which implement the same API for
 expose and port forwarding.
 
-#### Deprecated `port_map` Syntax
-
-Up until Nomad 0.12, ports could be specified in a task's resource block and set using the docker
-`port_map` field. As more features have been added to the group network resource allocation, task based
-network resources are deprecated. With it the `port_map` field is also deprecated and can only be used
-with task network resources.
-
-Users should migrate their jobs to define ports in the group network block and specified which ports
-a task maps with the `ports` field.
-
 ### Advertising Container IPs
 
 When using network plugins like `weave` that assign containers a routable IP
@@ -1064,100 +1003,6 @@ host system.
   pulling the container, to see if it's running as `ContainerAdmin`. If so, exits
   with an error unless the task config has `privileged=true`. Defaults to `false`.
 
-## Client Configuration
-
-~> Note: client configuration options will soon be deprecated. Please use
-[plugin options][plugin-options] instead. See the [plugin block][plugin-block]
-documentation for more information.
-
-The `docker` driver has the following [client configuration
-options](/nomad/docs/configuration/client#options):
-
-- `docker.endpoint` - If using a non-standard socket, HTTP or another location,
-  or if TLS is being used, `docker.endpoint` must be set. If unset, Nomad will
-  attempt to instantiate a Docker client using the `DOCKER_HOST` environment
-  variable and then fall back to the default listen address for the given
-  operating system. Defaults to `unix:///var/run/docker.sock` on Unix platforms
-  and `npipe:////./pipe/docker_engine` for Windows.
-
-- `docker.auth.config` <a id="auth_file"></a>- Allows an operator to specify a
-  JSON file which is in the dockercfg format containing authentication
-  information for a private registry, from either (in order) `auths`,
-  `credsStore` or `credHelpers`.
-
-- `docker.auth.helper` <a id="auth_helper"></a>- Allows an operator to specify a
-  [credsStore](https://docs.docker.com/engine/reference/commandline/login/#credential-helper-protocol)
-  -like script on \$PATH to lookup authentication information from external
-  sources. The script's name must begin with `docker-credential-` and this
-  option should include only the basename of the script, not the path.
-
-- `docker.tls.cert` - Path to the server's certificate file (`.pem`). Specify
-  this along with `docker.tls.key` and `docker.tls.ca` to use a TLS client to
-  connect to the docker daemon. `docker.endpoint` must also be specified or this
-  setting will be ignored.
-
-- `docker.tls.key` - Path to the client's private key (`.pem`). Specify this
-  along with `docker.tls.cert` and `docker.tls.ca` to use a TLS client to
-  connect to the docker daemon. `docker.endpoint` must also be specified or this
-  setting will be ignored.
-
-- `docker.tls.ca` - Path to the server's CA file (`.pem`). Specify this along
-  with `docker.tls.cert` and `docker.tls.key` to use a TLS client to connect to
-  the docker daemon. `docker.endpoint` must also be specified or this setting
-  will be ignored.
-
-- `docker.cleanup.image` Defaults to `true`. Changing this to `false` will
-  prevent Nomad from removing images from stopped tasks.
-
-- `docker.cleanup.image.delay` A time duration, as [defined
-  here](https://golang.org/pkg/time/#ParseDuration), that defaults to `3m`. The
-  delay controls how long Nomad will wait between an image being unused and
-  deleting it. If a tasks is received that uses the same image within the delay,
-  the image will be reused.
-
-- `docker.volumes.enabled`: Defaults to `false`. Allows tasks to bind host paths
-  (`volumes`) inside their container and use volume drivers (`volume_driver`).
-  Binding relative paths is always allowed and will be resolved relative to the
-  allocation's directory.
-
-- `docker.volumes.selinuxlabel`: Allows the operator to set a SELinux label to
-  the allocation and task local bind-mounts to containers. If used with
-  `docker.volumes.enabled` set to false, the labels will still be applied to the
-  standard binds in the container.
-
-- `docker.privileged.enabled` Defaults to `false`. Changing this to `true` will
-  allow containers to use `privileged` mode, which gives the containers full
-  access to the host's devices. Note that you must set a similar setting on the
-  Docker daemon for this to work.
-
-- `docker.caps.allowlist`: A list of allowed Linux capabilities. Defaults to
-  `"CHOWN,DAC_OVERRIDE,FSETID,FOWNER,MKNOD,NET_RAW,SETGID,SETUID,SETFCAP, SETPCAP,NET_BIND_SERVICE,SYS_CHROOT,KILL,AUDIT_WRITE"`, which is the list of
-  capabilities allowed by docker by default, as [defined
-  here](https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities).
-  Allows the operator to control which capabilities can be obtained by tasks
-  using `cap_add` and `cap_drop` options. Supports the value `"ALL"` as a
-  shortcut for allowlisting all capabilities.
-
-- `docker.cleanup.container`: Defaults to `true`. This option can be used to
-  disable Nomad from removing a container when the task exits. Under a name
-  conflict, Nomad may still remove the dead container.
-
-- `docker.nvidia_runtime`: Defaults to `nvidia`. This option allows operators to select the runtime that should be used in order to expose Nvidia GPUs to the container.
-
-Note: When testing or using the `-dev` flag you can use `DOCKER_HOST`,
-`DOCKER_TLS_VERIFY`, and `DOCKER_CERT_PATH` to customize Nomad's behavior. If
-`docker.endpoint` is set Nomad will **only** read client configuration from the
-config file.
-
-An example is given below:
-
-```hcl
-client {
-  options {
-    "docker.cleanup.image" = "false"
-  }
-}
-```
 
 ## Client Attributes
 
