@@ -83,7 +83,6 @@ func main() {
 }
 
 func Run(args []string) int {
-	// Create the meta object
 	metaPtr := new(command.Meta)
 	metaPtr.SetupUi(args)
 
