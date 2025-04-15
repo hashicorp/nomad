@@ -49,6 +49,8 @@ done
 echo "Client $client_id at $CLIENT_IP is ready"
 
 # Quality: "nomad_alloc_reconect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
+echo "Allocs found before upgrade $ALLOCS"
+
 echo "Reading allocs for client at $CLIENT_IP"
 
 current_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id) | .ID] | join(" ")')
@@ -56,14 +58,17 @@ if [ -z "$current_allocs" ]; then
     error_exit "Failed to read allocs for node: $client_id"
 fi
 
-IFS=' ' read -r -a INPUT_ARRAY <<< "${ALLOCS[*]}"
+IDs=$(echo $ALLOCS | jq -r '[.[].ID] | join(" ")')
+
+IFS=' ' read -r -a INPUT_ARRAY <<< "${IDs[*]}"
 IFS=' ' read -r -a RUNNING_ARRAY <<< "$current_allocs"
 
 sorted_input=($(printf "%s\n" "${INPUT_ARRAY[@]}" | sort))
 sorted_running=($(printf "%s\n" "${RUNNING_ARRAY[@]}" | sort))
 
 if [[ "${sorted_input[*]}" != "${sorted_running[*]}" ]]; then
-    error_exit "Different allocs found, expected: ${sorted_input[*]} found: ${sorted_running[*]}"
+    full_current_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id) | { ID: .ID, Name: .Name, ClientStatus: .ClientStatus}]')
+    error_exit "Different allocs found, expected: ${sorted_input[*]} found: ${sorted_running[*]}. Current allocs info: $full_current_allocs"
 fi
 
 echo "All allocs reattached correctly for node at $CLIENT_IP"

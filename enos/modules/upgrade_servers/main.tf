@@ -36,10 +36,18 @@ locals {
 resource "random_pet" "upgrade" {
 }
 
+
+
 resource "enos_local_exec" "wait_for_leader" {
   environment = local.nomad_env
 
   scripts = [abspath("${path.module}/scripts/wait_for_stable_cluster.sh")]
+}
+
+resource "time_sleep" "wait_20_seconds" {
+  depends_on = [enos_local_exec.wait_for_leader]
+
+  create_duration = "20s"
 }
 
 // Forcing a snapshot from the leader drives the cluster to store the most recent
@@ -48,7 +56,7 @@ resource "enos_local_exec" "wait_for_leader" {
 // The stale flag defaults to "false" but it is included to reinforce the fact
 // that it has to be taken from the leader for future readers.
 resource "enos_local_exec" "take_cluster_snapshot" {
-  depends_on = [enos_local_exec.wait_for_leader]
+  depends_on = [time_sleep.wait_20_seconds]
 
   environment = local.nomad_env
 

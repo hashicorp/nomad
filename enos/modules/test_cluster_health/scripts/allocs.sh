@@ -38,7 +38,7 @@ while true; do
     checkAllocsCount && break
 
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
-        error_exit "Some allocs are not running:\n$(nomad alloc status -json | jq -r '.[] | select(.ClientStatus != "running") | .ID')"
+        error_exit "Some allocs are not running: $(nomad alloc status -json | jq -r '.[] | "\(.ID) \(.Name) \(.ClientStatus)"')"
     fi
 
     echo "Running allocs: $allocs_length, expected $ALLOC_COUNT. Waiting for $elapsed_time  Retrying in $POLL_INTERVAL seconds..."
