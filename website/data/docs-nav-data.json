@@ -2338,11 +2338,11 @@
         "path": "operations"
       },
       {
-        "title": "Operating Nomad Agents",
+        "title": "Nomad Agents",
         "path": "operations/nomad-agent"
       },
       {
-        "title": "Monitoring Nomad",
+        "title": "Monitor Nomad",
         "path": "operations/monitoring-nomad"
       },
       {

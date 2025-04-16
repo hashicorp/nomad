@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: Metrics Reference
-description: Learn about the different metrics available in Nomad.
+page_title: Metrics reference
+description: |-
+  This page contains reference information on the gauge, counter, and timer runtime metrics data that Nomad collects. Use the metrics endpoint to access the metrics data. Learn about the key metrics for monitoring your cluster. Review client, host, allocation, job summary, job status, server, Raft BoltDB, and agent metrics fields.
 ---
 
-# Metrics Reference
+# Metrics reference
 
 The Nomad agent collects various runtime metrics about the performance of
 different libraries and subsystems. These metrics are aggregated on a ten
@@ -67,7 +68,7 @@ Below is sample output of a telemetry dump:
 [2015-09-17 16:59:40 -0700 PDT][S] 'nomad.memberlist.gossip': Count: 12 Min: 0.009 Mean: 0.017 Max: 0.025 Stddev: 0.005 Sum: 0.204
 ```
 
-### Metric Types
+### Metric types
 
 | Type    | Description                                                                                                         | Quantiles |
 | ------- | ------------------------------------------------------------------------------------------------------------------- | --------- |
@@ -75,14 +76,14 @@ Below is sample output of a telemetry dump:
 | Counter | Counts are incremented and flushed at the end of the aggregation interval and then are reset to zero                | true      |
 | Timer   | Timers measure the time to complete a task and will include quantiles, means, standard deviation, etc per interval. | true      |
 
-### Tagged Metrics
+### Tagged metrics
 
 Nomad emits metrics in a tagged format. Each metric can support more than one
 tag, meaning that it is possible to do a match over metrics for datapoints
 such as a particular datacenter, and return all metrics with this tag. Nomad
 supports labels for namespaces as well.
 
-## Key Metrics
+## Key metrics
 
 The metrics in the table below are the most important metrics for monitoring
 the overall health of a Nomad cluster.
@@ -121,7 +122,7 @@ signals.
 | `nomad.raft.replication.appendEntries`       | Raft transaction commit time                                                                                                                                                                                      | ms / Raft Log Append           | Timer   |
 | `nomad.license.expiration_time_epoch`        | Time as epoch (seconds since Jan 1 1970) at which license will expire                                                                                                                                             | Seconds                        | Gauge   |
 
-## Client Metrics
+## Client metrics
 
 The Nomad client emits metrics related to the resource usage of the allocations
 and tasks running on it and the node itself. Operators have to explicitly turn
@@ -149,7 +150,7 @@ parameterized or periodic job respectively. For example, a dispatch job with the
 | parent_id   | `myjob`                        |
 | dispatch_id | `1312323423423`                |
 
-## Host Metrics
+## Host metrics
 
 Nomad will emit [tagged metrics][tagged-metrics], in the below format:
 
@@ -188,7 +189,7 @@ Nomad will emit [tagged metrics][tagged-metrics], in the below format:
 | `nomad.client.unallocated.memory`         | Total amount of memory free for the scheduler to allocate to tasks                   | Megabytes  | Gauge   | datacenter, host, node_class, node_id, node_pool, node_scheduling_eligibility, node_status       |
 | `nomad.client.uptime`                     | Uptime of the host running the Nomad client                                          | Seconds    | Gauge   | datacenter, host, node_class, node_id, node_pool, node_scheduling_eligibility, node_status       |
 
-### Client Hook Metrics
+### Client hook metrics
 
 Nomad will emit metrics allowing you to monitor and alert on allocation and task hook performance.
 If you do not need these, they can be disabled via the [`disable_allocation_hook_metrics`][]
@@ -203,7 +204,7 @@ configuration parameter.
 | `nomad.client.task_hook.prestart.success` | Number of hook executions that completed successfully | Integer      | Counter | datacenter, host, node_class, node_id, node_pool, hook_name |
 | `nomad.client.task_hook.prestart.elapsed` | The time it took the hook to run                      | Milliseconds | Timer   | datacenter, host, node_class, node_id, node_pool, hook_name |
 
-## Allocation Metrics
+## Allocation metrics
 
 The following metrics are emitted for each allocation if allocation metrics
 are enabled. Note that allocation metrics available may be dependent on factors
@@ -234,7 +235,7 @@ such as the task driver and control group (cgroup) version in use.
 | `nomad.client.allocs.restart`                 | Number of task restarts                                           | Integer     | Counter | alloc_id, host, job, namespace, task, task_group |
 | `nomad.client.allocs.running`                 | Number of running allocations                                     | Integer     | Counter | alloc_id, host, job, namespace, task, task_group |
 
-## Job Summary Metrics
+## Job summary metrics
 
 Job summary metrics are emitted by the Nomad leader server.
 
@@ -248,7 +249,7 @@ Job summary metrics are emitted by the Nomad leader server.
 | `nomad.nomad.job_summary.running`  | Number of running allocations for a job  | Integer | Gauge | host, job, namespace, task_group |
 | `nomad.nomad.job_summary.starting` | Number of starting allocations for a job | Integer | Gauge | host, job, namespace, task_group |
 
-## Job Status Metrics
+## Job status metrics
 
 Job status metrics are emitted by the Nomad leader server.
 
@@ -258,7 +259,7 @@ Job status metrics are emitted by the Nomad leader server.
 | `nomad.nomad.job_status.pending` | Number of pending jobs | Integer | Gauge | host   |
 | `nomad.nomad.job_status.running` | Number of running jobs | Integer | Gauge | host   |
 
-## Server Metrics
+## Server metrics
 
 The following table includes metrics for overall cluster health in addition to
 those listed in [Key Metrics](#key-metrics) above.
@@ -501,7 +502,7 @@ those listed in [Key Metrics](#key-metrics) above.
 | `nomad.scheduler.allocs.rescheduled.wait_until`         | Time that a rescheduled allocation will be delayed                                                                                                     | Float                    | Gauge   | alloc_id, job, namespace, task_group, follow_up_eval_id |
 | `nomad.state.snapshotIndex`                             | Current snapshot index                                                                                                                                 | Integer                  | Gauge   | host                                                    |
 
-## Raft BoltDB Metrics
+## Raft BoltDB metrics
 
 Raft database metrics are emitted by the `raft-boltdb` library.
 
@@ -526,7 +527,7 @@ Raft database metrics are emitted by the `raft-boltdb` library.
 | `nomad.raft.boltdb.txstats.write`         | Count of total write operations           | Integer     | Counter |
 | `nomad.raft.boltdb.txstats.writeTime`     | Sample of write operation times           | Nanoseconds | Summary |
 
-## Agent Metrics
+## Agent metrics
 
 Agent metrics are emitted by all Nomad agents running in either client or server mode.
 

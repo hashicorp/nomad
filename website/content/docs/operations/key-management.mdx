@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: Key Management
-description: Learn about the key management in Nomad.
+page_title: Key management
+description: |-
+  Learn how Nomad manages its keyring, which Nomad uses to encrypt variables, sign task workload identities, and sign OpenID Connect (OIDC) client assertions. Review key rotation, key decryption, and key redaction in Raft snapshots. Learn how Nomad v1.9+ can replicate keys from older Nomad versions.
 ---
 
-# Key Management
+# Key management
 
 Nomad servers maintain an encryption keyring used to encrypt [Variables][],
 sign task [workload identities][], and sign OIDC [client assertion JWTs][].
@@ -27,7 +28,7 @@ Under normal operations the keyring is entirely managed by Nomad, but this
 section provides administrators additional context around key replication and
 recovery.
 
-## Key Rotation
+## Key rotation
 
 Only one key in the keyring is "active" at any given time, and all encryption
 and signing operations happen on the leader. Nomad automatically rotates the
@@ -42,7 +43,7 @@ operator root keyring rotate -full`][]. A new "active" key will be created and
 re-encrypt all variables with the new key. As each key's variables are encrypted
 with the new key, the old key will marked as "deprecated".
 
-## Key Decryption
+## Key decryption
 
 When a leader is elected, the leader creates the keyring if it does not already
 exist. When a key is added, the new wrapped key material is replicated via
@@ -50,7 +51,7 @@ Raft. As each server replicates the new key, the server starts a task to decrypt
 the key material. Until this task completes, the server is not able to serve
 requests that require this key.
 
-## Key Redaction in Raft Snapshots
+## Key redaction in Raft scenario snapshots
 
 The default AEAD `keyring` configuration stores the KEK in Raft. Raft snapshots
 contain the cleartext KEK. The `nomad operator snapshot save` command has a
@@ -60,7 +61,7 @@ existing snapshot.
 
 Redacting key material is not required when using an external KMS.
 
-## Legacy Keystore
+## Legacy keystore
 
 Versions of Nomad prior to 1.9.0 stored only key metadata in Raft, but the
 encryption key material was stored in a separate file in the `keystore`
