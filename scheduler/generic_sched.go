@@ -689,6 +689,7 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 					if missing.IsRescheduling() {
 						original := prevAllocation
 						prevAllocation = prevAllocation.Copy()
+						missing.SetPreviousAllocation(prevAllocation)
 						updateRescheduleTracker(alloc, prevAllocation, now)
 						swapAllocInPlan(s.plan, original, prevAllocation)
 					}
@@ -730,10 +731,10 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
 					if missing.IsRescheduling() {
-						original := prevAllocation
-						prevAllocation = prevAllocation.Copy()
-						annotateRescheduleTracker(prevAllocation, structs.LastRescheduleFailedToPlace)
-						swapAllocInPlan(s.plan, original, prevAllocation)
+						updatedPrevAllocation := prevAllocation.Copy()
+						missing.SetPreviousAllocation(prevAllocation)
+						annotateRescheduleTracker(updatedPrevAllocation, structs.LastRescheduleFailedToPlace)
+						swapAllocInPlan(s.plan, prevAllocation, updatedPrevAllocation)
 					}
 				}
 
@@ -749,12 +750,9 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 // the plan with an updated definition of that allocation. The updated
 // definition should be a deep copy.
 func swapAllocInPlan(plan *structs.Plan, original, updated *structs.Allocation) {
-	for _, stoppingAlloc := range plan.NodeUpdate[original.NodeID] {
+	for i, stoppingAlloc := range plan.NodeUpdate[original.NodeID] {
 		if stoppingAlloc.ID == original.ID {
-			// earlier callers may not have marked the alloc for stopping, so
-			// ensure that's done here
-			plan.PopUpdate(original)
-			plan.AppendStoppedAlloc(updated, "", "", "")
+			plan.NodeUpdate[original.NodeID][i] = updated
 			return
 		}
 	}
@@ -764,8 +762,6 @@ func swapAllocInPlan(plan *structs.Plan, original, updated *structs.Allocation) 
 			return
 		}
 	}
-
-	plan.AppendAlloc(updated, nil)
 }
 
 // setJob updates the stack with the given job and job's node pool scheduler

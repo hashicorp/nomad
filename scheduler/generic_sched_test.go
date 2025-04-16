@@ -4718,8 +4718,7 @@ func TestServiceSched_BlockedReschedule(t *testing.T) {
 				must.Sprint("replacement alloc should have reschedule tracker"))
 			must.Len(t, 1, alloc.RescheduleTracker.Events)
 			replacementAllocID = alloc.ID
-		} else {
-			must.Eq(t, structs.AllocDesiredStatusStop, alloc.DesiredStatus)
+			break
 		}
 	}
 
