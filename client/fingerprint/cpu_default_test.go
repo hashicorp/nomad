@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-//go:build !darwin || !arm64 || !cgo
+//go:build !darwin && !arm64 && !cgo
 
 package fingerprint
 
