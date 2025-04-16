@@ -234,7 +234,7 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 	testCases := []struct {
 		name            string
 		priority        string
-		expectedErr     string
+		expectedErr     bool
 		additionalFlags []string
 		payload         map[string]string
 	}{
@@ -242,8 +242,13 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 			name: "no priority",
 		},
 		{
-			name:     "only priority",
+			name:     "valid priority",
 			priority: "80",
+		},
+		{
+			name:        "invalid priority",
+			priority:    "-1",
+			expectedErr: true,
 		},
 		{
 			name:            "priority + flag",
@@ -274,8 +279,14 @@ func TestJobDispatchCommand_Priority(t *testing.T) {
 
 			// Run command.
 			code := cmd.Run(args)
-			if tc.expectedErr == "" {
+			if !tc.expectedErr {
 				must.Zero(t, code)
+			} else {
+				// Confirm expected error case
+				must.NonZero(t, code)
+				out := ui.ErrorWriter.String()
+				must.StrContains(t, out, "dispatch job priority must be between [1, 100]")
+				return
 			}
 
 			// Confirm successful dispatch and parse job ID
