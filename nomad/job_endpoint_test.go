@@ -6665,7 +6665,8 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	reqInputDataTooLarge := &structs.JobDispatchRequest{
 		Payload: make([]byte, DispatchPayloadSizeLimit+100),
 	}
-
+	reqNoInputValidPriority := &structs.JobDispatchRequest{Priority: 55}
+	reqNoInputInvalidPriority := &structs.JobDispatchRequest{Priority: -1}
 	type existingIdempotentChildJob struct {
 		isTerminal bool
 	}
@@ -6801,6 +6802,17 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			},
 			noEval: true,
 		},
+		{
+			name:             "valid priority",
+			parameterizedJob: d1,
+			dispatchReq:      reqNoInputValidPriority,
+			err:              false,
+		},
+		{name: "invalid priority",
+			parameterizedJob: d1,
+			dispatchReq:      reqNoInputInvalidPriority,
+			err:              true,
+		},
 	}
 
 	for _, tc := range cases {
@@ -6861,7 +6873,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			if dispatchErr == nil {
 				if tc.err {
-					t.Fatalf("Expected error: %v", dispatchErr)
+					t.Fatalf("Expected error: %v, got: %+v", dispatchErr, dispatchResp)
 				}
 
 				// Check that we got an eval and job id back

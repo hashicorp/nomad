@@ -2034,6 +2034,11 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	if parameterizedJob.Stop {
 		return fmt.Errorf("Specified job %q is stopped", args.JobID)
 	}
+	// Set priority to match parent job if unset
+	if args.Priority == 0 {
+		args.Priority = parameterizedJob.Priority
+	}
+
 	// Validate the arguments and parameterized job
 	agentConfig := j.srv.config
 	if err := validateDispatchRequest(args, parameterizedJob, agentConfig); err != nil {
@@ -2088,7 +2093,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.StatusDescription = ""
 	dispatchJob.DispatchIdempotencyToken = args.IdempotencyToken
 
-	// Pass Priority argument if set
+	// Pass Priority argument if set, set with parent value if not
 	if args.Priority != 0 {
 		dispatchJob.Priority = args.Priority
 	}
@@ -2220,9 +2225,9 @@ func validateDispatchRequest(req *structs.JobDispatchRequest, job *structs.Job, 
 		return fmt.Errorf("Dispatch did not provide required meta keys: %v", flat)
 	}
 
-	// Confirm that Priority is appropriately set on the parameterized job
-	if job.Priority < structs.JobMinPriority || job.Priority > config.JobMaxPriority {
-		return fmt.Errorf("job priority must be between [%d, %d]", structs.JobMinPriority, config.JobMaxPriority)
+	// Confirm that Priority is appropriately set on the JobDispatchRequest
+	if req.Priority < structs.JobMinPriority || req.Priority > config.JobMaxPriority {
+		return fmt.Errorf("dispatch job priority must be between [%d, %d]", structs.JobMinPriority, config.JobMaxPriority)
 	}
 
 	return nil
