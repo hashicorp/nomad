@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/scheduler"
@@ -606,7 +607,11 @@ func formatFieldDiff(diff *api.FieldDiff, startPrefix, keyPrefix, valuePrefix in
 	case "Deleted":
 		out += fmt.Sprintf("%q", diff.Old)
 	case "Edited":
-		out += fmt.Sprintf("%q => %q", diff.Old, diff.New)
+		if diff.Name == "EmbeddedTmpl" {
+			out += cmp.Diff(diff.Old, diff.New)
+		} else {
+			out += fmt.Sprintf("%q => %q", diff.Old, diff.New)
+		}
 	default:
 		out += fmt.Sprintf("%q", diff.New)
 	}
