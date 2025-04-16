@@ -78,6 +78,10 @@ dispatching parameterized jobs.
 
 - `-ui`: Open the dispatched job in the browser.
 
+- `-priority`: Optional integer between 50-100 that overrides any
+priority value set on the parent job, for the dispatched job only.
+For general usage information on the priority flag see [job-specification/job#job-parameters].
+
 ## Examples
 
 Dispatch against a parameterized job with the ID "video-encode" and
