@@ -1055,10 +1055,8 @@ func (a *ACL) GetTokens(args *structs.ACLTokenSetRequest, reply *structs.ACLToke
 
 // ResolveToken is used to lookup a specific token by a secret ID.
 //
-// Deprecated: Prior to Nomad 1.5 this RPC was used by clients for
-// authenticating local RPCs. Since Nomad 1.5 added workload identity support,
-// clients now use the more flexible ACL.WhoAmI RPC. The /v1/acl/token/self API
-// is the only remaining caller and should be switched to ACL.WhoAmI.
+// Deprecated: This RPC has been deprecated since Nomad 1.5 and is only kept for
+// compatibility purposes.
 func (a *ACL) ResolveToken(args *structs.ResolveACLTokenRequest, reply *structs.ResolveACLTokenResponse) error {
 	if !a.srv.config.ACLEnabled {
 		return aclDisabled
@@ -2190,6 +2188,9 @@ func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIRespo
 		}
 	}
 
+	// Setup the query meta
+	a.srv.setQueryMeta(&reply.QueryMeta)
+
 	reply.Identity = args.GetIdentity()
 
 	// COMPAT: originally these were time.Time objects but switching to go-jose
@@ -2199,6 +2200,10 @@ func (a *ACL) WhoAmI(args *structs.GenericRequest, reply *structs.ACLWhoAmIRespo
 		reply.Identity.Claims.Expiry = nil
 		reply.Identity.Claims.IssuedAt = nil
 		reply.Identity.Claims.NotBefore = nil
+	}
+
+	if reply.Identity.ACLToken != nil {
+		reply.Index = reply.Identity.ACLToken.ModifyIndex
 	}
 
 	return nil
