@@ -11,7 +11,7 @@ jobs:
   backport:
     if: github.event.pull_request.merged
     runs-on: ubuntu-22.04
-    container: hashicorpdev/backport-assistant:0.5.6
+    container: hashicorpdev/backport-assistant:v0.5.6
     steps:
       - name: Backport changes to stable-website
         run: |
