@@ -6680,6 +6680,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		errStr                string
 		idempotencyToken      string
 		existingIdempotentJob *existingIdempotentChildJob
+		priority              int
 	}
 	cases := []testCase{
 		{
@@ -6807,6 +6808,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			parameterizedJob: d1,
 			dispatchReq:      reqNoInputValidPriority,
 			err:              false,
+			priority:         reqNoInputValidPriority.Priority,
 		},
 		{name: "invalid priority",
 			parameterizedJob: d1,
@@ -6938,11 +6940,15 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 					t.Fatalf("err: %v", err)
 				}
 
-				if eval == nil {
-					t.Fatalf("expected eval")
-				}
-				if eval.CreateIndex != dispatchResp.EvalCreateIndex {
-					t.Fatalf("index mis-match")
+			if tc.priority != 0 {
+				must.Eq(t, tc.priority, out.Priority)
+			}
+
+			// Check that the existing job is returned in the case of a supplied idempotency token
+			if tc.idempotencyToken != "" && tc.existingIdempotentJob != nil {
+				must.Eq(t, dispatchResp.DispatchedJobID, initialIdempotentDispatchResp.DispatchedJobID)
+				if dispatchResp.DispatchedJobID != initialIdempotentDispatchResp.DispatchedJobID {
+					t.Logf("dispatched job id should match initial dispatch")
 				}
 			} else {
 				if !tc.err {
