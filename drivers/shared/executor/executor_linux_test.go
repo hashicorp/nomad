@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -37,7 +38,11 @@ import (
 )
 
 func init() {
-	executorFactories["LibcontainerExecutor"] = libcontainerFactory
+	// There are no busybox arm64 images to download. These tests will need to
+	// be reworked, or a custom build performed.
+	if runtime.GOARCH == "amd64" {
+		executorFactories["LibcontainerExecutor"] = libcontainerFactory
+	}
 }
 
 var libcontainerFactory = executorFactory{

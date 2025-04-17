@@ -46,7 +46,7 @@ func TestDockerDriver_User(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), fmt.Sprintf("busybox_linux_%s.tar", runtime.GOARCH))
 
 	_, _, err := d.StartTask(task)
 	if err == nil {
@@ -91,7 +91,7 @@ func TestDockerDriver_NetworkAliases_Bridge(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), fmt.Sprintf("busybox_linux_%s.tar", runtime.GOARCH))
 
 	_, _, err = d.StartTask(task)
 	must.NoError(t, err)
@@ -127,7 +127,7 @@ func TestDockerDriver_NetworkMode_Host(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), fmt.Sprintf("busybox_linux_%s.tar", runtime.GOARCH))
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
@@ -258,7 +258,7 @@ func TestDockerDriver_Sysctl_Ulimit_Errors(t *testing.T) {
 		d := dockerDriverHarness(t, nil)
 		cleanup := d.MkAllocDir(task, true)
 		t.Cleanup(cleanup)
-		copyImage(t, task.TaskDir(), "busybox.tar")
+		copyImage(t, task.TaskDir(), fmt.Sprintf("busybox_linux_%s.tar", runtime.GOARCH))
 
 		_, _, err := d.StartTask(task)
 		must.ErrorContains(t, err, tc.err.Error())
@@ -743,11 +743,20 @@ func TestDockerDriver_Start_Image_HTTPS(t *testing.T) {
 }
 
 func newTaskConfig(variant string, command []string) TaskConfig {
-	// busyboxImageID is the ID stored in busybox.tar
-	busyboxImageID := "busybox:1.29.3"
+
+	var busyboxImageID, loadImage string
+
+	switch runtime.GOARCH {
+	case "arm64":
+		busyboxImageID = "busybox:1.37.0"
+		loadImage = "busybox_linux_arm64.tar"
+	default:
+		busyboxImageID = "busybox:1.29.3"
+		loadImage = "busybox_linux_amd64.tar"
+	}
 
 	image := busyboxImageID
-	loadImage := "busybox.tar"
+
 	if variant != "" {
 		image = fmt.Sprintf("%s-%s", busyboxImageID, variant)
 		loadImage = fmt.Sprintf("busybox_%s.tar", variant)
@@ -807,7 +816,7 @@ func TestDocker_ExecTaskStreaming(t *testing.T) {
 	harness := dockerDriverHarness(t, nil)
 	cleanup := harness.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), fmt.Sprintf("busybox_linux_%s.tar", runtime.GOARCH))
 
 	_, _, err := harness.StartTask(task)
 	must.NoError(t, err)

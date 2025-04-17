@@ -160,7 +160,7 @@ func dockerSetup(t *testing.T, task *drivers.TaskConfig, driverCfg map[string]in
 	driver := dockerDriverHarness(t, driverCfg)
 	cleanup := driver.MkAllocDir(task, loggingIsEnabled(&DriverConfig{}, task))
 
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), fmt.Sprintf("busybox_linux_%s.tar", runtime.GOARCH))
 	_, _, err := driver.StartTask(task)
 	must.NoError(t, err)
 
@@ -270,7 +270,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
@@ -304,7 +304,7 @@ func TestDockerDriver_Start_WaitFinish(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
@@ -345,7 +345,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	client := newTestDockerClient(t)
 
@@ -410,7 +410,7 @@ func TestDockerDriver_ContainerAlreadyExists(t *testing.T) {
 	driver := dockerDriverHarness(t, nil)
 	cleanup := driver.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), cfg.LoadImage)
 
 	d, ok := driver.Impl().(*Driver)
 	must.True(t, ok)
@@ -460,7 +460,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
@@ -585,7 +585,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
@@ -633,7 +633,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
@@ -684,7 +684,7 @@ func TestDockerDriver_Start_KillTimeout(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
@@ -720,7 +720,7 @@ func TestDockerDriver_StartN(t *testing.T) {
 	}
 	testutil.DockerCompatible(t)
 
-	task1, _, _ := dockerTask(t)
+	task1, taskCfg, _ := dockerTask(t)
 	task2, _, _ := dockerTask(t)
 	task3, _, _ := dockerTask(t)
 
@@ -733,7 +733,7 @@ func TestDockerDriver_StartN(t *testing.T) {
 	for _, task := range taskList {
 		cleanup := d.MkAllocDir(task, true)
 		defer cleanup()
-		copyImage(t, task.TaskDir(), "busybox.tar")
+		copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 		_, _, err := d.StartTask(task)
 		must.NoError(t, err)
 
@@ -763,8 +763,8 @@ func TestDockerDriver_StartN(t *testing.T) {
 
 func TestDockerDriver_StartNVersions(t *testing.T) {
 	ci.Parallel(t)
-	if runtime.GOOS == "windows" {
-		t.Skip("Skipped on windows, we don't have image variants available")
+	if runtime.GOOS == "windows" || runtime.GOARCH == "arm64" {
+		t.Skip("Skipped on windows or arm64, we don't have image variants available")
 	}
 	testutil.DockerCompatible(t)
 
@@ -798,7 +798,7 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 	for _, task := range taskList {
 		cleanup := d.MkAllocDir(task, true)
 		defer cleanup()
-		copyImage(t, task.TaskDir(), "busybox.tar")
+		copyImage(t, task.TaskDir(), "busybox_linux_amd64.tar")
 		copyImage(t, task.TaskDir(), "busybox_musl.tar")
 		copyImage(t, task.TaskDir(), "busybox_glibc.tar")
 		_, _, err := d.StartTask(task)
@@ -997,7 +997,6 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 
 	cfg.LoadImage = ""
 	cfg.Image = "library/busybox@sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64"
-	localDigest := "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7"
 	cfg.ForcePull = true
 	cfg.Command = busyboxLongRunningCmd[0]
 	cfg.Args = busyboxLongRunningCmd[1:]
@@ -1009,7 +1008,15 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 
 	container, err := client.ContainerInspect(context.Background(), handle.containerID)
 	must.NoError(t, err)
-	must.Eq(t, localDigest, container.Image)
+
+	switch runtime.GOARCH {
+	case "amd64":
+		must.Eq(t, "sha256:8ac48589692a53a9b8c2d1ceaa6b402665aa7fe667ba51ccc03002300856d8c7", container.Image)
+	case "arm64":
+		must.Eq(t, "sha256:ba3a78826904c625e65a2eed1f247bbab59898f043490e7113e88907bf7c6b3b", container.Image)
+	default:
+		t.Fatalf("unsupported test architecture: %s", runtime.GOARCH)
+	}
 }
 
 func TestDockerDriver_SecurityOptUnconfined(t *testing.T) {
@@ -1599,7 +1606,7 @@ func TestDockerDriver_Capabilities(t *testing.T) {
 
 			cleanup := d.MkAllocDir(task, true)
 			defer cleanup()
-			copyImage(t, task.TaskDir(), "busybox.tar")
+			copyImage(t, task.TaskDir(), cfg.LoadImage)
 
 			_, _, err := d.StartTask(task)
 			defer d.DestroyTask(task.ID, true)
@@ -2029,7 +2036,7 @@ func TestDockerDriver_EnableImageGC(t *testing.T) {
 
 	cleanSlate(client, cfg.Image)
 
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), cfg.LoadImage)
 	_, _, err := driver.StartTask(task)
 	must.NoError(t, err)
 
@@ -2097,7 +2104,7 @@ func TestDockerDriver_DisableImageGC(t *testing.T) {
 
 	cleanSlate(client, cfg.Image)
 
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), cfg.LoadImage)
 	_, _, err := driver.StartTask(task)
 	must.NoError(t, err)
 
@@ -2162,7 +2169,7 @@ func TestDockerDriver_MissingContainer_Cleanup(t *testing.T) {
 
 	cleanSlate(client, cfg.Image)
 
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), cfg.LoadImage)
 	_, _, err := driver.StartTask(task)
 	must.NoError(t, err)
 
@@ -2282,7 +2289,7 @@ func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath strin
 	d := dockerDriverHarness(t, cfg)
 	cleanup := d.MkAllocDir(task, true)
 
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	return task, d, &taskCfg, hostfile, cleanup
 }
@@ -2449,7 +2456,7 @@ func TestDockerDriver_Mounts(t *testing.T) {
 			cleanup := d.MkAllocDir(task, true)
 			defer cleanup()
 
-			copyImage(t, task.TaskDir(), "busybox.tar")
+			copyImage(t, task.TaskDir(), cfg.LoadImage)
 
 			_, _, err := d.StartTask(task)
 			defer d.DestroyTask(task.ID, true)
@@ -2593,7 +2600,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 	d := dockerDriverHarness(t, nil)
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
@@ -2647,7 +2654,7 @@ func TestDockerDriver_Devices_IsInvalidConfig(t *testing.T) {
 		must.NoError(t, task.EncodeConcreteDriverConfig(cfg))
 		d := dockerDriverHarness(t, nil)
 		cleanup := d.MkAllocDir(task, true)
-		copyImage(t, task.TaskDir(), "busybox.tar")
+		copyImage(t, task.TaskDir(), cfg.LoadImage)
 		defer cleanup()
 
 		_, _, err := d.StartTask(task)
@@ -2823,7 +2830,7 @@ func TestDockerDriver_AdvertiseIPv6Address(t *testing.T) {
 
 	driver := dockerDriverHarness(t, nil)
 	cleanup := driver.MkAllocDir(task, true)
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), cfg.LoadImage)
 	defer cleanup()
 
 	_, network, err := driver.StartTask(task)
@@ -2902,7 +2909,7 @@ func TestDockerDriver_CreationIdempotent(t *testing.T) {
 	cleanup := driver.MkAllocDir(task, true)
 	defer cleanup()
 
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), cfg.LoadImage)
 
 	d, ok := driver.Impl().(*Driver)
 	must.True(t, ok)
@@ -3085,8 +3092,8 @@ func TestDockerDriver_parseSignal(t *testing.T) {
 func TestDockerDriver_StopSignal(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
-	if runtime.GOOS == "windows" {
-		t.Skip("Skipped on windows, we don't have image variants available")
+	if runtime.GOOS == "windows" || runtime.GOARCH == "arm64" {
+		t.Skip("Skipped on windows or arm64, we don't have image variants available")
 	}
 
 	cases := []struct {
@@ -3141,7 +3148,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 			if c.variant == "stopsignal" {
 				copyImage(t, task.TaskDir(), "busybox_stopsignal.tar") // Default busybox image with STOPSIGNAL 19 added
 			} else {
-				copyImage(t, task.TaskDir(), "busybox.tar")
+				copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 			}
 
 			client := newTestDockerClient(t)
@@ -3232,7 +3239,7 @@ func TestDockerDriver_CollectStats(t *testing.T) {
 
 	cleanup := d.MkAllocDir(task, true)
 	defer cleanup()
-	copyImage(t, task.TaskDir(), "busybox.tar")
+	copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 	_, _, err := d.StartTask(task)
 	must.NoError(t, err)
