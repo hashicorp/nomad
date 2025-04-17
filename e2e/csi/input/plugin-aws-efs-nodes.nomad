@@ -22,7 +22,7 @@ job "plugin-aws-efs-nodes" {
       driver = "docker"
 
       config {
-        image = "amazon/aws-efs-csi-driver:v1.3.6"
+        image = "public.ecr.aws/efs-csi-driver/amazon/aws-efs-csi-driver:v1.3.6"
         args = [
           "node",
           "--endpoint=${CSI_ENDPOINT}",

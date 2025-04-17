@@ -242,8 +242,9 @@ job "linux" {
       }
       driver = "docker"
       config {
-        image = "bash:5"
-        args  = ["-c", "cat local/go.mod && sleep 10"]
+        image   = "busybox:1"
+        command = "/bin/sh"
+        args    = ["-c", "cat local/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -259,8 +260,9 @@ job "linux" {
       }
       driver = "docker"
       config {
-        image = "bash:5"
-        args  = ["-c", "cat local/my/path/go.mod && sleep 10"]
+        image   = "busybox:1"
+        command = "/bin/sh"
+        args    = ["-c", "cat local/my/path/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -277,8 +279,9 @@ job "linux" {
       }
       driver = "docker"
       config {
-        image = "bash:5"
-        args  = ["-c", "cat ${NOMAD_ALLOC_DIR}/go.mod && sleep 10"]
+        image   = "busybox:1"
+        command = "/bin/sh"
+        args    = ["-c", "cat ${NOMAD_ALLOC_DIR}/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -293,8 +296,9 @@ job "linux" {
       }
       driver = "docker"
       config {
-        image = "bash:5"
-        args  = ["-c", "cat local/go-set-main/go.mod && sleep 10"]
+        image   = "busybox:1"
+        command = "/bin/sh"
+        args    = ["-c", "cat local/go-set-main/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -310,8 +314,9 @@ job "linux" {
       }
       driver = "docker"
       config {
-        image = "bash:5"
-        args  = ["-c", "cat local/my/zip/go-set-main/go.mod && sleep 10"]
+        image   = "busybox:1"
+        command = "/bin/sh"
+        args    = ["-c", "cat local/my/zip/go-set-main/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16
@@ -327,8 +332,9 @@ job "linux" {
       }
       driver = "docker"
       config {
-        image = "bash:5"
-        args  = ["-c", "cat local/repository/go.mod && sleep 10"]
+        image   = "busybox:1"
+        command = "/bin/sh"
+        args    = ["-c", "cat local/repository/go.mod && sleep 10"]
       }
       resources {
         cpu    = 16

@@ -16,7 +16,8 @@ job "identity" {
     task "none" {
       driver = "docker"
       config {
-        image = "bash:5"
+        image   = "busybox:1"
+        command = "/bin/sh"
 
         #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
         args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
@@ -35,7 +36,8 @@ job "identity" {
 
       driver = "docker"
       config {
-        image = "bash:5"
+        image   = "busybox:1"
+        command = "/bin/sh"
 
         #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
         args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
@@ -57,7 +59,8 @@ job "identity" {
 
       driver = "docker"
       config {
-        image = "bash:5"
+        image   = "busybox:1"
+        command = "/bin/sh"
 
         #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
         args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
@@ -78,7 +81,8 @@ job "identity" {
 
       driver = "docker"
       config {
-        image = "bash:5"
+        image   = "busybox:1"
+        command = "/bin/sh"
 
         #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
         args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
@@ -99,7 +103,8 @@ job "identity" {
 
       driver = "docker"
       config {
-        image = "bash:5"
+        image   = "busybox:1"
+        command = "/bin/sh"
 
         #HACK without the ending `sleep 2` we seem to sometimes miss logs :(
         args = ["-c", "wc -c < local/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]
@@ -121,7 +126,8 @@ job "identity" {
 
       driver = "docker"
       config {
-        image = "bash:5"
+        image   = "busybox:1"
+        command = "/bin/sh"
 
         #HACK(schmichael) without the ending `sleep 2` we seem to sometimes miss logs :(
         args = ["-c", "wc -c < secrets/nomad_token; env | grep NOMAD_TOKEN; echo done; sleep 2"]

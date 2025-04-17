@@ -81,6 +81,13 @@ echo "Installing third-party tools"
 # Docker
 echo "Installing Docker CE"
 sudo apt-get install -y docker-ce docker-ce-cli
+sudo mkdir -p /etc/docker
+cat <<EOF > /tmp/daemon.json
+{
+  "registry-mirrors": ["https://docker.mirror.hashicorp.services"]
+}
+EOF
+sudo mv /tmp/daemon.json /etc/docker/daemon.json
 
 # Java
 echo "Installing Java"

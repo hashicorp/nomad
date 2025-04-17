@@ -21,7 +21,7 @@ job "redis" {
       driver = "docker"
 
       config {
-        image          = "docker.io/library/redis:7"
+        image          = "redis:7"
         ports          = ["db"]
         auth_soft_fail = true
       }
