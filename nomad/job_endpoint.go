@@ -2034,6 +2034,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	if parameterizedJob.Stop {
 		return fmt.Errorf("Specified job %q is stopped", args.JobID)
 	}
+
 	// Set priority to match parent job if unset
 	if args.Priority == 0 {
 		args.Priority = parameterizedJob.Priority
@@ -2092,11 +2093,7 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 	dispatchJob.Status = ""
 	dispatchJob.StatusDescription = ""
 	dispatchJob.DispatchIdempotencyToken = args.IdempotencyToken
-
-	// Pass Priority argument if set, set with parent value if not
-	if args.Priority != 0 {
-		dispatchJob.Priority = args.Priority
-	}
+	dispatchJob.Priority = args.Priority
 
 	// Merge in the meta data
 	for k, v := range args.Meta {
