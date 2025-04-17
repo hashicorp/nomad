@@ -1,11 +1,12 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-//go:build !darwin && !arm64 && !cgo
+//go:build !darwin
 
 package fingerprint
 
 import (
+	"runtime"
 	"strconv"
 	"testing"
 
@@ -38,11 +39,16 @@ func TestCPUFingerprint_Classic(t *testing.T) {
 	attributes := response.Attributes
 	must.NotNil(t, attributes)
 	must.MapContainsKey(t, attributes, "cpu.numcores")
-	must.MapContainsKey(t, attributes, "cpu.modelname")
 	must.MapContainsKey(t, attributes, "cpu.totalcompute")
 	must.Positive(t, response.NodeResources.Processors.Topology.UsableCompute())
 	must.Positive(t, response.NodeResources.Processors.Topology.NumCores())
 	must.NotEmpty(t, response.NodeResources.Processors.Topology.UsableCores())
+
+	// The library we use does not populate arm64 CPU model names and I don't
+	// believe this is easily possible anyway.
+	if runtime.GOARCH == "amd64" {
+		must.MapContainsKey(t, attributes, "cpu.modelname")
+	}
 
 	_, frequencyPresent := attributes["cpu.frequency"]
 	_, performancePresent := attributes["cpu.frequency.performance"]
