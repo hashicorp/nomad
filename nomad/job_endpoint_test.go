@@ -6814,6 +6814,7 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			parameterizedJob: d1,
 			dispatchReq:      reqNoInputInvalidPriority,
 			err:              true,
+			errStr:           "priority must be between",
 		},
 	}
 
