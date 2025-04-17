@@ -49,13 +49,27 @@ env:
 jobs:
   checks:
     uses: ./.github/workflows/checks.yaml
+
+  # Compile on Windows amd64, macOS arm64, Linux amd64, and Linux arm64.
+  #
+  # GitHub hosted Linux arm64 runners are in preview and not available to
+  # private repositories, so we must use our self-hosted runners. This also has
+  # added security benefits.
+  #
+  # The runs-on conditional cannot be placed into the matrix.os array as GitHub
+  # breaks apart any nested array within it. It subsequently uses the elements
+  # as individual runners to call runs-on.
   compile:
     needs: [checks]
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14, windows-2019]
-    runs-on: ${{matrix.os}}
+        os:
+          - ubuntu-22.04
+          - ubuntu-22.04-arm
+          - macos-14
+          - windows-2019
+    runs-on: ${{ (endsWith(github.repository, '-enterprise')) && (matrix.os == 'ubuntu-22.04-arm') && fromJSON('["self-hosted", "ubuntu-22.04-arm64"]') || matrix.os }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -68,6 +82,7 @@ jobs:
         run: |
           make bootstrap
           make dev
+
   tests-api:
     needs: [checks]
     runs-on: custom-linux-xl-nomad-22.04
