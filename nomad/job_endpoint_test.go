@@ -6857,9 +6857,8 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			// Fetch the response
 			var regResp structs.JobRegisterResponse
-			if err := msgpackrpc.CallWithCodec(codec, "Job.Register", regReq, &regResp); err != nil {
-				t.Fatalf("err: %v", err)
-			}
+			err := msgpackrpc.CallWithCodec(codec, "Job.Register", regReq, &regResp)
+			must.NoError(t, err)
 
 			// Now try to dispatch
 			tc.dispatchReq.JobID = tc.parameterizedJob.ID
@@ -6872,101 +6871,55 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			// Dispatch with the same request so a child job w/ the idempotency key exists
 			var initialIdempotentDispatchResp structs.JobDispatchResponse
 			if tc.existingIdempotentJob != nil {
-				if err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &initialIdempotentDispatchResp); err != nil {
-					t.Fatalf("Unexpected error dispatching initial idempotent job: %v", err)
-				}
+				err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &initialIdempotentDispatchResp)
+				must.NoError(t, err)
 
 				if tc.existingIdempotentJob.isTerminal {
 					eval, err := s1.State().EvalByID(nil, initialIdempotentDispatchResp.EvalID)
-					if err != nil {
-						t.Fatalf("Unexpected error fetching eval %v", err)
-					}
+					must.NoError(t, err)
+
 					eval = eval.Copy()
 					eval.Status = structs.EvalStatusComplete
 					err = s1.State().UpsertEvals(structs.MsgTypeTestSetup, initialIdempotentDispatchResp.Index+1, []*structs.Evaluation{eval})
-					if err != nil {
-						t.Fatalf("Unexpected error completing eval %v", err)
-					}
+					must.NoError(t, err)
 				}
 			}
 
 			var dispatchResp structs.JobDispatchResponse
 			dispatchErr := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &dispatchResp)
-			if dispatchErr != nil {
-				must.True(t, tc.err)
+			if tc.expectError {
 				must.ErrorContains(t, dispatchErr, tc.errStr)
 				return
-			} else if tc.err {
-				t.Logf("Expected error: %v, got: %+v", dispatchErr, dispatchResp)
+			} else {
+				must.NoError(t, dispatchErr)
 			}
 
 			// Check that we got an eval and job id back
-			switch dispatchResp.EvalID {
-			case "":
-				must.Eq(t, tc.noEval, true)
-				t.Logf("Bad response")
-			default:
-				if tc.noEval {
-					must.Eq(t, tc.noEval, false)
-					t.Logf("Got eval %q", dispatchResp.EvalID)
-				}
+			if tc.noEval {
+				must.Eq(t, dispatchResp.EvalID, "")
+			} else {
+				must.NotEq(t, dispatchResp.EvalID, "")
 			}
-
-			if dispatchResp.DispatchedJobID == "" {
-				t.Fatalf("Bad response")
-			}
+			must.NotEq(t, dispatchResp.DispatchedJobID, "")
 
 			state := s1.fsm.State()
 			ws := memdb.NewWatchSet()
 			out, err := state.JobByID(ws, tc.parameterizedJob.Namespace, dispatchResp.DispatchedJobID)
 			must.NoError(t, err)
-			if err != nil {
-				t.Logf("err: %v", err)
-			}
-
 			must.NotNil(t, out)
-			if out == nil {
-				t.Logf("expected job, got nil")
-			}
 
+			// Check job characteristics
 			must.Eq(t, out.CreateIndex, dispatchResp.JobCreateIndex)
-			if out.CreateIndex != dispatchResp.JobCreateIndex {
-				t.Logf("index mis-match")
-			}
-
 			must.Eq(t, out.ParentID, tc.parameterizedJob.ID)
-			if out.ParentID != tc.parameterizedJob.ID {
-				t.Logf("bad parent ID")
-			}
-
 			must.Eq(t, out.Dispatched, true)
-			if !out.Dispatched {
-				t.Logf("expected dispatched job")
-			}
-
 			must.Eq(t, out.IsParameterized(), false)
-			if out.IsParameterized() {
-				t.Logf("dispatched job should not be parameterized")
-			}
 			must.NotNil(t, out.ParameterizedJob)
-			if out.ParameterizedJob == nil {
-				t.Logf("parameter job config should exist")
-			}
-
-			if tc.priority != 0 {
-				must.Eq(t, tc.priority, out.Priority)
-			}
+			must.Eq(t, tc.expectedPriority, out.Priority)
 
 			// Check that the existing job is returned in the case of a supplied idempotency token
 			if tc.idempotencyToken != "" && tc.existingIdempotentJob != nil {
 				must.Eq(t, dispatchResp.DispatchedJobID, initialIdempotentDispatchResp.DispatchedJobID)
-				if dispatchResp.DispatchedJobID != initialIdempotentDispatchResp.DispatchedJobID {
-					t.Logf("dispatched job id should match initial dispatch")
-				}
 				must.Eq(t, dispatchResp.JobCreateIndex, initialIdempotentDispatchResp.JobCreateIndex)
-				if dispatchResp.JobCreateIndex != initialIdempotentDispatchResp.JobCreateIndex {
-					t.Logf("dispatched job create index should match initial dispatch")
-				}
 			}
 
 			if tc.noEval {
@@ -6976,19 +6929,8 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			// Lookup the evaluation
 			eval, err := state.EvalByID(ws, dispatchResp.EvalID)
 			must.NoError(t, err)
-			if err != nil {
-				t.Logf("err: %v", err)
-			}
-
 			must.NotNil(t, eval)
-			if eval == nil {
-				t.Logf("expected eval")
-			}
-
 			must.Eq(t, eval.CreateIndex, dispatchResp.EvalCreateIndex)
-			if eval.CreateIndex != dispatchResp.EvalCreateIndex {
-				t.Logf("index mis-match")
-			}
 		})
 	}
 }
