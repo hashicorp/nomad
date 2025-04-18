@@ -1965,9 +1965,6 @@ func TestHTTP_JobDispatch(t *testing.T) {
 		}
 		var resp structs.JobRegisterResponse
 		err := s.Agent.RPC("Job.Register", &args, &resp)
-		if err != nil {
-			t.Logf("err: %v", err)
-		}
 		must.NoError(t, err)
 
 		// Make the request
@@ -1984,26 +1981,15 @@ func TestHTTP_JobDispatch(t *testing.T) {
 		// Make the HTTP request
 		req2, err := http.NewRequest(http.MethodPut, "/v1/job/"+job.ID+"/dispatch", buf)
 		must.NoError(t, err)
-		if err != nil {
-			t.Logf("err: %v", err)
-		}
 		respW.Flush()
 
 		// Make the request
 		obj, err := s.Server.JobSpecificRequest(respW, req2)
-		if err != nil {
-			t.Logf("err: %v", err)
-		}
+		must.NoError(t, err)
 
 		// Check the response
 		dispatch := obj.(structs.JobDispatchResponse)
-		if dispatch.EvalID == "" {
-			t.Logf("bad: %v", dispatch)
-		}
 		must.NotEq(t, dispatch.EvalID, "")
-		if dispatch.DispatchedJobID == "" {
-			t.Logf("bad: %v", dispatch)
-		}
 		must.NotEq(t, dispatch.DispatchedJobID, "")
 	})
 }
@@ -2011,35 +1997,37 @@ func TestHTTP_JobDispatch(t *testing.T) {
 func TestHTTP_JobDispatchPriority(t *testing.T) {
 	ci.Parallel(t)
 	testCases := []struct {
-		name        string
-		priority    int
-		expectedErr bool
-		setPriority bool
-	}{{
-		name: "no priority",
-	},
-		{name: "set invalid priority",
+		name           string
+		priority       int
+		expectedErr    bool
+		expectPriority bool
+	}{
+		{
+			name: "no priority",
+		},
+		{
+			name:        "set invalid priority",
 			priority:    103,
 			expectedErr: true,
 		},
-		{name: "set valid priority",
-			priority:    100,
-			setPriority: true,
+		{
+			name:           "set valid priority",
+			priority:       100,
+			expectPriority: true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			httpTest(t, nil, func(s *TestAgent) {
-				defaultPriority := 80
+
 				// Create the parameterized job
 				job := mock.BatchJob()
 				job.ParameterizedJob = &structs.ParameterizedJobConfig{}
-
+				// Set priority on parent job
+				defaultPriority := 80
 				job.Priority = defaultPriority
-				if tc.priority != 0 {
-					job.Priority = tc.priority
-				}
+
 				args := structs.JobRegisterRequest{
 					Job: job,
 					WriteRequest: structs.WriteRequest{
@@ -2047,15 +2035,10 @@ func TestHTTP_JobDispatchPriority(t *testing.T) {
 						Namespace: structs.DefaultNamespace,
 					},
 				}
+
 				var resp structs.JobRegisterResponse
 				err := s.Agent.RPC("Job.Register", &args, &resp)
-				if !tc.expectedErr {
-					must.NoError(t, err)
-				} else {
-					must.Error(t, err)
-					must.StrContains(t, err.Error(), "job priority must be between")
-					return
-				}
+				must.NoError(t, err)
 
 				// Make the request
 				respW := httptest.NewRecorder()
@@ -2065,63 +2048,50 @@ func TestHTTP_JobDispatchPriority(t *testing.T) {
 						Namespace:        structs.DefaultNamespace,
 						IdempotencyToken: "foo",
 					},
+					Priority: tc.priority,
 				}
 				buf := encodeReq(args2)
 
 				// Make the HTTP request
 				req2, err := http.NewRequest(http.MethodPut, "/v1/job/"+job.ID+"/dispatch", buf)
-				if err != nil {
-					t.Logf("err: %v", err)
-				}
 				must.NoError(t, err)
 				respW.Flush()
 
 				// Make the request
 				obj, err := s.Server.JobSpecificRequest(respW, req2)
-				if err != nil {
-					t.Logf("err: %v", err)
+				if tc.expectedErr {
+					must.ErrorContains(t, err, "job priority must be between")
+				} else {
+					must.NoError(t, err)
 				}
-				must.NoError(t, err)
 
 				// Check the response
 				dispatch := obj.(structs.JobDispatchResponse)
-				if dispatch.EvalID == "" {
-					t.Logf("bad: %v", dispatch)
-				}
 				must.NotEq(t, dispatch.EvalID, "")
-
-				if dispatch.DispatchedJobID == "" {
-					t.Logf("bad: %v", dispatch)
-				}
 				must.NotEq(t, dispatch.DispatchedJobID, "")
+				must.NotEq(t, job.ID, dispatch.DispatchedJobID)
 
-				//Check job Priority
+				//Check job priority
+
 				// Make the HTTP request
 				bufInfo := encodeReq(structs.Job{ParentID: job.ID})
-				reqInfo, err := http.NewRequest(http.MethodGet, "/v1/job/"+job.ID, bufInfo)
-				if err != nil {
-					t.Logf("err: %v", err)
-				}
+				reqInfo, err := http.NewRequest(http.MethodGet, "/v1/job/"+dispatch.DispatchedJobID, bufInfo)
 				must.NoError(t, err)
+
 				// Make the request
 				respInfo := httptest.NewRecorder()
 				objInfo, err := s.Server.JobSpecificRequest(respInfo, reqInfo)
-				if err != nil {
-					t.Logf("err: %v", err)
-				}
 				must.NoError(t, err)
 				respInfo.Flush()
 
 				// Check the response
 				dispatchJob := objInfo.(*structs.Job)
-				if tc.setPriority {
+				if tc.expectPriority {
 					must.Eq(t, tc.priority, dispatchJob.Priority)
-					t.Logf("bad: %v", dispatchJob)
+					must.NotEq(t, defaultPriority, dispatchJob.Priority)
 				} else {
 					must.Eq(t, defaultPriority, dispatchJob.Priority)
 				}
-				must.NotEq(t, dispatch.EvalID, "")
-
 			})
 		})
 	}
