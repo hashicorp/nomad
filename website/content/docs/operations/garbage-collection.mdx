@@ -150,11 +150,37 @@ CLI
 
 ## Client-side garbage collection
 
+On each client node, Nomad must clean up resources from terminated allocations
+to free disk and memory on the machine.
+
+### Configuration
+
+These settings govern allocation garbage collection behavior on each client node.
+
+| Parameter | Default | Description  |
+| -------- | ------- | ------------- |
+| [`gc_interval`](/nomad/docs/configuration/client#gc_interval)  | 1m  | Interval at which Nomad attempts to garbage collect terminal allocation directories |
+| [ `gc_disk_usage_threshold` ](/nomad/docs/configuration/client#gc_disk_usage_threshold)  | 80 | Disk usage percent which Nomad tries to maintain by garbage collecting terminal allocations |
+| [ `gc_inode_usage_threshold` ](/nomad/docs/configuration/client#gc_inode_usage_threshold) | 70 | Inode usage percent which Nomad tries to maintain by garbage collecting terminal allocations |
+| [ `gc_max_allocs` ](/nomad/docs/configuration/client#gc_max_allocs) | 50 | Maximum number of allocations which a client will track before triggering a garbage collection of terminal allocations |
+| [ `gc_parallel_destroys ` ](/nomad/docs/configuration/client#gc_parallel_destroys) | 2 | Maximum number of parallel destroys allowed by the garbage collector |
+
+Refer to the [client block in agent configuration
+reference](/nomad/docs/configuration/client) for complete parameter descriptions
+and examples.
+
+Note that there is no time-based retention setting for allocations. Unlike jobs
+or evaluations, you cannot specify a time to keep allocations alive before
+garbage collection. As soon as an allocation is terminal, it becomes eligible
+for cleanup if the configured thresholds demand it.
+
+### Triggers
+
 Nomad’s client runs allocation garbage collection based on these triggers:
 
 - Periodic timer
 
-  The AllocGarbageCollector launches a ticker based on the configured
+  The garbage collector launches a ticker based on the configured
   `gc_interval`. On each tick, the garbage collector checks to see if it needs
   to remove allocations.
 
@@ -171,7 +197,7 @@ Nomad’s client runs allocation garbage collection based on these triggers:
   terminal allocations if adding new allocations would exceed the
   `gc_max_allocs` limit.
 
-- User-initiated
+- User-initiated server garbage collection
 
   When you initiate garbage collection on the server by running `nomad system
   gc`, the clients collect all eligible allocations, bypassing normal
@@ -219,27 +245,14 @@ collection. Aside from that forced scenario, the default behavior is
 threshold-driven: Nomad leaves allocations on disk until they’re needed to be
 reclaimed due to space, inode, or count limits being hit.
 
-### Configuration
+## Resources
 
-These settings govern allocation garbage collection behavior on each client node.
+- [Nomad’s internal garbage collection and optimization discovery during the
+  Nomad Bench project blog post](https://www.hashicorp.com/en/blog/nomad-garbage-collection-optimization-discovery-during-nomad-bench)
+- Configuration
 
-| Parameter | Default | Description  |
-| -------- | ------- | ------------- |
-| [`gc_interval`](/nomad/docs/configuration/client#gc_interval)  | 1m  | Interval at which Nomad attempts to garbage collect terminal allocation directories |
-| [ `gc_disk_usage_threshold` ](/nomad/docs/configuration/client#gc_disk_usage_threshold)  | 80 | Disk usage percent which Nomad tries to maintain by garbage collecting terminal allocations |
-| [ `gc_inode_usage_threshold` ](/nomad/docs/configuration/client#gc_inode_usage_threshold) | 70 | Inode usage percent which Nomad tries to maintain by garbage collecting terminal allocations |
-| [ `gc_max_allocs` ](/nomad/docs/configuration/client#gc_max_allocs) | 50 | Maximum number of allocations which a client will track before triggering a garbage collection of terminal allocations |
-| [ `gc_parallel_destroys ` ](/nomad/docs/configuration/client#gc_parallel_destroys) | 2 | Maximum number of parallel destroys allowed by the garbage collector |
+  - [client Block in Agent Configuration](/nomad/docs/configuration/client)
+  - [server Block in Agent Configuration](/nomad/docs/configuration/server)
 
-Refer to the [client block in agent configuration
-reference](/nomad/docs/configuration/client) for complete parameter descriptions
-and examples.
-
-These settings govern allocation GC behavior on each client node. Notably,
-**there is no time-based retention setting for allocations** – unlike jobs or
-evals, you cannot specify “keep allocations for X hours before GC.” As soon as
-an alloc is terminal, it becomes eligible for cleanup if the above thresholds
-demand it. This is a known design choice. The client doesn’t wait a fixed time –
-it will remove the alloc as soon as it needs to for resource reasons.)
-
-
+- [`nomad system gc` command reference](/nomad/docs/commands/system/gc)
+- [System HTTP API Force GC](/nomad/api-docs/system#force-gc)
