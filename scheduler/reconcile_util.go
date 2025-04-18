@@ -37,6 +37,9 @@ type placementResult interface {
 	// PreviousAllocation returns the previous allocation
 	PreviousAllocation() *structs.Allocation
 
+	// SetPreviousAllocation updates the reference to the previous allocation
+	SetPreviousAllocation(*structs.Allocation)
+
 	// IsRescheduling returns whether the placement was rescheduling a failed allocation
 	IsRescheduling() bool
 
@@ -80,11 +83,14 @@ func (a allocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.ta
 func (a allocPlaceResult) Name() string                            { return a.name }
 func (a allocPlaceResult) Canary() bool                            { return a.canary }
 func (a allocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
-func (a allocPlaceResult) IsRescheduling() bool                    { return a.reschedule }
-func (a allocPlaceResult) StopPreviousAlloc() (bool, string)       { return false, "" }
-func (a allocPlaceResult) DowngradeNonCanary() bool                { return a.downgradeNonCanary }
-func (a allocPlaceResult) MinJobVersion() uint64                   { return a.minJobVersion }
-func (a allocPlaceResult) PreviousLost() bool                      { return a.lost }
+func (a allocPlaceResult) SetPreviousAllocation(alloc *structs.Allocation) {
+	a.previousAlloc = alloc
+}
+func (a allocPlaceResult) IsRescheduling() bool              { return a.reschedule }
+func (a allocPlaceResult) StopPreviousAlloc() (bool, string) { return false, "" }
+func (a allocPlaceResult) DowngradeNonCanary() bool          { return a.downgradeNonCanary }
+func (a allocPlaceResult) MinJobVersion() uint64             { return a.minJobVersion }
+func (a allocPlaceResult) PreviousLost() bool                { return a.lost }
 
 // allocDestructiveResult contains the information required to do a destructive
 // update. Destructive changes should be applied atomically, as in the old alloc
@@ -96,11 +102,12 @@ type allocDestructiveResult struct {
 	stopStatusDescription string
 }
 
-func (a allocDestructiveResult) TaskGroup() *structs.TaskGroup           { return a.placeTaskGroup }
-func (a allocDestructiveResult) Name() string                            { return a.placeName }
-func (a allocDestructiveResult) Canary() bool                            { return false }
-func (a allocDestructiveResult) PreviousAllocation() *structs.Allocation { return a.stopAlloc }
-func (a allocDestructiveResult) IsRescheduling() bool                    { return false }
+func (a allocDestructiveResult) TaskGroup() *structs.TaskGroup                   { return a.placeTaskGroup }
+func (a allocDestructiveResult) Name() string                                    { return a.placeName }
+func (a allocDestructiveResult) Canary() bool                                    { return false }
+func (a allocDestructiveResult) PreviousAllocation() *structs.Allocation         { return a.stopAlloc }
+func (a allocDestructiveResult) SetPreviousAllocation(alloc *structs.Allocation) {} // NOOP
+func (a allocDestructiveResult) IsRescheduling() bool                            { return false }
 func (a allocDestructiveResult) StopPreviousAlloc() (bool, string) {
 	return true, a.stopStatusDescription
 }
