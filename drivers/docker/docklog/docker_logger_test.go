@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"runtime"
 	"testing"
 	"time"
 
@@ -26,13 +26,16 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 )
 
-func testContainerDetails() (image string, imageName string, imageTag string) {
-	image = testutil.TestBusyboxImage()
-	parts := strings.Split(image, ":")
-	imageName = parts[0]
-	imageTag = parts[1]
+func testRemoteContainerImage() string {
+	if runtime.GOOS == "windows" {
+		return "hashicorpdev/busybox-windows:server2016-0.1"
+	}
 
-	return image, imageName, imageTag
+	if testutil.IsCI() {
+		// use our mirror to avoid rate-limiting in CI
+		return "docker.mirror.hashicorp.services/busybox:1"
+	}
+	return "docker.io/busybox:1"
 }
 
 func TestDockerLogger_Success(t *testing.T) {
@@ -40,7 +43,7 @@ func TestDockerLogger_Success(t *testing.T) {
 	ctu.DockerCompatible(t)
 	ctx := context.Background()
 
-	containerImage, containerImageName, containerImageTag := testContainerDetails()
+	containerImage := testRemoteContainerImage()
 
 	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -49,7 +52,7 @@ func TestDockerLogger_Success(t *testing.T) {
 
 	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		out, err := client.ImagePull(ctx, fmt.Sprintf("%s:%s", containerImageName, containerImageTag), image.PullOptions{})
+		out, err := client.ImagePull(ctx, containerImage, image.PullOptions{})
 		must.NoError(t, err, must.Sprint("failed to pull image"))
 		defer out.Close()
 		io.Copy(os.Stdout, out)
@@ -112,7 +115,7 @@ func TestDockerLogger_Success_TTY(t *testing.T) {
 	ctu.DockerCompatible(t)
 	ctx := context.Background()
 
-	containerImage, containerImageName, containerImageTag := testContainerDetails()
+	containerImage := testRemoteContainerImage()
 
 	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -121,7 +124,7 @@ func TestDockerLogger_Success_TTY(t *testing.T) {
 
 	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		_, err = client.ImagePull(ctx, fmt.Sprintf("%s:%s", containerImageName, containerImageTag), image.PullOptions{})
+		_, err = client.ImagePull(ctx, containerImage, image.PullOptions{})
 		must.NoError(t, err, must.Sprint("failed to pull image"))
 	}
 
@@ -197,7 +200,7 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 	ctu.DockerCompatible(t)
 	ctx := context.Background()
 
-	containerImage, containerImageName, containerImageTag := testContainerDetails()
+	containerImage := testRemoteContainerImage()
 
 	client, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -206,7 +209,7 @@ func TestDockerLogger_LoggingNotSupported(t *testing.T) {
 
 	if img, _, err := client.ImageInspectWithRaw(ctx, containerImage); err != nil || img.ID == "" {
 		t.Log("image not found locally, downloading...")
-		_, err = client.ImagePull(ctx, fmt.Sprintf("%s:%s", containerImageName, containerImageTag), image.PullOptions{})
+		_, err = client.ImagePull(ctx, containerImage, image.PullOptions{})
 		require.NoError(t, err, "failed to pull image")
 	}
 

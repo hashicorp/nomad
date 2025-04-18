@@ -39,11 +39,13 @@ job "configure-docker" {
         unveil   = ["r:${NOMAD_TASK_DIR}/daemon.json", "rwc:${var.docker_conf_dir}"]
       }
 
+      # note we need to keep the existing registry-mirrors from the host configuration
       template {
         destination = "local/daemon.json"
         perms       = "644"
         data        = <<EOH
 {
+   "registry-mirrors": ["https://docker.mirror.hashicorp.services"],
    "insecure-registries": [
       "${var.registry_address}"
    ]

@@ -195,7 +195,6 @@ func TestDanglingContainerRemoval_network(t *testing.T) {
 	c, iErr := dockerClient.ContainerInspect(context.Background(), id)
 	must.NoError(t, iErr)
 	must.Eq(t, "running", c.State.Status)
-	fmt.Println("state", c.State)
 
 	// cleanup pause container
 	err = dd.DestroyNetwork(allocID, spec)

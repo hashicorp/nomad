@@ -368,7 +368,8 @@ func TestDockerCoordinator_PullImage_ProgressError(t *testing.T) {
 	readErr := errors.New("a bad bad thing happened")
 	mock.pullReader = &readErrorer{readErr: readErr}
 
-	_, _, err := coordinator.PullImage("foo", nil, uuid.Generate(), nil, timeout, timeout)
+	_, _, err := coordinator.PullImage(
+		"docker.invalid/"+uuid.Generate(), nil, uuid.Generate(), nil, timeout, timeout)
 	must.ErrorIs(t, err, readErr)
 }
 
