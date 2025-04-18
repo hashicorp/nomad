@@ -86,9 +86,11 @@ module('Integration | Component | scale-events-chart', function (hooks) {
       moment(annotation.time).format('MMM DD HH:mm:ss ZZ')
     );
     assert.equal(find('[data-test-message]').textContent, annotation.message);
+
+    const codeValue = find('[data-test-json-viewer]').textContent;
     assert.equal(
-      getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
-      JSON.stringify(annotation.meta, null, 2)
+      codeValue.replace(/\s+/g, ''),
+      JSON.stringify(annotation.meta)
     );
 
     await componentA11yAudit(this.element, assert);

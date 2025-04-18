@@ -163,10 +163,8 @@ module('Integration | Component | scale-events-accordion', function (hooks) {
     await click('[data-test-accordion-toggle]');
     assert.ok(find('[data-test-accordion-body]'));
 
-    assert.equal(
-      getCodeMirrorInstance('[data-test-json-viewer]').getValue(),
-      JSON.stringify(meta, null, 2)
-    );
+    const codeValue = find('[data-test-json-viewer]').textContent;
+    assert.equal(codeValue.replace(/\s+/g, ''), JSON.stringify(meta));
     await componentA11yAudit(this.element, assert);
   });
 });

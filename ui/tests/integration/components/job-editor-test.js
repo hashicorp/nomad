@@ -6,7 +6,7 @@
 import { assign } from '@ember/polyfills';
 import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
-import { render } from '@ember/test-helpers';
+import { render, waitFor } from '@ember/test-helpers';
 import hbs from 'htmlbars-inline-precompile';
 import { create } from 'ember-cli-page-object';
 import sinon from 'sinon';
@@ -97,12 +97,19 @@ module('Integration | Component | job-editor', function (hooks) {
       handleSaveAsTemplate: sinon.spy(),
       context: 'new',
     });
+
     await render(commonTemplate);
+
+    return waitFor('.cm-editor');
   };
 
   const planJob = async (spec) => {
     const cm = getCodeMirrorInstance(['data-test-editor']);
-    cm.setValue(spec);
+
+    cm.dispatch({
+      changes: { from: 0, to: cm.state.doc.length, insert: spec },
+    });
+
     await Editor.plan();
   };
 
@@ -123,8 +130,12 @@ module('Integration | Component | job-editor', function (hooks) {
 
     await renderNewJob(this, job);
 
+    await waitFor('.cm-editor');
+
     const cm = getCodeMirrorInstance(['data-test-editor']);
-    cm.setValue(spec);
+    cm.dispatch({
+      changes: { from: 0, to: cm.state.doc.length, insert: spec },
+    });
     await Editor.plan();
 
     const requests = this.server.pretender.handledRequests.mapBy('url');
