@@ -687,7 +687,11 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				if prevAllocation != nil {
 					alloc.PreviousAllocation = prevAllocation.ID
 					if missing.IsRescheduling() {
+						original := prevAllocation
+						prevAllocation = prevAllocation.Copy()
+						missing.SetPreviousAllocation(prevAllocation)
 						updateRescheduleTracker(alloc, prevAllocation, now)
+						swapAllocInPlan(s.plan, original, prevAllocation)
 					}
 				}
 
@@ -727,7 +731,10 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 				// blocked eval without dropping the reschedule tracker
 				if prevAllocation != nil {
 					if missing.IsRescheduling() {
-						annotateRescheduleTracker(prevAllocation, structs.LastRescheduleFailedToPlace)
+						updatedPrevAllocation := prevAllocation.Copy()
+						missing.SetPreviousAllocation(prevAllocation)
+						annotateRescheduleTracker(updatedPrevAllocation, structs.LastRescheduleFailedToPlace)
+						swapAllocInPlan(s.plan, prevAllocation, updatedPrevAllocation)
 					}
 				}
 
@@ -737,6 +744,24 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 	}
 
 	return nil
+}
+
+// swapAllocInPlan updates a plan to swap out an allocation that's already in
+// the plan with an updated definition of that allocation. The updated
+// definition should be a deep copy.
+func swapAllocInPlan(plan *structs.Plan, original, updated *structs.Allocation) {
+	for i, stoppingAlloc := range plan.NodeUpdate[original.NodeID] {
+		if stoppingAlloc.ID == original.ID {
+			plan.NodeUpdate[original.NodeID][i] = updated
+			return
+		}
+	}
+	for i, alloc := range plan.NodeAllocation[original.NodeID] {
+		if alloc.ID == original.ID {
+			plan.NodeAllocation[original.NodeID][i] = updated
+			return
+		}
+	}
 }
 
 // setJob updates the stack with the given job and job's node pool scheduler
@@ -802,6 +827,8 @@ func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs
 	return selectOptions
 }
 
+// annotateRescheduleTracker adds a note about the last reschedule attempt. This
+// mutates the allocation, which should be a copy.
 func annotateRescheduleTracker(prev *structs.Allocation, note structs.RescheduleTrackerAnnotation) {
 	if prev.RescheduleTracker == nil {
 		prev.RescheduleTracker = &structs.RescheduleTracker{}
@@ -809,7 +836,10 @@ func annotateRescheduleTracker(prev *structs.Allocation, note structs.Reschedule
 	prev.RescheduleTracker.LastReschedule = note
 }
 
-// updateRescheduleTracker carries over previous restart attempts and adds the most recent restart
+// updateRescheduleTracker carries over previous restart attempts and adds the
+// most recent restart. This mutates both allocations; "alloc" is a new
+// allocation so this is safe, but "prev" is coming from the state store and
+// must be copied first.
 func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, now time.Time) {
 	reschedPolicy := prev.ReschedulePolicy()
 	var rescheduleEvents []*structs.RescheduleEvent

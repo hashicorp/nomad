@@ -517,7 +517,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 			timeoutLaterEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
 		}
 
-		a.appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals)
+		a.appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals, rescheduleNow)
 	}
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
@@ -1476,7 +1476,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 // Create updates that will be applied to the allocs to mark the FollowupEvalID
 // and the unknown ClientStatus and AllocState.
-func (a *allocReconciler) appendUnknownDisconnectingUpdates(disconnecting allocSet, allocIDToFollowupEvalID map[string]string) {
+func (a *allocReconciler) appendUnknownDisconnectingUpdates(disconnecting allocSet, allocIDToFollowupEvalID map[string]string, rescheduleNow allocSet) {
 	for id, alloc := range disconnecting {
 		updatedAlloc := alloc.Copy()
 		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
@@ -1484,6 +1484,14 @@ func (a *allocReconciler) appendUnknownDisconnectingUpdates(disconnecting allocS
 		updatedAlloc.ClientDescription = allocUnknown
 		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[id]
 		a.result.disconnectUpdates[updatedAlloc.ID] = updatedAlloc
+
+		// update the reschedule set so that any placements holding onto this
+		// pointer are using the right pointer for PreviousAllocation()
+		for i, alloc := range rescheduleNow {
+			if alloc.ID == updatedAlloc.ID {
+				rescheduleNow[i] = updatedAlloc
+			}
+		}
 	}
 }
 
