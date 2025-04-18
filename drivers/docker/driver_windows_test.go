@@ -6,20 +6,23 @@
 package docker
 
 import (
+	"os"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/plugins/drivers"
-	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
 
-func newTaskConfig(variant string, command []string) TaskConfig {
-	// busyboxImageID is an id of an image containing nanoserver windows and
-	// a busybox exe.
-	busyboxImageID := testutil.TestBusyboxImage()
+func newTaskConfig(command []string) TaskConfig {
+	busyboxImageID := testRemoteDockerImage("hashicorpdev/busybox-windows", "server2016-0.1")
+
+	// BUSYBOX_IMAGE environment variable overrides the busybox image name
+	if img, ok := os.LookupEnv("BUSYBOX_IMAGE"); ok {
+		busyboxImageID = img
+	}
 
 	return TaskConfig{
 		Image:            busyboxImageID,
@@ -41,7 +44,7 @@ func Test_validateImageUser(t *testing.T) {
 		Name: "busybox-demo",
 		User: "nomadUser",
 	}
-	taskDriverCfg := newTaskConfig("", []string{"sh", "-c", "sleep 1"})
+	taskDriverCfg := newTaskConfig([]string{"sh", "-c", "sleep 1"})
 
 	tests := []struct {
 		name          string

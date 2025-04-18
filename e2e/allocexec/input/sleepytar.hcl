@@ -29,7 +29,7 @@ job "sleepytar" {
       driver = "docker"
 
       config {
-        image        = "bash:latest"
+        image        = "busybox:1"
         command      = "sleep"
         args         = ["infinity"]
         network_mode = "none"
@@ -42,4 +42,3 @@ job "sleepytar" {
     }
   }
 }
-
