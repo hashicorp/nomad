@@ -6895,12 +6895,12 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			}
 
 			// Check that we got an eval and job id back
+			must.NotEq(t, dispatchResp.DispatchedJobID, "")
 			if tc.noEval {
 				must.Eq(t, dispatchResp.EvalID, "")
 			} else {
 				must.NotEq(t, dispatchResp.EvalID, "")
 			}
-			must.NotEq(t, dispatchResp.DispatchedJobID, "")
 
 			state := s1.fsm.State()
 			ws := memdb.NewWatchSet()

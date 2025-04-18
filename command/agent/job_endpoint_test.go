@@ -1996,24 +1996,51 @@ func TestHTTP_JobDispatch(t *testing.T) {
 
 func TestHTTP_JobDispatchPriority(t *testing.T) {
 	ci.Parallel(t)
+	defaultPriority := 50
+	validPriority := 90
+	invalidPriority := -1
+
 	testCases := []struct {
-		name           string
-		priority       int
-		expectedErr    bool
-		expectPriority bool
+		name             string
+		dispatchReq      *structs.JobDispatchRequest
+		expectedPriority int
+		expectedErr      bool
 	}{
 		{
 			name: "no priority",
+			dispatchReq: &structs.JobDispatchRequest{
+				WriteRequest: structs.WriteRequest{
+					Region:           "global",
+					Namespace:        structs.DefaultNamespace,
+					IdempotencyToken: "foo",
+				},
+			},
+			expectedPriority: defaultPriority,
 		},
 		{
-			name:        "set invalid priority",
-			priority:    103,
-			expectedErr: true,
+			name: "set invalid priority",
+			dispatchReq: &structs.JobDispatchRequest{
+				WriteRequest: structs.WriteRequest{
+					Region:           "global",
+					Namespace:        structs.DefaultNamespace,
+					IdempotencyToken: "foo",
+				},
+				Priority: invalidPriority,
+			},
+			expectedPriority: invalidPriority,
+			expectedErr:      true,
 		},
 		{
-			name:           "set valid priority",
-			priority:       100,
-			expectPriority: true,
+			name: "set valid priority",
+			dispatchReq: &structs.JobDispatchRequest{
+				WriteRequest: structs.WriteRequest{
+					Region:           "global",
+					Namespace:        structs.DefaultNamespace,
+					IdempotencyToken: "foo",
+				},
+				Priority: validPriority,
+			},
+			expectedPriority: validPriority,
 		},
 	}
 
@@ -2024,9 +2051,6 @@ func TestHTTP_JobDispatchPriority(t *testing.T) {
 				// Create the parameterized job
 				job := mock.BatchJob()
 				job.ParameterizedJob = &structs.ParameterizedJobConfig{}
-				// Set priority on parent job
-				defaultPriority := 80
-				job.Priority = defaultPriority
 
 				args := structs.JobRegisterRequest{
 					Job: job,
@@ -2042,14 +2066,7 @@ func TestHTTP_JobDispatchPriority(t *testing.T) {
 
 				// Make the request
 				respW := httptest.NewRecorder()
-				args2 := structs.JobDispatchRequest{
-					WriteRequest: structs.WriteRequest{
-						Region:           "global",
-						Namespace:        structs.DefaultNamespace,
-						IdempotencyToken: "foo",
-					},
-					Priority: tc.priority,
-				}
+				args2 := tc.dispatchReq
 				buf := encodeReq(args2)
 
 				// Make the HTTP request
@@ -2061,6 +2078,7 @@ func TestHTTP_JobDispatchPriority(t *testing.T) {
 				obj, err := s.Server.JobSpecificRequest(respW, req2)
 				if tc.expectedErr {
 					must.ErrorContains(t, err, "job priority must be between")
+					return
 				} else {
 					must.NoError(t, err)
 				}
@@ -2086,12 +2104,7 @@ func TestHTTP_JobDispatchPriority(t *testing.T) {
 
 				// Check the response
 				dispatchJob := objInfo.(*structs.Job)
-				if tc.expectPriority {
-					must.Eq(t, tc.priority, dispatchJob.Priority)
-					must.NotEq(t, defaultPriority, dispatchJob.Priority)
-				} else {
-					must.Eq(t, defaultPriority, dispatchJob.Priority)
-				}
+				must.Eq(t, tc.expectedPriority, dispatchJob.Priority)
 			})
 		})
 	}
