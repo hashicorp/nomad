@@ -97,7 +97,7 @@ func dockerTask(t *testing.T) (*drivers.TaskConfig, *TaskConfig, []int) {
 	dockerReserved := ports[0]
 	dockerDynamic := ports[1]
 
-	cfg := newTaskConfig("", busyboxLongRunningCmd)
+	cfg := newTaskConfig(busyboxLongRunningCmd)
 	task := &drivers.TaskConfig{
 		ID:      uuid.Generate(),
 		Name:    "redis-demo",
@@ -250,6 +250,20 @@ func newTestDockerClient(t *testing.T) *client.Client {
 	return client
 }
 
+// testRemoteDockerImage is used only for tests where we need to pull the Docker
+// image from a remote. Most tests should use newTaskConfig instead.
+func testRemoteDockerImage(name, tag string) string {
+	img := name + ":" + tag
+	if tu.IsCI() {
+		// use our mirror to avoid rate-limiting in CI
+		img = "docker.mirror.hashicorp.services/" + img
+	} else {
+		// explicitly include docker.io for podman
+		img = "docker.io/" + img
+	}
+	return img
+}
+
 // Following tests have been removed from this file.
 // [TestDockerDriver_Fingerprint, TestDockerDriver_Fingerprint_Bridge, TestDockerDriver_Check_DockerHealthStatus]
 // If you want to checkout/revert those tests, please check commit: 41715b1860778aa80513391bd64abd721d768ab0
@@ -258,7 +272,7 @@ func TestDockerDriver_Start_Wait(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	taskCfg := newTaskConfig("", busyboxLongRunningCmd)
+	taskCfg := newTaskConfig(busyboxLongRunningCmd)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "nc-demo",
@@ -292,7 +306,7 @@ func TestDockerDriver_Start_WaitFinish(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	taskCfg := newTaskConfig("", []string{"echo", "hello"})
+	taskCfg := newTaskConfig([]string{"echo", "hello"})
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "nc-demo",
@@ -333,7 +347,7 @@ func TestDockerDriver_Start_StoppedContainer(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	taskCfg := newTaskConfig("", []string{"sleep", "9001"})
+	taskCfg := newTaskConfig([]string{"sleep", "9001"})
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "nc-demo",
@@ -448,7 +462,7 @@ func TestDockerDriver_Start_LoadImage(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	taskCfg := newTaskConfig("", []string{"sh", "-c", "echo hello > $NOMAD_TASK_DIR/output"})
+	taskCfg := newTaskConfig([]string{"sh", "-c", "echo hello > $NOMAD_TASK_DIR/output"})
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "busybox-demo",
@@ -568,7 +582,7 @@ func TestDockerDriver_Start_Wait_AllocDir(t *testing.T) {
 	exp := []byte{'w', 'i', 'n'}
 	file := "output.txt"
 
-	taskCfg := newTaskConfig("", []string{
+	taskCfg := newTaskConfig([]string{
 		"sh",
 		"-c",
 		fmt.Sprintf(`sleep 1; echo -n %s > $%s/%s`,
@@ -621,7 +635,7 @@ func TestDockerDriver_Start_Kill_Wait(t *testing.T) {
 	ci.Parallel(t)
 	testutil.DockerCompatible(t)
 
-	taskCfg := newTaskConfig("", busyboxLongRunningCmd)
+	taskCfg := newTaskConfig(busyboxLongRunningCmd)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "busybox-demo",
@@ -672,7 +686,7 @@ func TestDockerDriver_Start_KillTimeout(t *testing.T) {
 	}
 
 	timeout := 2 * time.Second
-	taskCfg := newTaskConfig("", []string{"sleep", "10"})
+	taskCfg := newTaskConfig([]string{"sleep", "10"})
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "busybox-demo",
@@ -770,23 +784,19 @@ func TestDockerDriver_StartNVersions(t *testing.T) {
 
 	task1, cfg1, _ := dockerTask(t)
 
-	tcfg1 := newTaskConfig("", []string{"echo", "hello"})
+	tcfg1 := newTaskConfig([]string{"echo", "hello"})
 	cfg1.Image = tcfg1.Image
 	cfg1.LoadImage = tcfg1.LoadImage
 	must.NoError(t, task1.EncodeConcreteDriverConfig(cfg1))
 
 	task2, cfg2, _ := dockerTask(t)
-
-	tcfg2 := newTaskConfig("musl", []string{"echo", "hello"})
-	cfg2.Image = tcfg2.Image
-	cfg2.LoadImage = tcfg2.LoadImage
+	cfg2.Image = "busybox:1.29.3"
+	cfg2.LoadImage = "busybox_musl.tar"
 	must.NoError(t, task2.EncodeConcreteDriverConfig(cfg2))
 
 	task3, cfg3, _ := dockerTask(t)
-
-	tcfg3 := newTaskConfig("glibc", []string{"echo", "hello"})
-	cfg3.Image = tcfg3.Image
-	cfg3.LoadImage = tcfg3.LoadImage
+	cfg3.Image = "busybox:1.29.3"
+	cfg3.LoadImage = "busybox_glibc.tar"
 	must.NoError(t, task3.EncodeConcreteDriverConfig(cfg3))
 
 	taskList := []*drivers.TaskConfig{task1, task2, task3}
@@ -2274,7 +2284,7 @@ func setupDockerVolumes(t *testing.T, cfg map[string]interface{}, hostpath strin
 	}
 	containerFile := filepath.Join(containerPath, randfn)
 
-	taskCfg := newTaskConfig("", []string{"touch", containerFile})
+	taskCfg := newTaskConfig([]string{"touch", containerFile})
 	taskCfg.Volumes = []string{fmt.Sprintf("%s:%s", hostpath, containerPath)}
 
 	task := &drivers.TaskConfig{
@@ -2585,7 +2595,7 @@ func TestDockerDriver_OOMKilled(t *testing.T) {
 
 	testutil.CgroupsCompatibleV2(t)
 
-	taskCfg := newTaskConfig("", []string{"sh", "-c", `sleep 2 && x=a && while true; do x="$x$x"; done`})
+	taskCfg := newTaskConfig([]string{"sh", "-c", `sleep 2 && x=a && while true; do x="$x$x"; done`})
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "oom-killed",
@@ -3098,19 +3108,23 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 
 	cases := []struct {
 		name            string
+		imageName       string
+		imageLoad       string
 		variant         string
 		jobKillSignal   string
 		expectedSignals []string
 	}{
 		{
 			name:            "stopsignal-only",
-			variant:         "stopsignal",
+			imageName:       "busybox:1.29.3-stopsignal",
+			imageLoad:       "busybox_stopsignal.tar",
 			jobKillSignal:   "",
 			expectedSignals: []string{"19", "9"},
 		},
 		{
 			name:            "stopsignal-killsignal",
-			variant:         "stopsignal",
+			imageName:       "busybox:1.29.3-stopsignal",
+			imageLoad:       "busybox_stopsignal.tar",
 			jobKillSignal:   "SIGTERM",
 			expectedSignals: []string{"15", "19", "9"},
 		},
@@ -3131,7 +3145,11 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 	for i := range cases {
 		c := cases[i]
 		t.Run(c.name, func(t *testing.T) {
-			taskCfg := newTaskConfig(c.variant, []string{"sleep", "9901"})
+			taskCfg := newTaskConfig([]string{"sleep", "9901"})
+			if c.imageLoad != "" {
+				taskCfg.Image = c.imageName
+				taskCfg.LoadImage = c.imageLoad
+			}
 
 			task := &drivers.TaskConfig{
 				ID:        uuid.Generate(),
@@ -3145,11 +3163,7 @@ func TestDockerDriver_StopSignal(t *testing.T) {
 			cleanup := d.MkAllocDir(task, true)
 			defer cleanup()
 
-			if c.variant == "stopsignal" {
-				copyImage(t, task.TaskDir(), "busybox_stopsignal.tar") // Default busybox image with STOPSIGNAL 19 added
-			} else {
-				copyImage(t, task.TaskDir(), taskCfg.LoadImage)
-			}
+			copyImage(t, task.TaskDir(), taskCfg.LoadImage)
 
 			client := newTestDockerClient(t)
 
@@ -3222,7 +3236,7 @@ func TestDockerDriver_CollectStats(t *testing.T) {
 
 	// we want to generate at least some CPU usage
 	args := []string{"/bin/sh", "-c", "cat /dev/urandom | base64 > /dev/null"}
-	taskCfg := newTaskConfig("", args)
+	taskCfg := newTaskConfig(args)
 	task := &drivers.TaskConfig{
 		ID:        uuid.Generate(),
 		Name:      "nc-demo",
