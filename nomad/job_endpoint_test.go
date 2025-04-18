@@ -6665,7 +6665,8 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 	reqInputDataTooLarge := &structs.JobDispatchRequest{
 		Payload: make([]byte, DispatchPayloadSizeLimit+100),
 	}
-
+	reqNoInputValidPriority := &structs.JobDispatchRequest{Priority: 55}
+	reqNoInputInvalidPriority := &structs.JobDispatchRequest{Priority: -1}
 	type existingIdempotentChildJob struct {
 		isTerminal bool
 	}
@@ -6675,131 +6676,164 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 		parameterizedJob      *structs.Job
 		dispatchReq           *structs.JobDispatchRequest
 		noEval                bool
-		err                   bool
+		expectError           bool
 		errStr                string
 		idempotencyToken      string
 		existingIdempotentJob *existingIdempotentChildJob
+		expectedPriority      int
 	}
 	cases := []testCase{
 		{
 			name:             "optional input data w/ data",
 			parameterizedJob: d1,
 			dispatchReq:      reqInputDataNoMeta,
-			err:              false,
+			expectError:      false,
+			expectedPriority: 50,
 		},
 		{
 			name:             "optional input data w/o data",
 			parameterizedJob: d1,
 			dispatchReq:      reqNoInputNoMeta,
-			err:              false,
+			expectError:      false,
+			expectedPriority: 50,
 		},
 		{
 			name:             "require input data w/ data",
 			parameterizedJob: d2,
 			dispatchReq:      reqInputDataNoMeta,
-			err:              false,
+			expectError:      false,
+			expectedPriority: 50,
 		},
 		{
 			name:             "require input data w/o data",
 			parameterizedJob: d2,
 			dispatchReq:      reqNoInputNoMeta,
-			err:              true,
+			expectError:      true,
 			errStr:           "not provided but required",
+			expectedPriority: 50,
 		},
 		{
 			name:             "disallow input data w/o data",
 			parameterizedJob: d3,
 			dispatchReq:      reqNoInputNoMeta,
-			err:              false,
+			expectError:      false,
+			expectedPriority: 50,
 		},
 		{
 			name:             "disallow input data w/ data",
 			parameterizedJob: d3,
 			dispatchReq:      reqInputDataNoMeta,
-			err:              true,
+			expectError:      true,
 			errStr:           "provided but forbidden",
+			expectedPriority: 50,
 		},
 		{
 			name:             "require meta w/ meta",
 			parameterizedJob: d4,
 			dispatchReq:      reqInputDataMeta,
-			err:              false,
+			expectError:      false,
+			expectedPriority: 50,
 		},
 		{
 			name:             "require meta w/o meta",
 			parameterizedJob: d4,
 			dispatchReq:      reqNoInputNoMeta,
-			err:              true,
+			expectError:      true,
 			errStr:           "did not provide required meta keys",
+			expectedPriority: 50,
 		},
 		{
 			name:             "optional meta w/ meta",
 			parameterizedJob: d5,
 			dispatchReq:      reqNoInputDataMeta,
-			err:              false,
+			expectError:      false,
+			expectedPriority: 50,
 		},
 		{
 			name:             "optional meta w/o meta",
 			parameterizedJob: d5,
 			dispatchReq:      reqNoInputNoMeta,
-			err:              false,
+			expectError:      false,
+			expectedPriority: 50,
 		},
 		{
 			name:             "optional meta w/ bad meta",
 			parameterizedJob: d5,
 			dispatchReq:      reqBadMeta,
-			err:              true,
+			expectError:      true,
 			errStr:           "unpermitted metadata keys",
+			expectedPriority: 50,
 		},
 		{
 			name:             "optional input w/ too big of input",
 			parameterizedJob: d1,
 			dispatchReq:      reqInputDataTooLarge,
-			err:              true,
+			expectError:      true,
 			errStr:           "Payload exceeds maximum size",
+			expectedPriority: 50,
 		},
 		{
 			name:             "periodic job dispatched, ensure no eval",
 			parameterizedJob: d6,
 			dispatchReq:      reqNoInputNoMeta,
 			noEval:           true,
+			expectedPriority: 50,
 		},
 		{
 			name:             "periodic job stopped, ensure error",
 			parameterizedJob: d7,
 			dispatchReq:      reqNoInputNoMeta,
-			err:              true,
+			expectError:      true,
 			errStr:           "stopped",
+			expectedPriority: 50,
 		},
 		{
 			name:                  "idempotency token, no existing child job",
 			parameterizedJob:      d1,
 			dispatchReq:           reqInputDataNoMeta,
-			err:                   false,
+			expectError:           false,
 			idempotencyToken:      "foo",
 			existingIdempotentJob: nil,
+			expectedPriority:      50,
 		},
 		{
 			name:             "idempotency token, w/ existing non-terminal child job",
 			parameterizedJob: d1,
 			dispatchReq:      reqInputDataNoMeta,
-			err:              false,
+			expectError:      false,
 			idempotencyToken: "foo",
 			existingIdempotentJob: &existingIdempotentChildJob{
 				isTerminal: false,
 			},
-			noEval: true,
+			noEval:           true,
+			expectedPriority: 50,
 		},
 		{
 			name:             "idempotency token, w/ existing terminal job",
 			parameterizedJob: d1,
 			dispatchReq:      reqInputDataNoMeta,
-			err:              false,
+			expectError:      false,
 			idempotencyToken: "foo",
 			existingIdempotentJob: &existingIdempotentChildJob{
 				isTerminal: true,
 			},
-			noEval: true,
+			noEval:           true,
+			expectedPriority: 50,
+		},
+		{
+			name:             "valid priority",
+			parameterizedJob: d1,
+			dispatchReq:      reqNoInputValidPriority,
+			expectError:      false,
+			expectedPriority: reqNoInputValidPriority.Priority,
+		},
+		{
+			name:             "invalid priority",
+			parameterizedJob: d1,
+			dispatchReq:      reqNoInputInvalidPriority,
+			expectError:      true,
+			errStr:           "priority must be between",
+			expectedPriority: reqNoInputInvalidPriority.Priority,
 		},
 	}
 
@@ -6823,9 +6857,8 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 
 			// Fetch the response
 			var regResp structs.JobRegisterResponse
-			if err := msgpackrpc.CallWithCodec(codec, "Job.Register", regReq, &regResp); err != nil {
-				t.Fatalf("err: %v", err)
-			}
+			err := msgpackrpc.CallWithCodec(codec, "Job.Register", regReq, &regResp)
+			must.NoError(t, err)
 
 			// Now try to dispatch
 			tc.dispatchReq.JobID = tc.parameterizedJob.ID
@@ -6838,107 +6871,66 @@ func TestJobEndpoint_Dispatch(t *testing.T) {
 			// Dispatch with the same request so a child job w/ the idempotency key exists
 			var initialIdempotentDispatchResp structs.JobDispatchResponse
 			if tc.existingIdempotentJob != nil {
-				if err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &initialIdempotentDispatchResp); err != nil {
-					t.Fatalf("Unexpected error dispatching initial idempotent job: %v", err)
-				}
+				err := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &initialIdempotentDispatchResp)
+				must.NoError(t, err)
 
 				if tc.existingIdempotentJob.isTerminal {
 					eval, err := s1.State().EvalByID(nil, initialIdempotentDispatchResp.EvalID)
-					if err != nil {
-						t.Fatalf("Unexpected error fetching eval %v", err)
-					}
+					must.NoError(t, err)
+
 					eval = eval.Copy()
 					eval.Status = structs.EvalStatusComplete
 					err = s1.State().UpsertEvals(structs.MsgTypeTestSetup, initialIdempotentDispatchResp.Index+1, []*structs.Evaluation{eval})
-					if err != nil {
-						t.Fatalf("Unexpected error completing eval %v", err)
-					}
+					must.NoError(t, err)
 				}
 			}
 
 			var dispatchResp structs.JobDispatchResponse
 			dispatchErr := msgpackrpc.CallWithCodec(codec, "Job.Dispatch", tc.dispatchReq, &dispatchResp)
-
-			if dispatchErr == nil {
-				if tc.err {
-					t.Fatalf("Expected error: %v", dispatchErr)
-				}
-
-				// Check that we got an eval and job id back
-				switch dispatchResp.EvalID {
-				case "":
-					if !tc.noEval {
-						t.Fatalf("Bad response")
-					}
-				default:
-					if tc.noEval {
-						t.Fatalf("Got eval %q", dispatchResp.EvalID)
-					}
-				}
-
-				if dispatchResp.DispatchedJobID == "" {
-					t.Fatalf("Bad response")
-				}
-
-				state := s1.fsm.State()
-				ws := memdb.NewWatchSet()
-				out, err := state.JobByID(ws, tc.parameterizedJob.Namespace, dispatchResp.DispatchedJobID)
-				if err != nil {
-					t.Fatalf("err: %v", err)
-				}
-				if out == nil {
-					t.Fatalf("expected job")
-				}
-				if out.CreateIndex != dispatchResp.JobCreateIndex {
-					t.Fatalf("index mis-match")
-				}
-				if out.ParentID != tc.parameterizedJob.ID {
-					t.Fatalf("bad parent ID")
-				}
-				if !out.Dispatched {
-					t.Fatal("expected dispatched job")
-				}
-				if out.IsParameterized() {
-					t.Fatal("dispatched job should not be parameterized")
-				}
-				if out.ParameterizedJob == nil {
-					t.Fatal("parameter job config should exist")
-				}
-
-				// Check that the existing job is returned in the case of a supplied idempotency token
-				if tc.idempotencyToken != "" && tc.existingIdempotentJob != nil {
-					if dispatchResp.DispatchedJobID != initialIdempotentDispatchResp.DispatchedJobID {
-						t.Fatal("dispatched job id should match initial dispatch")
-					}
-
-					if dispatchResp.JobCreateIndex != initialIdempotentDispatchResp.JobCreateIndex {
-						t.Fatal("dispatched job create index should match initial dispatch")
-					}
-				}
-
-				if tc.noEval {
-					return
-				}
-
-				// Lookup the evaluation
-				eval, err := state.EvalByID(ws, dispatchResp.EvalID)
-				if err != nil {
-					t.Fatalf("err: %v", err)
-				}
-
-				if eval == nil {
-					t.Fatalf("expected eval")
-				}
-				if eval.CreateIndex != dispatchResp.EvalCreateIndex {
-					t.Fatalf("index mis-match")
-				}
+			if tc.expectError {
+				must.ErrorContains(t, dispatchErr, tc.errStr)
+				return
 			} else {
-				if !tc.err {
-					t.Fatalf("Got unexpected error: %v", dispatchErr)
-				} else if !strings.Contains(dispatchErr.Error(), tc.errStr) {
-					t.Fatalf("Expected err to include %q; got %v", tc.errStr, dispatchErr)
-				}
+				must.NoError(t, dispatchErr)
 			}
+
+			// Check that we got an eval and job id back
+			must.NotEq(t, dispatchResp.DispatchedJobID, "")
+			if tc.noEval {
+				must.Eq(t, dispatchResp.EvalID, "")
+			} else {
+				must.NotEq(t, dispatchResp.EvalID, "")
+			}
+
+			state := s1.fsm.State()
+			ws := memdb.NewWatchSet()
+			out, err := state.JobByID(ws, tc.parameterizedJob.Namespace, dispatchResp.DispatchedJobID)
+			must.NoError(t, err)
+			must.NotNil(t, out)
+
+			// Check job characteristics
+			must.Eq(t, out.CreateIndex, dispatchResp.JobCreateIndex)
+			must.Eq(t, out.ParentID, tc.parameterizedJob.ID)
+			must.Eq(t, out.Dispatched, true)
+			must.Eq(t, out.IsParameterized(), false)
+			must.NotNil(t, out.ParameterizedJob)
+			must.Eq(t, tc.expectedPriority, out.Priority)
+
+			// Check that the existing job is returned in the case of a supplied idempotency token
+			if tc.idempotencyToken != "" && tc.existingIdempotentJob != nil {
+				must.Eq(t, dispatchResp.DispatchedJobID, initialIdempotentDispatchResp.DispatchedJobID)
+				must.Eq(t, dispatchResp.JobCreateIndex, initialIdempotentDispatchResp.JobCreateIndex)
+			}
+
+			if tc.noEval {
+				return
+			}
+
+			// Lookup the evaluation
+			eval, err := state.EvalByID(ws, dispatchResp.EvalID)
+			must.NoError(t, err)
+			must.NotNil(t, eval)
+			must.Eq(t, eval.CreateIndex, dispatchResp.EvalCreateIndex)
 		})
 	}
 }
