@@ -935,17 +935,19 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			return false, true, nil
 		}
 
-		// Restore the network and device offers from the existing allocation.
-		// We do not allow network resources (reserved/dynamic ports)
-		// to be updated. This is guarded in taskUpdated, so we can
+		// Restore the network, device offers, and any reserved cores from the existing allocation.
+		// We do not allow network resources (reserved/dynamic ports) or reserved cores
+		// to be updated, and reserved cores should not be recomputed for alloc updates. This is guarded in taskUpdated, so we can
 		// safely restore those here.
 		for task, resources := range option.TaskResources {
 			var networks structs.Networks
 			var devices []*structs.AllocatedDeviceResource
+			var cores []uint16
 			if existing.AllocatedResources != nil {
 				if tr, ok := existing.AllocatedResources.Tasks[task]; ok {
 					networks = tr.Networks
 					devices = tr.Devices
+					cores = tr.Cpu.ReservedCores
 				}
 			} else if tr, ok := existing.TaskResources[task]; ok {
 				networks = tr.Networks
@@ -954,6 +956,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 			// Add the networks back
 			resources.Networks = networks
 			resources.Devices = devices
+			resources.Cpu.ReservedCores = cores
 		}
 
 		// Create a shallow copy

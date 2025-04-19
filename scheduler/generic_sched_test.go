@@ -7405,6 +7405,157 @@ func TestServiceSched_Client_Disconnect_Creates_Updates_and_Evals(t *testing.T) 
 	}
 }
 
+func TestServiceSched_ReservedCores_InPlace(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Resources.Cores = 1
+	job.TaskGroups[0].Count = 2
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	// Create running allocations on existing cores
+	var allocs []*structs.Allocation
+	for i := 0; i < 2; i++ {
+		alloc := mock.AllocForNodeWithoutReservedPort(node)
+		alloc.Job = job
+		alloc.JobID = job.ID
+		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
+		alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = []uint16{uint16(i + 1)}
+		allocs = append(allocs, alloc)
+	}
+	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs), "UpsertAllocs")
+
+	// Create a new job with a different count
+	job2 := job.Copy()
+	job2.TaskGroups[0].Count = 3
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the eval has no spawned blocked eval
+	assert.Len(t, h.CreateEvals, 0, "Created Evals")
+	require.Equal(t, "", h.Evals[0].BlockedEval, "did not expect a blocked eval")
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+
+	assert.Len(t, planned, 3, "expected 3 planned allocations")
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(t, err)
+
+	assert.Len(t, out, 3, "expected 3 placed allocations")
+
+	// Ensure the allocations continute to have the correct reserved cores
+	for _, alloc := range out {
+		if alloc.Name == "my-job.web[0]" {
+			alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = []uint16{uint16(1)}
+		}
+		if alloc.Name == "my-job.web[1]" {
+			alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = []uint16{uint16(2)}
+		}
+	}
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
+func TestServiceSched_ReservedCores_NewPlacements(t *testing.T) {
+	ci.Parallel(t)
+
+	h := NewHarness(t)
+
+	// Create a node
+	node := mock.Node()
+	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+
+	// Create a job
+	job := mock.Job()
+	job.TaskGroups[0].Tasks[0].Resources.Cores = 1
+	job.TaskGroups[0].Count = 3
+	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	// Create a mock evaluation to register the job
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+
+	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewServiceScheduler, eval)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	// Ensure a single plan
+	if len(h.Plans) != 1 {
+		t.Fatalf("bad: %#v", h.Plans)
+	}
+	plan := h.Plans[0]
+
+	// Ensure the eval has no spawned blocked eval
+	assert.Len(t, h.CreateEvals, 0, "Created Evals")
+	require.Equal(t, "", h.Evals[0].BlockedEval, "did not expect a blocked eval")
+
+	// Ensure the plan allocated
+	var planned []*structs.Allocation
+	for _, allocList := range plan.NodeAllocation {
+		planned = append(planned, allocList...)
+	}
+
+	if len(planned) != 3 {
+		t.Fatalf("bad: %#v", plan)
+	}
+
+	// Lookup the allocations by JobID
+	ws := memdb.NewWatchSet()
+	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
+	require.NoError(t, err)
+
+	assert.Len(t, out, 3, "expected 3 placed allocations")
+
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+}
+
 func initNodeAndAllocs(t *testing.T, h *Harness, job *structs.Job,
 	nodeStatus, clientStatus string) (*structs.Node, *structs.Job, []*structs.Allocation) {
 	// Node, which is ready
