@@ -21,7 +21,7 @@ require (
 	github.com/aws/smithy-go v1.22.3
 	github.com/container-storage-interface/spec v1.11.0
 	github.com/containerd/go-cni v1.1.12
-	github.com/containernetworking/cni v1.2.3
+	github.com/containernetworking/cni v1.3.0
 	github.com/coreos/go-iptables v0.8.0
 	github.com/creack/pty v1.1.24
 	github.com/distribution/reference v0.6.0
