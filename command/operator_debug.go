@@ -512,7 +512,6 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	c.opts = &api.QueryOptions{
-		Region:     c.Meta.Region(),
 		AllowStale: allowStale,
 		AuthToken:  c.Meta.token,
 	}
