@@ -2,7 +2,7 @@
 layout: docs
 page_title: Garbage collection
 description: |-
-  Nomad garbage collection
+  Nomad garbage collects Access Control List (ACL) tokens, allocations, deployments, encryption root keys, evaluations, jobs, nodes, plugins, and Container Storage Interface (CSI) volumes. Learn about server-side and client-side garbage collection processes, including configuration and triggers.
 ---
 
 # Garbage collection
@@ -135,15 +135,15 @@ Nomad's client runs allocation garbage collection based on these triggers:
 
 - User-initiated server garbage collection
 
-  When you initiate garbage collection on the server by running `nomad system
-  gc`, the clients collect all eligible allocations, bypassing normal
-  thresholds. Garbage collection first destroys all terminal allocations. Then
-  the process pops every remaining finished allocation and deletes it within
-  reason.
+  When you initiate garbage collection on the server by running the `nomad
+  system gc` command, the clients collect all eligible allocations, bypassing
+  normal thresholds. Garbage collection first destroys all terminal allocations.
+  Then the process pops every remaining finished allocation and deletes it
+  within reason.
 
-Nomad does not continuously monitor disk or inode usage to trigger
-garbage collection. Instead, Nomad only checks disk and inode thresholds when
-one of the aforementioned triggers invokes the garbage collection process. The
+Nomad does not continuously monitor disk or inode usage to trigger garbage
+collection. Instead, Nomad only checks disk and inode thresholds when one of the
+aforementioned triggers invokes the garbage collection process. The
 `gc_inode_usage_threshold` and `gc_disk_usage_threshold` values do not trigger
 garbage collection; rather, those values influence how the garbage collector
 behaves during a collection run.
