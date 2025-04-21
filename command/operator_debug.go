@@ -512,7 +512,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	c.opts = &api.QueryOptions{
-		Region:     c.Meta.region,
+		Region:     c.Meta.Region(),
 		AllowStale: allowStale,
 		AuthToken:  c.Meta.token,
 	}
@@ -612,7 +612,7 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	}
 
 	// Filter for servers matching criteria
-	c.serverIDs, err = filterServerMembers(c.members, serverIDs, c.region)
+	c.serverIDs, err = filterServerMembers(c.members, serverIDs, c.Meta.Region())
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to parse server list; err: %v", err))
 		return 1
@@ -638,8 +638,8 @@ func (c *OperatorDebugCommand) Run(args []string) int {
 	c.Ui.Output("Starting debugger...")
 	c.Ui.Output("")
 	c.Ui.Output(fmt.Sprintf("Nomad CLI Version: %s", version.GetVersion().FullVersionNumber(true)))
-	c.Ui.Output(fmt.Sprintf("           Region: %s", c.region))
-	c.Ui.Output(fmt.Sprintf("        Namespace: %s", c.namespace))
+	c.Ui.Output(fmt.Sprintf("           Region: %s", c.Meta.Region()))
+	c.Ui.Output(fmt.Sprintf("        Namespace: %s", c.Meta.Namespace()))
 	c.Ui.Output(fmt.Sprintf("          Servers: (%d/%d) %v", serverCaptureCount, serversFound, c.serverIDs))
 	c.Ui.Output(fmt.Sprintf("          Clients: (%d/%d) %v", nodeCaptureCount, nodesFound, c.nodeIDs))
 	if nodeCaptureCount > 0 && nodeCaptureCount == c.maxNodes {

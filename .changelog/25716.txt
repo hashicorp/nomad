@@ -1,0 +1,3 @@
+```release-note:bug
+cli: respect NOMAD_REGION and NOMAD_NAMESPACE in operator debug command
+```
