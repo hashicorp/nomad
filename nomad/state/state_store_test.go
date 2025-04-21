@@ -8442,7 +8442,7 @@ func TestStateStore_UpdateJobStability(t *testing.T) {
 func TestStateStore_UpsertDeploymentPromotion_Nonexistent(t *testing.T) {
 	ci.Parallel(t)
 
-	state := testStateStore(t)
+	store := testStateStore(t)
 
 	// Promote the nonexistent deployment
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -8451,25 +8451,21 @@ func TestStateStore_UpsertDeploymentPromotion_Nonexistent(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, req)
-	if err == nil || !strings.Contains(err.Error(), "does not exist") {
-		t.Fatalf("expected error promoting because the deployment doesn't exist")
-	}
+	err := store.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, req)
+	must.ErrorContains(t, err, "does not exist")
 }
 
 // Test that terminal deployment can't be updated
 func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 	ci.Parallel(t)
 
-	state := testStateStore(t)
+	store := testStateStore(t)
 
 	// Insert a terminal deployment
 	d := mock.Deployment()
 	d.Status = structs.DeploymentStatusFailed
 
-	if err := state.UpsertDeployment(1, d); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	must.NoError(t, store.UpsertDeployment(1, d))
 
 	// Promote the deployment
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -8478,28 +8474,26 @@ func TestStateStore_UpsertDeploymentPromotion_Terminal(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, req)
-	if err == nil || !strings.Contains(err.Error(), "has terminal status") {
-		t.Fatalf("expected error updating the status because the deployment is terminal: %v", err)
-	}
+	err := store.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 2, req)
+	must.ErrorContains(t, err, "has terminal status", must.Sprint(
+		"expected error updating the status because the deployment is terminal"))
 }
 
 // Test promoting unhealthy canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	ci.Parallel(t)
 
-	state := testStateStore(t)
-	require := require.New(t)
+	store := testStateStore(t)
 
 	// Create a job
 	j := mock.Job()
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
 
 	// Create a deployment
 	d := mock.Deployment()
 	d.JobID = j.ID
 	d.TaskGroups["web"].DesiredCanaries = 2
-	require.Nil(state.UpsertDeployment(2, d))
+	must.NoError(t, store.UpsertDeployment(2, d))
 
 	// Create a set of allocations
 	c1 := mock.Alloc()
@@ -8519,7 +8513,7 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 	c3.DeploymentStatus = &structs.AllocDeploymentStatus{Healthy: pointer.Of(true)}
 	d.TaskGroups[c3.TaskGroup].PlacedCanaries = append(d.TaskGroups[c3.TaskGroup].PlacedCanaries, c3.ID)
 
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2, c3}))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2, c3}))
 
 	// Promote the canaries
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -8528,27 +8522,25 @@ func TestStateStore_UpsertDeploymentPromotion_Unhealthy(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
-	require.NotNil(err)
-	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
+	err := store.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
+	must.ErrorContains(t, err, `Task group "web" has 0/2 healthy allocations`)
 }
 
 // Test promoting a deployment with no canaries
 func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 	ci.Parallel(t)
 
-	state := testStateStore(t)
-	require := require.New(t)
+	store := testStateStore(t)
 
 	// Create a job
 	j := mock.Job()
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
 
 	// Create a deployment
 	d := mock.Deployment()
 	d.TaskGroups["web"].DesiredCanaries = 2
 	d.JobID = j.ID
-	require.Nil(state.UpsertDeployment(2, d))
+	must.NoError(t, store.UpsertDeployment(2, d))
 
 	// Promote the canaries
 	req := &structs.ApplyDeploymentPromoteRequest{
@@ -8557,16 +8549,15 @@ func TestStateStore_UpsertDeploymentPromotion_NoCanaries(t *testing.T) {
 			All:          true,
 		},
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
-	require.NotNil(err)
-	require.Contains(err.Error(), `Task group "web" has 0/2 healthy allocations`)
+	err := store.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
+	must.ErrorContains(t, err, `Task group "web" has 0/2 healthy allocations`)
 }
 
 // Test promoting all canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	ci.Parallel(t)
 
-	state := testStateStore(t)
+	store := testStateStore(t)
 
 	// Create a job with two task groups
 	j := mock.Job()
@@ -8574,9 +8565,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	if err := state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
 
 	// Create a deployment
 	d := mock.Deployment()
@@ -8592,9 +8581,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	if err := state.UpsertDeployment(2, d); err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	must.NoError(t, store.UpsertDeployment(2, d))
 
 	// Create a set of allocations
 	c1 := mock.Alloc()
@@ -8613,10 +8600,7 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		Healthy: pointer.Of(true),
 	}
 
-	if err := state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2}))
 	// Create an eval
 	e := mock.Eval()
 
@@ -8628,45 +8612,31 @@ func TestStateStore_UpsertDeploymentPromotion_All(t *testing.T) {
 		},
 		Eval: e,
 	}
-	err := state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
+	must.NoError(t, store.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req))
 
 	// Check that the status per task group was updated properly
 	ws := memdb.NewWatchSet()
-	dout, err := state.DeploymentByID(ws, d.ID)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if dout.StatusDescription != structs.DeploymentStatusDescriptionRunning {
-		t.Fatalf("status description not updated: got %v; want %v", dout.StatusDescription, structs.DeploymentStatusDescriptionRunning)
-	}
-	if len(dout.TaskGroups) != 2 {
-		t.Fatalf("bad: %#v", dout.TaskGroups)
-	}
+	dout, err := store.DeploymentByID(ws, d.ID)
+	must.NoError(t, err)
+
+	must.Eq(t, structs.DeploymentStatusDescriptionRunning, dout.StatusDescription,
+		must.Sprint("expected status description to be updated"))
+	must.MapLen(t, 2, dout.TaskGroups)
 	for tg, state := range dout.TaskGroups {
-		if !state.Promoted {
-			t.Fatalf("bad: group %q not promoted %#v", tg, state)
-		}
+		must.True(t, state.Promoted,
+			must.Sprintf("expected group %q to be promoted %#v", tg, state))
 	}
 
 	// Check that the evaluation was created
-	eout, _ := state.EvalByID(ws, e.ID)
-	if err != nil {
-		t.Fatalf("bad: %v", err)
-	}
-	if eout == nil {
-		t.Fatalf("bad: %#v", eout)
-	}
+	eout, err := store.EvalByID(ws, e.ID)
+	must.NoError(t, err)
+	must.NotNil(t, eout)
 }
 
 // Test promoting a subset of canaries in a deployment.
 func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
-
-	state := testStateStore(t)
+	store := testStateStore(t)
 
 	// Create a job with two task groups
 	j := mock.Job()
@@ -8674,7 +8644,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.Nil(state.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, 1, nil, j))
 
 	// Create a deployment
 	d := mock.Deployment()
@@ -8689,7 +8659,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	require.Nil(state.UpsertDeployment(2, d))
+	must.NoError(t, store.UpsertDeployment(2, d))
 
 	// Create a set of allocations for both groups, including an unhealthy one
 	c1 := mock.Alloc()
@@ -8721,7 +8691,7 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 		Canary:  true,
 	}
 
-	require.Nil(state.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2, c3}))
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 3, []*structs.Allocation{c1, c2, c3}))
 
 	// Create an eval
 	e := mock.Eval()
@@ -8734,34 +8704,35 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 		},
 		Eval: e,
 	}
-	require.Nil(state.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req))
+	must.NoError(t, store.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, 4, req))
 
 	// Check that the status per task group was updated properly
 	ws := memdb.NewWatchSet()
-	dout, err := state.DeploymentByID(ws, d.ID)
-	require.Nil(err)
-	require.Len(dout.TaskGroups, 2)
-	require.Contains(dout.TaskGroups, "web")
-	require.True(dout.TaskGroups["web"].Promoted)
+	dout, err := store.DeploymentByID(ws, d.ID)
+	must.NoError(t, err)
+	must.MapLen(t, 2, dout.TaskGroups)
+	must.MapContainsKey(t, dout.TaskGroups, "web")
+	must.True(t, dout.TaskGroups["web"].Promoted)
 
 	// Check that the evaluation was created
-	eout, err := state.EvalByID(ws, e.ID)
-	require.Nil(err)
-	require.NotNil(eout)
+	eout, err := store.EvalByID(ws, e.ID)
+	must.NoError(t, err)
+	must.NotNil(t, eout)
 
 	// Check the canary field was set properly
-	aout1, err1 := state.AllocByID(ws, c1.ID)
-	aout2, err2 := state.AllocByID(ws, c2.ID)
-	aout3, err3 := state.AllocByID(ws, c3.ID)
-	require.Nil(err1)
-	require.Nil(err2)
-	require.Nil(err3)
-	require.NotNil(aout1)
-	require.NotNil(aout2)
-	require.NotNil(aout3)
-	require.False(aout1.DeploymentStatus.Canary)
-	require.True(aout2.DeploymentStatus.Canary)
-	require.True(aout3.DeploymentStatus.Canary)
+	aout1, err1 := store.AllocByID(ws, c1.ID)
+	aout2, err2 := store.AllocByID(ws, c2.ID)
+	aout3, err3 := store.AllocByID(ws, c3.ID)
+
+	must.NoError(t, err1)
+	must.NoError(t, err2)
+	must.NoError(t, err3)
+	must.NotNil(t, aout1)
+	must.NotNil(t, aout2)
+	must.NotNil(t, aout2)
+	must.False(t, aout1.DeploymentStatus.Canary)
+	must.True(t, aout2.DeploymentStatus.Canary)
+	must.True(t, aout3.DeploymentStatus.Canary)
 }
 
 // Test that allocation health can't be set against a nonexistent deployment
