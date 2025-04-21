@@ -8735,6 +8735,75 @@ func TestStateStore_UpsertDeploymentPromotion_Subset(t *testing.T) {
 	must.True(t, aout3.DeploymentStatus.Canary)
 }
 
+func TestStateStore_UpsertDeploymentPromotion_DrainedCanaries(t *testing.T) {
+	ci.Parallel(t)
+	store := testStateStore(t)
+	index, _ := store.LatestIndex()
+
+	j := mock.Job()
+	index++
+	must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, j))
+
+	d := mock.Deployment()
+	d.TaskGroups["web"].DesiredCanaries = 2
+	d.JobID = j.ID
+
+	// Two canaries have been placed but then their node was drained
+	a1 := mock.Alloc()
+	a1.JobID = j.ID
+	a1.DeploymentID = d.ID
+	a1.DesiredStatus = structs.AllocDesiredStatusStop
+	a1.ClientStatus = structs.AllocClientStatusComplete
+	a1.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: pointer.Of(true), // TODO: is this going to be true after migration?
+		Canary:  true,
+	}
+
+	a2 := mock.Alloc()
+	a2.JobID = j.ID
+	a2.DeploymentID = d.ID
+	a2.DesiredStatus = structs.AllocDesiredStatusStop
+	a2.ClientStatus = structs.AllocClientStatusComplete
+	a2.DeploymentStatus = &structs.AllocDeploymentStatus{
+		Healthy: pointer.Of(true),
+		Canary:  true,
+	}
+
+	d.TaskGroups["web"].PlacedCanaries = []string{a1.ID, a2.ID}
+	index++
+	must.NoError(t, store.UpsertDeployment(index, d))
+
+	// Two canaries have been migrated
+	a3 := mock.Alloc()
+	a3.JobID = j.ID
+	a3.DeploymentID = d.ID
+	a3.DesiredStatus = structs.AllocDesiredStatusRun
+	a3.ClientStatus = structs.AllocClientStatusRunning
+	a3.PreviousAllocation = a1.ID
+
+	a4 := mock.Alloc()
+	a4.JobID = j.ID
+	a4.DeploymentID = d.ID
+	a4.DesiredStatus = structs.AllocDesiredStatusRun
+	a4.ClientStatus = structs.AllocClientStatusRunning
+	a4.PreviousAllocation = a2.ID
+
+	index++
+	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index,
+		[]*structs.Allocation{a1, a2, a3, a4}))
+
+	// Attempt to promote
+	req := &structs.ApplyDeploymentPromoteRequest{
+		DeploymentPromoteRequest: structs.DeploymentPromoteRequest{
+			DeploymentID: d.ID,
+			All:          true,
+		},
+	}
+	index++
+	err := store.UpdateDeploymentPromotion(structs.MsgTypeTestSetup, index, req)
+	must.NoError(t, err)
+}
+
 // Test that allocation health can't be set against a nonexistent deployment
 func TestStateStore_UpsertDeploymentAllocHealth_Nonexistent(t *testing.T) {
 	ci.Parallel(t)
