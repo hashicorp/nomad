@@ -51,10 +51,12 @@ type Meta struct {
 	// Whether to force colorized output
 	forceColor bool
 
-	// The region to send API requests
+	// The value of the -region CLI flag to send with API requests
+	// note: does not reflect any environment variables
 	region string
 
-	// namespace to send API requests
+	// The value of the -namespace CLI flag to send with API requests
+	// note: does not reflect any environment variables
 	namespace string
 
 	// token is used for ACLs to access privileged information
@@ -201,6 +203,18 @@ func (m *Meta) clientConfig() *api.Config {
 
 func (m *Meta) Client() (*api.Client, error) {
 	return api.NewClient(m.clientConfig())
+}
+
+// Namespace returns the Nomad namespace used for API calls,
+// from either the -namespace flag, or the NOMAD_NAMESPACE env var.
+func (m *Meta) Namespace() string {
+	return m.clientConfig().Namespace
+}
+
+// Region returns the Nomad region used for API calls,
+// from either the -region flag, or the NOMAD_REGION env var.
+func (m *Meta) Region() string {
+	return m.clientConfig().Region
 }
 
 func (m *Meta) allNamespaces() bool {
