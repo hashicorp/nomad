@@ -102,7 +102,7 @@
     "ember-overridable-computed": "^1.0.0",
     "ember-page-title": "^7.0.0",
     "ember-power-select": "^7.2.0",
-    "ember-qunit": "^8.1.0",
+    "ember-qunit": "^9.0.2",
     "ember-render-helpers": "^0.2.0",
     "ember-resolver": "^8.0.3",
     "ember-responsive": "^4.0.2",
