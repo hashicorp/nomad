@@ -7412,13 +7412,13 @@ func TestServiceSched_ReservedCores_InPlace(t *testing.T) {
 
 	// Create a node
 	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Create a job
 	job := mock.Job()
 	job.TaskGroups[0].Tasks[0].Resources.Cores = 1
 	job.TaskGroups[0].Count = 2
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create running allocations on existing cores
 	var allocs []*structs.Allocation
@@ -7430,12 +7430,12 @@ func TestServiceSched_ReservedCores_InPlace(t *testing.T) {
 		alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = []uint16{uint16(i + 1)}
 		allocs = append(allocs, alloc)
 	}
-	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs), "UpsertAllocs")
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
-	// Create a new job with a different count
+	// Create a new job version with a different count
 	job2 := job.Copy()
 	job2.TaskGroups[0].Count = 3
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -7447,111 +7447,56 @@ func TestServiceSched_ReservedCores_InPlace(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
+	must.NoError(t, err)
 
 	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
-	plan := h.Plans[0]
+	must.Len(t, 1, h.Plans)
 
-	// Ensure the eval has no spawned blocked eval
-	assert.Len(t, h.CreateEvals, 0, "Created Evals")
-	require.Equal(t, "", h.Evals[0].BlockedEval, "did not expect a blocked eval")
+	// Ensure the eval has no spawned blocked eval due to core exhaustion
+	must.Eq(t, "", h.Evals[0].BlockedEval, must.Sprint("blocked eval should be empty, without core exhaustion"))
 
-	// Ensure the plan allocated
+	// Ensure the plan allocated with the correct reserved cores
 	var planned []*structs.Allocation
-	for _, allocList := range plan.NodeAllocation {
+	for _, allocList := range h.Plans[0].NodeAllocation {
+		for _, alloc := range allocList {
+			switch alloc.Name {
+			case "my-job.web[0]": // Ensure that the first planned alloc is still on core 1
+				must.Eq(t, []uint16{uint16(1)}, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
+			case "my-job.web[1]": // Ensure that the second planned alloc is still on core 2
+				must.Eq(t, []uint16{uint16(2)}, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
+			default: // Ensure that the new planned alloc is not on core 1 or 2
+				must.NotEq(t, []uint16{uint16(2)}, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
+				must.NotEq(t, []uint16{uint16(1)}, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
+			}
+		}
 		planned = append(planned, allocList...)
 	}
 
-	assert.Len(t, planned, 3, "expected 3 planned allocations")
+	must.Len(t, 3, planned)
 
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
-	assert.Len(t, out, 3, "expected 3 placed allocations")
+	must.Len(t, 3, out)
 
 	// Ensure the allocations continute to have the correct reserved cores
 	for _, alloc := range out {
-		if alloc.Name == "my-job.web[0]" {
-			alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = []uint16{uint16(1)}
+		switch alloc.Name {
+		case "my-job.web[0]": // Ensure that the first alloc is still on core 1
+			must.Eq(t, []uint16{uint16(1)}, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
+		case "my-job.web[1]": // Ensure that the second alloc is still on core 2
+			must.Eq(t, []uint16{uint16(2)}, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
+		default: // Ensure that the new alloc is not on core 1 or 2
+			must.NotEq(t, []uint16{uint16(2)}, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
+			must.NotEq(t, []uint16{uint16(1)}, alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores)
 		}
-		if alloc.Name == "my-job.web[1]" {
-			alloc.AllocatedResources.Tasks["web"].Cpu.ReservedCores = []uint16{uint16(2)}
-		}
 	}
-
-	h.AssertEvalStatus(t, structs.EvalStatusComplete)
-}
-
-func TestServiceSched_ReservedCores_NewPlacements(t *testing.T) {
-	ci.Parallel(t)
-
-	h := NewHarness(t)
-
-	// Create a node
-	node := mock.Node()
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
-
-	// Create a job
-	job := mock.Job()
-	job.TaskGroups[0].Tasks[0].Resources.Cores = 1
-	job.TaskGroups[0].Count = 3
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
-
-	// Create a mock evaluation to register the job
-	eval := &structs.Evaluation{
-		Namespace:   structs.DefaultNamespace,
-		ID:          uuid.Generate(),
-		Priority:    job.Priority,
-		TriggeredBy: structs.EvalTriggerJobRegister,
-		JobID:       job.ID,
-		Status:      structs.EvalStatusPending,
-	}
-
-	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-
-	// Process the evaluation
-	err := h.Process(NewServiceScheduler, eval)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	// Ensure a single plan
-	if len(h.Plans) != 1 {
-		t.Fatalf("bad: %#v", h.Plans)
-	}
-	plan := h.Plans[0]
-
-	// Ensure the eval has no spawned blocked eval
-	assert.Len(t, h.CreateEvals, 0, "Created Evals")
-	require.Equal(t, "", h.Evals[0].BlockedEval, "did not expect a blocked eval")
-
-	// Ensure the plan allocated
-	var planned []*structs.Allocation
-	for _, allocList := range plan.NodeAllocation {
-		planned = append(planned, allocList...)
-	}
-
-	if len(planned) != 3 {
-		t.Fatalf("bad: %#v", plan)
-	}
-
-	// Lookup the allocations by JobID
-	ws := memdb.NewWatchSet()
-	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	require.NoError(t, err)
-
-	assert.Len(t, out, 3, "expected 3 placed allocations")
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
