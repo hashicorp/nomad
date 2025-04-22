@@ -1,0 +1,3 @@
+```release-note:bug
+client: fix failure cleaning up namespace on batch jobs
+```

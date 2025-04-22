@@ -141,6 +141,7 @@ func (*defaultNetworkManager) CreateNetwork(allocID string, _ *drivers.NetworkCr
 		}
 		return nil, false, err
 	}
+	defer netns.Close()
 
 	spec := &drivers.NetworkIsolationSpec{
 		Mode:   drivers.NetIsolationModeGroup,
