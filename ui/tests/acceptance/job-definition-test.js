@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: BUSL-1.1
  */
 
-import { click, currentURL, waitFor } from '@ember/test-helpers';
+import { click, currentURL, find, waitFor } from '@ember/test-helpers';
 import percySnapshot from '@percy/ember';
 import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
@@ -175,15 +175,15 @@ module('Acceptance | job definition | full specification', function (hooks) {
     assert
       .dom('[data-test-select="job-spec"]')
       .exists('A select button exists and defaults to full definition');
-    let codeMirror = getCodeMirrorInstance('[data-test-editor]');
-    assert.equal(
-      codeMirror.getValue(),
-      specification_response.Source,
-      'Shows the full definition as written by the user'
-    );
+    assert
+      .dom('.hds-code-block__code')
+      .includesText(specification_response.Source.replace(/\s+/g, ' ').trim());
 
     await click('[data-test-select-full]');
-    codeMirror = getCodeMirrorInstance('[data-test-editor]');
-    assert.propContains(JSON.parse(codeMirror.getValue()), JOB_JSON);
+
+    const codeBlockCode = find('.hds-code-block__code');
+    const codeBlockCodeTextContent = codeBlockCode.textContent.trim();
+
+    assert.propContains(JSON.parse(codeBlockCodeTextContent), JOB_JSON);
   });
 });

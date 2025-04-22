@@ -164,7 +164,7 @@
   },
   "dependencies": {
     "@babel/helper-string-parser": "^7.19.4",
-    "@hashicorp/design-system-components": "4.18.0-rc-20250327210743",
+    "@hashicorp/design-system-components": "4.18.2",
     "@percy/cli": "^1.30.0",
     "@percy/ember": "^4.2.0",
     "curved-arrows": "^0.1.0",
