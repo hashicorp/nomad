@@ -20,29 +20,31 @@ Nomad garbage collects the following objects:
 
 - [ACL token](#configuration)
 - [Allocation](#client-side-garbage-collection)
+- [CSI Plugin](#configuration)
 - [Deployment](#configuration)
 - [Encryption root key](#configuration)
 - [Evaluation](#configuration)
 - [Job](#configuration)
 - [Node](#configuration)
-- [Plugin](#configuration)
 - [Volume](#configuration)
 
 ## Cascading garbage collection
 
-Nomad's garbage collection processes generally handle each resource type
-independently. However, there is an implicit cascading relationship because of
-how objects reference each other. In practice, when Nomad garbage collects a
+Nomad's scheduled garbage collection processes generally handle each resource
+type independently. However, there is an implicit cascading relationship because
+of how objects reference each other. In practice, when Nomad garbage collects a
 higher-level object, Nomad also removes the object's associated sub-objects to
 prevent orphaned objects.
 
-For example, garbage collecting a job also causes
-Nomad to drop all of that job's remaining evaluations, deployments, and
-allocation records from the state. Nomad garbage collects those
-objects, either as part of the job garbage collection process or by their own
-garbage collection processes running immediately after. Nomad only garbage
-collects objects after they are terminal for at least the specified time
-threshold and no longer needed for future scheduling decisions.
+For example, garbage collecting a job also causes Nomad to drop all of that
+job's remaining evaluations, deployments, and allocation records from the state.
+Nomad garbage collects those objects, either as part of the job garbage
+collection process or by each object's own garbage collection processes running
+immediately after. Nomad's scheduled garbage collection processes only garbage
+collect objects after they are terminal for at least the specified time
+threshold and no longer needed for future scheduling decisions. Note that when
+you force garbage collection by running the `nomad system gc` command, Nomad
+ignores the specified time threshold.
 
 ## Server-side garbage collection
 
@@ -62,13 +64,13 @@ for objects without a configurable interval setting.
 | Object | Interval | Threshold |
 |---|---|---|
 | **ACL token** | 5 minutes | [`acl_token_gc_threshold`](/nomad/docs/configuration/server#acl_token_gc_threshold)<br/>Default: 1 hour |
+| **CSI Plugin** | 5 minutes | [`csi_plugin_gc_threshold`](/nomad/docs/configuration/server#csi_plugin_gc_threshold)<br/>Default: 1 hour |
 | **Deployment** | 5 minutes | [`deployment_gc_threshold`](/nomad/docs/configuration/server#deployment_gc_threshold)<br/>Default: 1 hour |
 | **Encryption root key** | [`root_key_gc_interval`](/nomad/docs/configuration/server#root_key_gc_interval)<br/>Default: 10 minutes | [`root_key_gc_threshold`](/nomad/docs/configuration/server#root_key_gc_threshold)<br/>Default: 1 hour  |
 | **Evaluation** | 5 minutes | [`eval_gc_threshold`](/nomad/docs/configuration/server#eval_gc_threshold) <br/>Default: 1 hour |
 | **Evaluation, batch** |  5 minutes | [`batch_eval_gc_threshold`](/nomad/docs/configuration/server#batch_eval_gc_threshold)<br/>Default: 24 hours |
 | **Job** | [`job_gc_interval`](/nomad/docs/configuration/server#job_gc_interval)<br/>Default: 5 minutes | [`job_gc_threshold`](/nomad/docs/configuration/server#job_gc_threshold)<br/>Default: 4 hours |
 | **Node** | 5 minutes | [`node_gc_threshold`](/nomad/docs/configuration/server#node_gc_threshold)<br/>Default: 24 hours |
-| **Plugin** | 5 minutes | [`csi_plugin_gc_threshold`](/nomad/docs/configuration/server#csi_plugin_gc_threshold)<br/>Default: 1 hour |
 | **Volume** | [`csi_volume_claim_gc_interval`](/nomad/docs/configuration/server#csi_volume_claim_gc_interval)<br/>Default: 5 minutes| [`csi_volume_claim_gc_threshold`](/nomad/docs/configuration/server#csi_volume_claim_gc_threshold)<br/>Default: 1 hour |
 
 ### Triggers
@@ -80,9 +82,9 @@ a job's default garbage collection threshold is four hours, so the job must be
 in a terminal state for at least four hours before the garbage collection
 process permanently deletes the job and its dependent objects.
 
-Manually triggering garbage collection by running the `nomad system gc` command
-instructs the server leader to ignore thresholds and immediately purge all
-terminal objects.
+When you force garbage collection by manually running the `nomad system gc`
+command, you are telling the garbage collection process to ignore thresholds and
+immediately purge all terminal objects on all servers and clients.
 
 ## Client-side garbage collection
 
@@ -95,7 +97,7 @@ These settings govern allocation garbage collection behavior on each client node
 
 | Parameter | Default | Description  |
 | -------- | ------- | ------------- |
-| [`gc_interval`](/nomad/docs/configuration/client#gc_interval)  | 1m  | Interval at which Nomad attempts to garbage collect terminal allocation directories |
+| [`gc_interval`](/nomad/docs/configuration/client#gc_interval)  | 1 minute | Interval at which Nomad attempts to garbage collect terminal allocation directories |
 | [ `gc_disk_usage_threshold` ](/nomad/docs/configuration/client#gc_disk_usage_threshold)  | 80 | Disk usage percent which Nomad tries to maintain by garbage collecting terminal allocations |
 | [ `gc_inode_usage_threshold` ](/nomad/docs/configuration/client#gc_inode_usage_threshold) | 70 | Inode usage percent which Nomad tries to maintain by garbage collecting terminal allocations |
 | [ `gc_max_allocs` ](/nomad/docs/configuration/client#gc_max_allocs) | 50 | Maximum number of allocations which a client will track before triggering a garbage collection of terminal allocations |
@@ -114,11 +116,10 @@ for cleanup if the configured thresholds demand it.
 
 Nomad's client runs allocation garbage collection based on these triggers:
 
-- Periodic timer
+- Scheduled interval
 
-  The garbage collector launches a ticker based on the configured
-  `gc_interval`. On each tick, the garbage collector checks to see if it needs
-  to remove allocations.
+  The garbage collection process launches a ticker based on the configured
+  `gc_interval`. On each tick, the garbage collection process checks to see if it needs to remove terminal allocations.
 
 - Terminal state
 
@@ -129,17 +130,13 @@ Nomad's client runs allocation garbage collection based on these triggers:
 - Allocation placement
 
   Nomad may preemptively run garbage collection to make room for new
-  allocations. The client garbage collects older,
-  terminal allocations if adding new allocations would exceed the
-  `gc_max_allocs` limit.
+  allocations. The client garbage collects older, terminal allocations if adding new allocations would exceed the `gc_max_allocs` limit.
 
-- User-initiated server garbage collection
+- Forced garbage collection
 
-  When you initiate garbage collection on the server by running the `nomad
-  system gc` command, the clients collect all eligible allocations, bypassing
-  normal thresholds. Garbage collection first destroys all terminal allocations.
-  Then the process pops every remaining finished allocation and deletes it
-  within reason.
+  When you force garbage collection by running the `nomad system gc` command,
+  the garbage collection process removes all terminal objects on all servers and
+  clients, ignoring thresholds.
 
 Nomad does not continuously monitor disk or inode usage to trigger garbage
 collection. Instead, Nomad only checks disk and inode thresholds when one of the
@@ -184,20 +181,25 @@ those allocations due to space, inode, or count limits being hit.
 
 ### Task driver resources garbage collection
 
-A task driver does not have its own garbage collection process. Instead, the client garbage collection process triggers a task driver to clean up
-its resources when the allocation is terminal.
+Most task drivers do not have their own garbage collection process. When an
+allocation is terminal, the client garbage collection process communicates with
+the task driver to ensure the task's resources have been cleaned up. Note that
+the Docker task driver periodically cleans up its own resources. Refer to the
+[Docker task driver plugin
+options](https://developer.hashicorp.com/nomad/docs/drivers/docker#gc) for
+details.
 
-When the task has configured restart attempts and the task fails, the Nomad
-client attempts an in-place task restart within the same allocation. The task
-driver starts a new process or container for the task. If the task continues to
-fail and exceeds the configured restart attempts, Nomad marks the allocation as
-terminal. The client garbage collection process instructs the task driver to
-clean up its resources, such as a Docker container or cgroups. The garbage
-collection process waits for the task driver to signal completion before
-deleting the allocation. If a task driver fails to clean up properly, Nomad logs
-errors but continues the garbage collection process. Task driver cleanup failure
-issues can influence when the allocation truly frees up. For instance, if
-volumes are not detached, disk space might not be fully reclaimed until fixed.
+When a task has configured restart attempts and the task fails, the Nomad client
+attempts an in-place task restart within the same allocation. The task driver
+starts a new process or container for the task. If the task continues to fail
+and exceeds the configured restart attempts, Nomad terminates the task and marks
+the allocation as terminal. The task driver then cleans up its resources, such
+as a Docker container or cgroups. When the garbage collection process runs, it
+makes sure that the task driver cleanup is done before deleting the allocation.
+If a task driver fails to clean up properly, Nomad logs errors but continues the
+garbage collection process. Task driver cleanup failure issues can influence
+when the allocation truly frees up. For instance, if volumes are not detached,
+disk space might not be fully reclaimed until fixed.
 
 ## Resources
 
