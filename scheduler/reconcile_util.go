@@ -307,6 +307,14 @@ func (a allocSet) filterByTainted(taintedNodes map[string]*structs.Node, serverS
 				continue
 			}
 
+			// Terminal canaries that have been marked for migration need to be
+			// migrated, otherwise we block deployments from progressing by
+			// counting them as running canaries.
+			if alloc.DeploymentStatus.IsCanary() && alloc.DesiredTransition.ShouldMigrate() {
+				migrate[alloc.ID] = alloc
+				continue
+			}
+
 			// Terminal allocs, if not reconnect, are always untainted as they
 			// should never be migrated.
 			untainted[alloc.ID] = alloc
