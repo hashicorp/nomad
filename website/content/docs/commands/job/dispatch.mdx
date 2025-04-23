@@ -78,6 +78,10 @@ dispatching parameterized jobs.
 
 - `-ui`: Open the dispatched job in the browser.
 
+- `-priority`: Optional integer between 1 and [`job_max_priority`],
+  inclusively that overrides any priority value inherited from the parent job.
+  For general usage information on the priority flag see [job parameters].
+
 ## Examples
 
 Dispatch against a parameterized job with the ID "video-encode" and
@@ -166,3 +170,5 @@ Evaluation ID     = 31199841
 [eval status]: /nomad/docs/commands/eval/status
 [parameterized job]: /nomad/docs/job-specification/parameterized 'Nomad parameterized Job Specification'
 [multiregion]: /nomad/docs/job-specification/multiregion#parameterized-dispatch
+[`job_max_priority`]: /nomad/docs/configuration/server#job_max_priority
+[job parameters]: /nomad/docs/job-specification/job#job-parameters

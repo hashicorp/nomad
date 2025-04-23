@@ -934,6 +934,7 @@ type JobDispatchRequest struct {
 	Meta    map[string]string
 	WriteRequest
 	IdPrefixTemplate string
+	Priority         int
 }
 
 // JobValidateRequest is used to validate a job
