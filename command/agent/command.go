@@ -1010,7 +1010,7 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
-	defer close(signalCh)
+	defer signal.Stop(signalCh)
 
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
