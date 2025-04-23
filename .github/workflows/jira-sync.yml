@@ -31,7 +31,7 @@ jobs:
         if: github.event.action == 'labeled' && github.event.label.name == 'hcc/jira'
         uses: tomhjp/gh-action-jira-create@3ed1789cad3521292e591a7cfa703215ec1348bf # v0.2.1
         with:
-          project: NET
+          project: NMD
           issuetype: "${{ steps.set-ticket-type.outputs.TYPE }}"
           summary: "${{ github.event.repository.name }} [${{ steps.set-ticket-type.outputs.TYPE }} #${{ github.event.issue.number }}]: ${{ github.event.issue.title }}"
           description: "${{ github.event.issue.body || github.event.pull_request.body }}\n\n_Created in GitHub by ${{ github.actor }}._"
@@ -39,7 +39,6 @@ jobs:
           extraFields: '{ "customfield_10089": "${{ github.event.issue.html_url || github.event.pull_request.html_url }}",
                           "customfield_10371": { "value": "GitHub" },
                           "customfield_10091": ["NomadMinor"],
-                          "components": [{ "name": "nomad" }],
                           "labels": ["community"] }'
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
