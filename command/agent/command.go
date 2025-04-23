@@ -1032,7 +1032,7 @@ func (c *Command) handleSignals() int {
 
 			switch sig {
 			case syscall.SIGPIPE:
-				// Skip any SIGPIPE signal and don't try to log it (See issues #1798, #3554)
+				// Skip any SIGPIPE signal (see issues #1798, #3554)
 				continue
 			case syscall.SIGHUP:
 				sdNotifyReloading(sdSock)
