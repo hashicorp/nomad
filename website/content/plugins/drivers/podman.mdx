@@ -148,7 +148,7 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
   ```
 
 - `auth` - (Optional) Authenticate to the image registry using a static
-  credential. By setting tlsVerify to false the driver will allow using self-
+  credential. By setting `tls_verify` to false the driver will allow using self-
   signed certificates or plain HTTP connections to the registry.
 
   ```hcl
@@ -157,7 +157,7 @@ The `podman` driver implements the following [capabilities](/nomad/docs/concepts
     auth {
       username = "someuser"
       password = "sup3rs3creT"
-      tlsVerify = false
+      tls_verify = false
     }
   }
   ```
