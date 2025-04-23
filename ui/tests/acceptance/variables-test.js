@@ -11,6 +11,7 @@ import {
   findAll,
   typeIn,
   visit,
+  waitFor,
 } from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
@@ -543,7 +544,8 @@ module('Acceptance | variables', function (hooks) {
       assert
         .dom('.related-entities-hint')
         .exists('Shows a hint about related entities by default');
-      assert.dom('.CodeMirror').doesNotExist();
+      assert.dom('.cm-editor').doesNotExist();
+
       await typeIn('[data-test-path-input]', 'nomad/job-templates/hello-world');
       assert
         .dom('.related-entities-hint')
@@ -551,8 +553,10 @@ module('Acceptance | variables', function (hooks) {
       assert
         .dom('[data-test-job-template-hint]')
         .exists('Shows a hint about job templates');
+
+      await waitFor('.cm-editor');
       assert
-        .dom('.CodeMirror')
+        .dom('.cm-editor')
         .exists('Shows a custom editor for job templates');
 
       document.querySelector('[data-test-path-input]').value = ''; // clear current input
@@ -560,7 +564,7 @@ module('Acceptance | variables', function (hooks) {
       assert
         .dom('.related-entities-hint')
         .exists('Shows a hint about related entities by default');
-      assert.dom('.CodeMirror').doesNotExist();
+      assert.dom('.cm-editor').doesNotExist();
       // Reset Token
       window.localStorage.nomadTokenSecret = null;
     });

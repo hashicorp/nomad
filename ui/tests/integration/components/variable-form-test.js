@@ -7,10 +7,16 @@ import { module, test } from 'qunit';
 import { setupRenderingTest } from 'ember-qunit';
 import { hbs } from 'ember-cli-htmlbars';
 import { componentA11yAudit } from 'nomad-ui/tests/helpers/a11y-audit';
-import { click, typeIn, find, findAll, render } from '@ember/test-helpers';
+import {
+  click,
+  typeIn,
+  find,
+  findAll,
+  render,
+  waitFor,
+} from '@ember/test-helpers';
 import { setupMirage } from 'ember-cli-mirage/test-support';
 import setupCodeMirror from 'nomad-ui/tests/helpers/codemirror';
-import { codeFillable, code } from 'nomad-ui/tests/pages/helpers/codemirror';
 import percySnapshot from '@percy/ember';
 import { clickToggle, clickOption } from 'nomad-ui/tests/helpers/helios';
 
@@ -422,11 +428,13 @@ module('Integration | Component | variable-form', function (hooks) {
         hbs`<VariableForm @model={{this.mockedModel}} @existingVariables={{this.existingVariables}} @view={{this.view}} />`
       );
       assert.dom('.key-value').exists();
-      assert.dom('.CodeMirror').doesNotExist();
+      assert.dom('.cm-editor').doesNotExist();
 
       this.set('view', 'json');
       assert.dom('.key-value').doesNotExist();
-      assert.dom('.CodeMirror').exists();
+
+      await waitFor('.cm-editor');
+      assert.dom('.cm-editor').exists();
     });
 
     test('Persists Key/Values table data to JSON', async function (assert) {
@@ -457,8 +465,11 @@ module('Integration | Component | variable-form', function (hooks) {
         return acc;
       }, {});
 
+      let editorElement = document.querySelector('[data-test-json-editor]');
+      let codeMirrorInstance = editorElement.editor;
+
       assert.equal(
-        code('.editor-wrapper').get(),
+        codeMirrorInstance.state.doc.toString(),
         JSON.stringify(keyValuesAsJSON, null, 2),
         'JSON editor contains the key values, stringified, by default'
       );
@@ -472,8 +483,12 @@ module('Integration | Component | variable-form', function (hooks) {
 
       this.set('view', 'json');
 
+      await waitFor('.cm-editor');
+      editorElement = document.querySelector('[data-test-json-editor]');
+      codeMirrorInstance = editorElement.editor;
+
       assert.ok(
-        code('[data-test-json-editor]').get().includes('"howdy": "partner"'),
+        codeMirrorInstance.state.doc.toString().includes('"howdy": "partner"'),
         'JSON editor contains the new key value'
       );
     });
@@ -493,10 +508,19 @@ module('Integration | Component | variable-form', function (hooks) {
       await render(
         hbs`<VariableForm @model={{this.mockedModel}} @view={{this.view}} />`
       );
+      await waitFor('.cm-editor');
 
-      codeFillable('[data-test-json-editor]').get()(
-        JSON.stringify({ golden: 'gate' }, null, 2)
-      );
+      const editorElement = document.querySelector('[data-test-json-editor]');
+      const codeMirrorInstance = editorElement.editor;
+
+      codeMirrorInstance.dispatch({
+        changes: {
+          from: 0,
+          to: codeMirrorInstance.state.doc.length,
+          insert: JSON.stringify({ golden: 'gate' }, null, 2),
+        },
+      });
+
       this.set('view', 'table');
       assert.equal(
         find(`.key-value:last-of-type [data-test-var-key]`).value,

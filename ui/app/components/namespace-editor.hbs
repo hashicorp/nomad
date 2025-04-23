@@ -16,40 +16,22 @@
 		</Hds::Form::TextInput::Field>
 	{{/if}}
 
-	<div class="boxed-section">
-		<div class="boxed-section-head">
-			Definition
-		</div>
-		<div class="boxed-section-body is-full-bleed">
-			<div
-				class="namespace-editor-wrapper boxed-section-body is-full-bleed
-				{{if this.JSONError 'error'}}"
-			>
-				<div
-					class="namespace-editor"
-					data-test-namespace-editor
-					{{code-mirror
-						screenReaderLabel="Namespace definition"
-						theme="hashi"
-						mode="javascript"
-						content=this.definitionString
-						onUpdate=this.updateNamespaceDefinition
-						autofocus=false
-						extraKeys=(hash Cmd-Enter=this.save)
-					}}
-				/>
-				{{#if this.JSONError}}
-				<p class="help is-danger">
-					{{this.JSONError}}
-				</p>
-				{{/if}}
-			</div>
-		</div>
-	</div>
+	<Hds::CodeEditor
+		data-test-namespace-editor
+		@extraKeys={{hash Cmd-Enter=this.save}}
+		@language="json"
+		@isLintingEnabled={{true}}
+		@value={{this.definitionString}}
+		@onInput={{this.updateNamespaceDefinition}}
+		@onLint={{this.onLint}}
+		as |CE|
+	>
+		<CE.Title>Definition</CE.Title>
+	</Hds::CodeEditor>
 
 	<footer>
 		{{#if (can "update namespace")}}
-      <Hds::Button @text="Save Namespace" @color="primary" disabled={{this.JSONError}}
+      <Hds::Button @text="Save Namespace" @color="primary" disabled={{this.hasLintingErrors}}
         {{on "click" this.save}}
 		data-test-save-namespace
       />
