@@ -1174,7 +1174,6 @@ func (c *Command) handleReload() error {
 		err := c.reloadHTTPServer()
 		if err != nil {
 			c.agent.httpLogger.Error("reloading config failed", "error", err)
-			return nil
 		}
 	}
 	return nil
