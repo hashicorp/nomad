@@ -4215,12 +4215,9 @@ func TestServiceSched_NodeDrain_Canaries(t *testing.T) {
 			Healthy: pointer.Of(false),
 			Canary:  true,
 		}
-		if i == 0 {
-			alloc.DesiredTransition = structs.DesiredTransition{
-				Migrate: pointer.Of(true),
-			}
+		alloc.DesiredTransition = structs.DesiredTransition{
+			Migrate: pointer.Of(true),
 		}
-
 		allocs = append(allocs, alloc)
 		canaries = append(canaries, alloc.ID)
 		t.Logf("stopped canary alloc=%q", alloc.ID)
@@ -4276,9 +4273,15 @@ func TestServiceSched_NodeDrain_Canaries(t *testing.T) {
 		h.NextIndex(), []*structs.Evaluation{eval}))
 
 	must.NoError(t, h.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, h.Plans)
+	h.AssertEvalStatus(t, structs.EvalStatusComplete)
+	must.MapLen(t, 0, h.Plans[0].NodeAllocation)
+	must.MapLen(t, 1, h.Plans[0].NodeUpdate)
+	must.Len(t, 2, h.Plans[0].NodeUpdate[n2.ID])
 
-	// TODO: this is asserting that we've reproduced the bug, not asserting the fix
-	must.Len(t, 0, h.Plans)
+	for _, alloc := range h.Plans[0].NodeUpdate[n2.ID] {
+		must.SliceContains(t, canaries, alloc.ID)
+	}
 }
 
 func TestServiceSched_NodeDrain_Queued_Allocations(t *testing.T) {
