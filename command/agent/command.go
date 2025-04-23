@@ -1039,9 +1039,16 @@ func (c *Command) handleSignals() int {
 					c.Ui.Output("Terminal error found while reloading")
 					return 1
 				}
+
 				sdNotify(sdSock, sdReady)
-			case os.Interrupt, syscall.SIGTERM:
+			case syscall.SIGTERM:
 				if !c.agent.GetConfig().LeaveOnTerm {
+					return 1
+				}
+
+				return c.terminateGracefully(signalCh, sdSock)
+			case os.Interrupt:
+				if !c.agent.GetConfig().LeaveOnInt {
 					return 1
 				}
 
