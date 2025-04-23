@@ -1038,7 +1038,7 @@ func (c *Command) handleSignals() int {
 				sdNotifyReloading(sdSock)
 				err := c.handleReload()
 				if err != nil {
-					c.Ui.Output("Terminal error found while reloading")
+					c.Ui.Error(fmt.Sprintf("Fatal error while reloading: %v", err)
 					return 1
 				}
 
