@@ -993,11 +993,13 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 		close(gracefulCh)
 	}()
 
+	delay := time.NewTimer(gracefulTimeout)
+
 	// Wait for leave or another signal
 	select {
 	case <-signalCh:
 		return 1
-	case <-time.After(gracefulTimeout):
+	case <-delay.C:
 		return 1
 	case <-gracefulCh:
 	}
