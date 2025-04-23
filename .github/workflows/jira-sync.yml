@@ -37,8 +37,8 @@ jobs:
           description: "${{ github.event.issue.body || github.event.pull_request.body }}\n\n_Created in GitHub by ${{ github.actor }}._"
           # customfield_10089 is "Issue Link", customfield_10371 is "Source" (use JIRA API to retrieve), customerfield_10091 is "Team (R&D)
           extraFields: '{ "customfield_10089": "${{ github.event.issue.html_url || github.event.pull_request.html_url }}",
-                          "labels": ["community", "GitHub"] }',
                           "Team[Team]": "72e166fb-d26c-4a61-b0de-7a290d91708f",
+                          "labels": ["community", "GitHub"] }'
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
