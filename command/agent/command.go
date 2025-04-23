@@ -981,8 +981,27 @@ func (c *Command) handleRetryJoin(config *Config) error {
 // terminateGracefully attempts a graceful leave
 func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer) int {
 	sdNotify(sdSock, sdStopping)
+
 	gracefulCh := make(chan struct{})
 	defer close(gracefulCh)
+
+	timeout := gracefulTimeout
+
+	config := c.readConfig()
+	if config == nil {
+		c.Ui.Output("Unable to read the agent configuration, using the default graceful timeout")
+	}
+
+	if config.Client != nil && config.Client.Drain != nil && config.Client.Drain.Deadline != nil {
+		ddl, err := time.ParseDuration(*config.Client.Drain.Deadline)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Unable to read the client's drain deadline, using the default graceful timeout: %s", err))
+		}
+
+		if ddl != 0 {
+			timeout += ddl
+		}
+	}
 
 	c.Ui.Output("Gracefully shutting down agent...")
 	go func() {
@@ -993,7 +1012,7 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 		close(gracefulCh)
 	}()
 
-	delay := time.NewTimer(gracefulTimeout)
+	delay := time.NewTimer(timeout)
 
 	// Wait for leave or another signal
 	select {
@@ -1038,7 +1057,7 @@ func (c *Command) handleSignals() int {
 				sdNotifyReloading(sdSock)
 				err := c.handleReload()
 				if err != nil {
-					c.Ui.Error(fmt.Sprintf("Fatal error while reloading: %v", err)
+					c.Ui.Error(fmt.Sprintf("Fatal error while reloading: %v", err))
 					return 1
 				}
 
