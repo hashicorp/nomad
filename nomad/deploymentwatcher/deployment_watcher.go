@@ -618,6 +618,16 @@ func (w *deploymentWatcher) handleAllocUpdate(allocs []*structs.AllocListStub) (
 		// Check if we can already fail the deployment
 		failDeployment := w.shouldFailEarly(deployment, alloc, dstate)
 
+		// // TODO: does this work?
+		// // Check if the allocation was a canary that's been migrated (for node
+		// // drain) and mark it to allow for replacements
+		// if alloc.DeploymentStatus.IsCanary() && alloc.DesiredTransition.ShouldMigrate() &&
+		// 	deployment.Active() {
+		// 	res.allowReplacements = append(res.allowReplacements, alloc.ID)
+		// 	w.logger.Info("allowing replacement for migrated canary", "alloc", alloc.ID)
+		// 	continue
+		// }
+
 		// Check if the allocation has failed and we need to mark it for allow
 		// replacements
 		if alloc.DeploymentStatus.IsUnhealthy() && !failDeployment &&
