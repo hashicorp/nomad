@@ -978,13 +978,8 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	return nil
 }
 
-func (c *Command) terminate(signalCh chan os.Signal, sdSock io.Writer) int {
-	// Bail fast if not doing a graceful leave
-	if !c.agent.GetConfig().LeaveOnInt {
-		return 1
-	}
-
-	// Attempt a graceful leave
+// terminateGracefully attempts a graceful leave
+func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer) int {
 	sdNotify(sdSock, sdStopping)
 	gracefulCh := make(chan struct{})
 	defer close(gracefulCh)
@@ -1046,14 +1041,26 @@ func (c *Command) handleSignals() int {
 				}
 				sdNotify(sdSock, sdReady)
 			case os.Interrupt, syscall.SIGTERM:
-				return c.terminate(signalCh, sdSock)
+				if !c.agent.GetConfig().LeaveOnTerm {
+					return 1
+				}
+
+				return c.terminateGracefully(signalCh, sdSock)
 			}
 
 		case <-winsvc.ShutdownChannel():
-			return c.terminate(signalCh, sdSock)
+			if !c.agent.GetConfig().LeaveOnInt {
+				return 1
+			}
+
+			return c.terminateGracefully(signalCh, sdSock)
 
 		case <-c.ShutdownCh:
-			return c.terminate(signalCh, sdSock)
+			if !c.agent.GetConfig().LeaveOnInt {
+				return 1
+			}
+
+			return c.terminateGracefully(signalCh, sdSock)
 
 		case <-c.retryJoinErrCh:
 			return 1
@@ -1146,7 +1153,7 @@ func (c *Command) handleReload() error {
 
 		if err := client.Reload(clientConfig); err != nil {
 			c.agent.logger.Error("reloading client config failed", "error", err)
-			return nil
+			return fmt.Errorf("reloading client config failed: %w", err)
 		}
 	}
 
