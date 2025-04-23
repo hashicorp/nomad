@@ -165,7 +165,7 @@
   },
   "dependencies": {
     "@babel/helper-string-parser": "^7.19.4",
-    "@hashicorp/design-system-components": "^4.13.0",
+    "@hashicorp/design-system-components": "4.18.0-rc-20250327210743",
     "@percy/cli": "^1.30.0",
     "@percy/ember": "^4.2.0",
     "curved-arrows": "^0.1.0",
@@ -184,5 +184,6 @@
     "**/nise/**/path-to-regexp": "1.9.0",
     "cross-spawn": "7.0.5",
     "**/socket.io/**/ws": "^8.18.0"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha1.ac34549e6aa8e7ead463a7407e1c7390f61a6610"
 }
