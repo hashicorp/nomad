@@ -1,0 +1,3 @@
+```release-note:bug
+core: Errors encountered when reloading agent configuration will now cause agents to exit. Before configuration errors during reloads were only logged. This could lead to agents running but unable to communicate
+```
