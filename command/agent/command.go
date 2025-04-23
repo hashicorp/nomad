@@ -979,6 +979,7 @@ func (c *Command) handleRetryJoin(config *Config) error {
 }
 
 func (c *Command) terminate(signalCh chan os.Signal, sdSock io.Writer) int {
+	// Bail fast if not doing a graceful leave
 	if !c.agent.GetConfig().LeaveOnInt {
 		return 1
 	}
@@ -986,6 +987,8 @@ func (c *Command) terminate(signalCh chan os.Signal, sdSock io.Writer) int {
 	// Attempt a graceful leave
 	sdNotify(sdSock, sdStopping)
 	gracefulCh := make(chan struct{})
+	defer close(gracefulCh)
+
 	c.Ui.Output("Gracefully shutting down agent...")
 	go func() {
 		if err := c.agent.Leave(); err != nil {
@@ -1002,13 +1005,16 @@ func (c *Command) terminate(signalCh chan os.Signal, sdSock io.Writer) int {
 	case <-time.After(gracefulTimeout):
 		return 1
 	case <-gracefulCh:
-		return 0
 	}
+
+	return 0
 }
 
 // handleSignals blocks until we get an exit-causing signal
 func (c *Command) handleSignals() int {
 	signalCh := make(chan os.Signal, 4)
+	defer close(signalCh)
+
 	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
 
 	// Signal readiness only once signal handlers are setup
