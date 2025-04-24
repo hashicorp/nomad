@@ -22,12 +22,15 @@ import (
 func TestDriver_DockerStatsCollector(t *testing.T) {
 	ci.Parallel(t)
 
-	stats := &containerapi.Stats{}
+	stats := &containerapi.StatsResponse{}
 	stats.CPUStats.ThrottlingData.Periods = 10
 	stats.CPUStats.ThrottlingData.ThrottledPeriods = 10
 	stats.CPUStats.ThrottlingData.ThrottledTime = 10
 
 	stats.MemoryStats.Stats = map[string]uint64{}
+	stats.MemoryStats.Stats["rss"] = 6537216
+	stats.MemoryStats.Stats["cache"] = 1234
+	stats.MemoryStats.Stats["swap"] = 0
 	stats.MemoryStats.Stats["file_mapped"] = 1024
 	stats.MemoryStats.Usage = 5651904
 	stats.MemoryStats.MaxUsage = 6651904
@@ -39,6 +42,9 @@ func TestDriver_DockerStatsCollector(t *testing.T) {
 
 	if runtime.GOOS != "windows" {
 		must.Eq(t, stats.MemoryStats.Stats["file_mapped"], ru.ResourceUsage.MemoryStats.MappedFile)
+		must.Eq(t, stats.MemoryStats.Stats["rss"], ru.ResourceUsage.MemoryStats.RSS)
+		must.Eq(t, stats.MemoryStats.Stats["cache"], ru.ResourceUsage.MemoryStats.Cache)
+		must.Eq(t, stats.MemoryStats.Stats["swap"], ru.ResourceUsage.MemoryStats.Swap)
 		must.Eq(t, stats.MemoryStats.Usage, ru.ResourceUsage.MemoryStats.Usage)
 		must.Eq(t, stats.MemoryStats.MaxUsage, ru.ResourceUsage.MemoryStats.MaxUsage)
 		must.Eq(t, stats.CPUStats.ThrottlingData.ThrottledPeriods, ru.ResourceUsage.CpuStats.ThrottledPeriods)

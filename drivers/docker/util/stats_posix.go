@@ -19,7 +19,7 @@ var (
 	DockerCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
 )
 
-func DockerStatsToTaskResourceUsage(s *containerapi.Stats, compute cpustats.Compute) *cstructs.TaskResourceUsage {
+func DockerStatsToTaskResourceUsage(s *containerapi.StatsResponse, compute cpustats.Compute) *cstructs.TaskResourceUsage {
 	var (
 		totalCompute = compute.TotalCompute
 		totalCores   = compute.NumCores
@@ -34,7 +34,12 @@ func DockerStatsToTaskResourceUsage(s *containerapi.Stats, compute cpustats.Comp
 	}
 
 	ms := &cstructs.MemoryStats{
+		// containerapi exposes memory stat file as a map, consult
+		// https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
 		MappedFile: s.MemoryStats.Stats["file_mapped"],
+		Cache:      s.MemoryStats.Stats["cache"],
+		RSS:        s.MemoryStats.Stats["rss"],
+		Swap:       s.MemoryStats.Stats["swap"],
 		Usage:      s.MemoryStats.Usage,
 		MaxUsage:   s.MemoryStats.MaxUsage,
 		Measured:   measuredMems,
