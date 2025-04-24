@@ -766,9 +766,8 @@ module('Acceptance | jobs list', function (hooks) {
       name: 'regular-job-2',
       createAllocations: true,
     });
-
-    let pauseJob = server.create('job', {
-      name: 'time-based-job ',
+    server.create('job', {
+      name: 'time-based-job',
       id: 'time-based-job',
       createAllocations: true,
       type: 'service',
@@ -793,7 +792,6 @@ module('Acceptance | jobs list', function (hooks) {
     const task = server.db.tasks.findBy({ taskGroupID: groupID });
 
     await JobsList.visit();
-    console.log(pauseJob);
 
     assert.dom('[data-test-job-row="time-based-job"]').exists();
     assert
