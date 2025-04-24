@@ -3226,6 +3226,8 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 
+	n := mock.DrainNode()
+
 	// Create two canaries for the new job
 	handled := make(map[string]allocUpdateType)
 	for i := 0; i < 2; i++ {
@@ -3233,7 +3235,7 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 		canary := mock.Alloc()
 		canary.Job = job
 		canary.JobID = job.ID
-		canary.NodeID = uuid.Generate()
+		canary.NodeID = n.ID
 		canary.Name = structs.AllocName(job.ID, job.TaskGroups[0].Name, uint(i))
 		canary.TaskGroup = job.TaskGroups[0].Name
 		canary.DeploymentID = d.ID
@@ -3244,8 +3246,9 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 
 	// Build a map of tainted nodes that contains the last canary
 	tainted := make(map[string]*structs.Node, 1)
-	n := mock.DrainNode()
-	n.ID = allocs[11].NodeID
+
+	// This is what drainer sets for draining allocations
+	allocs[10].DesiredTransition.Migrate = pointer.Of(true)
 	allocs[11].DesiredTransition.Migrate = pointer.Of(true)
 	tainted[n.ID] = n
 
@@ -3258,18 +3261,18 @@ func TestReconciler_DrainNode_Canary(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  nil,
 		deploymentUpdates: nil,
-		place:             1,
+		place:             2,
 		inplace:           0,
-		stop:              1,
+		stop:              2,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
-				Canary: 1,
-				Ignore: 11,
+				Canary: 2,
+				Ignore: 10,
 			},
 		},
 	})
-	assertNamesHaveIndexes(t, intRange(1, 1), stopResultsToNames(r.stop))
-	assertNamesHaveIndexes(t, intRange(1, 1), placeResultsToNames(r.place))
+	assertNamesHaveIndexes(t, intRange(0, 1), stopResultsToNames(r.stop))
+	assertNamesHaveIndexes(t, intRange(0, 1), placeResultsToNames(r.place))
 }
 
 // Tests the reconciler handles migrating a canary correctly on a lost node
