@@ -794,7 +794,6 @@ module('Acceptance | jobs list', function (hooks) {
 
     await JobsList.visit();
     console.log(pauseJob);
-    await this.pauseTest();
 
     assert.dom('[data-test-job-row="time-based-job"]').exists();
     assert

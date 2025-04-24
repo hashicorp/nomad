@@ -173,6 +173,23 @@ function smallCluster(server) {
       state: 'running',
     });
 
+  const pausedJobGroups = 2;
+  const pausedTasksPerGroup = 5;
+  server.create('job', {
+    name: 'paused-job',
+    id: 'paused-job',
+    namespaceId: 'default',
+    type: 'service',
+    withPausedTasks: true,
+    resourceSpec: Array(pausedJobGroups).fill('M: 256, C: 500'),
+    groupTaskCount: pausedTasksPerGroup,
+    shallow: false,
+    allocStatusDistribution: {
+      pending: 1,
+    },
+    noActiveDeployment: true,
+  });
+
   server.create('policy', {
     id: 'client-reader',
     name: 'client-reader',
