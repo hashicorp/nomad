@@ -987,7 +987,7 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 
 	timeout := gracefulTimeout
 
-	config := c.readConfig()
+	config := c.agent.config
 	if config == nil {
 		c.Ui.Output("Unable to read the agent configuration, using the default graceful timeout")
 	}
