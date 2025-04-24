@@ -3280,6 +3280,10 @@ DONE:
 	for {
 		select {
 		case stats := <-recv:
+			if stats == nil {
+				// prevent NPE when channel close races with context close
+				continue
+			}
 			statsReceived++
 			ticks := stats.ResourceUsage.CpuStats.TotalTicks
 			must.Greater(t, 0, ticks)
