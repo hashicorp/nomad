@@ -52,11 +52,13 @@ const (
 )
 
 var (
-	// ExecutorCgroupV1MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v1
+	// ExecutorCgroupV1MeasuredMemStats is the list of memory stats captured by
+	// the executor with cgroup-v1
 	ExecutorCgroupV1MeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage", "Kernel Usage", "Kernel Max Usage"}
 
-	// ExecutorCgroupV2MeasuredMemStats is the list of memory stats captured by the executor with cgroup-v2. cgroup-v2 exposes different memory stats and no longer reports rss or max usage.
-	ExecutorCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
+	// ExecutorCgroupV2MeasuredMemStats is the list of memory stats captured by
+	// the executor with cgroup-v2. cgroup-v2 exposes different memory stats
+	ExecutorCgroupV2MeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage"}
 
 	// ExecutorCgroupMeasuredCpuStats is the list of CPU stats captures by the executor
 	ExecutorCgroupMeasuredCpuStats = []string{"System Mode", "User Mode", "Throttled Periods", "Throttled Time", "Percent"}
@@ -439,8 +441,19 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 		// Memory Related Stats
 		swap := stats.MemoryStats.SwapUsage
 		maxUsage := stats.MemoryStats.Usage.MaxUsage
-		rss := stats.MemoryStats.Stats["rss"]
+
 		cache := stats.MemoryStats.Stats["cache"]
+		if cache == 0 {
+			// This is the equivalent stat for cgroups v2, including filesystem
+			// cache and tmpfs
+			cache = stats.MemoryStats.Stats["file"]
+		}
+		rss := stats.MemoryStats.Stats["rss"]
+		if rss == 0 {
+			// This is the equivalent stat of anonymous mappings for cgroups v2.
+			rss = stats.MemoryStats.Stats["anon"]
+		}
+
 		mapped_file := stats.MemoryStats.Stats["mapped_file"]
 		ms := &cstructs.MemoryStats{
 			RSS:            rss,
