@@ -1005,8 +1005,14 @@ func TestDockerDriver_ForcePull_RepoDigest(t *testing.T) {
 
 	task, cfg, _ := dockerTask(t)
 
+	sha := "@sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64"
+	imageName := "library/busybox" + sha
+	if tu.IsCI() {
+		imageName = "docker.mirror.hashicorp.services/busybox" + sha
+	}
+
 	cfg.LoadImage = ""
-	cfg.Image = "library/busybox@sha256:58ac43b2cc92c687a32c8be6278e50a063579655fe3090125dcb2af0ff9e1a64"
+	cfg.Image = imageName
 	cfg.ForcePull = true
 	cfg.Command = busyboxLongRunningCmd[0]
 	cfg.Args = busyboxLongRunningCmd[1:]
