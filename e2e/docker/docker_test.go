@@ -53,9 +53,9 @@ func runRegistry(t *testing.T) {
 
 	t.Logf("Setting up insecure private registry at %v", address)
 
-	// run the sed job to fixup the auth.json file with correct address and make
-	// sure the registry is marked as insecure for docker, otherwise pulls will
-	// fail
+	// run the sed job to fix the auth.json file with the correct address and
+	// make sure the registry is marked as insecure for docker, otherwise pulls
+	// will fail.
 	_, sedCleanup := jobs3.Submit(t,
 		"../docker_registry/registry-auths.hcl",
 		jobs3.Var("registry_address", address),
@@ -80,7 +80,7 @@ func runRegistry(t *testing.T) {
 }
 
 func testRedis(t *testing.T) {
-	job, cleanup := jobs3.Submit(t, "./input/redis.hcl")
+	job, cleanup := jobs3.Submit(t, "./input/redis.hcl", jobs3.Timeout(30*time.Second))
 	t.Cleanup(cleanup)
 
 	logs := job.TaskLogs("cache", "redis")
