@@ -168,6 +168,12 @@ func Test_taskHandle_collectDockerStats(t *testing.T) {
 
 		must.NonZero(t, dockerStats.MemoryStats.Usage)
 		must.MapContainsKey(t, dockerStats.MemoryStats.Stats, "file_mapped")
+
+		_, hasRSS := dockerStats.MemoryStats.Stats["rss"]
+		if !hasRSS {
+			_, hasRSS = dockerStats.MemoryStats.Stats["anon"]
+		}
+		must.True(t, hasRSS)
 	}
 
 	// Test Windows specific memory stats are collected as and when expected.
