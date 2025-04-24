@@ -128,9 +128,9 @@ func (h *taskHandle) collectStats(ctx context.Context, destCh *usageSender, inte
 
 // collectDockerStats performs the stats collection from the Docker API. It is
 // split into its own function for the purpose of aiding testing.
-func (h *taskHandle) collectDockerStats(ctx context.Context) (*containerapi.Stats, error) {
+func (h *taskHandle) collectDockerStats(ctx context.Context) (*containerapi.StatsResponse, error) {
 
-	var stats *containerapi.Stats
+	var stats *containerapi.StatsResponse
 
 	statsReader, err := h.dockerClient.ContainerStats(ctx, h.containerID, false)
 	if err != nil && err != io.EOF {
