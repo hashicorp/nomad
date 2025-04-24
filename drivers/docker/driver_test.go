@@ -3284,6 +3284,8 @@ DONE:
 			ticks := stats.ResourceUsage.CpuStats.TotalTicks
 			must.Greater(t, 0, ticks)
 			tickValues.Insert(ticks)
+			rss := stats.ResourceUsage.MemoryStats.RSS
+			must.Greater(t, 0, rss)
 			if statsReceived >= 3 {
 				cancel() // 3 is plenty
 			}

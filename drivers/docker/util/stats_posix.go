@@ -16,7 +16,7 @@ var (
 
 	// cgroup-v2 only exposes a subset of memory stats
 	DockerCgroupV1MeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage", "Max Usage"}
-	DockerCgroupV2MeasuredMemStats = []string{"Cache", "Swap", "Usage"}
+	DockerCgroupV2MeasuredMemStats = []string{"RSS", "Cache", "Swap", "Usage"}
 )
 
 func DockerStatsToTaskResourceUsage(s *containerapi.StatsResponse, compute cpustats.Compute) *cstructs.TaskResourceUsage {
@@ -33,12 +33,26 @@ func DockerStatsToTaskResourceUsage(s *containerapi.StatsResponse, compute cpust
 		measuredMems = DockerCgroupV2MeasuredMemStats
 	}
 
+	cache := s.MemoryStats.Stats["cache"]
+	if cache == 0 {
+		// This is the equivalent stat for cgroups v2, including filesystem
+		// cache and tmpfs
+		cache = s.MemoryStats.Stats["file"]
+	}
+	rss := s.MemoryStats.Stats["rss"]
+	if rss == 0 {
+		// This is the equivalent stat of anonymous mappings for cgroups v2.
+		rss = s.MemoryStats.Stats["anon"]
+	}
+
+	// containerapi exposes memory stat file as a map. for the meaning of the
+	// source values, consult:
+	// https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
+	// https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#memory-interface-files
 	ms := &cstructs.MemoryStats{
-		// containerapi exposes memory stat file as a map, consult
-		// https://www.kernel.org/doc/Documentation/cgroup-v1/memory.txt
 		MappedFile: s.MemoryStats.Stats["file_mapped"],
-		Cache:      s.MemoryStats.Stats["cache"],
-		RSS:        s.MemoryStats.Stats["rss"],
+		Cache:      cache,
+		RSS:        rss,
 		Swap:       s.MemoryStats.Stats["swap"],
 		Usage:      s.MemoryStats.Usage,
 		MaxUsage:   s.MemoryStats.MaxUsage,
