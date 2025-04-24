@@ -766,7 +766,8 @@ module('Acceptance | jobs list', function (hooks) {
       name: 'regular-job-2',
       createAllocations: true,
     });
-    server.create('job', {
+
+    let pauseJob = server.create('job', {
       name: 'time-based-job ',
       id: 'time-based-job',
       createAllocations: true,
@@ -777,10 +778,11 @@ module('Acceptance | jobs list', function (hooks) {
       groupAllocCount: 1,
       groupTaskCount: 1,
       allocStatusDistribution: {
-        running: 1,
+        pending: 1,
       },
       noActiveDeployment: true,
-      status: 'running',
+      status: 'pending',
+      clientStatus: 'pending',
       noFailedPlacements: true,
     });
 
@@ -791,6 +793,8 @@ module('Acceptance | jobs list', function (hooks) {
     const task = server.db.tasks.findBy({ taskGroupID: groupID });
 
     await JobsList.visit();
+    console.log(pauseJob);
+    await this.pauseTest();
 
     assert.dom('[data-test-job-row="time-based-job"]').exists();
     assert
