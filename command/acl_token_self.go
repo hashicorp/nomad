@@ -76,7 +76,7 @@ func (c *ACLTokenSelfCommand) Run(args []string) int {
 			c.Ui.Info("No ACL token found but there are ACL policies attached to this workload identity. You can query them with acl policy self command.")
 			return 0
 		}
-		c.Ui.Error("No ACL tokens or ACL policies attached to a workload identity found.")
+		c.Ui.Error("No ACL tokens, nor ACL policies attached to a workload identity found.")
 		return 1
 	}
 
