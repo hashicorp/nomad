@@ -4,6 +4,7 @@
 package client
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 )
 
 func Test_clientACLResolver_init(t *testing.T) {
@@ -367,8 +369,14 @@ func TestClient_ACL_ResolveToken_InvalidClaims(t *testing.T) {
 	allocs = testutil.WaitForJobAllocStatusWithToken(t, s1.RPC, job, cond, rootToken.SecretID)
 	must.Len(t, 1, allocs)
 
-	// ResolveToken should error now that alloc is dead
-	aclObj, err := c1.ResolveToken(wid)
-	must.ErrorContains(t, err, "allocation is terminal")
-	must.Nil(t, aclObj)
+	// ResolveToken should error now that alloc is dead, retry in case we hit a
+	// cache invalidation race
+	must.Wait(t, wait.InitialSuccess(
+		wait.BoolFunc(func() bool {
+			aclObj, err := c1.ResolveToken(wid)
+			return aclObj == nil && strings.Contains(err.Error(), "allocation is terminal")
+		}),
+		wait.Timeout(time.Second*10),
+		wait.Gap(time.Millisecond*30),
+	))
 }
