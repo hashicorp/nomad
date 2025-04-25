@@ -1421,6 +1421,15 @@ func TestACLAuthMethodConfig_Validate(t *testing.T) {
 	must.ErrorContains(t, err, "invalid client assertion config:")
 	err = am.Validate("JWT")
 	must.ErrorContains(t, err, "either OIDCDiscoveryURL")
+
+	// valid OIDC method config
+	validOIDCclientAssertion := &OIDCClientAssertion{Audience: []string{"foo"}, KeySource: "nomad"}
+	validOIDC := &ACLAuthMethodConfig{OIDCDiscoveryURL: "http://example.com", OIDCClientID: "oidc", OIDCClientAssertion: validOIDCclientAssertion}
+	must.NoError(t, validOIDC.Validate(ACLAuthMethodTypeOIDC))
+
+	// valid JWT method config
+	validJWT := &ACLAuthMethodConfig{JWKSURL: "http://example.com"}
+	must.NoError(t, validJWT.Validate(ACLAuthMethodTypeJWT))
 }
 
 func TestACLAuthMethodConfig_Copy(t *testing.T) {
