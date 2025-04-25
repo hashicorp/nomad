@@ -767,7 +767,7 @@ module('Acceptance | jobs list', function (hooks) {
       createAllocations: true,
     });
     server.create('job', {
-      name: 'time-based-job ',
+      name: 'time-based-job',
       id: 'time-based-job',
       createAllocations: true,
       type: 'service',
@@ -777,10 +777,11 @@ module('Acceptance | jobs list', function (hooks) {
       groupAllocCount: 1,
       groupTaskCount: 1,
       allocStatusDistribution: {
-        running: 1,
+        pending: 1,
       },
       noActiveDeployment: true,
-      status: 'running',
+      status: 'pending',
+      clientStatus: 'pending',
       noFailedPlacements: true,
     });
 

@@ -316,15 +316,20 @@ export default class Job extends Model {
   @attr('boolean') isPack;
 
   /**
-   * A task with a schedule block can have execution paused at specific cron-based times.
-   * If one is currently paused, an allocation at /statuses will come back with hasPausedTask=true.
-   * We should represent this to the user in the job row.
+   * A task with a schedule block can have execution paused at specific
+   * cron-based times. If an allocation is currently paused and in a pending
+   * client state, we should represent this to the user in the job row.
+   *
+   * Use the allocations client status and the hasPausedTask allocation returned
+   * at /statuses to determine the correct information.
    */
   get hasPausedTask() {
     if (!this.allocations) {
       return false;
     }
-    return this.allocations.any((alloc) => alloc.hasPausedTask);
+    return this.allocations
+      .filter((alloc) => alloc.clientStatus === 'pending')
+      .any((alloc) => alloc.hasPausedTask);
   }
 
   // True when the job is the parent periodic or parameterized jobs
