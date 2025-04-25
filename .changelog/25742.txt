@@ -1,0 +1,3 @@
+```release-note:bug
+ui: Fixed a bug where the job list page incorrectly calculated if a job had paused tasks.
+```

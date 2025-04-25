@@ -289,9 +289,10 @@ module('Acceptance | allocation detail', function (hooks) {
   });
 
   test('when there are no tasks, an empty state is shown', async function (assert) {
-    // Make sure the allocation is pending in order to ensure there are no tasks
-    allocation = server.create('allocation', 'withTaskWithPorts', {
-      clientStatus: 'pending',
+    allocation = server.create('allocation');
+    allocation.update({
+      taskStateIds: [],
+      taskResourceIds: [],
     });
     await Allocation.visit({ id: allocation.id });
 
