@@ -1145,7 +1145,11 @@ func (a *ACLAuthMethodConfig) Validate(methodType string) error {
 		}
 
 	case ACLAuthMethodTypeJWT:
-		// TODO: check JWT fields: https://hashicorp.atlassian.net/browse/NET-12309
+		if a.OIDCDiscoveryURL == "" && a.JWKSURL == "" && len(a.JWTValidationPubKeys) == 0 {
+			mErr = multierror.Append(mErr, fmt.Errorf(
+				"JWT auth method requires either OIDCDiscoveryURL, or JWKS URL, or JWTValidationPubKeys set"),
+			)
+		}
 	}
 
 	return helper.FlattenMultierror(mErr)
