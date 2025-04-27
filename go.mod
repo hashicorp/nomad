@@ -44,7 +44,7 @@ require (
 	github.com/hashicorp/cap v0.9.0
 	github.com/hashicorp/cli v1.1.7
 	github.com/hashicorp/consul-template v0.40.0
-	github.com/hashicorp/consul/api v1.30.0
+	github.com/hashicorp/consul/api v1.32.0
 	github.com/hashicorp/consul/sdk v0.16.2
 	github.com/hashicorp/cronexpr v1.1.2
 	github.com/hashicorp/go-bexpr v0.1.14
@@ -327,7 +327,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.34.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67 // indirect
+	golang.org/x/exp v0.0.0-20250106191152-7588d65b2ba8 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/term v0.31.0 // indirect
