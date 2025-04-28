@@ -2385,6 +2385,14 @@
       {
         "title": "Federate AWS Access with Workload Identity",
         "path": "operations/aws-oidc-provider"
+      },
+      {
+        "title": "IPv6 Support",
+        "path": "operations/ipv6-support"
+      },
+      {
+        "title": "Garbage Collection",
+        "path": "operations/garbage-collection"
       }
     ]
   },
