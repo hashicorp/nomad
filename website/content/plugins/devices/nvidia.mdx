@@ -12,7 +12,9 @@ Use the NVIDIA device plugin to expose NVIDIA graphical processing units (GPUs)
 to Nomad. The driver automatically supports [Multi-Instance GPU (MIG)][mig].
 
 The NVIDIA device plugin uses [NVML] bindings to get data regarding available
-NVIDIA devices and then exposes them via [Fingerprint RPC]. The plugin detects
+NVIDIA devices and then exposes them via [Fingerprint RPC]. Consult [NVIDIA's
+documentation](https://docs.nvidia.com/deploy/nvml-api/nvml-api-reference.html#nvml-api-reference)
+for a list of supported cards. The plugin detects
 whether the GPU has Multi-Instance GPU enabled, and when enabled, the plugin
 fingerprints all instances as individual GPUs. You may exclude GPUs from
 fingerprinting by setting the [`ignored_gpu_ids` field](#plugin-configuration).
@@ -40,14 +42,14 @@ The `nvidia-gpu` device plugin exposes the following environment variables:
 ### Additional Task Configurations
 
 Additional environment variables can be set by the task to influence the runtime
-environment. See [Nvidia's
-documentation](https://github.com/NVIDIA/nvidia-container-runtime#environment-variables-oci-spec).
+environment. Refer to [NVIDIA's
+documentation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/docker-specialized.html#environment-variables-oci-spec).
 
 ## Installation Requirements
 
 In order to use the `nomad-device-nvidia` device driver the following prerequisites must be met:
 
-1. GNU/Linux x86_64 with kernel version > 3.10
+1. 64 bit GNU/Linux with kernel version > 3.10
 2. NVIDIA GPU with Architecture > Fermi (2.1)
 3. NVIDIA drivers >= 340.29 with binary `nvidia-smi`
 4. Docker v19.03+
@@ -60,7 +62,7 @@ be able to run this simple command to test your environment and produce meaningf
 output.
 
 ```shell
-docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.8.1-base-ubuntu22.04 nvidia-smi
 ```
 
 
@@ -91,14 +93,17 @@ config:
 
 The NVIDIA integration only works with drivers who natively integrate with
 NVIDIA's [container runtime
-library](https://github.com/NVIDIA/libnvidia-container).
+library](https://github.com/NVIDIA/libnvidia-container) and cards that are [supported
+by NVML](https://docs.nvidia.com/deploy/nvml-api/nvml-api-reference.html#nvml-api-reference).
 
 Nomad has tested support with the [`docker` driver][docker-driver].
 
 ## Source Code & Compiled Binaries
 
 The source code for this plugin can be found at hashicorp/nomad-device-nvidia. You
-can also find pre-built binaries on the [releases page][nvidia_plugin_download].
+can also find pre-built binaries on the [releases page][nvidia_plugin_download]. To 
+install the plugin, download the binary or compile from source. Then place the
+binary in the [plugin directory][`plugin_dir`].
 
 ## Examples
 
@@ -153,7 +158,7 @@ job "gpu-test" {
       driver = "docker"
 
       config {
-        image = "nvidia/cuda:11.0-base"
+        image = "nvidia/cuda:12.8.1-base-ubuntu22.04"
         command = "nvidia-smi"
       }
 
