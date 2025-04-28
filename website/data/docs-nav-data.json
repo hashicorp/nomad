@@ -2393,6 +2393,10 @@
       {
         "title": "IPv6 Support",
         "path": "operations/ipv6-support"
+      },
+      {
+        "title": "Garbage Collection",
+        "path": "operations/garbage-collection"
       }
     ]
   },
