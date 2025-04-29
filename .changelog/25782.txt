@@ -1,0 +1,3 @@
+```release-note:bug
+client: fixes issue where persisting allocation state stored wrong client status
+```
