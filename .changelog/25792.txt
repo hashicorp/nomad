@@ -1,0 +1,3 @@
+```release-note:bug
+paginator: fix tokenizer comparison of composite index and ID
+```
