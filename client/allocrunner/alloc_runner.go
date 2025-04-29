@@ -1136,10 +1136,20 @@ func (ar *allocRunner) PersistState() error {
 		return err
 	}
 
-	// TODO: consider persisting deployment state along with task status.
-	// While we study why only the alloc is persisted, I opted to maintain current
-	// behavior and not risk adding yet more IO calls unnecessarily.
-	return ar.stateDB.PutAllocation(ar.Alloc(), cstate.WithBatchMode())
+	// Currently, the allocRunners alloc is never updated with the correct
+	// ClientStatus. Instead of directly mutating the alloc held by the
+	// allocRunner, we make a copy and persist that updated copy to the
+	// state store. In the event of a client restart, we will restore
+	// with the correct state.
+	arCopy := ar.Alloc().Copy()
+
+	state := ar.AllocState()
+
+	arCopy.ClientStatus = state.ClientStatus
+	arCopy.ClientDescription = state.ClientDescription
+	arCopy.DeploymentStatus = state.DeploymentStatus
+
+	return ar.stateDB.PutAllocation(arCopy, cstate.WithBatchMode())
 }
 
 // Destroy the alloc runner by stopping it if it is still running and cleaning
