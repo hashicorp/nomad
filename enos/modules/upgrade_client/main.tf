@@ -61,7 +61,7 @@ resource "enos_local_exec" "get_alloc_info" {
   )
 
   inline = [
-    "nomad alloc status -json | jq -r --arg NODE_ID \"$(nomad node status -allocs -address https://$CLIENT_IP:4646 -self -json | jq -r '.ID')\" '[ .[] | select(.NodeID == $NODE_ID) | {ID: .ID, Name: .Name, ClientStatus: .ClientStatus, TaskStates: .TaskStates}]'"  ]
+  "nomad alloc status -json | jq -r --arg NODE_ID \"$(nomad node status -allocs -address https://$CLIENT_IP:4646 -self -json | jq -r '.ID')\" '[ .[] | select(.NodeID == $NODE_ID) | {ID: .ID, Name: .Name, ClientStatus: .ClientStatus, TaskStates: .TaskStates}]'"]
 }
 
 module "upgrade_client" {
