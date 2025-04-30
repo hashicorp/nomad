@@ -2174,6 +2174,11 @@ type Node struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	// NodeAllocationTracker holds NodeMaxAllocs value, if configured,
+	// and CurrentNodeAllocations to help the scheduler to block excess
+	// allocations.
+	NodeAllocationTracker *NodeAllocationTracker
 }
 
 // GetID is a helper for getting the ID when the object may be nil and is
@@ -2392,6 +2397,14 @@ type NodeListStub struct {
 type NodeStubFields struct {
 	Resources bool
 	OS        bool
+}
+
+// NodeAllocationTracker retains awareness of a client's NodeMaxAllocs
+// value, the current number of Allocations and whether the node can
+// accept new Allocations
+type NodeAllocationTracker struct {
+	atMax         bool
+	NodeMaxAllocs int
 }
 
 // Resources is used to define the resources available
