@@ -368,6 +368,13 @@ func (e *Encrypter) AddUnwrappedKey(rootKey *structs.UnwrappedRootKey, isUpgrade
 // but it returns an error for ease of testing.
 func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.RootKey) error {
 
+	// If the passed root key does not contain any wrapped keys, it has no
+	// decryption tasks to perform and therefore should not supersede or impact
+	// tasks running for the same keyID.
+	if len(wrappedKeys.WrappedKeys) == 0 {
+		return nil
+	}
+
 	logger := e.log.With("key_id", wrappedKeys.KeyID)
 
 	e.lock.Lock()
@@ -387,7 +394,7 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Root
 
 	if cancel, ok := e.decryptTasks[wrappedKeys.KeyID]; ok {
 		// stop any previous tasks for this same key ID under the assumption
-		// they're broken or being superceded, but don't remove the CancelFunc
+		// they're broken or being superseded, but don't remove the CancelFunc
 		// from the map yet so that other callers don't think we can continue
 		cancel()
 	}
