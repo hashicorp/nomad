@@ -987,20 +987,13 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 
 	timeout := gracefulTimeout
 
-	config := c.agent.config
+	config := c.agent.client.GetConfig()
 	if config == nil {
 		c.Ui.Output("Unable to read the agent configuration, using the default graceful timeout")
 	}
 
-	if config.Client != nil && config.Client.Drain != nil && config.Client.Drain.Deadline != nil {
-		ddl, err := time.ParseDuration(*config.Client.Drain.Deadline)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Unable to read the client's drain deadline, using the default graceful timeout: %s", err))
-		}
-
-		if ddl != 0 {
-			timeout += ddl
-		}
+	if config.Drain != nil && config.Drain.Deadline != 0 {
+		timeout += config.Drain.Deadline
 	}
 
 	c.Ui.Output("Gracefully shutting down agent...")
