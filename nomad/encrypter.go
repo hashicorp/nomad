@@ -503,11 +503,12 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 		RSAKey: rsaKey,
 	}
 
+	var generatedCipher *cipherSet
+
 	err = helper.WithBackoffFunc(ctx, minBackoff, maxBackoff, func() error {
-		err := e.addCipher(rootKey)
+		generatedCipher, err = e.generateCipher(rootKey)
 		if err != nil {
-			err := fmt.Errorf("could not add cipher: %w", err)
-			e.log.Error(err.Error(), "key_id", meta.KeyID)
+			e.log.Error("failed to generate cipher", "error", err, "key_id", meta.KeyID)
 			return err
 		}
 		return nil
@@ -518,16 +519,24 @@ func (e *Encrypter) decryptWrappedKeyTask(ctx context.Context, cancel context.Ca
 
 	e.lock.Lock()
 	defer e.lock.Unlock()
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	e.addCipherLocked(meta.KeyID, generatedCipher)
 	cancel()
 	delete(e.decryptTasks, meta.KeyID)
+
 	return nil
 }
 
-// addCipher creates a new cipherSet for the key and stores them in the keyring
-func (e *Encrypter) addCipher(rootKey *structs.UnwrappedRootKey) error {
+func (e *Encrypter) generateCipher(rootKey *structs.UnwrappedRootKey) (*cipherSet, error) {
 
 	if rootKey == nil || rootKey.Meta == nil {
-		return fmt.Errorf("missing metadata")
+		return nil, fmt.Errorf("missing metadata")
 	}
 	var aead cipher.AEAD
 
@@ -535,14 +544,14 @@ func (e *Encrypter) addCipher(rootKey *structs.UnwrappedRootKey) error {
 	case structs.EncryptionAlgorithmAES256GCM:
 		block, err := aes.NewCipher(rootKey.Key)
 		if err != nil {
-			return fmt.Errorf("could not create cipher: %v", err)
+			return nil, fmt.Errorf("could not create cipher: %v", err)
 		}
 		aead, err = cipher.NewGCM(block)
 		if err != nil {
-			return fmt.Errorf("could not create cipher: %v", err)
+			return nil, fmt.Errorf("could not create cipher: %v", err)
 		}
 	default:
-		return fmt.Errorf("invalid algorithm %s", rootKey.Meta.Algorithm)
+		return nil, fmt.Errorf("invalid algorithm %s", rootKey.Meta.Algorithm)
 	}
 
 	ed25519Key := ed25519.NewKeyFromSeed(rootKey.Key)
@@ -558,18 +567,31 @@ func (e *Encrypter) addCipher(rootKey *structs.UnwrappedRootKey) error {
 	if len(rootKey.RSAKey) > 0 {
 		rsaKey, err := x509.ParsePKCS1PrivateKey(rootKey.RSAKey)
 		if err != nil {
-			return fmt.Errorf("error parsing rsa key: %w", err)
+			return nil, fmt.Errorf("error parsing rsa key: %w", err)
 		}
 
 		cs.rsaPrivateKey = rsaKey
 		cs.rsaPKCS1PublicKey = x509.MarshalPKCS1PublicKey(&rsaKey.PublicKey)
 	}
 
+	return &cs, nil
+}
+
+// addCipher creates a new cipherSet for the key and stores them in the keyring
+func (e *Encrypter) addCipher(rootKey *structs.UnwrappedRootKey) error {
+
+	generatedCipher, err := e.generateCipher(rootKey)
+	if err != nil {
+		return err
+	}
+
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	e.keyring[rootKey.Meta.KeyID] = &cs
+	e.addCipherLocked(rootKey.Meta.KeyID, generatedCipher)
 	return nil
 }
+
+func (e *Encrypter) addCipherLocked(id string, c *cipherSet) { e.keyring[id] = c }
 
 // waitForKey retrieves the key material by ID from the keyring, retrying with
 // geometric backoff until the context expires.
