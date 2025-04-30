@@ -22,6 +22,13 @@ non-functional `-peer-address` option for the [`operator raft
 peer-remove`](/nomad/docs/commands/operator/raft/remove-peer) command, and the
 `address` parameter for the `DELETE /v1/operator/raft/peer` API.
 
+Errors encountered when reloading agent configuration will now cause agents to
+exit. Before configuration errors during reloads were only logged. This could 
+lead to agents running but unable to communicate. Any other errors when parsing
+the new configuration will be logged and the reload will be aborted, consistent
+with teh current behavior.
+
+
 ## Nomad 1.10.0
 
 @include 'release-notes/v1-10/deprecate-variable-limits.mdx'
