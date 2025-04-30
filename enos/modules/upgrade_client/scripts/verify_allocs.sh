@@ -55,9 +55,8 @@ echo "$allocs_count allocs found before upgrade $ALLOCS"
 
 checkAllocsCount() {
     local allocs
-    allocs=$(nomad alloc status -json) || error_exit "Failed to check alloc status"
-
-    running_allocs=$(echo "$allocs" | jq '[.[] | select(.ClientStatus == "running")]')
+    running_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id)]') \
+        || error_exit "Failed to check alloc status"
     allocs_length=$(echo "$running_allocs" | jq 'length') \
         || error_exit "Invalid alloc status -json output"
 
