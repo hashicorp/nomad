@@ -141,7 +141,11 @@ func (a TerminalByNodeByName) Get(nodeID, name string) (*Allocation, bool) {
 func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevices bool) (bool, string, *ComparableResources, error) {
 	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
-
+	if node.NodeMaxAllocs != nil {
+		if node.NodeMaxAllocs.MaxAllocs < len(allocs) {
+			return false, "max allocation exceeded", used, fmt.Errorf("plan exceeds max allocation")
+		}
+	}
 	reservedCores := map[uint16]struct{}{}
 	var coreOverlap bool
 

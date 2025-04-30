@@ -2081,6 +2081,116 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 	must.Eq(t, 1, ctx.metrics.DimensionExhausted["devices: no devices match request"])
 }
 
+// Tests that bin packing iterator will not place workloads on nodes
+// that would go over a designated MaxAlloc value
+func TestBinPackIterator_MaxAlloc(t *testing.T) {
+	_, ctx := testContext(t)
+	//nId1 := uuid.Generate()
+	//nId2 := uuid.Generate()
+	taskGen := func(name string) *structs.Task {
+		return &structs.Task{
+			Name:      name,
+			Resources: &structs.Resources{},
+		}
+	}
+	nodes := []*RankedNode{
+		{
+			Node: &structs.Node{
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
+		},
+		{
+			Node: &structs.Node{
+				ID: uuid.Generate(),
+				NodeResources: &structs.NodeResources{
+					Processors: processorResources2048,
+					Cpu:        legacyCpuResources2048,
+					Memory: structs.NodeMemoryResources{
+						MemoryMB: 2048,
+					},
+				},
+			},
+		},
+	}
+
+	testCases := []struct {
+		name        string
+		maxAlloc    int
+		tasks       []*structs.Task
+		tasksOn1    int
+		nodesPlaced int
+		noNodes     bool
+	}{
+		{
+			name:     "both_nodes",
+			maxAlloc: 1,
+			tasks: []*structs.Task{
+				taskGen("web1"),
+				taskGen("web2"),
+				taskGen("web3")},
+			nodesPlaced: 2,
+		},
+		{
+			name:     "only_node2",
+			maxAlloc: 0,
+			tasks: []*structs.Task{
+				taskGen("web1"),
+				taskGen("web2"),
+				taskGen("web3")},
+			nodesPlaced: 1,
+		},
+		{
+			name:     "no_nodes",
+			maxAlloc: 0,
+			tasks: []*structs.Task{
+				taskGen("web1"),
+				taskGen("web2"),
+				taskGen("web3")},
+			nodesPlaced: 0,
+			noNodes:     true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.noNodes {
+				// Note: test case order matters here
+				for _, v := range nodes {
+					v.Node.NodeMaxAllocs = &structs.NodeMaxAllocs{
+						MaxAllocs: tc.maxAlloc,
+					}
+				}
+			} else {
+				// only add allocation limit to first node if !noNodes
+				nodes[0].Node.NodeMaxAllocs = &structs.NodeMaxAllocs{
+					MaxAllocs: tc.maxAlloc,
+				}
+			}
+			static := NewStaticRankIterator(ctx, nodes)
+
+			// Create task group with empty resource sets
+			taskGroup := &structs.TaskGroup{
+				EphemeralDisk: &structs.EphemeralDisk{},
+				Tasks:         tc.tasks,
+			}
+			// Create BinPackIterator and evaluate tasks
+			binp := NewBinPackIterator(ctx, static, false, 0)
+			binp.SetTaskGroup(taskGroup)
+			binp.SetSchedulerConfiguration(testSchedulerConfig)
+			scoreNorm := NewScoreNormalizationIterator(ctx, binp)
+
+			// Place tasks
+			out := collectRanked(scoreNorm)
+			must.Len(t, tc.nodesPlaced, out)
+		})
+	}
+}
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
 	_, ctx := testContext(t)
 	nodes := []*RankedNode{
