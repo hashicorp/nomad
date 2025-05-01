@@ -14,7 +14,7 @@ This page lists all known jobs in a paginated, searchable, and sortable table.
 
 | Path       | Produces    |
 | ---------- | ----------- |
-| `/ui/jobs` | `text/html` |
+| `/v1/ui/jobs` | `text/html` |
 
 ### Parameters
 
@@ -72,7 +72,7 @@ based on the type of job.
 
 | Path               | Produces    |
 | ------------------ | ----------- |
-| `/ui/jobs/:job_id` | `text/html` |
+| `/v1/ui/jobs/:job_id` | `text/html` |
 
 ### Parameters
 
@@ -91,7 +91,7 @@ This page shows the definition of a job as pretty-printed, syntax-highlighted, J
 
 | Path                          | Produces    |
 | ----------------------------- | ----------- |
-| `/ui/jobs/:job_id/definition` | `text/html` |
+| `/v1/ui/jobs/:job_id/definition` | `text/html` |
 
 ### Job Versions
 
@@ -101,7 +101,7 @@ job versions.
 
 | Path                        | Produces    |
 | --------------------------- | ----------- |
-| `/ui/jobs/:job_id/versions` | `text/html` |
+| `/v1/ui/jobs/:job_id/versions` | `text/html` |
 
 ### Job Deployments
 
@@ -116,7 +116,7 @@ in a table to drill into for task events.
 
 | Path                           | Produces    |
 | ------------------------------ | ----------- |
-| `/ui/jobs/:job_id/deployments` | `text/html` |
+| `/v1/ui/jobs/:job_id/deployments` | `text/html` |
 
 ### Job Allocations
 
@@ -124,7 +124,7 @@ This page lists all allocations for a job in a table view. Each allocation inclu
 
 | Path                           | Produces    |
 | ------------------------------ | ----------- |
-| `/ui/jobs/:job_id/allocations` | `text/html` |
+| `/v1/ui/jobs/:job_id/allocations` | `text/html` |
 
 ### Parameters
 
@@ -146,7 +146,7 @@ This page lists all evaluations for a job in a table view. Each evaluation inclu
 
 | Path                           | Produces    |
 | ------------------------------ | ----------- |
-| `/ui/jobs/:job_id/evaluations` | `text/html` |
+| `/v1/ui/jobs/:job_id/evaluations` | `text/html` |
 
 ### Parameters
 
@@ -165,7 +165,7 @@ allocations.
 
 | Path                                | Produces    |
 | ----------------------------------- | ----------- |
-| `/ui/jobs/:job_id/:task_group_name` | `text/html` |
+| `/v1/ui/jobs/:job_id/:task_group_name` | `text/html` |
 
 ### Parameters
 
@@ -191,7 +191,7 @@ description of the event.
 
 | Path                        | Produces    |
 | --------------------------- | ----------- |
-| `/ui/allocations/:alloc_id` | `text/html` |
+| `/v1/ui/allocations/:alloc_id` | `text/html` |
 
 ### Parameters
 
@@ -209,7 +209,7 @@ If the file is text based, the UI will render the text inline and the stream the
 
 | Path                                      | Produces    |
 | ----------------------------------------- | ----------- |
-| `/ui/allocations/:alloc_id/fs/:file_path` | `text/html` |
+| `/v1/ui/allocations/:alloc_id/fs/:file_path` | `text/html` |
 
 ### Parameters
 
@@ -226,7 +226,7 @@ and stopped, all static and dynamic addresses, and all recent events.
 
 | Path                                   | Produces    |
 | -------------------------------------- | ----------- |
-| `/ui/allocations/:alloc_id/:task_name` | `text/html` |
+| `/v1/ui/allocations/:alloc_id/:task_name` | `text/html` |
 
 ## Task Logs
 
@@ -236,7 +236,7 @@ to `stderr`.
 
 | Path                                        | Produces    |
 | ------------------------------------------- | ----------- |
-| `/ui/allocations/:alloc_id/:task_name/logs` | `text/html` |
+| `/v1/ui/allocations/:alloc_id/:task_name/logs` | `text/html` |
 
 ## Task File System
 
@@ -246,7 +246,7 @@ If the file is text based, the UI will render the text inline and the stream the
 
 | Path                                      | Produces    |
 | ----------------------------------------- | ----------- |
-| `/ui/allocations/:alloc_id/fs/:file_path` | `text/html` |
+| `/v1/ui/allocations/:alloc_id/fs/:file_path` | `text/html` |
 
 ### Parameters
 
@@ -264,7 +264,7 @@ This page is meant to be rendered in a popup window.
 
 | Path               | Produces    |
 | ------------------ | ----------- |
-| `/ui/exec/:job_id` | `text/html` |
+| `/v1/ui/exec/:job_id` | `text/html` |
 
 ### Parameters
 
@@ -278,7 +278,7 @@ This page is meant to be rendered in a popup window.
 
 | Path                           | Produces    |
 | ------------------------------ | ----------- |
-| `/ui/exec/:job_id/:task_group` | `text/html` |
+| `/v1/ui/exec/:job_id/:task_group` | `text/html` |
 
 ### Parameters
 
@@ -305,7 +305,7 @@ table.
 
 | Path          | Produces    |
 | ------------- | ----------- |
-| `/ui/clients` | `text/html` |
+| `/v1/ui/clients` | `text/html` |
 
 ### Parameters
 
@@ -336,7 +336,7 @@ address, port, datacenter, allocations, and attributes.
 
 | Path                     | Produces    |
 | ------------------------ | ----------- |
-| `/ui/clients/:client_id` | `text/html` |
+| `/v1/ui/clients/:client_id` | `text/html` |
 
 ### Parameters
 
@@ -358,7 +358,7 @@ This page streams log messages from a client's agent. It is the equivalent to th
 
 | Path                             | Produces    |
 | -------------------------------- | ----------- |
-| `/ui/clients/:client_id/monitor` | `text/html` |
+| `/v1/ui/clients/:client_id/monitor` | `text/html` |
 
 ### Parameters
 
@@ -372,7 +372,7 @@ the leader.
 
 | Path          | Produces    |
 | ------------- | ----------- |
-| `/ui/servers` | `text/html` |
+| `/v1/ui/servers` | `text/html` |
 
 ### Parameters
 
@@ -391,7 +391,7 @@ This page lists all tags associated with a server.
 
 | Path                     | Produces    |
 | ------------------------ | ----------- |
-| `/ui/servers/:server_id` | `text/html` |
+| `/v1/ui/servers/:server_id` | `text/html` |
 
 ## Server Monitor
 
@@ -399,7 +399,7 @@ This page streams log messages from a server's agent. It is the equivalent to th
 
 | Path                             | Produces    |
 | -------------------------------- | ----------- |
-| `/ui/servers/:server_id/monitor` | `text/html` |
+| `/v1/ui/servers/:server_id/monitor` | `text/html` |
 
 ### Parameters
 
@@ -411,7 +411,7 @@ This page lists all CSI volumes registered with the Nomad cluster by namespace. 
 
 | Path              | Produces    |
 | ----------------- | ----------- |
-| `/ui/csi/volumes` | `text/html` |
+| `/v1/ui/csi/volumes` | `text/html` |
 
 ### Parameters
 
@@ -436,7 +436,7 @@ This page shows information for a CSI volume. This includes whether or not the v
 
 | Path                         | Produces    |
 | ---------------------------- | ----------- |
-| `/ui/csi/volumes/:volume_id` | `text/html` |
+| `/v1/ui/csi/volumes/:volume_id` | `text/html` |
 
 ## CSI Plugins
 
@@ -444,7 +444,7 @@ This page lists all CSI plugins registered with the Nomad cluster. Each plugin i
 
 | Path              | Produces    |
 | ----------------- | ----------- |
-| `/ui/csi/plugins` | `text/html` |
+| `/v1/ui/csi/plugins` | `text/html` |
 
 ### Parameters
 
@@ -466,7 +466,7 @@ This page shows information for a CSI plugin. This includes the proportion of he
 
 | Path                         | Produces    |
 | ---------------------------- | ----------- |
-| `/ui/csi/plugins/:plugin_id` | `text/html` |
+| `/v1/ui/csi/plugins/:plugin_id` | `text/html` |
 
 ## CSI Plugin Allocations
 
@@ -474,7 +474,7 @@ This page lists all allocations for a CSI plugin. Each allocation includes the s
 
 | Path              | Produces    |
 | ----------------- | ----------- |
-| `/ui/csi/plugins` | `text/html` |
+| `/v1/ui/csi/plugins` | `text/html` |
 
 ### Parameters
 
@@ -504,7 +504,7 @@ Each recommendation in the list will contain information including the job and t
 
 | Path           | Produces    |
 | -------------- | ----------- |
-| `/ui/optimize` | `text/html` |
+| `/v1/ui/optimize` | `text/html` |
 
 ### Parameters
 
@@ -528,7 +528,7 @@ This page includes the same list of recommendations as the optimize route as wel
 
 | Path                                    | Produces    |
 | --------------------------------------- | ----------- |
-| `/ui/optimize/:job_id/:task_group_name` | `text/html` |
+| `/v1/ui/optimize/:job_id/:task_group_name` | `text/html` |
 
 ### Parameters
 
@@ -540,7 +540,7 @@ This page includes a visualization of all starting and running allocations group
 
 | Path           | Produces    |
 | -------------- | ----------- |
-| `/ui/topology` | `text/html` |
+| `/v1/ui/topology` | `text/html` |
 
 ## ACL Tokens
 
@@ -552,14 +552,14 @@ authenticate all future requests to allow read access to additional resources.
 
 | Path                  | Produces    |
 | --------------------- | ----------- |
-| `/ui/settings/tokens` | `text/html` |
+| `/v1/ui/settings/tokens` | `text/html` |
 
 
 ## Keyboard Shortcuts
 
 The Nomad UI supports several keyboard shortcuts in order to help users navigate and operate Nomad. You can use common key commands to dig into jobs, view logs, monitor evaluations, and more.
 
-Type `?` from anywhere in the UI to launch the Keyboard Shortcuts panel. 
+Type `?` from anywhere in the UI to launch the Keyboard Shortcuts panel.
 
 ### Default key commands:
 
