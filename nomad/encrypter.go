@@ -381,6 +381,18 @@ func (e *Encrypter) AddUnwrappedKey(rootKey *structs.UnwrappedRootKey, isUpgrade
 // and RootKeyMeta. It returns an error for ease of testing.
 func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.RootKey) error {
 
+	// If the passed root key does not contain any wrapped keys, it has no
+	// decryption tasks to perform and therefore should not supersede or impact
+	// tasks running for the same keyID.
+	//
+	// This conditional will only be hit when the FSM is taking action on
+	// fsm.RootKeyMetaSnapshot and structs.RootKeyMetaUpsertRequestType types
+	// which represent legacy style keys. When support is removed for these in
+	// 1.12.0, we should reconsider this conditional too.
+	if len(wrappedKeys.WrappedKeys) == 0 {
+		return nil
+	}
+
 	logger := e.log.With("key_id", wrappedKeys.KeyID)
 
 	e.keyringLock.Lock()
