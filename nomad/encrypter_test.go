@@ -13,6 +13,7 @@ import (
 	"net/rpc"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	wrapping "github.com/hashicorp/go-kms-wrapping/v2"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
@@ -232,13 +234,13 @@ func TestEncrypter_Restore(t *testing.T) {
 	}
 
 	// Ensure all rotated keys are correct
-	srv.encrypter.lock.Lock()
+	srv.encrypter.keyringLock.Lock()
 	test.MapLen(t, 5, srv.encrypter.keyring)
 	for _, keyset := range srv.encrypter.keyring {
 		test.Len(t, 32, keyset.rootKey.Key)
 		test.Greater(t, 0, len(keyset.rootKey.RSAKey))
 	}
-	srv.encrypter.lock.Unlock()
+	srv.encrypter.keyringLock.Unlock()
 
 	shutdown()
 
@@ -261,13 +263,13 @@ func TestEncrypter_Restore(t *testing.T) {
 		return len(listResp.Keys) == 5 // 4 new + the bootstrap key
 	}, time.Second*5, time.Second, "expected keyring to be restored")
 
-	srv.encrypter.lock.Lock()
+	srv.encrypter.keyringLock.Lock()
 	test.MapLen(t, 5, srv.encrypter.keyring)
 	for _, keyset := range srv.encrypter.keyring {
 		test.Len(t, 32, keyset.rootKey.Key)
 		test.Greater(t, 0, len(keyset.rootKey.RSAKey))
 	}
-	srv.encrypter.lock.Unlock()
+	srv.encrypter.keyringLock.Unlock()
 
 	for _, keyMeta := range listResp.Keys {
 
@@ -836,7 +838,7 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 	must.Eq(t, expect, providers[2].Config, must.Sprint("expected fallback to env"))
 }
 
-func TestEncrypter_decryptWrappedKeyTask(t *testing.T) {
+func TestEncrypter_AddWrappedKey_zeroDecryptTaskError(t *testing.T) {
 	ci.Parallel(t)
 
 	srv := &Server{
@@ -844,12 +846,144 @@ func TestEncrypter_decryptWrappedKeyTask(t *testing.T) {
 		config: &Config{},
 	}
 
-	tmpDir := t.TempDir()
+	encrypter, err := NewEncrypter(srv, t.TempDir())
+	must.NoError(t, err)
 
 	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
 	must.NoError(t, err)
 
-	encrypter, err := NewEncrypter(srv, tmpDir)
+	wrappedKey, err := encrypter.wrapRootKey(key, false)
+	must.NoError(t, err)
+
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	t.Cleanup(timeoutCancel)
+
+	must.Error(t, encrypter.AddWrappedKey(timeoutCtx, wrappedKey))
+	must.MapEmpty(t, encrypter.decryptTasks)
+	must.MapEmpty(t, encrypter.keyring)
+}
+
+func TestEncrypter_AddWrappedKey_sameKeyTwice(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	encrypter, err := NewEncrypter(srv, t.TempDir())
+	must.NoError(t, err)
+
+	// Create a valid and correctly formatted key and wrap it.
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	wrappedKey, err := encrypter.wrapRootKey(key, true)
+	must.NoError(t, err)
+
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	t.Cleanup(timeoutCancel)
+
+	// Add the wrapped key to the encrypter and assert that the key is added to
+	// the keyring and no decryption tasks are queued.
+	must.NoError(t, encrypter.AddWrappedKey(timeoutCtx, wrappedKey))
+	must.NoError(t, encrypter.IsReady(timeoutCtx))
+	must.MapEmpty(t, encrypter.decryptTasks)
+	must.MapLen(t, 1, encrypter.keyring)
+	must.MapContainsKey(t, encrypter.keyring, key.Meta.KeyID)
+
+	timeoutCtx, timeoutCancel = context.WithTimeout(context.Background(), 2*time.Second)
+	t.Cleanup(timeoutCancel)
+
+	// Add the same key again and assert that the key is not added to the
+	// keyring and no decryption tasks are queued.
+	must.NoError(t, encrypter.AddWrappedKey(timeoutCtx, wrappedKey))
+	must.NoError(t, encrypter.IsReady(timeoutCtx))
+	must.MapEmpty(t, encrypter.decryptTasks)
+	must.MapLen(t, 1, encrypter.keyring)
+	must.MapContainsKey(t, encrypter.keyring, key.Meta.KeyID)
+}
+
+func TestEncrypter_AddWrappedKey_sameKeyConcurrent(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	encrypter, err := NewEncrypter(srv, t.TempDir())
+	must.NoError(t, err)
+
+	// Create a valid and correctly formatted key and wrap it.
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	wrappedKey, err := encrypter.wrapRootKey(key, true)
+	must.NoError(t, err)
+
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	t.Cleanup(timeoutCancel)
+
+	// Define the number of concurrent calls to AddWrappedKey. Changing this
+	// value should not affect the correctness of the test.
+	concurrentNum := 10
+
+	// Create a channel to receive the responses from the concurrent calls to
+	// AddWrappedKey. The channel is buffered to ensure that the launched
+	// routines can send to it without blocking.
+	respCh := make(chan error, concurrentNum)
+
+	// Create a channel to control when the concurrent calls to AddWrappedKey
+	// are triggered. When the channel is closed, all waiting routines will
+	// unblock within 0.001 ms of each other.
+	startCh := make(chan struct{})
+
+	// Launch the concurrent calls to AddWrappedKey and wait till they have all
+	// triggered and responded before moving on. The timeout ensures this test
+	// won't deadlock or hang indefinitely.
+	var wg sync.WaitGroup
+	wg.Add(concurrentNum)
+
+	for i := 0; i < concurrentNum; i++ {
+		go func() {
+			<-startCh
+			respCh <- encrypter.AddWrappedKey(timeoutCtx, wrappedKey)
+			wg.Done()
+		}()
+	}
+
+	close(startCh)
+	wg.Wait()
+
+	// Gather the responses and ensure the encrypter state is as we expect.
+	var respNum int
+
+	for resp := range respCh {
+		must.NoError(t, resp)
+		if respNum++; respNum == concurrentNum {
+			break
+		}
+	}
+
+	must.NoError(t, encrypter.IsReady(timeoutCtx))
+	must.MapEmpty(t, encrypter.decryptTasks)
+	must.MapLen(t, 1, encrypter.keyring)
+	must.MapContainsKey(t, encrypter.keyring, key.Meta.KeyID)
+}
+
+func TestEncrypter_decryptWrappedKeyTask_successful(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	encrypter, err := NewEncrypter(srv, t.TempDir())
 	must.NoError(t, err)
 
 	wrappedKey, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
@@ -868,9 +1002,100 @@ func TestEncrypter_decryptWrappedKeyTask(t *testing.T) {
 	must.NoError(t, err)
 	must.NotNil(t, KMSWrapper)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err = encrypter.decryptWrappedKeyTask(ctx, cancel, KMSWrapper, provider, key.Meta, wrappedKey)
+	respCh := make(chan *cipherSet)
+
+	go encrypter.decryptWrappedKeyTask(ctx, KMSWrapper, key.Meta, wrappedKey, respCh)
+
+	select {
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for decryptWrappedKeyTask to complete")
+	case cipherResp := <-respCh:
+		must.NotNil(t, cipherResp)
+	}
+}
+
+func TestEncrypter_decryptWrappedKeyTask_contextCancel(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	encrypter, err := NewEncrypter(srv, t.TempDir())
 	must.NoError(t, err)
+
+	// Create a valid and correctly formatted key and wrap it.
+	key, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	wrappedKey, err := encrypter.encryptDEK(key, &structs.KEKProviderConfig{})
+	must.NotNil(t, wrappedKey)
+	must.NoError(t, err)
+
+	// Prepare the KMS wrapper and the response channel, so we can call
+	// decryptWrappedKeyTask. Use a buffered channel, so the decrypt task does
+	// not block on a send.
+	provider, ok := encrypter.providerConfigs[string(structs.KEKProviderAEAD)]
+	must.True(t, ok)
+	must.NotNil(t, provider)
+
+	kmsWrapper, err := encrypter.newKMSWrapper(provider, key.Meta.KeyID, wrappedKey.KeyEncryptionKey)
+	must.NoError(t, err)
+	must.NotNil(t, kmsWrapper)
+
+	respCh := make(chan *cipherSet, 1)
+
+	// Generate a context and immediately cancel it.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Ensure we receive an error indicating we hit the context done case and
+	// check no cipher response was sent.
+	err = encrypter.decryptWrappedKeyTask(ctx, kmsWrapper, key.Meta, wrappedKey, respCh)
+	must.ErrorContains(t, err, "operation cancelled")
+	must.Eq(t, 0, len(respCh))
+
+	// Recreate the response channel so that it is no longer buffered. The
+	// decrypt task should now block on attempting to send to it.
+	respCh = make(chan *cipherSet)
+
+	// Generate a new context and an error channel so we can gather the response
+	// of decryptWrappedKeyTask running inside a goroutine.
+	ctx, cancel = context.WithCancel(context.Background())
+
+	errorCh := make(chan error, 1)
+
+	// Launch the decryptWrappedKeyTask routine.
+	go func() {
+		err := encrypter.decryptWrappedKeyTask(ctx, kmsWrapper, key.Meta, wrappedKey, respCh)
+		errorCh <- err
+	}()
+
+	// Roughly ensure the decrypt task is running for enough time to get past
+	// the cipher generation.
+	//
+	// The routine should reach a point where it is waiting to send the cipher
+	// on the response channel or for the context to be canceled.
+	//
+	// Canceling the context should cause the routine to exit and send an error
+	// which we can check to ensure we correctly unblock.
+	timer, timerStop := helper.NewSafeTimer(500 * time.Millisecond)
+	defer timerStop()
+
+	<-timer.C
+	cancel()
+
+	timer, timerStop = helper.NewSafeTimer(200 * time.Millisecond)
+	defer timerStop()
+
+	select {
+	case <-timer.C:
+		t.Fatal("timed out waiting for decryptWrappedKeyTask to send its error")
+	case err := <-errorCh:
+		must.ErrorContains(t, err, "context canceled")
+	}
 }
