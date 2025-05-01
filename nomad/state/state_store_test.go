@@ -6587,6 +6587,32 @@ func TestStateStore_UpsertAlloc_ChildJob(t *testing.T) {
 	require.False(t, watchFired(ws))
 }
 
+func TestStateStore_UpsertAlloc_NextAllocation(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+
+	alloc1 := mock.Alloc()
+	alloc2 := mock.Alloc()
+	alloc2.PreviousAllocation = alloc1.ID
+
+	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1})
+	require.NoError(t, err)
+
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc2})
+	require.NoError(t, err)
+
+	// upsertings alloc2 should update alloc1
+	actual, err := state.AllocByID(nil, alloc1.ID)
+	must.Eq(t, actual.NextAllocation, alloc2.ID)
+
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 1002, []*structs.Allocation{alloc1})
+	require.NoError(t, err)
+
+	// upserting alloc1 again should carry over the NextAllocation
+	must.Eq(t, alloc1.NextAllocation, alloc2.ID)
+}
+
 func TestStateStore_UpdateAlloc_Alloc(t *testing.T) {
 	ci.Parallel(t)
 
