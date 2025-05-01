@@ -1,0 +1,3 @@
+```release-note:bug
+reconnecting client: fix issue where reconcile strategy was sometimes ignored
+```
