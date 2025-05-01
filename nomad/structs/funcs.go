@@ -143,7 +143,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	used := new(ComparableResources)
 	if node.NodeAllocationTracker != nil {
 		if node.NodeAllocationTracker.NodeMaxAllocs <= len(allocs) {
-			return false, "max allocation exceeded", used, nil //not sure what used is here but everyone else is doing it
+			return false, "max allocation exceeded", used, fmt.Errorf("plan exceeds max allocation") //not sure what used is here but everyone else is doing it
 		}
 	}
 	reservedCores := map[uint16]struct{}{}

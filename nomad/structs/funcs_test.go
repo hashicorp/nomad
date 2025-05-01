@@ -716,6 +716,60 @@ func TestScoreFitBinPack(t *testing.T) {
 	}
 }
 
+func TestAllocsFit_MaxNodeAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	n := node2k()
+	n.NodeAllocationTracker = &NodeAllocationTracker{false, 2}
+
+	a1 := &Allocation{
+		AllocatedResources: &AllocatedResources{
+			Tasks: map[string]*AllocatedTaskResources{
+				"web": {
+					Cpu: AllocatedCpuResources{
+						CpuShares:     1000,
+						ReservedCores: []uint16{},
+					},
+					Memory: AllocatedMemoryResources{
+						MemoryMB: 1024,
+					},
+				},
+			},
+			Shared: AllocatedSharedResources{
+				DiskMB: 5000,
+				Networks: Networks{
+					{
+						Mode:          "host",
+						IP:            "10.0.0.1",
+						ReservedPorts: []Port{{Label: "main", Value: 8000}},
+					},
+				},
+				Ports: AllocatedPorts{
+					{
+						Label:  "main",
+						Value:  8000,
+						HostIP: "10.0.0.1",
+					},
+				},
+			},
+		},
+	}
+
+	// Should fit one allocation
+	fit, dim, used, err := AllocsFit(n, []*Allocation{a1}, nil, false)
+	must.NoError(t, err)
+	must.True(t, fit, must.Sprintf("failed for dimension %q", dim))
+	must.Eq(t, 1000, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 1024, used.Flattened.Memory.MemoryMB)
+
+	// Should not fit second allocation
+	fit, _, used, err = AllocsFit(n, []*Allocation{a1, a1}, nil, false)
+	must.Error(t, err)
+	must.False(t, fit, must.Sprintf("max allocation exceeded"))
+	must.StrContains(t, err.Error(), "plan exceeds max allocation")
+	must.Eq(t, 0, used.Flattened.Cpu.CpuShares)
+	must.Eq(t, 0, used.Flattened.Memory.MemoryMB)
+}
 func TestACLPolicyListHash(t *testing.T) {
 	ci.Parallel(t)
 
