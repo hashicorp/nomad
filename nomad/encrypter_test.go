@@ -874,3 +874,39 @@ func TestEncrypter_decryptWrappedKeyTask(t *testing.T) {
 	err = encrypter.decryptWrappedKeyTask(ctx, cancel, KMSWrapper, provider, key.Meta, wrappedKey)
 	must.NoError(t, err)
 }
+
+func TestEncrypter_AddWrappedKey_noWrappedKeys(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	encrypter, err := NewEncrypter(srv, t.TempDir())
+	must.NoError(t, err)
+
+	// Fake life as a 1.6 server by writing only ed25519 keys and removing the
+	// RSAKey. Add this to the encrypter as if we are loading it as part of the
+	// FSM restore process which actions the trailing logs.
+	oldKey, err := structs.NewUnwrappedRootKey(structs.EncryptionAlgorithmAES256GCM)
+	must.NoError(t, err)
+
+	oldKey.RSAKey = nil
+	wrappedOldKey := structs.NewRootKey(oldKey.Meta)
+
+	shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
+	t.Cleanup(shutdownCancel)
+
+	// Add the wrapped key and then wait for the encrypter to become ready. If
+	// it reaches the timeout, it means the encrypter has added a decryption
+	// task to its internal tracking without launching any decryptWrappedKeyTask
+	// routines that can remove this task entry.
+	must.NoError(t, encrypter.AddWrappedKey(shutdownCtx, wrappedOldKey))
+
+	timeoutCtx, timeoutCancel := context.WithTimeout(shutdownCtx, 3*time.Second)
+	t.Cleanup(timeoutCancel)
+
+	must.NoError(t, encrypter.IsReady(timeoutCtx))
+	must.MapLen(t, 0, encrypter.decryptTasks)
+}
