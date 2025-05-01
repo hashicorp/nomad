@@ -887,8 +887,8 @@ func TestEncrypter_AddWrappedKey_sameKeyTwice(t *testing.T) {
 	// Add the wrapped key to the encrypter and assert that the key is added to
 	// the keyring and no decryption tasks are queued.
 	must.NoError(t, encrypter.AddWrappedKey(timeoutCtx, wrappedKey))
-	must.NoError(t, encrypter.IsReady(timeoutCtx))
 	must.MapEmpty(t, encrypter.decryptTasks)
+	must.NoError(t, encrypter.IsReady(timeoutCtx))
 	must.MapLen(t, 1, encrypter.keyring)
 	must.MapContainsKey(t, encrypter.keyring, key.Meta.KeyID)
 
@@ -898,8 +898,8 @@ func TestEncrypter_AddWrappedKey_sameKeyTwice(t *testing.T) {
 	// Add the same key again and assert that the key is not added to the
 	// keyring and no decryption tasks are queued.
 	must.NoError(t, encrypter.AddWrappedKey(timeoutCtx, wrappedKey))
-	must.NoError(t, encrypter.IsReady(timeoutCtx))
 	must.MapEmpty(t, encrypter.decryptTasks)
+	must.NoError(t, encrypter.IsReady(timeoutCtx))
 	must.MapLen(t, 1, encrypter.keyring)
 	must.MapContainsKey(t, encrypter.keyring, key.Meta.KeyID)
 }
@@ -959,17 +959,21 @@ func TestEncrypter_AddWrappedKey_sameKeyConcurrent(t *testing.T) {
 	// Gather the responses and ensure the encrypter state is as we expect.
 	var respNum int
 
-	for resp := range respCh {
-		must.NoError(t, resp)
-		if respNum++; respNum == concurrentNum {
-			break
+	for {
+		select {
+		case resp := <-respCh:
+			must.NoError(t, resp)
+			if respNum++; respNum == concurrentNum {
+				must.NoError(t, encrypter.IsReady(timeoutCtx))
+				must.MapEmpty(t, encrypter.decryptTasks)
+				must.MapLen(t, 1, encrypter.keyring)
+				must.MapContainsKey(t, encrypter.keyring, key.Meta.KeyID)
+				return
+			}
+		case <-timeoutCtx.Done():
+			must.NoError(t, timeoutCtx.Err())
 		}
 	}
-
-	must.NoError(t, encrypter.IsReady(timeoutCtx))
-	must.MapEmpty(t, encrypter.decryptTasks)
-	must.MapLen(t, 1, encrypter.keyring)
-	must.MapContainsKey(t, encrypter.keyring, key.Meta.KeyID)
 }
 
 func TestEncrypter_decryptWrappedKeyTask_successful(t *testing.T) {
@@ -1076,10 +1080,11 @@ func TestEncrypter_decryptWrappedKeyTask_contextCancel(t *testing.T) {
 	}()
 
 	// Roughly ensure the decrypt task is running for enough time to get past
-	// the cipher generation.
-	//
-	// The routine should reach a point where it is waiting to send the cipher
-	// on the response channel or for the context to be canceled.
+	// the cipher generation. This is so that when we cancel the context, we
+	// have passed the helper.Backoff functions, which are also designed to exit
+	// and return if the context is canceled. As Tim correctly pointed out; this
+	// "is about giving this test a fighting chance to be testing the thing we
+	// think it is".
 	//
 	// Canceling the context should cause the routine to exit and send an error
 	// which we can check to ensure we correctly unblock.
