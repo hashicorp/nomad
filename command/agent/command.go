@@ -978,66 +978,24 @@ func (c *Command) handleRetryJoin(config *Config) error {
 	return nil
 }
 
-// handleSignals blocks until we get an exit-causing signal
-func (c *Command) handleSignals() int {
-	signalCh := make(chan os.Signal, 4)
-	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
-
-	// Signal readiness only once signal handlers are setup
-	sdSock, err := openNotify()
-	if err != nil {
-		c.agent.logger.Debug("notify socket could not be accessed", "error", err)
-	}
-	if sdSock != nil {
-		defer sdSock.Close()
-	}
-	sdNotify(sdSock, sdReady)
-
-	// Wait for a signal
-WAIT:
-	var sig os.Signal
-	select {
-	case s := <-signalCh:
-		sig = s
-	case <-winsvc.ShutdownChannel():
-		sig = os.Interrupt
-	case <-c.ShutdownCh:
-		sig = os.Interrupt
-	case <-c.retryJoinErrCh:
-		return 1
-	}
-
-	// Skip any SIGPIPE signal and don't try to log it (See issues #1798, #3554)
-	if sig == syscall.SIGPIPE {
-		goto WAIT
-	}
-
-	c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
-
-	// Check if this is a SIGHUP
-	if sig == syscall.SIGHUP {
-		sdNotifyReloading(sdSock)
-		c.handleReload()
-		sdNotify(sdSock, sdReady)
-		goto WAIT
-	}
-
-	// Check if we should do a graceful leave
-	graceful := false
-	if sig == os.Interrupt && c.agent.GetConfig().LeaveOnInt {
-		graceful = true
-	} else if sig == syscall.SIGTERM && c.agent.GetConfig().LeaveOnTerm {
-		graceful = true
-	}
-
-	// Bail fast if not doing a graceful leave
-	if !graceful {
-		return 1
-	}
-
-	// Attempt a graceful leave
+// terminateGracefully attempts a graceful leave
+func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer) int {
 	sdNotify(sdSock, sdStopping)
+
 	gracefulCh := make(chan struct{})
+	defer close(gracefulCh)
+
+	timeout := gracefulTimeout
+
+	config := c.agent.client.GetConfig()
+	if config == nil {
+		c.Ui.Output("Unable to read the agent configuration, using the default graceful timeout")
+	}
+
+	if config.Drain != nil && config.Drain.Deadline != 0 {
+		timeout += config.Drain.Deadline
+	}
+
 	c.Ui.Output("Gracefully shutting down agent...")
 	go func() {
 		if err := c.agent.Leave(); err != nil {
@@ -1047,14 +1005,87 @@ WAIT:
 		close(gracefulCh)
 	}()
 
+	delay := time.NewTimer(timeout)
+
 	// Wait for leave or another signal
 	select {
 	case <-signalCh:
 		return 1
-	case <-time.After(gracefulTimeout):
+	case <-delay.C:
 		return 1
 	case <-gracefulCh:
-		return 0
+	}
+
+	return 0
+}
+
+// handleSignals blocks until we get an exit-causing signal
+func (c *Command) handleSignals() int {
+	signalCh := make(chan os.Signal, 4)
+	defer signal.Stop(signalCh)
+
+	signal.Notify(signalCh, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP, syscall.SIGPIPE)
+
+	// Signal readiness only once signal handlers are setup
+	sdSock, err := openNotify()
+	if err != nil {
+		c.agent.logger.Debug("notify socket could not be accessed", "error", err)
+	}
+
+	if sdSock != nil {
+		defer sdSock.Close()
+	}
+	sdNotify(sdSock, sdReady)
+
+	for {
+		select {
+		case sig := <-signalCh:
+			c.Ui.Output(fmt.Sprintf("Caught signal: %v", sig))
+
+			switch sig {
+			case syscall.SIGPIPE:
+				// Skip any SIGPIPE signal (see issues #1798, #3554)
+				continue
+			case syscall.SIGHUP:
+				sdNotifyReloading(sdSock)
+				err := c.handleReload()
+				if err != nil {
+					c.Ui.Error(fmt.Sprintf("Fatal error while reloading: %v", err))
+					return 1
+				}
+
+				sdNotify(sdSock, sdReady)
+			case syscall.SIGTERM:
+				if !c.agent.GetConfig().LeaveOnTerm {
+					return 1
+				}
+
+				return c.terminateGracefully(signalCh, sdSock)
+			case os.Interrupt:
+				if !c.agent.GetConfig().LeaveOnInt {
+					return 1
+				}
+
+				return c.terminateGracefully(signalCh, sdSock)
+			}
+
+		case <-winsvc.ShutdownChannel():
+			if !c.agent.GetConfig().LeaveOnInt {
+				return 1
+			}
+
+			return c.terminateGracefully(signalCh, sdSock)
+
+		case <-c.ShutdownCh:
+			if !c.agent.GetConfig().LeaveOnInt {
+				return 1
+			}
+
+			return c.terminateGracefully(signalCh, sdSock)
+
+		case <-c.retryJoinErrCh:
+			return 1
+		}
 	}
 }
 
@@ -1077,12 +1108,14 @@ func (c *Command) reloadHTTPServer() error {
 }
 
 // handleReload is invoked when we should reload our configs, e.g. SIGHUP
-func (c *Command) handleReload() {
+// It will only return an error if the reload encountered a fatal error that must
+// cause an agent termination.
+func (c *Command) handleReload() error {
 	c.Ui.Output("Reloading configuration...")
 	newConf := c.readConfig()
 	if newConf == nil {
 		c.Ui.Error("Failed to reload configs")
-		return
+		return nil
 	}
 
 	// Change the log level
@@ -1103,7 +1136,7 @@ func (c *Command) handleReload() {
 		err := c.agent.Reload(newConf)
 		if err != nil {
 			c.agent.logger.Error("failed to reload the config", "error", err)
-			return
+			return nil
 		}
 	}
 
@@ -1112,7 +1145,7 @@ func (c *Command) handleReload() {
 		sconf, err := convertServerConfig(newConf)
 		if err != nil {
 			c.agent.logger.Error("failed to convert server config", "error", err)
-			return
+			return nil
 		}
 
 		// Finalize the config to get the agent objects injected in
@@ -1121,7 +1154,7 @@ func (c *Command) handleReload() {
 		// Reload the config
 		if err := s.Reload(sconf); err != nil {
 			c.agent.logger.Error("reloading server config failed", "error", err)
-			return
+			return fmt.Errorf("reloading server config failed: %w", err)
 		}
 	}
 
@@ -1130,18 +1163,18 @@ func (c *Command) handleReload() {
 		clientConfig, err := convertClientConfig(newConf)
 		if err != nil {
 			c.agent.logger.Error("failed to convert client config", "error", err)
-			return
+			return nil
 		}
 
 		// Finalize the config to get the agent objects injected in
 		if err := c.agent.finalizeClientConfig(clientConfig); err != nil {
 			c.agent.logger.Error("failed to finalize client config", "error", err)
-			return
+			return nil
 		}
 
 		if err := client.Reload(clientConfig); err != nil {
 			c.agent.logger.Error("reloading client config failed", "error", err)
-			return
+			return fmt.Errorf("reloading client config failed: %w", err)
 		}
 	}
 
@@ -1153,9 +1186,9 @@ func (c *Command) handleReload() {
 		err := c.reloadHTTPServer()
 		if err != nil {
 			c.agent.httpLogger.Error("reloading config failed", "error", err)
-			return
 		}
 	}
+	return nil
 }
 
 // setupTelemetry is used to set up the telemetry sub-systems.
