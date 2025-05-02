@@ -203,18 +203,50 @@ func (e *Encrypter) loadKeystore() error {
 	})
 }
 
-// IsReady blocks until all decrypt tasks are complete, or the context expires.
+// IsReady blocks until all in-flight decrypt tasks are complete, or the context
+// expires.
 func (e *Encrypter) IsReady(ctx context.Context) error {
+
+	// Generate a list of the existing decryption tasks. These tasks are the
+	// ones we must wait to finish. This function is called from the server when
+	// it is being set up and started. Raft would have already loaded the keys
+	// from the snapshot and trailing logs, so the encrypter is populated with
+	// everything we immediately care about.
+	e.decryptTasksLock.RLock()
+
+	basePendingTasks := make([]string, 0, len(e.decryptTasks))
+
+	for id := range e.decryptTasks {
+		basePendingTasks = append(basePendingTasks, id)
+	}
+	e.decryptTasksLock.RUnlock()
+
 	err := helper.WithBackoffFunc(ctx, time.Millisecond*100, time.Second, func() error {
+
+		var currentPendingTasks []string
+
 		e.decryptTasksLock.RLock()
 		defer e.decryptTasksLock.RUnlock()
-		if len(e.decryptTasks) != 0 {
-			keyIDs := []string{}
-			for keyID := range e.decryptTasks {
-				keyIDs = append(keyIDs, keyID)
+
+		for _, id := range basePendingTasks {
+			if _, ok := e.decryptTasks[id]; ok {
+				currentPendingTasks = append(currentPendingTasks, id)
 			}
+		}
+
+		// If we have decryption tasks which are still running that we care
+		// about, log about this as well as return an error. If key decryption
+		// progresses over time, an operator will be able to identify any
+		// long-running tasks. If the timeout is reached, the final error is
+		// sent to the caller which identifies the tasks that are taking too
+		// long.
+		if l := len(currentPendingTasks); l > 0 {
+
+			e.log.Debug("waiting for keyring to be ready",
+				"num_tasks", l, "key_ids", currentPendingTasks)
+
 			return fmt.Errorf("keyring is not ready - waiting for keys %s",
-				strings.Join(keyIDs, ", "))
+				strings.Join(currentPendingTasks, ", "))
 		}
 		return nil
 	})

@@ -738,8 +738,14 @@ type ServerConfig struct {
 
 	// OIDCIssuer if set enables OIDC Discovery and uses this value as the
 	// issuer. Third parties such as AWS IAM OIDC Provider expect the issuer to
-	// be a publically accessible HTTPS URL signed by a trusted well-known CA.
+	// be a publicly accessible HTTPS URL signed by a trusted well-known CA.
 	OIDCIssuer string `hcl:"oidc_issuer"`
+
+	// StartTimeout is a time duration such as "30s" or "1h". It is provided to
+	// the server so that it can time out setup and startup process that are
+	// expected to complete before the server is considered healthy. Without
+	// this, the server can hang indefinitely waiting for these.
+	StartTimeout string `hcl:"start_timeout"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -2420,6 +2426,9 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 
 	if b.OIDCIssuer != "" {
 		result.OIDCIssuer = b.OIDCIssuer
+	}
+	if b.StartTimeout != "" {
+		result.StartTimeout = b.StartTimeout
 	}
 
 	// Add the schedulers

@@ -838,6 +838,112 @@ func TestEncrypter_TransitConfigFallback(t *testing.T) {
 	must.Eq(t, expect, providers[2].Config, must.Sprint("expected fallback to env"))
 }
 
+func TestEncrypter_IsReady_noTasks(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	encrypter, err := NewEncrypter(srv, t.TempDir())
+	must.NoError(t, err)
+
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	t.Cleanup(timeoutCancel)
+
+	must.NoError(t, encrypter.IsReady(timeoutCtx))
+}
+
+func TestEncrypter_IsReady_eventuallyReady(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	encrypter, err := NewEncrypter(srv, t.TempDir())
+	must.NoError(t, err)
+
+	// Add an initial decryption task to the encrypter. This simulates a key
+	// restored from the Raft state (snapshot or trailing logs) as the server is
+	// starting.
+	encrypter.decryptTasks["id1"] = struct{}{}
+
+	// Generate a timeout value that will be used to create the context passed
+	// to the encrypter and the time at which we update the decryption task
+	// tracking. Changing this value should not impact the test except for its
+	// run length.
+	timeout := 2 * time.Second
+
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), timeout)
+	t.Cleanup(timeoutCancel)
+
+	// Launch a goroutine to monitor the readiness of the encrypter. Any
+	// response is sent on the channel, so we can interrogate it.
+	respCh := make(chan error)
+
+	go func() {
+		respCh <- encrypter.IsReady(timeoutCtx)
+	}()
+
+	// Create a timer at 1/3 the value of the timeout. When this triggers, we
+	// add a new decryption task to the encrypter. This simulates Nomad
+	// upserting a new key into state which was not part of the original
+	// snapshot or trailing logs and therefore should not block the readiness
+	// check.
+	taskAddTimer, stop := helper.NewSafeTimer(timeout / 3)
+	t.Cleanup(stop)
+
+	// Create a timer at half the value of the timeout. When this triggers, we
+	// will remove the task from the encrypter simulating it finishing and the
+	// encrypter becoming ready.
+	taskDeleteTimer, stop := helper.NewSafeTimer(timeout / 2)
+	t.Cleanup(stop)
+
+	select {
+	case <-taskAddTimer.C:
+		encrypter.decryptTasksLock.Lock()
+		encrypter.decryptTasks["id2"] = struct{}{}
+		encrypter.decryptTasksLock.Unlock()
+	case <-taskDeleteTimer.C:
+		encrypter.decryptTasksLock.Lock()
+		delete(encrypter.decryptTasks, "id1")
+		encrypter.decryptTasksLock.Unlock()
+	case err := <-respCh:
+		must.NoError(t, err)
+		encrypter.decryptTasksLock.RLock()
+		must.MapLen(t, 1, encrypter.decryptTasks)
+		must.MapContainsKey(t, encrypter.decryptTasks, "id2")
+		encrypter.decryptTasksLock.RUnlock()
+	}
+}
+
+func TestEncrypter_IsReady_timeout(t *testing.T) {
+	ci.Parallel(t)
+
+	srv := &Server{
+		logger: testlog.HCLogger(t),
+		config: &Config{},
+	}
+
+	encrypter, err := NewEncrypter(srv, t.TempDir())
+	must.NoError(t, err)
+
+	// Add some tasks to the encrypter that we will never remove.
+	encrypter.decryptTasks["id1"] = struct{}{}
+	encrypter.decryptTasks["id2"] = struct{}{}
+
+	// Generate a timeout context that allows the backoff to trigger a few times
+	// before being canceled.
+	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), 1*time.Second)
+	t.Cleanup(timeoutCancel)
+
+	err = encrypter.IsReady(timeoutCtx)
+	must.ErrorContains(t, err, "keys id1, id2")
+}
+
 func TestEncrypter_AddWrappedKey_zeroDecryptTaskError(t *testing.T) {
 	ci.Parallel(t)
 

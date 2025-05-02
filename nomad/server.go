@@ -368,6 +368,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())
 	s.shutdownCh = s.shutdownCtx.Done()
 
+	// Generate a timeout context for the server process which we wait for and
+	// can time out on.
+	startupTimeout, startupCancel := context.WithTimeout(s.shutdownCtx, s.config.StartTimeout)
+	defer startupCancel()
+
 	// Create an eval broker
 	evalBroker, err := NewEvalBroker(
 		s.shutdownCtx,
@@ -549,8 +554,16 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 	// exist before it can start.
 	s.keyringReplicator = NewKeyringReplicator(s, encrypter)
 
-	// Block until keys are decrypted
-	s.encrypter.IsReady(s.shutdownCtx)
+	// Wait for the keyring to be ready. This is a blocking call and will
+	// time out if the keyring takes too long to decrypt its initial set of
+	// keys.
+	//
+	// In the event of a timeout, we shut down the server and return an error to
+	// the caller which will include what keys were not decrypted.
+	if err := s.encrypter.IsReady(startupTimeout); err != nil {
+		_ = s.Shutdown()
+		return nil, fmt.Errorf("failed to wait for keyring decryption to complete: %v", err)
+	}
 
 	// Done
 	return s, nil
