@@ -87,7 +87,7 @@ test  default    batch  pending
 			expectedOut: fmt.Sprintf(`{
     "JobsWithoutVaultIdentity": [
         {
-            "CreateIndex": 10,
+            "CreateIndex": %d,
             "Datacenters": [
                 "dc1"
             ],
@@ -111,7 +111,7 @@ test  default    batch  pending
     "OutdatedNodes": [],
     "VaultTokens": null
 }
-`, *job.CreateIndex, *job.ModifyIndex, *job.SubmitTime),
+`, *job.CreateIndex, *job.CreateIndex, *job.ModifyIndex, *job.SubmitTime),
 		},
 		{
 			name: "-check with -t",
