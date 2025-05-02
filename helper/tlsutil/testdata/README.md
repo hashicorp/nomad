@@ -53,6 +53,12 @@ nomad tls ca create -name-constraint=true -domain bad
 # 2. Generate client certificate for region badRegion
 nomad tls cert create -server -region badRegion -domain=bad
 nomad tls cert create -client -region badRegion -domain=bad
+
+# Generate certificates and keys for region regionFoo.
+# 1. Generate server certificate for region regionFoo
+# 2. Generate client certificate for region regionFoo
+nomad tls cert create -server -region regionFoo
+nomad tls cert create -client -region regionFoo
 ```
 
 ## Generate CA for whitespace test
