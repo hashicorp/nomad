@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: ACL Policy Specification
-description: Learn about Nomad's ACL policy specification.
+page_title: Nomad Access Control List (ACL) policy specification
+description: |-
+  Learn about Nomad's ACL policy specification. Review namespace, node, node pools, agent, operator, resource quota, host volume, and plugin rules policy structure and options. Configure ACLs for the Nomad UI.
 ---
 
-# ACL Policy Specification
+# Nomad Access Control List (ACL) policy specification
 
 The [Secure Nomad with Access Control] guide includes step-by-step instructions
 for bootstrapping Nomad's Access Control List (ACL) system, authoring policies,
@@ -68,7 +69,7 @@ plugin {
 }
 ```
 
-## Namespace Rules
+## Namespace rules
 
 Namespace rules are defined with a `namespace` block. An ACL policy can include
 zero, one, or more namespace rules.
@@ -161,10 +162,9 @@ of `capabilities`. This includes:
 - `sentinel-override` - Allows soft mandatory policies to be overridden.
 - `submit-recommendation` - Allows submitting vertical job scaling recommendations.
 
-The coarse-grained policy permissions are shorthand for the following fine-
-grained namespace capabilities:
+The coarse-grained policy permissions are shorthand for these fine-grained namespace capabilities.
 
-<!-- markdownlint-disable -->
+
 
 | Policy  | Capabilities                                                                                                                                                                                                                                                                                              |
 |---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -173,7 +173,7 @@ grained namespace capabilities:
 | `write` | list-jobs<br />parse-job<br />read-job<br />submit-job<br />dispatch-job<br />read-logs<br />read-fs<br />alloc-exec<br />alloc-lifecycle<br />csi-write-volume<br />csi-mount-volume<br />host-volume-write<br />list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job<br />submit-recommendation |
 | `scale` | list-scaling-policies<br />read-scaling-policy<br />read-job-scaling<br />scale-job                                                                                                                                                                                                                       |
 
-<!-- markdownlint-enable -->
+
 
 If you provide both a `policy` and `capabilities` list, the capabilities are
 merged. For example, the policy below adds the `submit-job` capability to the `read`
@@ -265,7 +265,7 @@ The `policy` field for the node rule can have one of the following values:
 - `deny`: do not allow the resource to be read or modified. Deny takes
   precedence when multiple policies are associated with a token.
 
-## Node Pools rules
+## Node pools rules
 
 Node pool rules are defined with a `node_pool` block. An ACL policy can
 include zero, one, or more node pool rules.
@@ -377,7 +377,7 @@ The `policy` field for the quota rule can have one of the following values:
 - `deny`: do not allow the resource to be read or modified. Deny takes
   precedence when multiple policies are associated with a token.
 
-## Host Volume rules
+## Host volume rules
 
 The `host_volume` rule controls access to mounting and accessing [host
 volumes][host_volumes]. An ACL Policy can include zero, one, or more host volume
@@ -418,7 +418,7 @@ of fine-grained `capabilities`. These include:
 The coarse-grained policy permissions are shorthand for the fine grained
 capabilities:
 
-<!-- markdownlint-disable -->
+
 
 | Policy  | Capabilities                        |
 |---------|-------------------------------------|
@@ -426,7 +426,7 @@ capabilities:
 | `read`  | mount-readonly                      |
 | `write` | mount-readonly<br />mount-readwrite |
 
-<!-- markdownlint-enable -->
+
 
 When both the policy short hand and a capabilities list are provided, the
 capabilities are merged.
@@ -454,7 +454,7 @@ The `policy` field for the plugin rule can have one of the following values:
 - `deny`: do not allow the resource to be read or modified. Deny takes
   precedence when multiple policies are associated with a token.
 
-## Configuring ACLs for the web UI
+## Configure ACLs for the web UI
 
 The Nomad web UI uses the API endpoints `/v1/agent` and `/v1/node` for nearly
 every page. ACL policies for users who will use the Nomad UI should include the
