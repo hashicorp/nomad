@@ -30,10 +30,10 @@ General Options:
 ACL List Options:
 
   -json
-    Output the ACL auth methods in a JSON format.
+    Output the ACL policies in a JSON format.
 
   -t
-    Format and display the ACL auth methods using a Go template.
+    Format and display the ACL policies using a Go template.
 `
 	return strings.TrimSpace(helpText)
 }
