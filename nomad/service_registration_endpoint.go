@@ -190,17 +190,12 @@ func (s *ServiceRegistration) List(
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
 
-			// Perform the state query to get an iterator.
-			iter, err := stateStore.GetServiceRegistrationsByNamespace(ws, args.RequestNamespace())
-			if err != nil {
-				return err
-			}
+			iter := stateStore.GetServiceRegistrationsByNamespace(ws, args.RequestNamespace())
 
 			// Accumulate the set of tags associated with a particular service name.
 			tagSet := make(serviceTagSet)
 
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				serviceReg := raw.(*structs.ServiceRegistration)
+			for serviceReg := range iter.All() {
 				tagSet.add(serviceReg.ServiceName, serviceReg.Tags)
 			}
 
@@ -274,17 +269,13 @@ func (s *ServiceRegistration) listAllServiceRegistrations(
 			}
 
 			// Get all the service registrations stored within state.
-			iter, err := stateStore.GetServiceRegistrations(ws)
-			if err != nil {
-				return err
-			}
+			iter := stateStore.GetServiceRegistrations(ws)
 
 			// Accumulate the union of tags per service in each namespace.
 			nsSvcTagSet := make(namespaceServiceTagSet)
 
 			// Iterate all service registrations.
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				reg := raw.(*structs.ServiceRegistration)
+			for reg := range iter.All() {
 
 				// Check whether the service registration is within a namespace
 				// the caller is permitted to view. nil allowedNSes means the
@@ -353,13 +344,9 @@ func (s *ServiceRegistration) GetService(
 	return s.srv.blockingRPC(&blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
-			// Perform the state query to get an iterator.
-			iter, err := stateStore.GetServiceRegistrationByName(ws, args.RequestNamespace(), args.ServiceName)
-			if err != nil {
-				return err
-			}
+			iter := store.GetServiceRegistrationByName(ws, args.RequestNamespace(), args.ServiceName)
 
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
 				paginator.NamespaceIDTokenizer[*structs.ServiceRegistration](args.NextToken),
@@ -391,7 +378,7 @@ func (s *ServiceRegistration) GetService(
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
-			return s.srv.setReplyQueryMeta(stateStore, state.TableServiceRegistrations, &reply.QueryMeta)
+			return s.srv.setReplyQueryMeta(store, state.TableServiceRegistrations, &reply.QueryMeta)
 		},
 	})
 }

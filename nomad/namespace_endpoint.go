@@ -131,7 +131,7 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 		// do a check across jobs, allocations, volumes and variables to make sure we're
 		// not leaving any objects associated with the namespace hanging
 		type objectCheck struct {
-			localCheckFunc  func(string, *state.StateSnapshot) (bool, error)
+			localCheckFunc  func(string, *state.StateSnapshot) bool
 			remoteCheckFunc func(string, string, string) (bool, error)
 			errorMsg        string
 		}
@@ -172,7 +172,7 @@ func (n *Namespace) DeleteNamespaces(args *structs.NamespaceDeleteRequest, reply
 func (n *Namespace) nonTerminalObjectsInNS(
 	authToken, namespace string,
 	snap *state.StateSnapshot,
-	localCheckFunc func(string, *state.StateSnapshot) (bool, error),
+	localCheckFunc func(string, *state.StateSnapshot) bool,
 	remoteCheckFunc func(string, string, string) (bool, error),
 	errorMsg string,
 ) error {
@@ -180,10 +180,7 @@ func (n *Namespace) nonTerminalObjectsInNS(
 	thisRegion := n.srv.Region()
 	terminal := make([]string, 0, len(regions))
 
-	localTerminal, err := localCheckFunc(namespace, snap)
-	if err != nil {
-		return err
-	}
+	localTerminal := localCheckFunc(namespace, snap)
 	if !localTerminal {
 		terminal = append(terminal, thisRegion)
 	}
@@ -213,105 +210,69 @@ func (n *Namespace) nonTerminalObjectsInNS(
 
 // namespaceTerminalJobsLocally returns true if the namespace contains only
 // terminal jobs in the local region.
-func (n *Namespace) namespaceTerminalJobsLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
-	iter, err := snap.JobsByNamespace(nil, namespace, state.SortDefault)
-	if err != nil {
-		return false, err
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		job := raw.(*structs.Job)
+func (n *Namespace) namespaceTerminalJobsLocally(namespace string, snap *state.StateSnapshot) bool {
+	iter := snap.JobsByNamespace(nil, namespace, state.SortDefault)
+	for job := range iter.All() {
 		if job.Status != structs.JobStatusDead {
-			return false, nil
+			return false
 		}
 	}
 
-	return true, nil
+	return true
 }
 
 // namespaceTerminalAllocsLocally returns true if the namespace contains only
 // terminal allocations in the local region.
-func (n *Namespace) namespaceTerminalAllocsLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
-	iter, err := snap.AllocsByNamespace(nil, namespace)
-	if err != nil {
-		return false, err
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		alloc := raw.(*structs.Allocation)
+func (n *Namespace) namespaceTerminalAllocsLocally(namespace string, snap *state.StateSnapshot) bool {
+	iter := snap.AllocsByNamespace(nil, namespace)
+	for alloc := range iter.All() {
 		if !alloc.ClientTerminalStatus() {
-			return false, nil
+			return false
 		}
 	}
 
-	return true, nil
+	return true
 }
 
 // namespaceNoAssociatedVolumesLocally returns true if there are no CSI volumes
 // associated with this namespace in the local region
-func (n *Namespace) namespaceNoAssociatedVolumesLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
-	iter, err := snap.CSIVolumesByNamespace(nil, namespace, "")
-	if err != nil {
-		return false, err
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		vol := raw.(*structs.CSIVolume)
+func (n *Namespace) namespaceNoAssociatedVolumesLocally(namespace string, snap *state.StateSnapshot) bool {
+	iter := snap.CSIVolumesByNamespace(nil, namespace, "")
+	for vol := range iter.All() {
 		if vol.Namespace == namespace {
-			return false, nil
+			return false
 		}
 	}
 
-	return true, nil
+	return true
 }
 
 // namespaceNoAssociatedVarsLocally returns true if there are no variables
 // associated with this namespace in the local region
-func (n *Namespace) namespaceNoAssociatedVarsLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
+func (n *Namespace) namespaceNoAssociatedVarsLocally(namespace string, snap *state.StateSnapshot) bool {
 	// check for variables
-	iter, err := snap.GetVariablesByNamespace(nil, namespace)
-	if err != nil {
-		return false, err
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		v := raw.(*structs.VariableEncrypted)
+	iter := snap.GetVariablesByNamespace(nil, namespace)
+	for v := range iter.All() {
 		if v.VariableMetadata.Namespace == namespace {
-			return false, nil
+			return false
 		}
 	}
 
-	return true, nil
+	return true
 }
 
 // namespaceNoAssociatedQuotasLocally returns true if there are no quotas
 // associated with this namespace in the local region
-func (n *Namespace) namespaceNoAssociatedQuotasLocally(namespace string, snap *state.StateSnapshot) (bool, error) {
+func (n *Namespace) namespaceNoAssociatedQuotasLocally(namespace string, snap *state.StateSnapshot) bool {
 	ns, _ := snap.NamespaceByName(nil, namespace)
 	if ns == nil {
-		return false, fmt.Errorf("namespace %s does not exist", ns.Name)
+		return false
 	}
 	if ns.Quota != "" {
-		return false, nil
+		return false
 	}
 
-	return true, nil
+	return true
 }
 
 // namespaceTerminalJobsInRegion returns true if the namespace contains only
@@ -450,25 +411,15 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
-			// Iterate over all the namespaces
-			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Namespace]
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = s.NamespacesByNamePrefix(ws, prefix)
+				iter = s.NamespacesByNamePrefix(ws, prefix)
 			} else {
-				iter, err = s.Namespaces(ws)
-			}
-			if err != nil {
-				return err
+				iter = s.Namespaces(ws)
 			}
 
 			reply.Namespaces = nil
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				ns := raw.(*structs.Namespace)
+			for ns := range iter.All() {
 
 				// Only return namespaces allowed by acl
 				if aclObj.AllowNamespace(ns.Name) {

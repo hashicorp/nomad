@@ -65,7 +65,7 @@ func (j *Job) Statuses(
 	if errors.Is(err, structs.ErrPermissionDenied) {
 		// return empty jobs if token isn't authorized for any
 		// namespace, matching other endpoints
-		reply.Jobs = make([]structs.JobStatusesJob, 0)
+		reply.Jobs = make([]*structs.JobStatusesJob, 0)
 		return nil
 	} else if err != nil {
 		return err
@@ -98,15 +98,12 @@ func (j *Job) Statuses(
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Job]
 
 			// the UI jobs index page shows most-recently changed first.
-			iter, err = state.JobsByModifyIndex(ws, sort)
-			if err != nil {
-				return err
-			}
+			iter = store.JobsByModifyIndex(ws, sort)
 
 			baseSelector := func(job *structs.Job) bool {
 				if allowableNamespaces != nil && !allowableNamespaces[job.Namespace] {
@@ -140,10 +137,10 @@ func (j *Job) Statuses(
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
 				selector,
 				paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken),
-				func(job *structs.Job) (structs.JobStatusesJob, error) {
-					var none structs.JobStatusesJob
+				func(job *structs.Job) (*structs.JobStatusesJob, error) {
+					var none *structs.JobStatusesJob
 					// this is where the sausage is made
-					jsj, highestIndexOnPage, err := jobStatusesJobFromJob(ws, state, job)
+					jsj, highestIndexOnPage, err := jobStatusesJobFromJob(ws, store, job)
 					if err != nil {
 						return none, err
 					}
@@ -157,7 +154,7 @@ func (j *Job) Statuses(
 					if highestIndexOnPage > reply.Index {
 						reply.Index = highestIndexOnPage
 					}
-					return jsj, nil
+					return &jsj, nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
@@ -173,7 +170,7 @@ func (j *Job) Statuses(
 			// if the page has updated, or a job has gone away,
 			// bump the index to latest jobs entry.
 			if !prevJobs.Empty() && !newJobs.Equal(prevJobs) {
-				reply.Index, err = state.Index("jobs")
+				reply.Index, err = store.Index("jobs")
 				if err != nil {
 					return err
 				}
@@ -225,16 +222,8 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 	// collect the statuses of child jobs
 	if job.IsParameterized() || job.IsPeriodic() {
 		jsj.ChildStatuses = make([]string, 0) // set to not-nil
-		children, err := store.JobsByIDPrefix(ws, job.Namespace, job.ID, state.SortDefault)
-		if err != nil {
-			return jsj, highestIdx, err
-		}
-		for {
-			child := children.Next()
-			if child == nil {
-				break
-			}
-			j := child.(*structs.Job)
+		children := store.JobsByIDPrefix(ws, job.Namespace, job.ID, state.SortDefault)
+		for j := range children.All() {
 			// note: this filters out grandchildren jobs (children of children)
 			if j.ParentID != job.ID {
 				continue
@@ -246,7 +235,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		}
 		// no allocs or deployments for parameterized/period jobs,
 		// so we're done here.
-		return jsj, highestIdx, err
+		return jsj, highestIdx, nil
 	}
 
 	// collect info about allocations

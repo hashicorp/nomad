@@ -60,11 +60,8 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
-			iter, err := stateStore.TaskGroupHostVolumeClaimsByFields(ws, searchFields)
-			if err != nil {
-				return err
-			}
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			iter := store.TaskGroupHostVolumeClaimsByFields(ws, searchFields)
 
 			allowClaim := acl.NamespaceValidator(acl.NamespaceCapabilityHostVolumeRead)
 			selector := func(claim *structs.TaskGroupHostVolumeClaim) bool {
@@ -96,7 +93,7 @@ func (tgvc *TaskGroupHostVolumeClaim) List(args *structs.TaskGroupVolumeClaimLis
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
-			return tgvc.srv.setReplyQueryMeta(stateStore, state.TableTaskGroupHostVolumeClaim, &reply.QueryMeta)
+			return tgvc.srv.setReplyQueryMeta(store, state.TableTaskGroupHostVolumeClaim, &reply.QueryMeta)
 		},
 	}
 	return tgvc.srv.blockingRPC(&opts)

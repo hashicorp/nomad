@@ -190,32 +190,21 @@ func (s *StateStore) deleteServiceRegistrationByAllocIDTxn(
 // listings which use the namespace wildcard operator. The caller is
 // responsible for ensuring ACL access is confirmed, or filtering is performed
 // before responding.
-func (s *StateStore) GetServiceRegistrations(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) GetServiceRegistrations(ws memdb.WatchSet) ResultIterator[*structs.ServiceRegistration] {
 	txn := s.db.ReadTxn()
-
-	// Walk the entire table.
-	iter, err := txn.Get(TableServiceRegistrations, indexID)
-	if err != nil {
-		return nil, fmt.Errorf("service registration lookup failed: %v", err)
-	}
+	iter := Get[*structs.ServiceRegistration](txn, TableServiceRegistrations, indexID)
 	ws.Add(iter.WatchCh())
-	return iter, nil
+	return iter
 }
 
 // GetServiceRegistrationsByNamespace returns an iterator that contains all
 // registrations belonging to the provided namespace.
 func (s *StateStore) GetServiceRegistrationsByNamespace(
-	ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, namespace string) ResultIterator[*structs.ServiceRegistration] {
 	txn := s.db.ReadTxn()
-
-	// Walk the entire table.
-	iter, err := txn.Get(TableServiceRegistrations, indexID+"_prefix", namespace, "")
-	if err != nil {
-		return nil, fmt.Errorf("service registration lookup failed: %v", err)
-	}
+	iter := Get[*structs.ServiceRegistration](txn, TableServiceRegistrations, indexID+"_prefix", namespace, "")
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // GetServiceRegistrationByName returns an iterator that contains all service
@@ -223,17 +212,12 @@ func (s *StateStore) GetServiceRegistrationsByNamespace(
 // therefore represents how to identify a single, collection of services that
 // are logically grouped together.
 func (s *StateStore) GetServiceRegistrationByName(
-	ws memdb.WatchSet, namespace, name string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, namespace, name string) ResultIterator[*structs.ServiceRegistration] {
 
 	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableServiceRegistrations, indexServiceName, namespace, name)
-	if err != nil {
-		return nil, fmt.Errorf("service registration lookup failed: %v", err)
-	}
+	iter := Get[*structs.ServiceRegistration](txn, TableServiceRegistrations, indexServiceName, namespace, name)
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // GetServiceRegistrationByID returns a single registration. The registration
@@ -259,53 +243,36 @@ func (s *StateStore) GetServiceRegistrationByID(
 // GetServiceRegistrationsByAllocID returns an iterator containing all the
 // service registrations corresponding to a single allocation.
 func (s *StateStore) GetServiceRegistrationsByAllocID(
-	ws memdb.WatchSet, allocID string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, allocID string) ResultIterator[*structs.ServiceRegistration] {
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableServiceRegistrations, indexAllocID, allocID)
-	if err != nil {
-		return nil, fmt.Errorf("service registration lookup failed: %v", err)
-	}
+	iter := Get[*structs.ServiceRegistration](txn, TableServiceRegistrations, indexAllocID, allocID)
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // GetServiceRegistrationsByJobID returns an iterator containing all the
 // service registrations corresponding to a single job.
 func (s *StateStore) GetServiceRegistrationsByJobID(
-	ws memdb.WatchSet, namespace, jobID string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, namespace, jobID string) ResultIterator[*structs.ServiceRegistration] {
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableServiceRegistrations, indexJob, namespace, jobID)
-	if err != nil {
-		return nil, fmt.Errorf("service registration lookup failed: %v", err)
-	}
+	iter := Get[*structs.ServiceRegistration](txn, TableServiceRegistrations, indexJob, namespace, jobID)
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // GetServiceRegistrationsByNodeID identifies all service registrations tied to
 // the specified nodeID. This is useful for performing an in-memory lookup in
 // order to avoid calling DeleteServiceRegistrationByNodeID via a Raft message.
 func (s *StateStore) GetServiceRegistrationsByNodeID(
-	ws memdb.WatchSet, nodeID string) ([]*structs.ServiceRegistration, error) {
+	ws memdb.WatchSet, nodeID string) []*structs.ServiceRegistration {
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableServiceRegistrations, indexNodeID, nodeID)
-	if err != nil {
-		return nil, fmt.Errorf("service registration lookup failed: %v", err)
-	}
+	iter := Get[*structs.ServiceRegistration](txn, TableServiceRegistrations, indexNodeID, nodeID)
 	ws.Add(iter.WatchCh())
-
-	var result []*structs.ServiceRegistration
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		result = append(result, raw.(*structs.ServiceRegistration))
-	}
-
-	return result, nil
+	return iter.Slice()
 }

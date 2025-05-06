@@ -618,16 +618,8 @@ func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*stru
 	remote := make(map[string]struct{})
 
 	// Add all the local namespaces
-	iter, err := state.Namespaces(nil)
-	if err != nil {
-		panic("failed to iterate local namespaces")
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		namespace := raw.(*structs.Namespace)
+	iter := state.Namespaces(nil)
+	for namespace := range iter.All() {
 		local[namespace.Name] = namespace.Hash
 	}
 
@@ -758,16 +750,8 @@ func diffNodePools(store *state.StateStore, minIndex uint64, remoteList []*struc
 	remote := make(map[string]struct{})
 
 	// Add all the local node pools
-	iter, err := store.NodePools(nil, state.SortDefault)
-	if err != nil {
-		panic("failed to iterate local node pools")
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		pool := raw.(*structs.NodePool)
+	iter := store.NodePools(nil, state.SortDefault)
+	for pool := range iter.All() {
 		local[pool.Name] = pool.Hash
 	}
 
@@ -802,18 +786,9 @@ func diffNodePools(store *state.StateStore, minIndex uint64, remoteList []*struc
 func (s *Server) restoreEvals() error {
 	// Get an iterator over every evaluation
 	ws := memdb.NewWatchSet()
-	iter, err := s.fsm.State().Evals(ws, false)
-	if err != nil {
-		return fmt.Errorf("failed to get evaluations: %v", err)
-	}
+	iter := s.fsm.State().Evals(ws, false)
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		eval := raw.(*structs.Evaluation)
-
+	for eval := range iter.All() {
 		if eval.ShouldEnqueue() {
 			s.evalBroker.Restore(eval)
 		} else if eval.ShouldBlock() {
@@ -831,14 +806,10 @@ func (s *Server) restoreEvals() error {
 func (s *Server) restorePeriodicDispatcher() error {
 	logger := s.logger.Named("periodic")
 	ws := memdb.NewWatchSet()
-	iter, err := s.fsm.State().JobsByPeriodic(ws, true)
-	if err != nil {
-		return fmt.Errorf("failed to get periodic jobs: %v", err)
-	}
+	iter := s.fsm.State().JobsByPeriodic(ws, true)
 
 	now := time.Now()
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		job := i.(*structs.Job)
+	for job := range iter.All() {
 
 		// We skip adding parameterized jobs because they themselves aren't
 		// tracked, only the dispatched children are.
@@ -1236,18 +1207,7 @@ func (s *Server) publishJobSummaryMetrics(stopCh chan struct{}) {
 				continue
 			}
 			ws := memdb.NewWatchSet()
-			iter, err := state.JobSummaries(ws)
-			if err != nil {
-				s.logger.Error("failed to get job summaries", "error", err)
-				continue
-			}
-
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				summary := raw.(*structs.JobSummary)
+			for summary := range state.JobSummaries(ws).All() {
 				if s.config.DisableDispatchedJobSummaryMetrics {
 					job, err := state.JobByID(ws, summary.Namespace, summary.JobID)
 					if err != nil {
@@ -1337,30 +1297,18 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 				continue
 			}
 			ws := memdb.NewWatchSet()
-			iter, err := snap.Jobs(ws, state.SortDefault)
-			if err != nil {
-				s.logger.Error("failed to get job statuses", "error", err)
-				continue
-			}
-
-			s.iterateJobStatusMetrics(&iter)
+			iter := snap.Jobs(ws, state.SortDefault)
+			s.iterateJobStatusMetrics(iter)
 		}
 	}
 }
 
-func (s *Server) iterateJobStatusMetrics(jobs *memdb.ResultIterator) {
+func (s *Server) iterateJobStatusMetrics(jobs state.ResultIterator[*structs.Job]) {
 	var pending int64 // Sum of all jobs in 'pending' state
 	var running int64 // Sum of all jobs in 'running' state
 	var dead int64    // Sum of all jobs in 'dead' state
 
-	for {
-		raw := (*jobs).Next()
-		if raw == nil {
-			break
-		}
-
-		job := raw.(*structs.Job)
-
+	for job := range jobs.All() {
 		switch job.Status {
 		case structs.JobStatusPending:
 			pending++
@@ -1732,16 +1680,7 @@ func diffACLPolicies(state *state.StateStore, minIndex uint64, remoteList []*str
 	remote := make(map[string]struct{})
 
 	// Add all the local policies
-	iter, err := state.ACLPolicies(nil)
-	if err != nil {
-		panic("failed to iterate local policies")
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		policy := raw.(*structs.ACLPolicy)
+	for policy := range state.ACLPolicies(nil).All() {
 		local[policy.Name] = policy.Hash
 	}
 
@@ -1874,16 +1813,8 @@ func diffACLTokens(store *state.StateStore, minIndex uint64, remoteList []*struc
 	remote := make(map[string]struct{})
 
 	// Add all the local global tokens
-	iter, err := store.ACLTokensByGlobal(nil, true, state.SortDefault)
-	if err != nil {
-		panic("failed to iterate local tokens")
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		token := raw.(*structs.ACLToken)
+	iter := store.ACLTokensByGlobal(nil, true, state.SortDefault)
+	for token := range iter.All() {
 		local[token.AccessorID] = token.Hash
 	}
 
@@ -2079,17 +2010,8 @@ func diffACLRoles(
 	// empty struct as we already have the full object.
 	remote := make(map[string]struct{})
 
-	// Read all the ACL role currently held within our local state. This panic
-	// will only happen as a developer making a mistake with naming the index
-	// to use.
-	iter, err := store.GetACLRoles(nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to iterate local ACL roles: %v", err))
-	}
-
 	// Iterate the local ACL roles and add them to our tracking of local roles.
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclRole := raw.(*structs.ACLRole)
+	for aclRole := range store.GetACLRoles(nil).All() {
 		local[aclRole.ID] = aclRole.Hash
 	}
 
@@ -2284,18 +2206,9 @@ func diffACLAuthMethods(
 	// an empty struct as we already have the full object.
 	remote := make(map[string]struct{})
 
-	// Read all the ACL auth-methods currently held within our local state.
-	// This panic will only happen as a developer making a mistake with naming
-	// the index to use.
-	iter, err := store.GetACLAuthMethods(nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to iterate local ACL roles: %v", err))
-	}
-
 	// Iterate the local ACL auth-methods and add them to our tracking of
 	// local auth-methods
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclAuthMethod := raw.(*structs.ACLAuthMethod)
+	for aclAuthMethod := range store.GetACLAuthMethods(nil).All() {
 		local[aclAuthMethod.Name] = aclAuthMethod.Hash
 	}
 
@@ -2491,18 +2404,9 @@ func diffACLBindingRules(
 	// an empty struct as we already have the full object.
 	remote := make(map[string]struct{})
 
-	// Read all the ACL binding rules currently held within our local state.
-	// This panic will only happen as a developer making a mistake with naming
-	// the index to use.
-	iter, err := store.GetACLBindingRules(nil)
-	if err != nil {
-		panic(fmt.Sprintf("failed to iterate local ACL binding rules: %v", err))
-	}
-
 	// Iterate the local ACL binding rules and add them to our tracking of
 	// local binding rules.
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclBindingRule := raw.(*structs.ACLBindingRule)
+	for aclBindingRule := range store.GetACLBindingRules(nil).All() {
 		local[aclBindingRule.ID] = aclBindingRule.Hash
 	}
 

@@ -70,7 +70,7 @@ type JobStatusesRequest struct {
 
 // JobStatusesResponse is the response from Job.Statuses RPC endpoint.
 type JobStatusesResponse struct {
-	Jobs []JobStatusesJob
+	Jobs []*JobStatusesJob
 	QueryMeta
 }
 

@@ -246,7 +246,7 @@ func handleJsonResultError(err error, code *int64, encoder *codec.Encoder) {
 func (e *Event) validateACL(namespace string, topics map[structs.Topic][]string, resolvedAcl *acl.ACL) ([]string, error) {
 	nses := []string{}
 	if namespace == structs.AllNamespacesSentinel {
-		ns, _ := e.srv.State().NamespaceNames()
+		ns := e.srv.State().NamespaceNames()
 		nses = append(nses, ns...)
 	} else {
 		nses = append(nses, namespace)

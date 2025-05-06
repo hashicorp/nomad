@@ -14,6 +14,7 @@ import (
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -47,7 +48,7 @@ func (d *diffResult) Append(other *diffResult) {
 
 // readyNodesInDCsAndPool returns all the ready nodes in the given datacenters
 // and pool, and a mapping of each data center to the count of ready nodes.
-func readyNodesInDCsAndPool(state State, dcs []string, pool string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
+func readyNodesInDCsAndPool(store State, dcs []string, pool string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
 	// Index the DCs
 	dcMap := make(map[string]int)
 
@@ -56,25 +57,15 @@ func readyNodesInDCsAndPool(state State, dcs []string, pool string) ([]*structs.
 	var out []*structs.Node
 	notReady := map[string]struct{}{}
 
-	var iter memdb.ResultIterator
-	var err error
+	var iter state.ResultIterator[*structs.Node]
 
 	if pool == structs.NodePoolAll || pool == "" {
-		iter, err = state.Nodes(ws)
+		iter = store.Nodes(ws)
 	} else {
-		iter, err = state.NodesByNodePool(ws, pool)
+		iter = store.NodesByNodePool(ws, pool)
 	}
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
+	for node := range iter.All() {
 		// Filter on datacenter and status
-		node := raw.(*structs.Node)
 		if !node.Ready() {
 			notReady[node.ID] = struct{}{}
 			continue

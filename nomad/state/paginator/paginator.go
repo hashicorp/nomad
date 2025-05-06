@@ -4,7 +4,6 @@
 package paginator
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/hashicorp/go-bexpr"
@@ -13,15 +12,15 @@ import (
 
 // Iterator is the interface that must be implemented to supply data to the
 // Paginator.
-type Iterator interface {
+type Iterator[T comparable] interface {
 	// Next returns the next element to be considered for pagination.
 	// The page will end if nil is returned.
-	Next() interface{}
+	Next() T
 }
 
 // Paginator wraps an iterator and returns only the expected number of pages.
-type Paginator[T, TStub any] struct {
-	iter           Iterator
+type Paginator[T, TStub comparable] struct {
+	iter           Iterator[T]
 	tokenizer      Tokenizer[T]
 	bexpr          *bexpr.Evaluator
 	selector       SelectorFunc[T]
@@ -37,8 +36,8 @@ type Paginator[T, TStub any] struct {
 // NewPaginator returns a new Paginator. Any error creating the paginator is
 // due to bad user filter input, RPC functions should therefore return a 400
 // error code along with an appropriate message.
-func NewPaginator[T, TStub any](
-	iter Iterator,
+func NewPaginator[T, TStub comparable](
+	iter Iterator[T],
 	opts structs.QueryOptions,
 	selector SelectorFunc[T],
 	tokenizer Tokenizer[T],
@@ -87,14 +86,9 @@ DONE:
 
 func (p *Paginator[T, TStub]) next() (TStub, paginatorState) {
 	var none TStub
-	raw := p.iter.Next()
-	if raw == nil {
+	obj := p.iter.Next()
+	if obj == *new(T) {
 		p.nextToken = ""
-		return none, paginatorComplete
-	}
-	obj, ok := raw.(T)
-	if !ok {
-		p.pageErr = errors.New("paginator was instantiated with wrong type for table")
 		return none, paginatorComplete
 	}
 
@@ -113,7 +107,7 @@ func (p *Paginator[T, TStub]) next() (TStub, paginatorState) {
 	}
 
 	if p.bexpr != nil {
-		allow, err := p.bexpr.Evaluate(raw)
+		allow, err := p.bexpr.Evaluate(obj)
 		if err != nil {
 			p.pageErr = err
 			return none, paginatorComplete

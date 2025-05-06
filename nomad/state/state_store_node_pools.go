@@ -31,24 +31,18 @@ func (s *StateStore) nodePoolInit() error {
 }
 
 // NodePools returns an iterator over all node pools.
-func (s *StateStore) NodePools(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) NodePools(ws memdb.WatchSet, sort SortOption) ResultIterator[*structs.NodePool] {
 	txn := s.db.ReadTxn()
-
-	var iter memdb.ResultIterator
-	var err error
+	var iter ResultIterator[*structs.NodePool]
 
 	switch sort {
 	case SortReverse:
-		iter, err = txn.GetReverse(TableNodePools, "id")
+		iter = GetReverse[*structs.NodePool](txn, TableNodePools, "id")
 	default:
-		iter, err = txn.Get(TableNodePools, "id")
+		iter = Get[*structs.NodePool](txn, TableNodePools, "id")
 	}
-	if err != nil {
-		return nil, fmt.Errorf("node pools lookup failed: %w", err)
-	}
-
 	ws.Add(iter.WatchCh())
-	return iter, nil
+	return iter
 }
 
 // NodePoolByName returns the node pool that matches the given name or nil if
@@ -74,24 +68,20 @@ func (s *StateStore) nodePoolByNameTxn(txn *txn, ws memdb.WatchSet, name string)
 
 // NodePoolsByNamePrefix returns an interator over all node pools that match
 // the given name prefix.
-func (s *StateStore) NodePoolsByNamePrefix(ws memdb.WatchSet, namePrefix string, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) NodePoolsByNamePrefix(ws memdb.WatchSet, namePrefix string, sort SortOption) ResultIterator[*structs.NodePool] {
 	txn := s.db.ReadTxn()
 
-	var iter memdb.ResultIterator
-	var err error
+	var iter ResultIterator[*structs.NodePool]
 
 	switch sort {
 	case SortReverse:
-		iter, err = txn.GetReverse(TableNodePools, "id_prefix", namePrefix)
+		iter = GetReverse[*structs.NodePool](txn, TableNodePools, "id_prefix", namePrefix)
 	default:
-		iter, err = txn.Get(TableNodePools, "id_prefix", namePrefix)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("node pools prefix lookup failed: %w", err)
+		iter = Get[*structs.NodePool](txn, TableNodePools, "id_prefix", namePrefix)
 	}
 
 	ws.Add(iter.WatchCh())
-	return iter, nil
+	return iter
 }
 
 // nodePoolExists returs true if a node pool with the give name exists.

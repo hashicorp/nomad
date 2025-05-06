@@ -63,12 +63,8 @@ func (n *drainingNode) IsDone() (bool, error) {
 	}
 
 	// Retrieve the allocs on the node
-	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
-	if err != nil {
-		return false, err
-	}
-
-	for _, alloc := range allocs {
+	allocs := n.state.AllocsByNode(nil, n.node.ID)
+	for alloc := range allocs.All() {
 		// System and plugin jobs are only stopped after a node is
 		// done draining everything else, so ignore them here.
 		if alloc.Job.Type == structs.JobTypeSystem || alloc.Job.IsPlugin() {
@@ -99,13 +95,10 @@ func (n *drainingNode) RemainingAllocs() ([]*structs.Allocation, error) {
 	ignoreSystem := n.node.DrainStrategy.IgnoreSystemJobs
 
 	// Retrieve the allocs on the node
-	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
-	if err != nil {
-		return nil, err
-	}
+	allocs := n.state.AllocsByNode(nil, n.node.ID)
 
 	var drain []*structs.Allocation
-	for _, alloc := range allocs {
+	for alloc := range allocs.All() {
 		// Nothing to do on a terminal allocation
 		if alloc.TerminalStatus() {
 			continue
@@ -134,14 +127,11 @@ func (n *drainingNode) DrainingJobs() ([]structs.NamespacedID, error) {
 	}
 
 	// Retrieve the allocs on the node
-	allocs, err := n.state.AllocsByNode(nil, n.node.ID)
-	if err != nil {
-		return nil, err
-	}
+	allocs := n.state.AllocsByNode(nil, n.node.ID)
 
 	jobIDs := make(map[structs.NamespacedID]struct{})
 	var jobs []structs.NamespacedID
-	for _, alloc := range allocs {
+	for alloc := range allocs.All() {
 		if alloc.TerminalStatus() || alloc.Job.Type == structs.JobTypeSystem || alloc.Job.IsPlugin() {
 			continue
 		}

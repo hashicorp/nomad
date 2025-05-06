@@ -56,66 +56,7 @@ func NewSearchEndpoint(srv *Server, ctx *RPCContext) *Search {
 	return &Search{srv: srv, ctx: ctx, logger: srv.logger.Named("search")}
 }
 
-// getPrefixMatches extracts matches for an iterator, and returns a list of ids for
-// these matches.
-func (s *Search) getPrefixMatches(iter memdb.ResultIterator, prefix string) ([]string, bool) {
-	var matches []string
-
-	for i := 0; i < truncateLimit; i++ {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		var id string
-		switch t := raw.(type) {
-		case *structs.Job:
-			id = t.ID
-		case *structs.Evaluation:
-			id = t.ID
-		case *structs.Allocation:
-			id = t.ID
-		case *structs.Node:
-			id = t.ID
-		case *structs.NodePool:
-			id = t.Name
-		case *structs.Deployment:
-			id = t.ID
-		case *structs.CSIPlugin:
-			id = t.ID
-		case *structs.CSIVolume:
-			id = t.ID
-		case *structs.HostVolume:
-			id = t.ID
-		case *structs.ScalingPolicy:
-			id = t.ID
-		case *structs.Namespace:
-			id = t.Name
-		case *structs.VariableEncrypted:
-			id = t.Path
-		default:
-			matchID, ok := getEnterpriseMatch(raw)
-			if !ok {
-				s.logger.Error("unexpected type for resources context", "type", fmt.Sprintf("%T", t))
-				continue
-			}
-
-			id = matchID
-		}
-
-		if !strings.HasPrefix(id, prefix) {
-			continue
-		}
-
-		matches = append(matches, id)
-	}
-
-	return matches, iter.Next() != nil
-}
-
-func (s *Search) getFuzzyMatches(iter memdb.ResultIterator, text string) (map[structs.Context][]structs.FuzzyMatch, map[structs.Context]bool) {
-	limitQuery := s.srv.config.SearchConfig.LimitQuery
-	limitResults := s.srv.config.SearchConfig.LimitResults
+func getFuzzyMatchesImpl[T comparable](iter state.ResultIterator[T], text string, limitQuery, limitResults int) (map[structs.Context][]structs.FuzzyMatch, map[structs.Context]bool) {
 
 	unsorted := make(map[structs.Context][]fuzzyMatch)
 	truncations := make(map[structs.Context]bool)
@@ -156,26 +97,22 @@ func (s *Search) getFuzzyMatches(iter memdb.ResultIterator, text string) (map[st
 		}
 	}
 
-	limited := func(i int, iter memdb.ResultIterator) bool {
-		if i == limitQuery-1 {
-			return iter.Next() != nil
-		}
-		return false
-	}
-
-	for i := 0; i < limitQuery; i++ {
-		raw := iter.Next()
-		if raw == nil {
-			break
+	i := 0
+	for val := range iter.All() {
+		limited := false
+		i++
+		if i >= limitQuery {
+			limited = true
 		}
 
-		switch t := raw.(type) {
+		switch any(val).(type) {
 		case *structs.Job:
-			set := s.fuzzyMatchesJob(t, text)
-			accumulateSet(limited(i, iter), set)
+			// oof, this is gross
+			set := fuzzyMatchesJob(any(val).(*structs.Job), text)
+			accumulateSet(limited, set)
 		default:
-			ctx, match := s.fuzzyMatchSingle(raw, text)
-			accumulateSingle(limited(i, iter), ctx, match)
+			ctx, match := fuzzyMatchSingle(val, text)
+			accumulateSingle(limited, ctx, match)
 		}
 	}
 
@@ -210,7 +147,7 @@ func fuzzyIndex(name, text string) int {
 
 // fuzzySingleMatch determines if the ID of raw is a fuzzy match with text.
 // Returns the context and score or nil if there is no match.
-func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context, *fuzzyMatch) {
+func fuzzyMatchSingle(raw any, text string) (structs.Context, *fuzzyMatch) {
 	var (
 		name  string // fuzzy searchable name
 		scope []string
@@ -263,7 +200,7 @@ func (s *Search) fuzzyMatchSingle(raw interface{}, text string) (structs.Context
 //	job|group|task.name
 //	job|group|task|service.name
 //	job|group|task|driver.{image,command,class}
-func (*Search) fuzzyMatchesJob(j *structs.Job, text string) map[structs.Context][]fuzzyMatch {
+func fuzzyMatchesJob(j *structs.Job, text string) map[structs.Context][]fuzzyMatch {
 	sm := make(map[structs.Context][]fuzzyMatch)
 	ns := j.Namespace
 	job := j.ID
@@ -379,52 +316,113 @@ func sortSet(matches []fuzzyMatch) {
 	})
 }
 
-// getResourceIter takes a context and returns a memdb iterator specific to
-// that context
-func getResourceIter(context structs.Context, aclObj *acl.ACL, namespace, prefix string, ws memdb.WatchSet, store *state.StateStore) (memdb.ResultIterator, error) {
-	switch context {
-	case structs.Jobs:
-		return store.JobsByIDPrefix(ws, namespace, prefix, state.SortDefault)
-	case structs.Evals:
-		return store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
-	case structs.Allocs:
-		return store.AllocsByIDPrefix(ws, namespace, prefix, state.SortDefault)
-	case structs.Nodes:
-		return store.NodesByIDPrefix(ws, prefix)
-	case structs.NodePools:
-		iter, err := store.NodePoolsByNamePrefix(ws, prefix, state.SortDefault)
-		if err != nil {
-			return nil, err
+// TODO(tgross): could almost all this logic live in the state store code?
+func getPrefixMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, prefix string, ws memdb.WatchSet, store *state.StateStore) (map[structs.Context][]string, map[structs.Context]bool, error) {
+
+	ids := make(map[structs.Context][]string, len(contexts))
+	truncs := make(map[structs.Context]bool, len(contexts))
+
+	for _, context := range contexts {
+		switch context {
+		case structs.Jobs:
+			iter := store.JobsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(job *structs.Job) string { return job.ID })
+
+		case structs.Evals:
+			iter := store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(eval *structs.Evaluation) string { return eval.ID })
+
+		case structs.Allocs:
+			iter := store.AllocsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(alloc *structs.Allocation) string { return alloc.ID })
+
+		case structs.Nodes:
+			iter := store.NodesByIDPrefix(ws, prefix)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(node *structs.Node) string { return node.ID })
+
+		case structs.NodePools:
+			iter := store.NodePoolsByNamePrefix(ws, prefix, state.SortDefault)
+			if !aclObj.IsManagement() {
+				iter = state.NewFilterIterator(iter, nodePoolCapFilter(aclObj))
+			}
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(pool *structs.NodePool) string { return pool.Name })
+
+		case structs.Deployments:
+			iter := store.DeploymentsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(d *structs.Deployment) string { return d.ID })
+
+		case structs.Plugins:
+			iter := store.CSIPluginsByIDPrefix(ws, prefix)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(p *structs.CSIPlugin) string { return p.ID })
+
+		case structs.ScalingPolicies:
+			iter := store.ScalingPoliciesByIDPrefix(ws, namespace, prefix)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(p *structs.ScalingPolicy) string { return p.ID })
+
+		case structs.Volumes:
+			iter := store.CSIVolumesByIDPrefix(ws, namespace, prefix)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(v *structs.CSIVolume) string { return v.ID })
+
+		case structs.HostVolumes:
+			iter := store.HostVolumesByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(v *structs.HostVolume) string { return v.ID })
+
+		case structs.Namespaces:
+			iter := store.NamespacesByNamePrefix(ws, prefix)
+			iter = state.NewFilterIterator(iter, func(ns *structs.Namespace) bool {
+				return !aclObj.AllowNamespace(ns.Name)
+			})
+
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(ns *structs.Namespace) string {
+					return ns.Name
+				})
+
+		case structs.Variables:
+			iter := store.GetVariablesByPrefix(ws, prefix)
+			iter = state.NewFilterIterator(iter, func(v *structs.VariableEncrypted) bool {
+				return !aclObj.AllowNamespace(v.Namespace)
+			})
+			ids[context], truncs[context] = prefixMatches(iter,
+				func(v *structs.VariableEncrypted) string { return v.Path })
+
+		default:
+			// TODO(tgross): will need to figure this out
+			// iter := getEnterpriseResourceIter[any](context, aclObj, namespace, prefix, ws, store)
+			// ids[context], truncs[context] = prefixMatchesOld(iter,
+			// 	func(raw any) string {
+			// 		return "now what???" // TODO(tgross)
+			// 	})
 		}
-		if aclObj.IsManagement() {
-			return iter, nil
-		}
-		return memdb.NewFilterIterator(iter, nodePoolCapFilter(aclObj)), nil
-	case structs.Deployments:
-		return store.DeploymentsByIDPrefix(ws, namespace, prefix, state.SortDefault)
-	case structs.Plugins:
-		return store.CSIPluginsByIDPrefix(ws, prefix)
-	case structs.ScalingPolicies:
-		return store.ScalingPoliciesByIDPrefix(ws, namespace, prefix)
-	case structs.Volumes:
-		return store.CSIVolumesByIDPrefix(ws, namespace, prefix)
-	case structs.HostVolumes:
-		return store.HostVolumesByIDPrefix(ws, namespace, prefix, state.SortDefault)
-	case structs.Namespaces:
-		iter, err := store.NamespacesByNamePrefix(ws, prefix)
-		if err != nil {
-			return nil, err
-		}
-		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
-	case structs.Variables:
-		iter, err := store.GetVariablesByPrefix(ws, prefix)
-		if err != nil {
-			return nil, err
-		}
-		return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
-	default:
-		return getEnterpriseResourceIter(context, aclObj, namespace, prefix, ws, store)
+
 	}
+
+	return ids, truncs, nil
+}
+
+func prefixMatches[T comparable](iter state.ResultIterator[T], getID func(T) string) ([]string, bool) {
+	ids := []string{}
+	isTrunc := false
+	i := 0
+	for obj := range iter.All() {
+		if i > truncateLimit {
+			isTrunc = true
+			break
+		}
+		id := getID(obj)
+		ids = append(ids, id)
+	}
+	return ids, isTrunc
 }
 
 // wildcard is a helper for determining if namespace is '*', used to determine
@@ -434,78 +432,18 @@ func wildcard(namespace string) bool {
 	return namespace == structs.AllNamespacesSentinel
 }
 
-func getFuzzyResourceIterator(context structs.Context, aclObj *acl.ACL, namespace string, ws memdb.WatchSet, store *state.StateStore) (memdb.ResultIterator, error) {
-	switch context {
-	case structs.Jobs:
-		if wildcard(namespace) {
-			iter, err := store.Jobs(ws, state.SortDefault)
-			return nsCapIterFilter(iter, err, aclObj)
-		}
-		return store.JobsByNamespace(ws, namespace, state.SortDefault)
-
-	case structs.Allocs:
-		if wildcard(namespace) {
-			iter, err := store.Allocs(ws, state.SortDefault)
-			return nsCapIterFilter(iter, err, aclObj)
-		}
-		return store.AllocsByNamespace(ws, namespace)
-
-	case structs.Variables:
-		if wildcard(namespace) {
-			iter, err := store.Variables(ws)
-			return nsCapIterFilter(iter, err, aclObj)
-		}
-		return store.GetVariablesByNamespace(ws, namespace)
-
-	case structs.Nodes:
-		if wildcard(namespace) {
-			iter, err := store.Nodes(ws)
-			return nsCapIterFilter(iter, err, aclObj)
-		}
-		return store.Nodes(ws)
-
-	case structs.NodePools:
-		iter, err := store.NodePools(ws, state.SortDefault)
-		if err != nil {
-			return nil, err
-		}
-
-		if aclObj.IsManagement() {
-			return iter, nil
-		}
-		return memdb.NewFilterIterator(iter, nodePoolCapFilter(aclObj)), nil
-
-	case structs.Plugins:
-		if wildcard(namespace) {
-			iter, err := store.CSIPlugins(ws)
-			return nsCapIterFilter(iter, err, aclObj)
-		}
-		return store.CSIPlugins(ws)
-
-	case structs.Namespaces:
-		iter, err := store.Namespaces(ws)
-		return nsCapIterFilter(iter, err, aclObj)
-
-	default:
-		return getEnterpriseFuzzyResourceIter(context, aclObj, namespace, ws, store)
-	}
-}
-
 // nsCapIterFilter wraps an iterator with a filter for removing items that the token
 // does not have permission to read (whether missing the capability or in the
 // wrong namespace).
-func nsCapIterFilter(iter memdb.ResultIterator, err error, aclObj *acl.ACL) (memdb.ResultIterator, error) {
-	if err != nil {
-		return nil, err
-	}
-	return memdb.NewFilterIterator(iter, nsCapFilter(aclObj)), nil
+func nsCapIterFilter[T comparable](iter state.ResultIterator[T], aclObj *acl.ACL) state.ResultIterator[T] {
+	return state.NewFilterIterator(iter, nsCapFilter[T](aclObj))
 }
 
 // nsCapFilter produces a memdb.FilterFunc for removing objects not accessible
 // by aclObj during a table scan.
-func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
-	return func(v interface{}) bool {
-		switch t := v.(type) {
+func nsCapFilter[T comparable](aclObj *acl.ACL) state.FilterFunc[T] {
+	return func(t T) bool {
+		switch t := any(t).(type) {
 		case *structs.Job:
 			return !aclObj.AllowNsOp(t.Namespace, acl.NamespaceCapabilityReadJob)
 
@@ -532,9 +470,8 @@ func nsCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
 
 // nodePoolCapFilter produces a memdb.FilterFunc for removing node pools not
 // accessible by aclObj during a table scan.
-func nodePoolCapFilter(aclObj *acl.ACL) memdb.FilterFunc {
-	return func(v interface{}) bool {
-		pool := v.(*structs.NodePool)
+func nodePoolCapFilter(aclObj *acl.ACL) state.FilterFunc[*structs.NodePool] {
+	return func(pool *structs.NodePool) bool {
 		return !aclObj.AllowNodePoolOperation(pool.Name, acl.NodePoolCapabilityRead)
 	}
 }
@@ -615,26 +552,17 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 		queryOpts: &structs.QueryOptions{},
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 
-			iters := make(map[structs.Context]memdb.ResultIterator)
 			contexts := filteredSearchContexts(aclObj, namespace, args.Context)
 
-			for _, ctx := range contexts {
-				iter, err := getResourceIter(ctx, aclObj, namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
-				if err != nil {
-					if !s.silenceError(err) {
-						return err
-					}
-				} else {
-					iters[ctx] = iter
+			matches, truncations, err := getPrefixMatches(
+				contexts, aclObj, namespace, args.Prefix, ws, state)
+			if err != nil {
+				if !s.silenceError(err) {
+					return err
 				}
 			}
-
-			// Return matches for the given prefix
-			for k, v := range iters {
-				res, isTrunc := s.getPrefixMatches(v, args.Prefix)
-				reply.Matches[k] = res
-				reply.Truncations[k] = isTrunc
-			}
+			reply.Matches = matches
+			reply.Truncations = truncations
 
 			// Set the index for the context. If the context has been specified, it
 			// will be used as the index of the response. Otherwise, the
@@ -771,73 +699,39 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 		queryOpts: new(structs.QueryOptions),
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 
-			fuzzyIters := make(map[structs.Context]memdb.ResultIterator)
-			prefixIters := make(map[structs.Context]memdb.ResultIterator)
-
 			prefixContexts := filteredSearchContexts(aclObj, namespace, context)
 			fuzzyContexts := filteredFuzzySearchContexts(aclObj, namespace, context)
 
-			// Gather the iterators used for prefix searching from those allowable contexts
-			for _, ctx := range prefixContexts {
-				switch ctx {
-				// only apply on the types that use UUID prefix searching
-				case structs.Evals, structs.Deployments, structs.ScalingPolicies,
-					structs.Volumes, structs.HostVolumes, structs.Quotas, structs.Recommendations:
-					iter, err := getResourceIter(ctx, aclObj, namespace, roundUUIDDownIfOdd(args.Prefix, args.Context), ws, state)
-					if err != nil {
-						if !s.silenceError(err) {
-							return err
-						}
-					} else {
-						prefixIters[ctx] = iter
-					}
+			pmatches, truncations, err := getPrefixMatches(
+				prefixContexts, aclObj, namespace, args.Prefix, ws, state)
+			if err != nil {
+				if !s.silenceError(err) {
+					return err
 				}
 			}
 
-			// Gather the iterators used for fuzzy searching from those allowable contexts
-			for _, ctx := range fuzzyContexts {
-				switch ctx {
-				// skip the types that use UUID prefix searching
-				case structs.Evals, structs.Deployments, structs.ScalingPolicies,
-					structs.Volumes, structs.HostVolumes, structs.Quotas,
-					structs.Recommendations:
-					continue
-				default:
-					iter, err := getFuzzyResourceIterator(ctx, aclObj, namespace, ws, state)
-					if err != nil {
-						return err
-					}
-					fuzzyIters[ctx] = iter
-				}
-			}
-
-			// Set prefix matches of the given text
-			for ctx, iter := range prefixIters {
-				res, isTrunc := s.getPrefixMatches(iter, args.Text)
+			reply.Truncations = truncations
+			for context, res := range pmatches {
 				matches := make([]structs.FuzzyMatch, 0, len(res))
 				for _, result := range res {
 					matches = append(matches, structs.FuzzyMatch{ID: result})
 				}
-				reply.Matches[ctx] = matches
-				reply.Truncations[ctx] = isTrunc
+				reply.Matches[context] = matches
 			}
 
-			// Set fuzzy matches of the given text
-			for iterCtx, iter := range fuzzyIters {
+			limitQuery := s.srv.config.SearchConfig.LimitQuery
+			limitResults := s.srv.config.SearchConfig.LimitResults
+			matches, truncations := getFuzzyMatches(
+				fuzzyContexts, aclObj, namespace, text, ws, state, limitQuery, limitResults)
+			for context, res := range matches {
+				reply.Matches[context] = res
 
 				// prefill truncations of iterable types so keys will exist in
 				// the response for negative results
-				reply.Truncations[iterCtx] = false
-
-				matches, truncations := s.getFuzzyMatches(iter, text)
-				for ctx := range matches {
-					reply.Matches[ctx] = matches[ctx]
-				}
-
-				for ctx := range truncations {
-					// only contains positive results
-					reply.Truncations[ctx] = truncations[ctx]
-				}
+				reply.Truncations[context] = false
+			}
+			for context, trunc := range truncations {
+				reply.Truncations[context] = trunc
 			}
 
 			// Set the index for the context. If the context has been specified,
@@ -859,6 +753,105 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 	}
 
 	return s.srv.blockingRPC(&opts)
+}
+
+func mergeFuzzyMatches(
+	inMatches map[structs.Context][]structs.FuzzyMatch, inTruncs map[structs.Context]bool,
+	outMatches map[structs.Context][]structs.FuzzyMatch, outTruncs map[structs.Context]bool,
+) {
+	for ctx, match := range inMatches {
+		if _, ok := outMatches[ctx]; !ok {
+			outMatches[ctx] = match
+		} else {
+			outMatches[ctx] = append(outMatches[ctx], match...)
+		}
+	}
+	for ctx, trunc := range inTruncs {
+		outTruncs[ctx] = trunc
+	}
+}
+
+func getFuzzyMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, text string,
+	ws memdb.WatchSet, store *state.StateStore,
+	limitQuery, limitResults int,
+) (
+	map[structs.Context][]structs.FuzzyMatch, map[structs.Context]bool) {
+
+	matches := make(map[structs.Context][]structs.FuzzyMatch, len(contexts))
+	truncs := make(map[structs.Context]bool, len(contexts))
+
+	for _, context := range contexts {
+		switch context {
+		case structs.Jobs:
+			var iter state.ResultIterator[*structs.Job]
+			if wildcard(namespace) {
+				iter = store.Jobs(ws, state.SortDefault)
+				iter = nsCapIterFilter(iter, aclObj)
+			} else {
+				iter = store.JobsByNamespace(ws, namespace, state.SortDefault)
+			}
+			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
+			mergeFuzzyMatches(matches, truncs, m, t)
+
+		case structs.Allocs:
+			var iter state.ResultIterator[*structs.Allocation]
+			if wildcard(namespace) {
+				iter := store.Allocs(ws, state.SortDefault)
+				iter = nsCapIterFilter(iter, aclObj)
+			} else {
+				iter = store.AllocsByNamespace(ws, namespace)
+			}
+			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
+			mergeFuzzyMatches(matches, truncs, m, t)
+
+		case structs.Variables:
+			var iter state.ResultIterator[*structs.VariableEncrypted]
+			if wildcard(namespace) {
+				iter = store.Variables(ws)
+				iter = nsCapIterFilter(iter, aclObj)
+			} else {
+				iter = store.GetVariablesByNamespace(ws, namespace)
+			}
+			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
+			mergeFuzzyMatches(matches, truncs, m, t)
+
+		case structs.Nodes:
+			if !aclObj.AllowNodeRead() {
+				continue
+			}
+			iter := store.Nodes(ws)
+			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
+			mergeFuzzyMatches(matches, truncs, m, t)
+
+		case structs.NodePools:
+			iter := store.NodePools(ws, state.SortDefault)
+			if !aclObj.IsManagement() {
+				iter = state.NewFilterIterator(iter, nodePoolCapFilter(aclObj))
+			}
+			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
+			mergeFuzzyMatches(matches, truncs, m, t)
+
+		case structs.Plugins:
+			if !aclObj.AllowPluginRead() {
+				continue
+			}
+			iter := store.CSIPlugins(ws)
+			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
+			mergeFuzzyMatches(matches, truncs, m, t)
+
+		case structs.Namespaces:
+			iter := store.Namespaces(ws)
+			iter = nsCapIterFilter(iter, aclObj)
+			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
+			mergeFuzzyMatches(matches, truncs, m, t)
+
+		default:
+			// TODO
+			// iter = getEnterpriseFuzzyResourceIter[](context, aclObj, namespace, ws, store)
+		}
+	}
+
+	return matches, truncs
 }
 
 // expandContext returns either allContexts if context is 'all', or a one

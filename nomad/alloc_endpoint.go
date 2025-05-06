@@ -60,13 +60,13 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Scan all the allocations
 			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Allocation]
 
 			// get list of accessible namespaces
-			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
+			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
 			if err == structs.ErrPermissionDenied {
 				// return empty allocation if token is not authorized for any
 				// namespace, matching other endpoints
@@ -77,17 +77,14 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 				var tokenizer paginator.Tokenizer[*structs.Allocation]
 
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.AllocsByIDPrefix(ws, namespace, prefix, sort)
+					iter = store.AllocsByIDPrefix(ws, namespace, prefix, sort)
 					tokenizer = paginator.IDTokenizer[*structs.Allocation](args.NextToken)
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.AllocsByNamespaceOrdered(ws, namespace, sort)
+					iter = store.AllocsByNamespaceOrdered(ws, namespace, sort)
 					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Allocation](args.NextToken)
 				} else {
-					iter, err = state.Allocs(ws, sort)
+					iter = store.Allocs(ws, sort)
 					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Allocation](args.NextToken)
-				}
-				if err != nil {
-					return err
 				}
 
 				pager, err := paginator.NewPaginator(iter, args.QueryOptions,
@@ -113,7 +110,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 			}
 
 			// Use the last index that affected the allocs table
-			index, err := state.Index("allocs")
+			index, err := store.Index("allocs")
 			if err != nil {
 				return err
 			}
@@ -407,20 +404,7 @@ func (a *Alloc) GetServiceRegistrations(
 				return nil
 			}
 
-			// Perform the state query to get an iterator.
-			iter, err := stateStore.GetServiceRegistrationsByAllocID(ws, args.AllocID)
-			if err != nil {
-				return err
-			}
-
-			// Set up our output after we have checked the error.
-			services := make([]*structs.ServiceRegistration, 0)
-
-			// Iterate the iterator, appending all service registrations
-			// returned to the reply.
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				services = append(services, raw.(*structs.ServiceRegistration))
-			}
+			services := stateStore.GetServiceRegistrationsByAllocID(ws, args.AllocID).Slice()
 			reply.Services = services
 
 			// Use the index table to populate the query meta as we have no way

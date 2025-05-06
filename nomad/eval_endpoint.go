@@ -570,10 +570,7 @@ func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64
 		return count, index, fmt.Errorf("failed to lookup state snapshot: %v", err)
 	}
 
-	iter, err := snap.Evals(nil, state.SortDefault)
-	if err != nil {
-		return count, index, err
-	}
+	iter := snap.Evals(nil, state.SortDefault)
 
 	// We *can* send larger raft logs but rough benchmarks for deleting 1M evals
 	// show that a smaller page size strikes a balance between throughput and
@@ -593,12 +590,7 @@ func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64
 	pageCount := 0
 	lastToken := ""
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		eval := raw.(*structs.Evaluation)
+	for eval := range iter.All() {
 		deleteOk, err := snap.EvalIsUserDeleteSafe(nil, eval)
 		if !deleteOk || err != nil {
 			continue
@@ -677,7 +669,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Scan all the evaluations
 			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Evaluation]
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
@@ -690,24 +682,21 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 			} else {
 				var tokenizer paginator.Tokenizer[*structs.Evaluation]
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
+					iter = store.EvalsByIDPrefix(ws, namespace, prefix, sort)
 					tokenizer = paginator.IDTokenizer[*structs.Evaluation](args.NextToken)
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = store.EvalsByNamespaceOrdered(ws, namespace, sort)
+					iter = store.EvalsByNamespaceOrdered(ws, namespace, sort)
 					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Evaluation](args.NextToken)
 				} else {
-					iter, err = store.Evals(ws, sort)
+					iter = store.Evals(ws, sort)
 					tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Evaluation](args.NextToken)
 				}
 				if err != nil {
 					return err
 				}
 
-				iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-					if eval := raw.(*structs.Evaluation); eval != nil {
-						return args.ShouldBeFiltered(eval)
-					}
-					return false
+				iter = state.NewFilterIterator(iter, func(eval *structs.Evaluation) bool {
+					return args.ShouldBeFiltered(eval)
 				})
 
 				// note this endpoint does not return EvaluationStub, so we
@@ -786,7 +775,7 @@ func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountRes
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Scan all the evaluations
 			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Evaluation]
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
@@ -795,23 +784,16 @@ func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountRes
 			}
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+				iter = store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
 			} else if namespace != structs.AllNamespacesSentinel {
-				iter, err = store.EvalsByNamespace(ws, namespace)
+				iter = store.EvalsByNamespace(ws, namespace)
 			} else {
-				iter, err = store.Evals(ws, state.SortDefault)
-			}
-			if err != nil {
-				return err
+				iter = store.Evals(ws, state.SortDefault)
 			}
 
 			count := 0
 
-			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-				if raw == nil {
-					return true
-				}
-				eval := raw.(*structs.Evaluation)
+			iter = state.NewFilterIterator(iter, func(eval *structs.Evaluation) bool {
 				if allowableNamespaces != nil && !allowableNamespaces[eval.Namespace] {
 					return true
 				}

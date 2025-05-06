@@ -414,13 +414,10 @@ func (sv *Variables) List(
 	return sv.srv.blockingRPC(&blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
-			// Perform the state query to get an iterator.
-			iter, err := stateStore.GetVariablesByNamespaceAndPrefix(ws, args.RequestNamespace(), args.Prefix)
-			if err != nil {
-				return err
-			}
+			iter := store.GetVariablesByNamespaceAndPrefix(
+				ws, args.RequestNamespace(), args.Prefix)
 
 			selector := func(v *structs.VariableEncrypted) bool {
 				if !strings.HasPrefix(v.Path, args.Prefix) {
@@ -461,7 +458,7 @@ func (sv *Variables) List(
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
-			return sv.srv.setReplyQueryMeta(stateStore, state.TableVariables, &reply.QueryMeta)
+			return sv.srv.setReplyQueryMeta(store, state.TableVariables, &reply.QueryMeta)
 		},
 	})
 }
@@ -481,13 +478,9 @@ func (sv *Variables) listAllVariables(
 	return sv.srv.blockingRPC(&blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
-			// Get all the variables stored within state.
-			iter, err := stateStore.Variables(ws)
-			if err != nil {
-				return err
-			}
+			iter := store.Variables(ws)
 
 			selector := func(v *structs.VariableEncrypted) bool {
 				if !strings.HasPrefix(v.Path, args.Prefix) {
@@ -528,7 +521,7 @@ func (sv *Variables) listAllVariables(
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
-			return sv.srv.setReplyQueryMeta(stateStore, state.TableVariables, &reply.QueryMeta)
+			return sv.srv.setReplyQueryMeta(store, state.TableVariables, &reply.QueryMeta)
 		},
 	})
 }

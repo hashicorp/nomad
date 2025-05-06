@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/hil"
 	"github.com/hashicorp/hil/ast"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -30,7 +31,7 @@ func NewBinder(store BinderStateStore) *Binder {
 
 // BinderStateStore is the subset of state store methods used by the binder.
 type BinderStateStore interface {
-	GetACLBindingRulesByAuthMethod(ws memdb.WatchSet, authMethod string) (memdb.ResultIterator, error)
+	GetACLBindingRulesByAuthMethod(ws memdb.WatchSet, authMethod string) state.ResultIterator[*structs.ACLBindingRule]
 	GetACLRoleByName(ws memdb.WatchSet, roleName string) (*structs.ACLRole, error)
 	ACLPolicyByName(ws memdb.WatchSet, name string) (*structs.ACLPolicy, error)
 }
@@ -55,25 +56,14 @@ func (b *Bindings) None() bool {
 
 // Bind collects the ACL roles and policies to be assigned to the created token.
 func (b *Binder) Bind(vlog hclog.Logger, authMethod *structs.ACLAuthMethod, identity *Identity) (*Bindings, error) {
-	var (
-		bindings Bindings
-		err      error
-	)
+	var bindings Bindings
 
 	// Load the auth method's binding rules.
-	rulesIterator, err := b.store.GetACLBindingRulesByAuthMethod(nil, authMethod.Name)
-	if err != nil {
-		return nil, err
-	}
+	rulesIterator := b.store.GetACLBindingRulesByAuthMethod(nil, authMethod.Name)
 
 	// Find the rules with selectors that match the identity's fields.
 	matchingRules := []*structs.ACLBindingRule{}
-	for {
-		raw := rulesIterator.Next()
-		if raw == nil {
-			break
-		}
-		rule := raw.(*structs.ACLBindingRule)
+	for rule := range rulesIterator.All() {
 		if doesSelectorMatch(rule.Selector, identity.Claims) {
 			matchingRules = append(matchingRules, rule)
 			vlog.Debug("binding-rule selector matches an identity claim, will evaluate bind-name", "selector", rule.Selector)

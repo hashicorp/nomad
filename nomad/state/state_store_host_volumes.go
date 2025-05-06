@@ -33,11 +33,8 @@ func (s *StateStore) HostVolumeByID(ws memdb.WatchSet, ns, id string, withAllocs
 
 	// we can't use AllocsByNodeTerminal because we only want to filter out
 	// allocs that are client-terminal, not server-terminal
-	allocs, err := s.AllocsByNode(nil, vol.NodeID)
-	if err != nil {
-		return nil, fmt.Errorf("could not query allocs to check for host volume claims: %w", err)
-	}
-	for _, alloc := range allocs {
+	allocs := s.AllocsByNode(nil, vol.NodeID)
+	for alloc := range allocs.All() {
 		if alloc.ClientTerminalStatus() {
 			continue
 		}
@@ -163,13 +160,13 @@ func (s *StateStore) DeleteHostVolume(index uint64, ns string, id string) error 
 
 // HostVolumes queries all the host volumes and is mostly used for
 // snapshot/restore
-func (s *StateStore) HostVolumes(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) HostVolumes(ws memdb.WatchSet, sort SortOption) ResultIterator[*structs.HostVolume] {
 	return s.hostVolumesIter(ws, indexID, sort)
 }
 
 // HostVolumesByIDPrefix retrieves all host volumes by ID prefix. Because the ID
 // index is namespaced, we need to handle the wildcard namespace here as well.
-func (s *StateStore) HostVolumesByIDPrefix(ws memdb.WatchSet, ns, prefix string, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) HostVolumesByIDPrefix(ws memdb.WatchSet, ns, prefix string, sort SortOption) ResultIterator[*structs.HostVolume] {
 
 	if ns != structs.AllNamespacesSentinel {
 		return s.hostVolumesIter(ws, "id_prefix", sort, ns, prefix)
@@ -177,53 +174,42 @@ func (s *StateStore) HostVolumesByIDPrefix(ws memdb.WatchSet, ns, prefix string,
 
 	// for wildcard namespace, wrap the iterator in a filter function that
 	// filters all volumes by prefix
-	iter, err := s.hostVolumesIter(ws, indexID, sort)
-	if err != nil {
-		return nil, err
-	}
-	wrappedIter := memdb.NewFilterIterator(iter, func(raw any) bool {
-		vol, ok := raw.(*structs.HostVolume)
-		if !ok {
-			return true
-		}
+	iter := s.hostVolumesIter(ws, indexID, sort)
+	wrappedIter := NewFilterIterator(iter, func(vol *structs.HostVolume) bool {
 		return !strings.HasPrefix(vol.ID, prefix)
 	})
-	return wrappedIter, nil
+	return wrappedIter
 }
 
 // HostVolumesByName retrieves all host volumes of the same name
-func (s *StateStore) HostVolumesByName(ws memdb.WatchSet, ns, name string, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) HostVolumesByName(ws memdb.WatchSet, ns, name string, sort SortOption) ResultIterator[*structs.HostVolume] {
 	return s.hostVolumesIter(ws, "name_prefix", sort, ns, name)
 }
 
 // HostVolumesByNodeID retrieves all host volumes on the same node
-func (s *StateStore) HostVolumesByNodeID(ws memdb.WatchSet, nodeID string, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) HostVolumesByNodeID(ws memdb.WatchSet, nodeID string, sort SortOption) ResultIterator[*structs.HostVolume] {
 	return s.hostVolumesIter(ws, indexNodeID, sort, nodeID)
 }
 
 // HostVolumesByNodePool retrieves all host volumes in the same node pool
-func (s *StateStore) HostVolumesByNodePool(ws memdb.WatchSet, nodePool string, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) HostVolumesByNodePool(ws memdb.WatchSet, nodePool string, sort SortOption) ResultIterator[*structs.HostVolume] {
 	return s.hostVolumesIter(ws, indexNodePool, sort, nodePool)
 }
 
-func (s *StateStore) hostVolumesIter(ws memdb.WatchSet, index string, sort SortOption, args ...any) (memdb.ResultIterator, error) {
+func (s *StateStore) hostVolumesIter(ws memdb.WatchSet, index string, sort SortOption, args ...any) ResultIterator[*structs.HostVolume] {
 	txn := s.db.ReadTxn()
 
-	var iter memdb.ResultIterator
-	var err error
+	var iter ResultIterator[*structs.HostVolume]
 
 	switch sort {
 	case SortReverse:
-		iter, err = txn.GetReverse(TableHostVolumes, index, args...)
+		iter = GetReverse[*structs.HostVolume](txn, TableHostVolumes, index, args...)
 	default:
-		iter, err = txn.Get(TableHostVolumes, index, args...)
-	}
-	if err != nil {
-		return nil, err
+		iter = Get[*structs.HostVolume](txn, TableHostVolumes, index, args...)
 	}
 
 	ws.Add(iter.WatchCh())
-	return iter, nil
+	return iter
 }
 
 // upsertHostVolumeForNode sets newly fingerprinted host volumes to ready state
@@ -292,16 +278,12 @@ func upsertHostVolumeForNode(txn *txn, node *structs.Node, index uint64) error {
 }
 
 func (s *StateStore) NodeHasHostVolume(nodeID, volName string) bool {
-	iter, err := s.HostVolumesByNodeID(nil, nodeID, SortDefault)
-	if err != nil {
-		return true
-	}
+	iter := s.HostVolumesByNodeID(nil, nodeID, SortDefault)
 	for {
-		raw := iter.Next()
-		if raw == nil {
+		match := iter.Next()
+		if match == nil {
 			break
 		}
-		match := raw.(*structs.HostVolume)
 		if match.Name == volName {
 			return true
 		}

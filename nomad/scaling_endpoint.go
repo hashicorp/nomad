@@ -58,31 +58,26 @@ func (p *Scaling) ListPolicies(args *structs.ScalingPolicyListRequest, reply *st
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Iterate over all the policies
 			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.ScalingPolicy]
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.ScalingPoliciesByIDPrefix(ws, args.RequestNamespace(), prefix)
+				iter = store.ScalingPoliciesByIDPrefix(ws, args.RequestNamespace(), prefix)
 			} else if job := args.Job; job != "" {
-				iter, err = state.ScalingPoliciesByJob(ws, args.RequestNamespace(), job, args.Type)
+				iter = store.ScalingPoliciesByJob(ws, args.RequestNamespace(), job, args.Type)
 			} else {
-				iter, err = state.ScalingPoliciesByNamespace(ws, args.Namespace, args.Type)
-			}
-
-			if err != nil {
-				return err
+				iter = store.ScalingPoliciesByNamespace(ws, args.Namespace, args.Type)
 			}
 
 			// Convert all the policies to a list stub
 			reply.Policies = nil
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				policy := raw.(*structs.ScalingPolicy)
+			for policy := range iter.All() {
 				reply.Policies = append(reply.Policies, policy.Stub())
 			}
 
 			// Use the last index that affected the policy table
-			index, err := state.Index("scaling_policy")
+			index, err := store.Index("scaling_policy")
 			if err != nil {
 				return err
 			}
@@ -169,9 +164,9 @@ func (p *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, repl
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// check if user has permission to all namespaces
-			allowedNSes, err := allowedNSes(aclObj, state, allow)
+			allowedNSes, err := allowedNSes(aclObj, store, allow)
 			if err == structs.ErrPermissionDenied {
 				// return empty if token isn't authorized for any namespace
 				reply.Policies = []*structs.ScalingPolicyListStub{}
@@ -181,19 +176,15 @@ func (p *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, repl
 			}
 
 			// Capture all the policies
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.ScalingPolicy]
 			if args.Type != "" {
-				iter, err = state.ScalingPoliciesByTypePrefix(ws, args.Type)
+				iter = store.ScalingPoliciesByTypePrefix(ws, args.Type)
 			} else {
-				iter, err = state.ScalingPolicies(ws)
-			}
-			if err != nil {
-				return err
+				iter = store.ScalingPolicies(ws)
 			}
 
 			var policies []*structs.ScalingPolicyListStub
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				policy := raw.(*structs.ScalingPolicy)
+			for policy := range iter.All() {
 				if allowedNSes != nil && !allowedNSes[policy.Target[structs.ScalingTargetNamespace]] {
 					// not permitted to this name namespace
 					continue
@@ -206,7 +197,7 @@ func (p *Scaling) listAllNamespaces(args *structs.ScalingPolicyListRequest, repl
 			reply.Policies = policies
 
 			// Use the last index that affected the policies table or summary
-			index, err := state.Index("scaling_policy")
+			index, err := store.Index("scaling_policy")
 			if err != nil {
 				return err
 			}

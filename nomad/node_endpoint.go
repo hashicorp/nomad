@@ -348,15 +348,9 @@ func (n *Node) constructNodeServerInfoResponse(nodeID string, snap *state.StateS
 	// Snapshot is used only to iterate over all nodes to create a node
 	// count to send back to Nomad Clients in their heartbeat so Clients
 	// can estimate the size of the cluster.
-	iter, err := snap.Nodes(ws)
-	if err == nil {
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			reply.NumNodes++
-		}
+	iter := snap.Nodes(ws)
+	for range iter.All() {
+		reply.NumNodes++
 	}
 
 	reply.Features = n.srv.EnterpriseState.Features()
@@ -1056,10 +1050,7 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Look for the node
-			allocs, err := state.AllocsByNode(ws, args.NodeID)
-			if err != nil {
-				return err
-			}
+			allocs := state.AllocsByNode(ws, args.NodeID).Slice()
 
 			// Setup the output
 			if n := len(allocs); n != 0 {
@@ -1135,9 +1126,9 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Look for the node
-			node, err := state.NodeByID(ws, args.NodeID)
+			node, err := store.NodeByID(ws, args.NodeID)
 			if err != nil {
 				return err
 			}
@@ -1158,11 +1149,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 					n.srv.addNodeConn(n.ctx)
 				}
 
-				var err error
-				allocs, err = state.AllocsByNode(ws, args.NodeID)
-				if err != nil {
-					return err
-				}
+				allocs = store.AllocsByNode(ws, args.NodeID).Slice()
 			}
 
 			reply.Allocs = make(map[string]uint64)
@@ -1186,13 +1173,13 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 					// migration token so that the client can authenticate with
 					// the node hosting the previous allocation.
 					if alloc.ShouldMigrate() {
-						prevAllocation, err := state.AllocByID(ws, alloc.PreviousAllocation)
+						prevAllocation, err := store.AllocByID(ws, alloc.PreviousAllocation)
 						if err != nil {
 							return err
 						}
 
 						if prevAllocation != nil && prevAllocation.NodeID != alloc.NodeID {
-							allocNode, err := state.NodeByID(ws, prevAllocation.NodeID)
+							allocNode, err := store.NodeByID(ws, prevAllocation.NodeID)
 							if err != nil {
 								return err
 							}
@@ -1224,7 +1211,7 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 
 			if preferTableIndex {
 				// Use the last index that affected the nodes table
-				index, err := state.Index("allocs")
+				index, err := store.Index("allocs")
 				if err != nil {
 					return err
 				}
@@ -1491,17 +1478,13 @@ func (n *Node) List(args *structs.NodeListRequest,
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
-			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Node]
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.NodesByIDPrefix(ws, prefix)
+				iter = store.NodesByIDPrefix(ws, prefix)
 			} else {
-				iter, err = state.Nodes(ws)
-			}
-			if err != nil {
-				return err
+				iter = store.Nodes(ws)
 			}
 
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
@@ -1525,7 +1508,7 @@ func (n *Node) List(args *structs.NodeListRequest,
 			reply.NextToken = nextToken
 
 			// Use the last index that affected the jobs table
-			index, err := state.Index("nodes")
+			index, err := store.Index("nodes")
 			if err != nil {
 				return err
 			}
@@ -1550,19 +1533,11 @@ func (n *Node) createNodeEvals(node *structs.Node, nodeIndex uint64) ([]string, 
 	}
 
 	// Find all the allocations for this node
-	allocs, err := snap.AllocsByNode(nil, nodeID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to find allocs for '%s': %v", nodeID, err)
-	}
-
-	sysJobsIter, err := snap.JobsByScheduler(nil, "system")
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to find system jobs for '%s': %v", nodeID, err)
-	}
+	allocs := snap.AllocsByNode(nil, nodeID).Slice()
+	sysJobsIter := snap.JobsByScheduler(nil, "system")
 
 	var sysJobs []*structs.Job
-	for jobI := sysJobsIter.Next(); jobI != nil; jobI = sysJobsIter.Next() {
-		job := jobI.(*structs.Job)
+	for job := range sysJobsIter.All() {
 		// Avoid creating evals for jobs that don't run in this datacenter or
 		// node pool. We could perform an entire feasibility check here, but
 		// datacenter/pool is a good optimization to start with as their

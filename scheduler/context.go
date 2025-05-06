@@ -31,7 +31,7 @@ type Context interface {
 	// ProposedAllocs returns the proposed allocations for a node which are
 	// the existing allocations, removing evictions, and adding any planned
 	// placements.
-	ProposedAllocs(nodeID string) ([]*structs.Allocation, error)
+	ProposedAllocs(nodeID string) []*structs.Allocation
 
 	// RegexpCache is a cache of regular expressions
 	RegexpCache() map[string]*regexp.Regexp
@@ -180,13 +180,10 @@ func (e *EvalContext) Reset() {
 	e.metrics = new(structs.AllocMetric)
 }
 
-func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, error) {
+func (e *EvalContext) ProposedAllocs(nodeID string) []*structs.Allocation {
 	// Get the existing allocations that are non-terminal
 	ws := memdb.NewWatchSet()
-	proposed, err := e.state.AllocsByNode(ws, nodeID)
-	if err != nil {
-		return nil, err
-	}
+	proposed := e.state.AllocsByNode(ws, nodeID).Slice()
 
 	// Determine the proposed allocation by first removing allocations
 	// that are planned evictions and adding the new allocations.
@@ -220,7 +217,7 @@ func (e *EvalContext) ProposedAllocs(nodeID string) ([]*structs.Allocation, erro
 		proposed = append(proposed, alloc)
 	}
 
-	return proposed, nil
+	return proposed
 }
 
 func (e *EvalContext) Eligibility() *EvalEligibility {

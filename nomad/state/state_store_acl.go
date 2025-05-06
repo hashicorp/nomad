@@ -19,14 +19,10 @@ import (
 // the global boolean argument. The number of returned IDs can be limited by
 // the max integer, which is useful to limit the number of tokens we attempt to
 // delete in a single transaction.
-func (s *StateStore) ACLTokensByExpired(global bool) (memdb.ResultIterator, error) {
-	tnx := s.db.ReadTxn()
-
-	iter, err := tnx.Get("acl_token", expiresIndexName(global))
-	if err != nil {
-		return nil, fmt.Errorf("failed acl token listing: %v", err)
-	}
-	return iter, nil
+func (s *StateStore) ACLTokensByExpired(global bool) ResultIterator[*structs.ACLToken] {
+	txn := s.db.ReadTxn()
+	iter := Get[*structs.ACLToken](txn, "acl_token", expiresIndexName(global))
+	return iter
 }
 
 // expiresIndexName is a helper function to identify the correct ACL token
@@ -221,17 +217,11 @@ func (s *StateStore) deleteACLRoleByIDTxn(txn *txn, roleID string) error {
 
 // GetACLRoles returns an iterator that contains all ACL roles stored within
 // state.
-func (s *StateStore) GetACLRoles(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) GetACLRoles(ws memdb.WatchSet) ResultIterator[*structs.ACLRole] {
 	txn := s.db.ReadTxn()
-
-	// Walk the entire table to get all ACL roles.
-	iter, err := txn.Get(TableACLRoles, indexID)
-	if err != nil {
-		return nil, fmt.Errorf("ACL role lookup failed: %v", err)
-	}
+	iter := Get[*structs.ACLRole](txn, TableACLRoles, indexID)
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // GetACLRoleByID returns a single ACL role specified by the input ID. The role
@@ -282,16 +272,11 @@ func (s *StateStore) GetACLRoleByName(ws memdb.WatchSet, roleName string) (*stru
 
 // GetACLRoleByIDPrefix is used to lookup ACL policies using a prefix to match
 // on the ID.
-func (s *StateStore) GetACLRoleByIDPrefix(ws memdb.WatchSet, idPrefix string) (memdb.ResultIterator, error) {
+func (s *StateStore) GetACLRoleByIDPrefix(ws memdb.WatchSet, idPrefix string) ResultIterator[*structs.ACLRole] {
 	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableACLRoles, indexID+"_prefix", idPrefix)
-	if err != nil {
-		return nil, fmt.Errorf("ACL role lookup failed: %v", err)
-	}
+	iter := Get[*structs.ACLRole](txn, TableACLRoles, indexID+"_prefix", idPrefix)
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // fixTokenRoleLinks is a state helper that ensures the returned ACL token has

@@ -6,7 +6,6 @@ package state
 import (
 	"fmt"
 
-	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -30,14 +29,14 @@ func QueryOptionSort(qo structs.QueryOptions) SortOption {
 
 // getSorted executes either txn.Get() or txn.GetReverse()
 // depending on the provided SortOption.
-func getSorted(txn *txn, sort SortOption, table, index string, args ...any) (memdb.ResultIterator, error) {
+func getSorted[T comparable](txn *txn, sort SortOption, table, index string, args ...any) ResultIterator[T] {
 	switch sort {
 	case SortDefault:
-		return txn.Get(table, index, args...)
+		return Get[T](txn, table, index, args...)
 	case SortReverse:
-		return txn.GetReverse(table, index, args...)
+		return GetReverse[T](txn, table, index, args...)
 	default:
 		// this should never happen, since SortOption is bool
-		return nil, fmt.Errorf("unknown sort option: %v", sort)
+		panic(fmt.Errorf("unknown sort option: %v", sort))
 	}
 }

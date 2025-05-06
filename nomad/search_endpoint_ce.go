@@ -7,8 +7,6 @@
 package nomad
 
 import (
-	"fmt"
-
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/acl"
 	"github.com/hashicorp/nomad/nomad/state"
@@ -39,16 +37,16 @@ func getEnterpriseMatch(match interface{}) (id string, ok bool) {
 
 // getEnterpriseResourceIter is used to retrieve an iterator over an enterprise
 // only table.
-func getEnterpriseResourceIter(context structs.Context, _ *acl.ACL, namespace, prefix string, ws memdb.WatchSet, state *state.StateStore) (memdb.ResultIterator, error) {
+func getEnterpriseResourceIter[T comparable](context structs.Context, _ *acl.ACL, namespace, prefix string, ws memdb.WatchSet, state *state.StateStore) state.ResultIterator[T] {
 	// If we have made it here then it is an error since we have exhausted all
 	// open source contexts.
-	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
+	return nil
 }
 
 // getEnterpriseFuzzyResourceIter is used to retrieve an iterator over an enterprise
 // only table.
-func getEnterpriseFuzzyResourceIter(context structs.Context, _ *acl.ACL, _ string, _ memdb.WatchSet, _ *state.StateStore) (memdb.ResultIterator, error) {
-	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
+func getEnterpriseFuzzyResourceIter[T comparable](context structs.Context, _ *acl.ACL, _ string, _ memdb.WatchSet, _ *state.StateStore) state.ResultIterator[T] {
+	return nil
 }
 
 func filteredSearchContextsEnt(aclObj *acl.ACL, namespace string, context structs.Context) bool {

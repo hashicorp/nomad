@@ -165,14 +165,13 @@ func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName strin
 	h.taskGroupName = taskGroupName
 	h.volumeReqs = []*structs.VolumeRequest{}
 
-	storedClaims, _ := h.ctx.State().TaskGroupHostVolumeClaimsByFields(nil, state.TgvcSearchableFields{
+	storedClaims := h.ctx.State().TaskGroupHostVolumeClaimsByFields(nil, state.TgvcSearchableFields{
 		Namespace:     ns,
 		JobID:         jobID,
 		TaskGroupName: taskGroupName,
 	})
 
-	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
+	for claim := range storedClaims.All() {
 		h.claims = append(h.claims, claim)
 	}
 
@@ -207,10 +206,7 @@ func (h *HostVolumeChecker) hasVolumes(n *structs.Node) bool {
 		return true
 	}
 
-	proposed, err := h.ctx.ProposedAllocs(n.ID)
-	if err != nil {
-		return false // only hit this on state store invariant failure
-	}
+	proposed := h.ctx.ProposedAllocs(n.ID)
 
 	for _, req := range h.volumeReqs {
 		volCfg, ok := n.HostVolumes[req.Source]
@@ -418,19 +414,8 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 
 	// Find the count per plugin for this node, so that can enforce MaxVolumes
 	pluginCount := map[string]int64{}
-	iter, err := c.ctx.State().CSIVolumesByNodeID(ws, "", n.ID)
-	if err != nil {
-		return false, FilterConstraintCSIVolumesLookupFailed
-	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		vol, ok := raw.(*structs.CSIVolume)
-		if !ok {
-			continue
-		}
+	iter := c.ctx.State().CSIVolumesByNodeID(ws, "", n.ID)
+	for vol := range iter.All() {
 		pluginCount[vol.PluginID] += 1
 	}
 
@@ -748,11 +733,7 @@ func (iter *DistinctHostsIterator) satisfiesDistinctHosts(option *structs.Node) 
 	}
 
 	// Get the proposed allocations
-	proposed, err := iter.ctx.ProposedAllocs(option.ID)
-	if err != nil {
-		iter.ctx.Logger().Named("distinct_hosts").Error("failed to get proposed allocations", "error", err)
-		return false
-	}
+	proposed := iter.ctx.ProposedAllocs(option.ID)
 
 	// Skip the node if the task group has already been allocated on it.
 	for _, alloc := range proposed {

@@ -87,30 +87,27 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			snap, err := state.Snapshot()
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			snap, err := store.Snapshot()
 			if err != nil {
 				return err
 			}
 
 			// Query all volumes
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.CSIVolume]
 
 			prefix := args.Prefix
 
 			if args.NodeID != "" {
-				iter, err = snap.CSIVolumesByNodeID(ws, prefix, args.NodeID)
+				iter = snap.CSIVolumesByNodeID(ws, prefix, args.NodeID)
 			} else if args.PluginID != "" {
-				iter, err = snap.CSIVolumesByPluginID(ws, ns, prefix, args.PluginID)
+				iter = snap.CSIVolumesByPluginID(ws, ns, prefix, args.PluginID)
 			} else if prefix != "" {
-				iter, err = snap.CSIVolumesByIDPrefix(ws, ns, prefix)
+				iter = snap.CSIVolumesByIDPrefix(ws, ns, prefix)
 			} else if ns != structs.AllNamespacesSentinel {
-				iter, err = snap.CSIVolumesByNamespace(ws, ns, prefix)
+				iter = snap.CSIVolumesByNamespace(ws, ns, prefix)
 			} else {
-				iter, err = snap.CSIVolumes(ws)
-			}
-			if err != nil {
-				return err
+				iter = snap.CSIVolumes(ws)
 			}
 
 			selector := func(vol *structs.CSIVolume) bool {
@@ -1741,32 +1738,18 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
-			var iter memdb.ResultIterator
-			var err error
+			var iter state.ResultIterator[*structs.CSIPlugin]
 			if args.Prefix != "" {
-				iter, err = state.CSIPluginsByIDPrefix(ws, args.Prefix)
-				if err != nil {
-					return err
-				}
+				iter = store.CSIPluginsByIDPrefix(ws, args.Prefix)
 			} else {
-				// Query all plugins
-				iter, err = state.CSIPlugins(ws)
-				if err != nil {
-					return err
-				}
+				iter = store.CSIPlugins(ws)
 			}
 
 			// Collect results
 			ps := []*structs.CSIPluginListStub{}
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-
-				plug := raw.(*structs.CSIPlugin)
+			for plug := range iter.All() {
 				ps = append(ps, plug.Stub())
 			}
 

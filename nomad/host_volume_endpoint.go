@@ -115,21 +115,16 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
-			var iter memdb.ResultIterator
-			var err error
+			var iter state.ResultIterator[*structs.HostVolume]
 
 			switch {
 			case args.NodeID != "":
-				iter, err = store.HostVolumesByNodeID(ws, args.NodeID, sort)
+				iter = store.HostVolumesByNodeID(ws, args.NodeID, sort)
 			case args.NodePool != "":
-				iter, err = store.HostVolumesByNodePool(ws, args.NodePool, sort)
+				iter = store.HostVolumesByNodePool(ws, args.NodePool, sort)
 			default:
-				iter, err = store.HostVolumes(ws, sort)
+				iter = store.HostVolumes(ws, sort)
 			}
-			if err != nil {
-				return err
-			}
-
 			selector := func(vol *structs.HostVolume) bool {
 				if !strings.HasPrefix(vol.Name, args.Prefix) &&
 					!strings.HasPrefix(vol.ID, args.Prefix) {
@@ -524,18 +519,15 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		return nil, err
 	}
 
-	var iter memdb.ResultIterator
+	var iter state.ResultIterator[*structs.Node]
 	if vol.NodePool != "" {
 		if !poolFilterFn(vol.NodePool) {
 			return nil, fmt.Errorf("namespace %q does not allow volumes to use node pool %q",
 				vol.Namespace, vol.NodePool)
 		}
-		iter, err = snap.NodesByNodePool(nil, vol.NodePool)
+		iter = snap.NodesByNodePool(nil, vol.NodePool)
 	} else {
-		iter, err = snap.Nodes(nil)
-	}
-	if err != nil {
-		return nil, err
+		iter = snap.Nodes(nil)
 	}
 
 	var checker *scheduler.ConstraintChecker
@@ -557,12 +549,7 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		filteredByFeasibility int
 	)
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		candidate := raw.(*structs.Node)
+	for candidate := range iter.All() {
 
 		// note: this is a race if multiple users create volumes of the same
 		// name concurrently, but we can't completely solve it on the server

@@ -760,14 +760,10 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	ws := memdb.NewWatchSet()
 
 	// Check for jobs that use Vault but don't have an identity for Vault.
-	jobsIter, err := op.srv.State().Jobs(ws, state.SortDefault)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve jobs: %w", err)
-	}
+	jobsIter := op.srv.State().Jobs(ws, state.SortDefault)
 
 	jobs := []*structs.JobListStub{}
-	for raw := jobsIter.Next(); raw != nil; raw = jobsIter.Next() {
-		job := raw.(*structs.Job)
+	for job := range jobsIter.All() {
 
 	TG_LOOP:
 		for _, tg := range job.TaskGroups {
@@ -793,15 +789,9 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	reply.JobsWithoutVaultIdentity = jobs
 
 	// Find nodes that don't support workload identities for Vault.
-	nodesIter, err := op.srv.State().Nodes(ws)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve nodes: %w", err)
-	}
-
+	nodesIter := op.srv.State().Nodes(ws)
 	nodes := []*structs.NodeListStub{}
-	for raw := nodesIter.Next(); raw != nil; raw = nodesIter.Next() {
-		node := raw.(*structs.Node)
-
+	for node := range nodesIter.All() {
 		v, err := version.NewVersion(node.Attributes["nomad.version"])
 		if err != nil || v.LessThan(structs.MinNomadVersionVaultWID) {
 			nodes = append(nodes, node.Stub(nil))

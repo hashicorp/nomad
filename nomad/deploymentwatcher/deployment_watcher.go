@@ -795,10 +795,7 @@ func (w *deploymentWatcher) latestStableJob() (*structs.Job, error) {
 		return nil, err
 	}
 
-	versions, err := snap.JobVersionsByID(nil, w.j.Namespace, w.j.ID)
-	if err != nil {
-		return nil, err
-	}
+	versions := snap.JobVersionsByID(nil, w.j.Namespace, w.j.ID)
 
 	var stable *structs.Job
 	for _, job := range versions {
