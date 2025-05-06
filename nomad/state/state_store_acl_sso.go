@@ -155,17 +155,14 @@ func (s *StateStore) deleteACLAuthMethodTxn(txn *txn, methodName string) error {
 
 // GetACLAuthMethods returns an iterator that contains all ACL auth methods
 // stored within state.
-func (s *StateStore) GetACLAuthMethods(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) GetACLAuthMethods(ws memdb.WatchSet) ResultIterator[*structs.ACLAuthMethod] {
 	txn := s.db.ReadTxn()
-
-	// Walk the entire table to get all ACL auth methods.
-	iter, err := txn.Get(TableACLAuthMethods, indexID)
+	iter, err := Get[*structs.ACLAuthMethod](txn, TableACLAuthMethods, indexID)
 	if err != nil {
-		return nil, fmt.Errorf("ACL auth method lookup failed: %v", err)
+		panic(fmt.Errorf("%w: %w", errIndexInvariant, err))
 	}
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // GetACLAuthMethodByName returns a single ACL auth method specified by the

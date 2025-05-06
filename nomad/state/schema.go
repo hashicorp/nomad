@@ -4,6 +4,7 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 
@@ -11,6 +12,10 @@ import (
 	"github.com/hashicorp/nomad/nomad/state/indexer"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
+
+// errIndexInvariant is used when we've done a memdb operation we know cannot
+// fail because we're not accepting any user input
+var errIndexInvariant = errors.New("index invariant violated")
 
 const (
 	tableIndex = "index"

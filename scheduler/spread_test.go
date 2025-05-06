@@ -877,19 +877,11 @@ func upsertJob(h *Harness, job *structs.Job) (*structs.Evaluation, error) {
 // distribution.
 func validateEqualSpread(h *Harness) error {
 
-	iter, err := h.State.Nodes(nil)
-	if err != nil {
-		return err
-	}
+	iter := h.State.Nodes(nil)
 	i := 0
 	nodesToRacks := map[string]string{}
 	racksToAllocCount := map[string]int{}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		node := raw.(*structs.Node)
+	for node := range iter.All() {
 		rack, ok := node.Meta["rack"]
 		if ok {
 			nodesToRacks[node.ID] = rack

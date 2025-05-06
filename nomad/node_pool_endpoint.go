@@ -56,16 +56,15 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
-			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.NodePool]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.NodePoolsByNamePrefix(ws, prefix, sort)
+				if err != nil {
+					structs.NewErrRPCCoded(400, err.Error())
+				}
 			} else {
-				iter, err = store.NodePools(ws, sort)
-			}
-			if err != nil {
-				return err
+				iter = store.NodePools(ws, sort)
 			}
 
 			selector := func(pool *structs.NodePool) bool {
@@ -318,13 +317,16 @@ func (n *NodePool) nodePoolRegionsInUse(token, poolName string) ([]string, []str
 	if err != nil {
 		return nil, nil, err
 	}
+
 	found := iter.Next()
 	if found != nil {
 		hasNodes = append(hasNodes, thisRegion)
 	}
-	iter, err = snap.JobsByPool(nil, poolName)
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		job := raw.(*structs.Job)
+	jobs, err := snap.JobsByPool(nil, poolName)
+	if err != nil {
+		return nil, nil, err
+	}
+	for job := range jobs.All() {
 		if job.Status != structs.JobStatusDead {
 			hasNonTerminal = append(hasNonTerminal, thisRegion)
 			break
@@ -417,7 +419,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 				return nil
 			}
 
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Job]
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allowNsFunc)
@@ -446,7 +448,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 					}
 				}
 				if err != nil {
-					return err
+					return structs.NewErrRPCCoded(400, err.Error())
 				}
 
 				pager, err := paginator.NewPaginator(iter, args.QueryOptions, selector,
@@ -532,14 +534,14 @@ func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.
 			}
 
 			// Fetch nodes in the pool.
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Node]
 			if args.Name == structs.NodePoolAll {
-				iter, err = store.Nodes(ws)
+				iter = store.Nodes(ws)
 			} else {
 				iter, err = store.NodesByNodePool(ws, args.Name)
-			}
-			if err != nil {
-				return err
+				if err != nil {
+					return structs.NewErrRPCCoded(400, err.Error())
+				}
 			}
 
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,

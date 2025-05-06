@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,18 +37,16 @@ func TestStateStore_UpsertServiceRegistrations(t *testing.T) {
 	// List all the service registrations in the table, so we can perform a
 	// number of tests on the return array.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetServiceRegistrations(ws)
-	require.NoError(t, err)
+	iter := testState.GetServiceRegistrations(ws)
 
 	// Count how many table entries we have, to ensure it is the expected
 	// number.
 	var count int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for serviceReg := range iter.All() {
 		count++
 
 		// Ensure the create and modify indexes are populated correctly.
-		serviceReg := raw.(*structs.ServiceRegistration)
 		require.Equal(t, insertIndex, serviceReg.CreateIndex, "incorrect create index", serviceReg.ID)
 		require.Equal(t, insertIndex, serviceReg.ModifyIndex, "incorrect modify index", serviceReg.ID)
 	}
@@ -80,13 +79,10 @@ func TestStateStore_UpsertServiceRegistrations(t *testing.T) {
 	require.Equal(t, update1Index, updateActualIndex, "index should have changed")
 
 	// Get the service registrations from the table.
-	iter, err = testState.GetServiceRegistrations(ws)
-	require.NoError(t, err)
+	iter = testState.GetServiceRegistrations(ws)
 
 	// Iterate all the stored registrations and assert they are as expected.
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		serviceReg := raw.(*structs.ServiceRegistration)
-
+	for serviceReg := range iter.All() {
 		var expectedModifyIndex uint64
 
 		switch serviceReg.ID {
@@ -117,13 +113,10 @@ func TestStateStore_UpsertServiceRegistrations(t *testing.T) {
 	require.Equal(t, update2Index, update2ActualIndex, "index should have changed")
 
 	// Get the service registrations from the table.
-	iter, err = testState.GetServiceRegistrations(ws)
-	require.NoError(t, err)
+	iter = testState.GetServiceRegistrations(ws)
 
 	// Iterate all the stored registrations and assert they are as expected.
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		serviceReg := raw.(*structs.ServiceRegistration)
-
+	for serviceReg := range iter.All() {
 		var (
 			expectedModifyIndex uint64
 			expectedServiceReg  *structs.ServiceRegistration
@@ -182,14 +175,13 @@ func TestStateStore_DeleteServiceRegistrationByID(t *testing.T) {
 	ws := memdb.NewWatchSet()
 
 	// Get the service registrations from the table.
-	iter, err := testState.GetServiceRegistrations(ws)
-	require.NoError(t, err)
+	iter := testState.GetServiceRegistrations(ws)
 
 	var delete1Count int
 
 	// Iterate all the stored registrations and assert we have the expected
 	// number.
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		delete1Count++
 	}
 	require.Equal(t, 1, delete1Count, "unexpected number of registrations in table")
@@ -206,14 +198,13 @@ func TestStateStore_DeleteServiceRegistrationByID(t *testing.T) {
 	require.Equal(t, delete2Index, actualDelete2Index, "index should have changed")
 
 	// Get the service registrations from the table.
-	iter, err = testState.GetServiceRegistrations(ws)
-	require.NoError(t, err)
+	iter = testState.GetServiceRegistrations(ws)
 
 	var delete2Count int
 
 	// Iterate all the stored registrations and assert we have the expected
 	// number.
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		delete2Count++
 	}
 	require.Equal(t, 0, delete2Count, "unexpected number of registrations in table")
@@ -254,14 +245,13 @@ func TestStateStore_DeleteServiceRegistrationByNodeID(t *testing.T) {
 	ws := memdb.NewWatchSet()
 
 	// Get the service registrations from the table.
-	iter, err := testState.GetServiceRegistrations(ws)
-	require.NoError(t, err)
+	iter := testState.GetServiceRegistrations(ws)
 
 	var delete1Count int
 
 	// Iterate all the stored registrations and assert we have the expected
 	// number.
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		delete1Count++
 	}
 	require.Equal(t, 1, delete1Count, "unexpected number of registrations in table")
@@ -302,14 +292,12 @@ func TestStateStore_DeleteServiceRegistrationByNodeID(t *testing.T) {
 	require.Equal(t, delete2Index, actualDelete2Index, "index should have changed")
 
 	// Get the service registrations from the table.
-	iter, err = testState.GetServiceRegistrations(ws)
-	require.NoError(t, err)
-
+	iter = testState.GetServiceRegistrations(ws)
 	var delete2Count int
 
 	// Iterate all the stored registrations and assert we have the expected
 	// number.
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		delete2Count++
 	}
 	require.Equal(t, 0, delete2Count, "unexpected number of registrations in table")
@@ -326,15 +314,12 @@ func TestStateStore_GetServiceRegistrations(t *testing.T) {
 
 	// Read the service registrations and check the objects.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetServiceRegistrations(ws)
-	require.NoError(t, err)
+	iter := testState.GetServiceRegistrations(ws)
 
 	var count int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for serviceReg := range iter.All() {
 		count++
-
-		serviceReg := raw.(*structs.ServiceRegistration)
 		require.Equal(t, initialIndex, serviceReg.CreateIndex, "incorrect create index", serviceReg.ID)
 		require.Equal(t, initialIndex, serviceReg.ModifyIndex, "incorrect modify index", serviceReg.ID)
 
@@ -362,13 +347,12 @@ func TestStateStore_GetServiceRegistrationsByNamespace(t *testing.T) {
 	// Look up services using the namespace of the first service.
 	ws := memdb.NewWatchSet()
 	iter, err := testState.GetServiceRegistrationsByNamespace(ws, services[0].Namespace)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var count1 int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for serviceReg := range iter.All() {
 		count1++
-		serviceReg := raw.(*structs.ServiceRegistration)
 		require.Equal(t, initialIndex, serviceReg.CreateIndex, "incorrect create index", serviceReg.ID)
 		require.Equal(t, initialIndex, serviceReg.ModifyIndex, "incorrect modify index", serviceReg.ID)
 		require.Equal(t, services[0].Namespace, serviceReg.Namespace)
@@ -377,13 +361,12 @@ func TestStateStore_GetServiceRegistrationsByNamespace(t *testing.T) {
 
 	// Look up services using the namespace of the second service.
 	iter, err = testState.GetServiceRegistrationsByNamespace(ws, services[1].Namespace)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var count2 int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for serviceReg := range iter.All() {
 		count2++
-		serviceReg := raw.(*structs.ServiceRegistration)
 		require.Equal(t, initialIndex, serviceReg.CreateIndex, "incorrect create index", serviceReg.ID)
 		require.Equal(t, initialIndex, serviceReg.ModifyIndex, "incorrect modify index", serviceReg.ID)
 		require.Equal(t, services[1].Namespace, serviceReg.Namespace)
@@ -393,11 +376,10 @@ func TestStateStore_GetServiceRegistrationsByNamespace(t *testing.T) {
 	// Look up services using a namespace that shouldn't contain any
 	// registrations.
 	iter, err = testState.GetServiceRegistrationsByNamespace(ws, "pony-club")
-	require.NoError(t, err)
-
+	must.NoError(t, err)
 	var count3 int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		count3++
 	}
 	require.Equal(t, 0, count3)
@@ -415,10 +397,10 @@ func TestStateStore_GetServiceRegistrationByName(t *testing.T) {
 	// Try reading a service by a name that shouldn't exist.
 	ws := memdb.NewWatchSet()
 	iter, err := testState.GetServiceRegistrationByName(ws, "default", "pony-glitter-api")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var count1 int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		count1++
 	}
 	require.Equal(t, 0, count1)
@@ -427,13 +409,11 @@ func TestStateStore_GetServiceRegistrationByName(t *testing.T) {
 	expectedReg := services[1].Copy()
 
 	iter, err = testState.GetServiceRegistrationByName(ws, expectedReg.Namespace, expectedReg.ServiceName)
-	require.NoError(t, err)
-
+	must.NoError(t, err)
 	var count2 int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for serviceReg := range iter.All() {
 		count2++
-		serviceReg := raw.(*structs.ServiceRegistration)
 		require.Equal(t, expectedReg.ServiceName, serviceReg.ServiceName)
 		require.Equal(t, expectedReg.Namespace, serviceReg.Namespace)
 	}
@@ -463,13 +443,12 @@ func TestStateStore_GetServiceRegistrationByName(t *testing.T) {
 	require.NoError(t, testState.UpsertServiceRegistrations(structs.MsgTypeTestSetup, updateIndex, newServices))
 
 	iter, err = testState.GetServiceRegistrationByName(ws, expectedReg.Namespace, expectedReg.ServiceName)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var count3 int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for serviceReg := range iter.All() {
 		count3++
-		serviceReg := raw.(*structs.ServiceRegistration)
 		require.Equal(t, expectedReg.ServiceName, serviceReg.ServiceName)
 		require.Equal(t, expectedReg.Namespace, serviceReg.Namespace)
 	}
@@ -516,33 +495,31 @@ func TestStateStore_GetServiceRegistrationsByAllocID(t *testing.T) {
 	// Try reading services by an allocation that doesn't have any
 	// registrations.
 	iter, err := testState.GetServiceRegistrationsByAllocID(ws, "4eed3c6d-6bf1-60d6-040a-e347accae6c4")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var count1 int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		count1++
 	}
 	require.Equal(t, 0, count1)
 
 	// Read the two allocations that we should find.
 	iter, err = testState.GetServiceRegistrationsByAllocID(ws, services[0].AllocID)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var count2 int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for serviceReg := range iter.All() {
 		count2++
-		serviceReg := raw.(*structs.ServiceRegistration)
 		require.Equal(t, services[0].AllocID, serviceReg.AllocID)
 	}
 	require.Equal(t, 1, count2)
 
 	iter, err = testState.GetServiceRegistrationsByAllocID(ws, services[1].AllocID)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var count3 int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for serviceReg := range iter.All() {
 		count3++
-		serviceReg := raw.(*structs.ServiceRegistration)
 		require.Equal(t, services[1].AllocID, serviceReg.AllocID)
 	}
 	require.Equal(t, 1, count3)
@@ -561,22 +538,21 @@ func TestStateStore_GetServiceRegistrationsByJobID(t *testing.T) {
 
 	// Perform a query against a job that shouldn't have any registrations.
 	iter, err := testState.GetServiceRegistrationsByJobID(ws, "default", "tamagotchi")
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var count1 int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		count1++
 	}
 	require.Equal(t, 0, count1)
 
 	// Look up services using the namespace and jobID of the first service.
 	iter, err = testState.GetServiceRegistrationsByJobID(ws, services[0].Namespace, services[0].JobID)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var outputList1 []*structs.ServiceRegistration
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		serviceReg := raw.(*structs.ServiceRegistration)
+	for serviceReg := range iter.All() {
 		require.Equal(t, initialIndex, serviceReg.CreateIndex, "incorrect create index", serviceReg.ID)
 		require.Equal(t, initialIndex, serviceReg.ModifyIndex, "incorrect modify index", serviceReg.ID)
 		outputList1 = append(outputList1, serviceReg)
@@ -585,12 +561,11 @@ func TestStateStore_GetServiceRegistrationsByJobID(t *testing.T) {
 
 	// Look up services using the namespace and jobID of the second service.
 	iter, err = testState.GetServiceRegistrationsByJobID(ws, services[1].Namespace, services[1].JobID)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var outputList2 []*structs.ServiceRegistration
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		serviceReg := raw.(*structs.ServiceRegistration)
+	for serviceReg := range iter.All() {
 		require.Equal(t, initialIndex, serviceReg.CreateIndex, "incorrect create index", serviceReg.ID)
 		require.Equal(t, initialIndex, serviceReg.ModifyIndex, "incorrect modify index", serviceReg.ID)
 		outputList2 = append(outputList2, serviceReg)
@@ -611,15 +586,15 @@ func TestStateStore_GetServiceRegistrationsByNodeID(t *testing.T) {
 
 	// Perform a query against a node that shouldn't have any registrations.
 	serviceRegs, err := testState.GetServiceRegistrationsByNodeID(ws, "4eed3c6d-6bf1-60d6-040a-e347accae6c4")
-	require.NoError(t, err)
+	must.NoError(t, err)
 	require.Len(t, serviceRegs, 0)
 
 	// Read the two nodes that we should find entries for.
 	serviceRegs, err = testState.GetServiceRegistrationsByNodeID(ws, services[0].NodeID)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	require.Len(t, serviceRegs, 1)
 
 	serviceRegs, err = testState.GetServiceRegistrationsByNodeID(ws, services[1].NodeID)
-	require.NoError(t, err)
+	must.NoError(t, err)
 	require.Len(t, serviceRegs, 1)
 }

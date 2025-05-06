@@ -144,17 +144,8 @@ func (k *Keyring) List(args *structs.KeyringListRootKeyMetaRequest, reply *struc
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
-			iter, err := store.RootKeys(ws)
-			if err != nil {
-				return err
-			}
 			keys := []*structs.RootKeyMeta{}
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				rootKey := raw.(*structs.RootKey)
+			for rootKey := range store.RootKeys(ws).All() {
 				keys = append(keys, rootKey.Meta())
 			}
 
@@ -400,17 +391,8 @@ func (k *Keyring) ListPublic(args *structs.GenericRequest, reply *structs.Keyrin
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
-			iter, err := store.RootKeys(ws)
-			if err != nil {
-				return err
-			}
 			pubKeys := []*structs.KeyringPublicKey{}
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				wrappedKeys := raw.(*structs.RootKey)
+			for wrappedKeys := range store.RootKeys(ws).All() {
 				if wrappedKeys.State == structs.RootKeyStateDeprecated {
 					// Only include valid keys
 					continue

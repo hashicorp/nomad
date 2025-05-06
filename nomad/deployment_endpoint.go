@@ -475,8 +475,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 				return err
 			}
 
-			// Capture all the deployments
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Deployment]
 			var tokenizer paginator.Tokenizer[*structs.Deployment]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
@@ -486,7 +485,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 				iter, err = store.DeploymentsByNamespaceOrdered(ws, namespace, sort)
 				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Deployment](args.NextToken)
 			} else {
-				iter, err = store.Deployments(ws, sort)
+				iter = store.Deployments(ws, sort)
 				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.Deployment](args.NextToken)
 			}
 			if err != nil {

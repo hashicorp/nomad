@@ -1000,18 +1000,7 @@ func (krr *KeyringReplicator) run(ctx context.Context) {
 			}
 
 			store := krr.srv.fsm.State()
-			iter, err := store.RootKeys(nil)
-			if err != nil {
-				krr.logger.Error("failed to fetch keyring", "error", err)
-				continue
-			}
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-
-				wrappedKeys := raw.(*structs.RootKey)
+			for wrappedKeys := range store.RootKeys(nil).All() {
 				if key, err := krr.encrypter.GetKey(wrappedKeys.KeyID); err == nil && len(key.Key) > 0 {
 					// the key material is immutable so if we've already got it
 					// we can move on to the next key

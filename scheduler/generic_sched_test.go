@@ -1732,7 +1732,7 @@ func TestServiceSched_JobRegister_SchedulerAlgorithm(t *testing.T) {
 				alloc := allocs[0]
 				nodeAllocs, err := h.State.AllocsByNode(nil, alloc.NodeID)
 				must.NoError(t, err)
-				must.Len(t, expectedAllocCount, nodeAllocs)
+				must.Len(t, expectedAllocCount, nodeAllocs.Slice())
 			})
 		}
 	}

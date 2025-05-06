@@ -59,20 +59,7 @@ func RedactSnapshot(srcFile *os.File) error {
 		return fmt.Errorf("Failed to load snapshot from archive: %w", err)
 	}
 
-	iter, err := store.RootKeys(nil)
-	if err != nil {
-		return fmt.Errorf("Failed to query for root keys: %v", err)
-	}
-
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		rootKey := raw.(*structs.RootKey)
-		if rootKey == nil {
-			break
-		}
+	for rootKey := range store.RootKeys(nil).All() {
 		if len(rootKey.WrappedKeys) > 0 {
 			rootKey.KeyID = rootKey.KeyID + " [REDACTED]"
 			rootKey.WrappedKeys = nil

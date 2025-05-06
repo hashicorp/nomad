@@ -2248,16 +2248,9 @@ func TestACL_DeleteRolesByID(t *testing.T) {
 
 	// Ensure the deleted role is not found within state and that the other is.
 	ws := memdb.NewWatchSet()
-	iter, err := testServer.State().GetACLRoles(ws)
-	require.NoError(t, err)
-
-	var aclRolesLookup []*structs.ACLRole
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclRolesLookup = append(aclRolesLookup, raw.(*structs.ACLRole))
-	}
-
-	require.Len(t, aclRolesLookup, 1)
-	require.True(t, aclRolesLookup[0].Equal(aclRoles[1]))
+	aclRolesLookup := testServer.State().GetACLRoles(ws).Slice()
+	must.Len(t, 1, aclRolesLookup)
+	must.True(t, aclRolesLookup[0].Equal(aclRoles[1]))
 
 	// Try to delete the previously deleted ACL role, this should fail.
 	aclRoleReq3 := &structs.ACLRolesDeleteByIDRequest{
@@ -3275,14 +3268,7 @@ func TestACL_DeleteBindingRules(t *testing.T) {
 	// Ensure the deleted binding rule is not found within state and that the
 	// other is.
 	ws := memdb.NewWatchSet()
-	iter, err := testServer.State().GetACLBindingRules(ws)
-	must.NoError(t, err)
-
-	var aclBindingRulesLookup []*structs.ACLBindingRule
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclBindingRulesLookup = append(aclBindingRulesLookup, raw.(*structs.ACLBindingRule))
-	}
-
+	aclBindingRulesLookup := testServer.State().GetACLBindingRules(ws).Slice()
 	must.Len(t, 1, aclBindingRulesLookup)
 	must.Eq(t, aclBindingRulesLookup[0], aclBindingRules[1])
 

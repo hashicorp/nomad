@@ -2485,12 +2485,8 @@ func TestJobEndpoint_Revert(t *testing.T) {
 	}
 
 	versions, err := state.JobVersionsByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(versions) != 3 {
-		t.Fatalf("got %d versions; want %d", len(versions), 3)
-	}
+	must.NoError(t, err)
+	must.Len(t, 3, versions)
 }
 
 func TestJobEndpoint_Revert_ACL(t *testing.T) {

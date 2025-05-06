@@ -46,17 +46,14 @@ func (r *RankedNode) GoString() string {
 	return fmt.Sprintf("<Node: %s Score: %0.3f>", r.Node.ID, r.FinalScore)
 }
 
-func (r *RankedNode) ProposedAllocs(ctx Context) ([]*structs.Allocation, error) {
+func (r *RankedNode) ProposedAllocs(ctx Context) []*structs.Allocation {
 	if r.Proposed != nil {
-		return r.Proposed, nil
+		return r.Proposed
 	}
 
-	p, err := ctx.ProposedAllocs(r.Node.ID)
-	if err != nil {
-		return nil, err
-	}
+	p := ctx.ProposedAllocs(r.Node.ID)
 	r.Proposed = p
-	return p, nil
+	return p
 }
 
 func (r *RankedNode) SetTaskResources(
@@ -218,11 +215,8 @@ NEXTNODE:
 
 		// Get the allocations that already exist on the node + those allocs
 		// that have been placed as part of this same evaluation
-		proposed, err := option.ProposedAllocs(iter.ctx)
-		if err != nil {
-			iter.ctx.Logger().Named("binpack").Error("failed retrieving proposed allocations", "error", err)
-			continue
-		}
+		proposed := option.ProposedAllocs(iter.ctx)
+		var err error
 
 		// Index the existing network usage.
 		// This should never collide, since it represents the current state of
@@ -823,12 +817,7 @@ func (iter *JobAntiAffinityIterator) Next() *RankedNode {
 			return nil
 		}
 
-		// Get the proposed allocations
-		proposed, err := option.ProposedAllocs(iter.ctx)
-		if err != nil {
-			iter.ctx.Logger().Named("job_anti_affinity").Error("failed retrieving proposed allocations", "error", err)
-			continue
-		}
+		proposed := option.ProposedAllocs(iter.ctx)
 
 		// Determine the number of collisions
 		collisions := 0

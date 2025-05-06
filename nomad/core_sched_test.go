@@ -584,8 +584,7 @@ func TestCoreScheduler_EvalGC_JobVersionTag(t *testing.T) {
 	jobExists := func(t *testing.T) bool {
 		t.Helper()
 		// any job at all
-		jobs, err := store.Jobs(nil, state.SortDefault)
-		must.NoError(t, err, must.Sprint("error getting jobs"))
+		jobs := store.Jobs(nil, state.SortDefault)
 		return jobs.Next() != nil
 	}
 	forceGC := func(t *testing.T) {
@@ -2606,10 +2605,8 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 	must.True(t, rotated, must.Sprint("key should rotate"))
 
 	var key1 *structs.RootKey
-	iter, err := store.RootKeys(nil)
-	must.NoError(t, err)
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		k := raw.(*structs.RootKey)
+	iter := store.RootKeys(nil)
+	for k := range iter.All() {
 		if k.KeyID == key0.KeyID {
 			must.True(t, k.IsActive(), must.Sprint("expected original key to be active"))
 		} else {
@@ -2632,10 +2629,8 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 	c.snap, _ = store.Snapshot()
 	rotated, err = c.rootKeyRotate(eval, now)
 
-	iter, err = store.RootKeys(nil)
-	must.NoError(t, err)
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		k := raw.(*structs.RootKey)
+	iter = store.RootKeys(nil)
+	for k := range iter.All() {
 		switch k.KeyID {
 		case key0.KeyID:
 			must.True(t, k.IsActive(), must.Sprint("original key should still be active"))
@@ -2651,10 +2646,8 @@ func TestCoreScheduler_RootKeyRotate(t *testing.T) {
 	now = time.Unix(0, key1.PublishTime+(time.Minute*10).Nanoseconds())
 	rotated, err = c.rootKeyRotate(eval, now)
 
-	iter, err = store.RootKeys(nil)
-	must.NoError(t, err)
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		k := raw.(*structs.RootKey)
+	iter = store.RootKeys(nil)
+	for k := range iter.All() {
 		switch k.KeyID {
 		case key0.KeyID:
 			must.True(t, k.IsInactive(), must.Sprint("original key should be inactive"))
@@ -2832,9 +2825,8 @@ func TestCoreScheduler_VariablesRekey(t *testing.T) {
 		wait.Timeout(5*time.Second),
 		wait.Gap(100*time.Millisecond),
 		wait.BoolFunc(func() bool {
-			iter, _ := store.Variables(nil)
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				variable := raw.(*structs.VariableEncrypted)
+			iter := store.Variables(nil)
+			for variable := range iter.All() {
 				if variable.KeyID != newKeyID {
 					return false
 				}
@@ -2961,13 +2953,7 @@ func TestCoreScheduler_ExpiredACLTokenGC(t *testing.T) {
 	must.NoError(t, coreScheduler.Process(localGCEval))
 
 	// Ensure the ACL tokens stored within state are as expected.
-	iter, err := testServer.State().ACLTokens(nil, state.SortDefault)
-	must.NoError(t, err)
-
-	var tokens []*structs.ACLToken
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		tokens = append(tokens, raw.(*structs.ACLToken))
-	}
+	tokens := testServer.State().ACLTokens(nil, state.SortDefault).Slice()
 	must.SliceContainsAll(t, []*structs.ACLToken{rootACLToken, unexpiredGlobal, unexpiredLocal}, tokens)
 }
 
@@ -3029,21 +3015,8 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	// Upsert them all.
 	must.NoError(t, testServer.State().UpsertACLTokens(structs.MsgTypeTestSetup, 10, allTokens))
 
-	// This function provides an easy way to get all tokens out of the
-	// iterator.
-	fromIteratorFunc := func(iter memdb.ResultIterator) []*structs.ACLToken {
-		var tokens []*structs.ACLToken
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			tokens = append(tokens, raw.(*structs.ACLToken))
-		}
-		return tokens
-	}
-
 	// Check all the tokens are correctly stored within state.
-	iter, err := testServer.State().ACLTokens(nil, state.SortDefault)
-	must.NoError(t, err)
-
-	tokens := fromIteratorFunc(iter)
+	tokens := testServer.State().ACLTokens(nil, state.SortDefault).Slice()
 	must.SliceContainsAll(t, allTokens, tokens)
 
 	// Generate the core scheduler and trigger a forced garbage collection
@@ -3060,9 +3033,6 @@ func TestCoreScheduler_ExpiredACLTokenGC_Force(t *testing.T) {
 	must.NoError(t, coreScheduler.Process(forceGCEval))
 
 	// List all the remaining ACL tokens to be sure they are as expected.
-	iter, err = testServer.State().ACLTokens(nil, state.SortDefault)
-	must.NoError(t, err)
-
-	tokens = fromIteratorFunc(iter)
+	tokens = testServer.State().ACLTokens(nil, state.SortDefault).Slice()
 	must.SliceContainsAll(t, append(nonExpiredGlobalTokens, nonExpiredLocalTokens...), tokens)
 }

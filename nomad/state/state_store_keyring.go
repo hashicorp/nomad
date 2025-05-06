@@ -116,16 +116,11 @@ func (s *StateStore) DeleteRootKey(index uint64, keyID string) error {
 }
 
 // RootKeys returns an iterator over all root keys
-func (s *StateStore) RootKeys(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) RootKeys(ws memdb.WatchSet) ResultIterator[*structs.RootKey] {
 	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableRootKeys, indexID)
-	if err != nil {
-		return nil, err
-	}
-
+	iter := GetAll[*structs.RootKey](txn, SortDefault, TableRootKeys, indexID)
 	ws.Add(iter.WatchCh())
-	return iter, nil
+	return iter
 }
 
 // RootKeyByID returns a specific root key

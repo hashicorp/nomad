@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"testing"
 
-	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -71,10 +70,9 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.NotNil(t, vol)
 	must.Nil(t, vol.Allocations)
 
-	consumeIter := func(iter memdb.ResultIterator) map[string]*structs.HostVolume {
+	consumeIter := func(iter ResultIterator[*structs.HostVolume]) map[string]*structs.HostVolume {
 		got := map[string]*structs.HostVolume{}
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			vol := raw.(*structs.HostVolume)
+		for vol := range iter.All() {
 			got[vol.ID] = vol
 		}
 		return got
@@ -159,8 +157,7 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.NotNil(t, vol)
 	must.Len(t, 1, vol.Allocations)
 
-	iter, err = store.HostVolumes(nil, SortReverse)
-	must.NoError(t, err)
+	iter = store.HostVolumes(nil, SortReverse)
 	got = consumeIter(iter)
 	must.MapLen(t, 3, got, must.Sprint(`expected 3 volumes remain`))
 
@@ -184,7 +181,7 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		index++
 		must.NoError(t, store.DeleteHostVolume(index, v.Namespace, v.ID))
 	}
-	iter, err = store.HostVolumes(nil, SortDefault)
+	iter = store.HostVolumes(nil, SortDefault)
 	got = consumeIter(iter)
 	must.MapLen(t, 0, got, must.Sprint(`expected no volumes to remain`))
 }

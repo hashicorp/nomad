@@ -1029,16 +1029,16 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 	ws := memdb.NewWatchSet()
 
 	allocsNodeOne, err := h.State.AllocsByNode(ws, node.ID)
-	require.NoError(t, err)
-	require.Len(t, allocsNodeOne, 1)
+	must.NoError(t, err)
+	must.Len(t, 1, allocsNodeOne.Slice())
 
 	allocsNodeTwo, err := h.State.AllocsByNode(ws, nodeB.ID)
-	require.NoError(t, err)
-	require.Len(t, allocsNodeTwo, 1)
+	must.NoError(t, err)
+	must.Len(t, 1, allocsNodeTwo.Slice())
 
 	allocsNodeThree, err := h.State.AllocsByNode(ws, nodeBTwo.ID)
-	require.NoError(t, err)
-	require.Len(t, allocsNodeThree, 1)
+	must.NoError(t, err)
+	must.Len(t, 1, allocsNodeThree.Slice())
 }
 
 // No errors reported when no available nodes prevent placement

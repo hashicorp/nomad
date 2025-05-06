@@ -146,9 +146,7 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation, customThreshold *time.Du
 	var gcJob []*structs.Job
 
 OUTER:
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		job := i.(*structs.Job)
-
+	for job := range iter.All() {
 		// Ignore new jobs.
 		st := time.Unix(0, job.SubmitTime)
 		if st.After(cutoffTime) {
@@ -182,8 +180,7 @@ OUTER:
 			// if any version of the job is tagged, it should be kept
 			versions, err := c.snap.JobVersionsByID(ws, job.Namespace, job.ID)
 			if err != nil {
-				c.logger.Error("job GC failed to get versions for job", "job", job.ID, "error", err)
-				continue
+				return err // TODO(tgross): invalid job namespace/ID format?
 			}
 			for _, v := range versions {
 				if v.VersionTag != nil {
@@ -270,10 +267,7 @@ func (c *CoreScheduler) partitionJobReap(jobs []*structs.Job, leaderACL string, 
 func (c *CoreScheduler) evalGC(customThreshold *time.Duration) error {
 	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Evals(ws, false)
-	if err != nil {
-		return err
-	}
+	iter := c.snap.Evals(ws, false)
 
 	var threshold, batchThreshold time.Duration
 	threshold = c.srv.config.EvalGCThreshold
@@ -290,9 +284,7 @@ func (c *CoreScheduler) evalGC(customThreshold *time.Duration) error {
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		eval := raw.(*structs.Evaluation)
-
+	for eval := range iter.All() {
 		gcCutoffTime := cutoffTime
 		if eval.Type == structs.JobTypeBatch {
 			gcCutoffTime = batchCutoffTime
@@ -464,12 +456,8 @@ func (c *CoreScheduler) partitionEvalReap(evals, allocs []string, batchSize int)
 
 // nodeGC is used to garbage collect old nodes
 func (c *CoreScheduler) nodeGC(eval *structs.Evaluation, customThreshold *time.Duration) error {
-	// Iterate over the evaluations
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Nodes(ws)
-	if err != nil {
-		return err
-	}
+	iter := c.snap.Nodes(ws)
 
 	var threshold time.Duration
 	threshold = c.srv.config.NodeGCThreshold
@@ -483,12 +471,7 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation, customThreshold *time.D
 	// Collect the nodes to GC
 	var gcNode []string
 OUTER:
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		node := raw.(*structs.Node)
+	for node := range iter.All() {
 
 		// Ignore non-terminal and new nodes
 		st := time.Unix(node.StatusUpdatedAt, 0)
@@ -500,16 +483,14 @@ OUTER:
 		ws := memdb.NewWatchSet()
 		allocs, err := c.snap.AllocsByNode(ws, node.ID)
 		if err != nil {
-			c.logger.Error("failed to get allocs for node",
-				"node_id", node.ID, "error", err)
-			continue
+			return err // TODO(tgross): impossible node ID?
 		}
 
 		// If there are any non-terminal allocations, skip the node. If the node
 		// is terminal and the allocations are not, the scheduler may not have
 		// run yet to transition the allocs on the node to terminal. We delay
 		// GC'ing until this happens.
-		for _, alloc := range allocs {
+		for alloc := range allocs.All() {
 			if !alloc.TerminalStatus() {
 				continue OUTER
 			}
@@ -570,10 +551,7 @@ func (c *CoreScheduler) nodeReap(eval *structs.Evaluation, nodeIDs []string) err
 func (c *CoreScheduler) deploymentGC(customThreshold *time.Duration) error {
 	// Iterate over the deployments
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.Deployments(ws, state.SortDefault)
-	if err != nil {
-		return err
-	}
+	iter := c.snap.Deployments(ws, state.SortDefault)
 
 	var threshold time.Duration
 	threshold = c.srv.config.DeploymentGCThreshold
@@ -588,12 +566,7 @@ func (c *CoreScheduler) deploymentGC(customThreshold *time.Duration) error {
 	var gcDeployment []string
 
 OUTER:
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		deploy := raw.(*structs.Deployment)
+	for deploy := range iter.All() {
 
 		// Ignore non-terminal and new deployments
 		mt := time.Unix(0, deploy.ModifyTime)
@@ -770,10 +743,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation, customThresho
 
 	ws := memdb.NewWatchSet()
 
-	iter, err := c.snap.CSIVolumes(ws)
-	if err != nil {
-		return err
-	}
+	iter := c.snap.CSIVolumes(ws)
 
 	var threshold time.Duration
 	threshold = c.srv.config.CSIVolumeClaimGCThreshold
@@ -784,8 +754,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation, customThresho
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		vol := i.(*structs.CSIVolume)
+	for vol := range iter.All() {
 
 		// Ignore new volumes
 		mt := time.Unix(0, vol.ModifyTime)
@@ -816,11 +785,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation, customThresho
 func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation, customThreshold *time.Duration) error {
 
 	ws := memdb.NewWatchSet()
-
-	iter, err := c.snap.CSIPlugins(ws)
-	if err != nil {
-		return err
-	}
+	iter := c.snap.CSIPlugins(ws)
 
 	var threshold time.Duration
 	threshold = c.srv.config.CSIPluginGCThreshold
@@ -831,8 +796,7 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation, customThreshold *t
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		plugin := i.(*structs.CSIPlugin)
+	for plugin := range iter.All() {
 		if !plugin.IsEmpty() {
 			continue
 		}
@@ -904,7 +868,7 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool,
 
 	expiredIter, err := c.snap.ACLTokensByExpired(global)
 	if err != nil {
-		return err
+		return err // TODO(tgross): impossible index value?
 	}
 
 	var (
@@ -919,8 +883,7 @@ func (c *CoreScheduler) expiredACLTokenGC(eval *structs.Evaluation, global bool,
 	// token that is eligible for deletion.
 	now := time.Now().UTC()
 
-	for raw := expiredIter.Next(); raw != nil; raw = expiredIter.Next() {
-		token := raw.(*structs.ACLToken)
+	for token := range expiredIter.All() {
 
 		// The iteration order of the indexes mean if we come across an
 		// unexpired token, we can exit as we have found all currently expired
@@ -1002,10 +965,6 @@ func (c *CoreScheduler) rootKeyRotateOrGC(eval *structs.Evaluation) error {
 func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error {
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.RootKeys(ws)
-	if err != nil {
-		return err
-	}
 
 	// we don't do custom overrides for root keys because they are never subject to
 	// force GC
@@ -1017,12 +976,7 @@ func (c *CoreScheduler) rootKeyGC(eval *structs.Evaluation, now time.Time) error
 	rotationThreshold := now.Add(-1 *
 		(c.srv.config.RootKeyRotationThreshold + threshold))
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		rootKey := raw.(*structs.RootKey)
+	for rootKey := range c.snap.RootKeys(ws).All() {
 		if !rootKey.IsInactive() {
 			continue // never GC keys we're still using
 		}
@@ -1074,13 +1028,9 @@ func (c *CoreScheduler) rootKeyMigrate(eval *structs.Evaluation) (bool, error) {
 	}
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.RootKeys(ws)
-	if err != nil {
-		return false, err
-	}
 	stateChanged := false
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		wrappedKeys := raw.(*structs.RootKey)
+
+	for wrappedKeys := range c.snap.RootKeys(ws).All() {
 		if len(wrappedKeys.WrappedKeys) > 0 {
 			continue // already migrated
 		}
@@ -1118,12 +1068,7 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (
 	)
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.RootKeys(ws)
-	if err != nil {
-		return false, err
-	}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		key := raw.(*structs.RootKey)
+	for key := range c.snap.RootKeys(ws).All() {
 		switch key.State {
 		case structs.RootKeyStateActive:
 			activeKey = key
@@ -1219,23 +1164,14 @@ func (c *CoreScheduler) rootKeyRotate(eval *structs.Evaluation, now time.Time) (
 func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 
 	ws := memdb.NewWatchSet()
-	iter, err := c.snap.RootKeys(ws)
-	if err != nil {
-		return err
-	}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		wrappedKeys := raw.(*structs.RootKey)
+	for wrappedKeys := range c.snap.RootKeys(ws).All() {
 		if !wrappedKeys.IsRekeying() {
 			continue
 		}
 		varIter, err := c.snap.GetVariablesByKeyID(ws, wrappedKeys.KeyID)
 		if err != nil {
-			return err
+			return err // TODO(tgross): impossible key ID format?
 		}
 		err = c.rotateVariables(varIter, eval)
 		if err != nil {
@@ -1267,7 +1203,7 @@ func (c *CoreScheduler) variablesRekey(eval *structs.Evaluation) error {
 // rotateVariables runs over an iterator of variables and decrypts them, and
 // then sends them back to be re-encrypted with the currently active key,
 // checking for conflicts
-func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs.Evaluation) error {
+func (c *CoreScheduler) rotateVariables(iter state.ResultIterator[*structs.VariableEncrypted], eval *structs.Evaluation) error {
 
 	args := &structs.VariablesApplyRequest{
 		Op: structs.VarOpCAS,
@@ -1291,11 +1227,7 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 	defer cancel()
 	limiter := rate.NewLimiter(rate.Limit(100), 100)
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
+	for ev := range iter.All() {
 
 		select {
 		case <-ctx.Done():
@@ -1321,7 +1253,6 @@ func (c *CoreScheduler) rotateVariables(iter memdb.ResultIterator, eval *structs
 		default:
 		}
 
-		ev := raw.(*structs.VariableEncrypted)
 		cleartext, err := c.srv.encrypter.Decrypt(ev.Data, ev.KeyID)
 		if err != nil {
 			return err

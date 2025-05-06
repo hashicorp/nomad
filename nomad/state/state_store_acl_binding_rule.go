@@ -162,17 +162,14 @@ func (s *StateStore) deleteACLBindingRuleTxn(txn *txn, ruleID string) error {
 
 // GetACLBindingRules returns an iterator that contains all ACL binding rules
 // stored within state.
-func (s *StateStore) GetACLBindingRules(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) GetACLBindingRules(ws memdb.WatchSet) ResultIterator[*structs.ACLBindingRule] {
 	txn := s.db.ReadTxn()
-
-	// Walk the entire table to get all ACL binding rules.
-	iter, err := txn.Get(TableACLBindingRules, indexID)
+	iter, err := Get[*structs.ACLBindingRule](txn, TableACLBindingRules, indexID)
 	if err != nil {
-		return nil, fmt.Errorf("ACL binding rules lookup failed: %v", err)
+		panic(fmt.Errorf("%w: %w", errIndexInvariant, err))
 	}
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // GetACLBindingRule returns a single ACL binding rule specified by the input
@@ -197,15 +194,13 @@ func (s *StateStore) GetACLBindingRule(ws memdb.WatchSet, ruleID string) (*struc
 // GetACLBindingRulesByAuthMethod returns an iterator with all binding rules
 // associated with the named authentication method.
 func (s *StateStore) GetACLBindingRulesByAuthMethod(
-	ws memdb.WatchSet, authMethod string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, authMethod string) (ResultIterator[*structs.ACLBindingRule], error) {
 
 	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableACLBindingRules, indexAuthMethod, authMethod)
+	iter, err := Get[*structs.ACLBindingRule](txn, TableACLBindingRules, indexAuthMethod, authMethod)
 	if err != nil {
-		return nil, fmt.Errorf("ACL binding rule lookup failed: %v", err)
+		return nil, err
 	}
 	ws.Add(iter.WatchCh())
-
 	return iter, nil
 }

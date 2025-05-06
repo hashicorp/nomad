@@ -27,8 +27,7 @@ func TestStateStore_NodePools(t *testing.T) {
 
 	// Create a watchset to test that getters don't cause it to fire.
 	ws := memdb.NewWatchSet()
-	iter, err := state.NodePools(ws, SortDefault)
-	must.NoError(t, err)
+	iter := state.NodePools(ws, SortDefault)
 
 	// Verify all pools are returned.
 	foundBuiltIn := map[string]bool{
@@ -37,9 +36,7 @@ func TestStateStore_NodePools(t *testing.T) {
 	}
 	got := make([]*structs.NodePool, 0, 10)
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		pool := raw.(*structs.NodePool)
-
+	for pool := range iter.All() {
 		if pool.IsBuiltIn() {
 			must.False(t, foundBuiltIn[pool.Name])
 			foundBuiltIn[pool.Name] = true
@@ -89,12 +86,10 @@ func TestStateStore_NodePools_Ordering(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ws := memdb.NewWatchSet()
-			iter, err := state.NodePools(ws, tc.order)
-			must.NoError(t, err)
+			iter := state.NodePools(ws, tc.order)
 
 			var got []string
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				pool := raw.(*structs.NodePool)
+			for pool := range iter.All() {
 				if pool.IsBuiltIn() {
 					continue
 				}
@@ -245,10 +240,9 @@ func TestStateStore_NodePool_ByNamePrefix(t *testing.T) {
 			ws := memdb.NewWatchSet()
 			iter, err := state.NodePoolsByNamePrefix(ws, tc.prefix, tc.order)
 			must.NoError(t, err)
-
 			got := []string{}
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				got = append(got, raw.(*structs.NodePool).Name)
+			for pool := range iter.All() {
+				got = append(got, pool.Name)
 			}
 			must.SliceContainsAll(t, tc.expected, got)
 		})

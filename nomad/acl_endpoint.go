@@ -226,34 +226,27 @@ func (a *ACL) ListPolicies(args *structs.ACLPolicyListRequest, reply *structs.AC
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Iterate over all the policies
-			var err error
-			var iter memdb.ResultIterator
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
+			var iter state.ResultIterator[*structs.ACLPolicy]
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.ACLPolicyByNamePrefix(ws, prefix)
+				iter, err = store.ACLPolicyByNamePrefix(ws, prefix)
+				if err != nil {
+					return err
+				}
 			} else {
-				iter, err = state.ACLPolicies(ws)
-			}
-			if err != nil {
-				return err
+				iter = store.ACLPolicies(ws)
 			}
 
 			// Convert all the policies to a list stub
 			reply.Policies = nil
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				realPolicy := raw.(*structs.ACLPolicy)
-				if mgt || tokenPolicyNames.Contains(realPolicy.Name) {
-					reply.Policies = append(reply.Policies, realPolicy.Stub())
+			for policy := range iter.All() {
+				if mgt || tokenPolicyNames.Contains(policy.Name) {
+					reply.Policies = append(reply.Policies, policy.Stub())
 				}
 			}
 
 			// Use the last index that affected the policy table
-			index, err := state.Index("acl_policy")
+			index, err := store.Index("acl_policy")
 			if err != nil {
 				return err
 			}
@@ -886,27 +879,27 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Iterate over all the tokens
-			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.ACLToken]
 			var tokenizer paginator.Tokenizer[*structs.ACLToken]
+			var err error
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
-				iter, err = state.ACLTokenByAccessorIDPrefix(ws, prefix, sort)
+				iter, err = store.ACLTokenByAccessorIDPrefix(ws, prefix, sort)
 				tokenizer = paginator.IDTokenizer[*structs.ACLToken](args.NextToken)
 			} else if args.GlobalOnly {
-				iter, err = state.ACLTokensByGlobal(ws, true, sort)
+				iter, err = store.ACLTokensByGlobal(ws, true, sort)
 				tokenizer = paginator.IDTokenizer[*structs.ACLToken](args.NextToken)
 			} else {
-				iter, err = state.ACLTokens(ws, sort)
+				iter = store.ACLTokens(ws, sort)
 				tokenizer = paginator.CreateIndexAndIDTokenizer[*structs.ACLToken](args.NextToken)
 			}
 			if err != nil {
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
+			pager, err := paginator.NewPaginator[*structs.ACLToken](iter, args.QueryOptions, nil,
 				tokenizer,
 				(*structs.ACLToken).Stub)
 			if err != nil {
@@ -924,7 +917,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 			reply.Tokens = tokens
 
 			// Use the last index that affected the token table
-			index, err := state.Index("acl_token")
+			index, err := store.Index("acl_token")
 			if err != nil {
 				return err
 			}
@@ -1495,7 +1488,7 @@ func (a *ACL) ListRoles(
 	return a.srv.blockingRPC(&blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
 			// The iteration below appends directly to the reply object, so in
 			// order for blocking queries to work properly we must ensure the
@@ -1503,30 +1496,24 @@ func (a *ACL) ListRoles(
 			// to work as expected.
 			reply.ACLRoles = nil
 
-			var (
-				err  error
-				iter memdb.ResultIterator
-			)
+			var iter state.ResultIterator[*structs.ACLRole]
 
 			// If the operator supplied a prefix, perform a prefix search.
 			// Otherwise, list all ACL roles in state.
 			switch args.QueryOptions.Prefix {
 			case "":
-				iter, err = stateStore.GetACLRoles(ws)
+				iter = store.GetACLRoles(ws)
 			default:
-				iter, err = stateStore.GetACLRoleByIDPrefix(ws, args.QueryOptions.Prefix)
-			}
-			if err != nil {
-				return err
+				iter, err = store.GetACLRoleByIDPrefix(ws, args.QueryOptions.Prefix)
+				if err != nil {
+					return err
+				}
 			}
 
 			// Iterate all the results and add these to our reply object. Check
 			// before appending to the reply that the caller is allowed to view
 			// the role.
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-
-				role := raw.(*structs.ACLRole)
-
+			for role := range iter.All() {
 				if roleSet.Contains(role.ID) || isManagement {
 					reply.ACLRoles = append(reply.ACLRoles, role.Stub())
 				}
@@ -1534,7 +1521,7 @@ func (a *ACL) ListRoles(
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
-			return a.srv.setReplyQueryMeta(stateStore, state.TableACLRoles, &reply.QueryMeta)
+			return a.srv.setReplyQueryMeta(store, state.TableACLRoles, &reply.QueryMeta)
 		},
 	})
 }
@@ -2019,28 +2006,20 @@ func (a *ACL) ListAuthMethods(
 	return a.srv.blockingRPC(&blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
 			// The iteration below appends directly to the reply object, so in
 			// order for blocking queries to work properly we must ensure the
 			// auth methods are reset. This allows the blocking query run
 			// function to work as expected.
 			reply.AuthMethods = nil
-
-			iter, err := stateStore.GetACLAuthMethods(ws)
-			if err != nil {
-				return err
-			}
-
-			// Iterate all the results and add these to our reply object.
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				method := raw.(*structs.ACLAuthMethod)
+			for method := range store.GetACLAuthMethods(ws).All() {
 				reply.AuthMethods = append(reply.AuthMethods, method.Stub())
 			}
 
 			// Use the index table to populate the query meta
 			return a.srv.setReplyQueryMeta(
-				stateStore, state.TableACLAuthMethods, &reply.QueryMeta,
+				store, state.TableACLAuthMethods, &reply.QueryMeta,
 			)
 		},
 	})
@@ -2417,27 +2396,20 @@ func (a *ACL) ListBindingRules(
 	return a.srv.blockingRPC(&blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, stateStore *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
 			// The iteration below appends directly to the reply object, so in
 			// order for blocking queries to work properly we must ensure the
 			// ACLBindingRules are reset. This allows the blocking query run
 			// function to work as expected.
 			reply.ACLBindingRules = nil
-
-			iter, err := stateStore.GetACLBindingRules(ws)
-			if err != nil {
-				return err
-			}
-
-			// Iterate all the results and add these to our reply object.
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				reply.ACLBindingRules = append(reply.ACLBindingRules, raw.(*structs.ACLBindingRule).Stub())
+			for rule := range store.GetACLBindingRules(ws).All() {
+				reply.ACLBindingRules = append(reply.ACLBindingRules, rule.Stub())
 			}
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.
-			return a.srv.setReplyQueryMeta(stateStore, state.TableACLBindingRules, &reply.QueryMeta)
+			return a.srv.setReplyQueryMeta(store, state.TableACLBindingRules, &reply.QueryMeta)
 		},
 	})
 }

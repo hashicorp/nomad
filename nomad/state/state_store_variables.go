@@ -20,51 +20,41 @@ var (
 
 // Variables queries all the variables and is used only for
 // snapshot/restore and key rotation
-func (s *StateStore) Variables(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) Variables(ws memdb.WatchSet) ResultIterator[*structs.VariableEncrypted] {
 	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableVariables, indexID)
-	if err != nil {
-		return nil, err
-	}
-
+	iter := GetAll[*structs.VariableEncrypted](txn, SortDefault, TableVariables, indexID)
 	ws.Add(iter.WatchCh())
-	return iter, nil
+	return iter
 }
 
 // GetVariablesByNamespace returns an iterator that contains all
 // variables belonging to the provided namespace.
 func (s *StateStore) GetVariablesByNamespace(
-	ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, namespace string) (ResultIterator[*structs.VariableEncrypted], error) {
 	txn := s.db.ReadTxn()
 	return s.getVariablesByNamespaceImpl(txn, ws, namespace)
 }
 
 func (s *StateStore) getVariablesByNamespaceImpl(
-	txn *txn, ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
-	// Walk the entire table.
-	iter, err := txn.Get(TableVariables, indexID+"_prefix", namespace, "")
+	txn *txn, ws memdb.WatchSet, namespace string) (ResultIterator[*structs.VariableEncrypted], error) {
+	iter, err := Get[*structs.VariableEncrypted](txn, TableVariables, indexID+"_prefix", namespace, "")
 	if err != nil {
-		return nil, fmt.Errorf("variable lookup failed: %v", err)
+		return nil, err
 	}
 	ws.Add(iter.WatchCh())
-
 	return iter, nil
 }
 
 // GetVariablesByNamespaceAndPrefix returns an iterator that contains all
 // variables belonging to the provided namespace that match the prefix.
 func (s *StateStore) GetVariablesByNamespaceAndPrefix(
-	ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, namespace, prefix string) (ResultIterator[*structs.VariableEncrypted], error) {
 	txn := s.db.ReadTxn()
-
-	// Walk the entire table.
-	iter, err := txn.Get(TableVariables, indexID+"_prefix", namespace, prefix)
+	iter, err := Get[*structs.VariableEncrypted](txn, TableVariables, indexID+"_prefix", namespace, prefix)
 	if err != nil {
-		return nil, fmt.Errorf("variable lookup failed: %v", err)
+		return nil, err
 	}
 	ws.Add(iter.WatchCh())
-
 	return iter, nil
 }
 
@@ -72,31 +62,26 @@ func (s *StateStore) GetVariablesByNamespaceAndPrefix(
 // match the prefix in any namespace. Namespace filtering is the responsibility
 // of the caller.
 func (s *StateStore) GetVariablesByPrefix(
-	ws memdb.WatchSet, prefix string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, prefix string) (ResultIterator[*structs.VariableEncrypted], error) {
 	txn := s.db.ReadTxn()
-
-	// Walk the entire table.
-	iter, err := txn.Get(TableVariables, indexPath+"_prefix", prefix)
+	iter, err := Get[*structs.VariableEncrypted](txn, TableVariables, indexPath+"_prefix", prefix)
 	if err != nil {
-		return nil, fmt.Errorf("variable lookup failed: %v", err)
+		return nil, err
 	}
 	ws.Add(iter.WatchCh())
-
 	return iter, nil
 }
 
 // GetVariablesByKeyID returns an iterator that contains all
 // variables that were encrypted with a particular key
 func (s *StateStore) GetVariablesByKeyID(
-	ws memdb.WatchSet, keyID string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, keyID string) (ResultIterator[*structs.VariableEncrypted], error) {
 	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableVariables, indexKeyID, keyID)
+	iter, err := Get[*structs.VariableEncrypted](txn, TableVariables, indexKeyID, keyID)
 	if err != nil {
-		return nil, fmt.Errorf("variable lookup failed: %v", err)
+		return nil, err
 	}
 	ws.Add(iter.WatchCh())
-
 	return iter, nil
 }
 
@@ -453,16 +438,11 @@ type WriteTxn interface {
 
 // VariablesQuotas queries all the quotas and is used only for
 // snapshot/restore and key rotation
-func (s *StateStore) VariablesQuotas(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) VariablesQuotas(ws memdb.WatchSet) ResultIterator[*structs.VariablesQuota] {
 	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableVariablesQuotas, indexID)
-	if err != nil {
-		return nil, err
-	}
-
+	iter := GetAll[*structs.VariablesQuota](txn, SortDefault, TableVariablesQuotas, indexID)
 	ws.Add(iter.WatchCh())
-	return iter, nil
+	return iter
 }
 
 // VariablesQuotaByNamespace queries for quotas for a particular namespace

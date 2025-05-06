@@ -619,12 +619,7 @@ func (s *Authenticator) ResolvePoliciesForClaims(claims *structs.IdentityClaims)
 		return nil, err
 	}
 	policies := []*structs.ACLPolicy{}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		policy := raw.(*structs.ACLPolicy)
+	for policy := range iter.All() {
 		if policy.JobACL == nil {
 			continue
 		}

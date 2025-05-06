@@ -41,18 +41,15 @@ func TestStateStore_UpsertACLBindingRules(t *testing.T) {
 	// List all the ACL binding rules in the table, so we can perform a number
 	// of tests on the return array.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLBindingRules(ws)
-	must.NoError(t, err)
+	iter := testState.GetACLBindingRules(ws)
 
 	// Count how many table entries we have, to ensure it is the expected
 	// number.
 	var count int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for aclRole := range iter.All() {
 		count++
-
 		// Ensure the create and modify indexes are populated correctly.
-		aclRole := raw.(*structs.ACLBindingRule)
 		must.Eq(t, 20, aclRole.CreateIndex)
 		must.Eq(t, 20, aclRole.ModifyIndex)
 	}
@@ -79,18 +76,16 @@ func TestStateStore_UpsertACLBindingRules(t *testing.T) {
 	must.Eq(t, 30, updatedIndex)
 
 	// List the ACL roles in state.
-	iter, err = testState.GetACLBindingRules(ws)
-	must.NoError(t, err)
+	iter = testState.GetACLBindingRules(ws)
 
 	// Count how many table entries we have, to ensure it is the expected
 	// number.
 	count = 0
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for aclRole := range iter.All() {
 		count++
 
 		// Ensure the create and modify indexes are populated correctly.
-		aclRole := raw.(*structs.ACLBindingRule)
 		must.Eq(t, 20, aclRole.CreateIndex)
 		must.Eq(t, 30, aclRole.ModifyIndex)
 	}
@@ -135,14 +130,7 @@ func TestStateStore_DeleteACLBindingRules(t *testing.T) {
 	// List the ACL binding rules and ensure we now only have one present and
 	// that it is the one we expect.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLBindingRules(ws)
-	must.NoError(t, err)
-
-	var aclBindingRules []*structs.ACLBindingRule
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclBindingRules = append(aclBindingRules, raw.(*structs.ACLBindingRule))
-	}
+	aclBindingRules := testState.GetACLBindingRules(ws).Slice()
 
 	must.Len(t, 1, aclBindingRules)
 	must.True(t, aclBindingRules[0].Equal(mockedACLBindingRoles[1]))
@@ -156,14 +144,7 @@ func TestStateStore_DeleteACLBindingRules(t *testing.T) {
 	must.Eq(t, 30, tableIndex)
 
 	// List the ACL binding rules and ensure we have zero entries.
-	iter, err = testState.GetACLBindingRules(ws)
-	must.NoError(t, err)
-
-	aclBindingRules = make([]*structs.ACLBindingRule, 0)
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclBindingRules = append(aclBindingRules, raw.(*structs.ACLBindingRule))
-	}
+	aclBindingRules = testState.GetACLBindingRules(ws).Slice()
 	must.Len(t, 0, aclBindingRules)
 }
 
@@ -178,14 +159,7 @@ func TestStateStore_GetACLBindingRules(t *testing.T) {
 
 	// List the ACL binding rules and ensure they are exactly as we expect.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLBindingRules(ws)
-	must.NoError(t, err)
-
-	var aclBindingRules []*structs.ACLBindingRule
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclBindingRules = append(aclBindingRules, raw.(*structs.ACLBindingRule))
-	}
+	aclBindingRules := testState.GetACLBindingRules(ws).Slice()
 
 	expected := mockedACLBindingRoles
 	for i := range expected {
@@ -235,25 +209,15 @@ func TestStateStore_GetACLBindingRulesByAuthMethod(t *testing.T) {
 
 	// Lookup ACL binding rules using an auth method that is not referenced. We
 	// should not get any results within the iterator.
-	iter, err := testState.GetACLBindingRulesByAuthMethod(ws, "not-an-auth-method")
+	aclBindingRules, err := testState.GetACLBindingRulesByAuthMethod(
+		ws, "not-an-auth-method")
 	must.NoError(t, err)
-
-	var aclBindingRules []*structs.ACLBindingRule
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclBindingRules = append(aclBindingRules, raw.(*structs.ACLBindingRule))
-	}
-	must.Len(t, 0, aclBindingRules)
+	must.Len(t, 0, aclBindingRules.Slice())
 
 	// Lookup ACL binding rules using an auth method that is referenced by both
 	// mocked rules. Ensure the results are as expected.
-	iter, err = testState.GetACLBindingRulesByAuthMethod(ws, mockedACLBindingRoles[0].AuthMethod)
+	aclBindingRules, err = testState.GetACLBindingRulesByAuthMethod(
+		ws, mockedACLBindingRoles[0].AuthMethod)
 	must.NoError(t, err)
-
-	aclBindingRules = make([]*structs.ACLBindingRule, 0)
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclBindingRules = append(aclBindingRules, raw.(*structs.ACLBindingRule))
-	}
-	must.Len(t, 2, aclBindingRules)
+	must.Len(t, 2, aclBindingRules.Slice())
 }

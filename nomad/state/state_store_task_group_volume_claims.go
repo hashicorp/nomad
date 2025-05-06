@@ -84,16 +84,11 @@ func (s *StateStore) GetTaskGroupHostVolumeClaim(ws memdb.WatchSet, namespace, j
 }
 
 // GetTaskGroupHostVolumeClaims returns all volume claims
-func (s *StateStore) GetTaskGroupHostVolumeClaims(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) GetTaskGroupHostVolumeClaims(ws memdb.WatchSet) ResultIterator[*structs.TaskGroupHostVolumeClaim] {
 	txn := s.db.ReadTxn()
-
-	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
-	if err != nil {
-		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
-	}
+	iter := GetAll[*structs.TaskGroupHostVolumeClaim](txn, SortDefault, TableTaskGroupHostVolumeClaim, indexID)
 	ws.Add(iter.WatchCh())
-
-	return iter, nil
+	return iter
 }
 
 // TgvcSearchableFields lists fields that task group volume claims can be
@@ -107,21 +102,13 @@ type TgvcSearchableFields struct {
 
 // TaskGroupHostVolumeClaimsByFields returns all claims that match the fields,
 // and handles namespace wildcards
-func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields TgvcSearchableFields) (memdb.ResultIterator, error) {
+func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields TgvcSearchableFields) ResultIterator[*structs.TaskGroupHostVolumeClaim] {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableTaskGroupHostVolumeClaim, indexID)
-	if err != nil {
-		return nil, fmt.Errorf("Task group volume claim lookup failed: %v", err)
-	}
+	iter := GetAll[*structs.TaskGroupHostVolumeClaim](txn, SortDefault, TableTaskGroupHostVolumeClaim, indexID)
 	ws.Add(iter.WatchCh())
 
-	filter := memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-		claim, ok := raw.(*structs.TaskGroupHostVolumeClaim)
-		if !ok {
-			return true
-		}
-
+	filter := NewFilterIterator(iter, func(claim *structs.TaskGroupHostVolumeClaim) bool {
 		// check which fields we should filter by
 		if fields.Namespace != structs.AllNamespacesSentinel && fields.Namespace != "" {
 			if claim.Namespace != fields.Namespace {
@@ -140,7 +127,7 @@ func (s *StateStore) TaskGroupHostVolumeClaimsByFields(ws memdb.WatchSet, fields
 		return false
 	})
 
-	return filter, nil
+	return filter
 }
 
 // deleteTaskGroupHostVolumeClaimByNamespaceAndJob deletes all claims for a

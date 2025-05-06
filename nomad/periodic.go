@@ -97,9 +97,7 @@ func (s *Server) RunningChildren(job *structs.Job) (bool, error) {
 		return false, err
 	}
 
-	var child *structs.Job
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		child = i.(*structs.Job)
+	for child := range iter.All() {
 
 		// Ensure the job is actually a child.
 		if child.ParentID != job.ID {

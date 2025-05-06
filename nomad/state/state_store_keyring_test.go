@@ -46,14 +46,9 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 	index++
 	must.NoError(t, store.UpsertRootKey(index, newlyActiveKey, false))
 
-	iter, err := store.RootKeys(nil)
+	iter := store.RootKeys(nil)
 	must.NoError(t, err)
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		key := raw.(*structs.RootKey)
+	for key := range iter.All() {
 		if key.KeyID == newlyActiveKey.KeyID {
 			must.True(t, key.IsActive(), must.Sprint("expected updated key to be active"))
 			must.Eq(t, oldCreateIndex, key.CreateIndex)
@@ -66,15 +61,8 @@ func TestStateStore_WrappedRootKey_CRUD(t *testing.T) {
 	index++
 	must.NoError(t, store.DeleteRootKey(index, keyIDs[1]))
 
-	iter, err = store.RootKeys(nil)
-	must.NoError(t, err)
 	var found int
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		key := raw.(*structs.RootKey)
+	for key := range store.RootKeys(nil).All() {
 		must.NotEq(t, keyIDs[1], key.KeyID)
 		must.False(t, key.IsActive(), must.Sprint("expected remaining keys to be inactive"))
 		found++

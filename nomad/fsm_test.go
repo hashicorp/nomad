@@ -2613,14 +2613,7 @@ func TestFSM_SnapshotRestore_ServiceRegistrations(t *testing.T) {
 
 	// List the service registrations from restored state and ensure everything
 	// is as expected.
-	iter, err := restoredState.GetServiceRegistrations(memdb.NewWatchSet())
-	require.NoError(t, err)
-
-	var restoredRegs []*structs.ServiceRegistration
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredRegs = append(restoredRegs, raw.(*structs.ServiceRegistration))
-	}
+	restoredRegs := restoredState.GetServiceRegistrations(memdb.NewWatchSet()).Slice()
 	require.ElementsMatch(t, restoredRegs, serviceRegs)
 }
 
@@ -2650,14 +2643,7 @@ func TestFSM_SnapshotRestore_ACLRoles(t *testing.T) {
 
 	// List the ACL roles from restored state and ensure everything is as
 	// expected.
-	iter, err := restoredState.GetACLRoles(memdb.NewWatchSet())
-	require.NoError(t, err)
-
-	var restoredACLRoles []*structs.ACLRole
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredACLRoles = append(restoredACLRoles, raw.(*structs.ACLRole))
-	}
+	restoredACLRoles := restoredState.GetACLRoles(memdb.NewWatchSet()).Slice()
 	require.ElementsMatch(t, restoredACLRoles, aclRoles)
 }
 
@@ -2678,13 +2664,7 @@ func TestFSM_SnapshotRestore_ACLAuthMethods(t *testing.T) {
 
 	// List the ACL auth methods from restored state and ensure everything is as
 	// expected.
-	iter, err := restoredState.GetACLAuthMethods(memdb.NewWatchSet())
-	must.NoError(t, err)
-
-	var restoredACLAuthMethods []*structs.ACLAuthMethod
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredACLAuthMethods = append(restoredACLAuthMethods, raw.(*structs.ACLAuthMethod))
-	}
+	restoredACLAuthMethods := restoredState.GetACLAuthMethods(memdb.NewWatchSet()).Slice()
 	must.SliceContainsAll(t, restoredACLAuthMethods, authMethods)
 }
 
@@ -2706,14 +2686,7 @@ func TestFSM_SnapshotRestore_ACLBindingRules(t *testing.T) {
 
 	// List the ACL binding rules from restored state and ensure everything is
 	// as expected.
-	iter, err := restoredState.GetACLBindingRules(memdb.NewWatchSet())
-	must.NoError(t, err)
-
-	var restoredACLBindingRules []*structs.ACLBindingRule
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredACLBindingRules = append(restoredACLBindingRules, raw.(*structs.ACLBindingRule))
-	}
+	restoredACLBindingRules := restoredState.GetACLBindingRules(memdb.NewWatchSet()).Slice()
 	must.SliceContainsAll(t, restoredACLBindingRules, mockedACLBindingRoles)
 }
 
@@ -3289,11 +3262,8 @@ func TestFSM_SnapshotRestore_Variables(t *testing.T) {
 	}
 
 	// Update the mock variables data with the actual create information
-	iter, err := testState.Variables(memdb.NewWatchSet())
-	require.NoError(t, err)
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		sv := raw.(*structs.VariableEncrypted)
+	iter := testState.Variables(memdb.NewWatchSet())
+	for sv := range iter.All() {
 		msvs[sv.Path].CreateIndex = sv.CreateIndex
 		msvs[sv.Path].CreateTime = sv.CreateTime
 		msvs[sv.Path].ModifyIndex = sv.ModifyIndex
@@ -3310,14 +3280,7 @@ func TestFSM_SnapshotRestore_Variables(t *testing.T) {
 
 	// List the variables from restored state and ensure everything
 	// is as expected.
-	iter, err = restoredState.Variables(memdb.NewWatchSet())
-	require.NoError(t, err)
-
-	var restoredSVs []*structs.VariableEncrypted
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		restoredSVs = append(restoredSVs, raw.(*structs.VariableEncrypted))
-	}
+	restoredSVs := restoredState.Variables(memdb.NewWatchSet()).Slice()
 	require.ElementsMatch(t, restoredSVs, svs)
 }
 
@@ -3378,14 +3341,11 @@ func TestFSM_ApplyACLRolesDeleteByID(t *testing.T) {
 
 	// List all ACL roles within state to ensure both have been removed.
 	ws := memdb.NewWatchSet()
-	iter, err := fsm.State().GetACLRoles(ws)
-	require.NoError(t, err)
-
-	var count int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	count := 0
+	for range fsm.State().GetACLRoles(ws).All() {
 		count++
 	}
-	require.Equal(t, 0, count)
+	must.Eq(t, 0, count)
 }
 
 func TestFSM_ACLEvents(t *testing.T) {

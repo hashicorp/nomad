@@ -2540,31 +2540,12 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 
-	iter, err := store.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID, state.SortDefault)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	getAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
-		var allocs []*structs.Allocation
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			allocs = append(allocs, raw.(*structs.Allocation))
-		}
-		return allocs
-	}
-	out := getAllocs(iter)
-
-	if len(out) != 1 {
-		t.Fatalf("Expected to get one allocation but got:%v", out)
-	}
-
-	if out[0].ModifyTime != now {
-		t.Fatalf("Invalid modify time %v", out[0].ModifyTime)
-	}
+	iter, err := store.AllocsByIDPrefix(
+		nil, structs.DefaultNamespace, alloc.ID, state.SortDefault)
+	must.NoError(t, err)
+	out := iter.Slice()
+	must.Len(t, 1, out)
+	must.Eq(t, now, out[0].ModifyTime)
 
 	// Alloc updates fire watches
 	time.AfterFunc(100*time.Millisecond, func() {

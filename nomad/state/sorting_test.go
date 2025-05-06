@@ -52,16 +52,12 @@ func TestGetSorted(t *testing.T) {
 			})
 
 			// method under test
-			iter, err := getSorted(txn, sort, "jobs", "id")
+			iter, err := GetSorted[*structs.Job](txn, sort, "jobs", "id")
 			must.NoError(t, err)
-
-			got := make([]string, len(jobs))
-			for x, _ := range jobs {
-				raw := iter.Next()
-				job := raw.(*structs.Job)
-				got[x] = job.ID
+			got := make([]string, 0, len(jobs))
+			for job := range iter.All() {
+				got = append(got, job.ID)
 			}
-
 			must.Eq(t, tc.expect, got)
 		})
 	}

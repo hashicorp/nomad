@@ -11,10 +11,9 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
-	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb/v2"
 )
@@ -248,42 +247,14 @@ func (f *FSMHelper) restoreFromSnapshot() (index uint64, term uint64, err error)
 	return 0, 0, nil
 }
 
-func toArray(iter memdb.ResultIterator, err error) []interface{} {
-	if err != nil {
-		return []interface{}{err}
-	}
-
-	r := []interface{}{}
-
-	if iter != nil {
-		item := iter.Next()
-		for item != nil {
-			r = append(r, item)
-			item = iter.Next()
-		}
-	}
-
-	return r
+func toArray[T comparable](iter state.ResultIterator[T]) []any {
+	return helper.ConvertSlice[T, any](iter.Slice(), func(t T) any { return any(t) })
 }
 
 // rootKeyMeta allows displaying keys without their key material
 func rootKeyMeta(store *state.StateStore) []any {
-
-	iter, err := store.RootKeys(nil)
-	if err != nil {
-		return []any{err}
-	}
-
 	keyMeta := []any{}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		k := raw.(*structs.RootKey)
-		if k == nil {
-			break
-		}
+	for k := range store.RootKeys(nil).All() {
 		keyMeta = append(keyMeta, k.Meta())
 	}
 

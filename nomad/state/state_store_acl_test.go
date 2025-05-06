@@ -22,16 +22,6 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	ci.Parallel(t)
 	testState := testStateStore(t)
 
-	// This function provides an easy way to get all tokens out of the
-	// iterator.
-	fromIteratorFunc := func(iter memdb.ResultIterator) []*structs.ACLToken {
-		var tokens []*structs.ACLToken
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			tokens = append(tokens, raw.(*structs.ACLToken))
-		}
-		return tokens
-	}
-
 	// This time is the threshold for all expiry calls to be based on. All
 	// tokens with expiry can use this as their base and use Add().
 	expiryTimeThreshold := time.Date(2022, time.April, 27, 14, 50, 0, 0, time.UTC)
@@ -49,14 +39,12 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	iter, err := testState.ACLTokensByExpired(true)
-	require.NoError(t, err)
-	tokens := fromIteratorFunc(iter)
-	require.Len(t, tokens, 0)
+	must.NoError(t, err)
+	must.Len(t, 0, iter.Slice())
 
 	iter, err = testState.ACLTokensByExpired(false)
-	require.NoError(t, err)
-	tokens = fromIteratorFunc(iter)
-	require.Len(t, tokens, 0)
+	must.NoError(t, err)
+	must.Len(t, 0, iter.Slice())
 
 	// Generate, upsert, and test an expired local token. This token expired
 	// long ago and therefore before all others coming in the tests. It should
@@ -65,13 +53,13 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	expiredLocalToken.ExpirationTime = pointer.Of(expiryTimeThreshold.Add(-48 * time.Hour))
 
 	err = testState.UpsertACLTokens(structs.MsgTypeTestSetup, 20, []*structs.ACLToken{expiredLocalToken})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	iter, err = testState.ACLTokensByExpired(false)
-	require.NoError(t, err)
-	tokens = fromIteratorFunc(iter)
-	require.Len(t, tokens, 1)
-	require.Equal(t, expiredLocalToken.AccessorID, tokens[0].AccessorID)
+	must.NoError(t, err)
+	tokens := iter.Slice()
+	must.Len(t, 1, tokens)
+	must.Eq(t, expiredLocalToken.AccessorID, tokens[0].AccessorID)
 
 	// Generate, upsert, and test an expired global token. This token expired
 	// long ago and therefore before all others coming in the tests. It should
@@ -84,10 +72,10 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 	require.NoError(t, err)
 
 	iter, err = testState.ACLTokensByExpired(true)
-	require.NoError(t, err)
-	tokens = fromIteratorFunc(iter)
-	require.Len(t, tokens, 1)
-	require.Equal(t, expiredGlobalToken.AccessorID, tokens[0].AccessorID)
+	must.NoError(t, err)
+	tokens = iter.Slice()
+	must.Len(t, 1, tokens)
+	must.Eq(t, expiredGlobalToken.AccessorID, tokens[0].AccessorID)
 
 	// This test function allows us to run the same test for local and global
 	// tokens.
@@ -118,9 +106,9 @@ func TestStateStore_ACLTokensByExpired(t *testing.T) {
 		// Check the full listing works as expected as the first 11 elements
 		// should all be our expired tokens. Ensure our oldest expired token is
 		// first in the list.
-		iter, err = testState.ACLTokensByExpired(global)
-		require.NoError(t, err)
-		tokens = fromIteratorFunc(iter)
+		iter, err := testState.ACLTokensByExpired(global)
+		must.NoError(t, err)
+		tokens := iter.Slice()
 		require.ElementsMatch(t, expiredTokens, tokens[:11])
 		require.Equal(t, tokens[0], oldToken)
 	}
@@ -185,18 +173,16 @@ func TestStateStore_UpsertACLRoles(t *testing.T) {
 	// List all the ACL roles in the table, so we can perform a number of tests
 	// on the return array.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLRoles(ws)
-	require.NoError(t, err)
+	iter := testState.GetACLRoles(ws)
 
 	// Count how many table entries we have, to ensure it is the expected
 	// number.
 	var count int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for aclRole := range iter.All() {
 		count++
 
 		// Ensure the create and modify indexes are populated correctly.
-		aclRole := raw.(*structs.ACLRole)
 		must.Eq(t, 20, aclRole.CreateIndex)
 		must.Eq(t, 20, aclRole.ModifyIndex)
 	}
@@ -223,18 +209,16 @@ func TestStateStore_UpsertACLRoles(t *testing.T) {
 	must.Eq(t, 30, updatedIndex)
 
 	// List the ACL roles in state.
-	iter, err = testState.GetACLRoles(ws)
-	require.NoError(t, err)
+	iter = testState.GetACLRoles(ws)
 
 	// Count how many table entries we have, to ensure it is the expected
 	// number.
 	count = 0
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for aclRole := range iter.All() {
 		count++
 
 		// Ensure the create and modify indexes are populated correctly.
-		aclRole := raw.(*structs.ACLRole)
 		must.Eq(t, 20, aclRole.CreateIndex)
 		must.Eq(t, 30, aclRole.ModifyIndex)
 	}
@@ -328,15 +312,7 @@ func TestStateStore_DeleteACLRolesByID(t *testing.T) {
 	// List the ACL roles and ensure we now only have one present and that it
 	// is the one we expect.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLRoles(ws)
-	require.NoError(t, err)
-
-	var aclRoles []*structs.ACLRole
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclRoles = append(aclRoles, raw.(*structs.ACLRole))
-	}
-
+	aclRoles := testState.GetACLRoles(ws).Slice()
 	require.Len(t, aclRoles, 1, "incorrect number of ACL roles found")
 	require.True(t, aclRoles[0].Equal(mockedACLRoles[1]))
 
@@ -350,14 +326,7 @@ func TestStateStore_DeleteACLRolesByID(t *testing.T) {
 	must.Eq(t, 30, tableIndex)
 
 	// List the ACL roles and ensure we have zero entries.
-	iter, err = testState.GetACLRoles(ws)
-	require.NoError(t, err)
-
-	aclRoles = []*structs.ACLRole{}
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclRoles = append(aclRoles, raw.(*structs.ACLRole))
-	}
+	aclRoles = testState.GetACLRoles(ws).Slice()
 	require.Len(t, aclRoles, 0, "incorrect number of ACL roles found")
 }
 
@@ -381,14 +350,7 @@ func TestStateStore_GetACLRoles(t *testing.T) {
 
 	// List the ACL roles and ensure they are exactly as we expect.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLRoles(ws)
-	require.NoError(t, err)
-
-	var aclRoles []*structs.ACLRole
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclRoles = append(aclRoles, raw.(*structs.ACLRole))
-	}
+	aclRoles := testState.GetACLRoles(ws).Slice()
 
 	expected := mockedACLRoles
 	for i := range expected {
@@ -493,24 +455,14 @@ func TestStateStore_GetACLRoleByIDPrefix(t *testing.T) {
 	ws := memdb.NewWatchSet()
 
 	// Try using a prefix that doesn't match any entries.
-	iter, err := testState.GetACLRoleByIDPrefix(ws, "nope")
-	require.NoError(t, err)
-
-	var aclRoles []*structs.ACLRole
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclRoles = append(aclRoles, raw.(*structs.ACLRole))
-	}
-	require.Len(t, aclRoles, 0)
+	aclRoles, err := testState.GetACLRoleByIDPrefix(ws, "nope")
+	must.NoError(t, err)
+	must.Len(t, 0, aclRoles.Slice())
 
 	// Use a prefix which should match two entries in state.
-	iter, err = testState.GetACLRoleByIDPrefix(ws, "test-prefix-")
-	require.NoError(t, err)
-
-	aclRoles = []*structs.ACLRole{}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclRoles = append(aclRoles, raw.(*structs.ACLRole))
-	}
-	require.Len(t, aclRoles, 2)
+	aclRoles, err = testState.GetACLRoleByIDPrefix(ws, "test-prefix-")
+	must.NoError(t, err)
+	must.Len(t, 2, aclRoles.Slice())
 }
 
 func TestStateStore_fixTokenRoleLinks(t *testing.T) {

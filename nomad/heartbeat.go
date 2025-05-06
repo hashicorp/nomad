@@ -65,21 +65,12 @@ func (h *nodeHeartbeater) initializeHeartbeatTimers() error {
 
 	// Get an iterator over nodes
 	ws := memdb.NewWatchSet()
-	iter, err := snap.Nodes(ws)
-	if err != nil {
-		return err
-	}
+	iter := snap.Nodes(ws)
 
 	h.heartbeatTimersLock.Lock()
 	defer h.heartbeatTimersLock.Unlock()
 
-	// Handle each node
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		node := raw.(*structs.Node)
+	for node := range iter.All() {
 		if node.TerminalStatus() {
 			continue
 		}
@@ -196,7 +187,7 @@ func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
 
 	allocs, err := h.srv.State().AllocsByNode(nil, id)
 	if err != nil {
-		h.logger.Error("error retrieving allocs by node", "error", err)
+		// TODO(tgross): impossible node ID?
 		return false, false
 	}
 
@@ -205,7 +196,7 @@ func (h *nodeHeartbeater) disconnectState(id string) (bool, bool) {
 	// that are past the disconnect window, and if so, whether it has at least one
 	// alloc that isn't yet expired.
 	nodeCanDisconnect := false
-	for _, alloc := range allocs {
+	for alloc := range allocs.All() {
 		allocCanDisconnect := alloc.DisconnectTimeout(now).After(now)
 		// Only process this until we find that at least one alloc is configured
 		// with max_client_disconnect.

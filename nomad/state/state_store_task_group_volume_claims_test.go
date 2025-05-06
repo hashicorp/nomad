@@ -52,15 +52,13 @@ func TestStateStore_UpsertTaskGroupHostVolumeClaim(t *testing.T) {
 
 	// List all the claims in the table and check the count
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetTaskGroupHostVolumeClaims(ws)
-	must.NoError(t, err)
+	iter := testState.GetTaskGroupHostVolumeClaims(ws)
 
 	var count int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for claim := range iter.All() {
 		count++
 
 		// Ensure the create and modify indexes are populated correctly.
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
 		must.Eq(t, 10, claim.CreateIndex)
 		must.Eq(t, 10, claim.ModifyIndex)
 	}
@@ -71,15 +69,14 @@ func TestStateStore_UpsertTaskGroupHostVolumeClaim(t *testing.T) {
 	must.NoError(t, testState.UpsertTaskGroupHostVolumeClaim(structs.MsgTypeTestSetup, 10, anotherClaim))
 
 	// List all the claims in the table and check the count
-	iter, err = testState.GetTaskGroupHostVolumeClaims(ws)
+	iter = testState.GetTaskGroupHostVolumeClaims(ws)
 	must.NoError(t, err)
 
 	count = 0
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for claim := range iter.All() {
 		count++
 
 		// Ensure the create and modify indexes are populated correctly.
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
 		must.Eq(t, 10, claim.CreateIndex)
 		must.Eq(t, 10, claim.ModifyIndex)
 	}
@@ -130,59 +127,42 @@ func TestStateStore_TaskGroupHostVolumeClaimsByFields(t *testing.T) {
 
 	// List all the claims in the table and check the count
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetTaskGroupHostVolumeClaims(ws)
-	must.NoError(t, err)
+	iter := testState.GetTaskGroupHostVolumeClaims(ws)
 
 	var count int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		count++
 	}
 	must.Eq(t, 3, count)
 
 	// Get all claims for foo tg, must be exactly 2
-	iter, err = testState.TaskGroupHostVolumeClaimsByFields(ws, TgvcSearchableFields{TaskGroupName: "foo tg"})
+	iter = testState.TaskGroupHostVolumeClaimsByFields(ws, TgvcSearchableFields{TaskGroupName: "foo tg"})
 	must.NoError(t, err)
 
-	foundClaims := []*structs.TaskGroupHostVolumeClaim{}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
-		foundClaims = append(foundClaims, claim)
-	}
+	foundClaims := iter.Slice()
 	must.SliceLen(t, 2, foundClaims)
 	must.Eq(t, claims[0].ID, foundClaims[0].ID)
 	must.Eq(t, claims[1].ID, foundClaims[1].ID)
 
 	// Get all claims for foo job and default ns, must be exactly 1
-	iter, err = testState.TaskGroupHostVolumeClaimsByFields(ws, TgvcSearchableFields{Namespace: structs.DefaultNamespace, JobID: "foo job"})
+	iter = testState.TaskGroupHostVolumeClaimsByFields(ws, TgvcSearchableFields{Namespace: structs.DefaultNamespace, JobID: "foo job"})
 	must.NoError(t, err)
 
-	foundClaims = []*structs.TaskGroupHostVolumeClaim{}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
-		foundClaims = append(foundClaims, claim)
-	}
+	foundClaims = iter.Slice()
 	must.SliceLen(t, 1, foundClaims)
 	must.Eq(t, claims[0].ID, foundClaims[0].ID)
 
 	// Get all claims for bar ns and bar vol, should be none
-	iter, err = testState.TaskGroupHostVolumeClaimsByFields(ws, TgvcSearchableFields{Namespace: "bar namespace", VolumeName: "bar volume"})
+	iter = testState.TaskGroupHostVolumeClaimsByFields(ws, TgvcSearchableFields{Namespace: "bar namespace", VolumeName: "bar volume"})
 	must.NoError(t, err)
 
-	foundClaims = []*structs.TaskGroupHostVolumeClaim{}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
-		foundClaims = append(foundClaims, claim)
-	}
+	foundClaims = iter.Slice()
 	must.SliceLen(t, 0, foundClaims)
 
 	// Get all claims for foo volume and wildcard ns, must be exactly 3
-	iter, err = testState.TaskGroupHostVolumeClaimsByFields(ws, TgvcSearchableFields{Namespace: structs.AllNamespacesSentinel, VolumeName: "foo volume"})
+	iter = testState.TaskGroupHostVolumeClaimsByFields(ws, TgvcSearchableFields{Namespace: structs.AllNamespacesSentinel, VolumeName: "foo volume"})
 	must.NoError(t, err)
 
-	foundClaims = []*structs.TaskGroupHostVolumeClaim{}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
-		foundClaims = append(foundClaims, claim)
-	}
+	foundClaims = iter.Slice()
 	must.SliceLen(t, 3, foundClaims)
 }

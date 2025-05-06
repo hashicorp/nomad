@@ -1577,14 +1577,8 @@ func TestEvalBroker_IntegrationTest(t *testing.T) {
 	getEvalStatuses := func() map[string]int {
 		t.Helper()
 		statuses := map[string]int{}
-		iter, err := store.Evals(nil, state.SortDefault)
-		must.NoError(t, err)
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			eval := raw.(*structs.Evaluation)
+		iter := store.Evals(nil, state.SortDefault)
+		for eval := range iter.All() {
 			statuses[eval.Status] += 1
 			if eval.Status == structs.EvalStatusCancelled {
 				must.Eq(t, "canceled after more recent eval was processed", eval.StatusDescription)

@@ -1262,13 +1262,11 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
-			// Look for the job
 			out, err := state.JobVersionsByID(ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
-				return err
+				return structs.NewErrRPCCoded(400, err.Error())
 			}
 
-			// Setup the output
 			reply.Versions = out
 			if len(out) != 0 {
 
@@ -1281,7 +1279,7 @@ func (j *Job) GetJobVersions(args *structs.JobVersionsRequest,
 						compareSpecificVersion = true
 						compareVersion, err = state.JobVersionByTagName(ws, args.RequestNamespace(), args.JobID, args.DiffTagName)
 						if err != nil {
-							return fmt.Errorf("error looking up job version by tag: %v", err)
+							return structs.NewErrRPCCoded(400, err.Error())
 						}
 						if compareVersion == nil {
 							return fmt.Errorf("tag %q not found", args.DiffTagName)
@@ -1361,12 +1359,7 @@ func allowedNSes(aclObj *acl.ACL, state *state.StateStore, allow func(ns string)
 		return nil, nil
 	}
 
-	// namespaces
-	nses, err := state.NamespaceNames()
-	if err != nil {
-		return nil, err
-	}
-
+	nses := state.NamespaceNames()
 	r := make(map[string]bool, len(nses))
 
 	for _, ns := range nses {
@@ -1428,13 +1421,13 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 	opts := blockingOptions{
 		queryOpts: &args.QueryOptions,
 		queryMeta: &reply.QueryMeta,
-		run: func(ws memdb.WatchSet, state *state.StateStore) error {
+		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Capture all the jobs
 			var err error
-			var iter memdb.ResultIterator
+			var iter state.ResultIterator[*structs.Job]
 
 			// Get the namespaces the user is allowed to access.
-			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
+			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
 			if err == structs.ErrPermissionDenied {
 				// return empty jobs if token isn't authorized for any
 				// namespace, matching other endpoints
@@ -1443,18 +1436,18 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 				return err
 			} else {
 				if prefix := args.QueryOptions.Prefix; prefix != "" {
-					iter, err = state.JobsByIDPrefix(ws, namespace, prefix, sort)
+					iter, err = store.JobsByIDPrefix(ws, namespace, prefix, sort)
 				} else if namespace != structs.AllNamespacesSentinel {
-					iter, err = state.JobsByNamespace(ws, namespace, sort)
+					iter, err = store.JobsByNamespace(ws, namespace, sort)
 				} else {
-					iter, err = state.Jobs(ws, sort)
+					iter = store.Jobs(ws, sort)
 				}
 				if err != nil {
-					return err
+					return structs.NewErrRPCCoded(400, err.Error())
 				}
 
 				stubFn := func(job *structs.Job) (*structs.JobListStub, error) {
-					summary, err := state.JobSummaryByID(ws, job.Namespace, job.ID)
+					summary, err := store.JobSummaryByID(ws, job.Namespace, job.ID)
 					if err != nil || summary == nil {
 						return nil, fmt.Errorf("unable to look up summary for job: %v", job.ID)
 					}
@@ -1481,11 +1474,11 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 			}
 
 			// Use the last index that affected the jobs table or summary
-			jindex, err := state.Index("jobs")
+			jindex, err := store.Index("jobs")
 			if err != nil {
 				return err
 			}
-			sindex, err := state.Index("job_summary")
+			sindex, err := store.Index("job_summary")
 			if err != nil {
 				return err
 			}
@@ -2051,20 +2044,11 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 		// Fetch all jobs that match the parameterized job ID prefix
 		iter, err := snap.JobsByIDPrefix(ws, parameterizedJob.Namespace, parameterizedJob.ID, state.SortDefault)
 		if err != nil {
-			const errMsg = "failed to retrieve jobs for idempotency check"
-			j.logger.Error(errMsg, "error", err)
-			return fmt.Errorf(errMsg)
+			return structs.NewErrRPCCoded(400, err.Error())
 		}
 
-		// Iterate
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-
+		for existingJob := range iter.All() {
 			// Ensure the parent ID is an exact match
-			existingJob := raw.(*structs.Job)
 			if existingJob.ParentID != parameterizedJob.ID {
 				continue
 			}
@@ -2395,21 +2379,12 @@ func (j *Job) GetServiceRegistrations(
 				return nil
 			}
 
-			// Perform the state query to get an iterator.
-			iter, err := stateStore.GetServiceRegistrationsByJobID(ws, args.RequestNamespace(), args.JobID)
+			services, err := stateStore.GetServiceRegistrationsByJobID(
+				ws, args.RequestNamespace(), args.JobID)
 			if err != nil {
-				return err
+				return structs.NewErrRPCCoded(400, err.Error())
 			}
-
-			// Set up our output after we have checked the error.
-			services := make([]*structs.ServiceRegistration, 0)
-
-			// Iterate the iterator, appending all service registrations
-			// returned to the reply.
-			for raw := iter.Next(); raw != nil; raw = iter.Next() {
-				services = append(services, raw.(*structs.ServiceRegistration))
-			}
-			reply.Services = services
+			reply.Services = services.Slice()
 
 			// Use the index table to populate the query meta as we have no way
 			// of tracking the max index on deletes.

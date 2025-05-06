@@ -66,8 +66,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		must.Eq(t, insertIndex, initialIndex)
 
 		// List all the variables in the table
-		got, err := getAllVariables(testState, ws)
-		must.NoError(t, err)
+		got := getAllVariables(testState, ws)
 		must.Len(t, 2, got, must.Sprintf("incorrect number of variables found"))
 
 		// Ensure the create and modify indexes are populated correctly.
@@ -142,8 +141,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		must.Eq(t, update1Index, updateActualIndex, must.Sprintf("index should have changed"))
 
 		// Iterate all the stored variables and assert indexes have been updated as expected
-		got, err := getAllVariables(testState, ws)
-		must.NoError(t, err)
+		got := getAllVariables(testState, ws)
 		must.Len(t, 2, got)
 		must.Eq(t, update1Index, got[0].ModifyIndex)
 		must.Eq(t, insertIndex, got[1].ModifyIndex)
@@ -177,14 +175,12 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		must.Eq(t, update2Index, update2ActualIndex, must.Sprintf("index should have changed"))
 
 		// Get the variables from the table.
-		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
+		iter := testState.Variables(ws)
 
 		got := []structs.VariableEncrypted{}
 
 		// Iterate all the stored variables and assert indexes have been updated as expected
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			sv := raw.(*structs.VariableEncrypted)
+		for sv := range iter.All() {
 			got = append(got, sv.Copy())
 		}
 		must.Len(t, 2, got)
@@ -256,8 +252,7 @@ func TestStateStore_UpsertVariables(t *testing.T) {
 		must.Eq(t, update4Index, updateActualIndex, must.Sprintf("index should have changed"))
 
 		// Iterate all the stored variables and assert indexes have been updated as expected
-		got, err := getAllVariables(testState, ws)
-		must.NoError(t, err)
+		got := getAllVariables(testState, ws)
 		must.Len(t, 2, got)
 		must.Eq(t, update4Index, got[0].ModifyIndex)
 	})
@@ -329,17 +324,15 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 		ws := memdb.NewWatchSet()
 
 		// Get the variables from the table.
-		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
+		iter := testState.Variables(ws)
 
 		var delete1Count int
 		var expectedQuotaSize int64
 
 		// Iterate all the stored variables and assert we have the expected
 		// number.
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		for v := range iter.All() {
 			delete1Count++
-			v := raw.(*structs.VariableEncrypted)
 			expectedQuotaSize += int64(len(v.Data))
 		}
 		must.Eq(t, 1, delete1Count, must.Sprintf("unexpected number of variables in table"))
@@ -381,8 +374,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, acquireIndex, failedDeleteIndex)
 
-		svs, err := getAllVariables(testState, ws)
-		must.NoError(t, err)
+		svs := getAllVariables(testState, ws)
 		must.One(t, len(svs))
 
 		// Release lock
@@ -400,8 +392,7 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 		must.NoError(t, err)
 		must.True(t, resp3.IsOk())
 
-		svs, err = getAllVariables(testState, ws)
-		must.NoError(t, err)
+		svs = getAllVariables(testState, ws)
 		must.One(t, len(svs))
 
 	})
@@ -422,13 +413,12 @@ func TestStateStore_DeleteVariable(t *testing.T) {
 
 		// Get the variables from the table.
 		ws := memdb.NewWatchSet()
-		iter, err := testState.Variables(ws)
-		must.NoError(t, err)
+		iter := testState.Variables(ws)
 
 		var delete2Count int
 
 		// Ensure the table is empty.
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
+		for range iter.All() {
 			delete2Count++
 		}
 		must.Eq(t, 0, delete2Count, must.Sprintf("unexpected number of variables in table"))
@@ -474,8 +464,7 @@ func TestStateStore_GetVariables(t *testing.T) {
 
 	var count1 int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		sv := raw.(*structs.VariableEncrypted)
+	for sv := range iter.All() {
 		must.Eq(t, svs[0].Namespace, sv.Namespace)
 		must.Eq(t, 11, sv.CreateIndex, must.Sprintf("%s incorrect create index", sv.Path))
 		must.Eq(t, 11, sv.ModifyIndex, must.Sprintf("%s incorrect modify index", sv.Path))
@@ -490,9 +479,8 @@ func TestStateStore_GetVariables(t *testing.T) {
 
 	var count2 int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for sv := range iter.All() {
 		count2++
-		sv := raw.(*structs.VariableEncrypted)
 		must.Eq(t, initialIndex, sv.CreateIndex, must.Sprintf("%s incorrect create index", sv.Path))
 		must.Eq(t, initialIndex, sv.ModifyIndex, must.Sprintf("%s incorrect modify index", sv.Path))
 		must.Eq(t, svs[1].Namespace, sv.Namespace)
@@ -503,10 +491,8 @@ func TestStateStore_GetVariables(t *testing.T) {
 	// variables.
 	iter, err = testState.GetVariablesByNamespace(ws, "pony-club")
 	must.NoError(t, err)
-
 	var count3 int
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for range iter.All() {
 		count3++
 	}
 	must.Eq(t, 0, count3)
@@ -518,7 +504,7 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 
 	// Generate some test variables and upsert them.
 	svs := []*structs.VariableEncrypted{}
-	for i := 0; i < 6; i++ {
+	for range 6 {
 		sv := mock.VariableEncrypted()
 		svs = append(svs, sv)
 	}
@@ -557,7 +543,7 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 			{
 				desc:          "default",
 				namespace:     "default",
-				expectedCount: 2,
+				expectedCount: 3,
 			},
 			{
 				desc:          "other",
@@ -576,13 +562,12 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 			t.Run(tC.desc, func(t *testing.T) {
 				iter, err := testState.GetVariablesByNamespace(ws, tC.namespace)
 				must.NoError(t, err)
-
 				var count int = 0
-				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				for sv := range iter.All() {
 					count++
-					sv := raw.(*structs.VariableEncrypted)
 					must.Eq(t, tC.namespace, sv.Namespace)
 				}
+				must.Eq(t, tC.expectedCount, count)
 			})
 		}
 	})
@@ -631,11 +616,9 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 			t.Run(tC.desc, func(t *testing.T) {
 				iter, err := testState.GetVariablesByNamespaceAndPrefix(ws, tC.namespace, tC.prefix)
 				must.NoError(t, err)
-
 				var count int = 0
-				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				for sv := range iter.All() {
 					count++
-					sv := raw.(*structs.VariableEncrypted)
 					must.Eq(t, tC.namespace, sv.Namespace)
 					must.True(t, strings.HasPrefix(sv.Path, tC.prefix))
 				}
@@ -672,11 +655,9 @@ func TestStateStore_ListVariablesByNamespaceAndPrefix(t *testing.T) {
 			t.Run(tC.desc, func(t *testing.T) {
 				iter, err := testState.GetVariablesByPrefix(ws, tC.prefix)
 				must.NoError(t, err)
-
 				var count int = 0
-				for raw := iter.Next(); raw != nil; raw = iter.Next() {
+				for sv := range iter.All() {
 					count++
-					sv := raw.(*structs.VariableEncrypted)
 					must.True(t, strings.HasPrefix(sv.Path, tC.prefix))
 				}
 				must.Eq(t, tC.expectedCount, count)
@@ -725,8 +706,7 @@ func TestStateStore_ListVariablesByKeyID(t *testing.T) {
 	must.NoError(t, err)
 
 	var count int
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		sv := raw.(*structs.VariableEncrypted)
+	for sv := range iter.All() {
 		must.Eq(t, keyID, sv.KeyID)
 		must.Eq(t, expectedForKey[count], sv.Path)
 		must.SliceNotContains(t, expectedOrphaned, sv.Path)
@@ -894,8 +874,7 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 
 	insertIndex := uint64(20)
 
-	allVars, err := getAllVariables(testState, ws)
-	must.NoError(t, err)
+	allVars := getAllVariables(testState, ws)
 
 	t.Run("1 lock on missing variable", func(t *testing.T) {
 		/* Attempt to acquire the lock on a variable that doesn't exist. */
@@ -912,7 +891,7 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 		must.NoError(t, err)
 		must.Eq(t, insertIndex, initialIndex)
 
-		got, err := getAllVariables(testState, ws)
+		got := getAllVariables(testState, ws)
 		must.Eq(t, len(allVars)+1, len(got), must.Sprintf("incorrect number of variables found"))
 
 		// Ensure the create and modify indexes are populated correctly.
@@ -946,7 +925,7 @@ func TestStateStore_AcquireAndReleaseLock(t *testing.T) {
 	})
 	t.Run("3 release lock", func(t *testing.T) {
 		/*  Test to release the lock  */
-		allVars, err := getAllVariables(testState, ws)
+		allVars := getAllVariables(testState, ws)
 		releaseIndex := uint64(40)
 		resp := testState.VarLockRelease(releaseIndex,
 			&structs.VarApplyStateRequest{
@@ -1201,20 +1180,16 @@ func TestStateStore_Release(t *testing.T) {
 	}
 }
 
-func getAllVariables(ss *StateStore, ws memdb.WatchSet) ([]*structs.VariableEncrypted, error) {
-	// List all the variables in the table
-	iter, err := ss.Variables(ws)
-	if err != nil {
-		return []*structs.VariableEncrypted{}, err
-	}
-
+// getAllVariables is a helper to copy variables we return, so that we can
+// safely mutate them in following tests
+func getAllVariables(ss *StateStore, ws memdb.WatchSet) []*structs.VariableEncrypted {
+	iter := ss.Variables(ws)
 	got := []*structs.VariableEncrypted{}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		sv := raw.(*structs.VariableEncrypted)
+	for sv := range iter.All() {
 		var svCopy structs.VariableEncrypted
 		svCopy = sv.Copy()
 		got = append(got, &svCopy)
 	}
 
-	return got, nil
+	return got
 }
