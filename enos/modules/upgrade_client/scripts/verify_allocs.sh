@@ -48,7 +48,6 @@ done
 
 echo "Client $client_id at $CLIENT_IP is ready"
 
-
 allocs_count=$(echo $ALLOCS |jq '[ .[] | select(.ClientStatus == "running")] | length')
 echo "$allocs_count allocs found before upgrade $ALLOCS"
 
