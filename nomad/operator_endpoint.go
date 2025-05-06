@@ -766,8 +766,7 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	}
 
 	jobs := []*structs.JobListStub{}
-	for raw := jobsIter.Next(); raw != nil; raw = jobsIter.Next() {
-		job := raw.(*structs.Job)
+	for job := range jobsIter.All() {
 
 	TG_LOOP:
 		for _, tg := range job.TaskGroups {
@@ -799,9 +798,7 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(
 	}
 
 	nodes := []*structs.NodeListStub{}
-	for raw := nodesIter.Next(); raw != nil; raw = nodesIter.Next() {
-		node := raw.(*structs.Node)
-
+	for node := range nodesIter.All() {
 		v, err := version.NewVersion(node.Attributes["nomad.version"])
 		if err != nil || v.LessThan(structs.MinNomadVersionVaultWID) {
 			nodes = append(nodes, node.Stub(nil))

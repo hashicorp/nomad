@@ -218,13 +218,7 @@ func (n *Namespace) namespaceTerminalJobsLocally(namespace string, snap *state.S
 	if err != nil {
 		return false, err
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		job := raw.(*structs.Job)
+	for job := range iter.All() {
 		if job.Status != structs.JobStatusDead {
 			return false, nil
 		}
@@ -240,13 +234,7 @@ func (n *Namespace) namespaceTerminalAllocsLocally(namespace string, snap *state
 	if err != nil {
 		return false, err
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		alloc := raw.(*structs.Allocation)
+	for alloc := range iter.All() {
 		if !alloc.ClientTerminalStatus() {
 			return false, nil
 		}
@@ -262,13 +250,7 @@ func (n *Namespace) namespaceNoAssociatedVolumesLocally(namespace string, snap *
 	if err != nil {
 		return false, err
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		vol := raw.(*structs.CSIVolume)
+	for vol := range iter.All() {
 		if vol.Namespace == namespace {
 			return false, nil
 		}
@@ -285,13 +267,7 @@ func (n *Namespace) namespaceNoAssociatedVarsLocally(namespace string, snap *sta
 	if err != nil {
 		return false, err
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		v := raw.(*structs.VariableEncrypted)
+	for v := range iter.All() {
 		if v.VariableMetadata.Namespace == namespace {
 			return false, nil
 		}
@@ -452,7 +428,7 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 		run: func(ws memdb.WatchSet, s *state.StateStore) error {
 			// Iterate over all the namespaces
 			var err error
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Namespace]
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = s.NamespacesByNamePrefix(ws, prefix)
 			} else {
@@ -463,12 +439,7 @@ func (n *Namespace) ListNamespaces(args *structs.NamespaceListRequest, reply *st
 			}
 
 			reply.Namespaces = nil
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-				ns := raw.(*structs.Namespace)
+			for ns := range iter.All() {
 
 				// Only return namespaces allowed by acl
 				if aclObj.AllowNamespace(ns.Name) {

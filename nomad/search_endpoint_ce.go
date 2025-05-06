@@ -47,7 +47,7 @@ func getEnterpriseResourceIter(context structs.Context, _ *acl.ACL, namespace, p
 
 // getEnterpriseFuzzyResourceIter is used to retrieve an iterator over an enterprise
 // only table.
-func getEnterpriseFuzzyResourceIter(context structs.Context, _ *acl.ACL, _ string, _ memdb.WatchSet, _ *state.StateStore) (memdb.ResultIterator, error) {
+func getEnterpriseFuzzyResourceIter[T comparable](context structs.Context, _ *acl.ACL, _ string, _ memdb.WatchSet, _ *state.StateStore) (memdb.TableResultIterator[T], error) {
 	return nil, fmt.Errorf("context must be one of %v or 'all' for all contexts; got %q", allContexts, context)
 }
 

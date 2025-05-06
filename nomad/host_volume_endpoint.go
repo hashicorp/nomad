@@ -115,7 +115,7 @@ func (v *HostVolume) List(args *structs.HostVolumeListRequest, reply *structs.Ho
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.HostVolume]
 			var err error
 
 			switch {
@@ -524,7 +524,7 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		return nil, err
 	}
 
-	var iter memdb.ResultIterator
+	var iter memdb.TableResultIterator[*structs.Node]
 	if vol.NodePool != "" {
 		if !poolFilterFn(vol.NodePool) {
 			return nil, fmt.Errorf("namespace %q does not allow volumes to use node pool %q",
@@ -557,12 +557,7 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		filteredByFeasibility int
 	)
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		candidate := raw.(*structs.Node)
+	for candidate := range iter.All() {
 
 		// note: this is a race if multiple users create volumes of the same
 		// name concurrently, but we can't completely solve it on the server

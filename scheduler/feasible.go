@@ -171,8 +171,7 @@ func (h *HostVolumeChecker) SetVolumes(allocName, ns, jobID, taskGroupName strin
 		TaskGroupName: taskGroupName,
 	})
 
-	for raw := storedClaims.Next(); raw != nil; raw = storedClaims.Next() {
-		claim := raw.(*structs.TaskGroupHostVolumeClaim)
+	for claim := range storedClaims.All() {
 		h.claims = append(h.claims, claim)
 	}
 
@@ -422,15 +421,7 @@ func (c *CSIVolumeChecker) isFeasible(n *structs.Node) (bool, string) {
 	if err != nil {
 		return false, FilterConstraintCSIVolumesLookupFailed
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		vol, ok := raw.(*structs.CSIVolume)
-		if !ok {
-			continue
-		}
+	for vol := range iter.All() {
 		pluginCount[vol.PluginID] += 1
 	}
 

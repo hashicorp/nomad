@@ -235,13 +235,7 @@ func (w *nodeDrainWatcher) getNodesImpl(ws memdb.WatchSet, state *state.StateSto
 	}
 
 	resp := make(map[string]*structs.Node, 64)
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		node := raw.(*structs.Node)
+	for node := range iter.All() {
 		resp[node.ID] = node
 	}
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -197,22 +198,22 @@ func (f *FSMHelper) StateAsMap() map[string][]interface{} {
 // StateAsMap returns a json-able representation of the state
 func StateAsMap(store *state.StateStore) map[string][]interface{} {
 	result := map[string][]interface{}{
-		"ACLPolicies":      toArray(store.ACLPolicies(nil)),
+		"ACLPolicies":      toArrayOld(store.ACLPolicies(nil)),
 		"ACLTokens":        toArray(store.ACLTokens(nil, state.SortDefault)),
 		"Allocs":           toArray(store.Allocs(nil, state.SortDefault)),
 		"CSIPlugins":       toArray(store.CSIPlugins(nil)),
 		"CSIVolumes":       toArray(store.CSIVolumes(nil)),
 		"Deployments":      toArray(store.Deployments(nil, state.SortDefault)),
 		"Evals":            toArray(store.Evals(nil, state.SortDefault)),
-		"Indexes":          toArray(store.Indexes()),
-		"JobSummaries":     toArray(store.JobSummaries(nil)),
+		"Indexes":          toArrayOld(store.Indexes()),
+		"JobSummaries":     toArrayOld(store.JobSummaries(nil)),
 		"JobVersions":      toArray(store.JobVersions(nil)),
 		"Jobs":             toArray(store.Jobs(nil, state.SortDefault)),
 		"Nodes":            toArray(store.Nodes(nil)),
-		"PeriodicLaunches": toArray(store.PeriodicLaunches(nil)),
+		"PeriodicLaunches": toArrayOld(store.PeriodicLaunches(nil)),
 		"RootKeys":         rootKeyMeta(store),
-		"ScalingEvents":    toArray(store.ScalingEvents(nil)),
-		"ScalingPolicies":  toArray(store.ScalingPolicies(nil)),
+		"ScalingEvents":    toArrayOld(store.ScalingEvents(nil)),
+		"ScalingPolicies":  toArrayOld(store.ScalingPolicies(nil)),
 	}
 
 	insertEnterpriseState(result, store)
@@ -248,7 +249,11 @@ func (f *FSMHelper) restoreFromSnapshot() (index uint64, term uint64, err error)
 	return 0, 0, nil
 }
 
-func toArray(iter memdb.ResultIterator, err error) []interface{} {
+func toArray[T comparable](iter memdb.TableResultIterator[T], _ error) []any {
+	return helper.ConvertSlice[T, any](iter.Slice(), func(t T) any { return any(t) })
+}
+
+func toArrayOld(iter memdb.ResultIterator, err error) []interface{} {
 	if err != nil {
 		return []interface{}{err}
 	}

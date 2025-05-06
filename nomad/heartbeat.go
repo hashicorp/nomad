@@ -73,13 +73,7 @@ func (h *nodeHeartbeater) initializeHeartbeatTimers() error {
 	h.heartbeatTimersLock.Lock()
 	defer h.heartbeatTimersLock.Unlock()
 
-	// Handle each node
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		node := raw.(*structs.Node)
+	for node := range iter.All() {
 		if node.TerminalStatus() {
 			continue
 		}

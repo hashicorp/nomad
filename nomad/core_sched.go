@@ -146,9 +146,7 @@ func (c *CoreScheduler) jobGC(eval *structs.Evaluation, customThreshold *time.Du
 	var gcJob []*structs.Job
 
 OUTER:
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		job := i.(*structs.Job)
-
+	for job := range iter.All() {
 		// Ignore new jobs.
 		st := time.Unix(0, job.SubmitTime)
 		if st.After(cutoffTime) {
@@ -290,9 +288,7 @@ func (c *CoreScheduler) evalGC(customThreshold *time.Duration) error {
 
 	// Collect the allocations and evaluations to GC
 	var gcAlloc, gcEval []string
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		eval := raw.(*structs.Evaluation)
-
+	for eval := range iter.All() {
 		gcCutoffTime := cutoffTime
 		if eval.Type == structs.JobTypeBatch {
 			gcCutoffTime = batchCutoffTime
@@ -483,12 +479,7 @@ func (c *CoreScheduler) nodeGC(eval *structs.Evaluation, customThreshold *time.D
 	// Collect the nodes to GC
 	var gcNode []string
 OUTER:
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		node := raw.(*structs.Node)
+	for node := range iter.All() {
 
 		// Ignore non-terminal and new nodes
 		st := time.Unix(node.StatusUpdatedAt, 0)
@@ -588,12 +579,7 @@ func (c *CoreScheduler) deploymentGC(customThreshold *time.Duration) error {
 	var gcDeployment []string
 
 OUTER:
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		deploy := raw.(*structs.Deployment)
+	for deploy := range iter.All() {
 
 		// Ignore non-terminal and new deployments
 		mt := time.Unix(0, deploy.ModifyTime)
@@ -784,8 +770,7 @@ func (c *CoreScheduler) csiVolumeClaimGC(eval *structs.Evaluation, customThresho
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		vol := i.(*structs.CSIVolume)
+	for vol := range iter.All() {
 
 		// Ignore new volumes
 		mt := time.Unix(0, vol.ModifyTime)
@@ -831,8 +816,7 @@ func (c *CoreScheduler) csiPluginGC(eval *structs.Evaluation, customThreshold *t
 	}
 	cutoffTime := c.getCutoffTime(threshold)
 
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		plugin := i.(*structs.CSIPlugin)
+	for plugin := range iter.All() {
 		if !plugin.IsEmpty() {
 			continue
 		}

@@ -593,12 +593,7 @@ func (e *Eval) deleteEvalsByFilter(args *structs.EvalDeleteRequest) (int, uint64
 	pageCount := 0
 	lastToken := ""
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		eval := raw.(*structs.Evaluation)
+	for eval := range iter.All() {
 		deleteOk, err := snap.EvalIsUserDeleteSafe(nil, eval)
 		if !deleteOk || err != nil {
 			continue
@@ -677,7 +672,7 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Scan all the evaluations
 			var err error
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Evaluation]
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
@@ -703,11 +698,8 @@ func (e *Eval) List(args *structs.EvalListRequest, reply *structs.EvalListRespon
 					return err
 				}
 
-				iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-					if eval := raw.(*structs.Evaluation); eval != nil {
-						return args.ShouldBeFiltered(eval)
-					}
-					return false
+				iter = memdb.NewTableFilterIterator(iter, func(eval *structs.Evaluation) bool {
+					return args.ShouldBeFiltered(eval)
 				})
 
 				// note this endpoint does not return EvaluationStub, so we
@@ -786,7 +778,7 @@ func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountRes
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			// Scan all the evaluations
 			var err error
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Evaluation]
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allow)
@@ -807,11 +799,7 @@ func (e *Eval) Count(args *structs.EvalCountRequest, reply *structs.EvalCountRes
 
 			count := 0
 
-			iter = memdb.NewFilterIterator(iter, func(raw interface{}) bool {
-				if raw == nil {
-					return true
-				}
-				eval := raw.(*structs.Evaluation)
+			iter = memdb.NewTableFilterIterator(iter, func(eval *structs.Evaluation) bool {
 				if allowableNamespaces != nil && !allowableNamespaces[eval.Namespace] {
 					return true
 				}

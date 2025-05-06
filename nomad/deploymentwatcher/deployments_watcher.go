@@ -219,15 +219,7 @@ func (w *Watcher) getDeploysImpl(ws memdb.WatchSet, store *state.StateStore) (in
 		return nil, 0, err
 	}
 
-	var deploys []*structs.Deployment
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		deploy := raw.(*structs.Deployment)
-		deploys = append(deploys, deploy)
-	}
+	deploys := iter.Slice()
 
 	// Use the last index that affected the deployment table
 	index, err := store.Index("deployment")

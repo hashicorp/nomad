@@ -476,7 +476,7 @@ func (d *Deployment) List(args *structs.DeploymentListRequest, reply *structs.De
 			}
 
 			// Capture all the deployments
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Deployment]
 			var tokenizer paginator.Tokenizer[*structs.Deployment]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {

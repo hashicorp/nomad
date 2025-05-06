@@ -889,7 +889,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Iterate over all the tokens
 			var err error
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.ACLToken]
 			var tokenizer paginator.Tokenizer[*structs.ACLToken]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
@@ -906,7 +906,7 @@ func (a *ACL) ListTokens(args *structs.ACLTokenListRequest, reply *structs.ACLTo
 				return err
 			}
 
-			pager, err := paginator.NewPaginator(iter, args.QueryOptions, nil,
+			pager, err := paginator.NewPaginator[*structs.ACLToken](iter, args.QueryOptions, nil,
 				tokenizer,
 				(*structs.ACLToken).Stub)
 			if err != nil {

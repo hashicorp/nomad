@@ -65,7 +65,7 @@ func (j *Job) Statuses(
 	if errors.Is(err, structs.ErrPermissionDenied) {
 		// return empty jobs if token isn't authorized for any
 		// namespace, matching other endpoints
-		reply.Jobs = make([]structs.JobStatusesJob, 0)
+		reply.Jobs = make([]*structs.JobStatusesJob, 0)
 		return nil
 	} else if err != nil {
 		return err
@@ -100,7 +100,7 @@ func (j *Job) Statuses(
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			var err error
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Job]
 
 			// the UI jobs index page shows most-recently changed first.
 			iter, err = state.JobsByModifyIndex(ws, sort)
@@ -140,8 +140,8 @@ func (j *Job) Statuses(
 			pager, err := paginator.NewPaginator(iter, args.QueryOptions,
 				selector,
 				paginator.ModifyIndexTokenizer[*structs.Job](args.NextToken),
-				func(job *structs.Job) (structs.JobStatusesJob, error) {
-					var none structs.JobStatusesJob
+				func(job *structs.Job) (*structs.JobStatusesJob, error) {
+					var none *structs.JobStatusesJob
 					// this is where the sausage is made
 					jsj, highestIndexOnPage, err := jobStatusesJobFromJob(ws, state, job)
 					if err != nil {
@@ -157,7 +157,7 @@ func (j *Job) Statuses(
 					if highestIndexOnPage > reply.Index {
 						reply.Index = highestIndexOnPage
 					}
-					return jsj, nil
+					return &jsj, nil
 				})
 			if err != nil {
 				return structs.NewErrRPCCodedf(
@@ -229,12 +229,7 @@ func jobStatusesJobFromJob(ws memdb.WatchSet, store *state.StateStore, job *stru
 		if err != nil {
 			return jsj, highestIdx, err
 		}
-		for {
-			child := children.Next()
-			if child == nil {
-				break
-			}
-			j := child.(*structs.Job)
+		for j := range children.All() {
 			// note: this filters out grandchildren jobs (children of children)
 			if j.ParentID != job.ID {
 				continue

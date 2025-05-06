@@ -1431,7 +1431,7 @@ func (j *Job) List(args *structs.JobListRequest, reply *structs.JobListResponse)
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Capture all the jobs
 			var err error
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Job]
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, state, allow)
@@ -2056,15 +2056,8 @@ func (j *Job) Dispatch(args *structs.JobDispatchRequest, reply *structs.JobDispa
 			return fmt.Errorf(errMsg)
 		}
 
-		// Iterate
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-
+		for existingJob := range iter.All() {
 			// Ensure the parent ID is an exact match
-			existingJob := raw.(*structs.Job)
 			if existingJob.ParentID != parameterizedJob.ID {
 				continue
 			}

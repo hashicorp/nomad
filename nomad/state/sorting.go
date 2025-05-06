@@ -30,12 +30,12 @@ func QueryOptionSort(qo structs.QueryOptions) SortOption {
 
 // getSorted executes either txn.Get() or txn.GetReverse()
 // depending on the provided SortOption.
-func getSorted(txn *txn, sort SortOption, table, index string, args ...any) (memdb.ResultIterator, error) {
+func getSorted[T comparable](txn *txn, sort SortOption, table, index string, args ...any) (memdb.TableResultIterator[T], error) {
 	switch sort {
 	case SortDefault:
-		return txn.Get(table, index, args...)
+		return memdb.Get[T](txn.Txn, table, index, args...)
 	case SortReverse:
-		return txn.GetReverse(table, index, args...)
+		return memdb.GetReverse[T](txn.Txn, table, index, args...)
 	default:
 		// this should never happen, since SortOption is bool
 		return nil, fmt.Errorf("unknown sort option: %v", sort)

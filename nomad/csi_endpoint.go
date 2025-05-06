@@ -94,7 +94,7 @@ func (v *CSIVolume) List(args *structs.CSIVolumeListRequest, reply *structs.CSIV
 			}
 
 			// Query all volumes
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.CSIVolume]
 
 			prefix := args.Prefix
 
@@ -1743,7 +1743,7 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.CSIPlugin]
 			var err error
 			if args.Prefix != "" {
 				iter, err = state.CSIPluginsByIDPrefix(ws, args.Prefix)
@@ -1760,13 +1760,7 @@ func (v *CSIPlugin) List(args *structs.CSIPluginListRequest, reply *structs.CSIP
 
 			// Collect results
 			ps := []*structs.CSIPluginListStub{}
-			for {
-				raw := iter.Next()
-				if raw == nil {
-					break
-				}
-
-				plug := raw.(*structs.CSIPlugin)
+			for plug := range iter.All() {
 				ps = append(ps, plug.Stub())
 			}
 

@@ -148,15 +148,7 @@ func (w *Watcher) getVolumesImpl(ws memdb.WatchSet, store *state.StateStore) (in
 		return nil, 0, err
 	}
 
-	var volumes []*structs.CSIVolume
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		volume := raw.(*structs.CSIVolume)
-		volumes = append(volumes, volume)
-	}
+	volumes := iter.Slice()
 
 	// Use the last index that affected the volume table
 	index, err := store.Index(state.TableCSIVolumes)

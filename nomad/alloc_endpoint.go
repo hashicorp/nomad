@@ -63,7 +63,7 @@ func (a *Alloc) List(args *structs.AllocListRequest, reply *structs.AllocListRes
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 			// Scan all the allocations
 			var err error
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Allocation]
 
 			// get list of accessible namespaces
 			allowableNamespaces, err := allowedNSes(aclObj, state, allow)

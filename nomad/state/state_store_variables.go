@@ -20,10 +20,10 @@ var (
 
 // Variables queries all the variables and is used only for
 // snapshot/restore and key rotation
-func (s *StateStore) Variables(ws memdb.WatchSet) (memdb.ResultIterator, error) {
+func (s *StateStore) Variables(ws memdb.WatchSet) (memdb.TableResultIterator[*structs.VariableEncrypted], error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableVariables, indexID)
+	iter, err := memdb.Get[*structs.VariableEncrypted](txn.Txn, TableVariables, indexID)
 	if err != nil {
 		return nil, err
 	}
@@ -35,15 +35,14 @@ func (s *StateStore) Variables(ws memdb.WatchSet) (memdb.ResultIterator, error) 
 // GetVariablesByNamespace returns an iterator that contains all
 // variables belonging to the provided namespace.
 func (s *StateStore) GetVariablesByNamespace(
-	ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, namespace string) (memdb.TableResultIterator[*structs.VariableEncrypted], error) {
 	txn := s.db.ReadTxn()
 	return s.getVariablesByNamespaceImpl(txn, ws, namespace)
 }
 
 func (s *StateStore) getVariablesByNamespaceImpl(
-	txn *txn, ws memdb.WatchSet, namespace string) (memdb.ResultIterator, error) {
-	// Walk the entire table.
-	iter, err := txn.Get(TableVariables, indexID+"_prefix", namespace, "")
+	txn *txn, ws memdb.WatchSet, namespace string) (memdb.TableResultIterator[*structs.VariableEncrypted], error) {
+	iter, err := memdb.Get[*structs.VariableEncrypted](txn.Txn, TableVariables, indexID+"_prefix", namespace, "")
 	if err != nil {
 		return nil, fmt.Errorf("variable lookup failed: %v", err)
 	}
@@ -55,11 +54,11 @@ func (s *StateStore) getVariablesByNamespaceImpl(
 // GetVariablesByNamespaceAndPrefix returns an iterator that contains all
 // variables belonging to the provided namespace that match the prefix.
 func (s *StateStore) GetVariablesByNamespaceAndPrefix(
-	ws memdb.WatchSet, namespace, prefix string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, namespace, prefix string) (memdb.TableResultIterator[*structs.VariableEncrypted], error) {
 	txn := s.db.ReadTxn()
 
 	// Walk the entire table.
-	iter, err := txn.Get(TableVariables, indexID+"_prefix", namespace, prefix)
+	iter, err := memdb.Get[*structs.VariableEncrypted](txn.Txn, TableVariables, indexID+"_prefix", namespace, prefix)
 	if err != nil {
 		return nil, fmt.Errorf("variable lookup failed: %v", err)
 	}

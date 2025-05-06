@@ -20,20 +20,20 @@ var (
 // to populate the in-memory timer.
 func (s *Server) restoreLockTTLTimers() error {
 
-	varIterator, err := s.fsm.State().Variables(nil)
+	iter, err := s.fsm.State().Variables(nil)
 	if err != nil {
 		return fmt.Errorf("failed to list variables for lock TTL restore: %v", err)
 	}
 
 	// Iterate the variables, identifying each one that is associated to a lock
 	// and adding a TTL timer for each.
-	for varInterface := varIterator.Next(); varInterface != nil; varInterface = varIterator.Next() {
-		if realVar, ok := varInterface.(*structs.VariableEncrypted); ok && realVar.IsLock() {
+	for variable := range iter.All() {
+		if variable.IsLock() {
 
 			// The variable will be modified in order to show that it no longer
 			// is held. We therefore need to ensure we perform modifications on
 			// a copy.
-			s.CreateVariableLockTTLTimer(realVar.Copy())
+			s.CreateVariableLockTTLTimer(variable.Copy())
 		}
 	}
 

@@ -622,12 +622,7 @@ func diffNamespaces(state *state.StateStore, minIndex uint64, remoteList []*stru
 	if err != nil {
 		panic("failed to iterate local namespaces")
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		namespace := raw.(*structs.Namespace)
+	for namespace := range iter.All() {
 		local[namespace.Name] = namespace.Hash
 	}
 
@@ -762,12 +757,7 @@ func diffNodePools(store *state.StateStore, minIndex uint64, remoteList []*struc
 	if err != nil {
 		panic("failed to iterate local node pools")
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		pool := raw.(*structs.NodePool)
+	for pool := range iter.All() {
 		local[pool.Name] = pool.Hash
 	}
 
@@ -807,13 +797,7 @@ func (s *Server) restoreEvals() error {
 		return fmt.Errorf("failed to get evaluations: %v", err)
 	}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		eval := raw.(*structs.Evaluation)
-
+	for eval := range iter.All() {
 		if eval.ShouldEnqueue() {
 			s.evalBroker.Restore(eval)
 		} else if eval.ShouldBlock() {
@@ -837,8 +821,7 @@ func (s *Server) restorePeriodicDispatcher() error {
 	}
 
 	now := time.Now()
-	for i := iter.Next(); i != nil; i = iter.Next() {
-		job := i.(*structs.Job)
+	for job := range iter.All() {
 
 		// We skip adding parameterized jobs because they themselves aren't
 		// tracked, only the dispatched children are.
@@ -1343,24 +1326,17 @@ func (s *Server) publishJobStatusMetrics(stopCh chan struct{}) {
 				continue
 			}
 
-			s.iterateJobStatusMetrics(&iter)
+			s.iterateJobStatusMetrics(iter)
 		}
 	}
 }
 
-func (s *Server) iterateJobStatusMetrics(jobs *memdb.ResultIterator) {
+func (s *Server) iterateJobStatusMetrics(jobs memdb.TableResultIterator[*structs.Job]) {
 	var pending int64 // Sum of all jobs in 'pending' state
 	var running int64 // Sum of all jobs in 'running' state
 	var dead int64    // Sum of all jobs in 'dead' state
 
-	for {
-		raw := (*jobs).Next()
-		if raw == nil {
-			break
-		}
-
-		job := raw.(*structs.Job)
-
+	for job := range jobs.All() {
 		switch job.Status {
 		case structs.JobStatusPending:
 			pending++
@@ -1878,12 +1854,7 @@ func diffACLTokens(store *state.StateStore, minIndex uint64, remoteList []*struc
 	if err != nil {
 		panic("failed to iterate local tokens")
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-		token := raw.(*structs.ACLToken)
+	for token := range iter.All() {
 		local[token.AccessorID] = token.Hash
 	}
 

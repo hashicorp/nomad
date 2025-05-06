@@ -56,7 +56,7 @@ func readyNodesInDCsAndPool(state State, dcs []string, pool string) ([]*structs.
 	var out []*structs.Node
 	notReady := map[string]struct{}{}
 
-	var iter memdb.ResultIterator
+	var iter memdb.TableResultIterator[*structs.Node]
 	var err error
 
 	if pool == structs.NodePoolAll || pool == "" {
@@ -67,14 +67,8 @@ func readyNodesInDCsAndPool(state State, dcs []string, pool string) ([]*structs.
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
+	for node := range iter.All() {
 		// Filter on datacenter and status
-		node := raw.(*structs.Node)
 		if !node.Ready() {
 			notReady[node.ID] = struct{}{}
 			continue

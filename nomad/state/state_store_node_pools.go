@@ -31,17 +31,17 @@ func (s *StateStore) nodePoolInit() error {
 }
 
 // NodePools returns an iterator over all node pools.
-func (s *StateStore) NodePools(ws memdb.WatchSet, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) NodePools(ws memdb.WatchSet, sort SortOption) (memdb.TableResultIterator[*structs.NodePool], error) {
 	txn := s.db.ReadTxn()
 
-	var iter memdb.ResultIterator
+	var iter memdb.TableResultIterator[*structs.NodePool]
 	var err error
 
 	switch sort {
 	case SortReverse:
-		iter, err = txn.GetReverse(TableNodePools, "id")
+		iter, err = memdb.GetReverse[*structs.NodePool](txn.Txn, TableNodePools, "id")
 	default:
-		iter, err = txn.Get(TableNodePools, "id")
+		iter, err = memdb.Get[*structs.NodePool](txn.Txn, TableNodePools, "id")
 	}
 	if err != nil {
 		return nil, fmt.Errorf("node pools lookup failed: %w", err)
@@ -74,17 +74,17 @@ func (s *StateStore) nodePoolByNameTxn(txn *txn, ws memdb.WatchSet, name string)
 
 // NodePoolsByNamePrefix returns an interator over all node pools that match
 // the given name prefix.
-func (s *StateStore) NodePoolsByNamePrefix(ws memdb.WatchSet, namePrefix string, sort SortOption) (memdb.ResultIterator, error) {
+func (s *StateStore) NodePoolsByNamePrefix(ws memdb.WatchSet, namePrefix string, sort SortOption) (memdb.TableResultIterator[*structs.NodePool], error) {
 	txn := s.db.ReadTxn()
 
-	var iter memdb.ResultIterator
+	var iter memdb.TableResultIterator[*structs.NodePool]
 	var err error
 
 	switch sort {
 	case SortReverse:
-		iter, err = txn.GetReverse(TableNodePools, "id_prefix", namePrefix)
+		iter, err = memdb.GetReverse[*structs.NodePool](txn.Txn, TableNodePools, "id_prefix", namePrefix)
 	default:
-		iter, err = txn.Get(TableNodePools, "id_prefix", namePrefix)
+		iter, err = memdb.Get[*structs.NodePool](txn.Txn, TableNodePools, "id_prefix", namePrefix)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("node pools prefix lookup failed: %w", err)

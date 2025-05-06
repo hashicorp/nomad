@@ -8,6 +8,8 @@ replace (
 	github.com/hashicorp/hcl => github.com/hashicorp/hcl v1.0.1-0.20201016140508-a07e7d50bbee
 )
 
+replace github.com/hashicorp/go-memdb => ../go-memdb
+
 // Nomad is built using the current source of the API module.
 replace github.com/hashicorp/nomad/api => ./api
 

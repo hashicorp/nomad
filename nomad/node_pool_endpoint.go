@@ -57,7 +57,7 @@ func (n *NodePool) List(args *structs.NodePoolListRequest, reply *structs.NodePo
 		queryMeta: &reply.QueryMeta,
 		run: func(ws memdb.WatchSet, store *state.StateStore) error {
 			var err error
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.NodePool]
 
 			if prefix := args.QueryOptions.Prefix; prefix != "" {
 				iter, err = store.NodePoolsByNamePrefix(ws, prefix, sort)
@@ -322,9 +322,8 @@ func (n *NodePool) nodePoolRegionsInUse(token, poolName string) ([]string, []str
 	if found != nil {
 		hasNodes = append(hasNodes, thisRegion)
 	}
-	iter, err = snap.JobsByPool(nil, poolName)
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		job := raw.(*structs.Job)
+	jobs, err := snap.JobsByPool(nil, poolName)
+	for job := range jobs.All() {
 		if job.Status != structs.JobStatusDead {
 			hasNonTerminal = append(hasNonTerminal, thisRegion)
 			break
@@ -417,7 +416,7 @@ func (n *NodePool) ListJobs(args *structs.NodePoolJobsRequest, reply *structs.No
 				return nil
 			}
 
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Job]
 
 			// Get the namespaces the user is allowed to access.
 			allowableNamespaces, err := allowedNSes(aclObj, store, allowNsFunc)
@@ -532,7 +531,7 @@ func (n *NodePool) ListNodes(args *structs.NodePoolNodesRequest, reply *structs.
 			}
 
 			// Fetch nodes in the pool.
-			var iter memdb.ResultIterator
+			var iter memdb.TableResultIterator[*structs.Node]
 			if args.Name == structs.NodePoolAll {
 				iter, err = store.Nodes(ws)
 			} else {

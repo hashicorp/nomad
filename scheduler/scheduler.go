@@ -73,10 +73,10 @@ type State interface {
 
 	// Nodes returns an iterator over all the nodes.
 	// The type of each result is *structs.Node
-	Nodes(ws memdb.WatchSet) (memdb.ResultIterator, error)
+	Nodes(ws memdb.WatchSet) (memdb.TableResultIterator[*structs.Node], error)
 
 	// NodesByNodePool returns an iterator over all nodes in the node pool
-	NodesByNodePool(ws memdb.WatchSet, poolName string) (memdb.ResultIterator, error)
+	NodesByNodePool(ws memdb.WatchSet, poolName string) (memdb.TableResultIterator[*structs.Node], error)
 
 	// NodePoolByName is used to lookup a node by ID.
 	NodePoolByName(ws memdb.WatchSet, poolName string) (*structs.NodePool, error)
@@ -116,18 +116,18 @@ type State interface {
 	CSIVolumeByID(memdb.WatchSet, string, string) (*structs.CSIVolume, error)
 
 	// CSIVolumeByID fetch CSI volumes, containing controller jobs
-	CSIVolumesByNodeID(memdb.WatchSet, string, string) (memdb.ResultIterator, error)
+	CSIVolumesByNodeID(memdb.WatchSet, string, string) (memdb.TableResultIterator[*structs.CSIVolume], error)
 
 	// HostVolumeByID fetches host volume by its ID
 	HostVolumeByID(memdb.WatchSet, string, string, bool) (*structs.HostVolume, error)
 
 	// HostVolumesByNodeID gets an iterator with all the volumes attached to a
 	// given node
-	HostVolumesByNodeID(memdb.WatchSet, string, state.SortOption) (memdb.ResultIterator, error)
+	HostVolumesByNodeID(memdb.WatchSet, string, state.SortOption) (memdb.TableResultIterator[*structs.HostVolume], error)
 
 	// TaskGroupHostVolumeClaimsByFields gets all host volume claims for
 	// a given namespace, job ID and task group name
-	TaskGroupHostVolumeClaimsByFields(memdb.WatchSet, state.TgvcSearchableFields) (memdb.ResultIterator, error)
+	TaskGroupHostVolumeClaimsByFields(memdb.WatchSet, state.TgvcSearchableFields) (memdb.TableResultIterator[*structs.TaskGroupHostVolumeClaim], error)
 
 	// LatestIndex returns the greatest index value for all indexes.
 	LatestIndex() (uint64, error)

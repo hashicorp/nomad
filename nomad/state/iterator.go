@@ -3,25 +3,27 @@
 
 package state
 
-type SliceIterator struct {
-	data []interface{}
+import "iter"
+
+type SliceIterator[T comparable] struct {
+	data []T
 	idx  int
 }
 
-func NewSliceIterator() *SliceIterator {
-	return &SliceIterator{
-		data: []interface{}{},
+func NewSliceIterator[T comparable]() *SliceIterator[T] {
+	return &SliceIterator[T]{
+		data: []T{},
 		idx:  0,
 	}
 }
 
-func (i *SliceIterator) Add(datum interface{}) {
+func (i *SliceIterator[T]) Add(datum T) {
 	i.data = append(i.data, datum)
 }
 
-func (i *SliceIterator) Next() interface{} {
+func (i *SliceIterator[T]) Next() T {
 	if i.idx == len(i.data) {
-		return nil
+		return *(new(T))
 	}
 
 	datum := i.data[i.idx]
@@ -29,6 +31,20 @@ func (i *SliceIterator) Next() interface{} {
 	return datum
 }
 
-func (i *SliceIterator) WatchCh() <-chan struct{} {
+func (i *SliceIterator[T]) WatchCh() <-chan struct{} {
 	return nil
+}
+
+func (i *SliceIterator[T]) All() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for _, val := range i.data {
+			if !yield(val) {
+				return
+			}
+		}
+	}
+}
+
+func (i *SliceIterator[T]) Slice() []T {
+	return i.data
 }

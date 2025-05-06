@@ -1947,14 +1947,7 @@ func (n *nomadFSM) failLeakedDeployments(store *state.StateStore) error {
 		return fmt.Errorf("couldn't fetch index of deployments table: %v", err)
 	}
 
-	for {
-		raw := iter.Next()
-		if raw == nil {
-			break
-		}
-
-		d := raw.(*structs.Deployment)
-
+	for d := range iter.All() {
 		// We are only looking for active deployments where the job no longer
 		// exists
 		if !d.Active() {
@@ -2001,12 +1994,7 @@ func (n *nomadFSM) reconcileQueuedAllocations(index uint64) error {
 
 	// Invoking the scheduler for every job so that we can populate the number
 	// of queued allocations for every job
-	for {
-		rawJob := iter.Next()
-		if rawJob == nil {
-			break
-		}
-		job := rawJob.(*structs.Job)
+	for job := range iter.All() {
 
 		// Nothing to do for queued allocations if the job is a parent periodic/parameterized job
 		if job.IsParameterized() || job.IsPeriodic() {
@@ -2566,24 +2554,13 @@ func (s *nomadSnapshot) persistIndexes(sink raft.SnapshotSink,
 
 func (s *nomadSnapshot) persistNodes(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
-	// Get all the nodes
 	ws := memdb.NewWatchSet()
 	nodes, err := s.snap.Nodes(ws)
 	if err != nil {
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := nodes.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		node := raw.(*structs.Node)
-
-		// Write out a node registration
+	for node := range nodes.All() {
 		sink.Write([]byte{byte(NodeSnapshot)})
 		if err := encoder.Encode(node); err != nil {
 			return err
@@ -2594,17 +2571,13 @@ func (s *nomadSnapshot) persistNodes(sink raft.SnapshotSink,
 
 func (s *nomadSnapshot) persistNodePools(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
-	// Get all node pools.
 	ws := memdb.NewWatchSet()
 	pools, err := s.snap.NodePools(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
 
-	// Iterate over all node pools and persist them.
-	for raw := pools.Next(); raw != nil; raw = pools.Next() {
-		pool := raw.(*structs.NodePool)
-
+	for pool := range pools.All() {
 		sink.Write([]byte{byte(NodePoolSnapshot)})
 		if err := encoder.Encode(pool); err != nil {
 			return err
@@ -2622,17 +2595,7 @@ func (s *nomadSnapshot) persistJobs(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := jobs.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		job := raw.(*structs.Job)
-
-		// Write out a job registration
+	for job := range jobs.All() {
 		sink.Write([]byte{byte(JobSnapshot)})
 		if err := encoder.Encode(job); err != nil {
 			return err
@@ -2643,24 +2606,13 @@ func (s *nomadSnapshot) persistJobs(sink raft.SnapshotSink,
 
 func (s *nomadSnapshot) persistEvals(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
-	// Get all the evaluations
 	ws := memdb.NewWatchSet()
 	evals, err := s.snap.Evals(ws, false)
 	if err != nil {
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := evals.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		eval := raw.(*structs.Evaluation)
-
-		// Write out the evaluation
+	for eval := range evals.All() {
 		sink.Write([]byte{byte(EvalSnapshot)})
 		if err := encoder.Encode(eval); err != nil {
 			return err
@@ -2678,16 +2630,7 @@ func (s *nomadSnapshot) persistAllocs(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := allocs.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		alloc := raw.(*structs.Allocation)
-
+	for alloc := range allocs.All() {
 		// Write out the evaluation
 		sink.Write([]byte{byte(AllocSnapshot)})
 		if err := encoder.Encode(alloc); err != nil {
@@ -2759,17 +2702,7 @@ func (s *nomadSnapshot) persistJobVersions(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := versions.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		job := raw.(*structs.Job)
-
-		// Write out a job registration
+	for job := range versions.All() {
 		sink.Write([]byte{byte(JobVersionSnapshot)})
 		if err := encoder.Encode(job); err != nil {
 			return err
@@ -2780,24 +2713,13 @@ func (s *nomadSnapshot) persistJobVersions(sink raft.SnapshotSink,
 
 func (s *nomadSnapshot) persistDeployments(sink raft.SnapshotSink,
 	encoder *codec.Encoder) error {
-	// Get all the jobs
 	ws := memdb.NewWatchSet()
 	deployments, err := s.snap.Deployments(ws, state.SortDefault)
 	if err != nil {
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := deployments.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		deployment := raw.(*structs.Deployment)
-
-		// Write out a job registration
+	for deployment := range deployments.All() {
 		sink.Write([]byte{byte(DeploymentSnapshot)})
 		if err := encoder.Encode(deployment); err != nil {
 			return err
@@ -2843,16 +2765,7 @@ func (s *nomadSnapshot) persistACLTokens(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := tokens.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		token := raw.(*structs.ACLToken)
-
+	for token := range tokens.All() {
 		// Write out a token registration
 		sink.Write([]byte{byte(ACLTokenSnapshot)})
 		if err := encoder.Encode(token); err != nil {
@@ -2871,17 +2784,7 @@ func (s *nomadSnapshot) persistNamespaces(sink raft.SnapshotSink, encoder *codec
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := namespaces.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		namespace := raw.(*structs.Namespace)
-
-		// Write out a namespace registration
+	for namespace := range namespaces.All() {
 		sink.Write([]byte{byte(NamespaceSnapshot)})
 		if err := encoder.Encode(namespace); err != nil {
 			return err
@@ -2996,17 +2899,7 @@ func (s *nomadSnapshot) persistCSIPlugins(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := plugins.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		plugin := raw.(*structs.CSIPlugin)
-
-		// Write out a plugin snapshot
+	for plugin := range plugins.All() {
 		sink.Write([]byte{byte(CSIPluginSnapshot)})
 		if err := encoder.Encode(plugin); err != nil {
 			return err
@@ -3025,16 +2918,7 @@ func (s *nomadSnapshot) persistCSIVolumes(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		// Get the next item
-		raw := volumes.Next()
-		if raw == nil {
-			break
-		}
-
-		// Prepare the request struct
-		volume := raw.(*structs.CSIVolume)
-
+	for volume := range volumes.All() {
 		// Write out a volume snapshot
 		sink.Write([]byte{byte(CSIVolumeSnapshot)})
 		if err := encoder.Encode(volume); err != nil {
@@ -3080,12 +2964,7 @@ func (s *nomadSnapshot) persistVariables(sink raft.SnapshotSink,
 		return err
 	}
 
-	for {
-		raw := variables.Next()
-		if raw == nil {
-			break
-		}
-		variable := raw.(*structs.VariableEncrypted)
+	for variable := range variables.All() {
 		sink.Write([]byte{byte(VariablesSnapshot)})
 		if err := encoder.Encode(variable); err != nil {
 			return err
@@ -3234,9 +3113,7 @@ func (s *nomadSnapshot) persistHostVolumes(sink raft.SnapshotSink, encoder *code
 	if err != nil {
 		return err
 	}
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		vol := raw.(*structs.HostVolume)
-
+	for vol := range iter.All() {
 		sink.Write([]byte{byte(HostVolumeSnapshot)})
 		if err := encoder.Encode(vol); err != nil {
 			return err

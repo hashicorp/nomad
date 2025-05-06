@@ -223,11 +223,11 @@ func (s *StateStore) GetServiceRegistrationsByNamespace(
 // therefore represents how to identify a single, collection of services that
 // are logically grouped together.
 func (s *StateStore) GetServiceRegistrationByName(
-	ws memdb.WatchSet, namespace, name string) (memdb.ResultIterator, error) {
+	ws memdb.WatchSet, namespace, name string) (memdb.TableResultIterator[*structs.ServiceRegistration], error) {
 
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get(TableServiceRegistrations, indexServiceName, namespace, name)
+	iter, err := memdb.Get[*structs.ServiceRegistration](txn.Txn, TableServiceRegistrations, indexServiceName, namespace, name)
 	if err != nil {
 		return nil, fmt.Errorf("service registration lookup failed: %v", err)
 	}
