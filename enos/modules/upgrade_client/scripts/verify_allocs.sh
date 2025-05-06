@@ -90,7 +90,7 @@ if [ -z "$current_allocs" ]; then
     error_exit "Failed to read allocs for node: $client_id"
 fi
 
-IDs=$($ALLOCS |jq '[ .[] | select(.ClientStatus == \"running\")] | [.[].ID] | join(" ")')
+IDs=$(echo $ALLOCS | jq '[ .[] | select(.ClientStatus == \"running\")] | [.[].ID] | join(" ")')
 
 IFS=' ' read -r -a INPUT_ARRAY <<< "${IDs[*]}"
 IFS=' ' read -r -a RUNNING_ARRAY <<< "$current_allocs"
