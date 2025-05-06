@@ -48,17 +48,49 @@ done
 
 echo "Client $client_id at $CLIENT_IP is ready"
 
-# Quality: "nomad_alloc_reconect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
-echo "Allocs found before upgrade $ALLOCS"
+allocs_count=$($ALLOCS |jq '[ .[] | select(.ClientStatus == "running")] | length')
+
+# Quality: "nomad_alloc_reconnect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
+echo "$allocs_count allocs found before upgrade $ALLOCS"
+
+checkAllocsCount() {
+    local allocs
+    running_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id)]') \
+        || error_exit "Failed to check alloc status"
+    allocs_length=$(echo "$running_allocs" | jq 'length') \
+        || error_exit "Invalid alloc status -json output"
+
+    if [ "$allocs_length" -eq "$allocs_count" ]; then
+        return 0
+    fi
+
+    return 1
+}
 
 echo "Reading allocs for client at $CLIENT_IP"
+
+elapsed_time=0
+while true; do
+    checkAllocsCount && break
+
+    if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
+        error_exit "Some allocs are not running: $(nomad alloc status -json | jq -r '.[] | "\(.ID) \(.Name) \(.ClientStatus)"')"
+    fi
+
+    echo "Running allocs: $allocs_length, expected $allocs_count. Waiting for $elapsed_time  Retrying in $POLL_INTERVAL seconds..."
+    sleep $POLL_INTERVAL
+    elapsed_time=$((elapsed_time + POLL_INTERVAL))
+
+done
+
+echo "Correct number of allocs found running: $allocs_length"
 
 current_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id) | .ID] | join(" ")')
 if [ -z "$current_allocs" ]; then
     error_exit "Failed to read allocs for node: $client_id"
 fi
 
-IDs=$(echo $ALLOCS | jq -r '[.[].ID] | join(" ")')
+IDs=$($ALLOCS |jq '[ .[] | select(.ClientStatus == \"running\")] | [.[].ID] | join(" ")')
 
 IFS=' ' read -r -a INPUT_ARRAY <<< "${IDs[*]}"
 IFS=' ' read -r -a RUNNING_ARRAY <<< "$current_allocs"
