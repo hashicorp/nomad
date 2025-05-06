@@ -48,10 +48,10 @@ done
 
 echo "Client $client_id at $CLIENT_IP is ready"
 
-allocs_count=$($ALLOCS |jq '[ .[] | select(.ClientStatus == "running")] | length')
+echo "$allocs_count allocs found before upgrade $ALLOCS"
+allocs_count=$(echo $ALLOCS |jq '[ .[] | select(.ClientStatus == "running")] | length')
 
 # Quality: "nomad_alloc_reconnect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
-echo "$allocs_count allocs found before upgrade $ALLOCS"
 
 checkAllocsCount() {
     local allocs
