@@ -190,24 +190,35 @@ func (s *HTTPServer) aclSelfPolicy(resp http.ResponseWriter, req *http.Request) 
 		return nil, CodedError(http.StatusMethodNotAllowed, ErrInvalidMethod)
 	}
 
-	policyArgs := structs.GenericRequest{}
-	if s.parse(resp, req, &policyArgs.Region, &policyArgs.QueryOptions) {
+	wiPolicyReq := structs.GenericRequest{}
+	if s.parse(resp, req, &wiPolicyReq.Region, &wiPolicyReq.QueryOptions) {
 		return nil, nil
 	}
 
-	// Resolve policies for workload identities
-	policyReply := structs.ACLPolicySetResponse{}
-	if err := s.agent.RPC("ACL.GetClaimPolicies", &policyArgs, &policyReply); err != nil {
+	// is it a JWT or a Nomad ACL token?
+	if len(wiPolicyReq.AuthToken) > 36 {
+
+		// Resolve policies for workload identities
+		wiPolicyReply := structs.ACLPolicySetResponse{}
+		if err := s.agent.RPC("ACL.GetClaimPolicies", &wiPolicyReq, &wiPolicyReply); err != nil {
+			return nil, err
+		}
+		setMeta(resp, &wiPolicyReply.QueryMeta)
+
+		if wiPolicyReply.Policies == nil {
+			wiPolicyReply.Policies = make(map[string]*structs.ACLPolicy, 0)
+		}
+		return wiPolicyReply.Policies, nil
+	}
+
+	// Resolve any authenticated policies
+	policiesListReq := &structs.ACLPolicyListRequest{QueryOptions: wiPolicyReq.QueryOptions}
+	policiesListReply := structs.ACLPolicyListResponse{}
+	if err := s.agent.RPC("ACL.ListPolicies", policiesListReq, &policiesListReply); err != nil {
 		return nil, err
 	}
 
-	setMeta(resp, &policyReply.QueryMeta)
-
-	if policyReply.Policies == nil {
-		policyReply.Policies = make(map[string]*structs.ACLPolicy, 0)
-	}
-
-	return policyReply.Policies, nil
+	return policiesListReply.Policies, nil
 }
 
 func (s *HTTPServer) aclTokenCrud(resp http.ResponseWriter, req *http.Request,

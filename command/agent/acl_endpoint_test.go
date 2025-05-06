@@ -137,8 +137,10 @@ func TestHTTP_ACLPolicySelfQuery(t *testing.T) {
 				JobID:     job.ID,
 			},
 		}
+		p2 := mock.ACLPolicy()
+		p3 := mock.ACLPolicy()
 		args := structs.ACLPolicyUpsertRequest{
-			Policies: []*structs.ACLPolicy{p1},
+			Policies: []*structs.ACLPolicy{p1, p2, p3},
 			WriteRequest: structs.WriteRequest{
 				Region:    "global",
 				AuthToken: s.RootToken.SecretID,
@@ -166,13 +168,23 @@ func TestHTTP_ACLPolicySelfQuery(t *testing.T) {
 		req.Header.Set("X-Nomad-Token", wid)
 
 		// Make the request
-		obj, err := s.Server.ACLPolicySpecificRequest(respW, req)
+		obj, err := s.Server.aclSelfPolicy(respW, req)
 		must.NoError(t, err)
 
 		// Check the output
 		n := obj.(map[string]*structs.ACLPolicy)
 		must.MapContainsKey(t, n, "nw")
 		must.Eq(t, n["nw"].JobACL, p1.JobACL)
+		must.MapLen(t, 1, n) // only 1 policy is assigned to the WID
+
+		// Make the without JWT
+		req.Header.Set("X-Nomad-Token", s.RootToken.SecretID)
+		obj, err = s.Server.aclSelfPolicy(respW, req)
+		must.NoError(t, err)
+
+		// We should get all the policies now
+		nn := obj.([]*structs.ACLPolicyListStub)
+		must.SliceLen(t, 3, nn)
 	})
 }
 
