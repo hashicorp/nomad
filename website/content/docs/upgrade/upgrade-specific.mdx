@@ -54,6 +54,16 @@ reached, the server process will exit and any errors logged to the console.
 
 @include 'release-notes/v1-10/breaking-vault-consul-token.mdx'
 
+## Nomad 1.9.9
+
+#### Added Server `start_timeout` Configuration Option
+
+Nomad 1.9.9 introduces a new server configuration option named `start_timeout`
+with a default value of `30s`. This duration is used to monitor the server setup
+and startup processes which must complete before it is considered healthy, such
+as keyring decryption. If these processes do not complete before the timeout is
+reached, the server process will exit and any errors logged to the console.
+
 ## Nomad 1.9.5
 
 #### CNI plugins
