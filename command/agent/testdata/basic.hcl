@@ -143,6 +143,7 @@ server {
   event_buffer_size             = 200
   job_default_priority          = 100
   job_max_priority              = 200
+  start_timeout                 = "1m"
 
   plan_rejection_tracker {
     enabled        = true
