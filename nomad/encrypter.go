@@ -495,14 +495,14 @@ func (e *Encrypter) AddWrappedKey(ctx context.Context, wrappedKeys *structs.Root
 
 	if err := mErr.ErrorOrNil(); err != nil {
 
-		// If we have no tasks running, we can log an error for the operator,
-		// remove any tracking and exit.
+		// If we have no tasks running, we can log an error for the operator and
+		// exit.
+		//
+		// It is likely any decryption configuration for the key is incorrect
+		// and follow-up attempts from other Raft/FMS calls for this key will
+		// also fail. We should not, however, continue with the server startup
+		// without this key, and therefore we do not delete any added tracking.
 		if decryptTasks == 0 {
-
-			e.decryptTasksLock.Lock()
-			delete(e.decryptTasks, wrappedKeys.KeyID)
-			e.decryptTasksLock.Unlock()
-
 			logger.Error("root key cannot be decrypted", "error", err)
 			return err
 		}

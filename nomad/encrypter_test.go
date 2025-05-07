@@ -964,7 +964,7 @@ func TestEncrypter_AddWrappedKey_zeroDecryptTaskError(t *testing.T) {
 	t.Cleanup(timeoutCancel)
 
 	must.Error(t, encrypter.AddWrappedKey(timeoutCtx, wrappedKey))
-	must.MapEmpty(t, encrypter.decryptTasks)
+	must.MapLen(t, 1, encrypter.decryptTasks)
 	must.MapEmpty(t, encrypter.keyring)
 }
 
