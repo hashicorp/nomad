@@ -1,0 +1,3 @@
+```release-note:bug
+encrypter: Refactor startup decryption task handling to avoid timing problems with task addition on FSM restore
+```
