@@ -2484,13 +2484,8 @@ func TestJobEndpoint_Revert(t *testing.T) {
 		t.Fatalf("job id mis-match")
 	}
 
-	versions, err := state.JobVersionsByID(ws, job.Namespace, job.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(versions) != 3 {
-		t.Fatalf("got %d versions; want %d", len(versions), 3)
-	}
+	versions := state.JobVersionsByID(ws, job.Namespace, job.ID)
+	must.Len(t, 3, versions)
 }
 
 func TestJobEndpoint_Revert_ACL(t *testing.T) {

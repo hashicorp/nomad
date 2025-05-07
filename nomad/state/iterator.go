@@ -77,7 +77,11 @@ func NewFilterIterator[T comparable](iter ResultIterator[T], filterFunc FilterFu
 
 func (iter typedFilterResultIterator[T]) Next() T {
 	for {
-		if val := iter.inner.Next(); val == *new(T) || !iter.filterFunc(val) {
+		val := iter.inner.Next()
+		if val == *new(T) {
+			return val
+		}
+		if !iter.filterFunc(val) {
 			return val
 		}
 	}

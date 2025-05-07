@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"testing"
 
-	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -71,31 +70,27 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.NotNil(t, vol)
 	must.Nil(t, vol.Allocations)
 
-	consumeIter := func(iter memdb.ResultIterator) map[string]*structs.HostVolume {
+	consumeIter := func(iter ResultIterator[*structs.HostVolume]) map[string]*structs.HostVolume {
 		got := map[string]*structs.HostVolume{}
-		for raw := iter.Next(); raw != nil; raw = iter.Next() {
-			vol := raw.(*structs.HostVolume)
+		for vol := range iter.All() {
 			got[vol.ID] = vol
 		}
 		return got
 	}
 
-	iter, err := store.HostVolumesByName(nil, structs.DefaultNamespace, "example", SortDefault)
-	must.NoError(t, err)
+	iter := store.HostVolumesByName(nil, structs.DefaultNamespace, "example", SortDefault)
 	got := consumeIter(iter)
 	must.NotNil(t, got[vols[0].ID], must.Sprint("expected vol0"))
 	must.NotNil(t, got[vols[2].ID], must.Sprint("expected vol2"))
 	must.MapLen(t, 2, got, must.Sprint(`expected 2 volumes named "example" in default namespace`))
 
-	iter, err = store.HostVolumesByNodePool(nil, nodes[2].NodePool, SortDefault)
-	must.NoError(t, err)
+	iter = store.HostVolumesByNodePool(nil, nodes[2].NodePool, SortDefault)
 	got = consumeIter(iter)
 	must.NotNil(t, got[vols[2].ID], must.Sprint("expected vol2"))
 	must.NotNil(t, got[vols[3].ID], must.Sprint("expected vol3"))
 	must.MapLen(t, 2, got, must.Sprint(`expected 2 volumes in prod node pool`))
 
-	iter, err = store.HostVolumesByNodeID(nil, nodes[2].ID, SortDefault)
-	must.NoError(t, err)
+	iter = store.HostVolumesByNodeID(nil, nodes[2].ID, SortDefault)
 	got = consumeIter(iter)
 	must.NotNil(t, got[vols[2].ID], must.Sprint("expected vol2"))
 	must.NotNil(t, got[vols[3].ID], must.Sprint("expected vol3"))
@@ -119,8 +114,7 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		must.NoError(t, store.UpsertHostVolume(index, vol))
 	}
 
-	iter, err = store.HostVolumesByName(nil, structs.DefaultNamespace, "example", SortDefault)
-	must.NoError(t, err)
+	iter = store.HostVolumesByName(nil, structs.DefaultNamespace, "example", SortDefault)
 	got = consumeIter(iter)
 	must.MapLen(t, 2, got, must.Sprint(`expected 2 volumes named "example" in default namespace`))
 
@@ -159,19 +153,16 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 	must.NotNil(t, vol)
 	must.Len(t, 1, vol.Allocations)
 
-	iter, err = store.HostVolumes(nil, SortReverse)
-	must.NoError(t, err)
+	iter = store.HostVolumes(nil, SortReverse)
 	got = consumeIter(iter)
 	must.MapLen(t, 3, got, must.Sprint(`expected 3 volumes remain`))
 
 	prefix := vol.ID[:30] // sufficiently long prefix to avoid flakes
-	iter, err = store.HostVolumesByIDPrefix(nil, "*", prefix, SortDefault)
-	must.NoError(t, err)
+	iter = store.HostVolumesByIDPrefix(nil, "*", prefix, SortDefault)
 	got = consumeIter(iter)
 	must.MapLen(t, 1, got, must.Sprint(`expected only one volume to match prefix`))
 
-	iter, err = store.HostVolumesByIDPrefix(nil, vol.Namespace, prefix, SortDefault)
-	must.NoError(t, err)
+	iter = store.HostVolumesByIDPrefix(nil, vol.Namespace, prefix, SortDefault)
 	got = consumeIter(iter)
 	must.MapLen(t, 1, got, must.Sprint(`expected only one volume to match prefix`))
 
@@ -184,7 +175,7 @@ func TestStateStore_HostVolumes_CRUD(t *testing.T) {
 		index++
 		must.NoError(t, store.DeleteHostVolume(index, v.Namespace, v.ID))
 	}
-	iter, err = store.HostVolumes(nil, SortDefault)
+	iter = store.HostVolumes(nil, SortDefault)
 	got = consumeIter(iter)
 	must.MapLen(t, 0, got, must.Sprint(`expected no volumes to remain`))
 }

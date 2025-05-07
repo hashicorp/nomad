@@ -210,7 +210,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
 			mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{},
-				map[string][]string{"*": []string{"list"}}),
+				map[string][]string{"*": {"list"}}),
 			mock.NodePolicy(acl.PolicyRead),
 		}, "\n"))
 		req.AuthToken = validToken.SecretID
@@ -228,7 +228,7 @@ func TestSearch_PrefixSearch_ACL(t *testing.T) {
 	{
 		validToken := mock.CreatePolicyAndToken(t, store, 1012, "test-valid4", strings.Join([]string{
 			mock.NamespacePolicyWithVariables(structs.DefaultNamespace, "", []string{},
-				map[string][]string{"*": []string{"list"}}),
+				map[string][]string{"*": {"list"}}),
 			mock.NodePolicy(acl.PolicyRead),
 		}, "\n"))
 		req.AuthToken = validToken.SecretID
@@ -356,7 +356,7 @@ func TestSearch_PrefixSearch_Truncate(t *testing.T) {
 	codec := rpcClient(t, s)
 	testutil.WaitForLeader(t, s.RPC)
 
-	for counter := 0; counter < 25; counter++ {
+	for counter := range 25 {
 		registerMockJob(s, t, prefix, counter)
 	}
 
@@ -2691,4 +2691,13 @@ func TestSearch_FuzzySearch_fuzzyIndex(t *testing.T) {
 		result := fuzzyIndex(tc.name, tc.text)
 		require.Equal(t, tc.exp, result, "name: %s, text: %s, exp: %d, got: %d", tc.name, tc.text, tc.exp, result)
 	}
+}
+
+func TestIsValidUUIDPrefix(t *testing.T) {
+	u := "de05fc42-673d-4baf-bdb5-96f8652f1d6d"
+	for i := range len(u) {
+		must.True(t, isValidUUIDPrefix(u[:i]), must.Sprintf("prefix: %q", u[:i]))
+	}
+	u = "de05fc42-6z"
+	must.False(t, isValidUUIDPrefix(u))
 }

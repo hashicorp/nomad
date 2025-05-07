@@ -30,18 +30,16 @@ func TestStateStore_UpsertACLAuthMethods(t *testing.T) {
 	// List all the auth methods in the table, so we can perform a number of
 	// tests on the return array.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLAuthMethods(ws)
-	must.NoError(t, err)
+	iter := testState.GetACLAuthMethods(ws)
 
 	// Count how many table entries we have, to ensure it is the expected
 	// number.
 	var count int
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for authMethod := range iter.All() {
 		count++
 
 		// Ensure the create and modify indexes are populated correctly.
-		authMethod := raw.(*structs.ACLAuthMethod)
 		must.Eq(t, 10, authMethod.CreateIndex)
 		must.Eq(t, 10, authMethod.ModifyIndex)
 	}
@@ -72,18 +70,16 @@ func TestStateStore_UpsertACLAuthMethods(t *testing.T) {
 	must.Eq(t, 20, updatedIndex)
 
 	// List the ACL auth methods in state.
-	iter, err = testState.GetACLAuthMethods(ws)
-	must.NoError(t, err)
+	iter = testState.GetACLAuthMethods(ws)
 
 	// Count how many table entries we have, to ensure it is the expected
 	// number.
 	count = 0
 
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
+	for aclAuthMethod := range iter.All() {
 		count++
 
 		// Ensure the create and modify indexes are populated correctly.
-		aclAuthMethod := raw.(*structs.ACLAuthMethod)
 		must.Eq(t, 10, aclAuthMethod.CreateIndex)
 		must.Eq(t, 20, aclAuthMethod.ModifyIndex)
 	}
@@ -98,18 +94,10 @@ func TestStateStore_UpsertACLAuthMethods(t *testing.T) {
 	err = testState.UpsertACLAuthMethods(50, []*structs.ACLAuthMethod{dup})
 	must.NoError(t, err)
 
-	// Get all the ACL auth methods from state.
-	iter, err = testState.GetACLAuthMethods(ws)
-	must.NoError(t, err)
-
 	// Count how many table entries we have, to ensure it is the expected
 	// number.
-	count = 0
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		count++
-	}
-	must.Eq(t, 2, count, must.Sprintf("incorrect number of ACL auth methods found"))
+	must.Len(t, 2, testState.GetACLAuthMethods(ws).Slice(),
+		must.Sprintf("incorrect number of ACL auth methods found"))
 }
 
 func TestStateStore_DeleteACLAuthMethods(t *testing.T) {
@@ -142,15 +130,7 @@ func TestStateStore_DeleteACLAuthMethods(t *testing.T) {
 	// List the ACL auth methods and ensure we now only have one present and
 	// that it is the one we expect.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLAuthMethods(ws)
-	must.NoError(t, err)
-
-	var aclAuthMethods []*structs.ACLAuthMethod
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclAuthMethods = append(aclAuthMethods, raw.(*structs.ACLAuthMethod))
-	}
-
+	aclAuthMethods := testState.GetACLAuthMethods(ws).Slice()
 	must.Len(t, 1, aclAuthMethods, must.Sprintf("incorrect number of auth methods found"))
 	must.True(t, aclAuthMethods[0].Equal(mockedACLAuthMethods[1]))
 
@@ -164,14 +144,7 @@ func TestStateStore_DeleteACLAuthMethods(t *testing.T) {
 	must.Eq(t, 30, tableIndex)
 
 	// List the auth methods and ensure we have zero entries.
-	iter, err = testState.GetACLAuthMethods(ws)
-	must.NoError(t, err)
-
-	aclAuthMethods = []*structs.ACLAuthMethod{}
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclAuthMethods = append(aclAuthMethods, raw.(*structs.ACLAuthMethod))
-	}
+	aclAuthMethods = testState.GetACLAuthMethods(ws).Slice()
 	must.Len(t, 0, aclAuthMethods, must.Sprintf("incorrect number of ACL roles found"))
 }
 
@@ -186,14 +159,7 @@ func TestStateStore_GetACLAuthMethods(t *testing.T) {
 
 	// List the auth methods and ensure they are exactly as we expect.
 	ws := memdb.NewWatchSet()
-	iter, err := testState.GetACLAuthMethods(ws)
-	must.NoError(t, err)
-
-	var aclAuthMethods []*structs.ACLAuthMethod
-
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		aclAuthMethods = append(aclAuthMethods, raw.(*structs.ACLAuthMethod))
-	}
+	aclAuthMethods := testState.GetACLAuthMethods(ws).Slice()
 
 	expected := mockedACLAuthMethods
 	for i := range expected {

@@ -213,14 +213,7 @@ func TestTaskGroupHostVolumeClaimEndpoint_Delete(t *testing.T) {
 
 	// Ensure the claim is gone
 	ws := memdb.NewWatchSet()
-	iter, err := testServer.State().GetTaskGroupHostVolumeClaims(ws)
-	must.NoError(t, err)
-
-	var claimsLookup []*structs.TaskGroupHostVolumeClaim
-	for raw := iter.Next(); raw != nil; raw = iter.Next() {
-		claimsLookup = append(claimsLookup, raw.(*structs.TaskGroupHostVolumeClaim))
-	}
-
+	claimsLookup := testServer.State().GetTaskGroupHostVolumeClaims(ws).Slice()
 	must.Len(t, 2, claimsLookup)
 	must.SliceNotContains(t, claimsLookup, existingClaims[0])
 

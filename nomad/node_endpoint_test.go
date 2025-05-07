@@ -1274,8 +1274,7 @@ func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
 	// Check the service registrations are in state as we expect, so we can
 	// have confidence in the rest of the test.
 	ws := memdb.NewWatchSet()
-	nodeRegs, err := testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
-	must.NoError(t, err)
+	nodeRegs := testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
 	must.Len(t, 2, nodeRegs)
 	must.Eq(t, nodeRegs[0].NodeID, node.ID)
 	must.Eq(t, nodeRegs[1].NodeID, node.ID)
@@ -1295,8 +1294,7 @@ func TestNode_UpdateStatus_ServiceRegistrations(t *testing.T) {
 
 	// Query our state, to ensure the node service registrations have been
 	// removed.
-	nodeRegs, err = testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
-	must.NoError(t, err)
+	nodeRegs = testServer.State().GetServiceRegistrationsByNodeID(ws, node.ID)
 	must.Len(t, 0, nodeRegs)
 
 	// Re-send the status update, to ensure we get no error if service
@@ -2540,31 +2538,10 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		t.Fatalf("bad: %#v", resp2.Allocs)
 	}
 
-	iter, err := store.AllocsByIDPrefix(nil, structs.DefaultNamespace, alloc.ID, state.SortDefault)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	getAllocs := func(iter memdb.ResultIterator) []*structs.Allocation {
-		var allocs []*structs.Allocation
-		for {
-			raw := iter.Next()
-			if raw == nil {
-				break
-			}
-			allocs = append(allocs, raw.(*structs.Allocation))
-		}
-		return allocs
-	}
-	out := getAllocs(iter)
-
-	if len(out) != 1 {
-		t.Fatalf("Expected to get one allocation but got:%v", out)
-	}
-
-	if out[0].ModifyTime != now {
-		t.Fatalf("Invalid modify time %v", out[0].ModifyTime)
-	}
+	out := store.AllocsByIDPrefix(
+		nil, structs.DefaultNamespace, alloc.ID, state.SortDefault).Slice()
+	must.Len(t, 1, out)
+	must.Eq(t, now, out[0].ModifyTime)
 
 	// Alloc updates fire watches
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -3055,8 +3032,7 @@ func TestNode_UpdateAllocServiceRegistrations(t *testing.T) {
 	var resp structs.NodeAllocsResponse
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp))
 
-	services, err := store.GetServiceRegistrationsByNodeID(nil, node.ID)
-	must.NoError(t, err)
+	services := store.GetServiceRegistrationsByNodeID(nil, node.ID)
 	must.Len(t, 2, services, must.Sprint("no-op update should not have deleted services"))
 
 	// fail one allocation
@@ -3068,8 +3044,7 @@ func TestNode_UpdateAllocServiceRegistrations(t *testing.T) {
 	}
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", update, &resp))
 
-	services, err = store.GetServiceRegistrationsByNodeID(nil, node.ID)
-	must.NoError(t, err)
+	services = store.GetServiceRegistrationsByNodeID(nil, node.ID)
 	must.Eq(t, []*structs.ServiceRegistration{service1}, services,
 		must.Sprint("failing an allocation should result in its service being deleted"))
 }

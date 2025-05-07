@@ -896,9 +896,9 @@ func (s *StateStore) UpsertScalingEvent(index uint64, req *structs.ScalingEventR
 }
 
 // ScalingEvents returns an iterator over all the job scaling events
-func (s *StateStore) ScalingEvents(ws memdb.WatchSet) ResultIterator[*structs.ScalingEvent] {
+func (s *StateStore) ScalingEvents(ws memdb.WatchSet) ResultIterator[*structs.JobScalingEvents] {
 	txn := s.db.ReadTxn()
-	iter := Get[*structs.ScalingEvent](txn, "scaling_event", "id")
+	iter := Get[*structs.JobScalingEvents](txn, "scaling_event", "id")
 	ws.Add(iter.WatchCh())
 	return iter
 }

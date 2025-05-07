@@ -56,7 +56,9 @@ func NewSearchEndpoint(srv *Server, ctx *RPCContext) *Search {
 	return &Search{srv: srv, ctx: ctx, logger: srv.logger.Named("search")}
 }
 
-func getFuzzyMatchesImpl[T comparable](iter state.ResultIterator[T], text string, limitQuery, limitResults int) (map[structs.Context][]structs.FuzzyMatch, map[structs.Context]bool) {
+func getFuzzyMatchesImpl[T comparable](
+	iter state.ResultIterator[T], text string, limitQuery, limitResults int) (
+	map[structs.Context][]structs.FuzzyMatch, map[structs.Context]bool) {
 
 	unsorted := make(map[structs.Context][]fuzzyMatch)
 	truncations := make(map[structs.Context]bool)
@@ -98,11 +100,14 @@ func getFuzzyMatchesImpl[T comparable](iter state.ResultIterator[T], text string
 	}
 
 	i := 0
+	limited := false
 	for val := range iter.All() {
-		limited := false
 		i++
-		if i >= limitQuery {
-			limited = true
+		if i > limitQuery {
+			break
+		}
+		if i == limitQuery {
+			limited = iter.Next() != *new(T)
 		}
 
 		switch any(val).(type) {
@@ -316,9 +321,29 @@ func sortSet(matches []fuzzyMatch) {
 	})
 }
 
-// TODO(tgross): could almost all this logic live in the state store code?
-func getPrefixMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, prefix string, ws memdb.WatchSet, store *state.StateStore) (map[structs.Context][]string, map[structs.Context]bool, error) {
+func isValidUUIDPrefix(prefix string) bool {
+	if len(prefix) > 36 {
+		return false
+	}
+	for i, c := range prefix {
+		switch i {
+		case 8, 13, 18, 23:
+			if c != '-' {
+				return false
+			}
+		default:
+			b := c | 0x20
+			if b-'0' > 10 && b-'a' > 6 {
+				return false
+			}
+		}
+	}
 
+	return true
+}
+
+// TODO(tgross): could almost all this logic live in the state store code?
+func getPrefixMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, prefix string, ws memdb.WatchSet, store *state.StateStore) (map[structs.Context][]string, map[structs.Context]bool) {
 	ids := make(map[structs.Context][]string, len(contexts))
 	truncs := make(map[structs.Context]bool, len(contexts))
 
@@ -326,21 +351,36 @@ func getPrefixMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, pr
 		switch context {
 		case structs.Jobs:
 			iter := store.JobsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(job *structs.Job) string { return job.ID })
 
 		case structs.Evals:
-			iter := store.EvalsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			if !isValidUUIDPrefix(prefix) {
+				continue
+			}
+			cprefix := roundUUIDDownIfOdd(prefix, context)
+			iter := store.EvalsByIDPrefix(ws, namespace, cprefix, state.SortDefault)
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(eval *structs.Evaluation) string { return eval.ID })
 
 		case structs.Allocs:
-			iter := store.AllocsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			if !isValidUUIDPrefix(prefix) {
+				continue
+			}
+			cprefix := roundUUIDDownIfOdd(prefix, context)
+			iter := store.AllocsByIDPrefix(ws, namespace, cprefix, state.SortDefault)
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(alloc *structs.Allocation) string { return alloc.ID })
 
 		case structs.Nodes:
-			iter := store.NodesByIDPrefix(ws, prefix)
+			if !isValidUUIDPrefix(prefix) {
+				continue
+			}
+			cprefix := roundUUIDDownIfOdd(prefix, context)
+			iter := store.NodesByIDPrefix(ws, cprefix)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(node *structs.Node) string { return node.ID })
 
@@ -353,7 +393,12 @@ func getPrefixMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, pr
 				func(pool *structs.NodePool) string { return pool.Name })
 
 		case structs.Deployments:
-			iter := store.DeploymentsByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			if !isValidUUIDPrefix(prefix) {
+				continue
+			}
+			cprefix := roundUUIDDownIfOdd(prefix, context)
+			iter := store.DeploymentsByIDPrefix(ws, namespace, cprefix, state.SortDefault)
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(d *structs.Deployment) string { return d.ID })
 
@@ -363,26 +408,34 @@ func getPrefixMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, pr
 				func(p *structs.CSIPlugin) string { return p.ID })
 
 		case structs.ScalingPolicies:
-			iter := store.ScalingPoliciesByIDPrefix(ws, namespace, prefix)
+			if !isValidUUIDPrefix(prefix) {
+				continue
+			}
+			cprefix := roundUUIDDownIfOdd(prefix, context)
+			iter := store.ScalingPoliciesByIDPrefix(ws, namespace, cprefix)
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(p *structs.ScalingPolicy) string { return p.ID })
 
 		case structs.Volumes:
 			iter := store.CSIVolumesByIDPrefix(ws, namespace, prefix)
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(v *structs.CSIVolume) string { return v.ID })
 
 		case structs.HostVolumes:
-			iter := store.HostVolumesByIDPrefix(ws, namespace, prefix, state.SortDefault)
+			if !isValidUUIDPrefix(prefix) {
+				continue
+			}
+			cprefix := roundUUIDDownIfOdd(prefix, context)
+			iter := store.HostVolumesByIDPrefix(ws, namespace, cprefix, state.SortDefault)
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(v *structs.HostVolume) string { return v.ID })
 
 		case structs.Namespaces:
 			iter := store.NamespacesByNamePrefix(ws, prefix)
-			iter = state.NewFilterIterator(iter, func(ns *structs.Namespace) bool {
-				return !aclObj.AllowNamespace(ns.Name)
-			})
-
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(ns *structs.Namespace) string {
 					return ns.Name
@@ -390,9 +443,7 @@ func getPrefixMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, pr
 
 		case structs.Variables:
 			iter := store.GetVariablesByPrefix(ws, prefix)
-			iter = state.NewFilterIterator(iter, func(v *structs.VariableEncrypted) bool {
-				return !aclObj.AllowNamespace(v.Namespace)
-			})
+			iter = nsCapIterFilter(iter, aclObj)
 			ids[context], truncs[context] = prefixMatches(iter,
 				func(v *structs.VariableEncrypted) string { return v.Path })
 
@@ -407,15 +458,14 @@ func getPrefixMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, pr
 
 	}
 
-	return ids, truncs, nil
+	return ids, truncs
 }
 
 func prefixMatches[T comparable](iter state.ResultIterator[T], getID func(T) string) ([]string, bool) {
 	ids := []string{}
 	isTrunc := false
-	i := 0
 	for obj := range iter.All() {
-		if i > truncateLimit {
+		if len(ids) >= truncateLimit {
 			isTrunc = true
 			break
 		}
@@ -493,30 +543,6 @@ func roundUUIDDownIfOdd(prefix string, context structs.Context) string {
 	return prefix[:len(prefix)-1]
 }
 
-// silenceError determines whether err is an error we care about when getting an
-// iterator from the state store - we ignore errors about invalid UUIDs, since
-// we sometimes try to lookup by Name and not UUID.
-func (*Search) silenceError(err error) bool {
-	if err == nil {
-		return true
-	}
-
-	e := err.Error()
-	switch {
-	// Searching other contexts with job names raises an error, which in
-	// this case we want to ignore.
-	case strings.Contains(e, "Invalid UUID: encoding/hex"):
-	case strings.Contains(e, "UUID have 36 characters"):
-	case strings.Contains(e, "must be even length"):
-	case strings.Contains(e, "UUID should have maximum of 4"):
-	default:
-		// err was not nil and not about UUID prefix, something bad happened
-		return false
-	}
-
-	return true
-}
-
 // PrefixSearch is used to list matches for a given prefix, and returns
 // matching jobs, evaluations, allocations, and/or nodes.
 func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.SearchResponse) error {
@@ -554,13 +580,8 @@ func (s *Search) PrefixSearch(args *structs.SearchRequest, reply *structs.Search
 
 			contexts := filteredSearchContexts(aclObj, namespace, args.Context)
 
-			matches, truncations, err := getPrefixMatches(
+			matches, truncations := getPrefixMatches(
 				contexts, aclObj, namespace, args.Prefix, ws, state)
-			if err != nil {
-				if !s.silenceError(err) {
-					return err
-				}
-			}
 			reply.Matches = matches
 			reply.Truncations = truncations
 
@@ -699,16 +720,14 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 		queryOpts: new(structs.QueryOptions),
 		run: func(ws memdb.WatchSet, state *state.StateStore) error {
 
+			// // only apply on the types that use UUID prefix searching
 			prefixContexts := filteredSearchContexts(aclObj, namespace, context)
+			prefixContexts = fuzzyPrefixSearchContexts(prefixContexts)
+
 			fuzzyContexts := filteredFuzzySearchContexts(aclObj, namespace, context)
 
-			pmatches, truncations, err := getPrefixMatches(
+			pmatches, truncations := getPrefixMatches(
 				prefixContexts, aclObj, namespace, args.Prefix, ws, state)
-			if err != nil {
-				if !s.silenceError(err) {
-					return err
-				}
-			}
 
 			reply.Truncations = truncations
 			for context, res := range pmatches {
@@ -756,8 +775,8 @@ func (s *Search) FuzzySearch(args *structs.FuzzySearchRequest, reply *structs.Fu
 }
 
 func mergeFuzzyMatches(
-	inMatches map[structs.Context][]structs.FuzzyMatch, inTruncs map[structs.Context]bool,
 	outMatches map[structs.Context][]structs.FuzzyMatch, outTruncs map[structs.Context]bool,
+	inMatches map[structs.Context][]structs.FuzzyMatch, inTruncs map[structs.Context]bool,
 ) {
 	for ctx, match := range inMatches {
 		if _, ok := outMatches[ctx]; !ok {
@@ -786,21 +805,21 @@ func getFuzzyMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, tex
 			var iter state.ResultIterator[*structs.Job]
 			if wildcard(namespace) {
 				iter = store.Jobs(ws, state.SortDefault)
-				iter = nsCapIterFilter(iter, aclObj)
 			} else {
 				iter = store.JobsByNamespace(ws, namespace, state.SortDefault)
 			}
+			iter = nsCapIterFilter(iter, aclObj)
 			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
 			mergeFuzzyMatches(matches, truncs, m, t)
 
 		case structs.Allocs:
 			var iter state.ResultIterator[*structs.Allocation]
 			if wildcard(namespace) {
-				iter := store.Allocs(ws, state.SortDefault)
-				iter = nsCapIterFilter(iter, aclObj)
+				iter = store.Allocs(ws, state.SortDefault)
 			} else {
 				iter = store.AllocsByNamespace(ws, namespace)
 			}
+			iter = nsCapIterFilter(iter, aclObj)
 			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
 			mergeFuzzyMatches(matches, truncs, m, t)
 
@@ -808,10 +827,10 @@ func getFuzzyMatches(contexts []structs.Context, aclObj *acl.ACL, namespace, tex
 			var iter state.ResultIterator[*structs.VariableEncrypted]
 			if wildcard(namespace) {
 				iter = store.Variables(ws)
-				iter = nsCapIterFilter(iter, aclObj)
 			} else {
 				iter = store.GetVariablesByNamespace(ws, namespace)
 			}
+			iter = nsCapIterFilter(iter, aclObj)
 			m, t := getFuzzyMatchesImpl(iter, text, limitQuery, limitResults)
 			mergeFuzzyMatches(matches, truncs, m, t)
 
@@ -946,6 +965,20 @@ func filteredSearchContexts(aclObj *acl.ACL, namespace string, context structs.C
 		}
 	}
 	return available
+}
+
+func fuzzyPrefixSearchContexts(contexts []structs.Context) []structs.Context {
+	out := []structs.Context{}
+	for _, context := range contexts {
+		switch context {
+		case structs.Evals, structs.Deployments, structs.ScalingPolicies,
+			structs.Volumes, structs.HostVolumes, structs.Quotas, structs.Recommendations:
+			out = append(out, context)
+		default:
+			continue
+		}
+	}
+	return out
 }
 
 // filterFuzzySearchContexts returns every context asked for if the searched namespace

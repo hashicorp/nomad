@@ -51,7 +51,7 @@ func allocClientStateSimulator(t *testing.T, errCh chan<- error, ctx context.Con
 		// For each alloc that doesn't have its deployment status set, set it
 		var updates []*structs.Allocation
 		now := time.Now()
-		for _, alloc := range allocs {
+		for alloc := range allocs.All() {
 			if alloc.Job.Type != structs.JobTypeService {
 				continue
 			}
@@ -112,7 +112,7 @@ func checkAllocPromoter(errCh chan error) error {
 	}
 }
 
-func getNodeAllocs(ctx context.Context, store *state.StateStore, nodeID string, index uint64) ([]*structs.Allocation, uint64, error) {
+func getNodeAllocs(ctx context.Context, store *state.StateStore, nodeID string, index uint64) (state.ResultIterator[*structs.Allocation], uint64, error) {
 	resp, index, err := store.BlockingQuery(getNodeAllocsImpl(nodeID), index, ctx)
 	if err != nil {
 		return nil, 0, err
@@ -121,16 +121,13 @@ func getNodeAllocs(ctx context.Context, store *state.StateStore, nodeID string, 
 		return nil, 0, err
 	}
 
-	return resp.([]*structs.Allocation), index, nil
+	return resp.(state.ResultIterator[*structs.Allocation]), index, nil
 }
 
 func getNodeAllocsImpl(nodeID string) func(ws memdb.WatchSet, store *state.StateStore) (interface{}, uint64, error) {
 	return func(ws memdb.WatchSet, store *state.StateStore) (interface{}, uint64, error) {
 		// Capture all the allocations
-		allocs, err := store.AllocsByNode(ws, nodeID)
-		if err != nil {
-			return nil, 0, err
-		}
+		allocs := store.AllocsByNode(ws, nodeID)
 
 		// Use the last index that affected the jobs table
 		index, err := store.Index("allocs")
@@ -823,16 +820,13 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 					return fmt.Errorf("check alloc promoter error: %v", err)
 				}
 
-				allocs, err := store.AllocsByNode(nil, n1.ID)
-				must.NoError(t, err)
+				allocs := store.AllocsByNode(nil, n1.ID).Slice()
 				for _, alloc := range allocs {
 					if alloc.DesiredStatus != structs.AllocDesiredStatusRun {
 						return fmt.Errorf("got status %v", alloc.DesiredStatus)
 					}
 				}
-				if len(allocs) != 2 {
-					return fmt.Errorf("expected 2 allocs but got %d", len(allocs))
-				}
+				must.Len(t, 2, allocs)
 				return nil
 			}),
 				wait.Timeout(500*time.Millisecond),
@@ -902,8 +896,7 @@ func waitForPlacedAllocs(t *testing.T, store *state.StateStore, nodeID string, c
 	t.Helper()
 	must.Wait(t, wait.InitialSuccess(
 		wait.BoolFunc(func() bool {
-			allocs, err := store.AllocsByNode(nil, nodeID)
-			must.NoError(t, err)
+			allocs := store.AllocsByNode(nil, nodeID).Slice()
 			return len(allocs) == count
 		}),
 		wait.Timeout(10*time.Second),
@@ -921,9 +914,7 @@ func waitForAllocsStop(t *testing.T, store *state.StateStore, nodeID string, err
 				return err
 			}
 
-			var err error
-			finalAllocs, err = store.AllocsByNode(nil, nodeID)
-			must.NoError(t, err)
+			finalAllocs = store.AllocsByNode(nil, nodeID).Slice()
 			for _, alloc := range finalAllocs {
 				if alloc.DesiredStatus != structs.AllocDesiredStatusStop {
 					return fmt.Errorf("expected stop but got %s", alloc.DesiredStatus)
