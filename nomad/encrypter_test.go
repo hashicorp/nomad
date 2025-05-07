@@ -872,9 +872,8 @@ func TestEncrypter_IsReady_eventuallyReady(t *testing.T) {
 	encrypter.decryptTasks["id1"] = struct{}{}
 
 	// Generate a timeout value that will be used to create the context passed
-	// to the encrypter and the time at which we update the decryption task
-	// tracking. Changing this value should not impact the test except for its
-	// run length.
+	// to the encrypter. Changing this value should not impact the test except
+	// for its run length as other trigger values are calculated using this.
 	timeout := 2 * time.Second
 
 	timeoutCtx, timeoutCancel := context.WithTimeout(context.Background(), timeout)
