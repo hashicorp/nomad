@@ -1,0 +1,3 @@
+```release-note:security
+build: Update Go to 1.24.3 to address CVE-2025-22873
+```
