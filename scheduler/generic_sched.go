@@ -381,6 +381,10 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// nodes to lost, but only if the scheduler has already marked them
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
+	////TODO refactor into helper func
+	//for _, alloc := range allocs {
+
+	//}
 	reconciler := NewAllocReconciler(s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID,
