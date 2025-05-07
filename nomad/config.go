@@ -442,6 +442,12 @@ type Config struct {
 
 	// KEKProviders are used to wrap the Nomad keyring
 	KEKProviderConfigs []*structs.KEKProviderConfig
+
+	// StartTimeout is provided to the server so that it can time out setup and
+	// startup process that are expected to complete before the server is
+	// considered healthy. Without this, the server can hang indefinitely
+	// waiting for these.
+	StartTimeout time.Duration
 }
 
 func (c *Config) Copy() *Config {
@@ -650,6 +656,7 @@ func DefaultConfig() *Config {
 		JobDefaultPriority:       structs.JobDefaultPriority,
 		JobMaxPriority:           structs.JobDefaultMaxPriority,
 		JobTrackedVersions:       structs.JobDefaultTrackedVersions,
+		StartTimeout:             30 * time.Second,
 	}
 
 	// Enable all known schedulers by default

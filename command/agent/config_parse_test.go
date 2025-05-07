@@ -158,6 +158,7 @@ var basicConfig = &Config{
 		LicensePath:        "/tmp/nomad.hclic",
 		JobDefaultPriority: pointer.Of(100),
 		JobMaxPriority:     pointer.Of(200),
+		StartTimeout:       "1m",
 	},
 	ACL: &ACLConfig{
 		Enabled:                  true,

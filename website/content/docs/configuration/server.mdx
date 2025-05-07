@@ -258,6 +258,12 @@ server {
   fields may directly specify the server address or use go-discover syntax for
   auto-discovery. Refer to the [server_join documentation][server-join] for more detail.
 
+- `start_timeout` `(string: "30s")` - A timeout applied to the server setup and
+  startup processes. These processes (keyring decryption) are expected to
+  complete before the server is considered healthy, and if the timeout is
+  reached before they are completed, the server will exit. Without this, the
+  server can hang indefinitely waiting for these.
+
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
   For more information, refer to the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).

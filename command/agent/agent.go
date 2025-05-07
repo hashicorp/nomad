@@ -637,6 +637,16 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 
 	conf.KEKProviderConfigs = agentConfig.KEKProviders
 
+	if startTimeout := agentConfig.Server.StartTimeout; startTimeout != "" {
+		dur, err := time.ParseDuration(startTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse start_timeout: %v", err)
+		} else if dur <= time.Duration(0) {
+			return nil, fmt.Errorf("start_timeout should be greater than 0s")
+		}
+		conf.StartTimeout = dur
+	}
+
 	// Ensure the passed number of scheduler is between the bounds of zero and
 	// the number of CPU cores on the machine. The runtime CPU count object is
 	// populated at process start time, so there is no overhead in calling the
