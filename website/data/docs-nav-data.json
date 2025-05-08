@@ -453,6 +453,10 @@
               {
                 "title": "list",
                 "path": "commands/acl/policy/list"
+              },
+              {
+                "title": "self",
+                "path": "commands/acl/policy/self"
               }
             ]
           },
