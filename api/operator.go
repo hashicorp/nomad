@@ -207,6 +207,18 @@ type SchedulerSetConfigurationResponse struct {
 	WriteMeta
 }
 
+// SetNumSchedulersRequest is used to set the number of schedulers
+type SetNumSchedulersRequest struct {
+	Schedulers int
+	WriteRequest
+}
+
+// GetNumSchedulersResponse is used to get number of schedulers
+type GetNumSchedulersResponse struct {
+	Schedulers int
+	QueryMeta
+}
+
 // SchedulerAlgorithm is an enum string that encapsulates the valid options for a
 // SchedulerConfiguration block's SchedulerAlgorithm. These modes will allow the
 // scheduler to be user-selectable.
@@ -229,6 +241,16 @@ type PreemptionConfig struct {
 func (op *Operator) SchedulerGetConfiguration(q *QueryOptions) (*SchedulerConfigurationResponse, *QueryMeta, error) {
 	var resp SchedulerConfigurationResponse
 	qm, err := op.c.query("/v1/operator/scheduler/configuration", &resp, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &resp, qm, nil
+}
+
+// SchedulerGetNumSchedulers is used to query the current number of schedulers
+func (op *Operator) SchedulerGetNumSchedulers(q *QueryOptions) (*GetNumSchedulersResponse, *QueryMeta, error) {
+	var resp GetNumSchedulersResponse
+	qm, err := op.c.query("/v1/operator/scheduler/schedulers", &resp, q)
 	if err != nil {
 		return nil, nil, err
 	}

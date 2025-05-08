@@ -501,6 +501,7 @@ func (s *HTTPServer) registerHandlers(enableDebug bool) {
 	s.mux.HandleFunc("/v1/system/reconcile/summaries", s.wrap(s.ReconcileJobSummaries))
 
 	s.mux.HandleFunc("/v1/operator/scheduler/configuration", s.wrap(s.OperatorSchedulerConfiguration))
+	s.mux.HandleFunc("/v1/operator/scheduler/schedulers", s.wrap(s.OperatorSchedulers))
 
 	s.mux.HandleFunc("/v1/event/stream", s.wrap(s.EventStream))
 

@@ -502,6 +502,63 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	return nil
 }
 
+// GetNumSchedulers gets the number of schedulers of a server. CAUTION: this RPC
+// does *not* get forwarded via Raft, works only on the local server.
+func (op *Operator) GetNumSchedulers(args *structs.GenericRequest, reply *structs.GetNumSchedulersResponse) error {
+	authErr := op.srv.Authenticate(op.ctx, args)
+	op.srv.MeasureRPCRate("operator", structs.RateMetricRead, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// This action requires operator read access.
+	aclObj, err := op.srv.ResolveACL(args)
+	if err != nil {
+		return err
+	} else if !aclObj.AllowOperatorRead() {
+		return structs.ErrPermissionDenied
+	}
+
+	schedulerConfig := op.srv.GetSchedulerWorkerConfig()
+	reply.Schedulers = schedulerConfig.NumSchedulers
+
+	return nil
+}
+
+// SetNumSchedulers sets the number of schedulers of a server. CAUTION: this RPC
+// does *not* get forwarded via Raft, works only on the local server.
+func (op *Operator) SetNumSchedulers(args *structs.SetNumSchedulersRequest, reply *structs.GenericResponse) error {
+	authErr := op.srv.Authenticate(op.ctx, args)
+	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)
+	if authErr != nil {
+		return structs.ErrPermissionDenied
+	}
+
+	// Check management level permissions
+	if aclObj, err := op.srv.ResolveACL(args); err != nil {
+		return err
+	} else if !aclObj.IsManagement() {
+		return structs.ErrPermissionDenied
+	}
+
+	schedulerConfig := op.srv.GetSchedulerWorkerConfig()
+
+	// nothing to change, return early
+	if schedulerConfig.NumSchedulers == args.Schedulers {
+		return nil
+	}
+
+	schedulerConfig.NumSchedulers = args.Schedulers
+	updatedSchedulerConfig := op.srv.SetSchedulerWorkerConfig(schedulerConfig)
+	if updatedSchedulerConfig.NumSchedulers == args.Schedulers {
+		op.logger.Debug(fmt.Sprintf("set num_schedulers to %v", args.Schedulers))
+	} else {
+		op.logger.Error("setting num_schedulers failed")
+	}
+
+	return nil
+}
+
 func (op *Operator) forwardStreamingRPC(region string, method string, args interface{}, in io.ReadWriteCloser) error {
 	server, err := op.srv.findRegionServer(region)
 	if err != nil {

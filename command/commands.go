@@ -822,8 +822,18 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"operator scheduler get-num-schedulers": func() (cli.Command, error) {
+			return &OperatorSchedulerGetNumSchedulers{
+				Meta: meta,
+			}, nil
+		},
 		"operator scheduler set-config": func() (cli.Command, error) {
 			return &OperatorSchedulerSetConfig{
+				Meta: meta,
+			}, nil
+		},
+		"operator scheduler set-num-schedulers": func() (cli.Command, error) {
+			return &OperatorSchedulerSetNumSchedulers{
 				Meta: meta,
 			}, nil
 		},

@@ -342,6 +342,46 @@ func (s *HTTPServer) schedulerUpdateConfig(resp http.ResponseWriter, req *http.R
 	return reply, nil
 }
 
+func (s *HTTPServer) OperatorSchedulers(resp http.ResponseWriter, req *http.Request) (any, error) {
+	// Switch on the method
+	switch req.Method {
+	case http.MethodGet:
+		return s.schedulersGet(resp, req)
+
+	case http.MethodPut, http.MethodPost:
+		return s.schedulersSet(resp, req)
+
+	default:
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+}
+
+func (s *HTTPServer) schedulersGet(resp http.ResponseWriter, req *http.Request) (any, error) {
+	var args structs.GenericRequest
+	if done := s.parse(resp, req, &args.Region, &args.QueryOptions); done {
+		return nil, nil
+	}
+
+	var reply structs.GetNumSchedulersResponse
+	if err := s.agent.RPC("Operator.GetNumSchedulers", &args, &reply); err != nil {
+		return nil, err
+	}
+	setMeta(resp, &reply.QueryMeta)
+
+	return reply, nil
+}
+
+func (s *HTTPServer) schedulersSet(resp http.ResponseWriter, req *http.Request) (any, error) {
+	var args structs.SetNumSchedulersRequest
+	s.parseWriteRequest(req, &args.WriteRequest)
+
+	var reply structs.GenericResponse
+	if err := s.agent.RPC("Operator.SetNumSchedulers", &args, &reply); err != nil {
+		return nil, err
+	}
+	return reply, nil
+}
+
 func (s *HTTPServer) SnapshotRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	switch req.Method {
 	case http.MethodGet:
