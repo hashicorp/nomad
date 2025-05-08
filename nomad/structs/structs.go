@@ -4557,6 +4557,9 @@ type Job struct {
 
 	// Metadata related to a tagged Job Version (which itself is really a Job)
 	VersionTag *JobVersionTag
+
+	WSRSignature string
+	WSRType      string
 }
 
 type JobVersionTag struct {

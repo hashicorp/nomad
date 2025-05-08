@@ -103,6 +103,7 @@ func (c *Command) readConfig() *Config {
 		cmdConfig.Server.ServerJoin.RetryInterval = d
 		return nil
 	}), "retry-interval", "")
+	flags.StringVar(&cmdConfig.Server.WSRPemKey, "server-wsr-pem", "", "")
 
 	// Client-only options
 	flags.StringVar(&cmdConfig.Client.StateDir, "state-dir", "", "")
@@ -117,6 +118,7 @@ func (c *Command) readConfig() *Config {
 	flags.StringVar(&cmdConfig.Client.NetworkInterface, "network-interface", "", "")
 	flags.StringVar((*string)(&cmdConfig.Client.PreferredAddressFamily), "preferred-address-family", "", "ipv4 or ipv6")
 	flags.IntVar(&cmdConfig.Client.NetworkSpeed, "network-speed", 0, "")
+	flags.StringVar(&cmdConfig.Client.WSRNodeType, "client-wsr-type", "", "")
 
 	// General options
 	flags.Var((*flaghelper.StringFlag)(&configPath), "config", "config")
@@ -394,6 +396,11 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 				c.Ui.Error(fmt.Sprintf("Invalid Client.Meta key: %v", k))
 				return false
 			}
+		}
+
+		if config.Client.WSRNodeType != "trusted" {
+			c.Ui.Error(fmt.Sprintf("Invalid WSR Node type: %v", config.Client.WSRNodeType))
+			return false
 		}
 	}
 

@@ -46,6 +46,10 @@ const (
 	// For Client configuration, if no region information is given,
 	// the client node will default to be part of the GlobalRegion.
 	GlobalRegion = "global"
+
+	WSRTypeSensitive  = "sensitive"
+	WSRTypeHardened   = "hardened"
+	WSRTypeUnhardened = "unhardened"
 )
 
 const (
@@ -1124,6 +1128,7 @@ type Job struct {
 	Migrate          *MigrateStrategy        `hcl:"migrate,block"`
 	Meta             map[string]string       `hcl:"meta,block"`
 	UI               *JobUIConfig            `hcl:"ui,block"`
+	WSRType          *string                 `hcl:"wsr_type,optional"`
 
 	/* Fields set by server, not sourced from job config file */
 
@@ -1144,6 +1149,7 @@ type Job struct {
 	ModifyIndex              *uint64
 	JobModifyIndex           *uint64
 	VersionTag               *JobVersionTag
+	WSRSignature             *string
 }
 
 // IsPeriodic returns whether a job is periodic.
@@ -1247,6 +1253,10 @@ func (j *Job) Canonicalize() {
 
 	if j.UI != nil {
 		j.UI.Canonicalize()
+	}
+
+	if j.WSRType == nil {
+		j.WSRType = pointerOf(WSRTypeUnhardened)
 	}
 }
 

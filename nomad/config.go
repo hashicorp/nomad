@@ -442,6 +442,8 @@ type Config struct {
 
 	// KEKProviders are used to wrap the Nomad keyring
 	KEKProviderConfigs []*structs.KEKProviderConfig
+
+	WSRPublicPem string
 }
 
 func (c *Config) Copy() *Config {

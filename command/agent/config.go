@@ -412,8 +412,12 @@ type ClientConfig struct {
 	// Users is used to configure parameters around operating system users.
 	Users *config.UsersConfig `hcl:"users"`
 
+	WorkloadSecurityRingsConfig *config.ClientWorkloadSecurityRingsConfig `hcl:"workload_security_rings"`
+
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	WSRNodeType string `hcl:"wsr_node_type"`
 }
 
 func (c *ClientConfig) Copy() *ClientConfig {
@@ -740,6 +744,8 @@ type ServerConfig struct {
 	// issuer. Third parties such as AWS IAM OIDC Provider expect the issuer to
 	// be a publically accessible HTTPS URL signed by a trusted well-known CA.
 	OIDCIssuer string `hcl:"oidc_issuer"`
+
+	WSRPemKey string `hcl:"wsr_pem_key"`
 }
 
 func (s *ServerConfig) Copy() *ServerConfig {
@@ -2422,6 +2428,10 @@ func (s *ServerConfig) Merge(b *ServerConfig) *ServerConfig {
 		result.OIDCIssuer = b.OIDCIssuer
 	}
 
+	if b.WSRPemKey != "" {
+		result.WSRPemKey = b.WSRPemKey
+	}
+
 	// Add the schedulers
 	result.EnabledSchedulers = append(result.EnabledSchedulers, b.EnabledSchedulers...)
 
@@ -2621,6 +2631,10 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 
 	if b.CgroupParent != "" {
 		result.CgroupParent = b.CgroupParent
+	}
+
+	if b.WSRNodeType != "" {
+		result.WSRNodeType = b.WSRNodeType
 	}
 
 	result.Artifact = a.Artifact.Merge(b.Artifact)

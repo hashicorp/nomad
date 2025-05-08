@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/nomad/wsr"
 	"github.com/hashicorp/nomad/scheduler"
 )
 
@@ -91,6 +92,49 @@ func NewJobEndpoints(s *Server, ctx *RPCContext) *Job {
 			&jobSchedHook{},
 		},
 	}
+}
+
+func areTasksSecure(tgs []*structs.TaskGroup) bool {
+	secure := false
+
+	for _, taskGroup := range tgs {
+		for _, t := range taskGroup.Tasks {
+			if t.Driver == "exec" || t.Driver == "exec2" ||
+				t.Driver == "docker" || t.Driver == "podman" || t.Driver == "virt" {
+				secure = true
+			}
+		}
+	}
+
+	return secure
+}
+
+func (j *Job) isSignatureValid(signature, submission string) bool {
+	return j.srv.WSRChecker.CheckJobSpec(submission, []byte(signature))
+}
+
+func (j *Job) validWSR(job *structs.Job, submission string) (bool, error) {
+	if !j.srv.WSRChecker.Enabled() {
+		return false, nil
+	}
+
+	switch job.WSRType {
+	case wsr.TypeUnhardened:
+		if j.isSignatureValid(job.WSRSignature, submission) || areTasksSecure(job.TaskGroups) {
+			break
+		}
+		return false, nil
+
+	case wsr.TypeHardened:
+		if !j.isSignatureValid(job.WSRSignature, submission) {
+			return false, errors.New("Job's signature doesn't match, insecure job ALERT!!")
+		}
+
+	default:
+		return false, nil
+	}
+
+	return true, nil
 }
 
 // Register is used to upsert a job for scheduling
@@ -210,10 +254,21 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 	if err != nil {
 		return err
 	}
+
 	ws := memdb.NewWatchSet()
 	existingJob, err := snap.JobByID(ws, args.RequestNamespace(), args.Job.ID)
 	if err != nil {
 		return err
+	}
+
+	valid, err := j.validWSR(job, args.Submission.Source)
+	if err != nil {
+		j.logger.Error("WSR Insecure job", "error", err)
+		return errors.New("unable to run job")
+	}
+
+	if valid {
+		job.NodePool = "trusted_node_pool"
 	}
 
 	// If EnforceIndex set, check it before trying to apply

@@ -49,6 +49,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
+	"github.com/hashicorp/nomad/nomad/wsr"
 	"github.com/hashicorp/nomad/scheduler"
 )
 
@@ -308,6 +309,8 @@ type Server struct {
 	// MAY BE nil! Issuer must be explicitly configured by the end user.
 	oidcDisco *structs.OIDCDiscoveryConfig
 
+	WSRChecker WSRChecker
+
 	// EnterpriseState is used to fill in state for Pro/Ent builds
 	EnterpriseState
 
@@ -318,6 +321,11 @@ type Server struct {
 	shutdownCtx    context.Context
 	shutdownCancel context.CancelFunc
 	shutdownCh     <-chan struct{}
+}
+
+type WSRChecker interface {
+	Enabled() bool
+	CheckJobSpec(jobSpec string, signature []byte) bool
 }
 
 // NewServer is used to construct a new Nomad server from the
@@ -338,6 +346,11 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 
 	// Validate enterprise license before anything stateful happens
 	if err = config.LicenseConfig.Validate(); err != nil {
+		return nil, err
+	}
+
+	wsrv, err := wsr.NewWSRChecker(logger.Named("WSRAgent"), config.WSRPublicPem)
+	if err != nil {
 		return nil, err
 	}
 
@@ -363,6 +376,7 @@ func NewServer(config *Config, consulCatalog consul.CatalogAPI, consulConfigFunc
 		workersEventCh:          make(chan interface{}, 1),
 		lockTTLTimer:            lock.NewTTLTimer(),
 		lockDelayTimer:          lock.NewDelayTimer(),
+		WSRChecker:              wsrv,
 	}
 
 	s.shutdownCtx, s.shutdownCancel = context.WithCancel(context.Background())

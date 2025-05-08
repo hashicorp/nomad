@@ -308,6 +308,13 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 		}
 		conf.EventBufferSize = int64(*agentConfig.Server.EventBufferSize)
 	}
+
+	if agentConfig.Server.EventBufferSize != nil {
+		if *agentConfig.Server.EventBufferSize < 0 {
+			return nil, fmt.Errorf("Invalid Config, event_buffer_size must be non-negative")
+		}
+		conf.EventBufferSize = int64(*agentConfig.Server.EventBufferSize)
+	}
 	if agentConfig.Autopilot != nil {
 		if agentConfig.Autopilot.CleanupDeadServers != nil {
 			conf.AutopilotConfig.CleanupDeadServers = *agentConfig.Autopilot.CleanupDeadServers
@@ -646,6 +653,8 @@ func convertServerConfig(agentConfig *Config) (*nomad.Config, error) {
 			runtime.NumCPU())
 	}
 
+	conf.WSRPublicPem = agentConfig.Server.WSRPemKey
+
 	return conf, nil
 }
 
@@ -680,6 +689,10 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 
 	if err = a.finalizeClientConfig(c); err != nil {
 		return nil, err
+	}
+
+	if a.config.Client.WSRNodeType == "trusted" {
+		c.Node.NodePool = "trusted_node_pool"
 	}
 
 	return c, nil

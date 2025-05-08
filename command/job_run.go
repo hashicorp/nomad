@@ -126,6 +126,8 @@ Run Options:
 
   -verbose
     Display full information.
+  
+  -wsr-signature
 `
 	return strings.TrimSpace(helpText)
 }
@@ -151,6 +153,7 @@ func (c *JobRunCommand) AutocompleteFlags() complete.Flags {
 			"-var-file":         complete.PredictFiles("*.var"),
 			"-eval-priority":    complete.PredictNothing,
 			"-ui":               complete.PredictNothing,
+			"-wsr-signature":    complete.PredictAnything,
 		})
 }
 
@@ -166,11 +169,12 @@ func (c *JobRunCommand) Name() string { return "job run" }
 
 func (c *JobRunCommand) Run(args []string) int {
 	var detach, verbose, output, override, preserveCounts, openURL bool
-	var checkIndexStr, consulNamespace, vaultNamespace string
+	var checkIndexStr, consulNamespace, vaultNamespace, wsrSignature string
 	var evalPriority int
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
+	flagSet.StringVar(&wsrSignature, "wsr-signature", "123", "")
 	flagSet.BoolVar(&detach, "detach", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&output, "output", false, "")
@@ -244,6 +248,10 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	if vaultNamespace != "" {
 		job.VaultNamespace = pointer.Of(vaultNamespace)
+	}
+
+	if wsrSignature != "" {
+		job.WSRSignature = pointer.Of(wsrSignature)
 	}
 
 	if output {

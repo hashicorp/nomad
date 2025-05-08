@@ -1227,6 +1227,14 @@ func ApiJobToStructJob(job *api.Job) *structs.Job {
 		}
 	}
 
+	if job.WSRSignature != nil {
+		j.WSRSignature = *job.WSRSignature
+	}
+
+	if job.WSRType != nil {
+		j.WSRType = *job.WSRType
+	}
+
 	return j
 }
 
