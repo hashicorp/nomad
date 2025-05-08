@@ -1,13 +1,11 @@
 ---
 layout: docs
-page_title: constraint Block - Job Specification
+page_title: constraint block in the job specification
 description: |-
-  The "constraint" block allows restricting the set of eligible nodes.
-  Constraints may filter on attributes or metadata. Additionally constraints may
-  be specified at the job, group, or task levels for ultimate flexibility.
+  Restrict the set of eligible nodes in the `constraint` block of the Nomad job specification. Configure attribute, comparison operator,and comparison value. Review kernal data, distinct property, operating system, and metadata examples.
 ---
 
-# `constraint` Block
+# `constraint` block in the job specification
 
 <Placement
   groups={[
@@ -29,6 +27,7 @@ Additionally constraints may be specified at the [job][job], [group][group], or
 For example, specifying different [`${attr.unique.hostname}`][node-variables]
 constraints at the task level will cause a job to be unplaceable because all
 [tasks within a group are scheduled on the same client node][group].
+
 </Warning>
 
 ```hcl
@@ -66,7 +65,7 @@ Updating the `constraint` block is non-destructive. Updating a job specification
 with only non-destructive updates will not migrate or replace existing
 allocations.
 
-## `constraint` Parameters
+## Parameters
 
 - `attribute` `(string: "")` - Specifies the name or reference of the attribute
   to examine for the constraint. This can be any of the [Nomad interpolated
@@ -102,7 +101,7 @@ allocations.
   or any [Nomad interpolated
   values](/nomad/docs/runtime/interpolation#interpreted_node_vars).
 
-### `operator` Values
+### `operator` values
 
 This section details the specific values for the "operator" parameter in the
 Nomad job specification for constraints. The operator is always specified as a
@@ -239,12 +238,12 @@ constraint {
 
 - `"is_not_set"` - Specifies that a given attribute must not be present.
 
-## `constraint` Examples
+## Examples
 
 The following examples only show the `constraint` blocks. Remember that the
 `constraint` block is only valid in the placements listed above.
 
-### Kernel Data
+### Kernel data
 
 This example restricts the task to running on nodes which have a kernel version
 higher than "3.19".
@@ -257,7 +256,7 @@ constraint {
 }
 ```
 
-### Distinct Property
+### Distinct property
 
 A potential use case of the `distinct_property` constraint is to spread a
 service with `count > 1` across racks to minimize correlated failure. Nodes can
@@ -273,7 +272,7 @@ constraint {
 }
 ```
 
-### Operating Systems
+### Operating systems
 
 This example restricts the task to running on nodes that are running Ubuntu
 14.04
@@ -290,7 +289,7 @@ constraint {
 }
 ```
 
-### Cloud Metadata
+### Cloud metadata
 
 When possible, Nomad populates node attributes from the cloud environment. These
 values are accessible as filters in constraints. This example constrains this
@@ -303,7 +302,7 @@ constraint {
 }
 ```
 
-### User-Specified Metadata
+### User-Specified metadata
 
 This example restricts the task to running on nodes where the binaries for
 redis, cypress, and nginx are all cached locally. This particular example is

@@ -1,6 +1,6 @@
 ---
 layout: docs
-page_title: parameterized Block - Job Specification
+page_title: parameterized block in the job specification
 description: |-
   A parameterized job is used to encapsulate a set of work that can be carried
   out on various inputs much like a function definition. When the
@@ -8,7 +8,7 @@ description: |-
   cluster as a whole.
 ---
 
-# `parameterized` Block
+# `parameterized` block in the job specification
 
 <Placement groups={['job', 'parameterized']} />
 
@@ -56,11 +56,11 @@ job "docs" {
 See the [multiregion] documentation for additional considerations when
 dispatching parameterized jobs.
 
-## `parameterized` Requirements
+## Requirements
 
 - The job's [scheduler type][batch-type] must be `batch` or `sysbatch`.
 
-## `parameterized` Parameters
+## Parameters
 
 - `meta_optional` `(array<string>: nil)` - Specifies the set of metadata keys that
   may be provided when dispatching against the job.
@@ -79,11 +79,11 @@ dispatching parameterized jobs.
 
   - `"forbidden"` - A payload is forbidden when dispatching against the job.
 
-## `parameterized` Examples
+## Examples
 
 The following examples show non-runnable example parameterized jobs:
 
-### Required Inputs
+### Required inputs
 
 This example shows a parameterized job that requires both a payload and
 metadata:
@@ -121,7 +121,7 @@ job "video-encode" {
 }
 ```
 
-### Metadata Interpolation
+### Metadata interpolation
 
 ```hcl
 job "email-blast" {
@@ -166,9 +166,9 @@ Nomad processes a periodic with parameterized job in the following order:
 2. After Nomad dispatches the parameterized job and gives it parameters, Nomad uses the periodic configuration.
 3. Nomad dispatches new jobs according to the periodic configuration that uses thee parameters from the triggering parameterized job.
 
-In this example, the periodic job does not trigger any new jobs 
-until the operator dispatches the parameterized job at least once. After that, the 
-dispatched child periodically triggers more children with the given parameters. 
+In this example, the periodic job does not trigger any new jobs
+until the operator dispatches the parameterized job at least once. After that, the
+dispatched child periodically triggers more children with the given parameters.
 
 ```hcl
   periodic {
@@ -188,7 +188,7 @@ dispatched child periodically triggers more children with the given parameters.
 There are three columns plus comments in this example output, which is for the preceding periodic, parameterized example job. Scroll to the last column to review the comments.
 
 ```
-$ nomad job status                                                      
+$ nomad job status
 ID                                                     Type                            Submit Date
 sync                                                   batch/periodic/parameterized    2024-11-07T10:43:30+01:00 // Original submitted job
 sync/dispatch-1730972650-247c6e97                      batch/periodic                  2024-11-07T10:44:10+01:00 // First dispatched job with parameters A
@@ -209,7 +209,7 @@ If you need to force the periodic job, force the the corresponding parameterized
 This example forces the first dispatched job with parameters A from the preceding example.
 
 ```
-$ nomad job periodic force sync/dispatch-1730972650-247c6e97 
+$ nomad job periodic force sync/dispatch-1730972650-247c6e97
 ```
 
 [batch-type]: /nomad/docs/job-specification/job#type 'Batch scheduler type'

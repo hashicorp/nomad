@@ -1,24 +1,18 @@
 ---
 layout: docs
-page_title: Configuration Language
+page_title: Hashicorp Configuration Language (HCL) reference
 description: |-
-  Noamd uses text files to describe infrastructure and to set variables.
-  These text files are called Nomad job specifications and are
-  written in the HCL language.
+  This section contains reference material for the Hashicorp Configuration Language (HCL) as it relates to defining a Nomad job specifications. Learn about HCL syntax elements such as arguments, blocks, and expressions. Review heredoc string support and how to format decimals.
 ---
 
-# HCL2
+# Hashicorp Configuration Language (HCL) reference
 
-Nomad uses the Hashicorp Configuration Language - HCL - designed to allow
-concise descriptions of the required steps to get to a job file.
-Nomad 1.0 adopts
-[HCL2](https://github.com/hashicorp/hcl/blob/hcl2/README.md), the second
-generation of HashiCorp Configuration Language. HCL2 extends the HCL language by
-adding expressions and input variables support to improve job spec
-reusability and readability. Also, the new HCL2 parser improves the error
-messages for invalid jobs.
+Define your job specification with the Hashicorp Configuration Language (HCL),
+which is a syntax specifically designed for building structured configuration
+formats. Refer to the [HCL GitHub repository](https://github.com/hashicorp/hcl)
+to learn more about HCL.
 
-## HCL Parsing Context
+## Parsing context
 
 The [Nomad API uses JSON][jobs-api], not HCL, to represent Nomad jobs.
 When running commands like `nomad job run` and `nomad job plan`, the Nomad CLI
@@ -31,7 +25,7 @@ context from the local environment of the CLI (e.g., files, environment variable
 
 [jobs-api]: /nomad/api-docs/jobs
 
-## JSON Jobs
+## JSON jobs
 
 Since HCL is a superset of JSON, `nomad job run example.json` will attempt to
 parse a JSON job using the HCL parser. However, the JSON format accepted by
@@ -54,7 +48,7 @@ $ nomad job run -json example.json
 [json-jobs-api]: /nomad/api-docs/json-jobs
 [run-json]: /nomad/docs/commands/job/run#json
 
-## Arguments, Blocks, and Expressions
+## Arguments, bocks, and expressions
 
 The syntax of the HCL language consists of only a few basic elements:
 
@@ -94,7 +88,7 @@ meta {
 }
 ```
 
-Additionally, block attributes must be [HCL2 valid identifiers](https://github.com/hashicorp/hcl/blob/v2.8.0/hclsyntax/spec.md#identifiers).
+Additionally, block attributes must be [HCL valid identifiers](https://github.com/hashicorp/hcl/blob/v2.8.0/hclsyntax/spec.md#identifiers).
 Generally, identifiers may only contain letters, numbers, underscore `_`,
 or a dash `-`, and start with a letter. Notable,
 [`meta`](/nomad/docs/job-specification/meta), and
@@ -126,7 +120,7 @@ mounts = [
 ]
 ```
 
-Here, the `tmpfs_options` block declaration is invalid HCL2 syntax, and must be an assignment instead:
+Here, the `tmpfs_options` block declaration is invalid HCL syntax, and must be an assignment instead:
 
 ```hcl
 # VALID in Nomad 1.0
@@ -151,7 +145,7 @@ mount {
 }
 ```
 
-### Multiline "here doc" string
+### Multiline "heredoc" string
 
 Nomad supports multi-line string literals in the so-called "heredoc" style, inspired by Unix shell languages:
 
@@ -164,9 +158,9 @@ hello
 }
 ```
 
-HCL2 trims the whitespace preceding the delimiter in the last line. So in the
-above example, `data` is read as `"hello\n world\n "` in HCL1, but `"hello\n world\n"` (note lack of trailing whitespace) in HCL2.
+HCL trims the whitespace preceding the delimiter in the last line. So in the
+above example, `data` is read as `"hello\n world\n "` in HCL1, but `"hello\n world\n"` (note lack of trailing whitespace) in HCL.
 
 ### Decimals
 
-HCL2 requires a leading zero for decimal values lower than 1 (e.g. `0.3`, `0.59`, `0.9`).
+HCL requires a leading zero for decimal values lower than 1 (e.g. `0.3`, `0.59`, `0.9`).
