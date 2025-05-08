@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/helper/iterator"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -197,9 +196,8 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 				case "batch", "service":
 					expectedAllocCount = 1
 				case "system", "sysbatch":
-					nodes, err := h.State.NodesByNodePool(nil, job.NodePool)
-					must.NoError(t, err)
-					expectedAllocCount = iterator.Len(nodes)
+					nodes := h.State.NodesByNodePool(nil, job.NodePool).Slice()
+					expectedAllocCount = len(nodes)
 				}
 				must.Len(t, expectedAllocCount, allocs)
 				alloc := allocs[0]

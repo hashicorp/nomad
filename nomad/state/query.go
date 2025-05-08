@@ -40,6 +40,9 @@ func FirstWatch[T comparable](txn ReadTxn, table, index string, args ...any) (<-
 	if err != nil {
 		panic(fmt.Errorf("%w: %w", errMemDBInvariant, err))
 	}
+	if raw == nil {
+		return ch, *(new(T))
+	}
 	out := raw.(T)
 	return ch, out
 }

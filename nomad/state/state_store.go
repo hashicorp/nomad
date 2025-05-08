@@ -2559,7 +2559,7 @@ func (s *StateStore) CSIVolumesByNodeID(ws memdb.WatchSet, prefix, nodeID string
 	txn := s.db.ReadTxn()
 	for id, namespace := range ids {
 		if strings.HasPrefix(id, prefix) {
-			watchCh, vol := FirstWatch[*structs.CSIVolume](txn, TableCSIVolumes, "id", namespace, id)
+			watchCh, vol := FirstWatch[*structs.CSIVolume](txn, TableCSIVolumes, indexID, namespace, id)
 			ws.Add(watchCh)
 			iter.Add(vol)
 		}

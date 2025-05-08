@@ -186,21 +186,11 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		},
 	}
 
-	proposed, err := ctx.ProposedAllocs(nodes[0].Node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(proposed) != 0 {
-		t.Fatalf("bad: %#v", proposed)
-	}
+	proposed := ctx.ProposedAllocs(nodes[0].Node.ID)
+	must.Len(t, 0, proposed)
 
-	proposed, err = ctx.ProposedAllocs(nodes[1].Node.ID)
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-	if len(proposed) != 2 {
-		t.Fatalf("bad: %#v", proposed)
-	}
+	proposed = ctx.ProposedAllocs(nodes[1].Node.ID)
+	must.Len(t, 2, proposed)
 }
 
 // TestEvalContext_ProposedAlloc_EvictPreempt asserts both Evicted and
@@ -309,9 +299,8 @@ func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 	plan.NodePreemptions[nodes[0].Node.ID] = []*structs.Allocation{allocEvict}
 	plan.NodeUpdate[nodes[0].Node.ID] = []*structs.Allocation{allocPreempt}
 
-	proposed, err := ctx.ProposedAllocs(nodes[0].Node.ID)
-	require.NoError(t, err)
-	require.Len(t, proposed, 1)
+	proposed := ctx.ProposedAllocs(nodes[0].Node.ID)
+	must.Len(t, 1, proposed)
 }
 
 func TestEvalEligibility_JobStatus(t *testing.T) {

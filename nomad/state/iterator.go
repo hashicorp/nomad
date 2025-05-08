@@ -149,6 +149,9 @@ func (i *SliceIterator[T]) WatchCh() <-chan struct{} {
 func (i *SliceIterator[T]) All() iter.Seq[T] {
 	return func(yield func(T) bool) {
 		for _, val := range i.data {
+			if val == *(new(T)) {
+				return
+			}
 			if !yield(val) {
 				return
 			}
