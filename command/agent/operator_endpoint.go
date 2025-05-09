@@ -375,6 +375,12 @@ func (s *HTTPServer) schedulersSet(resp http.ResponseWriter, req *http.Request) 
 	var args structs.SetNumSchedulersRequest
 	s.parseWriteRequest(req, &args.WriteRequest)
 
+	var setReq api.SetNumSchedulersRequest
+	if err := decodeBody(req, &setReq); err != nil {
+		return nil, CodedError(http.StatusBadRequest, fmt.Sprintf("Error parsing scheduler config: %v", err))
+	}
+	args.Schedulers = setReq.Schedulers
+
 	var reply structs.GenericResponse
 	if err := s.agent.RPC("Operator.SetNumSchedulers", &args, &reply); err != nil {
 		return nil, err

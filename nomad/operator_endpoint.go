@@ -502,8 +502,7 @@ func (op *Operator) SchedulerGetConfiguration(args *structs.GenericRequest, repl
 	return nil
 }
 
-// GetNumSchedulers gets the number of schedulers of a server. CAUTION: this RPC
-// does *not* get forwarded via Raft, works only on the local server.
+// GetNumSchedulers gets the number of schedulers of a server.
 func (op *Operator) GetNumSchedulers(args *structs.GenericRequest, reply *structs.GetNumSchedulersResponse) error {
 	authErr := op.srv.Authenticate(op.ctx, args)
 	op.srv.MeasureRPCRate("operator", structs.RateMetricRead, args)
@@ -525,8 +524,7 @@ func (op *Operator) GetNumSchedulers(args *structs.GenericRequest, reply *struct
 	return nil
 }
 
-// SetNumSchedulers sets the number of schedulers of a server. CAUTION: this RPC
-// does *not* get forwarded via Raft, works only on the local server.
+// SetNumSchedulers sets the number of schedulers of a server.
 func (op *Operator) SetNumSchedulers(args *structs.SetNumSchedulersRequest, reply *structs.GenericResponse) error {
 	authErr := op.srv.Authenticate(op.ctx, args)
 	op.srv.MeasureRPCRate("operator", structs.RateMetricWrite, args)

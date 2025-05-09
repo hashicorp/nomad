@@ -280,6 +280,16 @@ func (op *Operator) SchedulerCASConfiguration(conf *SchedulerConfiguration, q *W
 	return &out, wm, nil
 }
 
+// SchedulerSetNumSchedulers is used to set the current number of schedulers
+func (op *Operator) SchedulerSetNumSchedulers(number int, q *WriteOptions) (*GenericResponse, *WriteMeta, error) {
+	var out GenericResponse
+	wm, err := op.c.put("/v1/operator/scheduler/schedulers", SetNumSchedulersRequest{Schedulers: number}, &out, q)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &out, wm, nil
+}
+
 // Snapshot is used to capture a snapshot state of a running cluster.
 // The returned reader that must be consumed fully
 func (op *Operator) Snapshot(q *QueryOptions) (io.ReadCloser, error) {
