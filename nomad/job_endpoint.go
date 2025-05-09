@@ -110,7 +110,7 @@ func areTasksSecure(tgs []*structs.TaskGroup) bool {
 }
 
 func (j *Job) isSignatureValid(signature, submission string) bool {
-	return j.srv.WSRChecker.CheckJobSpec(submission, []byte(signature))
+	return j.srv.WSRChecker.CheckJobSpec(submission, signature)
 }
 
 func (j *Job) validWSR(job *structs.Job, submission string) (bool, error) {
@@ -120,7 +120,8 @@ func (j *Job) validWSR(job *structs.Job, submission string) (bool, error) {
 
 	switch job.WSRType {
 	case wsr.TypeUnhardened:
-		if j.isSignatureValid(job.WSRSignature, submission) || areTasksSecure(job.TaskGroups) {
+		if (job.WSRSignature != "" && j.isSignatureValid(job.WSRSignature, submission)) ||
+			areTasksSecure(job.TaskGroups) {
 			break
 		}
 		return false, nil

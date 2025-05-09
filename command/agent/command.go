@@ -398,7 +398,7 @@ func (c *Command) IsValidConfig(config, cmdConfig *Config) bool {
 			}
 		}
 
-		if config.Client.WSRNodeType != "trusted" {
+		if config.Client.WSRNodeType != "" && config.Client.WSRNodeType != "trusted" {
 			c.Ui.Error(fmt.Sprintf("Invalid WSR Node type: %v", config.Client.WSRNodeType))
 			return false
 		}

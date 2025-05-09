@@ -133,6 +133,18 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	if args.Node.SecretID == "" {
 		return fmt.Errorf("missing node secret ID for client registration")
 	}
+
+	if args.Node.WSRType == "trusted" {
+		if !n.srv.WSRChecker.Enabled() {
+			return fmt.Errorf("node is not allowed to register as trusted")
+		}
+		if args.Node.NodePool != "" && args.Node.NodePool != structs.NodePoolDefault {
+			return fmt.Errorf("node pool will be overwritten by WSR")
+		}
+
+		args.Node.NodePool = "trusted_node_pool"
+	}
+
 	if args.Node.NodePool != "" {
 		err := structs.ValidateNodePoolName(args.Node.NodePool)
 		if err != nil {

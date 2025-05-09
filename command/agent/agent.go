@@ -691,10 +691,6 @@ func (a *Agent) clientConfig() (*clientconfig.Config, error) {
 		return nil, err
 	}
 
-	if a.config.Client.WSRNodeType == "trusted" {
-		c.Node.NodePool = "trusted_node_pool"
-	}
-
 	return c, nil
 }
 
@@ -863,6 +859,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.Node.Meta = agentConfig.Client.Meta
 	conf.Node.NodeClass = agentConfig.Client.NodeClass
 	conf.Node.NodePool = agentConfig.Client.NodePool
+	conf.WSRNodeType = agentConfig.Client.WSRNodeType
 
 	// Set up the HTTP advertise address
 	conf.Node.HTTPAddr = agentConfig.AdvertiseAddrs.HTTP

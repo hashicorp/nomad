@@ -375,6 +375,8 @@ type Config struct {
 
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
+
+	WSRNodeType string
 }
 
 type APIListenerRegistrar interface {

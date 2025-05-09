@@ -1609,6 +1609,8 @@ func (c *Client) setupNode() error {
 	}
 	node.Status = structs.NodeStatusInit
 
+	node.WSRType = c.config.WSRNodeType
+
 	// Setup default static meta
 	if _, ok := node.Meta[envoy.SidecarMetaParam]; !ok {
 		node.Meta[envoy.SidecarMetaParam] = envoy.ImageFormat

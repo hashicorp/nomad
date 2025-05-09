@@ -61,19 +61,11 @@ func (c *WSREnableCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Check that we only have one argument.
-	args = flags.Args()
-	if len(args) != 1 {
-		c.Ui.Error("This command takes one argument: public-key")
-		c.Ui.Error(commandErrorText(c))
-		return 1
-	}
-
-	// Parse input.
+	// Create node pools
 	poolSpec := nodePoolSpec{
 		NodePool: &api.NodePool{
 			Name:        "trusted_node_pool",
-			Description: "Secure Node Pool, automatically created when enabling WSR",
+			Description: "Secure Node Pool, automatically created when enabling WSR.",
 		},
 	}
 

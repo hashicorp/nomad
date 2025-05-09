@@ -2174,6 +2174,8 @@ type Node struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
+
+	WSRType string
 }
 
 // GetID is a helper for getting the ID when the object may be nil and is
@@ -2209,7 +2211,7 @@ func (n *Node) Canonicalize() {
 		return
 	}
 
-	if n.NodePool == "" {
+	if n.NodePool == "" && n.WSRType != "trusted" {
 		n.NodePool = NodePoolDefault
 	}
 
