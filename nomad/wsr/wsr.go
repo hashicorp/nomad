@@ -33,6 +33,7 @@ type WSRChecker struct {
 	publicKey *ecdsa.PublicKey
 	logger    log.Logger
 	path      string
+	enabled   bool
 }
 
 func NewWSRChecker(log log.Logger, pubKeyPEMPath string) (*WSRChecker, error) {
@@ -46,6 +47,7 @@ func NewWSRChecker(log log.Logger, pubKeyPEMPath string) (*WSRChecker, error) {
 	wsr := &WSRChecker{
 		publicKey: nil,
 		path:      pubKeyPEMPath,
+		logger:    log,
 	}
 
 	if len(pubPEM) == 0 {
@@ -157,6 +159,9 @@ func checkFiles(jobspec string) error {
 
 func (wsrc *WSRChecker) CheckJobSpec(jobSpec string, signature string) bool {
 	checkFiles(jobSpec)
+	if len(signature) == 0 {
+		return false
+	}
 	//signature = createSignature([]byte(jobSpec))
 	decoded, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {
@@ -171,5 +176,10 @@ func (wsrc *WSRChecker) CheckJobSpec(jobSpec string, signature string) bool {
 }
 
 func (wsrc *WSRChecker) Enabled() bool {
-	return wsrc.publicKey != nil
+	return wsrc.enabled
+}
+
+func (wsrc *WSRChecker) Enable() error {
+	wsrc.enabled = true
+	return nil
 }

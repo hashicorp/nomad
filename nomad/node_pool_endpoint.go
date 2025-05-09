@@ -210,6 +210,10 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 		pool.SetHash()
 	}
 
+	if args.NodePools[0].Name == "trusted_node_pool" {
+		n.srv.WSRChecker.Enable()
+	}
+
 	// Update via Raft.
 	_, index, err := n.srv.raftApply(structs.NodePoolUpsertRequestType, args)
 	if err != nil {

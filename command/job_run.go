@@ -174,7 +174,7 @@ func (c *JobRunCommand) Run(args []string) int {
 
 	flagSet := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flagSet.Usage = func() { c.Ui.Output(c.Help()) }
-	flagSet.StringVar(&wsrSignature, "wsr-signature", "123", "")
+	flagSet.StringVar(&wsrSignature, "wsr-signature", "", "")
 	flagSet.BoolVar(&detach, "detach", false, "")
 	flagSet.BoolVar(&verbose, "verbose", false, "")
 	flagSet.BoolVar(&output, "output", false, "")

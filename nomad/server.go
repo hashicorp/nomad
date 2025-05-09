@@ -326,6 +326,7 @@ type Server struct {
 type WSRChecker interface {
 	Enabled() bool
 	CheckJobSpec(jobSpec string, signature string) bool
+	Enable() error
 }
 
 // NewServer is used to construct a new Nomad server from the

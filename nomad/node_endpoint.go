@@ -135,14 +135,18 @@ func (n *Node) Register(args *structs.NodeRegisterRequest, reply *structs.NodeUp
 	}
 
 	if args.Node.WSRType == "trusted" {
-		if !n.srv.WSRChecker.Enabled() {
+		enabled := n.srv.WSRChecker.Enabled()
+
+		if !enabled {
 			return fmt.Errorf("node is not allowed to register as trusted")
 		}
+
 		if args.Node.NodePool != "" && args.Node.NodePool != structs.NodePoolDefault {
 			return fmt.Errorf("node pool will be overwritten by WSR")
 		}
 
 		args.Node.NodePool = "trusted_node_pool"
+		args.CreateNodePool = false
 	}
 
 	if args.Node.NodePool != "" {
