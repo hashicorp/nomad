@@ -82,6 +82,6 @@ func (c *WSREnableCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.Ui.Output(fmt.Sprintf("Successfully applied node pool %q!", poolSpec.NodePool.Name))
+	c.Ui.Output(fmt.Sprintf("Successfully enabled Workload Security Rings, pool: %q!", poolSpec.NodePool.Name))
 	return 0
 }

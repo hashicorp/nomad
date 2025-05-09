@@ -119,15 +119,22 @@ func (j *Job) validWSR(job *structs.Job, submission string) (bool, error) {
 	}
 
 	switch job.WSRType {
-	case wsr.TypeHardened:
+	case wsr.TypeUnhardened:
 		if (job.WSRSignature != "" && j.isSignatureValid(job.WSRSignature, submission)) ||
 			areTasksSecure(job.TaskGroups) {
 			break
 		}
 		return false, nil
 
-	case wsr.TypeUnhardened:
-		return false, nil
+	case wsr.TypeHardened:
+		if !j.isSignatureValid(job.WSRSignature, submission) {
+			return false, errors.New("Job's signature doesn't match, insecure job ALERT!!")
+		}
+
+	case wsr.TypeSensitive:
+		if !j.isSignatureValid(job.WSRSignature, submission) {
+			return false, errors.New("Job's signature doesn't match, insecure job ALERT!!")
+		}
 
 	default:
 		return false, nil
