@@ -319,7 +319,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Compute the placements
-	return s.computePlacements(diff.place)
+	return s.computePlacements(diff.place, diff.ignore)
 }
 
 func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
@@ -347,10 +347,15 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 }
 
 // computePlacements computes placements for allocations
-func (s *SystemScheduler) computePlacements(place []allocTuple) error {
+func (s *SystemScheduler) computePlacements(place, ignored []allocTuple) error {
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
+	}
+
+	ignoredByTaskGroup := make(map[string][]allocTuple, len(ignored))
+	for _, ignoredAlloc := range ignored {
+		ignoredByTaskGroup[ignoredAlloc.TaskGroup.Name] = append(ignoredByTaskGroup[ignoredAlloc.TaskGroup.Name], ignoredAlloc)
 	}
 
 	// track node filtering, to only report an error if all nodes have been filtered
@@ -389,7 +394,9 @@ func (s *SystemScheduler) computePlacements(place []allocTuple) error {
 				}
 				filteredMetrics[tgName] = mergeNodeFiltered(filteredMetrics[tgName], s.ctx.Metrics())
 
-				if queued <= 0 {
+				// If no tasks have been placed and there aren't any previously
+				// running (ignored) tasks on the node, mark the alloc as failed to be placed
+				if queued <= 0 && len(ignoredByTaskGroup[tgName]) == 0 {
 					if s.failedTGAllocs == nil {
 						s.failedTGAllocs = make(map[string]*structs.AllocMetric)
 					}
