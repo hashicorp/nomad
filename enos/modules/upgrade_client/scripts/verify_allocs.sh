@@ -11,7 +11,6 @@ error_exit() {
 
 MAX_WAIT_TIME=60  # Maximum wait time in seconds
 POLL_INTERVAL=2   # Interval between status checks
-CLIENT_IP=54.161.192.157
 
 elapsed_time=0
 last_error=
