@@ -6,6 +6,9 @@ set -euo pipefail
 
 error_exit() {
     printf 'Error: %s' "${1}"
+    echo "Allocs on node ${client_id}:"
+    nomad alloc status -json | \
+        jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id)]'
     exit 1
 }
 
@@ -48,15 +51,16 @@ done
 
 echo "Client $client_id at $CLIENT_IP is ready"
 
-allocs_count=$(echo $ALLOCS |jq '[ .[] | select(.ClientStatus == "running")] | length')
+allocs_count=$(echo $ALLOCS | jq '[ .[] | select(.ClientStatus == "running")] | length')
 echo "$allocs_count allocs found before upgrade $ALLOCS"
 
 # Quality: "nomad_alloc_reconnect: A GET call to /v1/allocs will return the same IDs for running allocs before and after a client upgrade on each client"
 
 checkAllocsCount() {
-    local allocs
-    running_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id)]') \
-        || error_exit "Failed to check alloc status"
+    running_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.ClientStatus == "running" and .NodeID == $client_id)]') || {
+        last_error="Failed to check alloc status"
+        return 1
+    }
     allocs_length=$(echo "$running_allocs" | jq 'length') \
         || error_exit "Invalid alloc status -json output"
 
@@ -64,6 +68,7 @@ checkAllocsCount() {
         return 0
     fi
 
+    last_error="Some allocs are not running"
     return 1
 }
 
@@ -74,10 +79,10 @@ while true; do
     checkAllocsCount && break
 
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
-        error_exit "Some allocs are not running: $(nomad alloc status -json | jq -r '.[] | "\(.ID) \(.Name) \(.ClientStatus)"')"
+        error_exit "$last_error within $elapsed_time seconds."
     fi
 
-    echo "Running allocs: $allocs_length, expected $allocs_count. Waiting for $elapsed_time  Retrying in $POLL_INTERVAL seconds..."
+    echo "Running allocs: $allocs_length, expected ${allocs_count}. Have been waiting for ${elapsed_time}. Retrying in $POLL_INTERVAL seconds..."
     sleep $POLL_INTERVAL
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 
@@ -99,8 +104,7 @@ sorted_input=($(printf "%s\n" "${INPUT_ARRAY[@]}" | sort))
 sorted_running=($(printf "%s\n" "${RUNNING_ARRAY[@]}" | sort))
 
 if [[ "${sorted_input[*]}" != "${sorted_running[*]}" ]]; then
-    full_current_allocs=$(nomad alloc status -json | jq -r --arg client_id "$client_id" '[.[] | select(.NodeID == $client_id) | { ID: .ID, Name: .Name, ClientStatus: .ClientStatus}]')
-    error_exit "Different allocs found, expected: ${sorted_input[*]} found: ${sorted_running[*]}. Current allocs info: $full_current_allocs"
+    error_exit "Different allocs found, expected: ${sorted_input[*]} found: ${sorted_running[*]}"
 fi
 
 echo "All allocs reattached correctly for node at $CLIENT_IP"

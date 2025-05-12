@@ -6,6 +6,8 @@ set -euo pipefail
 
 error_exit() {
     printf 'Error: %s' "${1}"
+    echo "All allocs:"
+    nomad alloc status -json
     exit 1
 }
 
@@ -18,10 +20,14 @@ elapsed_time=0
 
 running_allocs=
 allocs_length=
+last_error=
 
 checkAllocsCount() {
     local allocs
-    allocs=$(nomad alloc status -json) || error_exit "Failed to check alloc status"
+    allocs=$(nomad alloc status -json) || {
+        last_error="Failed to check alloc status"
+        return 1
+    }
 
     running_allocs=$(echo "$allocs" | jq '[.[] | select(.ClientStatus == "running")]')
     allocs_length=$(echo "$running_allocs" | jq 'length') \
@@ -31,6 +37,7 @@ checkAllocsCount() {
         return 0
     fi
 
+    last_error="Some allocs are not running"
     return 1
 }
 
@@ -38,10 +45,10 @@ while true; do
     checkAllocsCount && break
 
     if [ "$elapsed_time" -ge "$MAX_WAIT_TIME" ]; then
-        error_exit "Some allocs are not running: $(nomad alloc status -json | jq -r '.[] | "\(.ID) \(.Name) \(.ClientStatus)"')"
+        error_exit "$last_error within $elapsed_time seconds."
     fi
 
-    echo "Running allocs: $allocs_length, expected $ALLOC_COUNT. Waiting for $elapsed_time  Retrying in $POLL_INTERVAL seconds..."
+    echo "Running allocs: $allocs_length, expected ${ALLOC_COUNT}. Have been waiting for ${elapsed_time}. Retrying in $POLL_INTERVAL seconds..."
     sleep $POLL_INTERVAL
     elapsed_time=$((elapsed_time + POLL_INTERVAL))
 done
