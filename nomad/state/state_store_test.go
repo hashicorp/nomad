@@ -6608,6 +6608,7 @@ func TestStateStore_UpsertAlloc_NextAllocation(t *testing.T) {
 
 	// upsert in a different order, alloc1 should still have the correct NextAllocation
 	actual, err = state.AllocByID(nil, alloc1.ID)
+	must.NoError(t, err)
 	must.Eq(t, actual.NextAllocation, alloc2.ID)
 }
 
