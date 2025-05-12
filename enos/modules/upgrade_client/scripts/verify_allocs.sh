@@ -11,6 +11,7 @@ error_exit() {
 
 MAX_WAIT_TIME=60  # Maximum wait time in seconds
 POLL_INTERVAL=2   # Interval between status checks
+CLIENT_IP=54.161.192.157
 
 elapsed_time=0
 last_error=
@@ -90,7 +91,7 @@ if [ -z "$current_allocs" ]; then
     error_exit "Failed to read allocs for node: $client_id"
 fi
 
-IDs=$(echo $ALLOCS | jq '[ .[] | select(.ClientStatus == "running")] | [.[].ID] | join(" ")')
+IDs=$(echo $ALLOCS | jq -r '[ .[] | select(.ClientStatus == "running")] | [.[].ID] | join(" ")')
 
 IFS=' ' read -r -a INPUT_ARRAY <<< "${IDs[*]}"
 IFS=' ' read -r -a RUNNING_ARRAY <<< "$current_allocs"
