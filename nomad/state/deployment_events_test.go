@@ -30,8 +30,8 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	setupTx.Txn.Commit()
 
@@ -47,17 +47,17 @@ func TestDeploymentEventFromChanges(t *testing.T) {
 		// Exlude Job and assert its added
 	}
 
-	require.NoError(t, s.UpdateDeploymentStatus(msgType, 100, req))
+	must.NoError(t, s.UpdateDeploymentStatus(msgType, 100, req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 2)
+	must.Len(t, 2, events)
 
 	got := events[0]
-	require.Equal(t, uint64(100), got.Index)
-	require.Equal(t, d.ID, got.Key)
+	must.Eq(t, uint64(100), got.Index)
+	must.Eq(t, d.ID, got.Key)
 
 	de := got.Payload.(*structs.DeploymentEvent)
-	require.Equal(t, structs.DeploymentStatusPaused, de.Deployment.Status)
+	must.Eq(t, structs.DeploymentStatusPaused, de.Deployment.Status)
 	require.Contains(t, got.FilterKeys, j.ID)
 
 }
@@ -71,7 +71,7 @@ func WaitForEvents(t *testing.T, s *StateStore, index uint64, minEvents int, tim
 		case <-ctx.Done():
 			return
 		case <-time.After(timeout):
-			require.Fail(t, "timeout waiting for events")
+			t.Fatal("timeout waiting for events")
 		}
 	}()
 
@@ -91,7 +91,7 @@ func WaitForEvents(t *testing.T, s *StateStore, index uint64, minEvents int, tim
 
 func EventsForIndex(t *testing.T, s *StateStore, index uint64) []structs.Event {
 	pub, err := s.EventBroker()
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	sub, err := pub.Subscribe(&stream.SubscribeRequest{
 		Topics: map[structs.Topic][]string{
@@ -106,12 +106,12 @@ func EventsForIndex(t *testing.T, s *StateStore, index uint64) []structs.Event {
 	}
 	defer sub.Unsubscribe()
 
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	var events []structs.Event
 	for {
 		e, err := sub.NextNoBlock()
-		require.NoError(t, err)
+		must.NoError(t, err)
 		if e == nil {
 			break
 		}
