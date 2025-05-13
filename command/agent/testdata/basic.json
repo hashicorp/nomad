@@ -425,6 +425,7 @@
   "reporting": {
     "address": "http://localhost:8080",
     "export_interval": "15m",
+	"snapshot_retention_time": "24h",
     "license": {
       "enabled": "true"
     }

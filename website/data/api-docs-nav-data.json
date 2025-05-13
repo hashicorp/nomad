@@ -136,6 +136,10 @@
       {
         "title": "Upgrade Check",
         "path": "operator/upgrade-check"
+      },
+      {
+        "title": "Utilization Reporting",
+        "path": "operator/utilization"
       }
     ]
   },

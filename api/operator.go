@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -474,4 +475,29 @@ func (op *Operator) UpgradeCheckVaultWorkloadIdentity(q *QueryOptions) (*VaultWo
 		return nil, nil, err
 	}
 	return &resp, qm, nil
+}
+
+type OperatorUtilizationOptions struct {
+	TodayOnly bool
+}
+
+type OperatorUtilizationSnapshotResponse struct {
+	// Bundle is the JSON serialized utilization reporting bundle.
+	Bundle []byte
+	WriteMeta
+}
+
+// Utilization retrieves a utilization reporting bundle (Nomad Enterprise only).
+func (op *Operator) Utilization(opts *OperatorUtilizationOptions, w *WriteOptions) (*OperatorUtilizationSnapshotResponse, *WriteMeta, error) {
+	resp := &OperatorUtilizationSnapshotResponse{}
+	v := url.Values{}
+	if opts.TodayOnly {
+		v.Add("today", "true")
+	}
+
+	wm, err := op.c.post("/v1/operator/utilization?"+v.Encode(), nil, resp, w)
+	if err != nil {
+		return nil, nil, err
+	}
+	return resp, wm, nil
 }

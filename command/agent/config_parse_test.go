@@ -343,9 +343,11 @@ var basicConfig = &Config{
 		},
 	},
 	Reporting: &config.ReportingConfig{
-		ExportAddress:     "http://localhost:8080",
-		ExportIntervalHCL: "15m",
-		ExportInterval:    time.Minute * 15,
+		ExportAddress:            "http://localhost:8080",
+		ExportIntervalHCL:        "15m",
+		ExportInterval:           time.Minute * 15,
+		SnapshotRetentionTime:    time.Hour * 24,
+		SnapshotRetentionTimeHCL: "24h",
 		License: &config.LicenseReportingConfig{
 			Enabled: pointer.Of(true),
 		},
