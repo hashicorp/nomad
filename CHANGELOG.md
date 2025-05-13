@@ -8,6 +8,7 @@ BREAKING CHANGES:
 SECURITY:
 
 * build: Update Go to 1.24.3 to address CVE-2025-22873 [[GH-25818](https://github.com/hashicorp/nomad/issues/25818)]
+* sentinel (Enterprise): Fixed a bug where in some cases hard-mandatory policies could be overridden with -policy-override. CVE-2025-3744 [[GH-2618](https://github.com/hashicorp/nomad-enterprise/pull/2618)]
 
 IMPROVEMENTS:
 
