@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 output "jobs_count" {
-  description = "The number of jobs thar should be running in the cluster"
+  description = "The number of jobs that should be running in the cluster"
   value       = length(var.workloads) + tonumber(coalesce(chomp(enos_local_exec.get_jobs.stdout)))
 }
 

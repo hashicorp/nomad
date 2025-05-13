@@ -63,8 +63,10 @@ checkServerHealth() {
     ip=$1
     echo "Checking server health for $ip"
 
-    node_info=$(nomad agent-info -address "https://$ip:4646" -json) \
-        || error_exit "Unable to get info for node at $ip"
+    node_info=$(nomad agent-info -address "https://$ip:4646" -json) || {
+        last_error="Unable to get info for node at $ip"
+        return 1
+    }
 
     last_log_index=$(echo "$node_info" | jq -r '.stats.raft.last_log_index')
     last_log_term=$(echo "$node_info" | jq -r '.stats.raft.last_log_term')

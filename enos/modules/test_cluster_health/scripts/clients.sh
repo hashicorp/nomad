@@ -21,8 +21,10 @@ last_error=
 checkReadyClients() {
     local clients_length
 
-    ready_clients=$(nomad node status -json | jq '[.[] | select(.Status == "ready" and .SchedulingEligibility == "eligible")]') ||
-        error_exit "Could not query node status"
+    ready_clients=$(nomad node status -json | jq '[.[] | select(.Status == "ready" and .SchedulingEligibility == "eligible")]') || {
+        last_error="Could not query node status"
+        return 1
+    }
 
     clients_length=$(echo "$ready_clients" | jq 'length')
     if [ "$clients_length" -eq "$CLIENT_COUNT" ]; then

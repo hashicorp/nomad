@@ -15,8 +15,10 @@ nodes=$(nomad node status -json | jq -r "[.[] | select(.Status == \"ready\") | .
 
 for node in $nodes; do
     echo "Draining the node $node"
-    
-    nomad node drain --enable --deadline "$DRAIN_DEADLINE" "$node" \
+
+    # we --ignore-system both to exercise the feature and make sure we won't
+    # have to reschedule system jobs and wait for them again
+    nomad node drain --enable --ignore-system --deadline "$DRAIN_DEADLINE" "$node" \
       || error_exit "Failed to drain node $node"
 
     allocs=$(nomad alloc status -json | jq --arg node "$node" '[.[] | select(.NodeID == $node and .ClientStatus == "running")] | length')
