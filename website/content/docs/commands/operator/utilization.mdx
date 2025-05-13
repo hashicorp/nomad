@@ -9,8 +9,9 @@ description: |-
 
 The `operator utilization` command allows Nomad Enterprise users to generate
 utilization reporting bundles. If you have disabled automated reporting, use
-this command to manually generate the report and send it to HashiCorp. If no
-snapshots were persisted in the last 24 hrs, Nomad takes a new snapshot.
+this command to manually generate the report and send it to HashiCorp. Nomad
+takes a new snapshot when there are no snapshots from the past twenty-four
+hours.
 
 If ACLs are enabled, this command requires a token with the `operator:write`
 capability.
@@ -27,7 +28,7 @@ about reporting your Nomad Enterprise license utilization.
 
 - `-message` `(string; "")` - Provide context about the conditions under which
   the report was generated and submitted. This message is not included in the
-  utilization bundle but will be included in the Nomad server logs.
+  utilization bundle but is included in the Nomad server logs.
 
 - `-output` `(string; "")` - Specifies the output path for the bundle. Defaults
   to a time-based generated file name in the current working directory.

@@ -14,15 +14,15 @@ reporting bundles for Nomad Enterprise.
 
 ## Generate Nomad Enterprise Utilization Report Buindle
 
-This endpoint generates a utilization report. If no utilization snapshot has
-been recorded in the previous 24 hours, Nomad will record a utilization snapshot
-first.
+This endpoint generates a utilization report. If Nomad did not record a
+utilization snapshot in the previous 24 hours, Nomad records a utilization
+snapshot first.
 
 | Method | Path                       | Produces           |
 |--------|----------------------------|--------------------|
 | `POST` | `/v1/operator/utilization` | `application/json` |
 
-The table below shows this endpoint's support for [blocking queries][] and
+This table shows this endpoint's support for [blocking queries][] and
 [required ACLs][].
 
 | Blocking Queries | ACL Required     |
@@ -46,7 +46,7 @@ $ curl -XPOST \
 The `Bundle` field in the response body is a base64-encoded blob. The exact
 format of this blog is not part of the Nomad API and is subject to change
 between versions. The [`nomad operator utilization`][] command, which uses this
-API, will decode this to a human-readable file in the current working directory.
+API, decodes this to a human-readable file in the current working directory.
 
 ```json
 {
