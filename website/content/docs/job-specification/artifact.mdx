@@ -63,7 +63,15 @@ automatically unarchived before the starting the task.
   See [`go-getter`][go-getter] for details.
 
 - `chown` `(bool: false)` - Specifies whether Nomad should recursively `chown`
-  the downloaded artifact to be owned by the [`task.user`][task_user] uid and gid.
+  the downloaded artifact to be owned by the [`task.user`][task_user] uid and
+  gid.
+
+## Environment
+
+The `artifact` downloader by default does not have access to the environment
+variables set for the Nomad client. Manage inheritance of environment variables
+with the [`artifact.set_environment_variables`][client_artifact] client
+configuration.
 
 ## Operation Limits
 
@@ -268,11 +276,6 @@ artifact {
 }
 ```
 
-## Environment
-
-The `artifact` downloader by default does not have access to the environment variables
-set for the Nomad client. Inheritance of environment variables can be managed through the [`artifact.set_environment_variables`][client_artifact]
-client configuration.
 
 [client_artifact]: /nomad/docs/configuration/client#artifact-parameters
 [go-getter]: https://github.com/hashicorp/go-getter 'HashiCorp go-getter Library'
