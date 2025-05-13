@@ -2399,11 +2399,9 @@ type NodeStubFields struct {
 	OS        bool
 }
 
-// NodeAllocationTracker retains awareness of a client's NodeMaxAllocs
-// value, the current number of Allocations and whether the node can
-// accept new Allocations
+// NodeAllocationTracker holds the NodeMaxAlloc value
+// if set in *client.Config.
 type NodeAllocationTracker struct {
-	atMax         bool
 	NodeMaxAllocs int
 }
 

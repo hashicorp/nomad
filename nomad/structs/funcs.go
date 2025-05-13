@@ -142,7 +142,7 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 	// Compute the allocs' utilization from zero
 	used := new(ComparableResources)
 	if node.NodeAllocationTracker != nil {
-		if node.NodeAllocationTracker.NodeMaxAllocs <= len(allocs) {
+		if node.NodeAllocationTracker.NodeMaxAllocs < len(allocs) {
 			return false, "max allocation exceeded", used, fmt.Errorf("plan exceeds max allocation")
 		}
 	}
