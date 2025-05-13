@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
 )
@@ -22,27 +21,21 @@ func (c *JobStartCommand) Help() string {
 Usage: nomad job start [options] <job>
 Alias: nomad start
 
-
- Starts a stopped job. The job must be currently registered with Nomad. Upon
- successful start, an interactive monitor session will start to display log
- lines as the job starts its allocations based on its most recent version.
- It is safe to exit the monitor early using ctrl+c.
-
+ Starts a stopped job. The job must be currently registered. Nomad will create a
+ new version of the job based on its most recent version. Upon successful start,
+ Nomad will enter an interactive monitor session. This is useful to watch
+ Nomad's internals make scheduling decisions and place the submitted work onto
+ nodes. The monitor will end once job placement is done. It is safe to exit the
+ monitor early using ctrl+c.
 
  When ACLs are enabled, this command requires a token with the 'submit-job'
- and 'read-job' capabilities for the job's namespace. The 'list-jobs'
- capability is required to run the command with job prefixes instead of exact
- job IDs.
-
+ capability for the job's namespace.
 
 General Options:
 
-
  ` + generalOptionsUsage(usageOptsDefault) + `
 
-
 Start Options:
-
 
  -detach
    Return immediately instead of entering monitor mode. After the
@@ -121,28 +114,25 @@ func (c *JobStartCommand) Run(args []string) int {
 
 	job, err := c.JobByPrefix(client, jobIDPrefix, nil)
 	if err != nil {
-		fmt.Println("error getting job!")
 		c.Ui.Error(err.Error())
 		return 1
 	}
 
-	var jobName, namespace string
+	var jobName string
 
 	if job.Name != nil {
 		jobName = *job.Name
 	}
-	if job.Namespace != nil {
-		namespace = *job.Namespace
-	}
 
 	if job.Stop == nil || !*job.Stop {
-		c.Ui.Error(fmt.Sprintf("Job '%v' has not been stopped", jobName))
+		c.Ui.Error(fmt.Sprintf("Job %q has not been stopped", jobName))
 		return 1
 	}
 
+	// register the job in a not stopped state
 	*job.Stop = false
-	m := &api.WriteOptions{Namespace: namespace}
-	resp, _, err := client.Jobs().Register(job, m)
+
+	resp, _, err := client.Jobs().Register(job, nil)
 
 	// Check if the job is periodic or is a parameterized job
 	periodic := job.IsPeriodic()
