@@ -1,3 +1,34 @@
+## 1.10.1 (May 13, 2025)
+
+BREAKING CHANGES:
+
+* api: The non-functional option -peer-address has been removed from the operator raft remove-peer command and equivalent API [[GH-25599](https://github.com/hashicorp/nomad/issues/25599)]
+* core: Errors encountered when reloading agent configuration will now cause agents to exit. Before configuration errors during reloads were only logged. This could lead to agents running but unable to communicate [[GH-25721](https://github.com/hashicorp/nomad/issues/25721)]
+
+SECURITY:
+
+* build: Update Go to 1.24.3 to address CVE-2025-22873 [[GH-25818](https://github.com/hashicorp/nomad/issues/25818)]
+
+IMPROVEMENTS:
+
+* command: added priority flag to job dispatch command [[GH-25622](https://github.com/hashicorp/nomad/issues/25622)]
+
+BUG FIXES:
+
+* agent: Fixed a bug where reloading the agent with systemd notification enabled would cause the agent to be killed by system [[GH-25636](https://github.com/hashicorp/nomad/issues/25636)]
+* cli: Respect NOMAD_REGION environment variable in operator debug command [[GH-25716](https://github.com/hashicorp/nomad/issues/25716)]
+* client: fix failure cleaning up namespace on batch jobs [[GH-25714](https://github.com/hashicorp/nomad/issues/25714)]
+* docker: Fix missing stats for rss, cache and swap memory for cgroups v1 [[GH-25741](https://github.com/hashicorp/nomad/issues/25741)]
+* encrypter: Refactor startup decryption task handling to avoid timing problems with task addition on FSM restore [[GH-25795](https://github.com/hashicorp/nomad/issues/25795)]
+* java: Fixed a bug where the default task user was set to 'nobody' on Windows [[GH-25648](https://github.com/hashicorp/nomad/issues/25648)]
+* metrics: Fixed a bug where RSS and cache stats would not be reported for docker, exec, and java drivers under Linux cgroups v2 [[GH-25751](https://github.com/hashicorp/nomad/issues/25751)]
+* scheduler: Fixed a bug in accounting for resources.cores that could prevent placements on nodes with available cores [[GH-25705](https://github.com/hashicorp/nomad/issues/25705)]
+* scheduler: Fixed a bug where draining a node with canaries could result in a stuck deployment [[GH-25726](https://github.com/hashicorp/nomad/issues/25726)]
+* scheduler: Fixed a bug where updating the rescheduler tracker could corrupt the state store [[GH-25698](https://github.com/hashicorp/nomad/issues/25698)]
+* scheduler: Use core ID when selecting cores. This fixes a panic in the scheduler when the `reservable_cores` is not a contiguous list of core IDs. [[GH-25340](https://github.com/hashicorp/nomad/issues/25340)]
+* server: Added a new server configuration option named `start_timeout` with a default value of `30s`. This duration is used to monitor the server setup and startup processes which must complete before it is considered healthy, such as keyring decryption. If these processes do not complete before the timeout is reached, the server process will exit. [[GH-25803](https://github.com/hashicorp/nomad/issues/25803)]
+* ui: Fixed a bug where the job list page incorrectly calculated if a job had paused tasks. [[GH-25742](https://github.com/hashicorp/nomad/issues/25742)]
+
 ## 1.10.0 (April 09, 2025)
 
 FEATURES:
