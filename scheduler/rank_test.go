@@ -2160,14 +2160,14 @@ func TestBinPackIterator_MaxAlloc(t *testing.T) {
 			if tc.noNodes {
 				// Note: test case order matters here
 				for _, v := range nodes {
-					v.Node.NodeAllocationTracker = &structs.NodeAllocationTracker{
-						NodeMaxAllocs: tc.maxAlloc,
+					v.Node.NodeMaxAllocs = &structs.NodeMaxAllocs{
+						MaxAllocs: tc.maxAlloc,
 					}
 				}
 			} else {
 				// only add allocation limit to first node if !noNodes
-				nodes[0].Node.NodeAllocationTracker = &structs.NodeAllocationTracker{
-					NodeMaxAllocs: tc.maxAlloc,
+				nodes[0].Node.NodeMaxAllocs = &structs.NodeMaxAllocs{
+					MaxAllocs: tc.maxAlloc,
 				}
 			}
 			static := NewStaticRankIterator(ctx, nodes)

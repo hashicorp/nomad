@@ -2175,10 +2175,10 @@ type Node struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 
-	// NodeAllocationTracker holds NodeMaxAllocs value, if configured,
+	// NodeMaxAllocs holds NodeMaxAllocs value, if configured,
 	// and CurrentNodeAllocations to help the scheduler to block excess
 	// allocations.
-	NodeAllocationTracker *NodeAllocationTracker
+	NodeMaxAllocs *NodeMaxAllocs
 }
 
 // GetID is a helper for getting the ID when the object may be nil and is
@@ -2399,10 +2399,10 @@ type NodeStubFields struct {
 	OS        bool
 }
 
-// NodeAllocationTracker holds the NodeMaxAlloc value
+// NodeMaxAllocs holds the NodeMaxAlloc value
 // if set in *client.Config.
-type NodeAllocationTracker struct {
-	NodeMaxAllocs int
+type NodeMaxAllocs struct {
+	MaxAllocs int
 }
 
 // Resources is used to define the resources available

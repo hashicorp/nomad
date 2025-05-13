@@ -774,7 +774,7 @@ func TestAllocsFit_MaxNodeAllocs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			n := node2k()
-			n.NodeAllocationTracker = &NodeAllocationTracker{false, tc.maxAllocs}
+			n.NodeMaxAllocs = &NodeMaxAllocs{tc.maxAllocs}
 			fit, dim, used, err := AllocsFit(n, tc.allocations, nil, false)
 			if !tc.expectErr {
 				must.NoError(t, err)
