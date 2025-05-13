@@ -4,7 +4,6 @@
 package command
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/cli"
@@ -88,12 +87,11 @@ func TestStartCommand_Arguments(t *testing.T) {
 			},
 		}
 
-		if code := cmd.Run([]string{"-address=nope", "foo"}); code != 1 {
-			t.Fatalf("expected exit code 1, got: %d", code)
-		}
-		if out := ui.ErrorWriter.String(); !strings.Contains(out, "Error querying job prefix") {
-			t.Fatalf("expected failed query error, got: %s", out)
-		}
+		code := cmd.Run([]string{"-address=nope", "foo"})
+		must.Eq(t, code, 1)
+
+		out := ui.ErrorWriter.String()
+		must.StrContains(t, out, "Error querying job prefix")
 	})
 	t.Run("fails if given more than 1 argument", func(t *testing.T) {
 		ui := cli.NewMockUi()
@@ -103,12 +101,11 @@ func TestStartCommand_Arguments(t *testing.T) {
 			},
 		}
 
-		if code := cmd.Run([]string{"foo1", "foo2"}); code != 1 {
-			t.Fatalf("expected exit code 1, got: %d", code)
-		}
-		if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one argument: <job>") {
-			t.Fatalf("expected failed query error, got: %s", out)
-		}
+		code := cmd.Run([]string{"foo1", "foo2"})
+		must.Eq(t, code, 1)
+
+		out := ui.ErrorWriter.String()
+		must.StrContains(t, out, "This command takes one argument: <job>")
 	})
 	t.Run("fails if given less than 1 argument", func(t *testing.T) {
 		ui := cli.NewMockUi()
@@ -118,12 +115,11 @@ func TestStartCommand_Arguments(t *testing.T) {
 			},
 		}
 
-		if code := cmd.Run([]string{}); code != 1 {
-			t.Fatalf("expected exit code 1, got: %d", code)
-		}
-		if out := ui.ErrorWriter.String(); !strings.Contains(out, "This command takes one argument: <job>") {
-			t.Fatalf("expected failed query error, got: %s", out)
-		}
+		code := cmd.Run([]string{})
+		must.Eq(t, code, 1)
+
+		out := ui.ErrorWriter.String()
+		must.StrContains(t, out, "This command takes one argument: <job>")
 	})
 }
 
