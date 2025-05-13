@@ -1,3 +1,49 @@
+## 1.8.13 Enterprise (May 13, 2025)
+
+BREAKING CHANGES:
+
+* core: Errors encountered when reloading agent configuration will now cause agents to exit. Before configuration errors during reloads were only logged. This could lead to agents running but unable to communicate [[GH-25721](https://github.com/hashicorp/nomad/issues/25721)]
+
+SECURITY:
+
+* build: Update Go to 1.24.3 to address CVE-2025-22873 [[GH-25818](https://github.com/hashicorp/nomad/issues/25818)]
+* sentinel (Enterprise): Fixed a bug where in some cases hard-mandatory policies could be overridden with -policy-override. CVE-2025-3744.
+
+BUG FIXES:
+
+* agent: Fixed a bug where reloading the agent with systemd notification enabled would cause the agent to be killed by system [[GH-25636](https://github.com/hashicorp/nomad/issues/25636)]
+* api: Fixed pagination bug which could result in duplicate results [[GH-25792](https://github.com/hashicorp/nomad/issues/25792)]
+* cli: Respect NOMAD_REGION environment variable in operator debug command [[GH-25716](https://github.com/hashicorp/nomad/issues/25716)]
+* client: fix failure cleaning up namespace on batch jobs [[GH-25714](https://github.com/hashicorp/nomad/issues/25714)]
+* metrics: Fixed a bug where RSS and cache stats would not be reported for docker, exec, and java drivers under Linux cgroups v2 [[GH-25751](https://github.com/hashicorp/nomad/issues/25751)]
+* scheduler: Fixed a bug in accounting for resources.cores that could prevent placements on nodes with available cores [[GH-25705](https://github.com/hashicorp/nomad/issues/25705)]
+* scheduler: Fixed a bug where draining a node with canaries could result in a stuck deployment [[GH-25726](https://github.com/hashicorp/nomad/issues/25726)]
+* scheduler: Fixed a bug where updating the rescheduler tracker could corrupt the state store [[GH-25698](https://github.com/hashicorp/nomad/issues/25698)]
+* scheduler: Use core ID when selecting cores. This fixes a panic in the scheduler when the `reservable_cores` is not a contiguous list of core IDs. [[GH-25340](https://github.com/hashicorp/nomad/issues/25340)]
+* ui: Fixed a bug where the job list page incorrectly calculated if a job had paused tasks. [[GH-25742](https://github.com/hashicorp/nomad/issues/25742)]
+
+## 1.8.12 Enterprise (April 9, 2025)
+
+IMPROVEMENTS:
+
+* build: Updated Go to 1.24.2 [[GH-25623](https://github.com/hashicorp/nomad/issues/25623)]
+* client: Improve memory usage by dropping references to task environment [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
+* cni: Add a warning log when CNI check commands fail [[GH-25581](https://github.com/hashicorp/nomad/issues/25581)]
+
+BUG FIXES:
+
+* client: remove blocking call during client gc [[GH-25123](https://github.com/hashicorp/nomad/issues/25123)]
+* client: skip a task groups shutdown_delay when all tasks have already been deregistered [[GH-25157](https://github.com/hashicorp/nomad/issues/25157)]
+* csi: Fixed a CSI ExpandVolume bug where the namespace was left out of the staging path [[GH-25253](https://github.com/hashicorp/nomad/issues/25253)]
+* csi: Fixed a bug where GC would attempt and fail to delete plugins that had volumes [[GH-25432](https://github.com/hashicorp/nomad/issues/25432)]
+* csi: Fixed a bug where cleaning up volume claims on GC'd nodes would cause errors on the leader [[GH-25428](https://github.com/hashicorp/nomad/issues/25428)]
+* csi: Fixed a bug where in-flight CSI RPCs would not be cancelled on client GC or dev agent shutdown [[GH-25472](https://github.com/hashicorp/nomad/issues/25472)]
+* drivers: set -1 exit code in case of executor failure for the exec, raw_exec, java, and qemu task drivers [[GH-25453](https://github.com/hashicorp/nomad/issues/25453)]
+* job: Ensure migrate block difference is added to planning diff object [[GH-25528](https://github.com/hashicorp/nomad/issues/25528)]
+* server: Validate `num_schedulers` configuration parameter is between 0 and the number of CPUs available on the machine [[GH-25441](https://github.com/hashicorp/nomad/issues/25441)]
+* services: Fixed a bug where Nomad native services would not be correctly interpolated during in-place updates [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
+* services: Fixed a bug where task-level services, checks, and identities could interpolate jobspec values from other tasks in the same group [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
+
 ## 1.8.11 (March 11, 2025)
 
 BREAKING CHANGES:
