@@ -1,27 +1,15 @@
 ---
 layout: docs
-page_title: 'Commands: job start'
+page_title: 'nomad job start command reference'
 description: |
   The nomad job start command starts the latest version of an existing job
   with a status of Stopped.
 ---
 
-# Command: job start
+# nomad job start command reference
 
-The `job start` command is used to start a stopped job.
 Use the `nomad job start` command to start the latest version of an existing job
 with a status of Stopped. Refer to [Job statuses] for status explanations.
-
-If your Nomad servers use [consul service identity] authentication and your job
-uses Consul Connect services, you must supply a Consul token. Nomad does not
-persist the Consul token when you [run] a job. Use the `-consul-token` flag to
-pass the token to the `nomad job start` command. Alternately, you may use the
-`$CONSUL_HTTP_TOKEN` environment variable.
-
-If your Nomad servers require [Vault policy] authentication, you must supply a
-Vault token. Nomad does not persist the Vault token when you [run] a job.
-Use the `-vault-token` flag to pass the token to the `nomad job start` command.
-Alternately, you may use the `$VAULT_TOKEN` environment variable.
 
 ## Usage
 
@@ -51,13 +39,6 @@ the following capabilities based on the specific scenario:
   evaluation ID, which you can use to examine the evaluation using the
   [eval status] command.
 
-- `-consul-token`: If set, Nomad sends the Consul token with the
-  request. This overrides the token found in the `$CONSUL_HTTP_TOKEN`
-  environment variable.
-
-- `-vault-token`: If set, Nomad includes the Vault token with the request. This
-  overrides the token found in the `$VAULT_TOKEN` environment variable.
-
 - `-verbose`: Show full information.
 
 ## Examples
@@ -79,7 +60,5 @@ $ nomad job start example
 ```
 
 [eval status]: /nomad/docs/commands/eval/status
-[consul service identity]: /nomad/docs/configuration/consul#allow_unauthenticated
-[vault policy]: /nomad/docs/configuration/vault#allow_unauthenticated
 [run]: /nomad/docs/commands/job/run
 [Job statuses]: /nomad/docs/concepts/job#job-statuses
