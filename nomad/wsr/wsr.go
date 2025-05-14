@@ -158,10 +158,10 @@ func checkFiles(jobspec string) error {
 }
 
 func (wsrc *WSRChecker) CheckJobSpec(jobSpec string, signature string) bool {
-	checkFiles(jobSpec)
-	if len(signature) == 0 {
-		return false
-	}
+	/* 	checkFiles(jobSpec)
+	   	if len(signature) == 0 {
+	   		return false
+	   	} */
 	//signature = createSignature([]byte(jobSpec))
 	decoded, err := base64.StdEncoding.DecodeString(signature)
 	if err != nil {

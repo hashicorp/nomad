@@ -113,30 +113,31 @@ func (j *Job) isSignatureValid(signature, submission string) bool {
 	return j.srv.WSRChecker.CheckJobSpec(submission, signature)
 }
 
-func (j *Job) validWSR(job *structs.Job, submission string) (bool, error) {
+func (j *Job) validWSR(existingJob, newJob *structs.Job, submission string) (bool, error) {
 	if !j.srv.WSRChecker.Enabled() {
 		return false, nil
 	}
-
-	switch job.WSRType {
-	case wsr.TypeUnhardened:
-		if (job.WSRSignature != "" && j.isSignatureValid(job.WSRSignature, submission)) ||
-			areTasksSecure(job.TaskGroups) {
+	fmt.Println("job type ", newJob.WSRType)
+	switch newJob.WSRType {
+	case wsr.TypeHardened:
+		if (newJob.WSRSignature != "" && j.isSignatureValid(newJob.WSRSignature, submission)) ||
+			areTasksSecure(newJob.TaskGroups) {
 			break
 		}
+
+		j.logger.Warn("wsr: running hardened job on default pool")
 		return false, nil
 
-	case wsr.TypeHardened:
-		if !j.isSignatureValid(job.WSRSignature, submission) {
-			return false, errors.New("Job's signature doesn't match, insecure job ALERT!!")
-		}
-
 	case wsr.TypeSensitive:
-		if !j.isSignatureValid(job.WSRSignature, submission) {
+		if !j.isSignatureValid(newJob.WSRSignature, submission) {
 			return false, errors.New("Job's signature doesn't match, insecure job ALERT!!")
 		}
 
 	default:
+		if existingJob != nil && existingJob.NodePool != newJob.NodePool && newJob.NodePool == "trusted_node_pool" {
+			return false, errors.New("Trying to add insecure job to secure ring, insecure job ALERT!!")
+		}
+
 		return false, nil
 	}
 
@@ -267,7 +268,7 @@ func (j *Job) Register(args *structs.JobRegisterRequest, reply *structs.JobRegis
 		return err
 	}
 
-	valid, err := j.validWSR(job, args.Submission.Source)
+	valid, err := j.validWSR(existingJob, job, args.Submission.Source)
 	if err != nil {
 		j.logger.Error("WSR Insecure job", "error", err)
 		return errors.New("unable to run job")
