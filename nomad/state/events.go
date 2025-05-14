@@ -51,7 +51,10 @@ var MsgTypeEvents = map[structs.MessageType]string{
 func eventsFromChanges(tx ReadTxn, changes Changes) *structs.Events {
 	eventType, ok := MsgTypeEvents[changes.MsgType]
 	if !ok {
-		return nil
+		eventType, ok = EnterpriseMsgTypeEvents[changes.MsgType]
+		if !ok {
+			return nil
+		}
 	}
 
 	var events []structs.Event
@@ -238,8 +241,9 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 					Plugin: before,
 				},
 			}, true
+		default:
+			return enterpriseEventFromChangeDeleted(change)
 		}
-		return structs.Event{}, false
 	}
 
 	switch change.Table {
@@ -468,7 +472,7 @@ func eventFromChange(change memdb.Change) (structs.Event, bool) {
 				Plugin: after,
 			},
 		}, true
+	default:
+		return enterpriseEventFromChange(change)
 	}
-
-	return structs.Event{}, false
 }

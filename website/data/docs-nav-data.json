@@ -1014,7 +1014,11 @@
                 "path": "commands/operator/snapshot/state"
               }
             ]
-          }
+          },
+		  {
+			"title": "utilization",
+			"path": "commands/operator/utilization"
+		  }
         ]
       },
       {

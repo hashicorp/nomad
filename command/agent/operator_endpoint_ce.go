@@ -25,6 +25,14 @@ func (s *HTTPServer) LicenseRequest(resp http.ResponseWriter, req *http.Request)
 	}
 }
 
+// OperatorUtilizationRequest is used get a utilization reporting bundle.
+func (s *HTTPServer) OperatorUtilizationRequest(resp http.ResponseWriter, req *http.Request) (any, error) {
+	if req.Method != http.MethodPost {
+		return nil, CodedError(405, ErrInvalidMethod)
+	}
+	return nil, CodedError(501, ErrEntOnly)
+}
+
 func autopilotToAPIEntState(_ structs.OperatorHealthReply, _ *api.OperatorHealthReply) interface{} {
 	return nil
 }
