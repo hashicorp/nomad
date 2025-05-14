@@ -348,8 +348,9 @@ reporting {
     enabled = true
   }
 
-  address         = "http://localhost:8080"
-  export_interval = "15m"
+  address                 = "http://localhost:8080"
+  export_interval         = "15m"
+  snapshot_retention_time = "24h"
 }
 
 keyring "awskms" {

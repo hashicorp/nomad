@@ -34,6 +34,7 @@ const (
 	TopicHostVolume     Topic = "HostVolume"
 	TopicCSIVolume      Topic = "CSIVolume"
 	TopicCSIPlugin      Topic = "CSIPlugin"
+	TopicOperator       Topic = "Operator"
 	TopicAll            Topic = "*"
 
 	TypeNodeRegistration              = "NodeRegistration"
@@ -71,6 +72,7 @@ const (
 	TypeCSIVolumeRegistered           = "CSIVolumeRegistered"
 	TypeCSIVolumeDeregistered         = "CSIVolumeDeregistered"
 	TypeCSIVolumeClaim                = "CSIVolumeClaim"
+	TypeUtilizationSnapshotUpserted   = "UtilizationSnapshotUpserted"
 )
 
 // Event represents a change in Nomads state.

@@ -182,6 +182,8 @@ func ParseConfigFile(path string) (*Config, error) {
 		},
 		{"reporting.export_interval",
 			&c.Reporting.ExportInterval, &c.Reporting.ExportIntervalHCL, nil},
+		{"reporting.snapshot_retention_time",
+			&c.Reporting.SnapshotRetentionTime, &c.Reporting.SnapshotRetentionTimeHCL, nil},
 		{"rpc.keep_alive_interval", &c.RPC.KeepAliveInterval, &c.RPC.KeepAliveIntervalHCL, nil},
 		{"rpc.connection_write_timeout", &c.RPC.ConnectionWriteTimeout, &c.RPC.ConnectionWriteTimeoutHCL, nil},
 		{"rpc.stream_open_timeout", &c.RPC.StreamOpenTimeout, &c.RPC.StreamOpenTimeoutHCL, nil},

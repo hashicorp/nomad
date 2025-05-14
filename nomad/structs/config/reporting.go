@@ -53,6 +53,11 @@ type ReportingConfig struct {
 	// for testing and should not be configured by end-users.
 	ExportInterval    time.Duration
 	ExportIntervalHCL string `hcl:"export_interval" json:"-"`
+
+	// SnapshotRetentionTime overrides the default time we retain utilization
+	// snapshots in Raft.
+	SnapshotRetentionTime    time.Duration
+	SnapshotRetentionTimeHCL string `hcl:"snapshot_retention_time"`
 }
 
 func (r *ReportingConfig) Copy() *ReportingConfig {
@@ -90,6 +95,12 @@ func (r *ReportingConfig) Merge(b *ReportingConfig) *ReportingConfig {
 	}
 	if r.ExportInterval == 0 {
 		result.ExportInterval = b.ExportInterval
+	}
+	if r.SnapshotRetentionTime == 0 {
+		result.SnapshotRetentionTime = b.SnapshotRetentionTime
+	}
+	if r.SnapshotRetentionTimeHCL == "" {
+		result.SnapshotRetentionTimeHCL = b.SnapshotRetentionTimeHCL
 	}
 
 	return &result
