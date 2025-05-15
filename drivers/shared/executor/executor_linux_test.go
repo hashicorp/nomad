@@ -839,10 +839,11 @@ func TestExecutor_UserEnv(t *testing.T) {
 
 	testExecCmd := testExecutorCommandWithChroot(t)
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	execCmd.Cmd = "/bin/bash"
+	execCmd.Args = []string{"-c", "echo $USER"}
+	execCmd.User = "ubuntu"
+	execCmd.ResourceLimits = true
 	defer allocDir.Destroy()
-
-	execCmd.Cmd = "env"
-	execCmd.User = "runner"
 
 	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
 	defer executor.Shutdown("SIGKILL", 0)
@@ -855,8 +856,11 @@ func TestExecutor_UserEnv(t *testing.T) {
 	must.NoError(t, err)
 	must.Zero(t, state.ExitCode)
 
+	_, ok := executor.(*LibcontainerExecutor)
+	must.True(t, ok)
+
 	output := strings.TrimSpace(testExecCmd.stdout.String())
-	must.StrContains(t, output, "USER=runner")
+	must.Eq(t, output, "ubuntu")
 }
 
 func TestExecCommand_getCgroupOr_off(t *testing.T) {
