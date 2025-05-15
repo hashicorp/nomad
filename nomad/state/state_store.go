@@ -6122,6 +6122,18 @@ func (s *StateStore) ACLPolicyByJob(ws memdb.WatchSet, ns, jobID string) (memdb.
 	return iter, nil
 }
 
+func (s *StateStore) ACLPolicyByNamespace(ws memdb.WatchSet, ns string) (memdb.ResultIterator, error) {
+	txn := s.db.ReadTxn()
+
+	iter, err := txn.Get("acl_policy", "job", ns)
+	if err != nil {
+		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
+	}
+	ws.Add(iter.WatchCh())
+
+	return iter, nil
+}
+
 // ACLPolicies returns an iterator over all the acl policies
 func (s *StateStore) ACLPolicies(ws memdb.WatchSet) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()

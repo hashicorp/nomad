@@ -35,12 +35,11 @@ Apply Options:
   -description
     Specifies a human readable description for the policy.
 
+  -namespace
+    Attaches the policy to the specified namespace.
+
   -job
     Attaches the policy to the specified job. Requires that -namespace is
-    also set.
-
-  -namespace
-    Attaches the policy to the specified namespace. Requires that -job is
     also set.
 
   -group
