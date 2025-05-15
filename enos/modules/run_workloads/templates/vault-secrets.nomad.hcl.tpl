@@ -51,8 +51,7 @@ job "get-secret" {
 
       template {
         destination = "local/config.json"
-        change_mode   = "signal"
-        change_signal = "SIGHUP"
+        change_mode   = "noop"
 
         data = <<EOT
 {{ with secret "${secret_path}" }}
