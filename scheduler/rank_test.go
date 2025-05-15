@@ -2085,8 +2085,7 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 // that would go over a designated MaxAlloc value
 func TestBinPackIterator_MaxAlloc(t *testing.T) {
 	_, ctx := testContext(t)
-	//nId1 := uuid.Generate()
-	//nId2 := uuid.Generate()
+
 	taskGen := func(name string) *structs.Task {
 		return &structs.Task{
 			Name:      name,
@@ -2166,11 +2165,10 @@ func TestBinPackIterator_MaxAlloc(t *testing.T) {
 						MaxAllocs: tc.maxAlloc,
 					}
 				}
-			} else {
-				// only add allocation limit to first node if !noNodes
-				nodes[0].Node.NodeMaxAllocs = &structs.NodeMaxAllocs{
-					MaxAllocs: tc.maxAlloc,
-				}
+			}
+			// only add allocation limit to first node except in noNodes
+			nodes[0].Node.NodeMaxAllocs = &structs.NodeMaxAllocs{
+				MaxAllocs: tc.maxAlloc,
 			}
 			static := NewStaticRankIterator(ctx, nodes)
 

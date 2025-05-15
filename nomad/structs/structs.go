@@ -2175,9 +2175,8 @@ type Node struct {
 	CreateIndex uint64
 	ModifyIndex uint64
 
-	// NodeMaxAllocs holds NodeMaxAllocs value, if configured,
-	// and CurrentNodeAllocations to help the scheduler to block excess
-	// allocations.
+	// NodeMaxAllocs is only set if a NodeMaxAllocs value
+	// was set in the client config
 	NodeMaxAllocs *NodeMaxAllocs
 }
 
@@ -2330,9 +2329,13 @@ func (n *Node) HasEvent(msg string) bool {
 
 // Stub returns a summarized version of the node
 func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
-
+	var maxAllocs uint64
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
-
+	if n.NodeMaxAllocs != nil {
+		maxAllocs = uint64(n.NodeMaxAllocs.MaxAllocs)
+	} else {
+		maxAllocs = 0
+	}
 	s := &NodeListStub{
 		Address:               addr,
 		ID:                    n.ID,
@@ -2350,6 +2353,7 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		LastDrain:             n.LastDrain,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
+		NodeMaxAllocs:         maxAllocs,
 	}
 
 	if fields != nil {
@@ -2391,6 +2395,7 @@ type NodeListStub struct {
 	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
+	NodeMaxAllocs         uint64
 }
 
 // NodeStubFields defines which fields are included in the NodeListStub.
@@ -2399,7 +2404,7 @@ type NodeStubFields struct {
 	OS        bool
 }
 
-// NodeMaxAllocs holds the NodeMaxAlloc value
+// NodeMaxAllocs holds the NodeMaxAllocs value
 // if set in *client.Config.
 type NodeMaxAllocs struct {
 	MaxAllocs int
