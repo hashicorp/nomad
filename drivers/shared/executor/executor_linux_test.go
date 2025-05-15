@@ -830,6 +830,35 @@ func TestExecutor_WorkDir(t *testing.T) {
 	must.Eq(t, output, workDir)
 }
 
+// TestExecutor_UserEnv tests that the USER environment variable is set
+// correctly if user is set. We're not testing HOME because that could get
+// tricky on GHA runners.
+func TestExecutor_UserEnv(t *testing.T) {
+	t.Parallel()
+	testutil.ExecCompatible(t)
+
+	testExecCmd := testExecutorCommandWithChroot(t)
+	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
+	defer allocDir.Destroy()
+
+	execCmd.Cmd = "env"
+	execCmd.User = "runner"
+
+	executor := NewExecutorWithIsolation(testlog.HCLogger(t), compute)
+	defer executor.Shutdown("SIGKILL", 0)
+
+	ps, err := executor.Launch(execCmd)
+	must.NoError(t, err)
+	must.NonZero(t, ps.Pid)
+
+	state, err := executor.Wait(context.Background())
+	must.NoError(t, err)
+	must.Zero(t, state.ExitCode)
+
+	output := strings.TrimSpace(testExecCmd.stdout.String())
+	must.StrContains(t, output, "USER=runner")
+}
+
 func TestExecCommand_getCgroupOr_off(t *testing.T) {
 	ci.Parallel(t)
 
