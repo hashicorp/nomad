@@ -290,9 +290,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	diff.update = destructiveUpdates
 
 	for _, inplaceUpdate := range inplaceUpdates {
-		if !allocExistsForTaskGroup[inplaceUpdate.TaskGroup.Name] {
-			allocExistsForTaskGroup[inplaceUpdate.TaskGroup.Name] = true
-		}
+		allocExistsForTaskGroup[inplaceUpdate.TaskGroup.Name] = true
 	}
 
 	if s.eval.AnnotatePlan {
@@ -326,9 +324,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	for _, ignoredAlloc := range diff.ignore {
-		if !allocExistsForTaskGroup[ignoredAlloc.TaskGroup.Name] {
-			allocExistsForTaskGroup[ignoredAlloc.TaskGroup.Name] = true
-		}
+		allocExistsForTaskGroup[ignoredAlloc.TaskGroup.Name] = true
 	}
 
 	// Compute the placements
