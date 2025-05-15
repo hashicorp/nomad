@@ -841,7 +841,7 @@ func TestExecutor_UserEnv(t *testing.T) {
 	execCmd, allocDir := testExecCmd.command, testExecCmd.allocDir
 	execCmd.Cmd = "/bin/bash"
 	execCmd.Args = []string{"-c", "echo $USER"}
-	execCmd.User = "ubuntu"
+	execCmd.User = "runner"
 	execCmd.ResourceLimits = true
 	defer allocDir.Destroy()
 
@@ -860,7 +860,7 @@ func TestExecutor_UserEnv(t *testing.T) {
 	must.True(t, ok)
 
 	output := strings.TrimSpace(testExecCmd.stdout.String())
-	must.Eq(t, output, "ubuntu")
+	must.Eq(t, output, "runner")
 }
 
 func TestExecCommand_getCgroupOr_off(t *testing.T) {
