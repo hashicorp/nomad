@@ -1437,11 +1437,6 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	require.Nil(t, h.Process(NewSystemScheduler, eval3))
 	require.Equal(t, "complete", h.Evals[2].Status)
 
-	// Ensure `groupA` fails to be placed due to its constraint, but `groupB` doesn't
-	require.Len(t, h.Evals[2].FailedTGAllocs, 1)
-	require.Contains(t, h.Evals[2].FailedTGAllocs, "groupA")
-	require.NotContains(t, h.Evals[2].FailedTGAllocs, "groupB")
-
 	require.Len(t, h.Plans, 2)
 	require.Len(t, h.Plans[1].NodeAllocation, 1)
 	// Ensure all NodeAllocations are from first Eval
@@ -1463,6 +1458,207 @@ func TestSystemSched_JobConstraint_AddNode(t *testing.T) {
 	allocsNodeThree, err := h.State.AllocsByNode(ws, nodeBTwo.ID)
 	require.NoError(t, err)
 	require.Len(t, allocsNodeThree, 1)
+}
+
+func TestSystemSched_JobConstraint_AllFiltered(t *testing.T) {
+	ci.Parallel(t)
+	h := NewHarness(t)
+
+	// Create two nodes, one with a custom class
+	node := mock.Node()
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	node2 := mock.Node()
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node2))
+
+	// Create a job with a constraint
+	job := mock.SystemJob()
+	job.Priority = structs.JobDefaultPriority
+	fooConstraint := &structs.Constraint{
+		LTarget: "${node.unique.name}",
+		RTarget: "something-else",
+		Operand: "==",
+	}
+	job.Constraints = []*structs.Constraint{fooConstraint}
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	// Create a mock evaluation to start the job, which will run on the foo node
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	must.NoError(t, err)
+
+	// Ensure a single eval
+	must.Len(t, 1, h.Evals)
+	eval = h.Evals[0]
+
+	// Ensure that no evals report a failed allocation
+	must.Eq(t, len(eval.FailedTGAllocs), 1)
+	must.Eq(t, eval.FailedTGAllocs[job.TaskGroups[0].Name].ConstraintFiltered[fooConstraint.String()], 2)
+}
+
+// Test that the system scheduler can handle a job with a constraint on
+// subsequent runs, and report the outcome appropriately
+func TestSystemSched_JobConstraint_RunMultipleTimes(t *testing.T) {
+	ci.Parallel(t)
+	h := NewHarness(t)
+
+	// Create two nodes, one with a custom name
+	fooNode := mock.Node()
+	fooNode.Name = "foo"
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), fooNode))
+
+	barNode := mock.Node()
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), barNode))
+
+	// Create a job with a constraint on custom name
+	job := mock.SystemJob()
+	job.Priority = structs.JobDefaultPriority
+	fooConstraint := &structs.Constraint{
+		LTarget: "${node.unique.name}",
+		RTarget: fooNode.Name,
+		Operand: "==",
+	}
+	job.Constraints = []*structs.Constraint{fooConstraint}
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+
+	// Create a mock evaluation to start the job, which will run on the foo node
+	eval := &structs.Evaluation{
+		Namespace:   structs.DefaultNamespace,
+		ID:          uuid.Generate(),
+		Priority:    job.Priority,
+		TriggeredBy: structs.EvalTriggerJobRegister,
+		JobID:       job.ID,
+		Status:      structs.EvalStatusPending,
+	}
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+
+	// Process the evaluation
+	err := h.Process(NewSystemScheduler, eval)
+	must.NoError(t, err)
+
+	// Begin rerunning jobs with the constraints to ensure that they return the correct error states
+	testCases := []struct {
+		desc  string
+		job   func() *structs.Job
+		check func(*testing.T, *Harness)
+	}{
+		{
+			desc: "Rerunning the job with constraint shouldn't report failed allocations",
+			job: func() *structs.Job {
+				return job
+			},
+			check: func(t *testing.T, h *Harness) {
+				// Ensure a plan is not added, because no action should be taken
+				must.Len(t, 1, h.Plans)
+
+				// Ensure that no evals report a failed allocation
+				for _, eval := range h.Evals {
+					must.Eq(t, 0, len(eval.FailedTGAllocs))
+				}
+
+				// Ensure that plan includes allocation running on fooNode
+				must.Len(t, 1, h.Plans[0].NodeAllocation[fooNode.ID])
+				// Ensure that plan does not include allocation running on barNode
+				must.Len(t, 0, h.Plans[0].NodeAllocation[barNode.ID])
+			},
+		},
+		{
+			desc: "Running an inplace-update job with constraint update shouldn't report failed allocations",
+			job: func() *structs.Job {
+				job := job.Copy()
+				must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+				return job
+			},
+			check: func(t *testing.T, h *Harness) {
+				// Ensure another plan is added for the updated alloc
+				must.Len(t, 2, h.Plans)
+
+				// Ensure that evals are not creating an alloc
+				must.Len(t, 0, h.CreateEvals)
+
+				// Ensure that no evals report a failed allocation
+				for _, eval := range h.Evals {
+					must.Eq(t, 0, len(eval.FailedTGAllocs))
+				}
+
+				// Ensure that plan still includes allocation running on fooNode
+				must.Len(t, 1, h.Plans[1].NodeAllocation[fooNode.ID])
+				// Ensure that plan does not include allocation running on barNode
+				must.Len(t, 0, h.Plans[1].NodeAllocation[barNode.ID])
+			},
+		},
+		{
+			desc: "Running a destructive-update job with constraint that can be placed should not report failed allocations",
+			job: func() *structs.Job {
+				job := job.Copy()
+				// Update the required resources, but not to exceed the node's capacity
+				job.TaskGroups[0].Tasks[0].Resources.CPU = 123
+				must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+				return job
+			},
+			check: func(t *testing.T, h *Harness) {
+				// Ensure another plan is added for the updated alloc
+				must.Len(t, 3, h.Plans)
+
+				// Ensure that no evals report a failed allocation
+				for _, eval := range h.Evals {
+					must.Eq(t, 0, len(eval.FailedTGAllocs))
+				}
+
+				// Ensure that newest plan includes allocation running on fooNode
+				must.Len(t, 1, h.Plans[2].NodeAllocation[fooNode.ID])
+				// Ensure that newest plan does not include allocation running on barNode
+				must.Len(t, 0, h.Plans[2].NodeAllocation[barNode.ID])
+			},
+		},
+		{
+			desc: "Running a destructive-update job with constraint that can't be placed should report failed allocations",
+			job: func() *structs.Job {
+				job := job.Copy()
+				// Update the required resources to exceed the non-constrained node's capacity
+				job.TaskGroups[0].Tasks[0].Resources.MemoryMB = 100000000
+				must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+				return job
+			},
+			check: func(t *testing.T, h *Harness) {
+				// Ensure another Plan for the updated alloc
+				must.Len(t, 4, h.Plans)
+
+				eval := h.Evals[4]
+				// Ensure that this eval reports failed allocation, where the running alloc can no longer be run on the node
+				must.Eq(t, 1, len(eval.FailedTGAllocs))
+				must.Eq(t, eval.FailedTGAllocs[job.TaskGroups[0].Name].NodesExhausted, 1)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		job := tc.job()
+
+		testEval := &structs.Evaluation{
+			Namespace:   structs.DefaultNamespace,
+			ID:          uuid.Generate(),
+			Priority:    job.Priority,
+			TriggeredBy: structs.EvalTriggerJobRegister,
+			JobID:       job.ID,
+			Status:      structs.EvalStatusPending,
+		}
+		must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{testEval}))
+
+		err = h.Process(NewSystemScheduler, testEval)
+		must.NoError(t, err)
+
+		tc.check(t, h)
+	}
 }
 
 // No errors reported when no available nodes prevent placement
