@@ -1,10 +1,11 @@
 ---
 layout: docs
-page_title: connect Block - Job Specification
-description: The "connect" block allows specifying options for Consul Connect integration
+page_title: connect block in the job specification
+description: |-
+  Configure the `connect` block of the Nomad job specification for Consul service mesh native application integration. Configure sidecar service, sidecar task, and gateway.
 ---
 
-# `connect` Block
+# `connect` block in the job specification
 
 <Placement groups={['job', 'group', 'service', 'connect']} />
 
@@ -44,13 +45,13 @@ job "countdash" {
 }
 ```
 
-## `connect` Parameters
+## Parameters
 
 Used to configure a connect service. Only one of `native`, `sidecar_service`,
 or `gateway` may be realized per `connect` block.
 
 - `native` - `(bool: false)` - This is used to configure the service as supporting
-  [Connect Native](/consul/docs/connect/native) applications.
+  [Consul service mesh native](/consul/docs/connect/native) applications.
 
 - `sidecar_service` - <code>([sidecar_service][]: nil)</code> - This is used to
   configure the sidecar service created by Nomad for Consul Connect.
@@ -61,12 +62,12 @@ or `gateway` may be realized per `connect` block.
 - `gateway` - <code>([gateway][]:nil)</code> - This is used to configure the
   gateway service created by Nomad for Consul Connect.
 
-## `connect` Examples
+## Examples
 
-### Using Connect Native
+### Using Consul service mesh native
 
 The following example is a minimal service block for a
-[Consul Connect Native](/consul/docs/connect/native)
+[Consul service mesh native](/consul/docs/connect/native)
 application implemented by a task named `generate`.
 
 ```hcl
@@ -81,7 +82,7 @@ service {
 }
 ```
 
-### Using Sidecar Service
+### Using sidecar service
 
 The following example is a minimal connect block with defaults and is
 sufficient to start an Envoy proxy sidecar for allowing incoming connections
@@ -189,7 +190,7 @@ job "countdash" {
 }
 ```
 
-### Using a Gateway
+### Using a gateway
 
 The following is an example service block for creating and using a connect ingress
 gateway. It includes a gateway service definition and an api service fronted by
@@ -237,7 +238,7 @@ job "ingress-demo" {
 }
 ```
 
-### Limitations
+
 
 [gateway]: /nomad/docs/job-specification/gateway
 

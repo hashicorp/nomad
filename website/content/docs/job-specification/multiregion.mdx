@@ -1,25 +1,24 @@
 ---
 layout: docs
-page_title: multiregion Block - Job Specification
+page_title: multiregion block in the job specification
 description: |-
-  The "multiregion" block specifies that a job will be deployed to multiple federated
-  regions.
+  Deploy a job to multiple federated regions in the `multiregion` block of the Nomad job specification. Learn about multi-region deployment states, parameterized dispatch, and periodic time zones. Configure region count, datacenters, metadata, and node pool. Specify region rollout strategy parameters. Review examples of max parallel, rollback regions, override counts, and merging metadata.
 ---
 
-# `multiregion` Block
+# `multiregion` block in the job specification
 
-<Placement groups={[['job', 'multiregion']]} />
-
-<EnterpriseAlert />
+<Placement groups={[['job', 'multi-region']]} />
 
 The `multiregion` block specifies that a job will be deployed to multiple
 [federated regions]. If omitted, the job will be deployed to a single region—the
 one specified by the `region` field or the `-region` command line flag to
 `nomad job run`.
 
+<EnterpriseAlert product="nomad"/>
+
 Federated Nomad clusters are members of the same gossip cluster but not the
 same raft cluster; they don't share their data stores. Each region in a
-multiregion deployment gets an independent copy of the job, parameterized with
+multi-region deployment gets an independent copy of the job, parameterized with
 the values of the `region` block. Nomad regions coordinate to rollout each
 region's deployment using rules determined by the `strategy` block.
 
@@ -51,7 +50,7 @@ job "docs" {
 }
 ```
 
-## Multiregion Deployment States
+## Multi-region deployment states
 
 A single region deployment using one of the various [upgrade strategies]
 begins in the `running` state, and ends in the `successful` state, the
@@ -60,14 +59,14 @@ complete), or the `failed` state. A failed single region deployment may
 automatically revert to the previous version of the job if its `update`
 block has the [`auto_revert`][update-auto-revert] setting.
 
-In a multiregion deployment, regions begin in the `pending` state. This allows
+In a multi-region deployment, regions begin in the `pending` state. This allows
 Nomad to determine that all regions have accepted the job before
 continuing. At this point up to `max_parallel` regions will enter `running` at
 a time. When each region completes its local deployment, it enters a `blocked`
 state where it waits until the last region has completed the deployment. The
 final region will unblock the regions to mark them as `successful`.
 
-## Parameterized Dispatch
+## Parameterized dispatch
 
 Job dispatching is region specific. While a [parameterized job] can be
 registered in multiple [federated regions] like any other job, a parameterized
@@ -76,33 +75,33 @@ Operators are expected to invoke the job by invoking [`job dispatch`]
 from the CLI or the [HTTP API] and provide the appropriate dispatch options
 for that region.
 
-## Periodic Time Zones
+## Periodic time zones
 
-Multiregion periodic jobs share [time zone] configuration, with UTC being the
-default. Operators should be mindful of this when registering multiregion jobs.
+Multi-region periodic jobs share [time zone] configuration, with UTC being the
+default. Operators should be mindful of this when registering multi-region jobs.
 For example, a periodic configuration that specifies the job should run every
 night at midnight New York time, may result in an undesirable execution time
 if one of the target regions is set to Tokyo time.
 
-## `multiregion` Parameters
+## Parameters
 
 - `strategy` <code>([Strategy](#strategy-parameters): nil)</code> - Specifies
   a rollout strategy for the regions.
 
 - `region` <code>([Region](#region-parameters): nil)</code> - Specifies the
   parameters for a specific region. This can be specified multiple times to
-  define the set of regions for the multiregion deployment. Regions are
+  define the set of regions for the multi-region deployment. Regions are
   ordered; depending on the rollout strategy Nomad may roll out to each region
   in order or to several at a time.
 
 ~> **Note:** Regions can be added, but regions that are removed will not be
 stopped and will be ignored by the deployment. This behavior may change before
-multiregion deployments are considered GA.
+multi-region deployments are considered GA.
 
-### `strategy` Parameters
+### `strategy` parameters
 
 - `max_parallel` `(int: <optional>)` - Specifies the maximum number
-  of region deployments that a multiregion will have in a running state at a
+  of region deployments that a multi-region will have in a running state at a
   time. By default, Nomad will deploy all regions simultaneously.
 
 - `on_failure` `(string: <optional>)` - Specifies the behavior when a region
@@ -110,8 +109,8 @@ multiregion deployments are considered GA.
   the default (empty `""`). This field and its interactions with the job's
   [`update` block] is described in the [examples] below.
 
-  Each region within a multiregion deployment follows the `auto_revert`
-  strategy of its own `update` block (if any). The multiregion `on_failure`
+  Each region within a multi-region deployment follows the `auto_revert`
+  strategy of its own `update` block (if any). The multi-region `on_failure`
   field tells Nomad how many other regions should be marked as failed when one
   region's deployment fails:
 
@@ -133,7 +132,7 @@ multiregion deployments are considered GA.
 `system` scheduler will be updated to support `on_failure` when the
 [`update` block] is fully supported for system jobs in a future release.
 
-### `region` Parameters
+### `region` parameters
 
 The name of a region must match the name of one of the [federated regions].
 
@@ -157,12 +156,12 @@ The name of a region must match the name of one of the [federated regions].
 As described above, the parameters for each region replace the default values
 for the field with the same name for each region.
 
-## `multiregion` Examples
+## Examples
 
-The following examples only show the `multiregion` block and the other
+The following examples only show the `multi-region` block and the other
 blocks it might be interacting with.
 
-### Max Parallel
+### Max parallel
 
 This example shows the use of `max_parallel`. This job will deploy first to
 the "north" and "south" regions. If either "north" finishes and enters the
@@ -170,7 +169,7 @@ the "north" and "south" regions. If either "north" finishes and enters the
 `running` state at any given time.
 
 ```hcl
-multiregion {
+multi-region {
 
   strategy {
     max_parallel = 2
@@ -183,7 +182,7 @@ multiregion {
 }
 ```
 
-### Rollback Regions
+### Rollback regions
 
 This example shows the default value of `on_failure`. Because `max_parallel = 1`,
 the "north" region will deploy first, followed by "south", and so on. But
@@ -212,7 +211,7 @@ update {
 }
 ```
 
-### Override Counts
+### Override counts
 
 This example shows how the `count` field override the default `count` of the
 task group. The job the deploys 2 "worker" and 1 "controller" allocations to
@@ -241,7 +240,7 @@ group "controller" {
 }
 ```
 
-### Merging Meta
+### Merging meta
 
 This example shows how the `meta` is merged with the `meta` field of the job,
 group, and task. A task in "west" will have the values
@@ -281,7 +280,7 @@ group "worker" {
 [federated regions]: /nomad/tutorials/manage-clusters/federation
 [`update` block]: /nomad/docs/job-specification/update
 [update-auto-revert]: /nomad/docs/job-specification/update#auto_revert
-[examples]: #multiregion-examples
+[examples]: #examples
 [upgrade strategies]: /nomad/tutorials/job-updates
 [`nomad deployment unblock`]: /nomad/docs/commands/deployment/unblock
 [parameterized job]: /nomad/docs/job-specification/parameterized

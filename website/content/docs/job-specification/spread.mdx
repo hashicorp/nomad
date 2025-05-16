@@ -1,8 +1,8 @@
 ---
 layout: docs
-page_title: spread Block - Job Specification
+page_title: spread block in the job specification
 description: >-
-  The "spread" block is used to spread placements across a certain node
+  The `spread` block is used to spread placements across a certain node
   attributes such as datacenter.
 
   Spread may be specified at the job or group levels for ultimate flexibility.
@@ -11,7 +11,7 @@ description: >-
   each.
 ---
 
-# `spread` Block
+# `spread` block in the job specification
 
 <Placement
   groups={[
@@ -74,7 +74,7 @@ Updating the `spread` block is non-destructive. Updating a job specification
 with only non-destructive updates will not migrate or replace existing
 allocations.
 
-## `spread` Parameters
+## Parameters
 
 - `attribute` `(string: "")` - Specifies the name or reference of the attribute
   to use. This can be any of the [Nomad interpolated
@@ -88,13 +88,13 @@ allocations.
   during scoring and must be an integer between 0 to 100. Weights can be used
   when there is more than one spread or affinity block to express relative preference across them.
 
-## `target` Parameters
+## Parameters
 
 - `value` `(string:"")` - Specifies a target value of the attribute from a `spread` block.
 
 - `percent` `(integer:0)` - Specifies the percentage associated with the target value.
 
-## Comparison to `spread` Scheduling Algorithm
+## Comparison to `spread` scheduling algorithm
 
 The `spread` block is not the same concept as setting the [scheduler
 algorithm][] to `"spread"` instead of `"binpack"`. Setting the scheduler
@@ -103,7 +103,7 @@ of the scheduler to place workloads from different jobs on the same set of nodes
 or not. The `spread` block impacts how the scheduler places allocations for a
 given job.
 
-## Scheduling Performance
+## Scheduling performance
 
 Using the `spread` block can have significant impact on scheduling
 performance. For each allocation in a `service` and `batch` job, the scheduler
@@ -124,11 +124,11 @@ default distribution of a job across multiple nodes. If this is not possible,
 you may consider reducing the size of the node pool or datacenter to reduce the
 number of nodes available for the scheduler to consider.
 
-## `spread` Examples
+## Examples
 
 The following examples show different ways to use the `spread` block.
 
-### Even Spread Across Data Center
+### Even spread across data center
 
 This example shows a spread block across the node's `datacenter` attribute. If we have
 two datacenters `us-east1` and `us-west1`, and a task group of `count = 10`,
@@ -141,7 +141,7 @@ spread {
 }
 ```
 
-### Spread With Target Percentages
+### Spread with target percentages
 
 This example shows a spread block that specifies one target percentage. If we
 have three datacenters `us-east1`, `us-east2`, and `us-west1`, and a task group
@@ -179,7 +179,7 @@ spread {
 }
 ```
 
-### Spread Across Multiple Attributes
+### Spread across multiple attributes
 
 This example shows spread blocks with multiple attributes. Consider a Nomad cluster
 where there are two datacenters `us-east1` and `us-west1`, and each datacenter has nodes
