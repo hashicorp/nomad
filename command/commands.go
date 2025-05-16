@@ -173,6 +173,11 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
+		"acl policy self": func() (cli.Command, error) {
+			return &ACLPolicySelfCommand{
+				Meta: meta,
+			}, nil
+		},
 		"acl role": func() (cli.Command, error) {
 			return &ACLRoleCommand{
 				Meta: meta,
