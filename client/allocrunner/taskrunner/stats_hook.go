@@ -30,15 +30,20 @@ type statsHook struct {
 	// cancel is called by Exited
 	cancel context.CancelFunc
 
+	// stats collection is expensive, so if we're not going to publish the stats
+	// there's no reason to collect them
+	doPublish bool
+
 	mu sync.Mutex
 
 	logger hclog.Logger
 }
 
-func newStatsHook(su StatsUpdater, interval time.Duration, logger hclog.Logger) *statsHook {
+func newStatsHook(su StatsUpdater, interval time.Duration, doPublish bool, logger hclog.Logger) *statsHook {
 	h := &statsHook{
-		updater:  su,
-		interval: interval,
+		updater:   su,
+		interval:  interval,
+		doPublish: doPublish,
 	}
 	h.logger = logger.Named(h.Name())
 	return h
@@ -51,6 +56,10 @@ func (*statsHook) Name() string {
 func (h *statsHook) Poststart(_ context.Context, req *interfaces.TaskPoststartRequest, _ *interfaces.TaskPoststartResponse) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if !h.doPublish {
+		h.logger.Trace("not collecting task stats")
+		return nil
+	}
 
 	// This shouldn't happen, but better safe than risk leaking a goroutine
 	if h.cancel != nil {
