@@ -30,6 +30,7 @@ import (
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
 	"github.com/hashicorp/nomad/drivers/shared/executor/procstats"
+	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
@@ -230,6 +231,14 @@ func (l *LibcontainerExecutor) Launch(command *ExecCommand) (*ProcessState, erro
 
 	if command.User != "" {
 		process.User = command.User
+
+		// Override HOME and USER environment variables
+		u, err := users.Lookup(command.User)
+		if err != nil {
+			return nil, err
+		}
+		process.Env = append(process.Env, fmt.Sprintf("USER=%s", u.Username))
+		process.Env = append(process.Env, fmt.Sprintf("HOME=%s", u.HomeDir))
 	}
 
 	l.userProc = process

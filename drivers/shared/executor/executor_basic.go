@@ -35,8 +35,6 @@ func withNetworkIsolation(f func() error, _ *drivers.NetworkIsolationSpec) error
 	return f()
 }
 
-func setCmdUser(*exec.Cmd, string) error { return nil }
-
 func (e *UniversalExecutor) ListProcesses() set.Collection[int] {
 	return procstats.ListByPid(e.childCmd.Process.Pid)
 }
