@@ -1844,3 +1844,27 @@ func Test_mergeKEKProviderConfigs(t *testing.T) {
 		},
 	}, result)
 }
+
+func TestConfig_LoadClientNodeMaxAllocs(t *testing.T) {
+	ci.Parallel(t)
+	testCases := []struct {
+		fileName string
+	}{
+		{
+			fileName: "test-resources/client_with_maxallocs.hcl",
+		},
+		{
+			fileName: "test-resources/client_with_maxallocs.json",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run("minimal client expect defaults", func(t *testing.T) {
+			defaultConfig := DefaultConfig()
+			agentConfig, err := LoadConfig(tc.fileName)
+			must.NoError(t, err)
+			agentConfig = defaultConfig.Merge(agentConfig)
+			must.Eq(t, 5, agentConfig.Client.NodeMaxAllocs)
+		})
+	}
+
+}

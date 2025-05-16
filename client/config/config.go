@@ -375,6 +375,10 @@ type Config struct {
 
 	// ExtraAllocHooks are run with other allocation hooks, mainly for testing.
 	ExtraAllocHooks []interfaces.RunnerHook
+
+	// NodeMaxAllocs is an optional field that sets the maximum number of
+	// allocations a node can be assigned. Defaults to 0 and ignored if unset.
+	NodeMaxAllocs *structs.NodeMaxAllocs
 }
 
 type APIListenerRegistrar interface {
