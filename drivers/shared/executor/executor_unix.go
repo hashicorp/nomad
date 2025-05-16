@@ -83,7 +83,7 @@ func setCmdUser(cmd *exec.Cmd, userid string) error {
 	// Convert the uid and gid
 	uid, err := strconv.ParseUint(u.Uid, 10, 32)
 	if err != nil {
-		return fmt.Errorf("unable to convert userid to uint32: %s", err)
+		return fmt.Errorf("unable to convert userid to uint32: %w", err)
 	}
 	gid, err := strconv.ParseUint(u.Gid, 10, 32)
 	if err != nil {
