@@ -269,7 +269,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 
 		if c.verbose {
-			out[0] += "Address|Version|"
+			out[0] += "Address|Version|NodeMaxAllocs|"
 		}
 
 		out[0] += "Drain|Eligibility|Status"
@@ -289,8 +289,14 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				out[i+1] += fmt.Sprintf("|%s", node.Attributes["os.name"])
 			}
 			if c.verbose {
-				out[i+1] += fmt.Sprintf("|%s|%s",
-					node.Address, node.Version)
+				var nodeMaxAlloc string
+				if node.NodeMaxAllocs == 0 {
+					nodeMaxAlloc = "N/A"
+				} else {
+					nodeMaxAlloc = strconv.FormatUint(node.NodeMaxAllocs, 10)
+				}
+				out[i+1] += fmt.Sprintf("|%s|%s|%s",
+					node.Address, node.Version, nodeMaxAlloc)
 			}
 			out[i+1] += fmt.Sprintf("|%v|%s|%s",
 				node.Drain,
@@ -632,8 +638,17 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 }
 
 func (c *NodeStatusCommand) outputAllocInfo(node *api.Node, nodeAllocs []*api.Allocation) error {
+	var nodeMaxAllocs string
+	if node.NodeMaxAllocs == nil {
+		nodeMaxAllocs = "N/A"
+	} else {
+		nodeMaxAllocs = strconv.Itoa(node.NodeMaxAllocs.MaxAllocs)
+	}
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	c.Ui.Output(formatAllocList(nodeAllocs, c.verbose, c.length))
+
+	c.Ui.Output(c.Colorize().Color("\n[bold]Node Max Allocations[reset]"))
+	c.Ui.Output(nodeMaxAllocs)
 
 	if c.verbose {
 		c.formatAttributes(node)
