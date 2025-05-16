@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: capability Block - Volume Specification
+page_title: Nomad volume specification capability block
 description: |-
-  Configure Container Storage Interface (CSI) and dynamic host storage volume capability in the "capability" block of the Nomad volume specification. Set single node or multiple node access and file system or block device attachment mode.
+  Configure Container Storage Interface (CSI) and dynamic host storage volume capability in the `capability`block of the Nomad volume specification. Set single node or multiple node access and file system or block device attachment mode.
 ---
 
-# `capability` Block
+# Nomad volume specification capability block
 
 <Placement
   groups={[
@@ -34,7 +34,7 @@ capability {
 You must provide at least one `capability` block, and you must provide a block
 for each capability you intend to use in a job's [`volume`] block.
 
-## `capability` Parameters
+## Parameters
 
 - `access_mode` `(string)` - Defines whether a volume should be available
   concurrently. The `access_mode` and `attachment_mode` from the volume request
@@ -74,12 +74,7 @@ for each capability you intend to use in a job's [`volume`] block.
   - For dynamic host volumes the `attachment_mode` field is optional and
     defaults to `"file-system"`.
 
-## `capability` Examples
-
-The following examples only show the `capability` blocks. Remember that the
-`capability` block is only valid in the placement shown above.
-
-### Multiple capabilities
+## Example
 
 This examples shows a volume that must satisfy multiple capability
 requirements.
