@@ -17,7 +17,7 @@ import (
 
 func New(compute cpustats.Compute, pl ProcessList) ProcessStats {
 	const cacheTTL = 5 * time.Second
-	return &linuxProcStats{
+	return &taskProcStats{
 		cacheTTL: cacheTTL,
 		procList: pl,
 		compute:  compute,
@@ -33,7 +33,7 @@ type stats struct {
 	SystemCPU *cpustats.Tracker
 }
 
-type linuxProcStats struct {
+type taskProcStats struct {
 	cacheTTL time.Duration
 	procList ProcessList
 	clock    libtime.Clock
@@ -45,14 +45,14 @@ type linuxProcStats struct {
 	at     time.Time
 }
 
-func (lps *linuxProcStats) expired() bool {
+func (lps *taskProcStats) expired() bool {
 	age := lps.clock.Since(lps.at)
 	return age > lps.cacheTTL
 }
 
 // scanPIDs will update lps.latest with the set of detected live pids that make
 // up the task process tree / are in the tasks cgroup
-func (lps *linuxProcStats) scanPIDs() {
+func (lps *taskProcStats) scanPIDs() {
 	currentPIDs := lps.procList.ListProcesses()
 
 	// remove old pids no longer present
@@ -74,11 +74,11 @@ func (lps *linuxProcStats) scanPIDs() {
 	}
 }
 
-func (lps *linuxProcStats) cached() ProcUsages {
+func (lps *taskProcStats) cached() ProcUsages {
 	return lps.cache
 }
 
-func (lps *linuxProcStats) StatProcesses() ProcUsages {
+func (lps *taskProcStats) StatProcesses() ProcUsages {
 	lps.lock.Lock()
 	defer lps.lock.Unlock()
 
