@@ -131,5 +131,6 @@ func (lps *linuxProcStats) StatProcesses() ProcUsages {
 	}
 
 	lps.cache = result
+	lps.at = time.Now()
 	return result
 }
