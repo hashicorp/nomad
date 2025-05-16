@@ -95,13 +95,22 @@ f35be281-85a5-d1e6-d268-6e8a6f0684df
 
 **NOTE**: `-quiet` cannot be used in conjunction with `-verbose` or `-json`.
 
+List view with verbose:
+
+```shell-session
+$ nomad node status -verbose
+ID        Node Pool  DC   Name   Class   Drain  Eligibility  Status
+a72dfba2  default    dc1  node1  <none>  false  eligible     ready
+1f3f03ea  dev        dc1  node2  <none>  false  eligible     ready
+```
+
 List view, with running allocations:
 
 ```shell-session
 $ nomad node status -allocs
-ID        Node Pool  DC   Name   Class   Drain  Eligibility  Status  Running Allocs
-4d2ba53b  default    dc1  node1  <none>  false  eligible     ready   1
-34dfba32  dev        dc1  node2  <none>  false  eligible     ready   3
+ID        Node Pool  DC   Name   Class   Address   Version  NodeMaxAllocs  Drain  Eligibility  Status  Running Allocs
+4d2ba53b  default    dc1  node1  <none>  127.0.0.1  1.10.1   50            false  eligible     ready   1
+34dfba32  dev        dc1  node2  <none>  127.0.0.1  1.10.1   50            false  eligible     ready   3
 ```
 
 Single-node view in short mode:
@@ -120,6 +129,9 @@ Uptime    = 17h2m25s
 Allocations
 ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 0b8b9e37  8bf94335  example  cache       run             running
+
+Node Max Allocations
+50
 ```
 
 Full output for a single node:
@@ -164,6 +176,9 @@ CPU           Memory           Disk
 Allocations
 ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 7bff7214  b3a6b9d2  example  cache       run             running
+
+Node Max Allocations
+50
 ```
 
 Using `-self` when on a Nomad Client:
@@ -212,6 +227,9 @@ b206088c  8bf94335  example  cache       run             running
 b82f58b6  8bf94335  example  cache       run             running
 ed3665f5  8bf94335  example  cache       run             running
 24cfd201  8bf94335  example  cache       run             running
+
+Node Max Allocations
+50
 ```
 
 You will note that in the above examples, the **Allocations** output contains
@@ -368,6 +386,9 @@ CPU           Memory           Disk
 Allocations
 ID                                    Eval ID                               Job ID   Task Group  Desired Status  Client Status
 3d743cff-8d57-18c3-2260-a41d3f6c5204  2fb686da-b2b0-f8c2-5d57-2be5600435bd  example  cache       run             complete
+
+Node Max Allocations
+50
 
 Attributes
 arch                      = amd64
