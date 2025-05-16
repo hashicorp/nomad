@@ -862,7 +862,10 @@ export default function () {
 
     // Return the token if it exists
     if (tokenForSecret) {
-      return this.serialize(tokenForSecret);
+      // In some occassions the token can actually be empty, account for that
+      if (tokenForSecret.SecretID !== "") {
+        return this.serialize(tokenForSecret);
+      }
     }
 
     // Client error if it doesn't
