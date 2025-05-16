@@ -2404,7 +2404,7 @@ type NodeStubFields struct {
 	OS        bool
 }
 
-// NodeMaxAllocs holds the NodeMaxAlloc value
+// NodeMaxAllocs holds the NodeMaxAllocs value
 // if set in *client.Config.
 type NodeMaxAllocs struct {
 	MaxAllocs int
