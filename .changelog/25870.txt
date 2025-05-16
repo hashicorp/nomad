@@ -3,5 +3,5 @@ telemetry: Fix excess CPU consumption from alloc stats collection
 ```
 
 ```release-note:bug
-telemetry: Fixed a bug where alloc stats were still collected if telemetry.publish_allocation_metrics=false.
+telemetry: Fixed a bug where alloc stats were still collected (but not published) if telemetry.publish_allocation_metrics=false.
 ```

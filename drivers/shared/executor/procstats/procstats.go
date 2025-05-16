@@ -31,7 +31,7 @@ type ProcUsages map[string]*drivers.ResourceUsage
 // for gathering CPU and memory process stats for all processes associated with
 // a task.
 type ProcessStats interface {
-	StatProcesses() ProcUsages
+	StatProcesses(time.Time) ProcUsages
 }
 
 // A ProcessList is anything (i.e. a task driver) that implements ListProcesses

@@ -445,7 +445,7 @@ func (l *LibcontainerExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, 
 		stats := lstats.CgroupStats
 
 		// get the map of process pids in this container
-		pstats := l.processStats.StatProcesses()
+		pstats := l.processStats.StatProcesses(ts)
 
 		// Memory Related Stats
 		swap := stats.MemoryStats.SwapUsage
