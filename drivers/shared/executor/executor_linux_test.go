@@ -835,6 +835,7 @@ func TestExecutor_WorkDir(t *testing.T) {
 // tricky on GHA runners.
 func TestExecutor_UserEnv(t *testing.T) {
 	t.Parallel()
+	testutil.RequireCILinux(t)
 	testutil.ExecCompatible(t)
 
 	testExecCmd := testExecutorCommandWithChroot(t)
