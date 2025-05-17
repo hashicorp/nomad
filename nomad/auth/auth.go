@@ -641,5 +641,23 @@ func (s *Authenticator) ResolvePoliciesForClaims(claims *structs.IdentityClaims)
 		}
 	}
 
+	iter, err = snap.ACLPolicyByNamespace(nil, alloc.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+
+		policy := raw.(*structs.ACLPolicy)
+		if policy.JobACL == nil {
+			continue
+		}
+
+		policies = append(policies, policy)
+	}
+
 	return policies, nil
 }

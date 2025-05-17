@@ -9117,6 +9117,55 @@ func TestStateStore_UpsertACLPolicy(t *testing.T) {
 	}
 }
 
+func TestStateStore_ACLPolicyByNamespace(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	policy := mock.ACLPolicy()
+	policy.JobACL = &structs.JobACL{
+		Namespace: "default",
+	}
+	policy1 := mock.ACLPolicy()
+	policy1.JobACL = &structs.JobACL{
+		Namespace: "default",
+		JobID:     "test-ack-job-name",
+	}
+	policy2 := mock.ACLPolicy()
+	policy2.JobACL = &structs.JobACL{
+		Namespace: "default",
+		JobID:     "testing-job",
+	}
+	policy3 := mock.ACLPolicy()
+	policy3.JobACL = &structs.JobACL{
+		Namespace: "testing",
+		JobID:     "test-job",
+	}
+
+	err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy1, policy2})
+	must.NoError(t, err)
+
+	iter, err := state.ACLPolicyByNamespace(nil, "default")
+	must.NoError(t, err)
+
+	out := iter.Next()
+	must.NotNil(t, out)
+	must.Eq(t, policy, out.(*structs.ACLPolicy))
+
+	count := 0
+	for {
+		if iter.Next() == nil {
+			break
+		}
+
+		count++
+	}
+	must.Eq(t, 0, count)
+
+	iter, err = state.ACLPolicyByNamespace(nil, "testing")
+	must.NoError(t, err)
+	must.Nil(t, iter.Next())
+}
+
 func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	ci.Parallel(t)
 

@@ -1109,6 +1109,18 @@ func TestResolveClaims(t *testing.T) {
 		JobID:     claims.JobID,
 	}
 
+	// policy for namespace
+	policy8 := mock.ACLPolicy()
+	policy8.JobACL = &structs.JobACL{
+		Namespace: claims.Namespace,
+	}
+
+	// policy for different namespace
+	policy9 := mock.ACLPolicy()
+	policy9.JobACL = &structs.JobACL{
+		Namespace: "another",
+	}
+
 	aclObj, err := auth.resolveClaims(claims)
 	must.Nil(t, aclObj)
 	must.EqError(t, err, "allocation does not exist")
@@ -1127,7 +1139,7 @@ func TestResolveClaims(t *testing.T) {
 	// Add the policies
 	index++
 	err = auth.getState().UpsertACLPolicies(structs.MsgTypeTestSetup, index, []*structs.ACLPolicy{
-		policy0, policy1, policy2, policy3, policy4, policy5, policy6, policy7})
+		policy0, policy1, policy2, policy3, policy4, policy5, policy6, policy7, policy8, policy9})
 	must.NoError(t, err)
 
 	// Re-resolve and check that the resulting ACL looks reasonable
@@ -1146,8 +1158,8 @@ func TestResolveClaims(t *testing.T) {
 
 	policies, err := auth.ResolvePoliciesForClaims(claims)
 	must.NoError(t, err)
-	must.Len(t, 3, policies)
-	must.SliceContainsAll(t, policies, []*structs.ACLPolicy{policy1, policy2, policy3})
+	must.Len(t, 4, policies)
+	must.SliceContainsAll(t, policies, []*structs.ACLPolicy{policy1, policy2, policy3, policy8})
 
 	// Check the dispatch claims
 	aclObj3, err := auth.resolveClaims(dispatchClaims)
@@ -1157,8 +1169,8 @@ func TestResolveClaims(t *testing.T) {
 
 	dispatchPolicies, err := auth.ResolvePoliciesForClaims(dispatchClaims)
 	must.NoError(t, err)
-	must.Len(t, 3, dispatchPolicies)
-	must.SliceContainsAll(t, dispatchPolicies, []*structs.ACLPolicy{policy1, policy2, policy3})
+	must.Len(t, 4, dispatchPolicies)
+	must.SliceContainsAll(t, dispatchPolicies, []*structs.ACLPolicy{policy1, policy2, policy3, policy8})
 
 }
 
