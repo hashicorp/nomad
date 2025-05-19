@@ -172,10 +172,9 @@ func TestHTTP_ACLPolicySelfQuery(t *testing.T) {
 		must.NoError(t, err)
 
 		// Check the output
-		n := obj.(map[string]*structs.ACLPolicy)
-		must.MapContainsKey(t, n, "nw")
-		must.Eq(t, n["nw"].JobACL, p1.JobACL)
-		must.MapLen(t, 1, n) // only 1 policy is assigned to the WID
+		n := obj.([]*structs.ACLPolicyListStub)
+		must.Eq(t, n[0].JobACL, p1.JobACL)
+		must.SliceLen(t, 1, n) // only 1 policy is assigned to the WID
 
 		// Make the without JWT
 		req.Header.Set("X-Nomad-Token", s.RootToken.SecretID)

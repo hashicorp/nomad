@@ -87,7 +87,7 @@ func (c *ACLPolicySelfCommand) Run(args []string) int {
 	}
 
 	if len(policies) == 0 {
-		c.Ui.Output("No policies found for this identity.")
+		c.Ui.Output("No policies found.")
 	} else {
 		if c.json || len(c.tmpl) > 0 {
 			out, err := Format(c.json, c.tmpl, policies)

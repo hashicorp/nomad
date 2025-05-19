@@ -203,12 +203,20 @@ func (s *HTTPServer) aclSelfPolicy(resp http.ResponseWriter, req *http.Request) 
 		if err := s.agent.RPC("ACL.GetClaimPolicies", &wiPolicyReq, &wiPolicyReply); err != nil {
 			return nil, err
 		}
-		setMeta(resp, &wiPolicyReply.QueryMeta)
 
 		if wiPolicyReply.Policies == nil {
 			wiPolicyReply.Policies = make(map[string]*structs.ACLPolicy, 0)
 		}
-		return wiPolicyReply.Policies, nil
+
+		// convert the output into ACLPolicyListResponse to get consistent API
+		// output
+		reply := structs.ACLPolicyListResponse{}
+		for _, wiReply := range wiPolicyReply.Policies {
+			reply.Policies = append(reply.Policies, wiReply.Stub())
+		}
+
+		setMeta(resp, &reply.QueryMeta)
+		return reply.Policies, nil
 	}
 
 	// Resolve any authenticated policies

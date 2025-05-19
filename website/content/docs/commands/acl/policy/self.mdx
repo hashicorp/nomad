@@ -2,7 +2,7 @@
 layout: docs
 page_title: 'nomad acl policy self command reference'
 description: >
-  The `nomad acl policy self` command fetches information about the currently set access control list (ACL) policies attached to the workload.
+  The `nomad acl policy self` command fetches information about the currently set access control list (ACL) policies available to the authenticated request.
 ---
 
 # `nomad acl policy self` command reference
@@ -37,9 +37,9 @@ $ nomad acl policy self
 Name          Job ID  Group Name  Task Name
 nomad-policy  nomad   nomad       <not specified>
 $ nomad acl policy self -json
-{
-    "nomad-policy": {
-        "CreateIndex": 21,
+[
+    {
+        "CreateIndex": 22,
         "Description": "",
         "JobACL": {
             "Group": "nomad",
@@ -47,9 +47,8 @@ $ nomad acl policy self -json
             "Namespace": "default",
             "Task": ""
         },
-        "ModifyIndex": 21,
-        "Name": "nomad-policy",
-        "Rules": "# Allow read only access to the default namespace\ndescription = \"A Nomad policy\"\nnamespace \"default\" {\n  policy = \"read\"\n}\n\n# Allow writing to the `foo` namespace\nnamespace \"foo\" {\n  policy = \"write\"\n}\n\nagent {\n  policy = \"read\"\n}\n\nnode {\n  policy = \"read\"\n}\n\nquota {\n  policy = \"read\"\n}\n"
+        "ModifyIndex": 22,
+        "Name": "nomad-policy"
     }
-}
+]
 ```

@@ -158,7 +158,7 @@ $ curl \
 ## Read Self Policy
 
 This endpoint reads the ACL policies associated with the current workload
-identity.
+identity or any authenticated request.
 
 | Method | Path                  | Produces           |
 |--------|-----------------------|--------------------|
@@ -182,23 +182,21 @@ $ curl --header "X-Nomad-Token: eyJhbGciOiJSUzI1NiIsImtpZCI6ImJiMmUwYjI5LTIyZTYt
 ### Sample Response
 
 ```json
-{
-  "nomad-policy": {
-    "CreateIndex": 26,
+[
+  {
+    "CreateIndex": 22,
     "Description": "",
-    "Hash": "muyvHRRlNwx+lKBxv4VKIJVlPn4ozcbo0zLcQcI16u0=",
+    "Hash": "SmmKR0rW0WA0Bfpk7m3D8wqgrL0dtkY3DwAucF9YN4Y=",
     "JobACL": {
-      "Group": "",
+      "Group": "nomad",
       "JobID": "nomad",
       "Namespace": "default",
       "Task": ""
     },
-    "ModifyIndex": 26,
-    "Name": "nomad-policy",
-    "Rules": "# Allow read only access to the default namespace\nnamespace \"default\" {\n  policy = \"read\"\n}\n\n# Allow writing to the `foo` namespace\nnamespace \"foo\" {\n  policy = \"write\"\n}\n\nagent {\n  policy = \"read\"\n}\n\nnode {\n  policy = \"read\"\n}\n\nquota {\n  policy = \"read\"\n}\n",
-    "RulesJSON": null
+    "ModifyIndex": 22,
+    "Name": "nomad-policy"
   }
-}
+]
 ```
 
 ## Delete Policy

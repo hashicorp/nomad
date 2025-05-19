@@ -13240,6 +13240,7 @@ func (a *ACLPolicy) Stub() *ACLPolicyListStub {
 	return &ACLPolicyListStub{
 		Name:        a.Name,
 		Description: a.Description,
+		JobACL:      a.JobACL,
 		Hash:        a.Hash,
 		CreateIndex: a.CreateIndex,
 		ModifyIndex: a.ModifyIndex,
@@ -13282,6 +13283,7 @@ func (a *ACLPolicy) Validate() error {
 type ACLPolicyListStub struct {
 	Name        string
 	Description string
+	JobACL      *JobACL
 	Hash        []byte
 	CreateIndex uint64
 	ModifyIndex uint64

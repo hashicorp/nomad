@@ -68,8 +68,8 @@ func (a *ACLPolicies) Info(policyName string, q *QueryOptions) (*ACLPolicy, *Que
 }
 
 // Self is used to query policies attached to a workload identity
-func (a *ACLPolicies) Self(q *QueryOptions) (map[string]*ACLPolicy, *QueryMeta, error) {
-	var resp map[string]*ACLPolicy
+func (a *ACLPolicies) Self(q *QueryOptions) ([]*ACLPolicyListStub, *QueryMeta, error) {
+	var resp []*ACLPolicyListStub
 	wm, err := a.client.query("/v1/acl/policy/self", &resp, q)
 	if err != nil {
 		return nil, nil, err
@@ -519,6 +519,7 @@ func (a *ACLAuth) Login(req *ACLLoginRequest, q *WriteOptions) (*ACLToken, *Writ
 type ACLPolicyListStub struct {
 	Name        string
 	Description string
+	JobACL      *JobACL
 	CreateIndex uint64
 	ModifyIndex uint64
 }
