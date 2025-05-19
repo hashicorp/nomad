@@ -972,10 +972,8 @@ func (iter *NodeAffinityIterator) Next() *RankedNode {
 		}
 	}
 	normScore := totalAffinityScore / sumWeight
-	if totalAffinityScore != 0.0 {
-		option.Scores = append(option.Scores, normScore)
-		iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", normScore)
-	}
+	option.Scores = append(option.Scores, normScore)
+	iter.ctx.Metrics().ScoreNode(option.Node, "node-affinity", normScore)
 	return option
 }
 
