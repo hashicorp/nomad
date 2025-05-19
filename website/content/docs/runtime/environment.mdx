@@ -103,10 +103,11 @@ behavior.
 
 ## Host environment variables
 
-Nomad passes the environment variables defined in the client host to tasks when
-using the `exec`, `raw_exec`, and `java` task drivers. The variables that are
-passed to the tasks can be controlled using the client configuration
-[`env.denylist`][].
+Nomad passes the environment variables defined in the client host to tasks
+when using the `exec`, `raw_exec`, and `java` task drivers. Nomad also modifies
+`HOME` and `USER` variables for tasks that have the `user` parameter set, to
+reflect the set username. The variables that are passed to the tasks can be
+controlled using the client configuration [`env.denylist`][].
 
 [jobspec]: /nomad/docs/job-specification 'Nomad Job Specification'
 [filesystem internals]: /nomad/docs/concepts/filesystem

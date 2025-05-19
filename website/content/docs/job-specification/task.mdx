@@ -107,10 +107,13 @@ job "docs" {
 
 - `user` `(string: <varies>)` - Specifies the user that will run the task.
   Defaults to `nobody` for the [`exec`][exec] and [`java`][java] drivers.
-  [Docker][] and [rkt][] images specify their own default users. This can only
-  be set on Linux platforms, and clients can restrict
-  [which drivers][user_drivers] are allowed to run tasks as
-  [certain users][user_denylist].
+  [Docker][] images specify their own default users. Clients can restrict
+  [which drivers][user_drivers] are allowed to run tasks as [certain
+  users][user_denylist]. On UNIX-like systems, setting `user` also affects
+  the environment variables `HOME` and `USER` available to the task.  On
+  Windows, when Nomad is running as a [system service][service] for the
+  [`raw_exec`][raw_exec] driver, you may specify a less-privileged service user.
+  For example, `NT AUTHORITY\LocalService`, `NT AUTHORITY\NetworkService`.
 
 - `template` <code>([Template][]: nil)</code> - Specifies the set of templates
   to render for the task. Templates can be used to inject both static and
