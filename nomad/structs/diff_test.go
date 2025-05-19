@@ -4085,6 +4085,17 @@ func TestTaskGroupDiff(t *testing.T) {
 													},
 												},
 											},
+											{
+												Type: DiffTypeDeleted,
+												Name: "VolumeMount",
+												Fields: []*FieldDiff{
+													{Type: DiffTypeDeleted, Name: "Destination", Old: "/path"},
+													{Type: DiffTypeDeleted, Name: "PropagationMode", Old: "private"},
+													{Type: DiffTypeDeleted, Name: "ReadOnly", Old: "false"},
+													{Type: DiffTypeDeleted, Name: "SELinuxLabel", Old: "Z"},
+													{Type: DiffTypeDeleted, Name: "Volume", Old: "vol0"},
+												},
+											},
 										},
 									},
 									{
