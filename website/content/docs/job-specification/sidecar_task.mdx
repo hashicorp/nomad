@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: sidecar_task Block - Job Specification
+page_title: sidecar_task block in the job specification
 description: |-
-  The "sidecar_task" block allows specifying options for configuring
+  The `sidecar_task` block allows specifying options for configuring
   the task of the sidecar proxies used in Consul Connect integration
 ---
 
-# `sidecar_task` Block
+# `sidecar_task` block in the job specification
 
 <Placement groups={['job', 'group', 'service', 'connect', 'sidecar_task']} />
 
@@ -123,7 +123,7 @@ Nomad's version interpolation, e.g.
 meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
 ```
 
-## `sidecar_task` Parameters
+## Parameters
 
 - `name` `(string: "connect-[proxy|gateway]-<service>")` - Name of the task. Defaults to
   including the name of the service the proxy or gateway is providing.
@@ -156,7 +156,7 @@ meta.connect.sidecar_image = custom/envoy-${NOMAD_envoy_version}:latest
 - `volume_mount` <code>([VolumeMount][]: nil)</code> - Specifies where a group
   volume should be mounted.
 
-## `sidecar_task` Examples
+## Examples
 
 The following example configures resources for the sidecar task and other configuration.
 

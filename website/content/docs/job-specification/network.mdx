@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: network Block - Job Specification
+page_title: network block in the job specification
 description: |-
-  The "network" block specifies the networking requirements for the task group,
-  including networking mode and port allocations.
+  Configure task group networking requirements in the `network` block of the Nomad job specification. Configure network mode, hostname, port, DNS, and Container Network Interface (CNI) arguments. Review configuration examples of dynamic ports, static ports, mapped ports, bridge mode, host networks, DNS, and CNI networks.
 ---
 
-# `network` Block
+# `network` block in the job specification
 
 <Placement groups={[['job', 'group', 'network']]} />
 
@@ -59,7 +58,7 @@ All other operating systems use the `host` networking mode.
    only. Refer to the [Bridge networking][docs_networking_bridge] documentation
    for more information.
 
-## `network` Parameters
+## Parameters
 
 - `mbits` <code>([_deprecated_](/nomad/docs/upgrade/upgrade-specific#nomad-0-12-0) int: 10)</code> - Specifies the bandwidth required in MBits.
 
@@ -92,7 +91,7 @@ All other operating systems use the `host` networking mode.
 - `cni` <code>([CNIConfig](#cni-parameters): nil)</code> - Sets the custom CNI
   arguments for a network configuration per allocation, for use with `mode="cni/*`.
 
-### `port` Parameters
+### `port` parameters
 
 - `static` `(int: nil)` - Specifies the static TCP/UDP port to allocate. If omitted, a
   dynamic port is chosen. We **do not recommend** using static ports, except
@@ -128,7 +127,7 @@ When the task starts, it will be passed the following environment variables:
 
 The label of the port is just text - it has no special meaning to Nomad.
 
-## `dns` Parameters
+## `dns` parameters
 
 - `servers` `(array<string>: nil)` - Sets the DNS nameservers the allocation uses for name resolution.
 - `searches` `(array<string>: nil)` - Sets the search list for hostname lookup
@@ -136,7 +135,7 @@ The label of the port is just text - it has no special meaning to Nomad.
 
 These parameters support [interpolation](/nomad/docs/runtime/interpolation).
 
-## `cni` Parameters
+## `cni` parameters
 
 - `args` `(map<string><string>: nil)` - Sets CNI arguments for network configuration.
    These get turned into `CNI_ARGS` per the
@@ -144,12 +143,12 @@ These parameters support [interpolation](/nomad/docs/runtime/interpolation).
 
 These parameters support [interpolation](/nomad/docs/runtime/interpolation).
 
-## `network` Examples
+## Examples
 
 The following examples only show the `network` blocks. Remember that the
 `network` block is only valid in the placements listed above.
 
-### Dynamic Ports
+### Dynamic ports
 
 This example specifies a dynamic port allocation for the port labeled "http".
 Dynamic ports are allocated in a range from `20000` to `32000`.
@@ -173,7 +172,7 @@ network {
 }
 ```
 
-### Static Ports
+### Static ports
 
 Static ports place your job on a host where the port is not already reserved
 by another job with the same port.
@@ -191,7 +190,7 @@ network {
 For programs that support the `SO_REUSEPORT` unix socket option,
 you may set `ignore_collision = true` to place multiple copies on a single node.
 
-### Mapped Ports
+### Mapped ports
 
 Some drivers (such as [Docker][docker-driver] and [QEMU][qemu-driver]) allow you
 to map ports. A mapped port means that your application can listen on a fixed
@@ -224,7 +223,7 @@ When the task is started, it is passed an additional environment variable named
 `NOMAD_HOST_PORT_http` which indicates the host port that the HTTP service is
 bound to.
 
-### Bridge Mode
+### Bridge mode
 
 Bridge mode allows compatible tasks to share a networking stack and interfaces. Nomad
 can then do port mapping without relying on individual task drivers to implement port
@@ -313,7 +312,7 @@ network {
 
 The Nomad client will build the correct [capabilities arguments](https://github.com/containernetworking/cni/blob/v0.8.0/CONVENTIONS.md#well-known-capabilities) for the portmap plugin based on the defined port blocks.
 
-### CNI Args
+### CNI args
 
 The following example specifies CNI args for the custom CNI plugin specified above.
 
@@ -331,7 +330,7 @@ network {
 }
 ```
 
-### Host Networks
+### Host networks
 
 In some cases a port should only be allocated to a specific interface or address on the host.
 The `host_network` field of a port will constrain port allocation to a single named host network.

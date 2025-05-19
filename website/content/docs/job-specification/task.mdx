@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: task Block - Job Specification
+page_title: task block in the job specification
 description: |-
-  The "task" block creates an individual unit of work, such as a Docker
+  The `task` block creates an individual unit of work, such as a Docker
   container, web application, or batch processing.
 ---
 
-# `task` Block
+# `task` block in the job specification
 
 <Placement groups={['job', 'group', 'task']} />
 
@@ -23,7 +23,7 @@ job "docs" {
 }
 ```
 
-## `task` Parameters
+## Parameters
 
 - `artifact` <code>([Artifact][]: nil)</code> - Defines an artifact to download
   before running the task. This may be specified multiple times to download
@@ -129,12 +129,12 @@ job "docs" {
 - `kind` `(string: <varies>)` - Used internally to manage tasks according to
   the value of this field. Initial use case is for Consul Connect.
 
-## `task` Examples
+## Examples
 
 The following examples only show the `task` blocks. Remember that the
 `task` block is only valid in the placements listed above.
 
-### Docker Container
+### Docker container
 
 This example defines a task that starts a Docker container as a service. Docker
 is just one of many drivers supported by Nomad. Read more about drivers in the
@@ -154,7 +154,7 @@ task "server" {
 }
 ```
 
-### Metadata and Environment Variables
+### Metadata and environment variables
 
 This example uses custom metadata and environment variables to pass information
 to the task.
@@ -180,7 +180,7 @@ task "server" {
 }
 ```
 
-### Service Discovery
+### Service discovery
 
 This example creates a service in Consul. To read more about service discovery
 in Nomad, please see the [Nomad service discovery documentation][service_discovery].
