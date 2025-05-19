@@ -1,12 +1,12 @@
 ---
 layout: docs
-page_title: service Block - Job Specification
+page_title: service block in the job specification
 description: |-
-  The "service" block instructs Nomad to register the task as a service using
+  The `service` block instructs Nomad to register the task as a service using
   the Nomad or Consul service discovery integration.
 ---
 
-# `service` Block
+# `service` block in the job specification
 
 <Placement
   groups={[
@@ -79,7 +79,7 @@ The `service` block can also be at task group level.
 This enables services in the same task group to opt into [Consul
 Service Mesh][connect] integration.
 
-## `service` Parameters
+## Parameters
 
 - `provider` `(string: "consul")` - Specifies the service registration provider
   to use for service registrations. Valid options are either `consul` or
@@ -238,7 +238,7 @@ Service Mesh][connect] integration.
   be omitted entirely.
 
 
-## `service` Lifecycle
+## Lifecycle
 
 Nomad manages registering, updating, and deregistering services with the
 service provider. It is important to understand when each of these steps
@@ -273,12 +273,12 @@ following order:
 4. If the task has not exited after the [`kill_timeout`][killtimeout], Nomad
    will force kill the application.
 
-## `service` Examples
+## Examples
 
 The following examples only show the `service` blocks. Remember that the
 `service` block is only valid in the placements listed above.
 
-### Basic Service
+### Basic service
 
 This example registers a service named "load-balancer" with no health checks
 using the Nomad provider:
@@ -311,7 +311,7 @@ network {
 ```
 
 
-### Using Driver Address Mode
+### Using driver address mode
 
 The [Docker](/nomad/docs/drivers/docker#network_mode) driver supports the `driver`
 setting for the `address_mode` parameter in both `service` and `check` blocks.

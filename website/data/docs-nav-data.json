@@ -1350,7 +1350,7 @@
         "path": "job-specification"
       },
       {
-        "title": "HCL2",
+        "title": "HCL guide",
         "routes": [
           {
             "title": "Overview",
@@ -1775,12 +1775,12 @@
         "path": "job-specification/action"
       },
       {
-        "title": "artifact",
-        "path": "job-specification/artifact"
-      },
-      {
         "title": "affinity",
         "path": "job-specification/affinity"
+      },
+      {
+        "title": "artifact",
+        "path": "job-specification/artifact"
       },
       {
         "title": "change_script",
@@ -1799,12 +1799,12 @@
         "path": "job-specification/connect"
       },
       {
-        "title": "consul",
-        "path": "job-specification/consul"
-      },
-      {
         "title": "constraint",
         "path": "job-specification/constraint"
+      },
+      {
+        "title": "consul",
+        "path": "job-specification/consul"
       },
       {
         "title": "csi_plugin",
