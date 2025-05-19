@@ -10413,3 +10413,246 @@ func TestServicesDiff(t *testing.T) {
 		})
 	}
 }
+
+// TestDiff_SidecarVolumes asserts changes to sidecar task volumes are
+// detected. See #25878
+func TestDiff_SidecarVolumes(t *testing.T) {
+	oldTask := &SidecarTask{
+		Name:   "old",
+		Driver: "docker",
+		User:   "sidecar",
+		Config: map[string]any{"foo": "bar"},
+		Env:    map[string]string{"FOO": "BAR"},
+		Resources: &Resources{
+			Cores: 2,
+			NUMA: &NUMA{
+				Affinity: "none",
+			},
+		},
+		Meta:        map[string]string{"meta": "val"},
+		KillTimeout: pointer.Of(10 * time.Second),
+		LogConfig: &LogConfig{
+			MaxFiles:      3,
+			MaxFileSizeMB: 100,
+		},
+		ShutdownDelay: pointer.Of(20 * time.Second),
+		KillSignal:    "SIGUSR1",
+		VolumeMounts: []*VolumeMount{
+			{
+				Volume:   "foo",
+				ReadOnly: true,
+			},
+		},
+	}
+	newTask := &SidecarTask{
+		Name:   "new",
+		Driver: "podman",
+		User:   "proxy",
+		Config: map[string]any{"eggs": "spam"},
+		Env:    map[string]string{"EGGS": "SPAM"},
+		Resources: &Resources{
+			Cores: 4,
+			NUMA: &NUMA{
+				Affinity: "prefer",
+			},
+		},
+		Meta:        map[string]string{"meta": "val"},
+		KillTimeout: pointer.Of(10 * time.Second),
+		LogConfig: &LogConfig{
+			MaxFiles:      3,
+			MaxFileSizeMB: 100,
+		},
+		ShutdownDelay: pointer.Of(20 * time.Second),
+		KillSignal:    "SIGUSR1",
+		VolumeMounts: []*VolumeMount{
+			{
+				Volume:   "foo",
+				ReadOnly: false,
+			},
+			{
+				Volume:   "bar",
+				ReadOnly: true,
+			},
+		},
+	}
+	expected := &ObjectDiff{
+		Type: DiffTypeEdited,
+		Name: "SidecarTask",
+		Fields: []*FieldDiff{
+			{
+				Type: DiffTypeEdited,
+				Name: "Driver",
+				Old:  "docker",
+				New:  "podman",
+			},
+			{
+				Type: DiffTypeAdded,
+				Name: "Env[EGGS]",
+				Old:  "",
+				New:  "SPAM",
+			},
+			{
+				Type: DiffTypeDeleted,
+				Name: "Env[FOO]",
+				Old:  "BAR",
+				New:  "",
+			},
+			{
+				Type: DiffTypeEdited,
+				Name: "Name",
+				Old:  "old",
+				New:  "new",
+			},
+			{
+				Type: DiffTypeEdited,
+				Name: "User",
+				Old:  "sidecar",
+				New:  "proxy",
+			},
+		},
+		Objects: []*ObjectDiff{
+			{
+				Type: DiffTypeEdited,
+				Name: "Config",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "eggs",
+						Old:  "",
+						New:  "spam",
+					},
+					{
+						Type: DiffTypeDeleted,
+						Name: "foo",
+						Old:  "bar",
+						New:  "",
+					},
+				},
+			},
+			{
+				Type: DiffTypeEdited,
+				Name: "Resources",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeNone,
+						Name: "CPU",
+						Old:  "0",
+						New:  "0",
+					},
+					{
+						Type: DiffTypeEdited,
+						Name: "Cores",
+						Old:  "2",
+						New:  "4",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "DiskMB",
+						Old:  "0",
+						New:  "0",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "IOPS",
+						Old:  "0",
+						New:  "0",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "MemoryMB",
+						Old:  "0",
+						New:  "0",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "MemoryMaxMB",
+						Old:  "0",
+						New:  "0",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "SecretsMB",
+						Old:  "0",
+						New:  "0",
+					},
+				},
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "NUMA",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Affinity",
+								Old:  "none",
+								New:  "prefer",
+							},
+						},
+					},
+				},
+			},
+			{
+				Type: DiffTypeEdited,
+				Name: "VolumeMount",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeNone,
+						Name: "Destination",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "PropagationMode",
+					},
+					{
+						Type: DiffTypeEdited,
+						Name: "ReadOnly",
+						Old:  "true",
+						New:  "false",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "SELinuxLabel",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "Volume",
+						Old:  "foo",
+						New:  "foo",
+					},
+				},
+			},
+			{
+				Type: DiffTypeAdded,
+				Name: "VolumeMount",
+				Fields: []*FieldDiff{
+					{
+						Type: DiffTypeNone,
+						Name: "Destination",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "PropagationMode",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "ReadOnly",
+						New:  "true",
+					},
+					{
+						Type: DiffTypeNone,
+						Name: "SELinuxLabel",
+					},
+					{
+						Type: DiffTypeAdded,
+						Name: "Volume",
+						Old:  "",
+						New:  "bar",
+					},
+				},
+			},
+		},
+	}
+
+	actual := sidecarTaskDiff(oldTask, newTask, true)
+	must.Eq(t, expected, actual)
+}
