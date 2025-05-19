@@ -7,7 +7,9 @@ description: Nomad provides runtime environment variables that you can use in yo
 # Runtime Environment Settings
 
 This page provides reference information for runtime environment settings in
-your Nomad job specification. Learn about task identifiers, CPU and memory resources, IP addresses, task directories, and host variables. Review job, network, and Consul variables. Supply arbitrary configuration to a job task.
+your Nomad job specification. Learn about task identifiers, CPU and memory
+resources, IP addresses, task directories, and host variables. Review job,
+network, and Consul variables. Supply arbitrary configuration to a job task.
 
 ## Introduction
 
@@ -108,10 +110,11 @@ behavior.
 
 ## Host environment variables
 
-Nomad passes the environment variables defined in the client host to tasks when
-using the `exec`, `raw_exec`, and `java` task drivers. The variables that are
-passed to the tasks can be controlled using the client configuration
-[`env.denylist`][].
+Nomad passes the environment variables defined in the client host to tasks
+when using the `exec`, `raw_exec`, and `java` task drivers. Nomad also modifies
+`HOME` and `USER` variables for tasks that have the `user` parameter set, to
+reflect the set username. The variables that are passed to the tasks can be
+controlled using the client configuration [`env.denylist`][].
 
 [jobspec]: /nomad/docs/job-specification 'Nomad Job Specification'
 [filesystem internals]: /nomad/docs/concepts/filesystem
