@@ -717,7 +717,7 @@ func (e *UniversalExecutor) handleStats(ch chan *cstructs.TaskResourceUsage, ctx
 			timer.Reset(interval)
 		}
 
-		stats := e.processStats.StatProcesses()
+		stats := e.processStats.StatProcesses(time.Now())
 
 		select {
 		case <-ctx.Done():

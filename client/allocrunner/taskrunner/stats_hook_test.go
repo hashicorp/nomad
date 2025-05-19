@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper/testlog"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // Statically assert the stats hook implements the expected interfaces
@@ -88,7 +88,6 @@ func (m *mockDriverStats) Called() int {
 func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()
 	ds := new(mockDriverStats)
@@ -96,23 +95,23 @@ func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
 	poststartReq := &interfaces.TaskPoststartRequest{DriverStats: ds}
 
 	// Create hook
-	h := newStatsHook(su, time.Minute, logger)
+	h := newStatsHook(su, time.Minute, true, logger)
 
 	// Always call Exited to cleanup goroutines
 	defer h.Exited(context.Background(), nil, nil)
 
 	// Run prestart
-	require.NoError(h.Poststart(context.Background(), poststartReq, nil))
+	must.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
 
 	// An initial stats collection should run and call the updater
 	select {
 	case ru := <-su.Ch:
-		require.Equal(uint64(1), ru.ResourceUsage.MemoryStats.RSS)
+		must.Eq(t, uint64(1), ru.ResourceUsage.MemoryStats.RSS)
 	case <-time.After(10 * time.Second):
 		t.Fatalf("timeout waiting for initial stats collection")
 	}
 
-	require.NoError(h.Exited(context.Background(), nil, nil))
+	must.NoError(t, h.Exited(context.Background(), nil, nil))
 }
 
 // TestTaskRunner_StatsHook_Periodic asserts the stats hook collects stats on
@@ -120,7 +119,6 @@ func TestTaskRunner_StatsHook_PoststartExited(t *testing.T) {
 func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()
 
@@ -131,11 +129,11 @@ func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 	// Exited() can complete within the interval.
 	const interval = 500 * time.Millisecond
 
-	h := newStatsHook(su, interval, logger)
+	h := newStatsHook(su, interval, true, logger)
 	defer h.Exited(context.Background(), nil, nil)
 
 	// Run prestart
-	require.NoError(h.Poststart(context.Background(), poststartReq, nil))
+	must.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
 
 	// An initial stats collection should run and call the updater
 	var firstrun int64
@@ -160,7 +158,7 @@ func TestTaskRunner_StatsHook_Periodic(t *testing.T) {
 	}
 
 	// Exiting should prevent further updates
-	require.NoError(h.Exited(context.Background(), nil, nil))
+	must.NoError(t, h.Exited(context.Background(), nil, nil))
 
 	// Should *not* get another update in ~500ms (see interval above)
 	// we may get a single update due to race with exit
@@ -185,7 +183,6 @@ WAITING:
 func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	logger := testlog.HCLogger(t)
 	su := newMockStatsUpdater()
 	ds := &mockDriverStats{
@@ -194,11 +191,11 @@ func TestTaskRunner_StatsHook_NotImplemented(t *testing.T) {
 
 	poststartReq := &interfaces.TaskPoststartRequest{DriverStats: ds}
 
-	h := newStatsHook(su, 1, logger)
+	h := newStatsHook(su, 1, true, logger)
 	defer h.Exited(context.Background(), nil, nil)
 
 	// Run prestart
-	require.NoError(h.Poststart(context.Background(), poststartReq, nil))
+	must.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
 
 	// An initial stats collection should run and *not* call the updater
 	select {
@@ -220,11 +217,11 @@ func TestTaskRunner_StatsHook_Backoff(t *testing.T) {
 
 	poststartReq := &interfaces.TaskPoststartRequest{DriverStats: ds}
 
-	h := newStatsHook(su, time.Minute, logger)
+	h := newStatsHook(su, time.Minute, true, logger)
 	defer h.Exited(context.Background(), nil, nil)
 
 	// Run prestart
-	require.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
+	must.NoError(t, h.Poststart(context.Background(), poststartReq, nil))
 
 	timeout := time.After(500 * time.Millisecond)
 
@@ -237,5 +234,5 @@ DRAIN:
 		}
 	}
 
-	require.Equal(t, ds.Called(), 1)
+	must.Eq(t, ds.Called(), 1)
 }
