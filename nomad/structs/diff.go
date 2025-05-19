@@ -1763,6 +1763,11 @@ func sidecarTaskDiff(old, new *SidecarTask, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, rDiff)
 	}
 
+	// identities diff
+	if idDiffs := idSliceDiffs(old.Identities, new.Identities, contextual); idDiffs != nil {
+		diff.Objects = append(diff.Objects, idDiffs...)
+	}
+
 	// LogConfig diff
 	lDiff := primitiveObjectDiff(old.LogConfig, new.LogConfig, nil, "LogConfig", contextual)
 	if lDiff != nil {
