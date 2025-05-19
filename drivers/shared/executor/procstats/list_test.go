@@ -38,14 +38,14 @@ func genMockProcs(needles, haystack int) ([]ps.Process, []ProcessID) {
 	expect := []ProcessID{42}
 
 	// TODO: make this into a tree structure, not just a linear tree
-	for i := 0; i < needles; i++ {
+	for i := range needles {
 		parent := 42 + i
 		pid := parent + 1
 		procs = append(procs, mockProc(pid, parent))
 		expect = append(expect, pid)
 	}
 
-	for i := 0; i < haystack; i++ {
+	for i := range haystack {
 		parent := 200 + i
 		pid := parent + 1
 		procs = append(procs, mockProc(pid, parent))

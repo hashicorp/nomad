@@ -12,16 +12,14 @@ import (
 	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/plugins/drivers"
 	"github.com/shirou/gopsutil/v3/process"
-	"oss.indeed.com/go/libtime"
 )
 
 func New(compute cpustats.Compute, pl ProcessList) ProcessStats {
 	const cacheTTL = 5 * time.Second
-	return &linuxProcStats{
+	return &taskProcStats{
 		cacheTTL: cacheTTL,
 		procList: pl,
 		compute:  compute,
-		clock:    libtime.SystemClock(),
 		latest:   make(map[ProcessID]*stats),
 		cache:    make(ProcUsages),
 	}
@@ -33,10 +31,9 @@ type stats struct {
 	SystemCPU *cpustats.Tracker
 }
 
-type linuxProcStats struct {
+type taskProcStats struct {
 	cacheTTL time.Duration
 	procList ProcessList
-	clock    libtime.Clock
 	compute  cpustats.Compute
 
 	lock   sync.Mutex
@@ -45,14 +42,13 @@ type linuxProcStats struct {
 	at     time.Time
 }
 
-func (lps *linuxProcStats) expired() bool {
-	age := lps.clock.Since(lps.at)
-	return age > lps.cacheTTL
+func (lps *taskProcStats) expired(t time.Time) bool {
+	return t.After(lps.at.Add(lps.cacheTTL))
 }
 
 // scanPIDs will update lps.latest with the set of detected live pids that make
 // up the task process tree / are in the tasks cgroup
-func (lps *linuxProcStats) scanPIDs() {
+func (lps *taskProcStats) scanPIDs() {
 	currentPIDs := lps.procList.ListProcesses()
 
 	// remove old pids no longer present
@@ -74,15 +70,11 @@ func (lps *linuxProcStats) scanPIDs() {
 	}
 }
 
-func (lps *linuxProcStats) cached() ProcUsages {
-	return lps.cache
-}
-
-func (lps *linuxProcStats) StatProcesses() ProcUsages {
+func (lps *taskProcStats) StatProcesses(now time.Time) ProcUsages {
 	lps.lock.Lock()
 	defer lps.lock.Unlock()
 
-	if !lps.expired() {
+	if !lps.expired(now) {
 		return lps.cache
 	}
 
@@ -131,5 +123,6 @@ func (lps *linuxProcStats) StatProcesses() ProcUsages {
 	}
 
 	lps.cache = result
+	lps.at = now
 	return result
 }
