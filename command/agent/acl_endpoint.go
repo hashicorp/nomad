@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
@@ -196,7 +197,7 @@ func (s *HTTPServer) aclSelfPolicy(resp http.ResponseWriter, req *http.Request) 
 	}
 
 	// is it a JWT or a Nomad ACL token?
-	if len(wiPolicyReq.AuthToken) > 36 {
+	if !helper.IsUUID(wiPolicyReq.AuthToken) {
 
 		// Resolve policies for workload identities
 		wiPolicyReply := structs.ACLPolicySetResponse{}
@@ -226,6 +227,7 @@ func (s *HTTPServer) aclSelfPolicy(resp http.ResponseWriter, req *http.Request) 
 		return nil, err
 	}
 
+	setMeta(resp, &policiesListReply.QueryMeta)
 	return policiesListReply.Policies, nil
 }
 

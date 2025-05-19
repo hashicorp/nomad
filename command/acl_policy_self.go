@@ -21,7 +21,8 @@ func (c *ACLPolicySelfCommand) Help() string {
 	helpText := `
 Usage: nomad acl policy self
 
-  Self is used to fetch information about the policy assigned to the current workload identity.
+  Self is used to fetch information about the policy assigned to the current
+  workload identity or ACL token.
 
 General Options:
 
@@ -51,7 +52,7 @@ func (c *ACLPolicySelfCommand) AutocompleteArgs() complete.Predictor {
 }
 
 func (c *ACLPolicySelfCommand) Synopsis() string {
-	return "Lookup self ACL policy assigned to the workload identity"
+	return "Lookup self ACL policy assigned to the workload identity or ACL token"
 }
 
 func (c *ACLPolicySelfCommand) Name() string { return "acl policy self" }
