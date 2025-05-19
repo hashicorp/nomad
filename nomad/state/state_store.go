@@ -4185,6 +4185,11 @@ func (s *StateStore) upsertAllocsImpl(index uint64, allocs []*structs.Allocation
 			alloc.ModifyIndex = index
 			alloc.AllocModifyIndex = index
 
+			// Carry over NextAllocation from existing
+			if exist.NextAllocation != "" {
+				alloc.NextAllocation = exist.NextAllocation
+			}
+
 			// Keep the clients task states
 			alloc.TaskStates = exist.TaskStates
 
