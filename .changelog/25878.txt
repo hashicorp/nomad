@@ -1,0 +1,3 @@
+```release-note:bug
+task: consider volume_mounts in sidecarTaskDiff
+```
