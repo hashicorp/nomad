@@ -140,7 +140,7 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/nomad/drivers/community/firecreacker-task-driver',
+    source: '/nomad/drivers/community/firecracker-task-driver',
     destination: 'https://github.com/cneira/firecracker-task-driver',
     permanent: true,
   },
