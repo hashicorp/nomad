@@ -7,12 +7,14 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/lib/idset"
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -2261,18 +2263,29 @@ func TestScoreNormalizationIterator(t *testing.T) {
 }
 
 func TestNodeAffinityIterator(t *testing.T) {
+	ci.Parallel(t)
 	_, ctx := testContext(t)
-	nodes := []*RankedNode{
-		{Node: mock.Node()},
-		{Node: mock.Node()},
-		{Node: mock.Node()},
-		{Node: mock.Node()},
-	}
 
-	nodes[0].Node.Attributes["kernel.version"] = "4.9"
-	nodes[1].Node.Datacenter = "dc2"
-	nodes[2].Node.Datacenter = "dc2"
-	nodes[2].Node.NodeClass = "large"
+	testNodes := func() []*RankedNode {
+		nodes := []*RankedNode{
+			{Node: mock.Node()},
+			{Node: mock.Node()},
+			{Node: mock.Node()},
+			{Node: mock.Node()},
+			{Node: mock.Node()},
+		}
+
+		nodes[0].Node.Attributes["kernel.version"] = "4.9"
+		nodes[1].Node.Datacenter = "dc2"
+		nodes[2].Node.Datacenter = "dc2"
+		nodes[2].Node.NodeClass = "large"
+
+		// this node should have zero affinity
+		nodes[4].Node.Attributes["kernel.version"] = "2.6"
+		nodes[4].Node.Datacenter = "dc3"
+		nodes[4].Node.NodeClass = "weird"
+		return nodes
+	}
 
 	affinities := []*structs.Affinity{
 		{
@@ -2300,37 +2313,80 @@ func TestNodeAffinityIterator(t *testing.T) {
 			Weight:  50,
 		},
 	}
-
-	static := NewStaticRankIterator(ctx, nodes)
-
 	job := mock.Job()
 	job.ID = "foo"
 	tg := job.TaskGroups[0]
 	tg.Affinities = affinities
 
-	nodeAffinity := NewNodeAffinityIterator(ctx, static)
-	nodeAffinity.SetTaskGroup(tg)
+	t.Run("affinity alone", func(t *testing.T) {
+		static := NewStaticRankIterator(ctx, testNodes())
 
-	scoreNorm := NewScoreNormalizationIterator(ctx, nodeAffinity)
+		nodeAffinity := NewNodeAffinityIterator(ctx, static)
+		nodeAffinity.SetTaskGroup(tg)
 
-	out := collectRanked(scoreNorm)
-	expectedScores := make(map[string]float64)
-	// Total weight = 300
-	// Node 0 matches two affinities(dc and kernel version), total weight = 150
-	expectedScores[nodes[0].Node.ID] = 0.5
+		scoreNorm := NewScoreNormalizationIterator(ctx, nodeAffinity)
+		out := collectRanked(scoreNorm)
 
-	// Node 1 matches an anti affinity, weight = -100
-	expectedScores[nodes[1].Node.ID] = -(1.0 / 3.0)
+		// Total weight = 300
+		// Node 0 matches two affinities(dc and kernel version), total weight = 150
+		test.Eq(t, 0.5, out[0].FinalScore)
 
-	// Node 2 matches one affinity(node class) with weight 50
-	expectedScores[nodes[2].Node.ID] = -(1.0 / 6.0)
+		// Node 1 matches an anti affinity, weight = -100
+		test.Eq(t, -(1.0 / 3.0), out[1].FinalScore)
 
-	// Node 3 matches one affinity (dc) with weight = 100
-	expectedScores[nodes[3].Node.ID] = 1.0 / 3.0
+		// Node 2 matches one affinity(node class) with weight 50
+		test.Eq(t, -(1.0 / 6.0), out[2].FinalScore)
 
-	require := require.New(t)
-	for _, n := range out {
-		require.Equal(expectedScores[n.Node.ID], n.FinalScore)
-	}
+		// Node 3 matches one affinity (dc) with weight = 100
+		test.Eq(t, 1.0/3.0, out[3].FinalScore)
 
+		// Node 4 matches no affinities but should still generate a score
+		test.Eq(t, 0, out[4].FinalScore)
+		test.Len(t, 1, out[4].Scores)
+	})
+
+	t.Run("affinity with binpack", func(t *testing.T) {
+		nodes := testNodes()
+		static := NewStaticRankIterator(ctx, nodes)
+
+		// include a binpack iterator so we can see the impact on including zero
+		// values in final scores. The nodes are all empty so score contribution
+		// from binpacking will be identical
+
+		binp := NewBinPackIterator(ctx, static, false, 0)
+		binp.SetTaskGroup(tg)
+		fit := structs.ScoreFitBinPack(nodes[0].Node, &structs.ComparableResources{
+			Flattened: structs.AllocatedTaskResources{
+				Cpu:    structs.AllocatedCpuResources{CpuShares: 500},
+				Memory: structs.AllocatedMemoryResources{MemoryMB: 256},
+			},
+		})
+		bp := fit / binPackingMaxFitScore
+
+		nodeAffinity := NewNodeAffinityIterator(ctx, binp)
+		nodeAffinity.SetTaskGroup(tg)
+
+		scoreNorm := NewScoreNormalizationIterator(ctx, nodeAffinity)
+		out := collectRanked(scoreNorm)
+
+		// Total weight = 300
+		// Node 0 matches two affinities(dc and kernel version), total weight = 150
+		test.Eq(t, (0.5+bp)/2, out[0].FinalScore)
+
+		// Node 1 matches an anti affinity, weight = -100
+		test.Eq(t, (-(1.0/3.0)+bp)/2, out[1].FinalScore)
+
+		// Node 2 matches one affinity(node class) with weight 50
+		test.Eq(t, (-(1.0/6.0)+bp)/2, out[2].FinalScore)
+
+		// Node 3 matches one affinity (dc) with weight = 100
+		test.Eq(t, ((1.0/3.0)+bp)/2, out[3].FinalScore)
+
+		// Node 4 matches no affinities but should still generate a score and
+		// the final score should be lower than any positive score
+		test.Eq(t, (0+bp)/2, out[4].FinalScore)
+		test.Len(t, 2, out[4].Scores)
+		test.Less(t, out[0].FinalScore, out[4].FinalScore)
+		test.Less(t, out[3].FinalScore, out[4].FinalScore)
+	})
 }
