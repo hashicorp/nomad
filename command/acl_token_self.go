@@ -5,8 +5,10 @@ package command
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
+	"github.com/hashicorp/nomad/helper"
 	"github.com/posener/complete"
 )
 
@@ -63,14 +65,30 @@ func (c *ACLTokenSelfCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Get the specified token information
-	token, _, err := client.ACLTokens().Self(nil)
-	if err != nil {
-		c.Ui.Error(fmt.Sprintf("Error fetching self token: %s", err))
+	// Check what kind of token we have available
+	envToken := os.Getenv("NOMAD_TOKEN")
+	if envToken == "" {
+		c.Ui.Error("No token present in the environment")
 		return 1
 	}
 
-	// Format the output
-	outputACLToken(c.Ui, token)
-	return 0
+	// Does this look like a Nomad ACL token?
+	if helper.IsUUID(envToken) {
+		token, _, err := client.ACLTokens().Self(nil)
+		if err != nil {
+			c.Ui.Error(fmt.Sprintf("Error fetching self token: %s", err))
+			return 1
+		}
+		// Format the output
+		outputACLToken(c.Ui, token)
+		return 0
+	}
+
+	policies, _, err := client.ACLPolicies().Self(nil)
+	if err == nil && len(policies) > 0 {
+		c.Ui.Info("No ACL token found but there are ACL policies attached to this workload identity. You can query them with acl policy self command.")
+		return 0
+	}
+	c.Ui.Error("No ACL tokens, nor ACL policies attached to a workload identity found.")
+	return 1
 }
