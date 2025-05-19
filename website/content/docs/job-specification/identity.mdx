@@ -1,12 +1,11 @@
 ---
 layout: docs
-page_title: identity Block - Job Specification
+page_title: identity block in the job specification
 description: |-
-  The "identity" block allows tasks to use their Nomad Workload Identity via an
-  environment variable or file.
+  Configure workload identity in the `identity` block of the Nomad job specification. Review how to configure workload identities for Consul and Vault.
 ---
 
-# `identity` Block
+# `identity` block in the job specification
 
 <Placement
   groups={[
@@ -57,7 +56,7 @@ job "docs" {
 }
 ```
 
-## `identity` Parameters
+## Parameters
 
 - `name` `(string: "default")` - The name of the workload identity, which must
   be unique per task. Only one `identity` block in a task can omit the `name`
@@ -95,7 +94,7 @@ job "docs" {
 It can be convenient to combine workload identity with Nomad's [Task API]
 [taskapi] for  enabling tasks to access the Nomad API.
 
-## Workload Identities for Consul
+## Workload identities for Consul
 
 Jobs that need access to Consul can use Nomad workload identities for
 authentication. These identities are specified as additional `identity` blocks
@@ -121,13 +120,14 @@ tasks must have a [`name`](#name) that follows the pattern
 In Nomad Community Edition, `<cluster_name>` is always `default`, so the task
 identity name should be `consul_default`.
 
-<EnterpriseAlert>
-  Nomad Enterprise supports multiple Consul clusters. The value of <code>
-  &lt;cluster_name&gt;</code> must be the same as the <a href="/nomad/docs/job-specification/consul#cluster">
-  <code>consul.cluster</code></a> value for the task.
-</EnterpriseAlert>
+<Warning>
 
-Refer to [Nomad Workload Identities][int_consul_wid] section of the Consul
+Nomad Enterprise supports multiple Consul clusters. The value of
+`cluster_name` must be the same as the task's [`consul.cluster` parameter value](/nomad/docs/job-specification/consul#cluster).
+
+</Warning>
+
+Refer to [Nomad workload identities][int_consul_wid] section of the Consul
 integration documentation for more information.
 
 <Tabs>
@@ -177,7 +177,7 @@ job "httpd" {
 </CodeBlockConfig>
 </Tab>
 <Tab heading="Nomad Enterprise" group="ent">
-<CodeBlockConfig highlight="3-5,16-19,34-38">
+<CodeBlockConfig highlight="3-5,16-19,32-36">
 
 ```hcl
 job "httpd" {
@@ -225,7 +225,7 @@ job "httpd" {
 </Tab>
 </Tabs>
 
-## Workload Identities for Vault
+## Workload identities for Vault
 
 Jobs that need access to Vault can use Nomad workload identities for
 authentication. These identities are specified as additional `identity` blocks
@@ -243,11 +243,12 @@ override the default identity configured in the Nomad servers. The identity
 In Nomad Community Edition, `<cluster_name>` is always `default`, so the
 identity name should be `vault_default`.
 
-<EnterpriseAlert>
-  Nomad Enterprise supports multiple Vault clusters. The value of <code>
-  &lt;cluster_name&gt;</code> must be the same as the <a href="/nomad/docs/job-specification/vault#cluster">
-  <code>vault.cluster</code></a> value for the task.
-</EnterpriseAlert>
+<Warning>
+
+Nomad Enterprise supports multiple Vault clusters. The cluster name
+must be the same as the task's [`vault.cluster` parameter value](/nomad/docs/job-specification/vault#cluster).
+
+</Warning>
 
 Refer to [Nomad Workload Identities][int_vault_wid] section of the Vault
 integration documentation for more information.

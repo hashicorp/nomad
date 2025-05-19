@@ -1,10 +1,10 @@
 ---
 layout: docs
-page_title: scaling Block - Job Specification
-description: The "scaling" block allows specifying scaling policy for a task group
+page_title: scaling block in the job specification
+description: The `scaling` block allows specifying scaling policy for a task group
 ---
 
-# `scaling` Block
+# `scaling` block in the job specification
 
 <Placement
   groups={[
@@ -89,7 +89,7 @@ job "example" {
 }
 ```
 
-## `scaling` Parameters
+## Parameters
 
 - `min` - <code>(int: nil)</code> - The minimum acceptable count for the task group.
   This should be honored by the external autoscaler. It will also be honored by Nomad

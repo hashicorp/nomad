@@ -1,13 +1,11 @@
 ---
 layout: docs
-page_title: artifact Block - Job Specification
+page_title: artifact block in the job specification
 description: |-
-  The "artifact" block instructs Nomad to fetch and unpack a remote resource,
-  such as a file, tarball, or binary, and permits downloading artifacts from a
-  variety of locations using a URL as the input source.
+  Configure fetching a remote resource in the `artifact` block of the Nomad job specification. Set the artifact destination, the source URL, HTTP headers, fetch options, mode, and whether Nomad should recursively chown the downloaded artifact. Review examples for downloading a file, fetching from a Git repository, unarchiving, verifying checksums, and downloading from an AWS S3-compatible bucket.
 ---
 
-# `artifact` Block
+# `artifact` block in the job specification
 
 <Placement groups={['job', 'group', 'task', 'artifact']} />
 
@@ -36,7 +34,7 @@ Nomad supports downloading `http`, `https`, `git`, `hg` and `S3` artifacts. If
 these artifacts are archived (`zip`, `tgz`, `bz2`, `xz`), they are
 automatically unarchived before the starting the task.
 
-## `artifact` Parameters
+## Parameters
 
 - `destination` `(string: "local/")` - Specifies the directory path to
   download the artifact, relative to the root of the [task's working
@@ -73,7 +71,7 @@ variables set for the Nomad client. Manage inheritance of environment variables
 with the [`artifact.set_environment_variables`][client_artifact] client
 configuration.
 
-## Operation Limits
+## Operation limits
 
 The client [`artifact`][client_artifact] configuration can set limits to
 specific artifact operations to prevent excessive data download or operation
@@ -82,12 +80,12 @@ time.
 If a task's `artifact` retrieval exceeds one of those limits, the task will be
 interrupted and fail to start. Refer to the task events for more information.
 
-## `artifact` Examples
+## Examples
 
 The following examples only show the `artifact` blocks. Remember that the
 `artifact` block is only valid in the placements listed above.
 
-### Download File
+### Download file
 
 This example downloads the artifact from the provided URL and places it in
 `local/file.txt`. The `local/` path is relative to the [task's working
@@ -171,7 +169,7 @@ artifact {
 }
 ```
 
-### Download and Unarchive
+### Download and unarchive
 
 This example downloads and unarchives the result in `local/file`. Because the
 source URL is an archive extension, Nomad will automatically decompress it:
@@ -193,7 +191,7 @@ artifact {
 }
 ```
 
-### Download and Verify Checksums
+### Download and verify checksums
 
 This example downloads an artifact and verifies the resulting artifact's
 checksum before proceeding. If the checksum is invalid, an error will be
@@ -209,7 +207,7 @@ artifact {
 }
 ```
 
-### Download from an S3-compatible Bucket
+### Download from an S3-compatible bucket
 
 These examples download artifacts from Amazon S3. There are several different
 types of [S3 bucket addressing][s3-bucket-addr] and [S3 region-specific

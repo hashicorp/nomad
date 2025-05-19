@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: check Block - Job Specification
+page_title: check block in the job specification
 description: |-
-  The "check" block declares service check definition for a service registered into the Nomad or Consul service provider.
+  Configure Nomad to register a service health check in the `check` block of the Nomad job specification. Set the command to use, health check interval, and network values. Configure success and failure behavior. Review HTTP, gRPC, and scripted health checks.
 ---
 
-# `check` Block
+# `check` block in the job specification
 
 <Placement
   groups={[
@@ -49,7 +49,7 @@ job "example" {
 }
 ```
 
-### `check` Parameters
+## Parameters
 
 - `address_mode` `(string: "host")` - Same as `address_mode` on `service`.
   Unlike services, checks do not have an `auto` address mode as there's no way
@@ -205,7 +205,7 @@ job "example" {
   `check_restart` can however specify `ignore_warnings = true` with `on_update = "require_healthy"`. If `on_update` is set to `ignore`, `check_restart` must
   be omitted entirely.
 
-#### `header` Block
+### `header` block
 
 HTTP checks may include a `header` block to set HTTP headers. The `header`
 block parameters have lists of strings as values. Multiple values will cause
@@ -227,7 +227,9 @@ service {
 }
 ```
 
-### HTTP Health Check
+## Examples
+
+### HTTP health check
 
 This example shows a service with an HTTP health check. This will query the
 service on the IP and port registered with Nomad at `/_healthz` every 5 seconds,
@@ -249,7 +251,7 @@ service {
 }
 ```
 
-### Multiple Health Checks
+### Multiple health checks
 
 This example shows a service with multiple health checks defined. All health
 checks must be passing in order for the service to register as healthy.
@@ -288,7 +290,7 @@ service {
 }
 ```
 
-### gRPC Health Check
+### gRPC health check
 
 gRPC health checks use the same host and port behavior as `http` and `tcp`
 checks, but gRPC checks also have an optional gRPC service to health check. Not
@@ -311,7 +313,7 @@ service {
 In this example Consul would health check the `example.Service` service on the
 `rpc` port defined in the task's [network resources][network] block.
 
-### Script Checks with Shells
+### Script checks with shells
 
 Note that script checks run inside the task. If your task is a Docker container,
 the script will run inside the Docker container. If your task is running in a
@@ -350,7 +352,7 @@ check {
 }
 ```
 
-### Healthiness versus Readiness Checks
+### Healthiness versus readiness checks
 
 Multiple checks for a service can be composed to create healthiness and readiness
 checks by configuring [`on_update`][on_update] for the check.
@@ -385,7 +387,7 @@ For checks registered into the Nomad service provider, the status information wi
 indicate `Mode = readiness` for readiness checks and `Mode = healthiness` for health
 checks.
 
-### Check status on CLI
+## Check status on CLI
 
 For checks registered into the Nomad service provider, the status information of
 checks can be viewed per-allocation. The `alloc status` command now includes
