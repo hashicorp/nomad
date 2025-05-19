@@ -77,7 +77,7 @@ job "example" {
   as a shell, like `/bin/bash` and then use `args` to run the check.
 
 - `grpc_service` `(string: <optional>)` - What service, if any, to specify in
-  the gRPC health check. gRPC health checks require Consul 1.0.5 or later.
+  the gRPC health check.
 
 - `grpc_use_tls` `(bool: false)` - Use TLS to perform a gRPC health check. May
   be used with `tls_skip_verify` to use TLS but skip certificate verification.

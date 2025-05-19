@@ -9,12 +9,10 @@ description: |-
 
 # HCL2
 
-Nomad uses the Hashicorp Configuration Language - HCL - designed to allow
-concise descriptions of the required steps to get to a job file.
-Nomad 1.0 adopts
-[HCL2](https://github.com/hashicorp/hcl/blob/hcl2/README.md), the second
-generation of HashiCorp Configuration Language. HCL2 extends the HCL language by
-adding expressions and input variables support to improve job spec
+Nomad uses the Hashicorp Configuration Language version 2 -  
+([HCL2](https://github.com/hashicorp/hcl/blob/hcl2/README.md)) designed to allow
+concise descriptions of the required steps to get to a job file. HCL2 extends the
+HCL language by adding expressions and input variables support to improve job spec
 reusability and readability. Also, the new HCL2 parser improves the error
 messages for invalid jobs.
 
@@ -112,10 +110,10 @@ sysctl = {
 ```
 
 Additionally, task driver config fields may not nest block syntax within an
-assignment syntax. The following [`mounts`](/nomad/docs/drivers/docker#mounts) syntax is no longer valid:
+assignment syntax. The following [`mounts`](/nomad/docs/drivers/docker#mounts) syntax is not valid:
 
 ```hcl
-# INVALID in Nomad 1.0
+# INVALID
 mounts = [
   {
     type = "tmpfs"
@@ -129,7 +127,7 @@ mounts = [
 Here, the `tmpfs_options` block declaration is invalid HCL2 syntax, and must be an assignment instead:
 
 ```hcl
-# VALID in Nomad 1.0
+# VALID, but deprecated
 mounts = [
   {
     type = "tmpfs"
@@ -140,7 +138,7 @@ mounts = [
 ]
 ```
 
-Or better yet, the new [`mount`](/nomad/docs/drivers/docker#mount) syntax, introduced in Nomad 1.0.1, is more appropriate here:
+Or better yet, the new [`mount`](/nomad/docs/drivers/docker#mount) syntax, is more appropriate here:
 
 ```hcl
 mount {
