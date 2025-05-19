@@ -108,9 +108,9 @@ List view, with running allocations:
 
 ```shell-session
 $ nomad node status -allocs
-ID        Node Pool  DC   Name   Class   Address   Version  NodeMaxAllocs  Drain  Eligibility  Status  Running Allocs
-4d2ba53b  default    dc1  node1  <none>  127.0.0.1  1.10.1   50            false  eligible     ready   1
-34dfba32  dev        dc1  node2  <none>  127.0.0.1  1.10.1   50            false  eligible     ready   3
+ID        Node Pool  DC   Name   Class   Address   Version  Drain  Eligibility  Status  Running Allocs
+4d2ba53b  default    dc1  node1  <none>  127.0.0.1  1.10.1  false  eligible     ready   1
+34dfba32  dev        dc1  node2  <none>  127.0.0.1  1.10.1  false  eligible     ready   3
 ```
 
 Single-node view in short mode:
@@ -130,8 +130,6 @@ Allocations
 ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 0b8b9e37  8bf94335  example  cache       run             running
 
-Node Max Allocations
-50
 ```
 
 Full output for a single node:
@@ -162,8 +160,8 @@ Time                  Subsystem       Message
 2018-03-29T17:23:42Z  Cluster         Node registered
 
 Allocated Resources
-CPU           Memory           Disk
-500/2600 MHz  256 MiB/2.0 GiB  300 MiB/32 GiB
+CPU           Memory           Disk              Alloc Count
+500/2600 MHz  256 MiB/2.0 GiB  300 MiB/32 GiB     1/50
 
 Allocation Resource Utilization
 CPU           Memory
@@ -176,9 +174,6 @@ CPU           Memory           Disk
 Allocations
 ID        Eval ID   Job ID   Task Group  Desired Status  Client Status
 7bff7214  b3a6b9d2  example  cache       run             running
-
-Node Max Allocations
-50
 ```
 
 Using `-self` when on a Nomad Client:
@@ -209,8 +204,8 @@ Time                  Subsystem       Message
 2018-03-29T17:23:42Z  Cluster         Node registered
 
 Allocated Resources
-CPU            Memory           Disk
-2500/2600 MHz  1.3 GiB/2.0 GiB  1.5 GiB/32 GiB
+CPU           Memory           Disk              Alloc Count
+2500/2600 MHz  1.3 GiB/2.0 GiB  1.5 GiB/32 GiB     5/50
 
 Allocation Resource Utilization
 CPU            Memory
@@ -227,9 +222,6 @@ b206088c  8bf94335  example  cache       run             running
 b82f58b6  8bf94335  example  cache       run             running
 ed3665f5  8bf94335  example  cache       run             running
 24cfd201  8bf94335  example  cache       run             running
-
-Node Max Allocations
-50
 ```
 
 You will note that in the above examples, the **Allocations** output contains
@@ -282,9 +274,10 @@ Time                  Subsystem       Message
 2018-03-29T17:24:42Z  Driver: docker  Driver docker is not detected
 2018-03-29T17:23:42Z  Cluster         Node registered
 
+
 Allocated Resources
-CPU            Memory           Disk
-2500/2600 MHz  1.3 GiB/2.0 GiB  1.5 GiB/32 GiB
+CPU           Memory           Disk              Alloc Count
+2500/2600 MHz  1.3 GiB/2.0 GiB  1.5 GiB/32 GiB     5/50
 
 Allocation Resource Utilization
 CPU            Memory
@@ -372,8 +365,8 @@ Time                  Subsystem       Message                        Details
 2018-03-29T17:23:42Z  Cluster         Node registered                <none>
 
 Allocated Resources
-CPU            Memory           Disk
-2500/2600 MHz  1.3 GiB/2.0 GiB  1.5 GiB/32 GiB
+CPU           Memory           Disk              Alloc Count
+2500/2600 MHz  1.3 GiB/2.0 GiB  1.5 GiB/32 GiB     0/50
 
 Allocation Resource Utilization
 CPU            Memory
@@ -386,9 +379,6 @@ CPU           Memory           Disk
 Allocations
 ID                                    Eval ID                               Job ID   Task Group  Desired Status  Client Status
 3d743cff-8d57-18c3-2260-a41d3f6c5204  2fb686da-b2b0-f8c2-5d57-2be5600435bd  example  cache       run             complete
-
-Node Max Allocations
-50
 
 Attributes
 arch                      = amd64
