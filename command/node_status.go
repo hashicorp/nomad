@@ -269,7 +269,7 @@ func (c *NodeStatusCommand) Run(args []string) int {
 		}
 
 		if c.verbose {
-			out[0] += "Address|Version|NodeMaxAllocs|"
+			out[0] += "Address|Version|"
 		}
 
 		out[0] += "Drain|Eligibility|Status"
@@ -289,14 +289,8 @@ func (c *NodeStatusCommand) Run(args []string) int {
 				out[i+1] += fmt.Sprintf("|%s", node.Attributes["os.name"])
 			}
 			if c.verbose {
-				var nodeMaxAlloc string
-				if node.NodeMaxAllocs == 0 {
-					nodeMaxAlloc = "N/A"
-				} else {
-					nodeMaxAlloc = strconv.FormatUint(node.NodeMaxAllocs, 10)
-				}
-				out[i+1] += fmt.Sprintf("|%s|%s|%s",
-					node.Address, node.Version, nodeMaxAlloc)
+				out[i+1] += fmt.Sprintf("|%s|%s",
+					node.Address, node.Version)
 			}
 			out[i+1] += fmt.Sprintf("|%v|%s|%s",
 				node.Drain,
@@ -638,17 +632,8 @@ func (c *NodeStatusCommand) formatNode(client *api.Client, node *api.Node) int {
 }
 
 func (c *NodeStatusCommand) outputAllocInfo(node *api.Node, nodeAllocs []*api.Allocation) error {
-	var nodeMaxAllocs string
-	if node.NodeMaxAllocs == nil {
-		nodeMaxAllocs = "N/A"
-	} else {
-		nodeMaxAllocs = strconv.Itoa(node.NodeMaxAllocs.MaxAllocs)
-	}
 	c.Ui.Output(c.Colorize().Color("\n[bold]Allocations[reset]"))
 	c.Ui.Output(formatAllocList(nodeAllocs, c.verbose, c.length))
-
-	c.Ui.Output(c.Colorize().Color("\n[bold]Node Max Allocations[reset]"))
-	c.Ui.Output(nodeMaxAllocs)
 
 	if c.verbose {
 		c.formatAttributes(node)
@@ -969,16 +954,21 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 		mem += *alloc.Resources.MemoryMB
 		disk += *alloc.Resources.DiskMB
 	}
+	allocCount := strconv.Itoa(len(runningAllocs))
 
+	if node.NodeMaxAllocs != 0 {
+		allocCount = fmt.Sprintf("%d/%d", len(runningAllocs), node.NodeMaxAllocs)
+	}
 	resources := make([]string, 2)
-	resources[0] = "CPU|Memory|Disk"
-	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s",
+	resources[0] = "CPU|Memory|Disk|Alloc Count"
+	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s|%s",
 		cpu,
 		*total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
 		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)),
 		humanize.IBytes(uint64(disk*bytesPerMegabyte)),
-		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)))
+		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)),
+		allocCount)
 
 	return resources
 }

@@ -572,7 +572,7 @@ type Node struct {
 	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
-	NodeMaxAllocs         *NodeMaxAllocs
+	NodeMaxAllocs         int
 }
 
 type NodeResources struct {
@@ -621,10 +621,6 @@ type NodeReservedDiskResources struct {
 
 type NodeReservedNetworkResources struct {
 	ReservedHostPorts string
-}
-
-type NodeMaxAllocs struct {
-	MaxAllocs int
 }
 
 type CSITopologyRequest struct {
@@ -935,7 +931,6 @@ type NodeListStub struct {
 	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
-	NodeMaxAllocs         uint64
 }
 
 // NodeIndexSort reverse sorts nodes by CreateIndex

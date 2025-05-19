@@ -788,7 +788,7 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 		conf.NetworkInterface = agentConfig.Client.NetworkInterface
 	}
 	if agentConfig.Client.NodeMaxAllocs != 0 {
-		conf.NodeMaxAllocs = &structs.NodeMaxAllocs{MaxAllocs: agentConfig.Client.NodeMaxAllocs}
+		conf.NodeMaxAllocs = agentConfig.Client.NodeMaxAllocs
 	}
 
 	// handle rpc yamux configuration

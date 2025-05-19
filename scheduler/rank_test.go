@@ -2084,7 +2084,7 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 // Tests that bin packing iterator will not place workloads on nodes
 // that would go over a designated MaxAlloc value
 func TestBinPackIterator_MaxAlloc(t *testing.T) {
-	_, ctx := testContext(t)
+	state, ctx := testContext(t)
 
 	taskGen := func(name string) *structs.Task {
 		return &structs.Task{
@@ -2118,18 +2118,49 @@ func TestBinPackIterator_MaxAlloc(t *testing.T) {
 			},
 		},
 	}
+	// Add 1 existing allocation to each node
+	j1, j2 := mock.Job(), mock.Job()
+	alloc1 := &structs.Allocation{
+		Namespace:          structs.DefaultNamespace,
+		ID:                 uuid.Generate(),
+		EvalID:             uuid.Generate(),
+		NodeID:             nodes[0].Node.ID,
+		JobID:              j1.ID,
+		Job:                j1,
+		AllocatedResources: &structs.AllocatedResources{},
+		DesiredStatus:      structs.AllocDesiredStatusRun,
+		ClientStatus:       structs.AllocClientStatusPending,
+		TaskGroup:          "web",
+	}
+	alloc2 := &structs.Allocation{
+		Namespace:          structs.DefaultNamespace,
+		ID:                 uuid.Generate(),
+		EvalID:             uuid.Generate(),
+		NodeID:             nodes[1].Node.ID,
+		JobID:              j2.ID,
+		Job:                j2,
+		AllocatedResources: &structs.AllocatedResources{},
+		DesiredStatus:      structs.AllocDesiredStatusRun,
+		ClientStatus:       structs.AllocClientStatusPending,
+		TaskGroup:          "web",
+	}
+	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	testCases := []struct {
-		name        string
-		maxAlloc    int
-		tasks       []*structs.Task
-		tasksOn1    int
-		nodesPlaced int
-		noNodes     bool
+		name          string
+		maxAllocNode1 int
+		maxAllocNode2 int
+		tasks         []*structs.Task
+		tasksOn1      int
+		nodesPlaced   int
+		noNodes       bool
 	}{
 		{
-			name:     "both_nodes",
-			maxAlloc: 1,
+			name:          "both_nodes",
+			maxAllocNode1: 2,
+			maxAllocNode2: 2,
 			tasks: []*structs.Task{
 				taskGen("web1"),
 				taskGen("web2"),
@@ -2137,8 +2168,9 @@ func TestBinPackIterator_MaxAlloc(t *testing.T) {
 			nodesPlaced: 2,
 		},
 		{
-			name:     "only_node2",
-			maxAlloc: 0,
+			name:          "only_node2",
+			maxAllocNode1: 1,
+			maxAllocNode2: 2,
 			tasks: []*structs.Task{
 				taskGen("web1"),
 				taskGen("web2"),
@@ -2146,8 +2178,9 @@ func TestBinPackIterator_MaxAlloc(t *testing.T) {
 			nodesPlaced: 1,
 		},
 		{
-			name:     "no_nodes",
-			maxAlloc: 0,
+			name:          "no_nodes",
+			maxAllocNode1: 1,
+			maxAllocNode2: 1,
 			tasks: []*structs.Task{
 				taskGen("web1"),
 				taskGen("web2"),
@@ -2158,18 +2191,9 @@ func TestBinPackIterator_MaxAlloc(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.noNodes {
-				// Note: test case order matters here
-				for _, v := range nodes {
-					v.Node.NodeMaxAllocs = &structs.NodeMaxAllocs{
-						MaxAllocs: tc.maxAlloc,
-					}
-				}
-			}
-			// only add allocation limit to first node except in noNodes
-			nodes[0].Node.NodeMaxAllocs = &structs.NodeMaxAllocs{
-				MaxAllocs: tc.maxAlloc,
-			}
+			// add allocation limits
+			nodes[0].Node.NodeMaxAllocs = tc.maxAllocNode1
+			nodes[1].Node.NodeMaxAllocs = tc.maxAllocNode2
 			static := NewStaticRankIterator(ctx, nodes)
 
 			// Create task group with empty resource sets

@@ -2177,7 +2177,7 @@ type Node struct {
 
 	// NodeMaxAllocs is only set if a NodeMaxAllocs value
 	// was set in the client config
-	NodeMaxAllocs *NodeMaxAllocs
+	NodeMaxAllocs int
 }
 
 // GetID is a helper for getting the ID when the object may be nil and is
@@ -2329,13 +2329,8 @@ func (n *Node) HasEvent(msg string) bool {
 
 // Stub returns a summarized version of the node
 func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
-	var maxAllocs uint64
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
-	if n.NodeMaxAllocs != nil {
-		maxAllocs = uint64(n.NodeMaxAllocs.MaxAllocs)
-	} else {
-		maxAllocs = 0
-	}
+
 	s := &NodeListStub{
 		Address:               addr,
 		ID:                    n.ID,
@@ -2353,7 +2348,6 @@ func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
 		LastDrain:             n.LastDrain,
 		CreateIndex:           n.CreateIndex,
 		ModifyIndex:           n.ModifyIndex,
-		NodeMaxAllocs:         maxAllocs,
 	}
 
 	if fields != nil {
@@ -2395,19 +2389,12 @@ type NodeListStub struct {
 	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
-	NodeMaxAllocs         uint64
 }
 
 // NodeStubFields defines which fields are included in the NodeListStub.
 type NodeStubFields struct {
 	Resources bool
 	OS        bool
-}
-
-// NodeMaxAllocs holds the NodeMaxAllocs value
-// if set in *client.Config.
-type NodeMaxAllocs struct {
-	MaxAllocs int
 }
 
 // Resources is used to define the resources available
