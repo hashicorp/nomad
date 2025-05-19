@@ -1,13 +1,11 @@
 ---
 layout: docs
-page_title: affinity Block - Job Specification
+page_title: affinity block in the job specification
 description: |-
-  The "affinity" block allows restricting the set of eligible nodes.
-  Affinities may filter on attributes or metadata. Additionally affinities may
-  be specified at the job, group, or task levels for ultimate flexibility.
+  Express placement preference for a set of nodes in the `affinity` block of the Nomad job specification. Configure attribute, comparison operator, comparison value, and a scoring weight. Review kernal data, operating system, and metadata examples.
 ---
 
-# `affinity` Block
+# `affinity` block in the job specification
 
 <Placement
   groups={[
@@ -66,7 +64,7 @@ Updating the `affinity` block is non-destructive. Updating a job specification
 with only non-destructive updates will not migrate or replace existing
 allocations.
 
-## `affinity` Parameters
+## Parameters
 
 - `attribute` `(string: "")` - Specifies the name or reference of the attribute
   to examine for the affinity. This can be any of the [Nomad interpolated
@@ -101,7 +99,7 @@ allocations.
   anti affinities, causing nodes that match them to be scored lower. Weights can be used
   when there is more than one affinity to express relative preference across them.
 
-### `operator` Values
+### `operator` values
 
 This section details the specific values for the "operator" parameter in the
 Nomad job specification for affinities. The operator is always specified as a
@@ -172,12 +170,12 @@ affinity {
   }
   ```
 
-## `affinity` Examples
+## Examples
 
 The following examples only show the `affinity` blocks. Remember that the
 `affinity` block is only valid in the placements listed above.
 
-### Kernel Data
+### Kernel data
 
 This example adds a preference for running on nodes which have a kernel version
 higher than "3.19".
@@ -191,7 +189,7 @@ affinity {
 }
 ```
 
-### Operating Systems
+### Operating systems
 
 This example adds a preference to running on nodes that are running Ubuntu
 14.04
@@ -210,7 +208,7 @@ affinity {
 }
 ```
 
-### Meta Data
+### Metadata
 
 The following example adds a preference to running on nodes with specific rack metadata
 
@@ -232,7 +230,7 @@ affinity {
 }
 ```
 
-### Cloud Metadata
+### Cloud metadata
 
 When possible, Nomad populates node attributes from the cloud environment. These
 values are accessible as filters in affinities. This example adds a preference to run this
@@ -246,20 +244,10 @@ affinity {
 }
 ```
 
-[job]: /nomad/docs/job-specification/job 'Nomad job Job Specification'
-[group]: /nomad/docs/job-specification/group 'Nomad group Job Specification'
-[client-meta]: /nomad/docs/configuration/client#meta 'Nomad meta Job Specification'
-[task]: /nomad/docs/job-specification/task 'Nomad task Job Specification'
-[interpolation]: /nomad/docs/runtime/interpolation 'Nomad interpolation'
-[node-variables]: /nomad/docs/runtime/interpolation#node-variables- 'Nomad interpolation-Node variables'
-[constraint]: /nomad/docs/job-specification/constraint 'Nomad Constraint job Specification'
-
-### Placement Details
+## Placement details
 
 Operators can run `nomad alloc status -verbose` to get more detailed information on various
 factors, including affinities that affect the final placement.
-
-#### Example Placement Metadata
 
 The following is a snippet from the CLI output of `nomad alloc status -verbose <alloc-id>` showing scoring metadata.
 
@@ -272,7 +260,7 @@ f2aa8b59-96b8-202f-2258-d98c93e360ab  0.225    -0.6               0             
 7d6c2e9e-b080-5995-8b9d-ef1695458b52  0.0806   0                  0                        0              0.0806
 ```
 
-The placement score is affected by the following factors.
+The placement score is affected by the following factors:
 
 - `bin-packing` - Scores nodes according to how well they fit requirements. Optimizes for using minimal number of nodes.
 - `job-anti-affinity` - A penalty added for additional instances of the same job on a node, used to avoid having too many instances
@@ -280,3 +268,12 @@ The placement score is affected by the following factors.
 - `node-reschedule-penalty` - Used when the job is being rescheduled. Nomad adds a penalty to avoid placing the job on a node where
   it has failed to run before.
 - `node-affinity` - Used when the criteria specified in the `affinity` block matches the node.
+
+
+[job]: /nomad/docs/job-specification/job
+[group]: /nomad/docs/job-specification/group
+[client-meta]: /nomad/docs/configuration/client#meta
+[task]: /nomad/docs/job-specification/task
+[interpolation]: /nomad/docs/runtime/interpolation
+[node-variables]: /nomad/docs/runtime/interpolation#node-variables
+[constraint]: /nomad/docs/job-specification/constraint
