@@ -44,13 +44,14 @@ export default class TokenService extends Service {
     const TokenAdapter = getOwner(this).lookup('adapter:token');
     try {
       var token = yield TokenAdapter.findSelf();
+      if (token.accessor === 'acls-disabled') {
+        this.set('aclEnabled', false);
+        return null;
+      }
       this.secret = token.secret;
       return token;
     } catch (e) {
       const errors = e.errors ? e.errors.mapBy('detail') : [];
-      if (errors.find((error) => error === 'ACL support disabled')) {
-        this.set('aclEnabled', false);
-      }
       if (errors.find((error) => error === 'ACL token not found')) {
         this.set('tokenNotFound', true);
       }
