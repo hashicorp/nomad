@@ -22,14 +22,6 @@ plugin "nomad-driver-podman" {
   }
 }
 
-plugin "nomad-driver-ecs" {
-  config {
-    enabled = true
-    cluster = "nomad-rtd-e2e"
-    region  = "us-east-1"
-  }
-}
-
 plugin "raw_exec" {
   config {
     enabled = true

@@ -29,7 +29,7 @@ sudo apt-get update
 sudo apt-get upgrade -y
 sudo apt-get install -y \
      software-properties-common \
-     dnsmasq unzip tree redis-tools jq curl tmux awscli nfs-common \
+     unzip tree redis-tools jq curl tmux awscli nfs-common \
      apt-transport-https ca-certificates gnupg2 stress
 
 # Install hc-install
@@ -134,37 +134,6 @@ sudo chmod +x ${NOMAD_PLUGIN_DIR}/nomad-driver-exec2
 echo "Installing Envoy"
 sudo curl -s -S -L -o /opt/bin/envoy https://github.com/envoyproxy/envoy/releases/download/v1.29.4/envoy-1.29.4-linux-x86_64
 sudo chmod +x /opt/bin/envoy
-
-# ECS
-if [ -a "/tmp/linux/nomad-driver-ecs" ]; then
-    echo "Installing nomad-driver-ecs"
-    sudo install --mode=0755 --owner=ubuntu /tmp/linux/nomad-driver-ecs "$NOMAD_PLUGIN_DIR"
-else
-    echo "nomad-driver-ecs not found: skipping install"
-fi
-
-echo "Configuring dnsmasq"
-
-# disable systemd stub resolver
-sudo sed -i 's|#DNSStubListener=yes|DNSStubListener=no|g' /etc/systemd/resolved.conf
-
-# disable systemd-resolved and configure dnsmasq to forward local requests to
-# consul. the resolver files need to dynamic configuration based on the VPC
-# address and docker bridge IP, so those will be rewritten at boot time.
-sudo systemctl disable systemd-resolved.service
-sudo systemctl stop systemd-resolved.service
-sudo mv /tmp/linux/dnsmasq /etc/dnsmasq.d/default
-sudo chown root:root /etc/dnsmasq.d/default
-
-# this is going to be overwritten at provisioning time, but we need something
-# here or we can't fetch binaries to do the provisioning
-echo 'nameserver 8.8.8.8' > /tmp/resolv.conf
-sudo mv /tmp/resolv.conf /etc/resolv.conf
-
-sudo mv /tmp/linux/dnsmasq.service /etc/systemd/system/dnsmasq.service
-sudo mv /tmp/linux/dnsconfig.sh /usr/local/bin/dnsconfig.sh
-sudo chmod +x /usr/local/bin/dnsconfig.sh
-sudo systemctl daemon-reload
 
 echo "Updating boot parameters"
 
