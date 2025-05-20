@@ -1052,14 +1052,14 @@ func (s *StateStore) DeleteNode(msgType structs.MessageType, index uint64, nodes
 	txn := s.db.WriteTxn(index)
 	defer txn.Abort()
 
-	err := deleteNodeTxn(txn, index, nodes)
+	err := s.deleteNodeTxn(txn, index, nodes)
 	if err != nil {
 		return nil
 	}
 	return txn.Commit()
 }
 
-func deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
+func (s *StateStore) deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
 	if len(nodes) == 0 {
 		return fmt.Errorf("node ids missing")
 	}
@@ -1081,6 +1081,11 @@ func deleteNodeTxn(txn *txn, index uint64, nodes []string) error {
 		node := existing.(*structs.Node)
 		if err := deleteNodeCSIPlugins(txn, node, index); err != nil {
 			return fmt.Errorf("csi plugin delete failed: %v", err)
+		}
+		if node.GCVolumesOnNodeGC {
+			if err := s.deleteHostVolumesOnNode(txn, index, node.ID); err != nil {
+				return fmt.Errorf("dynamic host volume delete failed: %v", err)
+			}
 		}
 	}
 

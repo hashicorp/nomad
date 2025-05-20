@@ -88,6 +88,7 @@ var basicConfig = &Config{
 		GCDiskUsageThreshold:  82,
 		GCInodeUsageThreshold: 91,
 		GCMaxAllocs:           50,
+		GCVolumesOnNodeGC:     true,
 		NoHostUUID:            pointer.Of(false),
 		DisableRemoteExec:     true,
 		HostVolumes: []*structs.ClientHostVolumeConfig{

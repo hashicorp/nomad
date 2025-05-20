@@ -94,6 +94,7 @@
       "gc_interval": "6s",
       "gc_max_allocs": 50,
       "gc_parallel_destroys": 6,
+      "gc_volumes_on_node_gc": true,
       "host_volume": [
         {
           "tmp": [

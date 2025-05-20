@@ -122,6 +122,20 @@ func (s *StateStore) DeleteHostVolume(index uint64, ns string, id string) error 
 	txn := s.db.WriteTxnMsgT(structs.HostVolumeDeleteRequestType, index)
 	defer txn.Abort()
 
+	if err := s.deleteHostVolumeTxn(txn, index, ns, id); err != nil {
+		return err
+	}
+
+	if err := txn.Insert(tableIndex, &IndexEntry{TableHostVolumes, index}); err != nil {
+		return fmt.Errorf("index update failed: %w", err)
+	}
+
+	return txn.Commit()
+}
+
+// deleteHostVolumeTxn implements a single dynamic host volume delete. The
+// caller is responsible for updating the index and committing the transaction.
+func (s *StateStore) deleteHostVolumeTxn(txn *txn, index uint64, ns string, id string) error {
 	obj, err := txn.First(TableHostVolumes, indexID, ns, id)
 	if err != nil {
 		return err
@@ -153,12 +167,35 @@ func (s *StateStore) DeleteHostVolume(index uint64, ns string, id string) error 
 		}
 	}
 
-	if err := txn.Insert(tableIndex, &IndexEntry{TableHostVolumes, index}); err != nil {
-		return fmt.Errorf("index update failed: %w", err)
+	return nil
+}
+
+func (s *StateStore) deleteHostVolumesOnNode(txn *txn, index uint64, nodeID string) error {
+	iter, err := s.HostVolumesByNodeID(nil, nodeID, SortDefault)
+	if err != nil {
+		return err
 	}
 
-	return txn.Commit()
+	deleted := false // only update index if there was a volume to delete
+	for {
+		raw := iter.Next()
+		if raw == nil {
+			break
+		}
+		vol := raw.(*structs.HostVolume)
+		err := s.deleteHostVolumeTxn(txn, index, vol.Namespace, vol.ID)
+		if err != nil {
+			return err
+		}
+		deleted = true
+	}
+	if deleted {
+		if err := txn.Insert(tableIndex, &IndexEntry{TableHostVolumes, index}); err != nil {
+			return fmt.Errorf("index update failed: %w", err)
+		}
+	}
 
+	return nil
 }
 
 // HostVolumes queries all the host volumes and is mostly used for

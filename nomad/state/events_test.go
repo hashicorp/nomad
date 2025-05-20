@@ -821,7 +821,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				return upsertNodeTxn(tx, tx.Index, testNode())
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
-				return deleteNodeTxn(tx, tx.Index, []string{testNodeID()})
+				return s.deleteNodeTxn(tx, tx.Index, []string{testNodeID()})
 			},
 			WantEvents: []structs.Event{{
 				Topic: structs.TopicNode,
@@ -842,7 +842,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				return upsertNodeTxn(tx, tx.Index, testNode(nodeIDTwo))
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
-				return deleteNodeTxn(tx, tx.Index, []string{testNodeID(), testNodeIDTwo()})
+				return s.deleteNodeTxn(tx, tx.Index, []string{testNodeID(), testNodeIDTwo()})
 			},
 			WantEvents: []structs.Event{
 				{
