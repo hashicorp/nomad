@@ -6,42 +6,14 @@ description: Learn about the community-supported task driver plugins that extend
 
 # Community task driver plugins
 
-If you have authored a task driver plugin that you believe will be useful to the
-broader Nomad community and you are committed to maintaining the plugin, please
-file a PR to add your plugin to this page.
+Task driver plugins authored and maintained by the Nomad community are listed on
+the [Nomad integrations page](/nomad/integrations). On that page, select
+**Community** from the **Tiers** list and **Task Drivers** from the **Types**
+list to review Community-authored task driver plugins.
 
-For details on authoring a task driver plugin, please refer to the [plugin
-authoring guide][plugin_guide].
+If you have authored a task driver plugin that you believe is useful to the
+broader Nomad community and are committed to maintaining the plugin,
+create a [Nomad GitHub issue](https://github.com/hashicorp/nomad/issues) so we can add your plugin to the Nomad Integrations page.
 
-## Task Driver Plugins
-
-Nomad has a plugin system for defining task drivers. External task driver
-plugins will have the same user experience as built in drivers.
-
-The following is a list of community-supported task drivers you can use with Nomad:
-
-- [containerd][nomad-driver-containerd]
-- [Firecracker][firecracker-task-driver]
-- [Jail task driver][jail-task-driver]
-- [Lightrun][lightrun]
-- [Pledge][pledge]
-- [Pot][pot]
-- [Rookout][rookout]
-- [Singularity][singularity]
-- [systemd-nspawn][nspawn-driver]
-- [Windows IIS (nomad-driver-iis)][nomad-driver-iis]
-- [Windows IIS (nomad-iis)][nomad-iis]
-
-[rookout]: /nomad/plugins/drivers/community/rookout
-[plugin_guide]: /nomad/docs/concepts/plugins
-[singularity]: /nomad/plugins/drivers/community/singularity
-[jail-task-driver]: /nomad/plugins/drivers/community/jail-task-driver
-[pot]: /nomad/plugins/drivers/community/pot
-[firecracker-task-driver]: /nomad/plugins/drivers/community/firecracker-task-driver
-[nspawn-driver]: /nomad/plugins/drivers/community/nspawn
-[nomad-driver-iis]: /nomad/plugins/drivers/community/iis
-[nomad-iis]: /nomad/plugins/drivers/community/nomad-iis
-[nomad-driver-containerd]: /nomad/plugins/drivers/community/containerd
-[lightrun]: /nomad/plugins/drivers/community/lightrun
-[pledge]: /nomad/plugins/drivers/community/pledge
-
+For details on authoring a task driver plugin, refer to the [plugin
+authoring guide](/nomad/docs/concepts/plugins).
