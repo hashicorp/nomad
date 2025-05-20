@@ -1629,9 +1629,8 @@ func (c *Client) setupNode() error {
 		node.Meta[envoy.DefaultTransparentProxyOutboundPortParam] = envoy.DefaultTransparentProxyOutboundPort
 	}
 	// Set NodeMaxAllocs before dynamic configuration is set
-	if newConfig.NodeMaxAllocs != 0 {
-		node.NodeMaxAllocs = newConfig.NodeMaxAllocs
-	}
+	node.NodeMaxAllocs = newConfig.NodeMaxAllocs
+
 	// Since node.Meta will get dynamic metadata merged in, save static metadata
 	// here.
 	c.metaStatic = maps.Clone(node.Meta)

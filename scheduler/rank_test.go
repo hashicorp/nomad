@@ -2144,9 +2144,9 @@ func TestBinPackIterator_MaxAlloc(t *testing.T) {
 		ClientStatus:       structs.AllocClientStatusPending,
 		TaskGroup:          "web",
 	}
-	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
-	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	testCases := []struct {
 		name          string
