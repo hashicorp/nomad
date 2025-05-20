@@ -129,4 +129,59 @@ module.exports = [
     destination: '/nomad/plugins/devices/usb',
     permanent: true,
   },
+  {
+    source: '/nomad/drivers/community/containerd',
+    destination: 'https://github.com/Roblox/nomad-driver-containerd',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/pledge',
+    destination: 'https://github.com/shoenig/nomad-pledge-driver',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/firecracker-task-driver',
+    destination: 'https://github.com/cneira/firecracker-task-driver',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/jail-task-driver',
+    destination: 'https://github.com/cneira/jail-task-driver',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/lightrun',
+    destination: 'https://docs.lightrun.com/integrations/nomad/',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/pot',
+    destination: 'https://github.com/bsdpot/nomad-pot-driver',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/rookout',
+    destination: 'https://github.com/Rookout/rookout-nomad-driver',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/singularity',
+    destination: 'https://github.com/hpcng/nomad-driver-singularity',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/nspawn',
+    destination: 'https://github.com/JanMa/nomad-driver-nspawn',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/iis',
+    destination: 'https://github.com/Roblox/nomad-driver-iis',
+    permanent: true,
+  },
+  {
+    source: '/nomad/drivers/community/nomad-iis',
+    destination: 'https://nomad-iis.sevensolutions.cc/',
+    permanent: true,
+  },
 ]

@@ -45,47 +45,47 @@
           },
           {
             "title": "containerd",
-            "path": "drivers/community/containerd"
+            "href": "https://github.com/Roblox/nomad-driver-containerd"
           },
           {
             "title": "Pledge",
-            "path": "drivers/community/pledge"
+            "href": "https://github.com/shoenig/nomad-pledge-driver"
           },
           {
             "title": "Firecracker driver",
-            "path": "drivers/community/firecracker-task-driver"
+            "href": "https://github.com/cneira/firecracker-task-driver"
           },
           {
             "title": "Jail task driver",
-            "path": "drivers/community/jail-task-driver"
+            "href": "https://github.com/cneira/jail-task-driver"
           },
           {
             "title": "Lightrun",
-            "path": "drivers/community/lightrun"
+            "href": "https://docs.lightrun.com/integrations/nomad/"
           },
           {
             "title": "Pot",
-            "path": "drivers/community/pot"
+            "href": "https://github.com/bsdpot/nomad-pot-driver"
           },
           {
             "title": "Rookout",
-            "path": "drivers/community/rookout"
+            "href": "https://github.com/Rookout/rookout-nomad-driver"
           },
           {
             "title": "Singularity",
-            "path": "drivers/community/singularity"
+            "href": "https://github.com/hpcng/nomad-driver-singularity"
           },
           {
             "title": "systemd-nspawn",
-            "path": "drivers/community/nspawn"
+            "href": "https://github.com/JanMa/nomad-driver-nspawn"
+          },
+          {
+            "title": "Windows IIS - Roblox",
+            "href": "https://github.com/Roblox/nomad-driver-iis"
           },
           {
             "title": "Windows IIS",
-            "path": "drivers/community/iis"
-          },
-          {
-            "title": "Windows IIS",
-            "path": "drivers/community/nomad-iis"
+            "href": "https://nomad-iis.sevensolutions.cc/"
           }
         ]
       }
