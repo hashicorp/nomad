@@ -2026,8 +2026,7 @@ func TestAllocRunner_TerminalUpdate_Destroy(t *testing.T) {
 	})
 }
 
-// TestAllocRunner_PersistState_Destroyed asserts that destroyed allocs don't persist anymore
-func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
+func TestAllocRunner_PersistState(t *testing.T) {
 	ci.Parallel(t)
 
 	alloc := mock.BatchAlloc()
@@ -2050,12 +2049,18 @@ func TestAllocRunner_PersistState_Destroyed(t *testing.T) {
 		require.Fail(t, "timed out waiting for alloc to complete")
 	}
 
+	// force tasks into running state
+	for _, val := range ar.AllocState().TaskStates {
+		val.State = structs.TaskStateRunning
+	}
+
 	// test final persisted state upon completion
 	require.NoError(t, ar.PersistState())
 	allocs, _, err := conf.StateDB.GetAllAllocations()
 	require.NoError(t, err)
 	require.Len(t, allocs, 1)
 	require.Equal(t, alloc.ID, allocs[0].ID)
+	require.Equal(t, structs.TaskStateRunning, allocs[0].ClientStatus)
 	_, ts, err := conf.StateDB.GetTaskRunnerState(alloc.ID, taskName)
 	require.NoError(t, err)
 	require.Equal(t, structs.TaskStateDead, ts.State)
