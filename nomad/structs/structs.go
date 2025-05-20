@@ -2163,6 +2163,9 @@ type Node struct {
 	// LastDrain contains metadata about the most recent drain operation
 	LastDrain *DrainMetadata
 
+	// NodeMaxAllocs defaults to 0 unless set in the client config
+	NodeMaxAllocs int
+
 	// LastMissedHeartbeatIndex stores the Raft index when the node last missed
 	// a heartbeat. It resets to zero once the node is marked as ready again.
 	LastMissedHeartbeatIndex uint64
@@ -2174,10 +2177,6 @@ type Node struct {
 	// Raft Indexes
 	CreateIndex uint64
 	ModifyIndex uint64
-
-	// NodeMaxAllocs is only set if a NodeMaxAllocs value
-	// was set in the client config
-	NodeMaxAllocs int
 }
 
 // GetID is a helper for getting the ID when the object may be nil and is

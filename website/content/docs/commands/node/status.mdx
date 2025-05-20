@@ -99,9 +99,9 @@ List view with verbose:
 
 ```shell-session
 $ nomad node status -verbose
-ID        Node Pool  DC   Name   Class   Drain  Eligibility  Status
-a72dfba2  default    dc1  node1  <none>  false  eligible     ready
-1f3f03ea  dev        dc1  node2  <none>  false  eligible     ready
+ID        Node Pool  DC   Name   Class   Address   Version  Drain  Eligibility  Status
+4d2ba53b  default    dc1  node1  <none>  127.0.0.1  1.10.1  false  eligible     ready
+34dfba32  dev        dc1  node2  <none>  127.0.0.1  1.10.1  false  eligible     ready
 ```
 
 List view, with running allocations:
