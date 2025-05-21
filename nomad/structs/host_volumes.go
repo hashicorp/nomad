@@ -401,6 +401,7 @@ type HostVolumeRegisterResponse struct {
 
 type HostVolumeDeleteRequest struct {
 	VolumeID string
+	Force    bool
 	WriteRequest
 }
 
