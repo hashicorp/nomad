@@ -1171,7 +1171,7 @@ func (krr *KeyringReplicator) replicateKey(ctx context.Context, wrappedKeys *str
 	// Servers should avoid querying themselves
 	_, leaderID := krr.srv.raft.LeaderWithID()
 	if leaderID != raft.ServerID(krr.srv.GetConfig().NodeID) {
-		err = krr.srv.RPC("Keyring.Get", getReq, getResp)
+		err = krr.srv.rpcs.keyring.Get(getReq, getResp)
 	}
 
 	if err != nil || getResp.Key == nil {
