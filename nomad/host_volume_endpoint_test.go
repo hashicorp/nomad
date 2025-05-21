@@ -392,16 +392,25 @@ func TestHostVolumeEndpoint_CreateRegisterGetDelete(t *testing.T) {
 		must.Nil(t, getResp.Volume)
 	})
 
+	index++
+	must.NoError(t, srv.State().DeleteNode(structs.MsgTypeTestSetup, index, []string{vol1.NodeID}))
+
 	// delete vol1 to finish cleaning up
-	var delResp structs.HostVolumeDeleteResponse
-	err := msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", &structs.HostVolumeDeleteRequest{
+	delReq := &structs.HostVolumeDeleteRequest{
 		VolumeID: vol1.ID,
 		WriteRequest: structs.WriteRequest{
 			Region:    srv.Region(),
 			Namespace: vol1.Namespace,
 			AuthToken: powerToken,
 		},
-	}, &delResp)
+	}
+
+	var delResp structs.HostVolumeDeleteResponse
+	err := msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
+	must.EqError(t, err, "volume cannot be removed from unknown node without force=true")
+
+	delReq.Force = true
+	err = msgpackrpc.CallWithCodec(codec, "HostVolume.Delete", delReq, &delResp)
 	must.NoError(t, err)
 
 	// should be no volumes left

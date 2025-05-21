@@ -39,6 +39,10 @@ volumes or `host-volume-delete` for dynamic host volumes.
 
 ## Delete options
 
+- `-force`: Delete the volume from the Nomad state store if the node has been
+  garbage collected. You should only use `-force` if the node will never rejoin
+  the cluster. Only available for dynamic host volumes.
+
 - `-secret`: Secrets to pass to the plugin to delete the snapshot. Accepts
   multiple flags in the form `-secret key=value`. Only available for CSI
   volumes.
