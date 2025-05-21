@@ -29,15 +29,20 @@ Usage: nomad volume delete [options] <vol id>
   unpublished. If the volume no longer exists, this command will silently
   return without an error.
 
-  When ACLs are enabled, this command requires a token with the
-  'csi-write-volume' and 'csi-read-volume' capabilities for the volume's
-  namespace.
+  When ACLs are enabled, this command requires a token with the appropriate
+  capability in the volume's namespace: the 'csi-write-volume' capability for
+  CSI volumes or 'host-volume-create' for dynamic host volumes.
 
 General Options:
 
   ` + generalOptionsUsage(usageOptsDefault) + `
 
 Delete Options:
+
+  -force
+    Delete the volume from the Nomad state store if the node has been garbage
+    collected. You should only use -force if the node will never rejoin the
+    cluster. Only available for dynamic host volumes.
 
   -secret
     Secrets to pass to the plugin to delete the snapshot. Accepts multiple
@@ -88,10 +93,12 @@ func (c *VolumeDeleteCommand) Name() string { return "volume delete" }
 func (c *VolumeDeleteCommand) Run(args []string) int {
 	var secretsArgs flaghelper.StringFlag
 	var typeArg string
+	var force bool
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
 	flags.Var(&secretsArgs, "secret", "secrets for snapshot, ex. -secret key=value")
 	flags.StringVar(&typeArg, "type", "csi", "type of volume (csi or host)")
+	flags.BoolVar(&force, "force", false, "force delete from garbage collected node")
 
 	if err := flags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing arguments %s", err))
@@ -118,7 +125,7 @@ func (c *VolumeDeleteCommand) Run(args []string) int {
 	case "csi":
 		return c.deleteCSIVolume(client, volID, secretsArgs)
 	case "host":
-		return c.deleteHostVolume(client, volID)
+		return c.deleteHostVolume(client, volID, force)
 	default:
 		c.Ui.Error(fmt.Sprintf("No such volume type %q", typeArg))
 		return 1
@@ -174,7 +181,7 @@ func (c *VolumeDeleteCommand) deleteCSIVolume(client *api.Client, volID string, 
 	return 0
 }
 
-func (c *VolumeDeleteCommand) deleteHostVolume(client *api.Client, volID string) int {
+func (c *VolumeDeleteCommand) deleteHostVolume(client *api.Client, volID string, force bool) int {
 
 	if !helper.IsUUID(volID) {
 		stub, possible, err := getHostVolumeByPrefix(client, volID, c.namespace)
@@ -195,7 +202,8 @@ func (c *VolumeDeleteCommand) deleteHostVolume(client *api.Client, volID string)
 		c.namespace = stub.Namespace
 	}
 
-	_, _, err := client.HostVolumes().Delete(&api.HostVolumeDeleteRequest{ID: volID}, nil)
+	_, _, err := client.HostVolumes().Delete(&api.HostVolumeDeleteRequest{
+		ID: volID, Force: force}, nil)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error deleting volume: %s", err))
 		return 1

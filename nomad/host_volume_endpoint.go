@@ -671,7 +671,14 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 	// serialize client RPC and raft write per volume ID
 	index, err := v.serializeCall(vol.ID, "delete", func() (uint64, error) {
 		if err := v.deleteVolume(vol); err != nil {
-			return 0, err
+			if structs.IsErrUnknownNode(err) {
+				if !args.Force {
+					return 0, fmt.Errorf(
+						"volume cannot be removed from unknown node without force=true")
+				}
+			} else {
+				return 0, err
+			}
 		}
 		_, idx, err := v.srv.raftApply(structs.HostVolumeDeleteRequestType, args)
 		if err != nil {
