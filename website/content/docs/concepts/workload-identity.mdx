@@ -155,13 +155,21 @@ nomad acl policy apply \
    redis-policy ./policy.hcl
 ```
 
-And you can apply this policy to all groups in the job by omitting both the
+You can apply this policy to all groups in the job by omitting both the
 `-group` and `-task` flag:
 
 ```shell-session
 nomad acl policy apply \
    -namespace default -job example \
    redis-policy ./policy.hcl
+```
+
+And you can apply this policy to all jobs in the namespace by omitting the
+`-job`, `-group`, and `-task` flag:
+
+```shell-session
+nomad acl policy apply \
+   -namespace default redis-policy ./policy.hcl
 ```
 
 ### Task API
