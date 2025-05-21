@@ -4,17 +4,89 @@
 package nomad
 
 import (
+	"errors"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/hashicorp/nomad/testutil"
 	"github.com/shoenig/test/must"
 )
+
+type traceLevelConstraintAttributeCollector struct {
+	constraints []string
+}
+
+// Accept implements hclog.SinkAdapter.
+func (l *traceLevelConstraintAttributeCollector) Accept(name string, level hclog.Level, msg string, args ...interface{}) {
+	if level == hclog.Trace {
+		if len(args)%2 != 0 {
+			panic(errors.New("args must contains an even number of elements"))
+		}
+		//idx is the  index of the log argument `constraint`.
+		idx := slices.IndexFunc(args, func(a interface{}) bool {
+			v, ok := a.(string)
+			if !ok {
+				return false
+			}
+			return v == "constraint"
+		})
+		if idx != -1 {
+			if len(args) < idx+1 {
+				panic(errors.New("in logging args, after the arg constraint must follow another arg"))
+			}
+			constraintInNextArg := args[idx+1]
+			l.constraints = append(l.constraints, constraintInNextArg.(string))
+		}
+	}
+}
+
+var _ hclog.SinkAdapter = &traceLevelConstraintAttributeCollector{}
+
+func TestConstrainsAreWrittenToLogIfLoglevelIsTrace(t *testing.T) {
+	ci.Parallel(t)
+	collector := &traceLevelConstraintAttributeCollector{}
+	srv, cleanup := TestServer(t, func(c *Config) {
+		c.NumSchedulers = 0
+	})
+	srv.logger.RegisterSink(collector)
+
+	t.Cleanup(cleanup)
+	testutil.WaitForLeader(t, srv.RPC)
+
+	jobEndpoint := NewJobEndpoints(srv, nil)
+
+	j := mock.ConnectJob()
+	j.TaskGroups[0].Services[0].Name = "${JOB}-api"
+	j, warnings, err := jobEndpoint.admissionMutators(j)
+	must.NoError(t, err)
+	must.Nil(t, warnings)
+
+	constraints := j.CollectConstraints()
+	//all Constraints found in structs.Job are printed to logger with level trace
+	must.Eq(t, 10, len(constraints))
+	expected := []string{
+		"${attr.kernel.name} = linux",
+		"${attr.consul.version} semver >= 1.8.0",
+		"${attr.plugins.cni.version.bridge} semver >= 0.4.0",
+		"${attr.plugins.cni.version.firewall} semver >= 0.4.0",
+		"${attr.plugins.cni.version.host-local} semver >= 0.4.0",
+		"${attr.plugins.cni.version.loopback} semver >= 0.4.0",
+		"${attr.plugins.cni.version.portmap} semver >= 0.4.0",
+		"${attr.consul.version} semver >= 1.8.0",
+		"${attr.consul.version} semver >= 1.8.0",
+		"${attr.consul.grpc} > 0",
+	}
+	must.SliceEqOp(t, constraints, collector.constraints)
+	must.SliceEqOp(t, expected, collector.constraints)
+}
 
 func Test_jobValidate_Validate_consul_service(t *testing.T) {
 	ci.Parallel(t)
