@@ -112,6 +112,10 @@ client {
   placement as an [`affinity`][] or [`constraint`][] attribute and other places
   where [variable interpolation][runtime_var_interpolation] is supported.
 
+- `node_max_allocs` `(int: 0)` - Specifies the maximum number of allocations
+  that may be scheduled on a client node and is not enforced if unset. This
+  value can be seen in `nomad node status` under Allocated Resources.
+
 - `node_pool` `(string: "default")` - Specifies the node pool in which the
   client is registered. If the node pool does not exist yet, it will be created
   automatically if the node registers in the authoritative region. In

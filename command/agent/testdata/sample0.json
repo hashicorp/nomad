@@ -45,6 +45,9 @@
     "client_auto_join": false,
     "token": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
   },
+  "client": {
+    "node_max_allocs": 5
+  },
   "data_dir": "/opt/data/nomad/data",
   "datacenter": "dc1",
   "enable_syslog": true,
