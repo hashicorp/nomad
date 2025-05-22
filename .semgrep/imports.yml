@@ -20,3 +20,12 @@ rules:
     paths:
       include:
         - "*.go"
+
+  - id: "disallow-new-testify-imports"
+    pattern: import "github.com/stretchr/testify"
+    message: "Do not import testify in packages where it has been removed"
+    languages: [go]
+    severity: "ERROR"
+    paths:
+      include:
+        - "nomad/state/*_test.go"
