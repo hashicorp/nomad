@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func Test_IndexFromTimeQuery(t *testing.T) {
@@ -41,8 +41,8 @@ func Test_IndexFromTimeQuery(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			actualOutput, actualError := IndexFromTimeQuery(tc.inputArg)
-			require.Equal(t, tc.expectedOutputError, actualError)
-			require.Equal(t, tc.expectedOutputBytes, actualOutput)
+			must.Eq(t, tc.expectedOutputError, actualError)
+			must.Eq(t, tc.expectedOutputBytes, actualOutput)
 		})
 	}
 }
