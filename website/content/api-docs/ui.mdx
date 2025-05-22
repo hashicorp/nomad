@@ -6,7 +6,8 @@ description: The /ui namespace is used to access the Nomad web user interface.
 
 # Nomad Web UI
 
-The Nomad UI is accessible at `/ui`. It is not namespaced by version. A request to `/` will also redirect to `/ui`.
+The Nomad UI is accessible at `/ui`. It is not namespaced by version, so do not
+prepend `/vi` to this endpoint. A request to `/` redirects to `/ui`.
 
 ## List Jobs
 
@@ -559,7 +560,7 @@ authenticate all future requests to allow read access to additional resources.
 
 The Nomad UI supports several keyboard shortcuts in order to help users navigate and operate Nomad. You can use common key commands to dig into jobs, view logs, monitor evaluations, and more.
 
-Type `?` from anywhere in the UI to launch the Keyboard Shortcuts panel. 
+Type `?` from anywhere in the UI to launch the Keyboard Shortcuts panel.
 
 ### Default key commands:
 
