@@ -93,14 +93,13 @@ func NormalizeAddr(addr string) string {
 
 		if uport := u.Port(); uport != "" {
 			uhost = net.JoinHostPort(uhost, uport)
-		} else {
-			if !strings.HasPrefix(uhost, "[") && !strings.HasSuffix(uhost, "]") {
-				// Ensure the IPv6 URL host is bracketed post-normalization.
-				// When*url.URL.String() reassembles the URL it will not consider
-				// whether or not the  *url.URL.Host is RFC 5952 §6 and RFC 3986 §3.2.2
-				// conformant.
-				uhost = "[" + uhost + "]"
-			}
+		} else if !strings.HasPrefix(uhost, "[") && !strings.HasSuffix(uhost, "]") {
+			// Ensure the IPv6 URL host is bracketed post-normalization.
+			// When*url.URL.String() reassembles the URL it will not consider
+			// whether or not the  *url.URL.Host is RFC 5952 §6 and RFC 3986 §3.2.2
+			// conformant.
+			uhost = "[" + uhost + "]"
+
 		}
 		u.Host = uhost
 
