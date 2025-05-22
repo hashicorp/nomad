@@ -8682,6 +8682,10 @@ type Template struct {
 	// ChangeMode is set to script.
 	ChangeScript *ChangeScript
 
+	// Once will wait for the templates to render and then exit without
+	// watching for changes.
+	Once bool
+
 	// Splay is used to avoid coordinated restarts of processes by applying a
 	// random wait between 0 and the given splay value before signalling the
 	// application of a change
@@ -8749,6 +8753,8 @@ func (t *Template) Equal(o *Template) bool {
 	case t.ChangeSignal != o.ChangeSignal:
 		return false
 	case !t.ChangeScript.Equal(o.ChangeScript):
+		return false
+	case t.Once != o.Once:
 		return false
 	case t.Splay != o.Splay:
 		return false

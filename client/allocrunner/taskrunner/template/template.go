@@ -194,7 +194,6 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 	tm.runner = runner
 	tm.lookup = lookup
 
-	go tm.run()
 	return tm, nil
 }
 
@@ -216,8 +215,8 @@ func (tm *TaskTemplateManager) Stop() {
 	}
 }
 
-// run is the long lived loop that handles errors and templates being rendered
-func (tm *TaskTemplateManager) run() {
+// Run is the long lived loop that handles errors and templates being rendered
+func (tm *TaskTemplateManager) Run() {
 	// Runner is nil if there are no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
@@ -263,6 +262,10 @@ func (tm *TaskTemplateManager) run() {
 
 	// handle all subsequent render events.
 	tm.handleTemplateRerenders(time.Now())
+}
+
+func (tm *TaskTemplateManager) Templates() []*structs.Template {
+	return tm.config.Templates
 }
 
 // handleFirstRender blocks till all templates have been rendered
@@ -641,6 +644,9 @@ func templateRunner(config *TaskTemplateManagerConfig) (
 	if err != nil {
 		return nil, nil, err
 	}
+
+	// Default to the value of the first template
+	runnerConfig.Once = config.Templates[0].Once
 
 	runner, err := manager.NewRunner(runnerConfig, false)
 	if err != nil {

@@ -942,6 +942,7 @@ type Template struct {
 	ChangeMode    *string        `mapstructure:"change_mode" hcl:"change_mode,optional"`
 	ChangeScript  *ChangeScript  `mapstructure:"change_script" hcl:"change_script,block"`
 	ChangeSignal  *string        `mapstructure:"change_signal" hcl:"change_signal,optional"`
+	Once          *bool          `mapstructure:"once" hcl:"once,optional"`
 	Splay         *time.Duration `mapstructure:"splay" hcl:"splay,optional"`
 	Perms         *string        `mapstructure:"perms" hcl:"perms,optional"`
 	Uid           *int           `mapstructure:"uid" hcl:"uid,optional"`
@@ -979,6 +980,9 @@ func (tmpl *Template) Canonicalize() {
 	}
 	if tmpl.ChangeScript != nil {
 		tmpl.ChangeScript.Canonicalize()
+	}
+	if tmpl.Once == nil {
+		tmpl.Once = pointerOf(false)
 	}
 	if tmpl.Splay == nil {
 		tmpl.Splay = pointerOf(5 * time.Second)

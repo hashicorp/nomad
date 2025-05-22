@@ -158,6 +158,10 @@ func (h *testHarness) startWithErr() error {
 		MaxTemplateEventRate: h.emitRate,
 		TaskID:               uuid.Generate(),
 	})
+
+	if err == nil {
+		go h.manager.Run()
+	}
 	return err
 }
 

@@ -172,40 +172,37 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 		h.vaultNamespace = req.Task.Vault.Namespace
 	}
 
-	unblockCh, err := h.newManager()
-	if err != nil {
-		return err
+	once, watch := []*structs.Template{}, []*structs.Template{}
+	for _, tmpl := range h.config.templates {
+		if tmpl.Once {
+			once = append(once, tmpl)
+		} else {
+			watch = append(watch, tmpl)
+		}
 	}
 
-	// Wait for the template to render
-	select {
-	case <-ctx.Done():
-	case <-unblockCh:
-	}
-
-	return nil
+	return h.renderTemplates(ctx, once, watch)
 }
 
-func (h *templateHook) newManager() (unblock chan struct{}, err error) {
-	unblock = make(chan struct{})
-
+func (h *templateHook) newManager(ctx context.Context, tmpls []*structs.Template) (manager *template.TaskTemplateManager, unblock chan struct{}, err error) {
 	vaultCluster := h.task.GetVaultClusterName()
 	vaultConfig := h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
-	// Fail if task has a vault block but not client config was found.
+	// Fail if task has a vault block but no client config was found.
 	if h.task.Vault != nil && vaultConfig == nil {
-		return nil, fmt.Errorf("Vault cluster %q is disabled or not configured", vaultCluster)
+		return nil, nil, fmt.Errorf("Vault cluster %q is disabled or not configured", vaultCluster)
 	}
 
 	tg := h.config.alloc.Job.LookupTaskGroup(h.config.alloc.TaskGroup)
 	consulCluster := h.task.GetConsulClusterName(tg)
 	consulConfig := h.config.clientConfig.GetConsulConfigs(h.logger)[consulCluster]
 
+	unblock = make(chan struct{})
 	m, err := template.NewTaskTemplateManager(&template.TaskTemplateManagerConfig{
 		UnblockCh:            unblock,
 		Lifecycle:            h.config.lifecycle,
 		Events:               h.config.events,
-		Templates:            h.config.templates,
+		Templates:            tmpls,
 		ClientConfig:         h.config.clientConfig,
 		ConsulNamespace:      h.config.consulNamespace,
 		ConsulToken:          h.consulToken,
@@ -223,11 +220,10 @@ func (h *templateHook) newManager() (unblock chan struct{}, err error) {
 	})
 	if err != nil {
 		h.logger.Error("failed to create template manager", "error", err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	h.templateManager = m
-	return unblock, nil
+	return m, unblock, nil
 }
 
 func (h *templateHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, resp *interfaces.TaskStopResponse) error {
@@ -243,7 +239,7 @@ func (h *templateHook) Stop(_ context.Context, req *interfaces.TaskStopRequest, 
 }
 
 // Update is used to handle updates to vault and/or nomad tokens.
-func (h *templateHook) Update(_ context.Context, req *interfaces.TaskUpdateRequest, resp *interfaces.TaskUpdateResponse) error {
+func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateRequest, resp *interfaces.TaskUpdateResponse) error {
 	h.managerLock.Lock()
 	defer h.managerLock.Unlock()
 
@@ -260,12 +256,14 @@ func (h *templateHook) Update(_ context.Context, req *interfaces.TaskUpdateReque
 		h.nomadToken = req.NomadToken
 	}
 
+	tmpls := h.templateManager.Templates()
+
 	// shutdown the old template
 	h.templateManager.Stop()
 	h.templateManager = nil
 
-	// create the new template
-	if _, err := h.newManager(); err != nil {
+	err := h.renderTemplates(ctx, nil, tmpls)
+	if err != nil {
 		err = fmt.Errorf("failed to build template manager: %v", err)
 		h.logger.Error("failed to build template manager", "error", err)
 		_ = h.config.lifecycle.Kill(context.Background(),
@@ -274,5 +272,37 @@ func (h *templateHook) Update(_ context.Context, req *interfaces.TaskUpdateReque
 				SetDisplayMessage(fmt.Sprintf("Template update %v", err)))
 	}
 
+	return nil
+}
+
+// renderTemplates creates the template managers and waits until each template has rendered, setting the watch
+// templateManger on the hook when complete so it can be referenced during token updates.
+func (h *templateHook) renderTemplates(ctx context.Context, once []*structs.Template, watch []*structs.Template) error {
+	onceMgr, unblockOne, err := h.newManager(ctx, once)
+	if err != nil {
+		return err
+	}
+
+	watchMgr, unblockWatch, err := h.newManager(ctx, watch)
+	if err != nil {
+		return err
+	}
+
+	go onceMgr.Run()
+	go watchMgr.Run()
+
+	select {
+	case <-ctx.Done():
+	case <-unblockOne:
+	}
+
+	select {
+	case <-ctx.Done():
+	case <-unblockWatch:
+	}
+
+	// The template hook only needs to manage "watched" templates.
+	// We can ignore the "once" manager after it's templates render.
+	h.templateManager = watchMgr
 	return nil
 }
