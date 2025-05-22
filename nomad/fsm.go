@@ -800,18 +800,31 @@ func (n *nomadFSM) applyBatchDeregisterJob(msgType structs.MessageType, buf []by
 // handleJobDeregister is used to deregister a job. Leaves error logging up to
 // caller.
 func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, purge bool, submitTime int64, noShutdownDelay bool, tx state.Txn) error {
+
+	ws := memdb.NewWatchSet()
+	current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
+	if err != nil {
+		return fmt.Errorf("JobByID lookup failed: %w", err)
+	}
+
+	if current == nil {
+		return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
+	}
+
 	// If it is periodic remove it from the dispatcher
 	if err := n.periodicDispatcher.Remove(namespace, jobID); err != nil {
 		return fmt.Errorf("periodicDispatcher.Remove failed: %w", err)
 	}
 
+	stopped := current.Copy()
 	if noShutdownDelay {
-		ws := memdb.NewWatchSet()
 		allocs, err := n.state.AllocsByJob(ws, namespace, jobID, false)
 		if err != nil {
 			return err
 		}
+
 		transition := &structs.DesiredTransition{NoShutdownDelay: pointer.Of(true)}
+
 		for _, alloc := range allocs {
 			err := n.state.UpdateAllocDesiredTransitionTxn(tx, index, alloc.ID, transition)
 			if err != nil {
@@ -835,20 +848,15 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
 	} else {
 		// Get the current job and mark it as stopped and re-insert it.
-		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
-		if err != nil {
-			return fmt.Errorf("JobByID lookup failed: %w", err)
-		}
-
-		if current == nil {
-			return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
-		}
-
-		stopped := current.Copy()
 		stopped.Stop = true
 		if submitTime != 0 {
 			stopped.SubmitTime = submitTime
+		}
+
+		// Disable scaling policies to avoid monitoring stopped jobs
+		scalingPolicies := stopped.GetScalingPolicies()
+		for _, policy := range scalingPolicies {
+			policy.Enabled = false
 		}
 
 		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
