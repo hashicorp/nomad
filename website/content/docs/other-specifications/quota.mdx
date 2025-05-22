@@ -1,26 +1,20 @@
 ---
 layout: docs
-page_title: Resource Quota Specification
-description: Learn about Nomad's Resource Quota specification.
+page_title: Nomad resource quota specification
+description: |-
+  Learn about Nomad's resource quota specification. Review an example resource quota specification. Configure resources, regions, devices, and storage options.
 ---
 
-# Resource Quota Specification
+# Nomad resource quota specification
 
-<EnterpriseAlert>
-Resource Quotas are only available with Nomad Enterprise.
-</EnterpriseAlert>
+[Resource quotas][] let you limit resource consumption across teams or
+projects to reduce waste and align budgets. Manage resource quotas with the CLI [`quota` command][quota] or with Nomad's [Quota HTTP API][].
 
-[Resource Quotas][] enable you to limit resource consumption across teams or
-projects to reduce waste and align budgets.
+<EnterpriseAlert product="nomad" />
 
-You can manage quotas using the Nomad CLI via the [`quota`][] subcommands,
-or with Nomad's [Quota HTTP API][] directly.
+## Example resource quota specification
 
-You may also follow a [Quotas tutorial][] for more example usage.
-
-## Example quota specification
-
-The CLI command `nomad quota init` generates an example `spec.hcl` file.
+This example is a resource quota specification generated with the [`nomad quota init` command][init].
 
 ```hcl
 name        = "default-quota"
@@ -48,7 +42,7 @@ limit {
 }
 ```
 
-## Quota specification parameters
+## Parameters
 
 - `name` `(string)` - The name of the Quota. Nomad uses `name` to connect the
 quota a [`Namespace`][].
@@ -100,13 +94,21 @@ The `storage` block defines limits on provisioned storage.
   MiB. The default `0` means unlimited, and `-1` means variables are fully
   disabled. This field accepts human-friendly string inputs such as "100 GiB".
 
+## Resources
+
+Visit the [Create and use resource quotas tutorial][tutorial] to learn how to
+create quotas, attach a quota to a namespace, secure a quota with ACL, and
+design quotas for federated clusters.
+
+
 [Resource Quotas]: /nomad/docs/enterprise#resource-quotas
-[`quota`]: /nomad/docs/commands/quota
+[quota]: /nomad/docs/commands/quota
 [Quota HTTP API]: /nomad/api-docs/quotas
-[Quotas tutorial]: /nomad/tutorials/governance-and-policy/quotas
+[tutorial]: /nomad/tutorials/governance-and-policy/quotas
 [`Namespace`]: /nomad/docs/other-specifications/namespace
 [variables]: /nomad/docs/concepts/variables
 [`resources`]: /nomad/docs/job-specification/resources
 [CPU concepts]: /nomad/docs/concepts/cpu
 [`device`]: /nomad/docs/job-specification/device#device-parameters
 [dynamic host volumes]: /nomad/docs/other-specifications/volume/host
+[init]: /nomad/docs/commands/quota/init

@@ -1,48 +1,48 @@
 ---
 layout: docs
-page_title: Nomad Agent
+page_title: Nomad agents
 description: |-
   The Nomad agent is a long running process which can be used either in
   a client or server mode.
 ---
 
-# Operating Nomad Agents
+# Nomad agents
 
-The Nomad agent is a long running process which runs on every machine that
-is part of the Nomad cluster. The behavior of the agent depends on if it is
-running in client or server mode. Clients are responsible for running tasks,
-while servers are responsible for managing the cluster.
+A Nomad agent is a long running process that runs on every machine in your Nomad
+cluster. The behavior of the agent depends on if it is running in client or
+server mode. Clients run tasks, while servers manage the cluster.
 
-Client mode agents are relatively simple. They make use of fingerprinting
-to determine the capabilities and resources of the host machine, as well as
-determining what [drivers](/nomad/docs/drivers) are available. Clients
-register with servers to provide the node information, heartbeat to provide
-liveness, and run any tasks assigned to them.
+Server agents are part of the [consensus protocol](/nomad/docs/concepts/consensus) and
+[gossip protocol](/nomad/docs/concepts/gossip). The consensus protocol, powered
+by Raft, lets the servers perform leader election and state replication.
+The gossip protocol allows for server clustering and multi-region federation.
+The higher burden on the server nodes means that you should run them on
+dedicated instances because the servers are more resource intensive than a
+client node.
 
-Servers take on the responsibility of being part of the
-[consensus protocol](/nomad/docs/concepts/consensus) and [gossip protocol](/nomad/docs/concepts/gossip).
-The consensus protocol, powered by Raft, allows the servers to perform
-leader election and state replication. The gossip protocol allows for simple
-clustering of servers and multi-region federation. The higher burden on the
-server nodes means that usually they should be run on dedicated instances --
-they are more resource intensive than a client node.
+Client agents use fingerprinting to determine the capabilities and resources of
+the host machine, as well as what [drivers](/nomad/docs/drivers) are available.
+Clients register with servers to provide node information and a heartbeat.
+Clients run tasks that the server assigns to them. Client nodes make up the
+majority of the cluster and are very lightweight. They interface with the server
+nodes and maintain very little state of their own. Each cluster has usually 3 or
+5 server agents and potentially thousands of clients.
 
-Client nodes make up the majority of the cluster, and are very lightweight as
-they interface with the server nodes and maintain very little state of their
-own. Each cluster has usually 3 or 5 server mode agents and potentially
-thousands of clients.
+## Run an agent
 
-## Running an Agent
+Start the agent with the [`nomad agent` command](/nomad/docs/commands/agent).
+This command blocks, running forever or until told to quit. The `nomad agent`
+command takes a variety of configuration options, but most have sane defaults.
 
-The agent is started with the [`nomad agent` command](/nomad/docs/commands/agent). This
-command blocks, running forever or until told to quit. The agent command takes a variety
-of configuration options, but most have sane defaults.
+<Note title="Linux Users">
 
--> **Note:** If you are running Nomad on Linux, you'll need to run client agents
-as root (or with `sudo`) so that cpuset accounting and network namespaces work
-correctly.
+You must run client agents as root, or with `sudo`, so that cpuset accounting
+and network namespaces work correctly.
 
-When running `nomad agent`, you should see output similar to this:
+</Note>
+
+This example starts the agent in development mode, which means the agents runs
+as both the server and the client. Do not use `-dev` in a production environment.
 
 ```shell-session
 $ sudo nomad agent -dev
@@ -61,60 +61,63 @@ $ sudo nomad agent -dev
 ...
 ```
 
-There are several important messages that `nomad agent` outputs:
+The `nomad agent` command outputs the following important information:
 
-- **Client**: This indicates whether the agent has enabled client mode.
+- **Client**: This indicates whether the agent is running as a client.
   Client nodes fingerprint their host environment, register with servers,
   and run tasks.
 
-- **Log Level**: This indicates the configured log level. Only messages with
-  an equal or higher severity will be logged. This can be tuned to increase
-  verbosity for debugging, or reduced to avoid noisy logging.
+- **Log Level**: This indicates the configured log level. Nomad logs only
+  messages with an equal or higher severity.You may turn change the log level to
+  increase verbosity for debugging or reduce to avoid noisy logging.
 
-- **Region**: This is the region and datacenter in which the agent is configured
-  to run. Nomad has first-class support for multi-datacenter and multi-region
-  configurations. The `-region` and `-dc` flags can be used to set the region
-  and datacenter. The default is the `global` region in `dc1`.
+- **Region**: This is the region and datacenter in which the agent runs. Nomad
+  has first-class support for multi-datacenter and multi-region configurations.
+  Use the `-region` and `-dc` flags to set the region and datacenter. The
+  default is the `global` region in `dc1`.
 
-- **Server**: This indicates whether the agent has enabled server mode.
-  Server nodes have the extra burden of participating in the consensus protocol,
+- **Server**: This indicates whether the agent is running as a server. Server
+  nodes have the extra burden of participating in the consensus protocol,
   storing cluster state, and making scheduling decisions.
 
-## Stopping an Agent
+## Stop an agent
 
-By default, any stop signal to an agent (interrupt or terminate) will cause the
-agent to exit after ensuring its internal state is committed to disk as
-needed. You can configuration additional behaviors by setting shutdown
+By default, any stop signal, such as interrupt or terminate, causes the
+agent to exit after ensuring its internal state is written to disk as
+needed. You can configure additional behaviors by setting shutdown
 [`leave_on_interrupt`][] or [`leave_on_terminate`][] to respond to the
 respective signals.
 
-For servers, when `leave_on_interrupt` or `leave_on_terminate` are set the
-server will notify other servers of their intention to leave the cluster, which
+For servers, when you set `leave_on_interrupt` or `leave_on_terminate`, the
+servers notify other servers of their intention to leave the cluster, which
 allows them to leave the [consensus][] peer set. It is especially important that
-a server node be allowed to leave gracefully so that there will be a minimal
+a server node be allowed to leave gracefully so that there is a minimal
 impact on availability as the server leaves the consensus peer set. If a server
-does not gracefully leave, and will not return into service, the [`server
-force-leave` command][] should be used to eject it from the consensus peer set.
+does not gracefully leave, and will not return into service, use the [`server
+force-leave` command][] to eject that server from the consensus peer set.
 
-For clients, when `leave_on_interrupt` or `leave_on_terminate` are set and the
-client is configured with [`drain_on_shutdown`][], the client will drain its
+For clients, when you set `leave_on_interrupt` or `leave_on_terminate` and the
+client is configured with [`drain_on_shutdown`][], the client drains its
 workloads before shutting down.
 
-## Signal Handling
+## Signal handling
 
 In addition to the optional handling of interrupt (`SIGINT`) and terminate
-signals (`SIGTERM`) described in [Stopping an Agent](#stopping-an-agent), Nomad
-supports special behavior for several other signals useful for debugging.
+signals (`SIGTERM`) described in the [Stop an agent
+section](#stop-an-agent), Nomad supports special behavior for several other
+signals useful for debugging.
 
-* `SIGHUP` will cause Nomad to [reload its configuration][].
-* `SIGUSR1` will cause Nomad to print its [metrics][] without stopping the
+* `SIGHUP` causes Nomad to [reload its configuration][].
+* `SIGUSR1` causes Nomad to print its [metrics][] without stopping the
   agent.
 * `SIGQUIT`, `SIGILL`, `SIGTRAP`, `SIGABRT`, `SIGSTKFLT`, `SIGEMT`, or `SIGSYS`
-  signals are handled by the Go runtime and will cause the Nomad agent to exit
+  signals are handled by the Go runtime. These the Nomad agent to exit
   and print its stack trace.
 
 When using the official HashiCorp packages on Linux, you can send these signals
-via `systemctl`. For example, to print the Nomad agent's metrics:
+via `systemctl`.
+
+This example outputs the Nomad agent's metrics.
 
 ```shell-session
 $ sudo systemctl kill nomad -s SIGUSR1
@@ -132,49 +135,50 @@ Every agent in the Nomad cluster goes through a lifecycle. Understanding
 this lifecycle is useful for building a mental model of an agent's interactions
 with a cluster and how the cluster treats a node.
 
-When a client agent is first started, it fingerprints the host machine to
-identify its attributes, capabilities, and [task drivers](/nomad/docs/drivers).
-These are reported to the servers during an initial registration. The addresses
-of known servers are provided to the agent via configuration, potentially using
-DNS for resolution. Using [Consul](https://www.consul.io/) provides a way to avoid hard
-coding addresses and resolving them on demand.
+When a client agent starts, it fingerprints the host machine to identify its
+attributes, capabilities, and [task drivers](/nomad/docs/drivers). The client
+then reports this information to the servers during an initial registration. You
+provide the addresses of known servers to the agent via configuration,
+potentially using DNS for resolution. Use [Consul](https://www.consul.io/)
+to avoid hard coding addresses and instead resolve them on demand.
 
-While a client is running, it is performing heartbeating with servers to
-maintain liveness. If the heartbeats fail, the servers assume the client node
-has failed, and stop assigning new tasks while migrating existing tasks.
-It is impossible to distinguish between a network failure and an agent crash,
-so both cases are handled the same. Once the network recovers or a crashed agent
-restarts the node status will be updated and normal operation resumed.
+While a client is running, it sends heartbeats to servers to maintain liveness.
+If the heartbeats fail, the servers assume the client node has failed. The
+server then stops assigning new tasks and migrates existing tasks. It is
+impossible to distinguish between a network failure and an agent crash, so Nomad
+handles both
+cases in the same way. Once the network recovers or a crashed agent
+restarts, Nomad updates the node status and resumes normal operation.
 
 To prevent an accumulation of nodes in a terminal state, Nomad does periodic
 garbage collection of nodes. By default, if a node is in a failed or 'down'
-state for over 24 hours it will be garbage collected from the system.
+state for over 24 hours, Nomad garbage collects that node.
 
-Servers are slightly more complex as they perform additional functions. They
+Servers are slightly more complex since they perform additional functions. They
 participate in a [gossip protocol](/nomad/docs/concepts/gossip) both to cluster
-within a region and to support multi-region configurations. When a server is
-first started, it does not know the address of other servers in the cluster.
-To discover its peers, it must _join_ the cluster. This is done with the
+within a region and to support multi-region configurations. When a server starts, it does not know the address of other servers in the cluster.
+To discover its peers, it must join the cluster. You do this with the
 [`server join` command](/nomad/docs/commands/server/join) or by providing the
 proper configuration on start. Once a node joins, this information is gossiped
 to the entire cluster, meaning all nodes will eventually be aware of each other.
 
-When a server _leaves_, it specifies its intent to do so, and the cluster marks that
-node as having _left_. If the server has _left_, replication to it will stop and it
-is removed from the consensus peer set. If the server has _failed_, replication
-will attempt to make progress to recover from a software or network failure.
+When a server leaves, it specifies its intent to do so, and the cluster marks
+that node as having left the cluster. If the server has left, replication to it
+stops, and it is removed from the consensus peer set. If the server has failed,
+replication attempts to make progress to recover from a software or network
+failure.
 
 ## Permissions
 
 Nomad servers and Nomad clients have different requirements for permissions.
 
-Nomad servers should be run with the lowest possible permissions. They need
-access to their own data directory and the ability to bind to their ports. You
-should create a `nomad` user with the minimal set of required privileges.
+Run Nomad servers with the lowest possible permissions. The servers
+need access to their own data directory and the ability to bind to their ports.
+You should create a `nomad` user with the minimal set of required privileges.
 
-Nomad clients should be run as `root` due to the OS isolation mechanisms that
+Run Nomad clients as `root` due to the OS isolation mechanisms that
 require root privileges. While it is possible to run Nomad as an unprivileged
-user, careful testing must be done to ensure the task drivers and features
+user, you must do careful testing to ensure the task drivers and features
 you use function as expected. The Nomad client's data directory should be
 owned by `root` with filesystem permissions set to `0700`.
 
