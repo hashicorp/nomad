@@ -1338,11 +1338,14 @@ func (n *Node) UpdateAlloc(args *structs.AllocUpdateRequest, reply *structs.Gene
 			taskGroup = job.LookupTaskGroup(alloc.TaskGroup)
 		}
 
-		// If we cannot find the task group for a failed alloc we cannot continue, unless it is an orphan.
+		// Add an evaluation if this is a failed alloc that is currently
+		// eligible for rescheduling
 		if evalTriggerBy != structs.EvalTriggerJobDeregister &&
 			allocToUpdate.ClientStatus == structs.AllocClientStatusFailed &&
 			alloc.FollowupEvalID == "" {
 
+			// If we cannot find the task group for a failed alloc we cannot
+			// continue, unless it is an orphan.
 			if taskGroup == nil {
 				n.logger.Debug("UpdateAlloc unable to find task group for job", "job", alloc.JobID, "alloc", alloc.ID, "task_group", alloc.TaskGroup)
 				continue

@@ -4034,6 +4034,10 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		return err
 	}
 
+	if err := s.cancelFollowupEvalsForReconnect(txn, index, copyAlloc, alloc); err != nil {
+		return err
+	}
+
 	// Update the allocation
 	if err := txn.Insert("allocs", copyAlloc); err != nil {
 		return fmt.Errorf("alloc insert failed: %v", err)
@@ -4061,6 +4065,53 @@ func (s *StateStore) nestedUpdateAllocFromClient(txn *txn, index uint64, alloc *
 		}
 	}
 
+	return nil
+}
+
+// cancelFollowupEvalsForReconnect cancels any follow-up evals for an allocation
+// that was awaiting reconnect and gets an update from the client that its
+// status is now known
+func (s *StateStore) cancelFollowupEvalsForReconnect(txn *txn, index uint64, copyAlloc, alloc *structs.Allocation) error {
+
+	evalID, ok := copyAlloc.FollowupEvalForReconnect(alloc)
+	if !ok {
+		return nil
+	}
+
+	copyAlloc.FollowupEvalID = ""
+
+	allJobAllocs, err := s.AllocsByJob(nil, alloc.Namespace, alloc.JobID, true)
+	if err != nil {
+		return fmt.Errorf("could not lookup allocs: %w", err)
+	}
+
+	for _, jobAlloc := range allJobAllocs {
+		if jobAlloc.ID != copyAlloc.ID && jobAlloc.FollowupEvalID == evalID && !jobAlloc.TerminalStatus() {
+			// follow-up eval was created for multiple non-terminal allocs in
+			// the job at the same time, so we leave it alone
+			return nil
+		}
+	}
+
+	raw, err := txn.First("evals", "id", evalID)
+	if err != nil {
+		return fmt.Errorf("followup eval lookup failed: %v", err)
+	}
+	if raw == nil {
+		return nil // eval was deleted by user
+	}
+	eval := raw.(*structs.Evaluation)
+	eval = eval.Copy()
+	eval.Status = structs.EvalStatusCancelled
+	eval.StatusDescription = "allocs reconnected"
+	eval.ModifyIndex = index
+	err = txn.Insert("evals", eval)
+	if err != nil {
+		return err
+	}
+	if err := txn.Insert("index", &IndexEntry{"evals", index}); err != nil {
+		return fmt.Errorf("index update failed: %v", err)
+	}
 	return nil
 }
 

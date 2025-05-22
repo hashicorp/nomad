@@ -11701,6 +11701,22 @@ func (a *Allocation) NeedsToReconnect() bool {
 	return disconnected
 }
 
+// FollowupEvalForReconnect returns the ID of the allocation's follow-up eval if
+// the allocation is waiting to reconnect and the clientUpdate indicates that
+// the client has reconnected.
+func (a *Allocation) FollowupEvalForReconnect(clientUpdate *Allocation) (string, bool) {
+	if !a.NeedsToReconnect() || a.FollowupEvalID == "" {
+		return "", false
+	}
+
+	switch clientUpdate.ClientStatus {
+	case AllocClientStatusRunning, AllocClientStatusComplete, AllocClientStatusFailed:
+		return a.FollowupEvalID, true
+	}
+
+	return "", false
+}
+
 // LastStartOfTask returns the time of the last start event for the given task
 // using the allocations TaskStates. If the task has not started, the zero time
 // will be returned.
