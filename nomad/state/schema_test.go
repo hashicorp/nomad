@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStateStoreSchema(t *testing.T) {
@@ -28,8 +27,6 @@ func TestStateStoreSchema(t *testing.T) {
 func TestState_singleRecord(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	const (
 		singletonTable = "cluster_meta"
 		singletonIDIdx = "id"
@@ -40,7 +37,7 @@ func TestState_singleRecord(t *testing.T) {
 			singletonTable: clusterMetaTableSchema(),
 		},
 	})
-	require.NoError(err)
+	must.NoError(t, err)
 
 	// numRecords in table counts all the items in the table, which is expected
 	// to always be 1 since that's the point of the singletonRecord Indexer.
@@ -49,7 +46,7 @@ func TestState_singleRecord(t *testing.T) {
 		defer txn.Abort()
 
 		iter, err := txn.Get(singletonTable, singletonIDIdx)
-		require.NoError(err)
+		must.NoError(t, err)
 
 		num := 0
 		for item := iter.Next(); item != nil; item = iter.Next() {
@@ -64,7 +61,7 @@ func TestState_singleRecord(t *testing.T) {
 	setSingleton := func(s string) {
 		txn := db.Txn(true)
 		err := txn.Insert(singletonTable, s)
-		require.NoError(err)
+		must.NoError(t, err)
 		txn.Commit()
 	}
 
@@ -75,9 +72,9 @@ func TestState_singleRecord(t *testing.T) {
 		txn := db.Txn(false)
 		defer txn.Abort()
 		record, err := txn.First(singletonTable, singletonIDIdx)
-		require.NoError(err)
+		must.NoError(t, err)
 		s, ok := record.(string)
-		require.True(ok)
+		must.True(t, ok)
 		return s
 	}
 
@@ -85,16 +82,16 @@ func TestState_singleRecord(t *testing.T) {
 	// a single "singleton" record existing in the table.
 
 	setSingleton("one")
-	require.Equal(1, numRecordsInTable())
-	require.Equal("one", first())
+	must.Eq(t, 1, numRecordsInTable())
+	must.Eq(t, "one", first())
 
 	setSingleton("two")
-	require.Equal(1, numRecordsInTable())
-	require.Equal("two", first())
+	must.Eq(t, 1, numRecordsInTable())
+	must.Eq(t, "two", first())
 
 	setSingleton("three")
-	require.Equal(1, numRecordsInTable())
-	require.Equal("three", first())
+	must.Eq(t, 1, numRecordsInTable())
+	must.Eq(t, "three", first())
 }
 
 func Test_jobIsGCable(t *testing.T) {
@@ -270,8 +267,6 @@ func Test_jobIsGCable(t *testing.T) {
 func TestState_ScalingPolicyTargetFieldIndex_FromObject(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
-
 	policy := mock.ScalingPolicy()
 	policy.Target["TestField"] = "test"
 
@@ -281,49 +276,49 @@ func TestState_ScalingPolicyTargetFieldIndex_FromObject(t *testing.T) {
 
 	// Check if box indexers can find the test field
 	ok, val, err := indexersAllowMissingTrue.FromObject(policy)
-	require.True(ok)
-	require.NoError(err)
-	require.Equal("test\x00", string(val))
+	must.True(t, ok)
+	must.NoError(t, err)
+	must.Eq(t, "test\x00", string(val))
 
 	ok, val, err = indexersAllowMissingFalse.FromObject(policy)
-	require.True(ok)
-	require.NoError(err)
-	require.Equal("test\x00", string(val))
+	must.True(t, ok)
+	must.NoError(t, err)
+	must.Eq(t, "test\x00", string(val))
 
 	// Check for empty field
 	policy.Target["TestField"] = ""
 
 	ok, val, err = indexersAllowMissingTrue.FromObject(policy)
-	require.True(ok)
-	require.NoError(err)
-	require.Equal("\x00", string(val))
+	must.True(t, ok)
+	must.NoError(t, err)
+	must.Eq(t, "\x00", string(val))
 
 	ok, val, err = indexersAllowMissingFalse.FromObject(policy)
-	require.True(ok)
-	require.NoError(err)
-	require.Equal("\x00", string(val))
+	must.True(t, ok)
+	must.NoError(t, err)
+	must.Eq(t, "\x00", string(val))
 
 	// Check for missing field
 	delete(policy.Target, "TestField")
 
 	ok, val, err = indexersAllowMissingTrue.FromObject(policy)
-	require.True(ok)
-	require.NoError(err)
-	require.Equal("\x00", string(val))
+	must.True(t, ok)
+	must.NoError(t, err)
+	must.Eq(t, "\x00", string(val))
 
 	ok, val, err = indexersAllowMissingFalse.FromObject(policy)
-	require.False(ok)
-	require.NoError(err)
-	require.Equal("", string(val))
+	must.False(t, ok)
+	must.NoError(t, err)
+	must.Eq(t, "", string(val))
 
 	// Check for invalid input
 	ok, val, err = indexersAllowMissingTrue.FromObject("not-a-scaling-policy")
-	require.False(ok)
-	require.Error(err)
-	require.Equal("", string(val))
+	must.False(t, ok)
+	must.Error(t, err)
+	must.Eq(t, "", string(val))
 
 	ok, val, err = indexersAllowMissingFalse.FromObject("not-a-scaling-policy")
-	require.False(ok)
-	require.Error(err)
-	require.Equal("", string(val))
+	must.False(t, ok)
+	must.Error(t, err)
+	must.Eq(t, "", string(val))
 }

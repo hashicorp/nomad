@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 // TestEventFromChange_SingleEventPerTable ensures that only a single event is
@@ -42,8 +41,8 @@ func TestEventFromChange_SingleEventPerTable(t *testing.T) {
 	}
 
 	out := eventsFromChanges(s.db.ReadTxn(), changes)
-	require.Len(t, out.Events, 1)
-	require.Equal(t, out.Events[0].Type, structs.TypeJobRegistered)
+	must.Len(t, 1, out.Events)
+	must.Eq(t, out.Events[0].Type, structs.TypeJobRegistered)
 }
 
 func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
@@ -52,7 +51,7 @@ func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
 	defer s.StopEventBroker()
 
 	token := mock.ACLToken()
-	require.NotEmpty(t, token.SecretID)
+	must.NotEq(t, "", token.SecretID)
 
 	// Create
 	changes := Changes{
@@ -68,15 +67,15 @@ func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
 	}
 
 	out := eventsFromChanges(s.db.ReadTxn(), changes)
-	require.Len(t, out.Events, 1)
+	must.Len(t, 1, out.Events)
 	// Ensure original value not altered
-	require.NotEmpty(t, token.SecretID)
+	must.NotEq(t, "", token.SecretID)
 
 	aclTokenEvent, ok := out.Events[0].Payload.(*structs.ACLTokenEvent)
-	require.True(t, ok)
-	require.Empty(t, aclTokenEvent.ACLToken.SecretID)
+	must.True(t, ok)
+	must.Eq(t, "", aclTokenEvent.ACLToken.SecretID)
 
-	require.Equal(t, token.SecretID, aclTokenEvent.SecretID())
+	must.Eq(t, token.SecretID, aclTokenEvent.SecretID())
 
 	// Delete
 	changes = Changes{
@@ -92,11 +91,11 @@ func TestEventFromChange_ACLTokenSecretID(t *testing.T) {
 	}
 
 	out2 := eventsFromChanges(s.db.ReadTxn(), changes)
-	require.Len(t, out2.Events, 1)
+	must.Len(t, 1, out2.Events)
 
 	tokenEvent2, ok := out2.Events[0].Payload.(*structs.ACLTokenEvent)
-	require.True(t, ok)
-	require.Empty(t, tokenEvent2.ACLToken.SecretID)
+	must.True(t, ok)
+	must.Eq(t, "", tokenEvent2.ACLToken.SecretID)
 }
 
 func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
@@ -114,8 +113,8 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 	d := mock.Deployment()
 	d.JobID = j.ID
 
-	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	setupTx.Txn.Commit()
 
@@ -131,18 +130,18 @@ func TestEventsFromChanges_DeploymentUpdate(t *testing.T) {
 		// Exlude Job and assert its added
 	}
 
-	require.NoError(t, s.UpdateDeploymentStatus(msgType, 100, req))
+	must.NoError(t, s.UpdateDeploymentStatus(msgType, 100, req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 2)
+	must.Len(t, 2, events)
 
 	got := events[0]
-	require.Equal(t, uint64(100), got.Index)
-	require.Equal(t, d.ID, got.Key)
+	must.Eq(t, uint64(100), got.Index)
+	must.Eq(t, d.ID, got.Key)
 
 	de := got.Payload.(*structs.DeploymentEvent)
-	require.Equal(t, structs.DeploymentStatusPaused, de.Deployment.Status)
-	require.Contains(t, got.FilterKeys, j.ID)
+	must.Eq(t, structs.DeploymentStatusPaused, de.Deployment.Status)
+	must.SliceContains(t, got.FilterKeys, j.ID)
 }
 
 func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
@@ -158,7 +157,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -173,7 +172,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
+	must.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	// create set of allocs
 	c1 := mock.Alloc()
@@ -192,7 +191,7 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 		Healthy: pointer.Of(true),
 	}
 
-	require.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
+	must.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
 
 	// commit setup transaction
 	setupTx.Txn.Commit()
@@ -208,18 +207,18 @@ func TestEventsFromChanges_DeploymentPromotion(t *testing.T) {
 		Eval: e,
 	}
 
-	require.NoError(t, s.UpdateDeploymentPromotion(msgType, 100, req))
+	must.NoError(t, s.UpdateDeploymentPromotion(msgType, 100, req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 4)
+	must.Len(t, 4, events)
 
 	got := events[0]
-	require.Equal(t, uint64(100), got.Index)
-	require.Equal(t, d.ID, got.Key)
+	must.Eq(t, uint64(100), got.Index)
+	must.Eq(t, d.ID, got.Key)
 
 	de := got.Payload.(*structs.DeploymentEvent)
-	require.Equal(t, structs.DeploymentStatusRunning, de.Deployment.Status)
-	require.Equal(t, structs.TypeDeploymentPromotion, got.Type)
+	must.Eq(t, structs.DeploymentStatusRunning, de.Deployment.Status)
+	must.Eq(t, structs.TypeDeploymentPromotion, got.Type)
 }
 
 func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
@@ -235,7 +234,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 	tg2 := tg1.Copy()
 	tg2.Name = "foo"
 	j.TaskGroups = append(j.TaskGroups, tg2)
-	require.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
+	must.NoError(t, s.upsertJobImpl(10, nil, j, false, setupTx))
 
 	d := mock.Deployment()
 	d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
@@ -250,7 +249,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 			DesiredCanaries: 1,
 		},
 	}
-	require.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
+	must.NoError(t, s.upsertDeploymentImpl(10, d, setupTx))
 
 	// create set of allocs
 	c1 := mock.Alloc()
@@ -269,7 +268,7 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 		Healthy: pointer.Of(true),
 	}
 
-	require.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
+	must.NoError(t, s.upsertAllocsImpl(10, []*structs.Allocation{c1, c2}, setupTx))
 
 	// Commit setup
 	setupTx.Commit()
@@ -287,10 +286,10 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, s.UpdateDeploymentAllocHealth(msgType, 100, req))
+	must.NoError(t, s.UpdateDeploymentAllocHealth(msgType, 100, req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 3)
+	must.Len(t, 3, events)
 
 	var allocEvents []structs.Event
 	var deploymentEvent []structs.Event
@@ -302,19 +301,19 @@ func TestEventsFromChanges_DeploymentAllocHealthRequestType(t *testing.T) {
 		}
 	}
 
-	require.Len(t, allocEvents, 2)
+	must.Len(t, 2, allocEvents)
 	for _, e := range allocEvents {
-		require.Equal(t, 100, int(e.Index))
-		require.Equal(t, structs.TypeDeploymentAllocHealth, e.Type)
-		require.Equal(t, structs.TopicAllocation, e.Topic)
+		must.Eq(t, 100, int(e.Index))
+		must.Eq(t, structs.TypeDeploymentAllocHealth, e.Type)
+		must.Eq(t, structs.TopicAllocation, e.Topic)
 	}
 
-	require.Len(t, deploymentEvent, 1)
+	must.Len(t, 1, deploymentEvent)
 	for _, e := range deploymentEvent {
-		require.Equal(t, 100, int(e.Index))
-		require.Equal(t, structs.TypeDeploymentAllocHealth, e.Type)
-		require.Equal(t, structs.TopicDeployment, e.Topic)
-		require.Equal(t, d.ID, e.Key)
+		must.Eq(t, 100, int(e.Index))
+		must.Eq(t, structs.TypeDeploymentAllocHealth, e.Type)
+		must.Eq(t, structs.TopicDeployment, e.Topic)
+		must.Eq(t, d.ID, e.Key)
 	}
 }
 
@@ -327,8 +326,8 @@ func TestEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 	n1 := mock.Node()
 	n2 := mock.Node()
 
-	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 10, n1))
-	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 12, n2))
+	must.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 10, n1))
+	must.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 12, n2))
 
 	msgType := structs.UpsertNodeEventsType
 	req := &structs.EmitNodeEventsRequest{
@@ -346,15 +345,15 @@ func TestEventsFromChanges_UpsertNodeEventsType(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, s.UpsertNodeEvents(msgType, 100, req.NodeEvents))
+	must.NoError(t, s.UpsertNodeEvents(msgType, 100, req.NodeEvents))
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 2)
+	must.Len(t, 2, events)
 
 	for _, e := range events {
-		require.Equal(t, structs.TopicNode, e.Topic)
-		require.Equal(t, structs.TypeNodeEvent, e.Type)
+		must.Eq(t, structs.TopicNode, e.Topic)
+		must.Eq(t, structs.TypeNodeEvent, e.Type)
 		event := e.Payload.(*structs.NodeStreamEvent)
-		require.Equal(t, "update", event.Node.Events[len(event.Node.Events)-1].Message)
+		must.Eq(t, "update", event.Node.Events[len(event.Node.Events)-1].Message)
 	}
 
 }
@@ -367,7 +366,7 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 	// setup
 	n1 := mock.Node()
 
-	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 10, n1))
+	must.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 10, n1))
 
 	updated := time.Now()
 	msgType := structs.NodeUpdateStatusRequestType
@@ -378,16 +377,16 @@ func TestEventsFromChanges_NodeUpdateStatusRequest(t *testing.T) {
 		NodeEvent: &structs.NodeEvent{Message: "down"},
 	}
 
-	require.NoError(t, s.UpdateNodeStatus(msgType, 100, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent))
+	must.NoError(t, s.UpdateNodeStatus(msgType, 100, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent))
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 1)
+	must.Len(t, 1, events)
 
 	e := events[0]
-	require.Equal(t, structs.TopicNode, e.Topic)
-	require.Equal(t, structs.TypeNodeEvent, e.Type)
+	must.Eq(t, structs.TopicNode, e.Topic)
+	must.Eq(t, structs.TypeNodeEvent, e.Type)
 	event := e.Payload.(*structs.NodeStreamEvent)
-	require.Equal(t, "down", event.Node.Events[len(event.Node.Events)-1].Message)
-	require.Equal(t, structs.NodeStatusDown, event.Node.Status)
+	must.Eq(t, "down", event.Node.Events[len(event.Node.Events)-1].Message)
+	must.Eq(t, structs.NodeStatusDown, event.Node.Status)
 }
 
 func TestEventsFromChanges_NodePoolUpsertRequestType(t *testing.T) {
@@ -454,7 +453,7 @@ func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 	// setup
 	e1 := mock.Eval()
 
-	require.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{e1}))
+	must.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{e1}))
 
 	e2 := mock.Eval()
 	e2.ID = e1.ID
@@ -466,18 +465,18 @@ func TestEventsFromChanges_EvalUpdateRequestType(t *testing.T) {
 		Evals: []*structs.Evaluation{e2},
 	}
 
-	require.NoError(t, s.UpsertEvals(msgType, 100, req.Evals))
+	must.NoError(t, s.UpsertEvals(msgType, 100, req.Evals))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 1)
+	must.Len(t, 1, events)
 
 	e := events[0]
-	require.Equal(t, structs.TopicEvaluation, e.Topic)
-	require.Equal(t, structs.TypeEvalUpdated, e.Type)
-	require.Contains(t, e.FilterKeys, e2.JobID)
-	require.Contains(t, e.FilterKeys, e2.DeploymentID)
+	must.Eq(t, structs.TopicEvaluation, e.Topic)
+	must.Eq(t, structs.TypeEvalUpdated, e.Type)
+	must.SliceContains(t, e.FilterKeys, e2.JobID)
+	must.SliceContains(t, e.FilterKeys, e2.DeploymentID)
 	event := e.Payload.(*structs.EvaluationEvent)
-	require.Equal(t, "blocked", event.Evaluation.Status)
+	must.Eq(t, "blocked", event.Evaluation.Status)
 }
 
 func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
@@ -496,13 +495,13 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 	alloc.DeploymentID = d.ID
 	alloc2.DeploymentID = d.ID
 
-	require.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, job))
+	must.NoError(t, s.UpsertJob(structs.MsgTypeTestSetup, 9, nil, job))
 
 	eval := mock.Eval()
 	eval.JobID = job.ID
 
 	// Create an eval
-	require.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{eval}))
+	must.NoError(t, s.UpsertEvals(structs.MsgTypeTestSetup, 10, []*structs.Evaluation{eval}))
 
 	msgType := structs.ApplyPlanResultsRequestType
 	req := &structs.ApplyPlanResultsRequest{
@@ -514,10 +513,10 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 		EvalID:     eval.ID,
 	}
 
-	require.NoError(t, s.UpsertPlanResults(msgType, 100, req))
+	must.NoError(t, s.UpsertPlanResults(msgType, 100, req))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 5)
+	must.Len(t, 5, events)
 
 	var allocs []structs.Event
 	var evals []structs.Event
@@ -533,12 +532,12 @@ func TestEventsFromChanges_ApplyPlanResultsRequestType(t *testing.T) {
 		} else if e.Topic == structs.TopicDeployment {
 			deploys = append(deploys, e)
 		}
-		require.Equal(t, structs.TypePlanResult, e.Type)
+		must.Eq(t, structs.TypePlanResult, e.Type)
 	}
-	require.Len(t, allocs, 2)
-	require.Len(t, evals, 1)
-	require.Len(t, jobs, 1)
-	require.Len(t, deploys, 1)
+	must.Len(t, 2, allocs)
+	must.Len(t, 1, evals)
+	must.Len(t, 1, jobs)
+	must.Len(t, 1, deploys)
 }
 
 func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
@@ -550,8 +549,8 @@ func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
 	n1 := mock.Node()
 	n2 := mock.Node()
 
-	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 10, n1))
-	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 11, n2))
+	must.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 10, n1))
+	must.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 11, n2))
 
 	updated := time.Now()
 	msgType := structs.BatchNodeUpdateDrainRequestType
@@ -582,17 +581,17 @@ func TestEventsFromChanges_BatchNodeUpdateDrainRequestType(t *testing.T) {
 		UpdatedAt: updated.UnixNano(),
 	}
 
-	require.NoError(t, s.BatchUpdateNodeDrain(msgType, 100, req.UpdatedAt, req.Updates, req.NodeEvents))
+	must.NoError(t, s.BatchUpdateNodeDrain(msgType, 100, req.UpdatedAt, req.Updates, req.NodeEvents))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 2)
+	must.Len(t, 2, events)
 
 	for _, e := range events {
-		require.Equal(t, 100, int(e.Index))
-		require.Equal(t, structs.TypeNodeDrain, e.Type)
-		require.Equal(t, structs.TopicNode, e.Topic)
+		must.Eq(t, 100, int(e.Index))
+		must.Eq(t, structs.TypeNodeDrain, e.Type)
+		must.Eq(t, structs.TopicNode, e.Topic)
 		ne := e.Payload.(*structs.NodeStreamEvent)
-		require.Equal(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
+		must.Eq(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
 	}
 }
 
@@ -604,7 +603,7 @@ func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
 	// setup
 	n1 := mock.Node()
 
-	require.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 10, n1))
+	must.NoError(t, s.UpsertNode(structs.MsgTypeTestSetup, 10, n1))
 
 	msgType := structs.NodeUpdateEligibilityRequestType
 
@@ -621,18 +620,18 @@ func TestEventsFromChanges_NodeUpdateEligibilityRequestType(t *testing.T) {
 		UpdatedAt:   time.Now().UnixNano(),
 	}
 
-	require.NoError(t, s.UpdateNodeEligibility(msgType, 100, req.NodeID, req.Eligibility, req.UpdatedAt, req.NodeEvent))
+	must.NoError(t, s.UpdateNodeEligibility(msgType, 100, req.NodeID, req.Eligibility, req.UpdatedAt, req.NodeEvent))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 1)
+	must.Len(t, 1, events)
 
 	for _, e := range events {
-		require.Equal(t, 100, int(e.Index))
-		require.Equal(t, structs.TypeNodeDrain, e.Type)
-		require.Equal(t, structs.TopicNode, e.Topic)
+		must.Eq(t, 100, int(e.Index))
+		must.Eq(t, structs.TypeNodeDrain, e.Type)
+		must.Eq(t, structs.TopicNode, e.Topic)
 		ne := e.Payload.(*structs.NodeStreamEvent)
-		require.Equal(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
-		require.Equal(t, structs.NodeSchedulingIneligible, ne.Node.SchedulingEligibility)
+		must.Eq(t, event.Message, ne.Node.Events[len(ne.Node.Events)-1].Message)
+		must.Eq(t, structs.NodeSchedulingIneligible, ne.Node.SchedulingEligibility)
 	}
 }
 
@@ -643,8 +642,8 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 
 	alloc := mock.Alloc()
 
-	require.Nil(t, s.UpsertJob(structs.MsgTypeTestSetup, 10, nil, alloc.Job))
-	require.Nil(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc}))
+	must.Nil(t, s.UpsertJob(structs.MsgTypeTestSetup, 10, nil, alloc.Job))
+	must.Nil(t, s.UpsertAllocs(structs.MsgTypeTestSetup, 11, []*structs.Allocation{alloc}))
 
 	msgType := structs.AllocUpdateDesiredTransitionRequestType
 
@@ -667,10 +666,10 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 		Evals: evals,
 	}
 
-	require.NoError(t, s.UpdateAllocsDesiredTransitions(msgType, 100, req.Allocs, req.Evals))
+	must.NoError(t, s.UpdateAllocsDesiredTransitions(msgType, 100, req.Allocs, req.Evals))
 
 	events := WaitForEvents(t, s, 100, 1, 1*time.Second)
-	require.Len(t, events, 2)
+	must.Len(t, 2, events)
 
 	var allocs []structs.Event
 	var evalEvents []structs.Event
@@ -680,14 +679,14 @@ func TestEventsFromChanges_AllocUpdateDesiredTransitionRequestType(t *testing.T)
 		} else if e.Topic == structs.TopicAllocation {
 			allocs = append(allocs, e)
 		} else {
-			require.Fail(t, "unexpected event type")
+			t.Fatal("unexpected event type")
 		}
 
-		require.Equal(t, structs.TypeAllocationUpdateDesiredStatus, e.Type)
+		must.Eq(t, structs.TypeAllocationUpdateDesiredStatus, e.Type)
 	}
 
-	require.Len(t, allocs, 1)
-	require.Len(t, evalEvents, 1)
+	must.Len(t, 1, allocs)
+	must.Len(t, 1, evalEvents)
 }
 
 func TestEventsFromChanges_JobBatchDeregisterRequestType(t *testing.T) {
@@ -724,9 +723,9 @@ func TestEventsFromChanges_WithDeletion(t *testing.T) {
 	}
 
 	event := eventsFromChanges(nil, changes)
-	require.NotNil(t, event)
+	must.NotNil(t, event)
 
-	require.Len(t, event.Events, 2)
+	must.Len(t, 2, event.Events)
 }
 
 func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
@@ -750,22 +749,22 @@ func TestEventsFromChanges_WithNodeDeregistration(t *testing.T) {
 	}
 
 	actual := eventsFromChanges(nil, changes)
-	require.NotNil(t, actual)
+	must.NotNil(t, actual)
 
-	require.Len(t, actual.Events, 1)
+	must.Len(t, 1, actual.Events)
 
 	event := actual.Events[0]
 
-	require.Equal(t, structs.TypeNodeDeregistration, event.Type)
-	require.Equal(t, uint64(1), event.Index)
-	require.Equal(t, structs.TopicNode, event.Topic)
-	require.Equal(t, "some-id", event.Key)
+	must.Eq(t, structs.TypeNodeDeregistration, event.Type)
+	must.Eq(t, uint64(1), event.Index)
+	must.Eq(t, structs.TopicNode, event.Topic)
+	must.Eq(t, "some-id", event.Key)
 
-	require.Len(t, event.FilterKeys, 0)
+	must.Len(t, 0, event.FilterKeys)
 
 	nodeEvent, ok := event.Payload.(*structs.NodeStreamEvent)
-	require.True(t, ok)
-	require.Equal(t, *before, *nodeEvent.Node)
+	must.True(t, ok)
+	must.Eq(t, *before, *nodeEvent.Node)
 }
 
 func TestNodeEventsFromChanges(t *testing.T) {
@@ -838,7 +837,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantTopic: structs.TopicNode,
 			Name:      "batch node deregistered",
 			Setup: func(s *StateStore, tx *txn) error {
-				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
+				must.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
 				return upsertNodeTxn(tx, tx.Index, testNode(nodeIDTwo))
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
@@ -870,7 +869,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			WantTopic: structs.TopicNode,
 			Name:      "batch node events upserted",
 			Setup: func(s *StateStore, tx *txn) error {
-				require.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
+				must.NoError(t, upsertNodeTxn(tx, tx.Index, testNode()))
 				return upsertNodeTxn(tx, tx.Index, testNode(nodeIDTwo))
 			},
 			Mutate: func(s *StateStore, tx *txn) error {
@@ -892,7 +891,7 @@ func TestNodeEventsFromChanges(t *testing.T) {
 						},
 					}
 				}
-				require.NoError(t, s.upsertNodeEvents(tx.Index, testNodeID(), eventFn(testNodeID()), tx))
+				must.NoError(t, s.upsertNodeEvents(tx.Index, testNodeID(), eventFn(testNodeID()), tx))
 				return s.upsertNodeEvents(tx.Index, testNodeIDTwo(), eventFn(testNodeIDTwo()), tx)
 			},
 			WantEvents: []structs.Event{
@@ -926,26 +925,26 @@ func TestNodeEventsFromChanges(t *testing.T) {
 			if tc.Setup != nil {
 				// Bypass publish mechanism for setup
 				setupTx := s.db.WriteTxn(10)
-				require.NoError(t, tc.Setup(s, setupTx))
+				must.NoError(t, tc.Setup(s, setupTx))
 				setupTx.Txn.Commit()
 			}
 
 			tx := s.db.WriteTxnMsgT(tc.MsgType, 100)
-			require.NoError(t, tc.Mutate(s, tx))
+			must.NoError(t, tc.Mutate(s, tx))
 
 			changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: tc.MsgType}
 			got := eventsFromChanges(tx, changes)
 
-			require.NotNil(t, got)
+			must.NotNil(t, got)
 
-			require.Equal(t, len(tc.WantEvents), len(got.Events))
+			must.Eq(t, len(tc.WantEvents), len(got.Events))
 			for idx, g := range got.Events {
 				// assert equality of shared fields
 
 				want := tc.WantEvents[idx]
-				require.Equal(t, want.Index, g.Index)
-				require.Equal(t, want.Key, g.Key)
-				require.Equal(t, want.Topic, g.Topic)
+				must.Eq(t, want.Index, g.Index)
+				must.Eq(t, want.Key, g.Key)
+				must.Eq(t, want.Topic, g.Topic)
 
 				switch tc.MsgType {
 				case structs.NodeRegisterRequestType:
@@ -953,9 +952,9 @@ func TestNodeEventsFromChanges(t *testing.T) {
 				case structs.NodeDeregisterRequestType:
 					requireNodeDeregistrationEventEqual(t, tc.WantEvents[idx], g)
 				case structs.UpsertNodeEventsType:
-					requireNodeEventEqual(t, tc.WantEvents[idx], g)
+					requireNodeEventCount(t, 3, g)
 				default:
-					require.Fail(t, "unhandled message type")
+					t.Fatal("unhandled message type")
 				}
 			}
 		})
@@ -976,8 +975,8 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 	alloc1.NodeID = node.ID
 	alloc2.NodeID = node.ID
 
-	require.NoError(t, upsertNodeTxn(setupTx, 10, node))
-	require.NoError(t, s.upsertAllocsImpl(100, []*structs.Allocation{alloc1, alloc2}, setupTx))
+	must.NoError(t, upsertNodeTxn(setupTx, 10, node))
+	must.NoError(t, s.upsertAllocsImpl(100, []*structs.Allocation{alloc1, alloc2}, setupTx))
 	setupTx.Txn.Commit()
 
 	// changes
@@ -994,21 +993,21 @@ func TestNodeDrainEventFromChanges(t *testing.T) {
 	updatedAt := time.Now()
 	event := &structs.NodeEvent{}
 
-	require.NoError(t, s.updateNodeDrainImpl(tx, 100, node.ID, strat, markEligible, updatedAt.UnixNano(), event, nil, "", false))
+	must.NoError(t, s.updateNodeDrainImpl(tx, 100, node.ID, strat, markEligible, updatedAt.UnixNano(), event, nil, "", false))
 	changes := Changes{Changes: tx.Changes(), Index: 100, MsgType: structs.NodeUpdateDrainRequestType}
 	got := eventsFromChanges(tx, changes)
 
-	require.Len(t, got.Events, 1)
+	must.Len(t, 1, got.Events)
 
-	require.Equal(t, structs.TopicNode, got.Events[0].Topic)
-	require.Equal(t, structs.TypeNodeDrain, got.Events[0].Type)
-	require.Equal(t, uint64(100), got.Events[0].Index)
+	must.Eq(t, structs.TopicNode, got.Events[0].Topic)
+	must.Eq(t, structs.TypeNodeDrain, got.Events[0].Type)
+	must.Eq(t, uint64(100), got.Events[0].Index)
 
 	nodeEvent, ok := got.Events[0].Payload.(*structs.NodeStreamEvent)
-	require.True(t, ok)
+	must.True(t, ok)
 
-	require.Equal(t, structs.NodeSchedulingIneligible, nodeEvent.Node.SchedulingEligibility)
-	require.Equal(t, strat, nodeEvent.Node.DrainStrategy)
+	must.Eq(t, structs.NodeSchedulingIneligible, nodeEvent.Node.SchedulingEligibility)
+	must.Eq(t, strat, nodeEvent.Node.DrainStrategy)
 }
 
 func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
@@ -1022,8 +1021,8 @@ func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
 	// Upsert a service registration.
 	writeTxn := testState.db.WriteTxn(10)
 	updated, err := testState.upsertServiceRegistrationTxn(10, writeTxn, service)
-	require.True(t, updated)
-	require.NoError(t, err)
+	must.True(t, updated)
+	must.NoError(t, err)
 	writeTxn.Txn.Commit()
 
 	// Pull the events from the stream.
@@ -1031,17 +1030,17 @@ func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
 	receivedChange := eventsFromChanges(writeTxn, registerChange)
 
 	// Check the event, and it's payload are what we are expecting.
-	require.Len(t, receivedChange.Events, 1)
-	require.Equal(t, structs.TopicService, receivedChange.Events[0].Topic)
-	require.Equal(t, structs.TypeServiceRegistration, receivedChange.Events[0].Type)
-	require.Equal(t, uint64(10), receivedChange.Events[0].Index)
+	must.Len(t, 1, receivedChange.Events)
+	must.Eq(t, structs.TopicService, receivedChange.Events[0].Topic)
+	must.Eq(t, structs.TypeServiceRegistration, receivedChange.Events[0].Type)
+	must.Eq(t, uint64(10), receivedChange.Events[0].Index)
 
 	eventPayload := receivedChange.Events[0].Payload.(*structs.ServiceRegistrationStreamEvent)
-	require.Equal(t, service, eventPayload.Service)
+	must.Eq(t, service, eventPayload.Service)
 
 	// Delete the previously upserted service registration.
 	deleteTxn := testState.db.WriteTxn(20)
-	require.NoError(t, testState.deleteServiceRegistrationByIDTxn(uint64(20), deleteTxn, service.Namespace, service.ID))
+	must.NoError(t, testState.deleteServiceRegistrationByIDTxn(uint64(20), deleteTxn, service.Namespace, service.ID))
 	writeTxn.Txn.Commit()
 
 	// Pull the events from the stream.
@@ -1049,13 +1048,13 @@ func Test_eventsFromChanges_ServiceRegistration(t *testing.T) {
 	receivedDeleteChange := eventsFromChanges(deleteTxn, deregisterChange)
 
 	// Check the event, and it's payload are what we are expecting.
-	require.Len(t, receivedDeleteChange.Events, 1)
-	require.Equal(t, structs.TopicService, receivedDeleteChange.Events[0].Topic)
-	require.Equal(t, structs.TypeServiceDeregistration, receivedDeleteChange.Events[0].Type)
-	require.Equal(t, uint64(20), receivedDeleteChange.Events[0].Index)
+	must.Len(t, 1, receivedDeleteChange.Events)
+	must.Eq(t, structs.TopicService, receivedDeleteChange.Events[0].Topic)
+	must.Eq(t, structs.TypeServiceDeregistration, receivedDeleteChange.Events[0].Type)
+	must.Eq(t, uint64(20), receivedDeleteChange.Events[0].Index)
 
 	eventPayload = receivedChange.Events[0].Payload.(*structs.ServiceRegistrationStreamEvent)
-	require.Equal(t, service, eventPayload.Service)
+	must.Eq(t, service, eventPayload.Service)
 }
 
 func Test_eventsFromChanges_ACLRole(t *testing.T) {
@@ -1070,8 +1069,8 @@ func Test_eventsFromChanges_ACLRole(t *testing.T) {
 	// linked policies exist.
 	writeTxn := testState.db.WriteTxn(10)
 	updated, err := testState.upsertACLRoleTxn(10, writeTxn, aclRole, true)
-	require.True(t, updated)
-	require.NoError(t, err)
+	must.True(t, updated)
+	must.NoError(t, err)
 	writeTxn.Txn.Commit()
 
 	// Pull the events from the stream.
@@ -1079,20 +1078,20 @@ func Test_eventsFromChanges_ACLRole(t *testing.T) {
 	receivedChange := eventsFromChanges(writeTxn, upsertChange)
 
 	// Check the event, and it's payload are what we are expecting.
-	require.Len(t, receivedChange.Events, 1)
-	require.Equal(t, structs.TopicACLRole, receivedChange.Events[0].Topic)
-	require.Equal(t, aclRole.ID, receivedChange.Events[0].Key)
-	require.Equal(t, aclRole.Name, receivedChange.Events[0].FilterKeys[0])
-	require.Equal(t, structs.TypeACLRoleUpserted, receivedChange.Events[0].Type)
-	require.Equal(t, uint64(10), receivedChange.Events[0].Index)
+	must.Len(t, 1, receivedChange.Events)
+	must.Eq(t, structs.TopicACLRole, receivedChange.Events[0].Topic)
+	must.Eq(t, aclRole.ID, receivedChange.Events[0].Key)
+	must.Eq(t, aclRole.Name, receivedChange.Events[0].FilterKeys[0])
+	must.Eq(t, structs.TypeACLRoleUpserted, receivedChange.Events[0].Type)
+	must.Eq(t, uint64(10), receivedChange.Events[0].Index)
 
 	eventPayload := receivedChange.Events[0].Payload.(*structs.ACLRoleStreamEvent)
-	require.Equal(t, aclRole, eventPayload.ACLRole)
+	must.Eq(t, aclRole, eventPayload.ACLRole)
 
 	// Delete the previously upserted ACL role.
 	deleteTxn := testState.db.WriteTxn(20)
-	require.NoError(t, testState.deleteACLRoleByIDTxn(deleteTxn, aclRole.ID))
-	require.NoError(t, deleteTxn.Insert(tableIndex, &IndexEntry{TableACLRoles, 20}))
+	must.NoError(t, testState.deleteACLRoleByIDTxn(deleteTxn, aclRole.ID))
+	must.NoError(t, deleteTxn.Insert(tableIndex, &IndexEntry{TableACLRoles, 20}))
 	deleteTxn.Txn.Commit()
 
 	// Pull the events from the stream.
@@ -1100,15 +1099,15 @@ func Test_eventsFromChanges_ACLRole(t *testing.T) {
 	receivedDeleteChange := eventsFromChanges(deleteTxn, deleteChange)
 
 	// Check the event, and it's payload are what we are expecting.
-	require.Len(t, receivedDeleteChange.Events, 1)
-	require.Equal(t, structs.TopicACLRole, receivedDeleteChange.Events[0].Topic)
-	require.Equal(t, aclRole.ID, receivedDeleteChange.Events[0].Key)
-	require.Equal(t, aclRole.Name, receivedDeleteChange.Events[0].FilterKeys[0])
-	require.Equal(t, structs.TypeACLRoleDeleted, receivedDeleteChange.Events[0].Type)
-	require.Equal(t, uint64(20), receivedDeleteChange.Events[0].Index)
+	must.Len(t, 1, receivedDeleteChange.Events)
+	must.Eq(t, structs.TopicACLRole, receivedDeleteChange.Events[0].Topic)
+	must.Eq(t, aclRole.ID, receivedDeleteChange.Events[0].Key)
+	must.Eq(t, aclRole.Name, receivedDeleteChange.Events[0].FilterKeys[0])
+	must.Eq(t, structs.TypeACLRoleDeleted, receivedDeleteChange.Events[0].Type)
+	must.Eq(t, uint64(20), receivedDeleteChange.Events[0].Index)
 
 	eventPayload = receivedChange.Events[0].Payload.(*structs.ACLRoleStreamEvent)
-	require.Equal(t, aclRole, eventPayload.ACLRole)
+	must.Eq(t, aclRole, eventPayload.ACLRole)
 }
 
 func Test_eventsFromChanges_ACLAuthMethod(t *testing.T) {
@@ -1342,9 +1341,9 @@ func requireNodeRegistrationEventEqual(t *testing.T, want, got structs.Event) {
 	gotPayload := got.Payload.(*structs.NodeStreamEvent)
 
 	// Check payload equality for the fields that we can easily control
-	require.Equal(t, wantPayload.Node.Status, gotPayload.Node.Status)
-	require.Equal(t, wantPayload.Node.ID, gotPayload.Node.ID)
-	require.NotEqual(t, wantPayload.Node.Events, gotPayload.Node.Events)
+	must.Eq(t, wantPayload.Node.Status, gotPayload.Node.Status)
+	must.Eq(t, wantPayload.Node.ID, gotPayload.Node.ID)
+	must.NotEq(t, wantPayload.Node.Events, gotPayload.Node.Events)
 }
 
 func requireNodeDeregistrationEventEqual(t *testing.T, want, got structs.Event) {
@@ -1353,14 +1352,13 @@ func requireNodeDeregistrationEventEqual(t *testing.T, want, got structs.Event) 
 	wantPayload := want.Payload.(*structs.NodeStreamEvent)
 	gotPayload := got.Payload.(*structs.NodeStreamEvent)
 
-	require.Equal(t, wantPayload.Node.ID, gotPayload.Node.ID)
-	require.NotEqual(t, wantPayload.Node.Events, gotPayload.Node.Events)
+	must.Eq(t, wantPayload.Node.ID, gotPayload.Node.ID)
+	must.NotEq(t, wantPayload.Node.Events, gotPayload.Node.Events)
 }
 
-func requireNodeEventEqual(t *testing.T, want, got structs.Event) {
+func requireNodeEventCount(t *testing.T, want int, got structs.Event) {
 	gotPayload := got.Payload.(*structs.NodeStreamEvent)
-
-	require.Len(t, gotPayload.Node.Events, 3)
+	must.Len(t, want, gotPayload.Node.Events)
 }
 
 type nodeOpts func(n *structs.Node)
