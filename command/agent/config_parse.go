@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/hcl/hcl/ast"
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/ipaddr"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/mitchellh/mapstructure"
@@ -434,6 +435,10 @@ func parseVaults(c *Config, list *ast.ObjectList) error {
 			c.Vaults = append(c.Vaults, v)
 		}
 
+		for _, conf := range c.Vaults {
+			conf.Addr = ipaddr.NormalizeAddr(conf.Addr)
+		}
+
 		// Decode the default identity.
 		var listVal *ast.ObjectList
 		if ot, ok := obj.Val.(*ast.ObjectType); ok {
@@ -503,6 +508,11 @@ func parseConsuls(c *Config, list *ast.ObjectList) error {
 		}
 		if !consulFound {
 			c.Consuls = append(c.Consuls, cc)
+		}
+
+		for _, conf := range c.Consuls {
+			conf.Addr = ipaddr.NormalizeAddr(conf.Addr)
+			conf.GRPCAddr = ipaddr.NormalizeAddr(conf.GRPCAddr)
 		}
 
 		// decode service and template identity blocks

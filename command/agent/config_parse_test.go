@@ -1071,7 +1071,7 @@ func TestConfig_MultipleVault(t *testing.T) {
 
 			must.Eq(t, "alternate", cfg.Vaults[1].Name)
 			must.True(t, *cfg.Vaults[1].Enabled)
-			must.Eq(t, "127.0.0.1:9501", cfg.Vaults[1].Addr)
+			must.Eq(t, "[::1f]:9501", cfg.Vaults[1].Addr)
 
 			must.Eq(t, "other", cfg.Vaults[2].Name)
 			must.Nil(t, cfg.Vaults[2].Enabled)
@@ -1123,7 +1123,7 @@ func TestConfig_MultipleConsul(t *testing.T) {
 			must.Eq(t, "abracadabra", defaultConsul.Token)
 
 			must.Eq(t, "alternate", cfg.Consuls[1].Name)
-			must.Eq(t, "127.0.0.2:8501", cfg.Consuls[1].Addr)
+			must.Eq(t, "[::1f]:8501", cfg.Consuls[1].Addr)
 			must.Eq(t, "xyzzy", cfg.Consuls[1].Token)
 
 			must.Eq(t, "other", cfg.Consuls[2].Name)

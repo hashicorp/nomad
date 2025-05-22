@@ -26,6 +26,7 @@ import (
 	client "github.com/hashicorp/nomad/client/config"
 	"github.com/hashicorp/nomad/client/fingerprint"
 	"github.com/hashicorp/nomad/helper"
+	"github.com/hashicorp/nomad/helper/ipaddr"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/users"
 	"github.com/hashicorp/nomad/nomad"
@@ -2004,6 +2005,7 @@ func (c *Config) normalizeAddrs() error {
 		}
 		c.BindAddr = ipStr
 	}
+	c.BindAddr = ipaddr.NormalizeAddr(c.BindAddr)
 
 	httpAddrs, err := normalizeMultipleBind(c.Addresses.HTTP, c.BindAddr)
 	if err != nil {
@@ -2024,9 +2026,12 @@ func (c *Config) normalizeAddrs() error {
 	c.Addresses.Serf = addr
 
 	c.normalizedAddrs = &NormalizedAddrs{
-		HTTP: joinHostPorts(httpAddrs, strconv.Itoa(c.Ports.HTTP)),
-		RPC:  net.JoinHostPort(c.Addresses.RPC, strconv.Itoa(c.Ports.RPC)),
-		Serf: net.JoinHostPort(c.Addresses.Serf, strconv.Itoa(c.Ports.Serf)),
+		RPC:  normalizeAddrWithPort(c.Addresses.RPC, c.Ports.RPC),
+		Serf: normalizeAddrWithPort(c.Addresses.Serf, c.Ports.Serf),
+	}
+	c.normalizedAddrs.HTTP = make([]string, len(httpAddrs))
+	for i, addr := range httpAddrs {
+		c.normalizedAddrs.HTTP[i] = normalizeAddrWithPort(addr, c.Ports.HTTP)
 	}
 
 	addr, err = normalizeAdvertise(c.AdvertiseAddrs.HTTP, httpAddrs[0], c.Ports.HTTP, c.DevMode)
@@ -2109,6 +2114,12 @@ func parseMultipleIPTemplate(ipTmpl string) ([]string, error) {
 	return deduplicateAddrs(ips), nil
 }
 
+// normalizeAddrWithPort assumes that addr does not contain a port,
+// noramlizes it per ipv6 RFC-5942 §4, and appends ":{port}".
+func normalizeAddrWithPort(addr string, port int) string {
+	return ipaddr.NormalizeAddr(net.JoinHostPort(addr, strconv.Itoa(port)))
+}
+
 // normalizeBind returns a normalized bind address.
 //
 // If addr is set it is used, if not the default bind address is used.
@@ -2116,7 +2127,8 @@ func normalizeBind(addr, bind string) (string, error) {
 	if addr == "" {
 		return bind, nil
 	}
-	return listenerutil.ParseSingleIPTemplate(addr)
+	addr, err := listenerutil.ParseSingleIPTemplate(addr)
+	return ipaddr.NormalizeAddr(addr), err
 }
 
 // normalizeMultipleBind returns normalized bind addresses.
@@ -2126,7 +2138,11 @@ func normalizeMultipleBind(addr, bind string) ([]string, error) {
 	if addr == "" {
 		return []string{bind}, nil
 	}
-	return parseMultipleIPTemplate(addr)
+	addrs, err := parseMultipleIPTemplate(addr)
+	for i, addr := range addrs {
+		addrs[i] = ipaddr.NormalizeAddr(addr)
+	}
+	return addrs, err
 }
 
 // normalizeAdvertise returns a normalized advertise address.
@@ -2156,10 +2172,10 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 			}
 
 			// missing port, append the default
-			return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
+			return normalizeAddrWithPort(addr, defport), nil
 		}
 
-		return addr, nil
+		return ipaddr.NormalizeAddr(addr), nil
 	}
 
 	// Fallback to bind address first, and then try resolving the local hostname
@@ -2171,12 +2187,12 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 	// Return the first non-localhost unicast address
 	for _, ip := range ips {
 		if ip.IsLinkLocalUnicast() || ip.IsGlobalUnicast() {
-			return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+			return normalizeAddrWithPort(ip.String(), defport), nil
 		}
 		if ip.IsLoopback() {
 			if dev {
 				// loopback is fine for dev mode
-				return net.JoinHostPort(ip.String(), strconv.Itoa(defport)), nil
+				return normalizeAddrWithPort(ip.String(), defport), nil
 			}
 			return "", fmt.Errorf("Defaulting advertise to localhost is unsafe, please set advertise manually")
 		}
@@ -2187,7 +2203,7 @@ func normalizeAdvertise(addr string, bind string, defport int, dev bool) (string
 	if err != nil {
 		return "", fmt.Errorf("Unable to parse default advertise address: %v", err)
 	}
-	return net.JoinHostPort(addr, strconv.Itoa(defport)), nil
+	return normalizeAddrWithPort(addr, defport), nil
 }
 
 // isMissingPort returns true if an error is a "missing port" error from
@@ -2936,17 +2952,6 @@ func LoadConfigDir(dir string) (*Config, error) {
 	}
 
 	return result, nil
-}
-
-// joinHostPorts joins every addr in addrs with the specified port
-func joinHostPorts(addrs []string, port string) []string {
-	localAddrs := make([]string, len(addrs))
-	for i, k := range addrs {
-		localAddrs[i] = net.JoinHostPort(k, port)
-
-	}
-
-	return localAddrs
 }
 
 // isTemporaryFile returns true or false depending on whether the
