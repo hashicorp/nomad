@@ -1,27 +1,22 @@
 ---
 layout: docs
-page_title: Namespace Specification
-description: Learn about Nomad's Namespace specification.
+page_title: Nomad namespace specification
+description: |-
+  Learn about Nomad's namespace specification. Review namespace parameters. Configure capabilities, node pools, Vault, and Consul.
 ---
 
-# Namespace Specification
+# Nomad namespace specification
 
-<Tip>
-  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
-    Nomad Namespaces tutorial
-  </a> for more information.
-</Tip>
+A Nomad namespace is a way to segment jobs and their associated objects from
+other jobs and other cluster users. Specify Nomad namespaces as HCL files and
+submit them with the [`nomad namespace apply`][cli_ns_apply] CLI command.
+Unlike [job specifications][jobspecs], namespace specifications do not support
+[HCL2][hcl2] features like functions.
 
-
-Nomad Namespaces may be specified as HCL files and submitted by the [`nomad
-namespace apply`][cli_ns_apply] CLI command.
-
-Unlike [Job specifications][jobspecs], Namespace specifications do *not*
-support [HCL2][hcl2] features like functions.
-
-In [federated][] clusters, all updates to namespaces are forwarded to the
-[`authoritative_region`][] and replicated to non-authoritative regions. This
-requires that ACLs have been bootstrapped in the authoritative region.
+In [federated][] clusters, Nomad forwards all namespace updates to the
+[`authoritative_region`][] and replicates the updates to non-authoritative
+regions. This requires that you have bootstrapped ACLs in the authoritative
+region.
 
 Example namespace specification:
 
@@ -62,7 +57,7 @@ consul {
 }
 ```
 
-## Namespace Specification Parameters
+## Parameters
 
 - `name` `(string: <required>)` - Specifies the namespace to create or update.
 
@@ -92,7 +87,7 @@ consul {
   Specifies which Consul clusters are allowed to be used from this
   namespace. These values are checked at job submission.
 
-### `capabilities` Parameters
+### `capabilities` parameters
 
 - `enabled_task_drivers` `(array<string>: [])` - List of task drivers allowed
   in the namespace. If empty all task drivers are allowed.
@@ -106,7 +101,7 @@ consul {
 - `disabled_network_modes` `(array<string>: [])` - List of network modes disabled
   in the namespace.
 
-### `node_pool_config` Parameters <EnterpriseAlert inline />
+### `node_pool_config` parameters <EnterpriseAlert inline />
 
 - `default` `(string: "default")` - Specifies the node pool to use for jobs or
   dynamic host volumes in this namespace that don't define a node pool in their
@@ -126,7 +121,7 @@ consul {
   node pool, except for those that match any of these patterns. This field
   cannot be used with `allowed`.
 
-### `vault` Parameters <EnterpriseAlert inline />
+### `vault` parameters <EnterpriseAlert inline />
 
 - `default` `(string: "default")` - Specifies the Vault cluster to use for jobs
   in this namespace that don't define a Vault cluster in their specification.
@@ -143,7 +138,7 @@ consul {
   any Vault cluster is allowed to be used, except for those that match any of
   these patterns. This field cannot be used with `allowed`.
 
-### `consul` Parameters <EnterpriseAlert inline />
+### `consul` parameters <EnterpriseAlert inline />
 
 - `default` `(string: "default")` - Specifies the Consul cluster to use for jobs
   in this namespace that don't define a Consul cluster in their specification.
@@ -159,6 +154,12 @@ consul {
   globbing through the use of `*` for multi-character matching. If specified,
   any Consul cluster is allowed to be used, except for those that match any of
   these patterns. This field cannot be used with `allowed`.
+
+## Resources
+
+Visit the [Nomad namespaces
+tutorial](/nomad/tutorials/manage-clusters/namespaces) to learn how to create
+and use Nomad namespaces
 
 [cli_ns_apply]: /nomad/docs/commands/namespace/apply
 [hcl2]: /nomad/docs/job-specification/hcl2
