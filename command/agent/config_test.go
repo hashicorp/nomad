@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
+	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
@@ -954,6 +955,33 @@ func TestConfig_normalizeAddrs_IPv6Loopback(t *testing.T) {
 	if c.AdvertiseAddrs.RPC != "[::1]:4647" {
 		t.Errorf("expected [::1] RPC advertise address, got %s", c.AdvertiseAddrs.RPC)
 	}
+}
+
+// TestConfig_normalizeAddrs_IPv6 asserts that bind and advertise addrs conform
+// to RFC 5942 §4: https://www.rfc-editor.org/rfc/rfc5942.html#section-4
+// Full coverage is provided by tests for ipaddr.NormalizeAddr
+func TestConfig_normalizeAddrs_IPv6(t *testing.T) {
+	c := &Config{
+		Addresses: &Addresses{},
+
+		BindAddr: "0:0::1F",
+		Ports: &Ports{
+			HTTP: 4646,
+			RPC:  4647,
+		},
+		AdvertiseAddrs: &AdvertiseAddrs{
+			HTTP: "[A110::0:0:C8]:8080",
+			RPC:  "0:00FA:0:0:0::CE",
+		},
+		DevMode: false,
+	}
+	must.NoError(t, c.normalizeAddrs())
+	test.Eq(t, "::1f", c.Addresses.HTTP, test.Sprint("bind HTTP"))
+	test.Eq(t, "::1f", c.Addresses.RPC, test.Sprint("bind RPC"))
+	test.Eq(t, []string{"[::1f]:4646"}, c.normalizedAddrs.HTTP, test.Sprint("normalized HTTP"))
+	test.Eq(t, "[::1f]:4647", c.normalizedAddrs.RPC, test.Sprint("normalized RPC"))
+	test.Eq(t, "[a110::c8]:8080", c.AdvertiseAddrs.HTTP, test.Sprint("advertise HTTP"))
+	test.Eq(t, "[0:fa::ce]:4647", c.AdvertiseAddrs.RPC, test.Sprint("advertise RPC"))
 }
 
 // TestConfig_normalizeAddrs_MultipleInterface asserts that normalizeAddrs will
