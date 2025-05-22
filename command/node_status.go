@@ -954,16 +954,21 @@ func getAllocatedResources(client *api.Client, runningAllocs []*api.Allocation, 
 		mem += *alloc.Resources.MemoryMB
 		disk += *alloc.Resources.DiskMB
 	}
+	allocCount := strconv.Itoa(len(runningAllocs))
 
+	if node.NodeMaxAllocs != 0 {
+		allocCount = fmt.Sprintf("%d/%d", len(runningAllocs), node.NodeMaxAllocs)
+	}
 	resources := make([]string, 2)
-	resources[0] = "CPU|Memory|Disk"
-	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s",
+	resources[0] = "CPU|Memory|Disk|Alloc Count"
+	resources[1] = fmt.Sprintf("%d/%d MHz|%s/%s|%s/%s|%s",
 		cpu,
 		*total.CPU,
 		humanize.IBytes(uint64(mem*bytesPerMegabyte)),
 		humanize.IBytes(uint64(*total.MemoryMB*bytesPerMegabyte)),
 		humanize.IBytes(uint64(disk*bytesPerMegabyte)),
-		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)))
+		humanize.IBytes(uint64(*total.DiskMB*bytesPerMegabyte)),
+		allocCount)
 
 	return resources
 }

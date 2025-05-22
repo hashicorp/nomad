@@ -1,0 +1,3 @@
+```release-note:improvement
+client: add ability to set maximum allocation count by adding node_max_allocs to client configuration
+```
