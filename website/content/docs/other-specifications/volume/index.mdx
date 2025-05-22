@@ -1,16 +1,12 @@
 ---
 layout: docs
-page_title: Volume Specification
+page_title: Nomad volume specification
 description: |-
-  Learn about the Nomad volume specification. Create and register Container
-  Storage Interface (CSI) and dynamic host volumes using the `volume create`
-  and `volume register` commands and the equivalent API endpoints. Define
-  capability, mount options, topology requests, secrets, and parameters.
+  Learn about the Nomad volume specification. Review an example volume specification. Create and register Container Storage Interface (CSI) and dynamic host volumes. Define capability, mount options, topology requests, secrets, and parameters.
 ---
 
-# Volume Specification
+# Nomad volume specification
 
-The Nomad volume specification defines the schema for creating and registering
 This page provides reference information for the Nomad volume
 specification. Create and register Container Storage Interface (CSI) and dynamic
 host volumes using the [`volume create`][] and [`volume register`][] commands
@@ -25,8 +21,9 @@ so read the documentation for each attribute carefully.
 * [Dynamic host volume specification][dhv_spec]
 
 Provide the file as either HCL or JSON to the commands and as JSON to
-the API. An example HCL configuration for a `volume create` command with a CSI
-volume:
+the API.
+
+This example HCL configuration is for a CSI volume.
 
 ```hcl
 id           = "ebs_prod_db1"
