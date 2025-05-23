@@ -369,6 +369,7 @@ var (
 		"auth_soft_fail": hclspec.NewAttr("auth_soft_fail", "bool", false),
 		"cap_add":        hclspec.NewAttr("cap_add", "list(string)", false),
 		"cap_drop":       hclspec.NewAttr("cap_drop", "list(string)", false),
+		"cgroupns":       hclspec.NewAttr("cgroupns", "string", false),
 		"command":        hclspec.NewAttr("command", "string", false),
 		"cpuset_cpus":    hclspec.NewAttr("cpuset_cpus", "string", false),
 		"cpu_hard_limit": hclspec.NewAttr("cpu_hard_limit", "bool", false),
@@ -459,6 +460,7 @@ type TaskConfig struct {
 	AuthSoftFail            bool               `codec:"auth_soft_fail"`
 	CapAdd                  []string           `codec:"cap_add"`
 	CapDrop                 []string           `codec:"cap_drop"`
+	CgroupnsMode            string             `codec:"cgroupns"`
 	Command                 string             `codec:"command"`
 	ContainerExistsAttempts uint64             `codec:"container_exists_attempts"`
 	CPUCFSPeriod            int64              `codec:"cpu_cfs_period"`
