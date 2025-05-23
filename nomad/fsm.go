@@ -834,33 +834,34 @@ func (n *nomadFSM) handleJobDeregister(index uint64, jobID, namespace string, pu
 		// the job was updated to be non-periodic, thus checking if it is periodic
 		// doesn't ensure we clean it up properly.
 		n.state.DeletePeriodicLaunchTxn(index, namespace, jobID, tx)
-	} else {
-		// Get the current job and mark it as stopped and re-insert it.
-		ws := memdb.NewWatchSet()
-		current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
-		if err != nil {
-			return fmt.Errorf("JobByID lookup failed: %w", err)
-		}
+		return nil
+	}
 
-		if current == nil {
-			return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
-		}
+	// Get the current job and mark it as stopped and re-insert it.
+	ws := memdb.NewWatchSet()
+	current, err := n.state.JobByIDTxn(ws, namespace, jobID, tx)
+	if err != nil {
+		return fmt.Errorf("JobByID lookup failed: %w", err)
+	}
 
-		stopped := current.Copy()
-		stopped.Stop = true
-		if submitTime != 0 {
-			stopped.SubmitTime = submitTime
-		}
+	if current == nil {
+		return fmt.Errorf("job %q in namespace %q doesn't exist to be deregistered", jobID, namespace)
+	}
 
-		// Disable scaling policies to avoid monitoring stopped jobs
-		scalingPolicies := stopped.GetScalingPolicies()
-		for _, policy := range scalingPolicies {
-			policy.Enabled = false
-		}
+	stopped := current.Copy()
+	stopped.Stop = true
+	if submitTime != 0 {
+		stopped.SubmitTime = submitTime
+	}
 
-		if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
-			return fmt.Errorf("UpsertJob failed: %w", err)
-		}
+	// Disable scaling policies to avoid monitoring stopped jobs
+	scalingPolicies := stopped.GetScalingPolicies()
+	for _, policy := range scalingPolicies {
+		policy.Enabled = false
+	}
+
+	if err := n.state.UpsertJobTxn(index, nil, stopped, tx); err != nil {
+		return fmt.Errorf("UpsertJob failed: %w", err)
 	}
 
 	return nil
