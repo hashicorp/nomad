@@ -1046,6 +1046,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	cpuShares := d.cpuResources(task.Resources.LinuxResources.CPUShares)
 
 	hostConfig := &containerapi.HostConfig{
+		CgroupnsMode: containerapi.CgroupnsMode(driverConfig.CgroupnsMode),
 		// do not set cgroup parent anymore
 
 		OomScoreAdj: driverConfig.OOMScoreAdj, // ignored on platforms other than linux
