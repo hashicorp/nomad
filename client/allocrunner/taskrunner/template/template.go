@@ -154,7 +154,22 @@ func (c *TaskTemplateManagerConfig) Validate() error {
 		return fmt.Errorf("Invalid max template event rate given")
 	}
 
+	// Once is a runner config, but in Nomad it is set per template, so all
+	// templates given to a runner should have the same value for Once.
+	var once bool
+	for i, t := range c.Templates {
+		if i == 0 {
+			once = t.Once
+		} else if t.Once != once {
+			return fmt.Errorf("All templates should have same Once value")
+		}
+	}
+
 	return nil
+}
+
+func (c *TaskTemplateManagerConfig) OnceModeEnabled() bool {
+	return len(c.Templates) > 0 && c.Templates[0].Once
 }
 
 func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
@@ -414,6 +429,8 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 		select {
 		case <-tm.shutdownCh:
 			return
+		case <-tm.runner.DoneCh:
+			return
 		case err, ok := <-tm.runner.ErrCh:
 			if !ok {
 				continue
@@ -644,9 +661,6 @@ func templateRunner(config *TaskTemplateManagerConfig) (
 	if err != nil {
 		return nil, nil, err
 	}
-
-	// Default to the value of the first template
-	runnerConfig.Once = config.Templates[0].Once
 
 	runner, err := manager.NewRunner(runnerConfig, false)
 	if err != nil {
@@ -960,6 +974,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			return nil, err
 		}
 	}
+
+	conf.Once = config.OnceModeEnabled()
 
 	sandboxEnabled := isSandboxEnabled(config)
 	sandboxDir := filepath.Dir(config.TaskDir) // alloc working directory

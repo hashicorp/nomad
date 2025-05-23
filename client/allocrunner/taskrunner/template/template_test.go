@@ -309,6 +309,31 @@ func TestTaskTemplateManager_InvalidConfig(t *testing.T) {
 			},
 			expectedErr: "parse signal",
 		},
+		{
+			name: "different Once values",
+			config: &TaskTemplateManagerConfig{
+				UnblockCh: hooks.UnblockCh,
+				Templates: []*structs.Template{
+					{
+						DestPath:     "foo",
+						EmbeddedTmpl: "hello, world",
+						Once:         true,
+					},
+					{
+						DestPath:     "bar",
+						EmbeddedTmpl: "hello, world",
+						Once:         false,
+					},
+				},
+				ClientConfig:         clientConfig,
+				Lifecycle:            hooks,
+				Events:               hooks,
+				TaskDir:              taskDir,
+				EnvBuilder:           envBuilder,
+				MaxTemplateEventRate: DefaultMaxTemplateEventRate,
+			},
+			expectedErr: "templates should have same Once value",
+		},
 	}
 
 	for _, c := range cases {

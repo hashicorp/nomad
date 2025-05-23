@@ -184,7 +184,7 @@ func (h *templateHook) Prestart(ctx context.Context, req *interfaces.TaskPrestar
 	return h.renderTemplates(ctx, once, watch)
 }
 
-func (h *templateHook) newManager(ctx context.Context, tmpls []*structs.Template) (manager *template.TaskTemplateManager, unblock chan struct{}, err error) {
+func (h *templateHook) newManager(tmpls []*structs.Template) (manager *template.TaskTemplateManager, unblock chan struct{}, err error) {
 	vaultCluster := h.task.GetVaultClusterName()
 	vaultConfig := h.config.clientConfig.GetVaultConfigs(h.logger)[vaultCluster]
 
@@ -278,12 +278,12 @@ func (h *templateHook) Update(ctx context.Context, req *interfaces.TaskUpdateReq
 // renderTemplates creates the template managers and waits until each template has rendered, setting the watch
 // templateManger on the hook when complete so it can be referenced during token updates.
 func (h *templateHook) renderTemplates(ctx context.Context, once []*structs.Template, watch []*structs.Template) error {
-	onceMgr, unblockOne, err := h.newManager(ctx, once)
+	onceMgr, unblockOne, err := h.newManager(once)
 	if err != nil {
 		return err
 	}
 
-	watchMgr, unblockWatch, err := h.newManager(ctx, watch)
+	watchMgr, unblockWatch, err := h.newManager(watch)
 	if err != nil {
 		return err
 	}
@@ -293,11 +293,13 @@ func (h *templateHook) renderTemplates(ctx context.Context, once []*structs.Temp
 
 	select {
 	case <-ctx.Done():
+		onceMgr.Stop()
 	case <-unblockOne:
 	}
 
 	select {
 	case <-ctx.Done():
+		watchMgr.Stop()
 	case <-unblockWatch:
 	}
 
