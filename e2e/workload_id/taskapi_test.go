@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/e2e/v3/cluster3"
+	"github.com/hashicorp/nomad/e2e/v3/jobs3"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
@@ -26,6 +28,7 @@ func TestTaskAPI(t *testing.T) {
 
 	t.Run("testTaskAPI_Auth", testTaskAPIAuth)
 	t.Run("testTaskAPI_Windows", testTaskAPIWindows)
+	t.Run("testTaskAPI_NomadCLI", testTaskAPINomadCLI)
 }
 
 func testTaskAPIAuth(t *testing.T) {
@@ -128,4 +131,18 @@ func testTaskAPIWindows(t *testing.T) {
 	logs := string(logBytes)
 
 	must.StrHasSuffix(t, `"ok":true}}`, logs)
+}
+
+func testTaskAPINomadCLI(t *testing.T) {
+	cluster3.Establish(t,
+		cluster3.LinuxClients(1),
+	)
+	sub, _ := jobs3.Submit(t,
+		"./input/api-nomad-cli.nomad.hcl",
+		jobs3.WaitComplete("grp"),
+	)
+	logs := sub.TaskLogs("grp", "tsk")
+	test.StrContains(t, logs.Stdout, "unix:/") // from `echo $NOMAD_ADDR`
+	test.StrContains(t, logs.Stdout, "secrets/api.sock")
+	test.StrContains(t, logs.Stderr, "Variable not found") // api success
 }
