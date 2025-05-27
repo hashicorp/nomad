@@ -170,6 +170,12 @@ client {
   parallel destroys allowed by the garbage collector. This value should be
   relatively low to avoid high resource usage during garbage collections.
 
+- `gc_volumes_on_node_gc` `(bool: false)` - Specifies that the server should
+  delete any dynamic host volumes on this node when the node is garbage
+  collected. You should only set this to `true` if you know that garbage
+  collected nodes will never rejoin the cluster, such as with ephemeral cloud
+  hosts.
+
 - `no_host_uuid` `(bool: true)` - By default a random node UUID will be
   generated, but setting this to `false` will use the system's UUID.
 

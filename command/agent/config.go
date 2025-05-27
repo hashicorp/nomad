@@ -342,6 +342,11 @@ type ClientConfig struct {
 	// before garbage collection is triggered.
 	GCMaxAllocs int `hcl:"gc_max_allocs"`
 
+	// GCVolumesOnNodeGC indicates that the server should GC any dynamic host
+	// volumes on this node when the node is GC'd. This should only be set if
+	// you know that a GC'd node can never come back
+	GCVolumesOnNodeGC bool `hcl:"gc_volumes_on_node_gc"`
+
 	// NoHostUUID disables using the host's UUID and will force generation of a
 	// random UUID.
 	NoHostUUID *bool `hcl:"no_host_uuid"`
@@ -2562,6 +2567,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	}
 	if b.GCMaxAllocs != 0 {
 		result.GCMaxAllocs = b.GCMaxAllocs
+	}
+	if b.GCVolumesOnNodeGC {
+		result.GCVolumesOnNodeGC = b.GCVolumesOnNodeGC
 	}
 	// NoHostUUID defaults to true, merge if false
 	if b.NoHostUUID != nil {
