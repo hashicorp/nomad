@@ -5,6 +5,7 @@ package agent
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -131,6 +132,17 @@ func (s *HTTPServer) hostVolumeDelete(id string, resp http.ResponseWriter, req *
 	// the existing HTTP routes for CSI
 	args := structs.HostVolumeDeleteRequest{VolumeID: id}
 	s.parseWriteRequest(req, &args.WriteRequest)
+
+	raw := req.URL.Query().Get("force")
+	var force bool
+	if raw != "" {
+		var err error
+		force, err = strconv.ParseBool(raw)
+		if err != nil {
+			return nil, CodedError(400, "invalid force value")
+		}
+	}
+	args.Force = force
 
 	var out structs.HostVolumeDeleteResponse
 	if err := s.agent.RPC("HostVolume.Delete", &args, &out); err != nil {

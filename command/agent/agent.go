@@ -946,6 +946,8 @@ func convertClientConfig(agentConfig *Config) (*clientconfig.Config, error) {
 	conf.GCDiskUsageThreshold = agentConfig.Client.GCDiskUsageThreshold
 	conf.GCInodeUsageThreshold = agentConfig.Client.GCInodeUsageThreshold
 	conf.GCMaxAllocs = agentConfig.Client.GCMaxAllocs
+	conf.GCVolumesOnNodeGC = agentConfig.Client.GCVolumesOnNodeGC
+
 	if agentConfig.Client.NoHostUUID != nil {
 		conf.NoHostUUID = *agentConfig.Client.NoHostUUID
 	} else {

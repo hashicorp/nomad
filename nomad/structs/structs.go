@@ -2157,6 +2157,11 @@ type Node struct {
 	// HostVolumes is a map of host volume names to their configuration
 	HostVolumes map[string]*ClientHostVolumeConfig
 
+	// GCVolumesOnNodeGC indicates that the server should GC any dynamic host
+	// volumes on this node when the node is GC'd. This should only be set if
+	// you know that a GC'd node can never come back
+	GCVolumesOnNodeGC bool
+
 	// HostNetworks is a map of host host_network names to their configuration
 	HostNetworks map[string]*ClientHostNetworkConfig
 
