@@ -90,34 +90,34 @@ func validateJWTAllocs(allocs []*nomadapi.AllocationListStub) error {
 				return fmt.Errorf("expected alloc status complete, got %s", s)
 			}
 
-		// Verify all tasks in "fail" group fail for the expected reasons.
-		case "fail":
-			for task, state := range alloc.TaskStates {
-				switch task {
-
-				// Verify "unauthorized" task can't access Vault secret.
-				case "unauthorized":
-					hasEvent := false
-					for _, ev := range state.Events {
-						if strings.Contains(ev.DisplayMessage, "Missing: vault.read") {
-							hasEvent = true
-							break
-						}
-					}
-					if !hasEvent {
-						got := make([]string, 0, len(state.Events))
-						for _, ev := range state.Events {
-							got = append(got, ev.DisplayMessage)
-						}
-						return fmt.Errorf("missing expected event, got [%v]", strings.Join(got, ", "))
-					}
-
-				// Verify "missing_vault" task fails.
-				case "missing_vault":
-					if !state.Failed {
-						return fmt.Errorf("expected task to fail")
-					}
+		// Verify task in unauthorized
+		case "fail_unauthorized":
+			state, ok := alloc.TaskStates["unauthorized"]
+			if !ok {
+				return fmt.Errorf("expected task states for task: unauthorized")
+			}
+			hasEvent := false
+			for _, ev := range state.Events {
+				if strings.Contains(ev.DisplayMessage, "Missing: vault.read") {
+					hasEvent = true
+					break
 				}
+			}
+			if !hasEvent {
+				got := make([]string, 0, len(state.Events))
+				for _, ev := range state.Events {
+					got = append(got, ev.DisplayMessage)
+				}
+				return fmt.Errorf("missing expected event, got [%v]", strings.Join(got, ", "))
+			}
+
+		case "fail_missing":
+			state, ok := alloc.TaskStates["missing_vault"]
+			if !ok {
+				return fmt.Errorf("expected task states for task: missing_vault")
+			}
+			if !state.Failed {
+				return fmt.Errorf("expected task to fail")
 			}
 		}
 	}

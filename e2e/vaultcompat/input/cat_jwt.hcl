@@ -66,7 +66,7 @@ EOF
   }
 
   // Tasks in this group are expected to fail or never complete.
-  group "fail" {
+  group "fail_unauthorized" {
 
     // Task unauthorized fails to access secrets it doesn't have access to.
     task "unauthorized" {
@@ -86,6 +86,9 @@ EOF
 
       vault {}
     }
+  }
+
+  group "fail_missing" {
 
     // Task missing_vault fails to access the Vault token because it doesn't
     // have a vault block, so Nomad doesn't derive a token.
