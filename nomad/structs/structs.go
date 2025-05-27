@@ -2168,6 +2168,9 @@ type Node struct {
 	// LastDrain contains metadata about the most recent drain operation
 	LastDrain *DrainMetadata
 
+	// NodeMaxAllocs defaults to 0 unless set in the client config
+	NodeMaxAllocs int
+
 	// LastMissedHeartbeatIndex stores the Raft index when the node last missed
 	// a heartbeat. It resets to zero once the node is marked as ready again.
 	LastMissedHeartbeatIndex uint64
@@ -2330,7 +2333,6 @@ func (n *Node) HasEvent(msg string) bool {
 
 // Stub returns a summarized version of the node
 func (n *Node) Stub(fields *NodeStubFields) *NodeListStub {
-
 	addr, _, _ := net.SplitHostPort(n.HTTPAddr)
 
 	s := &NodeListStub{

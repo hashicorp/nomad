@@ -419,6 +419,10 @@ type ClientConfig struct {
 
 	// ExtraKeysHCL is used by hcl to surface unexpected keys
 	ExtraKeysHCL []string `hcl:",unusedKeys" json:"-"`
+
+	// NodeMaxAllocs sets the maximum number of allocations per node
+	// Defaults to 0 and ignored if unset.
+	NodeMaxAllocs int `hcl:"node_max_allocs"`
 }
 
 func (c *ClientConfig) Copy() *ClientConfig {
@@ -2644,6 +2648,9 @@ func (a *ClientConfig) Merge(b *ClientConfig) *ClientConfig {
 	result.Drain = a.Drain.Merge(b.Drain)
 	result.Users = a.Users.Merge(b.Users)
 
+	if b.NodeMaxAllocs != 0 {
+		result.NodeMaxAllocs = b.NodeMaxAllocs
+	}
 	return &result
 }
 

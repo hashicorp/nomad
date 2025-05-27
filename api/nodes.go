@@ -573,6 +573,7 @@ type Node struct {
 	LastDrain             *DrainMetadata
 	CreateIndex           uint64
 	ModifyIndex           uint64
+	NodeMaxAllocs         int
 }
 
 type NodeResources struct {

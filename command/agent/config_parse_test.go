@@ -697,7 +697,10 @@ var sample0 = &Config{
 		RPC:  "host.example.com",
 		Serf: "host.example.com",
 	},
-	Client: &ClientConfig{ServerJoin: &ServerJoin{}},
+	Client: &ClientConfig{
+		ServerJoin:    &ServerJoin{},
+		NodeMaxAllocs: 5,
+	},
 	Server: &ServerConfig{
 		Enabled:         true,
 		BootstrapExpect: 3,
