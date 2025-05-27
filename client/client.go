@@ -1595,6 +1595,8 @@ func (c *Client) setupNode() error {
 			node.HostVolumes[k] = v.Copy()
 		}
 	}
+	node.GCVolumesOnNodeGC = newConfig.GCVolumesOnNodeGC
+
 	if node.HostNetworks == nil {
 		if l := len(newConfig.HostNetworks); l != 0 {
 			node.HostNetworks = make(map[string]*structs.ClientHostNetworkConfig, l)
