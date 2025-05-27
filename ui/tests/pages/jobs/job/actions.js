@@ -57,7 +57,7 @@ export default create({
             click: clickable('button'),
           }
         ),
-        showsDisclosureContent: isPresent('.hds-disclosure-primitive__content'),
+        showsDisclosureContent: isPresent('.hds-reveal__content'),
       }
     ),
     singleAllocActions: collection(
@@ -68,7 +68,7 @@ export default create({
           click: clickable(),
           expanded: attribute('aria-expanded'),
         }),
-        showsDisclosureContent: isPresent('.hds-disclosure-primitive__content'),
+        showsDisclosureContent: isPresent('.hds-reveal__content'),
       }
     ),
   },
