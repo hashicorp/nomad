@@ -74,7 +74,12 @@ func testJob(jobID string) *api.Job {
 		AddTask(task).
 		RequireDisk(&api.EphemeralDisk{
 			SizeMB: pointer.Of(20),
-		})
+		}).ScalingPolicy(&api.ScalingPolicy{
+		Min:     pointer.Of(int64(1)),
+		Max:     pointer.Of(int64(5)),
+		Enabled: pointer.Of(true),
+		ID:      "scaling-policy-id",
+	})
 
 	job := api.NewBatchJob(jobID, jobID, "global", 1).
 		AddDatacenter("dc1").

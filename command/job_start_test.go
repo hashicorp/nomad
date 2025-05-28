@@ -4,6 +4,7 @@
 package command
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/hashicorp/cli"
@@ -41,7 +42,15 @@ func TestStartCommand(t *testing.T) {
 		client, err := cmd.Meta.Client()
 		must.NoError(t, err)
 
-		_, _, err = client.Jobs().Register(job, nil)
+		jsonBytes, err := json.Marshal(job)
+		must.NoError(t, err)
+
+		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
+			Submission: &api.JobSubmission{
+				Source: string(jsonBytes),
+				Format: "json",
+			},
+		}, nil)
 		must.NoError(t, err)
 
 		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
