@@ -86,6 +86,16 @@ EOF
 
       vault {}
     }
+
+    restart {
+      attempts = 0
+      mode     = "fail"
+    }
+
+    reschedule {
+      attempts  = 0
+      unlimited = false
+    }
   }
 
   group "fail_missing" {
