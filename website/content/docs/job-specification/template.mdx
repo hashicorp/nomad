@@ -118,6 +118,12 @@ refer to the [Learn Go Template Syntax][gt_learn] guide.
   inside the container may have different IDs than on the host system. This
   feature will also **not** work with Docker Desktop.
 
+- `Once` `(bool: false)` - Specifies that the client will wait for the template
+  to be rendered, and then no longer watch the dependencies specified in the
+  template. This is useful for templates that do not need to be updated. Once mode
+  implicitly disables wait/quiescence timers for this template, and ignores change
+  mode/signal/script settings.
+
 - `right_delimiter` `(string: "}}")` - Specifies the right delimiter to use in the
   template. The default is "}}" for some templates, it may be easier to use a
   different delimiter that does not conflict with the output file itself.
