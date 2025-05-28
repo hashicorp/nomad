@@ -247,6 +247,7 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 		st.Canonicalize()
 		must.Nil(t, st.Config)
 		must.Nil(t, st.Env)
+		must.Nil(t, st.Identities)
 		must.Eq(t, DefaultResources(), st.Resources)
 		must.Eq(t, DefaultLogConfig(), st.LogConfig)
 		must.Nil(t, st.Meta)
@@ -262,6 +263,24 @@ func TestSidecarTask_Canonicalize(t *testing.T) {
 		}
 		st.Canonicalize()
 		must.Eq(t, exp, st.Resources)
+	})
+
+	t.Run("non empty sidecar_task identity", func(t *testing.T) {
+		exp := &WorkloadIdentity{
+			Name:     "testident",
+			Audience: []string{"foo.example.com"},
+			File:     true,
+		}
+		st := &SidecarTask{
+			Identities: []*WorkloadIdentity{{
+				Name:     "testident",
+				Audience: []string{"foo.example.com"},
+				File:     true,
+			}},
+		}
+		st.Canonicalize()
+		must.Eq(t, 1, len(st.Identities))
+		must.Eq(t, exp, st.Identities[0])
 	})
 
 	t.Run("non empty sidecar_task volume_mount", func(t *testing.T) {
