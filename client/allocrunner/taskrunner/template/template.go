@@ -154,7 +154,22 @@ func (c *TaskTemplateManagerConfig) Validate() error {
 		return fmt.Errorf("Invalid max template event rate given")
 	}
 
+	// Once is a runner config, but in Nomad it is set per template, so all
+	// templates given to a runner should have the same value for Once.
+	var once bool
+	for i, t := range c.Templates {
+		if i == 0 {
+			once = t.Once
+		} else if t.Once != once {
+			return fmt.Errorf("All templates should have same Once value")
+		}
+	}
+
 	return nil
+}
+
+func (c *TaskTemplateManagerConfig) OnceModeEnabled() bool {
+	return len(c.Templates) > 0 && c.Templates[0].Once
 }
 
 func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateManager, error) {
@@ -194,7 +209,6 @@ func NewTaskTemplateManager(config *TaskTemplateManagerConfig) (*TaskTemplateMan
 	tm.runner = runner
 	tm.lookup = lookup
 
-	go tm.run()
 	return tm, nil
 }
 
@@ -216,8 +230,8 @@ func (tm *TaskTemplateManager) Stop() {
 	}
 }
 
-// run is the long lived loop that handles errors and templates being rendered
-func (tm *TaskTemplateManager) run() {
+// Run is the long lived loop that handles errors and templates being rendered
+func (tm *TaskTemplateManager) Run() {
 	// Runner is nil if there are no templates
 	if tm.runner == nil {
 		// Unblock the start if there is nothing to do
@@ -263,6 +277,10 @@ func (tm *TaskTemplateManager) run() {
 
 	// handle all subsequent render events.
 	tm.handleTemplateRerenders(time.Now())
+}
+
+func (tm *TaskTemplateManager) Templates() []*structs.Template {
+	return tm.config.Templates
 }
 
 // handleFirstRender blocks till all templates have been rendered
@@ -410,6 +428,8 @@ func (tm *TaskTemplateManager) handleTemplateRerenders(allRenderedTime time.Time
 	for {
 		select {
 		case <-tm.shutdownCh:
+			return
+		case <-tm.runner.DoneCh:
 			return
 		case err, ok := <-tm.runner.ErrCh:
 			if !ok {
@@ -954,6 +974,8 @@ func newRunnerConfig(config *TaskTemplateManagerConfig,
 			return nil, err
 		}
 	}
+
+	conf.Once = config.OnceModeEnabled()
 
 	sandboxEnabled := isSandboxEnabled(config)
 	sandboxDir := filepath.Dir(config.TaskDir) // alloc working directory

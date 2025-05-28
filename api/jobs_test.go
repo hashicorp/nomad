@@ -749,6 +749,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										Envvars:       pointerOf(false),
 										VaultGrace:    pointerOf(time.Duration(0)),
 										ErrMissingKey: pointerOf(false),
+										Once:          pointerOf(false),
 									},
 									{
 										SourcePath:    pointerOf(""),
@@ -763,6 +764,7 @@ func TestJobs_Canonicalize(t *testing.T) {
 										Envvars:       pointerOf(true),
 										VaultGrace:    pointerOf(time.Duration(0)),
 										ErrMissingKey: pointerOf(false),
+										Once:          pointerOf(false),
 									},
 								},
 							},
