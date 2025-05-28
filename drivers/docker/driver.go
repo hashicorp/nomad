@@ -1028,6 +1028,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	}
 
 	hostConfig := &containerapi.HostConfig{
+		CgroupnsMode: driverConfig.CgroupnsMode,
 		// do not set cgroup parent anymore
 
 		OomScoreAdj: driverConfig.OOMScoreAdj, // ignored on platforms other than linux
