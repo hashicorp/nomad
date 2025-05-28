@@ -4,10 +4,15 @@
 package affinities
 
 import (
-	"github.com/hashicorp/nomad/e2e/framework"
+	"fmt"
+	"time"
+
+	"github.com/shoenig/test/must"
+	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
@@ -41,19 +46,28 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "affinities/input/single_affinity.nomad", jobId, "")
 
 	jobAllocs := nomadClient.Allocations()
-	require := require.New(f.T())
+
 	// Verify affinity score metadata
-	for _, allocStub := range allocs {
-		alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
-		require.Nil(err)
-		require.NotEmpty(alloc.Metrics.ScoreMetaData)
-		for _, sm := range alloc.Metrics.ScoreMetaData {
-			score, ok := sm.Scores["node-affinity"]
-			if ok {
-				require.Equal(1.0, score)
+	must.Wait(f.T(), wait.InitialSuccess(
+		wait.ErrorFunc(func() error {
+			for _, allocStub := range allocs {
+				alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
+				must.Nil(f.T(), err)
+				must.SliceNotEmpty(f.T(), alloc.Metrics.ScoreMetaData)
+				for _, sm := range alloc.Metrics.ScoreMetaData {
+					score, ok := sm.Scores["node-affinity"]
+					if ok {
+						if score != 1.0 {
+							return fmt.Errorf("expected node affinity score to be 1.0, got %v", score)
+						}
+					}
+				}
 			}
-		}
-	}
+			return nil
+		}),
+		wait.Timeout(time.Second*10),
+		wait.Gap(time.Millisecond*30),
+	))
 
 }
 
