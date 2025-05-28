@@ -78,7 +78,7 @@ func testVaultBuild(t *testing.T, b build) {
 
 func validateJWTAllocs(allocs []*nomadapi.AllocationListStub) error {
 	if n := len(allocs); n != 3 {
-		return fmt.Errorf("expected 2 allocs, got %d", n)
+		return fmt.Errorf("expected 3 allocs, got %d", n)
 	}
 
 	for _, alloc := range allocs {
