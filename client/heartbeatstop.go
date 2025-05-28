@@ -10,18 +10,19 @@ import (
 	hclog "github.com/hashicorp/go-hclog"
 
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
+	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
 type heartbeatStop struct {
-	lastOk        time.Time
-	startupGrace  time.Time
-	allocInterval map[string]time.Duration
-	allocHookCh   chan *structs.Allocation
-	getRunner     func(string) (interfaces.AllocRunner, error)
-	logger        hclog.InterceptLogger
-	shutdownCh    chan struct{}
-	lock          *sync.RWMutex
+	lastOk       time.Time
+	startupGrace time.Time
+	allocHookCh  chan *structs.Allocation
+	heartbeatCh  chan struct{}
+	getRunner    func(string) (interfaces.AllocRunner, error)
+	logger       hclog.InterceptLogger
+	shutdownCh   chan struct{}
+	lock         *sync.RWMutex
 }
 
 func newHeartbeatStop(
@@ -31,13 +32,13 @@ func newHeartbeatStop(
 	shutdownCh chan struct{}) *heartbeatStop {
 
 	h := &heartbeatStop{
-		startupGrace:  time.Now().Add(timeout),
-		allocInterval: make(map[string]time.Duration),
-		allocHookCh:   make(chan *structs.Allocation),
-		getRunner:     getRunner,
-		logger:        logger,
-		shutdownCh:    shutdownCh,
-		lock:          &sync.RWMutex{},
+		startupGrace: time.Now().Add(timeout),
+		allocHookCh:  make(chan *structs.Allocation, 10),
+		heartbeatCh:  make(chan struct{}, 1),
+		getRunner:    getRunner,
+		logger:       logger,
+		shutdownCh:   shutdownCh,
+		lock:         &sync.RWMutex{},
 	}
 
 	return h
@@ -46,8 +47,7 @@ func newHeartbeatStop(
 // allocHook is called after (re)storing a new AllocRunner in the client. It registers the
 // allocation to be stopped if the taskgroup is configured appropriately
 func (h *heartbeatStop) allocHook(alloc *structs.Allocation) {
-	tg := allocTaskGroup(alloc)
-	if tg.GetDisconnectStopTimeout() != nil {
+	if _, ok := getDisconnectStopTimeout(alloc); ok {
 		h.allocHookCh <- alloc
 	}
 }
@@ -55,10 +55,8 @@ func (h *heartbeatStop) allocHook(alloc *structs.Allocation) {
 // shouldStop is called on a restored alloc to determine if lastOk is sufficiently in the
 // past that it should be prevented from restarting
 func (h *heartbeatStop) shouldStop(alloc *structs.Allocation) bool {
-	tg := allocTaskGroup(alloc)
-	timeout := tg.GetDisconnectStopTimeout()
-	if timeout != nil {
-		return h.shouldStopAfter(time.Now(), *timeout)
+	if timeout, ok := getDisconnectStopTimeout(alloc); ok {
+		return h.shouldStopAfter(time.Now(), timeout)
 	}
 	return false
 }
@@ -77,63 +75,66 @@ func (h *heartbeatStop) watch() {
 	// If we never manage to successfully contact the server, we want to stop our allocs
 	// after duration + start time
 	h.setLastOk(time.Now())
-	stop := make(chan string, 1)
-	var now time.Time
+	allocIntervals := map[string]time.Duration{}
 	var interval time.Duration
-	checkAllocs := false
+
+	maxInterval := time.Hour
+	timer, stopTimer := helper.NewStoppedTimer()
+	defer stopTimer()
 
 	for {
-		// minimize the interval
-		interval = 5 * time.Second
-		for _, t := range h.allocInterval {
+		// we want to fire the ticker only once the shortest
+		// stop_on_client_after interval has expired. we'll reset the ticker on
+		// every heartbeat and every time a new alloc appears
+		interval = maxInterval
+		for _, t := range allocIntervals {
 			if t < interval {
 				interval = t
 			}
 		}
-
-		checkAllocs = false
-		timeout := time.After(interval)
+		timer.Reset(interval)
 
 		select {
-		case allocID := <-stop:
-			if err := h.stopAlloc(allocID); err != nil {
-				h.logger.Warn("error stopping on heartbeat timeout", "alloc", allocID, "error", err)
-				continue
-			}
-			delete(h.allocInterval, allocID)
-
 		case alloc := <-h.allocHookCh:
-			tg := allocTaskGroup(alloc)
-			timeout := tg.GetDisconnectStopTimeout()
-			if timeout != nil {
-				h.allocInterval[alloc.ID] = *timeout
+			// receiving a new alloc implies we're still connected, so we'll go
+			// back to the top to reset the interval
+			if timeout, ok := getDisconnectStopTimeout(alloc); ok {
+				allocIntervals[alloc.ID] = timeout
 			}
 
-		case <-timeout:
-			checkAllocs = true
+		case <-h.heartbeatCh:
+			continue
 
 		case <-h.shutdownCh:
 			return
-		}
 
-		if !checkAllocs {
-			continue
-		}
-
-		now = time.Now()
-		for allocID, d := range h.allocInterval {
-			if h.shouldStopAfter(now, d) {
-				stop <- allocID
+		case now := <-timer.C:
+			for allocID, d := range allocIntervals {
+				if h.shouldStopAfter(now, d) {
+					if err := h.stopAlloc(allocID); err != nil {
+						h.logger.Warn("error stopping on heartbeat timeout",
+							"alloc", allocID, "error", err)
+						continue
+					}
+					delete(allocIntervals, allocID)
+				}
 			}
+
 		}
 	}
 }
 
-// setLastOk sets the last known good heartbeat time to the current time, and persists that time to disk
+// setLastOk sets the last known good heartbeat time to the current time
 func (h *heartbeatStop) setLastOk(t time.Time) {
 	h.lock.Lock()
 	defer h.lock.Unlock()
 	h.lastOk = t
+	select {
+	case h.heartbeatCh <- struct{}{}:
+	default:
+		// if the channel is full then the watch loop has a heartbeat it needs
+		// to dequeue to reset its timer anyways, so just drop this one
+	}
 }
 
 func (h *heartbeatStop) getLastOk() time.Time {
@@ -155,11 +156,17 @@ func (h *heartbeatStop) stopAlloc(allocID string) error {
 	return nil
 }
 
-func allocTaskGroup(alloc *structs.Allocation) *structs.TaskGroup {
+// getDisconnectStopTimeout is a helper that gets the alloc's StopOnClientAfter
+// timeout and handles the possible nil pointers safely
+func getDisconnectStopTimeout(alloc *structs.Allocation) (time.Duration, bool) {
 	for _, tg := range alloc.Job.TaskGroups {
 		if tg.Name == alloc.TaskGroup {
-			return tg
+			timeout := tg.GetDisconnectStopTimeout()
+			if timeout != nil {
+				return *timeout, true
+			}
+			break
 		}
 	}
-	return nil
+	return 0, false
 }
