@@ -36,6 +36,17 @@ and startup processes which must complete before it is considered healthy, such
 as keyring decryption. If these processes do not complete before the timeout is
 reached, the server process will exit and any errors logged to the console.
 
+#### Corrected `/v1/acl/token/self` response codes
+
+Nomad 1.10.1 responds with different HTTP response codes to API calls sent to
+`/v1/acl/token/self`. For users that do not have ACLs enabled, the endpoint
+responds with 200 code and a response body that indicates that ACLs are
+disabled. Previously, the response code in such a scenario was 404.
+
+For users that do have ACLs enabled and do not have a valid ACL token present,
+the endpoint responds with 403 code. Previously , the response code in such a
+scenario was 404.
+
 ## Nomad 1.10.0
 
 @include 'release-notes/v1-10/deprecate-variable-limits.mdx'
