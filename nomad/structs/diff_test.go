@@ -8557,6 +8557,12 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeAdded,
+								Name: "Once",
+								Old:  "",
+								New:  "false",
+							},
+							{
+								Type: DiffTypeAdded,
 								Name: "Perms",
 								Old:  "",
 								New:  "0776",
@@ -8689,6 +8695,12 @@ func TestTaskDiff(t *testing.T) {
 								Type: DiffTypeDeleted,
 								Name: "Gid",
 								Old:  "20",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Once",
+								Old:  "false",
 								New:  "",
 							},
 							{

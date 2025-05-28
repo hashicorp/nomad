@@ -32,7 +32,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
+func TestTemplateHook_Prestart_ConsulWI(t *testing.T) {
 	ci.Parallel(t)
 	logger := testlog.HCLogger(t)
 
@@ -144,7 +144,7 @@ func Test_templateHook_Prestart_ConsulWI(t *testing.T) {
 	}
 }
 
-func Test_templateHook_Prestart_Vault(t *testing.T) {
+func TestTemplateHook_Prestart_Vault(t *testing.T) {
 	ci.Parallel(t)
 
 	secretsResp := `
@@ -269,6 +269,69 @@ func Test_templateHook_Prestart_Vault(t *testing.T) {
 			must.True(t, gotRequest)
 		})
 	}
+}
+
+func TestTemplateHook_Update(t *testing.T) {
+	logger := testlog.HCLogger(t)
+	tmpDir := t.TempDir()
+
+	clientConfig := config.DefaultConfig()
+	clientConfig.TemplateConfig.DisableSandbox = true
+
+	alloc := mock.BatchAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	envBuilder := taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region)
+
+	lifecycle := trtesting.NewMockTaskHooks()
+	lifecycle.SetupExecTest(117, fmt.Errorf("oh no"))
+	lifecycle.HasHandle = true
+
+	events := &trtesting.MockEmitter{}
+	hook := newTemplateHook(&templateHookConfig{
+		alloc:     alloc,
+		logger:    logger,
+		lifecycle: lifecycle,
+		events:    events,
+		templates: []*structs.Template{
+			{
+				DestPath:     filepath.Join(tmpDir, "foo1.txt"),
+				EmbeddedTmpl: "foo1",
+			},
+			{
+				DestPath:     filepath.Join(tmpDir, "foo2.txt"),
+				EmbeddedTmpl: "foo2",
+				Once:         true,
+			},
+		},
+		clientConfig:  clientConfig,
+		envBuilder:    envBuilder,
+		hookResources: &cstructs.AllocHookResources{},
+	})
+	req := &interfaces.TaskPrestartRequest{
+		Alloc:   alloc,
+		Task:    task,
+		TaskDir: &allocdir.TaskDir{Dir: tmpDir},
+	}
+
+	// sets the templateManager used in update
+	must.NoError(t, hook.Prestart(context.TODO(), req, nil))
+
+	// deleted rendered templates
+	os.RemoveAll(filepath.Join(tmpDir, "foo1.txt"))
+	os.RemoveAll(filepath.Join(tmpDir, "foo2.txt"))
+
+	updateReq := &interfaces.TaskUpdateRequest{
+		Alloc:      alloc,
+		VaultToken: "a new token!",
+	}
+
+	must.NoError(t, hook.Update(context.TODO(), updateReq, nil))
+
+	// only templates with once = false should be rendered
+	_, err := os.Stat(filepath.Join(tmpDir, "foo1.txt"))
+	must.NoError(t, err)
+	_, err = os.Stat(filepath.Join(tmpDir, "foo2.txt"))
+	must.Error(t, err)
 }
 
 // TestTemplateHook_RestoreChangeModeScript exercises change_mode=script
