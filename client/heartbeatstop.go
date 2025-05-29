@@ -76,9 +76,7 @@ func (h *heartbeatStop) watch() {
 	// after duration + start time
 	h.setLastOk(time.Now())
 	allocIntervals := map[string]time.Duration{}
-	var interval time.Duration
 
-	maxInterval := time.Hour
 	timer, stopTimer := helper.NewStoppedTimer()
 	defer stopTimer()
 
@@ -86,27 +84,31 @@ func (h *heartbeatStop) watch() {
 		// we want to fire the ticker only once the shortest
 		// stop_on_client_after interval has expired. we'll reset the ticker on
 		// every heartbeat and every time a new alloc appears
-		interval = maxInterval
+		var interval time.Duration
 		for _, t := range allocIntervals {
-			if t < interval {
+			if t < interval || interval == 0 {
 				interval = t
 			}
 		}
-		timer.Reset(interval)
+		if interval != 0 {
+			timer.Reset(interval)
+		} else {
+			timer.Stop()
+		}
 
 		select {
+		case <-h.heartbeatCh:
+			continue
+
+		case <-h.shutdownCh:
+			return
+
 		case alloc := <-h.allocHookCh:
 			// receiving a new alloc implies we're still connected, so we'll go
 			// back to the top to reset the interval
 			if timeout, ok := getDisconnectStopTimeout(alloc); ok {
 				allocIntervals[alloc.ID] = timeout
 			}
-
-		case <-h.heartbeatCh:
-			continue
-
-		case <-h.shutdownCh:
-			return
 
 		case now := <-timer.C:
 			for allocID, d := range allocIntervals {

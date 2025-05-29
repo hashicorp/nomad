@@ -53,7 +53,7 @@ func TestHeartbeatStop(t *testing.T) {
 	// an alloc with a longer lease
 	alloc2 := alloc1.Copy()
 	alloc2.ID = uuid.Generate()
-	alloc2.Job.TaskGroups[0].Disconnect.StopOnClientAfter = pointer.Of(time.Minute)
+	alloc2.Job.TaskGroups[0].Disconnect.StopOnClientAfter = pointer.Of(2 * time.Second)
 
 	// an alloc with no disconnect config
 	alloc3 := alloc1.Copy()
@@ -102,15 +102,10 @@ func TestHeartbeatStop(t *testing.T) {
 			return nil
 		})))
 
-	// set the last heartbeat into the past
-	stopper.setLastOk(time.Now().Add(-1 * time.Hour))
-
-	// update the second alloc so that we unblock without having to wait forever
-	alloc2.Job.TaskGroups[0].Disconnect.StopOnClientAfter = pointer.Of(time.Microsecond)
-	stopper.allocHook(alloc2)
+	// skip the next heartbeat
 
 	must.Wait(t, wait.InitialSuccess(
-		wait.Timeout(time.Second),
+		wait.Timeout(2*time.Second),
 		wait.ErrorFunc(func() error {
 			if destroyers[alloc1.ID].checkCalls() != 1 {
 				return fmt.Errorf("first alloc should no longer be tracked")
