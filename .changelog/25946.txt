@@ -1,0 +1,3 @@
+```release-note:bug
+client: Fixed a bug where disconnect.stop_on_client_after timeouts were extended or ignored
+```
