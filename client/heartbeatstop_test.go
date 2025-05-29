@@ -4,7 +4,7 @@
 package client
 
 import (
-	"fmt"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -53,7 +53,7 @@ func TestHeartbeatStop(t *testing.T) {
 	// an alloc with a longer lease
 	alloc2 := alloc1.Copy()
 	alloc2.ID = uuid.Generate()
-	alloc2.Job.TaskGroups[0].Disconnect.StopOnClientAfter = pointer.Of(2 * time.Second)
+	alloc2.Job.TaskGroups[0].Disconnect.StopOnClientAfter = pointer.Of(500 * time.Millisecond)
 
 	// an alloc with no disconnect config
 	alloc3 := alloc1.Copy()
@@ -71,15 +71,16 @@ func TestHeartbeatStop(t *testing.T) {
 
 	must.Wait(t, wait.InitialSuccess(
 		wait.Timeout(time.Second),
+		wait.Gap(10*time.Millisecond),
 		wait.ErrorFunc(func() error {
 			if destroyers[alloc1.ID].checkCalls() != 1 {
-				return fmt.Errorf("first alloc was not destroyed as expected")
+				return errors.New("first alloc was not destroyed as expected")
 			}
 			if destroyers[alloc2.ID].checkCalls() != 0 {
-				return fmt.Errorf("second alloc was unexpectedly destroyed")
+				return errors.New("second alloc was unexpectedly destroyed")
 			}
 			if destroyers[alloc3.ID].checkCalls() != 0 {
-				return fmt.Errorf("third alloc should never be destroyed")
+				return errors.New("third alloc should never be destroyed")
 			}
 			return nil
 		})))
@@ -88,16 +89,17 @@ func TestHeartbeatStop(t *testing.T) {
 	stopper.setLastOk(time.Now())
 
 	must.Wait(t, wait.ContinualSuccess(
-		wait.Timeout(time.Second),
+		wait.Timeout(200*time.Millisecond),
+		wait.Gap(10*time.Millisecond),
 		wait.ErrorFunc(func() error {
 			if destroyers[alloc1.ID].checkCalls() != 1 {
-				return fmt.Errorf("first alloc should no longer be tracked")
+				return errors.New("first alloc should no longer be tracked")
 			}
 			if destroyers[alloc2.ID].checkCalls() != 0 {
-				return fmt.Errorf("second alloc was unexpectedly destroyed")
+				return errors.New("second alloc was unexpectedly destroyed")
 			}
 			if destroyers[alloc3.ID].checkCalls() != 0 {
-				return fmt.Errorf("third alloc should never be destroyed")
+				return errors.New("third alloc should never be destroyed")
 			}
 			return nil
 		})))
@@ -105,16 +107,17 @@ func TestHeartbeatStop(t *testing.T) {
 	// skip the next heartbeat
 
 	must.Wait(t, wait.InitialSuccess(
-		wait.Timeout(2*time.Second),
+		wait.Timeout(1*time.Second),
+		wait.Gap(10*time.Millisecond),
 		wait.ErrorFunc(func() error {
 			if destroyers[alloc1.ID].checkCalls() != 1 {
-				return fmt.Errorf("first alloc should no longer be tracked")
+				return errors.New("first alloc should no longer be tracked")
 			}
 			if destroyers[alloc2.ID].checkCalls() != 1 {
-				return fmt.Errorf("second alloc should have been destroyed")
+				return errors.New("second alloc should have been destroyed")
 			}
 			if destroyers[alloc3.ID].checkCalls() != 0 {
-				return fmt.Errorf("third alloc should never be destroyed")
+				return errors.New("third alloc should never be destroyed")
 			}
 			return nil
 		})))
