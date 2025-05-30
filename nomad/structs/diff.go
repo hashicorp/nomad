@@ -1709,6 +1709,11 @@ func sidecarTaskDiff(old, new *SidecarTask, contextual bool) *ObjectDiff {
 		diff.Objects = append(diff.Objects, lDiff)
 	}
 
+	// volume_mount diff
+	if vDiffs := volumeMountsDiffs(old.VolumeMounts, new.VolumeMounts, contextual); vDiffs != nil {
+		diff.Objects = append(diff.Objects, vDiffs...)
+	}
+
 	return diff
 }
 
