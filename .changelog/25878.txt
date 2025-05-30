@@ -1,3 +1,3 @@
 ```release-note:bug
-task: consider volume_mounts in sidecarTaskDiff
+job: Ensure sidecar task volume_mounts are added to planning diff object
 ```
