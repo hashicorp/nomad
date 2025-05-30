@@ -25,53 +25,61 @@
         @searchTerm={{mut this.searchTerm}}
         @placeholder="Search events..."
       />
+      <Hds::Button @text="Downlaod" @icon="download" @isIconOnly={{true}} {{on "click" (action this.downloadHistory)}} />
     {{/unless}}
   </header>
   {{#unless this.isHidden}}
-  <div class="timeline-container">
-    <ol class="timeline">
-      {{#each this.history as |deployment-log|}}
-        <li class="timeline-object {{if (eq deployment-log.exitCode 1) "error"}}">
-          <div class="boxed-section-head is-light">
-            <LinkTo @route="allocations.allocation" @model={{deployment-log.state.allocation.id}} class="allocation-reference">{{deployment-log.state.allocation.shortId}}</LinkTo>
-            <span><strong>{{deployment-log.type}}:</strong> {{deployment-log.message}}</span>
-            <span class="pull-right">
-              {{format-ts deployment-log.time}}
-            </span>
-          </div>
-        </li>
-      {{else}}
-        {{#if this.errorState}}
-          <li class="timeline-object">
-            <div class="boxed-section-head is-light">
-              <span>Error loading deployment history</span>
-            </div>
-          </li>
-        {{else}}
-          {{#if this.deploymentAllocations.length}}
-            {{#if this.searchTerm}}
-              <li class="timeline-object" data-test-history-search-no-match>
+    <div class="timeline-container">
+      <div class="timeline-categories">
+        {{#each this.categorizedHistory as |category|}}
+          <Hds::Text::Display @tag="h3">{{category.period}}</Hds::Text::Display>
+          <ol class="timeline">
+            {{#each category.realEvents as |deployment-log|}}
+              <li class="timeline-object {{if (eq deployment-log.exitCode 1) "error"}}">
                 <div class="boxed-section-head is-light">
-                  <span>No events match {{this.searchTerm}}</span>
+                  <LinkTo @route="allocations.allocation" @model={{deployment-log.state.allocation.id}} class="allocation-reference">{{deployment-log.state.allocation.shortId}}</LinkTo>
+                  <span><strong>{{deployment-log.type}}:</strong> {{deployment-log.message}}</span>
+                  <span class="pull-right">
+                    {{!-- {{format-ts deployment-log.time}} --}}
+                    {{format-ts deployment-log.time format="MMM Do, HH:mm:ss"}}
+                    {{!-- {{moment-from-now deployment-log.time}} --}}
+                  </span>
                 </div>
               </li>
             {{else}}
-              <li class="timeline-object">
-                <div class="boxed-section-head is-light">
-                  <span>No deployment events yet</span>
-                </div>
-              </li>
-            {{/if}}
-          {{else}}
-            <li class="timeline-object">
-              <div class="boxed-section-head is-light">
-                <span>Loading deployment events</span>
-              </div>
-            </li>
-          {{/if}}
-        {{/if}}
-      {{/each}}
-    </ol>
-</div>
+              {{#if this.errorState}}
+                <li class="timeline-object">
+                  <div class="boxed-section-head is-light">
+                    <span>Error loading deployment history</span>
+                  </div>
+                </li>
+              {{else}}
+                {{#if this.deploymentAllocations.length}}
+                  {{#if this.searchTerm}}
+                    <li class="timeline-object" data-test-history-search-no-match>
+                      <div class="boxed-section-head is-light">
+                        <span>No events match {{this.searchTerm}}</span>
+                      </div>
+                    </li>
+                  {{else}}
+                    <li class="timeline-object">
+                      <div class="boxed-section-head is-light">
+                        <span>No deployment events yet</span>
+                      </div>
+                    </li>
+                  {{/if}}
+                {{else}}
+                  <li class="timeline-object">
+                    <div class="boxed-section-head is-light">
+                      <span>Loading deployment events</span>
+                    </div>
+                  </li>
+                {{/if}}
+              {{/if}}
+            {{/each}}
+          </ol>
+        {{/each}}
+      </div>
+    </div>
   {{/unless}}
 </div>
