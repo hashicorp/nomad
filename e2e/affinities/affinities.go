@@ -4,11 +4,9 @@
 package affinities
 
 import (
-	"fmt"
-	"time"
+	"slices"
 
 	"github.com/shoenig/test/must"
-	"github.com/shoenig/test/wait"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
@@ -48,26 +46,29 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 	jobAllocs := nomadClient.Allocations()
 
 	// Verify affinity score metadata
-	must.Wait(f.T(), wait.InitialSuccess(
-		wait.ErrorFunc(func() error {
-			for _, allocStub := range allocs {
-				alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
-				must.Nil(f.T(), err)
-				must.SliceNotEmpty(f.T(), alloc.Metrics.ScoreMetaData)
-				for _, sm := range alloc.Metrics.ScoreMetaData {
-					score, ok := sm.Scores["node-affinity"]
-					if ok {
-						if score != 1.0 {
-							return fmt.Errorf("expected node affinity score to be 1.0, got %v", score)
-						}
-					}
+	for _, allocStub := range allocs {
+		alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
+		must.Nil(f.T(), err)
+		must.SliceNotEmpty(f.T(), alloc.Metrics.ScoreMetaData)
+
+		pickedNodeNormScore := 0.0
+		normScores := []float64{}
+		for _, sm := range alloc.Metrics.ScoreMetaData {
+			score, ok := sm.Scores["node-affinity"]
+			normScores = append(normScores, sm.NormScore)
+			if ok {
+				// if there's a node-affinity score, check if this node is the node the
+				// allocation was placed on
+				if sm.NodeID == allocStub.NodeID {
+					must.Eq(f.T(), score, 1.0)
+					pickedNodeNormScore = sm.NormScore
 				}
 			}
-			return nil
-		}),
-		wait.Timeout(time.Second*10),
-		wait.Gap(time.Millisecond*30),
-	))
+		}
+		// additionally, make sure that this node had the highest normalized score out
+		// of all nodes we got
+		must.Eq(f.T(), pickedNodeNormScore, slices.Max(normScores))
+	}
 
 }
 
