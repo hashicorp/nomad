@@ -9775,6 +9775,95 @@ func TestStateStore_SnapshotMinIndex_Timeout(t *testing.T) {
 	must.Nil(t, snap)
 }
 
+// TestStateStore_CancelFollowupEvalsOnReconnect exercises the behavior when an
+// alloc on a disconnected node reconnects and may need to cancel any follow-up
+// evals.
+func TestStateStore_CancelFollowupEvalsOnReconnect(t *testing.T) {
+	ci.Parallel(t)
+
+	evalID := uuid.Generate()
+
+	testCases := []struct {
+		name                 string
+		alloc0NewStatus      string // alloc0 will be the alloc we update
+		alloc1Status         string // alloc1 will be another alloc on the same job
+		alloc1FollowupEvalID string
+		expectEvalStatus     string
+	}{
+		{
+			name:             "reconnecting alloc cancels followup eval",
+			alloc0NewStatus:  structs.AllocClientStatusRunning,
+			alloc1Status:     structs.AllocClientStatusRunning,
+			expectEvalStatus: structs.EvalStatusCancelled,
+		},
+		{
+			name:                 "allocs waiting on same followup block cancel",
+			alloc0NewStatus:      structs.AllocClientStatusRunning,
+			alloc1Status:         structs.AllocClientStatusUnknown,
+			alloc1FollowupEvalID: evalID,
+			expectEvalStatus:     structs.EvalStatusPending,
+		},
+		{
+			name:                 "allocs waiting on different followup allow cancel",
+			alloc0NewStatus:      structs.AllocClientStatusRunning,
+			alloc1Status:         structs.AllocClientStatusUnknown,
+			alloc1FollowupEvalID: uuid.Generate(),
+			expectEvalStatus:     structs.EvalStatusCancelled,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(*testing.T) {
+			store := testStateStore(t)
+			index, err := store.LatestIndex()
+			must.NoError(t, err)
+
+			job := mock.MinJob()
+			must.NoError(t, store.UpsertJob(structs.MsgTypeTestSetup, index, nil, job))
+
+			index++
+			followupEval := mock.Eval()
+			followupEval.ID = evalID
+			followupEval.JobID = job.ID
+			followupEval.Status = structs.EvalStatusPending
+			followupEval.TriggeredBy = structs.EvalTriggerMaxDisconnectTimeout
+			must.NoError(t, store.UpsertEvals(structs.MsgTypeTestSetup, index,
+				[]*structs.Evaluation{followupEval}))
+
+			index++
+			alloc0, alloc1 := mock.MinAlloc(), mock.MinAlloc()
+			alloc0.JobID = job.ID
+			alloc0.ClientStatus = structs.AllocClientStatusUnknown
+			alloc0.FollowupEvalID = evalID
+			alloc0.AllocStates = []*structs.AllocState{{
+				Field: structs.AllocStateFieldClientStatus,
+				Value: structs.AllocClientStatusUnknown,
+			}}
+			alloc1.JobID = job.ID
+			alloc1.ClientStatus = tc.alloc1Status
+			alloc1.FollowupEvalID = tc.alloc1FollowupEvalID
+			must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index,
+				[]*structs.Allocation{alloc0, alloc1}))
+
+			index++
+			alloc0 = alloc0.Copy()
+			alloc0.ClientStatus = tc.alloc0NewStatus
+			must.NoError(t, store.UpdateAllocsFromClient(structs.MsgTypeTestSetup, index,
+				[]*structs.Allocation{alloc0}))
+
+			eval, err := store.EvalByID(nil, evalID)
+			must.NoError(t, err)
+			must.NotNil(t, eval)
+			must.Eq(t, tc.expectEvalStatus, eval.Status)
+
+			alloc, err := store.AllocByID(nil, alloc0.ID)
+			must.NoError(t, err)
+			must.NotNil(t, alloc)
+			must.Eq(t, "", alloc.FollowupEvalID)
+		})
+	}
+}
+
 // watchFired is a helper for unit tests that returns if the given watch set
 // fired (it doesn't care which watch actually fired). This uses a fixed
 // timeout since we already expect the event happened before calling this and
