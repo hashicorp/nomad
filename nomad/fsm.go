@@ -947,11 +947,21 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 	// Create a watch set
 	ws := memdb.NewWatchSet()
 
+	followupEvalsToCancel := []string{}
+
 	// Updating the allocs with the job id and task group name
 	for _, alloc := range req.Alloc {
 		if existing, _ := n.state.AllocByID(ws, alloc.ID); existing != nil {
 			alloc.JobID = existing.JobID
 			alloc.TaskGroup = existing.TaskGroup
+
+			// a reconnecting alloc has a followup eval which will be stuck in
+			// pending, blocking new evals for failure of this alloc. The
+			// UpdateAllocsFromClient method will cancel the eval in the state
+			// store but we need to remove it from the broker too.
+			if eval, ok := existing.FollowupEvalForReconnect(alloc); ok {
+				followupEvalsToCancel = append(followupEvalsToCancel, eval)
+			}
 		}
 	}
 
@@ -991,6 +1001,23 @@ func (n *nomadFSM) applyAllocClientUpdate(msgType structs.MessageType, buf []byt
 
 			n.blockedEvals.UnblockClassAndQuota(node.ComputedClass, quota, index)
 			n.blockedEvals.UnblockNode(node.ID, index)
+		}
+	}
+
+	// It's possible that allocs on different nodes were marked unknown in the
+	// same eval and therefore have the same FollowupEvalID. If only one of
+	// those allocs reconnects, we need to ensure we keep around the waiting
+	// eval for the other allocs. Otherwise, drop it from the eval broker.
+	for _, evalID := range followupEvalsToCancel {
+		// ws is nil because we need the update done above
+		eval, err := n.state.EvalByID(nil, evalID)
+		if err != nil {
+			n.logger.Error("looking up followup eval failed",
+				"eval_id", evalID, "error", err)
+			return err
+		}
+		if !eval.ShouldEnqueue() {
+			n.evalBroker.DropWaiting(eval)
 		}
 	}
 

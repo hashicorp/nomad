@@ -804,6 +804,22 @@ func (b *EvalBroker) handleAckNackLocked(eval *structs.Evaluation) {
 	delete(b.dequeuedTime, eval.ID)
 }
 
+func (b *EvalBroker) DropWaiting(eval *structs.Evaluation) {
+	b.l.Lock()
+	defer b.l.Unlock()
+	if !b.enabled {
+		return
+	}
+	if _, ok := b.evals[eval.ID]; !ok {
+		return
+	}
+
+	b.delayHeap.Remove(&evalWrapper{eval})
+	b.stats.TotalWaiting -= 1
+	delete(b.stats.DelayedEvals, eval.ID)
+	delete(b.evals, eval.ID)
+}
+
 // Flush is used to clear the state of the broker. It must be called from within
 // the lock.
 func (b *EvalBroker) flush() {
