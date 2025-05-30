@@ -4,10 +4,13 @@
 package affinities
 
 import (
-	"github.com/hashicorp/nomad/e2e/framework"
+	"slices"
+
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/e2e/framework"
 	"github.com/hashicorp/nomad/helper/uuid"
 )
 
@@ -41,18 +44,30 @@ func (tc *BasicAffinityTest) TestSingleAffinities(f *framework.F) {
 	allocs := e2eutil.RegisterAndWaitForAllocs(f.T(), nomadClient, "affinities/input/single_affinity.nomad", jobId, "")
 
 	jobAllocs := nomadClient.Allocations()
-	require := require.New(f.T())
+
 	// Verify affinity score metadata
 	for _, allocStub := range allocs {
 		alloc, _, err := jobAllocs.Info(allocStub.ID, nil)
-		require.Nil(err)
-		require.NotEmpty(alloc.Metrics.ScoreMetaData)
+		must.Nil(f.T(), err)
+		must.SliceNotEmpty(f.T(), alloc.Metrics.ScoreMetaData)
+
+		pickedNodeNormScore := 0.0
+		normScores := []float64{}
 		for _, sm := range alloc.Metrics.ScoreMetaData {
 			score, ok := sm.Scores["node-affinity"]
+			normScores = append(normScores, sm.NormScore)
 			if ok {
-				require.Equal(1.0, score)
+				// if there's a node-affinity score, check if this node is the node the
+				// allocation was placed on
+				if sm.NodeID == allocStub.NodeID {
+					must.Eq(f.T(), score, 1.0)
+					pickedNodeNormScore = sm.NormScore
+				}
 			}
 		}
+		// additionally, make sure that this node had the highest normalized score out
+		// of all nodes we got
+		must.Eq(f.T(), pickedNodeNormScore, slices.Max(normScores))
 	}
 
 }
