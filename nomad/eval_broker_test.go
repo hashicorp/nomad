@@ -1131,7 +1131,6 @@ func TestEvalBroker_Wait(t *testing.T) {
 // Ensure that delayed evaluations work as expected
 func TestEvalBroker_WaitUntil(t *testing.T) {
 	ci.Parallel(t)
-	require := require.New(t)
 	b := testBroker(t, 0)
 	b.SetEnabled(true)
 
@@ -1154,28 +1153,42 @@ func TestEvalBroker_WaitUntil(t *testing.T) {
 	eval3.CreateIndex = 1
 	b.Enqueue(eval3)
 	b.l.Lock()
-	require.Equal(3, b.stats.TotalWaiting)
+	must.Eq(t, 3, b.stats.TotalWaiting)
 	b.l.Unlock()
+
 	// sleep enough for two evals to be ready
 	time.Sleep(200 * time.Millisecond)
 
 	// first dequeue should return eval3
 	out, _, err := b.Dequeue(defaultSched, time.Second)
-	require.Nil(err)
-	require.Equal(eval3, out)
+	must.NoError(t, err)
+	must.Eq(t, eval3, out)
 
 	// second dequeue should return eval2
 	out, _, err = b.Dequeue(defaultSched, time.Second)
-	require.Nil(err)
-	require.Equal(eval2, out)
+	must.NoError(t, err)
+	must.Eq(t, eval2, out)
 
 	// third dequeue should return eval1
 	out, _, err = b.Dequeue(defaultSched, 2*time.Second)
-	require.Nil(err)
-	require.Equal(eval1, out)
+	must.NoError(t, err)
+	must.Eq(t, eval1, out)
 	b.l.Lock()
-	require.Equal(0, b.stats.TotalWaiting)
+	must.Eq(t, 0, b.stats.TotalWaiting)
 	b.l.Unlock()
+
+	eval4 := mock.Eval()
+	eval4.WaitUntil = now.Add(1 * time.Millisecond)
+	eval4.CreateIndex = 1
+	b.Enqueue(eval4)
+	b.l.Lock()
+	must.Eq(t, 1, b.stats.TotalWaiting)
+	b.l.Unlock()
+
+	b.DropWaiting(eval4)
+	out, _, err = b.Dequeue(defaultSched, 2*time.Second)
+	must.NoError(t, err)
+	must.Nil(t, out)
 }
 
 // Ensure that priority is taken into account when enqueueing many evaluations.
