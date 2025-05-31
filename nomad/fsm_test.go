@@ -977,12 +977,19 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	fsm := testFSM(t)
 
 	job := mock.PeriodicJob()
+
+	job.TaskGroups[0].Scaling = &structs.ScalingPolicy{
+		ID:      "mockID",
+		Enabled: true,
+	}
+
 	req := structs.JobRegisterRequest{
 		Job: job,
 		WriteRequest: structs.WriteRequest{
 			Namespace: job.Namespace,
 		},
 	}
+
 	buf, err := structs.Encode(structs.JobRegisterRequestType, req)
 	if err != nil {
 		t.Fatalf("err: %v", err)
@@ -1039,6 +1046,11 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 	}
 	if launchOut == nil {
 		t.Fatalf("launch not found!")
+	}
+
+	//Verify the scaling policies where disabled
+	for _, policy := range jobOut.GetScalingPolicies() {
+		must.False(t, policy.Enabled)
 	}
 }
 

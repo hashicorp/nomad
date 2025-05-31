@@ -707,6 +707,12 @@ func (g *TaskGroup) AddSpread(s *Spread) *TaskGroup {
 	return g
 }
 
+// AddSpread is used to add a new spread preference to a task group.
+func (g *TaskGroup) ScalingPolicy(sp *ScalingPolicy) *TaskGroup {
+	g.Scaling = sp
+	return g
+}
+
 // LogConfig provides configuration for log rotation
 type LogConfig struct {
 	MaxFiles      *int `mapstructure:"max_files" hcl:"max_files,optional"`

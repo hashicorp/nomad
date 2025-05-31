@@ -4,11 +4,14 @@
 package command
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
+	"github.com/hashicorp/nomad/jobspec2"
 	"github.com/posener/complete"
 )
 
@@ -132,6 +135,31 @@ func (c *JobStartCommand) Run(args []string) int {
 	// register the job in a not stopped state
 	*job.Stop = false
 
+	// When a job is stopped, all its scaling policies are disabled. Before
+	// starting the job again, set them back to the last user submitted state.
+	ps := job.GetScalingPoliciesPerTaskGroup()
+	if len(ps) > 0 {
+		sub, _, err := client.Jobs().Submission(*job.ID, int(*job.Version), &api.QueryOptions{
+			Region:    *job.Region,
+			Namespace: *job.Namespace,
+		})
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		lastJob, err := parseFromSubmission(sub)
+		if err != nil {
+			c.Ui.Error(err.Error())
+			return 1
+		}
+
+		sps := lastJob.GetScalingPoliciesPerTaskGroup()
+		for _, tg := range job.TaskGroups {
+			tg.Scaling = sps[*tg.Name]
+		}
+	}
+
 	resp, _, err := client.Jobs().Register(job, nil)
 
 	// Check if the job is periodic or is a parameterized job
@@ -161,4 +189,25 @@ func (c *JobStartCommand) Run(args []string) int {
 
 	mon := newMonitor(c.Ui, client, length)
 	return mon.monitor(resp.EvalID)
+}
+
+func parseFromSubmission(sub *api.JobSubmission) (*api.Job, error) {
+	var job *api.Job
+	var err error
+
+	switch sub.Format {
+	case "hcl2":
+		job, err = jobspec2.Parse("", strings.NewReader(sub.Source))
+		if err != nil {
+			return nil, fmt.Errorf("command: unable to parce job submission: %w", err)
+		}
+
+	case "json":
+		err = json.Unmarshal([]byte(sub.Source), &job)
+		if err != nil {
+			return nil, fmt.Errorf("command: unable to parce job submission: %w", err)
+		}
+	}
+
+	return job, nil
 }

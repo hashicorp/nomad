@@ -1420,6 +1420,15 @@ func (j *Job) AddSpread(s *Spread) *Job {
 	return j
 }
 
+func (j *Job) GetScalingPoliciesPerTaskGroup() map[string]*ScalingPolicy {
+	ret := map[string]*ScalingPolicy{}
+	for _, tg := range j.TaskGroups {
+		ret[*tg.Name] = tg.Scaling
+	}
+
+	return ret
+}
+
 type WriteRequest struct {
 	// The target region for this write
 	Region string

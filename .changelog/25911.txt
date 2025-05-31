@@ -1,0 +1,3 @@
+```release-note:bug
+scaling: Set the scaling policies to disabled when a job is stopped
+```
