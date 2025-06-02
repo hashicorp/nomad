@@ -199,7 +199,7 @@ func parseFromSubmission(sub *api.JobSubmission) (*api.Job, error) {
 	case "hcl2":
 		job, err = jobspec2.Parse("", strings.NewReader(sub.Source))
 		if err != nil {
-			return nil, fmt.Errorf("command: unable to parce job submission: %w", err)
+			return nil, fmt.Errorf("Unable to parse job submission to re-enable scaling policies: %w", err)
 		}
 
 	case "json":
