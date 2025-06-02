@@ -106,8 +106,9 @@ available for scheduling of Nomad tasks.
 
 When scheduling jobs, a Task must specify how much CPU resource should be
 allocated on its behalf. This can be done in terms of bandwidth in MHz with the
-`cpu` attribute. This MHz value is translated directly into [cpushares][] on
-Linux systems.
+`cpu` attribute. On Linux under cgroups v1, Nomad maps this MHz value directly
+into a [cpu.share][]. On Linux under cgroups v2, Nomad converts the MHz value to
+a [cpu.weight][] proportionally the same as the cgroups v1 `cpu.share`.
 
 ```hcl
 task {
@@ -135,6 +136,11 @@ task {
   }
 }
 ```
+
+We recommend using `resources.cores` for tasks that require high CPU performance
+to give those tasks exclusive access to CPU bandwidth. Sidecar tasks in the same
+allocations can use `resources.cpu` to get a proportional share of the remaining
+CPU on the node.
 
 Nomad Enterprise supports NUMA aware scheduling, which enables operators to
 more finely control which CPU cores may be reserved for tasks.
@@ -381,5 +387,6 @@ When running on a virtualized host such as Amazon EC2 Nomad makes use of the
 require installing the `dmidecode` package manually.
 
 [cpuset]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/cpusets.html
-[cpushares]: https://www.redhat.com/sysadmin/cgroups-part-two
+[cpu.share]: https://www.redhat.com/sysadmin/cgroups-part-two
+[cpu.weight]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#weights
 [numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access
