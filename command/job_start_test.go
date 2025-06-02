@@ -4,12 +4,14 @@
 package command
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/hashicorp/cli"
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/command/agent"
+	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -41,7 +43,15 @@ func TestStartCommand(t *testing.T) {
 		client, err := cmd.Meta.Client()
 		must.NoError(t, err)
 
-		_, _, err = client.Jobs().Register(job, nil)
+		jsonBytes, err := json.Marshal(job)
+		must.NoError(t, err)
+
+		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
+			Submission: &api.JobSubmission{
+				Source: string(jsonBytes),
+				Format: "json",
+			},
+		}, nil)
 		must.NoError(t, err)
 
 		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
@@ -53,6 +63,76 @@ func TestStartCommand(t *testing.T) {
 
 		res := cmd.Run([]string{"-address", addr, *job.ID})
 		must.Zero(t, res)
+
+		pol, _, err := client.Scaling().ListPolicies(nil)
+		must.NoError(t, err)
+		must.One(t, len(pol))
+		must.True(t, *job.TaskGroups[0].Scaling.Enabled)
+
+	})
+
+	t.Run("succeeds when starting a stopped job with disabled scaling policies and no submissions", func(t *testing.T) {
+		job := testJob(uuid.Generate())
+
+		client, err := cmd.Meta.Client()
+		must.NoError(t, err)
+
+		job.TaskGroups[0].Scaling.Enabled = pointer.Of(false)
+
+		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{}, nil)
+		must.NoError(t, err)
+
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
+
+		_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
+		must.Nil(t, err)
+
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
+
+		res := cmd.Run([]string{"-address", addr, *job.ID})
+		must.Zero(t, res)
+
+		pol, _, err := client.Scaling().ListPolicies(nil)
+		must.NoError(t, err)
+		must.One(t, len(pol))
+		must.False(t, *job.TaskGroups[0].Scaling.Enabled)
+
+	})
+
+	t.Run("succeeds when starting a stopped job with enabled scaling policies", func(t *testing.T) {
+		job := testJob(uuid.Generate())
+
+		client, err := cmd.Meta.Client()
+		must.NoError(t, err)
+
+		job.TaskGroups[0].Scaling.Enabled = pointer.Of(true)
+
+		jsonBytes, err := json.Marshal(job)
+		must.NoError(t, err)
+
+		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
+			Submission: &api.JobSubmission{
+				Source: string(jsonBytes),
+				Format: "json",
+			},
+		}, nil)
+		must.NoError(t, err)
+
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
+
+		_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
+		must.Nil(t, err)
+
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
+
+		res := cmd.Run([]string{"-address", addr, *job.ID})
+		must.Zero(t, res)
+
+		pol, _, err := client.Scaling().ListPolicies(nil)
+		must.NoError(t, err)
+		must.One(t, len(pol))
+		must.True(t, *job.TaskGroups[0].Scaling.Enabled)
+
 	})
 
 	t.Run("fails to start a job not previously stopped", func(t *testing.T) {
