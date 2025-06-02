@@ -4,7 +4,11 @@
 package monitor
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"os"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -23,6 +27,9 @@ type Monitor interface {
 	// Stop de-registers the sink from the InterceptLogger
 	// and closes the log channels
 	Stop()
+
+	// Journald returns a channel of journald messages
+	Journald(string, string, bool) <-chan []byte
 }
 
 // monitor implements the Monitor interface
@@ -178,4 +185,85 @@ func (d *monitor) Write(p []byte) (n int, err error) {
 	}
 
 	return len(p), nil
+}
+
+// Journald registers a sink on the monitor's logger and sends a single
+// journald log bundle over the returned channel
+func (d *monitor) Journald(logSince string, serviceName string, follow bool) <-chan []byte {
+	const (
+		defaultDuration = "72"
+		defaultService  = "nomad"
+	)
+
+	//if runtime.GOOS != "linux" {
+	//	d.logger.Error("journald export only available on linux")
+	//	return nil, 0
+	//}
+
+	// Set logSince to default if unset by caller
+	if logSince == "0" {
+		d.logger.Info(string(logSince))
+		logSince = defaultDuration
+	}
+
+	// Set serviceName to nomad if unset by caller
+	if len(serviceName) == 0 {
+		d.logger.Info(serviceName)
+		serviceName = defaultService
+	}
+	// Set up multireader before starting command
+	cmd := d.journalCmd(logSince, serviceName, follow)
+	stdOut, err := cmd.StdoutPipe()
+	if err != nil {
+		d.logger.Error("unable to read journald logs into buffer", err.Error())
+		return nil
+	}
+	stdErr, err := cmd.StderrPipe()
+	if err != nil {
+		d.logger.Error("unable to read journald logs into buffer", err.Error())
+		return nil
+	}
+	multi := io.MultiReader(stdOut, stdErr)
+	cmd.Start()
+
+	streamCh := make(chan []byte)
+	// Read, copy, and send to channel until we hit EOF or error
+	go func() {
+		defer cmd.Wait()
+		defer close(streamCh)
+		logChunk := make([]byte, 32)
+		copyBuffer := make([]byte, 32)
+
+		for {
+			_, readErr := multi.Read(logChunk)
+			if readErr != nil && readErr != io.EOF {
+				d.logger.Error("unable to read journald logs into channel", readErr.Error())
+				break
+			}
+			copy(copyBuffer, logChunk)
+
+			streamCh <- logChunk
+			time.Sleep(1 * time.Microsecond) // quick sleep to decrease risk of collisions & overwrites
+
+			if readErr == io.EOF {
+				break
+			} else {
+				continue
+			}
+		}
+	}()
+	return streamCh
+}
+func (d *monitor) journalCmd(logSince string, serviceName string, follow bool) *exec.Cmd {
+	_ = fmt.Sprintf("journalctl -xe -u %s --no-pager --since '%s hours ago'", serviceName, logSince)
+	//if follow {
+	//	cmdString = cmdString + " -f"
+	//}
+	shell := "/bin/sh"
+	if other := os.Getenv("SHELL"); other != "" {
+		shell = other
+	}
+	cmdString := "cat /Users/tehut/go/src/github.com/hashicorp/nomad/t3.txt"
+
+	return exec.CommandContext(context.Background(), shell, "-c", cmdString)
 }

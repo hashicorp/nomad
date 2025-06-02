@@ -305,6 +305,189 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	return nil, codedErr
 }
 
+func (s *HTTPServer) AgentJournald(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Get the provided loglevel.
+	logLevel := req.URL.Query().Get("log_level")
+	if logLevel == "" {
+		logLevel = "INFO"
+	}
+
+	if log.LevelFromString(logLevel) == log.NoLevel {
+		return nil, CodedError(400, fmt.Sprintf("Unknown log level: %s", logLevel))
+	}
+
+	logJSON := false
+	logJSONStr := req.URL.Query().Get("log_json")
+	if logJSONStr != "" {
+		parsed, err := strconv.ParseBool(logJSONStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for log json: %v", err))
+		}
+		logJSON = parsed
+	}
+
+	plainText := false
+	plainTextStr := req.URL.Query().Get("plain")
+	if plainTextStr != "" {
+		parsed, err := strconv.ParseBool(plainTextStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for plain: %v", err))
+		}
+		plainText = parsed
+	}
+
+	logIncludeLocation := false
+	logIncludeLocationStr := req.URL.Query().Get("log_include_location")
+	if logIncludeLocationStr != "" {
+		parsed, err := strconv.ParseBool(logIncludeLocationStr)
+		if err != nil {
+			return nil, CodedError(http.StatusBadRequest,
+				fmt.Sprintf("Unknown option for log_include_location: %v", err))
+		}
+		logIncludeLocation = parsed
+	}
+	logSince := req.URL.Query().Get("log_since")
+	serviceName := req.URL.Query().Get("service_name")
+
+	nodeID := req.URL.Query().Get("node_id")
+
+	// Build the request and parse the ACL token
+	args := cstructs.MonitorJournaldRequest{
+		NodeID:             nodeID,
+		ServerID:           req.URL.Query().Get("server_id"),
+		LogLevel:           logLevel,
+		LogJSON:            logJSON,
+		LogIncludeLocation: logIncludeLocation,
+		PlainText:          plainText,
+		LogSince:           logSince,
+		ServiceName:        serviceName,
+	}
+
+	// if node and server were requested return error
+	if args.NodeID != "" && args.ServerID != "" {
+		return nil, CodedError(400, "Cannot target node and server simultaneously")
+	}
+
+	// Force the Content-Type to avoid Go's http.ResponseWriter from
+	// detecting an incorrect or unsafe one.
+	if plainText {
+		resp.Header().Set("Content-Type", "text/plain")
+	} else {
+		resp.Header().Set("Content-Type", "application/json")
+	}
+
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Make the RPC
+	var handler structs.StreamingRpcHandler
+	var handlerErr error
+	if nodeID != "" {
+		// Determine the handler to use
+		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
+		if useLocalClient {
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Journald")
+		} else if useClientRPC {
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.Journald")
+		} else if useServerRPC {
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Journald")
+		} else {
+			handlerErr = CodedError(400, "No local Node and node_id not provided")
+		}
+		// No node id monitor current server/client
+	} else if srv := s.agent.Server(); srv != nil {
+		handler, handlerErr = srv.StreamingRpcHandler("Agent.Journald")
+	} else {
+		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Journald")
+	}
+
+	if handlerErr != nil {
+		s.logger.Info("this is the error", "error", handlerErr.Error())
+		return nil, CodedError(500, handlerErr.Error())
+	}
+	httpPipe, handlerPipe := net.Pipe()
+	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
+
+	ctx, cancel := context.WithCancel(req.Context())
+	go func() {
+		<-ctx.Done()
+		httpPipe.Close()
+	}()
+
+	// Create an output that gets flushed on every write
+	output := ioutils.NewWriteFlusher(resp)
+
+	// create an error channel to handle errors
+	errCh := make(chan HTTPCodedError, 2)
+
+	// stream response
+	go func() {
+		//defer cancel()
+
+		// Send the request
+		if err := encoder.Encode(args); err != nil {
+			s.logger.Warn("this is the error after request sent", err.Error())
+			errCh <- CodedError(500, err.Error())
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				errCh <- nil
+				s.logger.Warn("context cancelled in agent loop")
+				return
+			default:
+			}
+
+			var res cstructs.StreamErrWrapper
+			if err := decoder.Decode(&res); err != nil && err != io.EOF {
+				s.logger.Warn("this is the error", err.Error())
+				errCh <- CodedError(500, err.Error())
+				return
+			}
+			decoder.Reset(httpPipe)
+
+			if err := res.Error; err != nil && err != io.EOF {
+				s.logger.Warn("this is the error", res.Error.Error())
+				if err.Code != nil {
+					errCh <- CodedError(int(*err.Code), err.Error())
+					return
+				}
+			}
+			//if _, err := bytes.NewReader(res.Payload).WriteTo(output); err != nil {
+			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
+				s.logger.Info("we got an error", err.Error())
+				errCh <- CodedError(500, err.Error())
+			}
+		}
+	}()
+
+	handler(handlerPipe)
+	cancel()
+	s.logger.Warn("finally cancelled")
+	codedErr := <-errCh
+	//if args.Follow {
+	if codedErr != nil &&
+		(codedErr == io.EOF ||
+			strings.Contains(codedErr.Error(), "closed") ||
+			strings.Contains(codedErr.Error(), "EOF")) {
+		s.logger.Info("we got an eof")
+		s.logger.Info(codedErr.Error())
+		codedErr = nil
+	}
+	//} else {
+	//	// treat an EOF as a termination if we're not following
+	//	if codedErr != nil && codedErr == io.EOF {
+	//		s.logger.Warn("got the eof")
+	//		codedErr = nil
+	//	}
+	//}
+	//}
+	return nil, codedErr
+
+}
+
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	if req.Method != http.MethodPut && req.Method != http.MethodPost {
 		return nil, CodedError(405, ErrInvalidMethod)

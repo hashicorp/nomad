@@ -62,6 +62,41 @@ type MonitorRequest struct {
 	structs.QueryOptions
 }
 
+type MonitorJournaldRequest struct {
+	// LogLevel is the log level filter we want to stream logs on
+	LogLevel string
+
+	// LogJSON specifies if log format should be unstructured or json
+	LogJSON bool
+
+	// LogIncludeLocation dictates whether the logger includes file and line
+	// information on each log line. This is useful for Nomad development and
+	// debugging.
+	LogIncludeLocation bool
+
+	// NodeID is the node we want to track the logs of
+	NodeID string
+
+	// ServerID is the server we want to track the logs of
+	ServerID string
+
+	// PlainText disables base64 encoding.
+	PlainText bool
+
+	// LogsSince sets the lookback time for journald logs in hours
+	LogSince string
+
+	// ServiceName is the journald service for which we want to retrieve logs
+	// defaults to nomad if unset
+	ServiceName string
+
+	// Follow indicates that the journalctl command should listen for and
+	// stream ongoing log output
+	Follow bool
+
+	structs.QueryOptions
+}
+
 // AllocFileInfo holds information about a file inside the AllocDir
 type AllocFileInfo struct {
 	Name        string
@@ -378,3 +413,37 @@ var DriverStatsNotImplemented = errors.New("stats not implemented for driver")
 type NodeRegistration struct {
 	HasRegistered bool
 }
+
+//type StreamReader struct {
+//	ch  <-chan []byte
+//	buf []byte
+//}
+
+//func NewStreamReader(ch <-chan []byte) *StreamReader {
+//	return &StreamReader{ch: ch}
+
+//}
+
+//func (r *StreamReader) Read(p []byte, lg log.Logger) (n int, err error) {
+//	if len(r.buf) == 0 {
+//		select {
+//		case data, ok := <-r.ch:
+//			if !ok && len(data) == 0 {
+//				return 0, io.EOF
+//			}
+//			r.buf = data
+//			if !ok {
+//				n = copy(p, r.buf)
+//				r.buf = r.buf[n:]
+//				return n, io.EOF
+//			}
+
+//		default:
+//			return 0, nil
+//		}
+//	}
+
+//	n = copy(p, r.buf)
+//	r.buf = r.buf[n:]
+//	return n, nil
+//}
