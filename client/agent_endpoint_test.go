@@ -6,8 +6,10 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -444,5 +447,151 @@ func TestAgentHost_ACL(t *testing.T) {
 				require.NotEmpty(t, resp.HostData)
 			}
 		})
+	}
+}
+
+func TestMonitor_MonitorExport(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+
+	dir := t.TempDir()
+
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	for range 1000 {
+		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
+	}
+	f.Close()
+	testFilePath := f.Name()
+	testFileContents, err := os.ReadFile(testFilePath)
+	must.NoError(t, err)
+	// start server
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+	defer cleanupS()
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
+	defer cleanupC()
+
+	testutil.WaitForLeader(t, s.RPC)
+
+	cases := []struct {
+		name         string
+		expected     string
+		nomadLogPath string
+		serviceName  string
+		token        string
+		onDisk       bool
+		expectErr    bool
+	}{
+		{
+			name:         "happy_path_golden_file",
+			onDisk:       true,
+			nomadLogPath: testFilePath,
+			expected:     string(testFileContents),
+			token:        root.SecretID,
+		},
+		{
+			name:         "token_error",
+			onDisk:       true,
+			nomadLogPath: testFilePath,
+			expected:     string(testFileContents),
+			token:        tokenBad.SecretID,
+			expectErr:    true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := cstructs.MonitorExportRequest{
+				LogSince:     "72",
+				NodeID:       "this is checked in the CLI",
+				NomadLogPath: tc.nomadLogPath,
+				ServiceName:  tc.serviceName,
+				OnDisk:       tc.onDisk,
+				QueryOptions: structs.QueryOptions{
+					Region:    "global",
+					AuthToken: tc.token,
+				},
+			}
+			handler, err := c.StreamingRpcHandler("Agent.MonitorExport")
+			require.Nil(err)
+
+			// create pipe
+			p1, p2 := net.Pipe()
+			defer p1.Close()
+			defer p2.Close()
+
+			errCh := make(chan error)
+			streamMsg := make(chan *cstructs.StreamErrWrapper)
+
+			go handler(p2)
+
+			// Start decoder
+			go func() {
+				decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+				for {
+					var msg cstructs.StreamErrWrapper
+					err := decoder.Decode(&msg)
+
+					streamMsg <- &msg
+					if err != nil {
+						errCh <- err
+					}
+				}
+			}()
+
+			// send request
+			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+			require.Nil(encoder.Encode(req))
+			timeout := time.After(3 * time.Second)
+			copyLength := 0
+
+			var builder strings.Builder
+
+		OUTER:
+			for {
+				select {
+				case <-timeout:
+					must.Unreachable(t)
+					continue
+				case err := <-errCh:
+					if err != nil && err != io.EOF {
+						if tc.expectErr {
+							continue
+						}
+						must.NoError(t, err)
+					}
+				case message := <-streamMsg:
+					var frame sframer.StreamFrame
+
+					err = json.Unmarshal(message.Payload, &frame)
+					if err != nil && err != io.EOF {
+						if !strings.Contains(err.Error(), "unexpected end") {
+							must.NoError(t, err)
+						}
+					}
+					builder.Write(frame.Data)
+
+					currentLength := builder.Len()
+					if currentLength == copyLength {
+						must.Nil(t, p2.Close())
+						break OUTER
+					}
+					copyLength = currentLength
+
+				}
+			}
+			if !tc.expectErr {
+				must.Eq(t, strings.TrimSpace(builder.String()), strings.TrimSpace(tc.expected))
+			}
+
+		})
+
 	}
 }

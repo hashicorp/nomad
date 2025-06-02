@@ -5,12 +5,14 @@ package monitor
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/nomad/ci"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,5 +90,95 @@ TEST:
 		case <-time.After(2 * time.Second):
 			require.Fail(t, "expected to see warn dropped messages")
 		}
+	}
+}
+
+func TestMonitor_Export(t *testing.T) {
+
+	ci.Parallel(t)
+	const (
+		expectedText = "log log log log log"
+	)
+
+	dir := t.TempDir()
+	f, err := os.CreateTemp(dir, "log")
+	must.NoError(t, err)
+	for range 1000 {
+		_, _ = f.WriteString(fmt.Sprintf("%v [INFO] it's log, it's log, it's big it's heavy it's wood", time.Now()))
+	}
+	f.Close()
+	goldenFilePath := f.Name()
+	goldenFileContents, err := os.ReadFile(goldenFilePath)
+	must.NoError(t, err)
+
+	testFile, err := os.CreateTemp("", "nomadtest")
+	must.NoError(t, err)
+
+	_, err = testFile.Write([]byte(expectedText))
+	must.NoError(t, err)
+	inlineFilePath := testFile.Name()
+
+	logger := log.NewInterceptLogger(&log.LoggerOptions{
+		Level: log.Error,
+	})
+
+	cases := []struct {
+		name     string
+		opts     MonitorExportOpts
+		expected string
+	}{
+		{
+			name: "happy_path_logpath_long_file",
+			opts: MonitorExportOpts{
+				LogSince:     "72",
+				OnDisk:       true,
+				NomadLogPath: goldenFilePath,
+			},
+			expected: string(goldenFileContents),
+		},
+		{
+			name: "happy_path_logpath_short_file",
+			opts: MonitorExportOpts{
+				LogSince:     "72",
+				OnDisk:       true,
+				NomadLogPath: inlineFilePath,
+			},
+			expected: expectedText,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			opts := MonitorExportOpts{
+				Logger:       logger,
+				LogSince:     tc.opts.LogSince,
+				ServiceName:  tc.opts.ServiceName,
+				Follow:       tc.opts.Follow,
+				NomadLogPath: tc.opts.NomadLogPath,
+			}
+			monitor := NewExportMonitor(opts)
+			logCh := monitor.Start()
+
+			var builder strings.Builder
+			go func() {
+			TEST:
+				for {
+					select {
+					case log, ok := <-logCh:
+						if !ok {
+							break TEST
+						}
+						builder.Grow(len(log))
+						builder.Write(log)
+
+					default:
+						continue
+					}
+
+				}
+				received := builder.String()
+				must.Eq(t, tc.expected, received)
+			}()
+		})
 	}
 }
