@@ -350,6 +350,57 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 	return frames, errCh
 }
 
+// Journald returns a channel which will receive streaming logs from the agent
+// Providing a non-nil stopCh can be used to close the connection and stop log streaming
+func (a *Agent) Journald(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
+	errCh := make(chan error, 1)
+	r, err := a.client.newRequest("GET", "/v1/agent/journald")
+	if err != nil {
+		errCh <- err
+		return nil, errCh
+	}
+
+	r.setQueryOptions(q)
+	_, resp, err := requireOK(a.client.doRequest(r)) //nolint:bodyclose
+	if err != nil {
+		errCh <- err
+		return nil, errCh
+	}
+
+	frames := make(chan *StreamFrame, 10)
+	go func() {
+		defer resp.Body.Close()
+
+		dec := json.NewDecoder(resp.Body)
+
+		for {
+			select {
+			case <-stopCh:
+				close(frames)
+				return
+			default:
+			}
+
+			// Decode the next frame
+			var frame StreamFrame
+			if err := dec.Decode(&frame); err != nil {
+				close(frames)
+				errCh <- err
+				return
+			}
+
+			// Discard heartbeat frame
+			if frame.IsHeartbeat() {
+				continue
+			}
+
+			frames <- &frame
+		}
+	}()
+
+	return frames, errCh
+}
+
 // PprofOptions contain a set of parameters for profiling a node or server.
 type PprofOptions struct {
 	// ServerID is the server ID, name, or special value "leader" to
