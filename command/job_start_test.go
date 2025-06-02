@@ -70,13 +70,42 @@ func TestStartCommand(t *testing.T) {
 		must.True(t, *job.TaskGroups[0].Scaling.Enabled)
 
 	})
-	t.Run("succeeds when starting a stopped job with disabled scaling policies", func(t *testing.T) {
+
+	t.Run("succeeds when starting a stopped job with disabled scaling policies and no submissions", func(t *testing.T) {
 		job := testJob(uuid.Generate())
 
 		client, err := cmd.Meta.Client()
 		must.NoError(t, err)
 
 		job.TaskGroups[0].Scaling.Enabled = pointer.Of(false)
+
+		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{}, nil)
+		must.NoError(t, err)
+
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
+
+		_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
+		must.Nil(t, err)
+
+		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
+
+		res := cmd.Run([]string{"-address", addr, *job.ID})
+		must.Zero(t, res)
+
+		pol, _, err := client.Scaling().ListPolicies(nil)
+		must.NoError(t, err)
+		must.One(t, len(pol))
+		must.False(t, *job.TaskGroups[0].Scaling.Enabled)
+
+	})
+
+	t.Run("succeeds when starting a stopped job with enabled scaling policies", func(t *testing.T) {
+		job := testJob(uuid.Generate())
+
+		client, err := cmd.Meta.Client()
+		must.NoError(t, err)
+
+		job.TaskGroups[0].Scaling.Enabled = pointer.Of(true)
 
 		jsonBytes, err := json.Marshal(job)
 		must.NoError(t, err)
@@ -102,7 +131,7 @@ func TestStartCommand(t *testing.T) {
 		pol, _, err := client.Scaling().ListPolicies(nil)
 		must.NoError(t, err)
 		must.One(t, len(pol))
-		must.False(t, *job.TaskGroups[0].Scaling.Enabled)
+		must.True(t, *job.TaskGroups[0].Scaling.Enabled)
 
 	})
 

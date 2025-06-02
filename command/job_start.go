@@ -144,19 +144,23 @@ func (c *JobStartCommand) Run(args []string) int {
 			Namespace: *job.Namespace,
 		})
 		if err != nil {
-			c.Ui.Error(err.Error())
-			return 1
-		}
+			if _, ok := err.(api.UnexpectedResponseError); !ok {
+				c.Ui.Error(fmt.Sprintf("%+T\n", err) + err.Error())
+				return 1
+			}
+			// If the job was submitted using the API, there are no submissions stored.
+			c.Ui.Warn("All scaling policies for this job were disabled when it was stopped, resubmit it to enable them again.")
+		} else {
+			lastJob, err := parseFromSubmission(sub)
+			if err != nil {
+				c.Ui.Error(err.Error())
+				return 1
+			}
 
-		lastJob, err := parseFromSubmission(sub)
-		if err != nil {
-			c.Ui.Error(err.Error())
-			return 1
-		}
-
-		sps := lastJob.GetScalingPoliciesPerTaskGroup()
-		for _, tg := range job.TaskGroups {
-			tg.Scaling = sps[*tg.Name]
+			sps := lastJob.GetScalingPoliciesPerTaskGroup()
+			for _, tg := range job.TaskGroups {
+				tg.Scaling.Enabled = sps[*tg.Name].Enabled
+			}
 		}
 	}
 
@@ -205,7 +209,7 @@ func parseFromSubmission(sub *api.JobSubmission) (*api.Job, error) {
 	case "json":
 		err = json.Unmarshal([]byte(sub.Source), &job)
 		if err != nil {
-			return nil, fmt.Errorf("command: unable to parce job submission: %w", err)
+			return nil, fmt.Errorf("Unable to parse job submission to re-enable scaling policies: %w", err)
 		}
 	}
 
