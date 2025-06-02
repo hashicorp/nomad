@@ -1048,7 +1048,7 @@ func TestFSM_DeregisterJob_NoPurge(t *testing.T) {
 		t.Fatalf("launch not found!")
 	}
 
-	//Verify the scaling policies where disabled
+	// Verify the scaling policies were disabled
 	for _, policy := range jobOut.GetScalingPolicies() {
 		must.False(t, policy.Enabled)
 	}
