@@ -106,8 +106,9 @@ available for scheduling of Nomad tasks.
 
 When scheduling jobs, a Task must specify how much CPU resource should be
 allocated on its behalf. This can be done in terms of bandwidth in MHz with the
-`cpu` attribute. This MHz value is translated directly into [cpushares][] on
-Linux systems.
+`cpu` attribute. On Linux under cgroups v1, Nomad maps this MHz value directly
+into a [cpu.share][]. On Linux under cgroups v2, Nomad converts the MHz value to
+a [cpu.weight][] proportionally the same as the cgroups v1 `cpu.share`.
 
 ```hcl
 task {
@@ -125,6 +126,42 @@ task drivers enable limiting a task to use only the amount of bandwidth
 allocated to the task, described in the [CPU Hard Limits](#cpu-hard-limits)
 section below.
 
+### Relative CPU shares/weights on Linux
+
+Linux cgroups are hierarchical, and the `cpu.share`/`cpu.weight` values reflect
+relative weights within a given subtree. Nomad creates its own cgroup subtree
+(`nomad.slice`) on startup, and all `cpu.share`/`cpu.weight` values that Nomad
+writes are relative between processes within that slice. The `nomad.slice`
+subtree is itself relative to another subtree on the host. For example, a host
+running systemd might have the following slices:
+
+```
+/sys/fs/cgroup
+├── nomad.slice
+│   ├── reserve.slice
+│   └── share.slice
+│       ├── 912dcc05-61e1-53cb-5489-a976a1231960.task.scope
+│       ├── 247e706a-6df8-4123-89b3-1bcf2846b503.task.scope
+│       └── 586c0c58-3d50-4730-b4ad-022076d3c6a4.task.scope
+├── system.slice
+│   ├── journald.service
+│   └── (various system services, etc.)
+└── user-1000.slice
+    ├── session-1.scope
+    └── (various user services, etc.)
+```
+
+If the task `912dcc05` has `resources.cpu = 1024` and tasks `247e706a` and
+`586c0c58` have `resources.cpu = 512`, then `912dcc05` will get 50% of the CPU
+resources available to the `nomad.slice` and tasks `247e706a` and `586c0c58`
+will get 25% each. (The `reserve.slice` and `share.slice` are passthrough for
+cpu shares here.) But together they'll get 33% of the total host's CPU resources
+unless the `nomad.slice`, `system.slice`, or `user-1000.slice` have something
+other than the default 1024 shares. The 1024 value is only meaningful within the
+context of the Nomad slice.
+
+### Allocating cores
+
 On Linux systems, Nomad supports reserving whole CPU cores specifically for a
 task. No task will be allowed to run on a CPU core reserved for another task.
 
@@ -135,6 +172,11 @@ task {
   }
 }
 ```
+
+We recommend using `resources.cores` for tasks that require high CPU performance
+to give those tasks exclusive access to CPU bandwidth. Sidecar tasks in the same
+allocations can use `resources.cpu` to get a proportional share of the remaining
+CPU on the node.
 
 Nomad Enterprise supports NUMA aware scheduling, which enables operators to
 more finely control which CPU cores may be reserved for tasks.
@@ -381,5 +423,6 @@ When running on a virtualized host such as Amazon EC2 Nomad makes use of the
 require installing the `dmidecode` package manually.
 
 [cpuset]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/cpusets.html
-[cpushares]: https://www.redhat.com/sysadmin/cgroups-part-two
+[cpu.share]: https://www.redhat.com/sysadmin/cgroups-part-two
+[cpu.weight]: https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#weights
 [numa_wiki]: https://en.wikipedia.org/wiki/Non-uniform_memory_access

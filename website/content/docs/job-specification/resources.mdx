@@ -68,9 +68,10 @@ The following examples only show the `resources` blocks. Remember that the
 
 ### Cores
 
-This example specifies that the task requires 2 reserved cores. With this block, Nomad will find
-a client with enough spare capacity to reserve 2 cores exclusively for the task. Unlike the `cpu` field, the
-task will not share cpu time with any other tasks managed by Nomad on the client.
+This example specifies that the task requires 2 reserved cores. With this block,
+Nomad finds a client with enough spare capacity to reserve 2 cores exclusively
+for the task. Unlike the `cpu` field, the task does not share CPU time with any
+other tasks managed by Nomad on the client.
 
 ```hcl
 resources {
@@ -78,7 +79,12 @@ resources {
 }
 ```
 
-If `cores` and `cpu` are both defined in the same resource block, validation of the job will fail.
+If `cores` and `cpu` are both defined in the same resource block, validation of
+the job fails.
+
+Refer to [How Nomad Uses CPU][concepts-cpu] for more details on Nomad's
+reservation of CPU resources.
+
 
 ### Memory
 
@@ -160,3 +166,4 @@ resource utilization and considering the following suggestions:
 [quota_spec]: /nomad/docs/other-specifications/quota
 [numa]: /nomad/docs/job-specification/numa 'Nomad NUMA Job Specification'
 [`secrets/`]: /nomad/docs/runtime/environment#secrets
+[concepts-cpu]: /nomad/docs/concepts/cpu
