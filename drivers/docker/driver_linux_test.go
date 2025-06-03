@@ -114,3 +114,22 @@ func TestDockerDriver_PidsLimit(t *testing.T) {
 		wait.Gap(50*time.Millisecond),
 	))
 }
+
+func TestDockerDriver_NormalizeCPUShares(t *testing.T) {
+	dh := dockerDriverHarness(t, nil)
+	driver := dh.Impl().(*Driver)
+	driver.compute.TotalCompute = 12000
+
+	must.Eq(t, maxCPUShares, driver.cpuResources(maxCPUShares))
+	must.Eq(t, 1000, driver.cpuResources(1000))
+
+	driver.compute.TotalCompute = maxCPUShares
+	must.Eq(t, maxCPUShares, driver.cpuResources(maxCPUShares))
+
+	driver.compute.TotalCompute = maxCPUShares + 1
+	must.Eq(t, 262143, driver.cpuResources(maxCPUShares))
+
+	driver.compute.TotalCompute = maxCPUShares * 2
+	must.Eq(t, 500, driver.cpuResources(1000))
+	must.Eq(t, maxCPUShares/2, driver.cpuResources(maxCPUShares))
+}

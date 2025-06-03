@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/client/allocdir"
 	"github.com/hashicorp/nomad/client/lib/cgroupslib"
+	"github.com/hashicorp/nomad/client/lib/cpustats"
 	"github.com/hashicorp/nomad/client/taskenv"
 	"github.com/hashicorp/nomad/client/testutil"
 	"github.com/hashicorp/nomad/drivers/shared/capabilities"
@@ -1036,4 +1037,25 @@ func TestCgroupDeviceRules(t *testing.T) {
 		Permissions: "rwm",
 		Allow:       true,
 	})
+}
+
+func TestExecutor_clampCPUShares(t *testing.T) {
+
+	le := &LibcontainerExecutor{
+		logger:  testlog.HCLogger(t),
+		compute: cpustats.Compute{TotalCompute: 12000},
+	}
+
+	must.Eq(t, MaxCPUShares, le.clampCpuShares(MaxCPUShares))
+	must.Eq(t, 1000, le.clampCpuShares(1000))
+
+	le.compute.TotalCompute = MaxCPUShares
+	must.Eq(t, MaxCPUShares, le.clampCpuShares(MaxCPUShares))
+
+	le.compute.TotalCompute = MaxCPUShares + 1
+	must.Eq(t, 262143, le.clampCpuShares(MaxCPUShares))
+
+	le.compute = cpustats.Compute{TotalCompute: MaxCPUShares * 2}
+	must.Eq(t, 500, le.clampCpuShares(1000))
+	must.Eq(t, MaxCPUShares/2, le.clampCpuShares(MaxCPUShares))
 }

@@ -948,6 +948,22 @@ func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (
 	return hard * 1024 * 1024, softBytes
 }
 
+// maxCPUShares is the maximum value for cpu_shares in cgroups v1
+// https://github.com/torvalds/linux/blob/v6.15/kernel/sched/sched.h#L503
+const maxCPUShares = 262_144
+
+// cpuResources normalizes the requested CPU shares when the total compute
+// available on the node is larger than the largest share value allowed by the
+// kernel. On cgroups v2, Docker will re-normalize this to be within the
+// acceptable range for cpu.weight [1-10000].
+func (d *Driver) cpuResources(requested int64) int64 {
+	if d.compute.TotalCompute < maxCPUShares {
+		return requested
+	}
+
+	return int64(float64(requested) / float64(d.compute.TotalCompute) * maxCPUShares)
+}
+
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,
 	imageID string) (createContainerOptions, error) {
 
@@ -1027,6 +1043,8 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 		pidsLimit = driverConfig.PidsLimit
 	}
 
+	cpuShares := d.cpuResources(task.Resources.LinuxResources.CPUShares)
+
 	hostConfig := &containerapi.HostConfig{
 		// do not set cgroup parent anymore
 
@@ -1048,7 +1066,7 @@ func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *T
 	hostConfig.Resources = containerapi.Resources{
 		Memory:            memory,            // hard limit
 		MemoryReservation: memoryReservation, // soft limit
-		CPUShares:         task.Resources.LinuxResources.CPUShares,
+		CPUShares:         cpuShares,
 		CpusetCpus:        task.Resources.LinuxResources.CpusetCpus,
 		PidsLimit:         &pidsLimit,
 	}
