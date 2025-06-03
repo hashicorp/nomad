@@ -14,7 +14,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func anyMemoryNodeMatcher() *memoryNodeMatcher {
@@ -103,68 +102,65 @@ func collectInstanceIDs(devices ...*structs.NodeDeviceResource) []string {
 func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	_, ctx := testContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
-	require.NotNil(d)
+	must.NotNil(t, d)
 
 	// Build the request
 	ask := deviceRequest("gpu", 1, nil, nil)
 
 	mem := anyMemoryNodeMatcher()
 	out, score, err := d.createOffer(mem, ask)
-	require.NotNil(out)
-	require.Zero(score)
-	require.NoError(err)
+	must.NotNil(t, out)
+	must.Zero(t, score)
+	must.NoError(t, err)
 
 	// Check that we got the nvidia device
-	require.Len(out.DeviceIDs, 1)
-	require.Contains(collectInstanceIDs(n.NodeResources.Devices[0]), out.DeviceIDs[0])
+	must.SliceLen(t, 1, out.DeviceIDs)
+	must.SliceContains(t, collectInstanceIDs(n.NodeResources.Devices[0]), out.DeviceIDs[0])
 }
 
 // Test that asking for a device that is fully specified works.
 func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	_, ctx := testContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
-	require.NotNil(d)
+	must.NotNil(t, d)
 
 	// Build the request
 	ask := deviceRequest("intel/fpga/F100", 1, nil, nil)
 
 	mem := anyMemoryNodeMatcher()
 	out, score, err := d.createOffer(mem, ask)
-	require.NotNil(out)
-	require.Zero(score)
-	require.NoError(err)
+	must.NotNil(t, out)
+	must.Zero(t, score)
+	must.NoError(t, err)
 
 	// Check that we got the nvidia device
-	require.Len(out.DeviceIDs, 1)
-	require.Contains(collectInstanceIDs(n.NodeResources.Devices[1]), out.DeviceIDs[0])
+	must.SliceLen(t, 1, out.DeviceIDs)
+	must.SliceContains(t, collectInstanceIDs(n.NodeResources.Devices[1]), out.DeviceIDs[0])
 }
 
 // Test that asking for a device with too much count doesn't place
 func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
 	ci.Parallel(t)
 
-	require := require.New(t)
 	_, ctx := testContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
-	require.NotNil(d)
+	must.NotNil(t, d)
 
 	// Build the request
 	ask := deviceRequest("gpu", 4, nil, nil)
 
 	mem := anyMemoryNodeMatcher()
 	out, _, err := d.createOffer(mem, ask)
-	require.Nil(out)
-	require.Error(err)
-	require.Contains(err.Error(), "no devices match request")
+	must.Nil(t, out)
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "no devices match request")
 }
 
 func TestDeviceAllocator_Allocate_NUMA_available(t *testing.T) {
@@ -338,14 +334,14 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 			mem := anyMemoryNodeMatcher()
 			out, score, err := d.createOffer(mem, ask)
 			if c.NoPlacement {
-				require.Nil(t, out)
+				must.Nil(t, out)
 			} else {
 				must.NotNil(t, out)
 				must.Zero(t, score)
 				must.NoError(t, err)
 
 				// Check that we got the right nvidia device instance, and
-				// specific device instance IDs if required
+				// specific device instance IDs if mustd
 				must.Len(t, 1, out.DeviceIDs)
 				must.SliceContains(t, collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
 				must.SliceContainsSubset(t, c.ExpectedDeviceIDs, out.DeviceIDs)
@@ -434,27 +430,26 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			require := require.New(t)
 			_, ctx := testContext(t)
 			d := newDeviceAllocator(ctx, n)
-			require.NotNil(d)
+			must.NotNil(t, d)
 
 			// Build the request
 			ask := deviceRequest(c.Name, 1, nil, c.Affinities)
 
 			mem := anyMemoryNodeMatcher()
 			out, score, err := d.createOffer(mem, ask)
-			require.NotNil(out)
-			require.NoError(err)
+			must.NotNil(t, out)
+			must.NoError(t, err)
 			if c.ZeroScore {
-				require.Zero(score)
+				must.Zero(t, score)
 			} else {
-				require.NotZero(score)
+				must.NonZero(t, score)
 			}
 
 			// Check that we got the nvidia device
-			require.Len(out.DeviceIDs, 1)
-			require.Contains(collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
+			must.SliceLen(t, 1, out.DeviceIDs)
+			must.SliceContains(t, collectInstanceIDs(c.ExpectedDevice), out.DeviceIDs[0])
 		})
 	}
 }
@@ -471,7 +466,7 @@ func Test_memoryNodeMatcher(t *testing.T) {
 		name            string
 		memoryNode      int                         // memory node in consideration
 		topology        *numalib.Topology           // cpu cores and device bus associativity
-		taskNumaDevices *set.Set[string]            // devices that require numa associativity
+		taskNumaDevices *set.Set[string]            // devices that must numa associativity
 		instance        string                      // asking if this particular instance (id) satisfies the request
 		device          *structs.NodeDeviceResource // device group that contains specifics about instance(s)
 		exp             bool

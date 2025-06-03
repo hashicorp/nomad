@@ -16,7 +16,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
@@ -160,9 +159,9 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 		ClientStatus:  structs.AllocClientStatusPending,
 		TaskGroup:     "web",
 	}
-	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
-	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(alloc1.JobID)))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc2.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{alloc1, alloc2}))
 
 	// Add a planned eviction to alloc1
 	plan := ctx.Plan()
@@ -299,10 +298,10 @@ func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 		ClientStatus:  structs.AllocClientStatusPending,
 		TaskGroup:     "web",
 	}
-	require.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(allocEvict.JobID)))
-	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPreempt.JobID)))
-	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPropose.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocEvict, allocPreempt, allocPropose}))
+	must.NoError(t, state.UpsertJobSummary(998, mock.JobSummary(allocEvict.JobID)))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPreempt.JobID)))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(allocPropose.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1000, []*structs.Allocation{allocEvict, allocPreempt, allocPropose}))
 
 	// Plan to evict one alloc and preempt another
 	plan := ctx.Plan()
@@ -310,8 +309,8 @@ func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 	plan.NodeUpdate[nodes[0].Node.ID] = []*structs.Allocation{allocPreempt}
 
 	proposed, err := ctx.ProposedAllocs(nodes[0].Node.ID)
-	require.NoError(t, err)
-	require.Len(t, proposed, 1)
+	must.NoError(t, err)
+	must.SliceLen(t, 1, proposed)
 }
 
 func TestEvalEligibility_JobStatus(t *testing.T) {
@@ -431,7 +430,7 @@ func TestEvalEligibility_GetClasses(t *testing.T) {
 	}
 
 	actClasses := e.GetClasses()
-	require.Equal(t, expClasses, actClasses)
+	must.Eq(t, expClasses, actClasses)
 }
 func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T) {
 	ci.Parallel(t)
@@ -455,7 +454,7 @@ func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T
 	}
 
 	actClasses := e.GetClasses()
-	require.Equal(t, expClasses, actClasses)
+	must.Eq(t, expClasses, actClasses)
 }
 
 func TestPortCollisionEvent_Copy(t *testing.T) {
@@ -503,6 +502,6 @@ func TestPortCollisionEvent_Sanitize(t *testing.T) {
 	}
 
 	cleanEv := ev.Sanitize()
-	require.Empty(t, cleanEv.Node.SecretID)
-	require.Nil(t, cleanEv.Allocations[0].Job)
+	must.Eq(t, "", cleanEv.Node.SecretID)
+	must.Nil(t, cleanEv.Allocations[0].Job)
 }
