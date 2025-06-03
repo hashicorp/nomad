@@ -900,13 +900,15 @@ func (l *LibcontainerExecutor) clampCpuShares(shares int64) int64 {
 		)
 		return MinCPUShares
 	}
-	if shares > MaxCPUShares {
-		l.logger.Warn(
-			"task CPU is greater than maximum allowed, using maximum value instead",
-			"task_cpu", shares, "max", MaxCPUShares,
-		)
-		return MaxCPUShares
+
+	// Normalize the requested CPU shares when the total compute available on
+	// the node is larger than the largest share value allowed by the kernel. On
+	// cgroups v2 we'll later re-normalize this to be within the acceptable
+	// range for cpu.weight [1-10000].
+	if l.compute.TotalCompute >= MaxCPUShares {
+		return int64(float64(shares) / float64(l.compute.TotalCompute) * MaxCPUShares)
 	}
+
 	return shares
 }
 
