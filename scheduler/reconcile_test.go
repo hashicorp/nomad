@@ -276,7 +276,7 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	} else if exp.createDeployment != nil && r.deployment != nil {
 		// Clear the deployment ID
 		r.deployment.ID, exp.createDeployment.ID = "", ""
-		must.Eq(t, exp.deployment, r.createDeployment, must.Sprintf(
+		must.Eq(t, exp.createDeployment, r.deployment, must.Sprintf(
 			"Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
 			r.deployment, exp.createDeployment, pretty.Diff(r.deployment, exp.createDeployment)))
 	}
