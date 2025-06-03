@@ -2304,17 +2304,17 @@ func (n *nomadFSM) applyVariableOperation(msgType structs.MessageType, buf []byt
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 	switch req.Op {
 	case structs.VarOpSet:
-		return n.state.VarSet(index, &req)
+		return n.state.VarSet(msgType, index, &req)
 	case structs.VarOpDelete:
-		return n.state.VarDelete(index, &req)
+		return n.state.VarDelete(msgType, index, &req)
 	case structs.VarOpDeleteCAS:
-		return n.state.VarDeleteCAS(index, &req)
+		return n.state.VarDeleteCAS(msgType, index, &req)
 	case structs.VarOpCAS:
-		return n.state.VarSetCAS(index, &req)
+		return n.state.VarSetCAS(msgType, index, &req)
 	case structs.VarOpLockAcquire:
-		return n.state.VarLockAcquire(index, &req)
+		return n.state.VarLockAcquire(msgType, index, &req)
 	case structs.VarOpLockRelease:
-		return n.state.VarLockRelease(index, &req)
+		return n.state.VarLockRelease(msgType, index, &req)
 	default:
 		err := fmt.Errorf("Invalid variable operation '%s'", req.Op)
 		n.logger.Warn("Invalid variable operation", "operation", req.Op)

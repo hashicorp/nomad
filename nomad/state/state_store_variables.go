@@ -121,8 +121,8 @@ func (s *StateStore) GetVariable(
 }
 
 // VarSet is used to store a variable object.
-func (s *StateStore) VarSet(idx uint64, sv *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
-	tx := s.db.WriteTxn(idx)
+func (s *StateStore) VarSet(msgType structs.MessageType, idx uint64, sv *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
+	tx := s.db.WriteTxnMsgT(msgType, idx)
 	defer tx.Abort()
 
 	// Perform the actual set.
@@ -140,8 +140,8 @@ func (s *StateStore) VarSet(idx uint64, sv *structs.VarApplyStateRequest) *struc
 // VarSetCAS is used to do a check-and-set operation on a
 // variable. The ModifyIndex in the provided entry is used to determine if
 // we should write the entry to the state store or not.
-func (s *StateStore) VarSetCAS(idx uint64, sv *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
-	tx := s.db.WriteTxn(idx)
+func (s *StateStore) VarSetCAS(msgType structs.MessageType, idx uint64, sv *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
+	tx := s.db.WriteTxnMsgT(msgType, idx)
 	defer tx.Abort()
 
 	resp := s.varSetCASTxn(tx, idx, sv)
@@ -299,8 +299,8 @@ func (s *StateStore) varSetTxn(tx WriteTxn, idx uint64, req *structs.VarApplySta
 
 // VarDelete is used to delete a single variable in the
 // the state store.
-func (s *StateStore) VarDelete(idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
-	tx := s.db.WriteTxn(idx)
+func (s *StateStore) VarDelete(msgType structs.MessageType, idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
+	tx := s.db.WriteTxnMsgT(msgType, idx)
 	defer tx.Abort()
 
 	// Perform the actual delete
@@ -321,8 +321,8 @@ func (s *StateStore) VarDelete(idx uint64, req *structs.VarApplyStateRequest) *s
 // a given modify index. If the CAS index (cidx) specified is not equal to the
 // last observed index for the given variable, then the call is a noop,
 // otherwise a normal delete is invoked.
-func (s *StateStore) VarDeleteCAS(idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
-	tx := s.db.WriteTxn(idx)
+func (s *StateStore) VarDeleteCAS(msgType structs.MessageType, idx uint64, req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
+	tx := s.db.WriteTxnMsgT(msgType, idx)
 	defer tx.Abort()
 
 	resp := s.svDeleteCASTxn(tx, idx, req)
@@ -484,9 +484,9 @@ func (s *StateStore) VariablesQuotaByNamespace(ws memdb.WatchSet, namespace stri
 // VarLockAcquire is the method used to append a lock to a variable, if the
 // variable doesn't exists, it is created.
 // IMPORTANT: this method overwrites the variable, data included.
-func (s *StateStore) VarLockAcquire(idx uint64,
+func (s *StateStore) VarLockAcquire(msgType structs.MessageType, idx uint64,
 	req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
-	tx := s.db.WriteTxn(idx)
+	tx := s.db.WriteTxnMsgT(msgType, idx)
 	defer tx.Abort()
 
 	// Try to fetch the variable.
@@ -521,9 +521,9 @@ func (s *StateStore) VarLockAcquire(idx uint64,
 	return resp
 }
 
-func (s *StateStore) VarLockRelease(idx uint64,
+func (s *StateStore) VarLockRelease(msgType structs.MessageType, idx uint64,
 	req *structs.VarApplyStateRequest) *structs.VarApplyStateResponse {
-	tx := s.db.WriteTxn(idx)
+	tx := s.db.WriteTxnMsgT(msgType, idx)
 	defer tx.Abort()
 
 	// Look up the entry in the state store.
