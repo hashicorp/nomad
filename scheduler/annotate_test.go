@@ -50,7 +50,7 @@ func TestAnnotateTaskGroup_Updates(t *testing.T) {
 		t.Fatalf("annotateTaskGroup(%#v, %#v) failed: %#v", tgDiff, annotations, err)
 	}
 
-	must.Eq(t, tgDiff, expected)
+	must.Eq(t, expected, tgDiff)
 
 }
 

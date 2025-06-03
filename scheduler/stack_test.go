@@ -81,7 +81,7 @@ func TestServiceStack_SetNodes(t *testing.T) {
 	}
 
 	out := collectFeasible(stack.source)
-	must.Eq(t, out, nodes)
+	must.Eq(t, nodes, out)
 
 }
 

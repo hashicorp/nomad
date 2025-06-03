@@ -904,13 +904,13 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 	node = mock.Node()
 	node.NodeClass = "Class-A"
 	must.NoError(t, node.ComputeClass())
-	must.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	var nodeB *structs.Node
 	nodeB = mock.Node()
 	nodeB.NodeClass = "Class-B"
 	must.NoError(t, nodeB.ComputeClass())
-	must.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), nodeB))
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), nodeB))
 
 	// Make a sysbatch job with two task groups, each constraint to a node class
 	job := mock.SystemBatchJob()
@@ -931,7 +931,7 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 
 	// Upsert Job
 	job.TaskGroups = []*structs.TaskGroup{tgA, tgB}
-	must.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Evaluate the job
 	eval := &structs.Evaluation{
@@ -942,10 +942,10 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	must.Nil(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	must.Nil(t, h.Process(NewSysBatchScheduler, eval))
+	must.NoError(t, h.Process(NewSysBatchScheduler, eval))
 	must.Eq(t, "complete", h.Evals[0].Status)
 
 	// QueuedAllocations is drained
@@ -974,10 +974,10 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 		JobID:       job.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	must.Nil(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval2}))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval2}))
 
 	// Process the 2nd evaluation
-	must.Nil(t, h.Process(NewSysBatchScheduler, eval2))
+	must.NoError(t, h.Process(NewSysBatchScheduler, eval2))
 	must.Eq(t, "complete", h.Evals[1].Status)
 
 	// Ensure no new plans
@@ -994,7 +994,7 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 	nodeBTwo = mock.Node()
 	nodeBTwo.NodeClass = "Class-B"
 	must.NoError(t, nodeBTwo.ComputeClass())
-	must.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), nodeBTwo))
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), nodeBTwo))
 
 	// Evaluate the new node
 	eval3 := &structs.Evaluation{
@@ -1008,8 +1008,8 @@ func TestSysBatch_JobConstraint_AddNode(t *testing.T) {
 	}
 
 	// Ensure 3rd eval is complete
-	must.Nil(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval3}))
-	must.Nil(t, h.Process(NewSysBatchScheduler, eval3))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval3}))
+	must.NoError(t, h.Process(NewSysBatchScheduler, eval3))
 	must.Eq(t, "complete", h.Evals[2].Status)
 
 	must.Len(t, 2, h.Plans)
@@ -1159,12 +1159,12 @@ func TestSysBatch_ExistingAllocNoNodes(t *testing.T) {
 	// Create a node
 	node = mock.Node()
 	must.NoError(t, node.ComputeClass())
-	must.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// Make a sysbatch job
 	job := mock.SystemBatchJob()
 	job.Meta = map[string]string{"version": "1"}
-	must.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Evaluate the job
 	eval := &structs.Evaluation{
@@ -1176,8 +1176,8 @@ func TestSysBatch_ExistingAllocNoNodes(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	must.Nil(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-	must.Nil(t, h.Process(NewSysBatchScheduler, eval))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.Process(NewSysBatchScheduler, eval))
 	must.Eq(t, "complete", h.Evals[0].Status)
 
 	// QueuedAllocations is drained
@@ -1201,14 +1201,14 @@ func TestSysBatch_ExistingAllocNoNodes(t *testing.T) {
 		NodeID:      node.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	must.Nil(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval2}))
-	must.Nil(t, h.Process(NewSysBatchScheduler, eval2))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval2}))
+	must.NoError(t, h.Process(NewSysBatchScheduler, eval2))
 	must.Eq(t, "complete", h.Evals[1].Status)
 
 	// Create a new job version, deploy
 	job2 := job.Copy()
 	job2.Meta["version"] = "2"
-	must.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
 
 	// Run evaluation as a plan
 	eval3 := &structs.Evaluation{
@@ -1222,8 +1222,8 @@ func TestSysBatch_ExistingAllocNoNodes(t *testing.T) {
 	}
 
 	// Ensure New eval is complete
-	must.Nil(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval3}))
-	must.Nil(t, h.Process(NewSysBatchScheduler, eval3))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval3}))
+	must.NoError(t, h.Process(NewSysBatchScheduler, eval3))
 	must.Eq(t, "complete", h.Evals[2].Status)
 
 	// Ensure there are no FailedTGAllocs
@@ -1272,8 +1272,8 @@ func TestSysBatch_ConstraintErrors(t *testing.T) {
 		Status:      structs.EvalStatusPending,
 	}
 
-	must.Nil(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
-	must.Nil(t, h.Process(NewSysBatchScheduler, eval))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.Process(NewSysBatchScheduler, eval))
 	must.Eq(t, "complete", h.Evals[0].Status)
 
 	// QueuedAllocations is drained

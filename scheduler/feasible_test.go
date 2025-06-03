@@ -63,7 +63,7 @@ func TestStaticIterator_SetNodes(t *testing.T) {
 	static.SetNodes(newNodes)
 
 	out := collectFeasible(static)
-	must.Eq(t, out, newNodes)
+	must.Eq(t, newNodes, out)
 
 }
 
@@ -84,7 +84,7 @@ func TestRandomIterator(t *testing.T) {
 	if len(out) != len(nodes) {
 		t.Fatalf("missing nodes")
 	}
-	must.NotEq(t, out, nodes)
+	must.NotEq(t, nodes, out)
 
 }
 

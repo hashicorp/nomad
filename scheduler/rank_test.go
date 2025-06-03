@@ -369,8 +369,8 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 
 	// We expect both nodes to be eligible to place
 	must.Len(t, 2, out)
-	must.Eq(t, out[0], nodes[0])
-	must.Eq(t, out[1], nodes[1])
+	must.Eq(t, nodes[0], out[0])
+	must.Eq(t, nodes[1], out[1])
 
 	// First node should have a perfect score
 	must.Eq(t, 1.0, out[0].FinalScore)
@@ -2377,12 +2377,12 @@ func TestScoreNormalizationIterator(t *testing.T) {
 	out := collectRanked(scoreNorm)
 
 	must.Eq(t, 2, len(out))
-	must.Eq(t, out[0], nodes[0])
+	must.Eq(t, nodes[0], out[0])
 	// Score should be averaged between both scorers
 	// -0.75 from job anti affinity and -1 from node rescheduling penalty
 	must.Eq(t, -0.875, out[0].FinalScore)
-	must.Eq(t, out[1], nodes[1])
-	must.Eq(t, out[1].FinalScore, 0.0)
+	must.Eq(t, nodes[1], out[1])
+	must.Eq(t, 0.0, out[1].FinalScore)
 }
 
 func TestNodeAffinityIterator(t *testing.T) {

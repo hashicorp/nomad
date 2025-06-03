@@ -159,8 +159,7 @@ func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
 	mem := anyMemoryNodeMatcher()
 	out, _, err := d.createOffer(mem, ask)
 	must.Nil(t, out)
-	must.Error(t, err)
-	must.StrContains(t, err.Error(), "no devices match request")
+	must.ErrorContains(t, err, "no devices match request")
 }
 
 func TestDeviceAllocator_Allocate_NUMA_available(t *testing.T) {
@@ -466,7 +465,7 @@ func Test_memoryNodeMatcher(t *testing.T) {
 		name            string
 		memoryNode      int                         // memory node in consideration
 		topology        *numalib.Topology           // cpu cores and device bus associativity
-		taskNumaDevices *set.Set[string]            // devices that must numa associativity
+		taskNumaDevices *set.Set[string]            // devices that require numa associativity
 		instance        string                      // asking if this particular instance (id) satisfies the request
 		device          *structs.NodeDeviceResource // device group that contains specifics about instance(s)
 		exp             bool

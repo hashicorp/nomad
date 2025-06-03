@@ -678,14 +678,14 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 			Operand: structs.ConstraintDistinctProperty,
 			LTarget: "${node.unique.id}",
 		})
-	must.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 
 	// Create some nodes
 	var nodes []*structs.Node
 	for i := 0; i < 6; i++ {
 		node := mock.Node()
 		nodes = append(nodes, node)
-		must.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 	}
 
 	// Create some allocations
@@ -698,12 +698,12 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 		alloc.Name = fmt.Sprintf("my-job.web[%d]", i)
 		allocs = append(allocs, alloc)
 	}
-	must.Nil(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// Update the count
 	job2 := job.Copy()
 	job2.TaskGroups[0].Count = 6
-	must.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2))
 
 	// Create a mock evaluation to register the job
 	eval := &structs.Evaluation{
@@ -717,7 +717,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	must.Nil(t, h.Process(NewServiceScheduler, eval))
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 	// Ensure a single plan
 	must.Len(t, 1, h.Plans)
@@ -778,7 +778,7 @@ func TestServiceSched_Spread(t *testing.T) {
 						},
 					},
 				})
-			must.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 			// Create some nodes, half in dc2
 			var nodes []*structs.Node
 			nodeMap := make(map[string]*structs.Node)
@@ -792,7 +792,7 @@ func TestServiceSched_Spread(t *testing.T) {
 				node.NodeResources.MinDynamicPort = 20000
 				node.NodeResources.MaxDynamicPort = 20005
 				nodes = append(nodes, node)
-				must.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+				must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 				nodeMap[node.ID] = node
 			}
 
@@ -808,7 +808,7 @@ func TestServiceSched_Spread(t *testing.T) {
 			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 			// Process the evaluation
-			must.Nil(t, h.Process(NewServiceScheduler, eval))
+			must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 			// Ensure a single plan
 			must.Len(t, 1, h.Plans)
@@ -1103,7 +1103,7 @@ func TestServiceSched_EvenSpread(t *testing.T) {
 			Attribute: "${node.datacenter}",
 			Weight:    100,
 		})
-	must.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job))
 	// Create some nodes, half in dc2
 	var nodes []*structs.Node
 	nodeMap := make(map[string]*structs.Node)
@@ -1113,7 +1113,7 @@ func TestServiceSched_EvenSpread(t *testing.T) {
 			node.Datacenter = "dc2"
 		}
 		nodes = append(nodes, node)
-		must.Nil(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+		must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 		nodeMap[node.ID] = node
 	}
 
@@ -1129,7 +1129,7 @@ func TestServiceSched_EvenSpread(t *testing.T) {
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	must.Nil(t, h.Process(NewServiceScheduler, eval))
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 	// Ensure a single plan
 	must.Len(t, 1, h.Plans)
@@ -1239,7 +1239,7 @@ func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	}
 
 	expected := &structs.DesiredUpdates{Place: 10}
-	must.Eq(t, desiredChanges, expected)
+	must.Eq(t, expected, desiredChanges)
 
 }
 
@@ -2994,7 +2994,7 @@ func TestServiceSched_JobModify_Canaries(t *testing.T) {
 	must.True(t, ok)
 
 	must.Eq(t, 10, state.DesiredTotal)
-	must.Eq(t, state.DesiredCanaries, desiredUpdates)
+	must.Eq(t, desiredUpdates, state.DesiredCanaries)
 
 	// Assert the canaries were added to the placed list
 	must.Eq(t, desiredUpdates, len(state.PlacedCanaries))
@@ -3120,8 +3120,8 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	rp := structs.Port{Label: "admin", Value: 5000}
 	for _, alloc := range out {
 		// Verify Shared Allocared Resources Persisted
-		must.Eq(t, alloc.AllocatedResources.Shared.Ports, asr.Ports)
-		must.Eq(t, alloc.AllocatedResources.Shared.Networks, asr.Networks)
+		must.Eq(t, asr.Ports, alloc.AllocatedResources.Shared.Ports)
+		must.Eq(t, asr.Networks, alloc.AllocatedResources.Shared.Networks)
 
 		for _, resources := range alloc.AllocatedResources.Tasks {
 			must.Eq(t, rp, resources.Networks[0].ReservedPorts[0])
@@ -5065,7 +5065,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 				Interval: 15 * time.Minute,
 			}
 			jobIndex := h.NextIndex()
-			must.Nil(t, h.State.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
+			must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, jobIndex, nil, job))
 
 			deployment := mock.Deployment()
 			deployment.JobID = job.ID
@@ -5075,7 +5075,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 				deployment.Status = structs.DeploymentStatusFailed
 			}
 
-			must.Nil(t, h.State.UpsertDeployment(h.NextIndex(), deployment))
+			must.NoError(t, h.State.UpsertDeployment(h.NextIndex(), deployment))
 
 			var allocs []*structs.Allocation
 			for i := 0; i < 2; i++ {
@@ -5094,7 +5094,7 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 				FinishedAt: time.Now().Add(-10 * time.Hour)}}
 			allocs[1].DesiredTransition.Reschedule = pointer.Of(true)
 
-			must.Nil(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+			must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 			// Create a mock evaluation
 			eval := &structs.Evaluation{
@@ -5105,10 +5105,10 @@ func TestDeployment_FailedAllocs_Reschedule(t *testing.T) {
 				JobID:       job.ID,
 				Status:      structs.EvalStatusPending,
 			}
-			must.Nil(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+			must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 			// Process the evaluation
-			must.Nil(t, h.Process(NewServiceScheduler, eval))
+			must.NoError(t, h.Process(NewServiceScheduler, eval))
 
 			if failedDeployment {
 				// Verify no plan created
@@ -5345,7 +5345,7 @@ func TestBatchSched_Run_LostAlloc(t *testing.T) {
 	for _, alloc := range out {
 		actual[alloc.Name] += 1
 	}
-	must.Eq(t, actual, expected)
+	must.Eq(t, expected, actual)
 
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 }
@@ -6961,7 +6961,7 @@ func TestDowngradedJobForPlacement_PicksTheLatest(t *testing.T) {
 		// update is a "destructive" update and has been updated manually
 		promoted bool
 
-		// mustCanaries indicate whether the job update musts placing canaries due to
+		// mustCanaries indicate whether the job update requires placing canaries due to
 		// it being a destructive update compared to the latest promoted deployment.
 		mustCanaries bool
 
@@ -6981,7 +6981,7 @@ func TestDowngradedJobForPlacement_PicksTheLatest(t *testing.T) {
 		// use latest promoted after promotion
 		{7, true, true, 7},
 
-		// non destructive updates that don't must canaries and are treated as promoted
+		// non destructive updates that don't require canaries and are treated as promoted
 		{8, false, false, 8},
 	}
 
