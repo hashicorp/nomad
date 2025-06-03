@@ -126,6 +126,42 @@ task drivers enable limiting a task to use only the amount of bandwidth
 allocated to the task, described in the [CPU Hard Limits](#cpu-hard-limits)
 section below.
 
+### Relative CPU shares/weights on Linux
+
+Linux cgroups are hierarchical, and the `cpu.share`/`cpu.weight` values reflect
+relative weights within a given subtree. Nomad creates its own cgroup subtree
+(`nomad.slice`) on startup, and all `cpu.share`/`cpu.weight` values that Nomad
+writes are relative between processes within that slice. The `nomad.slice`
+subtree is itself relative to another subtree on the host. For example, a host
+running systemd might have the following slices:
+
+```
+/sys/fs/cgroup
+├── nomad.slice
+│   ├── reserve.slice
+│   └── share.slice
+│       ├── 912dcc05-61e1-53cb-5489-a976a1231960.task.scope
+│       ├── 247e706a-6df8-4123-89b3-1bcf2846b503.task.scope
+│       └── 586c0c58-3d50-4730-b4ad-022076d3c6a4.task.scope
+├── system.slice
+│   ├── journald.service
+│   └── (various system services, etc.)
+└── user-1000.slice
+    ├── session-1.scope
+    └── (various user services, etc.)
+```
+
+If the task `912dcc05` has `resources.cpu = 1024` and tasks `247e706a` and
+`586c0c58` have `resources.cpu = 512`, then `912dcc05` will get 50% of the CPU
+resources available to the `nomad.slice` and tasks `247e706a` and `586c0c58`
+will get 25% each. (The `reserve.slice` and `share.slice` are passthrough for
+cpu shares here.) But together they'll get 33% of the total host's CPU resources
+unless the `nomad.slice`, `system.slice`, or `user-1000.slice` have something
+other than the default 1024 shares. The 1024 value is only meaningful within the
+context of the Nomad slice.
+
+### Allocating cores
+
 On Linux systems, Nomad supports reserving whole CPU cores specifically for a
 task. No task will be allowed to run on a CPU core reserved for another task.
 
