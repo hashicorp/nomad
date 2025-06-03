@@ -948,6 +948,8 @@ func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (
 	return hard * 1024 * 1024, softBytes
 }
 
+// maxCPUShares is the maximum value for cpu_shares in cgroups v1
+// https://github.com/torvalds/linux/blob/v6.15/kernel/sched/sched.h#L503
 const maxCPUShares = 262_144
 
 // cpuResources normalizes the requested CPU shares when the total compute
