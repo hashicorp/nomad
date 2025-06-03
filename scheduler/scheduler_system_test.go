@@ -5,7 +5,6 @@ package scheduler
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 	"testing"
 	"time"
@@ -412,9 +411,8 @@ func TestSystemSched_JobRegister_Annotate(t *testing.T) {
 	}
 
 	expected := &structs.DesiredUpdates{Place: 9}
-	if !reflect.DeepEqual(desiredChanges, expected) {
-		t.Fatalf("Unexpected desired updates; got %#v; want %#v", desiredChanges, expected)
-	}
+	must.Eq(t, desiredChanges, expected)
+
 }
 
 func TestSystemSched_JobRegister_AddNode(t *testing.T) {

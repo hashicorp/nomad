@@ -1239,9 +1239,8 @@ func TestServiceSched_JobRegister_Annotate(t *testing.T) {
 	}
 
 	expected := &structs.DesiredUpdates{Place: 10}
-	if !reflect.DeepEqual(desiredChanges, expected) {
-		t.Fatalf("Unexpected desired updates; got %#v; want %#v", desiredChanges, expected)
-	}
+	must.Eq(t, desiredChanges, expected)
+
 }
 
 func TestServiceSched_JobRegister_CountZero(t *testing.T) {
@@ -3114,9 +3113,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 	must.NoError(t, err)
 
 	// Ensure all allocations placed
-	if len(out) != 10 {
-		t.Fatalf("bad: %#v", out)
-	}
+	must.Len(t, 10, out)
 	h.AssertEvalStatus(t, structs.EvalStatusComplete)
 
 	// Verify the allocated networks and devices did not change
@@ -3127,9 +3124,7 @@ func TestServiceSched_JobModify_InPlace(t *testing.T) {
 		must.Eq(t, alloc.AllocatedResources.Shared.Networks, asr.Networks)
 
 		for _, resources := range alloc.AllocatedResources.Tasks {
-			if resources.Networks[0].ReservedPorts[0] != rp {
-				t.Fatalf("bad: %#v", alloc)
-			}
+			must.Eq(t, rp, resources.Networks[0].ReservedPorts[0])
 			if len(resources.Devices) == 0 || reflect.DeepEqual(resources.Devices[0], adr) {
 				t.Fatalf("bad devices has changed: %#v", alloc)
 			}

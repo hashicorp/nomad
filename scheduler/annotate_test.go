@@ -4,11 +4,11 @@
 package scheduler
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 )
 
 func TestAnnotateTaskGroup_Updates(t *testing.T) {
@@ -50,9 +50,8 @@ func TestAnnotateTaskGroup_Updates(t *testing.T) {
 		t.Fatalf("annotateTaskGroup(%#v, %#v) failed: %#v", tgDiff, annotations, err)
 	}
 
-	if !reflect.DeepEqual(tgDiff, expected) {
-		t.Fatalf("got %#v, want %#v", tgDiff, expected)
-	}
+	must.Eq(t, tgDiff, expected)
+
 }
 
 func TestAnnotateCountChange_NonEdited(t *testing.T) {
@@ -61,9 +60,8 @@ func TestAnnotateCountChange_NonEdited(t *testing.T) {
 	tg := &structs.TaskGroupDiff{}
 	tgOrig := &structs.TaskGroupDiff{}
 	annotateCountChange(tg)
-	if !reflect.DeepEqual(tgOrig, tg) {
-		t.Fatalf("annotateCountChange(%#v) should not have caused any annotation: %#v", tgOrig, tg)
-	}
+	must.Eq(t, tgOrig, tg)
+
 }
 
 func TestAnnotateCountChange(t *testing.T) {
@@ -116,9 +114,8 @@ func TestAnnotateTask_NonEdited(t *testing.T) {
 	td := &structs.TaskDiff{Type: structs.DiffTypeNone}
 	tdOrig := &structs.TaskDiff{Type: structs.DiffTypeNone}
 	annotateTask(td, tgd)
-	if !reflect.DeepEqual(tdOrig, td) {
-		t.Fatalf("annotateTask(%#v) should not have caused any annotation: %#v", tdOrig, td)
-	}
+	must.Eq(t, tdOrig, td)
+
 }
 
 func TestAnnotateTask(t *testing.T) {
