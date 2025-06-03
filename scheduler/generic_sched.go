@@ -117,8 +117,10 @@ type GenericScheduler struct {
 	deployment *structs.Deployment
 
 	blocked        *structs.Evaluation
+	goodTGAllocs   map[string]*structs.AllocMetric
 	failedTGAllocs map[string]*structs.AllocMetric
 	queuedAllocs   map[string]int
+	annotations    *structs.PlanAnnotations
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
@@ -175,7 +177,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
 		return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
-			s.failedTGAllocs, structs.EvalStatusFailed, desc, s.queuedAllocs,
+			s.failedTGAllocs, s.goodTGAllocs, s.annotations, structs.EvalStatusFailed, desc, s.queuedAllocs,
 			s.deployment.GetID())
 	}
 
@@ -194,7 +196,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 				mErr.Errors = append(mErr.Errors, err)
 			}
 			if err := setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
-				s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
+				s.failedTGAllocs, s.goodTGAllocs, s.annotations, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, s.deployment.GetID()); err != nil {
 				mErr.Errors = append(mErr.Errors, err)
 			}
@@ -216,7 +218,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 
 	// Update the status to complete
 	return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
-		s.failedTGAllocs, structs.EvalStatusComplete, "", s.queuedAllocs,
+		s.failedTGAllocs, s.goodTGAllocs, s.annotations, structs.EvalStatusComplete, "", s.queuedAllocs,
 		s.deployment.GetID())
 }
 
@@ -275,6 +277,7 @@ func (s *GenericScheduler) process() (bool, error) {
 
 	// Reset the failed allocations
 	s.failedTGAllocs = nil
+	s.annotations = nil
 
 	// Create an evaluation context
 	s.ctx = NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
@@ -330,6 +333,7 @@ func (s *GenericScheduler) process() (bool, error) {
 	// Submit the plan and store the results.
 	result, newState, err := s.planner.SubmitPlan(s.plan)
 	s.planResult = result
+	//	s.annotations = s.plan.Annotations
 	if err != nil {
 		return false, err
 	}
@@ -389,10 +393,11 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	results := reconciler.Compute()
 	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", results))
 
+	s.annotations = &structs.PlanAnnotations{
+		DesiredTGUpdates: results.desiredTGUpdates,
+	}
 	if s.eval.AnnotatePlan {
-		s.plan.Annotations = &structs.PlanAnnotations{
-			DesiredTGUpdates: results.desiredTGUpdates,
-		}
+		s.plan.Annotations = s.annotations
 	}
 
 	// Add the deployment changes to the plan
@@ -624,6 +629,13 @@ func (s *GenericScheduler) computePlacements(destructive, place []placementResul
 
 			// Set fields based on if we found an allocation option
 			if option != nil {
+				// Lazy initialize the good map
+				if s.goodTGAllocs == nil {
+					s.goodTGAllocs = make(map[string]*structs.AllocMetric)
+				}
+				fmt.Println(s.ctx.Metrics())
+				s.goodTGAllocs[tg.Name] = s.ctx.Metrics()
+
 				resources := &structs.AllocatedResources{
 					Tasks:          option.TaskResources,
 					TaskLifecycles: option.TaskLifecycles,
@@ -940,7 +952,7 @@ func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.
 		s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 		preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
 
-		if s.eval.AnnotatePlan && s.plan.Annotations != nil {
+		if s.plan.Annotations != nil {
 			s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
 			if s.plan.Annotations.DesiredTGUpdates != nil {
 				desired := s.plan.Annotations.DesiredTGUpdates[missing.TaskGroup().Name]

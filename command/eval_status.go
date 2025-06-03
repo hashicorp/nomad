@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
+	"github.com/ryanuber/columnize"
 )
 
 type EvalStatusCommand struct {
@@ -220,15 +221,86 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		basic = append(basic,
 			fmt.Sprintf("Wait Until|%s", formatTime(eval.WaitUntil)))
 	}
+	if eval.QuotaLimitReached != "" {
+		basic = append(basic,
+			fmt.Sprintf("Quota Limit Reached|%s", eval.QuotaLimitReached))
+	}
 
 	if verbose {
 		// NextEval, PreviousEval, BlockedEval
 		basic = append(basic,
 			fmt.Sprintf("Previous Eval|%s", eval.PreviousEval),
 			fmt.Sprintf("Next Eval|%s", eval.NextEval),
-			fmt.Sprintf("Blocked Eval|%s", eval.BlockedEval))
+			fmt.Sprintf("Blocked Eval|%s", eval.BlockedEval),
+			fmt.Sprintf("Escaped Computed Class|%v", eval.EscapedComputedClass),
+		)
+
 	}
 	c.Ui.Output(formatKV(basic))
+
+	if len(eval.RelatedEvals) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Related Evaluations[reset]"))
+		formatRelatedEvalStubs(eval.RelatedEvals, length)
+	}
+
+	if len(eval.ClassEligibility) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Computed Node Class Eligibility[reset]"))
+		classes := make([]string, len(eval.ClassEligibility)+1)
+		classes[0] = "Node Class|Eligible"
+		i := 1
+		for class, ok := range eval.ClassEligibility {
+			classes[i] = fmt.Sprintf("%s|%v", class, ok)
+		}
+		c.Ui.Output(columnize.SimpleFormat(classes))
+	}
+
+	if eval.PlanAnnotations != nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Reconciler Annotations[reset]"))
+		annotations := make([]string, len(eval.PlanAnnotations.DesiredTGUpdates)+1)
+		annotations[0] = "Task Group|Ignore|Place|Stop|Migrate|InPlace|Destructive|Canary|Preemptions"
+		i := 1
+		for tg, updates := range eval.PlanAnnotations.DesiredTGUpdates {
+			annotations[i] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d|%d|%d",
+				tg,
+				updates.Ignore,
+				updates.Place,
+				updates.Stop,
+				updates.Migrate,
+				updates.InPlaceUpdate,
+				updates.DestructiveUpdate,
+				updates.Canary,
+				updates.Preemptions,
+			)
+			i++
+		}
+		c.Ui.Output(columnize.SimpleFormat(annotations))
+
+		if len(eval.PlanAnnotations.PreemptedAllocs) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Preempted Allocations[reset]"))
+			allocsOut := formatAllocListStubs(eval.PlanAnnotations.PreemptedAllocs, false, length)
+			c.Ui.Output(allocsOut)
+		}
+	}
+
+	if len(eval.GoodTGAllocs) > 0 {
+		sorted := sortedTaskGroupFromMetrics(eval.GoodTGAllocs)
+		for _, tg := range sorted {
+			c.Ui.Output(c.Colorize().Color(fmt.Sprintf("\n[bold]Placement Metrics: %s[reset]", tg)))
+			metrics := eval.GoodTGAllocs[tg]
+			stats := make([]string, 2)
+			stats[0] = "Nodes|Evaluated|Filtered|Exhausted"
+			stats[1] = fmt.Sprintf("%d|%d|%d|%d",
+				metrics.NodesInPool,
+				metrics.NodesEvaluated,
+				metrics.NodesFiltered,
+				metrics.NodesExhausted,
+			)
+			c.Ui.Output(columnize.SimpleFormat(stats))
+			c.Ui.Output("")
+			c.Ui.Output(formatAllocMetrics(metrics, true, "  "))
+			c.Ui.Output("")
+		}
+	}
 
 	if failures {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Failed Placements[reset]"))
@@ -283,4 +355,21 @@ func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {
 	default:
 		return "", ""
 	}
+}
+
+func formatRelatedEvalStubs(evals []*api.EvaluationStub, length int) string {
+	out := make([]string, len(evals)+1)
+	out[0] = "ID|Priority|Triggered By|Node ID|Status|Description"
+	for i, eval := range evals {
+		out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s",
+			limit(eval.ID, length),
+			eval.Priority,
+			eval.TriggeredBy,
+			limit(eval.NodeID, length),
+			eval.Status,
+			eval.StatusDescription,
+		)
+	}
+
+	return formatList(out)
 }

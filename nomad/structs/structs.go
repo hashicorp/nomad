@@ -12418,6 +12418,13 @@ type Evaluation struct {
 	// to determine the cause.
 	FailedTGAllocs map[string]*AllocMetric
 
+	// GoodTGAllocs are task groups which have successfully placed allocations
+	// TODO: will these dupe with FailedTGAllocs if one alloc in a group fails?
+	GoodTGAllocs map[string]*AllocMetric
+
+	// PlanAnnotations represents the output of the reconciliation step.
+	PlanAnnotations *PlanAnnotations
+
 	// ClassEligibility tracks computed node classes that have been explicitly
 	// marked as eligible or ineligible.
 	ClassEligibility map[string]bool
