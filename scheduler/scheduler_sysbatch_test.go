@@ -1290,7 +1290,7 @@ func TestSysBatch_ConstraintErrors(t *testing.T) {
 	// jobs are not auto set to running)
 	ws := memdb.NewWatchSet()
 	as, err := h.State.AllocsByJob(ws, structs.DefaultNamespace, job.ID, false)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	pending := 0
 	for _, a := range as {
@@ -1763,7 +1763,7 @@ func TestSysBatch_Preemption(t *testing.T) {
 
 	// Process the evaluation
 	err = h.Process(NewSysBatchScheduler, eval)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	// Ensure a single plan
 	must.Eq(t, 1, len(h.Plans))

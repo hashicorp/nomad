@@ -739,7 +739,7 @@ func TestServiceSched_JobRegister_DistinctProperty_TaskGroup_Incr(t *testing.T) 
 	// Lookup the allocations by JobID
 	ws := memdb.NewWatchSet()
 	out, err := h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	// Ensure all allocations placed
 	must.Len(t, 6, out)
@@ -4480,7 +4480,7 @@ func TestServiceSched_Reschedule_OnceNow(t *testing.T) {
 
 	// Process the evaluation
 	err = h.Process(NewServiceScheduler, eval)
-	must.Nil(t, err)
+	must.NoError(t, err)
 	// Verify no new allocs were created this time
 	out, err = h.State.AllocsByJob(ws, job.Namespace, job.ID, false)
 	must.NoError(t, err)
@@ -4567,8 +4567,8 @@ func TestServiceSched_Reschedule_Later(t *testing.T) {
 
 	// Verify follow up eval was created for the failed alloc
 	alloc, err := h.State.AllocByID(ws, failedAllocID)
-	must.Nil(t, err)
-	must.Eq(t, "", alloc.FollowupEvalID)
+	must.NoError(t, err)
+	must.NotEq(t, "", alloc.FollowupEvalID)
 
 	// Ensure there is a follow up eval.
 	if len(h.CreateEvals) != 1 || h.CreateEvals[0].Status != structs.EvalStatusPending {
@@ -4710,7 +4710,7 @@ func TestServiceSched_Reschedule_MultipleNow(t *testing.T) {
 
 	// Process last eval again, should not reschedule
 	err := h.Process(NewServiceScheduler, eval)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	// Verify no new allocs were created because restart attempts were exhausted
 	ws := memdb.NewWatchSet()
@@ -6634,7 +6634,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 	for index, eval := range []*structs.Evaluation{eval1, eval2} {
 		// Process the evaluation
 		err := h.Process(NewServiceScheduler, eval)
-		must.Nil(t, err)
+		must.NoError(t, err)
 
 		plan := h.Plans[index]
 
@@ -6677,7 +6677,7 @@ func TestServiceSched_Preemption(t *testing.T) {
 
 	// Process the evaluation
 	err := h.Process(NewServiceScheduler, eval)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	// New plan should be the third one in the harness
 	plan := h.Plans[2]

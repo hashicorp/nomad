@@ -1328,7 +1328,7 @@ func TestPreemption_Normal(t *testing.T) {
 			}
 			err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, tc.currentAllocations)
 
-			must.Nil(t, err)
+			must.NoError(t, err)
 			if tc.currentPreemptions != nil {
 				ctx.plan.NodePreemptions[node.ID] = tc.currentPreemptions
 			}

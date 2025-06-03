@@ -1797,7 +1797,7 @@ func TestSystemSched_ConstraintErrors(t *testing.T) {
 	// Two nodes were allocated and are running
 	ws := memdb.NewWatchSet()
 	as, err := h.State.AllocsByJob(ws, structs.DefaultNamespace, job.ID, false)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	running := 0
 	for _, a := range as {
@@ -2270,7 +2270,7 @@ func TestSystemSched_Preemption(t *testing.T) {
 
 	// Process the evaluation
 	err = h.Process(NewSystemScheduler, eval)
-	must.Nil(t, err)
+	must.NoError(t, err)
 
 	// Ensure a single plan
 	must.Eq(t, 1, len(h.Plans))
