@@ -68,7 +68,7 @@ jobs:
           - ubuntu-22.04
           - ubuntu-22.04-arm
           - macos-14
-          - windows-2019
+          - windows-2022
     runs-on: ${{ (endsWith(github.repository, '-enterprise')) && (matrix.os == 'ubuntu-22.04-arm') && fromJSON('["self-hosted", "ubuntu-22.04-arm64"]') || matrix.os }}
     timeout-minutes: 20
     steps:
