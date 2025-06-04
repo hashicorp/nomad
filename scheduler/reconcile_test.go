@@ -5,7 +5,6 @@ package scheduler
 
 import (
 	"fmt"
-	"reflect"
 	"regexp"
 	"strconv"
 	"testing"
@@ -277,10 +276,9 @@ func assertResults(t *testing.T, r *reconcileResults, exp *resultExpectation) {
 	} else if exp.createDeployment != nil && r.deployment != nil {
 		// Clear the deployment ID
 		r.deployment.ID, exp.createDeployment.ID = "", ""
-		if !reflect.DeepEqual(r.deployment, exp.createDeployment) {
-			t.Errorf("Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
-				r.deployment, exp.createDeployment, pretty.Diff(r.deployment, exp.createDeployment))
-		}
+		must.Eq(t, exp.createDeployment, r.deployment, must.Sprintf(
+			"Unexpected createdDeployment; got\n %#v\nwant\n%#v\nDiff: %v",
+			r.deployment, exp.createDeployment, pretty.Diff(r.deployment, exp.createDeployment)))
 	}
 
 	test.Eq(t, exp.deploymentUpdates, r.deploymentUpdates, test.Sprint("Expected Deployment Updates"))

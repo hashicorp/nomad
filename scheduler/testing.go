@@ -9,13 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/shoenig/test/must"
 )
 
 // RejectPlan is used to always reject the entire plan and force a state refresh
@@ -306,9 +305,9 @@ func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
 }
 
 func (h *Harness) AssertEvalStatus(t testing.TB, state string) {
-	require.Len(t, h.Evals, 1)
+	must.Len(t, 1, h.Evals)
 	update := h.Evals[0]
-	require.Equal(t, state, update.Status)
+	must.Eq(t, state, update.Status)
 }
 
 func (h *Harness) SetNoSubmit() {

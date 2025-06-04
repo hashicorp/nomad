@@ -10,7 +10,7 @@ import (
 	"github.com/hashicorp/nomad/client/lib/numalib"
 	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestCoreSelectorSelect(t *testing.T) {
@@ -46,7 +46,7 @@ func TestCoreSelectorSelect(t *testing.T) {
 			GuessSpeed: 0,
 		}
 	}
-	require.Equal(t, coreIds, []uint16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47})
+	must.Eq(t, []uint16{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47}, coreIds)
 
 	selector := &coreSelector{
 		topology: &numalib.Topology{
@@ -88,8 +88,8 @@ func TestCoreSelectorSelect(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			ids, mhz := selector.Select(test.resources)
-			require.Equal(t, test.expectedIds, ids)
-			require.Equal(t, test.expectedMhz, mhz)
+			must.Eq(t, test.expectedIds, ids)
+			must.Eq(t, test.expectedMhz, mhz)
 		})
 	}
 }

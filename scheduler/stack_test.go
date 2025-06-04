@@ -5,7 +5,6 @@ package scheduler
 
 import (
 	"fmt"
-	"reflect"
 	"runtime"
 	"testing"
 
@@ -82,9 +81,8 @@ func TestServiceStack_SetNodes(t *testing.T) {
 	}
 
 	out := collectFeasible(stack.source)
-	if !reflect.DeepEqual(out, nodes) {
-		t.Fatalf("bad: %#v", out)
-	}
+	must.Eq(t, nodes, out)
+
 }
 
 func TestServiceStack_SetJob(t *testing.T) {
@@ -99,9 +97,7 @@ func TestServiceStack_SetJob(t *testing.T) {
 	if stack.binPack.priority != job.Priority {
 		t.Fatalf("bad")
 	}
-	if !reflect.DeepEqual(stack.jobConstraint.constraints, job.Constraints) {
-		t.Fatalf("bad")
-	}
+	must.Eq(t, stack.jobConstraint.constraints, job.Constraints)
 }
 
 func TestServiceStack_Select_Size(t *testing.T) {

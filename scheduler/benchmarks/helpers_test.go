@@ -16,7 +16,7 @@ import (
 
 	"github.com/hashicorp/nomad/helper/raftutil"
 	"github.com/hashicorp/nomad/scheduler"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 // NewBenchmarkingHarness creates a starting test harness with state
@@ -30,13 +30,13 @@ func NewBenchmarkingHarness(t testing.TB) *scheduler.Harness {
 	datadir := os.Getenv("NOMAD_BENCHMARK_DATADIR")
 	if datadir != "" {
 		h, err := NewHarnessFromDataDir(t, datadir)
-		require.NoError(t, err)
+		must.NoError(t, err)
 		return h
 	} else {
 		snapshotPath := os.Getenv("NOMAD_BENCHMARK_SNAPSHOT")
 		if snapshotPath != "" {
 			h, err := NewHarnessFromSnapshot(t, snapshotPath)
-			require.NoError(t, err)
+			must.NoError(t, err)
 			return h
 		}
 	}

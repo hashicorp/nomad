@@ -4,7 +4,6 @@
 package scheduler
 
 import (
-	"reflect"
 	"testing"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkTasksUpdated(b *testing.B) {
@@ -136,8 +134,8 @@ func TestRetryMax(t *testing.T) {
 		return false, nil
 	}
 	err := retryMax(3, bad, nil)
-	require.Error(t, err)
-	require.Equal(t, 3, calls, "mis match")
+	must.Error(t, err)
+	must.Eq(t, 3, calls)
 
 	calls = 0
 	first := true
@@ -149,8 +147,8 @@ func TestRetryMax(t *testing.T) {
 		return false
 	}
 	err = retryMax(3, bad, reset)
-	require.Error(t, err)
-	require.Equal(t, 6, calls, "mis match")
+	must.Error(t, err)
+	must.Eq(t, 6, calls)
 
 	calls = 0
 	good := func() (bool, error) {
@@ -158,8 +156,8 @@ func TestRetryMax(t *testing.T) {
 		return true, nil
 	}
 	err = retryMax(3, good, nil)
-	require.NoError(t, err)
-	require.Equal(t, 1, calls, "mis match")
+	must.NoError(t, err)
+	must.Eq(t, 1, calls)
 }
 
 func TestTaintedNodes(t *testing.T) {
@@ -173,10 +171,10 @@ func TestTaintedNodes(t *testing.T) {
 	node3.Datacenter = "dc2"
 	node3.Status = structs.NodeStatusDown
 	node4 := mock.DrainNode()
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1000, node1))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1001, node2))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1002, node3))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 1003, node4))
 
 	allocs := []*structs.Allocation{
 		{NodeID: node1.ID},
@@ -186,19 +184,19 @@ func TestTaintedNodes(t *testing.T) {
 		{NodeID: "12345678-abcd-efab-cdef-123456789abc"},
 	}
 	tainted, err := taintedNodes(state, allocs)
-	require.NoError(t, err)
-	require.Equal(t, 3, len(tainted))
-	require.NotContains(t, tainted, node1.ID)
-	require.NotContains(t, tainted, node2.ID)
+	must.NoError(t, err)
+	must.Eq(t, 3, len(tainted))
+	must.MapNotContainsKey(t, tainted, node1.ID)
+	must.MapNotContainsKey(t, tainted, node2.ID)
 
-	require.Contains(t, tainted, node3.ID)
-	require.NotNil(t, tainted[node3.ID])
+	must.MapContainsKey(t, tainted, node3.ID)
+	must.NotNil(t, tainted[node3.ID])
 
-	require.Contains(t, tainted, node4.ID)
-	require.NotNil(t, tainted[node4.ID])
+	must.MapContainsKey(t, tainted, node4.ID)
+	must.NotNil(t, tainted[node4.ID])
 
-	require.Contains(t, tainted, "12345678-abcd-efab-cdef-123456789abc")
-	require.Nil(t, tainted["12345678-abcd-efab-cdef-123456789abc"])
+	must.MapContainsKey(t, tainted, "12345678-abcd-efab-cdef-123456789abc")
+	must.Nil(t, tainted["12345678-abcd-efab-cdef-123456789abc"])
 }
 
 func TestShuffleNodes(t *testing.T) {
@@ -223,13 +221,13 @@ func TestShuffleNodes(t *testing.T) {
 	eval := mock.Eval() // will have random EvalID
 	plan := eval.MakePlan(mock.Job())
 	shuffleNodes(plan, 1000, nodes)
-	require.False(t, reflect.DeepEqual(nodes, orig))
+	must.NotEq(t, nodes, orig)
 
 	nodes2 := make([]*structs.Node, len(nodes))
 	copy(nodes2, orig)
 	shuffleNodes(plan, 1000, nodes2)
 
-	require.True(t, reflect.DeepEqual(nodes, nodes2))
+	must.Eq(t, nodes, nodes2)
 
 }
 
@@ -602,58 +600,58 @@ func TestSetStatus(t *testing.T) {
 	eval := mock.Eval()
 	status := "a"
 	desc := "b"
-	require.NoError(t, setStatus(logger, h, eval, nil, nil, nil, status, desc, nil, ""))
-	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
+	must.NoError(t, setStatus(logger, h, eval, nil, nil, nil, status, desc, nil, ""))
+	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval := h.Evals[0]
-	require.True(t, newEval.ID == eval.ID && newEval.Status == status && newEval.StatusDescription == desc,
-		"setStatus() submited invalid eval: %v", newEval)
+	must.True(t, newEval.ID == eval.ID && newEval.Status == status && newEval.StatusDescription == desc,
+		must.Sprintf("setStatus() submited invalid eval: %v", newEval))
 
 	// Test next evals
 	h = NewHarness(t)
 	next := mock.Eval()
-	require.NoError(t, setStatus(logger, h, eval, next, nil, nil, status, desc, nil, ""))
-	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
+	must.NoError(t, setStatus(logger, h, eval, next, nil, nil, status, desc, nil, ""))
+	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
-	require.Equal(t, next.ID, newEval.NextEval, "setStatus() didn't set nextEval correctly: %v", newEval)
+	must.Eq(t, next.ID, newEval.NextEval, must.Sprintf("setStatus() didn't set nextEval correctly: %v", newEval))
 
 	// Test blocked evals
 	h = NewHarness(t)
 	blocked := mock.Eval()
-	require.NoError(t, setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil, ""))
-	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
+	must.NoError(t, setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil, ""))
+	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
-	require.Equal(t, blocked.ID, newEval.BlockedEval, "setStatus() didn't set BlockedEval correctly: %v", newEval)
+	must.Eq(t, blocked.ID, newEval.BlockedEval, must.Sprintf("setStatus() didn't set BlockedEval correctly: %v", newEval))
 
 	// Test metrics
 	h = NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
-	require.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil, ""))
-	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
+	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil, ""))
+	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
-	require.True(t, reflect.DeepEqual(newEval.FailedTGAllocs, metrics),
-		"setStatus() didn't set failed task group metrics correctly: %v", newEval)
+	must.Eq(t, newEval.FailedTGAllocs, metrics,
+		must.Sprintf("setStatus() didn't set failed task group metrics correctly: %v", newEval))
 
 	// Test queued allocations
 	h = NewHarness(t)
 	queuedAllocs := map[string]int{"web": 1}
 
-	require.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, ""))
-	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
+	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, ""))
+	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
-	require.True(t, reflect.DeepEqual(newEval.QueuedAllocations, queuedAllocs), "setStatus() didn't set failed task group metrics correctly: %v", newEval)
+	must.Eq(t, newEval.QueuedAllocations, queuedAllocs, must.Sprintf("setStatus() didn't set failed task group metrics correctly: %v", newEval))
 
 	h = NewHarness(t)
 	dID := uuid.Generate()
-	require.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID))
-	require.Equal(t, 1, len(h.Evals), "setStatus() didn't update plan: %v", h.Evals)
+	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID))
+	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
 
 	newEval = h.Evals[0]
-	require.Equal(t, dID, newEval.DeploymentID, "setStatus() didn't set deployment id correctly: %v", newEval)
+	must.Eq(t, dID, newEval.DeploymentID, must.Sprintf("setStatus() didn't set deployment id correctly: %v", newEval))
 }
 
 func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
@@ -664,7 +662,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -690,8 +688,8 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that prevents in-place updates.
 	tg := &structs.TaskGroup{}
@@ -709,8 +707,8 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	require.True(t, len(unplaced) == 1 && len(inplace) == 0, "inplaceUpdate incorrectly did an inplace update")
-	require.Empty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
+	must.True(t, len(unplaced) == 1 && len(inplace) == 0, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
+	must.MapEmpty(t, ctx.plan.NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
 }
 
 func TestInplaceUpdate_AllocatedResources(t *testing.T) {
@@ -721,7 +719,7 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -746,8 +744,8 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Update TG to add a new service (inplace)
 	tg := job.TaskGroups[0]
@@ -763,13 +761,13 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	require.True(t, len(unplaced) == 0 && len(inplace) == 1, "inplaceUpdate incorrectly did not perform an inplace update")
-	require.NotEmpty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
-	require.NotEmpty(t, ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports)
+	must.True(t, len(unplaced) == 0 && len(inplace) == 1, must.Sprint("inplaceUpdate incorrectly did not perform an inplace update"))
+	must.MapNotEmpty(t, ctx.plan.NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
+	must.SliceNotEmpty(t, ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports)
 
 	port, ok := ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports.Get("api-port")
-	require.True(t, ok)
-	require.Equal(t, 19910, port.Value)
+	must.True(t, ok)
+	must.Eq(t, 19910, port.Value)
 }
 
 func TestInplaceUpdate_NoMatch(t *testing.T) {
@@ -780,7 +778,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -806,8 +804,8 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 		TaskGroup:     "web",
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	require.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that requires too much resources.
 	tg := &structs.TaskGroup{}
@@ -821,8 +819,8 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	require.True(t, len(unplaced) == 1 && len(inplace) == 0, "inplaceUpdate incorrectly did an inplace update")
-	require.Empty(t, ctx.plan.NodeAllocation, "inplaceUpdate incorrectly did an inplace update")
+	must.True(t, len(unplaced) == 1 && len(inplace) == 0, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
+	must.MapEmpty(t, ctx.plan.NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
 }
 
 func TestInplaceUpdate_Success(t *testing.T) {
@@ -833,7 +831,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	job := mock.Job()
 
 	node := mock.Node()
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, 900, node))
 
 	// Register an alloc
 	alloc := &structs.Allocation{
@@ -859,8 +857,8 @@ func TestInplaceUpdate_Success(t *testing.T) {
 		DesiredStatus: structs.AllocDesiredStatusRun,
 	}
 	alloc.TaskResources = map[string]*structs.Resources{"web": alloc.Resources}
-	require.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
-	require.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
+	must.NoError(t, state.UpsertJobSummary(999, mock.JobSummary(alloc.JobID)))
+	must.NoError(t, state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	// Create a new task group that updates the resources.
 	tg := &structs.TaskGroup{}
@@ -891,23 +889,23 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
-	require.True(t, len(unplaced) == 0 && len(inplace) == 1, "inplaceUpdate did not do an inplace update")
-	require.Equal(t, 1, len(ctx.plan.NodeAllocation), "inplaceUpdate did not do an inplace update")
-	require.Equal(t, alloc.ID, inplace[0].Alloc.ID, "inplaceUpdate returned the wrong, inplace updated alloc: %#v", inplace)
+	must.True(t, len(unplaced) == 0 && len(inplace) == 1, must.Sprint("inplaceUpdate did not do an inplace update"))
+	must.Eq(t, 1, len(ctx.plan.NodeAllocation), must.Sprint("inplaceUpdate did not do an inplace update"))
+	must.Eq(t, alloc.ID, inplace[0].Alloc.ID, must.Sprintf("inplaceUpdate returned the wrong, inplace updated alloc: %#v", inplace))
 
 	// Get the alloc we inserted.
 	a := inplace[0].Alloc // TODO(sean@): Verify this is correct vs: ctx.plan.NodeAllocation[alloc.NodeID][0]
-	require.NotNil(t, a.Job)
-	require.Equal(t, 1, len(a.Job.TaskGroups))
-	require.Equal(t, 1, len(a.Job.TaskGroups[0].Tasks))
-	require.Equal(t, 3, len(a.Job.TaskGroups[0].Tasks[0].Services),
-		"Expected number of services: %v, Actual: %v", 3, len(a.Job.TaskGroups[0].Tasks[0].Services))
+	must.NotNil(t, a.Job)
+	must.Eq(t, 1, len(a.Job.TaskGroups))
+	must.Eq(t, 1, len(a.Job.TaskGroups[0].Tasks))
+	must.Eq(t, 3, len(a.Job.TaskGroups[0].Tasks[0].Services), must.Sprintf(
+		"Expected number of services: %v, Actual: %v", 3, len(a.Job.TaskGroups[0].Tasks[0].Services)))
 
 	serviceNames := make(map[string]struct{}, 3)
 	for _, consulService := range a.Job.TaskGroups[0].Tasks[0].Services {
 		serviceNames[consulService.Name] = struct{}{}
 	}
-	require.Equal(t, 3, len(serviceNames))
+	must.Eq(t, 3, len(serviceNames))
 
 	for _, name := range []string{"dummy-service", "dummy-service2", "web-frontend"} {
 		if _, found := serviceNames[name]; !found {
@@ -1051,23 +1049,23 @@ func TestUtil_connectSidecarServiceUpdated(t *testing.T) {
 	ci.Parallel(t)
 
 	t.Run("both nil", func(t *testing.T) {
-		require.False(t, connectSidecarServiceUpdated(nil, nil).modified)
+		must.False(t, connectSidecarServiceUpdated(nil, nil).modified)
 	})
 
 	t.Run("one nil", func(t *testing.T) {
-		require.True(t, connectSidecarServiceUpdated(nil, new(structs.ConsulSidecarService)).modified)
+		must.True(t, connectSidecarServiceUpdated(nil, new(structs.ConsulSidecarService)).modified)
 	})
 
 	t.Run("ports differ", func(t *testing.T) {
 		a := &structs.ConsulSidecarService{Port: "1111"}
 		b := &structs.ConsulSidecarService{Port: "2222"}
-		require.True(t, connectSidecarServiceUpdated(a, b).modified)
+		must.True(t, connectSidecarServiceUpdated(a, b).modified)
 	})
 
 	t.Run("same", func(t *testing.T) {
 		a := &structs.ConsulSidecarService{Port: "1111"}
 		b := &structs.ConsulSidecarService{Port: "1111"}
-		require.False(t, connectSidecarServiceUpdated(a, b).modified)
+		must.False(t, connectSidecarServiceUpdated(a, b).modified)
 	})
 }
 
@@ -1144,17 +1142,17 @@ func TestTaskGroupConstraints(t *testing.T) {
 	expDrivers := map[string]struct{}{"exec": {}, "docker": {}}
 
 	actConstrains := taskGroupConstraints(tg)
-	require.True(t, reflect.DeepEqual(actConstrains.constraints, expConstr),
-		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.constraints, expConstr)
-	require.True(t, reflect.DeepEqual(actConstrains.drivers, expDrivers),
-		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.drivers, expDrivers)
+	must.Eq(t, actConstrains.constraints, expConstr, must.Sprintf(
+		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.constraints, expConstr))
+	must.Eq(t, actConstrains.drivers, expDrivers, must.Sprintf(
+		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.drivers, expDrivers))
 }
 
 func TestProgressMade(t *testing.T) {
 	ci.Parallel(t)
 
 	noopPlan := &structs.PlanResult{}
-	require.False(t, progressMade(nil) || progressMade(noopPlan), "no progress plan marked as making progress")
+	must.False(t, progressMade(nil) || progressMade(noopPlan), must.Sprint("no progress plan marked as making progress"))
 
 	m := map[string][]*structs.Allocation{
 		"foo": {mock.Alloc()},
@@ -1172,7 +1170,7 @@ func TestProgressMade(t *testing.T) {
 		},
 	}
 
-	require.True(t, progressMade(both) && progressMade(update) && progressMade(alloc) &&
+	must.True(t, progressMade(both) && progressMade(update) && progressMade(alloc) &&
 		progressMade(deployment) && progressMade(deploymentUpdates))
 }
 
@@ -1231,7 +1229,7 @@ func TestDesiredUpdates(t *testing.T) {
 	}
 
 	desired := desiredUpdates(diff, inplace, destructive)
-	require.True(t, reflect.DeepEqual(desired, expected), "desiredUpdates() returned %#v; want %#v", desired, expected)
+	must.Eq(t, desired, expected, must.Sprintf("desiredUpdates() returned %#v; want %#v", desired, expected))
 }
 
 func TestUtil_AdjustQueuedAllocations(t *testing.T) {
@@ -1268,7 +1266,7 @@ func TestUtil_AdjustQueuedAllocations(t *testing.T) {
 	queuedAllocs := map[string]int{"web": 2}
 	adjustQueuedAllocations(logger, &planResult, queuedAllocs)
 
-	require.Equal(t, 1, queuedAllocs["web"])
+	must.Eq(t, 1, queuedAllocs["web"])
 }
 
 func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
@@ -1308,7 +1306,7 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 		allocsLost = append(allocsLost, alloc.ID)
 	}
 	expected := []string{alloc1.ID, alloc2.ID}
-	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
+	must.Eq(t, allocsLost, expected, must.Sprintf("actual: %v, expected: %v", allocsLost, expected))
 
 	// Update the node status to ready and try again
 	plan = structs.Plan{
@@ -1322,7 +1320,7 @@ func TestUtil_UpdateNonTerminalAllocsToLost(t *testing.T) {
 		allocsLost = append(allocsLost, alloc.ID)
 	}
 	expected = []string{}
-	require.True(t, reflect.DeepEqual(allocsLost, expected), "actual: %v, expected: %v", allocsLost, expected)
+	must.Eq(t, allocsLost, expected, must.Sprintf("actual: %v, expected: %v", allocsLost, expected))
 }
 
 func TestTaskGroupUpdated_Restart(t *testing.T) {

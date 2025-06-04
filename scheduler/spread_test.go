@@ -13,7 +13,6 @@ import (
 
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/ci"
@@ -100,7 +99,7 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 		"dc2": 0.5,
 	}
 	for _, rn := range out {
-		require.Equal(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
+		must.Eq(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
 	}
 
 	// Update the plan to add more allocs to nodes in dc1
@@ -179,7 +178,7 @@ func TestSpreadIterator_SingleAttribute(t *testing.T) {
 		"dc2": 0.5,
 	}
 	for _, rn := range out {
-		require.Equal(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
+		must.Eq(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
 	}
 }
 
@@ -281,7 +280,7 @@ func TestSpreadIterator_MultipleAttributes(t *testing.T) {
 		nodes[3].Node.ID: 0.556,
 	}
 	for _, rn := range out {
-		require.Equal(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.ID]), fmt.Sprintf("%.3f", rn.FinalScore))
+		must.Eq(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.ID]), fmt.Sprintf("%.3f", rn.FinalScore))
 	}
 
 }
@@ -328,7 +327,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 		"dc2": 0,
 	}
 	for _, rn := range out {
-		require.Equal(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%.3f", rn.FinalScore))
+		must.Eq(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%.3f", rn.FinalScore))
 
 	}
 
@@ -374,7 +373,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 		"dc2": 1,
 	}
 	for _, rn := range out {
-		require.Equal(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
+		must.Eq(t, expectedScores[rn.Node.Datacenter], rn.FinalScore)
 	}
 
 	// Update the plan to add more allocs to nodes in dc2
@@ -427,7 +426,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 		"dc2": -0.5,
 	}
 	for _, rn := range out {
-		require.Equal(t, fmt.Sprintf("%3.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%3.3f", rn.FinalScore))
+		must.Eq(t, fmt.Sprintf("%3.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%3.3f", rn.FinalScore))
 	}
 
 	// Add another node in dc3
@@ -470,7 +469,7 @@ func TestSpreadIterator_EvenSpread(t *testing.T) {
 		"dc3": 1,
 	}
 	for _, rn := range out {
-		require.Equal(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%.3f", rn.FinalScore))
+		must.Eq(t, fmt.Sprintf("%.3f", expectedScores[rn.Node.Datacenter]), fmt.Sprintf("%.3f", rn.FinalScore))
 	}
 
 }
@@ -525,7 +524,7 @@ func TestSpreadIterator_MaxPenalty(t *testing.T) {
 
 	// All nodes are in dc3 so score should be -1
 	for _, rn := range out {
-		require.Equal(t, -1.0, rn.FinalScore)
+		must.Eq(t, -1.0, rn.FinalScore)
 	}
 
 	// Reset scores
@@ -560,7 +559,7 @@ func TestSpreadIterator_MaxPenalty(t *testing.T) {
 
 	// All nodes don't have the spread attribute so score should be -1
 	for _, rn := range out {
-		require.Equal(t, -1.0, rn.FinalScore)
+		must.Eq(t, -1.0, rn.FinalScore)
 	}
 
 }
@@ -685,8 +684,8 @@ func Test_evenSpreadScoreBoost(t *testing.T) {
 		Datacenter: "dc2",
 	}
 	boost := evenSpreadScoreBoost(pset, opt)
-	require.False(t, math.IsInf(boost, 1))
-	require.Equal(t, 1.0, boost)
+	must.False(t, math.IsInf(boost, 1))
+	must.Eq(t, 1.0, boost)
 }
 
 // TestSpreadOnLargeCluster exercises potentially quadratic
@@ -759,20 +758,20 @@ func TestSpreadOnLargeCluster(t *testing.T) {
 			ci.Parallel(t)
 			h := NewHarness(t)
 			err := upsertNodes(h, tc.nodeCount, tc.racks)
-			require.NoError(t, err)
+			must.NoError(t, err)
 			job := generateJob(tc.allocs)
 			eval, err := upsertJob(h, job)
-			require.NoError(t, err)
+			must.NoError(t, err)
 
 			start := time.Now()
 			err = h.Process(NewServiceScheduler, eval)
-			require.NoError(t, err)
-			require.LessOrEqual(t, time.Since(start), time.Duration(60*time.Second),
-				"time to evaluate exceeded EvalNackTimeout")
+			must.NoError(t, err)
+			must.LessEq(t, time.Duration(60*time.Second), time.Since(start),
+				must.Sprint("time to evaluate exceeded EvalNackTimeout"))
 
-			require.Len(t, h.Plans, 1)
-			require.False(t, h.Plans[0].IsNoOp())
-			require.NoError(t, validateEqualSpread(h))
+			must.Len(t, 1, h.Plans)
+			must.False(t, h.Plans[0].IsNoOp())
+			must.NoError(t, validateEqualSpread(h))
 		})
 	}
 }
@@ -940,7 +939,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 		nodes = append(nodes, node)
 		err := h.State.UpsertNode(structs.MsgTypeTestSetup,
 			h.NextIndex(), node)
-		require.NoError(t, err)
+		must.NoError(t, err)
 	}
 
 	// job version 1
@@ -974,7 +973,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	job1.Version = 1
 	job1.TaskGroups[0].Count = 5
 	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job1)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	allocs := []*structs.Allocation{}
 	for i := 0; i < 4; i++ {
@@ -997,7 +996,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 		allocs = append(allocs, alloc)
 	}
 	err = h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	// job version 2
 	// max_parallel = 0, canary = 1, spread == nil
@@ -1006,7 +1005,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	job2.Version = 2
 	job2.Spreads = nil
 	err = h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job2)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	eval := &structs.Evaluation{
 		Namespace:   job2.Namespace,
@@ -1018,11 +1017,11 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 	}
 	err = h.State.UpsertEvals(structs.MsgTypeTestSetup,
 		h.NextIndex(), []*structs.Evaluation{eval})
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	processErr := h.Process(NewServiceScheduler, eval)
-	require.NoError(t, processErr, "failed to process eval")
-	require.Len(t, h.Plans, 1)
+	must.NoError(t, processErr, must.Sprintf("..."))
+	must.Len(t, 1, h.Plans)
 }
 
 func TestSpread_ImplicitTargets(t *testing.T) {
