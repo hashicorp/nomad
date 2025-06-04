@@ -240,7 +240,7 @@ func (c *EvalStatusCommand) Run(args []string) int {
 
 	if len(eval.RelatedEvals) > 0 {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Related Evaluations[reset]"))
-		formatRelatedEvalStubs(eval.RelatedEvals, length)
+		c.Ui.Output(formatRelatedEvalStubs(eval.RelatedEvals, length))
 	}
 
 	if len(eval.ClassEligibility) > 0 {

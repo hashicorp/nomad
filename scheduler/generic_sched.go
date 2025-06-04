@@ -176,6 +176,7 @@ func (s *GenericScheduler) Process(eval *structs.Evaluation) (err error) {
 	default:
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason",
 			eval.TriggeredBy)
+
 		return setStatus(s.logger, s.planner, s.eval, nil, s.blocked,
 			s.failedTGAllocs, s.goodTGAllocs, s.annotations, structs.EvalStatusFailed, desc, s.queuedAllocs,
 			s.deployment.GetID())

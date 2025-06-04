@@ -603,6 +603,7 @@ func setStatus(logger log.Logger, planner Planner,
 	newEval.DeploymentID = deploymentID
 	newEval.FailedTGAllocs = failedTGMetrics
 	newEval.GoodTGAllocs = goodTGMetrics
+
 	if nextEval != nil {
 		newEval.NextEval = nextEval.ID
 	}
