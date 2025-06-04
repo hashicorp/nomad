@@ -224,9 +224,21 @@ func NewPool(
 		pool:       make(map[string]*Conn),
 		limiter:    make(map[string]chan struct{}),
 		tlsWrap:    tlsWrap,
-		yamuxCfg:   yamuxCfg,
 		shutdownCh: make(chan struct{}),
 	}
+
+	// The passed yamux config is the shared server object, so we do not want to
+	// modify it directly. Instead, clone it and set up the logger to avoid data
+	// races.
+	//
+	// Performing this work here avoids doing this per new connection within
+	// getNewConn.
+	poolMUXCfg := yamuxCfg.Clone()
+	poolMUXCfg.LogOutput = nil
+	poolMUXCfg.Logger = pool.logger
+
+	pool.yamuxCfg = poolMUXCfg
+
 	if maxTime > 0 {
 		go pool.reap()
 	}
@@ -394,13 +406,8 @@ func (p *ConnPool) getNewConn(region string, addr net.Addr) (*Conn, error) {
 		return nil, err
 	}
 
-	// Setup the logger
-	conf := p.yamuxCfg
-	conf.LogOutput = nil
-	conf.Logger = p.logger
-
 	// Create a multiplexed session
-	session, err := yamux.Client(conn, conf)
+	session, err := yamux.Client(conn, p.yamuxCfg)
 	if err != nil {
 		conn.Close()
 		return nil, err
