@@ -193,7 +193,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		replacement.NodeID = runningNode.ID
 		// start in pending state with no health status
 
-		updates = append(updates, a, replacement)
+		updates = append(updates, a.Copy(), replacement)
 		replacements[i] = replacement.Copy()
 	}
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
@@ -254,7 +254,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		a.ClientStatus = structs.AllocClientStatusComplete
 
 		replacement := newAlloc(runningNode, a.Job)
-		updates = append(updates, a, replacement)
+		updates = append(updates, a.Copy(), replacement)
 		replacements[i] = replacement.Copy()
 	}
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
@@ -298,7 +298,7 @@ func TestDrainingJobWatcher_DrainJobs(t *testing.T) {
 		a.ClientStatus = structs.AllocClientStatusComplete
 
 		replacement := newAlloc(runningNode, a.Job)
-		updates = append(updates, a, replacement)
+		updates = append(updates, a.Copy(), replacement)
 		replacements[i] = replacement.Copy()
 	}
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, index, updates))
