@@ -5,18 +5,15 @@ package scheduler
 
 import (
 	"fmt"
-	"maps"
 	"strconv"
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestResourceDistance(t *testing.T) {
@@ -140,78 +137,12 @@ func TestResourceDistance(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
-			require := require.New(t)
 			actualDistance := fmt.Sprintf("%3.3f", basicResourceDistance(resourceAsk, tc.allocResource))
-			require.Equal(tc.expectedDistance, actualDistance)
+			must.Eq(t, tc.expectedDistance, actualDistance)
 		})
 
 	}
 
-}
-
-func makeNodeResources(devices []*structs.NodeDeviceResource, busAssociativity map[string]hw.NodeID) *structs.NodeResources {
-	makeCore := func(node hw.NodeID, id hw.CoreID) numalib.Core {
-		sockets := map[hw.NodeID]hw.SocketID{
-			0: 0,
-			1: 0,
-			2: 1,
-			3: 1,
-		}
-		return numalib.Core{
-			NodeID:    node,
-			SocketID:  sockets[node],
-			ID:        id,
-			Grade:     numalib.Performance,
-			BaseSpeed: 4000,
-		}
-	}
-
-	// 2 socket, 4 numa node system, 2 cores per node
-	processors := structs.NodeProcessorResources{
-		Topology: &numalib.Topology{
-			Nodes: []uint8{0, 1, 2, 3},
-			Distances: numalib.SLIT{
-				[]numalib.Cost{10, 12, 32, 32},
-				[]numalib.Cost{12, 10, 32, 32},
-				[]numalib.Cost{32, 32, 10, 12},
-				[]numalib.Cost{32, 32, 12, 10},
-			},
-			Cores: []numalib.Core{
-				makeCore(0, 0),
-				makeCore(0, 1),
-				makeCore(1, 2),
-				makeCore(1, 3),
-				makeCore(2, 4),
-				makeCore(2, 5),
-				makeCore(3, 6),
-				makeCore(3, 7),
-			},
-		},
-	}
-
-	defaultNodeResources := &structs.NodeResources{
-		Processors: processors,
-		Memory: structs.NodeMemoryResources{
-			MemoryMB: 8192,
-		},
-		Disk: structs.NodeDiskResources{
-			DiskMB: 100 * 1024,
-		},
-		Networks: []*structs.NetworkResource{
-			{
-				Device: "eth0",
-				CIDR:   "192.168.0.100/32",
-				MBits:  1000,
-			},
-		},
-		Devices: devices,
-	}
-
-	defaultNodeResources.Compatibility()
-
-	defaultNodeResources.Processors.Topology.BusAssociativity = maps.Clone(busAssociativity)
-
-	return defaultNodeResources
 }
 
 func makeDeviceInstance(instanceID, busID string) *structs.NodeDevice {
@@ -1395,10 +1326,9 @@ func TestPreemption_Normal(t *testing.T) {
 			for _, alloc := range tc.currentAllocations {
 				alloc.NodeID = node.ID
 			}
-			require := require.New(t)
 			err := state.UpsertAllocs(structs.MsgTypeTestSetup, 1001, tc.currentAllocations)
 
-			require.Nil(err)
+			must.NoError(t, err)
 			if tc.currentPreemptions != nil {
 				ctx.plan.NodePreemptions[node.ID] = tc.currentPreemptions
 			}
@@ -1422,14 +1352,14 @@ func TestPreemption_Normal(t *testing.T) {
 			binPackIter.SetTaskGroup(taskGroup)
 			option := binPackIter.Next()
 			if tc.preemptedAllocIDs == nil {
-				require.Nil(option)
+				must.Nil(t, option)
 			} else {
-				require.NotNil(option)
+				must.NotNil(t, option)
 				preemptedAllocs := option.PreemptedAllocs
-				require.Equal(len(tc.preemptedAllocIDs), len(preemptedAllocs))
+				must.Eq(t, len(tc.preemptedAllocIDs), len(preemptedAllocs))
 				for _, alloc := range preemptedAllocs {
 					_, ok := tc.preemptedAllocIDs[alloc.ID]
-					require.Truef(ok, "alloc %s was preempted unexpectedly", alloc.ID)
+					must.True(t, ok, must.Sprintf("alloc %s was preempted unexpectedly", alloc.ID))
 				}
 			}
 		})
@@ -1502,7 +1432,7 @@ func TestPreemptionMultiple(t *testing.T) {
 		},
 	}
 
-	require.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
+	must.NoError(t, h.State.UpsertNode(structs.MsgTypeTestSetup, h.NextIndex(), node))
 
 	// low priority job with 4 allocs using all 4 GPUs
 	lowPrioJob := mock.Job()
@@ -1515,7 +1445,7 @@ func TestPreemptionMultiple(t *testing.T) {
 		Name:  "gpu",
 		Count: 1,
 	}}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, lowPrioJob))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, lowPrioJob))
 
 	allocs := []*structs.Allocation{}
 	allocIDs := map[string]struct{}{}
@@ -1531,7 +1461,7 @@ func TestPreemptionMultiple(t *testing.T) {
 		allocs = append(allocs, alloc)
 		allocIDs[alloc.ID] = struct{}{}
 	}
-	require.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
+	must.NoError(t, h.State.UpsertAllocs(structs.MsgTypeTestSetup, h.NextIndex(), allocs))
 
 	// new high priority job with 2 allocs, each using 2 GPUs
 	highPrioJob := mock.Job()
@@ -1544,7 +1474,7 @@ func TestPreemptionMultiple(t *testing.T) {
 		Name:  "gpu",
 		Count: 2,
 	}}
-	require.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, highPrioJob))
+	must.NoError(t, h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, highPrioJob))
 
 	// schedule
 	eval := &structs.Evaluation{
@@ -1555,18 +1485,18 @@ func TestPreemptionMultiple(t *testing.T) {
 		JobID:       highPrioJob.ID,
 		Status:      structs.EvalStatusPending,
 	}
-	require.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
+	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	require.NoError(t, h.Process(NewServiceScheduler, eval))
-	require.Len(t, h.Plans, 1)
-	require.Contains(t, h.Plans[0].NodePreemptions, node.ID)
+	must.NoError(t, h.Process(NewServiceScheduler, eval))
+	must.Len(t, 1, h.Plans)
+	must.MapContainsKey(t, h.Plans[0].NodePreemptions, node.ID)
 
 	preempted := map[string]struct{}{}
 	for _, alloc := range h.Plans[0].NodePreemptions[node.ID] {
 		preempted[alloc.ID] = struct{}{}
 	}
-	require.Equal(t, allocIDs, preempted)
+	must.Eq(t, allocIDs, preempted)
 }
 
 // helper method to create allocations with given jobs and resources

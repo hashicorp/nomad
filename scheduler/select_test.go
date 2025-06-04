@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/stretchr/testify/require"
+	"github.com/shoenig/test/must"
 )
 
 func TestLimitIterator(t *testing.T) {
@@ -313,12 +313,11 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 			limit := NewLimitIterator(ctx, static, 1, 0, 2)
 			limit.SetLimit(2)
 			out := collectRanked(limit)
-			require := require.New(t)
-			require.Equal(tc.expectedOut, out)
+			must.Eq(t, tc.expectedOut, out)
 
 			limit.Reset()
-			require.Equal(0, limit.skippedNodeIndex)
-			require.Equal(0, len(limit.skippedNodes))
+			must.Eq(t, 0, limit.skippedNodeIndex)
+			must.Eq(t, 0, len(limit.skippedNodes))
 		})
 	}
 
