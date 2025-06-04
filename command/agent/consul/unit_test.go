@@ -404,8 +404,11 @@ func TestConsul_ShutdownBlocked(t *testing.T) {
 	}
 	require.NoError(ctx.ServiceClient.RegisterAgent("client", agentServices))
 	require.Eventually(ctx.ServiceClient.hasSeen, time.Second, 10*time.Millisecond)
+
+	ctx.FakeConsul.mu.Lock()
 	require.Len(ctx.FakeConsul.services["default"], 1, "expected agent service to be registered")
 	require.Len(ctx.FakeConsul.checks["default"], 1, "expected agent check to be registered")
+	ctx.FakeConsul.mu.Unlock()
 
 	// prevent normal shutdown by blocking Consul. the shutdown should wait
 	// until agent deregistration has finished
