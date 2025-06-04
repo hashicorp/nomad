@@ -33,7 +33,7 @@ in more detail:
 ## Cluster reconciliation
 
 The first step for the service and bach job scheduler is called
-"reconcilliation," and its logic lies in `scheduler/reconcile.go` file. The
+"reconciliation," and its logic lies in `scheduler/reconcile.go` file. The
 `allocReconciler` object has one public method: `Compute`, which takes no
 arguments and returns `reconcileResults` object. This results object tells the
 scheduler about desired deployment to be updated or created, which allocations
@@ -67,7 +67,7 @@ timeout.
 - "ignore allocations:" allocations which are in a noop state, the reconciler
 will not be touching these.
 
-- "expiring allocations:" allocaions which are not possible to reschedule, due
+- "expiring allocations:" allocations which are not possible to reschedule, due
 to lost configurations of their disconnected clients.
 
 The following diagram illustrates the logic flow of the cluster reconciler:
@@ -116,7 +116,7 @@ The following diagram illustrates the logic flow of the cluster reconciler:
                │                complex part of the reconciler.
                │                it calls many helper methods:
                │                - filterOldTerminalAllocs: allocs
-               │                that are terminal or from older
+               │                that are terminal and from older
                │                job ver are put into "ignore"
                │                bucket
                │                - cancelUnneededCanaries
@@ -160,7 +160,7 @@ The following diagram illustrates the logic flow of the cluster reconciler:
 ## Feasibility checking
 
 Nomad uses a set of iterators to iterate over all nodes and check how feasible
-they are for any given job. This code sits in `scheduler/feasible.go` and
+they are for any given allocation. This code sits in `scheduler/feasible.go` and
 `scheduler/stack.go` files. There are two interfaces: `FeasibleIterator` and
 `FeasibilityChecker`, and various objects that implement iterating over nodes to
 match constraints.
