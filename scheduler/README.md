@@ -87,7 +87,8 @@ The following diagram illustrates the logic flow of the cluster reconciler:
                ▼                deployments are unneeded in 3 cases:
  ┌───────────────────────────┐  1. when the are already successful
  │cancelUnneededDeployments()│  2. when they are active but reference an older job
- └───────────────────────────┘  3. when the job is marked as stopped, but the
+ └───────────────────────────┘  3. when the job is marked as stopped, but the deployment
+               │                   was not yet stopped. 
                │
                ▼
          ┌───────────┐          if the job is stopped, we stop
