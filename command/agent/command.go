@@ -1007,13 +1007,25 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 
 	delay := time.NewTimer(timeout)
 
-	// Wait for leave or another signal
-	select {
-	case <-signalCh:
-		return 1
-	case <-delay.C:
-		return 1
-	case <-gracefulCh:
+	// Wait for leave or another signal to be received
+	for {
+		select {
+		case sig := <-signalCh:
+			// If a SIGPIPE is received, ignore it and
+			// continue waiting
+			if sig == syscall.SIGPIPE {
+				c.agent.logger.Trace("caught SIGPIPE during graceful shutdown, ignoring")
+				continue
+			}
+			c.agent.logger.Trace("caught signal during graceful shutdown", "signal", sig)
+
+			return 1
+		case <-delay.C:
+			return 1
+		case <-gracefulCh:
+		}
+
+		break
 	}
 
 	return 0
