@@ -29,3 +29,4 @@ rules:
     paths:
       include:
         - "nomad/state/*_test.go"
+        - "nomad/scheduler/*_test.go"

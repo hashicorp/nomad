@@ -5,7 +5,6 @@ package scheduler
 
 import (
 	"fmt"
-	"reflect"
 	"testing"
 	"time"
 
@@ -64,9 +63,8 @@ func TestStaticIterator_SetNodes(t *testing.T) {
 	static.SetNodes(newNodes)
 
 	out := collectFeasible(static)
-	if !reflect.DeepEqual(out, newNodes) {
-		t.Fatalf("bad: %#v", out)
-	}
+	must.Eq(t, newNodes, out)
+
 }
 
 func TestRandomIterator(t *testing.T) {
@@ -86,9 +84,8 @@ func TestRandomIterator(t *testing.T) {
 	if len(out) != len(nodes) {
 		t.Fatalf("missing nodes")
 	}
-	if reflect.DeepEqual(out, nodes) {
-		t.Fatalf("same order")
-	}
+	must.NotEq(t, nodes, out)
+
 }
 
 func TestHostVolumeChecker_Static(t *testing.T) {
@@ -1360,7 +1357,7 @@ func TestResolveConstraintTarget(t *testing.T) {
 	type tcase struct {
 		target string
 		node   *structs.Node
-		val    interface{}
+		val    string
 		result bool
 	}
 	node := mock.Node()
@@ -1422,11 +1419,9 @@ func TestResolveConstraintTarget(t *testing.T) {
 
 	for _, tc := range cases {
 		res, ok := resolveTarget(tc.target, tc.node)
-		if ok != tc.result {
-			t.Fatalf("TC: %#v, Result: %v %v", tc, res, ok)
-		}
-		if ok && !reflect.DeepEqual(res, tc.val) {
-			t.Fatalf("TC: %#v, Result: %v %v", tc, res, ok)
+		must.Eq(t, ok, tc.result)
+		if ok {
+			must.Eq(t, res, tc.val)
 		}
 	}
 }
