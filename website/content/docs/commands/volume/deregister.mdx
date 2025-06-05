@@ -30,15 +30,15 @@ unpublished.
 When ACLs are enabled, this command requires a token with the
 `csi-write-volume` capability for the volume's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Deregister options
 
 - `-force`: Force deregistration of the volume and immediately drop claims for
   terminal allocations. Returns an error if the volume has running
   allocations. This does not detach the volume from client nodes.
+
+## General options
+
+@include 'general_options.mdx'
 
 [csi]: https://github.com/container-storage-interface/spec
 [`volume delete`]: /nomad/docs/commands/volume/delete

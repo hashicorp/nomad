@@ -53,10 +53,6 @@ values are read using the `range` function.
 Variable items are restricted to 64KiB in size. This limit is calculated by
 taking the sum of the length in bytes of all of the unencrypted keys and values.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Lock options
 - `-verbose`: Provides additional information via standard error to preserve
   standard output (stdout) for redirected output.
@@ -91,6 +87,10 @@ the `nomad var init` command.
 ```shell-session
 $ nomad var lock secret/foo @spec.nv.json `nomad job run webapp.nomad.hcl`
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [variable]: /nomad/docs/concepts/variables
 [varspec]:  /nomad/docs/other-specifications/variables

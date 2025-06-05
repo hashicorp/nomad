@@ -30,10 +30,6 @@ If ACLs are enabled, this command requires the `variables:list` capability for
 the namespaces and paths containing the variables to list. See the [ACL policy][]
 documentation for details.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## List options
 
 - `-per-page` `(int: <unset>)`: How many results to show per page.
@@ -138,6 +134,10 @@ $ nomad var list -out=json -namespace="*" -per-page=1 nomad/jobs/variable/www
 
 As with the tabular version, provide the `QueryMeta.NextToken` value as the
 `-page-token` value to fetch the next page.
+
+## General options
+
+@include 'general_options.mdx'
 
 [variable]: /nomad/docs/concepts/variables
 [ACL Policy]: /nomad/docs/other-specifications/acl-policy#variables

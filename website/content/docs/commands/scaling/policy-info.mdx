@@ -18,10 +18,6 @@ nomad scaling policy info [options] <policy_id>
 If ACLs are enabled, this command requires a token with the `read-job` and
 `list-jobs` capabilities for the policy's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Policy Info options
 
 - `-json` : Output the scaling policy in its JSON format.
@@ -65,3 +61,7 @@ Policy:
     "evaluation_interval": "30s"
 }
 ```
+
+## General options
+
+@include 'general_options.mdx'

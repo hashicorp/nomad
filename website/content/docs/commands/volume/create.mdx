@@ -32,10 +32,6 @@ When ACLs are enabled, this command requires a token with the appropriate
 capability in the volume's namespace: the `csi-write-volume` capability for CSI
 volumes or `host-volume-create` for dynamic host volumes.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Volume create options
 
 - `-detach`: Return immediately instead of entering monitor mode for dynamic
@@ -56,6 +52,10 @@ volumes or `host-volume-create` for dynamic host volumes.
 
 Refer to the [CSI Volume Specification][csi_vol_spec] and the [Dynamic Host
 Volume Specification][host_vol_spec] for further information.
+
+## General options
+
+@include 'general_options.mdx'
 
 <!--
 Redirection rules are applied server-side, so we can't redirect these sections

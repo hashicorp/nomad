@@ -23,10 +23,6 @@ If ACLs are enabled, this command requires a token with the `variables:destroy`
 capability for the target variable's namespace and path. See the [ACL policy][]
 documentation for details.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Command options
 
 - `-check-index` `(int: <unset>)`: If set, the variable is only acted upon if
@@ -43,6 +39,10 @@ Purge the variable at the "secret/creds" path.
 $ nomad var purge -y secret/creds
 Successfully purged variable "secret/creds"!
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [variable]: /nomad/docs/concepts/variables
 [ACL Policy]: /nomad/docs/other-specifications/acl-policy#variables

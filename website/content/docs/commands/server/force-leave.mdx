@@ -29,10 +29,6 @@ from the list of members immediately.
 If ACLs are enabled, this option requires a token with the `agent:write`
 capability.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Server force-leave options
 
 - `-prune`: Removes failed or left server from the Serf member list immediately.
@@ -53,3 +49,7 @@ Force-leave the server "node1" and prune it:
 $ nomad server force-leave -prune node1
 
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

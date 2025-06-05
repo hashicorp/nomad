@@ -29,10 +29,6 @@ capability in the volume's namespace: the `csi-read-volume` and
 `csi-list-volumes` capability for CSI volumes, or `host-volume-read` for dynamic
 host volumes.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Status options
 
 - `-type`: Display only volumes of a particular type (one of `"host"` or
@@ -130,6 +126,10 @@ Allocations
 ID        Node ID   Access Mode   Task Group  Version  Desired  [...]
 b00fa322  28be17d5  write         csi         0        run
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin

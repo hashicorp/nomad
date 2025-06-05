@@ -20,10 +20,6 @@ If ACLs are enabled, this command requires a token with the `read-job` and
 that the token does not have access to will have its policies filtered from
 the results.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Policy List options
 
 - `-job` : Specifies the job ID to filter the scaling policies list by.
@@ -42,3 +38,7 @@ ID                                    Enabled  Target
 b2c64295-4315-2fdc-6158-a27156808729  true     Namespace:default,Job:example,Group:cache,Task:redis
 c355d0ec-7aa1-2604-449d-4ec79c813d2c  true     Namespace:default,Job:webapp,Group:demo,Task:webapp
 ```
+
+## General options
+
+@include 'general_options.mdx'
