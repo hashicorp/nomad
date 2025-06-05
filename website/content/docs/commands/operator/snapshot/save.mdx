@@ -45,10 +45,6 @@ $ nomad operator snapshot save -stale backup.snap
 nomad operator snapshot save [options] <file>
 ```
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Snapshot save options
 
 - `-redact`: The redact option will locally edit the snapshot to remove any
@@ -60,6 +56,10 @@ nomad operator snapshot save [options] <file>
   provides the result. If the cluster is in an outage state without a leader,
   you may need to set `-stale` to `true` to get the configuration from a
   non-leader server.
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [outage recovery]: /nomad/tutorials/manage-clusters/outage-recovery
 [KMS provider]: /nomad/docs/configuration/keyring

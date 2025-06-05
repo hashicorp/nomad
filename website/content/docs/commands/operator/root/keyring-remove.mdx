@@ -24,10 +24,6 @@ The `key ID` must be the UUID. Use the `-verbose` option with the
 command](/nomad/docs/commands/operator/root/keyring-list) to fetch the key
 UUID.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Remove options
 
 - `-force`: Remove the key even if it was used to sign an existing variable
@@ -43,3 +39,7 @@ error: Unexpected response code: 500 (active root key cannot be deleted - call r
 $ nomad operator root keyring remove 33374156-9f81-b14c-83d4-a2f1f87dbf99
 Removed encryption key 33374156-9f81-b14c-83d4-a2f1f87dbf99
 ```
+
+## General options
+
+@include 'general_options.mdx'

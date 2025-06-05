@@ -42,10 +42,6 @@ curl \
   https://client.global.nomad:4646/v1/jobs
 ```
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Operator API options
 
 - `-dryrun`: output a curl command instead of performing the HTTP request
@@ -86,7 +82,9 @@ curl \
     http://127.0.0.1:4646/v1/evaluations?filter=.Status+%3D%3D+%22completed%22&region=eu-west
 ```
 
+## General options
 
+@include 'general_options.mdx'
 
 
 [curl]: https://curl.se/

@@ -27,15 +27,15 @@ documentation for the [Operator][] endpoint.
 nomad operator raft transfer-leadership [options]
 ```
 
-<Tip title="Required Permissions">
 If ACLs are enabled, this command requires a management token.
-</Tip>
-
-## General options
-
-@include 'general_options_no_namespace.mdx'
 
 ## Transfer Leadership options
+
+<Note>
+
+Provide either `-peer-address` or `-peer-id`, but not both.
+
+</Note>
 
 - `-peer-address`: Specifies the Raft **Address** of the target server as
   provided in the output of the [`nomad operator raft list-peers`][] command or
@@ -45,11 +45,10 @@ If ACLs are enabled, this command requires a management token.
   output of the [`nomad operator raft list-peers`][] command or the
   [Read Raft Configuration] API endpoint.
 
-  <Note>
 
-  Either `-peer-address` or `-peer-id` must be provided, but not both.
+## General options
 
-  </Note>
+@include 'general_options_no_namespace.mdx'
 
 [`nomad operator raft list-peers`]: /nomad/docs/commands/operator/raft/list-peers 'Nomad operator raft list-peers command'
 [operator]: /nomad/api-docs/operator 'Nomad Operator API'

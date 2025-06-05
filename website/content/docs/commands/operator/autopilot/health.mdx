@@ -7,8 +7,9 @@ description: |
 
 # `nomad operator autopilot health` command reference
 
-The Autopilot operator command is used to view the current Autopilot
-state. See the [Autopilot Guide][] for more information about Autopilot.
+The Autopilot operator command is used to view the current Autopilot state.
+Refer to the [Autopilot Guide][autopilot-guide] for more information about
+Autopilot.
 
 ## Usage
 
@@ -18,10 +19,6 @@ nomad operator autopilot health [options]
 
 If ACLs are enabled, this command requires a token with the `operator:read`
 capability.
-
-## General options
-
-@include 'general_options_no_namespace.mdx'
 
 ## Output options
 
@@ -41,5 +38,9 @@ ID                                    Name      Address         SerfStatus  Vers
 e349749b-3303-3ddf-959c-b5885a0e1f6e  node1     127.0.0.1:4647  alive       1.7.5     true    true   true     0s           2         14         2024-02-20 16:40:55 +0000 UTC
 ```
 
-[autopilot guide]: /nomad/tutorials/manage-clusters/autopilot
+## General options
+
+@include 'general_options_no_namespace.mdx'
+
+[autopilot-guide]: /nomad/tutorials/manage-clusters/autopilot
 [api-docs]: /nomad/api-docs/operator/autopilot#read-autopilot-configuration
