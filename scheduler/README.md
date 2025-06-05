@@ -54,21 +54,25 @@ nodes.
 - "paused deployment:" a deployment is paused when it has an explicit `paused`
 status, but also when it's pending or initializing.
 
-- "migrating allocations:" allocations that are on nodes that are draining.
+- the reconciler uses the following 6 "buckets" to categorize allocation sets:
 
-- "lost allocations:" allocations that have expired or exist on lost nodes.
+  - "migrating allocations:" allocations that are on nodes that are draining.
 
-- "disconnecting allocations:" allocations that are on disconnected nodes
-which haven't been considered "lost" yet, that is, they are in their reconnect
-timeout.
+  - "lost allocations:" allocations that have expired or exist on lost nodes.
 
-- "reconnecting allocations:" allocations on nodes that have reconnected.
+  - "disconnecting allocations:" allocations that are on disconnected nodes
+    which haven't been considered "lost" yet, that is, they are in their reconnect
+    timeout.
 
-- "ignore allocations:" allocations which are in a noop state, the reconciler
-will not be touching these.
+  - "reconnecting allocations:" allocations on nodes that have reconnected.
 
-- "expiring allocations:" allocations which are not possible to reschedule, due
-to lost configurations of their disconnected clients.
+  - "ignored allocations:" allocations which are in a noop state, the reconciler
+     will not be touching these. These are also not to be upgraded in-place,
+     for updates, the reconciler uses additional "buckets" (in the `computeUpdates`
+     method): "inplace" and "destructive."
+
+  - "expiring allocations:" allocations which are not possible to reschedule, due
+     to lost configurations of their disconnected clients.
 
 The following diagram illustrates the logic flow of the cluster reconciler:
 
