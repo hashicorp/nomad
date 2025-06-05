@@ -7,6 +7,7 @@ import (
 	"cmp"
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 // Tokenizer is the interface that must be implemented to provide pagination
@@ -45,7 +46,32 @@ func CreateIndexAndIDTokenizer[T idAndCreateIndexGetter](target string) Tokenize
 		index := item.GetCreateIndex()
 		id := item.GetID()
 		token := fmt.Sprintf("%d.%s", index, id)
-		return token, cmp.Compare(token, target)
+
+		// Split the target to extract the create index and the ID values.
+		targetParts := strings.SplitN(target, ".", 2)
+		// If the target wasn't composed of both parts, directly compare.
+		if len(targetParts) < 2 {
+			return token, cmp.Compare(token, target)
+		}
+
+		// Convert the create index to an integer for comparison. This
+		// prevents a lexigraphical comparison of the create index which
+		// can cause unexpected results when comparing index values like
+		// '12' and '102'. If the index cannot be converted to an integer,
+		// fall back to direct comparison.
+		targetIndex, err := strconv.Atoi(targetParts[0])
+		if err != nil {
+			return token, cmp.Compare(token, target)
+		}
+
+		indexCmp := cmp.Compare(index, uint64(targetIndex))
+		if indexCmp != 0 {
+			return token, indexCmp
+		}
+
+		// If the index values are equivalent use the ID values
+		// as the comparison.
+		return token, cmp.Compare(id, targetParts[1])
 	}
 }
 
