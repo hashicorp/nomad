@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/armon/circbuf"
+	"github.com/containerd/errdefs"
 	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/consul-template/signals"
 	"github.com/hashicorp/go-hclog"
