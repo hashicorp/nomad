@@ -23,10 +23,6 @@ prefix.
 When ACLs are enabled, this command requires a token with the `submit-job`
 and `read-job` capabilities for the deployment's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Resume options
 
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
@@ -52,5 +48,9 @@ Deployment "c848972e-dcd3-7354-e0d2-39d86642cdb1" resumed
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "5e266d42" finished with status "complete"
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [eval status]: /nomad/docs/commands/eval/status

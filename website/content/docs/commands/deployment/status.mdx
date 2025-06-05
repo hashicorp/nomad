@@ -28,10 +28,6 @@ the entire process, showing the failure and then monitoring the deployment of th
 When ACLs are enabled, this command requires a token with the 'read-job'
 capability for the deployment's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Status options
 
 - `-json` : Output the deployment in its JSON format.
@@ -139,5 +135,9 @@ $ nomad deployment status -monitor e45
 **Please note**: The library used for updating terminal output in place currently isn't fully
 Windows compatible so there may be some formatting differences (different margins, no spinner
 indicating deployment is in progress).
+
+## General options
+
+@include 'general_options.mdx'
 
 [`auto_revert`]: /nomad/docs/job-specification/update#auto_revert

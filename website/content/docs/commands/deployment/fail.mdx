@@ -24,10 +24,6 @@ prefix.
 When ACLs are enabled, this command requires a token with the `submit-job`
 and `read-job` capabilities for the deployment's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Fail options
 
 - `-detach`: Return immediately instead of monitoring. A new evaluation ID
@@ -61,5 +57,9 @@ Deployed
 Task Group  Desired  Placed  Healthy  Unhealthy
 cache       3        2       1        0
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [eval status]: /nomad/docs/commands/eval/status
