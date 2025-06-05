@@ -32,10 +32,6 @@ of 1 indicates an error.
 When ACLs are enabled, this command requires a token with the `read-job`
 capability for the job's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Validate options
 
 - `-json`: Parses the job file as JSON. If the outer object has a Job field,
@@ -77,6 +73,10 @@ Job Warnings:
 
 Job validation successful
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [`go-getter`]: https://github.com/hashicorp/go-getter
 [job specification]: /nomad/docs/job-specification

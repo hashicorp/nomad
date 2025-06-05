@@ -33,10 +33,6 @@ and `read-job` capabilities for the job's namespace. The `list-jobs`
 capability is required to run the command with job prefixes instead of exact
 job IDs.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Stop options
 
 - `-detach`: Return immediately instead of entering monitor mode. After the
@@ -124,6 +120,10 @@ Stop the job with ID "job1" and return immediately:
 $ nomad job stop -detach job1
 507d26cb
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [eval status]: /nomad/docs/commands/eval/status
 [multi-region]: /nomad/docs/job-specification/multiregion

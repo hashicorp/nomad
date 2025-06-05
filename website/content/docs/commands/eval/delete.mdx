@@ -29,10 +29,6 @@ and delete a set of evaluations.
 
 When ACLs are enabled, this command requires a `management` token.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Delete options
 
 - `-filter`: Specifies an expression used to filter evaluations by for
@@ -68,6 +64,10 @@ prompts:
 $ nomad eval delete -filter='Scheduler == "system" or Scheduler == "service"' -yes
 Successfully deleted 23 evaluations
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [scheduler_get_config]: /nomad/docs/commands/operator/scheduler/get-config
 [scheduler_set_config]: /nomad/docs/commands/operator/scheduler/set-config

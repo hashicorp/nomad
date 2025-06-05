@@ -32,15 +32,6 @@ Use `job tag apply` to create or modify a version tag.
 nomad job tag apply [options] <job_id>
 ```
 
-### General options
-
-<details>
-<summary>Expand for general options</summary>
-
-@include 'general_options.mdx'
-
-</details>
-
 ### Apply options
 
 - `name`: Specifies the name of the tag. Must be unique per job.
@@ -95,6 +86,11 @@ This example removes the `golden-version` tag from the `hello-world` job.
 ```shell-session
 $ nomad job tag unset -name "golden-version" hello-world
 ```
+
+### General options
+
+@include 'general_options.mdx'
+
 
 [diff]: /nomad/docs/commands/job/history/
 [revert]: /nomad/docs/commands/job/revert/

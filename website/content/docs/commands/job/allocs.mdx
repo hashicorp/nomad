@@ -23,10 +23,6 @@ When ACLs are enabled, this command requires a token with the `read-job`
 capability for the job's namespace. The `list-jobs` capability is required to
 run the command with a job prefix instead of the exact job ID.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Allocs options
 
 - `-all`: Display all allocations matching the job ID, even those from an
@@ -71,7 +67,10 @@ $ nomad job allocs -t '{{ range . }}{{ if eq .ClientStatus "running" }}{{ printl
 c2b4606d-1b02-0d8d-5fdd-031167cd4c91
 ```
 
-Refer to the [Format Nomad Command Output With Templates][format_tutorial]
-tutorial for more examples of using Go templates to format Nomad CLI output.
+Refer to the [Format Nomad Command Output With
+Templates](/nomad/tutorials/templates/format-output-with-templates) tutorial for
+more examples of using Go templates to format Nomad CLI output.
 
-[format_tutorial]: /nomad/tutorials/templates/format-output-with-templates
+## General options
+
+@include 'general_options.mdx'

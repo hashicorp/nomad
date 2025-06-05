@@ -36,10 +36,6 @@ command with a job prefix instead of the exact job ID. The `read-job`
 capability is required to monitor the resulting evaluation when `-detach` is
 not used.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Scale options
 
 - `-check-index`: If set, the job is only scaled if the passed job modify index
@@ -100,5 +96,9 @@ $ nomad job scale job1 group1 8
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "529cc88e" finished with status "complete"
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [eval status]: /nomad/docs/commands/eval/status
