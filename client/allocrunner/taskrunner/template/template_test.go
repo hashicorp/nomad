@@ -2757,9 +2757,6 @@ func TestTaskTemplateManager_deniedSprig(t *testing.T) {
 
 	harness := newTestHarness(t, []*structs.Template{template}, false, false)
 
-	// Explicitly set the denylist
-	harness.config.TemplateConfig.FunctionDenylist = []string{"sprig_*"}
-
 	must.NoError(t, harness.startWithErr(), must.Sprint("couldn't setup initial harness"))
 	defer harness.stop()
 
