@@ -32,10 +32,6 @@ When ACLs are enabled, this command requires a token with the
 `alloc-lifecycle`, `read-job`, and `list-jobs` capabilities for the
 allocation's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Restart options
 
 - `-all-tasks`: If set, all tasks in the allocation will be restarted, even the
@@ -70,3 +66,7 @@ The following will restart the "redis" task only, not the "api" task:
 ```shell-session
 $ nomad alloc restart -task redis eb17e557 api
 ```
+
+## General options
+
+@include 'general_options.mdx'

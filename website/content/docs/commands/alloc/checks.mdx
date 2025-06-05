@@ -24,10 +24,6 @@ When ACLs are enabled, this command requires a token with the 'read-job' capabil
 for the allocation's namespace. The 'list-jobs' capability is required to run the
 command with an allocation ID prefix instead of the exact allocation ID.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Checks options
 
 - `-verbose`: Display verbose output.
@@ -84,3 +80,7 @@ $ nomad alloc checks -t '{{range .}}{{ printf "%s: %s\n" .ID  .Status }}{{end}}'
 
 9810e90177a4c21ce3bfe04dc7da6131: success
 ```
+
+## General options
+
+@include 'general_options.mdx'

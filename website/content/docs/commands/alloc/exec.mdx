@@ -33,9 +33,36 @@ the task driver does not have file system isolation (as with `raw_exec`),
 this command requires the `alloc-node-exec`, `read-job`, and `list-jobs`
 capabilities for the allocation's namespace.
 
-## General options
+### Use Job ID instead of Allocation ID
 
-@include 'general_options.mdx'
+Setting the `-job` flag causes a random allocation of the specified job to be
+selected.
+
+```plaintext
+nomad alloc exec -job <job-id> <command> [<args>...]
+```
+
+Choosing a specific allocation is useful for debugging issues with a specific
+instance of a service. For other operations using the `-job` flag may be more
+convenient than looking up an allocation ID to use.
+
+### Disable remote execution
+
+`alloc exec` is enabled by default to aid with debugging. Operators can disable
+the feature by setting [`disable_remote_exec` client config
+option][disable_remote_exec_flag] on all clients, or a subset of clients that
+run sensitive workloads.
+
+### Exec targeting a specific task
+
+When trying to `alloc exec` for a job that has more than one task associated
+with it, you may want to target a specific task.
+
+```shell-session
+# open a shell session in one of your allocation's tasks
+$ nomad alloc exec -i -t -task mytask a1827f93 /bin/bash
+a1827f93$
+```
 
 ## Exec options
 
@@ -44,7 +71,7 @@ capabilities for the allocation's namespace.
 - `-job=<job-name|job-id>`: Use a random allocation from the specified job or
   job ID prefix, preferring a running allocation.
 
-- `-group=<group-name>`: Specifies the task group where the task is located 
+- `-group=<group-name>`: Specifies the task group where the task is located
   when a random allocation is selected
 
 - `-i`: Pass stdin to the container, defaults to true. Pass `-i=false` to
@@ -113,36 +140,9 @@ $ nomad alloc exec eb17e557 /bin/sh -c 'cat /output | sort | uniq -c | sort -rn 
 ...
 ```
 
-## Using Job ID instead of Allocation ID
+## General options
 
-Setting the `-job` flag causes a random allocation of the specified job to be
-selected.
-
-```plaintext
-nomad alloc exec -job <job-id> <command> [<args>...]
-```
-
-Choosing a specific allocation is useful for debugging issues with a specific
-instance of a service. For other operations using the `-job` flag may be more
-convenient than looking up an allocation ID to use.
-
-## Disabling remote execution
-
-`alloc exec` is enabled by default to aid with debugging. Operators can disable
-the feature by setting [`disable_remote_exec` client config
-option][disable_remote_exec_flag] on all clients, or a subset of clients that
-run sensitive workloads.
-
-## Exec targeting a specific task
-
-When trying to `alloc exec` for a job that has more than one task associated
-with it, you may want to target a specific task.
-
-```shell-session
-# open a shell session in one of your allocation's tasks
-$ nomad alloc exec -i -t -task mytask a1827f93 /bin/bash
-a1827f93$
-```
+@include 'general_options.mdx'
 
 [heredoc]: http://tldp.org/LDP/abs/html/here-docs.html
 [disable_remote_exec_flag]: /nomad/docs/configuration/client#disable_remote_exec

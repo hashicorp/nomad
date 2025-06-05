@@ -28,10 +28,6 @@ When ACLs are enabled, this command requires a token with the
 `alloc-lifecycle`, `read-job`, and `list-jobs` capabilities for the
 allocation's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Signal options
 
 - `-s`: Signal to send to the tasks. Valid options depend on the driver.
@@ -63,3 +59,7 @@ The following will signal the "redis" task only, not the "api" task:
 ```shell-session
 $ nomad alloc signal -task redis eb17e557 api
 ```
+
+## General options
+
+@include 'general_options.mdx'
