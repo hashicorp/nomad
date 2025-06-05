@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/containerd/errdefs"
 	containerapi "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-multierror"
