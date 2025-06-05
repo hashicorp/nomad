@@ -19,10 +19,6 @@ If ACLs are enabled, this command requires a token with the `read` capability in
 a `node_pool` policy that matches the node pool being targeted. The results will
 be filtered by the namespaces where the token has `read-job` capability.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Jobs options
 
 - `-filter`: Specifies an expression used to [filter results][api_filtering].
@@ -74,6 +70,10 @@ $ nomad node pool jobs -per-page 2 -page-token job3 prod
 ID       Type     Priority  Status          Submit Date
 job3     service  50        dead (stopped)  07/22/17 16:34:48 UTC
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [api_filtering]: /nomad/api-docs#filtering
 [api_pagination]: /nomad/api-docs#pagination

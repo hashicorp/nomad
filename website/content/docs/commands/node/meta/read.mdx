@@ -24,10 +24,6 @@ This command uses the [`/v1/client/metadata` HTTP API][api].
 nomad node meta read [-json] [-node-id ...]
 ```
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Node Meta Read options
 
 - `-node-id` - Reads metadata on the specified node. If not specified the
@@ -58,5 +54,9 @@ connect.log_level         = info
 connect.proxy_concurrency = 1
 connect.sidecar_image     = docker.io/envoyproxy/envoy:v${NOMAD_envoy_version}
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [api]: /nomad/api-docs/client#update-dynamic-node-metadata

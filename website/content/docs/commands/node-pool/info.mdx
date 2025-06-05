@@ -19,10 +19,6 @@ nomad node pool info [options] <node-pool>
 If ACLs are enabled, this command requires a token with the `read` capability
 in a `node_pool` policy that matches the node pool being targeted.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Info options
 
 - `-json`: Output the node pool in its JSON format.
@@ -69,3 +65,7 @@ Customize output with a Go template:
 $ nomad node pool info -t "{{.Name}} [{{.Meta.env}}] - {{.Description}}" prod
 prod [production] - Node pool for production workloads.
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

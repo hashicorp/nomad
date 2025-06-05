@@ -21,10 +21,6 @@ This command uses the [`/v1/client/metadata` HTTP API][api].
 nomad node meta apply [-node-id ...] [-unset ...] key1=value1 ... kN=vN
 ```
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Node Meta Apply options
 
 - `-node-id` - Updates metadata on the specified node. If not specified the
@@ -37,5 +33,9 @@ nomad node meta apply [-node-id ...] [-unset ...] key1=value1 ... kN=vN
 ```shell-session
 $ nomad node meta apply -unset testing,tempvar ready=1 role=preinit-db
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [api]: /nomad/api-docs/client#update-dynamic-node-metadata

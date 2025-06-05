@@ -19,10 +19,6 @@ If ACLs are enabled, this command requires a management token to view all node
 pools. A non-management token can be used to list node pools for which the
 token has the 'read' capability.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## List options
 
 - `-filter`: Specifies an expression used to [filter results][api_filtering].
@@ -127,6 +123,10 @@ Name  Description
 dev   Node pool for dev workloads.
 prod  Node pool for production workloads.
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [api_filtering]: /nomad/api-docs#filtering
 [api_pagination]: /nomad/api-docs#pagination

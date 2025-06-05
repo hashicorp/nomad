@@ -56,10 +56,6 @@ operation is desired.
 If ACLs are enabled, this option requires a token with the 'node:write'
 capability.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Drain options
 
 - `-enable`: Enable node drain mode.
@@ -156,6 +152,10 @@ $ nomad node drain -enable -detach -self
 $ nomad node drain -self -monitor
 ...
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [eligibility]: /nomad/docs/commands/node/eligibility
 [`migrate`]: /nomad/docs/job-specification/migrate
