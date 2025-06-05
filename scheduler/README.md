@@ -17,17 +17,17 @@ The diagram below illustrates this process for the service and system schedulers
 in more detail:
 
 ```
-                                 ┌──────────────┐        ┌───────────┐                                               ┌─────────────┐      ┌──────────┐
-                                 │   cluster    │        │feasibility│                          ┌─────────────┐      │    score    │      │   plan   │
-    Service and batch jobs:      │reconciliation│───────▶│   check   │─────────────────────────▶│     fit     │─────▶│ assignment  │─────▶│submission│
-                                 └──────────────┘        └───────────┘                          └─────────────┘      └─────────────┘      └──────────┘
+                                 +--------------+        +-----------+                                               +-------------+      +----------+
+                                 |   cluster    |        |feasibility|                          +-------------+      |    score    |      |   plan   |
+    Service and batch jobs:      |reconciliation|------->|   check   |------------------------->|     fit     |----->| assignment  |----->|submission|
+                                 +--------------+        +-----------+                          +-------------+      +-------------+      +----------+
 
-─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-                                                         ┌───────────┐     ┌──────────────┐                                               ┌──────────┐
- System and sysbatch jobs:                               │feasibility│     │     node     │     ┌─────────────┐                           │   plan   │
-                                                         │   check   │────▶│reconciliation│────▶│     fit     │──────────────────────────▶│submission│
-                                                         └───────────┘     └──────────────┘     └─────────────┘                           └──────────┘
+                                                         +-----------+     +--------------+                                               +----------+
+ System and sysbatch jobs:                               |feasibility|     |     node     |     +-------------+                           |   plan   |
+                                                         |   check   |---->|reconciliation|---->|     fit     |-------------------------->|submission|
+                                                         +-----------+     +--------------+     +-------------+                           +----------+
 ```
 
 ## Cluster reconciliation
@@ -73,89 +73,88 @@ to lost configurations of their disconnected clients.
 The following diagram illustrates the logic flow of the cluster reconciler:
 
 ```
-          ┌─────────┐
-          │Compute()│
-          └─────────┘
-               │
-               ▼
-        ┌────────────┐
-        │create a new│          allocMatrix is created from existing
-        │ allocation │          allocations for a job, and is a map of
-        │  matrix m  │          task groups to allocation sets.
-        └────────────┘
-               │
-               ▼                deployments are unneeded in 3 cases:
- ┌───────────────────────────┐  1. when the are already successful
- │cancelUnneededDeployments()│  2. when they are active but reference an older job
- └───────────────────────────┘  3. when the job is marked as stopped, but the deployment
-               │                   was not yet stopped. 
-               │
-               ▼
-         ┌───────────┐          if the job is stopped, we stop
-         │handle stop│          all allocations and handle the
-         └───────────┘          lost allocations.
-               │
-               ▼
-  ┌─────────────────────────┐   sets deploymentPaused and
-  │computeDeploymentPaused()│   deploymentFailed fields on the
-  └─────────────────────────┘   reconciler.
-               │
-               │
-               │                for every task group, this method
-               ▼                calls computeGroup which returns
-┌────────────────────────────┐  "true" if deployment is complete
-│computeDeploymentComplete(m)│  for the task group.
-└────────────────────────────┘  computeDeploymentComplete itself
-               │                returns a boolean.
-               │
-               │              ┌────────────────────────────────────┐
-               │              │    computeGroup(groupName, all     │
-               ├─────────────▶│            allocations)            │
-               │              └────────────────────────────────────┘
-               │
-               │                contains the main, and most
-               │                complex part of the reconciler.
-               │                it calls many helper methods:
-               │                - filterOldTerminalAllocs: allocs
-               │                that are terminal and from older
-               │                job ver are put into "ignore"
-               │                bucket
-               │                - cancelUnneededCanaries
-               │                - filterByTainted: results in 6
-               │                buckets mentioned in the
-               │                paragraphs above: untainted,
-               │                migrate, lost, disconnecting,
-               │                reconnecting, ignore and
-               │                expiring.
-               └───────┐        - filterByRescheduleable: updates
-                       │        the untainted bucket and creates
-                       │        2 new ones: rescheduleNow and
-                       │        rescheduleLater
-                       │        - reconcileReconnecting: returns
-                       │        which allocs should be marked for
-                       │        reconnecting and which should be
-                       │        stopped
-                       │        - computeStop
-                       │        - computeCanaries
-                       │        - computePlacements: allocs are
-                       │        placed if deployment is not
-                       │        paused or failed, they are not
-                       │        canaries (unless promoted),
-                       │        previous alloc was lost
-                       │        - computeReplacements
-                       │        - createDeployment
-                       │
-                       ▼
-┌────────────────────────────────────────────┐
-│computeDeploymentUpdates(deploymentComplete)│
-└────────────────────────────────────────────┘
-                       │
-                ┌──────┘        for complete deployments, it
-                │               handles multi-region case and
-                ▼               sets the deploymentUpdates
-        ┌───────────────┐
-        │return a.result│
-        └───────────────┘
+          +---------+
+          |Compute()|
+          +---------+
+               |
+               v
+        +------------+
+        |create a new|          allocMatrix is created from existing
+        | allocation |          allocations for a job, and is a map of
+        |  matrix m  |          task groups to allocation sets.
+        +------------+
+               |
+               v                deployments are unneeded in 3 cases:
+ +---------------------------+  1. when the are already successful
+ |cancelUnneededDeployments()|  2. when they are active but reference an older job
+ +---------------------------+  3. when the job is marked as stopped, but the
+               |                deployment is non-terminal
+               v
+         +-----------+          if the job is stopped, we stop
+         |handle stop|          all allocations and handle the
+         +-----------+          lost allocations.
+               |
+               v
+  +-------------------------+   sets deploymentPaused and
+  |computeDeploymentPaused()|   deploymentFailed fields on the
+  +-------------------------+   reconciler.
+               |
+               |
+               |                for every task group, this method
+               v                calls computeGroup which returns
++----------------------------+  "true" if deployment is complete
+|computeDeploymentComplete(m)|  for the task group.
++----------------------------+  computeDeploymentComplete itself
+               |                returns a boolean.
+               |
+               |              +------------------------------------+
+               |              |    computeGroup(groupName, all     |
+               +------------->|            allocations)            |
+               |              +------------------------------------+
+               |
+               |                contains the main, and most complex part
+               |                of the reconciler. it calls many helper
+               |                methods:
+               |                - filterOldTerminalAllocs: allocs that
+               |                are terminal or from older job ver are
+               |                put into "ignore" bucket
+               |                - cancelUnneededCanaries
+               |                - filterByTainted: results in 6 buckets
+               |                mentioned in the paragraphs above:
+               |                untainted, migrate, lost, disconnecting,
+               |                reconnecting, ignore and expiring.
+               |                - filterByRescheduleable: updates the
+               |                untainted bucket and creates 2 new ones:
+               |                rescheduleNow and rescheduleLater
+               +-------+        - reconcileReconnecting: returns which
+                       |        allocs should be marked for reconnecting
+                       |        and which should be stopped
+                       |        - computeStop
+                       |        - computeCanaries
+                       |        - computePlacements: allocs are placed if
+                       |        deployment is not paused or failed, they
+                       |        are not canaries (unless promoted),
+                       |        previous alloc was lost
+                       |        - computeReplacements
+                       |        - createDeployment
+                       |
+                       |
+                       |
+                       |
+                       |
+                       |
+                       |
+                       v
++--------------------------------------------+
+|computeDeploymentUpdates(deploymentComplete)|
++--------------------------------------------+
+                       |
+                +------+        for complete deployments, it
+                |               handles multi-region case and
+                v               sets the deploymentUpdates
+        +---------------+
+        |return a.result|
+        +---------------+
 ```
 
 ## Feasibility checking
