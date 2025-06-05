@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"net/rpc"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-msgpack/v2/codec"
 	"github.com/hashicorp/go-sockaddr"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc/v2"
@@ -81,6 +83,27 @@ func rpcClientWithTLS(t testing.TB, srv *Server, cfg *config.TLSConfig) rpc.Clie
 	must.NoError(t, err)
 
 	return pool.NewClientCodec(tlsConn)
+}
+
+func Test_newRpcHandler(t *testing.T) {
+
+	// Generate a custom yamux configuration, so we can ensure this gets stored
+	// as expected.
+	yamuxConfig := yamux.DefaultConfig()
+	yamuxConfig.AcceptBacklog = math.MaxInt
+
+	testServer := Server{
+		config: &Config{
+			RPCMaxConnsPerClient: 10,
+			RPCSessionConfig:     yamuxConfig,
+		},
+		logger: hclog.NewInterceptLogger(nil),
+	}
+
+	testRPCHandler := newRpcHandler(&testServer)
+	must.NotNil(t, testRPCHandler)
+	must.NotNil(t, testRPCHandler.yamuxCfg)
+	must.Eq(t, yamuxConfig.AcceptBacklog, testRPCHandler.yamuxCfg.AcceptBacklog)
 }
 
 func TestRPC_forwardLeader(t *testing.T) {
@@ -530,7 +553,7 @@ func TestRPC_handleMultiplexV2(t *testing.T) {
 	// Start the handler
 	doneCh := make(chan struct{})
 	go func() {
-		s.handleConn(context.Background(), p2, &RPCContext{Conn: p2, SessionConfig: yamux.DefaultConfig()})
+		s.handleConn(context.Background(), p2, &RPCContext{Conn: p2})
 		close(doneCh)
 	}()
 
