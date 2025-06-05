@@ -203,6 +203,12 @@ func (j *Job) admissionMutators(job *structs.Job) (_ *structs.Job, warnings []er
 		}
 		warnings = append(warnings, w...)
 	}
+	//if trace is enabled, print out all constraints
+	if j.logger.IsTrace() {
+		for _, constraint := range job.CollectConstraints() {
+			j.logger.Trace("constraint of job", "constraint", constraint, "ID", job.ID)
+		}
+	}
 	return job, warnings, err
 }
 
