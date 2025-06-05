@@ -1,0 +1,3 @@
+```release-note:security
+template: Adds sprig functions to the DefaultTemplateFunctionDenylist.
+```
