@@ -18,10 +18,6 @@ nomad acl auth-method create [options]
 The `acl auth-method create` command requires the correct setting of the create options
 via flags detailed below.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Create options
 
 - `-name`: Sets the human readable name for the ACL auth method. The name must
@@ -125,6 +121,10 @@ instead of a client secret.
   }
 }
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [configuration]: /nomad/api-docs/acl/auth-methods#config
 [client assertion]: /nomad/api-docs/acl/auth-methods#oidcclientassertion

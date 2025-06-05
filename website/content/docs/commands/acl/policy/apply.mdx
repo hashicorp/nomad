@@ -20,10 +20,6 @@ to file. The policy can be read from stdin by setting the path to "-".
 
 This command requires a management ACL token.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Apply options
 
 - `-description`: Sets the human readable description for the ACL policy.
@@ -58,5 +54,9 @@ $ nomad acl policy apply \
     my-policy my-policy.json
 Successfully wrote 'my-policy' ACL policy!
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [Workload Associated ACL Policies]: /nomad/docs/concepts/workload-identity#workload-associated-acl-policies

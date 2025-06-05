@@ -18,10 +18,6 @@ nomad acl auth-method update [options] <auth-method_name>
 
 The `acl auth-method update` command requires an existing method's name.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Update options
 
 - `-name`: Sets the human-readable name for the ACL Role. It is required and
@@ -90,5 +86,9 @@ Signing algorithms     = <none>
 Claim mappings         = {http://example.com/first_name: first_name}; {http://example.com/last_name: last_name}
 List claim mappings    = {http://nomad.com/groups: groups}
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [configuration]: /nomad/api-docs/acl/auth-methods#config

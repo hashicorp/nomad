@@ -19,10 +19,6 @@ nomad login [options]
 The login command will exchange the provided third party credentials with the
 requested auth method for a newly minted Nomad ACL token.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Login options
 
 - `-method`: The name of the ACL auth method to log in via. If the cluster
@@ -62,3 +58,7 @@ ac9d4281-2079-aadb-6740-625f4ed156d8  engineering
 $ export NOMAD_TOKEN=a47ed236-5a51-cadf-2ad0-4cd0fd5bc393
 $ nomad ...
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

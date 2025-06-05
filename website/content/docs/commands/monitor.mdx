@@ -27,10 +27,6 @@ The monitor command also allows you to specify a single client node id to follow
 When ACLs are enabled, this command requires a token with the `agent:read`
 capability.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Monitor options
 
 - `-log-level`: The log level to use for log streaming. Defaults to `info`.
@@ -59,3 +55,7 @@ $ nomad monitor -log-level=DEBUG -json=true
 {"@level":"debug","@message":"request complete"...}
 
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
