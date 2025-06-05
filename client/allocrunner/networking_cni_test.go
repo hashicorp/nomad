@@ -465,6 +465,31 @@ func TestCNI_cniToAllocNet_Invalid(t *testing.T) {
 	require.Nil(t, allocNet)
 }
 
+func TestCNI_cniToAllocNet_IPv6(t *testing.T) {
+	ci.Parallel(t)
+
+	cniResult := &cni.Result{
+		Interfaces: map[string]*cni.Config{
+			"eth0": {
+				Sandbox: "at-the-park",
+				IPConfigs: []*cni.IPConfig{
+					{IP: net.IPv6zero}, // ::
+				},
+			},
+		},
+	}
+
+	c := &cniNetworkConfigurator{
+		logger: testlog.HCLogger(t),
+	}
+	allocNet, err := c.cniToAllocNet(cniResult)
+	must.NoError(t, err)
+	must.NotNil(t, allocNet)
+	test.Eq(t, "::", allocNet.Address)
+	test.Eq(t, "::", allocNet.AddressIPv6)
+	test.Eq(t, "eth0", allocNet.InterfaceName)
+}
+
 func TestCNI_cniToAllocNet_Dualstack(t *testing.T) {
 	ci.Parallel(t)
 

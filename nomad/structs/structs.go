@@ -12096,15 +12096,20 @@ func (s *NodeScoreMeta) Data() interface{} {
 // systems in Nomad such as service registration.
 type AllocNetworkStatus struct {
 	InterfaceName string
-	Address       string
-	AddressIPv6   string
-	DNS           *DNSConfig
+	// Address is the IP allocation of the address.
+	// If the interface is IPv6 only, this value will be V6 too.
+	Address string
+	// AddressIPv6 is the IP allocation of the address. If the iface is IPv4 only,
+	// this will be empty.
+	AddressIPv6 string
+	DNS         *DNSConfig
 }
 
 func (a *AllocNetworkStatus) Copy() *AllocNetworkStatus {
 	if a == nil {
 		return nil
 	}
+
 	return &AllocNetworkStatus{
 		InterfaceName: a.InterfaceName,
 		Address:       a.Address,
