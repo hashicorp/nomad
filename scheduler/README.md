@@ -17,17 +17,17 @@ The diagram below illustrates this process for the service and system schedulers
 in more detail:
 
 ```
-                                 +--------------+        +-----------+                                               +-------------+      +----------+
-                                 |   cluster    |        |feasibility|                          +-------------+      |    score    |      |   plan   |
-    Service and batch jobs:      |reconciliation|------->|   check   |------------------------->|     fit     |----->| assignment  |----->|submission|
-                                 +--------------+        +-----------+                          +-------------+      +-------------+      +----------+
+                                 +--------------+        +-----------+                            +-------------+      +----------+
+                                 |   cluster    |        |feasibility|       +-------------+      |    score    |      |   plan   |
+    Service and batch jobs:      |reconciliation|------->|   check   |------>|     fit     |----->| assignment  |----->|submission|
+                                 +--------------+        +-----------+       +-------------+      +-------------+      +----------+
 
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-                                                         +-----------+     +--------------+                                               +----------+
- System and sysbatch jobs:                               |feasibility|     |     node     |     +-------------+                           |   plan   |
-                                                         |   check   |---->|reconciliation|---->|     fit     |-------------------------->|submission|
-                                                         +-----------+     +--------------+     +-------------+                           +----------+
+                                 +--------------+        +-----------+                                                 +----------+
+ System and sysbatch jobs:       |     node     |        |feasibility|       +-------------+                           |   plan   |
+                                 |reconciliation|------->|   check   |------>|     fit     |-------------------------->|submission|
+                                 +--------------+        +-----------+       +-------------+                           +----------+
 ```
 
 ## Cluster reconciliation
