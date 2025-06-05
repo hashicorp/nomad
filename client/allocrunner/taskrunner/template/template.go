@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -87,6 +88,8 @@ type TaskTemplateManagerConfig struct {
 
 	// Templates is the set of templates we are managing
 	Templates []*structs.Template
+
+	TaskSecrets map[string]string
 
 	// ClientConfig is the Nomad Client configuration
 	ClientConfig *config.Config
@@ -266,6 +269,17 @@ func (tm *TaskTemplateManager) Run() {
 		return
 	}
 	tm.config.EnvBuilder.SetTemplateEnv(envMap)
+
+	// Read any task secrets from templates
+	tmpMap, err := loadSecretEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
+	if err != nil {
+		tm.config.Lifecycle.Kill(context.Background(),
+			structs.NewTaskEvent(structs.TaskKilling).
+				SetFailsTask().
+				SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
+		return
+	}
+	maps.Copy(tm.config.TaskSecrets, tmpMap)
 
 	// Unblock the task
 	close(tm.config.UnblockCh)
@@ -1009,6 +1023,35 @@ func loadTemplateEnv(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (map[s
 	all := make(map[string]string, 50)
 	for _, t := range tmpls {
 		if !t.Envvars {
+			continue
+		}
+
+		// we checked escape before we rendered the file
+		dest, _ := taskEnv.ClientPath(t.DestPath, true)
+		f, err := os.Open(dest)
+		if err != nil {
+			return nil, fmt.Errorf("error opening env template: %v", err)
+		}
+		defer f.Close()
+
+		// Parse environment fil
+		vars, err := envparse.Parse(f)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing env template %q: %v", dest, err)
+		}
+		for k, v := range vars {
+			all[k] = v
+		}
+	}
+	return all, nil
+}
+
+// This is duplicate/hacky. Should probably find a way to cleanly populate envMap and secretsMap from
+// a single function.
+func loadSecretEnv(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (map[string]string, error) {
+	all := make(map[string]string, 50)
+	for _, t := range tmpls {
+		if !t.Secrets {
 			continue
 		}
 

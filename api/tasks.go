@@ -952,6 +952,7 @@ type Template struct {
 	Envvars       *bool          `mapstructure:"env" hcl:"env,optional"`
 	VaultGrace    *time.Duration `mapstructure:"vault_grace" hcl:"vault_grace,optional"`
 	Wait          *WaitConfig    `mapstructure:"wait" hcl:"wait,block"`
+	Secrets       *bool          `mapstructure:"secrets" hcl:"secrets,optional"`
 	ErrMissingKey *bool          `mapstructure:"error_on_missing_key" hcl:"error_on_missing_key,optional"`
 }
 
@@ -1001,6 +1002,9 @@ func (tmpl *Template) Canonicalize() {
 	}
 	if tmpl.ErrMissingKey == nil {
 		tmpl.ErrMissingKey = pointerOf(false)
+	}
+	if tmpl.Secrets == nil {
+		tmpl.Secrets = pointerOf(false)
 	}
 	//COMPAT(0.12) VaultGrace is deprecated and unused as of Vault 0.5
 	if tmpl.VaultGrace == nil {

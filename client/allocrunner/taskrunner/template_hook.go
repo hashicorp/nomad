@@ -44,6 +44,8 @@ type templateHookConfig struct {
 	// envBuilder is the environment variable builder for the task.
 	envBuilder *taskenv.Builder
 
+	taskSecrets map[string]string
+
 	// consulNamespace is the current Consul namespace
 	consulNamespace string
 
@@ -212,6 +214,7 @@ func (h *templateHook) newManager(tmpls []*structs.Template) (manager *template.
 		VaultNamespace:       h.vaultNamespace,
 		TaskDir:              h.taskDir,
 		EnvBuilder:           h.config.envBuilder,
+		TaskSecrets:          h.config.taskSecrets,
 		MaxTemplateEventRate: template.DefaultMaxTemplateEventRate,
 		NomadNamespace:       h.config.nomadNamespace,
 		NomadToken:           h.nomadToken,

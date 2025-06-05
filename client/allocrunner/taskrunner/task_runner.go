@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	hargs "github.com/hashicorp/nomad/helper/args"
 	"slices"
 	"strings"
 	"sync"
@@ -44,6 +45,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 	bstructs "github.com/hashicorp/nomad/plugins/base/structs"
 	"github.com/hashicorp/nomad/plugins/drivers"
+	"github.com/zclconf/go-cty/cty"
 )
 
 const (
@@ -169,6 +171,8 @@ type TaskRunner struct {
 
 	// envBuilder is used to build the task's environment
 	envBuilder *taskenv.Builder
+
+	taskSecrets map[string]string
 
 	// restartTracker is used to decide if the task should be restarted.
 	restartTracker *restarts.RestartTracker
@@ -404,6 +408,7 @@ func NewTaskRunner(config *Config) (*TaskRunner, error) {
 		taskName:                config.Task.Name,
 		taskLeader:              config.Task.Leader,
 		envBuilder:              envBuilder,
+		taskSecrets:             make(map[string]string),
 		dynamicRegistry:         config.DynamicRegistry,
 		consulServiceClient:     config.ConsulServices,
 		consulProxiesClientFunc: config.ConsulProxiesFunc,
@@ -946,6 +951,10 @@ func (tr *TaskRunner) runDriver() error {
 		tr.logger.Warn("some environment variables not available for rendering", "keys", strings.Join(keys, ", "))
 	}
 
+	for key, val := range tr.taskSecrets {
+		vars[key] = cty.StringVal(val)
+	}
+
 	val, diag, diagErrs := hclutils.ParseHclInterface(tr.task.Config, tr.taskSchema, vars)
 	if diag.HasErrors() {
 		parseErr := multierror.Append(errors.New("failed to parse config: "), diagErrs...)
@@ -1215,6 +1224,12 @@ func (tr *TaskRunner) buildTaskConfig() *drivers.TaskConfig {
 	cpusetCpus := make([]string, len(taskResources.Cpu.ReservedCores))
 	for i, v := range taskResources.Cpu.ReservedCores {
 		cpusetCpus[i] = fmt.Sprintf("%d", v)
+	}
+
+	// Interprete any envVars that are referencing template secrets
+	// Not entirely sure about this behavior
+	for key, val := range env.EnvMap {
+		env.EnvMap[key] = hargs.ReplaceEnv(val, tr.taskSecrets)
 	}
 
 	return &drivers.TaskConfig{
