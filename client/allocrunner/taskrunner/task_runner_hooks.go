@@ -72,6 +72,26 @@ func (tr *TaskRunner) initHooks() {
 		newIdentityHook(tr, hookLogger),
 	)
 
+	// Add the consul hook (populates task secret dirs and sets the environment if
+	// consul tokens are present for the task).
+	tr.runnerHooks = append(tr.runnerHooks, newConsulHook(hookLogger, tr))
+
+	// If Vault is enabled, add the hook
+	if task.Vault != nil && tr.vaultClientFunc != nil {
+		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
+			vaultBlock:       task.Vault,
+			vaultConfigsFunc: tr.clientConfig.GetVaultConfigs,
+			clientFunc:       tr.vaultClientFunc,
+			events:           tr,
+			lifecycle:        tr,
+			updater:          tr,
+			logger:           hookLogger,
+			alloc:            tr.Alloc(),
+			task:             tr.Task(),
+			widmgr:           tr.widmgr,
+		}))
+	}
+
 	// The easy path here is to just say "if you want to use secrets in the job spec, it needs to be
 	// a data template". If you download from an artifact, you can't use the secrets param. It's possible
 	// we could do some dependency mapping here and split the templates into artifactDependent templates
@@ -126,26 +146,6 @@ func (tr *TaskRunner) initHooks() {
 				logger:             hookLogger,
 			}))
 	}
-
-	// If Vault is enabled, add the hook
-	if task.Vault != nil && tr.vaultClientFunc != nil {
-		tr.runnerHooks = append(tr.runnerHooks, newVaultHook(&vaultHookConfig{
-			vaultBlock:       task.Vault,
-			vaultConfigsFunc: tr.clientConfig.GetVaultConfigs,
-			clientFunc:       tr.vaultClientFunc,
-			events:           tr,
-			lifecycle:        tr,
-			updater:          tr,
-			logger:           hookLogger,
-			alloc:            tr.Alloc(),
-			task:             tr.Task(),
-			widmgr:           tr.widmgr,
-		}))
-	}
-
-	// Add the consul hook (populates task secret dirs and sets the environment if
-	// consul tokens are present for the task).
-	tr.runnerHooks = append(tr.runnerHooks, newConsulHook(hookLogger, tr))
 
 	// If there are templates is enabled, add the hook
 	if len(sourceTemplates) != 0 {
