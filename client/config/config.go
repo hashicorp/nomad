@@ -74,7 +74,7 @@ var (
 
 	DefaultTemplateMaxStale = 87600 * time.Hour
 
-	DefaultTemplateFunctionDenylist = []string{"executeTemplate", "plugin", "writeToFile"}
+	DefaultTemplateFunctionDenylist = []string{"executeTemplate", "plugin", "writeToFile", "sprig_*"}
 )
 
 // RPCHandler can be provided to the Client if there is a local server
