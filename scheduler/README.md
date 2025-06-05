@@ -163,15 +163,25 @@ The following diagram illustrates the logic flow of the cluster reconciler:
 
 ## Feasibility checking
 
-Nomad uses a set of iterators to iterate over all nodes and check how feasible
-they are for any given allocation. This code sits in `scheduler/feasible.go` and
-`scheduler/stack.go` files. There are two interfaces: `FeasibleIterator` and
-`FeasibilityChecker`, and various objects that implement iterating over nodes to
-match constraints.
+Nomad uses a set of iterators to iterate over nodes and check how feasible
+they are for any given allocation. The scheduler uses a `Stack` interface that
+lives in `scheduler/stack.go` file in order to make placement decisions, and
+feasibility iterators that live in `scheduler/feasible.go` to filter by:
 
-Feasibility checkers are registered in the `Stack`, an interface implemented by
-`GenericStack` and `SystemStack`, for service and batch jobs, and for system and
-sysbatch jobs, respectively.
+- node eligibiligy,
+- data center,
+- and node pool. 
+
+Once nodes are filtered, the `Stack` implementations (`GenericStack` and
+`SystemStack`) check for:
+
+- drivers,
+- job constraints,
+- devices,
+- volumes,
+- networking,
+- affinities,
+- and quotas.
 
 ## Node reconciliation
 
