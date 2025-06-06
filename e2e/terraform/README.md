@@ -53,7 +53,7 @@ region                           = "us-east-1"
 instance_type                    = "t2.medium"
 server_count                     = "3"
 client_count_linux               = "4"
-client_count_windows_2016        = "1"
+client_count_windows_2022        = "1"
 ```
 
 You will also need a Consul Enterprise license file and a Nomad Enterprise
@@ -67,21 +67,21 @@ linux).
 NOTE: If you want to have a cluster with mixed CPU architectures,
 you need to specify the count and also provide the  corresponding
 binary using `var.nomad_local_binary_client_ubuntu_jammy` and or
-`var.nomad_local_binary_client_windows_2016`.
+`var.nomad_local_binary_client_windows_2022`.
 
 Run Terraform apply to deploy the infrastructure:
 
 ```sh
 cd e2e/terraform/
 terraform init
-terraform apply -var="consul_license=$(cat full_path_to_consul.hclic)" -var="nomad_license=$(cat full_path_to_nomad.hclic)"    
+terraform apply -var="consul_license=$(cat full_path_to_consul.hclic)" -var="nomad_license=$(cat full_path_to_nomad.hclic)"
 ```
- 
+
 Alternative you can also run `make apply_full` from the terraform directory:
 
 ```
 export NOMAD_LICENSE_PATH=./nomad.hclic
-export CONSUL_LICENSE_PATH=./consul.hclic 
+export CONSUL_LICENSE_PATH=./consul.hclic
 make apply_full
 ```
 
