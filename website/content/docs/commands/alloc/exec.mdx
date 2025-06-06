@@ -64,7 +64,7 @@ $ nomad alloc exec -i -t -task mytask a1827f93 /bin/bash
 a1827f93$
 ```
 
-## Exec options
+## Options
 
 - `-task=<task-name>`: Sets the task to exec command in.
 
@@ -80,7 +80,7 @@ a1827f93$
 - `-t`: Allocate a pseudo-tty, defaults to true if stdin is detected to be a tty
   session. Pass `-t=false` to disable explicitly.
 
-- `-e` <escape_char>: Sets the escape character for sessions with a pty
+- `-e` `<escape_char>`: Sets the escape character for sessions with a pty
   (default: '~'). The escape character is only recognized at the beginning of a
   line. The escape character followed by a dot ('.') closes the connection.
   Setting the character to 'none' disables any escapes and makes the session

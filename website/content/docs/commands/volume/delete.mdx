@@ -33,7 +33,7 @@ When ACLs are enabled, this command requires a token with the appropriate
 capability in the volume's namespace: the `csi-write-volume` capability for CSI
 volumes or `host-volume-delete` for dynamic host volumes.
 
-## Delete options
+## Options
 
 - `-force`: Delete the volume from the Nomad state store if the node has been
   garbage collected. You should only use `-force` if the node will never rejoin

@@ -734,7 +734,20 @@
           },
           {
             "title": "tag",
-            "path": "commands/job/tag"
+            "routes": [
+              {
+                "title": "Overview",
+                "path": "commands/job/tag"
+              },
+              {
+                "title": "apply",
+                "path": "commands/job/tag/apply"
+              },
+              {
+                "title": "unset",
+                "path": "commands/job/tag/unset"
+              }
+            ]
           },
           {
             "title": "validate",
