@@ -36,9 +36,9 @@ variable "client_count_linux" {
   default     = "4"
 }
 
-variable "client_count_windows_2016" {
-  description = "The number of windows 2016 clients to provision."
-  default     = "0"
+variable "client_count_windows_2022" {
+  description = "The number of windows 2022 clients to provision."
+  default     = "1"
 }
 
 variable "restrict_ingress_cidrblock" {
@@ -120,7 +120,7 @@ variable "nomad_local_binary_client_ubuntu_jammy" {
   default     = ""
 }
 
-variable "nomad_local_binary_client_windows_2016" {
+variable "nomad_local_binary_client_windows_2022" {
   description = "A path to an alternative binary to deploy to windows clients, to override nomad_local_binary"
   type        = string
   default     = ""
