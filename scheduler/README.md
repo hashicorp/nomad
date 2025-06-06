@@ -30,19 +30,20 @@ in more detail:
                                  +--------------+        +-----------+       +-------------+                           +----------+
 ```
 
-## Cluster reconciliation
+## Reconciliation
 
 The first step for the service and bach job scheduler is called
-"reconciliation," and its logic lies in `scheduler/reconcile.go` file. The
-`allocReconciler` object has one public method: `Compute`, which takes no
-arguments and returns `reconcileResults` object. This results object tells the
-scheduler about desired deployment to be updated or created, which allocations
-to place, which should be updated destructively or in-place, which should be
-stopped, and which are disconnected or are reconnecting. The reconciler works
-in terms of "buckets," that is, it processes allocations by putting them into
-different sets, and that's how its whole logic is implemented.
+"reconciliation," and its logic lies in the `scheduler/reconciler` package. There are two reconcilers: 
+`AllocReconciler` object for service and batch jobs, and `Node` reconciler used by system and sysbatch jobs. 
 
-The following vocabulary is used by the reconciler:
+Both reconciler's task is to tell the scheduler about desired allocations or
+deployments to be updated or created, which should be updated destructively or
+in-place, which should be stopped, and which are disconnected or are
+reconnecting. The reconciler works in terms of "buckets," that is, it processes
+allocations by putting them into different sets, and that's how its whole logic
+is implemented.
+
+The following vocabulary is used by the reconcilers:
 
 - "tainted node:" a node is considered "tainted" if allocations must be migrated
 off of it. These are nodes that are draining or have been drained, but also
@@ -73,6 +74,8 @@ status, but also when it's pending or initializing.
 
   - "expiring allocations:" allocations which are not possible to reschedule, due
      to lost configurations of their disconnected clients.
+
+### Cluster Reconciler
 
 The following diagram illustrates the logic flow of the cluster reconciler:
 
@@ -160,6 +163,10 @@ The following diagram illustrates the logic flow of the cluster reconciler:
         |return a.result|
         +---------------+
 ```
+
+### Node Reconciler
+
+TODO
 
 ## Feasibility checking
 

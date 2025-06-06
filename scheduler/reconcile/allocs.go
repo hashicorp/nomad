@@ -1,12 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
-
-// The structs and helpers in this file are split out of reconciler.go for code
-// manageability and should not be shared to the system schedulers! If you need
-// something here for system/sysbatch jobs, double-check it's safe to use for
-// all scheduler types before moving it into util.go
+package reconcile
 
 import (
 	"errors"
@@ -19,12 +14,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// placementResult is an allocation that must be placed. It potentially has a
+// This file contains various types and methods that are used for keeping track
+// of allocations during reconciliation process.
+
+// PlacementResult is an allocation that must be placed. It potentially has a
 // previous allocation attached to it that should be stopped only if the
 // paired placement is complete. This gives an atomic place/stop behavior to
 // prevent an impossible resource ask as part of a rolling update to wipe the
 // job out.
-type placementResult interface {
+type PlacementResult interface {
 	// TaskGroup returns the task group the placement is for
 	TaskGroup() *structs.TaskGroup
 
@@ -57,17 +55,17 @@ type placementResult interface {
 	MinJobVersion() uint64
 }
 
-// allocStopResult contains the information required to stop a single allocation
-type allocStopResult struct {
-	alloc             *structs.Allocation
-	clientStatus      string
-	statusDescription string
-	followupEvalID    string
+// AllocStopResult contains the information required to stop a single allocation
+type AllocStopResult struct {
+	Alloc             *structs.Allocation
+	ClientStatus      string
+	StatusDescription string
+	FollowupEvalID    string
 }
 
-// allocPlaceResult contains the information required to place a single
+// AllocPlaceResult contains the information required to place a single
 // allocation
-type allocPlaceResult struct {
+type AllocPlaceResult struct {
 	name          string
 	canary        bool
 	taskGroup     *structs.TaskGroup
@@ -79,18 +77,19 @@ type allocPlaceResult struct {
 	minJobVersion      uint64
 }
 
-func (a allocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.taskGroup }
-func (a allocPlaceResult) Name() string                            { return a.name }
-func (a allocPlaceResult) Canary() bool                            { return a.canary }
-func (a allocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
-func (a allocPlaceResult) SetPreviousAllocation(alloc *structs.Allocation) {
+func (a AllocPlaceResult) TaskGroup() *structs.TaskGroup           { return a.taskGroup }
+func (a AllocPlaceResult) Name() string                            { return a.name }
+func (a AllocPlaceResult) Canary() bool                            { return a.canary }
+func (a AllocPlaceResult) PreviousAllocation() *structs.Allocation { return a.previousAlloc }
+func (a AllocPlaceResult) SetPreviousAllocation(alloc *structs.Allocation) {
 	a.previousAlloc = alloc
 }
-func (a allocPlaceResult) IsRescheduling() bool              { return a.reschedule }
-func (a allocPlaceResult) StopPreviousAlloc() (bool, string) { return false, "" }
-func (a allocPlaceResult) DowngradeNonCanary() bool          { return a.downgradeNonCanary }
-func (a allocPlaceResult) MinJobVersion() uint64             { return a.minJobVersion }
-func (a allocPlaceResult) PreviousLost() bool                { return a.lost }
+func (a AllocPlaceResult) IsRescheduling() bool               { return a.reschedule }
+func (a AllocPlaceResult) StopPreviousAlloc() (bool, string)  { return false, "" }
+func (a AllocPlaceResult) DowngradeNonCanary() bool           { return a.downgradeNonCanary }
+func (a AllocPlaceResult) MinJobVersion() uint64              { return a.minJobVersion }
+func (a AllocPlaceResult) PreviousLost() bool                 { return a.lost }
+func (a AllocPlaceResult) SetTaskGroup(tg *structs.TaskGroup) { a.taskGroup = tg }
 
 // allocDestructiveResult contains the information required to do a destructive
 // update. Destructive changes should be applied atomically, as in the old alloc
@@ -644,9 +643,9 @@ func (a allocSet) filterByClientStatus(clientStatus string) allocSet {
 	return allocs
 }
 
-// allocNameIndex is used to select allocation names for placement or removal
+// AllocNameIndex is used to select allocation names for placement or removal
 // given an existing set of placed allocations.
-type allocNameIndex struct {
+type AllocNameIndex struct {
 	job, taskGroup string
 	count          int
 	b              structs.Bitmap
@@ -662,11 +661,11 @@ type allocNameIndex struct {
 // newAllocNameIndex returns an allocNameIndex for use in selecting names of
 // allocations to create or stop. It takes the job and task group name, desired
 // count and any existing allocations as input.
-func newAllocNameIndex(job, taskGroup string, count int, in allocSet) *allocNameIndex {
+func newAllocNameIndex(job, taskGroup string, count int, in allocSet) *AllocNameIndex {
 
 	bitMap, duplicates := bitmapFrom(in, uint(count))
 
-	return &allocNameIndex{
+	return &AllocNameIndex{
 		count:      count,
 		b:          bitMap,
 		job:        job,
@@ -736,7 +735,7 @@ func bitmapFrom(input allocSet, minSize uint) (structs.Bitmap, map[uint]int) {
 
 // Highest removes and returns the highest n used names. The returned set
 // can be less than n if there aren't n names set in the index
-func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
+func (a *AllocNameIndex) Highest(n uint) map[string]struct{} {
 	h := make(map[string]struct{}, n)
 	for i := a.b.Size(); i > uint(0) && uint(len(h)) < n; i-- {
 		// Use this to avoid wrapping around b/c of the unsigned int
@@ -752,13 +751,13 @@ func (a *allocNameIndex) Highest(n uint) map[string]struct{} {
 
 // IsDuplicate checks whether the passed allocation index is duplicated within
 // the tracking.
-func (a *allocNameIndex) IsDuplicate(idx uint) bool {
+func (a *AllocNameIndex) IsDuplicate(idx uint) bool {
 	val, ok := a.duplicates[idx]
 	return ok && val > 0
 }
 
 // UnsetIndex unsets the index as having its name used
-func (a *allocNameIndex) UnsetIndex(idx uint) {
+func (a *AllocNameIndex) UnsetIndex(idx uint) {
 
 	// If this index is a duplicate, remove the duplicate entry. Otherwise, we
 	// can remove it from the bitmap tracking.
@@ -773,7 +772,7 @@ func (a *allocNameIndex) UnsetIndex(idx uint) {
 
 // NextCanaries returns the next n names for use as canaries and sets them as
 // used. The existing canaries and destructive updates are also passed in.
-func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []string {
+func (a *AllocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []string {
 	next := make([]string, 0, n)
 
 	// Create a name index
@@ -830,7 +829,7 @@ func (a *allocNameIndex) NextCanaries(n uint, existing, destructive allocSet) []
 
 // Next returns the next n names for use as new placements and sets them as
 // used.
-func (a *allocNameIndex) Next(n uint) []string {
+func (a *AllocNameIndex) Next(n uint) []string {
 	next := make([]string, 0, n)
 
 	// Get the set of unset names that can be used
