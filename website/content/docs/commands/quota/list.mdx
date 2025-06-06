@@ -21,11 +21,7 @@ If ACLs are enabled, this command requires a token with the `quota:read`
 capability. Any quotas applied to namespaces that the token does not have
 access to will be filtered from the results.
 
-## General options
-
-@include 'general_options.mdx'
-
-## List options
+## Options
 
 - `-json`: Output the quota specifications in a JSON format.
 
@@ -40,3 +36,7 @@ $ nomad quota list
 Name     Description
 default  Limit the shared default namespace
 ```
+
+## General options
+
+@include 'general_options.mdx'

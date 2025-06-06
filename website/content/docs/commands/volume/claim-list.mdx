@@ -18,7 +18,7 @@ nomad volume claim list [options] [claim_id]
 
 This command accepts an optional claim ID or prefix as the sole argument. If
 there is an exact match based on the provided volume ID or prefix, then
-the command displays information about the specific claim. Otherwise, the command 
+the command displays information about the specific claim. Otherwise, the command
 displays a list of matching claims.
 
 If you omit the ID, the command lists out all of the existing claims and a
@@ -27,11 +27,7 @@ few of the most useful status fields for each.
 When ACLs are enabled, this command requires a token with the `host-volume-read`
 capability in the volume's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## List options
+## Options
 
 - `-job`: Show only volume claims from a particular job ID.
 
@@ -59,5 +55,9 @@ $ nomad volume claim list 81
 ID        Namespace  Job ID   Volume ID  Volume Name
 81b43af2  default    example  18377894   sticky-volume
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [stateful deployments]: /nomad/docs/concepts/stateful-deployments

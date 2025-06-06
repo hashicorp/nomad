@@ -25,11 +25,7 @@ When ACLs are enabled, this command requires a token with the `read-job`
 capability for the job's namespace. The `list-jobs` capability is required to
 run the command with a job prefix instead of the exact job ID.
 
-## General options
-
-@include 'general_options.mdx'
-
-## History options
+## Options
 
 - `-p`: Display the differences between each job and its predecessor.
 - `-full`: Display the full job definition for each version.
@@ -141,3 +137,7 @@ Diff        =
   +/- Count: "3" => "1"
       Task: "task"
 ```
+
+## General options
+
+@include 'general_options.mdx'

@@ -9,12 +9,6 @@ description: |
 
 The `namespace delete` command is used delete a namespace.
 
-<Tip>
-  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
-    Nomad Namespaces tutorial
-  </a> for more information.
-</Tip>
-
 ## Usage
 
 ```plaintext
@@ -30,10 +24,6 @@ existing CSI volumes or variables attached to it, or quotas associated with it.
 In federated clusters, you cannot delete a namespace that has any of the above
 in any of the federated regions.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
 ## Examples
 
 Delete a namespace
@@ -42,3 +32,7 @@ Delete a namespace
 $ nomad namespace delete api-prod
 Successfully deleted namespace "api-prod"!
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

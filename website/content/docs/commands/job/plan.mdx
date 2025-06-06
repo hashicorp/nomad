@@ -51,11 +51,7 @@ Plan will return one of the following exit codes:
 When ACLs are enabled, this command requires a token with the `submit-job`
 capability for the job's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Plan options
+## Options
 
 - `-diff`: Determines whether the diff between the remote job and planned job is
   shown. Defaults to true.
@@ -235,6 +231,10 @@ parsing. Colored output may be helpful when analyzing the plan result, so the
 is done to avoid hidden control characters. Adding `|| true` at the end
 prevents undesired failures since `nomad job plan` returns a non-zero exit code
 if a change is detected.
+
+## General options
+
+@include 'general_options.mdx'
 
 [job specification]: /nomad/docs/job-specification
 [hcl job specification]: /nomad/docs/job-specification

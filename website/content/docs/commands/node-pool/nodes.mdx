@@ -19,11 +19,7 @@ If ACLs are enabled, this command requires a token with the `node:read`
 capability and the `read` capability in a `node_pool` policy that matches the
 node pool being targeted.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Nodes options
+## Options
 
 - `-filter`: Specifies an expression used to [filter results][api_filtering].
 
@@ -71,6 +67,10 @@ Results have been paginated. To get the next page run:
 
 nomad node pool nodes -per-page=2 prod -page-token 6e98e378-b41a-86ac-8e5e-5ca8ab66236d
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [api_filtering]: /nomad/api-docs#filtering
 [api_pagination]: /nomad/api-docs#pagination

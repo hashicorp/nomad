@@ -10,12 +10,6 @@ description: >
 The `namespace status` command is used to view the status of a particular
 namespace.
 
-<Tip>
-  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
-    Nomad Namespaces tutorial
-  </a> for more information.
-</Tip>
-
 ## Usage
 
 ```plaintext
@@ -25,11 +19,7 @@ nomad namespace status [options] <namespace_name>
 If ACLs are enabled, this command requires a management ACL token or a token
 that has a capability associated with the namespace.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Status options
+## Options
 
 - `-json` : Output the namespace status in its JSON format.
 - `-t` : Format and display the namespace status using a Go template.
@@ -76,3 +66,7 @@ Or use the `-t` flag to format and display the status using a Go template:
 $ nomad namespace status -t {{.Description}} default
 Default shared namespace
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

@@ -1,0 +1,21 @@
+---
+layout: docs
+page_title: 'nomad job tag command reference'
+description: |
+  The `nomad job tag` command manages versions. The `nomad job tag apply` command saves a job version tag, and the `nomad job tag unset` command removes a job version tag.
+---
+
+# `nomad job tag` command reference
+
+Use the `job tag` command to manage tags for job versions.
+
+@include 'version/tag-reason.mdx'
+
+## Usage
+
+Usage: `nomad job tag <subcommand> [options] [args]`
+
+`job tag` has the following subcommands:
+
+- [`job tag apply`](/nomad/docs/commands/job/tag/apply): Save a job version tag.
+- [`job tag unset`](/nomad/docs/commands/job/tag/apply): Remove a tag from a job version.

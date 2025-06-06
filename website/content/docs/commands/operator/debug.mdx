@@ -41,11 +41,7 @@ require the 'agent:read' and 'operator:read' capabilities, as well as the
 token will also require 'agent:write', or enable_debug configuration set to
 true.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Debug options
+## Options
 
 - `-duration=5m`: Set the duration of the debug capture. Logs will be captured from
   specified servers and nodes at `log-level`. Defaults to `5m`.
@@ -175,3 +171,7 @@ Capturing cluster data...
     Capture interval 0003
 Created debug archive: nomad-debug-2020-12-08-034113Z.tar.gz
 ```
+
+## General options
+
+@include 'general_options.mdx'

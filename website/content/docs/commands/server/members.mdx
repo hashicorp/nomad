@@ -20,11 +20,7 @@ nomad server members [options]
 If ACLs are enabled, this option requires a token with the `node:read`
 capability.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Server Members options
+## Options
 
 - `-detailed` (<code>_deprecated_</code> use `-verbose` instead): Dump the
   basic member information as well as the raw set of tags for each member. This
@@ -103,3 +99,7 @@ Or use the `-t` flag to format and display the server members information using 
 $ nomad server members -t '{{range .}}{{printf "%s: %s" .Name .Status }}{{end}}'
 bacon-mac.global: alive
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

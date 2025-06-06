@@ -20,11 +20,7 @@ If ACLs are enabled, this command requires a token with the `variables:read`
 capability for the target variable's namespace and path. See the [ACL policy][]
 documentation for details.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Output options
+## Options
 
 - `-item` `(string: "")`: Print only the value of the given item. Specifying
    this option will take precedence over other formatting directives. The result
@@ -62,6 +58,10 @@ Return only the "passcode" item from the variable stored at "secret/creds":
 $ nomad var get -item=passcode secret/creds
 my-long-passcode
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [variable]: /nomad/docs/concepts/variables
 [ACL Policy]: /nomad/docs/other-specifications/acl-policy#variables

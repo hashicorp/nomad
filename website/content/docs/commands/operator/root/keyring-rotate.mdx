@@ -18,11 +18,7 @@ If ACLs are enabled, this command requires a management token.
 nomad operator root keyring rotate [options]
 ```
 
-## General options
-
-@include 'general_options.mdx'
-
-## Rotate options
+## Options
 
 - `-full`: Decrypt all existing variables and re-encrypt with the new key. This
   command will immediately return and the re-encryption process will run
@@ -54,5 +50,9 @@ $ nomad operator root keyring rotate -prepublish 1h
 Key       State   Create Time           Publish Time
 7f15e4e9  active  2022-07-11T19:15:10Z  2022-07-11T20:15:10Z
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [`root_key_gc_interval`]: /nomad/docs/configuration/server#root_key_gc_interval

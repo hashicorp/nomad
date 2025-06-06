@@ -8,14 +8,8 @@ description: >
 
 # `nomad namespace inspect` command reference
 
-The `namespace inspect` command is used to view raw information about a particular
-namespace.
-
-<Tip>
-  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
-    Nomad Namespaces tutorial
-  </a> for more information.
-</Tip>
+The `namespace inspect` command is used to view raw information about a
+particular namespace.
 
 ## Usage
 
@@ -26,11 +20,7 @@ nomad namespace inspect [options] <namespace_name>
 If ACLs are enabled, this command requires a management ACL token or a token
 that has a capability associated with the namespace.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Inspect options
+## Options
 
 - `-t` : Format and display the namespace using a Go template.
 
@@ -48,3 +38,7 @@ $ nomad namespace inspect default
     "Quota": "shared-default-quota"
 }
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

@@ -41,11 +41,7 @@ operation is desired.
 If ACLs are enabled, this option requires a token with the 'node:write'
 capability.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Eligibility options
+## Options
 
 - `-enable`: Enable scheduling eligibility.
 - `-disable`: Disable scheduling eligibility.
@@ -67,5 +63,9 @@ Disable scheduling eligibility on the local node:
 $ nomad node eligibility -disable -self
 Node "574545c5-c2d7-e352-d505-5e2cb9fe169f" scheduling eligibility set: ineligible for scheduling
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [drain]: /nomad/docs/commands/node/drain

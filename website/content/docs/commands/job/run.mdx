@@ -46,11 +46,7 @@ token with the `csi-mount-volume` capability for the volume's namespace. Jobs
 that mount host volumes require a token with the `host_volume` capability for
 that volume.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Run options
+## Options
 
 - `-check-index`: If set, the job is only registered or
   updated if the passed job modify index matches the server side version.
@@ -208,6 +204,10 @@ $ nomad job run example.nomad.hcl
     2021-06-14T09:25:09-07:00: Evaluation status changed: "pending" -> "complete"
 ==> 2021-06-14T09:25:09-07:00: Evaluation "88a91284" finished with status "complete"
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [`batch`]: /nomad/docs/schedulers#batch
 [eval status]: /nomad/docs/commands/eval/status

@@ -98,20 +98,16 @@ google_storage {
 nomad operator snapshot agent [options] <config_file>
 ```
 
-## General options
+## Options
 
-@include 'general_options_no_namespace.mdx'
-
-## Snapshot agent options
-
-### Snapshot options
+### Snapshot
 
 - `-interval`: Interval at which to perform snapshots as a time with a unit suffix, which can be "s", "m", "h" for seconds, minutes, or hours. If 0 is provided, the agent will take a single snapshot and then exit, which is useful for running snapshots via batch jobs. Defaults to "1h".
 - `-lock-key`: A prefix in Consul's key-value store used to coordinate between different instances of the snapshot agent in order to only have one active instance at a time. For highly available operation of the snapshot agent, simply run multiple instances. All instances must be configured with the same lock key in order to properly coordinate. Defaults to "nomad-snapshot/lock".
 - `-max-failures`: Number of snapshot failures after which the snapshot agent will give up leadership. In a highly available operation with multiple snapshot agents available, this gives another agent a chance to take over if an agent is experiencing issues, such as running out of disk space for snapshots. Defaults to 3.
 - `-retain`: Number of snapshots to retain. After each snapshot is taken, the oldest snapshots will start to be deleted in order to retain at most this many snapshots. If this is set to 0, the agent will not perform this and snapshots will accumulate forever. Defaults to 30.
 
-### Agent options
+### Agent
 
 - `-deregister-after`: An interval, after which if the agent is unhealthy it will be automatically deregistered from Consul service. discovery. This is a time with a unit suffix, which can be "s", "m", "h" for seconds, minutes, or hours. If 0 is provided, this will be disabled. Defaults to "72h".
 - `-log-level`: Controls verbosity of snapshot agent logs. Valid options are "TRACE", "DEBUG", "INFO", "WARN", "ERR". Defaults to "INFO".
@@ -120,11 +116,11 @@ nomad operator snapshot agent [options] <config_file>
 - `-syslog`: This enables forwarding logs to syslog. Defaults to false.
 - `-syslog-facility`: Sets the facility to use for forwarding logs to syslog. Defaults to "LOCAL0".
 
-### Local Storage options
+### Local
 
 - `-local-path`: Location to store snapshots locally. The default behavior of the snapshot agent is to store snapshots locally in this directory. Defaults to "." to use the current working directory. If an alternate storage option is configured, then local storage will be disabled and this option will be ignored.
 
-### S3 Storage options:
+### S3
 
 Note that despite the AWS references, any S3-compatible endpoint can be specified with '-aws-s3-endpoint'.
 
@@ -143,16 +139,19 @@ Note that despite the AWS references, any S3-compatible endpoint can be specifie
 - `-aws-s3-enable-kms`: Enables using Amazon KMS for encrypting snapshots
 - `-aws-s3-kms-key`: Optional KMS key to use, if this is not set the default KMS key will be used.
 
-### Azure Blob Storage options
+### Azure
 
-(Note: Non-Solaris platforms only)
+Note: Non-Solaris platforms only
 
 - `-azure-blob-account-name`: These arguments supply authentication information
 - `-azure-blob-account_key`: for connecting to Azure Blob storage.
 - `-azure-blob-container-name`: Container to use. Required for Azure blob storage, and setting this disables local storage.
 - `-azure-blob-environment`: Environment to use. Defaults to AZUREPUBLICCLOUD. Other valid environments are AZURECHINACLOUD, AZUREGERMANCLOUD and AZUREUSGOVERNMENTCLOUD.
 
-### Google Storage options
+### Google
 
 - `-google-bucket`: The bucket to use.
 
+## General options
+
+@include 'general_options_no_namespace.mdx'

@@ -23,11 +23,7 @@ prefix.
 When ACLs are enabled, this command requires a token with the `submit-job`
 and `read-job` capabilities for the deployment's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Pause options
+## Options
 
 - `-verbose`: Show full information.
 
@@ -39,3 +35,7 @@ Manually pause a deployment:
 $ nomad deployment pause 2f14ba55
 Deployment "2f14ba55-acfb-cb31-821c-facf1b9b0830" paused
 ```
+
+## General options
+
+@include 'general_options.mdx'

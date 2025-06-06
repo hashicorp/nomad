@@ -38,11 +38,21 @@ directory].
 When ACLs are enabled, this command requires a token with the `read-fs`,
 `read-job`, and `list-jobs` capabilities for the allocation's namespace.
 
-## General options
+### Use Job ID instead of Allocation ID
 
-@include 'general_options.mdx'
+Setting the `-job` flag causes a random allocation of the specified job to be
+selected. Nomad prefers selecting a running allocation ID for the job, but
+if no running allocations for the job are found, Nomad uses a dead
+allocation.
 
-## Fs options
+```plaintext
+nomad alloc fs -job <job-id> <path>
+```
+
+This can be useful for debugging a job that has multiple allocations, and it is
+not required to observe a specific allocation.
+
+## Options
 
 - `-H`: Machine friendly output.
 
@@ -51,7 +61,7 @@ When ACLs are enabled, this command requires a token with the `read-fs`,
 - `-job=<job-name|job-id>`: Use a random allocation from the specified job or
   job ID prefix, preferring a running allocation.
 
-- `-group=<group-name>`: Specifies the task group where the task is located 
+- `-group=<group-name>`: Specifies the task group where the task is located
   when a random allocation is selected
 
 - `-stat`: Show stat information instead of displaying the file, or listing the
@@ -63,7 +73,7 @@ When ACLs are enabled, this command requires a token with the `read-fs`,
 - `-tail`: Show the files contents with offsets relative to the end of the file.
   If no offset is given, -n is defaulted to 10.
 
-- `-n`: Sets the tail location in best-efforted number of lines relative to the
+- `-n`: Sets the tail location in best effort number of lines relative to the
   end of the file.
 
 - `-c`: Sets the tail location in number of bytes relative to the end of the file.
@@ -100,18 +110,8 @@ bam
 <blocking>
 ```
 
-## Using Job ID instead of Allocation ID
+## General options
 
-Setting the `-job` flag causes a random allocation of the specified job to be
-selected. Nomad will prefer to select a running allocation ID for the job, but
-if no running allocations for the job are found, Nomad will use a dead
-allocation.
-
-```plaintext
-nomad alloc fs -job <job-id> <path>
-```
-
-This can be useful for debugging a job that has multiple allocations, and it is
-not required to observe a specific allocation.
+@include 'general_options.mdx'
 
 [allocation working directory]: /nomad/docs/runtime/environment#task-directories 'Task Directories'

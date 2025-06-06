@@ -9,12 +9,6 @@ description: |
 
 The `namespace list` command is used list available namespaces.
 
-<Tip>
-  Visit the <a href="https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces">
-    Nomad Namespaces tutorial
-  </a> for more information.
-</Tip>
-
 ## Usage
 
 ```plaintext
@@ -27,11 +21,7 @@ If ACLs are enabled, this command requires a management ACL token to view all
 namespaces. A non-management token can be used to list namespaces for which it
 has an associated capability.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## List options
+## Options
 
 - `-json` : Output the namespaces in their JSON format.
 
@@ -50,3 +40,7 @@ api-qa    QA instances of backend API servers
 web-prod  Production instances of webservers
 web-qa    QA instances of webservers
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

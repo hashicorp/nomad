@@ -17,11 +17,7 @@ nomad acl auth-method info [options] <auth-method_name>
 
 The `acl auth-method info` command requires an existing method's name.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Info options
+## Options
 
 - `-json`: Output the ACL auth method in a JSON format.
 
@@ -54,3 +50,7 @@ Signing algorithms     = <none>
 Claim mappings         = {http://example.com/first_name: first_name}; {http://example.com/last_name: last_name}
 List claim mappings    = {http://nomad.com/groups: groups}
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
