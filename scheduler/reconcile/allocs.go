@@ -84,12 +84,12 @@ func (a AllocPlaceResult) PreviousAllocation() *structs.Allocation { return a.pr
 func (a AllocPlaceResult) SetPreviousAllocation(alloc *structs.Allocation) {
 	a.previousAlloc = alloc
 }
-func (a AllocPlaceResult) IsRescheduling() bool               { return a.reschedule }
-func (a AllocPlaceResult) StopPreviousAlloc() (bool, string)  { return false, "" }
-func (a AllocPlaceResult) DowngradeNonCanary() bool           { return a.downgradeNonCanary }
-func (a AllocPlaceResult) MinJobVersion() uint64              { return a.minJobVersion }
-func (a AllocPlaceResult) PreviousLost() bool                 { return a.lost }
-func (a AllocPlaceResult) SetTaskGroup(tg *structs.TaskGroup) { a.taskGroup = tg }
+func (a AllocPlaceResult) IsRescheduling() bool                { return a.reschedule }
+func (a AllocPlaceResult) StopPreviousAlloc() (bool, string)   { return false, "" }
+func (a AllocPlaceResult) DowngradeNonCanary() bool            { return a.downgradeNonCanary }
+func (a AllocPlaceResult) MinJobVersion() uint64               { return a.minJobVersion }
+func (a AllocPlaceResult) PreviousLost() bool                  { return a.lost }
+func (a *AllocPlaceResult) SetTaskGroup(tg *structs.TaskGroup) { a.taskGroup = tg }
 
 // allocDestructiveResult contains the information required to do a destructive
 // update. Destructive changes should be applied atomically, as in the old alloc
