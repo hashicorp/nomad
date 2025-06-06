@@ -6,6 +6,7 @@ package taskrunner
 import (
 	"context"
 	"fmt"
+	"maps"
 	"sync"
 	"time"
 
@@ -61,33 +62,19 @@ func (tr *TaskRunner) initHooks() {
 	// Create the task directory hook. This is run first to ensure the
 	// directory path exists for other hooks.
 	alloc := tr.Alloc()
-	tr.runnerHooks = []interfaces.TaskHook{
+	tr.runnerHooks = []interfaces.TaskHook{}
+
+	consulNamespace := tr.alloc.ConsulNamespaceForTask(tr.taskName)
+	tr.runnerHooks = append(tr.runnerHooks,
 		newValidateHook(tr.clientConfig, hookLogger),
 		newDynamicUsersHook(tr.killCtx, tr.driverCapabilities.DynamicWorkloadUsers, tr.logger, tr.users),
 		newTaskDirHook(tr, hookLogger),
 		newIdentityHook(tr, hookLogger),
-		newLogMonHook(tr, hookLogger),
-		newDispatchHook(alloc, hookLogger),
-		newVolumeHook(tr, hookLogger),
-		newArtifactHook(tr, tr.getter, hookLogger),
-		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, tr.clientConfig.PublishAllocationMetrics, hookLogger),
-		newDeviceHook(tr.devicemanager, hookLogger),
-		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
-		newWranglerHook(tr.wranglers, task.Name, alloc.ID, task.UsesCores(), hookLogger),
-	}
+	)
 
-	// If the task has a CSI block, add the hook.
-	if task.CSIPluginConfig != nil {
-		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(
-			&csiPluginSupervisorHookConfig{
-				clientStateDirPath: tr.clientConfig.StateDir,
-				events:             tr,
-				runner:             tr,
-				lifecycle:          tr,
-				capabilities:       tr.driverCapabilities,
-				logger:             hookLogger,
-			}))
-	}
+	// Add the consul hook (populates task secret dirs and sets the environment if
+	// consul tokens are present for the task).
+	tr.runnerHooks = append(tr.runnerHooks, newConsulHook(hookLogger, tr))
 
 	// If Vault is enabled, add the hook
 	if task.Vault != nil && tr.vaultClientFunc != nil {
@@ -105,23 +92,72 @@ func (tr *TaskRunner) initHooks() {
 		}))
 	}
 
-	// Get the consul namespace for the TG of the allocation.
-	consulNamespace := tr.alloc.ConsulNamespaceForTask(tr.taskName)
-
-	// Add the consul hook (populates task secret dirs and sets the environment if
-	// consul tokens are present for the task).
-	tr.runnerHooks = append(tr.runnerHooks, newConsulHook(hookLogger, tr))
+	// The easy path here is to just say "if you want to use secrets in the job spec, it needs to be
+	// a data template". If you download from an artifact, you can't use the secrets param. It's possible
+	// we could do some dependency mapping here and split the templates into artifactDependent templates
+	// and nonDependent templates, but this will definitely be more error prone.
+	sourceTemplates, dataTemplates := []*structs.Template{}, []*structs.Template{}
+	for _, t := range tr.task.Templates {
+		if t.SourcePath != "" {
+			sourceTemplates = append(sourceTemplates, t)
+		} else if t.EmbeddedTmpl != "" {
+			dataTemplates = append(dataTemplates, t)
+		}
+	}
 
 	// If there are templates is enabled, add the hook
-	if len(task.Templates) != 0 {
+	if len(dataTemplates) != 0 {
 		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
 			alloc:               tr.Alloc(),
 			logger:              hookLogger,
 			lifecycle:           tr,
 			events:              tr,
-			templates:           task.Templates,
+			templates:           dataTemplates,
 			clientConfig:        tr.clientConfig,
 			envBuilder:          tr.envBuilder,
+			taskSecrets:         tr.taskSecrets,
+			hookResources:       tr.allocHookResources,
+			consulNamespace:     consulNamespace,
+			nomadNamespace:      tr.alloc.Job.Namespace,
+			renderOnTaskRestart: task.RestartPolicy.RenderTemplates,
+		}))
+	}
+
+	tr.runnerHooks = append(tr.runnerHooks,
+		newLogMonHook(tr, hookLogger),
+		newDispatchHook(alloc, hookLogger),
+		newVolumeHook(tr, hookLogger),
+		newArtifactHook(tr, tr.getter, hookLogger),
+		newStatsHook(tr, tr.clientConfig.StatsCollectionInterval, tr.clientConfig.PublishAllocationMetrics, hookLogger),
+		newDeviceHook(tr.devicemanager, hookLogger),
+		newAPIHook(tr.shutdownCtx, tr.clientConfig.APIListenerRegistrar, hookLogger),
+		newWranglerHook(tr.wranglers, task.Name, alloc.ID, task.UsesCores(), hookLogger),
+	)
+
+	// If the task has a CSI block, add the hook.
+	if task.CSIPluginConfig != nil {
+		tr.runnerHooks = append(tr.runnerHooks, newCSIPluginSupervisorHook(
+			&csiPluginSupervisorHookConfig{
+				clientStateDirPath: tr.clientConfig.StateDir,
+				events:             tr,
+				runner:             tr,
+				lifecycle:          tr,
+				capabilities:       tr.driverCapabilities,
+				logger:             hookLogger,
+			}))
+	}
+
+	// If there are templates is enabled, add the hook
+	if len(sourceTemplates) != 0 {
+		tr.runnerHooks = append(tr.runnerHooks, newTemplateHook(&templateHookConfig{
+			alloc:               tr.Alloc(),
+			logger:              hookLogger,
+			lifecycle:           tr,
+			events:              tr,
+			templates:           sourceTemplates,
+			clientConfig:        tr.clientConfig,
+			envBuilder:          tr.envBuilder,
+			taskSecrets:         tr.taskSecrets,
 			hookResources:       tr.allocHookResources,
 			consulNamespace:     consulNamespace,
 			nomadNamespace:      tr.alloc.Job.Namespace,
@@ -237,12 +273,16 @@ func (tr *TaskRunner) prestart() error {
 
 		name := pre.Name()
 
+		// Copy the taskSecrets into taskEnv for interpolation in hooks
+		taskEnv := tr.envBuilder.Build()
+		maps.Copy(taskEnv.EnvMap, tr.taskSecrets)
+
 		// Build the request
 		req := interfaces.TaskPrestartRequest{
 			Alloc:         alloc,
 			Task:          tr.Task(),
 			TaskDir:       tr.taskDir,
-			TaskEnv:       tr.envBuilder.Build(),
+			TaskEnv:       taskEnv,
 			TaskResources: tr.taskResources,
 		}
 

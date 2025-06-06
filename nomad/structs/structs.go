@@ -8730,6 +8730,8 @@ type Template struct {
 	// WaitConfig is used to override the global WaitConfig on a per-template basis
 	Wait *WaitConfig
 
+	Secrets bool
+
 	// ErrMissingKey is used to control how the template behaves when attempting
 	// to index a struct or map key that does not exist.
 	ErrMissingKey bool
