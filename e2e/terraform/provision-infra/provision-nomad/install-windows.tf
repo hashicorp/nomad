@@ -47,10 +47,10 @@ resource "null_resource" "install_consul_configs_windows" {
       "powershell Remove-Item -Force -Recurse -Path C://etc/consul.d",
       "powershell New-Item -Force -Path C:// -Name opt -ItemType directory",
       "powershell New-Item -Force -Path C://etc -Name consul.d -ItemType directory",
-      "powershell Move-Item -Force -Path C://tmp/consul_ca.pem  C://Windows/System32/ca.pem",
-      "powershell Move-Item -Force -Path C://tmp/consul_client_acl.json C://etc/consul.d/acl.json",
-      "powershell Move-Item -Force -Path C://tmp/consul_client.json C://etc/consul.d/consul_client.json",
-      "powershell Move-Item -Force -Path C://tmp/consul_client_base.json C://etc/consul.d/consul_client_base.json",
+      "powershell Move-Item -Force -Path C://tmp/consul_ca.crt C://etc/consul.d/ca.pem",
+      "powershell Move-Item -Force -Path C://tmp/consul_cert.key.pem C://etc/consul.d/cert.key.pem",
+      "powershell Move-Item -Force -Path C://tmp/consul_cert.pem C://etc/consul.d/cert.pem",
+      "powershell Move-Item -Force -Path C://tmp/consul_client.hcl C://etc/consul.d/consul_client.hcl",
     ]
   }
 }
