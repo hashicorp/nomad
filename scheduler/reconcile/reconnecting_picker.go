@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package reconnectingpicker
+package reconcile
 
 import (
 	"time"
@@ -10,19 +10,25 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-type ReconnectingPicker struct {
+type reconnectingPickerInterface interface {
+	pickReconnectingAlloc(*structs.DisconnectStrategy, *structs.Allocation, *structs.Allocation) *structs.Allocation
+}
+
+type reconnectingPicker struct {
 	logger log.Logger
 }
 
-func New(logger log.Logger) *ReconnectingPicker {
-	rp := ReconnectingPicker{
+func newReconnectingPicker(logger log.Logger) *reconnectingPicker {
+	rp := reconnectingPicker{
 		logger: logger.Named("reconnecting-picker"),
 	}
 
 	return &rp
 }
 
-func (rp *ReconnectingPicker) PickReconnectingAlloc(ds *structs.DisconnectStrategy, original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
+func (rp *reconnectingPicker) pickReconnectingAlloc(
+	ds *structs.DisconnectStrategy, original *structs.Allocation, replacement *structs.Allocation,
+) *structs.Allocation {
 	// Check if the replacement is a newer job version.
 	// Always prefer the replacement if true.
 	replacementIsNewer := replacement.Job.Version > original.Job.Version ||
@@ -60,7 +66,7 @@ func (rp *ReconnectingPicker) PickReconnectingAlloc(ds *structs.DisconnectStrate
 // This function is not commutative, meaning that pickReconnectingAlloc(A, B)
 // is not the same as pickReconnectingAlloc(B, A). Preference is given to keep
 // the original allocation when possible.
-func (rp *ReconnectingPicker) pickBestScore(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
+func (rp *reconnectingPicker) pickBestScore(original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation {
 
 	// Check if the replacement has better placement score.
 	// If any of the scores is not available, only pick the replacement if
@@ -85,15 +91,15 @@ func (rp *ReconnectingPicker) pickBestScore(original *structs.Allocation, replac
 	return original
 }
 
-func (rp *ReconnectingPicker) pickOriginal(original, _ *structs.Allocation) *structs.Allocation {
+func (rp *reconnectingPicker) pickOriginal(original, _ *structs.Allocation) *structs.Allocation {
 	return original
 }
 
-func (rp *ReconnectingPicker) pickReplacement(_, replacement *structs.Allocation) *structs.Allocation {
+func (rp *reconnectingPicker) pickReplacement(_, replacement *structs.Allocation) *structs.Allocation {
 	return replacement
 }
 
-func (rp *ReconnectingPicker) pickLongestRunning(original, replacement *structs.Allocation) *structs.Allocation {
+func (rp *reconnectingPicker) pickLongestRunning(original, replacement *structs.Allocation) *structs.Allocation {
 	tg := original.Job.LookupTaskGroup(original.TaskGroup)
 
 	orgStartTime := startOfLeaderOrOldestTaskInMain(original, tg)

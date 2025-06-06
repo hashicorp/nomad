@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package reconnectingpicker
+package reconcile
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ import (
 )
 
 func TestPickReconnectingAlloc_NewerVersion(t *testing.T) {
-	rp := New(hclog.NewNullLogger())
+	rp := newReconnectingPicker(hclog.NewNullLogger())
 	ds := &structs.DisconnectStrategy{
 		Reconcile: "best-score",
 	}
@@ -59,14 +59,14 @@ func TestPickReconnectingAlloc_NewerVersion(t *testing.T) {
 			},
 		}
 
-		result := rp.PickReconnectingAlloc(ds, original, replacement)
+		result := rp.pickReconnectingAlloc(ds, original, replacement)
 
 		must.Eq(t, tc.expected, result)
 	}
 }
 
 func TestPickReconnectingAlloc_DifferentStrategies(t *testing.T) {
-	rp := New(hclog.NewNullLogger())
+	rp := newReconnectingPicker(hclog.NewNullLogger())
 	now := time.Now()
 
 	original := &structs.Allocation{
@@ -164,7 +164,7 @@ func TestPickReconnectingAlloc_DifferentStrategies(t *testing.T) {
 				Reconcile: tc.strategy,
 			}
 
-			result := rp.PickReconnectingAlloc(ds, original, replacement)
+			result := rp.pickReconnectingAlloc(ds, original, replacement)
 			must.Eq(t, tc.expected, result)
 
 		})
@@ -172,7 +172,7 @@ func TestPickReconnectingAlloc_DifferentStrategies(t *testing.T) {
 }
 
 func TestPickReconnectingAlloc_BestScore(t *testing.T) {
-	rp := New(hclog.NewNullLogger())
+	rp := newReconnectingPicker(hclog.NewNullLogger())
 
 	original := &structs.Allocation{
 		Job: &structs.Job{
@@ -249,7 +249,7 @@ func TestPickReconnectingAlloc_BestScore(t *testing.T) {
 			replacement.ClientStatus = tc.replacementClientStatus
 			replacement.Metrics.ScoreMetaData[0].NormScore = tc.replacementScore
 
-			result := rp.PickReconnectingAlloc(&structs.DisconnectStrategy{
+			result := rp.pickReconnectingAlloc(&structs.DisconnectStrategy{
 				Reconcile: structs.ReconcileOptionBestScore,
 			}, original, replacement)
 
@@ -259,7 +259,7 @@ func TestPickReconnectingAlloc_BestScore(t *testing.T) {
 }
 
 func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
-	rp := New(hclog.NewNullLogger())
+	rp := newReconnectingPicker(hclog.NewNullLogger())
 	now := time.Now()
 	taskGroupNoLeader := &structs.TaskGroup{
 		Name: "taskGroupNoLeader",
@@ -465,7 +465,7 @@ func TestPickReconnectingAlloc_LongestRunning(t *testing.T) {
 			original.TaskStates["task2"] = &tc.originalState
 			replacement.TaskStates["task2"] = &tc.replacementState
 
-			result := rp.PickReconnectingAlloc(&structs.DisconnectStrategy{
+			result := rp.pickReconnectingAlloc(&structs.DisconnectStrategy{
 				Reconcile: structs.ReconcileOptionLongestRunning,
 			}, original, replacement)
 

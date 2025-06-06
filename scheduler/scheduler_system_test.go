@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/reconcile"
 	"github.com/shoenig/test/must"
 )
 
@@ -3285,4 +3286,63 @@ func TestSystemSched_CSITopology(t *testing.T) {
 	must.Eq(t, "", h.Evals[0].BlockedEval, must.Sprint("did not expect a blocked eval"))
 	must.Eq(t, structs.EvalStatusComplete, h.Evals[0].Status)
 
+}
+
+func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+	allocs := []reconcile.AllocTuple{
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+	}
+	diff := &reconcile.NodeReconcileResult{}
+
+	limit := 2
+	must.True(t, evictAndPlace(ctx, diff, allocs, "", &limit),
+		must.Sprintf("evictAndReplace() should have returned true"))
+	must.Zero(t, limit,
+		must.Sprint("evictAndReplace() should decrement limit"))
+	must.Len(t, 2, diff.Place,
+		must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
+}
+
+func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+	allocs := []reconcile.AllocTuple{
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+	}
+	diff := &reconcile.NodeReconcileResult{}
+
+	limit := 4
+	must.False(t, evictAndPlace(ctx, diff, allocs, "", &limit),
+		must.Sprint("evictAndReplace() should have returned false"))
+	must.Zero(t, limit, must.Sprint("evictAndReplace() should decrement limit"))
+	must.Len(t, 4, diff.Place,
+		must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
+}
+
+func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
+	ci.Parallel(t)
+
+	_, ctx := testContext(t)
+	allocs := []reconcile.AllocTuple{
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
+	}
+	diff := &reconcile.NodeReconcileResult{}
+
+	limit := 6
+	must.False(t, evictAndPlace(ctx, diff, allocs, "", &limit))
+	must.Eq(t, 2, limit, must.Sprint("evictAndReplace() should decrement limit"))
+	must.Len(t, 4, diff.Place, must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.Place))
 }

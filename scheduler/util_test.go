@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/reconcile"
 	"github.com/shoenig/test/must"
 )
 
@@ -25,12 +26,6 @@ func BenchmarkTasksUpdated(b *testing.B) {
 			b.Errorf("tasks should be the same")
 		}
 	}
-}
-
-func newNode(name string) *structs.Node {
-	n := mock.Node()
-	n.Name = name
-	return n
 }
 
 func TestReadyNodesInDCsAndPool(t *testing.T) {
@@ -701,7 +696,7 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	tg.Tasks = nil
 	tg.Tasks = append(tg.Tasks, task)
 
-	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
 
 	// Do the inplace update.
@@ -755,7 +750,7 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 		},
 	}
 
-	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
 
 	// Do the inplace update.
@@ -813,7 +808,7 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	resource := &structs.Resources{CPU: 99999}
 	tg.Tasks[0].Resources = resource
 
-	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
 
 	// Do the inplace update.
@@ -882,7 +877,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	// Add the new services
 	tg.Tasks[0].Services = append(tg.Tasks[0].Services, newServices...)
 
-	updates := []allocTuple{{Alloc: alloc, TaskGroup: tg}}
+	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: tg}}
 	stack := NewGenericStack(false, ctx)
 	stack.SetJob(job)
 
@@ -932,7 +927,7 @@ func TestInplaceUpdate_WildcardDatacenters(t *testing.T) {
 	must.NoError(t, store.UpsertJobSummary(1000, mock.JobSummary(alloc.JobID)))
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
-	updates := []allocTuple{{Alloc: alloc, TaskGroup: job.TaskGroups[0]}}
+	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: job.TaskGroups[0]}}
 	stack := NewGenericStack(false, ctx)
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
@@ -974,7 +969,7 @@ func TestInplaceUpdate_NodePools(t *testing.T) {
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1004,
 		[]*structs.Allocation{alloc1, alloc2}))
 
-	updates := []allocTuple{
+	updates := []reconcile.AllocTuple{
 		{Alloc: alloc1, TaskGroup: job.TaskGroups[0]},
 		{Alloc: alloc2, TaskGroup: job.TaskGroups[0]},
 	}
@@ -1181,36 +1176,36 @@ func TestDesiredUpdates(t *testing.T) {
 	tg2 := &structs.TaskGroup{Name: "bar"}
 	a2 := &structs.Allocation{TaskGroup: "bar"}
 
-	place := []allocTuple{
+	place := []reconcile.AllocTuple{
 		{TaskGroup: tg1},
 		{TaskGroup: tg1},
 		{TaskGroup: tg1},
 		{TaskGroup: tg2},
 	}
-	stop := []allocTuple{
+	stop := []reconcile.AllocTuple{
 		{TaskGroup: tg2, Alloc: a2},
 		{TaskGroup: tg2, Alloc: a2},
 	}
-	ignore := []allocTuple{
+	ignore := []reconcile.AllocTuple{
 		{TaskGroup: tg1},
 	}
-	migrate := []allocTuple{
+	migrate := []reconcile.AllocTuple{
 		{TaskGroup: tg2},
 	}
-	inplace := []allocTuple{
+	inplace := []reconcile.AllocTuple{
 		{TaskGroup: tg1},
 		{TaskGroup: tg1},
 	}
-	destructive := []allocTuple{
+	destructive := []reconcile.AllocTuple{
 		{TaskGroup: tg1},
 		{TaskGroup: tg2},
 		{TaskGroup: tg2},
 	}
-	diff := &diffResult{
-		place:   place,
-		stop:    stop,
-		ignore:  ignore,
-		migrate: migrate,
+	diff := &reconcile.NodeReconcileResult{
+		Place:   place,
+		Stop:    stop,
+		Ignore:  ignore,
+		Migrate: migrate,
 	}
 
 	expected := map[string]*structs.DesiredUpdates{

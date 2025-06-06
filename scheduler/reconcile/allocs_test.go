@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package reconcile
 
 import (
 	"testing"
@@ -1554,7 +1554,7 @@ func Test_allocNameIndex_Highest(t *testing.T) {
 
 	testCases := []struct {
 		name                string
-		inputAllocNameIndex *allocNameIndex
+		inputAllocNameIndex *AllocNameIndex
 		inputN              uint
 		expectedOutput      map[string]struct{}
 	}{
@@ -1651,7 +1651,7 @@ func Test_allocNameIndex_NextCanaries(t *testing.T) {
 
 	testCases := []struct {
 		name                string
-		inputAllocNameIndex *allocNameIndex
+		inputAllocNameIndex *AllocNameIndex
 		inputN              uint
 		inputExisting       allocSet
 		inputDestructive    allocSet
@@ -1716,7 +1716,7 @@ func Test_allocNameIndex_Next(t *testing.T) {
 
 	testCases := []struct {
 		name                string
-		inputAllocNameIndex *allocNameIndex
+		inputAllocNameIndex *AllocNameIndex
 		inputN              uint
 		expectedOutput      []string
 	}{

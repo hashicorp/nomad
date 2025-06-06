@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package reconcile
 
 import (
 	"fmt"
@@ -25,14 +25,20 @@ type diffResultCount struct {
 }
 
 // assertDiffCount is a test helper that compares against a diffResult
-func assertDiffCount(t *testing.T, expected diffResultCount, diff *diffResult) {
+func assertDiffCount(t *testing.T, expected diffResultCount, diff *NodeReconcileResult) {
 	t.Helper()
-	test.Len(t, expected.update, diff.update, test.Sprintf("expected update"))
-	test.Len(t, expected.ignore, diff.ignore, test.Sprintf("expected ignore"))
-	test.Len(t, expected.stop, diff.stop, test.Sprintf("expected stop"))
-	test.Len(t, expected.migrate, diff.migrate, test.Sprintf("expected migrate"))
-	test.Len(t, expected.lost, diff.lost, test.Sprintf("expected lost"))
-	test.Len(t, expected.place, diff.place, test.Sprintf("expected place"))
+	test.Len(t, expected.update, diff.Update, test.Sprintf("expected update"))
+	test.Len(t, expected.ignore, diff.Ignore, test.Sprintf("expected ignore"))
+	test.Len(t, expected.stop, diff.Stop, test.Sprintf("expected stop"))
+	test.Len(t, expected.migrate, diff.Migrate, test.Sprintf("expected migrate"))
+	test.Len(t, expected.lost, diff.Lost, test.Sprintf("expected lost"))
+	test.Len(t, expected.place, diff.Place, test.Sprintf("expected place"))
+}
+
+func newNode(name string) *structs.Node {
+	n := mock.Node()
+	n.Name = name
+	return n
 }
 
 func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
@@ -69,8 +75,8 @@ func TestDiffSystemAllocsForNode_Sysbatch_terminal(t *testing.T) {
 		diff := diffSystemAllocsForNode(job, "node1", eligible, nil, tainted, required, live, terminal, true)
 
 		assertDiffCount(t, diffResultCount{ignore: 1, place: 1}, diff)
-		if len(diff.ignore) > 0 {
-			must.Eq(t, terminal["node1"]["my-sysbatch.pinger[0]"], diff.ignore[0].Alloc)
+		if len(diff.Ignore) > 0 {
+			must.Eq(t, terminal["node1"]["my-sysbatch.pinger[0]"], diff.Ignore[0].Alloc)
 		}
 	})
 
@@ -211,14 +217,14 @@ func TestDiffSystemAllocsForNode_Stops(t *testing.T) {
 		job, node.ID, eligible, nil, tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{ignore: 1, stop: 1, update: 1}, diff)
-	if len(diff.update) > 0 {
-		test.Eq(t, allocs[0], diff.update[0].Alloc)
+	if len(diff.Update) > 0 {
+		test.Eq(t, allocs[0], diff.Update[0].Alloc)
 	}
-	if len(diff.ignore) > 0 {
-		test.Eq(t, allocs[1], diff.ignore[0].Alloc)
+	if len(diff.Ignore) > 0 {
+		test.Eq(t, allocs[1], diff.Ignore[0].Alloc)
 	}
-	if len(diff.stop) > 0 {
-		test.Eq(t, allocs[2], diff.stop[0].Alloc)
+	if len(diff.Stop) > 0 {
+		test.Eq(t, allocs[2], diff.Stop[0].Alloc)
 	}
 }
 
@@ -337,8 +343,8 @@ func TestDiffSystemAllocsForNode_DrainingNode(t *testing.T) {
 		tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{migrate: 1, ignore: 1}, diff)
-	if len(diff.migrate) > 0 {
-		test.Eq(t, allocs[0], diff.migrate[0].Alloc)
+	if len(diff.Migrate) > 0 {
+		test.Eq(t, allocs[0], diff.Migrate[0].Alloc)
 	}
 }
 
@@ -388,8 +394,8 @@ func TestDiffSystemAllocsForNode_LostNode(t *testing.T) {
 		tainted, required, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{lost: 2}, diff)
-	if len(diff.migrate) > 0 {
-		test.Eq(t, allocs[0], diff.migrate[0].Alloc)
+	if len(diff.Migrate) > 0 {
+		test.Eq(t, allocs[0], diff.Migrate[0].Alloc)
 	}
 }
 
@@ -596,92 +602,33 @@ func TestDiffSystemAllocs(t *testing.T) {
 		},
 	}
 
-	diff := diffSystemAllocs(job, nodes, nil, tainted, allocs, terminal, true)
+	diff := Node(job, nodes, nil, tainted, allocs, terminal, true)
 
 	assertDiffCount(t, diffResultCount{
 		update: 1, ignore: 1, migrate: 1, lost: 1, place: 6}, diff)
 
-	if len(diff.update) > 0 {
-		must.Eq(t, allocs[0], diff.update[0].Alloc) // first alloc should be updated
+	if len(diff.Update) > 0 {
+		must.Eq(t, allocs[0], diff.Update[0].Alloc) // first alloc should be updated
 	}
-	if len(diff.ignore) > 0 {
-		must.Eq(t, allocs[1], diff.ignore[0].Alloc) // We should ignore the second alloc
+	if len(diff.Ignore) > 0 {
+		must.Eq(t, allocs[1], diff.Ignore[0].Alloc) // We should ignore the second alloc
 	}
-	if len(diff.migrate) > 0 {
-		must.Eq(t, allocs[2], diff.migrate[0].Alloc)
+	if len(diff.Migrate) > 0 {
+		must.Eq(t, allocs[2], diff.Migrate[0].Alloc)
 	}
-	if len(diff.lost) > 0 {
-		must.Eq(t, allocs[3], diff.lost[0].Alloc) // We should mark the 5th alloc as lost
+	if len(diff.Lost) > 0 {
+		must.Eq(t, allocs[3], diff.Lost[0].Alloc) // We should mark the 5th alloc as lost
 	}
 
 	// Ensure that the allocations which are replacements of terminal allocs are
 	// annotated.
 	for _, m := range terminal {
 		for _, alloc := range m {
-			for _, tuple := range diff.place {
+			for _, tuple := range diff.Place {
 				if alloc.NodeID == tuple.Alloc.NodeID && alloc.TaskGroup == "web" {
 					must.Eq(t, alloc, tuple.Alloc)
 				}
 			}
 		}
 	}
-}
-
-func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
-	ci.Parallel(t)
-
-	_, ctx := testContext(t)
-	allocs := []allocTuple{
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-	}
-	diff := &diffResult{}
-
-	limit := 2
-	must.True(t, evictAndPlace(ctx, diff, allocs, "", &limit),
-		must.Sprintf("evictAndReplace() should have returned true"))
-	must.Zero(t, limit,
-		must.Sprint("evictAndReplace() should decrement limit"))
-	must.Len(t, 2, diff.place,
-		must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place))
-}
-
-func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
-	ci.Parallel(t)
-
-	_, ctx := testContext(t)
-	allocs := []allocTuple{
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-	}
-	diff := &diffResult{}
-
-	limit := 4
-	must.False(t, evictAndPlace(ctx, diff, allocs, "", &limit),
-		must.Sprint("evictAndReplace() should have returned false"))
-	must.Zero(t, limit, must.Sprint("evictAndReplace() should decrement limit"))
-	must.Len(t, 4, diff.place,
-		must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place))
-}
-
-func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
-	ci.Parallel(t)
-
-	_, ctx := testContext(t)
-	allocs := []allocTuple{
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
-	}
-	diff := &diffResult{}
-
-	limit := 6
-	must.False(t, evictAndPlace(ctx, diff, allocs, "", &limit))
-	must.Eq(t, 2, limit, must.Sprint("evictAndReplace() should decrement limit"))
-	must.Len(t, 4, diff.place, must.Sprintf("evictAndReplace() didn't insert into diffResult properly: %v", diff.place))
 }
