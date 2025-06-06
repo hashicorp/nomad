@@ -33,8 +33,9 @@ in more detail:
 ## Reconciliation
 
 The first step for the service and bach job scheduler is called
-"reconciliation," and its logic lies in the `scheduler/reconciler` package. There are two reconcilers: 
-`AllocReconciler` object for service and batch jobs, and `Node` reconciler used by system and sysbatch jobs. 
+"reconciliation," and its logic lies in the `scheduler/reconciler` package.
+There are two reconcilers: `AllocReconciler` object for service and batch jobs,
+and `Node` reconciler used by system and sysbatch jobs.
 
 Both reconciler's task is to tell the scheduler about desired allocations or
 deployments to be updated or created, which should be updated destructively or
@@ -177,7 +178,7 @@ feasibility iterators that live in `scheduler/feasible.go` to filter by:
 
 - node eligibiligy,
 - data center,
-- and node pool. 
+- and node pool.
 
 Once nodes are filtered, the `Stack` implementations (`GenericStack` and
 `SystemStack`) check for:
