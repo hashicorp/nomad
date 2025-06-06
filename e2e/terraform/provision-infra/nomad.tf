@@ -4,7 +4,7 @@
 locals {
   server_binary  = var.nomad_local_binary_server != "" ? var.nomad_local_binary_server : var.nomad_local_binary
   linux_binary   = var.nomad_local_binary_client_ubuntu_jammy != "" ? var.nomad_local_binary_client_ubuntu_jammy : var.nomad_local_binary
-  windows_binary = var.nomad_local_binary_client_windows_2016 != "" ? var.nomad_local_binary_client_windows_2016 : var.nomad_local_binary
+  windows_binary = var.nomad_local_binary_client_windows_2022 != "" ? var.nomad_local_binary_client_windows_2022 : var.nomad_local_binary
 }
 
 module "nomad_server" {
@@ -70,18 +70,16 @@ module "nomad_client_ubuntu_jammy" {
 }
 
 
-# TODO: split out the different Windows targets (2016, 2019) when they're
-# available
-module "nomad_client_windows_2016" {
+module "nomad_client_windows_2022" {
   source     = "./provision-nomad"
-  depends_on = [aws_instance.client_windows_2016]
-  count      = var.client_count_windows_2016
+  depends_on = [aws_instance.client_windows_2022]
+  count      = var.client_count_windows_2022
 
   platform = "windows"
   arch     = "windows_${var.instance_arch}"
   role     = "client"
   index    = count.index
-  instance = aws_instance.client_windows_2016[count.index]
+  instance = aws_instance.client_windows_2022[count.index]
 
   nomad_region       = var.nomad_region
   nomad_license      = var.nomad_license
