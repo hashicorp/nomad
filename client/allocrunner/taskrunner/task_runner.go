@@ -7,11 +7,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	hargs "github.com/hashicorp/nomad/helper/args"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	hargs "github.com/hashicorp/nomad/helper/args"
 
 	log "github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
