@@ -549,6 +549,11 @@
           },
           {
             "title": "pause",
+            "badge": {
+              "text": "ENT",
+              "type": "outlined",
+              "color": "neutral"
+            },
             "path": "commands/alloc/pause"
           },
           {
@@ -739,6 +744,11 @@
       },
       {
         "title": "license",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "routes": [
           {
             "title": "Overview",
@@ -999,6 +1009,11 @@
             "routes": [
               {
                 "title": "agent",
+                "badge": {
+                  "text": "ENT",
+                  "type": "outlined",
+                  "color": "neutral"
+                },
                 "path": "commands/operator/snapshot/agent"
               },
               {
@@ -1023,10 +1038,10 @@
               }
             ]
           },
-		  {
-			"title": "utilization",
-			"path": "commands/operator/utilization"
-		  }
+          {
+            "title": "utilization",
+            "path": "commands/operator/utilization"
+          }
         ]
       },
       {
@@ -1044,6 +1059,11 @@
       },
       {
         "title": "quota",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "routes": [
           {
             "title": "Overview",
@@ -1077,6 +1097,11 @@
       },
       {
         "title": "recommendation",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "routes": [
           {
             "title": "Overview",
@@ -1136,6 +1161,11 @@
       },
       {
         "title": "sentinel",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
         "routes": [
           {
             "title": "Overview",
