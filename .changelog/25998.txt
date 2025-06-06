@@ -1,3 +1,11 @@
 ```release-note:security
-template: Adds sprig functions to the DefaultTemplateFunctionDenylist.
+template: Add the insecure sprig_htpasswd and sprig_derive sprig functions to the DefaultTemplateFunctionDenylist.
+```
+
+```release-note:breaking-change
+template: Remove support to non hermetic sprig functions.
+```
+
+```release-note:security
+template: Bump the consul-template version to resolve CVE-2025-27144, CVE-2025-22869, CVE-2025-22870 and CVE-2025-22872.
 ```

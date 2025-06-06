@@ -2750,7 +2750,7 @@ func TestTaskTemplateManager_deniedSprig(t *testing.T) {
 
 	file := "my.tmpl"
 	template := &structs.Template{
-		EmbeddedTmpl: `{{ "hello" | sprig_upper }}`,
+		EmbeddedTmpl: `{{ "hello" | sprig_htpasswd }}`,
 		DestPath:     file,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 	}
@@ -2767,6 +2767,34 @@ func TestTaskTemplateManager_deniedSprig(t *testing.T) {
 		t.Fatalf("Task event should not have been emitted")
 	case e := <-harness.mockHooks.KillCh:
 		must.StrContains(t, e.DisplayMessage, "function is disabled")
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+}
+
+func TestTaskTemplateManager_undefinedSprig(t *testing.T) {
+	ci.Parallel(t)
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: `{{ "hello" | sprig_env }}`,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+
+	must.NoError(t, harness.startWithErr(), must.Sprint("couldn't setup initial harness"))
+	defer harness.stop()
+
+	// Using sprig should cause a kill
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-harness.mockHooks.EmitEventCh:
+		t.Fatalf("Task event should not have been emitted")
+	case e := <-harness.mockHooks.KillCh:
+		must.StrContains(t, e.DisplayMessage, "not defined")
 	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
 		t.Fatalf("timeout")
 	}
