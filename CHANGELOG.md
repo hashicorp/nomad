@@ -1,3 +1,43 @@
+## 1.10.2 (June 09, 2025)
+
+BREAKING CHANGES:
+
+* template: Support for the following non-hermetic sprig functions has been removed: sprig_date, sprig_dateInZone, sprig_dateModify, sprig_htmlDate, sprig_htmlDateInZone, sprig_dateInZone, sprig_dateModify, sprig_randAlphaNum, sprig_randAlpha, sprig_randAscii, sprig_randNumeric, sprig_randBytes, sprig_uuidv4, sprig_env, sprig_expandenv, and sprig_getHostByName. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+
+SECURITY:
+
+* identity: Fixed bug where workflow identity policies are matched by job ID prefix (CVE-2025-4922) [[GH-25869](https://github.com/hashicorp/nomad/issues/25869)]
+* template: Bump the consul-template version to resolve CVE-2025-27144, CVE-2025-22869, CVE-2025-22870 and CVE-2025-22872. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+* template: Removed support to the non-hermetic sprig_env, sprig_expandenv, and sprig_getHostByName sprig functions to prevent potential leakage of environment or network information, since they can allow reading environment variables or resolving domain names to IP addresses. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+
+IMPROVEMENTS:
+
+* cli: Added job start command to allow starting a stopped job from the cli [[GH-24150](https://github.com/hashicorp/nomad/issues/24150)]
+* client: Add gc_volumes_on_node_gc configuration to delete host volumes when nodes are garbage collected [[GH-25903](https://github.com/hashicorp/nomad/issues/25903)]
+* client: add ability to set maximum allocation count by adding node_max_allocs to client configuration [[GH-25785](https://github.com/hashicorp/nomad/issues/25785)]
+* host volumes: Add -force flag to volume delete command for removing volumes from GC'd nodes [[GH-25902](https://github.com/hashicorp/nomad/issues/25902)]
+* identity: Allow ACL policies to be applied to a namespace [[GH-25871](https://github.com/hashicorp/nomad/issues/25871)]
+* ipv6: bind and advertise addresses are now made to adhere to RFC-5942 §4 (reference: https://www.rfc-editor.org/rfc/rfc5952.html#section-4) [[GH-25921](https://github.com/hashicorp/nomad/issues/25921)]
+* reporting (Enterprise): Added support for offline utilization reporting [[GH-25844](https://github.com/hashicorp/nomad/issues/25844)]
+* template: adds ability to specify once mode for job templates [[GH-25922](https://github.com/hashicorp/nomad/issues/25922)]
+* wi: new API endpoint for listing workload-attached ACL policies [[GH-25588](https://github.com/hashicorp/nomad/issues/25588)]
+
+BUG FIXES:
+
+* api: Fixed pagination bug which could result in duplicate results [[GH-25792](https://github.com/hashicorp/nomad/issues/25792)]
+* client: Fixed a bug where disconnect.stop_on_client_after timeouts were extended or ignored [[GH-25946](https://github.com/hashicorp/nomad/issues/25946)]
+* csi: Fixed -secret values not being sent with the `nomad volume snapshot delete` command [[GH-26022](https://github.com/hashicorp/nomad/issues/26022)]
+* disconnect: Fixed a bug where pending evals for reconnected allocs were not cancelled [[GH-25923](https://github.com/hashicorp/nomad/issues/25923)]
+* driver: Allow resources.cpu values above the maximum cpu.share value on Linux [[GH-25963](https://github.com/hashicorp/nomad/issues/25963)]
+* job: Ensure sidecar task volume_mounts are added to planning diff object [[GH-25878](https://github.com/hashicorp/nomad/issues/25878)]
+* reconnecting client: fix issue where reconcile strategy was sometimes ignored [[GH-25799](https://github.com/hashicorp/nomad/issues/25799)]
+* scaling: Set the scaling policies to disabled when a job is stopped [[GH-25911](https://github.com/hashicorp/nomad/issues/25911)]
+* scheduler: Fixed a bug where a node with no affinity could be selected over a node with low affinity [[GH-25800](https://github.com/hashicorp/nomad/issues/25800)]
+* scheduler: Fixed a bug where planning or running a system job with constraints & previously running allocations would return a failed allocation error [[GH-25850](https://github.com/hashicorp/nomad/issues/25850)]
+* telemetry: Fix excess CPU consumption from alloc stats collection [[GH-25870](https://github.com/hashicorp/nomad/issues/25870)]
+* telemetry: Fixed a bug where alloc stats were still collected (but not published) if telemetry.publish_allocation_metrics=false. [[GH-25870](https://github.com/hashicorp/nomad/issues/25870)]
+* ui: Fix incorrect calculation of permissions when ACLs are disabled which meant actions such as client drains were incorrectly blocked [[GH-25881](https://github.com/hashicorp/nomad/issues/25881)]
+
 ## 1.10.1 (May 13, 2025)
 
 BREAKING CHANGES:
