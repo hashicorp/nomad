@@ -644,6 +644,18 @@ func (a allocSet) filterByClientStatus(clientStatus string) allocSet {
 	return allocs
 }
 
+// filterByName returns allocs from the set with the specified alloc name.
+func (a allocSet) filterByName(name string) allocSet {
+	allocs := make(allocSet)
+	for _, alloc := range a {
+		if alloc.Name == name {
+			allocs[alloc.ID] = alloc
+		}
+	}
+
+	return allocs
+}
+
 // allocNameIndex is used to select allocation names for placement or removal
 // given an existing set of placed allocations.
 type allocNameIndex struct {
