@@ -6174,7 +6174,7 @@ func (s *StateStore) ACLPolicyByNamePrefix(ws memdb.WatchSet, prefix string) (me
 func (s *StateStore) ACLPolicyByJob(ws memdb.WatchSet, ns, jobID string) (memdb.ResultIterator, error) {
 	txn := s.db.ReadTxn()
 
-	iter, err := txn.Get("acl_policy", "job_prefix", ns, jobID)
+	iter, err := txn.Get("acl_policy", "job", ns, jobID)
 	if err != nil {
 		return nil, fmt.Errorf("acl policy lookup failed: %v", err)
 	}
