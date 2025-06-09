@@ -8240,6 +8240,62 @@ func TestStateStore_ACLPolicyByNamespace(t *testing.T) {
 	must.Nil(t, iter.Next())
 }
 
+func TestStateStore_ACLPolicyByJob(t *testing.T) {
+	ci.Parallel(t)
+
+	state := testStateStore(t)
+	policy := mock.ACLPolicy()
+	policy.JobACL = &structs.JobACL{
+		Namespace: "default",
+		JobID:     "test-acl-job-name",
+	}
+	policy1 := mock.ACLPolicy()
+	policy1.JobACL = &structs.JobACL{
+		Namespace: "testing",
+		JobID:     "test-acl-job-name",
+	}
+	policy2 := mock.ACLPolicy()
+	policy2.JobACL = &structs.JobACL{
+		Namespace: "default",
+		JobID:     "test-acl-job-name-secondary",
+	}
+	policy3 := mock.ACLPolicy()
+	policy3.JobACL = &structs.JobACL{
+		Namespace: "default",
+		JobID:     "test-acl-job-name",
+		Group:     "collection",
+	}
+
+	err := state.UpsertACLPolicies(structs.MsgTypeTestSetup, 1000, []*structs.ACLPolicy{policy, policy1, policy2, policy3})
+	must.NoError(t, err)
+
+	// Expect two matching policies with exact matching JobIDs
+	iter, err := state.ACLPolicyByJob(nil, "default", "test-acl-job-name")
+	must.NoError(t, err)
+	for i := 0; i < 2; i++ {
+		out := iter.Next()
+		must.NotNil(t, out)
+		p := out.(*structs.ACLPolicy)
+		must.Eq(t, "default", p.JobACL.Namespace)
+		must.Eq(t, "test-acl-job-name", p.JobACL.JobID)
+	}
+	// Ensure no remaining results
+	must.Nil(t, iter.Next())
+
+	// Expect single matching policy
+	iter, err = state.ACLPolicyByJob(nil, "testing", "test-acl-job-name")
+	out := iter.Next()
+	must.Eq(t, policy1, out.(*structs.ACLPolicy))
+	// Ensure no remaining results
+	must.Nil(t, iter.Next())
+
+	// Expect no matching policies
+	iter, err = state.ACLPolicyByJob(nil, "unknown", "test-acl-job-name")
+	must.NoError(t, err)
+	// Check for no results
+	must.Nil(t, iter.Next())
+}
+
 func TestStateStore_DeleteACLPolicy(t *testing.T) {
 	ci.Parallel(t)
 
