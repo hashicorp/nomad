@@ -1,0 +1,3 @@
+```release-note:improvement
+ipv6: bind and advertise addresses are now made to adhere to RFC-5942 §4 (reference: https://www.rfc-editor.org/rfc/rfc5952.html#section-4)
+```
