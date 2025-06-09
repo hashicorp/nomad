@@ -1693,7 +1693,7 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 	}
 	var resp0 structs.NodeUpdateResponse
 	err = client.RPC("Node.Register", req0, &resp0)
-	require.NoError(t, err)
+	must.NoError(t, err)
 
 	testutil.WaitForResult(func() (bool, error) {
 		nodes := srv.connectedNodes()
@@ -1721,7 +1721,7 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 		}
 	}).Node
 	index++
-	require.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
+	must.NoError(t, state.UpsertNode(structs.MsgTypeTestSetup, index, node))
 
 	// Delete the snapshot request
 	req1 := &structs.CSISnapshotDeleteRequest{
@@ -1733,6 +1733,7 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 			{
 				ID:       "snap-34567",
 				PluginID: "minnie",
+				Secrets:  map[string]string{"super": "secret"},
 			},
 		},
 		WriteRequest: structs.WriteRequest{
@@ -1743,7 +1744,16 @@ func TestCSIVolumeEndpoint_DeleteSnapshot(t *testing.T) {
 
 	resp1 := &structs.CSISnapshotDeleteResponse{}
 	err = msgpackrpc.CallWithCodec(codec, "CSIVolume.DeleteSnapshot", req1, resp1)
-	require.NoError(t, err)
+	must.NoError(t, err)
+
+	must.Eq(t, &cstructs.ClientCSIControllerDeleteSnapshotRequest{
+		ID:      "snap-34567",
+		Secrets: map[string]string{"super": "secret"},
+		CSIControllerQuery: cstructs.CSIControllerQuery{
+			ControllerNodeID: node.ID,
+			PluginID:         "minnie",
+		},
+	}, fake.LastDeleteSnapshotRequest)
 }
 
 func TestCSIVolumeEndpoint_ListSnapshots(t *testing.T) {
