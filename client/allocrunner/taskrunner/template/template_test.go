@@ -1667,7 +1667,7 @@ func TestTaskTemplateManager_Env_Missing(t *testing.T) {
 	}
 
 	taskEnv := taskenv.NewEmptyBuilder().SetClientTaskRoot(d).Build()
-	if vars, err := loadTemplateEnv(templates, taskEnv); err == nil {
+	if vars, _, err := loadTemplateVars(templates, taskEnv); err == nil {
 		t.Fatalf("expected an error but instead got env vars: %#v", vars)
 	}
 }
@@ -1701,7 +1701,7 @@ func TestTaskTemplateManager_Env_InterpolatedDest(t *testing.T) {
 		map[string]string{},
 		d, "")
 
-	vars, err := loadTemplateEnv(templates, taskEnv)
+	vars, _, err := loadTemplateVars(templates, taskEnv)
 	must.NoError(t, err)
 	must.MapContainsKey(t, vars, "FOO")
 	must.Eq(t, "bar", vars["FOO"])
@@ -1737,7 +1737,7 @@ func TestTaskTemplateManager_Env_Multi(t *testing.T) {
 	}
 
 	taskEnv := taskenv.NewEmptyBuilder().SetClientTaskRoot(d).Build()
-	vars, err := loadTemplateEnv(templates, taskEnv)
+	vars, _, err := loadTemplateVars(templates, taskEnv)
 	if err != nil {
 		t.Fatalf("expected no error: %v", err)
 	}

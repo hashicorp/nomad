@@ -260,7 +260,7 @@ func (tm *TaskTemplateManager) Run() {
 	}
 
 	// Read environment variables from env templates before we unblock
-	envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
+	envMap, secretMap, err := loadTemplateVars(tm.config.Templates, tm.config.EnvBuilder.Build())
 	if err != nil {
 		tm.config.Lifecycle.Kill(context.Background(),
 			structs.NewTaskEvent(structs.TaskKilling).
@@ -269,17 +269,7 @@ func (tm *TaskTemplateManager) Run() {
 		return
 	}
 	tm.config.EnvBuilder.SetTemplateEnv(envMap)
-
-	// Read any task secrets from templates
-	tmpMap, err := loadSecretEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
-	if err != nil {
-		tm.config.Lifecycle.Kill(context.Background(),
-			structs.NewTaskEvent(structs.TaskKilling).
-				SetFailsTask().
-				SetDisplayMessage(fmt.Sprintf("Template failed to read environment variables: %v", err)))
-		return
-	}
-	maps.Copy(tm.config.TaskSecrets, tmpMap)
+	maps.Copy(tm.config.TaskSecrets, secretMap)
 
 	// Unblock the task
 	close(tm.config.UnblockCh)
@@ -496,7 +486,7 @@ func (tm *TaskTemplateManager) onTemplateRendered(handledRenders map[string]time
 		}
 
 		// Read environment variables from templates
-		envMap, err := loadTemplateEnv(tm.config.Templates, tm.config.EnvBuilder.Build())
+		envMap, _, err := loadTemplateVars(tm.config.Templates, tm.config.EnvBuilder.Build())
 		if err != nil {
 			tm.config.Lifecycle.Kill(context.Background(),
 				structs.NewTaskEvent(structs.TaskKilling).
@@ -1018,59 +1008,42 @@ type sandboxConfig struct {
 	contents    []byte
 }
 
-// loadTemplateEnv loads task environment variables from all templates.
-func loadTemplateEnv(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (map[string]string, error) {
-	all := make(map[string]string, 50)
+// loadTemplateVars loads task environment variables from all templates.
+func loadTemplateVars(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (env map[string]string, secrets map[string]string, err error) {
+	env, secrets = make(map[string]string, 50), make(map[string]string, 50)
 	for _, t := range tmpls {
-		if !t.Envvars {
-			continue
+		if t.Envvars {
+			vars, err := parseVariables(taskEnv, t.DestPath)
+			if err != nil {
+				return nil, nil, err
+			}
+			maps.Copy(env, vars)
 		}
 
-		// we checked escape before we rendered the file
-		dest, _ := taskEnv.ClientPath(t.DestPath, true)
-		f, err := os.Open(dest)
-		if err != nil {
-			return nil, fmt.Errorf("error opening env template: %v", err)
-		}
-		defer f.Close()
-
-		// Parse environment fil
-		vars, err := envparse.Parse(f)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing env template %q: %v", dest, err)
-		}
-		for k, v := range vars {
-			all[k] = v
+		if t.Secrets {
+			vars, err := parseVariables(taskEnv, t.DestPath)
+			if err != nil {
+				return nil, nil, err
+			}
+			maps.Copy(secrets, vars)
 		}
 	}
-	return all, nil
+	return env, secrets, nil
 }
 
-// This is duplicate/hacky. Should probably find a way to cleanly populate envMap and secretsMap from
-// a single function.
-func loadSecretEnv(tmpls []*structs.Template, taskEnv *taskenv.TaskEnv) (map[string]string, error) {
-	all := make(map[string]string, 50)
-	for _, t := range tmpls {
-		if !t.Secrets {
-			continue
-		}
-
-		// we checked escape before we rendered the file
-		dest, _ := taskEnv.ClientPath(t.DestPath, true)
-		f, err := os.Open(dest)
-		if err != nil {
-			return nil, fmt.Errorf("error opening env template: %v", err)
-		}
-		defer f.Close()
-
-		// Parse environment fil
-		vars, err := envparse.Parse(f)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing env template %q: %v", dest, err)
-		}
-		for k, v := range vars {
-			all[k] = v
-		}
+func parseVariables(taskEnv *taskenv.TaskEnv, path string) (map[string]string, error) {
+	// we checked escape before we rendered the file
+	dest, _ := taskEnv.ClientPath(path, true)
+	f, err := os.Open(dest)
+	if err != nil {
+		return nil, fmt.Errorf("error opening env template: %v", err)
 	}
-	return all, nil
+	defer f.Close()
+
+	// Parse environment
+	vars, err := envparse.Parse(f)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing env template %q: %v", dest, err)
+	}
+	return vars, nil
 }
