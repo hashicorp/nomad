@@ -345,7 +345,7 @@ func (n *NodePool) nodePoolRegionsInUse(token, poolName string) ([]string, []str
 			},
 		}
 		var nodesResp structs.NodePoolNodesResponse
-		err := n.srv.RPC("NodePool.ListNodes", nodesReq, &nodesResp)
+		err := n.srv.rpcs.nodePools.ListNodes(nodesReq, &nodesResp)
 		if err != nil {
 			return hasNodes, hasNonTerminal, err
 		}
@@ -363,7 +363,7 @@ func (n *NodePool) nodePoolRegionsInUse(token, poolName string) ([]string, []str
 			},
 		}
 		var jobsResp structs.NodePoolJobsResponse
-		err = n.srv.RPC("NodePool.ListJobs", jobsReq, &jobsResp)
+		err = n.srv.rpcs.nodePools.ListJobs(jobsReq, &jobsResp)
 		if err != nil {
 			return hasNodes, hasNonTerminal, err
 		}

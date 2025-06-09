@@ -937,3 +937,39 @@ func (r *rpcHandler) validateRaftTLS(rpcCtx *RPCContext) error {
 	// Certificate is valid for the expected name
 	return nil
 }
+
+// staticRPCs contains all of the RPC handlers that can be called directly,
+// bypassing net/rpc and codecs.
+type staticRPCs struct {
+	acls           *ACL
+	clientHostVols *ClientHostVolume
+	csiClients     *ClientCSI
+	csiPlugins     *CSIPlugin
+	csiVols        *CSIVolume
+	deployments    *Deployment
+	evals          *Eval
+	keyring        *Keyring
+	jobs           *Job
+	nodePools      *NodePool
+	nodes          *Node
+	plans          *Plan
+	vars           *Variables
+}
+
+func newStaticRPCs(srv *Server) *staticRPCs {
+	return &staticRPCs{
+		acls:           NewACLEndpoint(srv, nil),
+		clientHostVols: NewClientHostVolumeEndpoint(srv, nil),
+		csiClients:     NewClientCSIEndpoint(srv, nil),
+		csiPlugins:     NewCSIPluginEndpoint(srv, nil),
+		csiVols:        NewCSIVolumeEndpoint(srv, nil),
+		deployments:    NewDeploymentEndpoint(srv, nil),
+		evals:          NewEvalEndpoint(srv, nil),
+		keyring:        NewKeyringEndpoint(srv, nil, srv.encrypter),
+		jobs:           NewJobEndpoints(srv, nil),
+		nodePools:      NewNodePoolEndpoint(srv, nil),
+		nodes:          NewNodeEndpoint(srv, nil),
+		plans:          NewPlanEndpoint(srv, nil),
+		vars:           NewVariablesEndpoint(srv, nil, srv.encrypter),
+	}
+}

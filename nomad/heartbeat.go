@@ -173,7 +173,7 @@ func (h *nodeHeartbeater) invalidateHeartbeat(id string) {
 	}
 	var resp structs.NodeUpdateResponse
 
-	if err := h.srv.RPC("Node.UpdateStatus", &req, &resp); err != nil {
+	if err := h.srv.rpcs.nodes.UpdateStatus(&req, &resp); err != nil {
 		h.logger.Error("update node status failed", "error", err)
 	}
 }

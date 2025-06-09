@@ -497,7 +497,7 @@ REQ:
 	// Make a blocking RPC
 	start := time.Now()
 	w.setWorkloadStatus(WorkloadWaitingToDequeue)
-	err := w.srv.RPC("Eval.Dequeue", &req, &resp)
+	err := w.srv.rpcs.evals.Dequeue(&req, &resp)
 	metrics.MeasureSince([]string{"nomad", "worker", "dequeue_eval"}, start)
 	if err != nil {
 		if time.Since(w.start) > dequeueErrGrace && !w.workerShuttingDown() {
@@ -545,14 +545,14 @@ func (w *Worker) sendAcknowledgement(eval *structs.Evaluation, token string, ack
 
 	// Determine if this is an Ack or Nack
 	verb := "ack"
-	endpoint := "Eval.Ack"
+	var endpoint func(*structs.EvalAckRequest, *structs.GenericResponse) error = w.srv.rpcs.evals.Ack
 	if !ack {
 		verb = "nack"
-		endpoint = "Eval.Nack"
+		endpoint = w.srv.rpcs.evals.Nack
 	}
 
 	// Make the RPC call
-	err := w.srv.RPC(endpoint, &req, &resp)
+	err := endpoint(&req, &resp)
 	if err != nil {
 		w.logger.Error(fmt.Sprintf("failed to %s evaluation", verb), "eval_id", eval.ID, "error", err)
 	} else {
@@ -679,7 +679,7 @@ func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.
 
 SUBMIT:
 	// Make the RPC call
-	if err := w.srv.RPC("Plan.Submit", &req, &resp); err != nil {
+	if err := w.srv.rpcs.plans.Submit(&req, &resp); err != nil {
 		w.logger.Error("failed to submit plan for evaluation", "eval_id", plan.EvalID, "error", err)
 		if w.shouldResubmit(err) && !w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
 			goto SUBMIT
@@ -742,7 +742,7 @@ func (w *Worker) UpdateEval(eval *structs.Evaluation) error {
 
 SUBMIT:
 	// Make the RPC call
-	if err := w.srv.RPC("Eval.Update", &req, &resp); err != nil {
+	if err := w.srv.rpcs.evals.Update(&req, &resp); err != nil {
 		w.logger.Error("failed to update evaluation", "eval", log.Fmt("%#v", eval), "error", err)
 		if w.shouldResubmit(err) && !w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
 			goto SUBMIT
@@ -784,7 +784,7 @@ func (w *Worker) CreateEval(eval *structs.Evaluation) error {
 
 SUBMIT:
 	// Make the RPC call
-	if err := w.srv.RPC("Eval.Create", &req, &resp); err != nil {
+	if err := w.srv.rpcs.evals.Create(&req, &resp); err != nil {
 		w.logger.Error("failed to create evaluation", "eval", log.Fmt("%#v", eval), "error", err)
 		if w.shouldResubmit(err) && !w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
 			goto SUBMIT
@@ -847,7 +847,7 @@ func (w *Worker) ReblockEval(eval *structs.Evaluation) error {
 
 SUBMIT:
 	// Make the RPC call
-	if err := w.srv.RPC("Eval.Reblock", &req, &resp); err != nil {
+	if err := w.srv.rpcs.evals.Reblock(&req, &resp); err != nil {
 		w.logger.Error("failed to reblock evaluation", "eval", log.Fmt("%#v", eval), "error", err)
 		if w.shouldResubmit(err) && !w.backoffErr(backoffBaselineSlow, backoffLimitSlow) {
 			goto SUBMIT

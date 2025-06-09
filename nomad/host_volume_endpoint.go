@@ -451,7 +451,6 @@ func (v *HostVolume) validateVolumeForState(vol *structs.HostVolume, snap *state
 
 func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 
-	method := "ClientHostVolume.Create"
 	cReq := &cstructs.ClientHostVolumeCreateRequest{
 		ID:                        vol.ID,
 		Name:                      vol.Name,
@@ -463,7 +462,7 @@ func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 		Parameters:                vol.Parameters,
 	}
 	cResp := &cstructs.ClientHostVolumeCreateResponse{}
-	err := v.srv.RPC(method, cReq, cResp)
+	err := v.srv.rpcs.clientHostVols.Create(cReq, cResp)
 	if err != nil {
 		return err
 	}
@@ -480,7 +479,6 @@ func (v *HostVolume) createVolume(vol *structs.HostVolume) error {
 
 func (v *HostVolume) registerVolume(vol *structs.HostVolume) error {
 
-	method := "ClientHostVolume.Register"
 	cReq := &cstructs.ClientHostVolumeRegisterRequest{
 		ID:            vol.ID,
 		Name:          vol.Name,
@@ -490,7 +488,7 @@ func (v *HostVolume) registerVolume(vol *structs.HostVolume) error {
 		Parameters:    vol.Parameters,
 	}
 	cResp := &cstructs.ClientHostVolumeRegisterResponse{}
-	err := v.srv.RPC(method, cReq, cResp)
+	err := v.srv.rpcs.clientHostVols.Register(cReq, cResp)
 	if err != nil {
 		return err
 	}
@@ -697,7 +695,6 @@ func (v *HostVolume) Delete(args *structs.HostVolumeDeleteRequest, reply *struct
 
 func (v *HostVolume) deleteVolume(vol *structs.HostVolume) error {
 
-	method := "ClientHostVolume.Delete"
 	cReq := &cstructs.ClientHostVolumeDeleteRequest{
 		ID:         vol.ID,
 		Name:       vol.Name,
@@ -708,7 +705,7 @@ func (v *HostVolume) deleteVolume(vol *structs.HostVolume) error {
 		Parameters: vol.Parameters,
 	}
 	cResp := &cstructs.ClientHostVolumeDeleteResponse{}
-	err := v.srv.RPC(method, cReq, cResp)
+	err := v.srv.rpcs.clientHostVols.Delete(cReq, cResp)
 	if err != nil {
 		return err
 	}
