@@ -1,9 +1,9 @@
 ```release-note:security
-template: Add the insecure sprig_htpasswd and sprig_derive sprig functions to the DefaultTemplateFunctionDenylist.
+template: These functions (date, date_in_zone, date_modify, now, htmlDate, htmlDateInZone, dateInZone, dateModify, randAlphaNum, randAlpha, randAscii, randNumeric, randBytes, uuidv4, env, expandenv and getHostByName) got removed because they can introduce resource-intensive recursive operations that could impact memory consumption.
 ```
 
 ```release-note:breaking-change
-template: Remove support to non hermetic sprig functions.
+template: Remove support to non-hermetic and potentially unsafe sprig functions.
 ```
 
 ```release-note:security
