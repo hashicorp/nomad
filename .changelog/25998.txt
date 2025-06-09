@@ -1,9 +1,9 @@
 ```release-note:security
-template: These functions (date, date_in_zone, date_modify, now, htmlDate, htmlDateInZone, dateInZone, dateModify, randAlphaNum, randAlpha, randAscii, randNumeric, randBytes, uuidv4, env, expandenv and getHostByName) got removed because they can introduce resource-intensive recursive operations that could impact memory consumption.
+template: Removed support to the non-hermetic sprig_env, sprig_expandenv, and sprig_getHostByName sprig functions to prevent potential leakage of environment or network information, since they can allow reading environment variables or resolving domain names to IP addresses.
 ```
 
 ```release-note:breaking-change
-template: Remove support to non-hermetic and potentially unsafe sprig functions.
+template: Support for the following non-hermetic sprig functions has been removed: sprig_date, sprig_dateInZone, sprig_dateModify, sprig_htmlDate, sprig_htmlDateInZone, sprig_dateInZone, sprig_dateModify, sprig_randAlphaNum, sprig_randAlpha, sprig_randAscii, sprig_randNumeric, sprig_randBytes, sprig_uuidv4, sprig_env, sprig_expandenv, and sprig_getHostByName.
 ```
 
 ```release-note:security
