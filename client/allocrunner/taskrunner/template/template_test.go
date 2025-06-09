@@ -2760,7 +2760,7 @@ func TestTaskTemplateManager_deniedSprig(t *testing.T) {
 	must.NoError(t, harness.startWithErr(), must.Sprint("couldn't setup initial harness"))
 	defer harness.stop()
 
-	// Using sprig should cause a kill
+	// Using sprig_env should cause a kill
 	select {
 	case <-harness.mockHooks.UnblockCh:
 	case <-harness.mockHooks.EmitEventCh:
