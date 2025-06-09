@@ -47,6 +47,7 @@ type MockClientCSI struct {
 	NextNodeDetachError                error
 	NextNodeExpandError                error
 	LastNodeExpandRequest              *cstructs.ClientCSINodeExpandVolumeRequest
+	LastDeleteSnapshotRequest          *cstructs.ClientCSIControllerDeleteSnapshotRequest
 }
 
 func newMockClientCSI() *MockClientCSI {
@@ -93,6 +94,7 @@ func (c *MockClientCSI) ControllerCreateSnapshot(req *cstructs.ClientCSIControll
 }
 
 func (c *MockClientCSI) ControllerDeleteSnapshot(req *cstructs.ClientCSIControllerDeleteSnapshotRequest, resp *cstructs.ClientCSIControllerDeleteSnapshotResponse) error {
+	c.LastDeleteSnapshotRequest = req
 	return c.NextDeleteSnapshotError
 }
 

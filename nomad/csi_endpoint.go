@@ -1627,7 +1627,10 @@ func (v *CSIVolume) DeleteSnapshot(args *structs.CSISnapshotDeleteRequest, reply
 
 		method := "ClientCSI.ControllerDeleteSnapshot"
 
-		cReq := &cstructs.ClientCSIControllerDeleteSnapshotRequest{ID: snap.ID}
+		cReq := &cstructs.ClientCSIControllerDeleteSnapshotRequest{
+			ID:      snap.ID,
+			Secrets: snap.Secrets,
+		}
 		cReq.PluginID = plugin.ID
 		cResp := &cstructs.ClientCSIControllerDeleteSnapshotResponse{}
 		err = v.serializedControllerRPC(plugin.ID, func() error {
