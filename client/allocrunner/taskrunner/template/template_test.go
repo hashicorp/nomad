@@ -2744,3 +2744,31 @@ func TestTaskTemplateManager_writeToFile(t *testing.T) {
 	must.NoError(t, err)
 	must.Eq(t, "hello", string(r))
 }
+
+func TestTaskTemplateManager_deniedSprig(t *testing.T) {
+	ci.Parallel(t)
+
+	file := "my.tmpl"
+	template := &structs.Template{
+		EmbeddedTmpl: `{{ "hello" | sprig_env }}`,
+		DestPath:     file,
+		ChangeMode:   structs.TemplateChangeModeNoop,
+	}
+
+	harness := newTestHarness(t, []*structs.Template{template}, false, false)
+
+	must.NoError(t, harness.startWithErr(), must.Sprint("couldn't setup initial harness"))
+	defer harness.stop()
+
+	// Using sprig_env should cause a kill
+	select {
+	case <-harness.mockHooks.UnblockCh:
+	case <-harness.mockHooks.EmitEventCh:
+		t.Fatalf("Task event should not have been emitted")
+	case e := <-harness.mockHooks.KillCh:
+		must.StrContains(t, e.DisplayMessage, "not defined")
+	case <-time.After(time.Duration(5*testutil.TestMultiplier()) * time.Second):
+		t.Fatalf("timeout")
+	}
+
+}
