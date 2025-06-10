@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/scheduler/status"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -383,13 +383,13 @@ func (a *AllocReconciler) handleStop(m allocMatrix) {
 // stopping an entire job or task group.
 func (a *AllocReconciler) filterAndStopAll(set allocSet) uint64 {
 	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
-	a.markStop(untainted, "", status.AllocNotNeeded)
-	a.markStop(migrate, "", status.AllocNotNeeded)
-	a.markStop(lost, structs.AllocClientStatusLost, status.AllocLost)
-	a.markStop(disconnecting, "", status.AllocNotNeeded)
-	a.markStop(reconnecting, "", status.AllocNotNeeded)
-	a.markStop(ignore.filterByClientStatus(structs.AllocClientStatusUnknown), "", status.AllocNotNeeded)
-	a.markStop(expiring.filterByClientStatus(structs.AllocClientStatusUnknown), "", status.AllocNotNeeded)
+	a.markStop(untainted, "", sstructs.AllocNotNeeded)
+	a.markStop(migrate, "", sstructs.AllocNotNeeded)
+	a.markStop(lost, structs.AllocClientStatusLost, sstructs.AllocLost)
+	a.markStop(disconnecting, "", sstructs.AllocNotNeeded)
+	a.markStop(reconnecting, "", sstructs.AllocNotNeeded)
+	a.markStop(ignore.filterByClientStatus(structs.AllocClientStatusUnknown), "", sstructs.AllocNotNeeded)
+	a.markStop(expiring.filterByClientStatus(structs.AllocClientStatusUnknown), "", sstructs.AllocNotNeeded)
 	return uint64(len(set))
 }
 
@@ -703,7 +703,7 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 	// stopSet is the allocSet that contains the canaries we desire to stop from
 	// above.
 	stopSet := all.fromKeys(stop)
-	a.markStop(stopSet, "", status.AllocNotNeeded)
+	a.markStop(stopSet, "", sstructs.AllocNotNeeded)
 	desiredChanges.Stop += uint64(len(stopSet))
 	all = all.difference(stopSet)
 
@@ -720,8 +720,8 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 		// We don't add these stops to desiredChanges because the deployment is
 		// still active. DesiredChanges is used to report deployment progress/final
 		// state. These transient failures aren't meaningful.
-		a.markStop(migrate, "", status.AllocMigrating)
-		a.markStop(lost, structs.AllocClientStatusLost, status.AllocLost)
+		a.markStop(migrate, "", sstructs.AllocMigrating)
+		a.markStop(lost, structs.AllocClientStatusLost, sstructs.AllocLost)
 
 		canaries = untainted
 		all = all.difference(migrate, lost)
@@ -862,7 +862,7 @@ func (a *AllocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		// turn relies on len(lostLater) == 0.
 		a.Result.Place = append(a.Result.Place, place...)
 
-		a.markStop(failed, "", status.AllocRescheduled)
+		a.markStop(failed, "", sstructs.AllocRescheduled)
 		desiredChanges.Stop += uint64(len(failed))
 
 		minimum := min(len(place), underProvisionedBy)
@@ -905,7 +905,7 @@ func (a *AllocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 
 			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 				Alloc:             prev,
-				StatusDescription: status.AllocRescheduled,
+				StatusDescription: sstructs.AllocRescheduled,
 			})
 			desiredChanges.Stop++
 		}
@@ -926,7 +926,7 @@ func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 			placeName:             alloc.Name,
 			placeTaskGroup:        tg,
 			stopAlloc:             alloc,
-			stopStatusDescription: status.AllocUpdating,
+			stopStatusDescription: sstructs.AllocUpdating,
 		})
 	}
 }
@@ -936,7 +936,7 @@ func (a *AllocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdat
 	for _, alloc := range migrate.nameOrder() {
 		a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 			Alloc:             alloc,
-			StatusDescription: status.AllocMigrating,
+			StatusDescription: sstructs.AllocMigrating,
 		})
 		a.Result.Place = append(a.Result.Place, AllocPlaceResult{
 			name:          alloc.Name,
@@ -1016,7 +1016,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 	var stop allocSet
 	stop = stop.union(lost)
 
-	a.markDelayed(lost, structs.AllocClientStatusLost, status.AllocLost, followupEvals)
+	a.markDelayed(lost, structs.AllocClientStatusLost, sstructs.AllocLost, followupEvals)
 
 	// If we are still deploying or creating canaries, don't stop them
 	if isCanarying {
@@ -1052,7 +1052,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 				stop[id] = alloc
 				a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 					Alloc:             alloc,
-					StatusDescription: status.AllocNotNeeded,
+					StatusDescription: sstructs.AllocNotNeeded,
 				})
 				delete(untainted, id)
 
@@ -1074,7 +1074,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 			}
 			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 				Alloc:             alloc,
-				StatusDescription: status.AllocNotNeeded,
+				StatusDescription: sstructs.AllocNotNeeded,
 			})
 			delete(migrate, id)
 			stop[id] = alloc
@@ -1094,7 +1094,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 			stop[id] = alloc
 			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 				Alloc:             alloc,
-				StatusDescription: status.AllocNotNeeded,
+				StatusDescription: sstructs.AllocNotNeeded,
 			})
 			delete(untainted, id)
 
@@ -1111,7 +1111,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 		stop[id] = alloc
 		a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 			Alloc:             alloc,
-			StatusDescription: status.AllocNotNeeded,
+			StatusDescription: sstructs.AllocNotNeeded,
 		})
 		delete(untainted, id)
 
@@ -1152,7 +1152,7 @@ func (a *AllocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 				Alloc:             reconnectingAlloc,
 				ClientStatus:      structs.AllocClientStatusFailed,
-				StatusDescription: status.AllocRescheduled,
+				StatusDescription: sstructs.AllocRescheduled,
 			})
 			continue
 		}
@@ -1170,7 +1170,7 @@ func (a *AllocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 			stop[reconnectingAlloc.ID] = reconnectingAlloc
 			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 				Alloc:             reconnectingAlloc,
-				StatusDescription: status.AllocNotNeeded,
+				StatusDescription: sstructs.AllocNotNeeded,
 			})
 			continue
 		}
@@ -1214,7 +1214,7 @@ func (a *AllocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 					stop[reconnectingAlloc.ID] = reconnectingAlloc
 					a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 						Alloc:             reconnectingAlloc,
-						StatusDescription: status.AllocNotNeeded,
+						StatusDescription: sstructs.AllocNotNeeded,
 					})
 				}
 			} else {
@@ -1224,7 +1224,7 @@ func (a *AllocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 					stop[replacementAlloc.ID] = replacementAlloc
 					a.Result.Stop = append(a.Result.Stop, AllocStopResult{
 						Alloc:             replacementAlloc,
-						StatusDescription: status.AllocReconnected,
+						StatusDescription: sstructs.AllocReconnected,
 					})
 				}
 			}
@@ -1354,7 +1354,7 @@ func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedResched
 		JobID:             a.job.ID,
 		JobModifyIndex:    a.job.ModifyIndex,
 		Status:            structs.EvalStatusPending,
-		StatusDescription: status.ReschedulingFollowupEvalDesc,
+		StatusDescription: sstructs.ReschedulingFollowupEvalDesc,
 		WaitUntil:         nextReschedTime,
 	}
 	evals = append(evals, eval)
@@ -1422,7 +1422,7 @@ func (a *AllocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 		JobID:             a.job.ID,
 		JobModifyIndex:    a.job.ModifyIndex,
 		Status:            structs.EvalStatusPending,
-		StatusDescription: status.DisconnectTimeoutFollowupEvalDesc,
+		StatusDescription: sstructs.DisconnectTimeoutFollowupEvalDesc,
 		WaitUntil:         nextReschedTime,
 	}
 	evals = append(evals, eval)
@@ -1446,7 +1446,7 @@ func (a *AllocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 				JobID:             a.job.ID,
 				JobModifyIndex:    a.job.ModifyIndex,
 				Status:            structs.EvalStatusPending,
-				StatusDescription: status.DisconnectTimeoutFollowupEvalDesc,
+				StatusDescription: sstructs.DisconnectTimeoutFollowupEvalDesc,
 				WaitUntil:         timeoutInfo.rescheduleTime,
 			}
 			evals = append(evals, eval)
@@ -1469,7 +1469,7 @@ func (a *AllocReconciler) appendUnknownDisconnectingUpdates(disconnecting allocS
 		updatedAlloc := alloc.Copy()
 		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
 		updatedAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
-		updatedAlloc.ClientDescription = status.AllocUnknown
+		updatedAlloc.ClientDescription = sstructs.AllocUnknown
 		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[id]
 		a.Result.DisconnectUpdates[updatedAlloc.ID] = updatedAlloc
 

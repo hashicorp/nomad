@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package status
+package structs
 
 /*
  * This package containst only statuses and descriptions used across the whole

@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/reconcile"
-	"github.com/hashicorp/nomad/scheduler/status"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -191,9 +191,9 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
 	if planFailure {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
-		s.blocked.StatusDescription = status.BlockedEvalMaxPlanDesc
+		s.blocked.StatusDescription = sstructs.BlockedEvalMaxPlanDesc
 	} else {
-		s.blocked.StatusDescription = status.BlockedEvalFailedPlacements
+		s.blocked.StatusDescription = sstructs.BlockedEvalFailedPlacements
 	}
 
 	return s.planner.CreateEval(s.blocked)

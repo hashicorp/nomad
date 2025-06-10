@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/scheduler/status"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 // Node is like diffSystemAllocsForNode however, the allocations in the
@@ -189,7 +189,7 @@ func diffSystemAllocsForNode(
 				disconnect := exist.Copy()
 				disconnect.ClientStatus = structs.AllocClientStatusUnknown
 				disconnect.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
-				disconnect.ClientDescription = status.AllocUnknown
+				disconnect.ClientDescription = sstructs.AllocUnknown
 				result.Disconnecting = append(result.Disconnecting, AllocTuple{
 					Name:      name,
 					TaskGroup: tg,

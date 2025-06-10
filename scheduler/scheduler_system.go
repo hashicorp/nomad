@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/reconcile"
-	"github.com/hashicorp/nomad/scheduler/status"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -263,18 +263,18 @@ func (s *SystemScheduler) computeJobAllocs() error {
 
 	// Add all the allocs to stop
 	for _, e := range r.Stop {
-		s.plan.AppendStoppedAlloc(e.Alloc, status.AllocNotNeeded, "", "")
+		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.AllocNotNeeded, "", "")
 	}
 
 	// Add all the allocs to migrate
 	for _, e := range r.Migrate {
-		s.plan.AppendStoppedAlloc(e.Alloc, status.AllocNodeTainted, "", "")
+		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.AllocNodeTainted, "", "")
 	}
 
 	// Lost allocations should be transitioned to desired status stop and client
 	// status lost.
 	for _, e := range r.Lost {
-		s.plan.AppendStoppedAlloc(e.Alloc, status.AllocLost, structs.AllocClientStatusLost, "")
+		s.plan.AppendStoppedAlloc(e.Alloc, sstructs.AllocLost, structs.AllocClientStatusLost, "")
 	}
 
 	for _, e := range r.Disconnecting {
@@ -308,7 +308,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	}
 
 	// Treat non in-place updates as an eviction and new placement.
-	s.limitReached = evictAndPlace(s.ctx, r, r.Update, status.AllocUpdating, &limit)
+	s.limitReached = evictAndPlace(s.ctx, r, r.Update, sstructs.AllocUpdating, &limit)
 
 	// Nothing remaining to do if placement is not required
 	if len(r.Place) == 0 {
@@ -538,7 +538,7 @@ func (s *SystemScheduler) addBlocked(node *structs.Node) error {
 	}
 
 	blocked := s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
-	blocked.StatusDescription = status.BlockedEvalFailedPlacements
+	blocked.StatusDescription = sstructs.BlockedEvalFailedPlacements
 	blocked.NodeID = node.ID
 
 	return s.planner.CreateEval(blocked)

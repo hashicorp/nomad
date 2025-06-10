@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/reconcile"
-	"github.com/hashicorp/nomad/scheduler/status"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 // readyNodesInDCsAndPool returns all the ready nodes in the given datacenters
@@ -649,7 +649,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(update.Alloc, status.AllocInPlace, "", "")
+		ctx.Plan().AppendStoppedAlloc(update.Alloc, sstructs.AllocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(update.TaskGroup,
@@ -838,7 +838,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
-			plan.AppendStoppedAlloc(alloc, status.AllocLost, structs.AllocClientStatusLost, "")
+			plan.AppendStoppedAlloc(alloc, sstructs.AllocLost, structs.AllocClientStatusLost, "")
 		}
 	}
 }
@@ -896,7 +896,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) reconcile.All
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(existing, status.AllocInPlace, "", "")
+		ctx.Plan().AppendStoppedAlloc(existing, sstructs.AllocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(newTG, &SelectOptions{AllocName: existing.Name})
