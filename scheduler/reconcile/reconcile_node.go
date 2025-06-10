@@ -189,7 +189,7 @@ func diffSystemAllocsForNode(
 				disconnect := exist.Copy()
 				disconnect.ClientStatus = structs.AllocClientStatusUnknown
 				disconnect.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
-				disconnect.ClientDescription = sstructs.AllocUnknown
+				disconnect.ClientDescription = sstructs.StatusAllocUnknown
 				result.Disconnecting = append(result.Disconnecting, AllocTuple{
 					Name:      name,
 					TaskGroup: tg,

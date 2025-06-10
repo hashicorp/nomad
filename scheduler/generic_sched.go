@@ -191,9 +191,9 @@ func (s *GenericScheduler) createBlockedEval(planFailure bool) error {
 	s.blocked = s.eval.CreateBlockedEval(classEligibility, escaped, e.QuotaLimitReached(), s.failedTGAllocs)
 	if planFailure {
 		s.blocked.TriggeredBy = structs.EvalTriggerMaxPlans
-		s.blocked.StatusDescription = sstructs.BlockedEvalMaxPlanDesc
+		s.blocked.StatusDescription = sstructs.DescBlockedEvalMaxPlan
 	} else {
-		s.blocked.StatusDescription = sstructs.BlockedEvalFailedPlacements
+		s.blocked.StatusDescription = sstructs.DescBlockedEvalFailedPlacements
 	}
 
 	return s.planner.CreateEval(s.blocked)
