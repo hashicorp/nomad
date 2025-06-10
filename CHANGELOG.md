@@ -134,6 +134,37 @@ BUG FIXES:
 * services: Fixed a bug where Nomad native services would not be correctly interpolated during in-place updates [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
 * services: Fixed a bug where task-level services, checks, and identities could interpolate jobspec values from other tasks in the same group [[GH-25373](https://github.com/hashicorp/nomad/issues/25373)]
 
+## 1.9.10 Enterprise (June 10, 2025)
+
+BREAKING CHANGES:
+
+* template: Support for the following non-hermetic sprig functions has been removed: sprig_date, sprig_dateInZone, sprig_dateModify, sprig_htmlDate, sprig_htmlDateInZone, sprig_dateInZone, sprig_dateModify, sprig_randAlphaNum, sprig_randAlpha, sprig_randAscii, sprig_randNumeric, sprig_randBytes, sprig_uuidv4, sprig_env, sprig_expandenv, and sprig_getHostByName. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+
+SECURITY:
+
+* identity: Fixed bug where workflow identity policies are matched by job ID prefix (CVE-2025-4922) [[GH-25869](https://github.com/hashicorp/nomad/issues/25869)]
+* template: Bump the consul-template version to resolve CVE-2025-27144, CVE-2025-22869, CVE-2025-22870 and CVE-2025-22872. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+* template: Removed support to the non-hermetic sprig_env, sprig_expandenv, and sprig_getHostByName sprig functions to prevent potential leakage of environment or network information, since they can allow reading environment variables or resolving domain names to IP addresses. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+
+IMPROVEMENTS:
+
+* reporting (Enterprise): Added support for offline utilization reporting [[GH-25844](https://github.com/hashicorp/nomad/issues/25844)]
+
+BUG FIXES:
+
+* client: Fixed a bug where disconnect.stop_on_client_after timeouts were extended or ignored [[GH-25946](https://github.com/hashicorp/nomad/issues/25946)]
+* csi: Fixed -secret values not being sent with the `nomad volume snapshot delete` command [[GH-26022](https://github.com/hashicorp/nomad/issues/26022)]
+* disconnect: Fixed a bug where pending evals for reconnected allocs were not cancelled [[GH-25923](https://github.com/hashicorp/nomad/issues/25923)]
+* driver: Allow resources.cpu values above the maximum cpu.share value on Linux [[GH-25963](https://github.com/hashicorp/nomad/issues/25963)]
+* job: Ensure sidecar task volume_mounts are added to planning diff object [[GH-25878](https://github.com/hashicorp/nomad/issues/25878)]
+* reconnecting client: fix issue where reconcile strategy was sometimes ignored [[GH-25799](https://github.com/hashicorp/nomad/issues/25799)]
+* scaling: Set the scaling policies to disabled when a job is stopped [[GH-25911](https://github.com/hashicorp/nomad/issues/25911)]
+* scheduler: Fixed a bug where a node with no affinity could be selected over a node with low affinity [[GH-25800](https://github.com/hashicorp/nomad/issues/25800)]
+* scheduler: Fixed a bug where planning or running a system job with constraints & previously running allocations would return a failed allocation error [[GH-25850](https://github.com/hashicorp/nomad/issues/25850)]
+* telemetry: Fix excess CPU consumption from alloc stats collection [[GH-25870](https://github.com/hashicorp/nomad/issues/25870)]
+* telemetry: Fixed a bug where alloc stats were still collected (but not published) if telemetry.publish_allocation_metrics=false. [[GH-25870](https://github.com/hashicorp/nomad/issues/25870)]
+* vault: Fixed a bug where poststop tasks could not obtain Vault tokens after the main task failed
+
 ## 1.9.9 Enterprise (May 13, 2025)
 
 BREAKING CHANGES:
@@ -407,6 +438,37 @@ BUG FIXES:
 * task: adds node.pool attribute to interpretable values in task env [[GH-24052](https://github.com/hashicorp/nomad/issues/24052)]
 * template: Fixed a panic on client restart when using change_mode=script [[GH-24057](https://github.com/hashicorp/nomad/issues/24057)]
 * ui: Fixes an issue where variables paths would not let namespaced users write variables unless they also had wildcard namespace variable write permissions [[GH-24073](https://github.com/hashicorp/nomad/issues/24073)]
+
+## 1.8.14 Enterprise (June 10, 2025)
+
+BREAKING CHANGES:
+
+* template: Support for the following non-hermetic sprig functions has been removed: sprig_date, sprig_dateInZone, sprig_dateModify, sprig_htmlDate, sprig_htmlDateInZone, sprig_dateInZone, sprig_dateModify, sprig_randAlphaNum, sprig_randAlpha, sprig_randAscii, sprig_randNumeric, sprig_randBytes, sprig_uuidv4, sprig_env, sprig_expandenv, and sprig_getHostByName. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+
+SECURITY:
+
+* identity: Fixed bug where workflow identity policies are matched by job ID prefix (CVE-2025-4922) [[GH-25869](https://github.com/hashicorp/nomad/issues/25869)]
+* template: Bump the consul-template version to resolve CVE-2025-27144, CVE-2025-22869, CVE-2025-22870 and CVE-2025-22872. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+* template: Removed support to the non-hermetic sprig_env, sprig_expandenv, and sprig_getHostByName sprig functions to prevent potential leakage of environment or network information, since they can allow reading environment variables or resolving domain names to IP addresses. [[GH-25998](https://github.com/hashicorp/nomad/issues/25998)]
+
+IMPROVEMENTS:
+
+* reporting (Enterprise): Added support for offline utilization reporting [[GH-25844](https://github.com/hashicorp/nomad/issues/25844)]
+
+BUG FIXES:
+
+* client: Fixed a bug where disconnect.stop_on_client_after timeouts were extended or ignored [[GH-25946](https://github.com/hashicorp/nomad/issues/25946)]
+* csi: Fixed -secret values not being sent with the `nomad volume snapshot delete` command [[GH-26022](https://github.com/hashicorp/nomad/issues/26022)]
+* disconnect: Fixed a bug where pending evals for reconnected allocs were not cancelled [[GH-25923](https://github.com/hashicorp/nomad/issues/25923)]
+* driver: Allow resources.cpu values above the maximum cpu.share value on Linux [[GH-25963](https://github.com/hashicorp/nomad/issues/25963)]
+* job: Ensure sidecar task volume_mounts are added to planning diff object [[GH-25878](https://github.com/hashicorp/nomad/issues/25878)]
+* reconnecting client: fix issue where reconcile strategy was sometimes ignored [[GH-25799](https://github.com/hashicorp/nomad/issues/25799)]
+* scaling: Set the scaling policies to disabled when a job is stopped [[GH-25911](https://github.com/hashicorp/nomad/issues/25911)]
+* scheduler: Fixed a bug where a node with no affinity could be selected over a node with low affinity [[GH-25800](https://github.com/hashicorp/nomad/issues/25800)]
+* scheduler: Fixed a bug where planning or running a system job with constraints & previously running allocations would return a failed allocation error [[GH-25850](https://github.com/hashicorp/nomad/issues/25850)]
+* telemetry: Fix excess CPU consumption from alloc stats collection [[GH-25870](https://github.com/hashicorp/nomad/issues/25870)]
+* telemetry: Fixed a bug where alloc stats were still collected (but not published) if telemetry.publish_allocation_metrics=false. [[GH-25870](https://github.com/hashicorp/nomad/issues/25870)]
+* vault: Fixed a bug where poststop tasks could not obtain Vault tokens after the main task failed
 
 ## 1.8.13 Enterprise (May 13, 2025)
 
