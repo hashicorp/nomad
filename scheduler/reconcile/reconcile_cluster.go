@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package reconcile
 
 // The reconciler is the first stage in the scheduler for service and batch
 // jobs. It compares the existing state to the desired state to determine the
@@ -20,7 +20,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
-	reconnectingpicker "github.com/hashicorp/nomad/scheduler/reconnecting_picker"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -34,37 +34,27 @@ const (
 	rescheduleWindowSize = 1 * time.Second
 )
 
-type ReconnectingPicker interface {
-	PickReconnectingAlloc(disconnect *structs.DisconnectStrategy, original *structs.Allocation, replacement *structs.Allocation) *structs.Allocation
-}
-
-// allocUpdateType takes an existing allocation and a new job definition and
+// AllocUpdateType takes an existing allocation and a new job definition and
 // returns whether the allocation can ignore the change, requires a destructive
 // update, or can be inplace updated. If it can be inplace updated, an updated
 // allocation that has the new resources and alloc metrics attached will be
 // returned.
-type allocUpdateType func(existing *structs.Allocation, newJob *structs.Job,
+type AllocUpdateType func(existing *structs.Allocation, newJob *structs.Job,
 	newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation)
 
-type AllocReconcilerOption func(*allocReconciler)
+type AllocReconcilerOption func(*AllocReconciler)
 
-func AllocRenconcilerWithNow(now time.Time) AllocReconcilerOption {
-	return func(ar *allocReconciler) {
-		ar.now = now
-	}
-}
-
-// allocReconciler is used to determine the set of allocations that require
+// AllocReconciler is used to determine the set of allocations that require
 // placement, inplace updating or stopping given the job specification and
 // existing cluster state. The reconciler should only be used for batch and
 // service jobs.
-type allocReconciler struct {
+type AllocReconciler struct {
 	// logger is used to log debug information. Logging should be kept at a
 	// minimal here
 	logger log.Logger
 
 	// canInplace is used to check if the allocation can be inplace upgraded
-	allocUpdateFn allocUpdateType
+	allocUpdateFn AllocUpdateType
 
 	// batch marks whether the job is a batch job
 	batch bool
@@ -108,62 +98,62 @@ type allocReconciler struct {
 	// defaults to time.Now, and overridden in unit tests
 	now time.Time
 
-	reconnectingPicker ReconnectingPicker
+	reconnectingPicker reconnectingPickerInterface
 
-	// result is the results of the reconcile. During computation it can be
+	// Result is the results of the reconcile. During computation it can be
 	// used to store intermediate state
-	result *reconcileResults
+	Result *ReconcileResults
 }
 
-// reconcileResults contains the results of the reconciliation and should be
+// ReconcileResults contains the results of the reconciliation and should be
 // applied by the scheduler.
-type reconcileResults struct {
-	// deployment is the deployment that should be created or updated as a
+type ReconcileResults struct {
+	// Deployment is the Deployment that should be created or updated as a
 	// result of scheduling
-	deployment *structs.Deployment
+	Deployment *structs.Deployment
 
-	// deploymentUpdates contains a set of deployment updates that should be
+	// DeploymentUpdates contains a set of deployment updates that should be
 	// applied as a result of scheduling
-	deploymentUpdates []*structs.DeploymentStatusUpdate
+	DeploymentUpdates []*structs.DeploymentStatusUpdate
 
-	// place is the set of allocations to place by the scheduler
-	place []allocPlaceResult
+	// Place is the set of allocations to Place by the scheduler
+	Place []AllocPlaceResult
 
-	// destructiveUpdate is the set of allocations to apply a destructive update to
-	destructiveUpdate []allocDestructiveResult
+	// DestructiveUpdate is the set of allocations to apply a destructive update to
+	DestructiveUpdate []allocDestructiveResult
 
-	// inplaceUpdate is the set of allocations to apply an inplace update to
-	inplaceUpdate []*structs.Allocation
+	// InplaceUpdate is the set of allocations to apply an inplace update to
+	InplaceUpdate []*structs.Allocation
 
-	// stop is the set of allocations to stop
-	stop []allocStopResult
+	// Stop is the set of allocations to Stop
+	Stop []AllocStopResult
 
-	// attributeUpdates are updates to the allocation that are not from a
+	// AttributeUpdates are updates to the allocation that are not from a
 	// jobspec change.
-	attributeUpdates map[string]*structs.Allocation
+	AttributeUpdates map[string]*structs.Allocation
 
-	// disconnectUpdates is the set of allocations are on disconnected nodes, but
+	// DisconnectUpdates is the set of allocations are on disconnected nodes, but
 	// have not yet had their ClientStatus set to AllocClientStatusUnknown.
-	disconnectUpdates map[string]*structs.Allocation
+	DisconnectUpdates map[string]*structs.Allocation
 
-	// reconnectUpdates is the set of allocations that have ClientStatus set to
+	// ReconnectUpdates is the set of allocations that have ClientStatus set to
 	// AllocClientStatusUnknown, but the associated Node has reconnected.
-	reconnectUpdates map[string]*structs.Allocation
+	ReconnectUpdates map[string]*structs.Allocation
 
-	// desiredTGUpdates captures the desired set of changes to make for each
+	// DesiredTGUpdates captures the desired set of changes to make for each
 	// task group.
-	desiredTGUpdates map[string]*structs.DesiredUpdates
+	DesiredTGUpdates map[string]*structs.DesiredUpdates
 
-	// desiredFollowupEvals is the map of follow up evaluations to create per task group
+	// DesiredFollowupEvals is the map of follow up evaluations to create per task group
 	// This is used to create a delayed evaluation for rescheduling failed allocations.
-	desiredFollowupEvals map[string][]*structs.Evaluation
+	DesiredFollowupEvals map[string][]*structs.Evaluation
 
-	// taskGroupAllocNameIndexes is a tracking of the allocation name index,
+	// TaskGroupAllocNameIndexes is a tracking of the allocation name index,
 	// keyed by the task group name. This is stored within the results, so the
 	// generic scheduler can use this to perform duplicate alloc index checks
 	// before submitting the plan. This is always non-nil and is handled within
 	// a single routine, so does not require a mutex.
-	taskGroupAllocNameIndexes map[string]*allocNameIndex
+	TaskGroupAllocNameIndexes map[string]*AllocNameIndex
 }
 
 // delayedRescheduleInfo contains the allocation id and a time when its eligible to be rescheduled.
@@ -179,18 +169,18 @@ type delayedRescheduleInfo struct {
 	rescheduleTime time.Time
 }
 
-func (r *reconcileResults) GoString() string {
+func (r *ReconcileResults) GoString() string {
 	base := fmt.Sprintf("Total changes: (place %d) (destructive %d) (inplace %d) (stop %d) (disconnect %d) (reconnect %d)",
-		len(r.place), len(r.destructiveUpdate), len(r.inplaceUpdate), len(r.stop), len(r.disconnectUpdates), len(r.reconnectUpdates))
+		len(r.Place), len(r.DestructiveUpdate), len(r.InplaceUpdate), len(r.Stop), len(r.DisconnectUpdates), len(r.ReconnectUpdates))
 
-	if r.deployment != nil {
-		base += fmt.Sprintf("\nCreated Deployment: %q", r.deployment.ID)
+	if r.Deployment != nil {
+		base += fmt.Sprintf("\nCreated Deployment: %q", r.Deployment.ID)
 	}
-	for _, u := range r.deploymentUpdates {
+	for _, u := range r.DeploymentUpdates {
 		base += fmt.Sprintf("\nDeployment Update for ID %q: Status %q; Description %q",
 			u.DeploymentID, u.Status, u.StatusDescription)
 	}
-	for tg, u := range r.desiredTGUpdates {
+	for tg, u := range r.DesiredTGUpdates {
 		base += fmt.Sprintf("\nDesired Changes for %q: %#v", tg, u)
 	}
 
@@ -199,12 +189,12 @@ func (r *reconcileResults) GoString() string {
 
 // NewAllocReconciler creates a new reconciler that should be used to determine
 // the changes required to bring the cluster state inline with the declared jobspec
-func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch bool,
+func NewAllocReconciler(logger log.Logger, allocUpdateFn AllocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
 	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
-	evalPriority int, supportsDisconnectedClients bool, opts ...AllocReconcilerOption) *allocReconciler {
+	evalPriority int, supportsDisconnectedClients bool, opts ...AllocReconcilerOption) *AllocReconciler {
 
-	ar := &allocReconciler{
+	ar := &AllocReconciler{
 		logger:                      logger.Named("reconciler"),
 		allocUpdateFn:               allocUpdateFn,
 		batch:                       batch,
@@ -217,15 +207,15 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 		evalPriority:                evalPriority,
 		supportsDisconnectedClients: supportsDisconnectedClients,
 		now:                         time.Now().UTC(),
-		result: &reconcileResults{
-			attributeUpdates:          make(map[string]*structs.Allocation),
-			disconnectUpdates:         make(map[string]*structs.Allocation),
-			reconnectUpdates:          make(map[string]*structs.Allocation),
-			desiredTGUpdates:          make(map[string]*structs.DesiredUpdates),
-			desiredFollowupEvals:      make(map[string][]*structs.Evaluation),
-			taskGroupAllocNameIndexes: make(map[string]*allocNameIndex),
+		Result: &ReconcileResults{
+			AttributeUpdates:          make(map[string]*structs.Allocation),
+			DisconnectUpdates:         make(map[string]*structs.Allocation),
+			ReconnectUpdates:          make(map[string]*structs.Allocation),
+			DesiredTGUpdates:          make(map[string]*structs.DesiredUpdates),
+			DesiredFollowupEvals:      make(map[string][]*structs.Evaluation),
+			TaskGroupAllocNameIndexes: make(map[string]*AllocNameIndex),
 		},
-		reconnectingPicker: reconnectingpicker.New(logger),
+		reconnectingPicker: newReconnectingPicker(logger),
 	}
 
 	for _, op := range opts {
@@ -237,7 +227,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn allocUpdateType, batch 
 
 // Compute reconciles the existing cluster state and returns the set of changes
 // required to converge the job spec and state
-func (a *allocReconciler) Compute() *reconcileResults {
+func (a *AllocReconciler) Compute() {
 	// Create the allocation matrix
 	m := newAllocMatrix(a.job, a.existingAllocs)
 
@@ -247,17 +237,15 @@ func (a *allocReconciler) Compute() *reconcileResults {
 	// stopping all running allocs
 	if a.job.Stopped() {
 		a.handleStop(m)
-		return a.result
+		return
 	}
 
 	a.computeDeploymentPaused()
 	deploymentComplete := a.computeDeploymentComplete(m)
 	a.computeDeploymentUpdates(deploymentComplete)
-
-	return a.result
 }
 
-func (a *allocReconciler) computeDeploymentComplete(m allocMatrix) bool {
+func (a *AllocReconciler) computeDeploymentComplete(m allocMatrix) bool {
 	complete := true
 	for group, as := range m {
 		groupComplete := a.computeGroup(group, as)
@@ -267,7 +255,7 @@ func (a *allocReconciler) computeDeploymentComplete(m allocMatrix) bool {
 	return complete
 }
 
-func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
+func (a *AllocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 	if a.deployment != nil {
 		// Mark the deployment as complete if possible
 		if deploymentComplete {
@@ -276,14 +264,14 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 				// need to make sure we don't revert those states
 				if a.deployment.Status != structs.DeploymentStatusUnblocking &&
 					a.deployment.Status != structs.DeploymentStatusSuccessful {
-					a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+					a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
 						DeploymentID:      a.deployment.ID,
 						Status:            structs.DeploymentStatusBlocked,
 						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
 					})
 				}
 			} else {
-				a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+				a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
 					DeploymentID:      a.deployment.ID,
 					Status:            structs.DeploymentStatusSuccessful,
 					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
@@ -293,7 +281,7 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 
 		// Mark the deployment as pending since its state is now computed.
 		if a.deployment.Status == structs.DeploymentStatusInitializing {
-			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+			a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
 				Status:            structs.DeploymentStatusPending,
 				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
@@ -302,7 +290,7 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 	}
 
 	// Set the description of a created deployment
-	if d := a.result.deployment; d != nil {
+	if d := a.Result.Deployment; d != nil {
 		if d.RequiresPromotion() {
 			if d.HasAutoPromote() {
 				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
@@ -322,7 +310,7 @@ func (a *allocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
 //     pending or initializing, which are the initial states for multi-region
 //     job deployments. This flag tells Compute that we should not make
 //     placements on the deployment.
-func (a *allocReconciler) computeDeploymentPaused() {
+func (a *AllocReconciler) computeDeploymentPaused() {
 	if a.deployment != nil {
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused ||
 			a.deployment.Status == structs.DeploymentStatusPending ||
@@ -338,11 +326,11 @@ func (a *allocReconciler) computeDeploymentPaused() {
 // 1. Jobs that are marked for stop, but there is a non-terminal deployment.
 // 2. Deployments that are active, but referencing a different job version.
 // 3. Deployments that are already successful.
-func (a *allocReconciler) cancelUnneededDeployments() {
+func (a *AllocReconciler) cancelUnneededDeployments() {
 	// If the job is stopped and there is a non-terminal deployment, cancel it
 	if a.job.Stopped() {
 		if a.deployment != nil && a.deployment.Active() {
-			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+			a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
 				Status:            structs.DeploymentStatusCancelled,
 				StatusDescription: structs.DeploymentStatusDescriptionStoppedJob,
@@ -363,7 +351,7 @@ func (a *allocReconciler) cancelUnneededDeployments() {
 	// Check if the deployment is active and referencing an older job and cancel it
 	if d.JobCreateIndex != a.job.CreateIndex || d.JobVersion != a.job.Version {
 		if d.Active() {
-			a.result.deploymentUpdates = append(a.result.deploymentUpdates, &structs.DeploymentStatusUpdate{
+			a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
 				DeploymentID:      a.deployment.ID,
 				Status:            structs.DeploymentStatusCancelled,
 				StatusDescription: structs.DeploymentStatusDescriptionNewerJob,
@@ -382,61 +370,61 @@ func (a *allocReconciler) cancelUnneededDeployments() {
 }
 
 // handleStop marks all allocations to be stopped, handling the lost case
-func (a *allocReconciler) handleStop(m allocMatrix) {
+func (a *AllocReconciler) handleStop(m allocMatrix) {
 	for group, as := range m {
 		as = filterByTerminal(as)
 		desiredChanges := new(structs.DesiredUpdates)
 		desiredChanges.Stop = a.filterAndStopAll(as)
-		a.result.desiredTGUpdates[group] = desiredChanges
+		a.Result.DesiredTGUpdates[group] = desiredChanges
 	}
 }
 
 // filterAndStopAll stops all allocations in an allocSet. This is useful in when
 // stopping an entire job or task group.
-func (a *allocReconciler) filterAndStopAll(set allocSet) uint64 {
+func (a *AllocReconciler) filterAndStopAll(set allocSet) uint64 {
 	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := set.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
-	a.markStop(untainted, "", allocNotNeeded)
-	a.markStop(migrate, "", allocNotNeeded)
-	a.markStop(lost, structs.AllocClientStatusLost, allocLost)
-	a.markStop(disconnecting, "", allocNotNeeded)
-	a.markStop(reconnecting, "", allocNotNeeded)
-	a.markStop(ignore.filterByClientStatus(structs.AllocClientStatusUnknown), "", allocNotNeeded)
-	a.markStop(expiring.filterByClientStatus(structs.AllocClientStatusUnknown), "", allocNotNeeded)
+	a.markStop(untainted, "", sstructs.StatusAllocNotNeeded)
+	a.markStop(migrate, "", sstructs.StatusAllocNotNeeded)
+	a.markStop(lost, structs.AllocClientStatusLost, sstructs.StatusAllocLost)
+	a.markStop(disconnecting, "", sstructs.StatusAllocNotNeeded)
+	a.markStop(reconnecting, "", sstructs.StatusAllocNotNeeded)
+	a.markStop(ignore.filterByClientStatus(structs.AllocClientStatusUnknown), "", sstructs.StatusAllocNotNeeded)
+	a.markStop(expiring.filterByClientStatus(structs.AllocClientStatusUnknown), "", sstructs.StatusAllocNotNeeded)
 	return uint64(len(set))
 }
 
 // markStop is a helper for marking a set of allocation for stop with a
 // particular client status and description.
-func (a *allocReconciler) markStop(allocs allocSet, clientStatus, statusDescription string) {
+func (a *AllocReconciler) markStop(allocs allocSet, clientStatus, statusDescription string) {
 	for _, alloc := range allocs {
-		a.result.stop = append(a.result.stop, allocStopResult{
-			alloc:             alloc,
-			clientStatus:      clientStatus,
-			statusDescription: statusDescription,
+		a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+			Alloc:             alloc,
+			ClientStatus:      clientStatus,
+			StatusDescription: statusDescription,
 		})
 	}
 }
 
 // markDelayed does markStop, but optionally includes a FollowupEvalID so that we can update
 // the stopped alloc with its delayed rescheduling evalID
-func (a *allocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescription string, followupEvals map[string]string) {
+func (a *AllocReconciler) markDelayed(allocs allocSet, clientStatus, statusDescription string, followupEvals map[string]string) {
 	for _, alloc := range allocs {
-		a.result.stop = append(a.result.stop, allocStopResult{
-			alloc:             alloc,
-			clientStatus:      clientStatus,
-			statusDescription: statusDescription,
-			followupEvalID:    followupEvals[alloc.ID],
+		a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+			Alloc:             alloc,
+			ClientStatus:      clientStatus,
+			StatusDescription: statusDescription,
+			FollowupEvalID:    followupEvals[alloc.ID],
 		})
 	}
 }
 
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
-func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
+func (a *AllocReconciler) computeGroup(groupName string, all allocSet) bool {
 
 	// Create the desired update object for the group
 	desiredChanges := new(structs.DesiredUpdates)
-	a.result.desiredTGUpdates[groupName] = desiredChanges
+	a.Result.DesiredTGUpdates[groupName] = desiredChanges
 
 	// Get the task group. The task group may be nil if the job was updates such
 	// that the task group no longer exists
@@ -542,7 +530,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// which is the union of untainted, rescheduled, allocs on migrating
 	// nodes, and allocs on down nodes (includes canaries)
 	nameIndex := newAllocNameIndex(a.jobID, groupName, tg.Count, untainted.union(migrate, rescheduleNow, lost))
-	a.result.taskGroupAllocNameIndexes[groupName] = nameIndex
+	a.Result.TaskGroupAllocNameIndexes[groupName] = nameIndex
 
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
@@ -583,7 +571,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// * If there are any canaries that they have been promoted
 	// * There is no delayed stop_after_client_disconnect alloc, which delays scheduling for the whole group
 	// * An alloc was lost
-	var place []allocPlaceResult
+	var place []AllocPlaceResult
 	if len(lostLater) == 0 {
 		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
 		if !existingDeployment {
@@ -609,7 +597,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// Deployments that are still initializing need to be sent in full in the
 	// plan so its internal state can be persisted by the plan applier.
 	if a.deployment != nil && a.deployment.Status == structs.DeploymentStatusInitializing {
-		a.result.deployment = a.deployment
+		a.Result.Deployment = a.deployment
 	}
 
 	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
@@ -618,7 +606,7 @@ func (a *allocReconciler) computeGroup(groupName string, all allocSet) bool {
 	return deploymentComplete
 }
 
-func (a *allocReconciler) initializeDeploymentState(group string, tg *structs.TaskGroup) (*structs.DeploymentState, bool) {
+func (a *AllocReconciler) initializeDeploymentState(group string, tg *structs.TaskGroup) (*structs.DeploymentState, bool) {
 	var dstate *structs.DeploymentState
 	existingDeployment := false
 
@@ -639,7 +627,7 @@ func (a *allocReconciler) initializeDeploymentState(group string, tg *structs.Ta
 }
 
 // If we have destructive updates, and have fewer canaries than is desired, we need to create canaries.
-func (a *allocReconciler) requiresCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState, destructive, canaries allocSet) bool {
+func (a *AllocReconciler) requiresCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState, destructive, canaries allocSet) bool {
 	canariesPromoted := dstate != nil && dstate.Promoted
 	return tg.Update != nil &&
 		len(destructive) != 0 &&
@@ -647,14 +635,14 @@ func (a *allocReconciler) requiresCanaries(tg *structs.TaskGroup, dstate *struct
 		!canariesPromoted
 }
 
-func (a *allocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState,
-	destructive, canaries allocSet, desiredChanges *structs.DesiredUpdates, nameIndex *allocNameIndex) {
+func (a *AllocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs.DeploymentState,
+	destructive, canaries allocSet, desiredChanges *structs.DesiredUpdates, nameIndex *AllocNameIndex) {
 	dstate.DesiredCanaries = tg.Update.Canary
 
 	if !a.deploymentPaused && !a.deploymentFailed {
 		desiredChanges.Canary += uint64(tg.Update.Canary - len(canaries))
 		for _, name := range nameIndex.NextCanaries(uint(desiredChanges.Canary), canaries, destructive) {
-			a.result.place = append(a.result.place, allocPlaceResult{
+			a.Result.Place = append(a.Result.Place, AllocPlaceResult{
 				name:      name,
 				canary:    true,
 				taskGroup: tg,
@@ -665,7 +653,7 @@ func (a *allocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs
 
 // filterOldTerminalAllocs filters allocations that should be ignored since they
 // are allocations that are terminal from a previous job version.
-func (a *allocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignore allocSet) {
+func (a *AllocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignore allocSet) {
 	if !a.batch {
 		return all, nil
 	}
@@ -688,7 +676,7 @@ func (a *allocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignor
 // cancelUnneededCanaries handles the canaries for the group by stopping the
 // unneeded ones and returning the current set of canaries and the updated total
 // set of allocs for the group
-func (a *allocReconciler) cancelUnneededCanaries(original allocSet, desiredChanges *structs.DesiredUpdates) (canaries, all allocSet) {
+func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChanges *structs.DesiredUpdates) (canaries, all allocSet) {
 	// Stop any canary from an older deployment or from a failed one
 	var stop []string
 
@@ -715,7 +703,7 @@ func (a *allocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 	// stopSet is the allocSet that contains the canaries we desire to stop from
 	// above.
 	stopSet := all.fromKeys(stop)
-	a.markStop(stopSet, "", allocNotNeeded)
+	a.markStop(stopSet, "", sstructs.StatusAllocNotNeeded)
 	desiredChanges.Stop += uint64(len(stopSet))
 	all = all.difference(stopSet)
 
@@ -732,8 +720,8 @@ func (a *allocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 		// We don't add these stops to desiredChanges because the deployment is
 		// still active. DesiredChanges is used to report deployment progress/final
 		// state. These transient failures aren't meaningful.
-		a.markStop(migrate, "", allocMigrating)
-		a.markStop(lost, structs.AllocClientStatusLost, allocLost)
+		a.markStop(migrate, "", sstructs.StatusAllocMigrating)
+		a.markStop(lost, structs.AllocClientStatusLost, sstructs.StatusAllocLost)
 
 		canaries = untainted
 		all = all.difference(migrate, lost)
@@ -745,7 +733,7 @@ func (a *allocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 // computeUnderProvisionedBy returns the number of allocs that still need to be
 // placed for a particular group. The inputs are the group definition, the untainted,
 // destructive, and migrate allocation sets, and whether we are in a canary state.
-func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, untainted, destructive, migrate allocSet, isCanarying bool) int {
+func (a *AllocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, untainted, destructive, migrate allocSet, isCanarying bool) int {
 	// If no update strategy, nothing is migrating, and nothing is being replaced,
 	// allow as many as defined in group.Count
 	if group.Update.IsEmpty() || len(destructive)+len(migrate) == 0 {
@@ -790,14 +778,14 @@ func (a *allocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 // definition, the set of untainted, migrating and reschedule allocations for the group.
 //
 // Placements will meet or exceed group count.
-func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
-	nameIndex *allocNameIndex, untainted, migrate, reschedule, lost allocSet,
-	isCanarying bool) []allocPlaceResult {
+func (a *AllocReconciler) computePlacements(group *structs.TaskGroup,
+	nameIndex *AllocNameIndex, untainted, migrate, reschedule, lost allocSet,
+	isCanarying bool) []AllocPlaceResult {
 
 	// Add rescheduled placement results
-	var place []allocPlaceResult
+	var place []AllocPlaceResult
 	for _, alloc := range reschedule {
-		place = append(place, allocPlaceResult{
+		place = append(place, AllocPlaceResult{
 			name:          alloc.Name,
 			taskGroup:     group,
 			previousAlloc: alloc,
@@ -822,7 +810,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 		}
 
 		existing++
-		place = append(place, allocPlaceResult{
+		place = append(place, AllocPlaceResult{
 			name:               alloc.Name,
 			taskGroup:          group,
 			previousAlloc:      alloc,
@@ -837,7 +825,7 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 	// Add remaining placement results
 	if existing < group.Count {
 		for _, name := range nameIndex.Next(uint(group.Count - existing)) {
-			place = append(place, allocPlaceResult{
+			place = append(place, AllocPlaceResult{
 				name:               name,
 				taskGroup:          group,
 				downgradeNonCanary: isCanarying,
@@ -853,15 +841,15 @@ func (a *allocReconciler) computePlacements(group *structs.TaskGroup,
 // and if the placement is already rescheduling or part of a failed deployment.
 // The input deploymentPlaceReady is calculated as the deployment is not paused, failed, or canarying.
 // It returns the number of allocs still needed.
-func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
-	place []allocPlaceResult, rescheduleNow, lost allocSet, underProvisionedBy int) int {
+func (a *AllocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
+	place []AllocPlaceResult, rescheduleNow, lost allocSet, underProvisionedBy int) int {
 
 	// Disconnecting allocs are not failing, but are included in rescheduleNow.
 	// Create a new set that only includes the actual failures and compute
 	// replacements based off that.
 	failed := make(allocSet)
 	for id, alloc := range rescheduleNow {
-		_, ok := a.result.disconnectUpdates[id]
+		_, ok := a.Result.DisconnectUpdates[id]
 		if !ok && alloc.ClientStatus != structs.AllocClientStatusUnknown {
 			failed[id] = alloc
 		}
@@ -872,9 +860,9 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		desiredChanges.Place += uint64(len(place))
 		// This relies on the computePlacements having built this set, which in
 		// turn relies on len(lostLater) == 0.
-		a.result.place = append(a.result.place, place...)
+		a.Result.Place = append(a.Result.Place, place...)
 
-		a.markStop(failed, "", allocRescheduled)
+		a.markStop(failed, "", sstructs.StatusAllocRescheduled)
 		desiredChanges.Stop += uint64(len(failed))
 
 		minimum := min(len(place), underProvisionedBy)
@@ -891,7 +879,7 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	if len(lost) != 0 {
 		allowed := min(len(lost), len(place))
 		desiredChanges.Place += uint64(allowed)
-		a.result.place = append(a.result.place, place[:allowed]...)
+		a.Result.Place = append(a.Result.Place, place[:allowed]...)
 	}
 
 	// if no failures or there are no pending placements return.
@@ -907,17 +895,17 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		partOfFailedDeployment := a.deploymentFailed && prev != nil && a.deployment.ID == prev.DeploymentID
 
 		if !partOfFailedDeployment && p.IsRescheduling() {
-			a.result.place = append(a.result.place, p)
+			a.Result.Place = append(a.Result.Place, p)
 			desiredChanges.Place++
 
-			_, prevIsDisconnecting := a.result.disconnectUpdates[prev.ID]
+			_, prevIsDisconnecting := a.Result.DisconnectUpdates[prev.ID]
 			if prevIsDisconnecting {
 				continue
 			}
 
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             prev,
-				statusDescription: allocRescheduled,
+			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+				Alloc:             prev,
+				StatusDescription: sstructs.StatusAllocRescheduled,
 			})
 			desiredChanges.Stop++
 		}
@@ -926,7 +914,7 @@ func (a *allocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	return underProvisionedBy
 }
 
-func (a *allocReconciler) computeDestructiveUpdates(destructive allocSet, underProvisionedBy int,
+func (a *AllocReconciler) computeDestructiveUpdates(destructive allocSet, underProvisionedBy int,
 	desiredChanges *structs.DesiredUpdates, tg *structs.TaskGroup) {
 
 	// Do all destructive updates
@@ -934,23 +922,23 @@ func (a *allocReconciler) computeDestructiveUpdates(destructive allocSet, underP
 	desiredChanges.DestructiveUpdate += uint64(minimum)
 	desiredChanges.Ignore += uint64(len(destructive) - minimum)
 	for _, alloc := range destructive.nameOrder()[:minimum] {
-		a.result.destructiveUpdate = append(a.result.destructiveUpdate, allocDestructiveResult{
+		a.Result.DestructiveUpdate = append(a.Result.DestructiveUpdate, allocDestructiveResult{
 			placeName:             alloc.Name,
 			placeTaskGroup:        tg,
 			stopAlloc:             alloc,
-			stopStatusDescription: allocUpdating,
+			stopStatusDescription: sstructs.StatusAllocUpdating,
 		})
 	}
 }
 
-func (a *allocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdates, migrate allocSet, tg *structs.TaskGroup, isCanarying bool) {
+func (a *AllocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdates, migrate allocSet, tg *structs.TaskGroup, isCanarying bool) {
 	desiredChanges.Migrate += uint64(len(migrate))
 	for _, alloc := range migrate.nameOrder() {
-		a.result.stop = append(a.result.stop, allocStopResult{
-			alloc:             alloc,
-			statusDescription: allocMigrating,
+		a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+			Alloc:             alloc,
+			StatusDescription: sstructs.StatusAllocMigrating,
 		})
-		a.result.place = append(a.result.place, allocPlaceResult{
+		a.Result.Place = append(a.Result.Place, AllocPlaceResult{
 			name:          alloc.Name,
 			canary:        alloc.DeploymentStatus.IsCanary(),
 			taskGroup:     tg,
@@ -962,7 +950,7 @@ func (a *allocReconciler) computeMigrations(desiredChanges *structs.DesiredUpdat
 	}
 }
 
-func (a *allocReconciler) createDeployment(groupName string, strategy *structs.UpdateStrategy,
+func (a *AllocReconciler) createDeployment(groupName string, strategy *structs.UpdateStrategy,
 	existingDeployment bool, dstate *structs.DeploymentState, all, destructive allocSet) {
 	// Guard the simple cases that require no computation first.
 	if existingDeployment ||
@@ -971,7 +959,7 @@ func (a *allocReconciler) createDeployment(groupName string, strategy *structs.U
 		return
 	}
 
-	updatingSpec := len(destructive) != 0 || len(a.result.inplaceUpdate) != 0
+	updatingSpec := len(destructive) != 0 || len(a.Result.InplaceUpdate) != 0
 
 	hadRunning := false
 	for _, alloc := range all {
@@ -990,15 +978,15 @@ func (a *allocReconciler) createDeployment(groupName string, strategy *structs.U
 	// A previous group may have made the deployment already. If not create one.
 	if a.deployment == nil {
 		a.deployment = structs.NewDeployment(a.job, a.evalPriority, a.now.UnixNano())
-		a.result.deployment = a.deployment
+		a.Result.Deployment = a.deployment
 	}
 
 	// Attach the groups deployment state to the deployment
 	a.deployment.TaskGroups[groupName] = dstate
 }
 
-func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, inplace, migrate, rescheduleNow allocSet,
-	place []allocPlaceResult, rescheduleLater []*delayedRescheduleInfo, requiresCanaries bool) bool {
+func (a *AllocReconciler) isDeploymentComplete(groupName string, destructive, inplace, migrate, rescheduleNow allocSet,
+	place []AllocPlaceResult, rescheduleLater []*delayedRescheduleInfo, requiresCanaries bool) bool {
 
 	complete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 &&
 		!requiresCanaries
@@ -1021,14 +1009,14 @@ func (a *allocReconciler) isDeploymentComplete(groupName string, destructive, in
 // computeStop returns the set of allocations that are marked for stopping given
 // the group definition, the set of allocations in various states and whether we
 // are canarying.
-func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *allocNameIndex,
+func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *AllocNameIndex,
 	untainted, migrate, lost, canaries allocSet, isCanarying bool, followupEvals map[string]string) allocSet {
 
 	// Mark all lost allocations for stop.
 	var stop allocSet
 	stop = stop.union(lost)
 
-	a.markDelayed(lost, structs.AllocClientStatusLost, allocLost, followupEvals)
+	a.markDelayed(lost, structs.AllocClientStatusLost, sstructs.StatusAllocLost, followupEvals)
 
 	// If we are still deploying or creating canaries, don't stop them
 	if isCanarying {
@@ -1062,9 +1050,9 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 		for id, alloc := range untainted.difference(canaries) {
 			if _, match := canaryNames[alloc.Name]; match {
 				stop[id] = alloc
-				a.result.stop = append(a.result.stop, allocStopResult{
-					alloc:             alloc,
-					statusDescription: allocNotNeeded,
+				a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+					Alloc:             alloc,
+					StatusDescription: sstructs.StatusAllocNotNeeded,
 				})
 				delete(untainted, id)
 
@@ -1084,9 +1072,9 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 			if _, match := removeNames[alloc.Name]; !match {
 				continue
 			}
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             alloc,
-				statusDescription: allocNotNeeded,
+			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+				Alloc:             alloc,
+				StatusDescription: sstructs.StatusAllocNotNeeded,
 			})
 			delete(migrate, id)
 			stop[id] = alloc
@@ -1104,9 +1092,9 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	for id, alloc := range untainted {
 		if _, ok := removeNames[alloc.Name]; ok {
 			stop[id] = alloc
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             alloc,
-				statusDescription: allocNotNeeded,
+			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+				Alloc:             alloc,
+				StatusDescription: sstructs.StatusAllocNotNeeded,
 			})
 			delete(untainted, id)
 
@@ -1121,9 +1109,9 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 	// were allocations with duplicate names.
 	for id, alloc := range untainted {
 		stop[id] = alloc
-		a.result.stop = append(a.result.stop, allocStopResult{
-			alloc:             alloc,
-			statusDescription: allocNotNeeded,
+		a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+			Alloc:             alloc,
+			StatusDescription: sstructs.StatusAllocNotNeeded,
 		})
 		delete(untainted, id)
 
@@ -1149,7 +1137,7 @@ func (a *allocReconciler) computeStop(group *structs.TaskGroup, nameIndex *alloc
 //   - If the reconnecting allocation is to be stopped, its replacements may
 //     not be present in any of the returned sets. The rest of the reconciler
 //     logic will handle them.
-func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all allocSet, tg *structs.TaskGroup) (allocSet, allocSet) {
+func (a *AllocReconciler) reconcileReconnecting(reconnecting allocSet, all allocSet, tg *structs.TaskGroup) (allocSet, allocSet) {
 	stop := make(allocSet)
 	reconnect := make(allocSet)
 
@@ -1161,10 +1149,10 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 
 		if reconnectFailed {
 			stop[reconnectingAlloc.ID] = reconnectingAlloc
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             reconnectingAlloc,
-				clientStatus:      structs.AllocClientStatusFailed,
-				statusDescription: allocRescheduled,
+			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+				Alloc:             reconnectingAlloc,
+				ClientStatus:      structs.AllocClientStatusFailed,
+				StatusDescription: sstructs.StatusAllocRescheduled,
 			})
 			continue
 		}
@@ -1180,9 +1168,9 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 
 		if stopReconnecting {
 			stop[reconnectingAlloc.ID] = reconnectingAlloc
-			a.result.stop = append(a.result.stop, allocStopResult{
-				alloc:             reconnectingAlloc,
-				statusDescription: allocNotNeeded,
+			a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+				Alloc:             reconnectingAlloc,
+				StatusDescription: sstructs.StatusAllocNotNeeded,
 			})
 			continue
 		}
@@ -1218,15 +1206,15 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 			}
 
 			// Pick which allocation we want to keep using the disconnect reconcile strategy
-			keepAlloc := a.reconnectingPicker.PickReconnectingAlloc(tg.Disconnect, reconnectingAlloc, replacementAlloc)
+			keepAlloc := a.reconnectingPicker.pickReconnectingAlloc(tg.Disconnect, reconnectingAlloc, replacementAlloc)
 			if keepAlloc == replacementAlloc {
 				// The replacement allocation is preferred, so stop the one
 				// reconnecting if not stopped yet.
 				if _, ok := stop[reconnectingAlloc.ID]; !ok {
 					stop[reconnectingAlloc.ID] = reconnectingAlloc
-					a.result.stop = append(a.result.stop, allocStopResult{
-						alloc:             reconnectingAlloc,
-						statusDescription: allocNotNeeded,
+					a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+						Alloc:             reconnectingAlloc,
+						StatusDescription: sstructs.StatusAllocNotNeeded,
 					})
 				}
 			} else {
@@ -1234,9 +1222,9 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 				// that are not in server terminal status or stopped already.
 				if _, ok := stop[replacementAlloc.ID]; !ok {
 					stop[replacementAlloc.ID] = replacementAlloc
-					a.result.stop = append(a.result.stop, allocStopResult{
-						alloc:             replacementAlloc,
-						statusDescription: allocReconnected,
+					a.Result.Stop = append(a.Result.Stop, AllocStopResult{
+						Alloc:             replacementAlloc,
+						StatusDescription: sstructs.StatusAllocReconnected,
 					})
 				}
 			}
@@ -1259,7 +1247,7 @@ func (a *allocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 // 2. Those that can be upgraded in-place. These are added to the results
 // automatically since the function contains the correct state to do so,
 // 3. Those that require destructive updates
-func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted allocSet) (ignore, inplace, destructive allocSet) {
+func (a *AllocReconciler) computeUpdates(group *structs.TaskGroup, untainted allocSet) (ignore, inplace, destructive allocSet) {
 	// Determine the set of allocations that need to be updated
 	ignore = make(map[string]*structs.Allocation)
 	inplace = make(map[string]*structs.Allocation)
@@ -1273,7 +1261,7 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 			destructive[alloc.ID] = alloc
 		} else {
 			inplace[alloc.ID] = alloc
-			a.result.inplaceUpdate = append(a.result.inplaceUpdate, inplaceAlloc)
+			a.Result.InplaceUpdate = append(a.Result.InplaceUpdate, inplaceAlloc)
 		}
 	}
 
@@ -1283,7 +1271,7 @@ func (a *allocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 // createRescheduleLaterEvals creates batched followup evaluations with the WaitUntil field
 // set for allocations that are eligible to be rescheduled later, and marks the alloc with
 // the followupEvalID
-func (a *allocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
+func (a *AllocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet, tgName string) {
 	// followupEvals are created in the same way as for delayed lost allocs
 	allocIDToFollowupEvalID := a.createLostLaterEvals(rescheduleLater, tgName)
 
@@ -1294,10 +1282,10 @@ func (a *allocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedR
 		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
 
 		// Can't updated an allocation that is disconnected
-		if _, ok := a.result.disconnectUpdates[laterAlloc.allocID]; !ok {
-			a.result.attributeUpdates[laterAlloc.allocID] = updatedAlloc
+		if _, ok := a.Result.DisconnectUpdates[laterAlloc.allocID]; !ok {
+			a.Result.AttributeUpdates[laterAlloc.allocID] = updatedAlloc
 		} else {
-			a.result.disconnectUpdates[laterAlloc.allocID].FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
+			a.Result.DisconnectUpdates[laterAlloc.allocID].FollowupEvalID = allocIDToFollowupEvalID[laterAlloc.alloc.ID]
 		}
 	}
 }
@@ -1307,7 +1295,7 @@ func (a *allocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedR
 // set to running, and these allocs are appended to the Plan as non-destructive
 // updates. Clients are responsible for reconciling the DesiredState with the
 // actual state as the node comes back online.
-func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
+func (a *AllocReconciler) computeReconnecting(reconnecting allocSet) {
 
 	// Create updates that will be appended to the plan.
 	for _, alloc := range reconnecting {
@@ -1335,14 +1323,14 @@ func (a *allocReconciler) computeReconnecting(reconnecting allocSet) {
 		// Use a copy to prevent mutating the object from statestore.
 		reconnectedAlloc := alloc.Copy()
 		reconnectedAlloc.AppendState(structs.AllocStateFieldClientStatus, alloc.ClientStatus)
-		a.result.reconnectUpdates[reconnectedAlloc.ID] = reconnectedAlloc
+		a.Result.ReconnectUpdates[reconnectedAlloc.ID] = reconnectedAlloc
 	}
 }
 
 // handleDelayedLost creates batched followup evaluations with the WaitUntil field set for
 // lost allocations. followupEvals are appended to a.result as a side effect, we return a
 // map of alloc IDs to their followupEval IDs.
-func (a *allocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, tgName string) map[string]string {
+func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, tgName string) map[string]string {
 	if len(rescheduleLater) == 0 {
 		return map[string]string{}
 	}
@@ -1366,7 +1354,7 @@ func (a *allocReconciler) createLostLaterEvals(rescheduleLater []*delayedResched
 		JobID:             a.job.ID,
 		JobModifyIndex:    a.job.ModifyIndex,
 		Status:            structs.EvalStatusPending,
-		StatusDescription: reschedulingFollowupEvalDesc,
+		StatusDescription: sstructs.DescReschedulingFollowupEval,
 		WaitUntil:         nextReschedTime,
 	}
 	evals = append(evals, eval)
@@ -1404,7 +1392,7 @@ func (a *allocReconciler) createLostLaterEvals(rescheduleLater []*delayedResched
 // createTimeoutLaterEvals creates followup evaluations with the
 // WaitUntil field set for allocations in an unknown state on disconnected nodes.
 // It returns a map of allocIDs to their associated followUpEvalIDs.
-func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName string) map[string]string {
+func (a *AllocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName string) map[string]string {
 	if len(disconnecting) == 0 {
 		return map[string]string{}
 	}
@@ -1434,7 +1422,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 		JobID:             a.job.ID,
 		JobModifyIndex:    a.job.ModifyIndex,
 		Status:            structs.EvalStatusPending,
-		StatusDescription: disconnectTimeoutFollowupEvalDesc,
+		StatusDescription: sstructs.DescDisconnectTimeoutFollowupEval,
 		WaitUntil:         nextReschedTime,
 	}
 	evals = append(evals, eval)
@@ -1458,7 +1446,7 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 				JobID:             a.job.ID,
 				JobModifyIndex:    a.job.ModifyIndex,
 				Status:            structs.EvalStatusPending,
-				StatusDescription: disconnectTimeoutFollowupEvalDesc,
+				StatusDescription: sstructs.DescDisconnectTimeoutFollowupEval,
 				WaitUntil:         timeoutInfo.rescheduleTime,
 			}
 			evals = append(evals, eval)
@@ -1476,14 +1464,14 @@ func (a *allocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 // Create updates that will be applied to the allocs to mark the FollowupEvalID
 // and the unknown ClientStatus and AllocState.
-func (a *allocReconciler) appendUnknownDisconnectingUpdates(disconnecting allocSet, allocIDToFollowupEvalID map[string]string, rescheduleNow allocSet) {
+func (a *AllocReconciler) appendUnknownDisconnectingUpdates(disconnecting allocSet, allocIDToFollowupEvalID map[string]string, rescheduleNow allocSet) {
 	for id, alloc := range disconnecting {
 		updatedAlloc := alloc.Copy()
 		updatedAlloc.ClientStatus = structs.AllocClientStatusUnknown
 		updatedAlloc.AppendState(structs.AllocStateFieldClientStatus, structs.AllocClientStatusUnknown)
-		updatedAlloc.ClientDescription = allocUnknown
+		updatedAlloc.ClientDescription = sstructs.StatusAllocUnknown
 		updatedAlloc.FollowupEvalID = allocIDToFollowupEvalID[id]
-		a.result.disconnectUpdates[updatedAlloc.ID] = updatedAlloc
+		a.Result.DisconnectUpdates[updatedAlloc.ID] = updatedAlloc
 
 		// update the reschedule set so that any placements holding onto this
 		// pointer are using the right pointer for PreviousAllocation()
@@ -1497,13 +1485,13 @@ func (a *allocReconciler) appendUnknownDisconnectingUpdates(disconnecting allocS
 
 // appendFollowupEvals appends a set of followup evals for a task group to the
 // desiredFollowupEvals map which is later added to the scheduler's followUpEvals set.
-func (a *allocReconciler) appendFollowupEvals(tgName string, evals []*structs.Evaluation) {
+func (a *AllocReconciler) appendFollowupEvals(tgName string, evals []*structs.Evaluation) {
 	// Merge with
-	if existingFollowUpEvals, ok := a.result.desiredFollowupEvals[tgName]; ok {
+	if existingFollowUpEvals, ok := a.Result.DesiredFollowupEvals[tgName]; ok {
 		evals = append(existingFollowUpEvals, evals...)
 	}
 
-	a.result.desiredFollowupEvals[tgName] = evals
+	a.Result.DesiredFollowupEvals[tgName] = evals
 }
 
 // emitRescheduleInfo emits metrics about the rescheduling decision of an evaluation. If a followup evaluation is

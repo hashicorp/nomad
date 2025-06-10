@@ -15,35 +15,9 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/reconcile"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
-
-// allocTuple is a tuple of the allocation name and potential alloc ID
-type allocTuple struct {
-	Name      string
-	TaskGroup *structs.TaskGroup
-	Alloc     *structs.Allocation
-}
-
-// diffResult is used to return the sets that result from the diff
-type diffResult struct {
-	place, update, migrate, stop, ignore, lost, disconnecting, reconnecting []allocTuple
-}
-
-func (d *diffResult) GoString() string {
-	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d) (lost %d) (disconnecting %d) (reconnecting %d)",
-		len(d.place), len(d.update), len(d.migrate), len(d.stop), len(d.ignore), len(d.lost), len(d.disconnecting), len(d.reconnecting))
-}
-
-func (d *diffResult) Append(other *diffResult) {
-	d.place = append(d.place, other.place...)
-	d.update = append(d.update, other.update...)
-	d.migrate = append(d.migrate, other.migrate...)
-	d.stop = append(d.stop, other.stop...)
-	d.ignore = append(d.ignore, other.ignore...)
-	d.lost = append(d.lost, other.lost...)
-	d.disconnecting = append(d.disconnecting, other.disconnecting...)
-	d.reconnecting = append(d.reconnecting, other.reconnecting...)
-}
 
 // readyNodesInDCsAndPool returns all the ready nodes in the given datacenters
 // and pool, and a mapping of each data center to the count of ready nodes.
@@ -615,7 +589,7 @@ func setStatus(logger log.Logger, planner Planner,
 // inplaceUpdate attempts to update allocations in-place where possible. It
 // returns the allocs that couldn't be done inplace and then those that could.
 func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
-	stack Stack, updates []allocTuple) (destructive, inplace []allocTuple) {
+	stack Stack, updates []reconcile.AllocTuple) (destructive, inplace []reconcile.AllocTuple) {
 
 	// doInplace manipulates the updates map to make the current allocation
 	// an inplace update.
@@ -675,7 +649,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(update.Alloc, allocInPlace, "", "")
+		ctx.Plan().AppendStoppedAlloc(update.Alloc, sstructs.StatusAllocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(update.TaskGroup,
@@ -743,11 +717,11 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 // desiredUpdates takes the diffResult as well as the set of inplace and
 // destructive updates and returns a map of task groups to their set of desired
 // updates.
-func desiredUpdates(diff *diffResult, inplaceUpdates,
-	destructiveUpdates []allocTuple) map[string]*structs.DesiredUpdates {
+func desiredUpdates(diff *reconcile.NodeReconcileResult, inplaceUpdates,
+	destructiveUpdates []reconcile.AllocTuple) map[string]*structs.DesiredUpdates {
 	desiredTgs := make(map[string]*structs.DesiredUpdates)
 
-	for _, tuple := range diff.place {
+	for _, tuple := range diff.Place {
 		name := tuple.TaskGroup.Name
 		des, ok := desiredTgs[name]
 		if !ok {
@@ -758,7 +732,7 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 		des.Place++
 	}
 
-	for _, tuple := range diff.stop {
+	for _, tuple := range diff.Stop {
 		name := tuple.Alloc.TaskGroup
 		des, ok := desiredTgs[name]
 		if !ok {
@@ -769,7 +743,7 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 		des.Stop++
 	}
 
-	for _, tuple := range diff.ignore {
+	for _, tuple := range diff.Ignore {
 		name := tuple.TaskGroup.Name
 		des, ok := desiredTgs[name]
 		if !ok {
@@ -780,7 +754,7 @@ func desiredUpdates(diff *diffResult, inplaceUpdates,
 		des.Ignore++
 	}
 
-	for _, tuple := range diff.migrate {
+	for _, tuple := range diff.Migrate {
 		name := tuple.TaskGroup.Name
 		des, ok := desiredTgs[name]
 		if !ok {
@@ -864,7 +838,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 			alloc.DesiredStatus == structs.AllocDesiredStatusEvict) &&
 			(alloc.ClientStatus == structs.AllocClientStatusRunning ||
 				alloc.ClientStatus == structs.AllocClientStatusPending) {
-			plan.AppendStoppedAlloc(alloc, allocLost, structs.AllocClientStatusLost, "")
+			plan.AppendStoppedAlloc(alloc, sstructs.StatusAllocLost, structs.AllocClientStatusLost, "")
 		}
 	}
 }
@@ -875,7 +849,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 // by the reconciler to make decisions about how to update an allocation. The
 // factory allows the reconciler to be unaware of how to determine the type of
 // update necessary and can minimize the set of objects it is exposed to.
-func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateType {
+func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) reconcile.AllocUpdateType {
 	return func(existing *structs.Allocation, newJob *structs.Job, newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation) {
 		// Same index, so nothing to do
 		if existing.Job.JobModifyIndex == newJob.JobModifyIndex {
@@ -922,7 +896,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) allocUpdateTy
 		// the current allocation is discounted when checking for feasibility.
 		// Otherwise we would be trying to fit the tasks current resources and
 		// updated resources. After select is called we can remove the evict.
-		ctx.Plan().AppendStoppedAlloc(existing, allocInPlace, "", "")
+		ctx.Plan().AppendStoppedAlloc(existing, sstructs.StatusAllocInPlace, "", "")
 
 		// Attempt to match the task group
 		option := stack.Select(newTG, &SelectOptions{AllocName: existing.Name})
