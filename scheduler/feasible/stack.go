@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 import (
 	"math"
@@ -77,7 +77,7 @@ type GenericStack struct {
 func (s *GenericStack) SetNodes(baseNodes []*structs.Node) {
 	// Shuffle base nodes
 	idx, _ := s.ctx.State().LatestIndex()
-	shuffleNodes(s.ctx.Plan(), idx, baseNodes)
+	ShuffleNodes(s.ctx.Plan(), idx, baseNodes)
 
 	// Update the set of base nodes
 	s.source.SetNodes(baseNodes)
@@ -153,11 +153,11 @@ func (s *GenericStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ra
 	start := time.Now()
 
 	// Get the task groups constraints.
-	tgConstr := taskGroupConstraints(tg)
+	tgConstr := TaskGroupConstraints(tg)
 
 	// Update the parameters of iterators
-	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
-	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
+	s.taskGroupDrivers.SetDrivers(tgConstr.Drivers)
+	s.taskGroupConstraint.SetConstraints(tgConstr.Constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(options.AllocName, s.jobNamespace, s.jobID, tg.Name, tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
@@ -348,11 +348,11 @@ func (s *SystemStack) Select(tg *structs.TaskGroup, options *SelectOptions) *Ran
 	start := time.Now()
 
 	// Get the task groups constraints.
-	tgConstr := taskGroupConstraints(tg)
+	tgConstr := TaskGroupConstraints(tg)
 
 	// Update the parameters of iterators
-	s.taskGroupDrivers.SetDrivers(tgConstr.drivers)
-	s.taskGroupConstraint.SetConstraints(tgConstr.constraints)
+	s.taskGroupDrivers.SetDrivers(tgConstr.Drivers)
+	s.taskGroupConstraint.SetConstraints(tgConstr.Constraints)
 	s.taskGroupDevices.SetTaskGroup(tg)
 	s.taskGroupHostVolumes.SetVolumes(options.AllocName, s.jobNamespace, s.jobID, tg.Name, tg.Volumes)
 	s.taskGroupCSIVolumes.SetVolumes(options.AllocName, tg.Volumes)
@@ -474,28 +474,28 @@ func NewGenericStack(batch bool, ctx Context) *GenericStack {
 	return s
 }
 
-// taskGroupConstraints collects the constraints, drivers and resources required by each
+// TaskGroupConstraints collects the constraints, drivers and resources required by each
 // sub-task to aggregate the TaskGroup totals
-func taskGroupConstraints(tg *structs.TaskGroup) tgConstrainTuple {
-	c := tgConstrainTuple{
-		constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
-		drivers:     make(map[string]struct{}),
+func TaskGroupConstraints(tg *structs.TaskGroup) TgConstrainTuple {
+	c := TgConstrainTuple{
+		Constraints: make([]*structs.Constraint, 0, len(tg.Constraints)),
+		Drivers:     make(map[string]struct{}),
 	}
 
-	c.constraints = append(c.constraints, tg.Constraints...)
+	c.Constraints = append(c.Constraints, tg.Constraints...)
 	for _, task := range tg.Tasks {
-		c.drivers[task.Driver] = struct{}{}
-		c.constraints = append(c.constraints, task.Constraints...)
+		c.Drivers[task.Driver] = struct{}{}
+		c.Constraints = append(c.Constraints, task.Constraints...)
 	}
 
 	return c
 }
 
-// tgConstrainTuple is used to store the total constraints of a task group.
-type tgConstrainTuple struct {
-	// Holds the combined constraints of the task group and all it's sub-tasks.
-	constraints []*structs.Constraint
+// TgConstrainTuple is used to store the total constraints of a task group.
+type TgConstrainTuple struct {
+	// Holds the combined Constraints of the task group and all it's sub-tasks.
+	Constraints []*structs.Constraint
 
-	// The set of required drivers within the task group.
-	drivers map[string]struct{}
+	// The set of required Drivers within the task group.
+	Drivers map[string]struct{}
 }

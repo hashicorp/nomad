@@ -50,6 +50,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/nomad/nomad/volumewatcher"
 	"github.com/hashicorp/nomad/scheduler"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -1860,7 +1861,7 @@ func (s *Server) listenWorkerEvents() {
 			}
 		case e := <-s.workersEventCh:
 			switch event := e.(type) {
-			case *scheduler.PortCollisionEvent:
+			case *sstructs.PortCollisionEvent:
 				if event == nil || event.Node == nil {
 					continue
 				}

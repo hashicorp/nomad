@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/scheduler"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"golang.org/x/time/rate"
 )
 
@@ -37,7 +37,7 @@ type CoreScheduler struct {
 }
 
 // NewCoreScheduler is used to return a new system scheduler instance
-func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) scheduler.Scheduler {
+func NewCoreScheduler(srv *Server, snap *state.StateSnapshot) sstructs.Scheduler {
 	s := &CoreScheduler{
 		srv:                      srv,
 		snap:                     snap,

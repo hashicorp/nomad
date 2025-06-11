@@ -14,7 +14,9 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/reconcile"
+	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test/must"
 )
 
@@ -215,12 +217,12 @@ func TestShuffleNodes(t *testing.T) {
 	copy(orig, nodes)
 	eval := mock.Eval() // will have random EvalID
 	plan := eval.MakePlan(mock.Job())
-	shuffleNodes(plan, 1000, nodes)
+	feasible.ShuffleNodes(plan, 1000, nodes)
 	must.NotEq(t, nodes, orig)
 
 	nodes2 := make([]*structs.Node, len(nodes))
 	copy(nodes2, orig)
-	shuffleNodes(plan, 1000, nodes2)
+	feasible.ShuffleNodes(plan, 1000, nodes2)
 
 	must.Eq(t, nodes, nodes2)
 
@@ -590,7 +592,7 @@ func TestNetworkUpdated(t *testing.T) {
 func TestSetStatus(t *testing.T) {
 	ci.Parallel(t)
 
-	h := NewHarness(t)
+	h := tests.NewHarness(t)
 	logger := testlog.HCLogger(t)
 	eval := mock.Eval()
 	status := "a"
@@ -603,7 +605,7 @@ func TestSetStatus(t *testing.T) {
 		must.Sprintf("setStatus() submited invalid eval: %v", newEval))
 
 	// Test next evals
-	h = NewHarness(t)
+	h = tests.NewHarness(t)
 	next := mock.Eval()
 	must.NoError(t, setStatus(logger, h, eval, next, nil, nil, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
@@ -612,7 +614,7 @@ func TestSetStatus(t *testing.T) {
 	must.Eq(t, next.ID, newEval.NextEval, must.Sprintf("setStatus() didn't set nextEval correctly: %v", newEval))
 
 	// Test blocked evals
-	h = NewHarness(t)
+	h = tests.NewHarness(t)
 	blocked := mock.Eval()
 	must.NoError(t, setStatus(logger, h, eval, nil, blocked, nil, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
@@ -621,7 +623,7 @@ func TestSetStatus(t *testing.T) {
 	must.Eq(t, blocked.ID, newEval.BlockedEval, must.Sprintf("setStatus() didn't set BlockedEval correctly: %v", newEval))
 
 	// Test metrics
-	h = NewHarness(t)
+	h = tests.NewHarness(t)
 	metrics := map[string]*structs.AllocMetric{"foo": nil}
 	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, nil, ""))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
@@ -631,7 +633,7 @@ func TestSetStatus(t *testing.T) {
 		must.Sprintf("setStatus() didn't set failed task group metrics correctly: %v", newEval))
 
 	// Test queued allocations
-	h = NewHarness(t)
+	h = tests.NewHarness(t)
 	queuedAllocs := map[string]int{"web": 1}
 
 	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, ""))
@@ -640,7 +642,7 @@ func TestSetStatus(t *testing.T) {
 	newEval = h.Evals[0]
 	must.Eq(t, newEval.QueuedAllocations, queuedAllocs, must.Sprintf("setStatus() didn't set failed task group metrics correctly: %v", newEval))
 
-	h = NewHarness(t)
+	h = tests.NewHarness(t)
 	dID := uuid.Generate()
 	must.NoError(t, setStatus(logger, h, eval, nil, nil, metrics, status, desc, queuedAllocs, dID))
 	must.Eq(t, 1, len(h.Evals), must.Sprintf("setStatus() didn't update plan: %v", h.Evals))
@@ -652,7 +654,7 @@ func TestSetStatus(t *testing.T) {
 func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	ci.Parallel(t)
 
-	state, ctx := testContext(t)
+	state, ctx := feasible.MockContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
 
@@ -697,19 +699,19 @@ func TestInplaceUpdate_ChangedTaskGroup(t *testing.T) {
 	tg.Tasks = append(tg.Tasks, task)
 
 	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: tg}}
-	stack := NewGenericStack(false, ctx)
+	stack := feasible.NewGenericStack(false, ctx)
 
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
 	must.True(t, len(unplaced) == 1 && len(inplace) == 0, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
-	must.MapEmpty(t, ctx.plan.NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
+	must.MapEmpty(t, ctx.Plan().NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
 }
 
 func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 	ci.Parallel(t)
 
-	state, ctx := testContext(t)
+	state, ctx := feasible.MockContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
 
@@ -751,16 +753,16 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 	}
 
 	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: tg}}
-	stack := NewGenericStack(false, ctx)
+	stack := feasible.NewGenericStack(false, ctx)
 
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
 	must.True(t, len(unplaced) == 0 && len(inplace) == 1, must.Sprint("inplaceUpdate incorrectly did not perform an inplace update"))
-	must.MapNotEmpty(t, ctx.plan.NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
-	must.SliceNotEmpty(t, ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports)
+	must.MapNotEmpty(t, ctx.Plan().NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
+	must.SliceNotEmpty(t, ctx.Plan().NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports)
 
-	port, ok := ctx.plan.NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports.Get("api-port")
+	port, ok := ctx.Plan().NodeAllocation[node.ID][0].AllocatedResources.Shared.Ports.Get("api-port")
 	must.True(t, ok)
 	must.Eq(t, 19910, port.Value)
 }
@@ -768,7 +770,7 @@ func TestInplaceUpdate_AllocatedResources(t *testing.T) {
 func TestInplaceUpdate_NoMatch(t *testing.T) {
 	ci.Parallel(t)
 
-	state, ctx := testContext(t)
+	state, ctx := feasible.MockContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
 
@@ -809,19 +811,19 @@ func TestInplaceUpdate_NoMatch(t *testing.T) {
 	tg.Tasks[0].Resources = resource
 
 	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: tg}}
-	stack := NewGenericStack(false, ctx)
+	stack := feasible.NewGenericStack(false, ctx)
 
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
 	must.True(t, len(unplaced) == 1 && len(inplace) == 0, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
-	must.MapEmpty(t, ctx.plan.NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
+	must.MapEmpty(t, ctx.Plan().NodeAllocation, must.Sprint("inplaceUpdate incorrectly did an inplace update"))
 }
 
 func TestInplaceUpdate_Success(t *testing.T) {
 	ci.Parallel(t)
 
-	state, ctx := testContext(t)
+	state, ctx := feasible.MockContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
 
@@ -878,14 +880,14 @@ func TestInplaceUpdate_Success(t *testing.T) {
 	tg.Tasks[0].Services = append(tg.Tasks[0].Services, newServices...)
 
 	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: tg}}
-	stack := NewGenericStack(false, ctx)
+	stack := feasible.NewGenericStack(false, ctx)
 	stack.SetJob(job)
 
 	// Do the inplace update.
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
 	must.True(t, len(unplaced) == 0 && len(inplace) == 1, must.Sprint("inplaceUpdate did not do an inplace update"))
-	must.Eq(t, 1, len(ctx.plan.NodeAllocation), must.Sprint("inplaceUpdate did not do an inplace update"))
+	must.Eq(t, 1, len(ctx.Plan().NodeAllocation), must.Sprint("inplaceUpdate did not do an inplace update"))
 	must.Eq(t, alloc.ID, inplace[0].Alloc.ID, must.Sprintf("inplaceUpdate returned the wrong, inplace updated alloc: %#v", inplace))
 
 	// Get the alloc we inserted.
@@ -912,7 +914,7 @@ func TestInplaceUpdate_Success(t *testing.T) {
 func TestInplaceUpdate_WildcardDatacenters(t *testing.T) {
 	ci.Parallel(t)
 
-	store, ctx := testContext(t)
+	store, ctx := feasible.MockContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
 	job.Datacenters = []string{"*"}
@@ -928,20 +930,20 @@ func TestInplaceUpdate_WildcardDatacenters(t *testing.T) {
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 1001, []*structs.Allocation{alloc}))
 
 	updates := []reconcile.AllocTuple{{Alloc: alloc, TaskGroup: job.TaskGroups[0]}}
-	stack := NewGenericStack(false, ctx)
+	stack := feasible.NewGenericStack(false, ctx)
 	unplaced, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
 	must.Len(t, 1, inplace,
 		must.Sprintf("inplaceUpdate should have an inplace update"))
 	must.Len(t, 0, unplaced)
-	must.MapNotEmpty(t, ctx.plan.NodeAllocation,
+	must.MapNotEmpty(t, ctx.Plan().NodeAllocation,
 		must.Sprintf("inplaceUpdate should have an inplace update"))
 }
 
 func TestInplaceUpdate_NodePools(t *testing.T) {
 	ci.Parallel(t)
 
-	store, ctx := testContext(t)
+	store, ctx := feasible.MockContext(t)
 	eval := mock.Eval()
 	job := mock.Job()
 	job.Datacenters = []string{"*"}
@@ -973,12 +975,12 @@ func TestInplaceUpdate_NodePools(t *testing.T) {
 		{Alloc: alloc1, TaskGroup: job.TaskGroups[0]},
 		{Alloc: alloc2, TaskGroup: job.TaskGroups[0]},
 	}
-	stack := NewGenericStack(false, ctx)
+	stack := feasible.NewGenericStack(false, ctx)
 	destructive, inplace := inplaceUpdate(ctx, eval, job, stack, updates)
 
 	must.Len(t, 1, inplace, must.Sprint("should have an inplace update"))
 	must.Eq(t, alloc1.ID, inplace[0].Alloc.ID)
-	must.Len(t, 1, ctx.plan.NodeAllocation[node1.ID],
+	must.Len(t, 1, ctx.Plan().NodeAllocation[node1.ID],
 		must.Sprint("NodeAllocation should have an inplace update for node1"))
 
 	// note that NodeUpdate with the new alloc won't be populated here yet
@@ -1136,11 +1138,11 @@ func TestTaskGroupConstraints(t *testing.T) {
 	expConstr := []*structs.Constraint{constr, constr2, constr3}
 	expDrivers := map[string]struct{}{"exec": {}, "docker": {}}
 
-	actConstrains := taskGroupConstraints(tg)
-	must.Eq(t, actConstrains.constraints, expConstr, must.Sprintf(
-		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.constraints, expConstr))
-	must.Eq(t, actConstrains.drivers, expDrivers, must.Sprintf(
-		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.drivers, expDrivers))
+	actConstrains := feasible.TaskGroupConstraints(tg)
+	must.Eq(t, actConstrains.Constraints, expConstr, must.Sprintf(
+		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.Constraints, expConstr))
+	must.Eq(t, actConstrains.Drivers, expDrivers, must.Sprintf(
+		"taskGroupConstraints(%v) returned %v; want %v", tg, actConstrains.Drivers, expDrivers))
 }
 
 func TestProgressMade(t *testing.T) {

@@ -1,86 +1,26 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 import (
 	"testing"
 
 	"github.com/hashicorp/nomad/ci"
-	"github.com/hashicorp/nomad/client/lib/idset"
-	"github.com/hashicorp/nomad/client/lib/numalib"
-	"github.com/hashicorp/nomad/client/lib/numalib/hw"
-	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
-	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
+	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test/must"
 )
-
-func testContext(t testing.TB) (*state.StateStore, *EvalContext) {
-	state := state.TestStateStore(t)
-	plan := &structs.Plan{
-		EvalID:          uuid.Generate(),
-		NodeUpdate:      make(map[string][]*structs.Allocation),
-		NodeAllocation:  make(map[string][]*structs.Allocation),
-		NodePreemptions: make(map[string][]*structs.Allocation),
-	}
-
-	logger := testlog.HCLogger(t)
-
-	ctx := NewEvalContext(nil, state, plan, logger)
-	return state, ctx
-}
-
-// cpuResources creates both the legacy and modern structs concerning cpu
-// metrics used for resource accounting
-//
-// only creates a trivial single node, single core system for the sake of
-// compatibility with existing tests
-func cpuResources(shares int) (structs.LegacyNodeCpuResources, structs.NodeProcessorResources) {
-	n := &structs.NodeResources{
-		Processors: structs.NodeProcessorResources{
-			Topology: &numalib.Topology{
-				Distances: numalib.SLIT{[]numalib.Cost{10}},
-				Cores: []numalib.Core{{
-					SocketID:  0,
-					NodeID:    0,
-					ID:        0,
-					Grade:     numalib.Performance,
-					Disable:   false,
-					BaseSpeed: hw.MHz(shares),
-				}},
-			},
-		},
-	}
-	n.Processors.Topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
-
-	// polyfill the legacy struct
-	n.Compatibility()
-
-	return n.Cpu, n.Processors
-}
-
-func cpuResourcesFrom(top *numalib.Topology) (structs.LegacyNodeCpuResources, structs.NodeProcessorResources) {
-	n := &structs.NodeResources{
-		Processors: structs.NodeProcessorResources{
-			Topology: top,
-		},
-	}
-
-	// polyfill the legacy struct
-	n.Compatibility()
-
-	return n.Cpu, n.Processors
-}
 
 func TestEvalContext_ProposedAlloc(t *testing.T) {
 	ci.Parallel(t)
 
-	state, ctx := testContext(t)
+	state, ctx := MockContext(t)
 
-	legacyCpuResources, processorResources := cpuResources(2048)
+	legacyCpuResources, processorResources := tests.CpuResources(2048)
 
 	nodes := []*RankedNode{
 		{
@@ -208,9 +148,9 @@ func TestEvalContext_ProposedAlloc(t *testing.T) {
 // See https://github.com/hashicorp/nomad/issues/6787
 func TestEvalContext_ProposedAlloc_EvictPreempt(t *testing.T) {
 	ci.Parallel(t)
-	state, ctx := testContext(t)
+	state, ctx := MockContext(t)
 
-	legacyCpuResources, processorResources := cpuResources(3 * 1024)
+	legacyCpuResources, processorResources := tests.CpuResources(3 * 1024)
 
 	nodes := []*RankedNode{
 		{
@@ -460,7 +400,7 @@ func TestEvalEligibility_GetClasses_JobEligible_TaskGroupIneligible(t *testing.T
 func TestPortCollisionEvent_Copy(t *testing.T) {
 	ci.Parallel(t)
 
-	ev := &PortCollisionEvent{
+	ev := &sstructs.PortCollisionEvent{
 		Reason: "original",
 		Node:   mock.Node(),
 		Allocations: []*structs.Allocation{
@@ -492,7 +432,7 @@ func TestPortCollisionEvent_Copy(t *testing.T) {
 func TestPortCollisionEvent_Sanitize(t *testing.T) {
 	ci.Parallel(t)
 
-	ev := &PortCollisionEvent{
+	ev := &sstructs.PortCollisionEvent{
 		Reason: "original",
 		Node:   mock.Node(),
 		Allocations: []*structs.Allocation{
