@@ -177,15 +177,15 @@ deals with disconnected nodes and computes placements.
 
 ## Finding the right node
 
-The `scheduler/feasibility` package contains all the logic used to finding the
+The `scheduler/feasible` package contains all the logic used to finding the
 right nodes to place workloads.
 
 ### Feasibility checking
 
 Nomad uses a set of iterators to iterate over nodes and check how feasible they
 are for any given allocation. The scheduler uses a `Stack` interface that lives
-in `scheduler/feasibility/stack.go` file in order to make placement decisions,
-and feasibility iterators that live in `scheduler/feasibility/feasible.go` to
+in `scheduler/feasible/stack.go` file in order to make placement decisions,
+and feasibility iterators that live in `scheduler/feasible/feasible.go` to
 filter by:
 
 - node eligibiligy,
@@ -208,7 +208,7 @@ Once nodes are filtered, the `Stack` implementations (`GenericStack` and
 Applies only to service and batch jobs, since system and sysbatch jobs are
 placed on all feasible nodes.
 
-This part of scheduling sits in the `scheduler/feasibility/rank.go` file. The
+This part of scheduling sits in the `scheduler/feasible/rank.go` file. The
 `RankIterator` interface, which is implemented by e.g., `SpreadIterator` and
 `BinPackIterator`, captures the ranking logic in its `Next()` methods.
 
