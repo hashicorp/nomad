@@ -211,6 +211,7 @@ config {
   cap_drop = ["CAP_SYS_ADMIN", "CAP_SYS_TIME"]
   command = "/bin/bash"
   container_exists_attempts = 10
+  cgroupns = "host"
   cpu_hard_limit = true
   cpu_cfs_period = 20
   devices = [
@@ -361,6 +362,7 @@ config {
 		CapDrop:                 []string{"CAP_SYS_ADMIN", "CAP_SYS_TIME"},
 		Command:                 "/bin/bash",
 		ContainerExistsAttempts: 10,
+		CgroupnsMode:            "host",
 		CPUHardLimit:            true,
 		CPUCFSPeriod:            20,
 		Devices: []DockerDevice{
