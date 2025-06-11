@@ -84,6 +84,9 @@ The `docker` driver supports the following configuration in the job spec. Only
   }
   ```
 
+- `cgroupns` - (Optional) Cgroup namespace to use. Set to `host` or
+  `private`. If not specified, the driver uses Docker's default. Refer to Docker's [dockerd reference](https://docs.docker.com/reference/cli/dockerd/) for more information.
+
 - `container_exists_attempts` - (Optional) A number of attempts to be made to
   purge a container if during task creation Nomad encounters an existing one in
   non-running state for the same task. Defaults to `5`.
