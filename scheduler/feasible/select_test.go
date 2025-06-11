@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 import (
 	"testing"
@@ -15,7 +15,7 @@ import (
 func TestLimitIterator(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node:       mock.Node(),
@@ -61,7 +61,7 @@ func TestLimitIterator(t *testing.T) {
 func TestLimitIterator_ScoreThreshold(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	type testCase struct {
 		desc        string
 		nodes       []*RankedNode
@@ -326,7 +326,7 @@ func TestLimitIterator_ScoreThreshold(t *testing.T) {
 func TestMaxScoreIterator(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node:       mock.Node(),

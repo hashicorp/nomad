@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package tests
 
 import (
 	"fmt"
@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/shoenig/test/must"
 )
 
@@ -26,7 +27,7 @@ func (r *RejectPlan) ServersMeetMinimumVersion(minVersion *version.Version, chec
 	return r.Harness.serversMeetMinimumVersion
 }
 
-func (r *RejectPlan) SubmitPlan(*structs.Plan) (*structs.PlanResult, State, error) {
+func (r *RejectPlan) SubmitPlan(*structs.Plan) (*structs.PlanResult, sstructs.State, error) {
 	result := new(structs.PlanResult)
 	result.RefreshIndex = r.Harness.NextIndex()
 	return result, r.Harness.State, nil
@@ -51,7 +52,7 @@ type Harness struct {
 	t     testing.TB
 	State *state.StateStore
 
-	Planner  Planner
+	Planner  sstructs.Planner
 	planLock sync.Mutex
 
 	Plans        []*structs.Plan
@@ -92,7 +93,7 @@ func NewHarnessWithState(t testing.TB, state *state.StateStore) *Harness {
 }
 
 // SubmitPlan is used to handle plan submission
-func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, State, error) {
+func (h *Harness) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.State, error) {
 	// Ensure sequential plan application
 	h.planLock.Lock()
 	defer h.planLock.Unlock()
@@ -273,14 +274,14 @@ func (h *Harness) NextIndex() uint64 {
 }
 
 // Snapshot is used to snapshot the current state
-func (h *Harness) Snapshot() State {
+func (h *Harness) Snapshot() sstructs.State {
 	snap, _ := h.State.Snapshot()
 	return snap
 }
 
 // Scheduler is used to return a new scheduler from
 // a snapshot of current state using the harness for planning.
-func (h *Harness) Scheduler(factory Factory) Scheduler {
+func (h *Harness) Scheduler(factory sstructs.Factory) sstructs.Scheduler {
 	logger := testlog.HCLogger(h.t)
 	eventsCh := make(chan interface{})
 
@@ -288,7 +289,7 @@ func (h *Harness) Scheduler(factory Factory) Scheduler {
 	go func() {
 		for e := range eventsCh {
 			switch event := e.(type) {
-			case *PortCollisionEvent:
+			case *sstructs.PortCollisionEvent:
 				h.t.Errorf("unexpected worker eval event: %v", event.Reason)
 			}
 		}
@@ -299,7 +300,7 @@ func (h *Harness) Scheduler(factory Factory) Scheduler {
 
 // Process is used to process an evaluation given a factory
 // function to create the scheduler
-func (h *Harness) Process(factory Factory, eval *structs.Evaluation) error {
+func (h *Harness) Process(factory sstructs.Factory, eval *structs.Evaluation) error {
 	sched := h.Scheduler(factory)
 	return sched.Process(eval)
 }

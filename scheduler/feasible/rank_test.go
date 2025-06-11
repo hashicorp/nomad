@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 import (
 	"sort"
@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 )
@@ -24,7 +25,7 @@ var testSchedulerConfig = &structs.SchedulerConfiguration{
 }
 
 func TestFeasibleRankIterator(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	var nodes []*structs.Node
 	for i := 0; i < 10; i++ {
 		nodes = append(nodes, mock.Node())
@@ -40,13 +41,13 @@ func TestFeasibleRankIterator(t *testing.T) {
 }
 
 var (
-	legacyCpuResources1024, processorResources1024 = cpuResources(1024)
-	legacyCpuResources2048, processorResources2048 = cpuResources(2048)
-	legacyCpuResources4096, processorResources4096 = cpuResources(4096)
+	legacyCpuResources1024, processorResources1024 = tests.CpuResources(1024)
+	legacyCpuResources2048, processorResources2048 = tests.CpuResources(2048)
+	legacyCpuResources4096, processorResources4096 = tests.CpuResources(4096)
 )
 
 func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 
 	nodes := []*RankedNode{
 		{
@@ -150,11 +151,11 @@ func TestBinPackIterator_NoExistingAlloc(t *testing.T) {
 // reserved resources are scored equivalent to as if they had a lower amount of
 // resources.
 func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 
-	legacyCpuResources900, processorResources900 := cpuResources(900)
-	legacyCpuResources1100, processorResources1100 := cpuResources(1100)
-	legacyCpuResources2000, processorResources2000 := cpuResources(2000)
+	legacyCpuResources900, processorResources900 := tests.CpuResources(900)
+	legacyCpuResources1100, processorResources1100 := tests.CpuResources(1100)
+	legacyCpuResources2000, processorResources2000 := tests.CpuResources(2000)
 
 	nodes := []*RankedNode{
 		{
@@ -267,7 +268,7 @@ func TestBinPackIterator_NoExistingAlloc_MixedReserve(t *testing.T) {
 
 // Tests bin packing iterator with network resources at task and task group level
 func TestBinPackIterator_Network_Success(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -393,7 +394,7 @@ func TestBinPackIterator_Network_Success(t *testing.T) {
 func TestBinPackIterator_Network_Failure(t *testing.T) {
 	// Bandwidth tracking is deprecated
 	t.Skip()
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -505,7 +506,7 @@ func TestBinPackIterator_Network_Failure(t *testing.T) {
 }
 
 func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	eventsCh := make(chan interface{})
 	ctx.eventsCh = eventsCh
 
@@ -601,7 +602,7 @@ func TestBinPackIterator_Network_NoCollision_Node(t *testing.T) {
 // This should never happen as it indicates "bad" configuration was either not
 // caught by validation or caused by bugs in serverside Node handling.
 func TestBinPackIterator_Network_NodeError(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	eventsCh := make(chan interface{})
 	ctx.eventsCh = eventsCh
 
@@ -697,7 +698,7 @@ func TestBinPackIterator_Network_NodeError(t *testing.T) {
 }
 
 func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
-	state, ctx := testContext(t)
+	state, ctx := MockContext(t)
 	eventsCh := make(chan interface{})
 	ctx.eventsCh = eventsCh
 
@@ -823,7 +824,7 @@ func TestBinPackIterator_Network_PortCollision_Alloc(t *testing.T) {
 
 // Tests bin packing iterator with host network interpolation of task group level ports configuration
 func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -974,7 +975,7 @@ func TestBinPackIterator_Network_Interpolation_Success(t *testing.T) {
 // Tests that bin packing iterator fails due to absence of meta value
 // This test has network resources at task group
 func TestBinPackIterator_Host_Network_Interpolation_Absent_Value(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -1074,7 +1075,7 @@ func TestBinPackIterator_Host_Network_Interpolation_Absent_Value(t *testing.T) {
 // Tests that bin packing iterator fails due to absence of meta value
 // This test has network resources at task group
 func TestBinPackIterator_Host_Network_Interpolation_Interface_Not_Exists(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -1172,7 +1173,7 @@ func TestBinPackIterator_Host_Network_Interpolation_Interface_Not_Exists(t *test
 }
 
 func TestBinPackIterator_PlannedAlloc(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -1274,7 +1275,7 @@ func TestBinPackIterator_PlannedAlloc(t *testing.T) {
 }
 
 func TestBinPackIterator_ReservedCores(t *testing.T) {
-	state, ctx := testContext(t)
+	state, ctx := MockContext(t)
 
 	topology := &numalib.Topology{
 		Distances: numalib.SLIT{[]numalib.Cost{10}},
@@ -1289,7 +1290,7 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 		}},
 	}
 	topology.SetNodes(idset.From[hw.NodeID]([]hw.NodeID{0}))
-	legacyCpuResources, processorResources := cpuResourcesFrom(topology)
+	legacyCpuResources, processorResources := tests.CpuResourcesFrom(topology)
 
 	nodes := []*RankedNode{
 		{
@@ -1403,7 +1404,7 @@ func TestBinPackIterator_ReservedCores(t *testing.T) {
 }
 
 func TestBinPackIterator_ExistingAlloc(t *testing.T) {
-	state, ctx := testContext(t)
+	state, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -1517,7 +1518,7 @@ func TestBinPackIterator_ExistingAlloc(t *testing.T) {
 }
 
 func TestBinPackIterator_ExistingAlloc_PlannedEvict(t *testing.T) {
-	state, ctx := testContext(t)
+	state, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -1901,7 +1902,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			// Setup the context
-			state, ctx := testContext(t)
+			state, ctx := MockContext(t)
 
 			// Canonicalize resources
 			for _, task := range c.TaskGroup.Tasks {
@@ -1968,7 +1969,7 @@ func TestBinPackIterator_Devices(t *testing.T) {
 // Tests that bin packing iterator fails due to overprovisioning of devices
 // This test has devices at task level
 func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -2077,7 +2078,7 @@ func TestBinPackIterator_Device_Failure_With_Eviction(t *testing.T) {
 // Tests that bin packing iterator will not place workloads on nodes
 // that would go over a designated MaxAlloc value
 func TestBinPackIterator_MaxAlloc(t *testing.T) {
-	state, ctx := testContext(t)
+	state, ctx := MockContext(t)
 
 	taskGen := func(name string) *structs.Task {
 		return &structs.Task{
@@ -2207,7 +2208,7 @@ func TestBinPackIterator_MaxAlloc(t *testing.T) {
 	}
 }
 func TestJobAntiAffinity_PlannedAlloc(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -2287,7 +2288,7 @@ func collectRanked(iter RankIterator) (out []*RankedNode) {
 }
 
 func TestNodeAntiAffinity_PenaltyNodes(t *testing.T) {
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	node1 := &structs.Node{
 		ID: uuid.Generate(),
 	}
@@ -2323,7 +2324,7 @@ func TestNodeAntiAffinity_PenaltyNodes(t *testing.T) {
 
 func TestScoreNormalizationIterator(t *testing.T) {
 	// Test normalized scores when there is more than one scorer
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	nodes := []*RankedNode{
 		{
 			Node: &structs.Node{
@@ -2387,7 +2388,7 @@ func TestScoreNormalizationIterator(t *testing.T) {
 
 func TestNodeAffinityIterator(t *testing.T) {
 	ci.Parallel(t)
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 
 	testNodes := func() []*RankedNode {
 		nodes := []*RankedNode{

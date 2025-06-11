@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 // LimitIterator is a RankIterator used to limit the number of options
 // that are returned before we artificially end the stream.

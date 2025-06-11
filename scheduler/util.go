@@ -4,10 +4,8 @@
 package scheduler
 
 import (
-	"encoding/binary"
 	"fmt"
 	"maps"
-	"math/rand"
 	"slices"
 
 	log "github.com/hashicorp/go-hclog"
@@ -15,13 +13,14 @@ import (
 	"github.com/hashicorp/go-set/v3"
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/reconcile"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 // readyNodesInDCsAndPool returns all the ready nodes in the given datacenters
 // and pool, and a mapping of each data center to the count of ready nodes.
-func readyNodesInDCsAndPool(state State, dcs []string, pool string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
+func readyNodesInDCsAndPool(state sstructs.State, dcs []string, pool string) ([]*structs.Node, map[string]struct{}, map[string]int, error) {
 	// Index the DCs
 	dcMap := make(map[string]int)
 
@@ -101,7 +100,7 @@ func progressMade(result *structs.PlanResult) bool {
 // underlying nodes are tainted, and should force a migration of the allocation,
 // or if the underlying nodes are disconnected, and should be used to calculate
 // the reconnect timeout of its allocations. All the nodes returned in the map are tainted.
-func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*structs.Node, error) {
+func taintedNodes(state sstructs.State, allocs []*structs.Allocation) (map[string]*structs.Node, error) {
 	out := make(map[string]*structs.Node)
 	for _, alloc := range allocs {
 		if _, ok := out[alloc.NodeID]; ok {
@@ -132,29 +131,6 @@ func taintedNodes(state State, allocs []*structs.Allocation) (map[string]*struct
 	}
 
 	return out, nil
-}
-
-// shuffleNodes randomizes the slice order with the Fisher-Yates
-// algorithm. We seed the random source with the eval ID (which is
-// random) to aid in postmortem debugging of specific evaluations and
-// state snapshots.
-func shuffleNodes(plan *structs.Plan, index uint64, nodes []*structs.Node) {
-
-	// use the last 4 bytes because those are the random bits
-	// if we have sortable IDs
-	buf := []byte(plan.EvalID)
-	seed := binary.BigEndian.Uint64(buf[len(buf)-8:])
-
-	// for retried plans the index is the plan result's RefreshIndex
-	// so that we don't retry with the exact same shuffle
-	seed ^= index
-	r := rand.New(rand.NewSource(int64(seed >> 2)))
-
-	n := len(nodes)
-	for i := n - 1; i > 0; i-- {
-		j := r.Intn(i + 1)
-		nodes[i], nodes[j] = nodes[j], nodes[i]
-	}
 }
 
 // comparison records the _first_ detected difference between two groups during
@@ -562,7 +538,7 @@ func renderTemplatesUpdated(a, b *structs.RestartPolicy, msg string) comparison 
 }
 
 // setStatus is used to update the status of the evaluation
-func setStatus(logger log.Logger, planner Planner,
+func setStatus(logger log.Logger, planner sstructs.Planner,
 	eval, nextEval, spawnedBlocked *structs.Evaluation,
 	tgMetrics map[string]*structs.AllocMetric, status, desc string,
 	queuedAllocs map[string]int, deploymentID string) error {
@@ -588,8 +564,8 @@ func setStatus(logger log.Logger, planner Planner,
 
 // inplaceUpdate attempts to update allocations in-place where possible. It
 // returns the allocs that couldn't be done inplace and then those that could.
-func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
-	stack Stack, updates []reconcile.AllocTuple) (destructive, inplace []reconcile.AllocTuple) {
+func inplaceUpdate(ctx feasible.Context, eval *structs.Evaluation, job *structs.Job,
+	stack feasible.Stack, updates []reconcile.AllocTuple) (destructive, inplace []reconcile.AllocTuple) {
 
 	// doInplace manipulates the updates map to make the current allocation
 	// an inplace update.
@@ -653,7 +629,7 @@ func inplaceUpdate(ctx Context, eval *structs.Evaluation, job *structs.Job,
 
 		// Attempt to match the task group
 		option := stack.Select(update.TaskGroup,
-			&SelectOptions{AllocName: update.Alloc.Name})
+			&feasible.SelectOptions{AllocName: update.Alloc.Name})
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(update.Alloc)
@@ -849,7 +825,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 // by the reconciler to make decisions about how to update an allocation. The
 // factory allows the reconciler to be unaware of how to determine the type of
 // update necessary and can minimize the set of objects it is exposed to.
-func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) reconcile.AllocUpdateType {
+func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID string) reconcile.AllocUpdateType {
 	return func(existing *structs.Allocation, newJob *structs.Job, newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation) {
 		// Same index, so nothing to do
 		if existing.Job.JobModifyIndex == newJob.JobModifyIndex {
@@ -899,7 +875,7 @@ func genericAllocUpdateFn(ctx Context, stack Stack, evalID string) reconcile.All
 		ctx.Plan().AppendStoppedAlloc(existing, sstructs.StatusAllocInPlace, "", "")
 
 		// Attempt to match the task group
-		option := stack.Select(newTG, &SelectOptions{AllocName: existing.Name})
+		option := stack.Select(newTG, &feasible.SelectOptions{AllocName: existing.Name})
 
 		// Pop the allocation
 		ctx.Plan().PopUpdate(existing)

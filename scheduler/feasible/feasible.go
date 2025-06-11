@@ -1,11 +1,13 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 import (
 	"cmp"
+	"encoding/binary"
 	"fmt"
+	"math/rand"
 	"reflect"
 	"regexp"
 	"slices"
@@ -124,13 +126,36 @@ func (iter *StaticIterator) SetNodes(nodes []*structs.Node) {
 	iter.seen = 0
 }
 
+// ShuffleNodes randomizes the slice order with the Fisher-Yates
+// algorithm. We seed the random source with the eval ID (which is
+// random) to aid in postmortem debugging of specific evaluations and
+// state snapshots.
+func ShuffleNodes(plan *structs.Plan, index uint64, nodes []*structs.Node) {
+
+	// use the last 4 bytes because those are the random bits
+	// if we have sortable IDs
+	buf := []byte(plan.EvalID)
+	seed := binary.BigEndian.Uint64(buf[len(buf)-8:])
+
+	// for retried plans the index is the plan result's RefreshIndex
+	// so that we don't retry with the exact same shuffle
+	seed ^= index
+	r := rand.New(rand.NewSource(int64(seed >> 2)))
+
+	n := len(nodes)
+	for i := n - 1; i > 0; i-- {
+		j := r.Intn(i + 1)
+		nodes[i], nodes[j] = nodes[j], nodes[i]
+	}
+}
+
 // NewRandomIterator constructs a static iterator from a list of nodes
 // after applying the Fisher-Yates algorithm for a random shuffle. This
 // is applied in-place
 func NewRandomIterator(ctx Context, nodes []*structs.Node) *StaticIterator {
 	// shuffle with the Fisher-Yates algorithm
 	idx, _ := ctx.State().LatestIndex()
-	shuffleNodes(ctx.Plan(), idx, nodes)
+	ShuffleNodes(ctx.Plan(), idx, nodes)
 
 	// Create a static iterator
 	return NewStaticIterator(ctx, nodes)

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/reconcile"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
@@ -33,16 +34,16 @@ const (
 type SystemScheduler struct {
 	logger   log.Logger
 	eventsCh chan<- interface{}
-	state    State
-	planner  Planner
+	state    sstructs.State
+	planner  sstructs.Planner
 	sysbatch bool
 
 	eval       *structs.Evaluation
 	job        *structs.Job
 	plan       *structs.Plan
 	planResult *structs.PlanResult
-	ctx        *EvalContext
-	stack      *SystemStack
+	ctx        *feasible.EvalContext
+	stack      *feasible.SystemStack
 
 	nodes         []*structs.Node
 	notReadyNodes map[string]struct{}
@@ -57,7 +58,7 @@ type SystemScheduler struct {
 
 // NewSystemScheduler is a factory function to instantiate a new system
 // scheduler.
-func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
+func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	return &SystemScheduler{
 		logger:   logger.Named("system_sched"),
 		eventsCh: eventsCh,
@@ -67,7 +68,7 @@ func NewSystemScheduler(logger log.Logger, eventsCh chan<- interface{}, state St
 	}
 }
 
-func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
+func NewSysBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	return &SystemScheduler{
 		logger:   logger.Named("sysbatch_sched"),
 		eventsCh: eventsCh,
@@ -153,10 +154,10 @@ func (s *SystemScheduler) process() (bool, error) {
 	s.failedTGAllocs = nil
 
 	// Create an evaluation context
-	s.ctx = NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
+	s.ctx = feasible.NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
 
 	// Construct the placement stack
-	s.stack = NewSystemStack(s.sysbatch, s.ctx)
+	s.stack = feasible.NewSystemStack(s.sysbatch, s.ctx)
 	if !s.job.Stopped() {
 		s.setJob(s.job)
 	}
@@ -382,7 +383,7 @@ func (s *SystemScheduler) computePlacements(place []reconcile.AllocTuple, existi
 		s.stack.SetNodes(nodes)
 
 		// Attempt to match the task group
-		option := s.stack.Select(missing.TaskGroup, &SelectOptions{AllocName: missing.Name})
+		option := s.stack.Select(missing.TaskGroup, &feasible.SelectOptions{AllocName: missing.Name})
 
 		if option == nil {
 			// If the task can't be placed on this node, update reporting data
@@ -391,7 +392,7 @@ func (s *SystemScheduler) computePlacements(place []reconcile.AllocTuple, existi
 			// If this node was filtered because of constraint
 			// mismatches and we couldn't create an allocation then
 			// decrement queuedAllocs for that task group.
-			if s.ctx.metrics.NodesFiltered > 0 {
+			if s.ctx.Metrics().NodesFiltered > 0 {
 				queued := s.queuedAllocs[tgName] - 1
 				s.queuedAllocs[tgName] = queued
 
@@ -572,7 +573,7 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 // evictAndPlace is used to mark allocations for evicts and add them to the
 // placement queue. evictAndPlace modifies both the diffResult and the
 // limit. It returns true if the limit has been reached.
-func evictAndPlace(ctx Context, diff *reconcile.NodeReconcileResult, allocs []reconcile.AllocTuple, desc string, limit *int) bool {
+func evictAndPlace(ctx feasible.Context, diff *reconcile.NodeReconcileResult, allocs []reconcile.AllocTuple, desc string, limit *int) bool {
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]

@@ -3,7 +3,7 @@
 
 //go:build !ent
 
-package scheduler
+package feasible
 
 import (
 	"cmp"

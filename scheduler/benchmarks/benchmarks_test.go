@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	"github.com/hashicorp/nomad/scheduler/tests"
 )
 
 // BenchmarkSchedulerExample is an example of how to write a one-off
@@ -114,7 +115,7 @@ func BenchmarkServiceScheduler(b *testing.B) {
 
 	for _, bm := range benchmarks {
 		job := generateJob(bm.withSpread, bm.jobSize, bm.racks)
-		h := scheduler.NewHarness(b)
+		h := tests.NewHarness(b)
 		h.SetNoSubmit()
 		upsertNodes(h, bm.clusterSize, bm.racks)
 		eval := upsertJob(h, job)
@@ -130,7 +131,7 @@ func BenchmarkServiceScheduler(b *testing.B) {
 
 }
 
-func upsertJob(h *scheduler.Harness, job *structs.Job) *structs.Evaluation {
+func upsertJob(h *tests.Harness, job *structs.Job) *structs.Evaluation {
 	err := h.State.UpsertJob(structs.MsgTypeTestSetup, h.NextIndex(), nil, job)
 	if err != nil {
 		panic(err)
@@ -181,7 +182,7 @@ func generateJob(withSpread bool, jobSize int, racks int) *structs.Job {
 	return job
 }
 
-func upsertNodes(h *scheduler.Harness, count, racks int) {
+func upsertNodes(h *tests.Harness, count, racks int) {
 
 	datacenters := []string{"dc-1", "dc-2"}
 
