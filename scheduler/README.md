@@ -167,14 +167,26 @@ The following diagram illustrates the logic flow of the cluster reconciler:
 
 ### Node Reconciler
 
-TODO
+The system scheduler also does a "reconciliation" step, but only on a
+per-node basis (system jobs run on all feasible nodes), which makes it
+simpler than the service reconciler which takes into account a whole cluster,
+and has jobs that can run on arbitrary subset of clients. 
 
-## Feasibility checking
+Node reconciliation removes tainted nodes, updates terminal allocations to lost,
+deals with disconnected nodes and computes placements.
 
-Nomad uses a set of iterators to iterate over nodes and check how feasible
-they are for any given allocation. The scheduler uses a `Stack` interface that
-lives in `scheduler/stack.go` file in order to make placement decisions, and
-feasibility iterators that live in `scheduler/feasible.go` to filter by:
+## Finding the right node
+
+The `scheduler/feasibility` package contains all the logic used to finding the
+right nodes to place workloads.
+
+### Feasibility checking
+
+Nomad uses a set of iterators to iterate over nodes and check how feasible they
+are for any given allocation. The scheduler uses a `Stack` interface that lives
+in `scheduler/feasibility/stack.go` file in order to make placement decisions,
+and feasibility iterators that live in `scheduler/feasibility/feasible.go` to
+filter by:
 
 - node eligibiligy,
 - data center,
@@ -191,24 +203,13 @@ Once nodes are filtered, the `Stack` implementations (`GenericStack` and
 - affinities,
 - and quotas.
 
-## Node reconciliation
-
-The system scheduler also does a "reconciliation" step, but only on a
-per-node basis (system jobs run on all feasible nodes), which makes it
-simpler than the service reconciler which takes into account a whole cluster,
-and has jobs that can run on arbitrary subset of clients. The code is in
-`scheduler/scheduler_system.go` file.
-
-Node reconciliation removes tainted nodes, updates terminal allocations to lost,
-deals with disconnected nodes and computes placements.
-
-## Finding the best fit and scoring
+### Finding the best fit and scoring
 
 Applies only to service and batch jobs, since system and sysbatch jobs are
 placed on all feasible nodes.
 
-This part of scheduling sits in the `scheduler/rank.go` file. The `RankIterator`
-interface, which is implemented by e.g., `SpreadIterator` and `BinPackIterator`,
-captures the ranking logic in its `Next()` methods.
+This part of scheduling sits in the `scheduler/feasibility/rank.go` file. The
+`RankIterator` interface, which is implemented by e.g., `SpreadIterator` and
+`BinPackIterator`, captures the ranking logic in its `Next()` methods.
 
 [0]: https://developer.hashicorp.com/nomad/docs/concepts/scheduling/scheduling
