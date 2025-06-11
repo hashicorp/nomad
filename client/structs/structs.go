@@ -62,18 +62,7 @@ type MonitorRequest struct {
 	structs.QueryOptions
 }
 
-type MonitorJournaldRequest struct {
-	// LogLevel is the log level filter we want to stream logs on
-	LogLevel string
-
-	// LogJSON specifies if log format should be unstructured or json
-	LogJSON bool
-
-	// LogIncludeLocation dictates whether the logger includes file and line
-	// information on each log line. This is useful for Nomad development and
-	// debugging.
-	LogIncludeLocation bool
-
+type MonitorExternalRequest struct {
 	// NodeID is the node we want to track the logs of
 	NodeID string
 
@@ -83,11 +72,14 @@ type MonitorJournaldRequest struct {
 	// PlainText disables base64 encoding.
 	PlainText bool
 
-	// LogsSince sets the lookback time for journald logs in hours
+	// LogsSince sets the lookback time for monitorExternal logs in hours
 	LogSince string
 
-	// ServiceName is the journald service for which we want to retrieve logs
-	// defaults to nomad if unset
+	// LogPath specifies the full path for the targeted external log file
+	// Cannot be used with ServiceName
+	LogPath string
+	// ServiceName is the systemd service for which we want to retrieve logs
+	// Cannot be used with logPath
 	ServiceName string
 
 	// Follow indicates that the journalctl command should listen for and

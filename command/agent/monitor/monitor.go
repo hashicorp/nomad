@@ -13,6 +13,7 @@ import (
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
+	cstructs "github.com/hashicorp/nomad/client/structs"
 	"github.com/hashicorp/nomad/helper"
 )
 
@@ -28,8 +29,8 @@ type Monitor interface {
 	// and closes the log channels
 	Stop()
 
-	// Journald returns a channel of journald messages
-	Journald(string, string, bool) <-chan []byte
+	// MonitorExternal returns a channel of monitor/exernal messages
+	MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan []byte
 }
 
 // monitor implements the Monitor interface
@@ -187,58 +188,59 @@ func (d *monitor) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-// Journald registers a sink on the monitor's logger and sends a single
-// journald log bundle over the returned channel
-func (d *monitor) Journald(logSince string, serviceName string, follow bool) <-chan []byte {
-	const (
-		defaultDuration = "72"
-		defaultService  = "nomad"
-	)
+// MonitorExternal reads a file or executes a CLI command and streams a single
+// log bundle over the monitor's channel
+func (d *monitor) MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan []byte {
 
-	//if runtime.GOOS != "linux" {
-	//	d.logger.Error("journald export only available on linux")
-	//	return nil, 0
+	//if runtime.GOOS != "linux" && opts.ServiceName != "" {
+	//	d.logger.Error("systemd unit log monitoring only available on linux")
+	//	return nil
 	//}
 
-	// Set logSince to default if unset by caller
-	if logSince == "0" {
-		d.logger.Info(string(logSince))
-		logSince = defaultDuration
+	// Double checking options are as expected
+	if len(opts.ServiceName) == 0 && len(opts.LogPath) == 0 {
+		d.logger.Error("serviceName or logPath must be set")
+		return nil
+	} else if len(opts.ServiceName) != 0 && len(opts.LogPath) != 0 {
+		d.logger.Error("both serviceName and logPath cannot be set")
+		return nil
+	}
+	var (
+		multiReader io.Reader
+		cmd         *exec.Cmd
+		prepErr     error
+		useCli      bool
+	)
+	if len(opts.ServiceName) != 0 && len(opts.LogPath) == 0 {
+		useCli = true
+		cmd, multiReader, prepErr = d.cliReader(opts)
+		cmd.Start()
+	} else if len(opts.ServiceName) == 0 && len(opts.LogPath) != 0 {
+		useCli = false
+		multiReader, prepErr = d.fileReader(opts)
 	}
 
-	// Set serviceName to nomad if unset by caller
-	if len(serviceName) == 0 {
-		d.logger.Info(serviceName)
-		serviceName = defaultService
+	if prepErr != nil {
+		d.logger.Error("error attempting to prepare cli command", "error", prepErr.Error())
 	}
 	// Set up multireader before starting command
-	cmd := d.journalCmd(logSince, serviceName, follow)
-	stdOut, err := cmd.StdoutPipe()
-	if err != nil {
-		d.logger.Error("unable to read journald logs into buffer", err.Error())
-		return nil
-	}
-	stdErr, err := cmd.StderrPipe()
-	if err != nil {
-		d.logger.Error("unable to read journald logs into buffer", err.Error())
-		return nil
-	}
-	multi := io.MultiReader(stdOut, stdErr)
-	cmd.Start()
 
 	streamCh := make(chan []byte)
+	var readErr error
 	// Read, copy, and send to channel until we hit EOF or error
 	go func() {
-		defer cmd.Wait()
+		if useCli {
+			defer cmd.Wait()
+		}
 		defer close(streamCh)
 		logChunk := make([]byte, 32)
 		copyBuffer := make([]byte, 32)
 
 		for {
-			_, readErr := multi.Read(logChunk)
+			_, readErr = multiReader.Read(logChunk)
 			if readErr != nil && readErr != io.EOF {
-				d.logger.Error("unable to read journald logs into channel", readErr.Error())
-				break
+				d.logger.Error("unable to read logs into channel", readErr.Error())
+				return
 			}
 			copy(copyBuffer, logChunk)
 
@@ -254,8 +256,17 @@ func (d *monitor) Journald(logSince string, serviceName string, follow bool) <-c
 	}()
 	return streamCh
 }
-func (d *monitor) journalCmd(logSince string, serviceName string, follow bool) *exec.Cmd {
-	_ = fmt.Sprintf("journalctl -xe -u %s --no-pager --since '%s hours ago'", serviceName, logSince)
+func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, io.Reader, error) {
+	const (
+		defaultDuration = "72"
+	)
+	// Set logSince to default if unset by caller
+	if opts.LogSince == "0" {
+		d.logger.Info(string(opts.LogSince))
+		opts.LogSince = defaultDuration
+	}
+	// build command
+	_ = fmt.Sprintf("journalctl -xe -u %s --no-pager --since '%s hours ago'", opts.ServiceName, opts.LogSince)
 	//if follow {
 	//	cmdString = cmdString + " -f"
 	//}
@@ -264,6 +275,29 @@ func (d *monitor) journalCmd(logSince string, serviceName string, follow bool) *
 		shell = other
 	}
 	cmdString := "cat /Users/tehut/go/src/github.com/hashicorp/nomad/t3.txt"
+	cmd := exec.CommandContext(context.Background(), shell, "-c", cmdString)
 
-	return exec.CommandContext(context.Background(), shell, "-c", cmdString)
+	// set up reader
+	stdOut, err := cmd.StdoutPipe()
+	if err != nil {
+		d.logger.Error("unable to read logs into buffer", err.Error())
+		return nil, nil, err
+	}
+	stdErr, err := cmd.StderrPipe()
+	if err != nil {
+		d.logger.Error("unable to read   logs into buffer", err.Error())
+		return nil, nil, err
+	}
+	multi := io.MultiReader(stdOut, stdErr)
+
+	return cmd, multi, nil
+}
+
+func (d *monitor) fileReader(opts *cstructs.MonitorExternalRequest) (io.Reader, error) {
+	file, err := os.Open(opts.LogPath)
+	if err != nil {
+		d.logger.Error("failed to open log file", "error", err.Error())
+	}
+
+	return file, nil
 }

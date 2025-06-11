@@ -17,22 +17,21 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-type MonitorJournaldCommand struct {
+type MonitorExternalCommand struct {
 	Meta
 
 	// Below this point is where CLI flag options are stored.
-	logLevel           string
-	nodeID             string
-	serverID           string
-	logJSON            bool
-	logIncludeLocation bool
-	logSince           int
-	serviceName        string
+	nodeID      string
+	serverID    string
+	logPath     string
+	logSince    int
+	serviceName string
+	follow      bool
 }
 
-func (c *MonitorJournaldCommand) Help() string {
+func (c *MonitorExternalCommand) Help() string {
 	helpText := `
-Usage: nomad monitor journald [options]
+Usage: nomad monitor external [options]
 
   Stream log messages of a nomad agent. The monitor command lets you
   listen for log levels that may be filtered out of the Nomad agent. For
@@ -48,12 +47,6 @@ General Options:
 
 Monitor Specific Options:
 
-  -log-level <level>
-    Sets the log level to monitor (default: INFO)
-
-  -log-include-location
-    Include file and line information in each log line. The default is false.
-
   -node-id <node-id>
     Sets the specific node to monitor
 
@@ -66,30 +59,28 @@ Monitor Specific Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *MonitorJournaldCommand) Synopsis() string {
+func (c *MonitorExternalCommand) Synopsis() string {
 	return "Stream logs from a Nomad agent"
 }
 
-func (c *MonitorJournaldCommand) Name() string { return "monitor" }
+func (c *MonitorExternalCommand) Name() string { return "monitor" }
 
-func (c *MonitorJournaldCommand) Run(args []string) int {
+func (c *MonitorExternalCommand) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
 		OutputPrefix: "    ",
 		InfoPrefix:   "    ",
 		ErrorPrefix:  "==> ",
 		Ui:           c.Ui,
 	}
-	var follow bool
+
 	flags := c.Meta.FlagSet(c.Name(), FlagSetClient)
 	flags.Usage = func() { c.Ui.Output(c.Help()) }
-	flags.StringVar(&c.logLevel, "log-level", "", "")
-	flags.BoolVar(&c.logIncludeLocation, "log-include-location", false, "")
 	flags.StringVar(&c.nodeID, "node-id", "", "")
 	flags.StringVar(&c.serverID, "server-id", "", "")
-	flags.BoolVar(&c.logJSON, "json", false, "")
 	flags.IntVar(&c.logSince, "logs-since", 72, "")
 	flags.StringVar(&c.serviceName, "systemd-service", "", "the name of the systemd service unit to collect logs for, defaults to nomad if unset")
-	flags.BoolVar(&follow, "follow", false, "")
+	flags.StringVar(&c.logPath, "log-path", "", "full path to the desired log file")
+	flags.BoolVar(&c.follow, "follow", false, "")
 
 	if err := flags.Parse(args); err != nil {
 		return 1
@@ -119,13 +110,12 @@ func (c *MonitorJournaldCommand) Run(args []string) int {
 	}
 
 	params := map[string]string{
-		"log_level":    c.logLevel,
 		"node_id":      c.nodeID,
 		"server_id":    c.serverID,
-		"log_json":     strconv.FormatBool(c.logJSON),
 		"log_since":    strconv.Itoa(c.logSince),
 		"service_name": c.serviceName,
-		"follow":       strconv.FormatBool(follow),
+		"log_path":     c.logPath,
+		"follow":       strconv.FormatBool(c.follow),
 	}
 
 	query := &api.QueryOptions{
@@ -133,7 +123,7 @@ func (c *MonitorJournaldCommand) Run(args []string) int {
 	}
 
 	eventDoneCh := make(chan struct{})
-	frames, errCh := client.Agent().Journald(eventDoneCh, query)
+	frames, errCh := client.Agent().MonitorExternal(eventDoneCh, query)
 	select {
 	case err := <-errCh:
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: %s", err))

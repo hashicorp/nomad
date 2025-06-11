@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"io"
-	"strconv"
 	"time"
 
 	"github.com/hashicorp/go-msgpack/v2/codec"
@@ -32,7 +31,7 @@ type Agent struct {
 func NewAgentEndpoint(c *Client) *Agent {
 	a := &Agent{c: c}
 	a.c.streamingRpcs.Register("Agent.Monitor", a.monitor)
-	a.c.streamingRpcs.Register("Agent.Journald", a.journald)
+	a.c.streamingRpcs.Register("Agent.MonitorExternal", a.monitorExternal)
 	return a
 }
 
@@ -234,12 +233,12 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	reply.HostData = data
 	return nil
 }
-func (a *Agent) journald(conn io.ReadWriteCloser) {
+func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 	//defer metrics.MeasureSince([]string{"client", "agent", "monitor"}, time.Now())
 	defer conn.Close()
 
 	// Decode arguments
-	var args cstructs.MonitorJournaldRequest
+	var args cstructs.MonitorExternalRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
@@ -257,24 +256,10 @@ func (a *Agent) journald(conn io.ReadWriteCloser) {
 		return
 	}
 
-	logLevel := log.LevelFromString(args.LogLevel)
-	if args.LogLevel == "" {
-		logLevel = log.LevelFromString("INFO")
-	}
-
-	if logLevel == log.NoLevel {
-		handleStreamResultError(errors.New("Unknown log level"), pointer.Of(int64(400)), encoder)
-		return
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	monitor := monitor.New(512, a.c.logger, &log.LoggerOptions{
-		JSONFormat:      args.LogJSON,
-		Level:           logLevel,
-		IncludeLocation: args.LogIncludeLocation,
-	})
+	monitor := monitor.New(512, a.c.logger, &log.LoggerOptions{})
 
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
 	errCh := make(chan error)
@@ -285,19 +270,23 @@ func (a *Agent) journald(conn io.ReadWriteCloser) {
 	framer.Run()
 
 	defer framer.Destroy()
-	a.c.logger.Info("no err", "client/agent_endpoint 288")
 	// goroutine to detect remote side closing
 	go func() {
 		if _, err := conn.Read(nil); err != nil {
-			a.c.logger.Info("what is the error", "client/agent_endpoint 292", err.Error())
 			// One end of the pipe explicitly closed, exit
 			cancel()
 			return
 		}
 		<-ctx.Done()
 	}()
+	opts := cstructs.MonitorExternalRequest{
+		LogSince:    args.LogSince,
+		ServiceName: args.ServiceName,
+		Follow:      args.Follow,
+		LogPath:     args.LogPath,
+	}
+	logCh := monitor.MonitorExternal(&opts)
 
-	logCh := monitor.Journald(args.LogSince, args.ServiceName, args.Follow)
 	//defer monitor.Stop()
 	initialOffset := int64(0)
 	var eofCancelCh chan error
@@ -306,12 +295,9 @@ func (a *Agent) journald(conn io.ReadWriteCloser) {
 		defer framer.Destroy()
 
 		if err := a.streamFixed(ctx, initialOffset, "", 0, logCh, framer, eofCancelCh, true); err != nil {
-			a.c.logger.Info("what is the error", "value", err.Error())
 			select {
 			case errCh <- err:
-				a.c.logger.Info("errCh")
 			case <-ctx.Done():
-				a.c.logger.Info("context cancelledå")
 			}
 		}
 	}()
@@ -326,7 +312,6 @@ OUTER:
 				// occurred. Check once more for an error.
 				select {
 				case streamErr = <-errCh:
-					a.c.logger.Warn("read the err in")
 					// There was a pending error!
 				default:
 					// No error, continue on
@@ -340,7 +325,6 @@ OUTER:
 				resp.Payload = frame.Data
 			} else {
 				if err := frameCodec.Encode(frame); err != nil && err != io.EOF {
-					a.c.logger.Warn("THIS IS THE ERROR ISNT IT")
 					streamErr = err
 					break OUTER
 				}
@@ -350,7 +334,6 @@ OUTER:
 			}
 
 			if err := encoder.Encode(resp); err != nil && err != io.EOF {
-				a.c.logger.Warn("IS THIS THE ERRO")
 				streamErr = err
 				break OUTER
 			}
@@ -363,8 +346,6 @@ OUTER:
 	}
 
 	if streamErr != nil {
-		a.c.logger.Info("after")
-		a.c.logger.Info(strconv.FormatBool(errors.Is(streamErr, io.EOF)))
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
 	}
