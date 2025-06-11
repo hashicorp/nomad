@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/kr/pretty"
 	"github.com/stretchr/testify/require"
 )
@@ -99,7 +100,7 @@ func TestSchedulerLogic(t *testing.T) {
 	}
 
 	// Process the evaluation
-	h := scheduler.NewHarnessWithState(t, state)
+	h := tests.NewHarnessWithState(t, state)
 	err = h.Process(scheduler.NewServiceScheduler, eval)
 	require.NoError(t, err)
 

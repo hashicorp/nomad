@@ -22,7 +22,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/state/paginator"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/scheduler"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 )
 
 // HostVolume is the server RPC endpoint for host volumes
@@ -538,18 +538,18 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 		return nil, err
 	}
 
-	var checker *scheduler.ConstraintChecker
+	var checker *feasible.ConstraintChecker
 	ctx := &placementContext{
 		regexpCache:  make(map[string]*regexp.Regexp),
-		versionCache: make(map[string]scheduler.VerConstraints),
-		semverCache:  make(map[string]scheduler.VerConstraints),
+		versionCache: make(map[string]feasible.VerConstraints),
+		semverCache:  make(map[string]feasible.VerConstraints),
 	}
 	constraints := []*structs.Constraint{{
 		LTarget: fmt.Sprintf("${attr.plugins.host_volume.%s.version}", vol.PluginID),
 		Operand: "is_set",
 	}}
 	constraints = append(constraints, vol.Constraints...)
-	checker = scheduler.NewConstraintChecker(ctx, constraints)
+	checker = feasible.NewConstraintChecker(ctx, constraints)
 
 	var (
 		filteredByExisting    int
@@ -602,18 +602,18 @@ func (v *HostVolume) placeHostVolume(snap *state.StateSnapshot, vol *structs.Hos
 // feasibility checker for constraints
 type placementContext struct {
 	regexpCache  map[string]*regexp.Regexp
-	versionCache map[string]scheduler.VerConstraints
-	semverCache  map[string]scheduler.VerConstraints
+	versionCache map[string]feasible.VerConstraints
+	semverCache  map[string]feasible.VerConstraints
 }
 
 func (ctx *placementContext) Metrics() *structs.AllocMetric          { return &structs.AllocMetric{} }
 func (ctx *placementContext) RegexpCache() map[string]*regexp.Regexp { return ctx.regexpCache }
 
-func (ctx *placementContext) VersionConstraintCache() map[string]scheduler.VerConstraints {
+func (ctx *placementContext) VersionConstraintCache() map[string]feasible.VerConstraints {
 	return ctx.versionCache
 }
 
-func (ctx *placementContext) SemverConstraintCache() map[string]scheduler.VerConstraints {
+func (ctx *placementContext) SemverConstraintCache() map[string]feasible.VerConstraints {
 	return ctx.semverCache
 }
 
