@@ -305,27 +305,8 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	return nil, codedErr
 }
 
-func (s *HTTPServer) AgentJournald(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	// Get the provided loglevel.
-	logLevel := req.URL.Query().Get("log_level")
-	if logLevel == "" {
-		logLevel = "INFO"
-	}
-
-	if log.LevelFromString(logLevel) == log.NoLevel {
-		return nil, CodedError(400, fmt.Sprintf("Unknown log level: %s", logLevel))
-	}
-
-	logJSON := false
-	logJSONStr := req.URL.Query().Get("log_json")
-	if logJSONStr != "" {
-		parsed, err := strconv.ParseBool(logJSONStr)
-		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Unknown option for log json: %v", err))
-		}
-		logJSON = parsed
-	}
-
+func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Process and prep arguments
 	plainText := false
 	plainTextStr := req.URL.Query().Get("plain")
 	if plainTextStr != "" {
@@ -336,38 +317,36 @@ func (s *HTTPServer) AgentJournald(resp http.ResponseWriter, req *http.Request) 
 		plainText = parsed
 	}
 
-	logIncludeLocation := false
-	logIncludeLocationStr := req.URL.Query().Get("log_include_location")
-	if logIncludeLocationStr != "" {
-		parsed, err := strconv.ParseBool(logIncludeLocationStr)
+	logSince := "72" //default value
+	logSinceStr := req.URL.Query().Get("log_since")
+	if logSinceStr != "" {
+		_, err := strconv.Atoi(logSinceStr)
 		if err != nil {
-			return nil, CodedError(http.StatusBadRequest,
-				fmt.Sprintf("Unknown option for log_include_location: %v", err))
+			return nil, CodedError(400, fmt.Sprintf("Unknown integer for log-since: %v", err))
 		}
-		logIncludeLocation = parsed
+		logSince = logSinceStr
 	}
-	logSince := req.URL.Query().Get("log_since")
 	serviceName := req.URL.Query().Get("service_name")
-
+	logPath := req.URL.Query().Get("log_path")
 	nodeID := req.URL.Query().Get("node_id")
 
-	// Build the request and parse the ACL token
-	args := cstructs.MonitorJournaldRequest{
-		NodeID:             nodeID,
-		ServerID:           req.URL.Query().Get("server_id"),
-		LogLevel:           logLevel,
-		LogJSON:            logJSON,
-		LogIncludeLocation: logIncludeLocation,
-		PlainText:          plainText,
-		LogSince:           logSince,
-		ServiceName:        serviceName,
+	if serviceName != "" && logPath != "" {
+		return nil, CodedError(400, "Cannot monitor external log file and systemd service simultaneously")
+	} else if serviceName == "" && logPath == "" {
+		return nil, CodedError(400, "Either -systemd-service or -log-path must be set")
 	}
-
-	// if node and server were requested return error
+	// Build the request and parse the ACL token
+	args := cstructs.MonitorExternalRequest{
+		NodeID:      nodeID,
+		ServerID:    req.URL.Query().Get("server_id"),
+		PlainText:   plainText,
+		LogSince:    logSince,
+		ServiceName: serviceName,
+		LogPath:     logPath,
+	}
 	if args.NodeID != "" && args.ServerID != "" {
 		return nil, CodedError(400, "Cannot target node and server simultaneously")
 	}
-
 	// Force the Content-Type to avoid Go's http.ResponseWriter from
 	// detecting an incorrect or unsafe one.
 	if plainText {
@@ -385,19 +364,19 @@ func (s *HTTPServer) AgentJournald(resp http.ResponseWriter, req *http.Request) 
 		// Determine the handler to use
 		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
 		if useLocalClient {
-			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Journald")
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExternal")
 		} else if useClientRPC {
-			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.Journald")
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.MonitorExternal")
 		} else if useServerRPC {
-			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.Journald")
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.MonitorExternal")
 		} else {
 			handlerErr = CodedError(400, "No local Node and node_id not provided")
 		}
 		// No node id monitor current server/client
 	} else if srv := s.agent.Server(); srv != nil {
-		handler, handlerErr = srv.StreamingRpcHandler("Agent.Journald")
+		handler, handlerErr = srv.StreamingRpcHandler("Agent.MonitorExternal")
 	} else {
-		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.Journald")
+		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExternal")
 	}
 
 	if handlerErr != nil {

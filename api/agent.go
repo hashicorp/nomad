@@ -350,11 +350,11 @@ func (a *Agent) Monitor(stopCh <-chan struct{}, q *QueryOptions) (<-chan *Stream
 	return frames, errCh
 }
 
-// Journald returns a channel which will receive streaming logs from the agent
+// MonitorExternal returns a channel which will receive streaming logs from the agent
 // Providing a non-nil stopCh can be used to close the connection and stop log streaming
-func (a *Agent) Journald(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
+func (a *Agent) MonitorExternal(stopCh <-chan struct{}, q *QueryOptions) (<-chan *StreamFrame, <-chan error) {
 	errCh := make(chan error, 1)
-	r, err := a.client.newRequest("GET", "/v1/agent/journald")
+	r, err := a.client.newRequest("GET", "/v1/agent/monitor/external")
 	if err != nil {
 		errCh <- err
 		return nil, errCh
