@@ -16,6 +16,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/reconcile"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
@@ -55,16 +56,16 @@ func (s *SetStatusError) Error() string {
 type GenericScheduler struct {
 	logger   log.Logger
 	eventsCh chan<- interface{}
-	state    State
-	planner  Planner
+	state    sstructs.State
+	planner  sstructs.Planner
 	batch    bool
 
 	eval       *structs.Evaluation
 	job        *structs.Job
 	plan       *structs.Plan
 	planResult *structs.PlanResult
-	ctx        *EvalContext
-	stack      *GenericStack
+	ctx        *feasible.EvalContext
+	stack      *feasible.GenericStack
 
 	// followUpEvals are evals with WaitUntil set, which are delayed until that time
 	// before being rescheduled
@@ -78,7 +79,7 @@ type GenericScheduler struct {
 }
 
 // NewServiceScheduler is a factory function to instantiate a new service scheduler
-func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
+func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("service_sched"),
 		eventsCh: eventsCh,
@@ -90,7 +91,7 @@ func NewServiceScheduler(logger log.Logger, eventsCh chan<- interface{}, state S
 }
 
 // NewBatchScheduler is a factory function to instantiate a new batch scheduler
-func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state State, planner Planner) Scheduler {
+func NewBatchScheduler(logger log.Logger, eventsCh chan<- interface{}, state sstructs.State, planner sstructs.Planner) sstructs.Scheduler {
 	s := &GenericScheduler{
 		logger:   logger.Named("batch_sched"),
 		eventsCh: eventsCh,
@@ -233,10 +234,10 @@ func (s *GenericScheduler) process() (bool, error) {
 	s.failedTGAllocs = nil
 
 	// Create an evaluation context
-	s.ctx = NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
+	s.ctx = feasible.NewEvalContext(s.eventsCh, s.state, s.plan, s.logger)
 
 	// Construct the placement stack
-	s.stack = NewGenericStack(s.batch, s.ctx)
+	s.stack = feasible.NewGenericStack(s.batch, s.ctx)
 	if !s.job.Stopped() {
 		s.setJob(s.job)
 	}
@@ -647,7 +648,7 @@ func (s *GenericScheduler) computePlacements(
 						original := prevAllocation
 						prevAllocation = prevAllocation.Copy()
 						missing.SetPreviousAllocation(prevAllocation)
-						updateRescheduleTracker(alloc, prevAllocation, now)
+						UpdateRescheduleTracker(alloc, prevAllocation, now)
 						swapAllocInPlan(s.plan, original, prevAllocation)
 					}
 				}
@@ -761,8 +762,8 @@ func needsToSetNodes(a, b *structs.Job) bool {
 }
 
 // getSelectOptions sets up preferred nodes and penalty nodes
-func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs.Node) *SelectOptions {
-	selectOptions := &SelectOptions{}
+func getSelectOptions(prevAllocation *structs.Allocation, preferredNode *structs.Node) *feasible.SelectOptions {
+	selectOptions := &feasible.SelectOptions{}
 	if prevAllocation != nil {
 		penaltyNodes := make(map[string]struct{})
 
@@ -793,11 +794,11 @@ func annotateRescheduleTracker(prev *structs.Allocation, note structs.Reschedule
 	prev.RescheduleTracker.LastReschedule = note
 }
 
-// updateRescheduleTracker carries over previous restart attempts and adds the
+// UpdateRescheduleTracker carries over previous restart attempts and adds the
 // most recent restart. This mutates both allocations; "alloc" is a new
 // allocation so this is safe, but "prev" is coming from the state store and
 // must be copied first.
-func updateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, now time.Time) {
+func UpdateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation, now time.Time) {
 	reschedPolicy := prev.ReschedulePolicy()
 	var rescheduleEvents []*structs.RescheduleEvent
 	if prev.RescheduleTracker != nil {
@@ -859,7 +860,7 @@ func (s *GenericScheduler) findPreferredNode(place reconcile.PlacementResult) (*
 }
 
 // selectNextOption calls the stack to get a node for placement
-func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions *SelectOptions) *RankedNode {
+func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions *feasible.SelectOptions) *feasible.RankedNode {
 	option := s.stack.Select(tg, selectOptions)
 	_, schedConfig, _ := s.ctx.State().SchedulerConfig()
 
@@ -886,7 +887,7 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 }
 
 // handlePreemptions sets relevant preeemption related fields.
-func (s *GenericScheduler) handlePreemptions(option *RankedNode, alloc *structs.Allocation, missing reconcile.PlacementResult) {
+func (s *GenericScheduler) handlePreemptions(option *feasible.RankedNode, alloc *structs.Allocation, missing reconcile.PlacementResult) {
 	if option.PreemptedAllocs == nil {
 		return
 	}

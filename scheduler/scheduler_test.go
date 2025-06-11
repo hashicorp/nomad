@@ -13,6 +13,8 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
+	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test/must"
 )
 
@@ -114,7 +116,7 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 	for _, jobType := range jobTypes {
 		for _, c := range cases {
 			t.Run(fmt.Sprintf("%s/%s", jobType, c.name), func(t *testing.T) {
-				h := NewHarness(t)
+				h := tests.NewHarness(t)
 
 				// Create node pools.
 				nodePools := []*structs.NodePool{
@@ -172,7 +174,7 @@ func TestScheduler_JobRegister_MemoryMaxHonored(t *testing.T) {
 				must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 				// Process the evaluation
-				var scheduler Factory
+				var scheduler sstructs.Factory
 				switch jobType {
 				case "batch":
 					scheduler = NewBatchScheduler

@@ -1,20 +1,25 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 import (
 	"regexp"
+	"testing"
 
 	log "github.com/hashicorp/go-hclog"
 	memdb "github.com/hashicorp/go-memdb"
+	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 // Context is used to track contextual information used for placement
 type Context interface {
 	// State is used to inspect the current global state
-	State() State
+	State() sstructs.State
 
 	// Plan returns the current plan
 	Plan() *structs.Plan
@@ -86,58 +91,11 @@ func (e *EvalCache) SemverConstraintCache() map[string]VerConstraints {
 	return e.semverCache
 }
 
-// PortCollisionEvent is an event that can happen during scheduling when
-// an unexpected port collision is detected.
-type PortCollisionEvent struct {
-	Reason      string
-	Node        *structs.Node
-	Allocations []*structs.Allocation
-
-	// TODO: this is a large struct, but may be required to debug unexpected
-	// port collisions. Re-evaluate its need in the future if the bug is fixed
-	// or not caused by this field.
-	NetIndex *structs.NetworkIndex
-}
-
-func (ev *PortCollisionEvent) Copy() *PortCollisionEvent {
-	if ev == nil {
-		return nil
-	}
-	c := new(PortCollisionEvent)
-	*c = *ev
-	c.Node = ev.Node.Copy()
-	if len(ev.Allocations) > 0 {
-		for i, a := range ev.Allocations {
-			c.Allocations[i] = a.Copy()
-		}
-
-	}
-	c.NetIndex = ev.NetIndex.Copy()
-	return c
-}
-
-func (ev *PortCollisionEvent) Sanitize() *PortCollisionEvent {
-	if ev == nil {
-		return nil
-	}
-	clean := ev.Copy()
-
-	clean.Node = ev.Node.Sanitize()
-	clean.Node.Meta = make(map[string]string)
-
-	for i, alloc := range ev.Allocations {
-		clean.Allocations[i] = alloc.CopySkipJob()
-		clean.Allocations[i].Job = nil
-	}
-
-	return clean
-}
-
 // EvalContext is a Context used during an Evaluation
 type EvalContext struct {
 	EvalCache
 	eventsCh    chan<- interface{}
-	state       State
+	state       sstructs.State
 	plan        *structs.Plan
 	logger      log.Logger
 	metrics     *structs.AllocMetric
@@ -145,7 +103,7 @@ type EvalContext struct {
 }
 
 // NewEvalContext constructs a new EvalContext
-func NewEvalContext(eventsCh chan<- interface{}, s State, p *structs.Plan, log log.Logger) *EvalContext {
+func NewEvalContext(eventsCh chan<- interface{}, s sstructs.State, p *structs.Plan, log log.Logger) *EvalContext {
 	ctx := &EvalContext{
 		eventsCh: eventsCh,
 		state:    s,
@@ -156,7 +114,7 @@ func NewEvalContext(eventsCh chan<- interface{}, s State, p *structs.Plan, log l
 	return ctx
 }
 
-func (e *EvalContext) State() State {
+func (e *EvalContext) State() sstructs.State {
 	return e.state
 }
 
@@ -172,7 +130,7 @@ func (e *EvalContext) Metrics() *structs.AllocMetric {
 	return e.metrics
 }
 
-func (e *EvalContext) SetState(s State) {
+func (e *EvalContext) SetState(s sstructs.State) {
 	e.state = s
 }
 
@@ -431,4 +389,19 @@ func (e *EvalEligibility) SetQuotaLimitReached(quota string) {
 // QuotaLimitReached returns the quota name if the quota limit has been reached.
 func (e *EvalEligibility) QuotaLimitReached() string {
 	return e.quotaReached
+}
+
+func MockContext(t testing.TB) (*state.StateStore, *EvalContext) {
+	state := state.TestStateStore(t)
+	plan := &structs.Plan{
+		EvalID:          uuid.Generate(),
+		NodeUpdate:      make(map[string][]*structs.Allocation),
+		NodeAllocation:  make(map[string][]*structs.Allocation),
+		NodePreemptions: make(map[string][]*structs.Allocation),
+	}
+
+	logger := testlog.HCLogger(t)
+
+	ctx := NewEvalContext(nil, state, plan, logger)
+	return state, ctx
 }

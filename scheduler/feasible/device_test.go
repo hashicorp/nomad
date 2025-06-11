@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 import (
 	"testing"
@@ -102,7 +102,7 @@ func collectInstanceIDs(devices ...*structs.NodeDeviceResource) []string {
 func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
 	must.NotNil(t, d)
@@ -125,7 +125,7 @@ func TestDeviceAllocator_Allocate_GenericRequest(t *testing.T) {
 func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
 	must.NotNil(t, d)
@@ -148,7 +148,7 @@ func TestDeviceAllocator_Allocate_FullyQualifiedRequest(t *testing.T) {
 func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
 	must.NotNil(t, d)
@@ -165,7 +165,7 @@ func TestDeviceAllocator_Allocate_NotEnoughInstances(t *testing.T) {
 func TestDeviceAllocator_Allocate_NUMA_available(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	n := devNode()
 	d := newDeviceAllocator(ctx, n)
 
@@ -184,7 +184,7 @@ func TestDeviceAllocator_Allocate_NUMA_available(t *testing.T) {
 func TestDeviceAllocator_Allocate_NUMA_node1(t *testing.T) {
 	ci.Parallel(t)
 
-	_, ctx := testContext(t)
+	_, ctx := MockContext(t)
 	n := devNode()
 	n.NodeResources.Devices = append(n.NodeResources.Devices, &structs.NodeDeviceResource{
 		Type:   "fpga",
@@ -323,7 +323,7 @@ func TestDeviceAllocator_Allocate_Constraints(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name+c.Note, func(t *testing.T) {
-			_, ctx := testContext(t)
+			_, ctx := MockContext(t)
 			d := newDeviceAllocator(ctx, n)
 			must.NotNil(t, d)
 
@@ -429,7 +429,7 @@ func TestDeviceAllocator_Allocate_Affinities(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			_, ctx := testContext(t)
+			_, ctx := MockContext(t)
 			d := newDeviceAllocator(ctx, n)
 			must.NotNil(t, d)
 

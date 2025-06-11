@@ -4,7 +4,7 @@
 //go:build !ent
 // +build !ent
 
-package scheduler
+package feasible
 
 func NewQuotaIterator(_ Context, source FeasibleIterator) FeasibleIterator {
 	return source

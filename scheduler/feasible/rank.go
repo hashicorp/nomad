@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package feasible
 
 import (
 	"fmt"
@@ -14,6 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/safemath"
 	"github.com/hashicorp/nomad/nomad/structs"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -230,7 +231,7 @@ NEXTNODE:
 		// collect as much information as possible.
 		netIdx := structs.NewNetworkIndex()
 		if err := netIdx.SetNode(option.Node); err != nil {
-			iter.ctx.SendEvent(&PortCollisionEvent{
+			iter.ctx.SendEvent(&sstructs.PortCollisionEvent{
 				Reason:   err.Error(),
 				NetIndex: netIdx.Copy(),
 				Node:     option.Node,
@@ -239,7 +240,7 @@ NEXTNODE:
 			continue
 		}
 		if collide, reason := netIdx.AddAllocs(proposed); collide {
-			event := &PortCollisionEvent{
+			event := &sstructs.PortCollisionEvent{
 				Reason:      reason,
 				NetIndex:    netIdx.Copy(),
 				Node:        option.Node,
