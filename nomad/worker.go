@@ -21,6 +21,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler"
+	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
 const (
@@ -620,7 +621,7 @@ func (w *Worker) invokeScheduler(snap *state.StateSnapshot, eval *structs.Evalua
 	}
 
 	// Create the scheduler, or use the special core scheduler
-	var sched scheduler.Scheduler
+	var sched sstructs.Scheduler
 	if eval.Type == structs.JobTypeCore {
 		sched = NewCoreScheduler(w.srv, snap)
 	} else {
@@ -647,7 +648,7 @@ func (w *Worker) ServersMeetMinimumVersion(minVersion *version.Version, checkFai
 
 // SubmitPlan is used to submit a plan for consideration. This allows
 // the worker to act as the planner for the scheduler.
-func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, scheduler.State, error) {
+func (w *Worker) SubmitPlan(plan *structs.Plan) (*structs.PlanResult, sstructs.State, error) {
 	// Check for a shutdown before plan submission. Checking server state rather than
 	// worker state to allow work in flight to complete before stopping.
 	if w.srv.IsShutdown() {
@@ -700,7 +701,7 @@ SUBMIT:
 	// planned based on stale data, which is causing issues. For example, a
 	// node failure since the time we've started planning or conflicting task
 	// allocations.
-	var state scheduler.State
+	var state sstructs.State
 	if result.RefreshIndex != 0 {
 		// Wait for the raft log to catchup to the evaluation
 		w.logger.Debug("refreshing state", "refresh_index", result.RefreshIndex, "eval_id", plan.EvalID)
