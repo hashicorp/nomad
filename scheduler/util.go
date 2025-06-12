@@ -14,7 +14,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/feasible"
-	"github.com/hashicorp/nomad/scheduler/reconcile"
+	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
@@ -565,7 +565,7 @@ func setStatus(logger log.Logger, planner sstructs.Planner,
 // inplaceUpdate attempts to update allocations in-place where possible. It
 // returns the allocs that couldn't be done inplace and then those that could.
 func inplaceUpdate(ctx feasible.Context, eval *structs.Evaluation, job *structs.Job,
-	stack feasible.Stack, updates []reconcile.AllocTuple) (destructive, inplace []reconcile.AllocTuple) {
+	stack feasible.Stack, updates []reconciler.AllocTuple) (destructive, inplace []reconciler.AllocTuple) {
 
 	// doInplace manipulates the updates map to make the current allocation
 	// an inplace update.
@@ -693,8 +693,8 @@ func inplaceUpdate(ctx feasible.Context, eval *structs.Evaluation, job *structs.
 // desiredUpdates takes the diffResult as well as the set of inplace and
 // destructive updates and returns a map of task groups to their set of desired
 // updates.
-func desiredUpdates(diff *reconcile.NodeReconcileResult, inplaceUpdates,
-	destructiveUpdates []reconcile.AllocTuple) map[string]*structs.DesiredUpdates {
+func desiredUpdates(diff *reconciler.NodeReconcileResult, inplaceUpdates,
+	destructiveUpdates []reconciler.AllocTuple) map[string]*structs.DesiredUpdates {
 	desiredTgs := make(map[string]*structs.DesiredUpdates)
 
 	for _, tuple := range diff.Place {
@@ -825,7 +825,7 @@ func updateNonTerminalAllocsToLost(plan *structs.Plan, tainted map[string]*struc
 // by the reconciler to make decisions about how to update an allocation. The
 // factory allows the reconciler to be unaware of how to determine the type of
 // update necessary and can minimize the set of objects it is exposed to.
-func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID string) reconcile.AllocUpdateType {
+func genericAllocUpdateFn(ctx feasible.Context, stack feasible.Stack, evalID string) reconciler.AllocUpdateType {
 	return func(existing *structs.Allocation, newJob *structs.Job, newTG *structs.TaskGroup) (ignore, destructive bool, updated *structs.Allocation) {
 		// Same index, so nothing to do
 		if existing.Job.JobModifyIndex == newJob.JobModifyIndex {
