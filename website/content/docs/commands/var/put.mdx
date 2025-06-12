@@ -54,11 +54,7 @@ values are read using the `range` function.
 Variable items are restricted to 64KiB in size. This limit is calculated by
 taking the sum of the length in bytes of all of the unencrypted keys and values.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Put options
+## Options
 
 - `-check-index` `(int: <unset>)`: If set, the variable is only acted upon if
   the server-side version's index matches the provided value. When a variable
@@ -107,6 +103,9 @@ Or it can be read from standard input using the "-" symbol:
 $ echo "abcd1234" | nomad var put secret/foo bar=-
 ```
 
+## General options
+
+@include 'general_options.mdx'
 
 [variable]: /nomad/docs/concepts/variables
 [varspec]: /nomad/docs/other-specifications/variables

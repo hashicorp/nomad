@@ -23,11 +23,7 @@ source volume ID as known to the external storage provider. This is not the
 same as the Nomad volume ID, as the source volume may not be [registered] with
 Nomad.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Snapshot list options
+## Options
 
 - `-page-token`: Where to start pagination.
 - `-per-page`: How many results to show per page.
@@ -60,6 +56,10 @@ $ nomad volume snapshot list -plugin aws-ebs0 -secret key1=value1 -secret key2=v
 Snapshot ID  External ID  Size   Creation Time         Ready?
 snap-12345   vol-abcdef   50GiB  2021-01-03T12:15:02Z  true
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin
