@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -983,7 +984,8 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 	sdNotify(sdSock, sdStopping)
 
 	gracefulCh := make(chan struct{})
-	defer close(gracefulCh)
+	gracefulClose := sync.OnceFunc(func() { close(gracefulCh) })
+	defer gracefulClose()
 
 	timeout := gracefulTimeout
 
@@ -1002,7 +1004,7 @@ func (c *Command) terminateGracefully(signalCh chan os.Signal, sdSock io.Writer)
 			c.Ui.Error(fmt.Sprintf("Error: %s", err))
 			return
 		}
-		close(gracefulCh)
+		gracefulClose()
 	}()
 
 	delay := time.NewTimer(timeout)
