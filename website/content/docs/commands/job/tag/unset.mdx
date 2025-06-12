@@ -1,0 +1,33 @@
+---
+layout: docs
+page_title: 'nomad job tag unset command reference'
+description: |
+  The `nomad job tag unset` command removes a job version tag.
+---
+
+# `nomad job tag unset` command reference
+
+Use `nomad job tag unset` to delete a tag from a version. This command requires
+a job name and a tag name.
+
+## Usage
+
+```plaintext
+nomad job tag unset [options] <job_id>
+```
+
+## Options
+
+- `name`: Specifies the name of the tag to remove from the job version.
+
+## Examples
+
+This example removes the `golden-version` tag from the `hello-world` job.
+
+```shell-session
+$ nomad job tag unset -name "golden-version" hello-world
+```
+
+## General options
+
+@include 'general_options.mdx'

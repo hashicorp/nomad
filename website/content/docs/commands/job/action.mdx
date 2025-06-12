@@ -45,11 +45,7 @@ the defined action command will be run. No further input is possible, save for
 the escape character to terminate execution, so interactive commands are not
 supported.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Action options
+## Options
 
 - `-job`: (Required) Specifies the job containing the predefined action.
 
@@ -70,7 +66,7 @@ supported.
 - `-t`: Allocate a pseudo-tty, defaults to `true` if stdin is detected to be a tty
   session. Pass `-t=false` to disable explicitly.
 
-- `-e` <escape_char>: Sets the escape character for sessions with a pty,
+- `-e` `<escape_char>`: Sets the escape character for sessions with a pty,
   defaults to '~'. The escape character is only recognized at the beginning of a
   line. The escape character followed by a dot (`.`) closes the connection.
   Setting the character to `none` disables any escapes and makes the session
@@ -103,5 +99,9 @@ Running for 1 seconds
 Running for 2 seconds
 Running for 3 seconds
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [job specification]: /nomad/docs/job-specification
