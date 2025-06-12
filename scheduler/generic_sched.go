@@ -342,6 +342,8 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID,
 		s.eval.Priority, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
+	// FIXME: Compute() method returns a result, the Result field of the
+	// reconciler will be removed
 	r.Compute()
 	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", r.Result))
 
