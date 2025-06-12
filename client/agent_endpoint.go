@@ -303,7 +303,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		}
 	}()
 	var streamErr error
-	a.c.logger.Info("before outer loop")
+
 OUTER:
 	for {
 		select {
@@ -340,7 +340,6 @@ OUTER:
 			}
 			encoder.Reset(conn)
 		case <-ctx.Done():
-			a.c.logger.Info("context was cancelled in send loop")
 			break OUTER
 
 		}

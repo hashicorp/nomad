@@ -91,6 +91,9 @@ type MonitorExternalRequest struct {
 	// stream ongoing log output
 	Follow bool
 
+	// TstFile is used for testing it's not available at the CLI level
+	TstFile string
+
 	structs.QueryOptions
 }
 

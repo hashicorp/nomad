@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"sync"
+	"testing"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -257,24 +258,34 @@ func (d *monitor) MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan 
 	return streamCh
 }
 func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, io.Reader, error) {
-	const (
-		defaultDuration = "72"
-	)
+	const defaultDuration = "72"
+	var cmdString string
+
+	cmdDuration := opts.LogSince
 	// Set logSince to default if unset by caller
 	if opts.LogSince == "0" {
 		d.logger.Info(string(opts.LogSince))
-		opts.LogSince = defaultDuration
+		cmdDuration = defaultDuration
 	}
 	// build command
-	_ = fmt.Sprintf("journalctl -xe -u %s --no-pager --since '%s hours ago'", opts.ServiceName, opts.LogSince)
-	//if follow {
-	//	cmdString = cmdString + " -f"
-	//}
+	cmdString = fmt.Sprintf("journalctl -xe -u %s --no-pager --since '%s hours ago'", opts.ServiceName, cmdDuration)
+	if opts.Follow {
+		cmdString = cmdString + " -f"
+	}
 	shell := "/bin/sh"
 	if other := os.Getenv("SHELL"); other != "" {
 		shell = other
 	}
-	cmdString := "cat /Users/tehut/go/src/github.com/hashicorp/nomad/t3.txt"
+
+	// We aren't exposing opt.TstFile in the CLI and require it be running in a
+	// testing environment but I can pull it if it still feels risky to have
+	// in the RPC params
+	if opts.TstFile != "" && testing.Testing() {
+		cmdString = fmt.Sprintf("cat %s", opts.TstFile)
+	} else {
+		cmdString = "cat /Users/tehut/go/src/github.com/hashicorp/nomad/t3.txt"
+	}
+
 	cmd := exec.CommandContext(context.Background(), shell, "-c", cmdString)
 
 	// set up reader
@@ -285,7 +296,7 @@ func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, i
 	}
 	stdErr, err := cmd.StderrPipe()
 	if err != nil {
-		d.logger.Error("unable to read   logs into buffer", err.Error())
+		d.logger.Error("unable to read logs into buffer", err.Error())
 		return nil, nil, err
 	}
 	multi := io.MultiReader(stdOut, stdErr)
