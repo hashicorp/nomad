@@ -460,10 +460,10 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 
 		// Set unrecoverable error.
 		mockVaultClient.SetDeriveTokenWithJWTFn(
-			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, error) {
+			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
 				// Cancel the context to simulate the task being killed.
 				cancel()
-				return "", false, structs.NewRecoverableError(errors.New("unrecoverable test error"), false)
+				return "", false, 0, structs.NewRecoverableError(errors.New("unrecoverable test error"), false)
 			})
 
 		err := hook.Prestart(ctx, req, &resp)
@@ -509,16 +509,16 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 
 		// Set recoverable error.
 		mockVaultClient.SetDeriveTokenWithJWTFn(
-			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, error) {
-				return "", false, structs.NewRecoverableError(errors.New("recoverable test error"), true)
+			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
+				return "", false, 0, structs.NewRecoverableError(errors.New("recoverable test error"), true)
 			})
 
 		go func() {
 			// Wait a bit for the first error then fix token renewal.
 			time.Sleep(time.Second)
 			mockVaultClient.SetDeriveTokenWithJWTFn(
-				func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, error) {
-					return "secret", true, nil
+				func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
+					return "secret", true, 30, nil
 				})
 
 		}()
@@ -555,8 +555,8 @@ func TestTaskRunner_VaultHook_deriveError(t *testing.T) {
 
 		// Derive predictable token and fail renew request.
 		mockVaultClient.SetDeriveTokenWithJWTFn(
-			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, error) {
-				return "secret", true, nil
+			func(_ context.Context, _ vaultclient.JWTLoginRequest) (string, bool, int, error) {
+				return "secret", true, 30, nil
 			})
 		mockVaultClient.SetRenewTokenError("secret", errors.New("test error"))
 

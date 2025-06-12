@@ -238,6 +238,7 @@ func (h *vaultHook) run(token string) {
 	// updatedToken lets us store state between loops. If true, a new token
 	// has been retrieved and we need to apply the Vault change mode
 	var updatedToken bool
+	leaseDuration := 30
 
 OUTER:
 	for {
@@ -255,7 +256,7 @@ OUTER:
 		if token == "" {
 			// Get a token
 			var exit bool
-			token, exit = h.deriveVaultToken()
+			token, leaseDuration, exit = h.deriveVaultToken()
 			if exit {
 				// Exit the manager
 				return
@@ -289,7 +290,10 @@ OUTER:
 		//
 		// If Vault is having availability issues or is overloaded, a large
 		// number of initial token renews can exacerbate the problem.
-		renewCh, err := h.client.RenewToken(token, 30)
+		if leaseDuration == 0 {
+			leaseDuration = 30
+		}
+		renewCh, err := h.client.RenewToken(token, leaseDuration)
 
 		// An error returned means the token is not being renewed
 		if err != nil {
@@ -358,13 +362,17 @@ OUTER:
 
 // deriveVaultToken derives the Vault token using exponential backoffs. It
 // returns the Vault token and whether the manager should exit.
-func (h *vaultHook) deriveVaultToken() (string, bool) {
+func (h *vaultHook) deriveVaultToken() (string, int, bool) {
 	var attempts uint64
 	var backoff time.Duration
+
+	timer, stopTimer := helper.NewSafeTimer(0)
+	defer stopTimer()
+
 	for {
-		token, err := h.deriveVaultTokenJWT()
+		token, lease, err := h.deriveVaultTokenJWT()
 		if err == nil {
-			return token, false
+			return token, lease, false
 		}
 
 		// Check if we can't recover from the error
@@ -374,11 +382,12 @@ func (h *vaultHook) deriveVaultToken() (string, bool) {
 				structs.NewTaskEvent(structs.TaskKilling).
 					SetFailsTask().
 					SetDisplayMessage(fmt.Sprintf("Vault: failed to derive vault token: %v", err)))
-			return "", true
+			return "", 0, true
 		}
 
 		// Handle the retry case
 		backoff = helper.Backoff(vaultBackoffBaseline, vaultBackoffLimit, attempts)
+		timer.Reset(backoff)
 		attempts++
 
 		h.logger.Error("failed to derive Vault token", "error", err, "recoverable", true, "backoff", backoff)
@@ -386,14 +395,14 @@ func (h *vaultHook) deriveVaultToken() (string, bool) {
 		// Wait till retrying
 		select {
 		case <-h.ctx.Done():
-			return "", true
-		case <-time.After(backoff):
+			return "", 0, true
+		case <-timer.C:
 		}
 	}
 }
 
 // deriveVaultTokenJWT returns a Vault ACL token using JWT auth login.
-func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
+func (h *vaultHook) deriveVaultTokenJWT() (string, int, error) {
 	// Retrieve signed identity.
 	signed, err := h.widmgr.Get(structs.WIHandle{
 		IdentityName:       h.widName,
@@ -401,13 +410,13 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 		WorkloadType:       structs.WorkloadTypeTask,
 	})
 	if err != nil {
-		return "", structs.NewRecoverableError(
+		return "", 0, structs.NewRecoverableError(
 			fmt.Errorf("failed to retrieve signed workload identity: %w", err),
 			true,
 		)
 	}
 	if signed == nil {
-		return "", structs.NewRecoverableError(
+		return "", 0, structs.NewRecoverableError(
 			errors.New("no signed workload identity available"),
 			false,
 		)
@@ -419,13 +428,13 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 	}
 
 	// Derive Vault token with signed identity.
-	token, renewable, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
+	token, renewable, leaseDuration, err := h.client.DeriveTokenWithJWT(h.ctx, vaultclient.JWTLoginRequest{
 		JWT:       signed.JWT,
 		Role:      role,
 		Namespace: h.vaultBlock.Namespace,
 	})
 	if err != nil {
-		return "", structs.WrapRecoverable(
+		return "", 0, structs.WrapRecoverable(
 			fmt.Sprintf("failed to derive Vault token for identity %s: %v", h.widName, err),
 			err,
 		)
@@ -437,7 +446,7 @@ func (h *vaultHook) deriveVaultTokenJWT() (string, error) {
 		h.allowTokenExpiration = true
 	}
 
-	return token, nil
+	return token, leaseDuration, nil
 }
 
 // writeToken writes the given token to disk
