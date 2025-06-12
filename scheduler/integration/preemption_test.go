@@ -1,7 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
-// SPDX-License-Identifier: BUSL-1.1
-
-package scheduler
+package integration
 
 import (
 	"fmt"
@@ -12,6 +9,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	psstructs "github.com/hashicorp/nomad/plugins/shared/structs"
+	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test/must"
 )
@@ -100,7 +98,7 @@ func TestPreemptionMultiple(t *testing.T) {
 	allocs := []*structs.Allocation{}
 	allocIDs := map[string]struct{}{}
 	for i := 0; i < 4; i++ {
-		alloc := createAllocWithDevice(uuid.Generate(), lowPrioJob, lowPrioJob.TaskGroups[0].Tasks[0].Resources, &structs.AllocatedDeviceResource{
+		alloc := tests.CreateAllocWithDevice(uuid.Generate(), lowPrioJob, lowPrioJob.TaskGroups[0].Tasks[0].Resources, &structs.AllocatedDeviceResource{
 			Type:      "gpu",
 			Vendor:    "nvidia",
 			Name:      "1080ti",
@@ -138,7 +136,7 @@ func TestPreemptionMultiple(t *testing.T) {
 	must.NoError(t, h.State.UpsertEvals(structs.MsgTypeTestSetup, h.NextIndex(), []*structs.Evaluation{eval}))
 
 	// Process the evaluation
-	must.NoError(t, h.Process(NewServiceScheduler, eval))
+	must.NoError(t, h.Process(scheduler.NewServiceScheduler, eval))
 	must.Len(t, 1, h.Plans)
 	must.MapContainsKey(t, h.Plans[0].NodePreemptions, node.ID)
 
@@ -147,48 +145,4 @@ func TestPreemptionMultiple(t *testing.T) {
 		preempted[alloc.ID] = struct{}{}
 	}
 	must.Eq(t, allocIDs, preempted)
-}
-
-func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource) *structs.Allocation {
-	return createAllocInner(id, job, resource, allocatedDevices, nil)
-}
-
-func createAllocInner(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource, tgNetwork *structs.NetworkResource) *structs.Allocation {
-	alloc := &structs.Allocation{
-		ID:    id,
-		Job:   job,
-		JobID: job.ID,
-		TaskResources: map[string]*structs.Resources{
-			"web": resource,
-		},
-		Namespace:     structs.DefaultNamespace,
-		EvalID:        uuid.Generate(),
-		DesiredStatus: structs.AllocDesiredStatusRun,
-		ClientStatus:  structs.AllocClientStatusRunning,
-		TaskGroup:     "web",
-		AllocatedResources: &structs.AllocatedResources{
-			Tasks: map[string]*structs.AllocatedTaskResources{
-				"web": {
-					Cpu: structs.AllocatedCpuResources{
-						CpuShares: int64(resource.CPU),
-					},
-					Memory: structs.AllocatedMemoryResources{
-						MemoryMB: int64(resource.MemoryMB),
-					},
-					Networks: resource.Networks,
-				},
-			},
-		},
-	}
-
-	if allocatedDevices != nil {
-		alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{allocatedDevices}
-	}
-
-	if tgNetwork != nil {
-		alloc.AllocatedResources.Shared = structs.AllocatedSharedResources{
-			Networks: []*structs.NetworkResource{tgNetwork},
-		}
-	}
-	return alloc
 }
