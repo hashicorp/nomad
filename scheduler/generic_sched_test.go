@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
-	"github.com/hashicorp/nomad/scheduler/reconcile"
+	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test"
@@ -7051,7 +7051,7 @@ func TestDowngradedJobForPlacement_PicksTheLatest(t *testing.T) {
 
 			sched.job = nj
 			sched.deployment = deployment
-			placement := &reconcile.AllocPlaceResult{}
+			placement := &reconciler.AllocPlaceResult{}
 			placement.SetTaskGroup(nj.TaskGroups[0])
 
 			// Here, assert the downgraded job version

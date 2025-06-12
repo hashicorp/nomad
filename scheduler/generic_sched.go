@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/feasible"
-	"github.com/hashicorp/nomad/scheduler/reconcile"
+	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
@@ -338,7 +338,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	// nodes to lost, but only if the scheduler has already marked them
 	updateNonTerminalAllocsToLost(s.plan, tainted, allocs)
 
-	r := reconcile.NewAllocReconciler(s.logger,
+	r := reconciler.NewAllocReconciler(s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID,
 		s.eval.Priority, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
@@ -411,13 +411,13 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Compute the placements
-	place := make([]reconcile.PlacementResult, 0, len(r.Result.Place))
+	place := make([]reconciler.PlacementResult, 0, len(r.Result.Place))
 	for _, p := range r.Result.Place {
 		s.queuedAllocs[p.TaskGroup().Name] += 1
 		place = append(place, p)
 	}
 
-	destructive := make([]reconcile.PlacementResult, 0, len(r.Result.DestructiveUpdate))
+	destructive := make([]reconciler.PlacementResult, 0, len(r.Result.DestructiveUpdate))
 	for _, p := range r.Result.DestructiveUpdate {
 		s.queuedAllocs[p.TaskGroup().Name] += 1
 		destructive = append(destructive, p)
@@ -427,7 +427,7 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 // downgradedJobForPlacement returns the previous stable version of the job for
 // downgrading a placement for non-canaries
-func (s *GenericScheduler) downgradedJobForPlacement(p reconcile.PlacementResult) (string, *structs.Job, error) {
+func (s *GenericScheduler) downgradedJobForPlacement(p reconciler.PlacementResult) (string, *structs.Job, error) {
 	ns, jobID := s.job.Namespace, s.job.ID
 	tgName := p.TaskGroup().Name
 
@@ -466,7 +466,7 @@ func (s *GenericScheduler) downgradedJobForPlacement(p reconcile.PlacementResult
 // computePlacements computes placements for allocations. It is given the set of
 // destructive updates to place and the set of new placements to place.
 func (s *GenericScheduler) computePlacements(
-	destructive, place []reconcile.PlacementResult, nameIndex map[string]*reconcile.AllocNameIndex,
+	destructive, place []reconciler.PlacementResult, nameIndex map[string]*reconciler.AllocNameIndex,
 ) error {
 
 	// Get the base nodes
@@ -486,7 +486,7 @@ func (s *GenericScheduler) computePlacements(
 	// Have to handle destructive changes first as we need to discount their
 	// resources. To understand this imagine the resources were reduced and the
 	// count was scaled up.
-	for _, results := range [][]reconcile.PlacementResult{destructive, place} {
+	for _, results := range [][]reconciler.PlacementResult{destructive, place} {
 		for _, missing := range results {
 			// Get the task group
 			tg := missing.TaskGroup()
@@ -838,7 +838,7 @@ func UpdateRescheduleTracker(alloc *structs.Allocation, prev *structs.Allocation
 }
 
 // findPreferredNode finds the preferred node for an allocation
-func (s *GenericScheduler) findPreferredNode(place reconcile.PlacementResult) (*structs.Node, error) {
+func (s *GenericScheduler) findPreferredNode(place reconciler.PlacementResult) (*structs.Node, error) {
 	prev := place.PreviousAllocation()
 	if prev == nil {
 		return nil, nil
@@ -887,7 +887,7 @@ func (s *GenericScheduler) selectNextOption(tg *structs.TaskGroup, selectOptions
 }
 
 // handlePreemptions sets relevant preeemption related fields.
-func (s *GenericScheduler) handlePreemptions(option *feasible.RankedNode, alloc *structs.Allocation, missing reconcile.PlacementResult) {
+func (s *GenericScheduler) handlePreemptions(option *feasible.RankedNode, alloc *structs.Allocation, missing reconciler.PlacementResult) {
 	if option.PreemptedAllocs == nil {
 		return
 	}

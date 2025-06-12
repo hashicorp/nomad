@@ -48,7 +48,7 @@
     "scheduler/...",
     "scheduler/feasible/...",
     "scheduler/integration/...",
-    "scheduler/reconcile/...",
+    "scheduler/reconciler/...",
     "testutil/..."
   ]
 }
