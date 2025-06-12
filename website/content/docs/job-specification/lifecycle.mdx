@@ -26,6 +26,11 @@ tasks or "sidecar" tasks that are expected to run for the duration of the main t
 The absence of the sidecar flag indicates that the task is ephemeral
 and should not be restarted if it completes successfully.
 
+The `lifecycle` block also controls the order Nomad stops tasks in an
+allocation. Nomad first waits for the group's [shutdown_delay][]. It then stops
+the [leader][] task, if present. Then Nomad stops any non-sidecar and
+non-poststop tasks, and finally any sidecar tasks.
+
 Learn more about [Nomad's task dependencies][learn-taskdeps].
 
 ## `lifecycle` Parameters
@@ -46,6 +51,8 @@ Learn more about [Nomad's task dependencies][learn-taskdeps].
   restarted as long as the allocation is running.
 
 [learn-taskdeps]: /nomad/tutorials/task-deps
+[shutdown_delay]: /nomad/docs/job-specification/group#shutdown_delay
+[leader]: /nomad/docs/job-specification/task#leader
 
 ## Lifecycle Examples
 
