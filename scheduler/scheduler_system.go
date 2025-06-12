@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/feasible"
-	"github.com/hashicorp/nomad/scheduler/reconcile"
+	"github.com/hashicorp/nomad/scheduler/reconciler"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
 )
 
@@ -258,7 +258,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	live, term := structs.SplitTerminalAllocs(allocs)
 
 	// Diff the required and existing allocations
-	r := reconcile.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
+	r := reconciler.Node(s.job, s.nodes, s.notReadyNodes, tainted, live, term,
 		s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
 	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", r))
 
@@ -286,7 +286,7 @@ func (s *SystemScheduler) computeJobAllocs() error {
 	// Attempt to do the upgrades in place.
 	// Reconnecting allocations need to be updated to persists alloc state
 	// changes.
-	updates := make([]reconcile.AllocTuple, 0, len(r.Update)+len(r.Reconnecting))
+	updates := make([]reconciler.AllocTuple, 0, len(r.Update)+len(r.Reconnecting))
 	updates = append(updates, r.Update...)
 	updates = append(updates, r.Reconnecting...)
 	destructiveUpdates, inplaceUpdates := inplaceUpdate(s.ctx, s.eval, s.job, s.stack, updates)
@@ -359,7 +359,7 @@ func mergeNodeFiltered(acc, curr *structs.AllocMetric) *structs.AllocMetric {
 }
 
 // computePlacements computes placements for allocations
-func (s *SystemScheduler) computePlacements(place []reconcile.AllocTuple, existingByTaskGroup map[string]bool) error {
+func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, existingByTaskGroup map[string]bool) error {
 	nodeByID := make(map[string]*structs.Node, len(s.nodes))
 	for _, node := range s.nodes {
 		nodeByID[node.ID] = node
@@ -573,7 +573,7 @@ func (s *SystemScheduler) canHandle(trigger string) bool {
 // evictAndPlace is used to mark allocations for evicts and add them to the
 // placement queue. evictAndPlace modifies both the diffResult and the
 // limit. It returns true if the limit has been reached.
-func evictAndPlace(ctx feasible.Context, diff *reconcile.NodeReconcileResult, allocs []reconcile.AllocTuple, desc string, limit *int) bool {
+func evictAndPlace(ctx feasible.Context, diff *reconciler.NodeReconcileResult, allocs []reconciler.AllocTuple, desc string, limit *int) bool {
 	n := len(allocs)
 	for i := 0; i < n && i < *limit; i++ {
 		a := allocs[i]

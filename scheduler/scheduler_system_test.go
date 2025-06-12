@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/scheduler/feasible"
-	"github.com/hashicorp/nomad/scheduler/reconcile"
+	"github.com/hashicorp/nomad/scheduler/reconciler"
 	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test/must"
 )
@@ -3294,13 +3294,13 @@ func TestEvictAndPlace_LimitLessThanAllocs(t *testing.T) {
 	ci.Parallel(t)
 
 	_, ctx := feasible.MockContext(t)
-	allocs := []reconcile.AllocTuple{
+	allocs := []reconciler.AllocTuple{
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
-	diff := &reconcile.NodeReconcileResult{}
+	diff := &reconciler.NodeReconcileResult{}
 
 	limit := 2
 	must.True(t, evictAndPlace(ctx, diff, allocs, "", &limit),
@@ -3315,13 +3315,13 @@ func TestEvictAndPlace_LimitEqualToAllocs(t *testing.T) {
 	ci.Parallel(t)
 
 	_, ctx := feasible.MockContext(t)
-	allocs := []reconcile.AllocTuple{
+	allocs := []reconciler.AllocTuple{
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
-	diff := &reconcile.NodeReconcileResult{}
+	diff := &reconciler.NodeReconcileResult{}
 
 	limit := 4
 	must.False(t, evictAndPlace(ctx, diff, allocs, "", &limit),
@@ -3335,13 +3335,13 @@ func TestEvictAndPlace_LimitGreaterThanAllocs(t *testing.T) {
 	ci.Parallel(t)
 
 	_, ctx := feasible.MockContext(t)
-	allocs := []reconcile.AllocTuple{
+	allocs := []reconciler.AllocTuple{
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 		{Alloc: &structs.Allocation{ID: uuid.Generate()}},
 	}
-	diff := &reconcile.NodeReconcileResult{}
+	diff := &reconciler.NodeReconcileResult{}
 
 	limit := 6
 	must.False(t, evictAndPlace(ctx, diff, allocs, "", &limit))
