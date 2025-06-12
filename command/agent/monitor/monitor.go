@@ -9,7 +9,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime"
 	"sync"
+	"testing"
 	"time"
 
 	log "github.com/hashicorp/go-hclog"
@@ -191,112 +193,117 @@ func (d *monitor) Write(p []byte) (n int, err error) {
 // MonitorExternal reads a file or executes a CLI command and streams a single
 // log bundle over the monitor's channel
 func (d *monitor) MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan []byte {
-
-	//if runtime.GOOS != "linux" && opts.ServiceName != "" {
-	//	d.logger.Error("systemd unit log monitoring only available on linux")
-	//	return nil
-	//}
-
-	// Double checking options are as expected
-	if len(opts.ServiceName) == 0 && len(opts.LogPath) == 0 {
-		d.logger.Error("serviceName or logPath must be set")
-		return nil
-	} else if len(opts.ServiceName) != 0 && len(opts.LogPath) != 0 {
-		d.logger.Error("both serviceName and logPath cannot be set")
-		return nil
-	}
 	var (
 		multiReader io.Reader
 		cmd         *exec.Cmd
 		prepErr     error
 		useCli      bool
 	)
-	if len(opts.ServiceName) != 0 && len(opts.LogPath) == 0 {
+
+	if runtime.GOOS != "linux" &&
+		opts.ServiceName != "" &&
+		!testing.Testing() {
+		d.logger.Error("systemd unit log monitoring only available on linux")
+		return nil
+	}
+
+	if opts.OnDisk {
+		multiReader, prepErr = d.fileReader(opts.NomadLogPath)
+		if prepErr != nil {
+			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
+			return nil
+		}
+	} else {
 		useCli = true
 		cmd, multiReader, prepErr = d.cliReader(opts)
+		if prepErr != nil {
+			d.logger.Error("error attempting to prepare reader", "error", prepErr.Error())
+			return nil
+		}
 		cmd.Start()
-	} else if len(opts.ServiceName) == 0 && len(opts.LogPath) != 0 {
-		useCli = false
-		multiReader, prepErr = d.fileReader(opts)
 	}
 
-	if prepErr != nil {
-		d.logger.Error("error attempting to prepare cli command", "error", prepErr.Error())
-	}
-	// Set up multireader before starting command
-
-	streamCh := make(chan []byte)
-	var readErr error
 	// Read, copy, and send to channel until we hit EOF or error
+	streamCh := make(chan []byte)
 	go func() {
 		if useCli {
 			defer cmd.Wait()
 		}
 		defer close(streamCh)
 		logChunk := make([]byte, 32)
-		copyBuffer := make([]byte, 32)
 
 		for {
-			_, readErr = multiReader.Read(logChunk)
+			n, readErr := multiReader.Read(logChunk)
 			if readErr != nil && readErr != io.EOF {
 				d.logger.Error("unable to read logs into channel", readErr.Error())
 				return
 			}
-			copy(copyBuffer, logChunk)
 
-			streamCh <- logChunk
-			time.Sleep(1 * time.Microsecond) // quick sleep to decrease risk of collisions & overwrites
+			streamCh <- logChunk[:n]
 
-			if readErr == io.EOF {
+			if readErr == io.EOF && !opts.Follow {
 				break
-			} else {
-				continue
 			}
 		}
 	}()
 	return streamCh
 }
 func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, io.Reader, error) {
-	const (
-		defaultDuration = "72"
-	)
+	const defaultDuration = "72"
+	var cmdString string
+
+	cmdDuration := opts.LogSince
+
 	// Set logSince to default if unset by caller
 	if opts.LogSince == "0" {
-		d.logger.Info(string(opts.LogSince))
-		opts.LogSince = defaultDuration
+		cmdDuration = defaultDuration
 	}
-	// build command
-	_ = fmt.Sprintf("journalctl -xe -u %s --no-pager --since '%s hours ago'", opts.ServiceName, opts.LogSince)
-	//if follow {
-	//	cmdString = cmdString + " -f"
-	//}
+	// Vet servicename again
+	safeServiceName := ""
+	if err := opts.ScanServiceName(); err != nil {
+		return nil, nil, err
+	}
+	safeServiceName = opts.ServiceName
+
+	// build command with vetted inputs
+	cmdString = fmt.Sprintf("journalctl -xu %s --no-pager --since '%s hours ago'", safeServiceName, cmdDuration)
+	if opts.Follow {
+		cmdString = cmdString + " -f"
+	}
 	shell := "/bin/sh"
 	if other := os.Getenv("SHELL"); other != "" {
 		shell = other
 	}
-	cmdString := "cat /Users/tehut/go/src/github.com/hashicorp/nomad/t3.txt"
+
+	if testing.Testing() {
+		//	// test helper to circumvent journalctl
+		if opts.Follow {
+			cmdString = "less" + opts.NomadLogPath
+		} else {
+			cmdString = "cat " + opts.NomadLogPath
+		}
+	}
+
 	cmd := exec.CommandContext(context.Background(), shell, "-c", cmdString)
 
 	// set up reader
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
-		d.logger.Error("unable to read logs into buffer", err.Error())
 		return nil, nil, err
 	}
 	stdErr, err := cmd.StderrPipe()
 	if err != nil {
-		d.logger.Error("unable to read   logs into buffer", err.Error())
 		return nil, nil, err
 	}
-	multi := io.MultiReader(stdOut, stdErr)
+	multiReader := io.MultiReader(stdOut, stdErr)
 
-	return cmd, multi, nil
+	return cmd, multiReader, nil
 }
 
-func (d *monitor) fileReader(opts *cstructs.MonitorExternalRequest) (io.Reader, error) {
-	file, err := os.Open(opts.LogPath)
+func (d *monitor) fileReader(logfile string) (io.Reader, error) {
+	file, err := os.Open(logfile)
 	if err != nil {
-		d.logger.Error("failed to open log file", "error", err.Error())
+		return nil, err
 	}
 
 	return file, nil

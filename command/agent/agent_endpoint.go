@@ -7,10 +7,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -306,15 +308,25 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 }
 
 func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-	// Process and prep arguments
-	plainText := false
-	plainTextStr := req.URL.Query().Get("plain")
-	if plainTextStr != "" {
-		parsed, err := strconv.ParseBool(plainTextStr)
+	// Process and validate arguments
+	onDisk := false //default value
+	onDiskStr := req.URL.Query().Get("on_disk")
+	if onDiskStr != "" {
+		parsedonDisk, err := strconv.ParseBool(onDiskStr)
 		if err != nil {
-			return nil, CodedError(400, fmt.Sprintf("Unknown option for plain: %v", err))
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for on_disk: %v", err))
 		}
-		plainText = parsed
+		onDisk = parsedonDisk
+	}
+
+	follow := false //default value
+	followStr := req.URL.Query().Get("follow")
+	if followStr != "" {
+		parsedfollow, err := strconv.ParseBool(followStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for follow %v", err))
+		}
+		follow = parsedfollow
 	}
 
 	logSince := "72" //default value
@@ -326,34 +338,40 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 		}
 		logSince = logSinceStr
 	}
+
 	serviceName := req.URL.Query().Get("service_name")
-	logPath := req.URL.Query().Get("log_path")
 	nodeID := req.URL.Query().Get("node_id")
 
-	if serviceName != "" && logPath != "" {
-		return nil, CodedError(400, "Cannot monitor external log file and systemd service simultaneously")
-	} else if serviceName == "" && logPath == "" {
-		return nil, CodedError(400, "Either -systemd-service or -log-path must be set")
-	}
+	nomadLogPath := s.agent.GetConfig().LogFile
+
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorExternalRequest{
-		NodeID:      nodeID,
-		ServerID:    req.URL.Query().Get("server_id"),
-		PlainText:   plainText,
-		LogSince:    logSince,
-		ServiceName: serviceName,
-		LogPath:     logPath,
+		NodeID:       nodeID,
+		ServerID:     req.URL.Query().Get("server_id"),
+		LogSince:     logSince,
+		ServiceName:  serviceName,
+		OnDisk:       onDisk,
+		NomadLogPath: nomadLogPath,
+		Follow:       follow,
 	}
 	if args.NodeID != "" && args.ServerID != "" {
 		return nil, CodedError(400, "Cannot target node and server simultaneously")
 	}
+
+	if args.OnDisk && args.ServiceName != "" {
+		return nil, CodedError(400, "Cannot target journalctl and nomad log file simultaneously")
+	}
+
+	if err := args.ScanServiceName(); err != nil {
+		return nil, CodedError(422, err.Error())
+	}
+
+	if err := args.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
+		return nil, CodedError(422, err.Error())
+	}
 	// Force the Content-Type to avoid Go's http.ResponseWriter from
 	// detecting an incorrect or unsafe one.
-	if plainText {
-		resp.Header().Set("Content-Type", "text/plain")
-	} else {
-		resp.Header().Set("Content-Type", "application/json")
-	}
+	resp.Header().Set("Content-Type", "application/json")
 
 	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
 
@@ -401,11 +419,10 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 
 	// stream response
 	go func() {
-		//defer cancel()
+		defer cancel()
 
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
-			s.logger.Warn("this is the error after request sent", err.Error())
 			errCh <- CodedError(500, err.Error())
 			return
 		}
@@ -414,29 +431,25 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 			select {
 			case <-ctx.Done():
 				errCh <- nil
-				s.logger.Warn("context cancelled in agent loop")
 				return
 			default:
 			}
 
 			var res cstructs.StreamErrWrapper
 			if err := decoder.Decode(&res); err != nil && err != io.EOF {
-				s.logger.Warn("this is the error", err.Error())
 				errCh <- CodedError(500, err.Error())
 				return
 			}
 			decoder.Reset(httpPipe)
 
 			if err := res.Error; err != nil && err != io.EOF {
-				s.logger.Warn("this is the error", res.Error.Error())
 				if err.Code != nil {
 					errCh <- CodedError(int(*err.Code), err.Error())
 					return
 				}
 			}
-			//if _, err := bytes.NewReader(res.Payload).WriteTo(output); err != nil {
+
 			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
-				s.logger.Info("we got an error", err.Error())
 				errCh <- CodedError(500, err.Error())
 			}
 		}
@@ -444,25 +457,16 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 
 	handler(handlerPipe)
 	cancel()
-	s.logger.Warn("finally cancelled")
+
 	codedErr := <-errCh
-	//if args.Follow {
+
 	if codedErr != nil &&
 		(codedErr == io.EOF ||
 			strings.Contains(codedErr.Error(), "closed") ||
 			strings.Contains(codedErr.Error(), "EOF")) {
-		s.logger.Info("we got an eof")
 		s.logger.Info(codedErr.Error())
 		codedErr = nil
 	}
-	//} else {
-	//	// treat an EOF as a termination if we're not following
-	//	if codedErr != nil && codedErr == io.EOF {
-	//		s.logger.Warn("got the eof")
-	//		codedErr = nil
-	//	}
-	//}
-	//}
 	return nil, codedErr
 
 }
@@ -1029,4 +1033,18 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	}
 
 	return response, nil
+}
+
+func ValidateSystemdPrefix(input string) error {
+	// Trim leading and trailing spaces.
+	input = strings.TrimSpace(input)
+
+	// Create a regex pattern to exclude unwanted characters.
+	re := regexp.MustCompile(`[!@#\$%^&~*()\x60+=\[\]{};'"|<>\/?]`)
+
+	unsafe := re.MatchString(input)
+	if unsafe {
+		return errors.New("valid systemd unit prefixes may only contain alphanumerics and the following special characters \":\", \"-\",\" _\", \".\", \"\\\" and \",\"")
+	}
+	return nil
 }
