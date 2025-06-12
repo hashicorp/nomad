@@ -298,7 +298,6 @@ OUTER:
 
 func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 	defer conn.Close()
-
 	// Decode args
 	var args cstructs.MonitorExternalRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
@@ -378,15 +377,16 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		}
 		<-ctx.Done()
 	}()
-
 	opts := cstructs.MonitorExternalRequest{
-		LogSince:    args.LogSince,
-		ServiceName: args.ServiceName,
-		Follow:      args.Follow,
-		LogPath:     args.LogPath,
+		LogSince:     args.LogSince,
+		ServiceName:  args.ServiceName,
+		NomadLogPath: args.NomadLogPath,
+		OnDisk:       args.OnDisk,
+		Follow:       args.Follow,
 	}
+
 	logCh := monitor.MonitorExternal(&opts)
-	//defer monitor.Stop()
+	defer monitor.Stop()
 
 	initialOffset := int64(0)
 	var eofCancelCh chan error
@@ -417,22 +417,18 @@ OUTER:
 				default:
 					// No error, continue on
 				}
-
 				break OUTER
 			}
 
 			var resp cstructs.StreamErrWrapper
-			if args.PlainText {
-				resp.Payload = frame.Data
-			} else {
-				if err := frameCodec.Encode(frame); err != nil {
-					streamErr = err
-					break OUTER
-				}
 
-				resp.Payload = buf.Bytes()
-				buf.Reset()
+			if err := frameCodec.Encode(frame); err != nil {
+				streamErr = err
+				break OUTER
 			}
+
+			resp.Payload = buf.Bytes()
+			buf.Reset()
 
 			if err := encoder.Encode(resp); err != nil {
 				streamErr = err

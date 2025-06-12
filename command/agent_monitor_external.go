@@ -23,7 +23,7 @@ type MonitorExternalCommand struct {
 	// Below this point is where CLI flag options are stored.
 	nodeID      string
 	serverID    string
-	logPath     string
+	onDisk      bool
 	logSince    int
 	serviceName string
 	follow      bool
@@ -33,10 +33,12 @@ func (c *MonitorExternalCommand) Help() string {
 	helpText := `
 Usage: nomad monitor external [options]
 
-  Stream log messages of a nomad agent. The monitor command lets you
-  listen for log levels that may be filtered out of the Nomad agent. For
-  example your agent may only be logging at INFO level, but with the monitor
-  command you can set -log-level DEBUG
+  Return logs written to disk by a nomad agent. The monitor export command
+  lets you read nomad logs from either the agent's configured log path or
+  journalctl. To export journalctl logs provide the service-name and how
+  far back (in hours) you would like to view logs along with the node or server
+  ID. To export an agent's nomad log file pass 'log-path=true' and the node or
+  server ID with no other options.
 
   When ACLs are enabled, this command requires a token with the 'agent:read'
   capability.
@@ -52,9 +54,6 @@ Monitor Specific Options:
 
   -server-id <server-id>
     Sets the specific server to monitor
-
-  -json
-    Sets log output to JSON format
   `
 	return strings.TrimSpace(helpText)
 }
@@ -78,8 +77,8 @@ func (c *MonitorExternalCommand) Run(args []string) int {
 	flags.StringVar(&c.nodeID, "node-id", "", "")
 	flags.StringVar(&c.serverID, "server-id", "", "")
 	flags.IntVar(&c.logSince, "logs-since", 72, "")
-	flags.StringVar(&c.serviceName, "systemd-service", "", "the name of the systemd service unit to collect logs for, defaults to nomad if unset")
-	flags.StringVar(&c.logPath, "log-path", "", "full path to the desired log file")
+	flags.StringVar(&c.serviceName, "service-name", "", "the name of the systemd service unit to collect logs for, defaults to nomad if unset")
+	flags.BoolVar(&c.onDisk, "on-disk", false, "use configured nomad log file")
 	flags.BoolVar(&c.follow, "follow", false, "")
 
 	if err := flags.Parse(args); err != nil {
@@ -114,7 +113,7 @@ func (c *MonitorExternalCommand) Run(args []string) int {
 		"server_id":    c.serverID,
 		"log_since":    strconv.Itoa(c.logSince),
 		"service_name": c.serviceName,
-		"log_path":     c.logPath,
+		"on_disk":      strconv.FormatBool(c.onDisk),
 		"follow":       strconv.FormatBool(c.follow),
 	}
 
@@ -135,7 +134,6 @@ func (c *MonitorExternalCommand) Run(args []string) int {
 	// Create a reader
 	var r io.ReadCloser
 
-	//journalReader, journalWriter := io.Pipe()
 	frameReader := api.NewFrameReader(frames, errCh, eventDoneCh)
 	frameReader.SetUnblockTime(300 * time.Millisecond)
 	r = frameReader
