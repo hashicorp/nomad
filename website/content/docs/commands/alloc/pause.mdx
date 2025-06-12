@@ -29,11 +29,7 @@ ignored until a user resets the override.
 When ACLs are enabled, this command requires the `job-submit` capability for
 the allocation's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Pause options
+## Options
 
 - `-state`: Override the current scheduled task state to be the specified state
   or reset to the scheduled state. Must be one of `pause`, `run`, or
@@ -69,6 +65,10 @@ The following command returns the task to its [`schedule`][schedule]:
 ```shell-session
 $ nomad alloc pause -state=scheduled 4d37a9d1 schedtask
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [schedule]: /nomad/docs/job-specification/schedule
 [upgrade]: /nomad/docs/upgrade/upgrade-specific

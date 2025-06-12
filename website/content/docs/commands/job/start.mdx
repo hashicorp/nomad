@@ -26,11 +26,7 @@ the following capabilities based on the specific scenario:
 
 - The `submit-job`capability for the job's namespace
 
-## General Options
-
-@include 'general_options.mdx'
-
-## Start Options
+## Options
 
 - `-detach`: Return immediately instead of monitoring. Nomad outputs a new
   evaluation ID, which you can use to examine the evaluation using the
@@ -55,6 +51,10 @@ $ nomad job start example
     2025-02-11T15:34:49-05:00: Evaluation status changed: "pending" -> "complete"
 ==> 2025-02-11T15:34:49-05:00: Evaluation "8b715538" finished with status "complete"
 ```
+
+## General Options
+
+@include 'general_options.mdx'
 
 [eval status]: /nomad/docs/commands/eval/status
 [run]: /nomad/docs/commands/job/run

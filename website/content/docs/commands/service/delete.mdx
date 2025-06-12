@@ -23,10 +23,6 @@ and the ID of the individual registration to delete.
 When ACLs are enabled, this command requires a token with the `submit-job`
 capability for the service registration namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
 ## Examples
 
 Delete a service registration:
@@ -35,3 +31,7 @@ Delete a service registration:
 $ nomad service delete example-cache-redis _nomad-task-a831f7f2-4c01-39dc-c742-f2b8ca178a49-redis-example-cache-redis-db
 Successfully deleted service registration
 ```
+
+## General options
+
+@include 'general_options.mdx'

@@ -30,11 +30,7 @@ select particular groups to promote.
 When ACLs are enabled, this command requires a token with the `submit-job`
 and `read-job` capabilities for the deployment's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Promote options
+## Options
 
 - `-group`: Group may be specified many times and is used to promote that
   particular group. If no specific groups are specified, all groups are
@@ -221,6 +217,10 @@ cee52788  6240eed6  web         0        run      running   07/25/17 18:37:08 UT
 ee8f972e  6240eed6  web         0        run      running   07/25/17 18:37:08 UTC
 0ee7800c  6240eed6  cache       0        stop     complete  07/25/17 18:37:08 UTC
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [`job revert`]: /nomad/docs/commands/job/revert
 [eval status]: /nomad/docs/commands/eval/status

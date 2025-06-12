@@ -24,11 +24,7 @@ information.
 When ACLs are enabled, this command requires a token with the
 `host-volume-write` capability in the volume's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Delete options
+## Options
 
 - `-y`: Automatically answers "yes" to all the questions, making the deletion
   non-interactive. Defaults to "false."
@@ -48,5 +44,9 @@ $ nomad volume claim delete 3f25be9a
 [?] Are you sure you want to delete task group host volume claim 3f25be9a? [Y/n]
 Task group host volume claim 3f25be9a-a2ee-3d7f-c248-45099fd54939 successfully deleted
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [stateful deployments]: /nomad/docs/concepts/stateful-deployments
