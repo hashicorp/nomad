@@ -298,7 +298,6 @@ OUTER:
 
 func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 	defer conn.Close()
-
 	// Decode args
 	var args cstructs.MonitorExternalRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
@@ -378,12 +377,12 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		}
 		<-ctx.Done()
 	}()
-
 	opts := cstructs.MonitorExternalRequest{
 		LogSince:    args.LogSince,
 		ServiceName: args.ServiceName,
 		Follow:      args.Follow,
 		LogPath:     args.LogPath,
+		TstFile:     args.TstFile,
 	}
 	logCh := monitor.MonitorExternal(&opts)
 	//defer monitor.Stop()
