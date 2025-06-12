@@ -378,7 +378,6 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		}
 		<-ctx.Done()
 	}()
-
 	opts := cstructs.MonitorExternalRequest{
 		LogSince:    args.LogSince,
 		ServiceName: args.ServiceName,

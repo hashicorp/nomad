@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -1022,4 +1023,99 @@ func TestAgentHost_ACLDebugRequired(t *testing.T) {
 
 	err := s.RPC("Agent.Host", &req, &resp)
 	must.EqError(t, err, structs.ErrPermissionDenied.Error())
+}
+
+func TestMonitor_MonitorExternal(t *testing.T) {
+	ci.Parallel(t)
+	const expectedText = "log log log log log"
+	require := require.New(t)
+	testFile, err := os.CreateTemp("", "nomadtests-tshot-")
+	must.NoError(t, err)
+
+	_, err = testFile.Write([]byte(expectedText))
+	must.NoError(t, err)
+	filePath := testFile.Name()
+	defer os.Remove(filePath)
+	// start server
+	s, cleanupS := TestServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
+
+	// No node ID to monitor the remote server
+	req := cstructs.MonitorExternalRequest{
+		LogSince: "72",
+		LogPath:  filePath,
+
+		QueryOptions: structs.QueryOptions{
+			Region: "global",
+		},
+	}
+
+	handler, err := s.StreamingRpcHandler("Agent.MonitorExternal")
+	require.Nil(err)
+
+	// create pipe
+	p1, p2 := net.Pipe()
+	defer p1.Close()
+	defer p2.Close()
+
+	errCh := make(chan error)
+	streamMsg := make(chan *cstructs.StreamErrWrapper, 1)
+
+	go handler(p2)
+
+	// Start decoder
+	go func() {
+		decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+
+		i := 0
+		for {
+			t.Logf("this is the %dth time around\n", i)
+			var msg cstructs.StreamErrWrapper
+			if err := decoder.Decode(&msg); err != nil {
+				if err == io.EOF || strings.Contains(err.Error(), "closed") {
+					return
+				}
+				errCh <- fmt.Errorf("error decoding: %v", err)
+			}
+			streamMsg <- &msg
+			i++
+		}
+	}()
+	t.Logf("this shows right")
+	// send request
+	encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+	require.Nil(encoder.Encode(req))
+
+	timeout := time.After(1 * time.Second)
+	expected := expectedText
+	received := ""
+
+OUTER:
+	for {
+		select {
+		case <-timeout:
+			t.Fatal("timeout waiting for logs")
+			continue
+		case err := <-errCh:
+			t.Fatal(err)
+		case message := <-streamMsg:
+			if message.Error != nil {
+				t.Fatalf("Got error: %v", message.Error.Error())
+			}
+
+			var frame sframer.StreamFrame
+			err = json.Unmarshal(message.Payload, &frame)
+			assert.NoError(t, err)
+
+			received += string(frame.Data)
+			if strings.Contains(received, expected) {
+				t.Logf("show me the frame! %s\n", received)
+				require.Nil(p2.Close())
+				break OUTER
+			} else {
+				t.Fatalf("remember to replace things whit shoenig")
+			}
+		}
+	}
 }
