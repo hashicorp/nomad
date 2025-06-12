@@ -6,10 +6,15 @@ package structs
 //go:generate codecgen -c github.com/hashicorp/go-msgpack/v2/codec -st codec -d 102 -t codegen_generated -o structs.generated.go structs.go
 
 import (
+	"context"
 	"errors"
+	"io"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/hashicorp/nomad/client/hoststats"
+	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/plugins/device"
 )
@@ -406,36 +411,132 @@ type NodeRegistration struct {
 	HasRegistered bool
 }
 
-//type StreamReader struct {
-//	ch  <-chan []byte
-//	buf []byte
-//}
+type StreamReader struct {
+	ch  <-chan []byte
+	buf []byte
+}
 
-//func NewStreamReader(ch <-chan []byte) *StreamReader {
-//	return &StreamReader{ch: ch}
+func NewStreamReader(ch <-chan []byte) *StreamReader {
+	return &StreamReader{ch: ch}
 
-//}
+}
 
-//func (r *StreamReader) Read(p []byte, lg log.Logger) (n int, err error) {
-//	if len(r.buf) == 0 {
-//		select {
-//		case data, ok := <-r.ch:
-//			if !ok && len(data) == 0 {
-//				return 0, io.EOF
-//			}
-//			r.buf = data
-//			if !ok {
-//				n = copy(p, r.buf)
-//				r.buf = r.buf[n:]
-//				return n, io.EOF
-//			}
+func (r *StreamReader) Read(p []byte) (n int, err error) {
+	//if len(r.buf) == 0 {
+	select {
+	case data, ok := <-r.ch:
+		if !ok && len(data) == 0 {
+			return 0, io.EOF
+		}
+		r.buf = data
 
-//		default:
-//			return 0, nil
-//		}
-//	}
+	default:
+		return 0, nil
+	}
+	//}
 
-//	n = copy(p, r.buf)
-//	r.buf = r.buf[n:]
-//	return n, nil
-//}
+	n = copy(p, r.buf)
+	r.buf = r.buf[n:]
+	return n, nil
+}
+
+func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path string, limit int64,
+	framer *sframer.StreamFramer, eofCancelCh chan error, cancelAfterFirstEof bool) error {
+
+	parseFramerErr := func(err error) error {
+		if err == nil {
+			return nil
+		}
+
+		errMsg := err.Error()
+
+		if strings.Contains(errMsg, io.ErrClosedPipe.Error()) {
+			// The pipe check is for tests
+			return syscall.EPIPE
+		}
+
+		// The connection was closed by our peer
+		if strings.Contains(errMsg, syscall.EPIPE.Error()) || strings.Contains(errMsg, syscall.ECONNRESET.Error()) {
+			return syscall.EPIPE
+		}
+
+		// Windows version of ECONNRESET
+		//XXX(schmichael) I could find no existing error or constant to
+		//                compare this against.
+		if strings.Contains(errMsg, "forcibly closed") {
+			return syscall.EPIPE
+		}
+
+		return err
+	}
+	// streamFrameSize is the maximum number of bytes to send in a single frame
+	streamFrameSize := int64(1024)
+
+	bufSize := int64(streamFrameSize)
+	if limit > 0 && limit < streamFrameSize {
+		bufSize = limit
+	}
+	streamBuffer := make([]byte, bufSize)
+
+	//// Create a variable to allow setting the last event
+	var lastEvent string
+
+	//// Only watch file when there is a need for it
+	cancelReceived := cancelAfterFirstEof
+
+OUTER:
+	for {
+
+		// Read up to the max frame size
+		n, readErr := r.Read(streamBuffer)
+
+		// Update the offset
+		offset += int64(n)
+
+		// Return non-EOF errors
+		if readErr != nil && readErr != io.EOF {
+			return readErr
+		}
+
+		// Send the frame
+		if n != 0 || lastEvent != "" {
+			if err := framer.Send(path, lastEvent, streamBuffer[:n], offset); err != nil {
+				return parseFramerErr(err)
+			}
+		}
+
+		// Clear the last event
+		if lastEvent != "" {
+			lastEvent = ""
+		}
+
+		// Just keep reading since we aren't at the end of the file so we can
+		// avoid setting up a file event watcher.
+		if readErr == nil {
+			continue
+		}
+
+		// At this point we can stop without waiting for more changes,
+		// because we have EOF and either we're not following at all,
+		// or we received an event from the eofCancelCh channel
+		// and last read was executed
+		if cancelReceived {
+			return nil
+		}
+
+		for {
+			select {
+			case <-framer.ExitCh():
+				return nil
+			case <-ctx.Done():
+				return nil
+			case _, ok := <-eofCancelCh:
+				if !ok {
+					return nil
+				}
+				cancelReceived = true
+				continue OUTER
+			}
+		}
+	}
+}
