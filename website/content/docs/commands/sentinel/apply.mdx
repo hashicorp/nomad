@@ -28,11 +28,7 @@ description](/nomad/docs/commands/sentinel/apply#scope) for more information.
 Sentinel commands are only available when ACLs are enabled. This command
 requires a management token.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Apply options
+## Options
 
 - `-description` : Sets a human readable description for the policy
 
@@ -56,3 +52,7 @@ Write a policy:
 $ nomad sentinel write -scope "submit-job" -description "My test policy" foo test.sentinel
 Successfully wrote "foo" Sentinel policy!
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

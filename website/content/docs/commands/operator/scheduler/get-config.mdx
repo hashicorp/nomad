@@ -19,11 +19,7 @@ nomad operator scheduler get-config [options]
 If ACLs are enabled, this command requires a token with the `operator:read`
 capability.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Get Config options
+## Options
 
 - `-json`: Output the scheduler config in its JSON format.
 
@@ -45,3 +41,7 @@ Preemption Batch Scheduler    = false
 Preemption SysBatch Scheduler = false
 Modify Index                  = 5
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

@@ -26,11 +26,7 @@ run the command with a job prefix instead of the exact job ID. The `read-job`
 capability is required to monitor the resulting evaluation when `-detach` is
 not used.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Eval options
+## Options
 
 - `-force-reschedule`: `force-reschedule` is used to force placement of failed
   allocations. If this is set, failed allocations that are past their reschedule
@@ -74,5 +70,9 @@ $ nomad job eval -force-reschedule job1
     Evaluation status changed: "pending" -> "complete"
 ==> Evaluation "0f3bc0f3" finished with status "complete"
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [eval status]: /nomad/docs/commands/eval/status

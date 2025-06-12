@@ -31,11 +31,7 @@ When ACLs are enabled, this command requires a token with the
 `alloc-lifecycle`, `read-job`, and `list-jobs` capabilities for the
 allocation's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Stop options
+## Options
 
 - `-detach`: Return immediately instead of entering monitor mode. After the
   stop command is submitted, a new evaluation ID is printed to the
@@ -64,6 +60,10 @@ $ nomad alloc stop c1488bb5
 $ nomad alloc stop -detach eb17e557
 8a91f0f3-9d6b-ac83-479a-5aa186ab7795
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [eval status]: /nomad/docs/commands/eval/status
 [`shutdown_delay`]: /nomad/docs/job-specification/group#shutdown_delay

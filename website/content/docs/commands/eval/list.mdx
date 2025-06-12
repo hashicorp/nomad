@@ -20,11 +20,7 @@ The `eval list` command requires no arguments.
 When ACLs are enabled, this command requires a token with the `read-job`
 capability for the requested namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## List options
+## Options
 
 - `-verbose`: Show full information.
 - `-per-page`: How many results to show per page.
@@ -51,3 +47,7 @@ Results have been paginated. To get the next page run:
 
 nomad eval list -page-token 9ecffbba-73be-d909-5d7e-ac2694c10e0c
 ```
+
+## General options
+
+@include 'general_options.mdx'

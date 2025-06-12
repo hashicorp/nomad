@@ -1,0 +1,47 @@
+---
+layout: docs
+page_title: 'nomad job tag apply command reference'
+description: |
+  The `nomad job tag apply` command saves a job version tag.
+---
+
+# `nomad job tag apply` command reference
+
+Use `job tag apply` to create or modify a version tag.
+
+@include 'version/tag-reason.mdx'
+
+## Usage
+
+```plaintext
+nomad job tag apply [options] <job_id>
+```
+
+## Options
+
+- `name`: Specifies the name of the tag. Must be unique per job.
+- `description`: If set, specifies a description for the tag.
+- `version`: If set, specifies the version of the job to tag. If not provided,
+  Nomad tags the latest version of the job.
+
+## Examples
+
+This example tags the latest version of the job `hello-world`.
+
+```shell-session
+$ nomad job tag apply -name "golden-version" \
+		-description "The version we can roll back to." \
+    hello-world
+```
+
+This example tags version zero of the job `hello-world`.
+
+```shell-session
+$ nomad job tag apply -version 0 \
+      -name "golden-version" \
+      hello-world
+```
+
+## General options
+
+@include 'general_options.mdx'

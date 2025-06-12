@@ -32,11 +32,7 @@ accept this name and it may be ignored.
 When ACLs are enabled, this command requires a token with the
 `csi-write-volume` capability for the volume's namespace.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Snapshot create options
+## Options
 
 - `-parameter`: Parameters to pass to the plugin to create a
   snapshot. Accepts multiple flags in the form `-parameter key=value`
@@ -61,6 +57,10 @@ Snapshot a volume with a suggested snapshot ID:
 $ nomad volume snapshot create ebs_prod_db1 snap-12345
 Completed snapshot of volume ebs_prod_db1 with snapshot ID snap-12345.
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin
