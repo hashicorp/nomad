@@ -29,7 +29,7 @@ func TestNewIdentityClaims(t *testing.T) {
 			{
 				Name: "group",
 				Services: []*Service{{
-					Name:      "group-service-",
+					Name:      "group-service",
 					PortLabel: "http",
 					Identity: &WorkloadIdentity{
 						Audience: []string{"group-service.consul.io"},
@@ -420,6 +420,17 @@ func TestNewIdentityClaims(t *testing.T) {
 			Claims: jwt.Claims{
 				Subject:  "global:default:parentJob:consul-group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
 				Audience: jwt.Audience{"consul.io"},
+			},
+			ExtraClaims: map[string]string{},
+		},
+		"job/group/consul-vault-task/services/consul-task-service": {
+			ConsulNamespace: "task-consul-namespace",
+			Namespace:       "default",
+			JobID:           "parentJob",
+			ServiceName:     "consul-task-service",
+			Claims: jwt.Claims{
+				Subject:  "global:default:parentJob:group:consul-task-service:consul-service_consul-vault-task-consul-task-service-http",
+				Audience: jwt.Audience{"task-service.consul.io"},
 			},
 			ExtraClaims: map[string]string{},
 		},
