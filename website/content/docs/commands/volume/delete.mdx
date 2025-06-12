@@ -33,11 +33,7 @@ When ACLs are enabled, this command requires a token with the appropriate
 capability in the volume's namespace: the `csi-write-volume` capability for CSI
 volumes or `host-volume-delete` for dynamic host volumes.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Delete options
+## Options
 
 - `-force`: Delete the volume from the Nomad state store if the node has been
   garbage collected. You should only use `-force` if the node will never rejoin
@@ -49,6 +45,10 @@ volumes or `host-volume-delete` for dynamic host volumes.
 
 - `-type`: Type of volume to delete. Must be one of "csi" or "host". Defaults to
   "csi".
+
+## General options
+
+@include 'general_options.mdx'
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugins_internals]: /nomad/docs/concepts/plugins/storage/csi

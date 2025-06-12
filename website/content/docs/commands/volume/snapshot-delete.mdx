@@ -25,11 +25,7 @@ need to be [registered] with Nomad in order to be deleted.
 When ACLs are enabled, this command requires a token with the `csi-write-
 volume` and `plugin:read` capabilities.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Snapshot delete options
+## Options
 
 - `-secret`: Secrets to pass to the plugin to delete the
   snapshot. Accepts multiple flags in the form `-secret key=value`
@@ -42,6 +38,10 @@ Delete a volume snapshot:
 $ nomad volume snapshot delete aws-ebs0 snap-12345
 Deleted snapshot snap-12345.
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [csi]: https://github.com/container-storage-interface/spec
 [csi_plugin]: /nomad/docs/job-specification/csi_plugin

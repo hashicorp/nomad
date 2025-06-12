@@ -7,16 +7,14 @@ description: |
 
 # `nomad license inspect` command reference
 
-<EnterpriseAlert>
-  This command is only present in Nomad Enterprise.
-</EnterpriseAlert>
-
 The `license inspect` command is used to inspect and validate a Nomad Enterprise
 license. It will read the license from a file on disk or an environment variable
 and exit non-0 if the license is not valid with the Nomad binary.
 
 This command should always be run with the new binary before upgrading Nomad on a server,
 as the server agent will not start with an invalid license.
+
+<EnterpriseAlert />
 
 ## Usage
 

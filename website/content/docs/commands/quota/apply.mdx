@@ -23,11 +23,7 @@ specification can be read from stdin by setting the path to "-".
 If ACLs are enabled, this command requires a token with the `quota:write`
 capability.
 
-## General options
-
-@include 'general_options.mdx'
-
-## Apply options
+## Options
 
 - `-json`: Parse the input as a JSON quota specification.
 
@@ -39,5 +35,9 @@ Create a new quota specification:
 $ nomad quota apply my-quota.hcl
 Successfully applied quota specification "my-quota"!
 ```
+
+## General options
+
+@include 'general_options.mdx'
 
 [quota specifications]: /nomad/docs/other-specifications/quota

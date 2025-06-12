@@ -18,11 +18,7 @@ nomad acl role create [options]
 The `acl role create` command requires the correct setting of the create options
 via flags detailed below.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Create options
+## Options
 
 - `-name`: Sets the human-readable name for the ACL Role. It is required and
   can contain alphanumeric characters and dashes. This name must be unique and
@@ -52,3 +48,7 @@ Policies     = example-acl-policy
 Create Index = 71
 Modify Index = 71
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'

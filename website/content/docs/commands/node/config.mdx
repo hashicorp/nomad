@@ -20,11 +20,7 @@ nomad node config [options]
 The arguments behave differently depending on the flags given. See each flag's
 description below for specific usage information and requirements.
 
-## General options
-
-@include 'general_options_no_namespace.mdx'
-
-## Node Config options
+## Options
 
 - `-servers`: List the client's known servers. Client nodes do not participate
   in the gossip pool, and instead register with these servers periodically over
@@ -60,5 +56,9 @@ Update the list of servers:
 $ nomad node config -update-servers server1:4647 server2:4647 server3:4647 server4
 
 ```
+
+## General options
+
+@include 'general_options_no_namespace.mdx'
 
 [`servers`]: /nomad/docs/configuration/client#servers
