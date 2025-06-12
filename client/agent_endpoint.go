@@ -291,10 +291,11 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 	initialOffset := int64(0)
 	var eofCancelCh chan error
 	// receive logs and build frames
+	streamReader := cstructs.NewStreamReader(logCh)
 	go func() {
 		defer framer.Destroy()
 
-		if err := a.streamFixed(ctx, initialOffset, "", 0, logCh, framer, eofCancelCh, true); err != nil {
+		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, framer, eofCancelCh, true); err != nil {
 			select {
 			case errCh <- err:
 			case <-ctx.Done():
@@ -350,111 +351,4 @@ OUTER:
 		return
 	}
 
-}
-
-type StreamReader struct {
-	ch  <-chan []byte
-	buf []byte
-}
-
-func NewStreamReader(ch <-chan []byte) *StreamReader {
-	return &StreamReader{ch: ch}
-
-}
-
-func (r *StreamReader) Read(p []byte, lg log.Logger) (n int, err error) {
-	//if len(r.buf) == 0 {
-	select {
-	case data, ok := <-r.ch:
-		if !ok && len(data) == 0 {
-			return 0, io.EOF
-		}
-		r.buf = data
-
-	default:
-		return 0, nil
-	}
-	//}
-
-	n = copy(p, r.buf)
-	r.buf = r.buf[n:]
-	return n, nil
-}
-
-func (a *Agent) streamFixed(ctx context.Context, offset int64, path string, limit int64,
-	channel <-chan []byte, framer *sframer.StreamFramer, eofCancelCh chan error, cancelAfterFirstEof bool) error {
-	// streamFrameSize is the maximum number of bytes to send in a single frame
-	streamFrameSize := int64(1024)
-
-	bufSize := int64(streamFrameSize)
-	if limit > 0 && limit < streamFrameSize {
-		bufSize = limit
-	}
-	streamReader := NewStreamReader(channel)
-	streamBuffer := make([]byte, bufSize)
-
-	//// Create a variable to allow setting the last event
-	var lastEvent string
-
-	//// Only watch file when there is a need for it
-	cancelReceived := cancelAfterFirstEof
-
-OUTER:
-	for {
-
-		// Read up to the max frame size
-		n, readErr := streamReader.Read(streamBuffer, a.c.logger)
-
-		// Update the offset
-		offset += int64(n)
-
-		// Return non-EOF errors
-		if readErr != nil && readErr != io.EOF {
-			return readErr
-		}
-
-		// Send the frame
-		if n != 0 || lastEvent != "" {
-			if err := framer.Send(path, lastEvent, streamBuffer[:n], offset); err != nil {
-				return parseFramerErr(err)
-			}
-		}
-
-		// Clear the last event
-		if lastEvent != "" {
-			lastEvent = ""
-		}
-
-		// Just keep reading since we aren't at the end of the file so we can
-		// avoid setting up a file event watcher.
-		if readErr == nil {
-			continue
-		}
-
-		// At this point we can stop without waiting for more changes,
-		// because we have EOF and either we're not following at all,
-		// or we received an event from the eofCancelCh channel
-		// and last read was executed
-		if cancelReceived {
-			return nil
-		}
-
-		for {
-			select {
-			case <-framer.ExitCh():
-				a.c.logger.Info("hit the framer exit chan")
-				return nil
-			case <-ctx.Done():
-				a.c.logger.Info("hit context.done ")
-				return nil
-			case _, ok := <-eofCancelCh:
-				a.c.logger.Info("hit the eof cancel chan")
-				if !ok {
-					return nil
-				}
-				cancelReceived = true
-				continue OUTER
-			}
-		}
-	}
 }
