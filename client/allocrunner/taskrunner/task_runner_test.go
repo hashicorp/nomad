@@ -1462,9 +1462,9 @@ func TestTaskRunner_BlockForVaultToken(t *testing.T) {
 	// Control when we get a Vault token
 	token := "1234"
 	waitCh := make(chan struct{})
-	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, error) {
+	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, int, error) {
 		<-waitCh
-		return token, true, nil
+		return token, true, 30, nil
 	}
 
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
@@ -1571,8 +1571,8 @@ func TestTaskRunner_DisableFileForVaultToken(t *testing.T) {
 
 	// Setup a test Vault client
 	token := "1234"
-	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, error) {
-		return token, true, nil
+	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, int, error) {
+		return token, true, 30, nil
 	}
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
@@ -1639,13 +1639,13 @@ func TestTaskRunner_DeriveToken_Retry(t *testing.T) {
 	// Fail on the first attempt to derive a vault token
 	token := "1234"
 	count := 0
-	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, error) {
+	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, int, error) {
 		if count > 0 {
-			return token, true, nil
+			return token, true, 30, nil
 		}
 
 		count++
-		return "", false, structs.NewRecoverableError(fmt.Errorf("want a retry"), true)
+		return "", false, 0, structs.NewRecoverableError(fmt.Errorf("want a retry"), true)
 	}
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
@@ -1741,8 +1741,8 @@ func TestTaskRunner_DeriveToken_Unrecoverable(t *testing.T) {
 	must.NoError(t, err)
 
 	vc.(*vaultclient.MockVaultClient).SetDeriveTokenWithJWTFn(
-		func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, error) {
-			return "", false, errors.New("unrecoverable")
+		func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, int, error) {
+			return "", false, 0, errors.New("unrecoverable")
 		},
 	)
 
@@ -2076,9 +2076,9 @@ func TestTaskRunner_RestartSignalTask_NotRunning(t *testing.T) {
 	// Control when we get a Vault token
 	waitCh := make(chan struct{}, 1)
 	defer close(waitCh)
-	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, error) {
+	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, int, error) {
 		<-waitCh
-		return "1234", true, nil
+		return "1234", true, 30, nil
 	}
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
