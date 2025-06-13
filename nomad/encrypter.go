@@ -33,6 +33,7 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/joseutil"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
@@ -45,7 +46,10 @@ type claimSigner interface {
 	SignClaims(*structs.IdentityClaims) (string, string, error)
 }
 
-var _ claimSigner = &Encrypter{}
+var (
+	_ claimSigner    = &Encrypter{}
+	_ auth.Encrypter = &Encrypter{}
+)
 
 // Encrypter is the keyring for encrypting variables and signing workload
 // identities.
@@ -351,8 +355,8 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 	return raw, cs.rootKey.Meta.KeyID, nil
 }
 
-// VerifyClaim accepts a previously-signed encoded claim and validates
-// it before returning the claim
+// VerifyClaim accepts a previously signed encoded claim and validates
+// it before returning the claim.
 func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, error) {
 
 	token, err := jwt.ParseSigned(tokenString)
@@ -377,21 +381,21 @@ func (e *Encrypter) VerifyClaim(tokenString string) (*structs.IdentityClaims, er
 		return nil, err
 	}
 
+	claims := structs.IdentityClaims{}
+
 	// Validate the claims.
-	claims := &structs.IdentityClaims{}
-	if err := token.Claims(typedPubKey, claims); err != nil {
+	if err := token.Claims(typedPubKey, &claims); err != nil {
 		return nil, fmt.Errorf("invalid signature: %w", err)
 	}
 
-	//COMPAT Until we can guarantee there are no pre-1.7 JWTs in use we can only
-	//       validate the signature and have no further expectations of the
-	//       claims.
-	expect := jwt.Expected{}
-	if err := claims.Validate(expect); err != nil {
+	// COMPAT: Until we can guarantee there are no pre-1.7 JWTs in use, we can
+	// only validate the signature and have no further expectations of the
+	// claims.
+	if err := claims.Validate(jwt.Expected{}); err != nil {
 		return nil, fmt.Errorf("invalid claims: %w", err)
 	}
 
-	return claims, nil
+	return &claims, nil
 }
 
 // AddUnwrappedKey stores the key in the keystore and creates a new cipher for

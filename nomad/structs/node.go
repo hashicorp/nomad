@@ -11,7 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-jose/go-jose/v3/jwt"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/nomad/helper/uuid"
 )
 
 // CSITopology is a map of topological domains to topological segments.
@@ -491,4 +493,47 @@ type NodeMetaResponse struct {
 
 	// Static is the static Node metadata (set via agent configuration)
 	Static map[string]string
+}
+
+// NodeIdentityClaims represents the claims for a Nomad node identity JWT.
+type NodeIdentityClaims struct {
+	NodeID         string `json:"nomad_node_id"`
+	NodePool       string `json:"nomad_node_pool"`
+	NodeClass      string `json:"nomad_node_class"`
+	NodeDatacenter string `json:"nomad_node_datacenter"`
+}
+
+// GenerateNodeIdentityClaims creates a new NodeIdentityClaims for the given
+// node and region. The returned claims will be ready for signing and returning
+// to the node.
+//
+// The caller is responsible for ensuring that the passed arguments are valid.
+func GenerateNodeIdentityClaims(node *Node, region string, ttl time.Duration) *IdentityClaims {
+
+	// The time does not need to be passed into the function as an argument, as
+	// we only create a single identity per node at a time. This explains the
+	// difference with the workload identity claims, as each allocation can have
+	// multiple identities.
+	timeNow := time.Now().UTC()
+	timeJWTNow := jwt.NewNumericDate(timeNow)
+
+	claims := &IdentityClaims{
+		NodeIdentityClaims: &NodeIdentityClaims{
+			NodeID:         node.ID,
+			NodePool:       node.NodePool,
+			NodeClass:      node.NodeClass,
+			NodeDatacenter: node.Datacenter,
+		},
+		Claims: jwt.Claims{
+			ID:        uuid.Generate(),
+			IssuedAt:  timeJWTNow,
+			NotBefore: timeJWTNow,
+		},
+	}
+
+	claims.setAudience([]string{IdentityDefaultAud})
+	claims.setExpiry(timeNow, ttl)
+	claims.setNodeSubject(node, region)
+
+	return claims
 }

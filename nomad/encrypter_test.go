@@ -697,10 +697,12 @@ func TestEncrypter_Upgrade17(t *testing.T) {
 
 	// Create a 1.6 style workload identity
 	claims := &structs.IdentityClaims{
-		Namespace:    "default",
-		JobID:        "fakejob",
-		AllocationID: uuid.Generate(),
-		TaskName:     "faketask",
+		WorkloadIdentityClaims: &structs.WorkloadIdentityClaims{
+			Namespace:    "default",
+			JobID:        "fakejob",
+			AllocationID: uuid.Generate(),
+			TaskName:     "faketask",
+		},
 	}
 
 	// Sign the claims and assert they were signed with EdDSA (the 1.6 signing

@@ -5,6 +5,7 @@ package structs
 
 import (
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/shoenig/test/must"
@@ -253,4 +254,28 @@ func TestCSITopology_Contains(t *testing.T) {
 		})
 	}
 
+}
+
+func TestGenerateNodeIdentityClaims(t *testing.T) {
+	ci.Parallel(t)
+
+	node := &Node{
+		ID:         "node-id-1",
+		NodePool:   "custom-pool",
+		NodeClass:  "custom-class",
+		Datacenter: "euw2",
+	}
+
+	claims := GenerateNodeIdentityClaims(node, "euw", 10*time.Minute)
+
+	must.Eq(t, "node-id-1", claims.NodeID)
+	must.Eq(t, "custom-pool", claims.NodePool)
+	must.Eq(t, "custom-class", claims.NodeClass)
+	must.Eq(t, "euw2", claims.NodeDatacenter)
+	must.Eq(t, "node:euw:node-id-1:default", claims.Subject)
+	must.Eq(t, []string{IdentityDefaultAud}, claims.Audience)
+	must.NotNil(t, claims.ID)
+	must.NotNil(t, claims.IssuedAt)
+	must.NotNil(t, claims.NotBefore)
+	must.NotNil(t, claims.Expiry)
 }

@@ -6,11 +6,45 @@ package structs
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hashicorp/nomad/ci"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/shoenig/test/must"
 )
+
+func TestNodePool_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name          string
+		inputNodePool *NodePool
+		expected      *NodePool
+	}{
+		{
+			name:          "nil node pool",
+			inputNodePool: nil,
+			expected:      nil,
+		},
+		{
+			name:          "identity ttl set",
+			inputNodePool: &NodePool{NodeIdentityTTL: 43830 * time.Hour},
+			expected:      &NodePool{NodeIdentityTTL: 43830 * time.Hour},
+		},
+		{
+			name:          "identity ttl not set",
+			inputNodePool: &NodePool{},
+			expected:      &NodePool{NodeIdentityTTL: DefaultNodePoolNodeIdentityTTL},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.inputNodePool.Canonicalize()
+			must.Eq(t, tc.inputNodePool, tc.expected)
+		})
+	}
+}
 
 func TestNodePool_Copy(t *testing.T) {
 	ci.Parallel(t)
