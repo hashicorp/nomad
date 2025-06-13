@@ -35,8 +35,8 @@ func TestTaskRunner_DisableFileForVaultToken_UpgradePath(t *testing.T) {
 
 	// Setup a test Vault client.
 	token := "1234"
-	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, error) {
-		return token, true, nil
+	handler := func(ctx context.Context, req vaultclient.JWTLoginRequest) (string, bool, int, error) {
+		return token, true, 30, nil
 	}
 	vc, err := vaultclient.NewMockVaultClient(structs.VaultDefaultCluster)
 	must.NoError(t, err)
