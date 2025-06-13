@@ -21,9 +21,6 @@ const (
 	// Identity.
 	WorkloadIdentityDefaultName = "default"
 
-	// WorkloadIdentityDefaultAud is the audience of the default identity.
-	WorkloadIdentityDefaultAud = "nomadproject.io"
-
 	// WorkloadIdentityVaultPrefix is the name prefix of workload identities
 	// used to derive Vault tokens.
 	WorkloadIdentityVaultPrefix = "vault_"
@@ -63,9 +60,9 @@ var (
 	MinNomadVersionVaultWID = version.Must(version.NewVersion("1.7.0-a"))
 )
 
-// IdentityClaims are the input to a JWT identifying a workload. It
+// WorkloadIdentityClaims are the input to a JWT identifying a workload. It
 // should never be serialized to msgpack unsigned.
-type IdentityClaims struct {
+type WorkloadIdentityClaims struct {
 	Namespace    string `json:"nomad_namespace"`
 	JobID        string `json:"nomad_job_id"`
 	AllocationID string `json:"nomad_allocation_id"`
@@ -79,15 +76,13 @@ type IdentityClaims struct {
 	// ExtraClaims are added based on this identity's
 	// WorkloadIdentityConfiguration, controlled by server configuration
 	ExtraClaims map[string]string `json:"extra_claims,omitempty"`
-
-	jwt.Claims
 }
 
-// IdentityClaimsBuilder is used to build up all the context we need to create
-// IdentityClaims from jobs, allocs, tasks, services, Vault and Consul
-// configurations, etc. This lets us treat IdentityClaims as the immutable
-// output of that process.
-type IdentityClaimsBuilder struct {
+// WorkloadIdentityClaimsBuilder is used to build up all the context we need to create
+// WorkloadIdentityClaims from jobs, allocs, tasks, services, Vault and Consul
+// configurations, etc. This lets us treat WorkloadIdentityClaims as the
+// immutable output of that process.
+type WorkloadIdentityClaimsBuilder struct {
 	wid         *WorkloadIdentity // from jobspec
 	wihandle    *WIHandle
 	alloc       *Allocation
@@ -101,11 +96,11 @@ type IdentityClaimsBuilder struct {
 	extras      map[string]string
 }
 
-// NewIdentityClaimsBuilder returns an initialized IdentityClaimsBuilder for the
+// NewIdentityClaimsBuilder returns an initialized WorkloadIdentityClaimsBuilder for the
 // allocation and identity request. Because it may be called with a denormalized
 // Allocation in the plan applier, the Job must be passed in as a separate
 // parameter.
-func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, wid *WorkloadIdentity) *IdentityClaimsBuilder {
+func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, wid *WorkloadIdentity) *WorkloadIdentityClaimsBuilder {
 	tg := job.LookupTaskGroup(alloc.TaskGroup)
 	if tg == nil {
 		return nil
@@ -114,7 +109,7 @@ func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, w
 		wid = DefaultWorkloadIdentity()
 	}
 
-	return &IdentityClaimsBuilder{
+	return &WorkloadIdentityClaimsBuilder{
 		alloc:    alloc,
 		job:      job,
 		wihandle: wihandle,
@@ -125,7 +120,7 @@ func NewIdentityClaimsBuilder(job *Job, alloc *Allocation, wihandle *WIHandle, w
 }
 
 // WithTask adds a task to the builder context.
-func (b *IdentityClaimsBuilder) WithTask(task *Task) *IdentityClaimsBuilder {
+func (b *WorkloadIdentityClaimsBuilder) WithTask(task *Task) *WorkloadIdentityClaimsBuilder {
 	if task == nil {
 		return b
 	}
@@ -135,7 +130,7 @@ func (b *IdentityClaimsBuilder) WithTask(task *Task) *IdentityClaimsBuilder {
 
 // WithVault adds the task's vault block to the builder context. This should
 // only be called after WithTask.
-func (b *IdentityClaimsBuilder) WithVault(extraClaims map[string]string) *IdentityClaimsBuilder {
+func (b *WorkloadIdentityClaimsBuilder) WithVault(extraClaims map[string]string) *WorkloadIdentityClaimsBuilder {
 	if !b.wid.IsVault() || b.task == nil {
 		return b
 	}
@@ -148,7 +143,7 @@ func (b *IdentityClaimsBuilder) WithVault(extraClaims map[string]string) *Identi
 
 // WithConsul adds the group or task's consul block to the builder context. For
 // task identities, this should only be called after WithTask.
-func (b *IdentityClaimsBuilder) WithConsul() *IdentityClaimsBuilder {
+func (b *WorkloadIdentityClaimsBuilder) WithConsul() *WorkloadIdentityClaimsBuilder {
 	if !b.wid.IsConsul() {
 		return b
 	}
@@ -163,7 +158,7 @@ func (b *IdentityClaimsBuilder) WithConsul() *IdentityClaimsBuilder {
 // WithService adds a service block to the builder context. This should only be
 // called for service identities, and a builder for service identities will
 // never set the task_name claim.
-func (b *IdentityClaimsBuilder) WithService(service *Service) *IdentityClaimsBuilder {
+func (b *WorkloadIdentityClaimsBuilder) WithService(service *Service) *WorkloadIdentityClaimsBuilder {
 	if b.wihandle.WorkloadType != WorkloadTypeService {
 		return b
 	}
@@ -176,7 +171,7 @@ func (b *IdentityClaimsBuilder) WithService(service *Service) *IdentityClaimsBui
 }
 
 // WithNode add the allocation's node to the builder context.
-func (b *IdentityClaimsBuilder) WithNode(node *Node) *IdentityClaimsBuilder {
+func (b *WorkloadIdentityClaimsBuilder) WithNode(node *Node) *WorkloadIdentityClaimsBuilder {
 	b.node = node
 	return b
 }
@@ -185,21 +180,24 @@ func (b *IdentityClaimsBuilder) WithNode(node *Node) *IdentityClaimsBuilder {
 // on the claim. The claim ID is random (nondeterministic) so multiple calls
 // with the same values will not return equal claims by design. JWT IDs should
 // never collide.
-func (b *IdentityClaimsBuilder) Build(now time.Time) *IdentityClaims {
+func (b *WorkloadIdentityClaimsBuilder) Build(now time.Time) *IdentityClaims {
 	b.interpolate()
 
 	jwtnow := jwt.NewNumericDate(now.UTC())
 	claims := &IdentityClaims{
-		Namespace:    b.alloc.Namespace,
-		JobID:        b.job.GetIDforWorkloadIdentity(),
-		AllocationID: b.alloc.ID,
-		ServiceName:  b.serviceName,
+		WorkloadIdentityClaims: &WorkloadIdentityClaims{
+			Namespace:    b.alloc.Namespace,
+			JobID:        b.job.GetIDforWorkloadIdentity(),
+			AllocationID: b.alloc.ID,
+			ServiceName:  b.serviceName,
+			ExtraClaims:  b.extras,
+		},
 		Claims: jwt.Claims{
 			NotBefore: jwtnow,
 			IssuedAt:  jwtnow,
 		},
-		ExtraClaims: b.extras,
 	}
+
 	if b.task != nil && b.wihandle.WorkloadType != WorkloadTypeService {
 		claims.TaskName = b.task.Name
 	}
@@ -211,9 +209,9 @@ func (b *IdentityClaimsBuilder) Build(now time.Time) *IdentityClaims {
 		claims.VaultRole = b.vault.Role
 	}
 
-	claims.Audience = slices.Clone(b.wid.Audience)
-	claims.setSubject(b.job, b.alloc.TaskGroup, b.wihandle.WorkloadIdentifier, b.wid.Name)
-	claims.setExp(now, b.wid)
+	claims.setAudience(slices.Clone(b.wid.Audience))
+	claims.setWorkloadSubject(b.job, b.alloc.TaskGroup, b.wihandle.WorkloadIdentifier, b.wid.Name)
+	claims.setExpiry(now, b.wid.TTL)
 
 	claims.ID = uuid.Generate()
 
@@ -227,7 +225,7 @@ func strAttrGet[T any](x *T, fn func(x *T) string) string {
 	return ""
 }
 
-func (b *IdentityClaimsBuilder) interpolate() {
+func (b *WorkloadIdentityClaimsBuilder) interpolate() {
 	if len(b.extras) == 0 {
 		return
 	}
@@ -254,28 +252,6 @@ func (b *IdentityClaimsBuilder) interpolate() {
 	for k, v := range b.extras {
 		b.extras[k] = r.Replace(v)
 	}
-}
-
-// setSubject creates the standard subject claim for workload identities.
-func (claims *IdentityClaims) setSubject(job *Job, group, widentifier, id string) {
-	claims.Subject = strings.Join([]string{
-		job.Region,
-		job.Namespace,
-		job.GetIDforWorkloadIdentity(),
-		group,
-		widentifier,
-		id,
-	}, ":")
-}
-
-// setExp sets the absolute time at which these identity claims expire.
-func (claims *IdentityClaims) setExp(now time.Time, wid *WorkloadIdentity) {
-	if wid.TTL == 0 {
-		// No expiry
-		return
-	}
-
-	claims.Expiry = jwt.NewNumericDate(now.Add(wid.TTL))
 }
 
 // WorkloadIdentity is the jobspec block which determines if and how a workload
@@ -326,7 +302,7 @@ type WorkloadIdentity struct {
 func DefaultWorkloadIdentity() *WorkloadIdentity {
 	return &WorkloadIdentity{
 		Name:     WorkloadIdentityDefaultName,
-		Audience: []string{WorkloadIdentityDefaultAud},
+		Audience: []string{IdentityDefaultAud},
 	}
 }
 
@@ -421,7 +397,7 @@ func (wi *WorkloadIdentity) Canonicalize() {
 
 	// The default identity is only valid for use with Nomad itself.
 	if wi.Name == WorkloadIdentityDefaultName {
-		wi.Audience = []string{WorkloadIdentityDefaultAud}
+		wi.Audience = []string{IdentityDefaultAud}
 	}
 
 	if wi.ChangeSignal != "" {
