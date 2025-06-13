@@ -2138,6 +2138,15 @@ type Node struct {
 	// StatusDescription is meant to provide more human useful information
 	StatusDescription string
 
+	// IdentitySigningKeyID is the ID of the root key used to sign the identity
+	// of the node. This is primarily used to ensure Nomad does not delete a
+	// root keyring that still has nodes with identities signed by it.
+	//
+	// This field is only set if the node has a workload identity and will be
+	// modified by the server when the node is registered or updated, and the
+	// signing key ID has changed from what is stored in state.
+	IdentitySigningKeyID string
+
 	// StatusUpdatedAt is the time stamp at which the state of the node was
 	// updated, stored as Unix (no nano seconds!)
 	StatusUpdatedAt int64
