@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/nomad/helper/testlog"
+	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/state"
 	"github.com/hashicorp/nomad/nomad/structs"
 	sstructs "github.com/hashicorp/nomad/scheduler/structs"
@@ -313,4 +314,58 @@ func (h *Harness) AssertEvalStatus(t testing.TB, state string) {
 
 func (h *Harness) SetNoSubmit() {
 	h.noSubmit = true
+}
+
+// helper method to create allocations with given jobs and resources
+func CreateAlloc(id string, job *structs.Job, resource *structs.Resources) *structs.Allocation {
+	return CreateAllocInner(id, job, resource, nil, nil)
+}
+
+// helper method to create allocation with network at the task group level
+func CreateAllocWithTaskgroupNetwork(id string, job *structs.Job, resource *structs.Resources, tgNet *structs.NetworkResource) *structs.Allocation {
+	return CreateAllocInner(id, job, resource, nil, tgNet)
+}
+
+func CreateAllocWithDevice(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource) *structs.Allocation {
+	return CreateAllocInner(id, job, resource, allocatedDevices, nil)
+}
+
+func CreateAllocInner(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource, tgNetwork *structs.NetworkResource) *structs.Allocation {
+	alloc := &structs.Allocation{
+		ID:    id,
+		Job:   job,
+		JobID: job.ID,
+		TaskResources: map[string]*structs.Resources{
+			"web": resource,
+		},
+		Namespace:     structs.DefaultNamespace,
+		EvalID:        uuid.Generate(),
+		DesiredStatus: structs.AllocDesiredStatusRun,
+		ClientStatus:  structs.AllocClientStatusRunning,
+		TaskGroup:     "web",
+		AllocatedResources: &structs.AllocatedResources{
+			Tasks: map[string]*structs.AllocatedTaskResources{
+				"web": {
+					Cpu: structs.AllocatedCpuResources{
+						CpuShares: int64(resource.CPU),
+					},
+					Memory: structs.AllocatedMemoryResources{
+						MemoryMB: int64(resource.MemoryMB),
+					},
+					Networks: resource.Networks,
+				},
+			},
+		},
+	}
+
+	if allocatedDevices != nil {
+		alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{allocatedDevices}
+	}
+
+	if tgNetwork != nil {
+		alloc.AllocatedResources.Shared = structs.AllocatedSharedResources{
+			Networks: []*structs.NetworkResource{tgNetwork},
+		}
+	}
+	return alloc
 }
