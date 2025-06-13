@@ -129,50 +129,6 @@ func TestNetworkIndex_Copy(t *testing.T) {
 	require.NotEqual(t, netIdx, netIdxCopy)
 }
 
-func TestNetworkIndex_Overcommitted(t *testing.T) {
-	t.Skip()
-	ci.Parallel(t)
-	idx := NewNetworkIndex()
-
-	// Consume some network
-	reserved := &NetworkResource{
-		Device:        "eth0",
-		IP:            "192.168.0.100",
-		MBits:         505,
-		ReservedPorts: []Port{{Label: "one", Value: 8000}, {Label: "two", Value: 9000}},
-	}
-	collide, reasons := idx.AddReserved(reserved)
-	if collide || len(reasons) != 0 {
-		t.Fatalf("bad")
-	}
-	if !idx.Overcommitted() {
-		t.Fatalf("have no resources")
-	}
-
-	// Add resources
-	n := &Node{
-		NodeResources: &NodeResources{
-			Networks: []*NetworkResource{
-				{
-					Device: "eth0",
-					CIDR:   "192.168.0.100/32",
-					MBits:  1000,
-				},
-			},
-		},
-	}
-	idx.SetNode(n)
-	if idx.Overcommitted() {
-		t.Fatalf("have resources")
-	}
-
-	// Double up our usage
-	idx.AddReserved(reserved)
-	if !idx.Overcommitted() {
-		t.Fatalf("should be overcommitted")
-	}
-}
-
 func TestNetworkIndex_SetNode(t *testing.T) {
 	ci.Parallel(t)
 
