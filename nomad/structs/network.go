@@ -182,18 +182,6 @@ func (idx *NetworkIndex) Release() {
 	}
 }
 
-// Overcommitted checks if the network is overcommitted
-func (idx *NetworkIndex) Overcommitted() bool {
-	// TODO remove since bandwidth is deprecated
-	/*for device, used := range idx.UsedBandwidth {
-		avail := idx.AvailBandwidth[device]
-		if used > avail {
-			return true
-		}
-	}*/
-	return false
-}
-
 // SetNode is used to initialize a node's network index with available IPs,
 // reserved ports, and other details from a node's configuration and
 // fingerprinting.
