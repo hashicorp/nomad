@@ -7,4 +7,4 @@
 # folder
 
 nomad_local_binary                     = "../../pkg/linux_amd64/nomad"
-nomad_local_binary_client_windows_2016 = "../../pkg/windows_amd64/nomad.exe"
+nomad_local_binary_client_windows_2022 = "../../pkg/windows_amd64/nomad.exe"
