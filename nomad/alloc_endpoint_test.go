@@ -1780,7 +1780,7 @@ func TestAlloc_SignIdentities_Blocking(t *testing.T) {
 	s1, cleanupS1 := TestServer(t, nil)
 	t.Cleanup(cleanupS1)
 	codec := rpcClient(t, s1)
-	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, "global")
 	state := s1.fsm.State()
 
 	node := mock.Node()
