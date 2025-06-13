@@ -200,6 +200,9 @@ func (n *NodePool) UpsertNodePools(args *structs.NodePoolUpsertRequest, reply *s
 		return structs.NewErrRPCCodedf(http.StatusBadRequest, "must specify at least one node pool")
 	}
 	for _, pool := range args.NodePools {
+
+		pool.Canonicalize()
+
 		if err := pool.Validate(); err != nil {
 			return structs.NewErrRPCCodedf(http.StatusBadRequest, "invalid node pool %q: %v", pool.Name, err)
 		}
