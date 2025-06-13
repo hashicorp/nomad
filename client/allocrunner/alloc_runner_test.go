@@ -1804,6 +1804,160 @@ func TestAllocRunner_HandlesArtifactFailure(t *testing.T) {
 	require.True(t, state.TaskStates["bad"].Failed)
 }
 
+// Test that alloc runner kills tasks in task group when stopping and
+// fails tasks when job is batch job type and migrating
+func TestAllocRunner_Migrate_Batch_KillTG(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
+
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
+	alloc.AllocatedResources.Tasks[task.Name] = tr
+
+	task2 := alloc.Job.TaskGroups[0].Tasks[0].Copy()
+	task2.Name = "task 2"
+	task2.Driver = "mock_driver"
+	task2.Config["run_for"] = "1ms"
+	alloc.Job.TaskGroups[0].Tasks = append(alloc.Job.TaskGroups[0].Tasks, task2)
+	alloc.AllocatedResources.Tasks[task2.Name] = tr
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+
+	defer destroy(ar)
+	go ar.Run()
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	// Wait for running
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	// Wait for completed task
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
+		}
+
+		// task should not have finished yet, task2 should be finished
+		if !last.TaskStates[task.Name].FinishedAt.IsZero() {
+			return false, fmt.Errorf("task should not be finished")
+		}
+		if last.TaskStates[task2.Name].FinishedAt.IsZero() {
+			return false, fmt.Errorf("task should be finished")
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	update := ar.Alloc().Copy()
+	migrate := true
+	update.DesiredTransition.Migrate = &migrate
+	update.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(update)
+
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusFailed {
+			return false, fmt.Errorf("got client status %q; want %q", last.ClientStatus, structs.AllocClientStatusFailed)
+		}
+
+		// task should be failed since it was killed, task2 should not
+		// be failed since it was already completed
+		if !last.TaskStates[task.Name].Failed {
+			return false, fmt.Errorf("task should be failed")
+		}
+		if last.TaskStates[task2.Name].Failed {
+			return false, fmt.Errorf("task should not be failed")
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+}
+
+// Test that alloc runner kills tasks in task group when stopping and
+// does not fail tasks when job is batch job type and not migrating
+func TestAllocRunner_Batch_KillTG(t *testing.T) {
+	ci.Parallel(t)
+
+	alloc := mock.BatchAlloc()
+	tr := alloc.AllocatedResources.Tasks[alloc.Job.TaskGroups[0].Tasks[0].Name]
+	alloc.Job.TaskGroups[0].RestartPolicy.Attempts = 0
+	alloc.Job.TaskGroups[0].Tasks[0].RestartPolicy.Attempts = 0
+
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+	task.Driver = "mock_driver"
+	task.Config["run_for"] = "10s"
+	alloc.AllocatedResources.Tasks[task.Name] = tr
+
+	conf, cleanup := testAllocRunnerConfig(t, alloc)
+	defer cleanup()
+	ar, err := NewAllocRunner(conf)
+	must.NoError(t, err)
+
+	defer destroy(ar)
+	go ar.Run()
+	upd := conf.StateUpdater.(*MockStateUpdater)
+
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+		if last.ClientStatus != structs.AllocClientStatusRunning {
+			return false, fmt.Errorf("got status %v; want %v", last.ClientStatus, structs.AllocClientStatusRunning)
+		}
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+
+	update := ar.Alloc().Copy()
+	update.DesiredStatus = structs.AllocDesiredStatusStop
+	ar.Update(update)
+
+	testutil.WaitForResult(func() (bool, error) {
+		last := upd.Last()
+		if last == nil {
+			return false, fmt.Errorf("No updates")
+		}
+
+		if last.ClientStatus != structs.AllocClientStatusComplete {
+			return false, fmt.Errorf("got client status %q; want %q", last.ClientStatus, structs.AllocClientStatusComplete)
+		}
+
+		return true, nil
+	}, func(err error) {
+		must.NoError(t, err)
+	})
+}
+
 // Test that alloc runner kills tasks in task group when another task fails
 func TestAllocRunner_TaskFailed_KillTG(t *testing.T) {
 	ci.Parallel(t)
