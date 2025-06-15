@@ -125,7 +125,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/zclconf/go-cty v1.16.3
 	github.com/zclconf/go-cty-yaml v1.1.0
-	go.etcd.io/bbolt v1.4.0
+	go.etcd.io/bbolt v1.4.1
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.38.0
 	golang.org/x/mod v0.25.0
