@@ -1,0 +1,45 @@
+---
+layout: docs
+page_title: 'nomad operator root keyring remove command reference'
+description: |
+  The `nomad operator root keyring remove` command removes an unused encryption key from the cluster.
+---
+
+# `nomad operator root keyring remove` command reference
+
+The `operator root keyring remove` command removes an encryption key from the
+cluster. This operation may only be performed on keys that are not the active
+key.
+
+If ACLs are enabled, this command requires a management token.
+
+## Usage
+
+```plaintext
+nomad operator root keyring remove [options] <key ID>
+```
+
+The `key ID` must be the UUID. Use the `-verbose` option with the
+[`nomad operator root keyring list`
+command](/nomad/commands/operator/root/keyring-list) to fetch the key
+UUID.
+
+## Options
+
+- `-force`: Remove the key even if it was used to sign an existing variable
+or workload identity.
+
+
+## Examples
+
+```shell-session
+$ nomad operator root keyring remove 48596ce5-3ff5-8f77-2dcf-301682ada0ce
+error: Unexpected response code: 500 (active root key cannot be deleted - call rotate first)
+
+$ nomad operator root keyring remove 33374156-9f81-b14c-83d4-a2f1f87dbf99
+Removed encryption key 33374156-9f81-b14c-83d4-a2f1f87dbf99
+```
+
+## General options
+
+@include 'general_options.mdx'

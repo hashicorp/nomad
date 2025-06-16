@@ -28,9 +28,9 @@ process uses one of these methods:
 
 - **OIDC Discovery** - Configure an OIDC Discovery URL and optional certificate chain. Nomad fetches keys from this URL during authentication. When you use OIDC Discovery, Nomad applies OIDC validation criteria such as `iss` and `aud`.
 
-If you need multiple methods, create another auth method of this type 
+If you need multiple methods, create another auth method of this type
 with a different name.
 
 @include 'jwt_claim_mapping_details.mdx'
 
-[auth-method create]: /nomad/docs/commands/acl/auth-method/create
+[auth-method create]: /nomad/commands/acl/auth-method/create

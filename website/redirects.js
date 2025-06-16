@@ -184,4 +184,12 @@ module.exports = [
     destination: 'https://nomad-iis.sevensolutions.cc/',
     permanent: true,
   },
+  /**
+   * Nomad IA redirects
+   */
+  {
+    source: '/nomad/docs/commands/:path*',
+    destination: '/nomad/commands/:path*',
+    permanent: false,
+  },
 ]
