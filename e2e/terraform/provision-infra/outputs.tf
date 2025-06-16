@@ -10,11 +10,11 @@ output "linux_clients" {
 }
 
 output "windows_clients" {
-  value = aws_instance.client_windows_2016.*.public_ip
+  value = aws_instance.client_windows_2022.*.public_ip
 }
 
 output "clients" {
-  value = concat(aws_instance.client_ubuntu_jammy.*.public_ip, aws_instance.client_windows_2016.*.public_ip)
+  value = concat(aws_instance.client_ubuntu_jammy.*.public_ip, aws_instance.client_windows_2022.*.public_ip)
 }
 
 output "message" {
@@ -38,7 +38,7 @@ ssh into clients with:
 %{for ip in aws_instance.client_ubuntu_jammy.*.public_ip~}
     ssh -i ${local.keys_dir}/${local.random_name}.pem ubuntu@${ip}
 %{endfor~}
-%{for ip in aws_instance.client_windows_2016.*.public_ip~}
+%{for ip in aws_instance.client_windows_2022.*.public_ip~}
     ssh -i ${local.keys_dir}/${local.random_name}.pem Administrator@${ip}
 %{endfor~}
 

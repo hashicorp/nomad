@@ -73,6 +73,10 @@ func TestMetrics(t *testing.T) {
 	_, cleanupCaddy := jobs3.Submit(t, "./input/caddy.hcl")
 	t.Cleanup(cleanupCaddy)
 
+	t.Log("running metrics job winagent ...")
+	jobWin, cleanupWin := jobs3.Submit(t, "./input/winagent.hcl")
+	t.Cleanup(cleanupWin)
+
 	t.Log("let the metrics collect for a bit (10s) ...")
 	time.Sleep(10 * time.Second)
 
@@ -89,7 +93,12 @@ func TestMetrics(t *testing.T) {
 		name:   "nomad_client_allocs_cpu_allocated",
 		filter: "exported_job",
 		key:    jobPy.JobID(),
-	}})
+	}, {
+		name:   "nomad_client_allocs_memory_rss",
+		filter: "exported_job",
+		key:    jobWin.JobID(),
+	},
+	})
 
 	t.Log("measuring client metrics ...")
 	testClientMetrics(t, []*metric{{
