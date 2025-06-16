@@ -79,9 +79,6 @@ type AllocReconciler struct {
 	// deploymentFailed marks whether the deployment is failed
 	deploymentFailed bool
 
-	// taintedNodes contains a map of nodes that are tainted
-	taintedNodes map[string]*structs.Node
-
 	// existingAllocs is non-terminal existing allocations
 	existingAllocs []*structs.Allocation
 
@@ -90,15 +87,13 @@ type AllocReconciler struct {
 	evalID       string
 	evalPriority int
 
-	// supportsDisconnectedClients indicates whether all servers meet the required
-	// minimum version to allow application of max_client_disconnect configuration.
-	supportsDisconnectedClients bool
-
-	// now is the time used when determining rescheduling eligibility
-	// defaults to time.Now, and overridden in unit tests
-	now time.Time
-
 	reconnectingPicker reconnectingPickerInterface
+
+	// state stores frequently accessed properties of the cluster:
+	// - a map of tainted nodes
+	// - whether we support disconnected clients
+	// - current time
+	state ClusterState
 
 	// Result is the results of the reconcile. During computation it can be
 	// used to store intermediate state
@@ -188,27 +183,36 @@ func (r *ReconcileResults) GoString() string {
 	return base
 }
 
+// ClusterState holds frequently used information about the state of the
+// cluster:
+// - a map of tainted nodes
+// - whether we support disconnected clients
+// - current time
+type ClusterState struct {
+	TaintedNodes                map[string]*structs.Node
+	SupportsDisconnectedClients bool
+	Now                         time.Time
+}
+
 // NewAllocReconciler creates a new reconciler that should be used to determine
 // the changes required to bring the cluster state inline with the declared jobspec
 func NewAllocReconciler(logger log.Logger, allocUpdateFn AllocUpdateType, batch bool,
 	jobID string, job *structs.Job, deployment *structs.Deployment,
-	existingAllocs []*structs.Allocation, taintedNodes map[string]*structs.Node, evalID string,
-	evalPriority int, supportsDisconnectedClients bool, opts ...AllocReconcilerOption) *AllocReconciler {
+	existingAllocs []*structs.Allocation, evalID string,
+	evalPriority int, state ClusterState, opts ...AllocReconcilerOption) *AllocReconciler {
 
 	ar := &AllocReconciler{
-		logger:                      logger.Named("reconciler"),
-		allocUpdateFn:               allocUpdateFn,
-		batch:                       batch,
-		jobID:                       jobID,
-		job:                         job,
-		deployment:                  deployment.Copy(),
-		existingAllocs:              existingAllocs,
-		taintedNodes:                taintedNodes,
-		evalID:                      evalID,
-		evalPriority:                evalPriority,
-		supportsDisconnectedClients: supportsDisconnectedClients,
-		now:                         time.Now().UTC(),
-		reconnectingPicker:          newReconnectingPicker(logger),
+		logger:             logger.Named("reconciler"),
+		allocUpdateFn:      allocUpdateFn,
+		batch:              batch,
+		jobID:              jobID,
+		job:                job,
+		deployment:         deployment.Copy(),
+		existingAllocs:     existingAllocs,
+		evalID:             evalID,
+		evalPriority:       evalPriority,
+		reconnectingPicker: newReconnectingPicker(logger),
+		state:              state,
 	}
 
 	for _, op := range opts {
@@ -231,91 +235,30 @@ func (a *AllocReconciler) Compute() *ReconcileResults {
 	// If we are just stopping a job we do not need to do anything more than
 	// stopping all running allocs
 	if a.job.Stopped() {
-		desiredTGUpdates, allocsToStop := handleStop(m, a.taintedNodes, a.supportsDisconnectedClients, a.now)
+		desiredTGUpdates, allocsToStop := a.handleStop(m)
 		result.DesiredTGUpdates = desiredTGUpdates
 		result.Stop = allocsToStop
 		return result
 	}
 
-	a.computeDeploymentPaused()
-	deploymentComplete := a.computeDeploymentComplete(m)
-	a.computeDeploymentUpdates(deploymentComplete)
-
-	return result
-}
-
-func (a *AllocReconciler) computeDeploymentComplete(m allocMatrix) bool {
-	complete := true
-	for group, as := range m {
-		groupComplete := a.computeGroup(group, as)
-		complete = complete && groupComplete
-	}
-
-	return complete
-}
-
-func (a *AllocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
+	// set deployment paused and failed fields, if we currently have a
+	// deployment
 	if a.deployment != nil {
-		// Mark the deployment as complete if possible
-		if deploymentComplete {
-			if a.job.IsMultiregion() {
-				// the unblocking/successful states come after blocked, so we
-				// need to make sure we don't revert those states
-				if a.deployment.Status != structs.DeploymentStatusUnblocking &&
-					a.deployment.Status != structs.DeploymentStatusSuccessful {
-					a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
-						DeploymentID:      a.deployment.ID,
-						Status:            structs.DeploymentStatusBlocked,
-						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
-					})
-				}
-			} else {
-				a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
-					DeploymentID:      a.deployment.ID,
-					Status:            structs.DeploymentStatusSuccessful,
-					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
-				})
-			}
-		}
-
-		// Mark the deployment as pending since its state is now computed.
-		if a.deployment.Status == structs.DeploymentStatusInitializing {
-			a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
-				DeploymentID:      a.deployment.ID,
-				Status:            structs.DeploymentStatusPending,
-				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
-			})
-		}
-	}
-
-	// Set the description of a created deployment
-	if d := a.Result.Deployment; d != nil {
-		if d.RequiresPromotion() {
-			if d.HasAutoPromote() {
-				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
-			} else {
-				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
-			}
-		}
-	}
-}
-
-// computeDeploymentPaused is responsible for setting flags on the
-// allocReconciler that indicate the state of the deployment if one
-// is required. The flags that are managed are:
-//  1. deploymentFailed: Did the current deployment fail just as named.
-//  2. deploymentPaused: Set to true when the current deployment is paused,
-//     which is usually a manual user operation, or if the deployment is
-//     pending or initializing, which are the initial states for multi-region
-//     job deployments. This flag tells Compute that we should not make
-//     placements on the deployment.
-func (a *AllocReconciler) computeDeploymentPaused() {
-	if a.deployment != nil {
+		// deployment is paused when it's manually paused by a user, or if the
+		// deployment is pending or initializing, which are the initial states
+		// for multi-region job deployments. This flag tells Compute that we
+		// should not make placements on the deployment.
 		a.deploymentPaused = a.deployment.Status == structs.DeploymentStatusPaused ||
 			a.deployment.Status == structs.DeploymentStatusPending ||
 			a.deployment.Status == structs.DeploymentStatusInitializing
 		a.deploymentFailed = a.deployment.Status == structs.DeploymentStatusFailed
 	}
+
+	var deploymentComplete bool
+	result.DesiredTGUpdates, result.Stop, deploymentComplete = a.computeDeploymentComplete(m)
+	a.computeDeploymentUpdates(deploymentComplete)
+
+	return result
 }
 
 // cancelUnneededDeployments cancels any deployment that is not needed.
@@ -373,38 +316,17 @@ func cancelUnneededDeployments(j *structs.Job, d *structs.Deployment) (*structs.
 }
 
 // handleStop marks all allocations to be stopped, handling the lost case
-func handleStop(m allocMatrix, tainted map[string]*structs.Node, supportsDisconnected bool, now time.Time) (map[string]*structs.DesiredUpdates, []AllocStopResult) {
+func (a *AllocReconciler) handleStop(m allocMatrix) (map[string]*structs.DesiredUpdates, []AllocStopResult) {
 	result := make(map[string]*structs.DesiredUpdates)
 	allocsToStop := []AllocStopResult{}
 
 	for group, as := range m {
 		as = filterByTerminal(as)
 		desiredChanges := new(structs.DesiredUpdates)
-		desiredChanges.Stop, allocsToStop = filterAndStopAll(as, tainted, supportsDisconnected, now)
+		desiredChanges.Stop, allocsToStop = filterAndStopAll(as, a.state)
 		result[group] = desiredChanges
 	}
 	return result, allocsToStop
-}
-
-// filterAndStopAll stops all allocations in an allocSet. This is useful in when
-// stopping an entire job or task group.
-//
-// FIXME: this method is sometimes used to just "filter", i.e., return the size
-// of the allocset after filterByTainted is applied to it. other times it's used
-// to also return the allocset of all stopped allocs. This behavior should be
-// split, because it's confusing.
-func filterAndStopAll(set allocSet, taintedNodes map[string]*structs.Node, supportsDisconnected bool, now time.Time) (uint64, []AllocStopResult) {
-	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := set.filterByTainted(taintedNodes, supportsDisconnected, now)
-
-	allocsToStop := slices.Concat(
-		markStop(untainted, "", sstructs.StatusAllocNotNeeded),
-		markStop(migrate, "", sstructs.StatusAllocNotNeeded),
-		markStop(lost, structs.AllocClientStatusLost, sstructs.StatusAllocLost),
-		markStop(disconnecting, "", sstructs.StatusAllocNotNeeded),
-		markStop(reconnecting, "", sstructs.StatusAllocNotNeeded),
-		markStop(ignore.filterByClientStatus(structs.AllocClientStatusUnknown), "", sstructs.StatusAllocNotNeeded),
-		markStop(expiring.filterByClientStatus(structs.AllocClientStatusUnknown), "", sstructs.StatusAllocNotNeeded))
-	return uint64(len(set)), allocsToStop
 }
 
 // markStop is a helper for marking a set of allocation for stop with a
@@ -436,13 +358,30 @@ func markDelayed(allocs allocSet, clientStatus, statusDescription string, follow
 	return allocsToStop
 }
 
+func (a *AllocReconciler) computeDeploymentComplete(m allocMatrix) (map[string]*structs.DesiredUpdates, []AllocStopResult, bool) {
+	updates := map[string]*structs.DesiredUpdates{}
+	allocsToStop := []AllocStopResult{}
+	complete := true
+	for group, as := range m {
+		var groupComplete bool
+		var allocsToStopForGroup []AllocStopResult
+		updates[group], allocsToStopForGroup, groupComplete = a.computeGroup(group, as)
+		complete = complete && groupComplete
+		allocsToStop = append(allocsToStop, allocsToStopForGroup...)
+	}
+
+	return updates, allocsToStop, complete
+}
+
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete with regards to the task group.
-func (a *AllocReconciler) computeGroup(groupName string, all allocSet) bool {
+//
+// returns: desiredTGUpdates for taskgroup and a boolean that indicates whether
+// the whole group's deployment is complete
+func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*structs.DesiredUpdates, []AllocStopResult, bool) {
 
 	// Create the desired update object for the group
 	desiredChanges := new(structs.DesiredUpdates)
-	a.Result.DesiredTGUpdates[groupName] = desiredChanges
 
 	// Get the task group. The task group may be nil if the job was updates such
 	// that the task group no longer exists
@@ -451,8 +390,8 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) bool {
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
-		desiredChanges.Stop, _ = filterAndStopAll(all, a.taintedNodes, a.supportsDisconnectedClients, a.now)
-		return true
+		desiredChanges.Stop, _ = filterAndStopAll(all, a.state)
+		return desiredChanges, []AllocStopResult{}, true
 	}
 
 	dstate, existingDeployment := a.initializeDeploymentState(groupName, tg)
@@ -462,15 +401,14 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) bool {
 	all, ignore := a.filterOldTerminalAllocs(all)
 	desiredChanges.Ignore += uint64(len(ignore))
 
-	// FIXME: cancelUnneededCanaries returns allocs to stop now, too!
-	canaries, all, _ := a.cancelUnneededCanaries(all, desiredChanges)
+	canaries, all, allocsToStop := a.cancelUnneededCanaries(all, desiredChanges)
 
 	// Determine what set of allocations are on tainted nodes
-	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := all.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
+	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := filterByTainted(all, a.state)
 	desiredChanges.Ignore += uint64(len(ignore))
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.now, a.evalID, a.deployment)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.state.Now, a.evalID, a.deployment)
 
 	// If there are allocations reconnecting we need to reconcile them and
 	// their replacements first because there is specific logic when deciding
@@ -513,7 +451,7 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) bool {
 	timeoutLaterEvals := map[string]string{}
 	if len(disconnecting) > 0 {
 		if tg.GetDisconnectLostTimeout() != 0 {
-			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.now, a.evalID, a.deployment)
+			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(a.batch, true, a.state.Now, a.evalID, a.deployment)
 
 			rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
 			untainted = untainted.union(untaintedDisconnecting)
@@ -622,7 +560,53 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) bool {
 	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
 		migrate, rescheduleNow, place, rescheduleLater, requiresCanaries)
 
-	return deploymentComplete
+	return desiredChanges, allocsToStop, deploymentComplete
+}
+
+func (a *AllocReconciler) computeDeploymentUpdates(deploymentComplete bool) {
+	if a.deployment != nil {
+		// Mark the deployment as complete if possible
+		if deploymentComplete {
+			if a.job.IsMultiregion() {
+				// the unblocking/successful states come after blocked, so we
+				// need to make sure we don't revert those states
+				if a.deployment.Status != structs.DeploymentStatusUnblocking &&
+					a.deployment.Status != structs.DeploymentStatusSuccessful {
+					a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
+						DeploymentID:      a.deployment.ID,
+						Status:            structs.DeploymentStatusBlocked,
+						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
+					})
+				}
+			} else {
+				a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
+					DeploymentID:      a.deployment.ID,
+					Status:            structs.DeploymentStatusSuccessful,
+					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
+				})
+			}
+		}
+
+		// Mark the deployment as pending since its state is now computed.
+		if a.deployment.Status == structs.DeploymentStatusInitializing {
+			a.Result.DeploymentUpdates = append(a.Result.DeploymentUpdates, &structs.DeploymentStatusUpdate{
+				DeploymentID:      a.deployment.ID,
+				Status:            structs.DeploymentStatusPending,
+				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
+			})
+		}
+	}
+
+	// Set the description of a created deployment
+	if d := a.Result.Deployment; d != nil {
+		if d.RequiresPromotion() {
+			if d.HasAutoPromote() {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningAutoPromotion
+			} else {
+				d.StatusDescription = structs.DeploymentStatusDescriptionRunningNeedsPromotion
+			}
+		}
+	}
 }
 
 func (a *AllocReconciler) initializeDeploymentState(group string, tg *structs.TaskGroup) (*structs.DeploymentState, bool) {
@@ -670,28 +654,6 @@ func (a *AllocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs
 	}
 }
 
-// filterOldTerminalAllocs filters allocations that should be ignored since they
-// are allocations that are terminal from a previous job version.
-func (a *AllocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignore allocSet) {
-	if !a.batch {
-		return all, nil
-	}
-
-	filtered = filtered.union(all)
-	ignored := make(map[string]*structs.Allocation)
-
-	// Ignore terminal batch jobs from older versions
-	for id, alloc := range filtered {
-		older := alloc.Job.Version < a.job.Version || alloc.Job.CreateIndex < a.job.CreateIndex
-		if older && alloc.TerminalStatus() {
-			delete(filtered, id)
-			ignored[id] = alloc
-		}
-	}
-
-	return filtered, ignored
-}
-
 // cancelUnneededCanaries handles the canaries for the group by stopping the
 // unneeded ones and returning the current set of canaries and the updated total
 // set of allocs for the group
@@ -735,7 +697,7 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 		}
 
 		canaries = all.fromKeys(canaryIDs)
-		untainted, migrate, lost, _, _, _, _ := canaries.filterByTainted(a.taintedNodes, a.supportsDisconnectedClients, a.now)
+		untainted, migrate, lost, _, _, _, _ := filterByTainted(canaries, a.state)
 		// We don't add these stops to desiredChanges because the deployment is
 		// still active. DesiredChanges is used to report deployment progress/final
 		// state. These transient failures aren't meaningful.
@@ -1000,7 +962,7 @@ func (a *AllocReconciler) createDeployment(groupName string, strategy *structs.U
 
 	// A previous group may have made the deployment already. If not create one.
 	if a.deployment == nil {
-		a.deployment = structs.NewDeployment(a.job, a.evalPriority, a.now.UnixNano())
+		a.deployment = structs.NewDeployment(a.job, a.evalPriority, a.state.Now.UnixNano())
 		a.Result.Deployment = a.deployment
 	}
 
@@ -1421,7 +1383,7 @@ func (a *AllocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 		return map[string]string{}
 	}
 
-	timeoutDelays, err := disconnecting.delayByLostAfter(a.now)
+	timeoutDelays, err := disconnecting.delayByLostAfter(a.state.Now)
 	if err != nil {
 		a.logger.Error("error for task_group",
 			"task_group", tgName, "error", err)
