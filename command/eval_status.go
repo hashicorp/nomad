@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/api/contexts"
 	"github.com/posener/complete"
+	"github.com/ryanuber/columnize"
 )
 
 type EvalStatusCommand struct {
@@ -178,6 +179,27 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 0
 	}
 
+	// TOOD
+	var placedAllocs []*api.AllocationListStub
+
+	c.formatEvalStatus(eval, placedAllocs, verbose, length)
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "eval status",
+		PathParams: map[string]string{
+			"evalID": eval.ID,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Warn(hint)
+	}
+
+	return 0
+}
+
+func (c *EvalStatusCommand) formatEvalStatus(eval *api.Evaluation, placedAllocs []*api.AllocationListStub, verbose bool, length int) {
+
 	failureString, failures := evalFailureStatus(eval)
 	triggerNoun, triggerSubj := getTriggerDetails(eval)
 	statusDesc := eval.StatusDescription
@@ -220,15 +242,75 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		basic = append(basic,
 			fmt.Sprintf("Wait Until|%s", formatTime(eval.WaitUntil)))
 	}
+	if eval.QuotaLimitReached != "" {
+		basic = append(basic,
+			fmt.Sprintf("Quota Limit Reached|%s", eval.QuotaLimitReached))
+	}
 
 	if verbose {
 		// NextEval, PreviousEval, BlockedEval
 		basic = append(basic,
 			fmt.Sprintf("Previous Eval|%s", eval.PreviousEval),
 			fmt.Sprintf("Next Eval|%s", eval.NextEval),
-			fmt.Sprintf("Blocked Eval|%s", eval.BlockedEval))
+			fmt.Sprintf("Blocked Eval|%s", eval.BlockedEval),
+			//fmt.Sprintf("Escaped Computed Class|%v", eval.EscapedComputedClass),
+		)
+
 	}
 	c.Ui.Output(formatKV(basic))
+
+	if len(eval.RelatedEvals) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Related Evaluations[reset]"))
+		c.Ui.Output(formatRelatedEvalStubs(eval.RelatedEvals, length))
+	}
+
+	// if len(eval.ClassEligibility) > 0 {
+	// 	c.Ui.Output(c.Colorize().Color("\n[bold]Computed Node Class Eligibility[reset]"))
+	// 	classes := make([]string, len(eval.ClassEligibility)+1)
+	// 	classes[0] = "Node Class|Eligible"
+	// 	i := 1
+	// 	for class, ok := range eval.ClassEligibility {
+	// 		classes[i] = fmt.Sprintf("%s|%v", class, ok)
+	// 	}
+	// 	c.Ui.Output(columnize.SimpleFormat(classes))
+	// }
+
+	if eval.PlanAnnotations != nil {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Reconciler Annotations[reset]"))
+
+		if len(eval.PlanAnnotations.DesiredTGUpdates) > 0 {
+
+			annotations := make([]string, len(eval.PlanAnnotations.DesiredTGUpdates)+1)
+			annotations[0] = "Task Group|Ignore|Place|Stop|Migrate|InPlace|Destructive|Canary|Preemptions"
+			i := 1
+			for tg, updates := range eval.PlanAnnotations.DesiredTGUpdates {
+				annotations[i] = fmt.Sprintf("%s|%d|%d|%d|%d|%d|%d|%d|%d",
+					tg,
+					updates.Ignore,
+					updates.Place,
+					updates.Stop,
+					updates.Migrate,
+					updates.InPlaceUpdate,
+					updates.DestructiveUpdate,
+					updates.Canary,
+					updates.Preemptions,
+				)
+				i++
+			}
+			c.Ui.Output(columnize.SimpleFormat(annotations))
+		}
+		if len(eval.PlanAnnotations.PreemptedAllocs) > 0 {
+			c.Ui.Output(c.Colorize().Color("\n[bold]Preempted Allocations[reset]"))
+			allocsOut := c.formatPreemptedAllocListStubs(eval.PlanAnnotations.PreemptedAllocs, length)
+			c.Ui.Output(allocsOut)
+		}
+	}
+
+	if len(placedAllocs) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Placed Allocations[reset]"))
+		allocsOut := formatAllocListStubs(placedAllocs, false, length)
+		c.Ui.Output(allocsOut)
+	}
 
 	if failures {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Failed Placements[reset]"))
@@ -250,19 +332,28 @@ func (c *EvalStatusCommand) Run(args []string) int {
 				limit(eval.BlockedEval, length)))
 		}
 	}
+}
 
-	hint, _ := c.Meta.showUIPath(UIHintContext{
-		Command: "eval status",
-		PathParams: map[string]string{
-			"evalID": eval.ID,
-		},
-		OpenURL: openURL,
-	})
-	if hint != "" {
-		c.Ui.Warn(hint)
+func (c *EvalStatusCommand) formatPreemptedAllocListStubs(stubs []*api.AllocationListStub, uuidLength int) string {
+	allocs := make([]string, len(stubs)+1)
+	allocs[0] = "ID|Job ID|Node ID|Task Group|Version|Desired|Status|Created|Modified"
+	for i, alloc := range stubs {
+		now := time.Now()
+		createTimePretty := prettyTimeDiff(time.Unix(0, alloc.CreateTime), now)
+		modTimePretty := prettyTimeDiff(time.Unix(0, alloc.ModifyTime), now)
+		allocs[i+1] = fmt.Sprintf("%s|%s|%s|%s|%d|%s|%s|%s|%s",
+			limit(alloc.ID, uuidLength),
+			alloc.JobID,
+			limit(alloc.NodeID, uuidLength),
+			alloc.TaskGroup,
+			alloc.JobVersion,
+			alloc.DesiredStatus,
+			alloc.ClientStatus,
+			createTimePretty,
+			modTimePretty)
 	}
 
-	return 0
+	return formatList(allocs)
 }
 
 func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []string {
@@ -283,4 +374,21 @@ func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {
 	default:
 		return "", ""
 	}
+}
+
+func formatRelatedEvalStubs(evals []*api.EvaluationStub, length int) string {
+	out := make([]string, len(evals)+1)
+	out[0] = "ID|Priority|Triggered By|Node ID|Status|Description"
+	for i, eval := range evals {
+		out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s",
+			limit(eval.ID, length),
+			eval.Priority,
+			eval.TriggeredBy,
+			limit(eval.NodeID, length),
+			eval.Status,
+			eval.StatusDescription,
+		)
+	}
+
+	return formatList(out)
 }

@@ -53,7 +53,9 @@ type SystemScheduler struct {
 	nextEval     *structs.Evaluation
 
 	failedTGAllocs map[string]*structs.AllocMetric
+	goodTGAllocs   map[string]*structs.AllocMetric
 	queuedAllocs   map[string]int
+	annotations    *structs.PlanAnnotations
 }
 
 // NewSystemScheduler is a factory function to instantiate a new system
@@ -97,7 +99,8 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	// Verify the evaluation trigger reason is understood
 	if !s.canHandle(eval.TriggeredBy) {
 		desc := fmt.Sprintf("scheduler cannot handle '%s' evaluation reason", eval.TriggeredBy)
-		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusFailed, desc,
+		return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
+			s.failedTGAllocs, s.goodTGAllocs, s.annotations, structs.EvalStatusFailed, desc,
 			s.queuedAllocs, "")
 	}
 
@@ -110,14 +113,16 @@ func (s *SystemScheduler) Process(eval *structs.Evaluation) (err error) {
 	progress := func() bool { return progressMade(s.planResult) }
 	if err := retryMax(limit, s.process, progress); err != nil {
 		if statusErr, ok := err.(*SetStatusError); ok {
-			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, statusErr.EvalStatus, err.Error(),
+			return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
+				s.failedTGAllocs, s.goodTGAllocs, s.annotations, statusErr.EvalStatus, err.Error(),
 				s.queuedAllocs, "")
 		}
 		return err
 	}
 
 	// Update the status to complete
-	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil, s.failedTGAllocs, structs.EvalStatusComplete, "",
+	return setStatus(s.logger, s.planner, s.eval, s.nextEval, nil,
+		s.failedTGAllocs, s.goodTGAllocs, s.annotations, structs.EvalStatusComplete, "",
 		s.queuedAllocs, "")
 }
 
@@ -296,10 +301,11 @@ func (s *SystemScheduler) computeJobAllocs() error {
 		allocExistsForTaskGroup[inplaceUpdate.TaskGroup.Name] = true
 	}
 
+	s.annotations = &structs.PlanAnnotations{
+		DesiredTGUpdates: desiredUpdates(r, inplaceUpdates, destructiveUpdates),
+	}
 	if s.eval.AnnotatePlan {
-		s.plan.Annotations = &structs.PlanAnnotations{
-			DesiredTGUpdates: desiredUpdates(r, inplaceUpdates, destructiveUpdates),
-		}
+		s.plan.Annotations = s.annotations
 	}
 
 	// Check if a rolling upgrade strategy is being used
@@ -509,8 +515,9 @@ func (s *SystemScheduler) computePlacements(place []reconciler.AllocTuple, exist
 				s.plan.AppendPreemptedAlloc(stop, alloc.ID)
 
 				preemptedAllocIDs = append(preemptedAllocIDs, stop.ID)
+				s.annotations.PreemptedAllocs = append(s.annotations.PreemptedAllocs, stop.Stub(nil))
 				if s.eval.AnnotatePlan && s.plan.Annotations != nil {
-					s.plan.Annotations.PreemptedAllocs = append(s.plan.Annotations.PreemptedAllocs, stop.Stub(nil))
+					s.plan.Annotations.PreemptedAllocs = s.annotations.PreemptedAllocs
 					if s.plan.Annotations.DesiredTGUpdates != nil {
 						desired := s.plan.Annotations.DesiredTGUpdates[tgName]
 						desired.Preemptions += 1

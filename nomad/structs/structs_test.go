@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-multierror"
@@ -8307,4 +8308,24 @@ func TestTaskIdentity_Canonicalize(t *testing.T) {
 	must.Len(t, 0, task.Identities[1].Audience)
 	must.True(t, task.Identities[1].Env)
 	must.False(t, task.Identities[1].File)
+}
+
+func TestSizeReconcilerAnnotations(t *testing.T) {
+
+	id := uuid.Generate()
+	fmt.Println("len(id)=", len(id), "(x4)")
+	eval := &Evaluation{}
+
+	anno := &PlanAnnotations{
+		DesiredTGUpdates: map[string]*DesiredUpdates{
+			"": {},
+		},
+		PreemptedAllocs: []*AllocListStub{},
+	}
+	empty := &PlanAnnotations{DesiredTGUpdates: nil, PreemptedAllocs: nil}
+
+	fmt.Println("eval:", unsafe.Sizeof(*eval))
+	fmt.Println("empty:", unsafe.Sizeof(*empty))
+	fmt.Println("full:", unsafe.Sizeof(*anno)+unsafe.Sizeof(anno.DesiredTGUpdates)+unsafe.Sizeof(anno.PreemptedAllocs))
+
 }
