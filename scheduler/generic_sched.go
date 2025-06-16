@@ -342,9 +342,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
 		s.batch, s.eval.JobID, s.job, s.deployment, allocs, s.eval.ID,
 		s.eval.Priority, reconciler.ClusterState{
-			tainted,
-			s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true),
-			time.Now().UTC(),
+			TaintedNodes:                tainted,
+			SupportsDisconnectedClients: s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true),
+			Now:                         time.Now().UTC(),
 		})
 	// FIXME: Compute() method returns a result, the Result field of the
 	// reconciler will be removed
