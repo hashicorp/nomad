@@ -94,11 +94,6 @@ type AllocReconciler struct {
 	// - whether we support disconnected clients
 	// - current time
 	state ClusterState
-
-	// Result is the results of the reconcile. During computation it can be
-	// used to store intermediate state
-	// FIXME: remove this field
-	Result *ReconcileResults
 }
 
 // ReconcileResults contains the results of the reconciliation and should be
