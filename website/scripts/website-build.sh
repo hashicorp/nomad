@@ -44,6 +44,9 @@ fi
 # cd into the preview directory project
 cd "$PREVIEW_DIR"
 
+# temporarily checkout out the modified dev-portal branch with nomad ia changes
+git checkout ce871-NomadIA
+
 # Run the build:deploy-preview start script
 PREVIEW_FROM_REPO=$PRODUCT \
 IS_CONTENT_PREVIEW=true \
