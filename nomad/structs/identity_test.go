@@ -203,18 +203,20 @@ func TestIdentityClaimsNg_setNodeSubject(t *testing.T) {
 		{
 			name: "global region",
 			inputNode: &Node{
-				ID: "node-id-1",
+				ID:       "node-id-1",
+				NodePool: "default",
 			},
 			inputRegion:     "global",
-			expectedSubject: "node:global:node-id-1:default",
+			expectedSubject: "node:global:default:node-id-1:default",
 		},
 		{
 			name: "eu1 region",
 			inputNode: &Node{
-				ID: "node-id-2",
+				ID:       "node-id-2",
+				NodePool: "nlp",
 			},
 			inputRegion:     "eu1",
-			expectedSubject: "node:eu1:node-id-2:default",
+			expectedSubject: "node:eu1:nlp:node-id-2:default",
 		},
 	}
 

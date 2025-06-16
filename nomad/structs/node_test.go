@@ -272,7 +272,7 @@ func TestGenerateNodeIdentityClaims(t *testing.T) {
 	must.Eq(t, "custom-pool", claims.NodePool)
 	must.Eq(t, "custom-class", claims.NodeClass)
 	must.Eq(t, "euw2", claims.NodeDatacenter)
-	must.Eq(t, "node:euw:node-id-1:default", claims.Subject)
+	must.StrEqFold(t, "node:euw:custom-pool:node-id-1:default", claims.Subject)
 	must.Eq(t, []string{IdentityDefaultAud}, claims.Audience)
 	must.NotNil(t, claims.ID)
 	must.NotNil(t, claims.IssuedAt)

@@ -33,7 +33,6 @@ import (
 	"github.com/hashicorp/nomad/helper"
 	"github.com/hashicorp/nomad/helper/crypto"
 	"github.com/hashicorp/nomad/helper/joseutil"
-	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
 	"github.com/hashicorp/raft"
@@ -45,11 +44,6 @@ const nomadKeystoreExtension = ".nks.json"
 type claimSigner interface {
 	SignClaims(*structs.IdentityClaims) (string, string, error)
 }
-
-var (
-	_ claimSigner    = &Encrypter{}
-	_ auth.Encrypter = &Encrypter{}
-)
 
 // Encrypter is the keyring for encrypting variables and signing workload
 // identities.

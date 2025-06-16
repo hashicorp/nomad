@@ -25,6 +25,7 @@ import (
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/testlog"
 	"github.com/hashicorp/nomad/helper/uuid"
+	"github.com/hashicorp/nomad/nomad/auth"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/nomad/structs/config"
@@ -40,6 +41,13 @@ var (
 		WorkloadIdentifier: "web",
 		WorkloadType:       structs.WorkloadTypeTask,
 	}
+)
+
+// Assert that the Encrypter implements the claimSigner and auth.Encrypter
+// interfaces.
+var (
+	_ claimSigner    = &Encrypter{}
+	_ auth.Encrypter = &Encrypter{}
 )
 
 type mockSigner struct {

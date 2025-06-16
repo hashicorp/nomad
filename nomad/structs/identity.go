@@ -69,14 +69,15 @@ func (i *IdentityClaims) setExpiry(now time.Time, ttl time.Duration) {
 func (i *IdentityClaims) setAudience(aud []string) { i.Audience = aud }
 
 // setNodeSubject sets the "subject" or "sub" claim for the node identity JWT.
-// It follows the format "node:<region>:<node_id>:default", where "default"
-// indicates the node identity scoping. While this is currently hardcoded, it
+// It follows the format "node:<region>:<node_pool>:<node_id>:default", where
+// "default" indicates identity name. While this is currently hardcoded, it
 // could be configurable in the future as we expand the node identity offering
 // and allow greater control of node access.
 func (i *IdentityClaims) setNodeSubject(node *Node, region string) {
 	i.Subject = strings.Join([]string{
 		"node",
 		region,
+		node.NodePool,
 		node.ID,
 		"default",
 	}, ":")
