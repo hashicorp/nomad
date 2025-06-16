@@ -147,7 +147,7 @@ with the [`volume create`](/nomad/commands/volume/create) command or
 API. [ACL policies](/nomad/docs/other-specifications/acl-policy#namespace-rules)
 allow delegation of control for storage within a namespace to Nomad
 Operators. The dynamic host volume [plugin
-specification](/nomad/docs/concepts/plugins/storage/host-volumes) allows you to
+specification](/nomad/docs/architecture/storage/host-volumes) allows you to
 develop plugins specific to your local storage environment. For example, in an
 on-prem cluster you could write a plugin to perform LVM thin-provisioning.
 
@@ -155,7 +155,7 @@ You declare static host volumes in the Nomad agent's configuration file, and
 you must restart the Nomad client to reconfigure them. This makes static host
 volumes impractical if you frequently change your storage
 configuration. Furthermore, it might require coordination between different
-[personas](/nomad/docs/concepts/security#personas) to configure and consume host
+[personas](/nomad/docs/architecture/security#personas) to configure and consume host
 volumes. For example, a Nomad Administrator must modify Nomad's configuration
 file to add, update, and remove host volumes to make them available for consumption by
 Nomad Operators. Or, with networked host volumes, a Storage Administrator
@@ -248,8 +248,8 @@ following resources:
 
 ### Dynamic Host Volumes
 
-- [Dynamic host volume plugins](/nomad/docs/concepts/plugins/storage/host-volumes)
+- [Dynamic host volume plugins](/nomad/docs/architecture/storage/host-volumes)
 - [Dynamic host volume tutorial](/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes)
 
-[csi-concepts]: /nomad/docs/concepts/plugins/storage/csi
+[csi-concepts]: /nomad/docs/architecture/storage/csi
 [csi-tutorial]: /nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes

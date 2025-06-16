@@ -12,8 +12,8 @@ A Nomad agent is a long running process that runs on every machine in your Nomad
 cluster. The behavior of the agent depends on if it is running in client or
 server mode. Clients run tasks, while servers manage the cluster.
 
-Server agents are part of the [consensus protocol](/nomad/docs/concepts/consensus) and
-[gossip protocol](/nomad/docs/concepts/gossip). The consensus protocol, powered
+Server agents are part of the [consensus protocol](/nomad/docs/architecture/consensus) and
+[gossip protocol](/nomad/docs/architecture/gossip). The consensus protocol, powered
 by Raft, lets the servers perform leader election and state replication.
 The gossip protocol allows for server clustering and multi-region federation.
 The higher burden on the server nodes means that you should run them on
@@ -155,7 +155,7 @@ garbage collection of nodes. By default, if a node is in a failed or 'down'
 state for over 24 hours, Nomad garbage collects that node.
 
 Servers are slightly more complex since they perform additional functions. They
-participate in a [gossip protocol](/nomad/docs/concepts/gossip) both to cluster
+participate in a [gossip protocol](/nomad/docs/architecture/gossip) both to cluster
 within a region and to support multi-region configurations. When a server starts, it does not know the address of other servers in the cluster.
 To discover its peers, it must join the cluster. You do this with the
 [`server join` command](/nomad/commands/server/join) or by providing the
@@ -186,7 +186,7 @@ owned by `root` with filesystem permissions set to `0700`.
 [`leave_on_interrupt`]: /nomad/docs/configuration#leave_on_interrupt
 [`leave_on_terminate`]: /nomad/docs/configuration#leave_on_terminate
 [`server force-leave` command]: /nomad/commands/server/force-leave
-[consensus]: /nomad/docs/concepts/consensus
+[consensus]: /nomad/docs/architecture/consensus
 [`drain_on_shutdown`]: /nomad/docs/configuration/client#drain_on_shutdown
 [reload its configuration]: /nomad/docs/configuration#configuration-reload
 [metrics]: /nomad/docs/operations/metrics-reference

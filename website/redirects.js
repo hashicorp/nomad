@@ -190,6 +190,71 @@ module.exports = [
   {
     source: '/nomad/docs/commands/:path*',
     destination: '/nomad/commands/:path*',
-    permanent: false,
+    permanent: true,
+  },
+  {
+    source: '/nomad/intro',
+    destination: '/nomad/docs/intro',
+    permanent: true,
+  },
+  {
+    source: '/nomad/intro/vs/:path',
+    destination: '/nomad/docs/intro',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/install/quickstart',
+    destination: '/nomad/docs/intro/quickstart',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/architecture/:path*',
+    destination: '/nomad/architecture/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/acl',
+    destination: '/nomad/docs/architecture/acl',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/consensus',
+    destination: '/nomad/docs/architecture/consensus',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/cpu',
+    destination: '/nomad/docs/architecture/cpu',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/gossip',
+    destination: '/nomad/docs/architecture/gossip',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/networking',
+    destination: '/nomad/docs/architecture/networking',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/node-pools',
+    destination: '/nomad/docs/architecture/node-pools',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/security',
+    destination: '/nomad/docs/architecture/security',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/stateful-workloads',
+    destination: '/nomad/docs/architecture/security',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/plugins/storage/:path*',
+    destination: '/nomad/docs/architecture/storage/:path*',
+    permanent: true,
   },
 ]

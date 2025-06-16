@@ -1,15 +1,173 @@
 [
   {
+    "heading": "Get started"
+  },
+  {
+    "title": "What is Nomad?",
+    "path": "what-is-nomad"
+  },
+  {
+    "title": "Quickstart",
+    "path": "quickstart"
+  },
+  {
+    "title": "Use cases",
+    "path": "use-cases"
+  },
+  {
+    "title": "Architecture",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "architecture"
+      },
+      {
+        "title": "ACL",
+        "path": "architecture/acl"
+      },
+      {
+        "title": "Consensus protocol",
+        "path": "architecture/consensus"
+      },
+      {
+        "title": "CPU",
+        "path": "architecture/cpu"
+      },
+      {
+        "title": "Gossip protocol",
+        "path": "architecture/gossip"
+      },
+      {
+        "title": "Multi-cluster federation",
+        "path": "architecture/federation"
+      },
+      {
+        "title": "Networking",
+        "path": "architecture/networking"
+      },
+      {
+        "title": "Node pools",
+        "path": "architecture/node-pools"
+      },
+      {
+        "title": "Security model",
+        "path": "architecture/security"
+      },
+      {
+        "title": "Stateful workload considerations",
+        "path": "architecture/stateful-workloads"
+      },
+      {
+        "title": "Storage",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "architecture/storage"
+          },
+          {
+            "title": "CSI",
+            "path": "architecture/storage/csi"
+          },
+          {
+            "title": "Host Volumes",
+            "path": "architecture/storage/host-volumes"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "title": "Concepts",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "concepts"
+      },
+      {
+        "title": "Allocation filesystem",
+        "path": "concepts/filesystem"
+      },
+
+      {
+        "title": "Job",
+        "path": "concepts/job"
+      },
+      {
+        "title": "Nomad Variables",
+        "path": "concepts/variables"
+      },
+      {
+        "title": "Plugins",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "concepts/plugins"
+          },
+          {
+            "title": "Base",
+            "path": "concepts/plugins/base"
+          },
+          {
+            "title": "Task Drivers",
+            "path": "concepts/plugins/task-drivers"
+          },
+          {
+            "title": "Devices",
+            "path": "concepts/plugins/devices"
+          },
+
+          {
+            "title": "Networking",
+            "path": "concepts/plugins/cni"
+          }
+        ]
+      },
+      {
+        "title": "Scheduling",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "concepts/scheduling"
+          },
+          {
+            "title": "Concepts",
+            "path": "concepts/scheduling/scheduling"
+          },
+          {
+            "title": "Placement",
+            "path": "concepts/scheduling/placement"
+          },
+          {
+            "title": "Preemption",
+            "path": "concepts/scheduling/preemption"
+          }
+        ]
+      },
+      {
+        "title": "Stateful Deployments",
+        "path": "concepts/stateful-deployments"
+      },
+      {
+        "title": "Workload Identity",
+        "path": "concepts/workload-identity"
+      }
+    ]
+  },
+  {
+    "title": "Glossary",
+    "path": "glossary"
+  },
+  {
+    "heading": "Nomad operations"
+  },
+  {
     "title": "Install Nomad",
     "routes": [
       {
         "title": "Overview",
         "path": "install"
       },
-      {
-        "title": "Quickstart",
-        "path": "install/quickstart"
-      },
+
       {
         "title": "Production",
         "routes": [
@@ -81,6 +239,20 @@
     ]
   },
   {
+    "title": "Auth Methods",
+    "routes": [
+      {
+        "title": "JWT",
+        "path": "auth-methods/jwt"
+      },
+      {
+        "title": "OIDC",
+        "path": "auth-methods/oidc"
+      }
+    ]
+  },
+
+  {
     "title": "Integrations",
     "routes": [
       {
@@ -119,260 +291,447 @@
       }
     ]
   },
+
   {
-    "divider": true
-  },
-  {
-    "title": "Concepts",
+    "title": "Operations",
     "routes": [
       {
         "title": "Overview",
-        "path": "concepts"
+        "path": "operations"
       },
       {
-        "title": "ACL",
+        "title": "Nomad Agents",
+        "path": "operations/nomad-agent"
+      },
+      {
+        "title": "Monitor Nomad",
+        "path": "operations/monitoring-nomad"
+      },
+      {
+        "title": "Metrics Reference",
+        "path": "operations/metrics-reference"
+      },
+      {
+        "title": "Cluster Management",
+        "href": "https://learn.hashicorp.com/collections/nomad/manage-clusters"
+      },
+      {
+        "title": "Transport Security",
+        "href": "https://learn.hashicorp.com/collections/nomad/transport-security"
+      },
+      {
+        "title": "Access Control",
+        "href": "https://learn.hashicorp.com/collections/nomad/access-control"
+      },
+      {
+        "title": "Key Management",
+        "path": "operations/key-management"
+      },
+      {
+        "title": "Federation",
         "routes": [
           {
             "title": "Overview",
-            "path": "concepts/acl"
+            "path": "operations/federation"
           },
           {
-            "title": "Auth Methods",
-            "routes": [
-              {
-                "title": "JWT",
-                "path": "concepts/acl/auth-methods/jwt"
-              },
-              {
-                "title": "OIDC",
-                "path": "concepts/acl/auth-methods/oidc"
-              }
-            ]
+            "title": "Failure",
+            "path": "operations/federation/failure"
+          }
+        ]
+      },
+
+      {
+        "title": "Benchmarking Nomad",
+        "path": "operations/benchmarking"
+      },
+      {
+        "title": "Federate AWS Access with Workload Identity",
+        "path": "operations/aws-oidc-provider"
+      },
+      {
+        "title": "IPv6 Support",
+        "path": "operations/ipv6-support"
+      },
+      {
+        "title": "Garbage Collection",
+        "path": "operations/garbage-collection"
+      }
+    ]
+  },
+  {
+    "title": "Schedulers",
+    "path": "schedulers"
+  },
+  {
+    "title": "Runtime",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "runtime"
+      },
+      {
+        "title": "Runtime Environment",
+        "path": "runtime/environment"
+      },
+      {
+        "title": "Variable Interpolation",
+        "path": "runtime/interpolation"
+      }
+    ]
+  },
+  {
+    "title": "Networking",
+    "routes": [
+      {
+        "title": "Service Discovery",
+        "path": "networking/service-discovery"
+      },
+      {
+        "title": "Service Mesh",
+        "path": "networking/service-mesh"
+      },
+      {
+        "title": "CNI",
+        "path": "networking/cni"
+      }
+    ]
+  },
+  {
+    "title": "Autoscaling",
+    "routes": [
+      {
+        "title": "Overview",
+        "href": "/tools/autoscaling"
+      },
+      {
+        "title": "Agent",
+        "routes": [
+          {
+            "title": "Overview",
+            "href": "/tools/autoscaling/agent"
+          },
+          {
+            "title": "apm",
+            "href": "/tools/autoscaling/agent/apm"
+          },
+          {
+            "title": "dynamic_application_sizing",
+            "href": "/tools/autoscaling/agent/dynamic_application_sizing"
+          },
+          {
+            "title": "http",
+            "href": "/tools/autoscaling/agent/http"
+          },
+          {
+            "title": "nomad",
+            "href": "/tools/autoscaling/agent/nomad"
+          },
+          {
+            "title": "policy",
+            "href": "/tools/autoscaling/agent/policy"
+          },
+          {
+            "title": "policy_eval",
+            "href": "/tools/autoscaling/agent/policy_eval"
+          },
+          {
+            "title": "strategy",
+            "href": "/tools/autoscaling/agent/strategy"
+          },
+          {
+            "title": "target",
+            "href": "/tools/autoscaling/agent/target"
+          },
+          {
+            "title": "telemetry",
+            "href": "/tools/autoscaling/agent/telemetry"
           }
         ]
       },
       {
-        "title": "Architecture",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "concepts/architecture"
-          },
-          {
-            "title": "Federation",
-            "path": "concepts/architecture/federation"
-          }
-        ]
+        "title": "API",
+        "href": "/tools/autoscaling/api"
       },
       {
-        "title": "CPU",
-        "path": "concepts/cpu"
+        "title": "CLI",
+        "href": "/tools/autoscaling/cli"
+      },
+      {
+        "title": "Policy",
+        "href": "/tools/autoscaling/policy"
+      },
+      {
+        "title": "Telemetry",
+        "href": "/tools/autoscaling/telemetry"
       },
       {
         "title": "Plugins",
         "routes": [
           {
             "title": "Overview",
-            "path": "concepts/plugins"
+            "href": "/tools/autoscaling/plugins"
           },
           {
-            "title": "Base",
-            "path": "concepts/plugins/base"
-          },
-          {
-            "title": "Task Drivers",
-            "path": "concepts/plugins/task-drivers"
-          },
-          {
-            "title": "Devices",
-            "path": "concepts/plugins/devices"
-          },
-          {
-            "title": "Storage",
+            "title": "APM",
             "routes": [
               {
                 "title": "Overview",
-                "path": "concepts/plugins/storage"
+                "href": "/tools/autoscaling/plugins/apm"
               },
               {
-                "title": "CSI",
-                "path": "concepts/plugins/storage/csi"
+                "title": "Datadog",
+                "href": "/tools/autoscaling/plugins/apm/datadog"
               },
               {
-                "title": "Host Volumes",
-                "path": "concepts/plugins/storage/host-volumes"
+                "title": "Nomad API",
+                "href": "/tools/autoscaling/plugins/apm/nomad"
+              },
+              {
+                "title": "Prometheus",
+                "href": "/tools/autoscaling/plugins/apm/prometheus"
               }
             ]
           },
           {
-            "title": "Networking",
-            "path": "concepts/plugins/cni"
+            "title": "Strategy",
+            "routes": [
+              {
+                "title": "Overview",
+                "href": "/tools/autoscaling/plugins/strategy"
+              },
+              {
+                "title": "Dynamic Application Sizing Average",
+                "href": "/tools/autoscaling/plugins/strategy/app-sizing-avg"
+              },
+              {
+                "title": "Dynamic Application Sizing Max",
+                "href": "/tools/autoscaling/plugins/strategy/app-sizing-max"
+              },
+              {
+                "title": "Dynamic Application Sizing Percentile",
+                "href": "/tools/autoscaling/plugins/strategy/app-sizing-percentile"
+              },
+              {
+                "title": "Fixed Value",
+                "href": "/tools/autoscaling/plugins/strategy/fixed-value"
+              },
+              {
+                "title": "Pass-Through",
+                "href": "/tools/autoscaling/plugins/strategy/pass-through"
+              },
+              {
+                "title": "Target Value",
+                "href": "/tools/autoscaling/plugins/strategy/target-value"
+              },
+              {
+                "title": "Threshold",
+                "href": "/tools/autoscaling/plugins/strategy/threshold"
+              }
+            ]
+          },
+          {
+            "title": "Target",
+            "routes": [
+              {
+                "title": "Overview",
+                "href": "/tools/autoscaling/plugins/target"
+              },
+              {
+                "title": "Amazon Web Services Autoscaling Group",
+                "href": "/tools/autoscaling/plugins/target/aws-asg"
+              },
+              {
+                "title": "Azure Virtual Machine Scale Set",
+                "href": "/tools/autoscaling/plugins/target/azure-vmss"
+              },
+              {
+                "title": "Dynamic Application Sizing",
+                "href": "/tools/autoscaling/plugins/target/app-sizing-nomad"
+              },
+              {
+                "title": "Google Cloud Engine Managed Instance Group",
+                "href": "/tools/autoscaling/plugins/target/gce-mig"
+              },
+              {
+                "title": "Nomad Task Group",
+                "href": "/tools/autoscaling/plugins/target/nomad"
+              }
+            ]
+          },
+          {
+            "title": "Community",
+            "href": "/tools/autoscaling/plugins/external"
           }
         ]
       },
       {
-        "title": "Scheduling",
+        "title": "Internals",
         "routes": [
           {
             "title": "Overview",
-            "path": "concepts/scheduling"
+            "href": "/tools/autoscaling/internals"
           },
           {
-            "title": "Concepts",
-            "path": "concepts/scheduling/scheduling"
+            "title": "Checks",
+            "href": "/tools/autoscaling/internals/checks"
           },
           {
-            "title": "Placement",
-            "path": "concepts/scheduling/placement"
+            "title": "Node Selector Strategy",
+            "href": "/tools/autoscaling/internals/node-selector-strategy"
           },
           {
-            "title": "Preemption",
-            "path": "concepts/scheduling/preemption"
+            "title": "Plugins",
+            "routes": [
+              {
+                "title": "Overview",
+                "href": "/tools/autoscaling/internals/plugins"
+              },
+              {
+                "title": "Base",
+                "href": "/tools/autoscaling/internals/plugins/base"
+              },
+              {
+                "title": "APM",
+                "href": "/tools/autoscaling/internals/plugins/apm"
+              },
+              {
+                "title": "Strategy",
+                "href": "/tools/autoscaling/internals/plugins/strategy"
+              },
+              {
+                "title": "Target",
+                "href": "/tools/autoscaling/internals/plugins/target"
+              }
+            ]
           }
         ]
-      },
-      {
-        "title": "Consensus Protocol",
-        "path": "concepts/consensus"
-      },
-      {
-        "title": "Filesystem",
-        "path": "concepts/filesystem"
-      },
-      {
-        "title": "Gossip Protocol",
-        "path": "concepts/gossip"
-      },
-      {
-        "title": "Node Pools",
-        "path": "concepts/node-pools"
-      },
-      {
-        "title": "Security Model",
-        "path": "concepts/security"
-      },
-      {
-        "title": "Job",
-        "path": "concepts/job"
-      },
-      {
-        "title": "Stateful Deployments",
-        "path": "concepts/stateful-deployments"
-      },
-      {
-        "title": "Workload Identity",
-        "path": "concepts/workload-identity"
-      },
-      {
-        "title": "Variables",
-        "path": "concepts/variables"
       }
     ]
   },
   {
-    "title": "Configuration",
+    "heading": "Jobs"
+  },
+  {
+    "title": "Task Drivers",
     "routes": [
       {
         "title": "Overview",
-        "path": "configuration"
+        "path": "drivers"
       },
       {
-        "title": "acl",
-        "path": "configuration/acl"
+        "title": "Docker",
+        "path": "drivers/docker"
       },
       {
-        "title": "audit",
-        "path": "configuration/audit"
+        "title": "Isolated Fork/Exec",
+        "path": "drivers/exec"
       },
       {
-        "title": "autopilot",
-        "path": "configuration/autopilot"
+        "title": "Java",
+        "path": "drivers/java"
       },
       {
-        "title": "client",
-        "path": "configuration/client"
+        "title": "QEMU",
+        "path": "drivers/qemu"
       },
       {
-        "title": "consul",
-        "path": "configuration/consul"
+        "title": "Raw Fork/Exec",
+        "path": "drivers/raw_exec"
       },
       {
-        "title": "keyring",
+        "title": "Plugins",
         "routes": [
           {
-            "title": "Overview",
-            "path": "configuration/keyring"
+            "title": "Exec2",
+            "href": "/plugins/drivers/exec2"
           },
           {
-            "title": "AWS KMS",
-            "path": "configuration/keyring/awskms"
+            "title": "Podman",
+            "href": "/plugins/drivers/podman"
           },
           {
-            "title": "Azure Key Vault",
-            "path": "configuration/keyring/azurekeyvault"
+            "title": "Virt <sup>Beta</sup>",
+            "href": "/plugins/drivers/virt"
           },
           {
-            "title": "GCP Cloud KMS",
-            "path": "configuration/keyring/gcpckms"
-          },
-          {
-            "title": "Vault Transit",
-            "path": "configuration/keyring/transit"
+            "title": "Community",
+            "href": "/plugins/drivers/community"
           }
         ]
-      },
-      {
-        "title": "plugin",
-        "path": "configuration/plugin"
-      },
-      {
-        "title": "reporting",
-        "path": "configuration/reporting"
-      },
-      {
-        "title": "rpc",
-        "path": "configuration/rpc"
-      },
-      {
-        "title": "search",
-        "path": "configuration/search"
-      },
-      {
-        "title": "sentinel",
-        "path": "configuration/sentinel"
-      },
-      {
-        "title": "server",
-        "path": "configuration/server"
-      },
-      {
-        "title": "server_join",
-        "path": "configuration/server_join"
-      },
-      {
-        "title": "telemetry",
-        "path": "configuration/telemetry"
-      },
-      {
-        "title": "tls",
-        "path": "configuration/tls"
-      },
-      {
-        "title": "ui",
-        "path": "configuration/ui"
-      },
-      {
-        "title": "vault",
-        "path": "configuration/vault"
       }
     ]
   },
   {
-    "title": "Glossary",
-    "path": "glossary"
+    "title": "Device Plugins",
+    "href": "/plugins/devices"
+  },
+
+  {
+    "heading": "Nomad Enterprise"
   },
   {
-    "divider": true
+    "title": "Nomad vs. Kubernetes",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "nomad-vs-kubernetes"
+      },
+      {
+        "title": "Alternative to Kubernetes",
+        "path": "nomad-vs-kubernetes/alternative"
+      },
+      {
+        "title": "Supplement to Kubernetes",
+        "path": "nomad-vs-kubernetes/supplement"
+      }
+    ]
+  },
+  {
+    "title": "Nomad Ecosystem",
+    "path": "ecosystem"
+  },
+  {
+    "title": "Nomad Partnerships",
+    "path": "partnerships"
+  },
+  {
+    "title": "Who Uses Nomad",
+    "path": "who-uses-nomad"
+  },
+  {
+    "title": "Nomad Enterprise",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "enterprise"
+      },
+      {
+        "title": "License",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "enterprise/license"
+          },
+          {
+            "title": "Automated license utilization reporting",
+            "path": "enterprise/license/utilization-reporting"
+          },
+          {
+            "title": "FAQ",
+            "path": "enterprise/license/faq"
+          }
+        ]
+      },
+      {
+        "title": "Sentinel",
+        "path": "enterprise/sentinel"
+      }
+    ]
+  },
+
+  {
+    "heading": "Reference"
   },
   {
     "title": "Job Specification",
@@ -1055,442 +1414,100 @@
     ]
   },
   {
-    "title": "Task Drivers",
+    "title": "Configuration",
     "routes": [
       {
         "title": "Overview",
-        "path": "drivers"
+        "path": "configuration"
       },
       {
-        "title": "Docker",
-        "path": "drivers/docker"
+        "title": "acl",
+        "path": "configuration/acl"
       },
       {
-        "title": "Isolated Fork/Exec",
-        "path": "drivers/exec"
+        "title": "audit",
+        "path": "configuration/audit"
       },
       {
-        "title": "Java",
-        "path": "drivers/java"
+        "title": "autopilot",
+        "path": "configuration/autopilot"
       },
       {
-        "title": "QEMU",
-        "path": "drivers/qemu"
+        "title": "client",
+        "path": "configuration/client"
       },
       {
-        "title": "Raw Fork/Exec",
-        "path": "drivers/raw_exec"
+        "title": "consul",
+        "path": "configuration/consul"
       },
       {
-        "title": "Plugins",
-        "routes": [
-          {
-            "title": "Exec2",
-            "href": "/plugins/drivers/exec2"
-          },
-          {
-            "title": "Podman",
-            "href": "/plugins/drivers/podman"
-          },
-          {
-            "title": "Virt <sup>Beta</sup>",
-            "href": "/plugins/drivers/virt"
-          },
-          {
-            "title": "Community",
-            "href": "/plugins/drivers/community"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "title": "Device Plugins",
-    "href": "/plugins/devices"
-  },
-  {
-    "title": "Schedulers",
-    "path": "schedulers"
-  },
-  {
-    "title": "Runtime",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "runtime"
-      },
-      {
-        "title": "Runtime Environment",
-        "path": "runtime/environment"
-      },
-      {
-        "title": "Variable Interpolation",
-        "path": "runtime/interpolation"
-      }
-    ]
-  },
-  {
-    "title": "Networking",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "networking"
-      },
-      {
-        "title": "Service Discovery",
-        "path": "networking/service-discovery"
-      },
-      {
-        "title": "Service Mesh",
-        "path": "networking/service-mesh"
-      },
-      {
-        "title": "CNI",
-        "path": "networking/cni"
-      }
-    ]
-  },
-  {
-    "title": "Autoscaling",
-    "routes": [
-      {
-        "title": "Overview",
-        "href": "/tools/autoscaling"
-      },
-      {
-        "title": "Agent",
+        "title": "keyring",
         "routes": [
           {
             "title": "Overview",
-            "href": "/tools/autoscaling/agent"
+            "path": "configuration/keyring"
           },
           {
-            "title": "apm",
-            "href": "/tools/autoscaling/agent/apm"
+            "title": "AWS KMS",
+            "path": "configuration/keyring/awskms"
           },
           {
-            "title": "dynamic_application_sizing",
-            "href": "/tools/autoscaling/agent/dynamic_application_sizing"
+            "title": "Azure Key Vault",
+            "path": "configuration/keyring/azurekeyvault"
           },
           {
-            "title": "http",
-            "href": "/tools/autoscaling/agent/http"
+            "title": "GCP Cloud KMS",
+            "path": "configuration/keyring/gcpckms"
           },
           {
-            "title": "nomad",
-            "href": "/tools/autoscaling/agent/nomad"
-          },
-          {
-            "title": "policy",
-            "href": "/tools/autoscaling/agent/policy"
-          },
-          {
-            "title": "policy_eval",
-            "href": "/tools/autoscaling/agent/policy_eval"
-          },
-          {
-            "title": "strategy",
-            "href": "/tools/autoscaling/agent/strategy"
-          },
-          {
-            "title": "target",
-            "href": "/tools/autoscaling/agent/target"
-          },
-          {
-            "title": "telemetry",
-            "href": "/tools/autoscaling/agent/telemetry"
+            "title": "Vault Transit",
+            "path": "configuration/keyring/transit"
           }
         ]
       },
       {
-        "title": "API",
-        "href": "/tools/autoscaling/api"
+        "title": "plugin",
+        "path": "configuration/plugin"
       },
       {
-        "title": "CLI",
-        "href": "/tools/autoscaling/cli"
+        "title": "reporting",
+        "path": "configuration/reporting"
       },
       {
-        "title": "Policy",
-        "href": "/tools/autoscaling/policy"
+        "title": "rpc",
+        "path": "configuration/rpc"
       },
       {
-        "title": "Telemetry",
-        "href": "/tools/autoscaling/telemetry"
+        "title": "search",
+        "path": "configuration/search"
       },
       {
-        "title": "Plugins",
-        "routes": [
-          {
-            "title": "Overview",
-            "href": "/tools/autoscaling/plugins"
-          },
-          {
-            "title": "APM",
-            "routes": [
-              {
-                "title": "Overview",
-                "href": "/tools/autoscaling/plugins/apm"
-              },
-              {
-                "title": "Datadog",
-                "href": "/tools/autoscaling/plugins/apm/datadog"
-              },
-              {
-                "title": "Nomad API",
-                "href": "/tools/autoscaling/plugins/apm/nomad"
-              },
-              {
-                "title": "Prometheus",
-                "href": "/tools/autoscaling/plugins/apm/prometheus"
-              }
-            ]
-          },
-          {
-            "title": "Strategy",
-            "routes": [
-              {
-                "title": "Overview",
-                "href": "/tools/autoscaling/plugins/strategy"
-              },
-              {
-                "title": "Dynamic Application Sizing Average",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-avg"
-              },
-              {
-                "title": "Dynamic Application Sizing Max",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-max"
-              },
-              {
-                "title": "Dynamic Application Sizing Percentile",
-                "href": "/tools/autoscaling/plugins/strategy/app-sizing-percentile"
-              },
-              {
-                "title": "Fixed Value",
-                "href": "/tools/autoscaling/plugins/strategy/fixed-value"
-              },
-              {
-                "title": "Pass-Through",
-                "href": "/tools/autoscaling/plugins/strategy/pass-through"
-              },
-              {
-                "title": "Target Value",
-                "href": "/tools/autoscaling/plugins/strategy/target-value"
-              },
-              {
-                "title": "Threshold",
-                "href": "/tools/autoscaling/plugins/strategy/threshold"
-              }
-            ]
-          },
-          {
-            "title": "Target",
-            "routes": [
-              {
-                "title": "Overview",
-                "href": "/tools/autoscaling/plugins/target"
-              },
-              {
-                "title": "Amazon Web Services Autoscaling Group",
-                "href": "/tools/autoscaling/plugins/target/aws-asg"
-              },
-              {
-                "title": "Azure Virtual Machine Scale Set",
-                "href": "/tools/autoscaling/plugins/target/azure-vmss"
-              },
-              {
-                "title": "Dynamic Application Sizing",
-                "href": "/tools/autoscaling/plugins/target/app-sizing-nomad"
-              },
-              {
-                "title": "Google Cloud Engine Managed Instance Group",
-                "href": "/tools/autoscaling/plugins/target/gce-mig"
-              },
-              {
-                "title": "Nomad Task Group",
-                "href": "/tools/autoscaling/plugins/target/nomad"
-              }
-            ]
-          },
-          {
-            "title": "Community",
-            "href": "/tools/autoscaling/plugins/external"
-          }
-        ]
+        "title": "sentinel",
+        "path": "configuration/sentinel"
       },
       {
-        "title": "Internals",
-        "routes": [
-          {
-            "title": "Overview",
-            "href": "/tools/autoscaling/internals"
-          },
-          {
-            "title": "Checks",
-            "href": "/tools/autoscaling/internals/checks"
-          },
-          {
-            "title": "Node Selector Strategy",
-            "href": "/tools/autoscaling/internals/node-selector-strategy"
-          },
-          {
-            "title": "Plugins",
-            "routes": [
-              {
-                "title": "Overview",
-                "href": "/tools/autoscaling/internals/plugins"
-              },
-              {
-                "title": "Base",
-                "href": "/tools/autoscaling/internals/plugins/base"
-              },
-              {
-                "title": "APM",
-                "href": "/tools/autoscaling/internals/plugins/apm"
-              },
-              {
-                "title": "Strategy",
-                "href": "/tools/autoscaling/internals/plugins/strategy"
-              },
-              {
-                "title": "Target",
-                "href": "/tools/autoscaling/internals/plugins/target"
-              }
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "title": "Operations",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "operations"
+        "title": "server",
+        "path": "configuration/server"
       },
       {
-        "title": "Nomad Agents",
-        "path": "operations/nomad-agent"
+        "title": "server_join",
+        "path": "configuration/server_join"
       },
       {
-        "title": "Monitor Nomad",
-        "path": "operations/monitoring-nomad"
+        "title": "telemetry",
+        "path": "configuration/telemetry"
       },
       {
-        "title": "Metrics Reference",
-        "path": "operations/metrics-reference"
+        "title": "tls",
+        "path": "configuration/tls"
       },
       {
-        "title": "Cluster Management",
-        "href": "https://learn.hashicorp.com/collections/nomad/manage-clusters"
+        "title": "ui",
+        "path": "configuration/ui"
       },
       {
-        "title": "Transport Security",
-        "href": "https://learn.hashicorp.com/collections/nomad/transport-security"
-      },
-      {
-        "title": "Access Control",
-        "href": "https://learn.hashicorp.com/collections/nomad/access-control"
-      },
-      {
-        "title": "Key Management",
-        "path": "operations/key-management"
-      },
-      {
-        "title": "Federation",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "operations/federation"
-          },
-          {
-            "title": "Failure",
-            "path": "operations/federation/failure"
-          }
-        ]
-      },
-      {
-        "title": "Considerations for Stateful Workloads",
-        "path": "operations/stateful-workloads"
-      },
-      {
-        "title": "Benchmarking Nomad",
-        "path": "operations/benchmarking"
-      },
-      {
-        "title": "Federate AWS Access with Workload Identity",
-        "path": "operations/aws-oidc-provider"
-      },
-      {
-        "title": "IPv6 Support",
-        "path": "operations/ipv6-support"
-      },
-      {
-        "title": "Garbage Collection",
-        "path": "operations/garbage-collection"
-      }
-    ]
-  },
-  {
-    "divider": true
-  },
-  {
-    "title": "Nomad vs. Kubernetes",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "nomad-vs-kubernetes"
-      },
-      {
-        "title": "Alternative to Kubernetes",
-        "path": "nomad-vs-kubernetes/alternative"
-      },
-      {
-        "title": "Supplement to Kubernetes",
-        "path": "nomad-vs-kubernetes/supplement"
-      }
-    ]
-  },
-  {
-    "title": "Nomad Ecosystem",
-    "path": "ecosystem"
-  },
-  {
-    "title": "Nomad Partnerships",
-    "path": "partnerships"
-  },
-  {
-    "title": "Who Uses Nomad",
-    "path": "who-uses-nomad"
-  },
-  {
-    "title": "Nomad Enterprise",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "enterprise"
-      },
-      {
-        "title": "License",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "enterprise/license"
-          },
-          {
-            "title": "Automated license utilization reporting",
-            "path": "enterprise/license/utilization-reporting"
-          },
-          {
-            "title": "FAQ",
-            "path": "enterprise/license/faq"
-          }
-        ]
-      },
-      {
-        "title": "Sentinel",
-        "path": "enterprise/sentinel"
+        "title": "vault",
+        "path": "configuration/vault"
       }
     ]
   },
