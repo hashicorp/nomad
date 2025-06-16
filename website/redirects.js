@@ -194,17 +194,22 @@ module.exports = [
   },
   {
     source: '/nomad/intro',
-    destination: '/nomad/docs/intro',
+    destination: '/nomad/docs/what-is-nomad',
+    permanent: true,
+  },
+  {
+    source: '/nomad/intro/use-cases',
+    destination: '/nomad/docs/use-cases',
     permanent: true,
   },
   {
     source: '/nomad/intro/vs/:path',
-    destination: '/nomad/docs/intro',
+    destination: '/nomad/docs/what-is-nomad',
     permanent: true,
   },
   {
     source: '/nomad/docs/install/quickstart',
-    destination: '/nomad/docs/intro/quickstart',
+    destination: '/nomad/docs/quickstart',
     permanent: true,
   },
   {
