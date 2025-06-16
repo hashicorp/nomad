@@ -34,6 +34,7 @@ fi
 
 # Clone the base project, if needed
 echo "⏳ Cloning the $REPO_TO_CLONE repo, this might take a while..."
+# temporarily checkout out the modified dev-portal branch with nomad ia changes
 git clone --depth=1 --branch ce871-NomadIA "https://github.com/hashicorp/$REPO_TO_CLONE.git" "$CLONE_DIR"
 
 if [ "$from_cache" = true ]; then
@@ -43,9 +44,6 @@ fi
 
 # cd into the preview directory project
 cd "$PREVIEW_DIR"
-
-# temporarily checkout out the modified dev-portal branch with nomad ia changes
-git checkout ce871-NomadIA
 
 # Run the build:deploy-preview start script
 PREVIEW_FROM_REPO=$PRODUCT \
