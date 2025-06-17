@@ -47,7 +47,7 @@ The `exec` driver supports the following configuration in the job spec:
 
 - `args` - (Optional) A list of arguments to the `command`. References
   to environment variables or any [interpretable Nomad
-  variables](/nomad/docs/runtime/interpolation) will be interpreted before
+  variables](/nomad/docs/reference/runtime-variable-interpolation) will be interpreted before
   launching the task.
 
 - `pid_mode` - (Optional) Set to `"private"` to enable PID namespace isolation for
@@ -308,5 +308,5 @@ is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
 [host volume]: /nomad/docs/configuration/client#host_volume-block
 [volume_mount]: /nomad/docs/job-specification/volume_mount
 [cores]: /nomad/docs/job-specification/resources#cores
-[runtime_env]: /nomad/docs/runtime/environment#job-related-variables
+[runtime_env]: /nomad/docs/reference/runtime-environment-settings#job-related-variables
 [cgroup controller requirements]: /nomad/docs/install/production/requirements#hardening-nomad

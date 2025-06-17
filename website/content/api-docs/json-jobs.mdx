@@ -488,7 +488,7 @@ The `Task` object supports the following keys:
 - `Env` - A map of key-value representing environment variables that
   will be passed along to the running process. Nomad variables are
   interpreted when set in the environment variable values. See the table of
-  interpreted variables [here](/nomad/docs/runtime/interpolation).
+  interpreted variables [here](/nomad/docs/reference/runtime-variable-interpolation).
 
   For example the below environment map will be reinterpreted:
 
@@ -887,7 +887,7 @@ An example `Update` block:
 The `Constraint` object supports the following keys:
 
 - `LTarget` - Specifies the attribute to examine for the
-  constraint. See the table of attributes [here](/nomad/docs/runtime/interpolation#interpreted_node_vars).
+  constraint. See the table of attributes [here](/nomad/docs/reference/runtime-variable-interpolation#interpreted_node_vars).
 
 - `RTarget` - Specifies the value to compare the attribute against.
   This can be a literal value, another attribute or a regular expression if
@@ -937,7 +937,7 @@ are described in [affinities](/nomad/docs/job-specification/affinity)
 The `Affinity` object supports the following keys:
 
 - `LTarget` - Specifies the attribute to examine for the
-  affinity. See the table of attributes [here](/nomad/docs/runtime/interpolation#interpreted_node_vars).
+  affinity. See the table of attributes [here](/nomad/docs/reference/runtime-variable-interpolation#interpreted_node_vars).
 
 - `RTarget` - Specifies the value to compare the attribute against.
   This can be a literal value, another attribute or a regular expression if
@@ -1205,7 +1205,7 @@ in [spread](/nomad/docs/job-specification/spread).
 The `Spread` object supports the following keys:
 
 - `Attribute` - Specifies the attribute to examine for the
-  spread. See the [table of attributes](/nomad/docs/runtime/interpolation#interpreted_node_vars) for examples.
+  spread. See the [table of attributes](/nomad/docs/reference/runtime-variable-interpolation#interpreted_node_vars) for examples.
 
 - `SpreadTarget` - Specifies a list of attribute values and percentages. This is an optional field, when
   left empty Nomad will evenly spread allocations across values of the attribute.
@@ -1243,5 +1243,5 @@ The `Scaling` object supports the following keys:
 
 [ct]: https://github.com/hashicorp/consul-template 'Consul Template by HashiCorp'
 [drain]: /nomad/commands/node/drain
-[env]: /nomad/docs/runtime/environment 'Nomad Runtime Environment'
+[env]: /nomad/docs/reference/runtime-environment-settings 'Nomad Runtime Environment'
 [Workload Identity]: /nomad/docs/concepts/workload-identity 'Nomad Workload Identity'

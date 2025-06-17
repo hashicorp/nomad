@@ -262,4 +262,34 @@ module.exports = [
     destination: '/nomad/docs/architecture/storage/:path*',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/job-specification/hcl2/:path*',
+    destination: '/nomad/docs/reference/hcl2/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/metrics-reference',
+    destination: '/nomad/docs/reference/metrics',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/runtime',
+    destination: '/nomad/docs/reference/runtime-environment-settings',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/runtime/environment',
+    destination: '/nomad/docs/reference/runtime-environment-settings',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/runtime/interpolation',
+    destination: '/nomad/docs/reference/runtime-variable-interpolation',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/enterprise/sentinel',
+    destination: '/nomad/docs/reference/sentinel-policy',
+    permanent: true,
+  },
 ]

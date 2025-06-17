@@ -81,7 +81,7 @@ All other operating systems use the `host` networking mode.
 - `hostname` `(string: "")` - The hostname assigned to the network namespace. This
   is currently only supported using the [Docker driver][docker-driver] and when the
   [mode](#mode) is set to [`bridge`](#bridge). This parameter supports
-  [interpolation](/nomad/docs/runtime/interpolation).
+  [interpolation](/nomad/docs/reference/runtime-variable-interpolation).
 
 - `dns` <code>([DNSConfig](#dns-parameters): nil)</code> - Sets the DNS
   configuration for the allocations. By default all task drivers will inherit
@@ -133,7 +133,7 @@ The label of the port is just text - it has no special meaning to Nomad.
 - `searches` `(array<string>: nil)` - Sets the search list for hostname lookup
 - `options` `(array<string>: nil)` - Sets internal resolver variables.
 
-These parameters support [interpolation](/nomad/docs/runtime/interpolation).
+These parameters support [interpolation](/nomad/docs/reference/runtime-variable-interpolation).
 
 ## `cni` parameters
 
@@ -141,7 +141,7 @@ These parameters support [interpolation](/nomad/docs/runtime/interpolation).
    These get turned into `CNI_ARGS` per the
    [CNI spec](https://www.cni.dev/docs/spec/#parameters).
 
-These parameters support [interpolation](/nomad/docs/runtime/interpolation).
+These parameters support [interpolation](/nomad/docs/reference/runtime-variable-interpolation).
 
 ## Examples
 

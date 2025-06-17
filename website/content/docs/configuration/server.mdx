@@ -207,7 +207,7 @@ server {
   when raising this value is that during network partitions or other events
   (server crash) where a leader is lost, Nomad will not elect a new leader for
   a longer period of time than the default. The [`nomad.nomad.leader.barrier` and
-  `nomad.raft.leader.lastContact` metrics](/nomad/docs/operations/metrics-reference) are a good
+  `nomad.raft.leader.lastContact` metrics](/nomad/docs/reference/metrics) are a good
   indicator of how often leader elections occur and Raft latency.
 
 - `raft_snapshot_threshold` `(int: "8192")` - Specifies the minimum number of
