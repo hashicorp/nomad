@@ -157,12 +157,36 @@ func (r *ReconcileResults) Merge(new *ReconcileResults) {
 	r.Stop = append(r.Stop, new.Stop...)
 
 	// handle maps
-	maps.Copy(r.AttributeUpdates, new.AttributeUpdates)
-	maps.Copy(r.DisconnectUpdates, new.DisconnectUpdates)
-	maps.Copy(r.ReconnectUpdates, new.ReconnectUpdates)
-	maps.Copy(r.DesiredTGUpdates, new.DesiredTGUpdates)
-	maps.Copy(r.DesiredFollowupEvals, new.DesiredFollowupEvals)
-	maps.Copy(r.TaskGroupAllocNameIndexes, new.TaskGroupAllocNameIndexes)
+	if r.AttributeUpdates != nil {
+		maps.Copy(r.AttributeUpdates, new.AttributeUpdates)
+	} else {
+		r.AttributeUpdates = new.AttributeUpdates
+	}
+	if r.DisconnectUpdates != nil {
+		maps.Copy(r.DisconnectUpdates, new.DisconnectUpdates)
+	} else {
+		r.DisconnectUpdates = new.DisconnectUpdates
+	}
+	if r.ReconnectUpdates != nil {
+		maps.Copy(r.ReconnectUpdates, new.ReconnectUpdates)
+	} else {
+		r.ReconnectUpdates = new.ReconnectUpdates
+	}
+	if r.DesiredTGUpdates != nil {
+		maps.Copy(r.DesiredTGUpdates, new.DesiredTGUpdates)
+	} else {
+		r.DesiredTGUpdates = new.DesiredTGUpdates
+	}
+	if r.DesiredFollowupEvals != nil {
+		maps.Copy(r.DesiredFollowupEvals, new.DesiredFollowupEvals)
+	} else {
+		r.DesiredFollowupEvals = new.DesiredFollowupEvals
+	}
+	if r.TaskGroupAllocNameIndexes != nil {
+		maps.Copy(r.TaskGroupAllocNameIndexes, new.TaskGroupAllocNameIndexes)
+	} else {
+		r.TaskGroupAllocNameIndexes = new.TaskGroupAllocNameIndexes
+	}
 }
 
 // delayedRescheduleInfo contains the allocation id and a time when its eligible to be rescheduled.
@@ -382,11 +406,11 @@ func markDelayed(allocs allocSet, clientStatus, statusDescription string, follow
 // - a resulting deployment
 // - a boolean that indicates whether the deployment is complete
 func (a *AllocReconciler) computeDeploymentComplete(m allocMatrix) (*ReconcileResults, bool) {
-	result := new(ReconcileResults)
+	result := &ReconcileResults{}
 	complete := true
 	for group, as := range m {
 		var groupComplete bool
-		resultForGroup := new(ReconcileResults)
+		resultForGroup := &ReconcileResults{}
 		resultForGroup, groupComplete = a.computeGroup(group, as)
 		complete = complete && groupComplete
 
@@ -1036,14 +1060,10 @@ func (a *AllocReconciler) createDeployment(groupName string, strategy *structs.U
 	}
 
 	// A previous group may have made the deployment already. If not create one.
-	var resultingDeployment *structs.Deployment
-	if existingDeployment == nil {
-		resultingDeployment = structs.NewDeployment(a.job, a.evalPriority, a.state.Now.UnixNano())
-	}
+	resultingDeployment := structs.NewDeployment(a.job, a.evalPriority, a.state.Now.UnixNano())
 
 	// Attach the groups deployment state to the deployment
-	// FIXME: this should be a separate method?
-	a.deployment.TaskGroups[groupName] = dstate
+	resultingDeployment.TaskGroups[groupName] = dstate
 
 	return resultingDeployment
 }
