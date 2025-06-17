@@ -4,10 +4,13 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/signal"
+	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -78,7 +81,7 @@ func (c *MonitorExternalCommand) Run(args []string) int {
 	flags.StringVar(&c.nodeID, "node-id", "", "")
 	flags.StringVar(&c.serverID, "server-id", "", "")
 	flags.IntVar(&c.logSince, "logs-since", 72, "")
-	flags.StringVar(&c.serviceName, "systemd-service", "", "the name of the systemd service unit to collect logs for, defaults to nomad if unset")
+	flags.StringVar(&c.serviceName, "service", "", "the name of the systemd service unit to collect logs for, defaults to nomad if unset")
 	flags.StringVar(&c.logPath, "log-path", "", "full path to the desired log file")
 	flags.BoolVar(&c.follow, "follow", false, "")
 
@@ -108,7 +111,67 @@ func (c *MonitorExternalCommand) Run(args []string) int {
 			return 1
 		}
 	}
+	scanServiceName := func(input string) error {
+		// Trim leading and trailing spaces.
+		input = strings.TrimSpace(input)
 
+		// Create a regex pattern to exclude unwanted characters.
+		re := regexp.MustCompile(`[!@#\$%^&~*()\x60+=\[\]{};':"\\|.,<>\/?]`)
+
+		unsafe := re.MatchString(input)
+		if unsafe {
+			return errors.New("disallowed character detected. Option 'service' may only contain '-', '_', and alphanumeric characters.")
+		}
+		return nil
+	}
+
+	// Check serviceName for unsafe characters
+	err = scanServiceName(c.serviceName)
+	if err != nil {
+		c.Ui.Error(err.Error())
+	}
+
+	scanLogPath := func(input string) error {
+		// Trim leading and trailing spaces.
+		input = strings.TrimSpace(input)
+		path := strings.Split(input, "/")
+
+		// return error if file does not end with expected file type
+		if !strings.Contains(path[len(path)-1], ".txt") ||
+			!strings.Contains(path[len(path)-1], ".text") ||
+			!strings.Contains(path[len(path)-1], ".log") ||
+			!strings.Contains(path[len(path)-1], ".syslog") {
+			return errors.New("unrecognized log file type")
+		}
+		//update path value if "/" was not found and we are on windows
+		if runtime.GOOS == "windows" {
+			path = strings.Split(input, "\\")
+		}
+
+		if len(path) == 1 {
+			// return as safe if "/" was not found and we're not on windows
+			if runtime.GOOS != "windows" {
+				return nil
+			}
+
+		}
+		// Create a regex pattern to exclude unwanted characters.
+		re := regexp.MustCompile(`[!@#\$%^&~*()\x60+=\[\]{};':"\\|,<>\/?]`) // identical to above but . is allowed
+
+		for _, p := range path {
+			unsafe := re.MatchString(p)
+			if unsafe {
+				return errors.New("Disallowed character detected in log path segment, directory and file names may only contain '-', '_','.', and alphanumeric characters.")
+			}
+		}
+		return nil
+	}
+
+	// Check serviceName for unsafe characters
+	err = scanLogPath(c.logPath)
+	if err != nil {
+		c.Ui.Error(err.Error())
+	}
 	params := map[string]string{
 		"node_id":      c.nodeID,
 		"server_id":    c.serverID,

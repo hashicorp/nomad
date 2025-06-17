@@ -475,7 +475,7 @@ func (r *StreamReader) StreamFixed(ctx context.Context, offset int64, path strin
 	// streamFrameSize is the maximum number of bytes to send in a single frame
 	streamFrameSize := int64(1024)
 
-	bufSize := int64(streamFrameSize)
+	bufSize := streamFrameSize
 	if limit > 0 && limit < streamFrameSize {
 		bufSize = limit
 	}

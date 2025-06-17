@@ -10,7 +10,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1057,23 +1056,27 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 		filePath    string
 		serviceName string
 	}{
-		{name: "happy_path_inline_file",
+		{
+			name:     "happy_path_inline_file",
 			isCli:    false,
 			filePath: inlineFilePath,
 			expected: expectedText,
 		},
-		{name: "happy_path_inline_cli",
+		{
+			name:        "happy_path_inline_cli",
 			isCli:       true,
 			tstFile:     inlineFilePath,
 			serviceName: "nomad",
 			expected:    expectedText,
 		},
-		{name: "happy_path_golden_file",
+		{
+			name:     "happy_path_golden_file",
 			isCli:    false,
 			filePath: goldenFilePath,
 			expected: string(goldenFileContents),
 		},
-		{name: "happy_path_golden_cli",
+		{
+			name:        "happy_path_golden_cli",
 			isCli:       true,
 			tstFile:     goldenFilePath,
 			serviceName: "nomad",
@@ -1085,10 +1088,9 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 
 			// No node ID to monitor the remote server
 			req := cstructs.MonitorExternalRequest{
-				LogSince:    "72",
-				LogPath:     tc.filePath,
-				ServiceName: tc.serviceName,
-				TstFile:     tc.tstFile,
+				LogSince:     "72",
+				NomadLogPath: tc.filePath,
+				ServiceName:  tc.serviceName,
 				QueryOptions: structs.QueryOptions{
 					Region: "global",
 				},
@@ -1113,13 +1115,11 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 					var msg cstructs.StreamErrWrapper
 					err := decoder.Decode(&msg)
 					if err != nil && err != io.EOF {
-						t.Log("this is the error", "error", err.Error())
 						errCh <- fmt.Errorf("error decoding: %v", err)
 					}
 					streamMsg <- &msg
 
 					if err == io.EOF && err != nil {
-						t.Log("this is the error that closed the file", "error", err.Error())
 						errCh <- io.EOF
 						break
 					}
@@ -1130,46 +1130,50 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 			// send request
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 			require.Nil(encoder.Encode(req))
-			timeout := time.After(10 * time.Second)
-			received := ""
+			timeout := time.After(3 * time.Second)
 
-			finalMessage := make([]byte, 1024)
-			copyLength := len(finalMessage)
-			var hope io.WriteCloser
-		OUTER:
-			for {
-				select {
-				case <-timeout:
-					t.Fatal("timeout waiting for logs")
-					continue
-				case err := <-errCh:
-					t.Fatal(err)
-				case message := <-streamMsg:
-					var frame sframer.StreamFrame
-					err = json.Unmarshal(message.Payload, &frame)
-					//must.NoError(t, err)
-					if err != nil {
-						t.Logf("this is the value %s\n this is the error %s", string(message.Payload), err.Error())
+			var (
+				copyLength int
+				builder    strings.Builder
+			)
+			go func() {
+			OUTER:
+				for {
+					select {
+					case <-timeout:
+						must.Unreachable(t)
+						continue
+					case err := <-errCh:
+						if err != io.EOF {
+							must.Unreachable(t)
+						}
+					case message := <-streamMsg:
+						var frame sframer.StreamFrame
+						if len(message.Payload) == 0 {
+							break
+						}
+						err = json.Unmarshal(message.Payload, &frame)
+						if err != io.EOF {
+							must.NoError(t, err)
+						}
+
+						builder.Grow(len(message.Payload))
+						builder.Write(frame.Data)
+
+						currentLength := builder.Len()
+						if currentLength == copyLength {
+							//must.Eq(t, received, tc.expected)
+							must.Nil(t, p2.Close())
+							break OUTER
+						}
+						copyLength = currentLength
+
 					}
-					newMessage := append([]byte{}, frame.Data...)
-					finalMessage = slices.DeleteFunc(newMessage, func(n uint8) bool {
-						return n == 0
-					})
-					received += string(finalMessage)
-
-					currentLength := len(received)
-					if currentLength == copyLength {
-						must.Eq(t, received, tc.expected)
-						must.Nil(t, p2.Close())
-						break OUTER
-					}
-
-					copyLength = currentLength
-					//prevMsg = frame.Data
 				}
-			}
-			//received := string(finalMessage)
-			//must.NoError(t, err)
+				received := builder.String()
+				must.Eq(t, tc.expected, received)
+			}()
 		})
+
 	}
 }

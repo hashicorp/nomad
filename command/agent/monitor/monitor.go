@@ -219,15 +219,14 @@ func (d *monitor) MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan 
 	} else if len(opts.ServiceName) == 0 && len(opts.LogPath) != 0 {
 		useCli = false
 		multiReader, prepErr = d.fileReader(opts)
+
 	}
 
 	if prepErr != nil {
 		d.logger.Error("error attempting to prepare cli command", "error", prepErr.Error())
 	}
-	// Set up multireader before starting command
 
 	streamCh := make(chan []byte)
-	var readErr error
 	// Read, copy, and send to channel until we hit EOF or error
 	go func() {
 		if useCli {
@@ -235,24 +234,20 @@ func (d *monitor) MonitorExternal(opts *cstructs.MonitorExternalRequest) <-chan 
 		}
 		defer close(streamCh)
 		logChunk := make([]byte, 32)
-		copyBuffer := make([]byte, 32)
 
 		for {
-			_, readErr = multiReader.Read(logChunk)
+			n, readErr := multiReader.Read(logChunk)
 			if readErr != nil && readErr != io.EOF {
 				d.logger.Error("unable to read logs into channel", readErr.Error())
 				return
 			}
-			copy(copyBuffer, logChunk)
 
-			streamCh <- logChunk
-			time.Sleep(1 * time.Microsecond) // quick sleep to decrease risk of collisions & overwrites
+			streamCh <- logChunk[:n]
 
 			if readErr == io.EOF {
 				break
-			} else {
-				continue
 			}
+
 		}
 	}()
 	return streamCh
@@ -264,10 +259,11 @@ func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, i
 	cmdDuration := opts.LogSince
 	// Set logSince to default if unset by caller
 	if opts.LogSince == "0" {
-		d.logger.Info(string(opts.LogSince))
 		cmdDuration = defaultDuration
 	}
+
 	// build command
+
 	cmdString = fmt.Sprintf("journalctl -xe -u %s --no-pager --since '%s hours ago'", opts.ServiceName, cmdDuration)
 	if opts.Follow {
 		cmdString = cmdString + " -f"
@@ -282,7 +278,8 @@ func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, i
 	// in the RPC params
 	if opts.TstFile != "" && testing.Testing() {
 		cmdString = fmt.Sprintf("cat %s", opts.TstFile)
-	} else {
+	} else if opts.TstFile != "" && !testing.Testing() {
+		//temporary iteration helper to enable me to test non cmdString elements from mac
 		cmdString = "cat /Users/tehut/go/src/github.com/hashicorp/nomad/t3.txt"
 	}
 
@@ -299,9 +296,9 @@ func (d *monitor) cliReader(opts *cstructs.MonitorExternalRequest) (*exec.Cmd, i
 		d.logger.Error("unable to read logs into buffer", err.Error())
 		return nil, nil, err
 	}
-	multi := io.MultiReader(stdOut, stdErr)
+	multiReader := io.MultiReader(stdOut, stdErr)
 
-	return cmd, multi, nil
+	return cmd, multiReader, nil
 }
 
 func (d *monitor) fileReader(opts *cstructs.MonitorExternalRequest) (io.Reader, error) {
