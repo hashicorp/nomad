@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -23,6 +24,7 @@ import (
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
 	"github.com/hashicorp/nomad/testutil"
+	"github.com/shoenig/test/must"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -444,5 +446,165 @@ func TestAgentHost_ACL(t *testing.T) {
 				require.NotEmpty(t, resp.HostData)
 			}
 		})
+	}
+}
+
+func TestMonitor_MonitorExternal(t *testing.T) {
+	ci.Parallel(t)
+	require := require.New(t)
+	const (
+		expectedText   = "log log log log log"
+		goldenFilePath = "../command/agent/testdata/monitor-external.golden"
+	)
+	goldenFileContents, err := os.ReadFile(goldenFilePath)
+	must.NoError(t, err)
+
+	testFile, err := os.CreateTemp("", "nomadtests-tshot-")
+	must.NoError(t, err)
+
+	_, err = testFile.Write([]byte(expectedText))
+	must.NoError(t, err)
+	inlineFilePath := testFile.Name()
+
+	// start server
+	s, cleanupS := nomad.TestServer(t, nil)
+	defer cleanupS()
+
+	c, cleanupC := TestClient(t, func(c *config.Config) {
+		c.ACLEnabled = true
+		c.Servers = []string{s.GetConfig().RPCAddr.String()}
+	})
+	defer cleanupC()
+	defer os.Remove(inlineFilePath)
+	testutil.WaitForLeader(t, s.RPC)
+
+	cases := []struct {
+		name        string
+		isCli       bool
+		expected    string
+		tstFile     string
+		filePath    string
+		serviceName string
+	}{
+		{
+			name:     "happy_path_inline_file",
+			isCli:    false,
+			filePath: inlineFilePath,
+			expected: expectedText,
+		},
+		{
+			name:        "happy_path_inline_cli",
+			isCli:       true,
+			tstFile:     inlineFilePath,
+			serviceName: "nomad",
+			expected:    expectedText,
+		},
+		{
+			name:     "happy_path_golden_file",
+			isCli:    false,
+			filePath: goldenFilePath,
+			expected: string(goldenFileContents),
+		},
+		{
+			name:        "happy_path_golden_cli",
+			isCli:       true,
+			tstFile:     goldenFilePath,
+			serviceName: "nomad",
+			expected:    string(goldenFileContents),
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+
+			// No node ID to monitor the remote server
+			req := cstructs.MonitorExternalRequest{
+				LogSince:    "72",
+				LogPath:     tc.filePath,
+				ServiceName: tc.serviceName,
+				TstFile:     tc.tstFile,
+				QueryOptions: structs.QueryOptions{
+					Region: "global",
+				},
+			}
+			handler, err := c.StreamingRpcHandler("Agent.MonitorExternal")
+			require.Nil(err)
+
+			// create pipe
+			p1, p2 := net.Pipe()
+			defer p1.Close()
+			defer p2.Close()
+
+			errCh := make(chan error)
+			streamMsg := make(chan *cstructs.StreamErrWrapper)
+
+			go handler(p2)
+
+			// Start decoder
+			go func() {
+				decoder := codec.NewDecoder(p1, structs.MsgpackHandle)
+				for {
+					var msg cstructs.StreamErrWrapper
+					err := decoder.Decode(&msg)
+					if err != nil && err != io.EOF {
+						errCh <- fmt.Errorf("error decoding: %v", err)
+					}
+					streamMsg <- &msg
+
+					if err == io.EOF && err != nil {
+						errCh <- io.EOF
+						break
+					}
+
+				}
+			}()
+
+			// send request
+			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
+			require.Nil(encoder.Encode(req))
+			timeout := time.After(3 * time.Second)
+
+			var (
+				copyLength int
+				builder    strings.Builder
+			)
+			go func() {
+			OUTER:
+				for {
+					select {
+					case <-timeout:
+						must.Unreachable(t)
+						continue
+					case err := <-errCh:
+						if err != io.EOF {
+							must.Unreachable(t)
+						}
+					case message := <-streamMsg:
+						var frame sframer.StreamFrame
+						if len(message.Payload) == 0 {
+							break
+						}
+						err = json.Unmarshal(message.Payload, &frame)
+						if err != io.EOF {
+							must.NoError(t, err)
+						}
+
+						builder.Grow(len(message.Payload))
+						builder.Write(frame.Data)
+
+						currentLength := builder.Len()
+						if currentLength == copyLength {
+							//must.Eq(t, received, tc.expected)
+							must.Nil(t, p2.Close())
+							break OUTER
+						}
+						copyLength = currentLength
+
+					}
+				}
+				received := builder.String()
+				must.Eq(t, tc.expected, received)
+			}()
+		})
+
 	}
 }
