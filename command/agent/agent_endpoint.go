@@ -405,7 +405,6 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 
 		// Send the request
 		if err := encoder.Encode(args); err != nil {
-			s.logger.Warn("this is the error after request sent", err.Error())
 			errCh <- CodedError(500, err.Error())
 			return
 		}
@@ -414,27 +413,24 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 			select {
 			case <-ctx.Done():
 				errCh <- nil
-				s.logger.Warn("context cancelled in agent loop")
 				return
 			default:
 			}
 
 			var res cstructs.StreamErrWrapper
 			if err := decoder.Decode(&res); err != nil && err != io.EOF {
-				s.logger.Warn("this is the error", err.Error())
 				errCh <- CodedError(500, err.Error())
 				return
 			}
 			decoder.Reset(httpPipe)
 
 			if err := res.Error; err != nil && err != io.EOF {
-				s.logger.Warn("this is the error", res.Error.Error())
 				if err.Code != nil {
 					errCh <- CodedError(int(*err.Code), err.Error())
 					return
 				}
 			}
-			//if _, err := bytes.NewReader(res.Payload).WriteTo(output); err != nil {
+
 			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
 				s.logger.Info("we got an error", err.Error())
 				errCh <- CodedError(500, err.Error())
@@ -444,9 +440,9 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 
 	handler(handlerPipe)
 	cancel()
-	s.logger.Warn("finally cancelled")
+
 	codedErr := <-errCh
-	//if args.Follow {
+
 	if codedErr != nil &&
 		(codedErr == io.EOF ||
 			strings.Contains(codedErr.Error(), "closed") ||
@@ -455,14 +451,6 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 		s.logger.Info(codedErr.Error())
 		codedErr = nil
 	}
-	//} else {
-	//	// treat an EOF as a termination if we're not following
-	//	if codedErr != nil && codedErr == io.EOF {
-	//		s.logger.Warn("got the eof")
-	//		codedErr = nil
-	//	}
-	//}
-	//}
 	return nil, codedErr
 
 }
