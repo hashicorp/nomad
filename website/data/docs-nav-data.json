@@ -438,42 +438,13 @@
   },
 
   {
-    "heading": "Nomad Enterprise"
-  },
-  {
-    "title": "Nomad vs. Kubernetes",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "nomad-vs-kubernetes"
-      },
-      {
-        "title": "Alternative to Kubernetes",
-        "path": "nomad-vs-kubernetes/alternative"
-      },
-      {
-        "title": "Supplement to Kubernetes",
-        "path": "nomad-vs-kubernetes/supplement"
-      }
-    ]
-  },
-  {
-    "title": "Nomad ecosystem",
-    "path": "ecosystem"
-  },
-  {
-    "title": "Nomad partnerships",
-    "path": "partnerships"
-  },
-  {
-    "title": "Who Uses Nomad",
-    "path": "who-uses-nomad"
+    "heading": "Enterprise solutions"
   },
   {
     "title": "Nomad Enterprise",
     "routes": [
       {
-        "title": "Overview",
+        "title": "Features",
         "path": "enterprise"
       },
       {
@@ -494,6 +465,18 @@
         ]
       }
     ]
+  },
+  {
+    "title": "Nomad ecosystem",
+    "path": "ecosystem"
+  },
+  {
+    "title": "Nomad partnerships",
+    "path": "partnerships"
+  },
+  {
+    "title": "Who uses Nomad",
+    "path": "who-uses-nomad"
   },
 
   {

@@ -208,6 +208,11 @@ module.exports = [
     permanent: true,
   },
   {
+    source: '/nomad/docs/nomad-vs-kubernetes/:path',
+    destination: '/nomad/docs/what-is-nomad',
+    permanent: true,
+  },
+  {
     source: '/nomad/docs/install/quickstart',
     destination: '/nomad/docs/quickstart',
     permanent: true,
