@@ -69,7 +69,7 @@
             "path": "architecture/storage/csi"
           },
           {
-            "title": "Host Volumes",
+            "title": "Host volumes",
             "path": "architecture/storage/host-volumes"
           }
         ]
@@ -93,7 +93,7 @@
         "path": "concepts/job"
       },
       {
-        "title": "Nomad Variables",
+        "title": "Nomad variables",
         "path": "concepts/variables"
       },
       {
@@ -108,7 +108,7 @@
             "path": "concepts/plugins/base"
           },
           {
-            "title": "Task Drivers",
+            "title": "Task drivers",
             "path": "concepts/plugins/task-drivers"
           },
           {
@@ -144,11 +144,11 @@
         ]
       },
       {
-        "title": "Stateful Deployments",
+        "title": "Stateful deployments",
         "path": "concepts/stateful-deployments"
       },
       {
-        "title": "Workload Identity",
+        "title": "Workload identity",
         "path": "concepts/workload-identity"
       }
     ]
@@ -180,17 +180,17 @@
             "path": "install/production/requirements"
           },
           {
-            "title": "Reference Architecture",
+            "title": "Reference architecture",
             "href": "https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul"
           },
           {
-            "title": "Deployment Guide",
+            "title": "Deployment guide",
             "href": "https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul"
           }
         ]
       },
       {
-        "title": "Windows Service",
+        "title": "Windows service",
         "path": "install/windows-service"
       }
     ]
@@ -203,13 +203,13 @@
         "path": "upgrade"
       },
       {
-        "title": "Specific Version Details",
+        "title": "Specific version details",
         "path": "upgrade/upgrade-specific"
       }
     ]
   },
   {
-    "title": "Release Notes",
+    "title": "Release notes",
     "routes": [
       {
         "title": "Overview",
@@ -239,7 +239,7 @@
     ]
   },
   {
-    "title": "Auth Methods",
+    "title": "Auth methods",
     "routes": [
       {
         "title": "JWT",
@@ -270,7 +270,7 @@
             "path": "integrations/consul/acl"
           },
           {
-            "title": "Service Mesh",
+            "title": "Service mesh",
             "path": "integrations/consul/service-mesh"
           }
         ]
@@ -298,7 +298,7 @@
         "path": "operations"
       },
       {
-        "title": "Nomad Agents",
+        "title": "Nomad agents",
         "path": "operations/nomad-agent"
       },
       {
@@ -307,19 +307,19 @@
       },
 
       {
-        "title": "Cluster Management",
+        "title": "Cluster management",
         "href": "https://learn.hashicorp.com/collections/nomad/manage-clusters"
       },
       {
-        "title": "Transport Security",
+        "title": "Transport security",
         "href": "https://learn.hashicorp.com/collections/nomad/transport-security"
       },
       {
-        "title": "Access Control",
+        "title": "Access control",
         "href": "https://learn.hashicorp.com/collections/nomad/access-control"
       },
       {
-        "title": "Key Management",
+        "title": "Key management",
         "path": "operations/key-management"
       },
       {
@@ -341,15 +341,15 @@
         "path": "operations/benchmarking"
       },
       {
-        "title": "Federate AWS Access with Workload Identity",
+        "title": "Federate AWS Access with workload identity",
         "path": "operations/aws-oidc-provider"
       },
       {
-        "title": "IPv6 Support",
+        "title": "IPv6 support",
         "path": "operations/ipv6-support"
       },
       {
-        "title": "Garbage Collection",
+        "title": "Garbage collection",
         "path": "operations/garbage-collection"
       }
     ]
@@ -362,11 +362,11 @@
     "title": "Networking",
     "routes": [
       {
-        "title": "Service Discovery",
+        "title": "Service discovery",
         "path": "networking/service-discovery"
       },
       {
-        "title": "Service Mesh",
+        "title": "Service mesh",
         "path": "networking/service-mesh"
       },
       {
@@ -383,7 +383,7 @@
     "heading": "Jobs"
   },
   {
-    "title": "Task Drivers",
+    "title": "Task drivers",
     "routes": [
       {
         "title": "Overview",
@@ -433,7 +433,7 @@
     ]
   },
   {
-    "title": "Device Plugins",
+    "title": "Device plugins",
     "href": "/plugins/devices"
   },
 
@@ -458,11 +458,11 @@
     ]
   },
   {
-    "title": "Nomad Ecosystem",
+    "title": "Nomad ecosystem",
     "path": "ecosystem"
   },
   {
-    "title": "Nomad Partnerships",
+    "title": "Nomad partnerships",
     "path": "partnerships"
   },
   {
@@ -806,7 +806,7 @@
         "path": "other-specifications"
       },
       {
-        "title": "ACL Policy",
+        "title": "ACL policy",
         "path": "other-specifications/acl-policy"
       },
       {
@@ -814,15 +814,15 @@
         "path": "other-specifications/namespace"
       },
       {
-        "title": "Node Pool",
+        "title": "Node pool",
         "path": "other-specifications/node-pool"
       },
       {
-        "title": "Resource Quota",
+        "title": "Resource quota",
         "path": "other-specifications/quota"
       },
       {
-        "title": "Variables",
+        "title": "Nomad variables",
         "path": "other-specifications/variables"
       },
       {
@@ -837,7 +837,7 @@
             "path": "other-specifications/volume/csi"
           },
           {
-            "title": "Dynamic Host Volumes",
+            "title": "Dynamic host volumes",
             "path": "other-specifications/volume/host"
           },
           {
