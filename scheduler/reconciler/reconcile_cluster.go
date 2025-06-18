@@ -1101,8 +1101,8 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 
 	var stopAllocResult []AllocStopResult
 
-	// FIXME: this method returns, doesn't modify the result.stop field anymore
-	_ = markDelayed(lost, structs.AllocClientStatusLost, sstructs.StatusAllocLost, followupEvals)
+	delayedResult := markDelayed(lost, structs.AllocClientStatusLost, sstructs.StatusAllocLost, followupEvals)
+	stopAllocResult = append(stopAllocResult, delayedResult...)
 
 	// If we are still deploying or creating canaries, don't stop them
 	if isCanarying {
