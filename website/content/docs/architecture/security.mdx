@@ -192,7 +192,7 @@ environment.
   Containers](https://katacontainers.io/). These types of runtimes provide
   sandboxing features which help prevent raw access to the underlying shared
   kernel for other containers and the Nomad client agent itself. Docker driver
-  allows [customizing runtimes](/nomad/docs/drivers/docker#runtime).
+  allows [customizing runtimes](/nomad/docs/job-declare/task-driver/docker#runtime).
 
 - **[Disable Unused Drivers](/nomad/docs/configuration/client#driver-denylist)** -
   Each driver provides different degrees of isolation, and bugs may allow
@@ -204,9 +204,9 @@ environment.
   both the Nomad hosts and applied to containers for an extra layer of
   security. Seccomp profiles are able to be passed directly to containers
   using the
-  **[`security_opt`](/nomad/docs/drivers/docker#security_opt)**
+  **[`security_opt`](/nomad/docs/job-declare/task-driver/docker#security_opt)**
   parameter available in the default [Docker
-  driver](/nomad/docs/drivers/docker).
+  driver](/nomad/docs/job-declare/task-driver/docker).
 
 - **[Service Mesh](https://www.hashicorp.com/resources/service-mesh-microservices-networking)** -
   Integrating service mesh technologies such as
@@ -274,7 +274,7 @@ The following are not part of the threat model for client agents:
 - **Access (read or write) to the Nomad configuration directory** - Access to a
   client's configuration file can enable and disable features for a client
   including insecure drivers such as
-  [`raw_exec`](/nomad/docs/drivers/raw_exec).
+  [`raw_exec`](/nomad/docs/job-declare/task-driver/raw_exec).
 
 - **Memory access to a running Nomad client agent** - Direct access to the
   memory of the Nomad client agent process allows an attack to extract secrets
@@ -306,7 +306,7 @@ The following are not part of the threat model for client agents:
   and the backend configuration of these drivers should be considered to
   implement defense in depth. For example, a custom Docker driver that limits
   the ability to mount the host file system may be subverted by network access
-  to an exposed Docker daemon API through other means such as the [`raw_exec`](/nomad/docs/drivers/raw_exec)
+  to an exposed Docker daemon API through other means such as the [`raw_exec`](/nomad/docs/job-declare/task-driver/raw_exec)
   driver.
 
 ### External Threats

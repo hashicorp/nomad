@@ -21,7 +21,7 @@ dedicated instances because the servers are more resource intensive than a
 client node.
 
 Client agents use fingerprinting to determine the capabilities and resources of
-the host machine, as well as what [drivers](/nomad/docs/drivers) are available.
+the host machine, as well as what [drivers](/nomad/docs/job-declare/task-driver) are available.
 Clients register with servers to provide node information and a heartbeat.
 Clients run tasks that the server assigns to them. Client nodes make up the
 majority of the cluster and are very lightweight. They interface with the server
@@ -136,7 +136,7 @@ this lifecycle is useful for building a mental model of an agent's interactions
 with a cluster and how the cluster treats a node.
 
 When a client agent starts, it fingerprints the host machine to identify its
-attributes, capabilities, and [task drivers](/nomad/docs/drivers). The client
+attributes, capabilities, and [task drivers](/nomad/docs/job-declare/task-driver). The client
 then reports this information to the servers during an initial registration. You
 provide the addresses of known servers to the agent via configuration,
 potentially using DNS for resolution. Use [Consul](https://www.consul.io/)

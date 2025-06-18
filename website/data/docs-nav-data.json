@@ -161,6 +161,10 @@
     "heading": "Nomad operations"
   },
   {
+    "title": "Agent configuration reference",
+    "href": "https://developer.hashicorp.com/nomad/docs/configuration/"
+  },
+  {
     "title": "Install Nomad",
     "routes": [
       {
@@ -359,84 +363,224 @@
     "path": "schedulers"
   },
   {
-    "title": "Networking",
-    "routes": [
-      {
-        "title": "Service discovery",
-        "path": "networking/service-discovery"
-      },
-      {
-        "title": "Service mesh",
-        "path": "networking/service-mesh"
-      },
-      {
-        "title": "CNI",
-        "path": "networking/cni"
-      }
-    ]
-  },
-  {
     "title": "Autoscaling",
-    "href": "/tools/autoscaling"
+    "href": "/nomad/tools/autoscaling"
   },
   {
     "heading": "Jobs"
   },
   {
-    "title": "Task drivers",
+    "title": "Job specification",
+    "href": "https://developer.hashicorp.com/nomad/docs/job-specification/"
+  },
+  {
+    "title": "Declare a job",
     "routes": [
       {
-        "title": "Overview",
-        "path": "drivers"
+        "title": "Create a job",
+        "href": "/nomad/tutorials/manage-jobs/jobs-submit"
       },
       {
-        "title": "Docker",
-        "path": "drivers/docker"
+        "title": "Configure tasks",
+        "href": "/nomad/tutorials/manage-jobs/jobs-configuring"
       },
       {
-        "title": "Isolated Fork/Exec",
-        "path": "drivers/exec"
+        "title": "Create a parameterized job",
+        "href": "/nomad/tutorials/job-specifications/job-spec-parameterized"
       },
       {
-        "title": "Java",
-        "path": "drivers/java"
-      },
-      {
-        "title": "QEMU",
-        "path": "drivers/qemu"
-      },
-      {
-        "title": "Raw Fork/Exec",
-        "path": "drivers/raw_exec"
-      },
-      {
-        "title": "Plugins",
+        "title": "Use task drivers",
         "routes": [
           {
-            "title": "Exec2",
-            "href": "/plugins/drivers/exec2"
+            "title": "Overview",
+            "path": "job-declare/task-driver"
           },
           {
-            "title": "Podman",
-            "href": "/plugins/drivers/podman"
+            "title": "Docker",
+            "path": "job-declare/task-driver/docker"
           },
           {
-            "title": "Virt <sup>Beta</sup>",
-            "href": "/plugins/drivers/virt"
+            "title": "Isolated Fork/Exec",
+            "path": "job-declare/task-driver/exec"
           },
           {
-            "title": "Community",
-            "href": "/plugins/drivers/community"
+            "title": "Java",
+            "path": "job-declare/task-driver/java"
+          },
+          {
+            "title": "QEMU",
+            "path": "job-declare/task-driver/qemu"
+          },
+          {
+            "title": "Raw Fork/Exec",
+            "path": "job-declare/task-driver/raw_exec"
+          },
+          {
+            "title": "Task driver plugins",
+            "routes": [
+              {
+                "title": "Exec2",
+                "href": "/plugins/drivers/exec2"
+              },
+              {
+                "title": "Podman",
+                "href": "/plugins/drivers/podman"
+              },
+              {
+                "title": "Virt <sup>Beta</sup>",
+                "href": "/plugins/drivers/virt"
+              },
+              {
+                "title": "Community",
+                "href": "/plugins/drivers/community"
+              }
+            ]
           }
         ]
+      },
+      {
+        "title": "Use device plugins",
+        "href": "/nomad/plugins/devices"
+      },
+      {
+        "title": "Use Consul service mesh",
+        "path": "job-declare/consul-service-mesh"
+      },
+      {
+        "title": "Use Vault",
+        "path": "job-declare/vault"
+      },
+      {
+        "title": "Configure deployment strategies",
+        "routes": [
+          {
+            "title": "Overview",
+            "href": "/nomad/tutorials/job-updates"
+          },
+          {
+            "title": "Configure blue/green and canary",
+            "href": "/nomad/tutorials/job-updates/job-blue-green-and-canary-deployments"
+          },
+          {
+            "title": "Configure rolling",
+            "href": "/nomad/tutorials/job-updates/job-rolling-update"
+          }
+        ]
+      },
+      {
+        "title": "Configure multi-region deployments",
+        "href": "/nomad/tutorials/manage-clusters/multiregion-deployments"
+      },
+      {
+        "title": "Configure task dependencies",
+        "href": "/nomad/tutorials/task-deps/task-dependencies-interjob"
+      },
+      {
+        "title": "Use actions in jobs",
+        "href": "/nomad/tutorials/job-specifications/job-spec-actions"
+      },
+      {
+        "title": "Use Nomad variables",
+        "href": "/nomad/tutorials/variables"
+      },
+      {
+        "title": "Configure exit signals",
+        "href": "/nomad/tutorials/job-updates/job-update-handle-signals"
+      },
+      {
+        "title": "Handle failure",
+        "href": "/nomad/tutorials/job-failure-handling"
       }
     ]
   },
   {
-    "title": "Device plugins",
-    "href": "/plugins/devices"
+    "title": "Run a job",
+    "routes": [
+      {
+        "title": "Submit a job",
+        "href": "/nomad/tutorials/manage-jobs/jobs-submit"
+      },
+      {
+        "title": "Inspect running jobs",
+        "href": "/nomad/tutorials/manage-jobs/jobs-inspect"
+      },
+      {
+        "title": "Access logs for troubleshooting",
+        "href": "/nomad/tutorials/manage-jobs/jobs-accessing-logs"
+      },
+      {
+        "title": "Collect resource utilization metrics",
+        "href": "/nomad/tutorials/manage-jobs/jobs-utilization"
+      },
+      {
+        "title": "Create job versions",
+        "href": "/nomad/tutorials/manage-jobs/jobs-version"
+      }
+    ]
   },
-
+  {
+    "title": "Stateful workloads",
+    "routes": [
+      {
+        "title": "Overview",
+        "href": "/nomad/tutorials/stateful-workloads/stateful-workloads"
+      },
+      {
+        "title": "Use host volumes",
+        "href": "/nomad/tutorials/stateful-workloads/exec-users-host-volumes"
+      },
+      {
+        "title": "Use dynamic host volumes",
+        "href": "/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes"
+      },
+      {
+        "title": "Use CSI volumes",
+        "href": "/nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes"
+      }
+    ]
+  },
+  {
+    "title": "Workload networking",
+    "routes": [
+      {
+        "title": "Service discovery",
+        "path": "job-networking/service-discovery"
+      },
+      {
+        "title": "Use a CNI network",
+        "path": "job-networking/cni"
+      }
+    ]
+  },
+  {
+    "title": "Advanced scheduling for efficiency",
+    "routes": [
+      {
+        "title": "Overview",
+        "href": "/nomad/tutorials/advanced-scheduling/advanced-scheduling"
+      },
+      {
+        "title": "Configure job placement preferences with affinities",
+        "href": "/nomad/tutorials/advanced-scheduling/affinity"
+      },
+      {
+        "title": "Configure fault tolerance with spread",
+        "href": "/nomad/tutorials/advanced-scheduling/spread"
+      },
+      {
+        "title": "Configure job priority with preemption",
+        "href": "/nomad/tutorials/advanced-scheduling/preemption"
+      },
+      {
+        "title": "Enable memory oversubscription",
+        "href": "/nomad/tutorials/advanced-scheduling/memory-oversubscription"
+      }
+    ]
+  },
+  {
+    "title": "Job templates with Nomad Pack",
+    "href": "https://developer.hashicorp.com/nomad/tutorials/nomad-pack/nomad-pack-writing-packs#write-the-templates"
+  },
   {
     "heading": "Enterprise solutions"
   },

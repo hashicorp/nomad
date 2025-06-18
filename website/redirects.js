@@ -297,4 +297,24 @@ module.exports = [
     destination: '/nomad/docs/reference/sentinel-policy',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/drivers/:path*',
+    destination: '/nomad/docs/job-declare/task-driver/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/networking/service-mesh',
+    destination: '/nomad/docs/job-declare/consul-service-mesh',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/networking/service-discovery',
+    destination: '/nomad/docs/job-networking/service-discovery',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/networking/cni',
+    destination: '/nomad/docs/job-networking/cni',
+    permanent: true,
+  },
 ]

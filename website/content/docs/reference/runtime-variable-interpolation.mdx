@@ -20,8 +20,8 @@ Nomad supports interpreting two classes of variables: [node attributes](#interpr
 and [runtime environment variables](#interpreted_env_vars). Node attributes are
 interpretable in [constraints](/nomad/docs/job-specification/constraint),
 [task environment variables](/nomad/docs/job-specification/env), and certain
-task driver fields—for example the [`labels`](/nomad/docs/drivers/docker#labels)
-attribute of the Docker [`config`](/nomad/docs/drivers/docker).
+task driver fields—for example the [`labels`](/nomad/docs/job-declare/task-driver/docker#labels)
+attribute of the Docker [`config`](/nomad/docs/job-declare/task-driver/docker).
 
 <Note>
 Runtime environment variables are not defined until after the scheduler
@@ -114,7 +114,7 @@ Below is a table documenting common node properties.
 | `${attr.cpu.reservablecores}`                      | Number of CPU cores on the client available for scheduling. Number of cores used by the scheduler when placing work with `resources.cores` set.        |
 | `${attr.cpu.totalcompute}`                         | `cpu.frequency × cpu.numcores` but may be overridden by `client.cpu_total_compute`                                                                     |
 | `${attr.consul.datacenter}`                        | The Consul datacenter of the client (if Consul is found)                                                                                               |
-| `${attr.driver.<property>}`                        | See the [task drivers](/nomad/docs/drivers) for property documentation                                                                                 |
+| `${attr.driver.<property>}`                        | See the [task drivers](/nomad/docs/job-declare/task-driver) for property documentation                                                                                 |
 | `${attr.unique.hostname}`                          | Hostname of the client                                                                                                                                 |
 | `${attr.unique.network.ip-address}`                | The IP address fingerprinted by the client and from which task ports are allocated                                                                     |
 | `${attr.kernel.arch}`                              | Kernel architecture of the client (e.g. `x86_64`, `aarch64`)                                                                                           |

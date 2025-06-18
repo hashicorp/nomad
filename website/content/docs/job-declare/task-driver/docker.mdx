@@ -1231,7 +1231,7 @@ Docker provides resource isolation by way of
 Containers essentially have a virtual file system all to themselves. If you
 need a higher degree of isolation between processes for security or other
 reasons, it is recommended to use full virtualization like
-[QEMU](/nomad/docs/drivers/qemu).
+[QEMU](/nomad/docs/job-declare/task-driver/qemu).
 
 ## Caveats
 
@@ -1269,18 +1269,18 @@ Windows is relatively new and rapidly evolving you may want to consult the
 [plugin-block]: /nomad/docs/configuration/plugin
 [allocation working directory]: /nomad/docs/reference/runtime-environment-settings#task-directories 'Task Directories'
 [`auth_soft_fail=true`]: #auth_soft_fail
-[cap_add]: /nomad/docs/drivers/docker#cap_add
-[cap_drop]: /nomad/docs/drivers/docker#cap_drop
+[cap_add]: /nomad/docs/job-declare/task-driver/docker#cap_add
+[cap_drop]: /nomad/docs/job-declare/task-driver/docker#cap_drop
 [no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
 [upgrade_guide_extra_hosts]: /nomad/docs/upgrade/upgrade-specific#docker-driver
 [tini]: https://github.com/krallin/tini
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-[allow_caps]: /nomad/docs/drivers/docker#allow_caps
+[allow_caps]: /nomad/docs/job-declare/task-driver/docker#allow_caps
 [Connect]: /nomad/docs/job-specification/connect
 [`bridge`]: /nomad/docs/job-specification/network#bridge
 [network block]: /nomad/docs/job-specification/network#bridge-mode
 [`network.mode`]: /nomad/docs/job-specification/network#mode
-[`pids_limit`]: /nomad/docs/drivers/docker#pids_limit
+[`pids_limit`]: /nomad/docs/job-declare/task-driver/docker#pids_limit
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
 [cores]: /nomad/docs/job-specification/resources#cores
 [runtime_env]: /nomad/docs/reference/runtime-environment-settings#job-related-variables

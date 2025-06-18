@@ -9,7 +9,7 @@ description: Nomad's Isolated Fork/Exec task driver lets you run binaries using 
 Name: `exec`
 
 The `exec` driver is used to execute a particular command for a task.
-However, unlike [`raw_exec`](/nomad/docs/drivers/raw_exec) it uses the underlying isolation
+However, unlike [`raw_exec`](/nomad/docs/job-declare/task-driver/raw_exec) it uses the underlying isolation
 primitives of the operating system to limit the task's access to resources. While
 simple, since the `exec` driver can invoke any command, it can be used to call
 scripts or other wrappers which provide higher level features.
@@ -298,12 +298,12 @@ CPU cores to make use of. The total set of cores the task may run on is the priv
 set combined with the variable set of unreserved cores. The private set of CPU cores
 is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
 
-[default_pid_mode]: /nomad/docs/drivers/exec#default_pid_mode
-[default_ipc_mode]: /nomad/docs/drivers/exec#default_ipc_mode
-[cap_add]: /nomad/docs/drivers/exec#cap_add
-[cap_drop]: /nomad/docs/drivers/exec#cap_drop
+[default_pid_mode]: /nomad/docs/job-declare/task-driver/exec#default_pid_mode
+[default_ipc_mode]: /nomad/docs/job-declare/task-driver/exec#default_ipc_mode
+[cap_add]: /nomad/docs/job-declare/task-driver/exec#cap_add
+[cap_drop]: /nomad/docs/job-declare/task-driver/exec#cap_drop
 [no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
-[allow_caps]: /nomad/docs/drivers/exec#allow_caps
+[allow_caps]: /nomad/docs/job-declare/task-driver/exec#allow_caps
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [host volume]: /nomad/docs/configuration/client#host_volume-block
 [volume_mount]: /nomad/docs/job-specification/volume_mount

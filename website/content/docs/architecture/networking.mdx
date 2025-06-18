@@ -96,7 +96,7 @@ scheduling collisions.
 With the task listening at one of the client's ports, other processes can access
 the task directly using the client's IP and port, but first the processes need
 to find these values. This process is called [service
-discovery](/nomad/docs/networking/service-discovery).
+discovery](/nomad/docs/job-networking/service-discovery).
 
 When using IP and port to connect allocations it is important to make sure your
 network topology and routing configuration allow the Nomad clients to
@@ -128,7 +128,7 @@ called `nomad` (or the value set in
 using the [`bridge` CNI plugin](
 https://www.cni.dev/plugins/current/main/bridge/) if one doesn't exist yet.
 Before using this mode you must first [install the CNI
-plugins](/nomad/docs/networking/cni/) into your clients. By default, Nomad
+plugins](/nomad/docs/job-networking/cni/) into your clients. By default, Nomad
 creates a single bridge in each Nomad client.
 
 [comment-image-source]:
@@ -176,7 +176,7 @@ bridge. This results in three different network access scopes:
 network mode make sure to bind your workloads to the loopback interface only.
 
 Bridge networking is at the core of [service
-mesh](/nomad/docs/networking/service-mesh) and a requirement when using [Consul
+mesh](/nomad/docs/job-declare/consul-service-mesh) and a requirement when using [Consul
 Service Mesh](/nomad/docs/integrations/consul-connect).
 
 ### Bridge networking with Docker
@@ -189,12 +189,12 @@ created by Nomad and, by default, each container runs in its own Docker managed
 network namespace.
 
 When using `bridge` network mode, Nomad creates a placeholder container using
-the image defined in [`infra_image`](/nomad/docs/drivers/docker#infra_image) to
+the image defined in [`infra_image`](/nomad/docs/job-declare/task-driver/docker#infra_image) to
 initialize a Docker network namespace that is shared by all tasks in the
 allocation to allow them to communicate with each other.
 
 The Docker task driver has its own task-level
-[`network_mode`](/nomad/docs/drivers/docker#network_mode) configuration. Its
+[`network_mode`](/nomad/docs/job-declare/task-driver/docker#network_mode) configuration. Its
 default value depends on the group-level `network.mode` configuration.
 
 ```hcl
@@ -240,8 +240,8 @@ establish a shared network namespace for all tasks, but setting the task-level
 prevents, for example, a task from communicating with its sidecar proxy in a
 service mesh deployment.
 
-Refer to the [`network_mode`](/nomad/docs/drivers/docker#network_mode)
-documentation and the [Networking](/nomad/docs/drivers/docker#networking)
+Refer to the [`network_mode`](/nomad/docs/job-declare/task-driver/docker#network_mode)
+documentation and the [Networking](/nomad/docs/job-declare/task-driver/docker#networking)
 section for more information.
 
 -> **Note:** Docker Desktop in non-Linux environments runs a local virtual
@@ -328,9 +328,9 @@ and are assigned random port numbers. Nomad service discovery with DNS uses
 
 ## Next topics
 
-- [Service Discovery](/nomad/docs/networking/service-discovery)
-- [Service Mesh](/nomad/docs/networking/service-mesh)
-- [Container Network Interface](/nomad/docs/networking/cni) plugins guide
+- [Service Discovery](/nomad/docs/job-networking/service-discovery)
+- [Service Mesh](/nomad/docs/job-declare/consul-service-mesh)
+- [Container Network Interface](/nomad/docs/job-networking/cni) plugins guide
 
 ## Additional resources
 

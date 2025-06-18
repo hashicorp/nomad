@@ -248,7 +248,7 @@ client {
 
 ### `chroot_env` Parameters
 
-On Linux, drivers based on [isolated fork/exec](/nomad/docs/drivers/exec) implement file system isolation using chroot. The `chroot_env` map lets you configure the chroot environment using source paths on the host operating system.
+On Linux, drivers based on [isolated fork/exec](/nomad/docs/job-declare/task-driver/exec) implement file system isolation using chroot. The `chroot_env` map lets you configure the chroot environment using source paths on the host operating system.
 
 The mapping format is:
 
@@ -276,7 +276,7 @@ client {
 @include 'chroot-limitations.mdx'
 
 When `chroot_env` is unspecified, the `exec` driver uses a default chroot
-environment with the most commonly used parts of the operating system. Refer to the [Nomad `exec` driver documentation](/nomad/docs/drivers/exec#chroot) for
+environment with the most commonly used parts of the operating system. Refer to the [Nomad `exec` driver documentation](/nomad/docs/job-declare/task-driver/exec#chroot) for
 the full list.
 
 Nomad never attempts to embed the `alloc_dir` in the chroot as doing so would cause infinite recursion.
@@ -288,7 +288,7 @@ Refer to the [plugin block][plugin-block] documentation for more information.
 
 The following is not an exhaustive list of options for only the Nomad
 client. To find the options supported by each individual Nomad driver,
-refer to the [drivers documentation](/nomad/docs/drivers).
+refer to the [drivers documentation](/nomad/docs/job-declare/task-driver).
 
 - `"driver.allowlist"` `(string: "")` - Specifies a comma-separated list of
   allowlisted drivers. If specified, drivers not in the allowlist will be
