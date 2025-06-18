@@ -1038,17 +1038,21 @@ func TestResolveClaims(t *testing.T) {
 	dispatchAlloc.Job.ParentID = alloc.JobID
 
 	claims := &structs.IdentityClaims{
-		Namespace:    alloc.Namespace,
-		JobID:        alloc.Job.ID,
-		AllocationID: alloc.ID,
-		TaskName:     alloc.Job.TaskGroups[0].Tasks[0].Name,
+		WorkloadIdentityClaims: &structs.WorkloadIdentityClaims{
+			Namespace:    alloc.Namespace,
+			JobID:        alloc.Job.ID,
+			AllocationID: alloc.ID,
+			TaskName:     alloc.Job.TaskGroups[0].Tasks[0].Name,
+		},
 	}
 
 	dispatchClaims := &structs.IdentityClaims{
-		Namespace:    dispatchAlloc.Namespace,
-		JobID:        dispatchAlloc.Job.ID,
-		AllocationID: dispatchAlloc.ID,
-		TaskName:     dispatchAlloc.Job.TaskGroups[0].Tasks[0].Name,
+		WorkloadIdentityClaims: &structs.WorkloadIdentityClaims{
+			Namespace:    dispatchAlloc.Namespace,
+			JobID:        dispatchAlloc.Job.ID,
+			AllocationID: dispatchAlloc.ID,
+			TaskName:     dispatchAlloc.Job.TaskGroups[0].Tasks[0].Name,
+		},
 	}
 
 	// unrelated policy

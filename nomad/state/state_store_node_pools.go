@@ -14,13 +14,15 @@ import (
 // in the cluster.
 func (s *StateStore) nodePoolInit() error {
 	allNodePool := &structs.NodePool{
-		Name:        structs.NodePoolAll,
-		Description: structs.NodePoolAllDescription,
+		Name:            structs.NodePoolAll,
+		Description:     structs.NodePoolAllDescription,
+		NodeIdentityTTL: structs.DefaultNodePoolNodeIdentityTTL,
 	}
 
 	defaultNodePool := &structs.NodePool{
-		Name:        structs.NodePoolDefault,
-		Description: structs.NodePoolDefaultDescription,
+		Name:            structs.NodePoolDefault,
+		Description:     structs.NodePoolDefaultDescription,
+		NodeIdentityTTL: structs.DefaultNodePoolNodeIdentityTTL,
 	}
 
 	return s.UpsertNodePools(
