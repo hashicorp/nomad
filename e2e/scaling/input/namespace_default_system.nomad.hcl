@@ -4,6 +4,11 @@
 job "system_job" {
   type = "system"
 
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "linux"
+  }
+
   group "system_job_group" {
 
     task "system_task" {
@@ -22,4 +27,3 @@ job "system_job" {
     }
   }
 }
-
