@@ -2,8 +2,6 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "horizontally_scalable" {
-  datacenters = ["dc1"]
-  type        = "service"
 
   update {
     health_check = "task_states"
