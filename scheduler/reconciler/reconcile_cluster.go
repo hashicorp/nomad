@@ -296,7 +296,7 @@ func (a *AllocReconciler) Compute() *ReconcileResults {
 	var deploymentComplete bool
 	result, deploymentComplete = a.computeDeploymentComplete(m)
 
-	result.DeploymentUpdates = append(result.DeploymentUpdates, a.computeDeploymentUpdates(deploymentComplete, a.deployment)...)
+	result.DeploymentUpdates = append(result.DeploymentUpdates, a.computeDeploymentUpdates(deploymentComplete, result.Deployment)...)
 
 	return result
 }
@@ -422,41 +422,43 @@ func (a *AllocReconciler) computeDeploymentComplete(m allocMatrix) (*ReconcileRe
 }
 
 // computeGroup reconciles state for a particular task group. It returns whether
-// the deployment it is for is complete with regards to the task group.
+// the deployment it is for is complete in regard to the task group.
 //
 // returns: desiredTGUpdates for taskgroup, allocations to stop, alloc name
 // index for taskgroup, resulting deployment, and a boolean that indicates
 // whether the whole group's deployment is complete
-func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*ReconcileResults, bool) {
+func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileResults, bool) {
+
+	// Create the output result object that we'll be continuously writing to
+	result := new(ReconcileResults)
 
 	// Create the desired update object for the group
-	desiredChanges := new(structs.DesiredUpdates)
+	result.DesiredTGUpdates = map[string]*structs.DesiredUpdates{group: new(structs.DesiredUpdates)}
 
 	// Get the task group. The task group may be nil if the job was updates such
 	// that the task group no longer exists
-	tg := a.job.LookupTaskGroup(groupName)
+	tg := a.job.LookupTaskGroup(group)
 
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
-		desiredChanges.Stop, _ = filterAndStopAll(all, a.state)
-		return &ReconcileResults{
-			DesiredTGUpdates: map[string]*structs.DesiredUpdates{groupName: desiredChanges},
-		}, true
+		result.DesiredTGUpdates[group].Stop, _ = filterAndStopAll(all, a.state)
+		return result, true
 	}
 
-	dstate, existingDeployment := a.initializeDeploymentState(groupName, tg)
+	dstate, existingDeployment := a.initializeDeploymentState(group, tg)
 
 	// Filter allocations that do not need to be considered because they are
 	// from an older job version and are terminal.
 	all, ignore := a.filterOldTerminalAllocs(all)
-	desiredChanges.Ignore += uint64(len(ignore))
+	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
-	canaries, all, allocsToStop := a.cancelUnneededCanaries(all, desiredChanges)
+	var canaries allocSet
+	canaries, all, result.Stop = a.cancelUnneededCanaries(all, result.DesiredTGUpdates[group])
 
 	// Determine what set of allocations are on tainted nodes
 	untainted, migrate, lost, disconnecting, reconnecting, ignore, expiring := filterByTainted(all, a.state)
-	desiredChanges.Ignore += uint64(len(ignore))
+	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
 	// Determine what set of terminal allocations need to be rescheduled
 	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.batch, false, a.state.Now, a.evalID, a.deployment)
@@ -468,11 +470,11 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 		// Pass all allocations because the replacements we need to find may be
 		// in any state, including themselves being reconnected.
 		reconnect, stopAllocSet, stopAllocResult := a.reconcileReconnecting(reconnecting, all, tg)
-		allocsToStop = append(allocsToStop, stopAllocResult...)
+		result.Stop = append(result.Stop, stopAllocResult...)
 
 		// Stop the reconciled allocations and remove them from the other sets
 		// since they have been already handled.
-		desiredChanges.Stop += uint64(len(stopAllocSet))
+		result.DesiredTGUpdates[group].Stop += uint64(len(stopAllocSet))
 
 		untainted = untainted.difference(stopAllocSet)
 		migrate = migrate.difference(stopAllocSet)
@@ -499,8 +501,8 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 		}
 	}
 
-	desiredFollowupEvals := map[string][]*structs.Evaluation{}
-	disconnectUpdates := map[string]*structs.Allocation{}
+	result.DesiredFollowupEvals = map[string][]*structs.Evaluation{}
+	result.DisconnectUpdates = map[string]*structs.Allocation{}
 
 	// Determine what set of disconnecting allocations need to be rescheduled now,
 	// which ones later and which ones can't be rescheduled at all.
@@ -518,11 +520,11 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 			// create followup evals, and update the ClientStatus to unknown.
 			var followupEvals []*structs.Evaluation
 			timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
-			desiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
+			result.DesiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
 		}
 
 		updates := appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals, rescheduleNow)
-		maps.Copy(disconnectUpdates, updates)
+		maps.Copy(result.DisconnectUpdates, updates)
 	}
 
 	// Find delays for any lost allocs that have stop_after_client_disconnect
@@ -533,7 +535,7 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 		lostLater = lost.delayByStopAfter()
 		var followupEvals []*structs.Evaluation
 		lostLaterEvals, followupEvals = a.createLostLaterEvals(lostLater, tg.Name)
-		desiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
+		result.DesiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
 	}
 
 	// Merge disconnecting with the stop_after_client_disconnect set into the
@@ -543,31 +545,33 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 	if len(rescheduleLater) > 0 {
 		// Create batched follow-up evaluations for allocations that are
 		// reschedulable later and mark the allocations for in place updating
-		a.createRescheduleLaterEvals(rescheduleLater, all, tg.Name, disconnectUpdates)
+		result.DesiredFollowupEvals[group] = a.createRescheduleLaterEvals(rescheduleLater, all, tg.Name, result.DisconnectUpdates)
 	}
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
 	// nodes, and allocs on down nodes (includes canaries)
-	nameIndex := newAllocNameIndex(a.jobID, groupName, tg.Count, untainted.union(migrate, rescheduleNow, lost))
+	nameIndex := newAllocNameIndex(a.jobID, group, tg.Count, untainted.union(migrate, rescheduleNow, lost))
 	allocNameIndexForGroup := nameIndex
+	result.TaskGroupAllocNameIndexes = map[string]*AllocNameIndex{group: allocNameIndexForGroup}
 
 	// Stop any unneeded allocations and update the untainted set to not
 	// include stopped allocations.
 	isCanarying := dstate != nil && dstate.DesiredCanaries != 0 && !dstate.Promoted
 
 	stop, stopAllocs := a.computeStop(tg, nameIndex, untainted, migrate, lost, canaries, isCanarying, lostLaterEvals)
-	allocsToStop = append(allocsToStop, stopAllocs...)
+	result.Stop = append(result.Stop, stopAllocs...)
 
-	desiredChanges.Stop += uint64(len(stop))
+	result.DesiredTGUpdates[group].Stop += uint64(len(stop))
 	untainted = untainted.difference(stop)
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
 	var inplaceUpdateResult []*structs.Allocation
 	ignoreUpdates, inplace, inplaceUpdateResult, destructive := a.computeUpdates(tg, untainted)
+	result.InplaceUpdate = inplaceUpdateResult
 
-	desiredChanges.Ignore += uint64(len(ignoreUpdates))
-	desiredChanges.InPlaceUpdate += uint64(len(inplace))
+	result.DesiredTGUpdates[group].Ignore += uint64(len(ignoreUpdates))
+	result.DesiredTGUpdates[group].InPlaceUpdate += uint64(len(inplace))
 	if !existingDeployment {
 		dstate.DesiredTotal += len(destructive) + len(inplace)
 	}
@@ -579,7 +583,8 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 	}
 	requiresCanaries := a.requiresCanaries(tg, dstate, destructive, canaries)
 	if requiresCanaries {
-		a.computeCanaries(tg, dstate, destructive, canaries, desiredChanges, nameIndex)
+		placeCanaries := a.computeCanaries(tg, dstate, destructive, canaries, result.DesiredTGUpdates[group], nameIndex)
+		result.Place = append(result.Place, placeCanaries...)
 	}
 
 	// Determine how many non-canary allocs we can place
@@ -592,11 +597,10 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 	// * If there are any canaries that they have been promoted
 	// * There is no delayed stop_after_client_disconnect alloc, which delays scheduling for the whole group
 	// * An alloc was lost
-	var place []AllocPlaceResult
 	if len(lostLater) == 0 {
-		place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
+		result.Place = a.computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
 		if !existingDeployment {
-			dstate.DesiredTotal += len(place)
+			dstate.DesiredTotal += len(result.Place)
 		}
 	}
 
@@ -605,17 +609,21 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !isCanarying
 
 	underProvisionedBy, replacements, replacementsAllocsToStop := a.computeReplacements(
-		deploymentPlaceReady, desiredChanges, place, rescheduleNow, lost, underProvisionedBy)
-	allocsToStop = append(allocsToStop, replacementsAllocsToStop...)
+		deploymentPlaceReady, result.DesiredTGUpdates[group], result.Place, rescheduleNow, lost, underProvisionedBy)
+	result.Stop = append(result.Stop, replacementsAllocsToStop...)
+	result.Place = replacements
 
 	if deploymentPlaceReady {
-		a.computeDestructiveUpdates(destructive, underProvisionedBy, desiredChanges, tg)
+		result.DestructiveUpdate = a.computeDestructiveUpdates(destructive, underProvisionedBy, result.DesiredTGUpdates[group], tg)
 	} else {
-		desiredChanges.Ignore += uint64(len(destructive))
+		result.DesiredTGUpdates[group].Ignore += uint64(len(destructive))
 	}
 
-	a.computeMigrations(desiredChanges, migrate, tg, isCanarying)
-	resultingDeployment := a.createDeployment(tg.Name, tg.Update, a.deployment, dstate, all, destructive, int(desiredChanges.InPlaceUpdate))
+	stopMigrations, placeMigrations := a.computeMigrations(result.DesiredTGUpdates[group], migrate, tg, isCanarying)
+	result.Stop = append(result.Stop, stopMigrations...)
+	result.Place = append(result.Place, placeMigrations...)
+	result.Deployment = a.createDeployment(
+		tg.Name, tg.Update, a.deployment, dstate, all, destructive, int(result.DesiredTGUpdates[group].InPlaceUpdate))
 
 	// Deployments that are still initializing need to be sent in full in the
 	// plan so its internal state can be persisted by the plan applier.
@@ -626,23 +634,11 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 	// ever have looked at the result for the final tg. This is either
 	// unnecessary then, or a bug.
 	if a.deployment != nil && a.deployment.Status == structs.DeploymentStatusInitializing {
-		resultingDeployment = a.deployment
+		result.Deployment = a.deployment
 	}
 
-	deploymentComplete := a.isDeploymentComplete(groupName, destructive, inplace,
-		migrate, rescheduleNow, place, rescheduleLater, requiresCanaries)
-
-	// collect all the results
-	result := &ReconcileResults{
-		Deployment:                resultingDeployment,
-		Place:                     replacements,
-		InplaceUpdate:             inplaceUpdateResult,
-		Stop:                      allocsToStop,
-		DisconnectUpdates:         disconnectUpdates,
-		DesiredFollowupEvals:      desiredFollowupEvals,
-		DesiredTGUpdates:          map[string]*structs.DesiredUpdates{groupName: desiredChanges},
-		TaskGroupAllocNameIndexes: map[string]*AllocNameIndex{groupName: allocNameIndexForGroup},
-	}
+	deploymentComplete := a.isDeploymentComplete(group, destructive, inplace,
+		migrate, rescheduleNow, result.Place, rescheduleLater, requiresCanaries)
 
 	return result, deploymentComplete
 }
