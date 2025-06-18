@@ -410,7 +410,7 @@ func (a *AllocReconciler) computeDeploymentComplete(m allocMatrix) (*ReconcileRe
 	complete := true
 	for group, as := range m {
 		var groupComplete bool
-		resultForGroup := new(ReconcileResults)
+		var resultForGroup *ReconcileResults
 		resultForGroup, groupComplete = a.computeGroup(group, as)
 		complete = complete && groupComplete
 
@@ -516,7 +516,7 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 
 			// Find delays for any disconnecting allocs that have max_client_disconnect,
 			// create followup evals, and update the ClientStatus to unknown.
-			followupEvals := make([]*structs.Evaluation, 0)
+			var followupEvals []*structs.Evaluation
 			timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
 			desiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
 		}
@@ -531,7 +531,7 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 
 	if len(lost) > 0 {
 		lostLater = lost.delayByStopAfter()
-		followupEvals := make([]*structs.Evaluation, 0)
+		var followupEvals []*structs.Evaluation
 		lostLaterEvals, followupEvals = a.createLostLaterEvals(lostLater, tg.Name)
 		desiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
 	}
@@ -563,7 +563,7 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
-	inplaceUpdateResult := make([]*structs.Allocation, 0)
+	var inplaceUpdateResult []*structs.Allocation
 	ignoreUpdates, inplace, inplaceUpdateResult, destructive := a.computeUpdates(tg, untainted)
 
 	desiredChanges.Ignore += uint64(len(ignoreUpdates))
