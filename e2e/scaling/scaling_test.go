@@ -9,6 +9,7 @@ import (
 
 	"github.com/hashicorp/nomad/api"
 	"github.com/hashicorp/nomad/e2e/e2eutil"
+	"github.com/hashicorp/nomad/e2e/v3/cluster3"
 	"github.com/hashicorp/nomad/helper/pointer"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/structs"
@@ -19,10 +20,11 @@ import (
 const defaultNS = "default"
 
 func TestScaling(t *testing.T) {
-
-	nomad := e2eutil.NomadClient(t)
-	e2eutil.WaitForLeader(t, nomad)
-	e2eutil.WaitForNodesReady(t, nomad, 1)
+	cluster3.Establish(t,
+		cluster3.Leader(),
+		cluster3.LinuxClients(1),
+		cluster3.Timeout(3*time.Second),
+	)
 
 	// Run our test cases.
 	t.Run("TestScaling_Basic", testScalingBasic)
