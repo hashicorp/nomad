@@ -6451,9 +6451,9 @@ func TestSecrets_Copy(t *testing.T) {
 func TestSecrets_Validate(t *testing.T) {
 	ci.Parallel(t)
 	testCases := []struct {
-		name   string
-		secret *Secret
-		valid  bool
+		name      string
+		secret    *Secret
+		expectErr error
 	}{
 		{
 			name: "valid secret",
@@ -6462,7 +6462,7 @@ func TestSecrets_Validate(t *testing.T) {
 				Provider: "test-provier",
 				Path:     "test-path",
 			},
-			valid: true,
+			expectErr: nil,
 		},
 		{
 			name: "missing name",
@@ -6470,7 +6470,7 @@ func TestSecrets_Validate(t *testing.T) {
 				Path:     "test-path",
 				Provider: "test-provider",
 			},
-			valid: false,
+			expectErr: fmt.Errorf("Secret name cannot be empty"),
 		},
 		{
 			name: "missing provider",
@@ -6478,7 +6478,7 @@ func TestSecrets_Validate(t *testing.T) {
 				Name: "test-secret",
 				Path: "test-path",
 			},
-			valid: false,
+			expectErr: fmt.Errorf("Secret provider cannot be empty"),
 		},
 		{
 			name: "missing path",
@@ -6486,17 +6486,17 @@ func TestSecrets_Validate(t *testing.T) {
 				Name:     "test-secret",
 				Provider: "test-provier",
 			},
-			valid: false,
+			expectErr: fmt.Errorf("Secret path cannot be empty"),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			err := tc.secret.Validate()
-			if tc.valid {
-				must.Nil(t, err)
+			if tc.expectErr != nil {
+				must.ErrorContains(t, err, tc.expectErr.Error())
 			} else {
-				must.NotNil(t, err)
+				must.NoError(t, err)
 			}
 		})
 	}

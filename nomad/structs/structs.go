@@ -10426,6 +10426,8 @@ func (s *Secret) Copy() *Secret {
 	ns := new(Secret)
 	*ns = *s
 
+	ns.Config = maps.Clone(s.Config)
+
 	return ns
 }
 
