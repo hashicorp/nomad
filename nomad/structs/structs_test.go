@@ -6434,6 +6434,89 @@ func TestVault_Canonicalize(t *testing.T) {
 	require.Equal(t, VaultChangeModeRestart, v.ChangeMode)
 }
 
+func TestSecrets_Copy(t *testing.T) {
+	ci.Parallel(t)
+	s := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+	}
+	ns := s.Copy()
+
+	must.Eq(t, s.Name, ns.Name)
+	must.Eq(t, s.Provider, ns.Provider)
+	must.Eq(t, s.Path, ns.Path)
+}
+
+func TestSecrets_Validate(t *testing.T) {
+	ci.Parallel(t)
+	testCases := []struct {
+		name   string
+		secret *Secret
+		valid  bool
+	}{
+		{
+			name: "valid secret",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "test-provier",
+				Path:     "test-path",
+			},
+			valid: true,
+		},
+		{
+			name: "missing name",
+			secret: &Secret{
+				Path:     "test-path",
+				Provider: "test-provider",
+			},
+			valid: false,
+		},
+		{
+			name: "missing provider",
+			secret: &Secret{
+				Name: "test-secret",
+				Path: "test-path",
+			},
+			valid: false,
+		},
+		{
+			name: "missing path",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "test-provier",
+			},
+			valid: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.secret.Validate()
+			if tc.valid {
+				must.Nil(t, err)
+			} else {
+				must.NotNil(t, err)
+			}
+		})
+	}
+
+}
+
+func TestSecrets_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	s := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config:   make(map[string]any),
+	}
+
+	s.Canonicalize()
+
+	must.Nil(t, s.Config)
+}
+
 func TestParameterizedJobConfig_Validate(t *testing.T) {
 	ci.Parallel(t)
 
