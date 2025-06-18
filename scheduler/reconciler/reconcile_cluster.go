@@ -406,11 +406,11 @@ func markDelayed(allocs allocSet, clientStatus, statusDescription string, follow
 // - a resulting deployment
 // - a boolean that indicates whether the deployment is complete
 func (a *AllocReconciler) computeDeploymentComplete(m allocMatrix) (*ReconcileResults, bool) {
-	result := &ReconcileResults{}
+	result := new(ReconcileResults)
 	complete := true
 	for group, as := range m {
 		var groupComplete bool
-		resultForGroup := &ReconcileResults{}
+		resultForGroup := new(ReconcileResults)
 		resultForGroup, groupComplete = a.computeGroup(group, as)
 		complete = complete && groupComplete
 
@@ -516,7 +516,7 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 
 			// Find delays for any disconnecting allocs that have max_client_disconnect,
 			// create followup evals, and update the ClientStatus to unknown.
-			followupEvals := []*structs.Evaluation{}
+			followupEvals := make([]*structs.Evaluation, 0)
 			timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
 			desiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
 		}
@@ -531,7 +531,7 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 
 	if len(lost) > 0 {
 		lostLater = lost.delayByStopAfter()
-		followupEvals := []*structs.Evaluation{}
+		followupEvals := make([]*structs.Evaluation, 0)
 		lostLaterEvals, followupEvals = a.createLostLaterEvals(lostLater, tg.Name)
 		desiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
 	}
@@ -563,7 +563,7 @@ func (a *AllocReconciler) computeGroup(groupName string, all allocSet) (*Reconci
 
 	// Do inplace upgrades where possible and capture the set of upgrades that
 	// need to be done destructively.
-	inplaceUpdateResult := []*structs.Allocation{}
+	inplaceUpdateResult := make([]*structs.Allocation, 0)
 	ignoreUpdates, inplace, inplaceUpdateResult, destructive := a.computeUpdates(tg, untainted)
 
 	desiredChanges.Ignore += uint64(len(ignoreUpdates))
