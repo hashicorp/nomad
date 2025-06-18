@@ -311,7 +311,7 @@ func (a *AllocReconciler) Compute() *ReconcileResults {
 	// check if the deployment is complete and set relevant result fields in the
 	// process
 	var deploymentComplete bool
-	result, deploymentComplete = a.computeDeploymentComplete(m)
+	result, deploymentComplete = a.computeDeploymentComplete(result, m)
 
 	result.DeploymentUpdates = append(result.DeploymentUpdates, a.computeDeploymentUpdates(deploymentComplete, result.Deployment)...)
 
@@ -328,8 +328,7 @@ func (a *AllocReconciler) Compute() *ReconcileResults {
 // returns: old deployment, current deployment and a slice of deployment status
 // updates.
 func cancelUnneededDeployments(j *structs.Job, d *structs.Deployment) (*structs.Deployment, *structs.Deployment, []*structs.DeploymentStatusUpdate) {
-	var oldDeployment, deployment *structs.Deployment
-	updates := []*structs.DeploymentStatusUpdate{}
+	var updates []*structs.DeploymentStatusUpdate
 
 	// If the job is stopped and there is a non-terminal deployment, cancel it
 	if j.Stopped() {
@@ -359,17 +358,15 @@ func cancelUnneededDeployments(j *structs.Job, d *structs.Deployment) (*structs.
 			})
 		}
 
-		oldDeployment = d
-		deployment = nil
+		return d, nil, updates
 	}
 
 	// Clear it as the current deployment if it is successful
 	if d.Status == structs.DeploymentStatusSuccessful {
-		oldDeployment = d
-		deployment = nil
+		return d, nil, updates
 	}
 
-	return oldDeployment, deployment, updates
+	return nil, d, updates
 }
 
 // handleStop marks all allocations to be stopped, handling the lost case
@@ -422,8 +419,7 @@ func markDelayed(allocs allocSet, clientStatus, statusDescription string, follow
 // - a slice of replacements
 // - a resulting deployment
 // - a boolean that indicates whether the deployment is complete
-func (a *AllocReconciler) computeDeploymentComplete(m allocMatrix) (*ReconcileResults, bool) {
-	result := new(ReconcileResults)
+func (a *AllocReconciler) computeDeploymentComplete(result *ReconcileResults, m allocMatrix) (*ReconcileResults, bool) {
 	complete := true
 	for group, as := range m {
 		var groupComplete bool
@@ -458,7 +454,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
 	if tg == nil {
-		result.DesiredTGUpdates[group].Stop, _ = filterAndStopAll(all, a.clusterState)
+		result.DesiredTGUpdates[group].Stop, result.Stop = filterAndStopAll(all, a.clusterState)
 		return result, true
 	}
 
@@ -613,11 +609,11 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// * If there are any canaries that they have been promoted
 	// * There is no delayed stop_after_client_disconnect alloc, which delays scheduling for the whole group
 	// * An alloc was lost
+	var place []AllocPlaceResult
 	if len(lostLater) == 0 {
-		result.Place = append(result.Place,
-			computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)...)
+		place = computePlacements(tg, nameIndex, untainted, migrate, rescheduleNow, lost, isCanarying)
 		if !existingDeployment {
-			dstate.DesiredTotal += len(result.Place)
+			dstate.DesiredTotal += len(place)
 		}
 	}
 
@@ -626,7 +622,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !isCanarying
 
 	underProvisionedBy, replacements, replacementsAllocsToStop := a.computeReplacements(
-		deploymentPlaceReady, result.DesiredTGUpdates[group], result.Place, rescheduleNow, lost, underProvisionedBy)
+		deploymentPlaceReady, result.DesiredTGUpdates[group], place, rescheduleNow, lost, underProvisionedBy)
 	result.Stop = append(result.Stop, replacementsAllocsToStop...)
 	result.Place = append(result.Place, replacements...)
 
@@ -656,7 +652,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 // FIXME: this method should be renamed
 func (a *AllocReconciler) computeDeploymentUpdates(deploymentComplete bool, createdDeployment *structs.Deployment) []*structs.DeploymentStatusUpdate {
-	updates := []*structs.DeploymentStatusUpdate{}
+	var updates []*structs.DeploymentStatusUpdate
 
 	if a.deployment != nil {
 		// Mark the deployment as complete if possible
