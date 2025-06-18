@@ -622,7 +622,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !isCanarying
 
 	underProvisionedBy, replacements, replacementsAllocsToStop := a.computeReplacements(
-		deploymentPlaceReady, result.DesiredTGUpdates[group], place, rescheduleNow, lost, underProvisionedBy)
+		deploymentPlaceReady, result.DesiredTGUpdates[group], place, rescheduleNow, lost, result.DisconnectUpdates, underProvisionedBy)
 	result.Stop = append(result.Stop, replacementsAllocsToStop...)
 	result.Place = append(result.Place, replacements...)
 
@@ -921,7 +921,7 @@ func computePlacements(group *structs.TaskGroup,
 // The input deploymentPlaceReady is calculated as the deployment is not paused, failed, or canarying.
 // It returns the number of allocs still needed.
 func (a *AllocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
-	place []AllocPlaceResult, rescheduleNow, lost allocSet,
+	place []AllocPlaceResult, rescheduleNow, lost allocSet, disconnectUpdates map[string]*structs.Allocation,
 	underProvisionedBy int) (int, []AllocPlaceResult, []AllocStopResult) {
 
 	// Disconnecting allocs are not failing, but are included in rescheduleNow.
@@ -929,7 +929,8 @@ func (a *AllocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	// replacements based off that.
 	failed := make(allocSet)
 	for id, alloc := range rescheduleNow {
-		if alloc.ClientStatus != structs.AllocClientStatusUnknown {
+		_, ok := disconnectUpdates[id]
+		if !ok && alloc.ClientStatus != structs.AllocClientStatusUnknown {
 			failed[id] = alloc
 		}
 	}
@@ -979,6 +980,11 @@ func (a *AllocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 		if !partOfFailedDeployment && p.IsRescheduling() {
 			resultingPlacements = append(resultingPlacements, p)
 			desiredChanges.Place++
+
+			_, prevIsDisconnecting := disconnectUpdates[prev.ID]
+			if prevIsDisconnecting {
+				continue
+			}
 
 			resultingAllocsToStop = append(resultingAllocsToStop, AllocStopResult{
 				Alloc:             prev,
