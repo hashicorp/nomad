@@ -347,4 +347,19 @@ module.exports = [
     destination: '/nomad/docs/manage/key-management',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/operations/benchmarking',
+    destination: '/nomad/docs/scale/benchmarking',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/scheduling/scheduling',
+    destination: '/nomad/docs/concepts/scheduling/how-scheduling-works',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/schedulers',
+    destination: '/nomad/docs/concepts/scheduling/schedulers',
+    permanent: true,
+  },
 ]

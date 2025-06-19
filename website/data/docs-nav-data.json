@@ -130,8 +130,8 @@
             "path": "concepts/scheduling"
           },
           {
-            "title": "Concepts",
-            "path": "concepts/scheduling/scheduling"
+            "title": "How scheduling works",
+            "path": "concepts/scheduling/how-scheduling-works"
           },
           {
             "title": "Placement",
@@ -140,6 +140,10 @@
           {
             "title": "Preemption",
             "path": "concepts/scheduling/preemption"
+          },
+          {
+            "title": "Job schedulers",
+            "path": "concepts/scheduling/schedulers"
           }
         ]
       },
@@ -325,6 +329,19 @@
     ]
   },
   {
+    "title": "Scale Nomad",
+    "routes": [
+      {
+        "title": "Autoscaling",
+        "href": "/nomad/tools/autoscaling"
+      },
+      {
+        "title": "Benchmark and load test",
+        "path": "scale/benchmarking"
+      }
+    ]
+  },
+  {
     "title": "Auth methods",
     "routes": [
       {
@@ -365,10 +382,6 @@
       },
 
       {
-        "title": "Benchmarking Nomad",
-        "path": "operations/benchmarking"
-      },
-      {
         "title": "Federate AWS Access with workload identity",
         "path": "operations/aws-oidc-provider"
       },
@@ -377,14 +390,6 @@
         "path": "operations/ipv6-support"
       }
     ]
-  },
-  {
-    "title": "Schedulers",
-    "path": "schedulers"
-  },
-  {
-    "title": "Autoscaling",
-    "href": "/nomad/tools/autoscaling"
   },
   {
     "title": "Upgrade Nomad",
