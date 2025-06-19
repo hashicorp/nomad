@@ -951,17 +951,25 @@ func memoryLimits(driverHardLimitMB int64, taskMemory drivers.MemoryResources) (
 // maxCPUShares is the maximum value for cpu_shares in cgroups v1
 // https://github.com/torvalds/linux/blob/v6.15/kernel/sched/sched.h#L503
 const maxCPUShares = 262_144
+const minCPUShares = 2
 
 // cpuResources normalizes the requested CPU shares when the total compute
 // available on the node is larger than the largest share value allowed by the
 // kernel. On cgroups v2, Docker will re-normalize this to be within the
 // acceptable range for cpu.weight [1-10000].
 func (d *Driver) cpuResources(requested int64) int64 {
+	if requested < minCPUShares {
+		return minCPUShares
+	}
 	if d.compute.TotalCompute < maxCPUShares {
 		return requested
 	}
 
-	return int64(float64(requested) / float64(d.compute.TotalCompute) * maxCPUShares)
+	result := int64(float64(requested) / float64(d.compute.TotalCompute) * maxCPUShares)
+	if result < minCPUShares {
+		return minCPUShares
+	}
+	return result
 }
 
 func (d *Driver) createContainerConfig(task *drivers.TaskConfig, driverConfig *TaskConfig,

@@ -129,6 +129,12 @@ func TestDockerDriver_NormalizeCPUShares(t *testing.T) {
 	driver.compute.TotalCompute = maxCPUShares + 1
 	must.Eq(t, 262143, driver.cpuResources(maxCPUShares))
 
+	driver.compute.TotalCompute = maxCPUShares + 1
+	must.Eq(t, 2, driver.cpuResources(2))
+
+	driver.compute.TotalCompute = maxCPUShares + 1
+	must.Eq(t, 2, driver.cpuResources(1))
+
 	driver.compute.TotalCompute = maxCPUShares * 2
 	must.Eq(t, 500, driver.cpuResources(1000))
 	must.Eq(t, maxCPUShares/2, driver.cpuResources(maxCPUShares))
