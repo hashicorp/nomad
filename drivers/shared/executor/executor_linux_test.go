@@ -1055,6 +1055,9 @@ func TestExecutor_clampCPUShares(t *testing.T) {
 	le.compute.TotalCompute = MaxCPUShares + 1
 	must.Eq(t, 262143, le.clampCpuShares(MaxCPUShares))
 
+	le.compute.TotalCompute = MaxCPUShares + 1
+	must.Eq(t, 2, le.clampCpuShares(1))
+
 	le.compute = cpustats.Compute{TotalCompute: MaxCPUShares * 2}
 	must.Eq(t, 500, le.clampCpuShares(1000))
 	must.Eq(t, MaxCPUShares/2, le.clampCpuShares(MaxCPUShares))
