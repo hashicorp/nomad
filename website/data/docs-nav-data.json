@@ -253,20 +253,7 @@
     ]
   },
   {
-    "title": "Auth methods",
-    "routes": [
-      {
-        "title": "JWT",
-        "path": "auth-methods/jwt"
-      },
-      {
-        "title": "OIDC",
-        "path": "auth-methods/oidc"
-      }
-    ]
-  },
-  {
-    "title": "Integrations",
+    "title": "Integrate Consul and Vault",
     "routes": [
       {
         "title": "Overview",
@@ -305,6 +292,53 @@
     ]
   },
   {
+    "title": "Manage Nomad",
+    "routes": [
+      {
+        "title": "Autopilot",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/autopilot"
+      },
+      {
+        "title": "Format command output",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/templates/format-output-with-templates"
+      },
+      {
+        "title": "Garbage collection",
+        "path": "manage/garbage-collection"
+      },
+      {
+        "title": "Key management",
+        "path": "manage/key-management"
+      },
+      {
+        "title": "Migrate workloads",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/node-drain"
+      },
+      {
+        "title": "Namespaces",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces"
+      },
+      {
+        "title": "Recovery",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery"
+      }
+    ]
+  },
+  {
+    "title": "Auth methods",
+    "routes": [
+      {
+        "title": "JWT",
+        "path": "auth-methods/jwt"
+      },
+      {
+        "title": "OIDC",
+        "path": "auth-methods/oidc"
+      }
+    ]
+  },
+
+  {
     "title": "Operations",
     "routes": [
       {
@@ -329,10 +363,6 @@
         "title": "Access control",
         "href": "https://learn.hashicorp.com/collections/nomad/access-control"
       },
-      {
-        "title": "Key management",
-        "path": "operations/key-management"
-      },
 
       {
         "title": "Benchmarking Nomad",
@@ -345,10 +375,6 @@
       {
         "title": "IPv6 support",
         "path": "operations/ipv6-support"
-      },
-      {
-        "title": "Garbage collection",
-        "path": "operations/garbage-collection"
       }
     ]
   },

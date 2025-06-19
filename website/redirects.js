@@ -337,4 +337,14 @@ module.exports = [
     destination: '/nomad/docs/deploy/clusters/federation-failure-scenarios',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/operations/garbage-collection',
+    destination: '/nomad/docs/manage/garbage-collection',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/key-management',
+    destination: '/nomad/docs/manage/key-management',
+    permanent: true,
+  },
 ]
