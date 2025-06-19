@@ -546,7 +546,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	if len(lost) > 0 {
 		lostLater = lost.delayByStopAfter()
 		var followupEvals []*structs.Evaluation
-		lostLaterEvals, followupEvals = a.createLostLaterEvals(lostLater, tg.Name)
+		lostLaterEvals, followupEvals = a.createLostLaterEvals(lostLater)
 		result.DesiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
 	}
 
@@ -557,7 +557,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	if len(rescheduleLater) > 0 {
 		// Create batched follow-up evaluations for allocations that are
 		// reschedulable later and mark the allocations for in place updating
-		result.DesiredFollowupEvals[group], result.AttributeUpdates = a.createRescheduleLaterEvals(rescheduleLater, all, tg.Name, result.DisconnectUpdates)
+		result.DesiredFollowupEvals[group], result.AttributeUpdates = a.createRescheduleLaterEvals(rescheduleLater, all, result.DisconnectUpdates)
 	}
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
@@ -1377,10 +1377,10 @@ func (a *AllocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 // set for allocations that are eligible to be rescheduled later, and marks the alloc with
 // the followupEvalID. this function modifies disconnectUpdates in place.
 func (a *AllocReconciler) createRescheduleLaterEvals(rescheduleLater []*delayedRescheduleInfo, all allocSet,
-	tgName string, disconnectUpdates map[string]*structs.Allocation) ([]*structs.Evaluation, map[string]*structs.Allocation) {
+	disconnectUpdates map[string]*structs.Allocation) ([]*structs.Evaluation, map[string]*structs.Allocation) {
 
 	// followupEvals are created in the same way as for delayed lost allocs
-	allocIDToFollowupEvalID, followupEvals := a.createLostLaterEvals(rescheduleLater, tgName)
+	allocIDToFollowupEvalID, followupEvals := a.createLostLaterEvals(rescheduleLater)
 
 	var attributeUpdates = make(map[string]*structs.Allocation)
 
@@ -1444,7 +1444,7 @@ func (a *AllocReconciler) computeReconnecting(reconnecting allocSet) map[string]
 // handleDelayedLost creates batched followup evaluations with the WaitUntil field set for
 // lost allocations. followupEvals are appended to a.result as a side effect, we return a
 // map of alloc IDs to their followupEval IDs.
-func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo, tgName string) (map[string]string, []*structs.Evaluation) {
+func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedRescheduleInfo) (map[string]string, []*structs.Evaluation) {
 	if len(rescheduleLater) == 0 {
 		return map[string]string{}, nil
 	}
