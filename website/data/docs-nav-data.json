@@ -388,39 +388,89 @@
     ]
   },
   {
-    "title": "Auth methods",
+    "title": "Secure Nomad",
     "routes": [
       {
-        "title": "JWT",
-        "path": "auth-methods/jwt"
+        "title": "Access control lists",
+        "routes": [
+          {
+            "title": "ACL system overview",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control"
+          },
+          {
+            "title": "Bootstrap the ACL system",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-bootstrap"
+          },
+          {
+            "title": "ACL policies",
+            "routes": [
+              {
+                "title": "Overview",
+                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies"
+              },
+              {
+                "title": "Create ACL policies",
+                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-create-policy"
+              }
+            ]
+          },
+          {
+            "title": "ACL tokens",
+            "routes": [
+              {
+                "title": "Overview",
+                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens"
+              },
+              {
+                "title": "Generate token with Vault",
+                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/vault-nomad-secrets"
+              }
+            ]
+          }
+        ]
       },
       {
-        "title": "OIDC",
-        "path": "auth-methods/oidc"
-      }
-    ]
-  },
-
-  {
-    "title": "Operations",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "operations"
+        "title": "SSO",
+        "routes": [
+          {
+            "title": "Auth methods",
+            "routes": [
+              {
+                "title": "JWT",
+                "path": "secure/sso/auth-methods/jwt"
+              },
+              {
+                "title": "OIDC",
+                "path": "secure/sso/auth-methods/oidc"
+              }
+            ]
+          },
+          {
+            "title": "Configure SSO with Auth0",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/sso-oidc-auth0"
+          },
+          {
+            "title": "Authenticate users with PKCE and private key JWT ",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/sso-oidc-keycloak"
+          }
+        ]
       },
-
       {
         "title": "Transport security",
         "href": "https://learn.hashicorp.com/collections/nomad/transport-security"
       },
       {
-        "title": "Access control",
-        "href": "https://learn.hashicorp.com/collections/nomad/access-control"
-      },
-
-      {
-        "title": "Federate AWS Access with workload identity",
-        "path": "operations/aws-oidc-provider"
+        "title": "Federated workload identity",
+        "routes": [
+          {
+            "title": "Federate AWS Access",
+            "path": "secure/workload-identity/aws-oidc-provider"
+          },
+          {
+            "title": "Federate GCP access",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/fed-workload-identity/integration-gcp"
+          }
+        ]
       }
     ]
   },

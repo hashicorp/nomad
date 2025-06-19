@@ -352,4 +352,14 @@ module.exports = [
     destination: '/nomad/docs/monitor',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/concepts/acl/auth-methods/:path*',
+    destination: '/nomad/docs/secure/sso/auth-methods/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/aws-oidc-provider',
+    destination: '/nomad/docs/secure/workload-identity/aws-oidc-provider',
+    permanent: true,
+  },
 ]
