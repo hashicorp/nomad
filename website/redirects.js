@@ -243,11 +243,6 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/nomad/docs/networking',
-    destination: '/nomad/docs/architecture/networking',
-    permanent: true,
-  },
-  {
     source: '/nomad/docs/concepts/node-pools',
     destination: '/nomad/docs/architecture/node-pools',
     permanent: true,
@@ -303,21 +298,6 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/nomad/docs/networking/service-mesh',
-    destination: '/nomad/docs/job-declare/consul-service-mesh',
-    permanent: true,
-  },
-  {
-    source: '/nomad/docs/networking/service-discovery',
-    destination: '/nomad/docs/job-networking/service-discovery',
-    permanent: true,
-  },
-  {
-    source: '/nomad/docs/networking/cni',
-    destination: '/nomad/docs/job-networking/cni',
-    permanent: true,
-  },
-  {
     source: '/nomad/docs/install/:path*',
     destination: '/nomad/docs/deploy/:path*',
     permanent: true,
@@ -360,6 +340,11 @@ module.exports = [
   {
     source: '/nomad/docs/schedulers',
     destination: '/nomad/docs/concepts/scheduling/schedulers',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/ipv6-support',
+    destination: '/nomad/docs/networking/ipv6-support',
     permanent: true,
   },
 ]

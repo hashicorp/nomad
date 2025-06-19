@@ -42,10 +42,6 @@
         "path": "architecture/federation"
       },
       {
-        "title": "Networking",
-        "path": "architecture/networking"
-      },
-      {
         "title": "Node pools",
         "path": "architecture/node-pools"
       },
@@ -329,6 +325,31 @@
     ]
   },
   {
+    "title": "Network Nomad",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "networking"
+      },
+      {
+        "title": "Bridge networking with CNI",
+        "path": "networking/cni"
+      },
+      {
+        "title": "Service discovery",
+        "path": "networking/service-discovery"
+      },
+      {
+        "title": "Service mesh",
+        "path": "networking/service-mesh"
+      },
+      {
+        "title": "IPv6 support",
+        "path": "networking/ipv6-support"
+      }
+    ]
+  },
+  {
     "title": "Scale Nomad",
     "routes": [
       {
@@ -369,10 +390,6 @@
       },
 
       {
-        "title": "Cluster management",
-        "href": "https://learn.hashicorp.com/collections/nomad/manage-clusters"
-      },
-      {
         "title": "Transport security",
         "href": "https://learn.hashicorp.com/collections/nomad/transport-security"
       },
@@ -384,10 +401,6 @@
       {
         "title": "Federate AWS Access with workload identity",
         "path": "operations/aws-oidc-provider"
-      },
-      {
-        "title": "IPv6 support",
-        "path": "operations/ipv6-support"
       }
     ]
   },
