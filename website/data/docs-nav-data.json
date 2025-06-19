@@ -325,6 +325,31 @@
     ]
   },
   {
+    "title": "Monitor Nomad",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "monitor"
+      },
+      {
+        "title": "Event stream",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/integrate-nomad/event-stream"
+      },
+      {
+        "title": "Inspect job workloads",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/web-ui-workload-info"
+      },
+      {
+        "title": "Inspect a cluster",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/wweb-ui-cluster-info"
+      },
+      {
+        "title": "Cluster state topology",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/topology-visualization"
+      }
+    ]
+  },
+  {
     "title": "Network Nomad",
     "routes": [
       {
@@ -382,11 +407,6 @@
       {
         "title": "Overview",
         "path": "operations"
-      },
-
-      {
-        "title": "Monitor Nomad",
-        "path": "operations/monitoring-nomad"
       },
 
       {

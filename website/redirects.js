@@ -347,4 +347,9 @@ module.exports = [
     destination: '/nomad/docs/networking/ipv6-support',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/operations/monitoring-nomad',
+    destination: '/nomad/docs/monitor',
+    permanent: true,
+  },
 ]
