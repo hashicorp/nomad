@@ -232,45 +232,23 @@
     ]
   },
   {
-    "title": "Upgrading",
+    "title": "Govern Nomad",
     "routes": [
       {
-        "title": "Overview",
-        "path": "upgrade"
+        "title": "Governance and policy overview",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/governance-and-policy"
       },
       {
-        "title": "Specific version details",
-        "path": "upgrade/upgrade-specific"
-      }
-    ]
-  },
-  {
-    "title": "Release notes",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "release-notes"
+        "title": "Create and use resource quotas",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/quotas"
       },
       {
-        "title": "Nomad",
-        "routes": [
-          {
-            "title": "Upcoming",
-            "path": "release-notes/nomad/upcoming"
-          },
-          {
-            "title": "v1.10.x",
-            "path": "release-notes/nomad/v1-10-x"
-          },
-          {
-            "title": "v1.9.x",
-            "path": "release-notes/nomad/v1_9_x"
-          },
-          {
-            "title": "v1.8.x",
-            "path": "release-notes/nomad/v1_8_x"
-          }
-        ]
+        "title": "Create and manage Sentinel policies",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel"
+      },
+      {
+        "title": "Create and use node pools",
+        "path": "govern/use-node-pools"
       }
     ]
   },
@@ -381,6 +359,49 @@
   {
     "title": "Autoscaling",
     "href": "/nomad/tools/autoscaling"
+  },
+  {
+    "title": "Upgrade Nomad",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "upgrade"
+      },
+      {
+        "title": "Specific version details",
+        "path": "upgrade/upgrade-specific"
+      }
+    ]
+  },
+  {
+    "title": "Release notes",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "release-notes"
+      },
+      {
+        "title": "Nomad",
+        "routes": [
+          {
+            "title": "Upcoming",
+            "path": "release-notes/nomad/upcoming"
+          },
+          {
+            "title": "v1.10.x",
+            "path": "release-notes/nomad/v1-10-x"
+          },
+          {
+            "title": "v1.9.x",
+            "path": "release-notes/nomad/v1_9_x"
+          },
+          {
+            "title": "v1.8.x",
+            "path": "release-notes/nomad/v1_8_x"
+          }
+        ]
+      }
+    ]
   },
   {
     "heading": "Jobs"
