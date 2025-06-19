@@ -532,7 +532,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 			// create followup evals, and update the ClientStatus to unknown.
 			var followupEvals []*structs.Evaluation
 			timeoutLaterEvals, followupEvals = a.createTimeoutLaterEvals(disconnecting, tg.Name)
-			result.DesiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
+			result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
 		}
 
 		updates := appendUnknownDisconnectingUpdates(disconnecting, timeoutLaterEvals, rescheduleNow)
@@ -547,7 +547,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 		lostLater = lost.delayByStopAfter()
 		var followupEvals []*structs.Evaluation
 		lostLaterEvals, followupEvals = a.createLostLaterEvals(lostLater)
-		result.DesiredFollowupEvals[tg.Name] = slices.Concat(followupEvals)
+		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followupEvals...)
 	}
 
 	// Merge disconnecting with the stop_after_client_disconnect set into the
@@ -557,7 +557,9 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	if len(rescheduleLater) > 0 {
 		// Create batched follow-up evaluations for allocations that are
 		// reschedulable later and mark the allocations for in place updating
-		result.DesiredFollowupEvals[group], result.AttributeUpdates = a.createRescheduleLaterEvals(rescheduleLater, all, result.DisconnectUpdates)
+		var followups []*structs.Evaluation
+		followups, result.AttributeUpdates = a.createRescheduleLaterEvals(rescheduleLater, all, result.DisconnectUpdates)
+		result.DesiredFollowupEvals[tg.Name] = append(result.DesiredFollowupEvals[tg.Name], followups...)
 	}
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
