@@ -317,4 +317,24 @@ module.exports = [
     destination: '/nomad/docs/job-networking/cni',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/install/:path*',
+    destination: '/nomad/docs/deploy/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/nomad-agent',
+    destination: '/nomad/docs/deploy/nomad-agent',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/federation',
+    destination: '/nomad/docs/deploy/clusters/federation-considerations',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/federation/failure',
+    destination: '/nomad/docs/deploy/clusters/federation-failure-scenarios',
+    permanent: true,
+  },
 ]

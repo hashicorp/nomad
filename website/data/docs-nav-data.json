@@ -165,37 +165,69 @@
     "href": "https://developer.hashicorp.com/nomad/docs/configuration/"
   },
   {
-    "title": "Install Nomad",
+    "title": "Deploy and run Nomad",
     "routes": [
       {
-        "title": "Overview",
-        "path": "install"
+        "title": "Deploy Nomad",
+        "path": "deploy"
       },
-
       {
-        "title": "Production",
+        "title": "Production deployment guides",
         "routes": [
           {
             "title": "Overview",
-            "path": "install/production"
+            "path": "deploy/production"
           },
           {
             "title": "Requirements",
-            "path": "install/production/requirements"
+            "path": "deploy/production/requirements"
           },
           {
             "title": "Reference architecture",
-            "href": "https://learn.hashicorp.com/tutorials/nomad/production-reference-architecture-vm-with-consul"
+            "href": "https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul"
           },
           {
             "title": "Deployment guide",
-            "href": "https://learn.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul"
+            "href": "https://developer.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul"
+          },
+          {
+            "title": "Windows service",
+            "path": "deploy/production/windows-service"
           }
         ]
       },
       {
-        "title": "Windows service",
-        "path": "install/windows-service"
+        "title": "Operate a Nomad agent",
+        "path": "deploy/nomad-agent"
+      },
+      {
+        "title": "Nomad clusters",
+        "routes": [
+          {
+            "title": "Create a Nomad cluster",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/clustering"
+          },
+          {
+            "title": "Multi-region federation considerations",
+            "path": "deploy/clusters/federation-considerations"
+          },
+          {
+            "title": "Federate multi-region clusters",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/federation"
+          },
+          {
+            "title": "Federation failure scenarios",
+            "path": "deploy/clusters/federation-failure-scenarios"
+          },
+          {
+            "title": "Load balancing",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/load-balancing"
+          },
+          {
+            "title": "Configure a web UI reverse proxy",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/reverse-proxy-ui"
+          }
+        ]
       }
     ]
   },
@@ -301,10 +333,7 @@
         "title": "Overview",
         "path": "operations"
       },
-      {
-        "title": "Nomad agents",
-        "path": "operations/nomad-agent"
-      },
+
       {
         "title": "Monitor Nomad",
         "path": "operations/monitoring-nomad"
@@ -325,19 +354,6 @@
       {
         "title": "Key management",
         "path": "operations/key-management"
-      },
-      {
-        "title": "Federation",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "operations/federation"
-          },
-          {
-            "title": "Failure",
-            "path": "operations/federation/failure"
-          }
-        ]
       },
 
       {
