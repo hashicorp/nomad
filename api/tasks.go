@@ -834,6 +834,9 @@ func (t *Task) Canonicalize(tg *TaskGroup, job *Job) {
 	for _, tmpl := range t.Templates {
 		tmpl.Canonicalize()
 	}
+	for _, s := range t.Secrets {
+		s.Canonicalize()
+	}
 	for _, s := range t.Services {
 		s.Canonicalize(t, tg, job)
 	}
@@ -1056,6 +1059,12 @@ type Secret struct {
 	Provider string         `hcl:"provider,optional"`
 	Path     string         `hcl:"path,optional"`
 	Config   map[string]any `hcl:"config,block"`
+}
+
+func (s *Secret) Canonicalize() {
+	if len(s.Config) == 0 {
+		s.Config = nil
+	}
 }
 
 // NewTask creates and initializes a new Task.

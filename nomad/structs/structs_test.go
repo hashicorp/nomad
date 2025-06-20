@@ -6440,12 +6440,23 @@ func TestSecrets_Copy(t *testing.T) {
 		Name:     "test-secret",
 		Provider: "test-provider",
 		Path:     "/test/path",
+		Config: map[string]any{
+			"some-key": map[string]any{
+				"nested-key": "nested-value",
+			},
+		},
 	}
 	ns := s.Copy()
 
 	must.Eq(t, s.Name, ns.Name)
 	must.Eq(t, s.Provider, ns.Provider)
 	must.Eq(t, s.Path, ns.Path)
+	must.Eq(t, s.Config, ns.Config)
+
+	// make sure nested maps are copied correctly
+	s.Config["some-key"].(map[string]any)["nested-key"] = "new-value"
+
+	must.NotEq(t, s.Config, ns.Config)
 }
 
 func TestSecrets_Validate(t *testing.T) {

@@ -10418,17 +10418,41 @@ type Secret struct {
 	Config   map[string]any
 }
 
+func (s *Secret) Equal(o *Secret) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+
+	switch {
+	case s.Name != o.Name:
+		return false
+	case s.Provider != o.Provider:
+		return false
+	case s.Path != o.Path:
+		return false
+	case !maps.Equal(s.Config, o.Config):
+		return false
+	}
+
+	return true
+}
+
 func (s *Secret) Copy() *Secret {
 	if s == nil {
 		return nil
 	}
 
-	ns := new(Secret)
-	*ns = *s
+	confCopy, err := copystructure.Copy(s.Config)
+	if err != nil {
+		panic(err.Error())
+	}
 
-	ns.Config = maps.Clone(s.Config)
-
-	return ns
+	return &Secret{
+		Name:     s.Name,
+		Provider: s.Provider,
+		Path:     s.Path,
+		Config:   confCopy.(map[string]any),
+	}
 }
 
 func (s *Secret) Validate() error {
