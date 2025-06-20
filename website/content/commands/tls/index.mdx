@@ -1,0 +1,27 @@
+---
+layout: docs
+page_title: 'nomad tls command reference'
+description: |
+  The `nomad tls` command creates and displays information about a certificate authority and self-signed certificate for Nomad's Transport Security Layer (TLS).
+---
+
+# `nomad tls` command reference
+
+The `tls` command is used to help with setting up a self signed CA and certificates for Nomad TLS.
+
+## Usage
+
+Usage: `nomad tls <subcommand> <subcommand> [options]`
+
+Run `nomad tls <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`ca create`][cacreate] - Create Certificate Authority
+- [`ca info`][cainfo] - Display information from a CA certificate
+- [`cert create`][certcreate] - Create self signed certificates
+- [`cert info`][certinfo] - Display information from a certificate
+
+[cacreate]: /nomad/commands/tls/ca-create 'Create Certificate Authority'
+[cainfo]: /nomad/commands/tls/ca-info 'Display information from a CA certificate'
+[certcreate]: /nomad/commands/tls/cert-create 'Create self signed certificates'
+[certinfo]: /nomad/commands/tls/cert-info 'Display information from a certificate'

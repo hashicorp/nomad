@@ -19,7 +19,7 @@ used to document those details separately from the standard upgrade flow.
 Nomad 1.4.0 removed support for Raft Protocol v2, and this removed the ability
 to remove Raft peers by address instead of peer ID. Nomad 1.10.1 removes the
 non-functional `-peer-address` option for the [`operator raft
-peer-remove`](/nomad/docs/commands/operator/raft/remove-peer) command, and the
+peer-remove`](/nomad/commands/operator/raft/remove-peer) command, and the
 `address` parameter for the `DELETE /v1/operator/raft/peer` API.
 
 Errors encountered when reloading agent configuration now cause agents to exit.
@@ -360,7 +360,7 @@ sign workload identities with the `RS256` signing algorithm.
 
 Before setting up third party authentication methods to use workload
 identities, it is recommended to run [`nomad operator root keyring
-rotate`](/nomad/docs/commands/operator/root/keyring-rotate) to ensure you
+rotate`](/nomad/commands/operator/root/keyring-rotate) to ensure you
 generate a new RSA key.
 
 To verify an RSA key is present you may check the [`/.well-known/jwks.json`

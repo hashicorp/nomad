@@ -207,7 +207,7 @@ server {
   when raising this value is that during network partitions or other events
   (server crash) where a leader is lost, Nomad will not elect a new leader for
   a longer period of time than the default. The [`nomad.nomad.leader.barrier` and
-  `nomad.raft.leader.lastContact` metrics](/nomad/docs/operations/metrics-reference) are a good
+  `nomad.raft.leader.lastContact` metrics](/nomad/docs/reference/metrics) are a good
   indicator of how often leader elections occur and Raft latency.
 
 - `raft_snapshot_threshold` `(int: "8192")` - Specifies the minimum number of
@@ -523,10 +523,10 @@ work.
 [update-scheduler-config]: /nomad/api-docs/operator/scheduler#update-scheduler-configuration 'Scheduler Config'
 [bootstrapping a cluster]: /nomad/docs/faq#bootstrapping
 [rfc4648]: https://tools.ietf.org/html/rfc4648#section-5
-[monitoring_nomad_progress]: /nomad/docs/operations/monitoring-nomad#progress
-[`nomad operator gossip keyring generate`]: /nomad/docs/commands/operator/gossip/keyring-generate
+[monitoring_nomad_progress]:/nomad/docs/monitor#progress
+[`nomad operator gossip keyring generate`]: /nomad/commands/operator/gossip/keyring-generate
 [search]: /nomad/docs/configuration/search
-[encryption key]: /nomad/docs/operations/key-management
+[encryption key]: /nomad/docs/manage/key-management
 [disconnect.lost_after]: /nomad/docs/job-specification/disconnect#lost_after
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem
 [wi]: /nomad/docs/concepts/workload-identity

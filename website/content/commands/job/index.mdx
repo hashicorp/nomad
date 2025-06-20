@@ -1,0 +1,60 @@
+---
+layout: docs
+page_title: 'nomad job command reference'
+description: |
+  The `nomad job` command interacts with jobs. Create, validate, and plan a job specification. Display allocations, deployments, history, and status. Execute predefined actions, dispatch parameterized jobs, inspect a job, force the evaluation of a periodic job, scale allocations, and promote canaries. Run, restart, revert, and stop a job.
+---
+
+# `nomad job` command reference
+
+The `job` command is used to interact with jobs.
+
+## Usage
+
+Usage: `nomad job <subcommand> [options]`
+
+Run `nomad job <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`job action`][action] - Execute predefined actions
+- [`job allocs`][allocs] - List allocations for a job
+- [`job deployments`][deployments] - List deployments for a job
+- [`job dispatch`][dispatch] - Dispatch an instance of a parameterized job
+- [`job eval`][eval] - Force an evaluation for a job
+- [`job history`][history] - Display all tracked versions of a job
+- [`job init`][init] - Create an example job specification
+- [`job inspect`][inspect] - Inspect the contents of a submitted job
+- [`job periodic force`][periodic force] - Force the evaluation of a periodic job
+- [`job plan`][plan] - Schedule a dry run for a job
+- [`job promote`][promote] - Promote a job's canaries
+- [`job restart`][restart] - Restart or reschedule allocations for a job
+- [`job revert`][revert] - Revert to a prior version of the job
+- [`job run`][run] - Submit a new job
+- [`job scale`][scale] - Update the number of allocations for a task group in a job
+- [`job scaling-events`][scaling-events] - List the recent scaling events for a job
+- [`job status`][status] - Display status information about a job
+- [`job stop`][stop] - Stop a running job and cancel its allocations
+- [`job tag`][tag] - Tag a job with a version
+- [`job validate`][validate] - Check a job specification for syntax errors
+
+
+[action]: /nomad/commands/job/action 'Execute predefined actions'
+[allocs]: /nomad/commands/job/allocs 'List allocations for a job'
+[deployments]: /nomad/commands/job/deployments 'List deployments for a job'
+[dispatch]: /nomad/commands/job/dispatch 'Dispatch an instance of a parameterized job'
+[eval]: /nomad/commands/job/eval 'Force an evaluation for a job'
+[history]: /nomad/commands/job/history 'Display all tracked versions of a job'
+[init]: /nomad/commands/job/init 'Create an example job specification'
+[inspect]: /nomad/commands/job/inspect 'Inspect the contents of a submitted job'
+[periodic force]: /nomad/commands/job/periodic-force 'Force the evaluation of a periodic job'
+[plan]: /nomad/commands/job/plan 'Schedule a dry run for a job'
+[restart]: /nomad/commands/job/restart 'Restart or reschedule allocations for a job'
+[revert]: /nomad/commands/job/revert 'Revert to a prior version of the job'
+[run]: /nomad/commands/job/run 'Submit a new job'
+[status]: /nomad/commands/job/status 'Display status information about a job'
+[scale]: /nomad/commands/job/scale 'Update the number of allocations for a task group in a job'
+[scaling-events]: /nomad/commands/job/scaling-events 'List the recent scaling events for a job'
+[stop]: /nomad/commands/job/stop 'Stop a running job and cancel its allocations'
+[tag]: /nomad/commands/job/tag 'Tag a job with a version'
+[validate]: /nomad/commands/job/validate 'Check a job specification for syntax errors'
+[promote]: /nomad/commands/job/promote

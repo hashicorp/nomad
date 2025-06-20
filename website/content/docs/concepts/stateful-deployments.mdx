@@ -2,7 +2,7 @@
 layout: docs
 page_title: Stateful deployments
 description: |-
-  Learn how Nomad handles stateful deployments. Use a dynamic host volume for your stateful workload and bind an allocation to a volume ID with the sticky parameter. Learn how Nomad scales jobs with sticky volumes. 
+  Learn how Nomad handles stateful deployments. Use a dynamic host volume for your stateful workload and bind an allocation to a volume ID with the sticky parameter. Learn how Nomad scales jobs with sticky volumes.
 ---
 
 # Stateful deployments
@@ -10,7 +10,7 @@ description: |-
 <Note>
 
 Stateful deployments support only dynamic host volumes. For CSI volumes, use the
-[`per_alloc` property](/nomad/docs/job-specification/volume#per_alloc), 
+[`per_alloc` property](/nomad/docs/job-specification/volume#per_alloc),
 which serves a similar purpose.
 
 </Note>
@@ -73,11 +73,11 @@ to stop the job.
 Refer to the following Nomad pages for more information about stateful workloads
 and volumes:
 
-- [Considerations for Stateful Workloads](/nomad/docs/operations/stateful-workloads) explores the options for persistent storage of workloads running in Nomad.
-- The [Nomad volume specification][volumes] defines the schema for creating and registering volumes. 
+- [Considerations for Stateful Workloads](/nomad/docs/architecture/stateful-workloads) explores the options for persistent storage of workloads running in Nomad.
+- The [Nomad volume specification][volumes] defines the schema for creating and registering volumes.
 - The [job specification `volume` block](/nomad/docs/job-specification/volume) lets you configure a group that requires a specific volume from the cluster.
 - The [Stateful Workloads](/nomad/tutorials/stateful-workloads) tutorials explore techniques to run jobs that require access to persistent storage.
- 
+
 [allocation]: /nomad/docs/glossary#allocation
 [delete]: /nomad/api-docs/volumes#delete-task-group-host-volume-claims
 [list]: /nomad/api-docs/volumes#list-task-group-host-volume-claims

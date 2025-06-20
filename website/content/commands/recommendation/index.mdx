@@ -1,0 +1,29 @@
+---
+layout: docs
+page_title: 'nomad recommendation command reference'
+description: |
+  The `nomad recommendation` command interacts with recommendations in Nomad Enterprise. Display a specific recommendation or a list of recommendations. Apply or dismiss recommendations.
+---
+
+# `nomad recommendation` command reference
+
+The `recommendation` command is used to interact with recommendations.
+
+<EnterpriseAlert product="nomad"/>
+
+## Usage
+
+Usage: `nomad recommendation <subcommand> [options]`
+
+Run `nomad recommendation <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`recommendation apply`][recommendationapply] - Apply one or more Nomad recommendations
+- [`recommendation dismiss`][recommendationdismiss] - Dismiss one or more Nomad recommendations
+- [`recommendation info`][recommendationinfo] - Display an individual Nomad recommendation
+- [`recommendation list`][recommendationlist] - Display all Nomad recommendations
+
+[recommendationapply]: /nomad/commands/recommendation/apply
+[recommendationdismiss]: /nomad/commands/recommendation/dismiss
+[recommendationinfo]: /nomad/commands/recommendation/info
+[recommendationlist]: /nomad/commands/recommendation/list
