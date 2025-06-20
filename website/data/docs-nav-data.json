@@ -433,17 +433,12 @@
         "title": "SSO",
         "routes": [
           {
-            "title": "Auth methods",
-            "routes": [
-              {
-                "title": "JWT",
-                "path": "secure/sso/auth-methods/jwt"
-              },
-              {
-                "title": "OIDC",
-                "path": "secure/sso/auth-methods/oidc"
-              }
-            ]
+            "title": "Configure JWT authentication",
+            "path": "secure/sso/jwt"
+          },
+          {
+            "title": "Configure OIDC authentication",
+            "path": "secure/sso/oidc"
           },
           {
             "title": "Configure SSO with Auth0",

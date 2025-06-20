@@ -254,7 +254,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/operations/stateful-workloads',
-    destination: '/nomad/docs/architecture/security',
+    destination: '/nomad/docs/architecture/stateful-workloads',
     permanent: true,
   },
   {
@@ -353,8 +353,13 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/nomad/docs/concepts/acl/auth-methods/:path*',
-    destination: '/nomad/docs/secure/sso/auth-methods/:path*',
+    source: '/nomad/docs/concepts/acl/auth-methods/oidc',
+    destination: '/nomad/docs/secure/sso/oidc',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/acl/auth-methods/jwt',
+    destination: '/nomad/docs/secure/sso/jwt',
     permanent: true,
   },
   {
