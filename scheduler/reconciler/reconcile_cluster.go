@@ -155,6 +155,7 @@ type ReconcileResults struct {
 	TaskGroupAllocNameIndexes map[string]*AllocNameIndex
 }
 
+// Merge merges two instances of ReconcileResults
 func (r *ReconcileResults) Merge(new *ReconcileResults) {
 	if new.Deployment != nil {
 		r.Deployment = new.Deployment
@@ -313,7 +314,7 @@ func (a *AllocReconciler) Compute() *ReconcileResults {
 	var deploymentComplete bool
 	result, deploymentComplete = a.computeDeploymentComplete(result, m)
 
-	result.DeploymentUpdates = append(result.DeploymentUpdates, a.computeDeploymentUpdates(deploymentComplete, result.Deployment)...)
+	result.DeploymentUpdates = append(result.DeploymentUpdates, a.setDeploymentStatusAndUpdates(deploymentComplete, result.Deployment)...)
 
 	return result
 }
@@ -369,7 +370,9 @@ func cancelUnneededDeployments(j *structs.Job, d *structs.Deployment) (*structs.
 	return nil, d, updates
 }
 
-// handleStop marks all allocations to be stopped, handling the lost case
+// handleStop marks all allocations to be stopped, handling the lost case.
+// Returns result structure with desired changes field set to stopped allocations
+// and an array of stopped allocations.
 func (a *AllocReconciler) handleStop(m allocMatrix) (map[string]*structs.DesiredUpdates, []AllocStopResult) {
 	result := make(map[string]*structs.DesiredUpdates)
 	allocsToStop := []AllocStopResult{}
@@ -384,7 +387,8 @@ func (a *AllocReconciler) handleStop(m allocMatrix) (map[string]*structs.Desired
 }
 
 // markStop is a helper for marking a set of allocation for stop with a
-// particular client status and description.
+// particular client status and description. Returns a slice of alloc stop
+// result.
 func markStop(allocs allocSet, clientStatus, statusDescription string) []AllocStopResult {
 	allocsToStop := []AllocStopResult{}
 	for _, alloc := range allocs {
@@ -413,12 +417,8 @@ func markDelayed(allocs allocSet, clientStatus, statusDescription string, follow
 }
 
 // computeDeploymentComplete is the top-level method that computes
-// reconciliation for a given allocation matrix. It returns:
-// - a map of task group allocation name indexes
-// - a slice of allocations to stop
-// - a slice of replacements
-// - a resulting deployment
-// - a boolean that indicates whether the deployment is complete
+// reconciliation for a given allocation matrix. It returns ReconcileResults
+// struct and a boolean that indicates whether the deployment is complete.
 func (a *AllocReconciler) computeDeploymentComplete(result *ReconcileResults, m allocMatrix) (*ReconcileResults, bool) {
 	complete := true
 	for group, as := range m {
@@ -437,9 +437,8 @@ func (a *AllocReconciler) computeDeploymentComplete(result *ReconcileResults, m 
 // computeGroup reconciles state for a particular task group. It returns whether
 // the deployment it is for is complete in regard to the task group.
 //
-// returns: desiredTGUpdates for taskgroup, allocations to stop, alloc name
-// index for taskgroup, resulting deployment, and a boolean that indicates
-// whether the whole group's deployment is complete
+// returns: ReconcileResults object and a boolean that indicates whether the
+// whole group's deployment is complete
 func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileResults, bool) {
 
 	// Create the output result object that we'll be continuously writing to
@@ -623,7 +622,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// placements can be made without any other consideration.
 	deploymentPlaceReady := !a.deploymentPaused && !a.deploymentFailed && !isCanarying
 
-	underProvisionedBy, replacements, replacementsAllocsToStop := a.computeReplacements(
+	underProvisionedBy, replacements, replacementsAllocsToStop := a.placeAllocs(
 		deploymentPlaceReady, result.DesiredTGUpdates[group], place, rescheduleNow, lost, result.DisconnectUpdates, underProvisionedBy)
 	result.Stop = append(result.Stop, replacementsAllocsToStop...)
 	result.Place = append(result.Place, replacements...)
@@ -652,8 +651,9 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	return result, deploymentComplete
 }
 
-// FIXME: this method should be renamed
-func (a *AllocReconciler) computeDeploymentUpdates(deploymentComplete bool, createdDeployment *structs.Deployment) []*structs.DeploymentStatusUpdate {
+// setDeploymentStatusAndUpdates sets status for a.deployment if necessary and
+// returns an array of DeploymentStatusUpdates.
+func (a *AllocReconciler) setDeploymentStatusAndUpdates(deploymentComplete bool, createdDeployment *structs.Deployment) []*structs.DeploymentStatusUpdate {
 	var updates []*structs.DeploymentStatusUpdate
 
 	if a.deployment != nil {
@@ -917,12 +917,13 @@ func computePlacements(group *structs.TaskGroup,
 	return place
 }
 
-// computeReplacements either applies the placements calculated by computePlacements,
-// or computes more placements based on whether the deployment is ready for placement
-// and if the placement is already rescheduling or part of a failed deployment.
-// The input deploymentPlaceReady is calculated as the deployment is not paused, failed, or canarying.
-// It returns the number of allocs still needed.
-func (a *AllocReconciler) computeReplacements(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
+// placeAllocs either applies the placements calculated by computePlacements,
+// or computes more placements based on whether the deployment is ready for
+// placement and if the placement is already rescheduling or part of a failed
+// deployment. The input deploymentPlaceReady is calculated as the deployment
+// is not paused, failed, or canarying. It returns the number of allocs still
+// needed, allocations to place, and allocations to stop.
+func (a *AllocReconciler) placeAllocs(deploymentPlaceReady bool, desiredChanges *structs.DesiredUpdates,
 	place []AllocPlaceResult, rescheduleNow, lost allocSet, disconnectUpdates map[string]*structs.Allocation,
 	underProvisionedBy int) (int, []AllocPlaceResult, []AllocStopResult) {
 
