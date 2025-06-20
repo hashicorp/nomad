@@ -55,8 +55,8 @@ func (a allocSet) filterByDeployment(id string) (match, nonmatch allocSet) {
 
 // filterOldTerminalAllocs filters allocations that should be ignored since they
 // are allocations that are terminal from a previous job version.
-func (a *AllocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignore allocSet) {
-	if !a.batch {
+func filterOldTerminalAllocs(a ReconcilerState, all allocSet) (filtered, ignore allocSet) {
+	if !a.JobIsBatch {
 		return all, nil
 	}
 
@@ -65,7 +65,7 @@ func (a *AllocReconciler) filterOldTerminalAllocs(all allocSet) (filtered, ignor
 
 	// Ignore terminal batch jobs from older versions
 	for id, alloc := range filtered {
-		older := alloc.Job.Version < a.job.Version || alloc.Job.CreateIndex < a.job.CreateIndex
+		older := alloc.Job.Version < a.Job.Version || alloc.Job.CreateIndex < a.Job.CreateIndex
 		if older && alloc.TerminalStatus() {
 			delete(filtered, id)
 			ignored[id] = alloc
@@ -250,10 +250,12 @@ func filterByTainted(a allocSet, state ClusterState) (untainted, migrate, lost, 
 	return
 }
 
-// filterByRescheduleable filters the allocation set to return the set of allocations that are either
-// untainted or a set of allocations that must be rescheduled now. Allocations that can be rescheduled
-// at a future time are also returned so that we can create follow up evaluations for them. Allocs are
-// skipped or considered untainted according to logic defined in shouldFilter method.
+// filterByRescheduleable filters the allocation set to return the set of
+// allocations that are either untainted or a set of allocations that must
+// be rescheduled now. Allocations that can be rescheduled at a future time
+// are also returned so that we can create follow up evaluations for them.
+// Allocs are skipped or considered untainted according to logic defined in
+// shouldFilter method.
 func (a allocSet) filterByRescheduleable(isBatch, isDisconnecting bool, now time.Time, evalID string, deployment *structs.Deployment) (allocSet, allocSet, []*delayedRescheduleInfo) {
 	untainted := make(map[string]*structs.Allocation)
 	rescheduleNow := make(map[string]*structs.Allocation)
