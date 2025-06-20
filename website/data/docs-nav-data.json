@@ -235,7 +235,11 @@
     "title": "Govern Nomad",
     "routes": [
       {
-        "title": "Governance and policy overview",
+        "title": "Overview",
+        "path": "govern"
+      },
+      {
+        "title": "Governance and policy",
         "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/governance-and-policy"
       },
       {
@@ -523,7 +527,11 @@
     "title": "Declare a job",
     "routes": [
       {
-        "title": "Create a job",
+        "title": "Overview",
+        "path": "job-declare"
+      },
+      {
+        "title": "Create a job specification",
         "href": "/nomad/tutorials/manage-jobs/jobs-submit"
       },
       {
@@ -688,6 +696,10 @@
   {
     "title": "Workload networking",
     "routes": [
+      {
+        "title": "Overview",
+        "path": "job-networking"
+      },
       {
         "title": "Service discovery",
         "path": "job-networking/service-discovery"

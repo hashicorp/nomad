@@ -1,0 +1,18 @@
+---
+layout: docs
+page_title: Declare a Nomad job
+description: |-
+  This section provides guidance for declaring Nomad job with a job specification.
+---
+
+# Declare a Nomad job
+
+This section provides guidance for declaring a Nomad job with a job specification.
+
+In Nomad, a job is a user-specified state for a workload. The user expresses the job that should be running, but not where it should run. Nomad allocates resources and ensures that the actual state matches the user's desired state. A job consists of one or more tasks that you can organize into task groups.
+
+Declare the desired state of your job in a [job specification](/nomad/docs/job-specification), or jobspec, that describes the tasks and resources necessary for the job to run. You can also include job constraints to control which clients Nomad runs the job on.
+
+When you submit your job specification, Nomad automatically allocates resources to run it. Nomad also makes sure that the actual job state matches your desired state.
+
+Refer to the [Job page](/nomad/docs/concepts/job) for more information on Nomad jobs.

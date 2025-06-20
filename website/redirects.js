@@ -203,12 +203,12 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/nomad/intro/vs/:path',
+    source: '/nomad/intro/vs/:path*',
     destination: '/nomad/docs/what-is-nomad',
     permanent: true,
   },
   {
-    source: '/nomad/docs/nomad-vs-kubernetes/:path',
+    source: '/nomad/docs/nomad-vs-kubernetes/:path*',
     destination: '/nomad/docs/what-is-nomad',
     permanent: true,
   },
@@ -375,6 +375,12 @@ module.exports = [
   {
     source: '/nomad/docs/operations/aws-oidc-provider',
     destination: '/nomad/docs/secure/workload-identity/aws-oidc-provider',
+    permanent: true,
+  },
+  // removed section index pages that had no meaningful content
+  {
+    source: '/nomad/docs/operations',
+    destination: '/nomad/docs',
     permanent: true,
   },
 ]
