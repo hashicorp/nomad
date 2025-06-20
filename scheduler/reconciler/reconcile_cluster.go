@@ -919,7 +919,7 @@ func computePlacements(group *structs.TaskGroup,
 
 // placeAllocs either applies the placements calculated by computePlacements,
 // or computes more placements based on whether the deployment is ready for
-// placement and if the placement is already rescheduling or part of a failed
+// and if allocations are already rescheduling or part of a failed
 // deployment. The input deploymentPlaceReady is calculated as the deployment
 // is not paused, failed, or canarying. It returns the number of allocs still
 // needed, allocations to place, and allocations to stop.
