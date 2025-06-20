@@ -299,6 +299,10 @@
     "title": "Manage Nomad",
     "routes": [
       {
+        "title": "Overview",
+        "path": "manage"
+      },
+      {
         "title": "Autopilot",
         "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/autopilot"
       },
@@ -382,8 +386,12 @@
     "title": "Scale Nomad",
     "routes": [
       {
-        "title": "Autoscaling",
-        "href": "/nomad/tools/autoscaling"
+        "title": "Overview",
+        "path": "scale"
+      },
+      {
+        "title": "Nomad Autoscaler",
+        "href": "https://developer.hashicorp.com/nomad/tools/autoscaling"
       },
       {
         "title": "Benchmark and load test",
@@ -394,6 +402,10 @@
   {
     "title": "Secure Nomad",
     "routes": [
+      {
+        "title": "Overview",
+        "path": "secure"
+      },
       {
         "title": "Access control lists",
         "routes": [
@@ -437,6 +449,10 @@
         "title": "SSO",
         "routes": [
           {
+            "title": "Overview",
+            "path": "secure/sso"
+          },
+          {
             "title": "Configure JWT authentication",
             "path": "secure/sso/jwt"
           },
@@ -456,11 +472,15 @@
       },
       {
         "title": "Transport security",
-        "href": "https://learn.hashicorp.com/collections/nomad/transport-security"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/transport-security"
       },
       {
         "title": "Federated workload identity",
         "routes": [
+          {
+            "title": "Overview",
+            "path": "secure/workload-identity"
+          },
           {
             "title": "Federate AWS Access",
             "path": "secure/workload-identity/aws-oidc-provider"
@@ -594,7 +614,7 @@
       },
       {
         "title": "Use device plugins",
-        "href": "/nomad/plugins/devices"
+        "href": "https://developer.hashicorp.com/nomad/plugins/devices"
       },
       {
         "title": "Use Consul service mesh",
