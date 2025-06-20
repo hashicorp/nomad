@@ -218,6 +218,16 @@ module.exports = [
     permanent: true,
   },
   {
+    source: '/nomad/docs/install/windows-service',
+    destination: '/nomad/docs/deploy/production/windows-service',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/install/production/:path*',
+    destination: '/nomad/docs/deploy/production/:path*',
+    permanent: true,
+  },
+  {
     source: '/nomad/docs/concepts/architecture/:path*',
     destination: '/nomad/architecture/:path*',
     permanent: true,
@@ -295,11 +305,6 @@ module.exports = [
   {
     source: '/nomad/docs/drivers/:path*',
     destination: '/nomad/docs/job-declare/task-driver/:path*',
-    permanent: true,
-  },
-  {
-    source: '/nomad/docs/install/:path*',
-    destination: '/nomad/docs/deploy/:path*',
     permanent: true,
   },
   {
