@@ -440,6 +440,22 @@ func TestTasksUpdated(t *testing.T) {
 	j32.TaskGroups[0].Tasks[0].VolumeMounts = nil
 
 	must.True(t, tasksUpdated(j31, j32, name).modified)
+
+	j33 := mock.Job()
+	j33 = j32.Copy()
+
+	must.False(t, tasksUpdated(j32, j33, name).modified)
+
+	// Add a task secret
+	j33.TaskGroups[0].Tasks[0].Secrets = append(j32.TaskGroups[0].Tasks[0].Secrets,
+		&structs.Secret{
+			Name:     "mysecret",
+			Provider: "nomad",
+			Path:     "/my/path",
+		})
+
+	must.True(t, tasksUpdated(j32, j33, name).modified)
+
 }
 
 func TestTasksUpdated_connectServiceUpdated(t *testing.T) {

@@ -6434,6 +6434,100 @@ func TestVault_Canonicalize(t *testing.T) {
 	require.Equal(t, VaultChangeModeRestart, v.ChangeMode)
 }
 
+func TestSecrets_Copy(t *testing.T) {
+	ci.Parallel(t)
+	s := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config: map[string]any{
+			"some-key": map[string]any{
+				"nested-key": "nested-value",
+			},
+		},
+	}
+	ns := s.Copy()
+
+	must.Eq(t, s.Name, ns.Name)
+	must.Eq(t, s.Provider, ns.Provider)
+	must.Eq(t, s.Path, ns.Path)
+	must.Eq(t, s.Config, ns.Config)
+
+	// make sure nested maps are copied correctly
+	s.Config["some-key"].(map[string]any)["nested-key"] = "new-value"
+
+	must.NotEq(t, s.Config, ns.Config)
+}
+
+func TestSecrets_Validate(t *testing.T) {
+	ci.Parallel(t)
+	testCases := []struct {
+		name      string
+		secret    *Secret
+		expectErr error
+	}{
+		{
+			name: "valid secret",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "test-provier",
+				Path:     "test-path",
+			},
+			expectErr: nil,
+		},
+		{
+			name: "missing name",
+			secret: &Secret{
+				Path:     "test-path",
+				Provider: "test-provider",
+			},
+			expectErr: fmt.Errorf("Secret name cannot be empty"),
+		},
+		{
+			name: "missing provider",
+			secret: &Secret{
+				Name: "test-secret",
+				Path: "test-path",
+			},
+			expectErr: fmt.Errorf("Secret provider cannot be empty"),
+		},
+		{
+			name: "missing path",
+			secret: &Secret{
+				Name:     "test-secret",
+				Provider: "test-provier",
+			},
+			expectErr: fmt.Errorf("Secret path cannot be empty"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.secret.Validate()
+			if tc.expectErr != nil {
+				must.ErrorContains(t, err, tc.expectErr.Error())
+			} else {
+				must.NoError(t, err)
+			}
+		})
+	}
+
+}
+
+func TestSecrets_Canonicalize(t *testing.T) {
+	ci.Parallel(t)
+	s := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config:   make(map[string]any),
+	}
+
+	s.Canonicalize()
+
+	must.Nil(t, s.Config)
+}
+
 func TestParameterizedJobConfig_Validate(t *testing.T) {
 	ci.Parallel(t)
 

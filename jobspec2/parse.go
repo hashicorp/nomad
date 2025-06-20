@@ -133,6 +133,7 @@ func decode(c *jobConfig) error {
 	diags = append(diags, decodeMapInterfaceType(&c.Job, c.EvalContext())...)
 	diags = append(diags, decodeMapInterfaceType(&c.Tasks, c.EvalContext())...)
 	diags = append(diags, decodeMapInterfaceType(&c.Vault, c.EvalContext())...)
+	diags = append(diags, decodeMapInterfaceType(&c.Secrets, c.EvalContext())...)
 
 	if diags.HasErrors() {
 		return diags
