@@ -4,6 +4,7 @@
 package structs
 
 import (
+	"github.com/go-jose/go-jose/v3/jwt"
 	"testing"
 	"time"
 
@@ -278,4 +279,186 @@ func TestGenerateNodeIdentityClaims(t *testing.T) {
 	must.NotNil(t, claims.IssuedAt)
 	must.NotNil(t, claims.NotBefore)
 	must.NotNil(t, claims.Expiry)
+}
+
+func TestNodeRegisterRequest_ShouldGenerateNodeIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                     string
+		inputNodeRegisterRequest *NodeRegisterRequest
+		inputAuthErr             error
+		inputTime                time.Time
+		inputTTL                 time.Duration
+		expectedOutput           bool
+	}{
+		{
+			name:                     "expired node identity",
+			inputNodeRegisterRequest: &NodeRegisterRequest{},
+			inputAuthErr:             jwt.ErrExpired,
+			inputTime:                time.Now(),
+			inputTTL:                 10 * time.Minute,
+			expectedOutput:           true,
+		},
+		{
+			name: "first time node registration",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ACLToken: AnonymousACLToken,
+					},
+				},
+			},
+			inputAuthErr:   nil,
+			inputTime:      time.Now(),
+			inputTTL:       10 * time.Minute,
+			expectedOutput: true,
+		},
+		{
+			name: "registration using node secret ID",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ClientID: "client-id-1",
+					},
+				},
+			},
+			inputAuthErr:   nil,
+			inputTime:      time.Now(),
+			inputTTL:       10 * time.Minute,
+			expectedOutput: true,
+		},
+		{
+			name: "expiring node identity",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(5 * time.Minute)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:   nil,
+			inputTime:      time.Now().UTC(),
+			inputTTL:       24 * time.Hour,
+			expectedOutput: true,
+		},
+		{
+			name: "not expiring node identity",
+			inputNodeRegisterRequest: &NodeRegisterRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputAuthErr:   nil,
+			inputTime:      time.Now().UTC(),
+			inputTTL:       24 * time.Hour,
+			expectedOutput: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputNodeRegisterRequest.ShouldGenerateNodeIdentity(
+				tc.inputAuthErr,
+				tc.inputTime,
+				tc.inputTTL,
+			)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
+
+func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                     string
+		inputNodeRegisterRequest *NodeUpdateStatusRequest
+		inputTime                time.Time
+		inputTTL                 time.Duration
+		expectedOutput           bool
+	}{
+		{
+			name: "authenticated by node secret ID",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ClientID: "client-id-1",
+					},
+				},
+			},
+			inputTime:      time.Now(),
+			inputTTL:       24 * time.Hour,
+			expectedOutput: true,
+		},
+		{
+			name: "expiring node identity",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(1 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			inputTTL:       24 * time.Hour,
+			expectedOutput: true,
+		},
+		{
+			name: "not expiring node identity",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour)),
+							},
+						},
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			inputTTL:       24 * time.Hour,
+			expectedOutput: false,
+		},
+		{
+			name: "server authenticated request",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ACLToken: LeaderACLToken,
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			inputTTL:       24 * time.Hour,
+			expectedOutput: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputNodeRegisterRequest.ShouldGenerateNodeIdentity(
+				tc.inputTime,
+				tc.inputTTL,
+			)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
 }

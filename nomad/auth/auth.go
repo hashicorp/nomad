@@ -279,11 +279,85 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 	return acl.ServerACL, nil
 }
 
+// AuthenticateNodeIdentityGenerator is used for RPC endpoints (Node.Register
+// and Node.UpdateStatus) that have the potential to generate node identities.
+//
+// While the Authenticate method serves as a complete general purpose
+// authenticator, in some critical cases for identity generation checking, it
+// swallows the information needed.
+func (s *Authenticator) AuthenticateNodeIdentityGenerator(ctx RPCContext, args structs.RequestWithIdentity) error {
+
+	remoteIP, err := ctx.GetRemoteIP() // capture for metrics
+	if err != nil {
+		s.logger.Error("could not determine remote address", "error", err)
+	}
+
+	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
+	defer args.SetIdentity(identity)
+
+	if s.verifyTLS && !ctx.IsStatic() {
+		tlsCert := ctx.Certificate()
+		if tlsCert == nil {
+			return errors.New("missing certificate information")
+		}
+
+		// Set on the identity whether it's valid for server RPC, so we can
+		// capture it for metrics.
+		identity.TLSName = tlsCert.Subject.CommonName
+		_, err := validateCertificateForNames(tlsCert, s.validClientCertNames)
+		if err != nil {
+			return err
+		}
+	}
+
+	authToken := args.GetAuthToken()
+
+	// If the auth token is empty, we treat it as an anonymous request. In the
+	// event of a node registration, this means the node is not yet registered.
+	if authToken == "" {
+		identity.ACLToken = structs.AnonymousACLToken
+		return nil
+	}
+
+	// If the auth token is a UUID, we check whether it's a node secret ID or
+	// the leader's ACL token. If it's not a UUID, we assume it's a node
+	// identity. Anything outside these cases is not supported and no identity
+	// will be set.
+	if helper.IsUUID(authToken) {
+		if leaderAcl := s.getLeaderACL(); leaderAcl != "" && authToken == leaderAcl {
+			identity.ACLToken = structs.LeaderACLToken
+		} else {
+			node, err := s.getState().NodeBySecretID(nil, authToken)
+			if err != nil {
+				return fmt.Errorf("could not resolve node")
+			}
+			if node == nil {
+				return structs.ErrPermissionDenied
+			}
+			identity.ClientID = node.ID
+		}
+	} else {
+		// When verifying a node identity claim, we do not want to swallow the
+		// initial error. This is because the caller may want to handle the
+		// error type in the case that the JWT is expired.
+		claims, err := s.VerifyClaim(authToken)
+		if err != nil {
+			return err
+		}
+		if !claims.IsNode() {
+			return structs.ErrPermissionDenied
+		}
+		identity.Claims = claims
+	}
+	return nil
+}
+
 // AuthenticateClientOnly returns an ACL object for use *only* with internal
 // RPCs originating from clients (including those forwarded). This should never
 // be used for RPCs that serve HTTP endpoints to avoid confused deputy attacks
 // by making a request to a client that's forwarded. It should also not be used
-// with Node.Register, which should use AuthenticateClientTOFU
+// with Node.Register or NodeUpdateStatus, which should use
+// AuthenticateNodeIdentityGenerator.
 //
 // The returned ACL object is always a acl.ClientACL but in the future this
 // could be extended to allow clients access only to their own pool and
@@ -298,6 +372,7 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
 	defer args.SetIdentity(identity) // always set the identity, even on errors
 
+	//
 	if s.verifyTLS && !ctx.IsStatic() {
 		tlsCert := ctx.Certificate()
 		if tlsCert == nil {
@@ -428,27 +503,76 @@ func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, erro
 	if err != nil {
 		return nil, err
 	}
-	snap, err := s.getState().Snapshot()
-	if err != nil {
-		return nil, err
-	}
-	alloc, err := snap.AllocByID(nil, claims.AllocationID)
-	if err != nil {
-		return nil, err
-	}
-	if alloc == nil || alloc.Job == nil {
-		return nil, fmt.Errorf("allocation does not exist")
+
+	if claims.IsWorkload() {
+		if err := s.verifyWorkloadIdentityClaim(claims); err != nil {
+			return nil, err
+		}
+		return claims, nil
 	}
 
-	// the claims for terminal allocs are always treated as expired
-	if alloc.ClientTerminalStatus() {
-		return nil, fmt.Errorf("allocation is terminal")
+	//
+	if claims.IsNode() {
+		if err := s.verifyNodeIdentityClaim(claims); err != nil {
+			return nil, err
+		}
+		return claims, nil
 	}
 
 	return claims, nil
 }
 
+func (s *Authenticator) verifyWorkloadIdentityClaim(claims *structs.IdentityClaims) error {
+	snap, err := s.getState().Snapshot()
+	if err != nil {
+		return err
+	}
+	alloc, err := snap.AllocByID(nil, claims.AllocationID)
+	if err != nil {
+		return err
+	}
+	if alloc == nil || alloc.Job == nil {
+		return fmt.Errorf("allocation does not exist")
+	}
+
+	// the claims for terminal allocs are always treated as expired
+	if alloc.ClientTerminalStatus() {
+		return fmt.Errorf("allocation is terminal")
+	}
+
+	return nil
+}
+
+func (s *Authenticator) verifyNodeIdentityClaim(claims *structs.IdentityClaims) error {
+
+	snap, err := s.getState().Snapshot()
+	if err != nil {
+		return err
+	}
+	node, err := snap.NodeByID(nil, claims.NodeIdentityClaims.NodeID)
+	if err != nil {
+		return err
+	}
+	if node == nil {
+		return errors.New("node does not exist")
+	}
+	if node.NodePool != claims.NodeIdentityClaims.NodePool ||
+		node.NodeClass != claims.NodeIdentityClaims.NodeClass ||
+		node.Datacenter != claims.NodeIdentityClaims.NodeDatacenter {
+		return errors.New("node does not match claims")
+	}
+
+	return nil
+}
+
 func (s *Authenticator) resolveClaims(claims *structs.IdentityClaims) (*acl.ACL, error) {
+
+	// Nomad node identity claims only currently map to a client ACL. If we open
+	// this up in the future, we will want to modify this section to perform
+	// similar work that is done for workload claims.
+	if claims.IsNode() {
+		return acl.ClientACL, nil
+	}
 
 	policies, err := s.ResolvePoliciesForClaims(claims)
 	if err != nil {

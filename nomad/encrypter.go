@@ -303,11 +303,12 @@ func (e *Encrypter) Decrypt(ciphertext []byte, keyID string) ([]byte, error) {
 // header name.
 const keyIDHeader = "kid"
 
-// SignClaims signs the identity claim for the task and returns an encoded JWT
-// (including both the claim and its signature) and the key ID of the key used
-// to sign it, or an error.
+// SignClaims signs the identity claim and returns an encoded JWT (including
+// both the claim and its signature) and the key ID of the key used to sign it,
+// or an error.
 //
-// SignClaims adds the Issuer claim prior to signing.
+// SignClaims adds the Issuer claim prior to signing if it is unset by the
+// caller.
 func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, error) {
 
 	if claims == nil {
@@ -324,7 +325,7 @@ func (e *Encrypter) SignClaims(claims *structs.IdentityClaims) (string, string, 
 		claims.Issuer = e.issuer
 	}
 
-	opts := (&jose.SignerOptions{}).WithHeader("kid", cs.rootKey.Meta.KeyID).WithType("JWT")
+	opts := (&jose.SignerOptions{}).WithHeader(keyIDHeader, cs.rootKey.Meta.KeyID).WithType("JWT")
 
 	var sig jose.Signer
 	if cs.rsaPrivateKey != nil {
