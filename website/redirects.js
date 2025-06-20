@@ -228,8 +228,13 @@ module.exports = [
     permanent: true,
   },
   {
-    source: '/nomad/docs/concepts/architecture/:path*',
-    destination: '/nomad/architecture/:path*',
+    source: '/nomad/docs/concepts/architecture',
+    destination: '/nomad/docs/architecture',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/architecture/federation',
+    destination: '/nomad/docs/architecture/federation',
     permanent: true,
   },
   {
