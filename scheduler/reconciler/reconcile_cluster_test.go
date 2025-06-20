@@ -609,7 +609,7 @@ func TestReconciler_Inplace(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(
-		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+		testlog.HCLogger(t), allocUpdateFnInplace, ReconcilerState{
 			JobIsBatch:        false,
 			JobID:             job.ID,
 			Job:               job,
@@ -661,7 +661,7 @@ func TestReconciler_Inplace_ScaleUp(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(
-		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+		testlog.HCLogger(t), allocUpdateFnInplace, ReconcilerState{
 			JobIsBatch:        false,
 			JobID:             job.ID,
 			Job:               job,
@@ -715,7 +715,7 @@ func TestReconciler_Inplace_ScaleDown(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(
-		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+		testlog.HCLogger(t), allocUpdateFnInplace, ReconcilerState{
 			JobIsBatch:        false,
 			JobID:             job.ID,
 			Job:               job,
@@ -848,7 +848,7 @@ func TestReconciler_Destructive(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(
-		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+		testlog.HCLogger(t), allocUpdateFnDestructive, ReconcilerState{
 			JobIsBatch:        false,
 			JobID:             job.ID,
 			Job:               job,
@@ -895,7 +895,7 @@ func TestReconciler_DestructiveMaxParallel(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(
-		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+		testlog.HCLogger(t), allocUpdateFnDestructive, ReconcilerState{
 			JobIsBatch:        false,
 			JobID:             job.ID,
 			Job:               job,
@@ -945,7 +945,7 @@ func TestReconciler_Destructive_ScaleUp(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(
-		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+		testlog.HCLogger(t), allocUpdateFnDestructive, ReconcilerState{
 			JobIsBatch:        false,
 			JobID:             job.ID,
 			Job:               job,
@@ -998,7 +998,7 @@ func TestReconciler_Destructive_ScaleDown(t *testing.T) {
 	}
 
 	reconciler := NewAllocReconciler(
-		testlog.HCLogger(t), allocUpdateFnIgnore, ReconcilerState{
+		testlog.HCLogger(t), allocUpdateFnDestructive, ReconcilerState{
 			JobIsBatch:        false,
 			JobID:             job.ID,
 			Job:               job,
