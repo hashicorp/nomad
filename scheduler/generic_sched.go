@@ -340,8 +340,16 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	r := reconciler.NewAllocReconciler(s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
-		s.batch, s.eval.JobID, s.job, s.deployment, allocs, s.eval.ID,
-		s.eval.Priority, reconciler.ClusterState{
+		reconciler.ReconcilerState{
+			Job:               s.job,
+			JobID:             s.eval.JobID,
+			JobIsBatch:        s.batch,
+			DeploymentCurrent: s.deployment,
+			ExistingAllocs:    allocs,
+			EvalID:            s.eval.ID,
+			EvalPriority:      s.eval.Priority,
+		},
+		reconciler.ClusterState{
 			TaintedNodes:                tainted,
 			SupportsDisconnectedClients: s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true),
 			Now:                         time.Now().UTC(),
