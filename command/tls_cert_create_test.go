@@ -107,7 +107,6 @@ func TestTlsCertCreateCommandDefaults_fileCreate(t *testing.T) {
 			"server.region1.nomad",
 			[]string{
 				"server.region1.nomad",
-				"server.global.nomad",
 				"localhost",
 			},
 			[]net.IP{{127, 0, 0, 1}},
@@ -217,7 +216,6 @@ func TestTlsRecordPreparation(t *testing.T) {
 			expectedipAddresses: []net.IP{net.ParseIP("127.0.0.1")},
 			expectedDNSNames: []string{
 				"server.region1.nomad",
-				"server.global.nomad",
 				"localhost",
 			},
 			expectedName:        "server.region1.nomad",
@@ -233,7 +231,6 @@ func TestTlsRecordPreparation(t *testing.T) {
 			ipAddresses:         []string{},
 			expectedipAddresses: []net.IP{net.ParseIP("127.0.0.1")},
 			expectedDNSNames: []string{
-				"server.global.nomad",
 				"server.global.domain1",
 				"localhost",
 			},
