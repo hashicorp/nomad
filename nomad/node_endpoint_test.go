@@ -2406,6 +2406,19 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	// Check that we have no client connections
 	require.Empty(s1.connectedNodes())
 
+	// The RPC is client only, so perform a test using the leader ACL token to
+	// ensure that even this powerful token cannot access the endpoint.
+	leaderACLReq := structs.NodeSpecificRequest{
+		NodeID: uuid.Generate(),
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: s1.leaderAcl,
+		},
+	}
+	var leaderACLResp structs.NodeClientAllocsResponse
+	err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", &leaderACLReq, &leaderACLResp)
+	must.ErrorContains(t, err, "Permission denied")
+
 	// Create the register request
 	node := mock.Node()
 	state := s1.fsm.State()
@@ -2415,16 +2428,19 @@ func TestClientEndpoint_GetClientAllocs(t *testing.T) {
 	alloc := mock.Alloc()
 	alloc.NodeID = node.ID
 	state.UpsertJobSummary(99, mock.JobSummary(alloc.JobID))
-	err := state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
+	err = state.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc})
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
 
 	// Lookup the allocs
 	get := &structs.NodeSpecificRequest{
-		NodeID:       node.ID,
-		SecretID:     node.SecretID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		QueryOptions: structs.QueryOptions{
+			Region:    "global",
+			AuthToken: node.SecretID,
+		},
 	}
 	var resp2 structs.NodeClientAllocsResponse
 	if err := msgpackrpc.CallWithCodec(codec, "Node.GetClientAllocs", get, &resp2); err != nil {
@@ -2517,6 +2533,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking(t *testing.T) {
 		NodeID:   node.ID,
 		SecretID: node.SecretID,
 		QueryOptions: structs.QueryOptions{
+			AuthToken:     node.SecretID,
 			Region:        "global",
 			MinQueryIndex: 50,
 			MaxQueryTime:  time.Second,
@@ -2635,6 +2652,7 @@ func TestClientEndpoint_GetClientAllocs_Blocking_GC(t *testing.T) {
 		NodeID:   node.ID,
 		SecretID: node.SecretID,
 		QueryOptions: structs.QueryOptions{
+			AuthToken:     node.SecretID,
 			Region:        "global",
 			MinQueryIndex: 50,
 			MaxQueryTime:  time.Second,
@@ -2711,9 +2729,12 @@ func TestClientEndpoint_GetClientAllocs_WithoutMigrateTokens(t *testing.T) {
 
 	// Lookup the allocs
 	get := &structs.NodeSpecificRequest{
-		NodeID:       node.ID,
-		SecretID:     node.SecretID,
-		QueryOptions: structs.QueryOptions{Region: "global"},
+		NodeID:   node.ID,
+		SecretID: node.SecretID,
+		QueryOptions: structs.QueryOptions{
+			AuthToken: node.SecretID,
+			Region:    "global",
+		},
 	}
 	var resp2 structs.NodeClientAllocsResponse
 
