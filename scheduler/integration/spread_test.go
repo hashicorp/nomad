@@ -1,7 +1,7 @@
 // Copyright (c) HashiCorp, Inc.
 // SPDX-License-Identifier: BUSL-1.1
 
-package scheduler
+package integration
 
 import (
 	"fmt"
@@ -15,6 +15,7 @@ import (
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
 	"github.com/hashicorp/nomad/nomad/structs"
+	"github.com/hashicorp/nomad/scheduler"
 	"github.com/hashicorp/nomad/scheduler/feasible"
 	"github.com/hashicorp/nomad/scheduler/tests"
 	"github.com/shoenig/test"
@@ -97,7 +98,7 @@ func TestSpreadOnLargeCluster(t *testing.T) {
 			must.NoError(t, err)
 
 			start := time.Now()
-			err = h.Process(NewServiceScheduler, eval)
+			err = h.Process(scheduler.NewServiceScheduler, eval)
 			must.NoError(t, err)
 			must.LessEq(t, time.Duration(60*time.Second), time.Since(start),
 				must.Sprint("time to evaluate exceeded EvalNackTimeout"))
@@ -352,7 +353,7 @@ func TestSpreadPanicDowngrade(t *testing.T) {
 		h.NextIndex(), []*structs.Evaluation{eval})
 	must.NoError(t, err)
 
-	processErr := h.Process(NewServiceScheduler, eval)
+	processErr := h.Process(scheduler.NewServiceScheduler, eval)
 	must.NoError(t, processErr, must.Sprintf("..."))
 	must.Len(t, 1, h.Plans)
 }
@@ -467,7 +468,7 @@ func TestSpread_ImplicitTargets(t *testing.T) {
 			h := tests.NewHarness(t)
 			nodesToDcs := setupNodes(h)
 			eval := setupJob(h, tc.spread)
-			must.NoError(t, h.Process(NewServiceScheduler, eval))
+			must.NoError(t, h.Process(scheduler.NewServiceScheduler, eval))
 			must.Len(t, 1, h.Plans)
 
 			plan := h.Plans[0]

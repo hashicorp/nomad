@@ -47,6 +47,7 @@
     "plugins/...",
     "scheduler/...",
     "scheduler/feasible/...",
+    "scheduler/integration/...",
     "scheduler/reconciler/...",
     "testutil/..."
   ]
