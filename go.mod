@@ -136,6 +136,7 @@ require (
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 	oss.indeed.com/go/libtime v1.6.0
+	pgregory.net/rapid v1.2.0
 )
 
 require (
