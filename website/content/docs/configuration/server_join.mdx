@@ -208,7 +208,9 @@ region which have the given `tag_key` and `tag_value`.
 
 This returns the first private IP address of all servers in the given region
 which have the given `tag_key` and `tag_value` in the tenant and subscription, or in
-the given `resource_group` of a `vm_scale_set` for Virtual Machine Scale Sets.
+the given `resource_group` of a `vm_scale_set` for Virtual Machine Scale Sets. If using tags,
+the `tag_key` and `tag_value` must be set on the network interface resource attached to the server
+not on the virtual machine resource itself.
 
 ```json
 {
@@ -221,6 +223,7 @@ the given `resource_group` of a `vm_scale_set` for Virtual Machine Scale Sets.
 - `provider` (required) - the name of the provider ("azure" in this case).
 - `tenant_id` (required) - the tenant to join machines in.
 - `client_id` (required) - the client to authenticate with.
+- `subscription_id` (required) - the Azure subscription ID.
 - `secret_access_key` (required) - the secret client key.
 
 Use these configuration parameters when using tags:
