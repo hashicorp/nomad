@@ -7078,7 +7078,7 @@ func TestReconciler_ComputeDeploymentPaused(t *testing.T) {
 				})
 			reconciler.Compute()
 
-			must.Eq(t, tc.expected, reconciler.state.DeploymentPaused)
+			must.Eq(t, tc.expected, reconciler.jobState.DeploymentPaused)
 		})
 	}
 }

@@ -74,8 +74,8 @@ type AllocReconciler struct {
 	// canInplace is used to check if the allocation can be inplace upgraded
 	allocUpdateFn AllocUpdateType
 
-	// state holds information about job, deployment, allocs and eval
-	state ReconcilerState
+	// jobState holds information about job, deployment, allocs and eval
+	jobState ReconcilerState
 
 	reconnectingPicker reconnectingPickerInterface
 
@@ -238,7 +238,7 @@ func NewAllocReconciler(logger log.Logger, allocUpdateFn AllocUpdateType,
 	ar := &AllocReconciler{
 		logger:             logger.Named("reconciler"),
 		allocUpdateFn:      allocUpdateFn,
-		state:              reconcilerState,
+		jobState:           reconcilerState,
 		clusterState:       clusterState,
 		reconnectingPicker: newReconnectingPicker(logger),
 	}
@@ -256,13 +256,13 @@ func (a *AllocReconciler) Compute() *ReconcileResults {
 	result := &ReconcileResults{}
 
 	// Create the allocation matrix
-	m := newAllocMatrix(a.state.Job, a.state.ExistingAllocs)
+	m := newAllocMatrix(a.jobState.Job, a.jobState.ExistingAllocs)
 
-	a.state.DeploymentOld, a.state.DeploymentCurrent, result.DeploymentUpdates = cancelUnneededDeployments(a.state.Job, a.state.DeploymentCurrent)
+	a.jobState.DeploymentOld, a.jobState.DeploymentCurrent, result.DeploymentUpdates = cancelUnneededDeployments(a.jobState.Job, a.jobState.DeploymentCurrent)
 
 	// If we are just stopping a job we do not need to do anything more than
 	// stopping all running allocs
-	if a.state.Job.Stopped() {
+	if a.jobState.Job.Stopped() {
 		desiredTGUpdates, allocsToStop := a.handleStop(m)
 		result.DesiredTGUpdates = desiredTGUpdates
 		result.Stop = allocsToStop
@@ -271,15 +271,15 @@ func (a *AllocReconciler) Compute() *ReconcileResults {
 
 	// set deployment paused and failed fields, if we currently have a
 	// deployment
-	if a.state.DeploymentCurrent != nil {
+	if a.jobState.DeploymentCurrent != nil {
 		// deployment is paused when it's manually paused by a user, or if the
 		// deployment is pending or initializing, which are the initial states
 		// for multi-region job deployments. This flag tells Compute that we
 		// should not make placements on the deployment.
-		a.state.DeploymentPaused = a.state.DeploymentCurrent.Status == structs.DeploymentStatusPaused ||
-			a.state.DeploymentCurrent.Status == structs.DeploymentStatusPending ||
-			a.state.DeploymentCurrent.Status == structs.DeploymentStatusInitializing
-		a.state.DeploymentFailed = a.state.DeploymentCurrent.Status == structs.DeploymentStatusFailed
+		a.jobState.DeploymentPaused = a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusPaused ||
+			a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusPending ||
+			a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusInitializing
+		a.jobState.DeploymentFailed = a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusFailed
 	}
 
 	// check if the deployment is complete and set relevant result fields in the
@@ -423,7 +423,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 	// Get the task group. The task group may be nil if the job was updates such
 	// that the task group no longer exists
-	tg := a.state.Job.LookupTaskGroup(group)
+	tg := a.jobState.Job.LookupTaskGroup(group)
 
 	// If the task group is nil, then the task group has been removed so all we
 	// need to do is stop everything
@@ -436,7 +436,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 	// Filter allocations that do not need to be considered because they are
 	// from an older job version and are terminal.
-	all, ignore := filterOldTerminalAllocs(a.state, all)
+	all, ignore := filterOldTerminalAllocs(a.jobState, all)
 	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
 	var canaries allocSet
@@ -447,7 +447,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	result.DesiredTGUpdates[group].Ignore += uint64(len(ignore))
 
 	// Determine what set of terminal allocations need to be rescheduled
-	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.state.JobIsBatch, false, a.clusterState.Now, a.state.EvalID, a.state.DeploymentCurrent)
+	untainted, rescheduleNow, rescheduleLater := untainted.filterByRescheduleable(a.jobState.JobIsBatch, false, a.clusterState.Now, a.jobState.EvalID, a.jobState.DeploymentCurrent)
 
 	// If there are allocations reconnecting we need to reconcile them and
 	// their replacements first because there is specific logic when deciding
@@ -496,7 +496,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	if len(disconnecting) > 0 {
 		if tg.GetDisconnectLostTimeout() != 0 {
 			untaintedDisconnecting, rescheduleDisconnecting, laterDisconnecting := disconnecting.filterByRescheduleable(
-				a.state.JobIsBatch, true, a.clusterState.Now, a.state.EvalID, a.state.DeploymentCurrent)
+				a.jobState.JobIsBatch, true, a.clusterState.Now, a.jobState.EvalID, a.jobState.DeploymentCurrent)
 
 			rescheduleNow = rescheduleNow.union(rescheduleDisconnecting)
 			untainted = untainted.union(untaintedDisconnecting)
@@ -538,7 +538,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 	// Create a structure for choosing names. Seed with the taken names
 	// which is the union of untainted, rescheduled, allocs on migrating
 	// nodes, and allocs on down nodes (includes canaries)
-	nameIndex := newAllocNameIndex(a.state.JobID, group, tg.Count, untainted.union(migrate, rescheduleNow, lost))
+	nameIndex := newAllocNameIndex(a.jobState.JobID, group, tg.Count, untainted.union(migrate, rescheduleNow, lost))
 	allocNameIndexForGroup := nameIndex
 	result.TaskGroupAllocNameIndexes = map[string]*AllocNameIndex{group: allocNameIndexForGroup}
 
@@ -595,7 +595,7 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 	// deploymentPlaceReady tracks whether the deployment is in a state where
 	// placements can be made without any other consideration.
-	deploymentPlaceReady := !a.state.DeploymentPaused && !a.state.DeploymentFailed && !isCanarying
+	deploymentPlaceReady := !a.jobState.DeploymentPaused && !a.jobState.DeploymentFailed && !isCanarying
 
 	underProvisionedBy, replacements, replacementsAllocsToStop := a.computeReplacements(
 		deploymentPlaceReady, result.DesiredTGUpdates[group], place, rescheduleNow, lost, result.DisconnectUpdates, underProvisionedBy)
@@ -616,8 +616,8 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 
 	// Deployments that are still initializing need to be sent in full in the
 	// plan so its internal state can be persisted by the plan applier.
-	if a.state.DeploymentCurrent != nil && a.state.DeploymentCurrent.Status == structs.DeploymentStatusInitializing {
-		result.Deployment = a.state.DeploymentCurrent
+	if a.jobState.DeploymentCurrent != nil && a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusInitializing {
+		result.Deployment = a.jobState.DeploymentCurrent
 	}
 
 	deploymentComplete := a.isDeploymentComplete(group, destructive, inplace,
@@ -630,23 +630,23 @@ func (a *AllocReconciler) computeGroup(group string, all allocSet) (*ReconcileRe
 func (a *AllocReconciler) computeDeploymentUpdates(deploymentComplete bool, createdDeployment *structs.Deployment) []*structs.DeploymentStatusUpdate {
 	var updates []*structs.DeploymentStatusUpdate
 
-	if a.state.DeploymentCurrent != nil {
+	if a.jobState.DeploymentCurrent != nil {
 		// Mark the deployment as complete if possible
 		if deploymentComplete {
-			if a.state.Job.IsMultiregion() {
+			if a.jobState.Job.IsMultiregion() {
 				// the unblocking/successful states come after blocked, so we
 				// need to make sure we don't revert those states
-				if a.state.DeploymentCurrent.Status != structs.DeploymentStatusUnblocking &&
-					a.state.DeploymentCurrent.Status != structs.DeploymentStatusSuccessful {
+				if a.jobState.DeploymentCurrent.Status != structs.DeploymentStatusUnblocking &&
+					a.jobState.DeploymentCurrent.Status != structs.DeploymentStatusSuccessful {
 					updates = append(updates, &structs.DeploymentStatusUpdate{
-						DeploymentID:      a.state.DeploymentCurrent.ID,
+						DeploymentID:      a.jobState.DeploymentCurrent.ID,
 						Status:            structs.DeploymentStatusBlocked,
 						StatusDescription: structs.DeploymentStatusDescriptionBlocked,
 					})
 				}
 			} else {
 				updates = append(updates, &structs.DeploymentStatusUpdate{
-					DeploymentID:      a.state.DeploymentCurrent.ID,
+					DeploymentID:      a.jobState.DeploymentCurrent.ID,
 					Status:            structs.DeploymentStatusSuccessful,
 					StatusDescription: structs.DeploymentStatusDescriptionSuccessful,
 				})
@@ -654,9 +654,9 @@ func (a *AllocReconciler) computeDeploymentUpdates(deploymentComplete bool, crea
 		}
 
 		// Mark the deployment as pending since its state is now computed.
-		if a.state.DeploymentCurrent.Status == structs.DeploymentStatusInitializing {
+		if a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusInitializing {
 			updates = append(updates, &structs.DeploymentStatusUpdate{
-				DeploymentID:      a.state.DeploymentCurrent.ID,
+				DeploymentID:      a.jobState.DeploymentCurrent.ID,
 				Status:            structs.DeploymentStatusPending,
 				StatusDescription: structs.DeploymentStatusDescriptionPendingForPeer,
 			})
@@ -680,8 +680,8 @@ func (a *AllocReconciler) initializeDeploymentState(group string, tg *structs.Ta
 	var dstate *structs.DeploymentState
 	existingDeployment := false
 
-	if a.state.DeploymentCurrent != nil {
-		dstate, existingDeployment = a.state.DeploymentCurrent.TaskGroups[group]
+	if a.jobState.DeploymentCurrent != nil {
+		dstate, existingDeployment = a.jobState.DeploymentCurrent.TaskGroups[group]
 	}
 
 	if !existingDeployment {
@@ -711,7 +711,7 @@ func (a *AllocReconciler) computeCanaries(tg *structs.TaskGroup, dstate *structs
 
 	placementResult := []AllocPlaceResult{}
 
-	if !a.state.DeploymentPaused && !a.state.DeploymentFailed {
+	if !a.jobState.DeploymentPaused && !a.jobState.DeploymentFailed {
 		desiredChanges.Canary += uint64(tg.Update.Canary - len(canaries))
 		for _, name := range nameIndex.NextCanaries(uint(desiredChanges.Canary), canaries, destructive) {
 			placementResult = append(placementResult, AllocPlaceResult{
@@ -736,8 +736,8 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 	all = original
 
 	// Cancel any non-promoted canaries from the older deployment
-	if a.state.DeploymentOld != nil {
-		for _, dstate := range a.state.DeploymentOld.TaskGroups {
+	if a.jobState.DeploymentOld != nil {
+		for _, dstate := range a.jobState.DeploymentOld.TaskGroups {
 			if !dstate.Promoted {
 				stop = append(stop, dstate.PlacedCanaries...)
 			}
@@ -745,8 +745,8 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 	}
 
 	// Cancel any non-promoted canaries from a failed deployment
-	if a.state.DeploymentCurrent != nil && a.state.DeploymentCurrent.Status == structs.DeploymentStatusFailed {
-		for _, dstate := range a.state.DeploymentCurrent.TaskGroups {
+	if a.jobState.DeploymentCurrent != nil && a.jobState.DeploymentCurrent.Status == structs.DeploymentStatusFailed {
+		for _, dstate := range a.jobState.DeploymentCurrent.TaskGroups {
 			if !dstate.Promoted {
 				stop = append(stop, dstate.PlacedCanaries...)
 			}
@@ -762,9 +762,9 @@ func (a *AllocReconciler) cancelUnneededCanaries(original allocSet, desiredChang
 
 	// Capture our current set of canaries and handle any migrations that are
 	// needed by just stopping them.
-	if a.state.DeploymentCurrent != nil {
+	if a.jobState.DeploymentCurrent != nil {
 		var canaryIDs []string
-		for _, dstate := range a.state.DeploymentCurrent.TaskGroups {
+		for _, dstate := range a.jobState.DeploymentCurrent.TaskGroups {
 			canaryIDs = append(canaryIDs, dstate.PlacedCanaries...)
 		}
 
@@ -796,19 +796,19 @@ func (a *AllocReconciler) computeUnderProvisionedBy(group *structs.TaskGroup, un
 	}
 
 	// If the deployment is nil, allow MaxParallel placements
-	if a.state.DeploymentCurrent == nil {
+	if a.jobState.DeploymentCurrent == nil {
 		return group.Update.MaxParallel
 	}
 
 	// If the deployment is paused, failed, or we have un-promoted canaries, do not create anything else.
-	if a.state.DeploymentPaused ||
-		a.state.DeploymentFailed ||
+	if a.jobState.DeploymentPaused ||
+		a.jobState.DeploymentFailed ||
 		isCanarying {
 		return 0
 	}
 
 	underProvisionedBy := group.Update.MaxParallel
-	partOf, _ := untainted.filterByDeployment(a.state.DeploymentCurrent.ID)
+	partOf, _ := untainted.filterByDeployment(a.jobState.DeploymentCurrent.ID)
 	for _, alloc := range partOf {
 		// An unhealthy allocation means nothing else should happen.
 		if alloc.DeploymentStatus.IsUnhealthy() {
@@ -951,7 +951,7 @@ func (a *AllocReconciler) computeReplacements(deploymentPlaceReady bool, desired
 	// to the place set. Add the previous alloc to the stop set unless it is disconnecting.
 	for _, p := range place {
 		prev := p.PreviousAllocation()
-		partOfFailedDeployment := a.state.DeploymentFailed && prev != nil && a.state.DeploymentCurrent.ID == prev.DeploymentID
+		partOfFailedDeployment := a.jobState.DeploymentFailed && prev != nil && a.jobState.DeploymentCurrent.ID == prev.DeploymentID
 
 		if !partOfFailedDeployment && p.IsRescheduling() {
 			resultingPlacements = append(resultingPlacements, p)
@@ -1035,7 +1035,7 @@ func (a *AllocReconciler) createDeployment(groupName string, strategy *structs.U
 
 	hadRunning := false
 	for _, alloc := range all {
-		if alloc.Job.Version == a.state.Job.Version && alloc.Job.CreateIndex == a.state.Job.CreateIndex {
+		if alloc.Job.Version == a.jobState.Job.Version && alloc.Job.CreateIndex == a.jobState.Job.CreateIndex {
 			hadRunning = true
 			break
 		}
@@ -1050,13 +1050,13 @@ func (a *AllocReconciler) createDeployment(groupName string, strategy *structs.U
 	var resultingDeployment *structs.Deployment
 
 	// A previous group may have made the deployment already. If not create one.
-	if a.state.DeploymentCurrent == nil {
-		a.state.DeploymentCurrent = structs.NewDeployment(a.state.Job, a.state.EvalPriority, a.clusterState.Now.UnixNano())
-		resultingDeployment = a.state.DeploymentCurrent
+	if a.jobState.DeploymentCurrent == nil {
+		a.jobState.DeploymentCurrent = structs.NewDeployment(a.jobState.Job, a.jobState.EvalPriority, a.clusterState.Now.UnixNano())
+		resultingDeployment = a.jobState.DeploymentCurrent
 	}
 
 	// Attach the groups deployment state to the deployment
-	a.state.DeploymentCurrent.TaskGroups[groupName] = dstate
+	a.jobState.DeploymentCurrent.TaskGroups[groupName] = dstate
 
 	return resultingDeployment
 }
@@ -1067,12 +1067,12 @@ func (a *AllocReconciler) isDeploymentComplete(groupName string, destructive, in
 	complete := len(destructive)+len(inplace)+len(place)+len(migrate)+len(rescheduleNow)+len(rescheduleLater) == 0 &&
 		!requiresCanaries
 
-	if !complete || a.state.DeploymentCurrent == nil {
+	if !complete || a.jobState.DeploymentCurrent == nil {
 		return false
 	}
 
 	// Final check to see if the deployment is complete is to ensure everything is healthy
-	if dstate, ok := a.state.DeploymentCurrent.TaskGroups[groupName]; ok {
+	if dstate, ok := a.jobState.DeploymentCurrent.TaskGroups[groupName]; ok {
 		if dstate.HealthyAllocs < max(dstate.DesiredTotal, dstate.DesiredCanaries) || // Make sure we have enough healthy allocs
 			(dstate.DesiredCanaries > 0 && !dstate.Promoted) { // Make sure we are promoted if we have canaries
 			complete = false
@@ -1145,7 +1145,7 @@ func (a *AllocReconciler) computeStop(group *structs.TaskGroup, nameIndex *Alloc
 
 	// Prefer selecting from the migrating set before stopping existing allocs
 	if len(migrate) != 0 {
-		migratingNames := newAllocNameIndex(a.state.JobID, group.Name, group.Count, migrate)
+		migratingNames := newAllocNameIndex(a.jobState.JobID, group.Name, group.Count, migrate)
 		removeNames := migratingNames.Highest(uint(remove))
 		for id, alloc := range migrate {
 			if _, match := removeNames[alloc.Name]; !match {
@@ -1243,8 +1243,8 @@ func (a *AllocReconciler) reconcileReconnecting(reconnecting allocSet, all alloc
 			reconnectingAlloc.DesiredTransition.ShouldMigrate() ||
 			reconnectingAlloc.DesiredTransition.ShouldReschedule() ||
 			reconnectingAlloc.DesiredTransition.ShouldForceReschedule() ||
-			reconnectingAlloc.Job.Version < a.state.Job.Version ||
-			reconnectingAlloc.Job.CreateIndex < a.state.Job.CreateIndex
+			reconnectingAlloc.Job.Version < a.jobState.Job.Version ||
+			reconnectingAlloc.Job.CreateIndex < a.jobState.Job.CreateIndex
 
 		if stopReconnecting {
 			stop[reconnectingAlloc.ID] = reconnectingAlloc
@@ -1336,7 +1336,7 @@ func (a *AllocReconciler) computeUpdates(group *structs.TaskGroup, untainted all
 	destructive = make(map[string]*structs.Allocation)
 
 	for _, alloc := range untainted {
-		ignoreChange, destructiveChange, inplaceAlloc := a.allocUpdateFn(alloc, a.state.Job, group)
+		ignoreChange, destructiveChange, inplaceAlloc := a.allocUpdateFn(alloc, a.jobState.Job, group)
 		if ignoreChange {
 			ignore[alloc.ID] = alloc
 		} else if destructiveChange {
@@ -1392,8 +1392,8 @@ func (a *AllocReconciler) computeReconnecting(reconnecting allocSet) map[string]
 		if alloc.DesiredTransition.ShouldMigrate() ||
 			alloc.DesiredTransition.ShouldReschedule() ||
 			alloc.DesiredTransition.ShouldForceReschedule() ||
-			alloc.Job.Version < a.state.Job.Version ||
-			alloc.Job.CreateIndex < a.state.Job.CreateIndex {
+			alloc.Job.Version < a.jobState.Job.Version ||
+			alloc.Job.CreateIndex < a.jobState.Job.CreateIndex {
 			continue
 		}
 
@@ -1437,12 +1437,12 @@ func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedResched
 	// Create a new eval for the first batch
 	eval := &structs.Evaluation{
 		ID:                uuid.Generate(),
-		Namespace:         a.state.Job.Namespace,
-		Priority:          a.state.EvalPriority,
-		Type:              a.state.Job.Type,
+		Namespace:         a.jobState.Job.Namespace,
+		Priority:          a.jobState.EvalPriority,
+		Type:              a.jobState.Job.Type,
 		TriggeredBy:       structs.EvalTriggerRetryFailedAlloc,
-		JobID:             a.state.Job.ID,
-		JobModifyIndex:    a.state.Job.ModifyIndex,
+		JobID:             a.jobState.Job.ID,
+		JobModifyIndex:    a.jobState.Job.ModifyIndex,
 		Status:            structs.EvalStatusPending,
 		StatusDescription: sstructs.DescReschedulingFollowupEval,
 		WaitUntil:         nextReschedTime,
@@ -1458,12 +1458,12 @@ func (a *AllocReconciler) createLostLaterEvals(rescheduleLater []*delayedResched
 			// Create a new eval for the new batch
 			eval = &structs.Evaluation{
 				ID:             uuid.Generate(),
-				Namespace:      a.state.Job.Namespace,
-				Priority:       a.state.EvalPriority,
-				Type:           a.state.Job.Type,
+				Namespace:      a.jobState.Job.Namespace,
+				Priority:       a.jobState.EvalPriority,
+				Type:           a.jobState.Job.Type,
 				TriggeredBy:    structs.EvalTriggerRetryFailedAlloc,
-				JobID:          a.state.Job.ID,
-				JobModifyIndex: a.state.Job.ModifyIndex,
+				JobID:          a.jobState.Job.ID,
+				JobModifyIndex: a.jobState.Job.ModifyIndex,
 				Status:         structs.EvalStatusPending,
 				WaitUntil:      nextReschedTime,
 			}
@@ -1503,12 +1503,12 @@ func (a *AllocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 
 	eval := &structs.Evaluation{
 		ID:                uuid.Generate(),
-		Namespace:         a.state.Job.Namespace,
-		Priority:          a.state.EvalPriority,
-		Type:              a.state.Job.Type,
+		Namespace:         a.jobState.Job.Namespace,
+		Priority:          a.jobState.EvalPriority,
+		Type:              a.jobState.Job.Type,
 		TriggeredBy:       structs.EvalTriggerMaxDisconnectTimeout,
-		JobID:             a.state.Job.ID,
-		JobModifyIndex:    a.state.Job.ModifyIndex,
+		JobID:             a.jobState.Job.ID,
+		JobModifyIndex:    a.jobState.Job.ModifyIndex,
 		Status:            structs.EvalStatusPending,
 		StatusDescription: sstructs.DescDisconnectTimeoutFollowupEval,
 		WaitUntil:         nextReschedTime,
@@ -1527,12 +1527,12 @@ func (a *AllocReconciler) createTimeoutLaterEvals(disconnecting allocSet, tgName
 			// Create a new eval for the new batch
 			eval = &structs.Evaluation{
 				ID:                uuid.Generate(),
-				Namespace:         a.state.Job.Namespace,
-				Priority:          a.state.EvalPriority,
-				Type:              a.state.Job.Type,
+				Namespace:         a.jobState.Job.Namespace,
+				Priority:          a.jobState.EvalPriority,
+				Type:              a.jobState.Job.Type,
 				TriggeredBy:       structs.EvalTriggerMaxDisconnectTimeout,
-				JobID:             a.state.Job.ID,
-				JobModifyIndex:    a.state.Job.ModifyIndex,
+				JobID:             a.jobState.Job.ID,
+				JobModifyIndex:    a.jobState.Job.ModifyIndex,
 				Status:            structs.EvalStatusPending,
 				StatusDescription: sstructs.DescDisconnectTimeoutFollowupEval,
 				WaitUntil:         timeoutInfo.rescheduleTime,
