@@ -377,6 +377,10 @@
         "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces"
       },
       {
+        "title": "Nomad variables",
+        "href": "https://nomad-git-ce870-nomadianav-hashicorp.vercel.app/nomad/tutorials/variables/variables-create"
+      },
+      {
         "title": "Recovery",
         "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery"
       }
@@ -492,6 +496,10 @@
                 "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/vault-nomad-secrets"
               }
             ]
+          },
+          {
+            "title": "Configure access control for Nomad variables",
+            "href": "https://nomad-git-ce870-nomadianav-hashicorp.vercel.app/nomad/tutorials/variables/variables-acls"
           }
         ]
       },
@@ -602,11 +610,11 @@
       },
       {
         "title": "Create a job specification",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-submit"
+        "path": "job-declare/create-job"
       },
       {
         "title": "Configure tasks",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-configuring"
+        "path": "job-declare/configure-tasks"
       },
       {
         "title": "Create a parameterized job",
@@ -679,41 +687,58 @@
         "routes": [
           {
             "title": "Overview",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates"
+            "path": "job-declare/strategy"
           },
           {
             "title": "Configure blue/green and canary",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-blue-green-and-canary-deployments"
+            "path": "job-declare/strategy/blue-green-canary"
           },
           {
             "title": "Configure rolling",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-rolling-update"
+            "path": "job-declare/strategy/rolling"
           }
         ]
       },
       {
         "title": "Configure multi-region deployments",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/multiregion-deployments"
+        "path": "job-declare/multiregion"
       },
       {
         "title": "Configure task dependencies",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/task-deps/task-dependencies-interjob"
+        "path": "job-declare/task-dependencies"
       },
       {
-        "title": "Use actions in jobs",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/job-specifications/job-spec-actions"
+        "title": "Use Nomad actions",
+        "path": "job-declare/nomad-actions"
       },
       {
         "title": "Use Nomad variables",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/variables"
+        "path": "job-declare/nomad-variables"
       },
       {
         "title": "Configure exit signals",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-update-handle-signals"
+        "path": "job-declare/exit-signals"
       },
       {
         "title": "Handle failure",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/job-failure-handling"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "job-declare/failure"
+          },
+          {
+            "title": "Local restarts",
+            "path": "job-declare/failure/restart"
+          },
+          {
+            "title": "Health check restarts",
+            "path": "job-declare/failure/check-restart"
+          },
+          {
+            "title": "Reschedule",
+            "path": "job-declare/failure/reschedule"
+          }
+        ]
       }
     ]
   },

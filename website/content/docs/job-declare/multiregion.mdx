@@ -1,0 +1,459 @@
+---
+layout: docs
+page_title: Configure multi-region deployments
+description: |-
+  Deploy applications to multiple federated Nomad clusters with configurable
+  rollout and rollback strategies.
+---
+
+# Configure multi-region deployments
+
+Federated Nomad clusters enable users to submit jobs targeting any region
+from any server even if that server resides in a different region. As of Nomad 0.12
+Enterprise, you can also submit jobs that are deployed to multiple
+regions. This tutorial demonstrates multi-region deployments, including
+configurable rollout and rollback strategies.
+
+You can create a multi-region deployment job by adding a [`multiregion`]
+stanza to the job as shown below.
+
+```hcl
+multiregion {
+
+  strategy {
+    max_parallel = 1
+    on_failure   = "fail_all"
+  }
+
+  region "west" {
+    count       = 2
+    datacenters = ["west-1"]
+  }
+
+  region "east" {
+    count       = 1
+    datacenters = ["east-1", "east-2"]
+  }
+
+}
+```
+
+<Note>
+
+The functionality described here is available only in [Nomad
+Enterprise](https://www.hashicorp.com/products/nomad/pricing/) with the
+Multi-Cluster & Efficiency module. To explore Nomad Enterprise features, you can
+sign up for a free 30-day trial from
+[here](https://www.hashicorp.com/products/nomad/trial).
+
+</Note>
+
+## Prerequisites
+
+To perform the tasks described in this guide, you need to have two Nomad
+environments running Nomad 0.12 or greater with ports 4646, 4647, and 4648 exposed. You can use this
+[Terraform environment][nomad-tf] to provision the sandbox environments. This
+guide assumes two clusters with one server node and two client nodes in each
+cluster. While the Terraform code already opens port 4646, you will also need to
+expose ports 4647 and 4648 on the server you wish to run [nomad server
+join][server-join] against. Consult the [Nomad Port Requirements][ports-used]
+documentation for more information.
+
+Next, you'll need to federate these two regions as described in the [federation guide].
+
+<Note>
+
+ This tutorial is for demo purposes and only assumes a single server
+node in each cluster. Consult the [reference architecture][reference-arch] for
+production configuration.
+
+</Note>
+
+Run the [`nomad server members`][nomad-server-members] command.
+
+```shell-session
+$ nomad server members
+```
+
+After you have federated your clusters, the output should include the servers from both regions.
+
+```plaintext
+Name                     Address        Port  Status  Leader  Protocol  Build       Datacenter  Region
+ip-172-31-26-138.east    172.31.26.138  4648  alive   true    2         0.12.0+ent  east-1      east
+ip-172-31-29-34.west     172.31.29.34   4648  alive   true    2         0.12.0+ent  west-1      west
+```
+
+If you are using [ACLs][acls-track], you'll need to make sure your token has `submit-job`
+permissions with a `global` scope.
+
+You may wish to review the [update strategies guides][updates-track] before
+starting this guide.
+
+## Multi-region concepts
+
+Federated Nomad clusters are members of the same gossip cluster but not the
+same raft/consensus cluster; they don't share their data stores. Each region in a
+multi-region deployment gets an independent copy of the job, parameterized with
+the values of the `region` stanza. Nomad regions coordinate to rollout each
+region's deployment using rules determined by the `strategy` stanza.
+
+A single region deployment using one of the various [update strategies][updates-track]
+begins in the `running` state and ends in either the `successful` state if it succeeds,
+the `canceled` state if another deployment supersedes it before it's
+complete, or the `failed` state if it fails for any other reason. A failed single
+region deployment may automatically revert to the previous version of the job if
+its [`update` stanza] has the [`auto_revert`][update-auto-revert] setting.
+
+In a multi-region deployment, regions begin in the `pending` state. This allows
+Nomad to determine that all regions have accepted the job before
+continuing. At this point, up to `max_parallel` regions will enter `running` at
+a time. When each region completes its local deployment, it enters a `blocked`
+state where it waits until the last region has completed the deployment. The
+final region will unblock the regions to mark them as `successful`.
+
+## Create a multi-region job
+
+The job below will deploy to both regions. The `max_parallel` field of the
+`strategy` block restricts Nomad to deploy to the regions one at a time. If
+either of the region deployments fail, both regions will be marked as
+failed. The `count` field for each region is interpolated for each region,
+replacing the `count = 0` in the task group count. The job's `update` block
+uses the default ["task states"] value to determine if the job is healthy; if
+you configured a Consul [`service`][consul-service] with health checks you
+could use that instead.
+
+```hcl
+job "example" {
+
+  multiregion {
+
+    strategy {
+      max_parallel = 1
+      on_failure   = "fail_all"
+    }
+
+    region "west" {
+      count       = 2
+      datacenters = ["west-1"]
+    }
+
+    region "east" {
+      count       = 1
+      datacenters = ["east-1", "east-2"]
+    }
+
+  }
+
+  update {
+    max_parallel      = 1
+    min_healthy_time  = "10s"
+    healthy_deadline  = "2m"
+    progress_deadline = "3m"
+    auto_revert       = true
+    auto_promote      = true
+    canary            = 1
+    stagger           = "30s"
+  }
+
+
+  group "cache" {
+
+    count = 0
+
+    network {
+      port "db" {
+        to = 6379
+      }
+    }
+
+    task "redis" {
+      driver = "docker"
+
+      config {
+        image = "redis:6.0"
+
+        ports = ["db"]
+      }
+
+      resources {
+        cpu    = 256
+        memory = 128
+      }
+    }
+  }
+}
+```
+
+## Run the multi-region job
+
+You can run the job from either region.
+
+```shell-session
+$ nomad job run ./multi.nomad
+```
+
+If successful, you should receive output similar to the following.
+
+```plaintext
+Job registration successful
+Evaluation ID: f71cf273-a29e-65e3-bc5b-9710a3c5bc8f
+```
+
+Check the job status from the east region.
+
+```shell-session
+$ nomad job status -region east example
+```
+
+Note that there are no running allocations in the east region,
+and that the status is "pending" because the east region is waiting
+for the west region to complete.
+
+```plaintext
+...
+Latest Deployment
+ID          = d74a086b
+Status      = pending
+Description = Deployment is pending, waiting for peer region
+
+Multiregion Deployment
+Region  ID        Status
+east    d74a086b  pending
+west    48fccef3  running
+
+Deployed
+Task Group  Auto Revert  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+cache       true         1        0       0        0          N/A
+
+Allocations
+No allocations placed
+```
+
+Check the job status from the west region.
+
+```shell-session
+$ nomad job status -region west example
+```
+
+You should observe running allocations.
+
+```plaintext
+...
+Latest Deployment
+ID          = 48fccef3
+Status      = running
+Description = Deployment is running
+
+Multiregion Deployment
+Region  ID        Status
+east    d74a086b  pending
+west    48fccef3  running
+
+Deployed
+Task Group  Auto Revert  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+cache       true         2        2       0        0          2020-06-17T13:35:49Z
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created  Modified
+44b3988a  4786abea  cache       0        run      running  14s ago  13s ago
+7c8a2b80  4786abea  cache       0        run      running  13s ago  12s ago
+```
+
+The west region should be healthy 10s after the task state for all tasks
+switches to "running". To observe, run the following status check.
+
+```shell-session
+$ nomad job status -region west example
+```
+
+At this point, the status for the west region will
+transition to "blocked" and the east region's deployment will become
+"running".
+
+```plaintext
+...
+Latest Deployment
+ID          = 48fccef3
+Status      = blocked
+Description = Deployment is complete but waiting for peer region
+
+Multiregion Deployment
+Region  ID        Status
+east    d74a086b  running
+west    48fccef3  blocked
+```
+
+Once the east region's deployment has completed, check the status again.
+
+```shell-session
+$ nomad job status -region east example
+```
+
+Both regions should transition to "successful".
+
+```plaintext
+...
+Latest Deployment
+ID          = d74a086b
+Status      = successful
+Description = Deployment completed successfully
+
+Multiregion Deployment
+Region  ID        Status
+east    d74a086b  successful
+west    48fccef3  successful
+```
+
+## Failed deployments
+
+Next, you'll simulate a failed deployment. First, add a new task group that will
+succeed in the west region but fail in the east region.
+
+```hcl
+group "sidecar" {
+
+  # set the reschedule stanza so that we don't have to wait too long
+  # for the deployment to be marked failed
+  reschedule {
+    attempts       = 1
+    interval       = "24h"
+    unlimited      = false
+    delay          = "5s"
+    delay_function = "constant"
+  }
+
+  task "sidecar" {
+    driver = "docker"
+
+    config {
+      image   = "busybox:1"
+      command = "/bin/sh"
+      args    = ["local/script.sh"]
+    }
+
+    # this script will always fail in the east region
+    template {
+      destination = "local/script.sh"
+      data        = <<EOT
+if [[ ${NOMAD_REGION} == "east" ]]
+then
+echo FAIL
+exit 1
+fi
+echo OK
+sleep 600
+
+EOT
+
+    }
+
+    resources {
+      cpu    = 128
+      memory = 64
+    }
+  }
+}
+```
+
+Next, change the `on_failure` field of the multiregion strategy to
+`"fail_local"`. This will cause only the failed region to be marked as failed.
+
+```hcl
+strategy {
+  max_parallel = 1
+  on_failure   = "fail_local"
+}
+```
+
+Run the job again.
+
+```shell-session
+$ nomad job run ./multi.nomad
+```
+
+The output should indicate success.
+
+```plaintext
+Job registration successful
+Evaluation ID: e878bb98-6b23-c3de-dce1-10ea37c702f7
+```
+
+Now check the status
+
+```shell-session
+$ nomad job status -region west example
+```
+
+As with the previous version of the job, you should see the deployment in the
+west in the "running" status and the deployment in the east in
+"pending". Eventually, the east region deployment will run and then
+fail. Because `on_failure` was set to `"fail_local"`, the west region remains
+in a "blocked" state:
+
+```plaintext
+Latest Deployment
+ID          = f08122e5
+Status      = blocked
+Description = Deployment is complete but waiting for peer region
+
+Multiregion Deployment
+Region  ID        Status
+east    8b12b453  failed
+west    f08122e5  blocked
+```
+
+At this point, the west region will remain in the blocked state. You can
+either fix the job and redeploy, or accept the west deployment in its current
+state by using the [`nomad deployment unblock`] command.
+
+```shell-session
+$ nomad deployment unblock -region west f08122e5
+```
+
+If successful, the output will be similar to the following.
+
+```plaintext
+Deployment "f08122e5-fc7e-f450-f61e-81ac48db55cb" unblocked
+```
+
+Check the status again.
+
+```shell-session
+$ nomad job status -region west example
+```
+
+The west region should now be marked as successful:
+
+```plaintext
+...
+Latest Deployment
+ID          = f08122e5
+Status      = successful
+Description = Deployment completed successfully
+
+Multiregion Deployment
+Region  ID        Status
+east    8b12b453  failed
+west    f08122e5  successful
+```
+
+## Learn more about federation
+
+- [Deployment Topology across Multiple Regions][multi-region-topology]
+
+[`multiregion`]: /nomad/docs/job-specification/multiregion
+[federation guide]: /nomad/tutorials/manage-clusters/federation
+[nomad-tf]: https://github.com/hashicorp/nomad/tree/master/terraform
+[server-join]: /nomad/commands/server/join
+[ports-used]: /nomad/docs/deploy/production/requirements#ports-used
+[reference-arch]: /nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul
+[nomad-server-members]: /nomad/commands/server/members
+[acls-track]: /nomad/tutorials/access-control
+[updates-track]: /nomad/tutorials/job-updates
+[update-auto-revert]: /nomad/docs/job-specification/update#auto_revert
+["task states"]: /nomad/docs/job-specification/update#health_check
+[consul-service]: /nomad/docs/job-specification/service
+[alloc-health-api]: /nomad/api-docs/deployments#set-allocation-health-in-deployment
+[`update` stanza]: /nomad/docs/job-specification/update
+[`nomad deployment unblock`]: /nomad/commands/deployment/unblock
+[multi-region-topology]: /nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul#multi-region
