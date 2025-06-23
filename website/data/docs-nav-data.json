@@ -602,7 +602,7 @@
     "href": "https://developer.hashicorp.com/nomad/docs/job-specification/"
   },
   {
-    "title": "Declare a job",
+    "title": "Declare jobs",
     "routes": [
       {
         "title": "Overview",
@@ -743,27 +743,27 @@
     ]
   },
   {
-    "title": "Run a job",
+    "title": "Run jobs",
     "routes": [
       {
-        "title": "Submit a job",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-submit"
+        "title": "Overview",
+        "path": "job-run"
       },
       {
         "title": "Inspect running jobs",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-inspect"
+        "path": "job-run/inspect"
       },
       {
         "title": "Access logs for troubleshooting",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-accessing-logs"
+        "path": "job-run/logs"
       },
       {
         "title": "Collect resource utilization metrics",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-utilization"
+        "path": "job-run/utilization-metrics"
       },
       {
         "title": "Create job versions",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-version"
+        "path": "job-run/versions"
       }
     ]
   },

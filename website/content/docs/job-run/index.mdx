@@ -1,0 +1,24 @@
+---
+layout: docs
+page_title: Run Nomad jobs
+description: |-
+  This section provides guidance for running Nomad jobs. Inspect job, access logs for troubleshooting, collect resource utilization metrics, and create job versions.
+---
+
+# Run Nomad jobs
+
+This section provides guidance for running Nomad jobs. Inspect job, access logs
+for troubleshooting, collect resource utilization metrics, and create job
+versions.
+
+Refer to [Create and submit a job](/nomad/docs/job-declare/create-job) to learn
+how to create a job specification, review the job plan, and submit the job.
+
+## Run a job
+
+Execute the [`nomad job run` command](/nomad/commands/job/run) to run your job.
+
+Now that the job is scheduled, it may or may not be running. You need to inspect
+the allocation status and logs to make sure the job started correctly. Refer to
+the section on [inspecting state](/nomad/docs/job-run/inspect)
+details ways to examine this job's state.
