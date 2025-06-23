@@ -602,15 +602,15 @@
       },
       {
         "title": "Create a job specification",
-        "href": "/nomad/tutorials/manage-jobs/jobs-submit"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-submit"
       },
       {
         "title": "Configure tasks",
-        "href": "/nomad/tutorials/manage-jobs/jobs-configuring"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-configuring"
       },
       {
         "title": "Create a parameterized job",
-        "href": "/nomad/tutorials/job-specifications/job-spec-parameterized"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/job-specifications/job-spec-parameterized"
       },
       {
         "title": "Use task drivers",
@@ -679,41 +679,41 @@
         "routes": [
           {
             "title": "Overview",
-            "href": "/nomad/tutorials/job-updates"
+            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates"
           },
           {
             "title": "Configure blue/green and canary",
-            "href": "/nomad/tutorials/job-updates/job-blue-green-and-canary-deployments"
+            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-blue-green-and-canary-deployments"
           },
           {
             "title": "Configure rolling",
-            "href": "/nomad/tutorials/job-updates/job-rolling-update"
+            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-rolling-update"
           }
         ]
       },
       {
         "title": "Configure multi-region deployments",
-        "href": "/nomad/tutorials/manage-clusters/multiregion-deployments"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/multiregion-deployments"
       },
       {
         "title": "Configure task dependencies",
-        "href": "/nomad/tutorials/task-deps/task-dependencies-interjob"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/task-deps/task-dependencies-interjob"
       },
       {
         "title": "Use actions in jobs",
-        "href": "/nomad/tutorials/job-specifications/job-spec-actions"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/job-specifications/job-spec-actions"
       },
       {
         "title": "Use Nomad variables",
-        "href": "/nomad/tutorials/variables"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/variables"
       },
       {
         "title": "Configure exit signals",
-        "href": "/nomad/tutorials/job-updates/job-update-handle-signals"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-update-handle-signals"
       },
       {
         "title": "Handle failure",
-        "href": "/nomad/tutorials/job-failure-handling"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/job-failure-handling"
       }
     ]
   },
@@ -722,23 +722,23 @@
     "routes": [
       {
         "title": "Submit a job",
-        "href": "/nomad/tutorials/manage-jobs/jobs-submit"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-submit"
       },
       {
         "title": "Inspect running jobs",
-        "href": "/nomad/tutorials/manage-jobs/jobs-inspect"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-inspect"
       },
       {
         "title": "Access logs for troubleshooting",
-        "href": "/nomad/tutorials/manage-jobs/jobs-accessing-logs"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-accessing-logs"
       },
       {
         "title": "Collect resource utilization metrics",
-        "href": "/nomad/tutorials/manage-jobs/jobs-utilization"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-utilization"
       },
       {
         "title": "Create job versions",
-        "href": "/nomad/tutorials/manage-jobs/jobs-version"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-version"
       }
     ]
   },
@@ -747,19 +747,19 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "/nomad/tutorials/stateful-workloads/stateful-workloads"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads"
       },
       {
         "title": "Use host volumes",
-        "href": "/nomad/tutorials/stateful-workloads/exec-users-host-volumes"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/exec-users-host-volumes"
       },
       {
         "title": "Use dynamic host volumes",
-        "href": "/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes"
       },
       {
         "title": "Use CSI volumes",
-        "href": "/nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes"
       }
     ]
   },
@@ -785,23 +785,23 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "/nomad/tutorials/advanced-scheduling/advanced-scheduling"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/advanced-scheduling"
       },
       {
         "title": "Configure job placement preferences with affinities",
-        "href": "/nomad/tutorials/advanced-scheduling/affinity"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/affinity"
       },
       {
         "title": "Configure fault tolerance with spread",
-        "href": "/nomad/tutorials/advanced-scheduling/spread"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/spread"
       },
       {
         "title": "Configure job priority with preemption",
-        "href": "/nomad/tutorials/advanced-scheduling/preemption"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/preemption"
       },
       {
         "title": "Enable memory oversubscription",
-        "href": "/nomad/tutorials/advanced-scheduling/memory-oversubscription"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/memory-oversubscription"
       }
     ]
   },
