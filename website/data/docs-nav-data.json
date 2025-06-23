@@ -228,6 +228,56 @@
             "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/reverse-proxy-ui"
           }
         ]
+      },
+      {
+        "title": "Configure task drivers",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "deploy/task-driver"
+          },
+          {
+            "title": "Docker",
+            "path": "deploy/task-driver/docker"
+          },
+          {
+            "title": "Isolated Fork/Exec",
+            "path": "deploy/task-driver/exec"
+          },
+          {
+            "title": "Java",
+            "path": "deploy/task-driver/java"
+          },
+          {
+            "title": "QEMU",
+            "path": "deploy/task-driver/qemu"
+          },
+          {
+            "title": "Raw Fork/Exec",
+            "path": "deploy/task-driver/raw-exec"
+          },
+          {
+            "title": "Task driver plugins",
+            "routes": [
+              {
+                "title": "Exec2",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/exec2"
+              },
+              {
+                "title": "Podman",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/podman"
+              },
+              {
+                "title": "Virt <sup>Beta</sup>",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/virt"
+              },
+              {
+                "title": "Community",
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/community"
+              }
+            ]
+          }
+        ]
       }
     ]
   },
@@ -594,19 +644,19 @@
             "routes": [
               {
                 "title": "Exec2",
-                "href": "/plugins/drivers/exec2"
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/exec2"
               },
               {
                 "title": "Podman",
-                "href": "/plugins/drivers/podman"
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/podman"
               },
               {
                 "title": "Virt <sup>Beta</sup>",
-                "href": "/plugins/drivers/virt"
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/virt"
               },
               {
                 "title": "Community",
-                "href": "/plugins/drivers/community"
+                "href": "http://develoepr.hashicorp.com/nomad/plugins/drivers/community"
               }
             ]
           }

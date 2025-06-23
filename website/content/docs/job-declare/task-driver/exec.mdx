@@ -1,18 +1,23 @@
 ---
 layout: docs
-page_title: Isolated Fork/Exec task driver
-description: Nomad's Isolated Fork/Exec task driver lets you run binaries using OS isolation primitives. Learn how to use the Isolated Fork/Exec task driver in your jobs. Configure the command to execute with command arguments, namespace isolation, and Linux capabilities. Review the Isolated Fork/Exec task driver capabilities, plugin options, client requirements, and client attributes. Learn how the Isolated Fork/Exec task driver affects resource isolation, chroot, and CPU resources.
+page_title: Use the Isolated Fork/Exec task driver in a job
+description: Nomad's Isolated Fork/Exec task driver lets you run binaries using OS isolation primitives. Learn how to use the Isolated Fork/Exec task driver in your jobs. Configure the command to execute with command arguments, namespace isolation, and Linux capabilities.
 ---
 
-# Isolated Fork/Exec task driver
+# Use the Isolated Fork/Exec task driver in a job
 
 Name: `exec`
 
-The `exec` driver is used to execute a particular command for a task.
-However, unlike [`raw_exec`](/nomad/docs/job-declare/task-driver/raw_exec) it uses the underlying isolation
-primitives of the operating system to limit the task's access to resources. While
-simple, since the `exec` driver can invoke any command, it can be used to call
-scripts or other wrappers which provide higher level features.
+The `exec` driver is used to execute a particular command for a task. However,
+unlike [`raw_exec`](/nomad/docs/job-declare/task-driver/raw_exec) it uses the
+underlying isolation primitives of the operating system to limit the task's
+access to resources. While simple, since the `exec` driver can invoke any
+command, it can be used to call scripts or other wrappers which provide higher
+level features.
+
+Refer to [Configure the Isolated Fork/Exec task
+driver](/nomad/docs/deploy/task-driver/exec) for capabilities, client
+requirements, and plugin configuration.
 
 ## Task Configuration
 
@@ -128,175 +133,6 @@ task "example" {
 }
 ```
 
-## Capabilities
-
-The `exec` driver implements the following [capabilities](/nomad/docs/concepts/plugins/task-drivers#capabilities-capabilities-error).
-
-| Feature              | Implementation |
-| -------------------- | -------------- |
-| `nomad alloc signal` | true           |
-| `nomad alloc exec`   | true           |
-| filesystem isolation | chroot         |
-| network isolation    | host, group    |
-| volume mounting      | all            |
-
-## Client Requirements
-
-The `exec` driver can only be run when on Linux and running Nomad as root.
-`exec` is limited to this configuration because currently isolation of resources
-is only guaranteed on Linux. Further, the host must have cgroups mounted properly
-in order for the driver to work.
-
-If you are receiving the error:
-
-```
-* Constraint "missing drivers" filtered <> nodes
-```
-
-and using the exec driver, check to ensure that you are running Nomad as root.
-This also applies for running Nomad in -dev mode.
-
-## Plugin Options
-
-- `default_pid_mode` `(string: optional)` - Defaults to `"private"`. Set to
-  `"private"` to enable PID namespace isolation for tasks by default, or `"host"` to
-  disable isolation.
-
-!> **Warning:** If set to `"host"`, other processes running as the same user will
-be able to access sensitive process information like environment variables.
-
-- `default_ipc_mode` `(string: optional)` - Defaults to `"private"`. Set to
-  `"private"` to enable IPC namespace isolation for tasks by default,
-  or `"host"` to disable isolation.
-
-!> **Warning:** If set to `"host"`, other processes running as the same user will be
-able to make use of IPC features, like sending unexpected POSIX signals.
-
-- `no_pivot_root` `(bool: optional)` - Defaults to `false`. When `true`, the driver uses `chroot`
-  for file system isolation without `pivot_root`. This is useful for systems
-  where the root is on a ramdisk.
-
-- `allow_caps` - A list of allowed Linux capabilities. Defaults to
-
-```hcl
-["audit_write", "chown", "dac_override", "fowner", "fsetid", "kill", "mknod",
- "net_bind_service", "setfcap", "setgid", "setpcap", "setuid", "sys_chroot"]
-```
-
-  which is modeled after the capabilities allowed by [docker by default][docker_caps]
-  (without [`NET_RAW`][no_net_raw]). Allows the operator to control which capabilities
-  can be obtained by tasks using [`cap_add`][cap_add] and [`cap_drop`][cap_drop] options.
-  Supports the value `"all"` as a shortcut for allow-listing all capabilities supported
-  by the operating system.
-
-!> **Warning:** Allowing more capabilities beyond the default may lead to
-undesirable consequences, including untrusted tasks being able to compromise the
-host system.
-
-- `denied_host_uids` - (Optional) Specifies a comma-separated list of host uids to
-  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
-  If a "user" value is specified in task configuration and that user has a user id in
-  the given ranges, the task will error before starting. This will not be checked on Windows
-  clients.
-
-```hcl
-config {
-  denied_host_uids = "0,10-15,22"
-}
-```
-
-- `denied_host_gids` - (Optional) Specifies a comma-separated list of host gids to
-  deny. Ranges can be specified by using a hyphen separating the two inclusive ends.
-  If a "user" value is specified in task configuration and that user is part of
-  any groups with gid's in the specified ranges, the task will error before
-  starting. This will not be checked on Windows clients.
-
-```hcl
-config {
-  denied_host_gids = "2,4-8"
-}
-```
-
-## Client Attributes
-
-The `exec` driver will set the following client attributes:
-
-- `driver.exec` - This will be set to "1", indicating the driver is available.
-
-## Resource Isolation
-
-The resource isolation provided varies by the operating system of
-the client and the configuration.
-
-On Linux, Nomad will use cgroups, and a chroot to isolate the resources of a
-process and as such the Nomad agent must be run as root. Some Linux
-distributions do not boot with all required cgroups enabled by default. You
-can see which cgroups are enabled by reading `/proc/cgroups`, and verifying
-that all the following cgroups are enabled:
-
-```
-$ awk '{print $1 " " $4}' /proc/cgroups
-#subsys_name enabled
-cpuset 1
-cpu 1
-cpuacct 1
-blkio 1
-memory 1
-devices 1
-freezer 1
-net_cls 1
-perf_event 1
-net_prio 1
-hugetlb 1
-pids 1
-```
-
-Nomad can only use cgroups to control resources if all the required controllers
-are available. If one or more required cgroups are unavailable, Nomad will
-disable resource controls that require cgroups entirely. See the documentation
-on [cgroup controller requirements][] for more details.
-
-### Chroot
-
-Chroot changes the root directory of the current process and all its child processes. Nomad uses a chroot environment to implement file system isolation.
-
-Nomad populates the chroot environment with data in the following host machine directories:
-
-```
-[
-  "/bin",
-  "/etc",
-  "/lib",
-  "/lib32",
-  "/lib64",
-  "/run/resolvconf",
-  "/sbin",
-  "/usr",
-]
-```
-
-Nomad populates the task's chroot environment by linking or copying the data from the host into the chroot. Note that this can take considerable disk space.
-The client manages garbage collection locally, which mitigates any issue this may create.
-
-@include 'chroot-limitations.mdx'
-
-Configure the chroot environment list through the agent client's
-[`chroot_env` attribute](/nomad/docs/configuration/client#chroot_env).
-
-### CPU
-
-Nomad limits exec tasks' CPU based on CPU shares. CPU shares allow containers to
-burst past their CPU limits. CPU limits will only be imposed when there is contention
-for resources. When the host is under load your process may be throttled to stabilize
-QoS depending on how many shares it has. You can see how many CPU shares are available
-to your process by reading [`NOMAD_CPU_LIMIT`][runtime_env]. 1000 shares are approximately equal to 1 GHz.
-
-Please keep the implications of CPU shares in mind when you load test workloads on Nomad.
-
-If resources [`cores`][cores] is set, the task is given an isolated reserved set of
-CPU cores to make use of. The total set of cores the task may run on is the private
-set combined with the variable set of unreserved cores. The private set of CPU cores
-is available to your process by reading [`NOMAD_CPU_CORES`][runtime_env].
 
 [default_pid_mode]: /nomad/docs/job-declare/task-driver/exec#default_pid_mode
 [default_ipc_mode]: /nomad/docs/job-declare/task-driver/exec#default_ipc_mode
