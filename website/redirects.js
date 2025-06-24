@@ -184,4 +184,203 @@ module.exports = [
     destination: 'https://nomad-iis.sevensolutions.cc/',
     permanent: true,
   },
+  /**
+   * Nomad IA redirects
+   */
+  {
+    source: '/nomad/docs/commands/:path*',
+    destination: '/nomad/commands/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/intro',
+    destination: '/nomad/docs/what-is-nomad',
+    permanent: true,
+  },
+  {
+    source: '/nomad/intro/use-cases',
+    destination: '/nomad/docs/use-cases',
+    permanent: true,
+  },
+  {
+    source: '/nomad/intro/vs/:path*',
+    destination: '/nomad/docs/what-is-nomad',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/nomad-vs-kubernetes/:path*',
+    destination: '/nomad/docs/what-is-nomad',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/install/quickstart',
+    destination: '/nomad/docs/quickstart',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/install/windows-service',
+    destination: '/nomad/docs/deploy/production/windows-service',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/install/production/:path*',
+    destination: '/nomad/docs/deploy/production/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/architecture',
+    destination: '/nomad/docs/architecture',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/architecture/federation',
+    destination: '/nomad/docs/architecture/federation',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/acl',
+    destination: '/nomad/docs/architecture/acl',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/consensus',
+    destination: '/nomad/docs/architecture/consensus',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/cpu',
+    destination: '/nomad/docs/architecture/cpu',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/gossip',
+    destination: '/nomad/docs/architecture/gossip',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/node-pools',
+    destination: '/nomad/docs/architecture/node-pools',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/security',
+    destination: '/nomad/docs/architecture/security',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/stateful-workloads',
+    destination: '/nomad/docs/architecture/stateful-workloads',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/plugins/storage/:path*',
+    destination: '/nomad/docs/architecture/storage/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/job-specification/hcl2/:path*',
+    destination: '/nomad/docs/reference/hcl2/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/metrics-reference',
+    destination: '/nomad/docs/reference/metrics',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/runtime',
+    destination: '/nomad/docs/reference/runtime-environment-settings',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/runtime/environment',
+    destination: '/nomad/docs/reference/runtime-environment-settings',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/runtime/interpolation',
+    destination: '/nomad/docs/reference/runtime-variable-interpolation',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/enterprise/sentinel',
+    destination: '/nomad/docs/reference/sentinel-policy',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/drivers/:path*',
+    destination: '/nomad/docs/job-declare/task-driver/:path*',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/nomad-agent',
+    destination: '/nomad/docs/deploy/nomad-agent',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/federation',
+    destination: '/nomad/docs/deploy/clusters/federation-considerations',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/federation/failure',
+    destination: '/nomad/docs/deploy/clusters/federation-failure-scenarios',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/garbage-collection',
+    destination: '/nomad/docs/manage/garbage-collection',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/key-management',
+    destination: '/nomad/docs/manage/key-management',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/benchmarking',
+    destination: '/nomad/docs/scale/benchmarking',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/scheduling/scheduling',
+    destination: '/nomad/docs/concepts/scheduling/how-scheduling-works',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/schedulers',
+    destination: '/nomad/docs/concepts/scheduling/schedulers',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/ipv6-support',
+    destination: '/nomad/docs/networking/ipv6-support',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/monitoring-nomad',
+    destination: '/nomad/docs/monitor',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/acl/auth-methods/oidc',
+    destination: '/nomad/docs/secure/authentication/oidc',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/concepts/acl/auth-methods/jwt',
+    destination: '/nomad/docs/secure/authentication/jwt',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/operations/aws-oidc-provider',
+    destination: '/nomad/docs/secure/workload-identity/aws-oidc-provider',
+    permanent: true,
+  },
+  // removed section index pages that had no meaningful content
+  {
+    source: '/nomad/docs/operations',
+    destination: '/nomad/docs',
+    permanent: true,
+  },
 ]

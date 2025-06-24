@@ -6,15 +6,17 @@ description: Nomad's scheduling component assigns jobs to client machines. Explo
 
 # Scheduling workloads
 
-Scheduling workloads is the process of assigning tasks from jobs to client machines. 
+Scheduling workloads is the process of assigning tasks from jobs to client machines.
 It is one of Nomad's core functions. The design is heavily inspired by Google's
 work on both [Omega: flexible, scalable schedulers for large compute
 clusters][omega] and [Large-scale cluster management at Google with Borg][borg].
 Refer to the links below for implementation details on scheduling in Nomad.
 
-- [Scheduling Internals](/nomad/docs/concepts/scheduling/scheduling) - An overview of how the scheduler works.
+- [How scheduling works](/nomad/docs/concepts/scheduling/how-scheduling-works) - An overview of how the scheduler works.
 - [Placement](/nomad/docs/concepts/scheduling/placement) - Explains how placements are computed and how they can be adjusted.
-- [Preemption](/nomad/docs/concepts/scheduling/preemption) - Details of preemption, an advanced scheduler feature.
+- [Preemption](/nomad/docs/concepts/scheduling/preemption) - Details of
+  preemption, an advanced scheduler feature.
+- [Nomad job schedulers](/nomad/concepts/scheduling/schedulers) - Explains the different types of job schedulers.
 
 [omega]: https://research.google.com/pubs/pub41684.html
 [borg]: https://research.google.com/pubs/pub43438.html

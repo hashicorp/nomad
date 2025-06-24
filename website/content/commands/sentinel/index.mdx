@@ -1,0 +1,29 @@
+---
+layout: docs
+page_title: 'nomad sentinel command reference'
+description: |
+  The `nomad sentinel` command interacts with Sentinel policies in Nomad Enterprise. Create, update, and delete a policy. Inspect and list policies.
+---
+
+# `nomad sentinel` command reference
+
+The `sentinel` command is used to interact with Sentinel policies.
+
+<EnterpriseAlert product="nomad"/>
+
+## Usage
+
+Usage: `nomad sentinel <subcommand> [options]`
+
+Run `nomad sentinel <subcommand> -h` for help on that subcommand. The following
+subcommands are available:
+
+- [`sentinel apply`][apply] - Create a new or update existing Sentinel policies
+- [`sentinel delete`][delete] - Delete an existing Sentinel policies
+- [`sentinel list`][list] - Display all Sentinel policies
+- [`sentinel read`][read] - Inspects an existing Sentinel policies
+
+[delete]: /nomad/commands/sentinel/delete
+[list]: /nomad/commands/sentinel/list
+[read]: /nomad/commands/sentinel/read
+[apply]: /nomad/commands/sentinel/apply

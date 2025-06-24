@@ -34,10 +34,10 @@ relating to Enterprise features not being parseable by open source Nomad.
 Nomad Enterprise licenses have an expiration time.
 You can read and validate the license on a running server,
 on disk, or in your environment with the
-[`nomad license` commands](/nomad/docs/commands/license).
+[`nomad license` commands](/nomad/commands/license).
 
 Before upgrading Nomad or replacing your license with a new one, you should always run
-[`nomad license inspect`](/nomad/docs/commands/license/inspect)
+[`nomad license inspect`](/nomad/commands/license/inspect)
 to ensure the license is valid with your server binary.
 
 As a Nomad Enterprise license approaches its expiration time, Nomad servers
@@ -75,7 +75,7 @@ NOMAD_LICENSE=misconfigured nomad agent -dev
 ==> Error starting agent: server setup failed: failed to initialize enterprise licensing: a file license was configured but the license is invalid: error decoding version: expected integer
 ```
 
-See the [License commands](/nomad/docs/commands/license) for more information on
+See the [License commands](/nomad/commands/license) for more information on
 interacting with the Enterprise License.
 
 [releases site]: https://releases.hashicorp.com/nomad
