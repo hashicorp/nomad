@@ -1466,6 +1466,18 @@ func ApiTaskToStructsTask(job *structs.Job, group *structs.TaskGroup,
 		}
 	}
 
+	if len(apiTask.Secrets) > 0 {
+		structsTask.Secrets = []*structs.Secret{}
+		for _, s := range apiTask.Secrets {
+			structsTask.Secrets = append(structsTask.Secrets, &structs.Secret{
+				Name:     s.Name,
+				Provider: s.Provider,
+				Path:     s.Path,
+				Config:   s.Config,
+			})
+		}
+	}
+
 	if apiTask.Consul != nil {
 		structsTask.Consul = apiConsulToStructs(apiTask.Consul)
 	}

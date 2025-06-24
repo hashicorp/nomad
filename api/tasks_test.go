@@ -506,6 +506,27 @@ func TestTask_Canonicalize_Vault(t *testing.T) {
 	}
 }
 
+func TestTask_Canonicalize_Secret(t *testing.T) {
+	testutil.Parallel(t)
+
+	testSecret := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config:   make(map[string]any),
+	}
+
+	expected := &Secret{
+		Name:     "test-secret",
+		Provider: "test-provider",
+		Path:     "/test/path",
+		Config:   nil,
+	}
+
+	testSecret.Canonicalize()
+	must.Eq(t, expected, testSecret)
+}
+
 // Ensures no regression on https://github.com/hashicorp/nomad/issues/3132
 func TestTaskGroup_Canonicalize_Update(t *testing.T) {
 	testutil.Parallel(t)

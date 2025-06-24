@@ -9466,6 +9466,168 @@ func TestTaskDiff(t *testing.T) {
 				},
 			},
 		},
+		{
+			Name: "Secret edited",
+			Old: &Task{
+				Secrets: []*Secret{
+					{
+						Name:     "foo",
+						Provider: "bar",
+						Path:     "/foo/bar",
+						Config: map[string]any{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+			New: &Task{
+				Secrets: []*Secret{
+					{
+						Name:     "foo",
+						Provider: "bar1",
+						Path:     "/foo/bar1",
+						Config: map[string]any{
+							"foo": "bar1",
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeEdited,
+						Name: "Secret",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeEdited,
+								Name: "Config[foo]",
+								Old:  "bar",
+								New:  "bar1",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Path",
+								Old:  "/foo/bar",
+								New:  "/foo/bar1",
+							},
+							{
+								Type: DiffTypeEdited,
+								Name: "Provider",
+								Old:  "bar",
+								New:  "bar1",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Secret added",
+			Old: &Task{
+				Secrets: []*Secret{},
+			},
+			New: &Task{
+				Secrets: []*Secret{
+					{
+						Name:     "foo",
+						Provider: "bar",
+						Path:     "/foo/bar",
+						Config: map[string]any{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeAdded,
+						Name: "Secret",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeAdded,
+								Name: "Config[foo]",
+								Old:  "",
+								New:  "bar",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Name",
+								Old:  "",
+								New:  "foo",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Path",
+								Old:  "",
+								New:  "/foo/bar",
+							},
+							{
+								Type: DiffTypeAdded,
+								Name: "Provider",
+								Old:  "",
+								New:  "bar",
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			Name: "Secret deleted",
+			Old: &Task{
+				Secrets: []*Secret{
+					{
+						Name:     "foo",
+						Provider: "bar",
+						Path:     "/foo/bar",
+						Config: map[string]any{
+							"foo": "bar",
+						},
+					},
+				},
+			},
+			New: &Task{
+				Secrets: []*Secret{},
+			},
+			Expected: &TaskDiff{
+				Type: DiffTypeEdited,
+				Objects: []*ObjectDiff{
+					{
+						Type: DiffTypeDeleted,
+						Name: "Secret",
+						Fields: []*FieldDiff{
+							{
+								Type: DiffTypeDeleted,
+								Name: "Config[foo]",
+								Old:  "bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Name",
+								Old:  "foo",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Path",
+								Old:  "/foo/bar",
+								New:  "",
+							},
+							{
+								Type: DiffTypeDeleted,
+								Name: "Provider",
+								Old:  "bar",
+								New:  "",
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, c := range cases {
