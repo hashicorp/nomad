@@ -358,11 +358,11 @@
       },
       {
         "title": "Autopilot",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/autopilot"
+        "path": "manage/autopilot"
       },
       {
-        "title": "Format command output",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/templates/format-output-with-templates"
+        "title": "Format CLI output",
+        "path": "manage/format-cli-output"
       },
       {
         "title": "Garbage collection",
@@ -374,15 +374,15 @@
       },
       {
         "title": "Migrate workloads",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/node-drain"
+        "path": "manage/migrate-workloads"
       },
       {
         "title": "Namespaces",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces"
+        "path": "manage/namespaces"
       },
       {
         "title": "Recovery",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery"
+        "path": "manage/outage-recovery"
       }
     ]
   },
@@ -1237,6 +1237,10 @@
       {
         "title": "Sentinel policy",
         "path": "reference/sentinel-policy"
+      },
+      {
+        "title": "Go template syntax",
+        "path": "reference/go-template-syntax"
       },
       {
         "title": "HCL2",
