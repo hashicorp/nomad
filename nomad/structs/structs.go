@@ -7789,6 +7789,9 @@ type Task struct {
 	// have access to.
 	Vault *Vault
 
+	// List of secrets for the task.
+	Secrets []*Secret
+
 	// Consul configuration specific to this task. If uset, falls back to the
 	// group's Consul field.
 	Consul *Consul
@@ -8285,6 +8288,19 @@ func (t *Task) Validate(jobType string, tg *TaskGroup) error {
 
 		if err := wid.Validate(); err != nil {
 			mErr.Errors = append(mErr.Errors, fmt.Errorf("Identity %q is invalid: %w", wid.Name, err))
+		}
+	}
+
+	secrets := make(map[string]bool)
+	for _, s := range t.Secrets {
+		if _, ok := secrets[s.Name]; ok {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Duplicate secret %q found", s.Name))
+		} else {
+			secrets[s.Name] = true
+		}
+
+		if err := s.Validate(); err != nil {
+			mErr.Errors = append(mErr.Errors, fmt.Errorf("Secret %q is invalid: %w", s.Name, err))
 		}
 	}
 
@@ -10383,6 +10399,84 @@ func (v *Vault) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+type Secret struct {
+	Name     string
+	Provider string
+	Path     string
+	Config   map[string]any
+}
+
+func (s *Secret) Equal(o *Secret) bool {
+	if s == nil || o == nil {
+		return s == o
+	}
+
+	switch {
+	case s.Name != o.Name:
+		return false
+	case s.Provider != o.Provider:
+		return false
+	case s.Path != o.Path:
+		return false
+	case !maps.Equal(s.Config, o.Config):
+		return false
+	}
+
+	return true
+}
+
+func (s *Secret) Copy() *Secret {
+	if s == nil {
+		return nil
+	}
+
+	confCopy, err := copystructure.Copy(s.Config)
+	if err != nil {
+		// The default Copy() implementation should not return
+		// an error, so we should not reach this code path.
+		panic(err.Error())
+	}
+
+	return &Secret{
+		Name:     s.Name,
+		Provider: s.Provider,
+		Path:     s.Path,
+		Config:   confCopy.(map[string]any),
+	}
+}
+
+func (s *Secret) Validate() error {
+	if s == nil {
+		return nil
+	}
+
+	var mErr multierror.Error
+
+	if s.Name == "" {
+		_ = multierror.Append(&mErr, fmt.Errorf("Secret name cannot be empty"))
+	}
+
+	if s.Provider == "" {
+		_ = multierror.Append(&mErr, fmt.Errorf("Secret provider cannot be empty"))
+	}
+
+	if s.Path == "" {
+		_ = multierror.Append(&mErr, fmt.Errorf("Secret path cannot be empty"))
+	}
+
+	return mErr.ErrorOrNil()
+}
+
+func (s *Secret) Canonicalize() {
+	if s == nil {
+		return
+	}
+
+	if len(s.Config) == 0 {
+		s.Config = nil
+	}
 }
 
 const (
