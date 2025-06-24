@@ -10,6 +10,7 @@ import (
 	"net"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -40,8 +41,13 @@ type Encrypter interface {
 }
 
 type Authenticator struct {
-	aclsEnabled  bool
-	verifyTLS    bool
+	aclsEnabled bool
+
+	// verifyTLS is used to determine whether the server should verify TLS and
+	// is an atomic bool, so that the server TLS reload can update it at runtime
+	// with a race condition.
+	verifyTLS *atomic.Bool
+
 	logger       hclog.Logger
 	getState     StateGetter
 	getLeaderACL LeaderACLGetter
@@ -69,9 +75,9 @@ type AuthenticatorConfig struct {
 }
 
 func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
-	return &Authenticator{
+	a := Authenticator{
 		aclsEnabled:          cfg.AclsEnabled,
-		verifyTLS:            cfg.VerifyTLS,
+		verifyTLS:            &atomic.Bool{},
 		logger:               cfg.Logger.With("auth"),
 		getState:             cfg.StateFn,
 		getLeaderACL:         cfg.GetLeaderACLFn,
@@ -84,7 +90,14 @@ func NewAuthenticator(cfg *AuthenticatorConfig) *Authenticator {
 			"server." + cfg.Region + ".nomad",
 		},
 	}
+
+	a.verifyTLS.Store(cfg.VerifyTLS)
+	return &a
 }
+
+// SetVerifyTLS is a helper method to set the verifyTLS field. This is used in
+// when the server TLS configuration is updated.
+func (s *Authenticator) SetVerifyTLS(verifyTLS bool) { s.verifyTLS.Store(verifyTLS) }
 
 // Authenticate extracts an AuthenticatedIdentity from the request context or
 // provided token and sets the identity on the request. The caller can extract
@@ -255,7 +268,7 @@ func (s *Authenticator) AuthenticateServerOnly(ctx RPCContext, args structs.Requ
 	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
 	defer args.SetIdentity(identity) // always set the identity, even on errors
 
-	if s.verifyTLS && !ctx.IsStatic() {
+	if s.verifyTLS.Load() && !ctx.IsStatic() {
 		tlsCert := ctx.Certificate()
 		if tlsCert == nil {
 			return nil, errors.New("missing certificate information")
@@ -298,7 +311,7 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 	identity := &structs.AuthenticatedIdentity{RemoteIP: remoteIP}
 	defer args.SetIdentity(identity) // always set the identity, even on errors
 
-	if s.verifyTLS && !ctx.IsStatic() {
+	if s.verifyTLS.Load() && !ctx.IsStatic() {
 		tlsCert := ctx.Certificate()
 		if tlsCert == nil {
 			return nil, errors.New("missing certificate information")
