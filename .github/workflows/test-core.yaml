@@ -21,6 +21,7 @@ on:
     branches:
       - main
       - release/**
+      - f-NMD-779-server-impl
     paths-ignore:
       - 'README.md'
       - 'CHANGELOG.md'
@@ -144,20 +145,20 @@ jobs:
           sudo sed -i 's!Defaults!#Defaults!g' /etc/sudoers
           sudo -E env "PATH=$PATH" make test-nomad
 
-  handle-failure:
-    needs:
-      - checks
-      - compile
-      - tests-api
-      - tests-groups
-    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
-    uses: ./.github/workflows/test-failure-notification.yml
-    secrets: inherit
-    with:
-      actor: ${{ github.triggering_actor }}
-      git-branch: ${{ github.ref_name }}
-      workflow-run-id: ${{ github.run_id }}
-      workflow-name: ${{ github.workflow }}
+#  handle-failure:
+#    needs:
+#      - checks
+#      - compile
+#      - tests-api
+#      - tests-groups
+#    if: always() && github.event_name == 'push' && contains(needs.*.result, 'failure')
+#    uses: ./.github/workflows/test-failure-notification.yml
+#    secrets: inherit
+#    with:
+#      actor: ${{ github.triggering_actor }}
+#      git-branch: ${{ github.ref_name }}
+#      workflow-run-id: ${{ github.run_id }}
+#      workflow-name: ${{ github.workflow }}
 
 permissions:
   contents: read

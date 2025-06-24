@@ -374,6 +374,7 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_OnlyRPC(t *testing.T) {
 		}
 	})
 	defer cleanupS1()
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	newTLSConfig := &config.TLSConfig{
 		EnableHTTP:           true,
