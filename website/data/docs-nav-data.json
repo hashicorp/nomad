@@ -772,19 +772,19 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads"
-      },
-      {
-        "title": "Use host volumes",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/exec-users-host-volumes"
-      },
-      {
-        "title": "Use dynamic host volumes",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes"
+        "path": "stateful-workloads"
       },
       {
         "title": "Use CSI volumes",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes"
+        "path": "stateful-workloads/csi-volumes"
+      },
+      {
+        "title": "Use dynamic host volumes",
+        "path": "stateful-workloads/dynamic-host-volumes"
+      },
+      {
+        "title": "Use static host volumes",
+        "path": "stateful-workloads/static-host-volumes"
       }
     ]
   },
