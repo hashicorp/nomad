@@ -810,22 +810,22 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/advanced-scheduling"
+        "path": "job-scheduling"
       },
       {
-        "title": "Configure job placement preferences with affinities",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/affinity"
+        "title": "Fault tolerance with spread",
+        "path": "job-scheduling/spread"
       },
       {
-        "title": "Configure fault tolerance with spread",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/spread"
+        "title": "Job placement with affinities",
+        "path": "job-scheduling/affinity"
       },
       {
-        "title": "Configure job priority with preemption",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/preemption"
+        "title": "Job priority with preemption",
+        "path": "job-scheduling/preemption"
       },
       {
-        "title": "Enable memory oversubscription",
+        "title": "Memory oversubscription",
         "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/memory-oversubscription"
       }
     ]
