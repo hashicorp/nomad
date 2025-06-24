@@ -10444,6 +10444,8 @@ func (s *Secret) Copy() *Secret {
 
 	confCopy, err := copystructure.Copy(s.Config)
 	if err != nil {
+		// the default Copy() implementation should not return
+		// an error, so this code should never occur.
 		panic(err.Error())
 	}
 
