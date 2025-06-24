@@ -457,10 +457,10 @@
         "path": "secure"
       },
       {
-        "title": "Access control lists",
+        "title": "Access control list",
         "routes": [
           {
-            "title": "ACL system overview",
+            "title": "System overview",
             "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control"
           },
           {
@@ -468,27 +468,27 @@
             "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-bootstrap"
           },
           {
-            "title": "ACL policies",
+            "title": "Policies",
             "routes": [
               {
                 "title": "Overview",
                 "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies"
               },
               {
-                "title": "Create ACL policies",
+                "title": "Create policies",
                 "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-create-policy"
               }
             ]
           },
           {
-            "title": "ACL tokens",
+            "title": "Tokens",
             "routes": [
               {
                 "title": "Overview",
                 "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens"
               },
               {
-                "title": "Generate token with Vault",
+                "title": "Generate tokens with Vault",
                 "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/vault-nomad-secrets"
               }
             ]
@@ -496,19 +496,19 @@
         ]
       },
       {
-        "title": "SSO",
+        "title": "Authentication",
         "routes": [
           {
             "title": "Overview",
-            "path": "secure/sso"
+            "path": "secure/authentication"
           },
           {
-            "title": "Configure JWT authentication",
-            "path": "secure/sso/jwt"
+            "title": "Configure JWT",
+            "path": "secure/authentication/jwt"
           },
           {
-            "title": "Configure OIDC authentication",
-            "path": "secure/sso/oidc"
+            "title": "Configure OIDC",
+            "path": "secure/authentication/oidc"
           },
           {
             "title": "Configure SSO with Auth0",
@@ -594,7 +594,7 @@
     "href": "https://developer.hashicorp.com/nomad/docs/job-specification/"
   },
   {
-    "title": "Declare a job",
+    "title": "Declare jobs",
     "routes": [
       {
         "title": "Overview",
@@ -718,7 +718,7 @@
     ]
   },
   {
-    "title": "Run a job",
+    "title": "Run jobs",
     "routes": [
       {
         "title": "Submit a job",

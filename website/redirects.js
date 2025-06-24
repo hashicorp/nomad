@@ -364,12 +364,12 @@ module.exports = [
   },
   {
     source: '/nomad/docs/concepts/acl/auth-methods/oidc',
-    destination: '/nomad/docs/secure/sso/oidc',
+    destination: '/nomad/docs/secure/authentication/oidc',
     permanent: true,
   },
   {
     source: '/nomad/docs/concepts/acl/auth-methods/jwt',
-    destination: '/nomad/docs/secure/sso/jwt',
+    destination: '/nomad/docs/secure/authentication/jwt',
     permanent: true,
   },
   {
