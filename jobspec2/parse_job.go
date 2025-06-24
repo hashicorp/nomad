@@ -54,6 +54,12 @@ func normalizeJob(jc *jobConfig) {
 				t.Vault = jc.Vault
 			}
 
+			if len(t.Secrets) == 0 {
+				t.Secrets = jc.Secrets
+			} else {
+				t.Secrets = append(t.Secrets, jc.Secrets...)
+			}
+
 			//COMPAT To preserve compatibility with pre-1.7 agents, move the default
 			//       identity to Task.Identity.
 			defaultIdx := -1
