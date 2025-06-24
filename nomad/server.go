@@ -691,6 +691,9 @@ func (s *Server) reloadTLSConnections(newTLSConfig *config.TLSConfig) error {
 	// Kill any old listeners
 	s.rpcCancel()
 
+	// Update the authenticator, so any changes in TLS verification are applied.
+	s.auth.SetVerifyTLS(s.config.TLSConfig != nil && s.config.TLSConfig.EnableRPC && s.config.TLSConfig.VerifyServerHostname)
+
 	s.rpcTLS = incomingTLS
 	s.connPool.ReloadTLS(tlsWrap)
 
