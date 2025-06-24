@@ -293,20 +293,26 @@
         "path": "govern"
       },
       {
-        "title": "Governance and policy",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/governance-and-policy"
-      },
-      {
-        "title": "Create and use resource quotas",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/quotas"
-      },
-      {
-        "title": "Create and manage Sentinel policies",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel"
-      },
-      {
-        "title": "Create and use node pools",
+        "title": "Node pools",
         "path": "govern/use-node-pools"
+      },
+      {
+        "title": "Resource quotas",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
+        "path": "govern/resource-quotas"
+      },
+      {
+        "title": "Sentinel policies",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
+        "path": "govern/sentinel"
       }
     ]
   },
