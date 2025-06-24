@@ -1101,7 +1101,11 @@ func (n *Node) GetAllocs(args *structs.NodeSpecificRequest,
 func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 	reply *structs.NodeClientAllocsResponse) error {
 
-	authErr := n.srv.Authenticate(n.ctx, args)
+	// This RPC is only ever called by Nomad clients, so we can use the tightly
+	// scoped AuthenticateClientOnly method to authenticate and authorize the
+	// request.
+	aclObj, authErr := n.srv.AuthenticateClientOnly(n.ctx, args)
+
 	isForwarded := args.IsForwarded()
 	if done, err := n.srv.forward("Node.GetClientAllocs", args, args, reply); done {
 		// We have a valid node connection since there is no error from the
@@ -1119,6 +1123,10 @@ func (n *Node) GetClientAllocs(args *structs.NodeSpecificRequest,
 		return structs.ErrPermissionDenied
 	}
 	defer metrics.MeasureSince([]string{"nomad", "client", "get_client_allocs"}, time.Now())
+
+	if !aclObj.AllowClientOp() {
+		return structs.ErrPermissionDenied
+	}
 
 	// Verify the arguments
 	if args.NodeID == "" {

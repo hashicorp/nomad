@@ -35,20 +35,22 @@ type MockVaultClient struct {
 
 	// deriveTokenWithJWTFn allows the caller to control the DeriveTokenWithJWT
 	// function.
-	deriveTokenWithJWTFn func(context.Context, JWTLoginRequest) (string, bool, error)
+	deriveTokenWithJWTFn func(context.Context, JWTLoginRequest) (string, bool, int, error)
 
 	// renewable determines if the tokens returned should be marked as renewable
 	renewable bool
+
+	duration int
 
 	mu sync.Mutex
 }
 
 // NewMockVaultClient returns a MockVaultClient for testing
 func NewMockVaultClient(_ string) (VaultClient, error) {
-	return &MockVaultClient{renewable: true}, nil
+	return &MockVaultClient{renewable: true, duration: 30}, nil
 }
 
-func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, error) {
+func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginRequest) (string, bool, int, error) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 
@@ -65,7 +67,7 @@ func (vc *MockVaultClient) DeriveTokenWithJWT(ctx context.Context, req JWTLoginR
 		token = fmt.Sprintf("%s-%s", token, req.Role)
 	}
 	vc.jwtTokens[req.JWT] = token
-	return token, vc.renewable, nil
+	return token, vc.renewable, vc.duration, nil
 }
 
 func (vc *MockVaultClient) SetDeriveTokenError(allocID string, tasks []string, err error) {
@@ -161,7 +163,7 @@ func (vc *MockVaultClient) RenewTokenErrCh(token string) chan error {
 }
 
 // SetDeriveTokenWithJWTFn sets the function used to derive tokens using JWT.
-func (vc *MockVaultClient) SetDeriveTokenWithJWTFn(f func(context.Context, JWTLoginRequest) (string, bool, error)) {
+func (vc *MockVaultClient) SetDeriveTokenWithJWTFn(f func(context.Context, JWTLoginRequest) (string, bool, int, error)) {
 	vc.mu.Lock()
 	defer vc.mu.Unlock()
 	vc.deriveTokenWithJWTFn = f

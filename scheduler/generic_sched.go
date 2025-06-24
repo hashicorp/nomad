@@ -340,51 +340,63 @@ func (s *GenericScheduler) computeJobAllocs() error {
 
 	r := reconciler.NewAllocReconciler(s.logger,
 		genericAllocUpdateFn(s.ctx, s.stack, s.eval.ID),
-		s.batch, s.eval.JobID, s.job, s.deployment, allocs, tainted, s.eval.ID,
-		s.eval.Priority, s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true))
-	r.Compute()
-	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", r.Result))
+		reconciler.ReconcilerState{
+			Job:               s.job,
+			JobID:             s.eval.JobID,
+			JobIsBatch:        s.batch,
+			DeploymentCurrent: s.deployment,
+			ExistingAllocs:    allocs,
+			EvalID:            s.eval.ID,
+			EvalPriority:      s.eval.Priority,
+		},
+		reconciler.ClusterState{
+			TaintedNodes:                tainted,
+			SupportsDisconnectedClients: s.planner.ServersMeetMinimumVersion(minVersionMaxClientDisconnect, true),
+			Now:                         time.Now().UTC(),
+		})
+	result := r.Compute()
+	s.logger.Debug("reconciled current state with desired state", "results", log.Fmt("%#v", result))
 
 	if s.eval.AnnotatePlan {
 		s.plan.Annotations = &structs.PlanAnnotations{
-			DesiredTGUpdates: r.Result.DesiredTGUpdates,
+			DesiredTGUpdates: result.DesiredTGUpdates,
 		}
 	}
 
 	// Add the deployment changes to the plan
-	s.plan.Deployment = r.Result.Deployment
-	s.plan.DeploymentUpdates = r.Result.DeploymentUpdates
+	s.plan.Deployment = result.Deployment
+	s.plan.DeploymentUpdates = result.DeploymentUpdates
 
 	// Store all the follow up evaluations from rescheduled allocations
-	if len(r.Result.DesiredFollowupEvals) > 0 {
-		for _, evals := range r.Result.DesiredFollowupEvals {
+	if len(result.DesiredFollowupEvals) > 0 {
+		for _, evals := range result.DesiredFollowupEvals {
 			s.followUpEvals = append(s.followUpEvals, evals...)
 		}
 	}
 
 	// Update the stored deployment
-	if r.Result.Deployment != nil {
-		s.deployment = r.Result.Deployment
+	if result.Deployment != nil {
+		s.deployment = result.Deployment
 	}
 
 	// Handle the stop
-	for _, stop := range r.Result.Stop {
+	for _, stop := range result.Stop {
 		s.plan.AppendStoppedAlloc(stop.Alloc, stop.StatusDescription, stop.ClientStatus, stop.FollowupEvalID)
 	}
 
 	// Handle disconnect updates
-	for _, update := range r.Result.DisconnectUpdates {
+	for _, update := range result.DisconnectUpdates {
 		s.plan.AppendUnknownAlloc(update)
 	}
 
 	// Handle reconnect updates.
 	// Reconnected allocs have a new AllocState entry.
-	for _, update := range r.Result.ReconnectUpdates {
+	for _, update := range result.ReconnectUpdates {
 		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
 	// Handle the in-place updates
-	for _, update := range r.Result.InplaceUpdate {
+	for _, update := range result.InplaceUpdate {
 		if update.DeploymentID != s.deployment.GetID() {
 			update.DeploymentID = s.deployment.GetID()
 			update.DeploymentStatus = nil
@@ -393,12 +405,12 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Handle the annotation updates
-	for _, update := range r.Result.AttributeUpdates {
+	for _, update := range result.AttributeUpdates {
 		s.ctx.Plan().AppendAlloc(update, nil)
 	}
 
 	// Nothing remaining to do if placement is not required
-	if len(r.Result.Place)+len(r.Result.DestructiveUpdate) == 0 {
+	if len(result.Place)+len(result.DestructiveUpdate) == 0 {
 		// If the job has been purged we don't have access to the job. Otherwise
 		// set the queued allocs to zero. This is true if the job is being
 		// stopped as well.
@@ -411,18 +423,18 @@ func (s *GenericScheduler) computeJobAllocs() error {
 	}
 
 	// Compute the placements
-	place := make([]reconciler.PlacementResult, 0, len(r.Result.Place))
-	for _, p := range r.Result.Place {
+	place := make([]reconciler.PlacementResult, 0, len(result.Place))
+	for _, p := range result.Place {
 		s.queuedAllocs[p.TaskGroup().Name] += 1
 		place = append(place, p)
 	}
 
-	destructive := make([]reconciler.PlacementResult, 0, len(r.Result.DestructiveUpdate))
-	for _, p := range r.Result.DestructiveUpdate {
+	destructive := make([]reconciler.PlacementResult, 0, len(result.DestructiveUpdate))
+	for _, p := range result.DestructiveUpdate {
 		s.queuedAllocs[p.TaskGroup().Name] += 1
 		destructive = append(destructive, p)
 	}
-	return s.computePlacements(destructive, place, r.Result.TaskGroupAllocNameIndexes)
+	return s.computePlacements(destructive, place, result.TaskGroupAllocNameIndexes)
 }
 
 // downgradedJobForPlacement returns the previous stable version of the job for

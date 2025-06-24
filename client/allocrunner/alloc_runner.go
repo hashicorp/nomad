@@ -729,14 +729,35 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	// run alloc prekill hooks
 	ar.preKillHooks()
 
+	// generate task event for given task runner
+	taskEventFn := func(tr *taskrunner.TaskRunner) (te *structs.TaskEvent) {
+		te = structs.NewTaskEvent(structs.TaskKilling).
+			SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
+
+		// if the task is not set failed, the task has not finished,
+		// the job type is batch, and the allocation is being migrated
+		// then mark the task as failed. this ensures the task is recreated
+		// if no eligible nodes are immediately available.
+		if !tr.TaskState().Failed &&
+			tr.TaskState().FinishedAt.IsZero() &&
+			ar.alloc.Job.Type == structs.JobTypeBatch &&
+			ar.alloc.DesiredTransition.Migrate != nil &&
+			*ar.alloc.DesiredTransition.Migrate {
+
+			ar.logger.Trace("marking migrating batch job task failed on kill", "task_name", tr.Task().Name)
+			te.SetFailsTask()
+		}
+		return
+	}
+
 	// Kill leader first, synchronously
 	for name, tr := range ar.tasks {
 		if !tr.IsLeader() {
 			continue
 		}
 
-		taskEvent := structs.NewTaskEvent(structs.TaskKilling)
-		taskEvent.SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
+		taskEvent := taskEventFn(tr)
+
 		err := tr.Kill(context.TODO(), taskEvent)
 		if err != nil && err != taskrunner.ErrTaskNotRunning {
 			ar.logger.Warn("error stopping leader task", "error", err, "task_name", name)
@@ -758,8 +779,8 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		wg.Add(1)
 		go func(name string, tr *taskrunner.TaskRunner) {
 			defer wg.Done()
-			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
-			taskEvent.SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
+			taskEvent := taskEventFn(tr)
+
 			err := tr.Kill(context.TODO(), taskEvent)
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping task", "error", err, "task_name", name)
@@ -782,8 +803,8 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 		wg.Add(1)
 		go func(name string, tr *taskrunner.TaskRunner) {
 			defer wg.Done()
-			taskEvent := structs.NewTaskEvent(structs.TaskKilling)
-			taskEvent.SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
+			taskEvent := taskEventFn(tr)
+
 			err := tr.Kill(context.TODO(), taskEvent)
 			if err != nil && err != taskrunner.ErrTaskNotRunning {
 				ar.logger.Warn("error stopping sidecar task", "error", err, "task_name", name)

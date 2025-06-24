@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: BUSL-1.1
 
 job "horizontally_scalable" {
-  datacenters = ["dc1"]
-  type        = "service"
+  namespace = "NamespaceScalingTestA"
 
   update {
     health_check = "task_states"
@@ -16,11 +15,9 @@ job "horizontally_scalable" {
 
   group "horizontally_scalable" {
 
-    count = 4
-
     scaling {
-      min     = 5
-      max     = 6
+      min     = 2
+      max     = 3
       enabled = true
 
       policy {}

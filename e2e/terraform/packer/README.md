@@ -34,9 +34,6 @@ $ packer --version
 
 # build Ubuntu Jammy AMI
 $ ./build ubuntu-jammy-amd64
-
-# build Windows AMI
-$ ./build windows-2016-amd64
 ```
 
 ## Debugging Packer Builds
@@ -51,3 +48,7 @@ you're done, clean up the machine by looking for "Packer" in the AWS console:
 * [EC2 instances](https://console.aws.amazon.com/ec2/home?region=us-east-1#Instances:search=Packer;sort=tag:Name)
 * [Key pairs](https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#KeyPairs:search=packer;sort=keyName)
 * [Security groups](https://console.aws.amazon.com/ec2/v2/home?region=us-east-1#SecurityGroups:search=packer;sort=groupName)
+
+## Q: What About Windows?
+
+For now, we're using an Amazon base image directly.

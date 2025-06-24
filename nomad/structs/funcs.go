@@ -212,11 +212,6 @@ func AllocsFit(node *Node, allocs []*Allocation, netIdx *NetworkIndex, checkDevi
 		}
 	}
 
-	// Check if the network is overcommitted
-	if netIdx.Overcommitted() {
-		return false, "bandwidth exceeded", used, nil
-	}
-
 	// Check devices and host volumes
 	if checkDevices {
 		accounter := NewDeviceAccounter(node)

@@ -15,7 +15,7 @@ other tasks. Review job statuses and how Nomad versions your jobs.
 
 In Nomad, a _job_ is a user-specified state for a workload. The user expresses the job that should be running, but not where it should run. Nomad allocates resources and ensures that the actual state matches the user's desired state. A job consists of one or more tasks that you can organize into [task groups][task-groups].
 
-Declare the desired state of your job in a [job specification][job-specification], or _jobspec_, that describes
+Declare the desired state of your job in a [job specification][job-spec], or _jobspec_, that describes
 the tasks and resources necessary for the job to run. You can also
 include job constraints to control which clients Nomad runs the job on.
 
