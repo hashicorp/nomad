@@ -401,19 +401,27 @@
       },
       {
         "title": "Event stream",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/integrate-nomad/event-stream"
+        "path": "monitor/event-stream"
       },
       {
         "title": "Inspect job workloads",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/web-ui-workload-info"
+        "path": "monitor/inspect-workloads"
       },
       {
-        "title": "Inspect a cluster",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/wweb-ui-cluster-info"
+        "title": "Inspect clusters",
+        "path": "monitor/inspect-cluster"
       },
       {
-        "title": "Cluster state topology",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/topology-visualization"
+        "title": "Cluster topology",
+        "path": "monitor/cluster-topology"
+      },
+      {
+        "title": "Use Prometheus",
+        "href": "http://localhost:3000/nomad/tutorials/manage-clusters/prometheus-metrics"
+      },
+      {
+        "title": "Monitor job service metrics",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/prometheus-service-mesh-metrics"
       }
     ]
   },
