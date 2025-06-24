@@ -204,20 +204,24 @@
         "title": "Nomad clusters",
         "routes": [
           {
-            "title": "Create a Nomad cluster",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/clustering"
+            "title": "Overview",
+            "path": "deploy/clusters"
+          },
+          {
+            "title": "Connect nodes into a cluster",
+            "path": "deploy/clusters/connect-nodes"
           },
           {
             "title": "Multi-region federation considerations",
             "path": "deploy/clusters/federation-considerations"
           },
           {
-            "title": "Federate multi-region clusters",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/federation"
-          },
-          {
             "title": "Federation failure scenarios",
             "path": "deploy/clusters/federation-failure-scenarios"
+          },
+          {
+            "title": "Federate multi-region clusters",
+            "path": "deploy/clusters/federate-regions"
           },
           {
             "title": "Load balancing",
@@ -225,7 +229,7 @@
           },
           {
             "title": "Configure a web UI reverse proxy",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/reverse-proxy-ui"
+            "path": "deploy/clusters/reverse-proxy-ui"
           }
         ]
       },
@@ -513,6 +517,10 @@
           {
             "title": "Configure SSO with Auth0",
             "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/sso-oidc-auth0"
+          },
+          {
+            "title": "Configure SSO with Vault",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/single-sign-on/sso-oidc-vault"
           },
           {
             "title": "Authenticate users with PKCE and private key JWT ",
