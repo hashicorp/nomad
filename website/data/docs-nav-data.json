@@ -556,7 +556,7 @@
         ]
       },
       {
-        "title": "Federated workload identity",
+        "title": "Workload identity",
         "routes": [
           {
             "title": "Overview",
@@ -571,8 +571,8 @@
             "href": "https://developer.hashicorp.com/nomad/tutorials/fed-workload-identity/integration-gcp"
           },
           {
-            "title": "Use Nomad Workload Identities with Vault",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/integrate-vault/vault-acl"
+            "title": "Use workload identities with Vault",
+            "path": "secure/workload-identity/vault-acl"
           }
         ]
       }
