@@ -859,7 +859,7 @@
   },
   {
     "title": "Job templates with Nomad Pack",
-    "href": "https://developer.hashicorp.com/nomad/tutorials/nomad-pack/nomad-pack-writing-packs#write-the-templates"
+    "href": "/tools/nomad-pack/create-packs#write-the-templates"
   },
   {
     "heading": "Enterprise solutions"
