@@ -9954,6 +9954,11 @@ func (c *Constraint) Validate() error {
 	return mErr.ErrorOrNil()
 }
 
+// DiffID fulfills the DiffableWithID interface.
+func (c *Constraint) DiffID() string {
+	return c.String()
+}
+
 type Constraints []*Constraint
 
 // Equal compares Constraints as a set
@@ -10068,6 +10073,11 @@ func (a *Affinity) Validate() error {
 	}
 
 	return mErr.ErrorOrNil()
+}
+
+// DiffID fulfills the DiffableWithID interface.
+func (a *Affinity) DiffID() string {
+	return a.String()
 }
 
 // Spread is used to specify desired distribution of allocations according to weight
