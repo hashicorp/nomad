@@ -16,16 +16,16 @@ flow, and **Nomad 1.5.0** introduced support for OIDC as a single sign-on
 method. With Nomad 1.5.0, you can use OIDC to authenticate users and map their
 permissions to Nomad ACL roles and policies.
 
-In this tutorial, you will setup Vault as an OIDC provider and Nomad as its
+In this guide, you will setup Vault as an OIDC provider and Nomad as its
 client.
 
--> **Note:** Nomad operates as a confidential OIDC client in this tutorial. To
+-> **Note:** Nomad operates as a confidential OIDC client in this guide. To
    configure a public OIDC client, refer to the [OIDC
    Provider](/vault/docs/concepts/oidc-provider#public) documentation.
 
 ## Prerequisites
 
-To perform the tasks described in this tutorial, you need to have:
+To perform the tasks described in this guide, you need to have:
 
 - A Nomad environment. Refer to the [get started](/nomad/tutorials/get-started) tutorials to install Nomad and create a cluster.
 
@@ -37,7 +37,7 @@ To perform the tasks described in this tutorial, you need to have:
 
 ### Policy requirements
 
-For the purpose of this tutorial, you will use the `root` token to work with Vault
+For the purpose of this guide, you will use the `root` token to work with Vault
 running in development mode.
 
 When you are working with a non-development Vault environment, your token policy
@@ -107,14 +107,9 @@ The Vault server is ready.
 
 
 1. Launch the [HCP Portal](https://portal.cloud.hashicorp.com/) and log in.
-
 1. Click **Vault** in the left navigation pane.
-
 1. In the **Vault clusters** pane, click **vault-cluster**.
-
 1. Under **Cluster URLs**, click **Public** Cluster URL. This copies the URL to your clipboard.
-   ![Public Cluster URL](/img/vault/cloud/ui-hcp-vault-copy-public-url.png)
-
 1. In your terminal, set the `VAULT_ADDR` environment variable to the public cluster URL copied from HCP.
 
    ```shell-session
@@ -122,11 +117,7 @@ The Vault server is ready.
    ```
 
 1. Return to the **Overview** page and click **Generate token**. It will take a few moments to generate the token.
-   ![Generate a Token](/img/vault/cloud/ui-hcp-vault-create-admin-token.png)
-
 1. Copy the **Admin Token** by clicking on **Copy**.
-   ![Generated Token](/img/vault/cloud/ui-hcp-vault-copy-admin-token.png)
-
 1. Return to your terminal and set the `VAULT_TOKEN` environment variable to the token copied from HCP.
 
    ```shell-session
@@ -358,7 +349,7 @@ pairs that contain information about a user and the OIDC service.
    </Tab>
    <Tab heading="HCP Vault Dedicated" group="hcp">
 
-      Vault Dedicated uses the private address for the `issuer` URL. For this tutorial, you will override the `issuer` value to match the public URL.
+      Vault Dedicated uses the private address for the `issuer` URL. For this guide, you will override the `issuer` value to match the public URL.
 
    ```shell-session
    $ vault write identity/oidc/provider/my-provider \
@@ -589,5 +580,5 @@ displays the Nomad ACL token generated.
 
 ## Next steps
 
-In this tutorial, you configured Vault as an OIDC provider with Nomad as a
+In this guide, you configured Vault as an OIDC provider with Nomad as a
 client. Learn more about [configuring Vault as an OIDC provider](/vault/docs/secrets/identity/oidc-provider).
