@@ -36,7 +36,7 @@ The `exec` driver supports the following configuration in the job spec:
 
 - `command` - The command to execute. Must be provided. If executing a binary
   that exists on the host, the path must be absolute and within the task's
-  [chroot](#chroot) or in a [host volume][] mounted with a
+  [chroot](/nomad/docs/deploy/task-driver/exec#chroot) or in a [host volume][] mounted with a
   [`volume_mount`][volume_mount] block. The driver will make the binary
   executable and will search, in order:
 
@@ -93,7 +93,7 @@ config {
 ```
 
 - `work_dir` - (Optional) Sets a custom working directory for the task. This path must be
-  absolute and within the task's [chroot](#chroot) or in a [host volume][] mounted
+  absolute and within the task's [chroot](/nomad/docs/deploy/task-driver/exec#chroot) or in a [host volume][] mounted
   with a [`volume_mount`][volume_mount] block. This will also change the working
   directory when using `nomad alloc exec`.
 
@@ -134,12 +134,12 @@ task "example" {
 ```
 
 
-[default_pid_mode]: /nomad/docs/job-declare/task-driver/exec#default_pid_mode
-[default_ipc_mode]: /nomad/docs/job-declare/task-driver/exec#default_ipc_mode
-[cap_add]: /nomad/docs/job-declare/task-driver/exec#cap_add
-[cap_drop]: /nomad/docs/job-declare/task-driver/exec#cap_drop
+[default_pid_mode]: /nomad/docs/deploy/task-driver/exec#default_pid_mode
+[default_ipc_mode]: /nomad/docs/deploy/task-driver/exec#default_ipc_mode
+[cap_add]: /nomad/docs/deploy/task-driver/exec#cap_add
+[cap_drop]: /nomad/docs/deploy/task-driver/exec#cap_drop
 [no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
-[allow_caps]: /nomad/docs/job-declare/task-driver/exec#allow_caps
+[allow_caps]: /nomad/docs/deploy/task-driver/exec#allow_caps
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
 [host volume]: /nomad/docs/configuration/client#host_volume-block
 [volume_mount]: /nomad/docs/job-specification/volume_mount

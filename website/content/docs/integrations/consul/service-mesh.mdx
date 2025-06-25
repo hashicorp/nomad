@@ -189,7 +189,7 @@ Consul service mesh sidecar proxy. All Nomad client nodes using network namespac
 must have these CNI plugins [installed][cni_install].
 
 To use [`transparent_proxy`][] mode, Nomad client nodes will also need the
-[`consul-cni`][] plugin installed. See the Linux post-installation [steps](/nomad/docs/install#linux-post-installation-steps) for more detail on how to install CNI plugins.
+[`consul-cni`][] plugin installed. See the Linux post-installation [steps](/nomad/docs/deploy#linux-post-installation-steps) for more detail on how to install CNI plugins.
 
 ## Run the service mesh-enabled services
 
@@ -504,7 +504,7 @@ nomad node meta apply -node-id $nodeID \
 [anon_token]: /consul/docs/security/acl/tokens#special-purpose-tokens
 [consul_ports]: /consul/docs/agent/config/config-files#ports
 [consul_grpc_tls]: /consul/docs/upgrading/upgrade-specific#changes-to-grpc-tls-configuration
-[cni_install]: /nomad/docs/install#linux-post-installation-steps
+[cni_install]: /nomad/docs/deploy#linux-post-installation-steps
 [transparent proxy]: /consul/docs/k8s/connect/transparent-proxy
 [go-sockaddr/template]: https://pkg.go.dev/github.com/hashicorp/go-sockaddr/template
 [`recursors`]: /consul/docs/agent/config/config-files#recursors

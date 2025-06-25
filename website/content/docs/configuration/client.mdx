@@ -276,7 +276,7 @@ client {
 @include 'chroot-limitations.mdx'
 
 When `chroot_env` is unspecified, the `exec` driver uses a default chroot
-environment with the most commonly used parts of the operating system. Refer to the [Nomad `exec` driver documentation](/nomad/docs/job-declare/task-driver/exec#chroot) for
+environment with the most commonly used parts of the operating system. Refer to the [Nomad `exec` driver documentation](/nomad/docs/deploytask-driver/exec#chroot) for
 the full list.
 
 Nomad never attempts to embed the `alloc_dir` in the chroot as doing so would cause infinite recursion.

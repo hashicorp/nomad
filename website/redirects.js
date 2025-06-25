@@ -239,7 +239,12 @@ module.exports = [
   },
   {
     source: '/nomad/docs/concepts/acl',
-    destination: '/nomad/docs/architecture/acl',
+    destination: '/nomad/docs/secure/acl',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/architecture/acl',
+    destination: '/nomad/docs/secure/acl',
     permanent: true,
   },
   {

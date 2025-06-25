@@ -1,0 +1,221 @@
+---
+layout: docs
+page_title: Inspect job workloads
+description: |-
+  Inspect jobs, allocations, and tasks in the Nomad web UI and interact
+  with these objects to perform operations like restart an allocation or
+  stop a job.
+---
+
+# Inspect job workloads
+
+The Web UI can be a powerful companion when monitoring and debugging jobs
+running in Nomad. The Web UI will list all jobs, link jobs to allocations,
+allocations to client nodes, client nodes to driver health, and much more.
+
+## List jobs
+
+The first page you will arrive at in the Web UI is the Jobs List page. Here you
+will find every job for a namespace in a region. The table of jobs is
+searchable, sortable, and filterable. Each job row in the table shows basic
+information, such as job name, status, type, and priority, as well as richer
+information such as a visual representation of all allocation statuses.
+
+This view will also live-update as jobs get submitted, get purged, and change
+status.
+
+[![Jobs List][img-jobs-list]][img-jobs-list]
+
+## Filter job view
+
+If your Nomad cluster has many jobs, it can be useful to filter the list of all
+jobs down to only those matching certain facets. The Web UI has four facets you
+can filter by:
+
+1. **Type:** The type of job, including Batch, Parameterized, Periodic, Service,
+   and System.
+
+1. **Status:** The status of the job, including Pending, Running, and Dead.
+
+1. **Datacenter:** The datacenter the job is running in, including a dynamically
+   generated list based on the jobs in the namespace.
+
+1. **Prefix:** The possible common naming prefix for a job, including a
+   dynamically generated list based on job names up to the first occurrence of
+   `-`, `.`, and `_`. Only prefixes that match multiple jobs are included.
+
+[![Job Filters][img-job-filters]][img-job-filters]
+
+## Inspect an allocation
+
+In Nomad, allocations are the schedulable units of work. This is where runtime
+metrics begin to surface. An allocation is composed of one or more tasks, and
+the utilization metrics for tasks are aggregated so they can be observed at the
+allocation level.
+
+### Monitor resource utilization
+
+Nomad has APIs for reading point-in-time resource utilization metrics for tasks
+and allocations. The Web UI uses these metrics to create time-series graphs for
+the current session.
+
+When viewing an allocation, resource utilization will automatically start
+logging.
+
+[![Allocation Resource Utilization][img-alloc-resource-utilization]][img-alloc-resource-utilization]
+
+### Review task events
+
+When Nomad places, prepares, and starts a task, a series of task events are
+emitted to help debug issues in the event that the task fails to start.
+
+Task events are listed on the Task Detail page and live-update as Nomad handles
+managing the task.
+
+[![Task Events][img-task-events]][img-task-events]
+
+### View rescheduled allocations
+
+Allocations will be placed on any client node that satisfies the constraints of
+the job definition. There are events, however, that will cause Nomad to
+reschedule allocations, (e.g., node failures).
+
+Allocations can be configured [in the job definition to reschedule] to a
+different client node if the allocation ends in a failed status. This will
+happen after the task has exhausted its [local restart attempts].
+
+The end result of this automatic procedure is a failed allocation and that
+failed allocation's rescheduled successor. Since Nomad handles all of this
+automatically, the Web UI makes sure to explain the state of allocations through
+icons and linking previous and next allocations in a reschedule chain.
+
+[![Allocation Reschedule Icon][img-alloc-reschedule-icon]][img-alloc-reschedule-icon]
+
+[![Allocation Reschedule Details][img-alloc-reschedule-details]][img-alloc-reschedule-details]
+
+### Unhealthy driver
+
+Given the nature of long-lived processes, it's possible for the state of the
+client node an allocation is scheduled on to change during the lifespan of the
+allocation. Nomad attempts to monitor pertinent conditions including driver
+health.
+
+The Web UI denotes when a driver an allocation depends on is unhealthy on the
+client node the allocation is running on.
+
+[![Allocation Unhealthy Driver][img-alloc-unhealthy-driver]][img-alloc-unhealthy-driver]
+
+### Preempted allocations
+
+Much like how Nomad will automatically reschedule allocations, Nomad will
+automatically preempt allocations when necessary. When monitoring allocations in
+Nomad, it's useful to know what allocations were preempted and what job caused
+the preemption.
+
+The Web UI makes sure to tell this full story by showing which allocation caused
+an allocation to be preempted as well as the opposite: what allocations an
+allocation preempted. This makes it possible to traverse down from a job to a
+preempted allocation, to the allocation that caused the preemption, to the job
+that the preempting allocation is for.
+
+[![Allocation Preempter][img-alloc-preempter]][img-alloc-preempter]
+
+[![Allocation Preempted][img-alloc-preempted]][img-alloc-preempted]
+
+## Review task logs
+
+A task will typically emit log information to `stdout` and `stderr`. Nomad
+captures these logs and exposes them through an API. The Web UI uses these APIs
+to offer `head`, `tail`, and streaming logs from the browser.
+
+The Web UI will first attempt to directly connect to the client node the task is
+running on. Typically, client nodes are not accessible from the public internet.
+If this is the case, the Web UI will fall back and proxy to the client node from
+the server node with no loss of functionality.
+
+[![Task Logs][img-task-logs]][img-task-logs]
+
+~> Not all browsers support streaming HTTP requests. In the event that streaming
+is not supported, logs will still be followed using interval polling.
+
+## Restart or stop an allocation or task
+
+Nomad allows for restarting and stopping individual allocations and tasks. When
+a task is restarted, Nomad will perform a local restart of the task. When an
+allocation is stopped, Nomad will mark the allocation as complete and perform a
+reschedule onto a different client node.
+
+Both of these features are also available in the Web UI.
+
+[![Allocation Stop and Restart][img-alloc-stop-restart]][img-alloc-stop-restart]
+
+## Force a periodic instance
+
+Periodic jobs are configured like a cron job. Sometimes, you might want to start
+the job before the its next scheduled run time. Nomad calls this a [periodic
+force] and it can be done from the Web UI on the Job Overview page for a
+periodic job.
+
+[![Periodic Force][img-periodic-force]][img-periodic-force]
+
+## Submit a new version of a job
+
+From the Job Definition page, a job can be edited. After clicking the Edit
+button in the top-right corner of the code window, the job definition JSON
+becomes editable. The edits can then be planned and scheduled.
+
+[![Job Definition Edit][img-job-definition-edit]][img-job-definition-edit]
+
+~> Since each job within a namespace must have a unique name, it is possible to
+submit a new version of a job from the Run Job screen. Always review the plan
+output.
+
+## Monitor a deployment
+
+When a system or service job includes the [`update` stanza], a deployment is
+created upon job submission. Job deployments can be monitored in realtime from
+the Web UI.
+
+The Web UI will show as new allocations become placed, tallying towards the
+expected total, and tally allocations as they become healthy or unhealthy.
+
+Optionally, a job may use canary deployments to allow for additional health
+checks or manual testing before a full roll out. If a job uses canaries and is
+not configured to automatically promote the canary, the canary promotion
+operation can be done from the Job Overview page in the Web UI.
+
+[![Job Deployment with Canary Promotion][img-job-deployment-canary]][img-job-deployment-canary]
+
+## Stop a job
+
+Jobs can be stopped from the Job Overview page. Stopping a job will gracefully
+stop all allocations, marking them as complete, and freeing up resources in the
+cluster.
+
+[![Job Stop][img-job-stop]][img-job-stop]
+
+## Continue your exploration
+
+Now that you have explored operations that can be performed with jobs through
+the Nomad UI, learn how to inspect the state of your cluster using the Nomad UI.
+
+[`update` stanza]: /nomad/docs/job-specification/update
+[img-alloc-preempted]: /img/nomad/web-ui/guide-ui-img-alloc-preempted.png
+[img-alloc-preempter]: /img/nomad/web-ui/guide-ui-img-alloc-preempter.png
+[img-alloc-reschedule-details]: /img/nomad/web-ui/guide-ui-img-alloc-reschedule-details.png
+[img-alloc-reschedule-icon]: /img/nomad/web-ui/guide-ui-img-alloc-reschedule-icon.png
+[img-alloc-resource-utilization]: /img/nomad/web-ui/guide-ui-img-alloc-resource-utilization.png
+[img-alloc-stop-restart]: /img/nomad/web-ui/guide-ui-img-alloc-stop-restart.png
+[img-alloc-unhealthy-driver]: /img/nomad/web-ui/guide-ui-img-alloc-unhealthy-driver.png
+[img-job-definition-edit]: /img/nomad/web-ui/guide-ui-img-job-definition-edit.png
+[img-job-deployment-canary]: /img/nomad/web-ui/guide-ui-img-job-deployment-canary.png
+[img-job-filters]: /img/nomad/web-ui/guide-ui-img-job-filters.png
+[img-job-stop]: /img/nomad/web-ui/guide-ui-img-job-stop.png
+[img-jobs-list]: /img/nomad/web-ui/guide-ui-jobs-list.png
+[img-periodic-force]: /img/nomad/web-ui/guide-ui-img-periodic-force.png
+[img-task-events]: /img/nomad/web-ui/guide-ui-img-task-events.png
+[img-task-logs]: /img/nomad/web-ui/guide-ui-img-task-logs.png
+[in the job definition to reschedule]: /nomad/docs/job-specification/reschedule
+[local restart attempts]: /nomad/docs/job-specification/restart
+[periodic force]: /nomad/commands/job/periodic-force
+[securing the web ui with acls]: /nomad/tutorials/access-control

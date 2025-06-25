@@ -1,0 +1,482 @@
+---
+layout: docs
+page_title: Use Nomad variables in tasks
+description: |-
+  Discover how Nomad's workload identity grants tasks automatic read access to
+  certain Nomad variables.
+---
+
+# Use Nomad variables in tasks
+
+In this tutorial you'll access [Nomad Variables][] from tasks via the
+[`template`][] block. Tasks have implicit ACL policies that allow them to access
+their own variables, and you can add job, group, and task fields to ACL policies
+to extend these permissions.
+
+<Note>
+
+ You should always protect access to variables with Access Control
+Lists (ACLs). Writing ACL policies for variables is covered in the [Nomad
+Variables Access Control][] tutorial
+
+</Note>
+
+For complete documentation on the Nomad Variables feature and related concepts,
+see the [Variables reference documentation][], the [Key Management
+documentation][], and the [Workload Identity documentation][]
+
+## Automatic access
+
+The [workload identity][] for each task grants it automatic read and list access
+to variables found at Nomad-owned paths with the prefix `nomad/jobs/`, followed
+by the job ID, task group name, and task name.
+
+If you've completed the [Nomad Variables Access Control][] tutorial, you will
+have a "prod" namespace and a token associated with the "prod-ops" policy. If
+not, you can use a management token for this section and create the "prod"
+namespace.
+
+```shell-session
+$ nomad namespace apply -description "production environment" prod
+Successfully applied namespace "prod"!
+```
+
+In this tutorial you'll be working in the "prod" namespace. Set the
+`NOMAD_NAMESPACE` variable so that the command line writes all variables to that
+namespace.
+
+```shell-session
+export NOMAD_NAMESPACE=prod
+```
+
+Create the following variables to see how different jobs, groups, and tasks can
+access them.
+
+```shell-session
+nomad var put nomad/jobs password=passw0rd1
+nomad var put nomad/jobs/example person_to_greet=alice
+nomad var put nomad/jobs/example/web foo=1 bar=2 baz=3
+nomad var put nomad/jobs/example/web/httpd port=8001
+nomad var put nomad/jobs/example/web/sidecar password=passw0rd2
+```
+
+Create the following job specification. This job `example` has one group `web`
+with two tasks, `httpd` and `sidecar`. It includes templates that access all the
+variables you wrote earlier.
+
+```hcl
+job "example" {
+  datacenters = ["dc1"]
+
+  group "web" {
+
+    network {
+      port "www" {
+        to = 8001
+      }
+    }
+
+    task "httpd" {
+      driver = "docker"
+
+      config {
+        image   = "busybox:1"
+        command = "httpd"
+        args    = ["-v", "-f", "-p", "0.0.0.0:${PORT}", "-h", "${NOMAD_ALLOC_DIR}/data"]
+        ports   = ["www"]
+      }
+
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.txt"
+        env         = true
+        data        = <<EOT
+PORT={{ with nomadVar "nomad/jobs/example/web/httpd" }}{{ .port }}{{ end }}
+EOT
+      }
+
+      template {
+        destination = "${NOMAD_ALLOC_DIR}/data/index.html"
+        change_mode = "noop"
+        data        = <<EOT
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Index</title></head>
+  <body>
+    <p>Hello, {{ with nomadVar "nomad/jobs/example" }}{{ .person_to_greet }}{{ end }}!</p>
+    <p>Here is the group variable:</p>
+    <ul>
+    {{- with nomadVar "nomad/jobs/example/web" -}}
+    {{- range $k, $v := . }}
+      <li>{{ $k }}={{ $v }}</li>
+    {{- end }}
+    {{- end }}
+    </ul>
+    <p><a href="/sidecar.html">View the output from the sidecar task.</a></p>
+  </body>
+</html>
+EOT
+      }
+    }
+
+    task "sidecar" {
+      driver = "docker"
+
+      config {
+        image   = "busybox:1"
+        command = "sleep"
+        args    = ["300"]
+      }
+
+      template {
+        destination = "${NOMAD_ALLOC_DIR}/data/sidecar.html"
+        change_mode = "noop"
+        data        = <<EOT
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Sidecar</title></head>
+  <body>
+    <p>The task has access to the following variables:</p>
+    <ul>
+      {{- range nomadVarList "nomad" }}
+      <li>{{ .Path }}</li>
+      {{- end }}
+    </ul>
+    <p><a href="/">View the index page.</a></p>
+  </body>
+</html>
+EOT
+      }
+    }
+  }
+}
+```
+
+Run this job and wait for the deployment to complete and note the allocation
+short ID. In this example, the allocation short ID is `ec6dc2e4`.
+
+```shell-session
+$ nomad job run ./example.nomad.hcl
+==> 2022-09-19T11:42:20-04:00: Monitoring evaluation "0d8a7587"
+    2022-09-19T11:42:20-04:00: Evaluation triggered by job "example"
+    2022-09-19T11:42:20-04:00: Evaluation within deployment: "b58da4d8"
+    2022-09-19T11:42:20-04:00: Allocation "ec6dc2e4" created: node "9063a25f", group "web"
+    2022-09-19T11:42:20-04:00: Evaluation status changed: "pending" -> "complete"
+==> 2022-09-19T11:42:20-04:00: Evaluation "0d8a7587" finished with status "complete"
+==> 2022-09-19T11:42:20-04:00: Monitoring deployment "b58da4d8"
+  ✓ Deployment "b58da4d8" successful
+
+    2022-09-19T11:42:32-04:00
+    ID          = b58da4d8
+    Job ID      = example
+    Job Version = 0
+    Status      = successful
+    Description = Deployment completed successfully
+
+    Deployed
+    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    web         1        1       1        0          2022-09-19T15:52:31Z
+```
+
+First, use `nomad alloc exec` to enter the `httpd` task and show the command
+line arguments for the processes running in the container.
+
+```shell-session
+$ nomad alloc exec -task httpd ec6dc2e4 ps -ef
+PID   USER     TIME  COMMAND
+    1 root      0:00 httpd -v -f -p 0.0.0.0:8001 -h /alloc/data
+    8 root      0:00 ps -ef
+```
+
+Note that the port number has been interpolated with environment variable that
+you rendered in the following template by using the `env` field:
+
+```hcl
+      template {
+        destination = "${NOMAD_SECRETS_DIR}/env.txt"
+        env         = true
+        data        = <<EOT
+PORT={{ with nomadVar "nomad/jobs/example/web/httpd" }}{{ .port }}{{ end }}
+EOT
+      }
+```
+
+Visit the web page being served by the `httpd` task at port 8001. If you are
+running Nomad on macOS and are using Docker for Mac to run Docker tasks, you can
+reach the webpage at your localhost address.
+
+If you are deploying to a remote Linux host or Vagrant box, you can use the IP
+address found when you run `nomad alloc status`:
+
+```shell-session
+$ nomad alloc status ec6dc2e4
+...
+Allocation Addresses (mode = "bridge"):
+Label  Dynamic  Address
+*www   yes      127.0.0.1:21976 -> 8001
+```
+
+You can also use `curl`:
+
+```shell-session
+
+$ curl 127.0.0.1:21976
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Index</title></head>
+  <body>
+    <p>Hello, alice!</p>
+    <p>Here is the group variable:</p>
+    <ul>
+      <li>bar=2</li>
+      <li>baz=3</li>
+      <li>foo=1</li>
+    </ul>
+    <p><a href="/sidecar.html">View the output from the sidecar task.</a></p>
+  </body>
+</html>
+```
+
+This corresponds to this template block that reads the variable accessible to
+the job "example" at `nomad/jobs/example` and the variable accessible to the
+group "web" within the job "example" at `nomad/jobs/example/web`.
+
+```hcl
+      template {
+        destination = "${NOMAD_ALLOC_DIR}/data/index.html"
+        change_mode = "noop"
+        data        = <<EOT
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Index</title></head>
+  <body>
+    <p>Hello, {{ with nomadVar "nomad/jobs/example" }}{{ .person_to_greet }}{{ end }}!</p>
+    <p>Here is the group variable:</p>
+    <ul>
+    {{- with nomadVar "nomad/jobs/example/web" -}}
+    {{- range $k, $v := . }}
+      <li>{{ $k }}={{ $v }}</li>
+    {{- end }}
+    {{- end }}
+    </ul>
+    <p><a href="/sidecar.html">View the output from the sidecar task.</a></p>
+  </body>
+</html>
+EOT
+```
+
+Visit the webpage rendered by the sidecar task:
+
+```shell-session
+curl -s http://127.0.0.1:21976/sidecar.html
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Sidecar</title></head>
+  <body>
+    <p>The task has access to the following variables:</p>
+    <ul>
+      <li>nomad/jobs</li>
+      <li>nomad/jobs/example</li>
+      <li>nomad/jobs/example/web</li>
+      <li>nomad/jobs/example/web/sidecar</li>
+    </ul>
+    <p><a href="/">View the index page.</a></p>
+  </body>
+</html>
+```
+
+This corresponds to the following template block, which lists all the variables
+this task has access to in its own namespace:
+
+```
+      template {
+        destination = "${NOMAD_ALLOC_DIR}/data/sidecar.html"
+        change_mode = "noop"
+        data        = <<EOT
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Sidecar</title></head>
+  <body>
+    <p>The task has access to the following variables:</p>
+    <ul>
+      {{- range nomadVarList "nomad" }}
+      <li>{{ .Path }}</li>
+      {{- end }}
+    </ul>
+    <p><a href="/">View the index page.</a></p>
+  </body>
+</html>
+EOT
+      }
+```
+
+Note that `nomad/jobs/example/httpd` does not appear in the list. If you added a
+variable to `nomad/jobs/another-example` it would also not appear in the
+list. If you added `nomad/jobs/example/sidecar` to a different namespace, it
+would not appear in the list.
+
+## Workload associated ACL policies
+
+You may need to give tasks access to variables that are on paths shared by many
+jobs. For example, all jobs in your cluster may need a shared API key for a
+third-party monitoring vendor. You can provide access to these variables secrets
+by creating policies associated with the task's [workload identity][]. See
+[Workload Associated ACL Policies][] for full documentation.
+
+Create a new namespace named `shared`.
+
+```shell-session
+$ nomad namespace apply shared
+Successfully applied namespace "shared"!
+```
+
+Create a variable named `vendor/foo/bar` in the `shared` namespace.
+
+```shell-session
+nomad var put -namespace shared vendor/foo/bar user=me password=passw0rd1
+```
+
+To give the task you wrote earlier access to all secrets in the `shared`
+namespace, you can create the following policy file `shared-policy.hcl`.
+
+```hcl
+namespace "shared" {
+  variables {
+    path "*" {
+      capabilities = ["read"]
+    }
+  }
+}
+```
+
+Now, create the policy and associate it with the `httpd` task in the web group
+of the example job, specifying the appropriate flags on the `nomad acl policy
+apply` command.
+
+```shell-session
+nomad acl policy apply \
+   -namespace prod -job example -group web -task httpd \
+   shared-policy ./shared-policy.hcl
+```
+
+You can view the policy to see that it's associated with the workload.
+
+```shell-session
+$ nomad acl policy info shared-policy
+Name        = shared-policy
+Description = <none>
+CreateIndex = 390
+ModifyIndex = 390
+
+Associated Workload
+Namespace = prod
+JobID     = example
+Group     = web
+Task      = httpd
+
+Rules
+
+namespace "shared" {
+  variables {
+    path "*" {
+      capabilities = ["read"]
+    }
+  }
+}
+```
+
+Change the template for the `httpd` task.
+
+```hcl
+      template {
+        destination = "alloc/index.html"
+        data        = <<EOT
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Index</title></head>
+  <body>
+    <p>Hello, {{ with nomadVar "nomad/jobs/example" }}{{ .person_to_greet }}{{ end }}!</p>
+    <p>Here is the shared variable:</p>
+    <ul>
+    {{- with nomadVar "vendor/foo/bar@shared" }}
+    {{- range $k, $v := . }}
+    <li>{{ $k }}={{ $v }}</li>
+    {{- end }}
+    {{- end }}
+    </ul>
+  </body>
+</html>
+EOT
+```
+
+Update the job and wait for the deployment to complete.
+
+```shell-session
+nomad job run ./example.nomad.hcl
+```
+
+Visit the webpage served by the `httpd` task.
+
+```shell-session
+curl -s http://127.0.0.1:8001/index.html
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Index</title></head>
+  <body>
+    <p>Hello, alice!</p>
+    <p>Here is the shared variable:</p>
+    <ul>
+    <li>password=passw0rd1</li>
+    <li>user=me</li>
+    </ul>
+  </body>
+</html>
+```
+
+## Updating task variables
+
+You can update the value of a variable and it will be updated in the templates
+that read that value.
+
+Update the shared variable so that the "password" field changes.
+
+```shell-session
+nomad var put -namespace shared -force vendor/foo/bar user=me password=passw0rd2
+```
+
+After a few moments, the value will be updated on the template.
+
+```shell-session
+curl -s http://127.0.0.1:8001/index.html
+<!DOCTYPE html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Hello Variables - Index</title></head>
+  <body>
+    <p>Hello, alice!</p>
+    <p>Here is the shared variable:</p>
+    <ul>
+    <li>password=passw0rd2</li>
+    <li>user=me</li>
+    </ul>
+  </body>
+</html>
+```
+
+You can use the template
+[`change_mode`](/nomad/docs/job-specification/template#change_mode)
+to specify Nomad's behavior when a value changes.
+
+## Next steps
+
+Because Nomad Variables use functions in the template block to emit data to
+Nomad jobs, consider learning more about templates in Nomad with the [Templates
+collection](/nomad/tutorials/templates).
+
+[Nomad Variables]: /nomad/docs/concepts/variables
+[Nomad Variables Access Control]: /nomad/tutorials/variables/variables-acls
+[Variables reference documentation]: /nomad/docs/concepts/variables
+[Key Management documentation]: /nomad/docs/manage/key-management
+[Workload Identity documentation]: /nomad/docs/concepts/workload-identity
+[workload identity]: /nomad/docs/concepts/workload-identity
+[`template`]: /nomad/docs/job-specification/template
+[Workload Associated ACL Policies]: /nomad/docs/concepts/workload-identity#workload-associated-acl-policies
+

@@ -1,0 +1,552 @@
+---
+layout: docs
+page_title: Create and modify job versions
+description: |-
+  Create, modify, delete, compare, and revert job versions with the Nomad CLI, API, or UI.
+---
+
+# Create and modify job versions
+
+Nomad creates a new version for your job each time you run your job. A job can
+have an unlimited number of versions, and version history is stored in state.
+Over time, Nomad garbage collects dead versions that do not have a version tag. Saving a tag to a version prevents Nomad from garbage collecting that version.
+
+This guide demonstrates the following job version features:
+
+- Create, modify, and delete job version tags.
+- Compare versions.
+- Revert a running job to an older version, no matter how much time has passed.
+- Clone a version.
+
+## Prerequisites
+
+- This feature requires Nomad v1.9.0 and later.
+- You are familiar with [job versions and tags][job-concept].
+
+## Create the `hello-world` job
+
+The examples use a job named `hello-world`, which is one of Nomad's job
+templates.
+
+1. On the **Jobs** page, click **Run Job**.
+1. Click **Choose from template**.
+1. Select **Hello world**.
+1. Click **Apply**.
+1. Click **Plan**.
+1. Review the **Job Plan** output.
+1. Click **Run** to run the `hello-world` job.
+
+## Create a version tag
+
+When you create a version tag, you should provide Nomad with these attributes:
+
+- A tag name
+- A job name
+- A version number
+
+The following example creates a tag named `golden-version` for version zero of `hello-world`. It includes a description of the tag.
+
+<Tabs>
+<Tab heading="CLI">
+
+Use the `nomad job tag apply [options] <job_id>` command to create a tag.
+
+```shell-session
+$ nomad job tag apply -version 0 -name "golden-version" \
+    -description "The version we can roll back to." \
+    hello-world
+
+Job version 0 tagged with name "golden-version"
+```
+
+Note that Nomad tags the latest version if you omit the version number.
+
+Refer to the [`job tag apply`][job-tag-apply-cli] command reference for details on
+including general options such as `namespace`.
+
+</Tab>
+<Tab heading="API">
+
+| Method | Path              | Produces           |
+| ------ | ----------------- | ------------------ |
+| `POST`  | `/v1/job/:job_id/versions/:tag_name/tag` | `application/json` |
+
+This example assumes the Nomad API is accessible on `localhost:4646`.
+
+```shell-session
+$ curl -X POST \
+ localhost:4646/v1/job/hello-world/versions/golden-version/tag \
+ -H "Content-Type: application/json" -d \
+ '{"Version": 0, "Description": "The version we can roll back to."}'
+```
+
+The JSON response is similar to the following example.
+
+```json
+{
+  "Name":"golden-version",
+  "Description":"The version we can roll back to.",
+  "TaggedTime":1728325495829793000,
+  "Index":361,
+  "LastContact":0,
+  "KnownLeader":false,
+  "NextToken":""}
+```
+
+Refer to the Jobs HTTP API [Create Job Version Tag][job-tag-apply-api] reference for
+details on path and payload parameters.
+
+</Tab>
+<Tab heading="Web UI">
+
+1. From the **Jobs** screen, click the **hello-world** job to display job details.
+1. Click **Versions**.
+1. Find **Version #0** in the list.
+1. Click **Tag this version**.
+1. Enter `golden version` in the **Tag Name** field and `The version we can roll
+   back to.` in the **Tag Description** field.
+1. Click **Save**.
+
+Version zero now has a `golden-version` tag.
+
+![Version tag](/img/nomad/job-version-tag/nomad-ui-version-tag.png)
+
+</Tab>
+</Tabs>
+
+Using the CLI, you can run a new version of your job and create a tag for that
+new version. The following example runs a new version of the hello-world job and
+immediately tags that version.
+
+```shell-session
+$ nomad job run hello-world.nomad.hcl && \
+  nomad job tag apply -name "high-traffic-version" hello-world
+
+==> 2024-10-08T14:42:30-05:00: Monitoring evaluation "90714134"
+    2024-10-08T14:42:30-05:00: Evaluation triggered by job "hello-world"
+    2024-10-08T14:42:31-05:00: Evaluation within deployment: "192ecea1"
+    2024-10-08T14:42:31-05:00: Allocation "ec85c1bd" created: node "d6ee954e", group "servers"
+    2024-10-08T14:42:31-05:00: Evaluation status changed: "pending" -> "complete"
+==> 2024-10-08T14:42:31-05:00: Evaluation "90714134" finished with status "complete"
+==> 2024-10-08T14:42:31-05:00: Monitoring deployment "192ecea1"
+  ✓ Deployment "192ecea1" successful
+
+    2024-10-08T14:42:48-05:00
+    ID          = 192ecea1
+    Job ID      = hello-world
+    Job Version = 4
+    Status      = successful
+    Description = Deployment completed successfully
+
+    Deployed
+    Task Group  Desired  Placed  Healthy  Unhealthy  Progress Deadline
+    servers     1        1       1        0          2024-10-08T14:52:46-05:00
+Job version 1 tagged with name "high-traffic-version"
+```
+
+## Modify a version tag
+
+The following example updates both the name and description of the `golden-version` tag for a hello-world job.
+
+<Tabs>
+<Tab heading="CLI">
+
+Use the `nomad job tag apply [options] <job_id>` command to modify a tag's attributes.
+
+```shell-session
+$ nomad job tag apply -version 0 -name "golden-version-0" \
+    -description "Low traffic version." \
+    hello-world
+
+Job version 0 tagged with name "golden-version-0"
+```
+
+Refer to the [`job tag apply`][job-tag-apply-cli] command reference for details on
+including general options such as `namespace`.
+
+</Tab>
+<Tab heading="API">
+
+| Method | Path              | Produces           |
+| ------ | ----------------- | ------------------ |
+| `POST`  | `/v1/job/:job_id/versions/:tag_name/tag` | `application/json` |
+
+This example assumes the Nomad API is accessible on `localhost:4646`.
+
+```shell-session
+$ curl -X POST \
+ localhost:4646/v1/job/hello-world/versions/golden-version-0/tag \
+ -H "Content-Type: application/json" -d \
+ '{"Version": 0, "Description": "Low traffic version."}'
+```
+
+The response is similar to the following.
+
+```json
+{
+  "Name":"golden-version-0",
+  "Description":"Low traffic version.",
+  "TaggedTime":1728407951089465000,
+  "Index":3460,
+  "LastContact":0,
+  "KnownLeader":false,
+  "NextToken":""}
+```
+
+See the Jobs HTTP API [Create Job Version Tag][job-tag-apply-api] reference for
+details on path and payload parameters.
+
+</Tab>
+<Tab heading="Web UI">
+
+1. From the **Jobs** screen, click the **hello-world** job to display job details.
+1. Click **Versions**.
+1. Find **Version #0** in the list.
+1. Click **golden-version**.
+1. Edit the tag name and description.
+1. Click **Save**.
+
+</Tab>
+</Tabs>
+
+## Delete a version tag
+
+The following example deletes the `golden-version` tag attached to the `hello-world` job.
+
+<Tabs>
+<Tab heading="CLI">
+
+Use `nomad job tag unset -name "<tag_name>" <job_id>` to delete a tag from a version. This command requires a tag name and job ID.
+
+```shell-session
+$ nomad job tag unset -name "golden-version" hello-world
+
+removed from job "hello-world"
+```
+
+Refer to the [`job tag unset`][job-tag-unset-cli] command reference for details on
+including general options such as `namespace`.
+
+</Tab>
+<Tab heading="API">
+
+| Method | Path              | Produces           |
+| ------ | ----------------- | ------------------ |
+| `DELETE`  | `/v1/job/:job_id/versions/:tag_name/tag` | `application/json` |
+
+This example assumes the Nomad API is accessible on `localhost:4646`.
+
+```shell-session
+$ curl -X DELETE \
+  localhost:4646/v1/job/hello-world/versions/golden-version/tag \
+  -H "Content-Type: application/json"
+```
+
+The response is similar to the following.
+
+```json
+{
+  "Name":"",
+  "Description":"",
+  "TaggedTime":0,
+  "Index":5135,
+  "LastContact":0,
+  "KnownLeader":false,
+  "NextToken":""
+}
+```
+
+Refer to the Jobs HTTP API [Delete Job Version Tag][job-tag-unset-api] reference for
+details on path and payload parameters.
+
+</Tab>
+<Tab heading="Web UI">
+
+1. From the **Jobs** screen, click the **hello-world** job to display job details.
+1. Click **Versions**.
+1. Find **Version #0** in the list.
+1. Click **golden-version**.
+1. Click **Delete** to remove the tag.
+
+</Tab>
+</Tabs>
+
+## Compare versions
+
+<Tabs>
+<Tab heading="CLI">
+
+Use the [`nomad job history -p` command][nomad-job-history-cli] to compare
+different job versions. The `-p` option displays the differences between each
+version and the most recent version. You also have these options:
+
+- `-diff-version`: Specifies the version number of the job to compare against.
+    Mutually exclusive with the `-diff-tag` flag.
+- `-diff-tag`: Specifies the version of the job to compare against, referenced
+  by tag name. Defaults to the latest version. Mutually exclusive with `-diff-version`.
+
+### Show diff based on a version
+
+The `nomad job history -p -diff-version <job_id>` command compares all
+versions against the specified `diff-version`.
+
+The following example compares all job versions to version 4.
+
+```shell-session
+$ nomad job history -p -diff-version=4 hello-world
+```
+
+You can also perform a diff between two specific versions. This example compares
+ version 4 of the hello-world job with version 1 of the job.
+
+```shell-session
+$ nomad job history -p -version=4 -diff-version=1 hello-world
+```
+
+### Show diff based on a tag
+
+The `nomad job history -p -diff-tag <job_id>` command compares all
+versions against the specified `diff-tag`.
+
+The following example compares all job versions to the version tagged with the name `golden-version`.
+
+```shell-session
+$ nomad job history -p -diff-tag="golden-version" hello-world
+```
+
+You can also perform a diff between a tag and a version number. The following
+example compares the current version, `-version=4`, with the version tagged
+`golden-version`.
+
+```shell-session
+$ nomad job history -p -version=4 -diff-tag="golden-version" hello-world
+
+Version     = 4
+Stable      = true
+Submit Date = 2024-10-08T14:42:30-05:00
+Tag Name    = high-traffic-version
+Diff        =
++/- Job: "hello-world"
++/- Task Group: "servers"
+  +   Network {
+        Hostname: ""
+        Mode:     ""
+      + Dynamic Port {
+        + HostNetwork: "default"
+        + Label:       "www"
+        + To:          "8002"
+        }
+      }
+  -   Network {
+        Hostname: ""
+        Mode:     ""
+      - Dynamic Port {
+        - HostNetwork: "default"
+        - Label:       "www"
+        - To:          "8001"
+        }
+      }
+```
+
+</Tab>
+<Tab heading="API">
+
+You can get a version list with the `Diffs` field populated. To compare all
+versions to a specific version, use the `diff_version` query parameter.
+
+This example compares all versions to version one.
+
+```shell-session
+$ curl -X GET \
+  localhost:4646/v1/job/hello-world/versions?diffs=true&diff_version=1
+```
+
+Refer to the Jobs HTTP API [List Job Versions][job-list-diff-api] reference for
+details and complete examples.
+
+</Tab>
+<Tab heading="Web UI">
+
+The job detail's **Versions** tab shows the list of versions.
+
+![Version diff features](/img/nomad/job-version-tag/nomad-ui-version-diff.png)
+
+The two important elements are the **Diff against** dropdown, labeled "1", and
+the changes show or hide toggle, labeled "2".
+
+The **Diff against** dropdown contains versions or tags that change how the UI
+compares the versions against each other.
+
+![Version diff dropdown items](/img/nomad/job-version-tag/nomad-ui-diff-dd.png)
+
+The **Diff against previous version** option means that each version displays
+the difference with the previous version in the list. The **See Change**
+toggle displays the number of changes. Click the **See Change** arrow
+to review the actual difference.
+
+![Version diff previous](/img/nomad/job-version-tag/nomad-ui-diffs-expanded.png)
+
+When you select a version or tag, the UI
+automatically displays the differences each version has with the selected
+version.
+
+![Each version's difference with version seven](/img/nomad/job-version-tag/nomad-ui-diff-changes.png)
+
+</Tab>
+</Tabs>
+
+## Revert to a version
+
+Use job tags to revert the current running job to a prior version.
+
+The following examples revert versions of the `hello-world` job to specific version number or tag names.
+
+<Tabs>
+<Tab heading="CLI">
+
+Use the `nomad job revert [options] <job_id> <version|tag>` command to revert
+the current job to a prior version.
+
+This example reverts the job to version three.
+
+```shell-session
+$ nomad job revert hello-world 3
+```
+
+This example reverts the job to the version with the `golden-version` tag.
+
+```shell-session
+$ nomad job revert hello-world "golden-version"
+```
+
+Refer to the [`job revert`][job-revert-cli] command reference for more examples
+as well as details on including general options such as namespace.
+
+</Tab>
+<Tab heading="API">
+
+| Method | Path                     | Produces           |
+| ------ | ------------------------ | ------------------ |
+| `POST` | `/v1/job/:job_id/revert` | `application/json` |
+
+You can revert a job to a previous version by specifying version number or the
+tag name.
+
+This example reverts the current job to version six.
+
+```shell-session
+$ curl -X POST \
+ localhost:4646/v1/job/hello-world/revert \
+ -H "Content-Type: application/json" -d \
+ '{"JobID": "hello-world", "JobVersion": 6}'
+```
+
+This example reverts the current job to the version tagged `golden-version`.
+
+```shell-session
+$ curl -X POST \
+ localhost:4646/v1/job/hello-world/revert \
+ -H "Content-Type: application/json" -d \
+ '{"JobID": "hello-world", "TaggedVersion": "golden-version"}'
+```
+
+The JSON response for both examples is similar to the following.
+
+```json
+{
+  "EvalID":"c3b8b0b1-85b5-34f9-de70-80d859c6466a",
+  "EvalCreateIndex":6442,
+  "JobModifyIndex":6442,
+  "Warnings":"",
+  "Index":6442,
+  "LastContact":0,
+  "KnownLeader":false,
+  "NextToken":""
+}
+```
+
+Refer to the Jobs HTTP API [Revert to older Job Version][job-revert-api]
+reference for details on path and payload parameters.
+
+</Tab>
+<Tab heading="Web UI">
+
+In this example, you revert the current job to the version with the
+`golden-version` tag.
+
+![Revert job](/img/nomad/job-version-tag/nomad-ui-revert-job.png)
+
+1. From the **Jobs** screen, click the **hello-world** job to display job details.
+1. Click **Versions**.
+1. Find the version with the `golden-version` tag.
+1. Click **Revert Version**. The UI asks you to confirm.
+1. Click **Yes, Revert Version** to complete the reversion process.
+
+The UI then displays the **Overview** tab, where you can review the new version deployment.
+
+</Tab>
+</Tabs>
+
+## Clone a version
+
+Use the web UI to clone a job version.
+
+You can use a cloned version for a new version of the same job or to create a new job.
+
+### Clone as new version
+
+In this example, you clone the `hello-world` job's `golden-version`, edit the
+job spec, plan, and then run the new version.
+
+1. From the **Jobs** screen, click the **hello-world** job to display job details.
+1. Click the **Versions** tab.
+1. Under the version with the `golden-version` tag, click **Clone and Edit**.
+1. Click **Clone as New Version of hello-world**.
+1. Edit the job definition.
+
+   Since this job spec was created using HCL, the UI displays the definition in the **Job Spec** tab.
+
+   Change the network port to `8080`.
+
+   <Warning>
+   If you choose to edit the JSON in the <strong>Full Definition</strong> tab,
+   the JSON definition replaces the HCL definition, so you lose the HCL
+   job spec.
+   We recommending using HCL for job specs.
+   </Warning>
+
+1. Click **Plan**.
+1. Review the plan output.
+1. Click **Run** to run the new version.
+
+The **Versions** tab displays the new version.
+
+### Clone as new job
+
+In this example, you clone the `hello-world` job's `golden-version`, edit the
+job name and network port, plan, and then run the new job.
+
+1. From the **Jobs** screen, click the **hello-world** job to display job details.
+1. Click the **Versions** tab.
+1. Under the version with the `golden-version` tag, click **Clone and Edit**.
+1. Click **Clone as New Job**.
+1. Edit the job spec.
+
+   Change the job name to `hello-earth` and the network port to `9080`. You must change the job name. Otherwise, Nomad creates a new version of the
+   original job.
+
+1. Click **Plan**.
+1. Review the plan output.
+1. Click **Run** to run the new job.
+
+Nomad loads the **Overview** of the `hello-earth` job so you can review the deployment.
+
+[job-concept]: /nomad/docs/concepts/job#job-versions
+[job-tag-apply-cli]: /nomad/commands/job/tag/apply
+[job-tag-apply-api]: /nomad/api-docs/jobs#create-job-version-tag
+[job-tag-unset-cli]: /nomad/commands/job/tag/unset
+[job-tag-unset-api]: /nomad/api-docs/jobs#delete-job-version-tag
+[nomad-job-history-cli]: /nomad/commands/job/history
+[job-list-diff-api]: /nomad/api-docs/jobs#list-job-versions
+[job-revert-cli]: /nomad/commands/job/revert
+[job-revert-api]: /nomad/api-docs/jobs#revert-to-older-job-version

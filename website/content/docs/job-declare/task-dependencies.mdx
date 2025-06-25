@@ -1,0 +1,385 @@
+---
+layout: docs
+page_title: Configure task dependencies
+description: |-
+  Create, configure, and run two jobs to use init and sidecar tasks. Create a dependency between the jobs and discover how to model complex workload dependency trees.
+---
+
+# Configure task dependencies
+
+
+Nomad task dependencies provide the ability to define prestart tasks.
+
+Prestart tasks have two patterns: init tasks and sidecar tasks. Init
+tasks are tasks that must run to completion before the main workload is started.
+They are commonly used to download assets or to create necessary tables for an
+extract-transform-load (ETL) job. Sidecar tasks are started before main workload
+starts and run for the lifetime of the main workload. Typical sidecars tasks are
+log forwarders, proxies, and for platform abstractions. This tutorial demonstrates
+an init task.
+
+You can create an init task by adding a [`lifecycle` stanza] with `hook` set to
+`prestart` and `sidecar` to `false` as below.
+
+```hcl
+      lifecycle {
+        hook    = "prestart"
+        sidecar = false
+      }
+```
+
+You can model complex job dependency trees by using one or more init tasks to
+delay the job's main tasks from running until a condition is met. In this case,
+until a service is available and advertised in Consul.
+
+In this tutorial you will work with several Nomad objects:
+
+- **mock-app** - a job file that contains two tasks
+
+  - **await-mock-service** - an init task that will wait infinitely for a
+    service named "mock-service" to be advertised over the Consul DNS API. Once
+    found, it will exit successfully.
+
+  - **mock-app-container** - the main workload task that is dependent on the
+    "mock-service" service.
+
+- **mock-service** - a job that contains one task which advertises a service
+  named "mock-service". This is provided as a Nomad job as a convenience, but
+  could be replaced by any means of registering a service named "mock-service"
+  in Consul, like the CLI or API.
+
+In this guide, you will complete the following actions:
+
+- Deploy the "mock-app" job.
+
+- Verify that the "mock-app-container" task remains in pending and unstarted.
+
+- Start the "mock-service" job.
+
+- Verify that the "await-mock-service" container completes successfully and that
+  the "mock-app-container" task starts.
+
+## Prerequisites
+
+To complete this tutorial you will need:
+
+- a Nomad cluster and at least one Consul server.
+- Nomad v0.11.0 or greater
+
+If you do not have an existing Nomad cluster, you can learn how to deploy
+on using the [Install Nomad] guide. Similarly, if you do not have an
+existing Consul datacenter, you can learn how to deploy Consul with the
+[Install Consul] guide.
+
+## Create the mock-app job file
+
+This example uses a looping script, in the `config` stanza, to mock service
+payloads.
+
+Create an HCL file named `mock-app.nomad.hcl` with the following content.
+
+```hcl
+job "mock-app" {
+  datacenters = ["dc1"]
+  type        = "service"
+
+  group "mock-app" {
+    # disable deployments
+    update {
+      max_parallel = 0
+    }
+
+    task "await-mock-service" {
+      driver = "docker"
+
+      config {
+        image        = "busybox:1.28"
+        command      = "sh"
+        args         = ["-c", "echo -n 'Waiting for service'; until nslookup mock-service.service.consul 2>&1 >/dev/null; do echo '.'; sleep 2; done"]
+        network_mode = "host"
+      }
+
+      resources {
+        cpu    = 200
+        memory = 128
+      }
+
+      lifecycle {
+        hook    = "prestart"
+        sidecar = false
+      }
+    }
+
+    task "mock-app-container" {
+      driver = "docker"
+
+      config {
+        image   = "busybox"
+        command = "sh"
+        args    = ["-c", "echo The app is running! && sleep 3600"]
+      }
+
+      resources {
+        cpu    = 200
+        memory = 128
+      }
+    }
+  }
+}
+```
+
+The job contains two tasks—"await-mock-service" and "mock-app". The
+"await-mock-service" task is configured to busy-wait until the "mock-service"
+service is advertised in Consul. For this guide, this will not happen until you
+run the `mock-service.nomad.hcl` job. In a more real-world case, this could be any
+service dependency that advertises itself in Consul.
+
+You can use this pattern to model more complicated chains of service dependency
+by including more await-style workloads.
+
+### Ensure that name resolution works properly
+
+Since the "await-mock-service" task uses nslookup inside of a Docker container,
+you will need to ensure that your container can perform lookups against your
+Consul DNS API endpoint. This tutorial uses `network_mode = host` to allow the
+container to use the Nomad client nodes DNS resolution pathway.
+
+The nslookup application will only perform queries on the standard DNS port
+(53). You might need to use an application to forward requests from port 53 to
+the Consul DNS API port—port 8600 by default. You can learn several ways to
+accomplish this forwarding in the [Forward DNS] Learn guide.
+
+You could also add a `dns_servers` value to the config stanza of the
+"await-mock-service" task in the mock-app.nomad.hcl file to direct the query to a
+DNS server directly that meets the above criteria.
+
+## Run the mock-app job
+
+Run `nomad run mock-app.nomad.hcl`.
+
+```shell-session
+$ nomad run mock-app.nomad.hcl
+```
+
+The job will launch and provide you an allocation ID in the output.
+
+```shell-session
+$ nomad run mock-app.nomad.hcl
+==> Monitoring evaluation "01c73d5a"
+    Evaluation triggered by job "mock-app"
+    Allocation "3044dda0" created: node "f26809e6", group "mock-app"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "01c73d5a" finished with status "complete"
+```
+
+## Verify mock-app-container is pending
+
+Run the `nomad alloc status` command with the provided allocation ID.
+
+```shell-session
+$ nomad alloc status 3044dda0
+```
+
+The `nomad alloc status` command provides you with useful information about the resource. For this guide, focus on the status
+of each task. Each task's status is output in lines that look like `Task "await-mock-service" is "running"`.
+
+```shell-session
+$ nomad alloc status 3044dda0
+ID                  = 3044dda0-8dc1-1bac-86ea-66a3557c67d3
+Eval ID             = 01c73d5a
+Name                = mock-app.mock-app[0]
+Node ID             = f26809e6
+Node Name           = nomad-client-2.node.consul
+Job ID              = mock-app
+Job Version         = 0
+Client Status       = running
+Client Description  = Tasks are running
+Desired Status      = run
+Desired Description = <none>
+Created             = 43s ago
+Modified            = 42s ago
+
+Task "await-mock-service" (prestart) is "running"
+Task Resources
+CPU        Memory          Disk     Addresses
+3/200 MHz  80 KiB/128 MiB  300 MiB
+
+Task Events:
+Started At     = 2020-03-18T17:07:26Z
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+Time                       Type        Description
+2020-03-18T13:07:26-04:00  Started     Task started by client
+2020-03-18T13:07:26-04:00  Task Setup  Building Task Directory
+2020-03-18T13:07:26-04:00  Received    Task received by client
+
+Task "mock-app-container" is "pending"
+Task Resources
+CPU      Memory   Disk     Addresses
+200 MHz  128 MiB  300 MiB
+
+Task Events:
+Started At     = N/A
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+Time                       Type      Description
+2020-03-18T13:07:26-04:00  Received  Task received by client
+```
+
+Notice that the await-mock-service task is running and that the
+"mock-app-container" task is pending. The "mock-app-container" task will remain
+in pending until the "await-mock-service" task completes successfully.
+
+## Create the mock-service job file
+
+Create a file named `mock-service.nomad.hcl` with the following content.
+
+```hcl
+job "mock-service" {
+  datacenters = ["dc1"]
+  type        = "service"
+
+  group "mock-service" {
+    task "mock-service" {
+      driver = "docker"
+
+      config {
+        image   = "busybox"
+        command = "sh"
+        args    = ["-c", "echo The service is running! && while true; do sleep 2; done"]
+      }
+
+      resources {
+        cpu    = 200
+        memory = 128
+      }
+
+      service {
+        name = "mock-service"
+      }
+    }
+  }
+}
+
+```
+
+This job advertises the "mock-service" service in Consul. When run, this
+will allow the await-mock-service task to complete successfully and let
+the "mock-app-container" task start up.
+
+## Start mock-service job
+
+Run `nomad run mock-service.nomad.hcl`.
+
+```shell-session
+$ nomad run mock-service.nomad.hcl
+```
+
+Nomad will start the job and return information about the scheduling information.
+
+```shell-session
+$ nomad run mock-service.nomad
+==> Monitoring evaluation "f31f8eb1"
+    Evaluation triggered by job "mock-service"
+    Allocation "d7767adf" created: node "f26809e6", group "mock-service"
+    Evaluation within deployment: "3d86e09a"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "f31f8eb1" finished with status "complete"
+```
+
+## Verify mock-app-container is running
+
+Finally, check the output of the `nomad alloc status` command again to check the
+task statuses. Use the allocation ID from when you ran the "mock-app" job.
+
+```shell-session
+$ nomad alloc status 3044dda0
+```
+
+Again, focus on the task status lines for "await-mock-service" and
+"mock-app-container".
+
+```plaintext
+ID                  = 3044dda0-8dc1-1bac-86ea-66a3557c67d3
+Eval ID             = 01c73d5a
+Name                = mock-app.mock-app[0]
+Node ID             = f26809e6
+Node Name           = nomad-client-2.node.consul
+Job ID              = mock-app
+Job Version         = 0
+Client Status       = running
+Client Description  = Tasks are running
+Desired Status      = run
+Desired Description = <none>
+Created             = 21m38s ago
+Modified            = 7m27s ago
+
+Task "await-mock-service" (prestart) is "dead"
+Task Resources
+CPU        Memory          Disk     Addresses
+0/200 MHz  80 KiB/128 MiB  300 MiB
+
+Task Events:
+Started At     = 2020-03-18T17:07:26Z
+Finished At    = 2020-03-18T17:21:35Z
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+Time                       Type        Description
+2020-03-18T13:21:35-04:00  Terminated  Exit Code: 0
+2020-03-18T13:07:26-04:00  Started     Task started by client
+2020-03-18T13:07:26-04:00  Task Setup  Building Task Directory
+2020-03-18T13:07:26-04:00  Received    Task received by client
+
+Task "mock-app-container" is "running"
+Task Resources
+CPU        Memory          Disk     Addresses
+0/200 MHz  32 KiB/128 MiB  300 MiB
+
+Task Events:
+Started At     = 2020-03-18T17:21:37Z
+Finished At    = N/A
+Total Restarts = 0
+Last Restart   = N/A
+
+Recent Events:
+Time                       Type        Description
+2020-03-18T13:21:37-04:00  Started     Task started by client
+2020-03-18T13:21:35-04:00  Driver      Downloading image
+2020-03-18T13:21:35-04:00  Task Setup  Building Task Directory
+2020-03-18T13:07:26-04:00  Received    Task received by client
+```
+
+Notice, the "await-mock-service" task is dead and based on the "Recent Events"
+table terminated with "Exit Code: 0". This indicates that it completed
+successfully. The "mock-app-container" task has now transitioned to the
+"running" status and the container is running.
+
+## Next steps
+
+Now that you have completed this guide, you have experimented with using Nomad
+task dependencies to model inter-job dependencies.
+
+### Further reading
+
+- [`lifecycle` stanza]
+- [`service` stanza]
+- Consul [Service Definition]
+- Consul [DNS Interface]
+
+[forward dns]: /consul/tutorials/networking/dns-forwarding
+[install consul]: /consul/tutorials/production-deploy/deployment-guide
+[install nomad]: /nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul
+[`lifecycle` stanza]: /nomad/docs/job-specification/lifecycle
+[`service` stanza]: /nomad/docs/job-specification/service
+[service definition]: /consul/docs/services/usage/define-services
+[dns interface]: /consul/docs/services/discovery/dns-overview
+[dns interface]: /consul/docs/services/discovery/dns-overview
+

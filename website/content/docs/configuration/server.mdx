@@ -231,7 +231,7 @@ server {
 
 - `redundancy_zone` `(string: "")` - (Enterprise-only) Specifies the redundancy
   zone that this server will be a part of for Autopilot management. For more
-  information, refer to the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
+  information, refer to the [Autopilot Guide](/nomad/docs/manage/autopilot).
 
 - `rejoin_after_leave` `(bool: false)` - Specifies if Nomad will ignore a
   previous leave and attempt to rejoin the cluster when starting. By default,
@@ -266,7 +266,7 @@ server {
 
 - `upgrade_version` `(string: "")` - A custom version of the format X.Y.Z to use
   in place of the Nomad version when custom upgrades are enabled in Autopilot.
-  For more information, refer to the [Autopilot Guide](/nomad/tutorials/manage-clusters/autopilot).
+  For more information, refer to the [Autopilot Guide](/nomad/docs/manage/autopilot).
 
 - `search` <code>([search][search]: nil)</code> - Specifies configuration parameters
   for the Nomad search API.
@@ -382,7 +382,7 @@ server {
 
 The Nomad servers can automatically bootstrap if Consul is configured. For a
 more detailed explanation, refer to the
-[automatic Nomad bootstrapping documentation](/nomad/tutorials/manage-clusters/clustering).
+[automatic Nomad bootstrapping documentation](/nomad/docs/deploy/clusters/connect-nodes).
 
 ### Restricting Schedulers
 
@@ -518,7 +518,7 @@ election was due to a datacenter-wide failure affecting Clients, it will be 30
 minutes before Nomad recognizes that they are `down` and replaces their
 work.
 
-[encryption]: /nomad/tutorials/transport-security/security-gossip-encryption 'Nomad Encryption Overview'
+[encryption]: /nomad/docs/secure/traffic/gossip-encryption 'Nomad Encryption Overview'
 [server-join]: /nomad/docs/configuration/server_join 'Server Join'
 [update-scheduler-config]: /nomad/api-docs/operator/scheduler#update-scheduler-configuration 'Scheduler Config'
 [bootstrapping a cluster]: /nomad/docs/faq#bootstrapping
@@ -530,6 +530,6 @@ work.
 [disconnect.lost_after]: /nomad/docs/job-specification/disconnect#lost_after
 [herd]: https://en.wikipedia.org/wiki/Thundering_herd_problem
 [wi]: /nomad/docs/concepts/workload-identity
-[Configure for multiple regions]: /nomad/tutorials/access-control/access-control-bootstrap#configure-for-multiple-regions
+[Configure for multiple regions]: /nomad/docs/secure/acl/bootstrap#configure-for-multiple-regions
 [top_level_data_dir]: /nomad/docs/configuration#data_dir
 [JWKS URL]: /nomad/api-docs/operator/keyring#list-active-public-keys

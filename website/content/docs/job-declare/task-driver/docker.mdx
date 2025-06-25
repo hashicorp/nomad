@@ -41,8 +41,7 @@ The `docker` driver supports the following configuration in the job spec. Only
   and should include `https://` if required. By default it will be fetched from
   Docker Hub. If the tag is omitted or equal to `latest` the driver will always
   try to pull the image. If the image to be pulled exists in a registry that
-  requires authentication credentials must be provided to Nomad. Please see the
-  [Authentication section](#authentication).
+  requires authentication credentials must be provided to Nomad.
 
   ```hcl
   config {
@@ -75,7 +74,7 @@ The `docker` driver supports the following configuration in the job spec. Only
 
 - `auth_soft_fail` `(bool: false)` - Don't fail the task on an auth failure.
   Attempt to continue without auth. If the Nomad client configuration has an
-  [`auth.helper`](#plugin_auth_helper) block, the helper will be tried for
+  [`auth.helper`](/nomad/docs/deploy/task-driver/docker#helper) block, the helper will be tried for
   all images, including public images. If you mix private and public images,
   you will need to include `auth_soft_fail=true` in every job using a public
   image.
@@ -382,7 +381,7 @@ The `docker` driver supports the following configuration in the job spec. Only
   that exist inside the allocation working directory. You can allow mounting
   host paths outside of the [allocation working directory] on individual clients
   by setting the `docker.volumes.enabled` option to `true` in the
-  [client's configuration](#client-requirements). We recommend using
+  [client's configuration](/nomad/docs/deploy/task-driver/docker#client-requirements). We recommend using
   [`mount`](#mount) if you wish to have more control over volume definitions.
 
   ```hcl
@@ -828,18 +827,18 @@ through Nomad plugins or dynamic job configuration.
 [plugin-block]: /nomad/docs/configuration/plugin
 [allocation working directory]: /nomad/docs/reference/runtime-environment-settings#task-directories 'Task Directories'
 [`auth_soft_fail=true`]: #auth_soft_fail
-[cap_add]: /nomad/docs/job-declare/task-driver/docker#cap_add
-[cap_drop]: /nomad/docs/job-declare/task-driver/docker#cap_drop
+[cap_add]: /nomad/docs/deploy/task-driver/docker#cap_add
+[cap_drop]: /nomad/docs/deploy/task-driver/docker#cap_drop
 [no_net_raw]: /nomad/docs/upgrade/upgrade-specific#nomad-1-1-0-rc1-1-0-5-0-12-12
 [upgrade_guide_extra_hosts]: /nomad/docs/upgrade/upgrade-specific#docker-driver
 [tini]: https://github.com/krallin/tini
 [docker_caps]: https://docs.docker.com/engine/reference/run/#runtime-privilege-and-linux-capabilities
-[allow_caps]: /nomad/docs/job-declare/task-driver/docker#allow_caps
+[allow_caps]: /nomad/docs/deploy/task-driver/docker#allow_caps
 [Connect]: /nomad/docs/job-specification/connect
 [`bridge`]: /nomad/docs/job-specification/network#bridge
 [network block]: /nomad/docs/job-specification/network#bridge-mode
 [`network.mode`]: /nomad/docs/job-specification/network#mode
-[`pids_limit`]: /nomad/docs/job-declare/task-driver/docker#pids_limit
+[`pids_limit`]: /nomad/docs/deploy/task-driver/docker#pids_limit
 [Windows isolation]: https://learn.microsoft.com/en-us/virtualization/windowscontainers/manage-containers/hyperv-container
 [cores]: /nomad/docs/job-specification/resources#cores
 [runtime_env]: /nomad/docs/reference/runtime-environment-settings#job-related-variables

@@ -227,5 +227,22 @@
         ]
       }
     ]
+  },
+  {
+    "title": "Nomad Pack",
+    "routes": [
+      {
+        "title": "Overview",
+        "path": "nomad-pack"
+      },
+      {
+        "title": "Advanced usage",
+        "path": "nomad-pack/advanced-usage"
+      },
+      {
+        "title": "Create packs",
+        "path": "nomad-pack/create-packs"
+      }
+    ]
   }
 ]

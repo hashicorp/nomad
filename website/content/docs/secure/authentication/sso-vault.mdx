@@ -1,0 +1,584 @@
+---
+layout: docs
+page_title: Configure SSO with Vault
+description: |-
+  Configure Vault as an OIDC provider with authorization code flow and
+  configure Nomad as an OIDC client.
+---
+
+# Configure SSO with Vault
+
+Implementing zero-trust architecture requires providing identity-based access to
+services within an organization. OpenID Connect (OIDC) allows clients to confirm
+their identity through an identity provider. **Vault 1.9.0** introduced the
+ability to configure Vault as an OIDC identity provider with authorization code
+flow, and **Nomad 1.5.0** introduced support for OIDC as a single sign-on
+method. With Nomad 1.5.0, you can use OIDC to authenticate users and map their
+permissions to Nomad ACL roles and policies.
+
+In this guide, you will setup Vault as an OIDC provider and Nomad as its
+client.
+
+-> **Note:** Nomad operates as a confidential OIDC client in this guide. To
+   configure a public OIDC client, refer to the [OIDC
+   Provider](/vault/docs/concepts/oidc-provider#public) documentation.
+
+## Prerequisites
+
+To perform the tasks described in this guide, you need to have:
+
+- A Nomad environment. Refer to the [get started](/nomad/tutorials/get-started) tutorials to install Nomad and create a cluster.
+
+- A Vault environment of **version 1.10** or later. Refer to the [Vault install guide](/vault/install) to install Vault locally
+  or [create a Vault cluster on HCP](/vault/tutorials/cloud/get-started-vault).
+
+  -> **NOTE:** This feature was first introduced in Vault 1.9 as a Technical
+  Preview feature. As of Vault 1.10, it is generally available.
+
+### Policy requirements
+
+For the purpose of this guide, you will use the `root` token to work with Vault
+running in development mode.
+
+When you are working with a non-development Vault environment, your token policy
+must include the following permissions:
+
+```hcl
+# To create an entity and entity alias. Enable and configure Vault as an OIDC provider
+path "identity/*" {
+  capabilities = [ "create", "read", "update", "delete", "list" ]
+}
+
+# To enable userpass auth method
+path "sys/auth/userpass" {
+  capabilities = [ "create", "read", "update", "delete" ]
+}
+
+# To create a new user, "end-user" for userpass
+path "auth/userpass/users/*" {
+   capabilities = [ "create", "read", "update", "delete", "list" ]
+}
+```
+
+Refer to the [Vault policies tutorial](/vault/tutorials/policies/policies) for more information.
+
+## Start Vault
+
+<Tabs>
+<Tab heading="Vault" group="oss">
+
+In your terminal, start a Vault development server with `root` as the root token.
+
+```shell-session
+$ vault server -dev -dev-root-token-id root
+```
+
+The Vault development server defaults to running at `127.0.0.1:8200`. The server is now
+initialized and unsealed.
+
+<Warning>
+
+ Do not run a Vault development server in production. This
+approach starts a Vault server with an in-memory database and is only for testing purposes.
+
+</Warning>
+
+Open another terminal session, and export an environment variable for the address to the Vault server.
+
+```shell-session
+$ export VAULT_ADDR=http://127.0.0.1:8200
+```
+
+Export an environment variable for the Vault token.
+
+```shell-session
+$ export VAULT_TOKEN=root
+```
+
+-> **Note:** For these tasks, you can use Vault's _root_ token. However, we
+recommend that you use root tokens only for the initial setup or in
+emergencies. As a best practice, use an authentication method or token that
+meets the [policy requirements](#policy-requirements).
+
+The Vault server is ready.
+
+</Tab>
+<Tab heading="HCP Vault Dedicated" group="hcp">
+
+
+1. Launch the [HCP Portal](https://portal.cloud.hashicorp.com/) and log in.
+1. Click **Vault** in the left navigation pane.
+1. In the **Vault clusters** pane, click **vault-cluster**.
+1. Under **Cluster URLs**, click **Public** Cluster URL. This copies the URL to your clipboard.
+1. In your terminal, set the `VAULT_ADDR` environment variable to the public cluster URL copied from HCP.
+
+   ```shell-session
+   $ export VAULT_ADDR=<Public_Cluster_URL>
+   ```
+
+1. Return to the **Overview** page and click **Generate token**. It will take a few moments to generate the token.
+1. Copy the **Admin Token** by clicking on **Copy**.
+1. Return to your terminal and set the `VAULT_TOKEN` environment variable to the token copied from HCP.
+
+   ```shell-session
+   $ export VAULT_TOKEN=<token>
+   ```
+
+1. Set the `VAULT_NAMESPACE` environment variable to `admin`.
+
+   ```shell-session
+   $ export VAULT_NAMESPACE=admin
+   ```
+
+   The `admin` namespace is the top-level namespace automatically created by HCP
+   Vault. By default, all CLI operations use the namespace defined in this
+   environment variable.
+
+1. Verify connectivity to the Vault cluster.
+
+   ```shell-session
+   $ vault status
+
+   Key                      Value
+   ---                      -----
+   Recovery Seal Type       shamir
+   Initialized              true
+   Sealed                   false
+   Total Recovery Shares    1
+   Threshold                1
+   Version                  1.9.2+ent
+   Storage Type             raft
+   ...snipped...
+   ```
+
+The Vault Dedicated server is ready.
+
+</Tab>
+</Tabs>
+
+## Configure Vault authentication
+
+Vault [auth methods](/vault/docs/auth) authenticate and assign
+identity and policies to a client. When Vault acts as an OIDC provider, it is
+the source of identity and these auth methods verify that identity.
+
+1. Enable the userpass auth method at the default path.
+
+   ```shell-session
+   $ vault auth enable userpass
+   ```
+
+1. Create a user named `end-user` with the password `password`.
+
+   ```shell-session
+   $ vault write auth/userpass/users/end-user \
+       password="password" \
+       token_ttl="1h"
+   ```
+
+   This user authenticates with Vault and is assigned the default access policy.
+
+   ~> **Learn More:** For more information refer to the [Userpass Auth
+   Method](/vault/docs/auth/userpass) documentation.
+
+## Create Vault identity entity and group
+
+A client may have multiple accounts with various identity providers that are
+enabled on the Vault server. Vault clients can be mapped as entities and their
+corresponding accounts with authentication providers can be mapped as aliases.
+
+1. Create an identity entity with details about the `end-user`.
+
+   ```shell-session
+   $ vault write identity/entity \
+       name="end-user" \
+       disabled=false
+   ```
+
+1. Create an environment variable named `ENTITY_ID` that stores the ID assigned to the entity.
+
+   ```shell-session
+   $ ENTITY_ID=$(vault read -field=id identity/entity/name/end-user)
+   ```
+
+1. Create an identity group with the name `engineering` and add `end-user` as a member.
+
+   ```shell-session
+   $ vault write identity/group \
+       name="engineering" \
+       member_entity_ids="$ENTITY_ID"
+   ```
+
+1. Create an environment variable named `GROUP_ID` that stores the ID assigned to the group.
+
+   ```shell-session
+   $ GROUP_ID=$(vault read -field=id identity/group/name/engineering)
+   ```
+
+   The `end-user` entity is a member of the `engineering` group. An entity alias
+   maps an entity to client of an authentication method. This mapping requires
+   the entity ID and the authentication accessor ID.
+
+1. Create a variable named `USERPASS_ACCESSOR` that stores the accessor value of
+   the userpass authentication method.
+
+   ```shell-session
+   $ USERPASS_ACCESSOR=$(vault auth list -detailed -format json | jq -r '.["userpass/"].accessor')
+   ```
+
+1. Create an entity alias that maps the `end-user` entity with the `end-user` user.
+
+   ```shell-session
+   $ vault write identity/entity-alias \
+       name="end-user" \
+       canonical_id="$ENTITY_ID" \
+       mount_accessor="$USERPASS_ACCESSOR"
+   ```
+
+   The entity and the user are aliases of one another.
+
+~> **Learn More:** Learn more about identity in the [entities and groups tutorial](/vault/tutorials/auth-methods/identity).
+
+## Create a Vault OIDC client
+
+A Vault OIDC client connects a resource called an OIDC assignment, an
+encryption key, a client callback URL and a time-to-live on verification
+together.
+
+An OIDC assignment describes the list of the Vault entities and groups allowed
+to authenticate with this client.
+
+1. Create an assignment named `my-assignment` that authorizes the `end-user` entity
+   and `engineering` group.
+
+   ```shell-session
+   $ vault write identity/oidc/assignment/my-assignment \
+       entity_ids="${ENTITY_ID}" \
+       group_ids="${GROUP_ID}"
+   ```
+
+   The Vault OIDC authentication process requires an encryption key to sign and
+   verify the JSON web tokens (JWT) that are produced by the authentication flow.
+
+1. Create a key named `my-key`.
+
+   ```shell-session
+   $ vault write identity/oidc/key/my-key \
+       allowed_client_ids="*" \
+       verification_ttl="2h" \
+       rotation_period="1h" \
+       algorithm="RS256"
+   ```
+
+   The key is usable by all Vault OIDC clients as `allowed_client_ids` is set to
+   `*`.
+
+1. Create an OIDC client named `nomad`.
+
+   ```shell-session
+   $ vault write identity/oidc/client/nomad \
+       redirect_uris="http://localhost:4649/oidc/callback,http://localhost:4200/ui/settings/tokens" \
+       assignments="my-assignment" \
+       key="my-key" \
+       id_token_ttl="30m" \
+       access_token_ttl="1h"
+   ```
+
+   The `redirect_uris` flag describes the callback URL for the client, the value
+   is the address of a Nomad service running on its default port.
+   The `assignments` flag limits access to only the entities and groups defined in
+   `my-assignment`.
+   The `id_token_ttl` flag sets the expiration on the ID token to 30 minutes.
+   The `access_token_ttl` flag  sets the expiration of the access token to 1 hour.
+
+1. Create an environment variable named CLIENT_ID to store the `client_id` field of the
+  `nomad` client.
+
+   ```shell-session
+   $ CLIENT_ID=$(vault read -field=client_id identity/oidc/client/nomad)
+   ```
+
+## Create a Vault OIDC provider
+
+A Vault OIDC provider supports one or more clients and Vault OIDC scopes. These
+scopes define metadata claims expressed in a template. Claims are key-value
+pairs that contain information about a user and the OIDC service.
+
+1. Create an environment variable named `USER_SCOPE_TEMPLATE` that stores the user scope template.
+
+  ```shell-session
+  $ USER_SCOPE_TEMPLATE='{"username": {{identity.entity.name}}}'
+  ```
+
+1. Define a Vault OIDC scope named `user` with the user scope template.
+
+   ```shell-session
+   $ vault write identity/oidc/scope/user \
+       description="The user scope provides claims using Vault identity entity metadata" \
+       template="$(echo ${USER_SCOPE_TEMPLATE} | base64)"
+   ```
+
+1. Create an environment variable named `GROUPS_SCOPE_TEMPLATE` that stores the group scope.
+   template.
+
+   ```shell-session
+   $ GROUPS_SCOPE_TEMPLATE='{"groups": {{identity.entity.groups.names}}}'
+   ```
+
+   This template retrieves the names of all the groups defined.
+
+1. Define a Vault OIDC scope named `groups` with the groups scope template.
+
+   ```shell-session
+   $ vault write identity/oidc/scope/groups \
+       description="The groups scope provides the groups claim using Vault group membership" \
+       template="$(echo ${GROUPS_SCOPE_TEMPLATE} | base64)"
+   ```
+
+1. Create a Vault OIDC provider named `my-provider` and provide it a list of client IDs and scopes. The provider grants access to the `nomad` client.
+
+   <Tabs>
+   <Tab heading="Vault" group="oss">
+
+   ```shell-session
+   $ vault write identity/oidc/provider/my-provider \
+       allowed_client_ids="${CLIENT_ID}" \
+       scopes_supported="groups"
+   ```
+
+   </Tab>
+   <Tab heading="HCP Vault Dedicated" group="hcp">
+
+      Vault Dedicated uses the private address for the `issuer` URL. For this guide, you will override the `issuer` value to match the public URL.
+
+   ```shell-session
+   $ vault write identity/oidc/provider/my-provider \
+       issuer="$(echo $VAULT_ADDR)" \
+       allowed_client_ids="${CLIENT_ID}" \
+       scopes_supported="groups"
+   ```
+
+   </Tab>
+   </Tabs>
+
+
+1. Display the Vault OIDC configuration endpoint.
+
+   <Tabs>
+   <Tab heading="Vault" group="oss">
+
+   ```shell-session
+   $ curl -s $VAULT_ADDR/v1/identity/oidc/provider/my-provider/.well-known/openid-configuration | jq
+   ```
+
+   </Tab>
+   <Tab heading="HCP Vault Dedicated" group="hcp">
+
+   ```shell-session
+   $ curl --header "X-Vault-Token: $VAULT_TOKEN" --request GET \
+       --header "X-Vault-Namespace: $VAULT_NAMESPACE" \
+       $VAULT_ADDR/v1/identity/oidc/provider/my-provider/.well-known/openid-configuration | jq
+   ```
+
+   </Tab>
+   </Tabs>
+
+1. Show Vault OIDC public keys.
+
+   <Tabs>
+   <Tab heading="Vault" group="oss">
+
+   ```shell-session
+   $ curl -s $VAULT_ADDR/v1/identity/oidc/provider/my-provider/.well-known/keys | jq
+   ```
+
+   </Tab>
+   <Tab heading="HCP Vault Dedicated" group="hcp">
+
+   ```shell-session
+   $ curl --header "X-Vault-Token: $VAULT_TOKEN" --request GET \
+       --header "X-Vault-Namespace: $VAULT_NAMESPACE" \
+       $VAULT_ADDR/v1/identity/oidc/provider/my-provider/.well-known/keys | jq
+   ```
+
+   </Tab>
+   </Tabs>
+
+## Start Nomad
+
+The [Nomad development agent](/nomad/commands/agent#dev) brings up an instance of Nomad with a server and client. Refer to the [start a cluster tutorial](/nomad/tutorials/get-started/gs-start-a-cluster#create-the-cluster) for more information.
+
+In another terminal, start a Nomad agent in development mode with ACL enabled.
+
+```shell-session
+$ sudo nomad agent -dev -acl-enabled
+
+==> No configuration files loaded
+==> Starting Nomad agent...
+==> Nomad agent configuration:
+
+       Advertise Addrs: HTTP: 127.0.0.1:4646; RPC: 127.0.0.1:4647; Serf: 127.0.0.1:4648
+            Bind Addrs: HTTP: [127.0.0.1:4646]; RPC: 127.0.0.1:4647; Serf: 127.0.0.1:4648
+                Client: true
+             Log Level: DEBUG
+                Region: global (DC: dc1)
+                Server: true
+               Version: 1.5.0
+
+...snip...
+```
+
+The Nomad server is ready.
+
+## Configure Nomad OIDC auth
+
+1. Create an environment variable named `ISSUER` that stores the `issuer` field of the Vault OIDC provider named `my-provider`.
+
+   <Tabs>
+   <Tab heading="Vault" group="oss">
+
+   ```shell-session
+   $ ISSUER=$(curl -s $VAULT_ADDR/v1/identity/oidc/provider/my-provider/.well-known/openid-configuration | jq -r .issuer)
+   ```
+
+   </Tab>
+   <Tab heading="HCP Vault Dedicated" group="hcp">
+
+   ```shell-session
+   $ ISSUER=$(curl --header "X-Vault-Token: $VAULT_TOKEN" --request GET \
+       --header "X-Vault-Namespace: $VAULT_NAMESPACE" \
+       $VAULT_ADDR/v1/identity/oidc/provider/my-provider/.well-known/openid-configuration | jq -r .issuer)
+   ```
+
+   </Tab>
+   </Tabs>
+
+1. Create an environment variable named `CLIENT_SECRET` that stores the `client_secret` field of the Vault OIDC client named `nomad`.
+
+   ```shell-session
+   $ CLIENT_SECRET=$(vault read -field=client_secret identity/oidc/client/nomad)
+   ```
+
+1. Run the bootstrap process, store the value of the management token, and export it as the `NOMAD_TOKEN` environment variable.
+
+   ```shell-session
+   $ NOMAD_TOKEN=$(nomad acl bootstrap -json | jq -r .SecretID)
+   $ export NOMAD_TOKEN
+   ```
+
+1. Create a Nomad policy that allows read access to the "default" namespace.
+
+   Create a file named `acl_policy_engineering_read.hcl`, add the following contents, and save the file.
+
+   ```hcl
+   namespace "default" {
+     policy = "read"
+   }
+
+   node {
+     policy = "read"
+   }
+   ```
+
+  Apply the policy.
+
+   ```shell-session
+   $ nomad acl policy apply engineering-read acl_policy_engineering_read.hcl
+   ```
+
+1. Create a corresponding role that contains the policies to assign to engineers.
+
+   ```shell-session
+   $ nomad acl role create \
+       -name=engineering-read \
+       -policy=engineering-read
+   ```
+
+1. Create a configuration for the OIDC auth method.
+
+   Create a file named `acl_auth_method.json`, add the following contents, replace `$ISSUER`, `$CLIENT_ID` and `$CLIENT_SECRET` with the values stored in their respective environment variables, and save the file.
+
+   ```json
+   {
+     "OIDCDiscoveryURL": $ISSUER,
+     "OIDCClientID": $CLIENT_ID,
+     "OIDCClientSecret": $CLIENT_SECRET,
+     "BoundAudiences": [$CLIENT_ID],
+     "OIDCScopes": ["groups"],
+     "AllowedRedirectURIs": [
+       "http://localhost:4649/oidc/callback",
+       "http://localhost:4646/ui/settings/tokens"
+     ],
+     "ListClaimMappings": {
+       "groups": "roles"
+     }
+   }
+   ```
+
+   The `ListClaimMappings` field specifies which claims of the OIDC provider
+   should be mapped to which ACL concepts of Nomad. The Vault
+   "group" created before will map to a "role" in Nomad.
+
+1. Create a new OIDC authentication method and configure it to use the Vault OIDC
+   provider.
+
+   ```shell-session
+   $ nomad acl auth-method create \
+       -default=true \
+       -name=vault \
+       -token-locality=global \
+       -max-token-ttl="10m" \
+       -type=oidc \
+       -config @acl_auth_method.json
+   ```
+
+1. Create a binding rule to evaluate OIDC claims into Nomad policies and roles.
+
+   ```shell-session
+   $ nomad acl binding-rule create \
+       -auth-method=vault \
+       -bind-type=role \
+       -bind-name="engineering-read" \
+       -selector="engineering in list.roles"
+   ```
+
+Nomad OIDC authentication is configured and ready for the `end-user` to
+authenticate.
+
+## Authenticate with Nomad
+
+Authenticate to Nomad. The `-method` flag is optional since `vault` has been configured as the default method.
+
+   ```shell-session
+   $ nomad login -method=vault
+   ```
+
+The Vault login screen will open in your browser. Select **Username** from the
+**Method** dropdown selection and enter `end-user` and `password` as the credentials.
+
+The `nomad login` command confirms the authentication was successful and
+displays the Nomad ACL token generated.
+
+   ```shell-session hideClipboard
+   Successfully logged in via OIDC and vault
+
+   Accessor ID  = 48008488-21ae-35d7-f1d6-0066a7eb902a
+   Secret ID    = d7a803e6-abd6-a80e-dd95-5f88d904cc9e
+   Name         = vault
+   Type         = client
+   Global       = true
+   Create Time  = 2023-01-13 10:06:35.933899 +0000 UTC
+   Expiry Time  = 2023-01-13 10:16:35.933899 +0000 UTC
+   Create Index = 19
+   Modify Index = 19
+   Policies     = []
+
+   Roles
+   ID                                    Name
+   197deab1-a963-91fc-2936-05923eecf0c0  engineering-read
+   ```
+
+## Next steps
+
+In this guide, you configured Vault as an OIDC provider with Nomad as a
+client. Learn more about [configuring Vault as an OIDC provider](/vault/docs/secrets/identity/oidc-provider).
