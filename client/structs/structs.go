@@ -8,7 +8,9 @@ package structs
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -74,27 +76,57 @@ type MonitorExternalRequest struct {
 	// ServerID is the server we want to track the logs of
 	ServerID string
 
-	// PlainText disables base64 encoding.
-	PlainText bool
-
 	// LogsSince sets the lookback time for monitorExternal logs in hours
 	LogSince string
 
-	// LogPath specifies the full path for the targeted external log file
-	// Cannot be used with ServiceName
-	LogPath string
+	// OnDisk indicates that nomad should export logs written to the configured nomad log path
+	OnDisk bool
+
 	// ServiceName is the systemd service for which we want to retrieve logs
-	// Cannot be used with logPath
+	// Cannot be used with OnDisk
 	ServiceName string
 
-	// Follow indicates that the journalctl command should listen for and
-	// stream ongoing log output
+	// NomadLogPath is set to the nomad log path by the HTTP agent if OnDisk
+	// is true
+	NomadLogPath string
+
+	// Follow indicates that the monitor should continue to deliver logs until
+	// an outside interrupt
 	Follow bool
 
-	// TstFile is used for testing it's not available at the CLI level
-	TstFile string
-
 	structs.QueryOptions
+}
+
+func (m *MonitorExternalRequest) ScanServiceName() error {
+	input := strings.TrimSpace(m.ServiceName)
+	// exclude all special characters except:
+	// ":", "-", "_", ".", "\" and "@"
+	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>\/?]`)
+
+	unsafe := re.MatchString(input)
+	if unsafe {
+		return errors.New("service name must conform to systemd conventions")
+		//	`valid systemd unit prefixes may only contain
+		//alphanumerics and the following special	characters:
+		//\":\", \"-\",\" _\", \".\", \"\\\", \"@\" and \",\"`) <-- this is probably too much info
+	}
+	return nil
+}
+
+func (m *MonitorExternalRequest) ScanField(input string, fieldname string) error {
+	input = strings.TrimSpace(input)
+	// exclude all special characters except:
+	// ":", "-", "_", ".", "\" and "@"
+	re := regexp.MustCompile(`[!#\$%^&~*()\x60+=\[\]{};'"|<>?]`)
+
+	unsafe := re.MatchString(input)
+	if unsafe {
+		return errors.New(fmt.Errorf("invalid character detected in %s value", fieldname).Error())
+		//	`valid systemd unit prefixes may only contain
+		//alphanumerics and the following special	characters:
+		//\":\", \"-\",\" _\", \".\", \"\\\", \"@\" and \",\"`) <-- this is probably too much info
+	}
+	return nil
 }
 
 // AllocFileInfo holds information about a file inside the AllocDir

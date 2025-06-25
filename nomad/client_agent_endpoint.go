@@ -378,12 +378,14 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		<-ctx.Done()
 	}()
 	opts := cstructs.MonitorExternalRequest{
-		LogSince:    args.LogSince,
-		ServiceName: args.ServiceName,
-		Follow:      args.Follow,
-		LogPath:     args.LogPath,
-		TstFile:     args.TstFile,
+		LogSince:     args.LogSince,
+		ServiceName:  args.ServiceName,
+		NomadLogPath: args.NomadLogPath,
+		//Follow:      args.Follow,
+		OnDisk: args.OnDisk,
+		//TstFile: args.TstFile,
 	}
+
 	logCh := monitor.MonitorExternal(&opts)
 	//defer monitor.Stop()
 
@@ -421,17 +423,14 @@ OUTER:
 			}
 
 			var resp cstructs.StreamErrWrapper
-			if args.PlainText {
-				resp.Payload = frame.Data
-			} else {
-				if err := frameCodec.Encode(frame); err != nil {
-					streamErr = err
-					break OUTER
-				}
 
-				resp.Payload = buf.Bytes()
-				buf.Reset()
+			if err := frameCodec.Encode(frame); err != nil {
+				streamErr = err
+				break OUTER
 			}
+
+			resp.Payload = buf.Bytes()
+			buf.Reset()
 
 			if err := encoder.Encode(resp); err != nil {
 				streamErr = err
