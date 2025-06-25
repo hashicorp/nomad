@@ -2958,9 +2958,12 @@ func TestNode_UpdateAlloc_NodeNotReady(t *testing.T) {
 	must.NoError(t, store.UpsertJobSummary(99, mock.JobSummary(alloc.JobID)))
 	must.NoError(t, store.UpsertAllocs(structs.MsgTypeTestSetup, 100, []*structs.Allocation{alloc}))
 
-	// Mark node as down.
-	must.NoError(t, store.UpdateNodeStatus(
-		structs.MsgTypeTestSetup, 101, node.ID, structs.NodeStatusDown, time.Now().UnixNano(), nil))
+	downReq := structs.NodeUpdateStatusRequest{
+		NodeID:    node.ID,
+		Status:    structs.NodeStatusDown,
+		UpdatedAt: time.Now().UnixNano(),
+	}
+	must.NoError(t, store.UpdateNodeStatus(structs.MsgTypeTestSetup, 101, &downReq))
 
 	// Try to update alloc.
 	updatedAlloc := new(structs.Allocation)
@@ -2991,8 +2994,12 @@ func TestNode_UpdateAlloc_NodeNotReady(t *testing.T) {
 	must.ErrorContains(t, err, "not found")
 
 	// Mark node as ready and try again.
-	must.NoError(t, store.UpdateNodeStatus(
-		structs.MsgTypeTestSetup, 102, node.ID, structs.NodeStatusReady, time.Now().UnixNano(), nil))
+	readyReq := structs.NodeUpdateStatusRequest{
+		NodeID:    node.ID,
+		Status:    structs.NodeStatusReady,
+		UpdatedAt: time.Now().UnixNano(),
+	}
+	must.NoError(t, store.UpdateNodeStatus(structs.MsgTypeTestSetup, 102, &readyReq))
 
 	updatedAlloc.NodeID = node.ID
 	must.NoError(t, msgpackrpc.CallWithCodec(codec, "Node.UpdateAlloc", allocUpdateReq, &allocUpdateResp))
@@ -3752,8 +3759,12 @@ func TestClientEndpoint_ListNodes_Blocking(t *testing.T) {
 	}
 
 	// Node status update triggers watches
+	triggerReq := structs.NodeUpdateStatusRequest{
+		NodeID: node.ID,
+		Status: structs.NodeStatusDown,
+	}
 	time.AfterFunc(100*time.Millisecond, func() {
-		errCh <- state.UpdateNodeStatus(structs.MsgTypeTestSetup, 40, node.ID, structs.NodeStatusDown, 0, nil)
+		errCh <- state.UpdateNodeStatus(structs.MsgTypeTestSetup, 40, &triggerReq)
 	})
 
 	req.MinQueryIndex = 38
