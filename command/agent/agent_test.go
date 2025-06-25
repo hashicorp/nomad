@@ -1100,7 +1100,7 @@ func TestServer_Reload_TLS_Shared_Keyloader(t *testing.T) {
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
-			VerifyServerHostname: true,
+			VerifyServerHostname: false,
 			CAFile:               badca,
 			CertFile:             badcert,
 			KeyFile:              badkey,
@@ -1423,6 +1423,7 @@ func TestServer_ShouldReload_ReturnFalseForNoChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Client.Enabled = false
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1461,6 +1462,7 @@ func TestServer_ShouldReload_ReturnTrueForOnlyHTTPChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Client.Enabled = false
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1528,6 +1530,7 @@ func TestServer_ShouldReload_ReturnTrueForConfigChanges(t *testing.T) {
 	)
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Client.Enabled = false
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,
@@ -1678,6 +1681,7 @@ func TestServer_ShouldReload_ShouldHandleMultipleChanges(t *testing.T) {
 	}
 
 	agent := NewTestAgent(t, t.Name(), func(c *Config) {
+		c.Client.Enabled = false
 		c.TLSConfig = &config.TLSConfig{
 			EnableHTTP:           true,
 			EnableRPC:            true,

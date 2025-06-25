@@ -222,6 +222,29 @@ RETRY:
 			a.T.Fatalf("token bootstrap failed: %v", err)
 		}
 	}
+
+	// If the client is enabled, we can try and wait for it to be ready. If the
+	// server is not enabled, or it is not configured to bootstrap, we skip this
+	// as the client will not be able to register. Additionally, if ACLs are
+	// enabled, but we have not bootstrapped the system, we must also skip as we
+	// will not have a valid token to perform the check with.
+	if a.Config.Client.Enabled &&
+		(a.Config.NomadConfig.BootstrapExpect > 0 && a.Config.Server.Enabled) &&
+		!(a.Config.ACL.Enabled && a.Config.ACL.PolicyTTL == 0) {
+		var token string
+		if a.RootToken != nil {
+			token = a.RootToken.SecretID
+		}
+		testutil.WaitForClientStatusWithToken(
+			a.T,
+			a.RPC,
+			a.client.NodeID(),
+			a.Config.Region,
+			structs.NodeStatusReady,
+			token,
+		)
+	}
+
 	return a
 }
 

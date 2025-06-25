@@ -1,0 +1,3 @@
+```release-note:bug
+cli: Fix panic when restarting stopped job with no scaling policies
+```
