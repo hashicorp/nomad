@@ -15,12 +15,6 @@ introduction.
 
 To enable Autopilot features (with the exception of dead server cleanup), the
 `raft_protocol` setting in the [server stanza] must be set to 3 on all servers.
-This setting defaults to 2; a cluster configured with protocol 2 can be upgraded
-to protocol 3 with a rolling update, provided time for membership to stabilize
-following each server update. During an upgrade from raft protocol 2 to 3, use
-the `nomad operator raft list-peers` command between server updates to verify
-that each server identifier is replaced with a UUID. For more information,
-consult the [Version Upgrade section] on Raft Protocol versions.
 
 ## Configuration
 
@@ -237,8 +231,8 @@ to look for a version in each server's specified [`upgrade_version`] tag. The
 upgrade logic will follow semantic versioning and the `upgrade_version` must be
 in the form of either `X`, `X.Y`, or `X.Y.Z`.
 
-[`/v1/operator/autopilot/configuration`]: /nomad/api-docs/operator#read-autopilot-configuration
-[`/v1/operator/autopilot/health`]: /nomad/api-docs/operator#read-health
+[`/v1/operator/autopilot/configuration`]: /nomad/api-docs/operator/autopilot
+[`/v1/operator/autopilot/health`]: /nomad/api-docs/operator/autopilot#read-health
 [`non_voting_server`]: /nomad/docs/configuration/server#non_voting_server
 [`operator autopilot`]: /nomad/commands/operator
 [`redundancy_zone`]: /nomad/docs/configuration/server#redundancy_zone

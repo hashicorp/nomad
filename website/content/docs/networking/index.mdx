@@ -189,7 +189,7 @@ created by Nomad and, by default, each container runs in its own Docker managed
 network namespace.
 
 When using `bridge` network mode, Nomad creates a placeholder container using
-the image defined in [`infra_image`](/nomad/docs/job-declare/task-driver/docker#infra_image) to
+the image defined in [`infra_image`](/nomad/docs/deploy/task-driver/docker#infra_image) to
 initialize a Docker network namespace that is shared by all tasks in the
 allocation to allow them to communicate with each other.
 
