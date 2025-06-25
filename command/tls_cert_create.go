@@ -39,16 +39,12 @@ type TLSCertCreateCommand struct {
 	// domain is used to provide a custom domain for the certificate.
 	domain string
 
-	// cluster_region is used to add the region name to the certifacte SAN
-	// records
-	cluster_region string
-
 	// key is used to set the custom CA certificate key when creating
 	// certificates.
 	key string
 
-	// cluster_region is used to add the region name to the certifacte SAN
-	// records
+	// region is used to add the Nomad region name to the certificate SAN
+	// records.
 	region string
 
 	server bool
@@ -81,9 +77,6 @@ Certificate Create Options:
 
   -client
     Generate a client certificate.
-
-  -cluster-region
-    DEPRECATED please use -region.
 
   -days
     Provide number of days the certificate is valid for from now on.
@@ -141,8 +134,6 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	flagSet.StringVar(&c.ca, "ca", "#DOMAIN#-agent-ca.pem", "")
 	flagSet.BoolVar(&c.cli, "cli", false, "")
 	flagSet.BoolVar(&c.client, "client", false, "")
-	// cluster region will be deprecated in the next version
-	flagSet.StringVar(&c.cluster_region, "cluster-region", "", "")
 	flagSet.IntVar(&c.days, "days", 365, "")
 	flagSet.StringVar(&c.domain, "domain", "nomad", "")
 	flagSet.StringVar(&c.key, "key", "#DOMAIN#-agent-ca-key.pem", "")
@@ -176,7 +167,7 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	var dnsNames []string
 	var ipAddresses []net.IP
 	var extKeyUsage []x509.ExtKeyUsage
-	var name, regionName, prefix string
+	var name, prefix string
 
 	for _, d := range c.dnsNames {
 		if len(d) > 0 {
@@ -190,24 +181,21 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 		}
 	}
 
-	// set region variable to prepare for deprecating cluster_region
-	switch {
-	case c.cluster_region != "":
-		regionName = c.cluster_region
-	case c.clientConfig().Region != "" && c.clientConfig().Region != "global":
-		regionName = c.clientConfig().Region
-	default:
-		regionName = "global"
+	regionIdentifier := "global"
+
+	if r := c.clientConfig().Region; r != "" {
+		regionIdentifier = r
 	}
 
-	// Set dnsNames and ipAddresses based on whether this is a client, server or cli
+	// Set dnsNames and ipAddresses based on whether this is a client, server or
+	// cli.
 	switch {
 	case c.server:
-		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("server", regionName, c.domain, dnsNames, ipAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("server", regionIdentifier, c.domain, dnsNames, ipAddresses)
 	case c.client:
-		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("client", regionName, c.domain, dnsNames, ipAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("client", regionIdentifier, c.domain, dnsNames, ipAddresses)
 	case c.cli:
-		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("cli", regionName, c.domain, dnsNames, ipAddresses)
+		ipAddresses, dnsNames, name, extKeyUsage, prefix = recordPreparation("cli", regionIdentifier, c.domain, dnsNames, ipAddresses)
 	default:
 		c.Ui.Error("Neither client, cli nor server - should not happen")
 		return 1
@@ -301,36 +289,29 @@ func (c *TLSCertCreateCommand) Run(args []string) int {
 	return 0
 }
 
-func recordPreparation(certType string, regionName string, domain string, dnsNames []string, ipAddresses []net.IP) ([]net.IP, []string, string, []x509.ExtKeyUsage, string) {
-	var (
-		extKeyUsage             []x509.ExtKeyUsage
-		name, regionUrl, prefix string
-	)
+func recordPreparation(certType, regionName, domain string, dnsNames []string, ipAddresses []net.IP) (
+	[]net.IP, []string, string, []x509.ExtKeyUsage, string) {
+
+	var extKeyUsage []x509.ExtKeyUsage
+
 	if certType == "server" || certType == "client" {
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
 		ipAddresses = append(ipAddresses, net.ParseIP("127.0.0.1"))
 	} else if certType == "cli" {
 		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth}
 	}
-	// prefix is used to generate the filename for the certificate before writing to disk.
-	prefix = fmt.Sprintf("%s-%s-%s", regionName, certType, domain)
-	regionUrl = fmt.Sprintf("%s.%s.nomad", certType, regionName)
-	name = fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
 
-	if regionName != "global" && domain != "nomad" {
-		dnsNames = append(dnsNames, name, regionUrl, fmt.Sprintf("%s.global.nomad", certType), "localhost")
-	}
+	// Generate the file prefix used to write the certificate and key files to
+	// local disk.
+	prefix := fmt.Sprintf("%s-%s-%s", regionName, certType, domain)
 
-	if regionName != "global" && domain == "nomad" {
-		dnsNames = append(dnsNames, regionUrl, fmt.Sprintf("%s.global.nomad", certType), "localhost")
-	}
+	// The TLS common name is a combination of the certificate role (server,
+	// client, or cli), the Nomad region name, and the domain.
+	commonName := fmt.Sprintf("%s.%s.%s", certType, regionName, domain)
 
-	if regionName == "global" && domain != "nomad" {
-		dnsNames = append(dnsNames, regionUrl, fmt.Sprintf("%s.%s.%s", certType, regionName, domain), "localhost")
-	}
+	// Generate a new list of DNS names which includes the original array, the
+	// common name, and "localhost".
+	dnsNames = append(dnsNames, commonName, "localhost")
 
-	if regionName == "global" && domain == "nomad" {
-		dnsNames = append(dnsNames, name, "localhost")
-	}
-	return ipAddresses, dnsNames, name, extKeyUsage, prefix
+	return ipAddresses, dnsNames, commonName, extKeyUsage, prefix
 }

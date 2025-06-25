@@ -219,6 +219,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 	dir := t.TempDir()
 
 	s1, cleanupS1 := TestServer(t, func(c *Config) {
+		c.Region = "regionFoo"
 		c.DataDir = path.Join(dir, "nodeA")
 	})
 	defer cleanupS1()
@@ -255,7 +256,7 @@ func TestServer_Reload_TLSConnections_PlaintextToTLS(t *testing.T) {
 		NodeID:   mockNode.ID,
 		SecretID: mockNode.SecretID,
 		QueryOptions: structs.QueryOptions{
-			Region:    "global",
+			Region:    "regionFoo",
 			AuthToken: mockNode.SecretID,
 		},
 	}
@@ -336,11 +337,11 @@ func TestServer_Reload_TLSConnections_TLSToPlaintext_RPC(t *testing.T) {
 
 	var resp structs.NodeClientAllocsResponse
 
-	// Perform a request using the original TLS codec. This should fail with a
-	// connection reset error, as the server has now switched to plaintext.
+	// Perform a request using the original TLS codec. This should fail as the
+	// server has now switched to plaintext but the exact error is racey.
 	err = msgpackrpc.CallWithCodec(originalRPCTLSCodec, "Node.GetClientAllocs", req, &resp)
 	must.Error(t, err)
-	must.True(t, connectionReset(err.Error()))
+	must.True(t, connectionReset(err.Error()) || strings.Contains(err.Error(), "bad certificate"))
 
 	// Perform a request using a non-TLS codec. This should succeed, as the
 	// server is now configured to accept plaintext connections.
