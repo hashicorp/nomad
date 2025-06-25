@@ -22,10 +22,6 @@
         "path": "architecture"
       },
       {
-        "title": "ACL",
-        "path": "architecture/acl"
-      },
-      {
         "title": "Consensus protocol",
         "path": "architecture/consensus"
       },
@@ -478,23 +474,23 @@
         "title": "Access control list",
         "routes": [
           {
-            "title": "System overview",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control"
+            "title": "Overview",
+            "path": "secure/acl"
           },
           {
             "title": "Bootstrap the ACL system",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-bootstrap"
+            "path": "secure/acl/bootstrap"
           },
           {
             "title": "Policies",
             "routes": [
               {
                 "title": "Overview",
-                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies"
+                "path": "secure/acl/policies"
               },
               {
                 "title": "Create policies",
-                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-create-policy"
+                "path": "secure/acl/policies/create-policy"
               }
             ]
           },
@@ -503,11 +499,11 @@
             "routes": [
               {
                 "title": "Overview",
-                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens"
+                "path": "secure/acl/tokens"
               },
               {
                 "title": "Generate tokens with Vault",
-                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/vault-nomad-secrets"
+                "path": "secure/acl/tokens/vault"
               }
             ]
           }
@@ -517,10 +513,6 @@
         "title": "Authentication",
         "routes": [
           {
-            "title": "Overview",
-            "path": "secure/authentication"
-          },
-          {
             "title": "Configure JWT",
             "path": "secure/authentication/jwt"
           },
@@ -529,16 +521,16 @@
             "path": "secure/authentication/oidc"
           },
           {
-            "title": "Configure SSO with Auth0",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/sso-oidc-auth0"
+            "title": "SSO with Auth0",
+            "path": "secure/authentication/sso-auth0"
           },
           {
-            "title": "Configure SSO with Vault",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/single-sign-on/sso-oidc-vault"
+            "title": "SSO with Vault",
+            "path": "secure/authentication/sso-vault"
           },
           {
-            "title": "Authenticate users with PKCE and private key JWT ",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/sso-oidc-keycloak"
+            "title": "SSO with PKCE and private key JWT ",
+            "path": "secure/authentication/sso-pkce-jwt"
           }
         ]
       },
@@ -560,6 +552,10 @@
           {
             "title": "Federate GCP access",
             "href": "https://developer.hashicorp.com/nomad/tutorials/fed-workload-identity/integration-gcp"
+          },
+          {
+            "title": "Use Nomad Workload Identities with Vault",
+            "href": "https://developer.hashicorp.com/nomad/tutorials/integrate-vault/vault-acl"
           }
         ]
       }
