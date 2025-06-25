@@ -159,7 +159,13 @@ func (c *JobStartCommand) Run(args []string) int {
 
 			sps := lastJob.GetScalingPoliciesPerTaskGroup()
 			for _, tg := range job.TaskGroups {
-				tg.Scaling.Enabled = sps[*tg.Name].Enabled
+				// guard for nil values in case the tg doesn't have any scaling policy
+				if sps[*tg.Name] != nil {
+					if tg.Scaling == nil {
+						tg.Scaling = &api.ScalingPolicy{}
+					}
+					tg.Scaling.Enabled = sps[*tg.Name].Enabled
+				}
 			}
 		}
 	}
