@@ -535,8 +535,21 @@
         ]
       },
       {
-        "title": "Transport security",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/transport-security"
+        "title": "Traffic encryption",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "secure/traffic"
+          },
+          {
+            "title": "Enable gossip encryption",
+            "path": "secure/traffic/gossip-encryption"
+          },
+          {
+            "title": "Enable TLS",
+            "path": "secure/traffic/tls"
+          }
+        ]
       },
       {
         "title": "Federated workload identity",
