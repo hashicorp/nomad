@@ -61,6 +61,7 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = []interfaces.TaskHook{
 		newTaskDirHook(tr, hookLogger),
 		newConsulHook(hookLogger, tr),
+		newIdentityHook(tr, hookLogger),
 	}
 	// If Vault is enabled, add the hook
 	if task.Vault != nil && tr.vaultClientFunc != nil {
@@ -93,7 +94,6 @@ func (tr *TaskRunner) initHooks() {
 	tr.runnerHooks = append(tr.runnerHooks, []interfaces.TaskHook{
 		newValidateHook(tr.clientConfig, hookLogger),
 		newDynamicUsersHook(tr.killCtx, tr.driverCapabilities.DynamicWorkloadUsers, tr.logger, tr.users),
-		newIdentityHook(tr, hookLogger),
 		newLogMonHook(tr, hookLogger),
 		newDispatchHook(alloc, hookLogger),
 		newVolumeHook(tr, hookLogger),
