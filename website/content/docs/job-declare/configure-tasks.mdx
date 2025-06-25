@@ -1,0 +1,212 @@
+---
+layout: docs
+page_title: Configure job tasks
+description: |-
+  Provide values to a Nomad workload through job specification configuration files, command line arguments, and environment variables.
+---
+
+# Configure job tasks
+
+Most applications require some kind of local configuration. While command line
+arguments are the simplest method, many applications require more complex
+configurations provided via environment variables or configuration files. This
+section explores how to configure Nomad jobs to support many common
+configuration use cases.
+
+## Define application arguments
+
+Many tasks accept configuration via command-line arguments. For example,
+consider the [http-echo](https://github.com/hashicorp/http-echo) server which
+is a small go binary that renders the provided text as a webpage. The binary
+accepts two parameters:
+
+- The `-listen` flag contains the `address:port` to listen on
+- `-text` - the text to render as the HTML page
+
+Outside of Nomad, the server is started like this:
+
+```shell-session
+$ http-echo -listen=":5678" -text="hello world"
+```
+
+The Nomad equivalent job file might look something like this:
+
+```hcl
+job "docs" {
+  datacenters = ["dc1"]
+
+
+  group "example" {
+    network {
+      port "http" {
+        static = "5678"
+      }
+    }
+
+    task "server" {
+      driver = "exec"
+
+      config {
+        command = "/bin/http-echo"
+
+        args = [
+          "-listen",
+          ":5678",
+          "-text",
+          "hello world",
+        ]
+      }
+    }
+  }
+}
+```
+
+<Note>
+
+ For this job specification, you must install the `http-echo` in
+the `/bin` folder on each of your clients. Nomad can
+also optionally fetch the binary using the `artifact` resource.
+
+</Note>
+
+Nomad has many [drivers], and most support passing arguments to their tasks via
+the `args` parameter. This parameter also supports Nomad variable
+[interpolation]. For example, if you wanted Nomad to dynamically allocate a high
+port to bind the service on instead of relying on a static port for the previous
+job:
+
+```hcl
+job "docs" {
+  datacenters = ["dc1"]
+
+  group "example" {
+    network {
+      port "http" {
+        static = "5678"
+      }
+    }
+
+    task "server" {
+      driver = "exec"
+
+      config {
+        command = "/bin/http-echo"
+
+        args = [
+          "-listen",
+          ":${NOMAD_PORT_http}",
+          "-text",
+          "hello world",
+        ]
+      }
+    }
+  }
+}
+```
+
+## Set environment variables
+
+Some applications can be configured via environment variables. The
+[Twelve-Factor App](https://12factor.net/config) document suggests configuring
+applications through environment variables. Nomad supports custom environment
+variables in two ways:
+
+- Interpolation in an `env` stanza
+- Templated in the a `template` stanza
+
+### `env` stanza
+
+Each task may have an `env` stanza which specifies environment variables:
+
+```hcl
+task "server" {
+  env {
+    my_key = "my-value"
+  }
+}
+```
+
+The `env` stanza also supports [interpolation]:
+
+```hcl
+task "server" {
+  env {
+    LISTEN_PORT = "${NOMAD_PORT_http}"
+  }
+}
+```
+
+Consult the [`env` stanza] documentation for details.
+
+### Build environment variables with templates
+
+Nomad's [`template` stanza] can be used to generate environment variables.
+Environment variables may be templated with [Node attributes and
+metadata][nodevars], the contents of files on disk, Consul keys, or secrets from
+Vault:
+
+```hcl
+template {
+  data = <<EOH
+LOG_LEVEL="{{key "service/geo-api/log-verbosity"}}"
+API_KEY="{{with secret "secret/geo-api-key"}}{{.Data.key}}{{end}}"
+CERT={{ file "path/to/cert.pem" | to JSON }}
+NODE_ID="{{ env "node.unique.id" }}"
+EOH
+
+  destination = "secrets/config.env"
+  env         = true
+}
+```
+
+The template will be written to disk and then read as environment variables
+before your task is launched.
+
+## Load external configuration files
+
+Many applications use files for configuration. Nomad supports downloading files
+using the [`artifact` stanza] and [templating][`template` stanza] them prior to
+launching tasks. This allows shipping of configuration files and other assets
+that the task needs to run properly.
+
+Here is an example job which pulls down a configuration file as an artifact and
+templates it:
+
+```hcl
+job "docs" {
+  datacenters = ["dc1"]
+
+  group "example" {
+    task "server" {
+      driver = "exec"
+
+      artifact {
+        source      = "http://example.com/config.hcl.tmpl"
+        destination = "local/config.hcl.tmpl"
+      }
+
+      template {
+        source      = "local/config.hcl.tmpl"
+        destination = "local/config.hcl"
+      }
+
+      config {
+        command = "my-app"
+        args = [
+          "-config", "local/config.hcl",
+        ]
+      }
+    }
+  }
+}
+```
+
+For more information on the artifact resource, please consult the [`artifact`
+stanza] documentation.
+
+[`artifact` stanza]: /nomad/docs/job-specification/artifact 'Nomad artifact Job Specification'
+[nodevars]: /nomad/docs/reference/runtime-variable-interpolation
+[`template` stanza]: /nomad/docs/job-specification/template 'Nomad template Job Specification'
+[interpolation]: /nomad/docs/reference/runtime-variable-interpolation 'Nomad Variable Interpolation'
+[drivers]: /nomad/docs/job-declare/task-driver
+[`env` stanza]: /nomad/docs/job-specification/env
