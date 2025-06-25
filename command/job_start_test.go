@@ -21,205 +21,145 @@ import (
 
 var _ cli.Command = (*JobStartCommand)(nil)
 
+// testStartCommandSetup creates a test server and command for job start tests
+func testStartCommandSetup(t *testing.T) (*agent.TestAgent, *JobStartCommand, *api.Client, string) {
+	srv, _, addr := testServer(t, true, func(c *agent.Config) {
+		c.DevMode = true
+	})
+
+	ui := cli.NewMockUi()
+	cmd := &JobStartCommand{
+		Meta: Meta{
+			Ui:          ui,
+			flagAddress: addr,
+		},
+	}
+
+	client, err := cmd.Meta.Client()
+	must.NoError(t, err)
+
+	return srv, cmd, client, addr
+}
+
+// registerAndStopJob creates, registers, and stops a job for testing
+func registerAndStopJob(t *testing.T, client *api.Client, job *api.Job, withSubmission bool) {
+	if withSubmission {
+		jsonBytes, err := json.Marshal(job)
+		must.NoError(t, err)
+
+		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
+			Submission: &api.JobSubmission{
+				Source: string(jsonBytes),
+				Format: "json",
+			},
+		}, nil)
+		must.NoError(t, err)
+	} else {
+		_, _, err := client.Jobs().RegisterOpts(job, &api.RegisterOptions{}, nil)
+		must.NoError(t, err)
+	}
+
+	waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
+
+	_, _, err := client.Jobs().Deregister(*job.ID, false, nil)
+	must.Nil(t, err)
+
+	waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
+}
+
+// verifyScalingPolicies checks the scaling policies after job start
+func verifyScalingPolicies(t *testing.T, client *api.Client, expectedCount int, expectedEnabled *bool) {
+	pol, _, err := client.Scaling().ListPolicies(nil)
+	must.NoError(t, err)
+
+	if expectedCount == 0 {
+		must.Zero(t, len(pol))
+	} else {
+		must.Eq(t, expectedCount, len(pol))
+		if expectedEnabled != nil {
+			must.Eq(t, *expectedEnabled, pol[0].Enabled)
+		}
+	}
+}
+
 func TestStartCommand(t *testing.T) {
 	ci.Parallel(t)
 
-	t.Run("succeeds when starting a stopped job", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
+	testCases := []struct {
+		name             string
+		setupJob         func(*api.Job)
+		withSubmission   bool
+		expectedPolicies int
+		expectedEnabled  *bool
+		shouldSucceed    bool
+	}{
+		{
+			name:             "succeeds when starting a stopped job",
+			setupJob:         func(job *api.Job) {}, // default scaling enabled
+			withSubmission:   true,
+			expectedPolicies: 1,
+			expectedEnabled:  pointer.Of(true),
+			shouldSucceed:    true,
+		},
+		{
+			name: "succeeds when starting a stopped job with disabled scaling policies and no submissions",
+			setupJob: func(job *api.Job) {
+				job.TaskGroups[0].Scaling.Enabled = pointer.Of(false)
+			},
+			withSubmission:   false,
+			expectedPolicies: 1,
+			expectedEnabled:  pointer.Of(false),
+			shouldSucceed:    true,
+		},
+		{
+			name: "succeeds when starting a stopped job with enabled scaling policies",
+			setupJob: func(job *api.Job) {
+				job.TaskGroups[0].Scaling.Enabled = pointer.Of(true)
+			},
+			withSubmission:   true,
+			expectedPolicies: 1,
+			expectedEnabled:  pointer.Of(true),
+			shouldSucceed:    true,
+		},
+		{
+			name: "succeeds when starting a stopped job with no scaling policies",
+			setupJob: func(job *api.Job) {
+				job.TaskGroups[0].Scaling = nil
+			},
+			withSubmission:   true,
+			expectedPolicies: 0,
+			expectedEnabled:  nil,
+			shouldSucceed:    true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			srv, cmd, client, addr := testStartCommandSetup(t)
+			defer srv.Shutdown()
+
+			job := testJob(uuid.Generate())
+			tc.setupJob(job)
+
+			registerAndStopJob(t, client, job, tc.withSubmission)
+
+			res := cmd.Run([]string{"-address", addr, *job.ID})
+			if tc.shouldSucceed {
+				must.Zero(t, res)
+				verifyScalingPolicies(t, client, tc.expectedPolicies, tc.expectedEnabled)
+			} else {
+				must.Eq(t, 1, res)
+			}
 		})
-		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
-
-		job := testJob(uuid.Generate())
-
-		client, err := cmd.Meta.Client()
-		must.NoError(t, err)
-
-		jsonBytes, err := json.Marshal(job)
-		must.NoError(t, err)
-
-		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
-			Submission: &api.JobSubmission{
-				Source: string(jsonBytes),
-				Format: "json",
-			},
-		}, nil)
-		must.NoError(t, err)
-
-		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
-
-		_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
-		must.Nil(t, err)
-
-		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
-
-		res := cmd.Run([]string{"-address", addr, *job.ID})
-		must.Zero(t, res)
-
-		pol, _, err := client.Scaling().ListPolicies(nil)
-		must.NoError(t, err)
-		must.One(t, len(pol))
-		must.True(t, *job.TaskGroups[0].Scaling.Enabled)
-
-	})
-
-	t.Run("succeeds when starting a stopped job with disabled scaling policies and no submissions", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
-		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
-		job := testJob(uuid.Generate())
-
-		client, err := cmd.Meta.Client()
-		must.NoError(t, err)
-
-		job.TaskGroups[0].Scaling.Enabled = pointer.Of(false)
-
-		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{}, nil)
-		must.NoError(t, err)
-
-		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
-
-		_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
-		must.Nil(t, err)
-
-		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
-
-		res := cmd.Run([]string{"-address", addr, *job.ID})
-		must.Zero(t, res)
-
-		pol, _, err := client.Scaling().ListPolicies(nil)
-		must.NoError(t, err)
-		must.One(t, len(pol))
-		must.False(t, *job.TaskGroups[0].Scaling.Enabled)
-
-	})
-
-	t.Run("succeeds when starting a stopped job with enabled scaling policies", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
-		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
-		job := testJob(uuid.Generate())
-
-		client, err := cmd.Meta.Client()
-		must.NoError(t, err)
-
-		job.TaskGroups[0].Scaling.Enabled = pointer.Of(true)
-
-		jsonBytes, err := json.Marshal(job)
-		must.NoError(t, err)
-
-		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
-			Submission: &api.JobSubmission{
-				Source: string(jsonBytes),
-				Format: "json",
-			},
-		}, nil)
-		must.NoError(t, err)
-
-		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
-
-		_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
-		must.Nil(t, err)
-
-		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
-
-		res := cmd.Run([]string{"-address", addr, *job.ID})
-		must.Zero(t, res)
-
-		pol, _, err := client.Scaling().ListPolicies(nil)
-		must.NoError(t, err)
-		must.One(t, len(pol))
-		must.True(t, *job.TaskGroups[0].Scaling.Enabled)
-
-	})
-
-	t.Run("succeeds when starting a stopped job with no scaling policies", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
-		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
-		job := testJob(uuid.Generate())
-
-		client, err := cmd.Meta.Client()
-		must.NoError(t, err)
-
-		job.TaskGroups[0].Scaling = nil
-
-		jsonBytes, err := json.Marshal(job)
-		must.NoError(t, err)
-
-		_, _, err = client.Jobs().RegisterOpts(job, &api.RegisterOptions{
-			Submission: &api.JobSubmission{
-				Source: string(jsonBytes),
-				Format: "json",
-			},
-		}, nil)
-		must.NoError(t, err)
-
-		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
-
-		_, _, err = client.Jobs().Deregister(*job.ID, false, nil)
-		must.Nil(t, err)
-
-		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusComplete, "")
-
-		res := cmd.Run([]string{"-address", addr, *job.ID})
-		must.Zero(t, res)
-
-		pol, _, err := client.Scaling().ListPolicies(nil)
-		must.NoError(t, err)
-		must.Zero(t, len(pol))
-
-	})
+	}
 
 	t.Run("fails to start a job not previously stopped", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
+		srv, cmd, client, addr := testStartCommandSetup(t)
 		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
+
 		job := testJob(uuid.Generate())
 
-		client, err := cmd.Meta.Client()
-		must.NoError(t, err)
-
-		_, _, err = client.Jobs().Register(job, nil)
+		_, _, err := client.Jobs().Register(job, nil)
 		must.NoError(t, err)
 
 		waitForJobAllocsStatus(t, client, *job.ID, api.AllocClientStatusRunning, "")
@@ -229,17 +169,9 @@ func TestStartCommand(t *testing.T) {
 	})
 
 	t.Run("fails to start a non-existant job", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
+		srv, cmd, _, addr := testStartCommandSetup(t)
 		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
+
 		res := cmd.Run([]string{"-address", addr, "non-existant"})
 		must.Eq(t, 1, res)
 	})
