@@ -24,11 +24,10 @@ var _ cli.Command = (*JobStartCommand)(nil)
 func TestStartCommand(t *testing.T) {
 	ci.Parallel(t)
 
-	t.Run("succeeds when starting a stopped job", func(t *testing.T) {
+	testSetup := func() (*agent.TestAgent, *JobStartCommand, string) {
 		srv, _, addr := testServer(t, true, func(c *agent.Config) {
 			c.DevMode = true
 		})
-		defer srv.Shutdown()
 		ui := cli.NewMockUi()
 		cmd := &JobStartCommand{
 			Meta: Meta{
@@ -36,6 +35,12 @@ func TestStartCommand(t *testing.T) {
 				flagAddress: addr,
 			},
 		}
+		return srv, cmd, addr
+	}
+
+	t.Run("succeeds when starting a stopped job", func(t *testing.T) {
+		srv, cmd, addr := testSetup()
+		defer srv.Shutdown()
 
 		job := testJob(uuid.Generate())
 
@@ -71,17 +76,9 @@ func TestStartCommand(t *testing.T) {
 	})
 
 	t.Run("succeeds when starting a stopped job with disabled scaling policies and no submissions", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
+		srv, cmd, addr := testSetup()
 		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
+
 		job := testJob(uuid.Generate())
 
 		client, err := cmd.Meta.Client()
@@ -110,17 +107,9 @@ func TestStartCommand(t *testing.T) {
 	})
 
 	t.Run("succeeds when starting a stopped job with enabled scaling policies", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
+		srv, cmd, addr := testSetup()
 		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
+
 		job := testJob(uuid.Generate())
 
 		client, err := cmd.Meta.Client()
@@ -157,17 +146,9 @@ func TestStartCommand(t *testing.T) {
 	})
 
 	t.Run("succeeds when starting a stopped job with no scaling policies", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
+		srv, cmd, addr := testSetup()
 		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
+
 		job := testJob(uuid.Generate())
 
 		client, err := cmd.Meta.Client()
@@ -199,21 +180,12 @@ func TestStartCommand(t *testing.T) {
 		pol, _, err := client.Scaling().ListPolicies(nil)
 		must.NoError(t, err)
 		must.Zero(t, len(pol))
-
 	})
 
 	t.Run("fails to start a job not previously stopped", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
+		srv, cmd, addr := testSetup()
 		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
+
 		job := testJob(uuid.Generate())
 
 		client, err := cmd.Meta.Client()
@@ -229,17 +201,9 @@ func TestStartCommand(t *testing.T) {
 	})
 
 	t.Run("fails to start a non-existant job", func(t *testing.T) {
-		srv, _, addr := testServer(t, true, func(c *agent.Config) {
-			c.DevMode = true
-		})
+		srv, cmd, addr := testSetup()
 		defer srv.Shutdown()
-		ui := cli.NewMockUi()
-		cmd := &JobStartCommand{
-			Meta: Meta{
-				Ui:          ui,
-				flagAddress: addr,
-			},
-		}
+
 		res := cmd.Run([]string{"-address", addr, "non-existant"})
 		must.Eq(t, 1, res)
 	})
