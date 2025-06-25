@@ -279,23 +279,31 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		}
 		<-ctx.Done()
 	}()
+
 	opts := cstructs.MonitorExternalRequest{
-		LogSince:    args.LogSince,
-		ServiceName: args.ServiceName,
-		Follow:      args.Follow,
-		LogPath:     args.LogPath,
+		LogSince:     args.LogSince,
+		ServiceName:  args.ServiceName,
+		NomadLogPath: args.NomadLogPath,
+		OnDisk:       args.OnDisk,
+		Follow:       args.Follow,
 	}
+
 	logCh := monitor.MonitorExternal(&opts)
 
 	//defer monitor.Stop()
 	initialOffset := int64(0)
-	var eofCancelCh chan error
+	var (
+		eofCancelCh chan error
+		eofCancel   bool
+	)
+	eofCancel = !opts.Follow
 	// receive logs and build frames
 	streamReader := cstructs.NewStreamReader(logCh)
+
 	go func() {
 		defer framer.Destroy()
 
-		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, framer, eofCancelCh, true); err != nil {
+		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, framer, eofCancelCh, eofCancel); err != nil {
 			select {
 			case errCh <- err:
 			case <-ctx.Done():
@@ -322,17 +330,13 @@ OUTER:
 			}
 
 			var resp cstructs.StreamErrWrapper
-			if args.PlainText {
-				resp.Payload = frame.Data
-			} else {
-				if err := frameCodec.Encode(frame); err != nil && err != io.EOF {
-					streamErr = err
-					break OUTER
-				}
-				resp.Payload = buf.Bytes()
-				buf.Reset()
 
+			if err := frameCodec.Encode(frame); err != nil && err != io.EOF {
+				streamErr = err
+				break OUTER
 			}
+			resp.Payload = buf.Bytes()
+			buf.Reset()
 
 			if err := encoder.Encode(resp); err != nil && err != io.EOF {
 				streamErr = err
