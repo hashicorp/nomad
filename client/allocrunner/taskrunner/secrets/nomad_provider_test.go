@@ -23,7 +23,7 @@ func TestNomadProvider_BuildTemplate(t *testing.T) {
 				"namespace": "dev",
 			},
 		}
-		p := NewNomadProvider(testSecret, testDir)
+		p := NewNomadProvider(testSecret, testDir, "default")
 
 		tmpl, err := p.BuildTemplate()
 		must.NoError(t, err)

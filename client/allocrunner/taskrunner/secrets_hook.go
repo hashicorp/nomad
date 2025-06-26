@@ -102,7 +102,7 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 		tmplPath := filepath.Join(req.TaskDir.SecretsDir, fmt.Sprintf("temp-%d", idx))
 		switch s.Provider {
 		case "nomad":
-			providers = append(providers, secrets.NewNomadProvider(s, tmplPath))
+			providers = append(providers, secrets.NewNomadProvider(s, tmplPath, h.nomadNamespace))
 		case "vault":
 			// Unimplemented
 		default:
