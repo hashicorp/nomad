@@ -58,10 +58,10 @@ server {
 - `enabled` `(bool: false)` - Specifies if this agent should run in server mode.
   All other server options depend on this value being set.
 
-- `enabled_schedulers` `(array<string>: ["service", "batch", "system",
-  "sysbatch"])` - Specifies which sub-schedulers this server handles. Use this
-  to restrict the evaluations that worker threads dequeue for
-  processing.
+- `enabled_schedulers` `(array<string>: [])` - Specifies which sub-schedulers this server 
+  handles. Use this to restrict the evaluations that worker threads dequeue for
+  processing. Nomad treats the empty default value as `["service", "batch", "system",
+  "sysbatch"]`
 
 - `enable_event_broker` `(bool: true)` - Specifies if this server will generate
   events for its event stream.
