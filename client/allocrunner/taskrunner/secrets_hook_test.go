@@ -44,17 +44,17 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 	`
 	// Start test server to simulate Vault cluster responses.
 	count := 0 // CT expects a nomad index header that incremements, or else it continues polling
-	defaultVaultServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	nomadServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Nomad-Index", strconv.Itoa(count))
 		fmt.Fprintln(w, secretsResp)
 		count += 1
 	}))
-	t.Cleanup(defaultVaultServer.Close)
+	t.Cleanup(nomadServer.Close)
 
 	l, d := bufconndialer.New()
-	defaultVaultServer.Listener = l
+	nomadServer.Listener = l
 
-	defaultVaultServer.Start()
+	nomadServer.Start()
 
 	// Setup client with Vault config.
 	clientConfig := config.DefaultConfig()
@@ -66,8 +66,6 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 	task := alloc.Job.TaskGroups[0].Tasks[0]
 
 	conf := &secretsHookConfig{
-
-		// alloc:        alloc,
 		logger:       testlog.HCLogger(t),
 		lifecycle:    trtesting.NewMockTaskHooks(),
 		events:       &trtesting.MockEmitter{},
@@ -98,6 +96,87 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 	err := secretHook.Prestart(ctx, req, nil)
 	must.NoError(t, err)
 
-	// TODO: this test is originally from template, but is simplified a bit because we can test
-	// that TaskSecrets field has the expected fields
+	expected := map[string]string{
+		"secret.test_secret.key1": "value1",
+		"secret.test_secret.key2": "value2",
+	}
+	must.Eq(t, expected, secretHook.taskSecrets)
+}
+
+func TestSecretsHook_Prestart_Cancelled(t *testing.T) {
+	ci.Parallel(t)
+
+	secretsResp := `
+	{
+	  "CreateIndex": 812,
+	  "CreateTime": 1750782609539170600,
+	  "Items": {
+	    "key2": "value2",
+	    "key1": "value1"
+	  },
+	  "ModifyIndex": 812,
+	  "ModifyTime": 1750782609539170600,
+	  "Namespace": "default",
+	  "Path": "testnomadvar"
+	}
+	`
+	// Start test server to simulate Vault cluster responses.
+	count := 0 // CT expects a nomad index header that incremements, or else it continues polling
+	nomadServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("X-Nomad-Index", strconv.Itoa(count))
+		fmt.Fprintln(w, secretsResp)
+		count += 1
+	}))
+	t.Cleanup(nomadServer.Close)
+
+	l, d := bufconndialer.New()
+	nomadServer.Listener = l
+
+	nomadServer.Start()
+
+	// Setup client with Vault config.
+	clientConfig := config.DefaultConfig()
+	clientConfig.TemplateDialer = d
+	clientConfig.TemplateConfig.DisableSandbox = true
+
+	taskDir := t.TempDir()
+	alloc := mock.MinAlloc()
+	task := alloc.Job.TaskGroups[0].Tasks[0]
+
+	conf := &secretsHookConfig{
+
+		logger:       testlog.HCLogger(t),
+		lifecycle:    trtesting.NewMockTaskHooks(),
+		events:       &trtesting.MockEmitter{},
+		clientConfig: clientConfig,
+		envBuilder:   taskenv.NewBuilder(mock.Node(), alloc, task, clientConfig.Region),
+	}
+	secretHook := newSecretsHook(conf, []*structs.Secret{
+		{
+			Name:     "test_secret",
+			Provider: "nomad",
+			Path:     "testnomadvar",
+			Config: map[string]any{
+				"namespace": "default",
+			},
+		},
+	})
+
+	// Start template hook with a timeout context to ensure it exists.
+	req := &interfaces.TaskPrestartRequest{
+		Alloc:   alloc,
+		Task:    task,
+		TaskDir: &allocdir.TaskDir{Dir: taskDir, SecretsDir: taskDir},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+
+	// cancel task context
+	cancel()
+
+	err := secretHook.Prestart(ctx, req, nil)
+	must.NoError(t, err)
+
+	expected := map[string]string{}
+	must.Eq(t, expected, secretHook.taskSecrets)
 }

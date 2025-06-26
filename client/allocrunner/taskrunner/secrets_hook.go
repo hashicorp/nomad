@@ -152,6 +152,7 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	select {
 	case <-ctx.Done():
 		tm.Stop()
+		return nil
 	case <-unblock:
 	}
 
