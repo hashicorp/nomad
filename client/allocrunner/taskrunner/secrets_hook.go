@@ -19,6 +19,18 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
+// Currently only support Vault and Nomad which use CT. Future work
+// can modify this interface to include custom providers using
+// a plugin interface.
+type SecretProvider interface {
+	// BuildTemplates should construct a template appropriate for
+	// that provider and append it to the templateManager's templates.
+	BuildTemplate() (*structs.Template, error)
+
+	// Each provider implementation much be able to parse it's "response" object.
+	Parse() (map[string]string, error)
+}
+
 type secretsHookConfig struct {
 	// logger is used to log
 	logger log.Logger
@@ -63,18 +75,6 @@ type secretsHook struct {
 
 	// taskrunner secrets map
 	taskSecrets map[string]string
-}
-
-// Currently only support Vault and Nomad which use CT. Future work
-// can modify this interface to include custom providers using
-// a plugin interface.
-type SecretProvider interface {
-	// BuildTemplates should construct a template appropriate for
-	// that provider and append it to the templateManager's templates.
-	BuildTemplate() (*structs.Template, error)
-
-	// Each provider implementation much be able to parse it's "response" object.
-	Parse() (map[string]string, error)
 }
 
 func newSecretsHook(conf *secretsHookConfig, secrets []*structs.Secret) *secretsHook {
