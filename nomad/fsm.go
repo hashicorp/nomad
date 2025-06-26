@@ -498,7 +498,7 @@ func (n *nomadFSM) applyStatusUpdate(msgType structs.MessageType, buf []byte, in
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	if err := n.state.UpdateNodeStatus(msgType, index, req.NodeID, req.Status, req.UpdatedAt, req.NodeEvent); err != nil {
+	if err := n.state.UpdateNodeStatus(msgType, index, &req); err != nil {
 		n.logger.Error("UpdateNodeStatus failed", "error", err)
 		return err
 	}

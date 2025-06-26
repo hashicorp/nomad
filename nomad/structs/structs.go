@@ -643,8 +643,18 @@ type NodeServerInfo struct {
 // NodeUpdateStatusRequest is used for Node.UpdateStatus endpoint
 // to update the status of a node.
 type NodeUpdateStatusRequest struct {
-	NodeID    string
-	Status    string
+	NodeID string
+	Status string
+
+	// IdentitySigningKeyID is the ID of the root key used to sign the node's
+	// identity. This is not provided by the client, but is set by the server,
+	// so that the value can be propagated through Raft.
+	IdentitySigningKeyID string
+
+	// ForceIdentityRenewal is used to force the Nomad server to generate a new
+	// identity for the node.
+	ForceIdentityRenewal bool
+
 	NodeEvent *NodeEvent
 	UpdatedAt int64
 	WriteRequest
