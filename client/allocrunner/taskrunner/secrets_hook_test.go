@@ -42,7 +42,6 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 	  "Path": "testnomadvar"
 	}
 	`
-	// Start test server to simulate Vault cluster responses.
 	count := 0 // CT expects a nomad index header that incremements, or else it continues polling
 	nomadServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Nomad-Index", strconv.Itoa(count))
@@ -56,7 +55,6 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 
 	nomadServer.Start()
 
-	// Setup client with Vault config.
 	clientConfig := config.DefaultConfig()
 	clientConfig.TemplateDialer = d
 	clientConfig.TemplateConfig.DisableSandbox = true
@@ -83,7 +81,6 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 		},
 	})
 
-	// Start template hook with a timeout context to ensure it exists.
 	req := &interfaces.TaskPrestartRequest{
 		Alloc:   alloc,
 		Task:    task,
@@ -120,7 +117,6 @@ func TestSecretsHook_Prestart_Cancelled(t *testing.T) {
 	  "Path": "testnomadvar"
 	}
 	`
-	// Start test server to simulate Vault cluster responses.
 	count := 0 // CT expects a nomad index header that incremements, or else it continues polling
 	nomadServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Nomad-Index", strconv.Itoa(count))
@@ -134,7 +130,6 @@ func TestSecretsHook_Prestart_Cancelled(t *testing.T) {
 
 	nomadServer.Start()
 
-	// Setup client with Vault config.
 	clientConfig := config.DefaultConfig()
 	clientConfig.TemplateDialer = d
 	clientConfig.TemplateConfig.DisableSandbox = true
@@ -162,7 +157,6 @@ func TestSecretsHook_Prestart_Cancelled(t *testing.T) {
 		},
 	})
 
-	// Start template hook with a timeout context to ensure it exists.
 	req := &interfaces.TaskPrestartRequest{
 		Alloc:   alloc,
 		Task:    task,
@@ -170,9 +164,7 @@ func TestSecretsHook_Prestart_Cancelled(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-
-	// cancel task context
-	cancel()
+	cancel() // cancel context to simulate task being stopped
 
 	err := secretHook.Prestart(ctx, req, nil)
 	must.NoError(t, err)
