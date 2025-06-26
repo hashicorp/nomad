@@ -366,7 +366,7 @@ func genUpdateBlock(tgCount int) *rapid.Generator[*structs.UpdateStrategy] {
 }
 
 // idGenerator is used to generate unique-per-test IDs and names that don't
-// impact the test results, wihtout using the rapid library generators. This
+// impact the test results, without using the rapid library generators. This
 // prevents them from being used as a dimension for fuzzing, which allows us to
 // shrink only dimensions we care about on failure.
 type idGenerator struct {

@@ -47,7 +47,7 @@ type nodeReconcilerInput struct {
 func genNodeReconciler(jobType string, idg *idGenerator) *rapid.Generator[*nodeReconcilerInput] {
 	return rapid.Custom(func(t *rapid.T) *nodeReconcilerInput {
 		now := time.Now() // note: you can only use offsets from this
-		nodes := rapid.SliceOfN(genNode(idg), 1, 30).Draw(t, "nodes")
+		nodes := rapid.SliceOfN(genNode(idg), 0, 30).Draw(t, "nodes")
 		job := genJob(jobType, idg).Draw(t, "job")
 		taintedNodes := map[string]*structs.Node{}
 		notReadyNodes := map[string]struct{}{}
