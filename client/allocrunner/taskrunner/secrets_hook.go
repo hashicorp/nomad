@@ -86,7 +86,9 @@ func newSecretsHook(conf *secretsHookConfig, secrets []*structs.Secret) *secrets
 		envBuilder:     conf.envBuilder,
 		nomadNamespace: conf.nomadNamespace,
 		secrets:        secrets,
-		taskSecrets:    make(map[string]string),
+		// Future work will inject taskSecrets from the taskRunner, so that the taskrunner
+		// can make these secrets available to other hooks.
+		taskSecrets: make(map[string]string),
 	}
 }
 
@@ -97,7 +99,7 @@ func (h *secretsHook) Name() string {
 func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
 	providers, templates := []SecretProvider{}, []*structs.Template{}
 	for idx, s := range h.secrets {
-		tmplPath := filepath.Join(req.TaskDir.SecretsDir, fmt.Sprintf("%d", idx))
+		tmplPath := filepath.Join(req.TaskDir.SecretsDir, fmt.Sprintf("temp-%d", idx))
 		switch s.Provider {
 		case "nomad":
 			providers = append(providers, secrets.NewNomadProvider(s, tmplPath))
@@ -145,13 +147,10 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	go tm.Run()
 
 	// Safeguard against the template manager continuing to run.
-	// This should not happen because templates should all be in
-	// once mode, resulting in the tm exiting after the first render.
 	defer tm.Stop()
 
 	select {
 	case <-ctx.Done():
-		tm.Stop()
 		return nil
 	case <-unblock:
 	}

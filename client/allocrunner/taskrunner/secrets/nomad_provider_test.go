@@ -50,7 +50,7 @@ func TestNomadProvider_BuildTemplate(t *testing.T) {
 				"namespace": 123,
 			},
 		}
-		p := NewNomadProvider(testSecret, testDir)
+		p := NewNomadProvider(testSecret, testDir, "default")
 
 		tmpl, err := p.BuildTemplate()
 		must.Error(t, err)
@@ -67,7 +67,7 @@ func TestNomadProvider_Parse(t *testing.T) {
 	err := os.WriteFile(tmplPath, []byte(data), 0777)
 	must.NoError(t, err)
 
-	p := NewNomadProvider(nil, tmplPath)
+	p := NewNomadProvider(nil, tmplPath, "default")
 
 	vars, err := p.Parse()
 	must.NoError(t, err)

@@ -59,9 +59,11 @@ func (tr *TaskRunner) initHooks() {
 	// directory path exists for other hooks.
 	tr.hookResources = &hookResources{}
 	tr.runnerHooks = []interfaces.TaskHook{
+		newValidateHook(tr.clientConfig, hookLogger),
+		newDynamicUsersHook(tr.killCtx, tr.driverCapabilities.DynamicWorkloadUsers, tr.logger, tr.users),
 		newTaskDirHook(tr, hookLogger),
-		newConsulHook(hookLogger, tr),
 		newIdentityHook(tr, hookLogger),
+		newConsulHook(hookLogger, tr),
 	}
 	// If Vault is enabled, add the hook
 	if task.Vault != nil && tr.vaultClientFunc != nil {
@@ -92,8 +94,6 @@ func (tr *TaskRunner) initHooks() {
 
 	alloc := tr.Alloc()
 	tr.runnerHooks = append(tr.runnerHooks, []interfaces.TaskHook{
-		newValidateHook(tr.clientConfig, hookLogger),
-		newDynamicUsersHook(tr.killCtx, tr.driverCapabilities.DynamicWorkloadUsers, tr.logger, tr.users),
 		newLogMonHook(tr, hookLogger),
 		newDispatchHook(alloc, hookLogger),
 		newVolumeHook(tr, hookLogger),

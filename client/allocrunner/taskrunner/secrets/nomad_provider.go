@@ -17,21 +17,23 @@ type nomadProviderConfig struct {
 	Namespace string `mapstructure:"namespace"`
 }
 
-func defaultNomadConfig() *nomadProviderConfig {
+func defaultNomadConfig(namespace string) *nomadProviderConfig {
 	return &nomadProviderConfig{
-		Namespace: "default",
+		Namespace: namespace,
 	}
 }
 
 type NomadProvider struct {
-	secret   *structs.Secret
-	tmplPath string
+	namespace string
+	secret    *structs.Secret
+	tmplPath  string
 }
 
-func NewNomadProvider(s *structs.Secret, p string) *NomadProvider {
+func NewNomadProvider(secret *structs.Secret, path string, namespace string) *NomadProvider {
 	return &NomadProvider{
-		secret:   s,
-		tmplPath: p,
+		namespace: namespace,
+		secret:    secret,
+		tmplPath:  path,
 	}
 }
 
@@ -40,7 +42,7 @@ func (n *NomadProvider) BuildTemplate() (*structs.Template, error) {
 		return nil, fmt.Errorf("empty secret for nomad provider")
 	}
 
-	conf := defaultNomadConfig()
+	conf := defaultNomadConfig(n.namespace)
 	if err := mapstructure.Decode(n.secret.Config, conf); err != nil {
 		return nil, err
 	}
