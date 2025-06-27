@@ -542,11 +542,14 @@ func (ai *AuthenticatedIdentity) String() string {
 	if ai.ACLToken != nil && ai.ACLToken != AnonymousACLToken {
 		return "token:" + ai.ACLToken.AccessorID
 	}
-	if ai.Claims != nil {
+	if ai.Claims != nil && ai.Claims.IsWorkload() {
 		return "alloc:" + ai.Claims.AllocationID
 	}
 	if ai.ClientID != "" {
 		return "client:" + ai.ClientID
+	}
+	if ai.Claims != nil && ai.Claims.IsNode() {
+		return "client:" + ai.Claims.NodeID
 	}
 	return ai.TLSName + ":" + ai.RemoteIP.String()
 }
