@@ -1,0 +1,7 @@
+```release-note:improvement
+cli: Added related evals and placed allocations tables to the eval status command, and exposed more fields without requiring the -verbose flag.
+```
+
+```release-note:improvement
+api: The Evaluations.Info method of the Go API now populates the RelatedEvals field.
+```
