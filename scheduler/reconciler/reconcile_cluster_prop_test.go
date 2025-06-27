@@ -21,8 +21,17 @@ import (
 const maxAllocs = 30
 
 func TestAllocReconciler_PropTest(t *testing.T) {
-	t.Run("batch jobs", rapid.MakeCheck(func(t *rapid.T) {
-		ar := genAllocReconciler(structs.JobTypeBatch, &idGenerator{}).Draw(t, "reconciler")
+	idg := &idGenerator{}
+	now := time.Now()
+	t.Run("batch jobs, nil old deploy, current running deploy", rapid.MakeCheck(func(t *rapid.T) {
+		jobType := structs.JobTypeBatch
+		job := genJob(jobType, idg).Draw(t, "job")
+		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
+		taintedNodes := helper.SliceToMap[map[string]*structs.Node](nodes, func(n *structs.Node) string { return n.ID })
+		currentAllocs := rapid.SliceOfN(genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
+		currentDeployment := genDeployment(idg, job, currentAllocs, false, structs.DeploymentStatusRunning).Draw(t, "current_deploy")
+
+		ar := genAllocReconciler(now, jobType, taintedNodes, nil, currentAllocs, nil, currentDeployment, idg).Draw(t, "reconciler")
 		results := ar.Compute()
 		if results == nil {
 			t.Fatal("results should never be nil")
@@ -31,23 +40,27 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 	}))
 
 	t.Run("service jobs", rapid.MakeCheck(func(t *rapid.T) {
-		ar := genAllocReconciler(structs.JobTypeService, &idGenerator{}).Draw(t, "reconciler")
+		jobType := structs.JobTypeService
+		job := genJob(jobType, idg).Draw(t, "job")
+		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
+		taintedNodes := helper.SliceToMap[map[string]*structs.Node](nodes, func(n *structs.Node) string { return n.ID })
+		currentAllocs := rapid.SliceOfN(genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
+		currentDeployment := genDeployment(idg, job, currentAllocs, false, structs.DeploymentStatusRunning).Draw(t, "current_deploy")
+
+		ar := genAllocReconciler(now, jobType, taintedNodes, nil, currentAllocs, nil, currentDeployment, idg).Draw(t, "reconciler")
 		results := ar.Compute()
 		if results == nil {
 			t.Fatal("results should never be nil")
 		}
 		// TODO(tgross): this where the properties under test go
+
+		// SAFETY properties ("something bad never happens")
+
 	}))
 }
 
-func genAllocReconciler(jobType string, idg *idGenerator) *rapid.Generator[*AllocReconciler] {
+func genAllocReconciler(now time.Time, jobType string, taintedNodes map[string]*structs.Node, oldAllocs, currentAllocs []*structs.Allocation, oldDeploy, currentDeploy *structs.Deployment, idg *idGenerator) *rapid.Generator[*AllocReconciler] {
 	return rapid.Custom(func(t *rapid.T) *AllocReconciler {
-		now := time.Now() // note: you can only use offsets from this
-
-		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
-		taintedNodes := helper.SliceToMap[map[string]*structs.Node](
-			nodes, func(n *structs.Node) string { return n.ID })
-
 		clusterState := ClusterState{
 			TaintedNodes:                taintedNodes,
 			SupportsDisconnectedClients: rapid.Bool().Draw(t, "supports_disconnected_clients"),
@@ -57,11 +70,6 @@ func genAllocReconciler(jobType string, idg *idGenerator) *rapid.Generator[*Allo
 		oldJob := job.Copy()
 		oldJob.Version--
 		oldJob.CreateIndex = 100
-
-		currentAllocs := rapid.SliceOfN(
-			genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
-		oldAllocs := rapid.SliceOfN(
-			genExistingAllocMaybeTainted(idg, oldJob, taintedNodes, now), 0, 15).Draw(t, "old_allocs")
 
 		// tie together a subset of allocations so we can exercise reconnection
 		previousAllocID := ""
@@ -74,10 +82,6 @@ func genAllocReconciler(jobType string, idg *idGenerator) *rapid.Generator[*Allo
 		}
 
 		allocs := append(currentAllocs, oldAllocs...)
-
-		// note: either of these might return nil
-		oldDeploy := genDeployment(idg, oldJob, oldAllocs).Draw(t, "old_deploy")
-		currentDeploy := genDeployment(idg, job, currentAllocs).Draw(t, "current_deploy")
 
 		reconcilerState := ReconcilerState{
 			Job:               job,
@@ -108,7 +112,7 @@ func genAllocReconciler(jobType string, idg *idGenerator) *rapid.Generator[*Allo
 	})
 }
 
-func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocation) *rapid.Generator[*structs.Deployment] {
+func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocation, promoted bool, status string) *rapid.Generator[*structs.Deployment] {
 	return rapid.Custom(func(t *rapid.T) *structs.Deployment {
 		if rapid.Bool().Draw(t, "deploy_is_nil") {
 			return nil
@@ -124,7 +128,7 @@ func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocat
 				AutoPromote:       tg.Update.AutoPromote,
 				ProgressDeadline:  tg.Update.ProgressDeadline,
 				RequireProgressBy: time.Time{},
-				Promoted:          false, // TODO(tgross): what to do with this?
+				Promoted:          promoted,
 				PlacedCanaries:    []string{},
 				DesiredCanaries:   tg.Update.Canary,
 				DesiredTotal:      tg.Count,
@@ -162,7 +166,7 @@ func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocat
 			JobCreateIndex:     job.CreateIndex,
 			IsMultiregion:      false,
 			TaskGroups:         dstates,
-			Status:             structs.DeploymentStatusRunning, // TODO(tgross)
+			Status:             status,
 			StatusDescription:  "",
 			EvalPriority:       0,
 			CreateIndex:        job.CreateIndex,
