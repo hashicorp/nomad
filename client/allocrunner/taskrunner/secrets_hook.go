@@ -19,15 +19,15 @@ import (
 	"github.com/hashicorp/nomad/nomad/structs"
 )
 
-// Currently only support Vault and Nomad which use CT. Future work
-// can modify this interface to include custom providers using
-// a plugin interface.
+// SecretProvider currently only supports Vault and Nomad which use CT. Future
+// work can modify this interface to include custom providers using a plugin
+// interface.
 type SecretProvider interface {
-	// BuildTemplates should construct a template appropriate for
-	// that provider and append it to the templateManager's templates.
+	// BuildTemplate should construct a template appropriate for that provider
+	// and append it to the templateManager's templates.
 	BuildTemplate() (*structs.Template, error)
 
-	// Each provider implementation much be able to parse it's "response" object.
+	// Parse allows each provider implementation to parse its "response" object.
 	Parse() (map[string]string, error)
 }
 
@@ -96,7 +96,7 @@ func (h *secretsHook) Name() string {
 	return "secrets"
 }
 
-func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, resp *interfaces.TaskPrestartResponse) error {
+func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, _ *interfaces.TaskPrestartResponse) error {
 	providers, templates := []SecretProvider{}, []*structs.Template{}
 	for idx, s := range h.secrets {
 		tmplPath := filepath.Join(req.TaskDir.SecretsDir, fmt.Sprintf("temp-%d", idx))
@@ -106,7 +106,7 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 		case "vault":
 			// Unimplemented
 		default:
-			return fmt.Errorf("Unknown secret provider type: %s", s.Provider)
+			return fmt.Errorf("unknown secret provider type: %s", s.Provider)
 		}
 	}
 

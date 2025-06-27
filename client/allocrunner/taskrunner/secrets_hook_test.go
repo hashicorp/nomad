@@ -42,7 +42,7 @@ func TestSecretsHook_Prestart_Nomad(t *testing.T) {
 	  "Path": "testnomadvar"
 	}
 	`
-	count := 0 // CT expects a nomad index header that incremements, or else it continues polling
+	count := 0 // CT expects a nomad index header that increments, or else it continues polling
 	nomadServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Nomad-Index", strconv.Itoa(count))
 		fmt.Fprintln(w, secretsResp)
@@ -117,7 +117,7 @@ func TestSecretsHook_Prestart_Cancelled(t *testing.T) {
 	  "Path": "testnomadvar"
 	}
 	`
-	count := 0 // CT expects a nomad index header that incremements, or else it continues polling
+	count := 0 // CT expects a nomad index header that increments, or else it continues polling
 	nomadServer := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("X-Nomad-Index", strconv.Itoa(count))
 		fmt.Fprintln(w, secretsResp)
