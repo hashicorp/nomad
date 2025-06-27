@@ -342,10 +342,7 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 	serviceName := req.URL.Query().Get("service_name")
 	nodeID := req.URL.Query().Get("node_id")
 
-	nomadLogPath := ""
-	if onDisk {
-		nomadLogPath = s.agent.GetConfig().LogFile
-	}
+	nomadLogPath := s.agent.GetConfig().LogFile
 
 	// Build the request and parse the ACL token
 	args := cstructs.MonitorExternalRequest{
@@ -453,7 +450,6 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 			}
 
 			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
-				s.logger.Info("we got an error", err.Error())
 				errCh <- CodedError(500, err.Error())
 			}
 		}
@@ -468,7 +464,6 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 		(codedErr == io.EOF ||
 			strings.Contains(codedErr.Error(), "closed") ||
 			strings.Contains(codedErr.Error(), "EOF")) {
-		s.logger.Info("we got an eof")
 		s.logger.Info(codedErr.Error())
 		codedErr = nil
 	}

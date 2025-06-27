@@ -381,13 +381,12 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		LogSince:     args.LogSince,
 		ServiceName:  args.ServiceName,
 		NomadLogPath: args.NomadLogPath,
-		//Follow:      args.Follow,
-		OnDisk: args.OnDisk,
-		//TstFile: args.TstFile,
+		OnDisk:       args.OnDisk,
+		Follow:       args.Follow,
 	}
 
 	logCh := monitor.MonitorExternal(&opts)
-	//defer monitor.Stop()
+	defer monitor.Stop()
 
 	initialOffset := int64(0)
 	var eofCancelCh chan error
@@ -418,7 +417,6 @@ OUTER:
 				default:
 					// No error, continue on
 				}
-
 				break OUTER
 			}
 

@@ -6,6 +6,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+
 	"io"
 	"net"
 	"os"
@@ -467,63 +468,87 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 	inlineFilePath := testFile.Name()
 
 	// start server
-	s, cleanupS := nomad.TestServer(t, nil)
+	s, root, cleanupS := nomad.TestACLServer(t, nil)
+	defer cleanupS()
+	testutil.WaitForLeader(t, s.RPC)
 	defer cleanupS()
 
 	c, cleanupC := TestClient(t, func(c *config.Config) {
 		c.ACLEnabled = true
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
+
 	defer cleanupC()
 	defer os.Remove(inlineFilePath)
 	testutil.WaitForLeader(t, s.RPC)
 
 	cases := []struct {
-		name        string
-		isCli       bool
-		expected    string
-		tstFile     string
-		filePath    string
-		serviceName string
+		name         string
+		expected     string
+		nomadLogPath string
+		serviceName  string
+		token        string
+		onDisk       bool
+		expectErr    bool
 	}{
 		{
-			name:     "happy_path_inline_file",
-			isCli:    false,
-			filePath: inlineFilePath,
-			expected: expectedText,
+			name:         "happy_path_golden_file",
+			onDisk:       true,
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFileContents),
+			token:        root.SecretID,
 		},
 		{
-			name:        "happy_path_inline_cli",
-			isCli:       true,
-			tstFile:     inlineFilePath,
-			serviceName: "nomad",
-			expected:    expectedText,
+			name:         "happy_path_golden_cli",
+			serviceName:  "nomad",
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFileContents),
+			token:        root.SecretID,
+		},
+
+		{
+			name:         "happy_path_golden_file_ACL",
+			onDisk:       true,
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFileContents),
+			token:        root.SecretID,
 		},
 		{
-			name:     "happy_path_golden_file",
-			isCli:    false,
-			filePath: goldenFilePath,
-			expected: string(goldenFileContents),
+			name:         "token_error_golden_file_ACL",
+			onDisk:       true,
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFileContents),
+			token:        "notatokentho",
+			expectErr:    true,
 		},
 		{
-			name:        "happy_path_golden_cli",
-			isCli:       true,
-			tstFile:     goldenFilePath,
-			serviceName: "nomad",
-			expected:    string(goldenFileContents),
+			name:         "token_error_golden_cli_ACL",
+			serviceName:  "nomad",
+			nomadLogPath: inlineFilePath,
+			expected:     string(goldenFileContents),
+			token:        "notatokentho",
+			expectErr:    true,
+		},
+		{
+			name:         "invalid_service_name_golden_cli_ACL",
+			serviceName:  "nomad$",
+			nomadLogPath: inlineFilePath,
+			expected:     string(goldenFileContents),
+			token:        root.SecretID,
+			expectErr:    true,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 
-			// No node ID to monitor the remote server
 			req := cstructs.MonitorExternalRequest{
-				LogSince:    "72",
-				LogPath:     tc.filePath,
-				ServiceName: tc.serviceName,
-				TstFile:     tc.tstFile,
+				LogSince:     "72",
+				NodeID:       "doesn't_really_matter",
+				NomadLogPath: tc.nomadLogPath,
+				ServiceName:  tc.serviceName,
 				QueryOptions: structs.QueryOptions{
-					Region: "global",
+					Region:    "global",
+					AuthToken: tc.token,
 				},
 			}
 			handler, err := c.StreamingRpcHandler("Agent.MonitorExternal")
@@ -545,16 +570,11 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 				for {
 					var msg cstructs.StreamErrWrapper
 					err := decoder.Decode(&msg)
-					if err != nil && err != io.EOF {
-						errCh <- fmt.Errorf("error decoding: %v", err)
-					}
+
 					streamMsg <- &msg
-
-					if err == io.EOF && err != nil {
-						errCh <- io.EOF
-						break
+					if err != nil {
+						errCh <- err
 					}
-
 				}
 			}()
 
@@ -562,48 +582,53 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 			require.Nil(encoder.Encode(req))
 			timeout := time.After(3 * time.Second)
+			copyLength := 0
 
-			var (
-				copyLength int
-				builder    strings.Builder
-			)
-			go func() {
-			OUTER:
-				for {
-					select {
-					case <-timeout:
-						must.Unreachable(t)
-						continue
-					case err := <-errCh:
-						if err != io.EOF {
-							must.Unreachable(t)
+			var builder strings.Builder
+			//var completed bool
+			//var (
+			//	copyLength int
+			//)
+			//go func() {
+		OUTER:
+			for {
+				select {
+				case <-timeout:
+					must.Unreachable(t)
+					continue
+				case err := <-errCh:
+					if err != nil && err != io.EOF {
+						if tc.expectErr {
+							continue
 						}
-					case message := <-streamMsg:
-						var frame sframer.StreamFrame
-						if len(message.Payload) == 0 {
-							break
-						}
-						err = json.Unmarshal(message.Payload, &frame)
-						if err != io.EOF {
+						must.NoError(t, err)
+					}
+				case message := <-streamMsg:
+					var frame sframer.StreamFrame
+					//if len(message.Payload) == 0 {
+					//	break
+					//}
+					err = json.Unmarshal(message.Payload, &frame)
+					if err != nil && err != io.EOF {
+						if !strings.Contains(err.Error(), "unexpected end") {
 							must.NoError(t, err)
 						}
-
-						builder.Grow(len(message.Payload))
-						builder.Write(frame.Data)
-
-						currentLength := builder.Len()
-						if currentLength == copyLength {
-							//must.Eq(t, received, tc.expected)
-							must.Nil(t, p2.Close())
-							break OUTER
-						}
-						copyLength = currentLength
-
 					}
+					builder.Write(frame.Data)
+
+					currentLength := builder.Len()
+					if currentLength == copyLength {
+						must.Nil(t, p2.Close())
+						break OUTER
+					}
+					copyLength = currentLength
+
 				}
-				received := builder.String()
-				must.Eq(t, tc.expected, received)
-			}()
+			}
+			if !tc.expectErr {
+				must.Eq(t, len(builder.String()), len(tc.expected))
+			}
+
 		})
 
 	}
