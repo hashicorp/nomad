@@ -391,6 +391,7 @@ func (s *Authenticator) AuthenticateClientOnly(ctx RPCContext, args structs.Requ
 		if !claims.IsNode() {
 			return nil, structs.ErrPermissionDenied
 		}
+		identity.ClientID = claims.NodeIdentityClaims.NodeID
 		identity.Claims = claims
 	}
 
@@ -411,8 +412,8 @@ func verifyTLS(verify bool, ctx RPCContext, validNames []string, identity *struc
 			return errors.New("missing certificate information")
 		}
 
-		// Always set on the identity whether it's valid verifyTLS, so we can
-		// capture it for metrics.
+		// Always set on the identity, even before validating the name, so we
+		// can capture it for metrics.
 		identity.TLSName = tlsCert.Subject.CommonName
 
 		// Perform the certificate validation, using the passed valid names.
@@ -539,7 +540,7 @@ func (s *Authenticator) VerifyClaim(token string) (*structs.IdentityClaims, erro
 		return claims, nil
 	}
 
-	return claims, nil
+	return nil, errors.New("failed to determine claim type")
 }
 
 func (s *Authenticator) verifyWorkloadIdentityClaim(claims *structs.IdentityClaims) error {
