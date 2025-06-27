@@ -24,43 +24,45 @@ func defaultNomadConfig(namespace string) *nomadProviderConfig {
 }
 
 type NomadProvider struct {
-	namespace string
-	secret    *structs.Secret
-	tmplPath  string
+	secret   *structs.Secret
+	tmplPath string
+	config   *nomadProviderConfig
 }
 
-func NewNomadProvider(secret *structs.Secret, path string, namespace string) *NomadProvider {
-	return &NomadProvider{
-		namespace: namespace,
-		secret:    secret,
-		tmplPath:  path,
-	}
-}
-
-func (n *NomadProvider) BuildTemplate() (*structs.Template, error) {
-	if n.secret == nil {
+// NewNomadProvider takes a task secret and decodes the config, overwriting the default config fields
+// with any provided fields, returning an error if the secret or secret's config is invalid.
+func NewNomadProvider(secret *structs.Secret, path string, namespace string) (*NomadProvider, error) {
+	if secret == nil {
 		return nil, fmt.Errorf("empty secret for nomad provider")
 	}
 
-	conf := defaultNomadConfig(n.namespace)
-	if err := mapstructure.Decode(n.secret.Config, conf); err != nil {
+	conf := defaultNomadConfig(namespace)
+	if err := mapstructure.Decode(secret.Config, conf); err != nil {
 		return nil, err
 	}
 
+	return &NomadProvider{
+		config:   conf,
+		secret:   secret,
+		tmplPath: path,
+	}, nil
+}
+
+func (n *NomadProvider) BuildTemplate() *structs.Template {
 	data := fmt.Sprintf(`
 		{{ with nomadVar "%s@%s" }}
 		{{ range $k, $v := . }}
 		secret.%s.{{ $k }}={{ $v }}
 		{{ end }}
 		{{ end }}`,
-		n.secret.Path, conf.Namespace, n.secret.Name)
+		n.secret.Path, n.config.Namespace, n.secret.Name)
 
 	return &structs.Template{
 		EmbeddedTmpl: data,
 		DestPath:     n.tmplPath,
 		ChangeMode:   structs.TemplateChangeModeNoop,
 		Once:         true,
-	}, nil
+	}
 }
 
 func (n *NomadProvider) Parse() (map[string]string, error) {

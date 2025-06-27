@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	log "github.com/hashicorp/go-hclog"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/nomad/client/allocrunner/interfaces"
 	ti "github.com/hashicorp/nomad/client/allocrunner/taskrunner/interfaces"
 	"github.com/hashicorp/nomad/client/allocrunner/taskrunner/secrets"
@@ -25,7 +26,7 @@ import (
 type SecretProvider interface {
 	// BuildTemplate should construct a template appropriate for that provider
 	// and append it to the templateManager's templates.
-	BuildTemplate() (*structs.Template, error)
+	BuildTemplate() *structs.Template
 
 	// Parse allows each provider implementation to parse its "response" object.
 	Parse() (map[string]string, error)
@@ -97,25 +98,15 @@ func (h *secretsHook) Name() string {
 }
 
 func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestartRequest, _ *interfaces.TaskPrestartResponse) error {
-	providers, templates := []SecretProvider{}, []*structs.Template{}
-	for idx, s := range h.secrets {
-		tmplPath := filepath.Join(req.TaskDir.SecretsDir, fmt.Sprintf("temp-%d", idx))
-		switch s.Provider {
-		case "nomad":
-			providers = append(providers, secrets.NewNomadProvider(s, tmplPath, h.nomadNamespace))
-		case "vault":
-			// Unimplemented
-		default:
-			return fmt.Errorf("unknown secret provider type: %s", s.Provider)
-		}
+	templates := []*structs.Template{}
+
+	providers, err := h.buildSecretProviders(req.TaskDir.SecretsDir)
+	if err != nil {
+		return err
 	}
 
 	for _, p := range providers {
-		if t, err := p.BuildTemplate(); err != nil {
-			return err
-		} else {
-			templates = append(templates, t)
-		}
+		templates = append(templates, p.BuildTemplate())
 	}
 
 	vaultCluster := req.Task.GetVaultClusterName()
@@ -165,4 +156,28 @@ func (h *secretsHook) Prestart(ctx context.Context, req *interfaces.TaskPrestart
 	}
 
 	return nil
+}
+
+func (h *secretsHook) buildSecretProviders(secretDir string) ([]SecretProvider, error) {
+	// Any configuration errors will be found when calling the secret providers constructor,
+	// so use a multierror to collect all errors and return them to the user at the same time.
+	providers, mErr := []SecretProvider{}, new(multierror.Error)
+
+	for idx, s := range h.secrets {
+		tmplPath := filepath.Join(secretDir, fmt.Sprintf("temp-%d", idx))
+		switch s.Provider {
+		case "nomad":
+			if p, err := secrets.NewNomadProvider(s, tmplPath, h.nomadNamespace); err != nil {
+				multierror.Append(mErr, err)
+			} else {
+				providers = append(providers, p)
+			}
+		case "vault":
+			// Unimplemented
+		default:
+			multierror.Append(mErr, fmt.Errorf("unknown secret provider type: %s", s.Provider))
+		}
+	}
+
+	return providers, mErr.ErrorOrNil()
 }

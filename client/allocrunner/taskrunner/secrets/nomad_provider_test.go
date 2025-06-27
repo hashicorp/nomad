@@ -23,10 +23,10 @@ func TestNomadProvider_BuildTemplate(t *testing.T) {
 				"namespace": "dev",
 			},
 		}
-		p := NewNomadProvider(testSecret, testDir, "default")
-
-		tmpl, err := p.BuildTemplate()
+		p, err := NewNomadProvider(testSecret, testDir, "default")
 		must.NoError(t, err)
+
+		tmpl := p.BuildTemplate()
 		must.NotNil(t, tmpl)
 
 		// expected template should have correct path and name
@@ -50,11 +50,11 @@ func TestNomadProvider_BuildTemplate(t *testing.T) {
 				"namespace": 123,
 			},
 		}
-		p := NewNomadProvider(testSecret, testDir, "default")
-
-		tmpl, err := p.BuildTemplate()
+		_, err := NewNomadProvider(testSecret, testDir, "default")
 		must.Error(t, err)
-		must.Nil(t, tmpl)
+
+		// tmpl := p.BuildTemplate()
+		// must.Nil(t, tmpl)
 	})
 }
 
@@ -67,10 +67,10 @@ func TestNomadProvider_Parse(t *testing.T) {
 	err := os.WriteFile(tmplPath, []byte(data), 0777)
 	must.NoError(t, err)
 
-	p := NewNomadProvider(nil, tmplPath, "default")
+	p, err := NewNomadProvider(&structs.Secret{}, tmplPath, "default")
+	must.NoError(t, err)
 
 	vars, err := p.Parse()
-	must.NoError(t, err)
 	must.Eq(t, vars, map[string]string{"foo": "bar"})
 
 	_, err = os.Stat(tmplPath)
