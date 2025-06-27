@@ -290,7 +290,6 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 
 	logCh := monitor.MonitorExternal(&opts)
 
-	//defer monitor.Stop()
 	initialOffset := int64(0)
 	var (
 		eofCancelCh chan error
@@ -299,7 +298,6 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 	eofCancel = !opts.Follow
 	// receive logs and build frames
 	streamReader := cstructs.NewStreamReader(logCh)
-
 	go func() {
 		defer framer.Destroy()
 
@@ -353,5 +351,4 @@ OUTER:
 		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
 		return
 	}
-
 }

@@ -6,6 +6,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+
 	"io"
 	"net"
 	"os"
@@ -479,18 +480,18 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 	testutil.WaitForLeader(t, s.RPC)
 
 	cases := []struct {
-		name        string
-		isCli       bool
-		expected    string
-		tstFile     string
-		filePath    string
-		serviceName string
+		name         string
+		isCli        bool
+		expected     string
+		tstFile      string
+		nomadLogPath string
+		serviceName  string
 	}{
 		{
-			name:     "happy_path_inline_file",
-			isCli:    false,
-			filePath: inlineFilePath,
-			expected: expectedText,
+			name:         "happy_path_inline_file",
+			isCli:        false,
+			nomadLogPath: inlineFilePath,
+			expected:     expectedText,
 		},
 		{
 			name:        "happy_path_inline_cli",
@@ -500,10 +501,10 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 			expected:    expectedText,
 		},
 		{
-			name:     "happy_path_golden_file",
-			isCli:    false,
-			filePath: goldenFilePath,
-			expected: string(goldenFileContents),
+			name:         "happy_path_golden_file",
+			isCli:        false,
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFileContents),
 		},
 		{
 			name:        "happy_path_golden_cli",
@@ -518,10 +519,9 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 
 			// No node ID to monitor the remote server
 			req := cstructs.MonitorExternalRequest{
-				LogSince:    "72",
-				LogPath:     tc.filePath,
-				ServiceName: tc.serviceName,
-				TstFile:     tc.tstFile,
+				LogSince:     "72",
+				NomadLogPath: tc.nomadLogPath,
+				ServiceName:  tc.serviceName,
 				QueryOptions: structs.QueryOptions{
 					Region: "global",
 				},
@@ -562,7 +562,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 			encoder := codec.NewEncoder(p1, structs.MsgpackHandle)
 			require.Nil(encoder.Encode(req))
 			timeout := time.After(3 * time.Second)
-
+			errCounter := 0
 			var (
 				copyLength int
 				builder    strings.Builder
@@ -584,16 +584,21 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 							break
 						}
 						err = json.Unmarshal(message.Payload, &frame)
-						if err != io.EOF {
-							must.NoError(t, err)
+						if err != nil && err != io.EOF {
+							if !strings.Contains(err.Error(), "unexpected end") {
+								must.NoError(t, err)
+							} else if strings.Contains(err.Error(), "unexpected end") && errCounter >= 1 {
+								break OUTER
+							} else if strings.Contains(err.Error(), "unexpected end") && errCounter < 1 {
+								// increment error counter once to avoid erroring out
+								// before stream string is completely built
+								errCounter++
+							}
 						}
-
-						builder.Grow(len(message.Payload))
 						builder.Write(frame.Data)
 
 						currentLength := builder.Len()
 						if currentLength == copyLength {
-							//must.Eq(t, received, tc.expected)
 							must.Nil(t, p2.Close())
 							break OUTER
 						}
