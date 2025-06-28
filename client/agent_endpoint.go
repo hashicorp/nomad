@@ -20,7 +20,6 @@ import (
 
 	log "github.com/hashicorp/go-hclog"
 	metrics "github.com/hashicorp/go-metrics/compat"
-
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
 )
@@ -32,6 +31,7 @@ type Agent struct {
 func NewAgentEndpoint(c *Client) *Agent {
 	a := &Agent{c: c}
 	a.c.streamingRpcs.Register("Agent.Monitor", a.monitor)
+	a.c.streamingRpcs.Register("Agent.MonitorExternal", a.monitorExternal)
 	return a
 }
 
@@ -232,4 +232,123 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	reply.AgentID = a.c.NodeID()
 	reply.HostData = data
 	return nil
+}
+func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
+	//defer metrics.MeasureSince([]string{"client", "agent", "monitor"}, time.Now())
+	defer conn.Close()
+
+	// Decode arguments
+	var args cstructs.MonitorExternalRequest
+	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
+
+	if err := decoder.Decode(&args); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
+		return
+	}
+
+	// Check acl
+	if aclObj, err := a.c.ResolveToken(args.AuthToken); err != nil {
+		handleStreamResultError(err, pointer.Of(int64(403)), encoder)
+		return
+	} else if !aclObj.AllowAgentRead() {
+		handleStreamResultError(structs.ErrPermissionDenied, pointer.Of(int64(403)), encoder)
+		return
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	monitor := monitor.New(512, a.c.logger, &log.LoggerOptions{})
+
+	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
+	errCh := make(chan error)
+	var buf bytes.Buffer
+	frameCodec := codec.NewEncoder(&buf, structs.JsonHandle)
+
+	framer := sframer.NewStreamFramer(frames, 1*time.Second, 200*time.Millisecond, 1024)
+	framer.Run()
+
+	defer framer.Destroy()
+	// goroutine to detect remote side closing
+	go func() {
+		if _, err := conn.Read(nil); err != nil {
+			// One end of the pipe explicitly closed, exit
+			cancel()
+			return
+		}
+		<-ctx.Done()
+	}()
+
+	opts := cstructs.MonitorExternalRequest{
+		LogSince:     args.LogSince,
+		ServiceName:  args.ServiceName,
+		NomadLogPath: args.NomadLogPath,
+		OnDisk:       args.OnDisk,
+		Follow:       args.Follow,
+	}
+
+	logCh := monitor.MonitorExternal(&opts)
+
+	initialOffset := int64(0)
+	var (
+		eofCancelCh chan error
+		eofCancel   bool
+	)
+	eofCancel = !opts.Follow
+	// receive logs and build frames
+	streamReader := cstructs.NewStreamReader(logCh)
+	go func() {
+		defer framer.Destroy()
+
+		if err := streamReader.StreamFixed(ctx, initialOffset, "", 0, framer, eofCancelCh, eofCancel); err != nil {
+			select {
+			case errCh <- err:
+			case <-ctx.Done():
+			}
+		}
+	}()
+	var streamErr error
+
+OUTER:
+	for {
+		select {
+		case frame, ok := <-frames:
+			if !ok {
+				// frame may have been closed when an error
+				// occurred. Check once more for an error.
+				select {
+				case streamErr = <-errCh:
+					// There was a pending error!
+				default:
+					// No error, continue on
+				}
+
+				break OUTER
+			}
+
+			var resp cstructs.StreamErrWrapper
+
+			if err := frameCodec.Encode(frame); err != nil && err != io.EOF {
+				streamErr = err
+				break OUTER
+			}
+			resp.Payload = buf.Bytes()
+			buf.Reset()
+
+			if err := encoder.Encode(resp); err != nil && err != io.EOF {
+				streamErr = err
+				break OUTER
+			}
+			encoder.Reset(conn)
+		case <-ctx.Done():
+			break OUTER
+
+		}
+	}
+
+	if streamErr != nil {
+		handleStreamResultError(streamErr, pointer.Of(int64(500)), encoder)
+		return
+	}
 }

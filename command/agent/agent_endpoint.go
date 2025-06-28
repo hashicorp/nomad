@@ -7,10 +7,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -303,6 +305,170 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 		codedErr = nil
 	}
 	return nil, codedErr
+}
+
+func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+	// Process and validate arguments
+	onDisk := false //default value
+	onDiskStr := req.URL.Query().Get("on_disk")
+	if onDiskStr != "" {
+		parsedonDisk, err := strconv.ParseBool(onDiskStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for on_disk: %v", err))
+		}
+		onDisk = parsedonDisk
+	}
+
+	follow := false //default value
+	followStr := req.URL.Query().Get("follow")
+	if followStr != "" {
+		parsedfollow, err := strconv.ParseBool(followStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown option for follow %v", err))
+		}
+		follow = parsedfollow
+	}
+
+	logSince := "72" //default value
+	logSinceStr := req.URL.Query().Get("log_since")
+	if logSinceStr != "" {
+		_, err := strconv.Atoi(logSinceStr)
+		if err != nil {
+			return nil, CodedError(400, fmt.Sprintf("Unknown integer for log-since: %v", err))
+		}
+		logSince = logSinceStr
+	}
+
+	serviceName := req.URL.Query().Get("service_name")
+	nodeID := req.URL.Query().Get("node_id")
+
+	nomadLogPath := s.agent.GetConfig().LogFile
+
+	// Build the request and parse the ACL token
+	args := cstructs.MonitorExternalRequest{
+		NodeID:       nodeID,
+		ServerID:     req.URL.Query().Get("server_id"),
+		LogSince:     logSince,
+		ServiceName:  serviceName,
+		OnDisk:       onDisk,
+		NomadLogPath: nomadLogPath,
+		Follow:       follow,
+	}
+	if args.NodeID != "" && args.ServerID != "" {
+		return nil, CodedError(400, "Cannot target node and server simultaneously")
+	}
+
+	if args.OnDisk && args.ServiceName != "" {
+		return nil, CodedError(400, "Cannot target journalctl and nomad log file simultaneously")
+	}
+
+	if err := args.ScanServiceName(); err != nil {
+		return nil, CodedError(422, err.Error())
+	}
+
+	if err := args.ScanField(args.NomadLogPath, "Nomad Log Path"); err != nil {
+		return nil, CodedError(422, err.Error())
+	}
+	// Force the Content-Type to avoid Go's http.ResponseWriter from
+	// detecting an incorrect or unsafe one.
+	resp.Header().Set("Content-Type", "application/json")
+
+	s.parse(resp, req, &args.QueryOptions.Region, &args.QueryOptions)
+
+	// Make the RPC
+	var handler structs.StreamingRpcHandler
+	var handlerErr error
+	if nodeID != "" {
+		// Determine the handler to use
+		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
+		if useLocalClient {
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExternal")
+		} else if useClientRPC {
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.MonitorExternal")
+		} else if useServerRPC {
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.MonitorExternal")
+		} else {
+			handlerErr = CodedError(400, "No local Node and node_id not provided")
+		}
+		// No node id monitor current server/client
+	} else if srv := s.agent.Server(); srv != nil {
+		handler, handlerErr = srv.StreamingRpcHandler("Agent.MonitorExternal")
+	} else {
+		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExternal")
+	}
+
+	if handlerErr != nil {
+		s.logger.Info("this is the error", "error", handlerErr.Error())
+		return nil, CodedError(500, handlerErr.Error())
+	}
+	httpPipe, handlerPipe := net.Pipe()
+	decoder := codec.NewDecoder(httpPipe, structs.MsgpackHandle)
+	encoder := codec.NewEncoder(httpPipe, structs.MsgpackHandle)
+
+	ctx, cancel := context.WithCancel(req.Context())
+	go func() {
+		<-ctx.Done()
+		httpPipe.Close()
+	}()
+
+	// Create an output that gets flushed on every write
+	output := ioutils.NewWriteFlusher(resp)
+
+	// create an error channel to handle errors
+	errCh := make(chan HTTPCodedError, 2)
+
+	// stream response
+	go func() {
+		defer cancel()
+
+		// Send the request
+		if err := encoder.Encode(args); err != nil {
+			errCh <- CodedError(500, err.Error())
+			return
+		}
+
+		for {
+			select {
+			case <-ctx.Done():
+				errCh <- nil
+				return
+			default:
+			}
+
+			var res cstructs.StreamErrWrapper
+			if err := decoder.Decode(&res); err != nil && err != io.EOF {
+				errCh <- CodedError(500, err.Error())
+				return
+			}
+			decoder.Reset(httpPipe)
+
+			if err := res.Error; err != nil && err != io.EOF {
+				if err.Code != nil {
+					errCh <- CodedError(int(*err.Code), err.Error())
+					return
+				}
+			}
+
+			if _, err := io.Copy(output, bytes.NewReader(res.Payload)); err != nil {
+				errCh <- CodedError(500, err.Error())
+			}
+		}
+	}()
+
+	handler(handlerPipe)
+	cancel()
+
+	codedErr := <-errCh
+
+	if codedErr != nil &&
+		(codedErr == io.EOF ||
+			strings.Contains(codedErr.Error(), "closed") ||
+			strings.Contains(codedErr.Error(), "EOF")) {
+		s.logger.Info(codedErr.Error())
+		codedErr = nil
+	}
+	return nil, codedErr
+
 }
 
 func (s *HTTPServer) AgentForceLeaveRequest(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -867,4 +1033,18 @@ func (s *HTTPServer) updateScheduleWorkersConfig(resp http.ResponseWriter, req *
 	}
 
 	return response, nil
+}
+
+func ValidateSystemdPrefix(input string) error {
+	// Trim leading and trailing spaces.
+	input = strings.TrimSpace(input)
+
+	// Create a regex pattern to exclude unwanted characters.
+	re := regexp.MustCompile(`[!@#\$%^&~*()\x60+=\[\]{};'"|<>\/?]`)
+
+	unsafe := re.MatchString(input)
+	if unsafe {
+		return errors.New("valid systemd unit prefixes may only contain alphanumerics and the following special characters \":\", \"-\",\" _\", \".\", \"\\\" and \",\"")
+	}
+	return nil
 }
