@@ -20,16 +20,21 @@ import (
 
 const maxAllocs = 30
 
+var validDeploymentStates = []string{
+	structs.DeploymentStatusRunning,
+	structs.DeploymentStatusPending,
+}
+
 func TestAllocReconciler_PropTest(t *testing.T) {
 	idg := &idGenerator{}
 	now := time.Now()
-	t.Run("batch jobs, nil old deploy, current running deploy", rapid.MakeCheck(func(t *rapid.T) {
+	t.Run("batch jobs, nil old deploy", rapid.MakeCheck(func(t *rapid.T) {
 		jobType := structs.JobTypeBatch
 		job := genJob(jobType, idg).Draw(t, "job")
 		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
 		taintedNodes := helper.SliceToMap[map[string]*structs.Node](nodes, func(n *structs.Node) string { return n.ID })
 		currentAllocs := rapid.SliceOfN(genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
-		currentDeployment := genDeployment(idg, job, currentAllocs, false, structs.DeploymentStatusRunning).Draw(t, "current_deploy")
+		currentDeployment := genDeployment(idg, job, currentAllocs).Draw(t, "current_deploy")
 
 		ar := genAllocReconciler(now, jobType, taintedNodes, nil, currentAllocs, nil, currentDeployment, idg).Draw(t, "reconciler")
 		results := ar.Compute()
@@ -39,22 +44,29 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 		// TODO(tgross): this where the properties under test go
 	}))
 
-	t.Run("service jobs", rapid.MakeCheck(func(t *rapid.T) {
+	t.Run("service jobs, nil old deploy, current running deploy", rapid.MakeCheck(func(t *rapid.T) {
 		jobType := structs.JobTypeService
 		job := genJob(jobType, idg).Draw(t, "job")
 		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
 		taintedNodes := helper.SliceToMap[map[string]*structs.Node](nodes, func(n *structs.Node) string { return n.ID })
 		currentAllocs := rapid.SliceOfN(genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
-		currentDeployment := genDeployment(idg, job, currentAllocs, false, structs.DeploymentStatusRunning).Draw(t, "current_deploy")
+		currentDeployment := genDeployment(idg, job, currentAllocs).Draw(t, "current_deploy")
 
 		ar := genAllocReconciler(now, jobType, taintedNodes, nil, currentAllocs, nil, currentDeployment, idg).Draw(t, "reconciler")
 		results := ar.Compute()
+
+		// SAFETY properties ("something bad never happens")
 		if results == nil {
 			t.Fatal("results should never be nil")
 		}
-		// TODO(tgross): this where the properties under test go
+		if job.Stopped() && results.Deployment != nil {
+			t.Fatal("stopped jobs with nil old deployments should never result in a new deployment")
+		}
+		if job.Stopped() && results.Stop == nil {
+			t.Fatal("stopped jobs with nil old deployments should result in non-nil stopped allocs")
+		}
 
-		// SAFETY properties ("something bad never happens")
+		// LIVENESS properties ("something good eventually happens")
 
 	}))
 }
@@ -112,7 +124,7 @@ func genAllocReconciler(now time.Time, jobType string, taintedNodes map[string]*
 	})
 }
 
-func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocation, promoted bool, status string) *rapid.Generator[*structs.Deployment] {
+func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocation) *rapid.Generator[*structs.Deployment] {
 	return rapid.Custom(func(t *rapid.T) *structs.Deployment {
 		if rapid.Bool().Draw(t, "deploy_is_nil") {
 			return nil
@@ -128,7 +140,7 @@ func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocat
 				AutoPromote:       tg.Update.AutoPromote,
 				ProgressDeadline:  tg.Update.ProgressDeadline,
 				RequireProgressBy: time.Time{},
-				Promoted:          promoted,
+				Promoted:          rapid.Bool().Draw(t, "promoted"),
 				PlacedCanaries:    []string{},
 				DesiredCanaries:   tg.Update.Canary,
 				DesiredTotal:      tg.Count,
@@ -166,7 +178,7 @@ func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocat
 			JobCreateIndex:     job.CreateIndex,
 			IsMultiregion:      false,
 			TaskGroups:         dstates,
-			Status:             status,
+			Status:             rapid.SampledFrom(validDeploymentStates).String(),
 			StatusDescription:  "",
 			EvalPriority:       0,
 			CreateIndex:        job.CreateIndex,
