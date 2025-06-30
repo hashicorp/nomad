@@ -3588,6 +3588,12 @@ func TestTaskGroupDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "Kind",
+								Old:  "",
+								New:  "",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "Name",
 								Old:  "foo",
 								New:  "foo",
@@ -7080,6 +7086,10 @@ func TestTaskDiff(t *testing.T) {
 							},
 							{
 								Type: DiffTypeNone,
+								Name: "Kind",
+							},
+							{
+								Type: DiffTypeNone,
 								Name: "Name",
 								Old:  "foo",
 								New:  "foo",
@@ -7243,6 +7253,10 @@ func TestTaskDiff(t *testing.T) {
 								Name: "EnableTagOverride",
 								Old:  "false",
 								New:  "false",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Kind",
 							},
 							{
 								Type: DiffTypeNone,
@@ -7793,6 +7807,10 @@ func TestTaskDiff(t *testing.T) {
 								Name: "EnableTagOverride",
 								Old:  "false",
 								New:  "false",
+							},
+							{
+								Type: DiffTypeNone,
+								Name: "Kind",
 							},
 							{
 								Type: DiffTypeNone,
@@ -9559,6 +9577,10 @@ func TestServicesDiff(t *testing.T) {
 							New:  "false",
 						},
 						{
+							Type: DiffTypeNone,
+							Name: "Kind",
+						},
+						{
 							Type: DiffTypeEdited,
 							Name: "Name",
 							Old:  "webapp",
@@ -9678,6 +9700,10 @@ func TestServicesDiff(t *testing.T) {
 							New:  "false",
 						},
 						{
+							Type: DiffTypeNone,
+							Name: "Kind",
+						},
+						{
 							Type: DiffTypeAdded,
 							Name: "Name",
 							New:  "webapp",
@@ -9749,6 +9775,10 @@ func TestServicesDiff(t *testing.T) {
 							Type: DiffTypeAdded,
 							Name: "EnableTagOverride",
 							New:  "false",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Kind",
 						},
 						{
 							Type: DiffTypeAdded,
@@ -9830,6 +9860,10 @@ func TestServicesDiff(t *testing.T) {
 						},
 						{
 							Type: DiffTypeNone,
+							Name: "Kind",
+						},
+						{
+							Type: DiffTypeNone,
 							Name: "Name",
 							Old:  "webapp",
 							New:  "webapp",
@@ -9848,6 +9882,82 @@ func TestServicesDiff(t *testing.T) {
 							Old:  "http",
 							New:  "https-redirect",
 						}, {
+							Type: DiffTypeNone,
+							Name: "Provider",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "TaskName",
+						},
+					},
+				},
+			},
+		},
+		{
+			Name:       "Modify service kind field",
+			Contextual: true,
+			Old: []*Service{
+				{
+					Name: "webapp",
+					Kind: "api-gateway",
+				},
+			},
+			New: []*Service{
+				{
+					Name: "webapp",
+					Kind: "mesh-gateway",
+				},
+			},
+			Expected: []*ObjectDiff{
+				{
+					Type: DiffTypeEdited,
+					Name: "Service",
+					Fields: []*FieldDiff{
+						{
+							Type: DiffTypeNone,
+							Name: "Address",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "AddressMode",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Cluster",
+							Old:  "",
+							New:  "",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "EnableTagOverride",
+							Old:  "false",
+							New:  "false",
+						},
+						{
+							Type: DiffTypeEdited,
+							Name: "Kind",
+							Old:  "api-gateway",
+							New:  "mesh-gateway",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Name",
+							Old:  "webapp",
+							New:  "webapp",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Namespace",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "OnUpdate",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "PortLabel",
+						},
+						{
 							Type: DiffTypeNone,
 							Name: "Provider",
 						},
@@ -9910,6 +10020,10 @@ func TestServicesDiff(t *testing.T) {
 							Name: "EnableTagOverride",
 							Old:  "false",
 							New:  "false",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Kind",
 						},
 						{
 							Type: DiffTypeNone,
@@ -10005,6 +10119,10 @@ func TestServicesDiff(t *testing.T) {
 							Name: "EnableTagOverride",
 							Old:  "false",
 							New:  "false",
+						},
+						{
+							Type: DiffTypeNone,
+							Name: "Kind",
 						},
 						{
 							Type: DiffTypeNone,
