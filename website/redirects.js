@@ -388,4 +388,9 @@ module.exports = [
     destination: '/nomad/docs',
     permanent: true,
   },
+  {
+    source: '/nomad/who-uses-nomad',
+    destination: '/nomad/use-cases',
+    permanent: true,
+  },
 ]

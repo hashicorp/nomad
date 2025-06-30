@@ -153,13 +153,14 @@
     "title": "Glossary",
     "path": "glossary"
   },
+
+  {
+    "divider": "true"
+  },
   {
     "heading": "Nomad operations"
   },
-  {
-    "title": "Agent configuration reference",
-    "href": "https://developer.hashicorp.com/nomad/docs/configuration/"
-  },
+
   {
     "title": "Deploy and run Nomad",
     "routes": [
@@ -622,11 +623,14 @@
     ]
   },
   {
-    "heading": "Jobs"
+    "title": "Agent configuration reference",
+    "href": "https://developer.hashicorp.com/nomad/docs/configuration/"
   },
   {
-    "title": "Job specification",
-    "href": "https://developer.hashicorp.com/nomad/docs/job-specification/"
+    "divider": "true"
+  },
+  {
+    "heading": "Jobs"
   },
   {
     "title": "Declare jobs",
@@ -862,6 +866,13 @@
     "href": "/tools/nomad-pack/create-packs#write-the-templates"
   },
   {
+    "title": "Job specification reference",
+    "href": "https://developer.hashicorp.com/nomad/docs/job-specification/"
+  },
+  {
+    "divider": "true"
+  },
+  {
     "heading": "Enterprise solutions"
   },
   {
@@ -899,10 +910,8 @@
     "path": "partnerships"
   },
   {
-    "title": "Who uses Nomad",
-    "path": "who-uses-nomad"
+    "divider": "true"
   },
-
   {
     "heading": "Reference docs"
   },
