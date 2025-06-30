@@ -36,13 +36,15 @@ Eval Status Options:
     Monitor an outstanding evaluation
 
   -verbose
-    Show full information.
+    Show full-length IDs and exact timestamps.
 
   -json
-    Output the evaluation in its JSON format.
+    Output the evaluation in its JSON format. This format will not include
+    placed allocations.
 
   -t
-    Format and display evaluation using a Go template.
+    Format and display evaluation using a Go template. This format will not
+    include placed allocations.
 
   -ui
     Open the evaluation in the browser.
@@ -69,10 +71,6 @@ func (c *EvalStatusCommand) AutocompleteFlags() complete.Flags {
 func (c *EvalStatusCommand) AutocompleteArgs() complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		client, err := c.Meta.Client()
-		if err != nil {
-			return nil
-		}
-
 		if err != nil {
 			return nil
 		}
@@ -120,12 +118,6 @@ func (c *EvalStatusCommand) Run(args []string) int {
 
 	evalID := args[0]
 
-	// Truncate the id unless full length is requested
-	length := shortId
-	if verbose {
-		length = fullId
-	}
-
 	// Query the allocation info
 	if len(evalID) == 1 {
 		c.Ui.Error("Identifier must contain at least two characters.")
@@ -153,6 +145,12 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Truncate the id unless full length is requested
+	length := shortId
+	if verbose {
+		length = fullId
+	}
+
 	// If we are in monitor mode, monitor and exit
 	if monitor {
 		mon := newMonitor(c.Ui, client, length)
@@ -177,6 +175,30 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		c.Ui.Output(out)
 		return 0
 	}
+
+	placedAllocs, _, err := client.Evaluations().Allocations(eval.ID, nil)
+	if err != nil {
+		c.Ui.Error(fmt.Sprintf("Error querying related allocations: %s", err))
+		return 1
+	}
+
+	c.formatEvalStatus(eval, placedAllocs, verbose, length)
+
+	hint, _ := c.Meta.showUIPath(UIHintContext{
+		Command: "eval status",
+		PathParams: map[string]string{
+			"evalID": eval.ID,
+		},
+		OpenURL: openURL,
+	})
+	if hint != "" {
+		c.Ui.Warn(hint)
+	}
+
+	return 0
+}
+
+func (c *EvalStatusCommand) formatEvalStatus(eval *api.Evaluation, placedAllocs []*api.AllocationListStub, verbose bool, length int) {
 
 	failureString, failures := evalFailureStatus(eval)
 	triggerNoun, triggerSubj := getTriggerDetails(eval)
@@ -220,15 +242,26 @@ func (c *EvalStatusCommand) Run(args []string) int {
 		basic = append(basic,
 			fmt.Sprintf("Wait Until|%s", formatTime(eval.WaitUntil)))
 	}
-
-	if verbose {
-		// NextEval, PreviousEval, BlockedEval
+	if eval.QuotaLimitReached != "" {
 		basic = append(basic,
-			fmt.Sprintf("Previous Eval|%s", eval.PreviousEval),
-			fmt.Sprintf("Next Eval|%s", eval.NextEval),
-			fmt.Sprintf("Blocked Eval|%s", eval.BlockedEval))
+			fmt.Sprintf("Quota Limit Reached|%s", eval.QuotaLimitReached))
 	}
+	basic = append(basic,
+		fmt.Sprintf("Previous Eval|%s", limit(eval.PreviousEval, length)),
+		fmt.Sprintf("Next Eval|%s", limit(eval.NextEval, length)),
+		fmt.Sprintf("Blocked Eval|%s", limit(eval.BlockedEval, length)),
+	)
 	c.Ui.Output(formatKV(basic))
+
+	if len(eval.RelatedEvals) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Related Evaluations[reset]"))
+		c.Ui.Output(formatRelatedEvalStubs(eval.RelatedEvals, length))
+	}
+	if len(placedAllocs) > 0 {
+		c.Ui.Output(c.Colorize().Color("\n[bold]Placed Allocations[reset]"))
+		allocsOut := formatAllocListStubs(placedAllocs, false, length)
+		c.Ui.Output(allocsOut)
+	}
 
 	if failures {
 		c.Ui.Output(c.Colorize().Color("\n[bold]Failed Placements[reset]"))
@@ -240,29 +273,18 @@ func (c *EvalStatusCommand) Run(args []string) int {
 			if metrics.CoalescedFailures > 0 {
 				noun += "s"
 			}
-			c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):", tg, metrics.CoalescedFailures+1, noun))
+			c.Ui.Output(fmt.Sprintf("Task Group %q (failed to place %d %s):",
+				tg, metrics.CoalescedFailures+1, noun))
 			c.Ui.Output(formatAllocMetrics(metrics, false, "  "))
 			c.Ui.Output("")
 		}
 
 		if eval.BlockedEval != "" {
-			c.Ui.Output(fmt.Sprintf("Evaluation %q waiting for additional capacity to place remainder",
+			c.Ui.Output(fmt.Sprintf(
+				"Evaluation %q waiting for additional capacity to place remainder",
 				limit(eval.BlockedEval, length)))
 		}
 	}
-
-	hint, _ := c.Meta.showUIPath(UIHintContext{
-		Command: "eval status",
-		PathParams: map[string]string{
-			"evalID": eval.ID,
-		},
-		OpenURL: openURL,
-	})
-	if hint != "" {
-		c.Ui.Warn(hint)
-	}
-
-	return 0
 }
 
 func sortedTaskGroupFromMetrics(groups map[string]*api.AllocationMetric) []string {
@@ -283,4 +305,21 @@ func getTriggerDetails(eval *api.Evaluation) (noun, subject string) {
 	default:
 		return "", ""
 	}
+}
+
+func formatRelatedEvalStubs(evals []*api.EvaluationStub, length int) string {
+	out := make([]string, len(evals)+1)
+	out[0] = "ID|Priority|Triggered By|Node ID|Status|Description"
+	for i, eval := range evals {
+		out[i+1] = fmt.Sprintf("%s|%d|%s|%s|%s|%s",
+			limit(eval.ID, length),
+			eval.Priority,
+			eval.TriggeredBy,
+			limit(eval.NodeID, length),
+			eval.Status,
+			eval.StatusDescription,
+		)
+	}
+
+	return formatList(out)
 }
