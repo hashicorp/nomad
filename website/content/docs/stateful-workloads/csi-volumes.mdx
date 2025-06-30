@@ -1,0 +1,661 @@
+---
+layout: docs
+page_title: Use CSI volumes
+description: >-
+  Configure and deploy the AWS EBS volume CSI plugin to connect an EBS volume
+  to a MySQL workload that requires persistent storage.
+---
+
+# Use CSI volumes
+
+Nomad’s [Container Storage Interface (CSI)][csi-spec] integration can manage
+external storage volumes for stateful workloads running inside your
+cluster. CSI providers are third-party plugins that run as Nomad jobs
+and can mount volumes created by your cloud provider. Nomad is aware
+of CSI-managed volumes during the scheduling process, enabling it to
+schedule your workloads based on the availability of volumes on a
+specific client.
+
+Each storage provider builds its own CSI plugin, and you can leverage
+all of them in Nomad. You can launch jobs that claim storage volumes
+from AWS Elastic Block Storage (EBS) or Elastic File System (EFS)
+volumes, GCP persistent disks, Digital Ocean droplet storage volumes,
+or vendor-agnostic third-party providers like Portworx. This also
+means that many plugins written by storage providers to support
+Kubernetes will support Nomad as well. You can find a list of plugins
+in the [Kubernetes CSI Developer Documentation][k8s-drivers].
+
+Unlike Nomad’s [`host_volume`] feature, CSI-managed volumes can be added
+and removed from a Nomad cluster without changing the Nomad client
+configuration.
+
+Using Nomad’s CSI integration consists of three core workflows:
+running CSI plugins, registering volumes for those plugins, and
+running jobs that claim those volumes. In this guide, you'll run the
+AWS Elastic Block Storage (EBS) plugin, register an EBS volume for
+that plugin, and deploy a MySQL workload that claims that volume for
+persistent storage.
+
+## Prerequisites
+
+To perform the tasks described in this guide, you need:
+
+- a Nomad environment on AWS with Consul installed. You can use this [Terraform
+  environment][nomad-tf] to provision a sandbox environment. This tutorial will
+  assume a cluster with one server node and two client nodes.
+
+- Nomad v1.3.0 or greater
+
+<Note>
+
+ This tutorial is for demo purposes and only assumes a single server
+node. Consult the [reference architecture][reference-arch] for production
+configuration.
+
+</Note>
+
+### Install the MySQL client
+
+You will use the MySQL client to connect to our MySQL database and
+verify our data. Ensure it is installed on a node with access to port
+3306 on your Nomad clients:
+
+Ubuntu:
+
+```shell-session
+$ sudo apt install mysql-client
+```
+
+CentOS:
+
+```shell-session
+$ sudo yum install mysql
+```
+
+macOS via Homebrew:
+
+```shell-session
+$ brew install mysql-client
+```
+
+### Deploy an AWS EBS volume
+
+Next, create an AWS EBS volume for the CSI plugin to mount where needed
+for your jobs using the same Terraform stack you used
+to create the Nomad cluster.
+
+Add the following new resources to your Terraform stack.
+
+```hcl
+resource "aws_iam_role_policy" "mount_ebs_volumes" {
+  name   = "mount-ebs-volumes"
+  role   = aws_iam_role.instance_role.id
+  policy = data.aws_iam_policy_document.mount_ebs_volumes.json
+}
+
+data "aws_iam_policy_document" "mount_ebs_volumes" {
+  statement {
+    effect = "Allow"
+
+    actions = [
+      "ec2:DescribeInstances",
+      "ec2:DescribeTags",
+      "ec2:DescribeVolumes",
+      "ec2:AttachVolume",
+      "ec2:DetachVolume",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_ebs_volume" "mysql" {
+  availability_zone = aws_instance.client[0].availability_zone
+  size              = 40
+}
+
+output "ebs_volume" {
+    value = <<EOM
+# volume registration
+type        = "csi"
+id          = "mysql"
+name        = "mysql"
+external_id = "${aws_ebs_volume.mysql.id}"
+plugin_id   = "aws-ebs0"
+
+capability {
+  access_mode     = "single-node-writer"
+  attachment_mode = "file-system"
+}
+EOM
+}
+```
+
+Run `terraform plan` and `terraform apply` to create the new IAM
+policy and EBS volume. Then run `terraform output ebs_volume > volume.hcl`. You'll use this file later to register the volume with
+Nomad.
+
+#### Notes about the above Terraform configuration
+
+- The IAM policy document and role policy are being added to the
+  existing instance role for your EC2 instances. This policy will give
+  the EC2 instances the ability to mount the volume you've created in
+  Terraform, but will not give them the ability to create new volumes.
+
+- The EBS volume resource is the data volume you will attach via CSI
+  later. The output will be used to register the volume with Nomad.
+
+## Enable privileged Docker jobs
+
+CSI Node plugins must run as privileged Docker jobs because they use
+bidirectional mount propagation in order to mount disks to the underlying host.
+
+CSI Plugins running as `node` or `monolith` type require root privileges (or
+CAP_SYS_ADMIN on Linux) to mount volumes on the host. With the Docker task
+driver, you can use the `privileged = true` configuration, but no other default
+task drivers currently have this option.
+
+Nomad’s default configuration does not allow privileged Docker jobs, and must be
+edited to allow them.
+
+~> Bidirectional mount propagation can be dangerous and can damage the host
+operating system. For this reason, it is only allowed in privileged containers.
+
+To enable, edit the configuration for all of your Nomad clients, and set
+[`allow_privileged`][] to true inside of the Docker plugin’s configuration.
+Restart the Nomad client process to load this new configuration.
+
+If your Nomad client configuration does not already specify a Docker plugin
+configuration, this minimal one will allow privileged containers. Add it to your
+Nomad client configuration and restart Nomad.
+
+```hcl
+plugin "docker" {
+  config {
+    allow_privileged = true
+  }
+}
+```
+
+There are certain Docker configurations that can prevent privileged containers
+from performing mounts on the host. The error message will likely contain the
+phrase "linux mounts: path ... is mounted on ... but it is not a shared mount".
+More information can be found in the [Docker forums][docker-forums]
+
+If you do not have privileged containers enabled in Nomad, you will receive the
+following error when you submit the plugin-aws-ebs-nodes job:
+
+```plaintext
+Failed to create container configuration for image
+"amazon/aws-ebs-csi-driver:v0.10.1": Docker privileged mode is disabled on this
+Nomad agent
+```
+
+## Deploy the EBS plugin
+
+Plugins for CSI are run as Nomad jobs with a `plugin` stanza. The
+official plugin for AWS EBS can be found on GitHub in the
+[`aws-ebs-csi-driver`][aws-ebs-csi-driver] repository. It’s packaged as a
+Docker container that you can run with the Docker task driver.
+
+Each CSI plugin supports one or more types: Controllers and
+Nodes. Node instances of a plugin need to run on every Nomad client
+node where you want to mount volumes. You'll probably want to run Node
+plugins instances as Nomad `system` jobs. Some plugins also require
+coordinating Controller instances that can run on any Nomad client
+node.
+
+The AWS EBS plugin requires a controller plugin to coordinate access
+to the EBS volume, and node plugins to mount the volume to the EC2
+instance. You'll create a controller job as a nomad `service` job and
+the node job as a Nomad `system` job.
+
+Create a file for the controller job called `plugin-ebs-controller.nomad.hcl` with the following content.
+
+```hcl
+job "plugin-aws-ebs-controller" {
+  datacenters = ["dc1"]
+
+  group "controller" {
+    task "plugin" {
+      driver = "docker"
+
+      config {
+        image = "amazon/aws-ebs-csi-driver:v0.10.1"
+
+        args = [
+          "controller",
+          "--endpoint=unix://csi/csi.sock",
+          "--logtostderr",
+          "--v=5",
+        ]
+      }
+
+      csi_plugin {
+        id        = "aws-ebs0"
+        type      = "controller"
+        mount_dir = "/csi"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 256
+      }
+    }
+  }
+}
+```
+
+Create a file for the node job named `plugin-ebs-nodes.nomad.hcl` with the following content.
+
+```hcl
+job "plugin-aws-ebs-nodes" {
+  datacenters = ["dc1"]
+
+  # you can run node plugins as service jobs as well, but this ensures
+  # that all nodes in the DC have a copy.
+  type = "system"
+
+  group "nodes" {
+    task "plugin" {
+      driver = "docker"
+
+      config {
+        image = "amazon/aws-ebs-csi-driver:v0.10.1"
+
+        args = [
+          "node",
+          "--endpoint=unix://csi/csi.sock",
+          "--logtostderr",
+          "--v=5",
+        ]
+
+        # node plugins must run as privileged jobs because they
+        # mount disks to the host
+        privileged = true
+      }
+
+      csi_plugin {
+        id        = "aws-ebs0"
+        type      = "node"
+        mount_dir = "/csi"
+      }
+
+      resources {
+        cpu    = 500
+        memory = 256
+      }
+    }
+  }
+}
+```
+
+## Deploy the plugin jobs
+
+Deploy both jobs with `nomad job run plugin-ebs-controller.nomad.hcl` and
+`nomad job run plugin-ebs-nodes.nomad.hcl`. It will take a few moments
+for the plugins to register themselves as healthy with Nomad after the
+job itself is running. You can check the plugin status with the `nomad plugin status` command.
+
+Note that the plugin does not have a namespace, even though the jobs
+that launched it do. Plugins are treated as resources available to the
+whole cluster in the same way as Nomad clients.
+
+```shell-session
+$ nomad job status
+ID                         Type     Priority  Status   Submit Date
+plugin-aws-ebs-controller  service  50        running  2020-03-20T10:49:13-04:00
+plugin-aws-ebs-nodes       system   50        running  2020-03-20T10:49:17-04:00
+```
+
+```shell-session
+$ nomad plugin status aws-ebs0
+ID                   = aws-ebs0
+Provider             = ebs.csi.aws.com
+Version              = v0.10.1
+Controllers Healthy  = 1
+Controllers Expected = 1
+Nodes Healthy        = 2
+Nodes Expected       = 2
+
+Allocations
+ID        Node ID   Task Group  Version  Desired  Status   Created    Modified
+de2929cc  ac41c184  controller  0        run      running  1m26s ago  1m8s ago
+d1d4831e  ac41c184  nodes       0        run      running  1m22s ago  1m18s ago
+2b815e02  b896731a  nodes       0        run      running  1m22s ago  1m14s ago
+```
+
+## Register the volume
+
+The CSI plugins need to be told about each volume they manage, so for
+each volume you'll run `nomad volume register`. Earlier you used
+Terraform to output a `volume.hcl` file with the volume definition.
+
+```shell-session
+$ nomad volume register volume.hcl
+```
+
+```shell-session
+$ nomad volume status mysql
+ID                   = mysql
+Name                 = mysql
+External ID          = vol-0b756b75620d63af5
+Plugin ID            = aws-ebs0
+Provider             = ebs.csi.aws.com
+Version              = v0.10.1
+Schedulable          = true
+Controllers Healthy  = 1
+Controllers Expected = 1
+Nodes Healthy        = 2
+Nodes Expected       = 2
+Access Mode          = <none>
+Attachment Mode      = <none>
+Mount Options        = <none>
+Namespace            = default
+
+Allocations
+No allocations placed
+```
+
+The volume status output above indicates that the volume is
+ready to be scheduled, but has no allocations currently using it.
+
+## Deploy MySQL
+
+### Create the job file
+
+You are now ready to deploy a MySQL database that can use Nomad host
+volumes for storage. Create a file called `mysql.nomad.hcl` and provide it
+the following contents.
+
+```hcl
+job "mysql-server" {
+  datacenters = ["dc1"]
+  type        = "service"
+
+  group "mysql-server" {
+    count = 1
+
+    volume "mysql" {
+      type            = "csi"
+      read_only       = false
+      source          = "mysql"
+      access_mode     = "single-node-writer"
+      attachment_mode = "file-system"
+    }
+
+    network {
+      port "db" {
+        static = 3306
+      }
+    }
+
+    restart {
+      attempts = 10
+      interval = "5m"
+      delay    = "25s"
+      mode     = "delay"
+    }
+
+    task "mysql-server" {
+      driver = "docker"
+
+      volume_mount {
+        volume      = "mysql"
+        destination = "/srv"
+        read_only   = false
+      }
+
+      env {
+        MYSQL_ROOT_PASSWORD = "password"
+      }
+
+      config {
+        image = "hashicorp/mysql-portworx-demo:latest"
+        args  = ["--datadir", "/srv/mysql"]
+        ports = ["db"]
+      }
+
+      resources {
+        cpu    = 500
+        memory = 1024
+      }
+
+      service {
+        name = "mysql-server"
+        port = "db"
+
+        check {
+          type     = "tcp"
+          interval = "10s"
+          timeout  = "2s"
+        }
+      }
+    }
+  }
+}
+```
+
+#### Notes about the above job specification
+
+- The service name is `mysql-server` which you will use later to
+  connect to the database.
+
+- The `read_only` argument is supplied on all of the volume-related
+  stanzas in to help highlight all of the places you would need to
+  change to make a read-only volume mount. Consult the [`volume`],
+  and [`volume_mount`] specifications for more details.
+
+- For lower-memory instances, you might need to reduce the requested
+  memory in the resources stanza to harmonize with available resources
+  in your cluster.
+
+### Run the job
+
+Register the job file you created in the previous step with the
+following command.
+
+```shell-session
+$ nomad run mysql.nomad.hcl
+==> Monitoring evaluation "aa478d82"
+    Evaluation triggered by job "mysql-server"
+    Allocation "6c3b3703" created: node "be8aad4e", group "mysql-server"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "aa478d82" finished with status "complete"
+```
+
+The allocation status will have a section for the CSI volume, and the
+volume status will show the allocation claiming the volume.
+
+```shell-session
+$ nomad alloc status 6c3b3703
+CSI Volumes:
+ID     Read Only
+mysql  false
+```
+
+```shell-session
+$ nomad volume status mysql
+ID                   = mysql
+Name                 = mysql
+External ID          = vol-0b756b75620d63af5
+Plugin ID            = aws-ebs0
+Provider             = ebs.csi.aws.com
+Version              = v0.10.1
+Schedulable          = true
+Controllers Healthy  = 1
+Controllers Expected = 1
+Nodes Healthy        = 2
+Nodes Expected       = 2
+Access Mode          = single-node-writer
+Attachment Mode      = file-system
+Mount Options        = <none>
+Namespace            = default
+
+Allocations
+ID        Node ID   Task Group    Version  Desired  Status   Created    Modified
+6c3b3703  ac41c184  mysql-server  3        run      running  1m40s ago  1m2s ago
+```
+
+## Write data to MySQL
+
+### Connect to MySQL
+
+Using the mysql client (installed [earlier][install_mysql]), connect
+to the database and access the information.
+
+```shell-session
+$ mysql -h mysql-server.service.consul -u web -p -D itemcollection
+```
+
+The password for this demo database is `password`.
+
+<Note>
+
+ This tutorial is for demo purposes and does not
+follow best practices for securing database passwords. Consult [Keeping
+Passwords Secure][password-security] for more information.
+
+</Note>
+
+Consul is installed alongside Nomad in this cluster so you are able to
+connect using the `mysql-server` service name you registered with our
+task in our job file.
+
+### Add test data
+
+Once you are connected to the database, verify the table `items`
+exists.
+
+```sql
+mysql> show tables;
++--------------------------+
+| Tables_in_itemcollection |
++--------------------------+
+| items                    |
++--------------------------+
+1 row in set (0.00 sec)
+```
+
+Display the contents of this table with the following command.
+
+```sql
+mysql> select * from items;
++----+----------+
+| id | name     |
++----+----------+
+|  1 | bike     |
+|  2 | baseball |
+|  3 | chair    |
++----+----------+
+3 rows in set (0.00 sec)
+```
+
+Now add some data to this table (after you terminate our database in
+Nomad and bring it back up, this data should still be intact).
+
+```sql
+mysql> INSERT INTO items (name) VALUES ('glove');
+```
+
+Run the `INSERT INTO` command as many times as you like with different
+values.
+
+```sql
+mysql> INSERT INTO items (name) VALUES ('hat');
+mysql> INSERT INTO items (name) VALUES ('keyboard');
+```
+
+Once you are done, type `exit` and return back to the Nomad client
+command line.
+
+```sql
+mysql> exit
+Bye
+```
+
+## Destroy the database job
+
+Run the following command to stop and purge the MySQL job from the
+cluster.
+
+```shell-session
+$ nomad stop -purge mysql-server
+==> Monitoring evaluation "6b784149"
+    Evaluation triggered by job "mysql-server"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "6b784149" finished with status "complete"
+```
+
+Verify mysql is no longer running in the cluster.
+
+```shell-session
+$ nomad job status mysql
+No job(s) with prefix or id "mysql" found
+```
+
+## Re-deploy and verify
+
+Using the `mysql.nomad.hcl` job file [from earlier][create-job], re-deploy
+the database to the Nomad cluster.
+
+```shell-session
+$ nomad run mysql.nomad.hcl
+==> Monitoring evaluation "61b4f648"
+    Evaluation triggered by job "mysql-server"
+    Allocation "8e1324d2" created: node "be8aad4e", group "mysql-server"
+    Evaluation status changed: "pending" -> "complete"
+==> Evaluation "61b4f648" finished with status "complete"
+```
+
+Once you re-connect to MySQL, you should be able to verify that the
+information you added prior to destroying the database is still
+present.
+
+```sql
+mysql> select * from items;
++----+----------+
+| id | name     |
++----+----------+
+|  1 | bike     |
+|  2 | baseball |
+|  3 | chair    |
+|  4 | glove    |
+|  5 | hat      |
+|  6 | keyboard |
++----+----------+
+6 rows in set (0.00 sec)
+```
+
+## Cleanup
+
+Once you have completed this guide, you should perform the following
+cleanup steps.
+
+- Stop and purge the `mysql-server` job.
+
+- Unregister the EBS volume from Nomad with `nomad volume deregister mysql`.
+
+- Stop and purge the `plugin-aws-ebs-controller` and `plugin-aws-ebs-nodes` job.
+
+- Destroy the EBS volume with `terraform destroy`.
+
+## Summary
+
+In this guide, you deployed a CSI plugin to Nomad, registered an AWS
+EBS volume for that plugin, and created a job that mounted this volume
+to a Docker MySQL container that wrote data that persisted beyond the
+job’s lifecycle.
+
+[`allow_privileged`]: /nomad/docs/deploy/task-driver/docker#allow_privileged
+[`host_volume`]: /nomad/docs/configuration/client#host_volume
+[`volume_mount`]: /nomad/docs/job-specification/volume_mount
+[`volume`]: /nomad/docs/job-specification/volume
+[aws-ebs-csi-driver]: https://github.com/kubernetes-sigs/aws-ebs-csi-driver
+[create-job]: #create-the-job-file
+[csi-spec]: https://github.com/container-storage-interface/spec
+[docker-forums]: https://forums.docker.com/t/make-mount-point-accesible-from-container-to-host-rshared-not-working/108759
+[install_mysql]: #install-the-mysql-client
+[k8s-drivers]: https://kubernetes-csi.github.io/docs/drivers.html
+[nomad-tf]: https://github.com/hashicorp/nomad/tree/master/terraform#provision-a-nomad-cluster-in-the-cloud
+[password-security]: https://dev.mysql.com/doc/refman/8.0/en/password-security.html
+[reference-arch]: /nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul#high-availability

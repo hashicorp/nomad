@@ -22,10 +22,6 @@
         "path": "architecture"
       },
       {
-        "title": "ACL",
-        "path": "architecture/acl"
-      },
-      {
         "title": "Consensus protocol",
         "path": "architecture/consensus"
       },
@@ -157,13 +153,14 @@
     "title": "Glossary",
     "path": "glossary"
   },
+
+  {
+    "divider": "true"
+  },
   {
     "heading": "Nomad operations"
   },
-  {
-    "title": "Agent configuration reference",
-    "href": "https://developer.hashicorp.com/nomad/docs/configuration/"
-  },
+
   {
     "title": "Deploy and run Nomad",
     "routes": [
@@ -204,20 +201,24 @@
         "title": "Nomad clusters",
         "routes": [
           {
-            "title": "Create a Nomad cluster",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/clustering"
+            "title": "Overview",
+            "path": "deploy/clusters"
+          },
+          {
+            "title": "Connect nodes into a cluster",
+            "path": "deploy/clusters/connect-nodes"
           },
           {
             "title": "Multi-region federation considerations",
             "path": "deploy/clusters/federation-considerations"
           },
           {
-            "title": "Federate multi-region clusters",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/federation"
-          },
-          {
             "title": "Federation failure scenarios",
             "path": "deploy/clusters/federation-failure-scenarios"
+          },
+          {
+            "title": "Federate multi-region clusters",
+            "path": "deploy/clusters/federate-regions"
           },
           {
             "title": "Load balancing",
@@ -225,7 +226,7 @@
           },
           {
             "title": "Configure a web UI reverse proxy",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/reverse-proxy-ui"
+            "path": "deploy/clusters/reverse-proxy-ui"
           }
         ]
       },
@@ -289,20 +290,26 @@
         "path": "govern"
       },
       {
-        "title": "Governance and policy",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/governance-and-policy"
-      },
-      {
-        "title": "Create and use resource quotas",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/quotas"
-      },
-      {
-        "title": "Create and manage Sentinel policies",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/governance-and-policy/sentinel"
-      },
-      {
-        "title": "Create and use node pools",
+        "title": "Node pools",
         "path": "govern/use-node-pools"
+      },
+      {
+        "title": "Resource quotas",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
+        "path": "govern/resource-quotas"
+      },
+      {
+        "title": "Sentinel policies",
+        "badge": {
+          "text": "ENT",
+          "type": "outlined",
+          "color": "neutral"
+        },
+        "path": "govern/sentinel"
       }
     ]
   },
@@ -354,11 +361,11 @@
       },
       {
         "title": "Autopilot",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/autopilot"
+        "path": "manage/autopilot"
       },
       {
-        "title": "Format command output",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/templates/format-output-with-templates"
+        "title": "Format CLI output",
+        "path": "manage/format-cli-output"
       },
       {
         "title": "Garbage collection",
@@ -370,15 +377,19 @@
       },
       {
         "title": "Migrate workloads",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/node-drain"
+        "path": "manage/migrate-workloads"
       },
       {
         "title": "Namespaces",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/namespaces"
+        "path": "manage/namespaces"
+      },
+      {
+        "title": "Nomad variables",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/variables/variables-create"
       },
       {
         "title": "Recovery",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/outage-recovery"
+        "path": "manage/outage-recovery"
       }
     ]
   },
@@ -391,19 +402,27 @@
       },
       {
         "title": "Event stream",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/integrate-nomad/event-stream"
+        "path": "monitor/event-stream"
       },
       {
         "title": "Inspect job workloads",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/web-ui-workload-info"
+        "path": "monitor/inspect-workloads"
       },
       {
-        "title": "Inspect a cluster",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/wweb-ui-cluster-info"
+        "title": "Inspect clusters",
+        "path": "monitor/inspect-cluster"
       },
       {
-        "title": "Cluster state topology",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/web-ui/topology-visualization"
+        "title": "Cluster topology",
+        "path": "monitor/cluster-topology"
+      },
+      {
+        "title": "Use Prometheus",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/prometheus-metrics"
+      },
+      {
+        "title": "Monitor job service metrics",
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/prometheus-service-mesh-metrics"
       }
     ]
   },
@@ -460,23 +479,23 @@
         "title": "Access control list",
         "routes": [
           {
-            "title": "System overview",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control"
+            "title": "Overview",
+            "path": "secure/acl"
           },
           {
             "title": "Bootstrap the ACL system",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-bootstrap"
+            "path": "secure/acl/bootstrap"
           },
           {
             "title": "Policies",
             "routes": [
               {
                 "title": "Overview",
-                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-policies"
+                "path": "secure/acl/policies"
               },
               {
                 "title": "Create policies",
-                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-create-policy"
+                "path": "secure/acl/policies/create-policy"
               }
             ]
           },
@@ -485,11 +504,11 @@
             "routes": [
               {
                 "title": "Overview",
-                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/access-control-tokens"
+                "path": "secure/acl/tokens"
               },
               {
                 "title": "Generate tokens with Vault",
-                "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/vault-nomad-secrets"
+                "path": "secure/acl/tokens/vault"
               }
             ]
           }
@@ -499,10 +518,6 @@
         "title": "Authentication",
         "routes": [
           {
-            "title": "Overview",
-            "path": "secure/authentication"
-          },
-          {
             "title": "Configure JWT",
             "path": "secure/authentication/jwt"
           },
@@ -511,21 +526,38 @@
             "path": "secure/authentication/oidc"
           },
           {
-            "title": "Configure SSO with Auth0",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/sso-oidc-auth0"
+            "title": "SSO with Auth0",
+            "path": "secure/authentication/sso-auth0"
           },
           {
-            "title": "Authenticate users with PKCE and private key JWT ",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/access-control/sso-oidc-keycloak"
+            "title": "SSO with Vault",
+            "path": "secure/authentication/sso-vault"
+          },
+          {
+            "title": "SSO with PKCE and private key JWT ",
+            "path": "secure/authentication/sso-pkce-jwt"
           }
         ]
       },
       {
-        "title": "Transport security",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/transport-security"
+        "title": "Traffic encryption",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "secure/traffic"
+          },
+          {
+            "title": "Enable gossip encryption",
+            "path": "secure/traffic/gossip-encryption"
+          },
+          {
+            "title": "Enable TLS",
+            "path": "secure/traffic/tls"
+          }
+        ]
       },
       {
-        "title": "Federated workload identity",
+        "title": "Workload identity",
         "routes": [
           {
             "title": "Overview",
@@ -538,6 +570,10 @@
           {
             "title": "Federate GCP access",
             "href": "https://developer.hashicorp.com/nomad/tutorials/fed-workload-identity/integration-gcp"
+          },
+          {
+            "title": "Use workload identities with Vault",
+            "path": "secure/workload-identity/vault-acl"
           }
         ]
       }
@@ -587,11 +623,14 @@
     ]
   },
   {
-    "heading": "Jobs"
+    "title": "Agent configuration reference",
+    "href": "https://developer.hashicorp.com/nomad/docs/configuration/"
   },
   {
-    "title": "Job specification",
-    "href": "https://developer.hashicorp.com/nomad/docs/job-specification/"
+    "divider": "true"
+  },
+  {
+    "heading": "Jobs"
   },
   {
     "title": "Declare jobs",
@@ -602,11 +641,11 @@
       },
       {
         "title": "Create a job specification",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-submit"
+        "path": "job-declare/create-job"
       },
       {
         "title": "Configure tasks",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-configuring"
+        "path": "job-declare/configure-tasks"
       },
       {
         "title": "Create a parameterized job",
@@ -679,41 +718,58 @@
         "routes": [
           {
             "title": "Overview",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates"
+            "path": "job-declare/strategy"
           },
           {
             "title": "Configure blue/green and canary",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-blue-green-and-canary-deployments"
+            "path": "job-declare/strategy/blue-green-canary"
           },
           {
             "title": "Configure rolling",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-rolling-update"
+            "path": "job-declare/strategy/rolling"
           }
         ]
       },
       {
         "title": "Configure multi-region deployments",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/multiregion-deployments"
+        "path": "job-declare/multiregion"
       },
       {
         "title": "Configure task dependencies",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/task-deps/task-dependencies-interjob"
+        "path": "job-declare/task-dependencies"
       },
       {
-        "title": "Use actions in jobs",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/job-specifications/job-spec-actions"
+        "title": "Use Nomad actions",
+        "path": "job-declare/nomad-actions"
       },
       {
         "title": "Use Nomad variables",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/variables"
+        "path": "job-declare/nomad-variables"
       },
       {
         "title": "Configure exit signals",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/job-updates/job-update-handle-signals"
+        "path": "job-declare/exit-signals"
       },
       {
         "title": "Handle failure",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/job-failure-handling"
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "job-declare/failure"
+          },
+          {
+            "title": "Local restarts",
+            "path": "job-declare/failure/restart"
+          },
+          {
+            "title": "Health check restarts",
+            "path": "job-declare/failure/check-restart"
+          },
+          {
+            "title": "Reschedule",
+            "path": "job-declare/failure/reschedule"
+          }
+        ]
       }
     ]
   },
@@ -721,24 +777,24 @@
     "title": "Run jobs",
     "routes": [
       {
-        "title": "Submit a job",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-submit"
+        "title": "Overview",
+        "path": "job-run"
       },
       {
         "title": "Inspect running jobs",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-inspect"
+        "path": "job-run/inspect"
       },
       {
         "title": "Access logs for troubleshooting",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-accessing-logs"
+        "path": "job-run/logs"
       },
       {
         "title": "Collect resource utilization metrics",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-utilization"
+        "path": "job-run/utilization-metrics"
       },
       {
         "title": "Create job versions",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-jobs/jobs-version"
+        "path": "job-run/versions"
       }
     ]
   },
@@ -747,19 +803,19 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads"
-      },
-      {
-        "title": "Use host volumes",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/exec-users-host-volumes"
-      },
-      {
-        "title": "Use dynamic host volumes",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads-dynamic-host-volumes"
+        "path": "stateful-workloads"
       },
       {
         "title": "Use CSI volumes",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/stateful-workloads/stateful-workloads-csi-volumes"
+        "path": "stateful-workloads/csi-volumes"
+      },
+      {
+        "title": "Use dynamic host volumes",
+        "path": "stateful-workloads/dynamic-host-volumes"
+      },
+      {
+        "title": "Use static host volumes",
+        "path": "stateful-workloads/static-host-volumes"
       }
     ]
   },
@@ -785,29 +841,36 @@
     "routes": [
       {
         "title": "Overview",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/advanced-scheduling"
+        "path": "job-scheduling"
       },
       {
-        "title": "Configure job placement preferences with affinities",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/affinity"
+        "title": "Fault tolerance with spread",
+        "path": "job-scheduling/spread"
       },
       {
-        "title": "Configure fault tolerance with spread",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/spread"
+        "title": "Job placement with affinities",
+        "path": "job-scheduling/affinity"
       },
       {
-        "title": "Configure job priority with preemption",
-        "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/preemption"
+        "title": "Job priority with preemption",
+        "path": "job-scheduling/preemption"
       },
       {
-        "title": "Enable memory oversubscription",
+        "title": "Memory oversubscription",
         "href": "https://developer.hashicorp.com/nomad/tutorials/advanced-scheduling/memory-oversubscription"
       }
     ]
   },
   {
     "title": "Job templates with Nomad Pack",
-    "href": "https://developer.hashicorp.com/nomad/tutorials/nomad-pack/nomad-pack-writing-packs#write-the-templates"
+    "href": "/tools/nomad-pack/create-packs#write-the-templates"
+  },
+  {
+    "title": "Job specification reference",
+    "href": "https://developer.hashicorp.com/nomad/docs/job-specification/"
+  },
+  {
+    "divider": "true"
   },
   {
     "heading": "Enterprise solutions"
@@ -847,10 +910,8 @@
     "path": "partnerships"
   },
   {
-    "title": "Who uses Nomad",
-    "path": "who-uses-nomad"
+    "divider": "true"
   },
-
   {
     "heading": "Reference docs"
   },
@@ -1229,6 +1290,10 @@
       {
         "title": "Sentinel policy",
         "path": "reference/sentinel-policy"
+      },
+      {
+        "title": "Go template syntax",
+        "path": "reference/go-template-syntax"
       },
       {
         "title": "HCL2",

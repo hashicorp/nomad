@@ -26,7 +26,7 @@ features for multi-tenant deployments are offered exclusively in the enterprise
 version. This documentation may need to be adapted to your deployment situation,
 but the general mechanisms for a secure Nomad deployment revolve around:
 
-- **[mTLS](/nomad/tutorials/transport-security/security-enable-tls)** Mutual
+- **[mTLS](/nomad/docs/secure/traffic/tls)** Mutual
   authentication of both the TLS server and client x509 certificates prevents
   internal abuse by preventing unauthenticated access to network components
   within the cluster.
@@ -34,7 +34,7 @@ but the general mechanisms for a secure Nomad deployment revolve around:
 - **[ACLs](/nomad/tutorials/access-control)** Enables authorization for
   authenticated connections by granting capabilities to ACL tokens.
 
-- **[Namespaces](/nomad/tutorials/manage-clusters/namespaces)** Access to read
+- **[Namespaces](/nomad/docs/manage/namespaces)** Access to read
   and write to a namespace can be controlled to allow for granular access to job
   information managed within a multi-tenant cluster.
 
@@ -91,7 +91,7 @@ recommendations accordingly.
 
 ### Requirements
 
-- [mTLS enabled](/nomad/tutorials/transport-security/security-enable-tls)
+- [mTLS enabled](/nomad/docs/secure/traffic/tls)
   Mutual TLS (mTLS) enables [mutual
   authentication](https://en.wikipedia.org/wiki/Mutual_authentication) with
   security properties to prevent the following problems:
@@ -142,7 +142,7 @@ recommendations accordingly.
   identity. This allows for access to capabilities within the cluster to be
   restricted to specific users.
 
-- [Namespaces](/nomad/tutorials/manage-clusters/namespaces) This feature
+- [Namespaces](/nomad/docs/manage/namespaces) This feature
     allows for a cluster to be shared by multiple teams within a company. Using
     this logical separation is important for multi-tenant clusters to prevent
     users without access to that namespace from conflicting with each other.
@@ -338,5 +338,5 @@ There are two main components to consider to for external threats in a Nomad clu
 [Variables]: /nomad/docs/concepts/variables
 [verify_https_client]: /nomad/docs/configuration/tls#verify_https_client
 [serf]: https://github.com/hashicorp/serf
-[Sentinel Policies]: /nomad/tutorials/governance-and-policy/sentinel
-[Resource Quotas]: /nomad/tutorials/governance-and-policy/quotas
+[Sentinel Policies]: /nomad/docs/govern/sentinel
+[Resource Quotas]: /nomad/docs/govern/resource-quotas

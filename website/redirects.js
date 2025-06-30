@@ -239,7 +239,12 @@ module.exports = [
   },
   {
     source: '/nomad/docs/concepts/acl',
-    destination: '/nomad/docs/architecture/acl',
+    destination: '/nomad/docs/secure/acl',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/architecture/acl',
+    destination: '/nomad/docs/secure/acl',
     permanent: true,
   },
   {
@@ -381,6 +386,11 @@ module.exports = [
   {
     source: '/nomad/docs/operations',
     destination: '/nomad/docs',
+    permanent: true,
+  },
+  {
+    source: '/nomad/who-uses-nomad',
+    destination: '/nomad/use-cases',
     permanent: true,
   },
 ]
