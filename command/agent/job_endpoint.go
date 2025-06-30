@@ -1713,6 +1713,7 @@ func ApiServicesToStructs(in []*api.Service, group bool) []*structs.Service {
 			OnUpdate:          s.OnUpdate,
 			Provider:          s.Provider,
 			Cluster:           s.Cluster,
+			Kind:              s.Kind,
 		}
 
 		if l := len(s.Checks); l != 0 {
