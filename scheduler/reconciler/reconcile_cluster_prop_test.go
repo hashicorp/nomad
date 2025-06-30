@@ -42,13 +42,24 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 			t.Fatal("results should never be nil")
 		}
 
-		// stopped jobs with non-nil current deployment
-		if ar.jobState.Job.Stopped() && ar.jobState.DeploymentCurrent != nil {
-			if results.Deployment != nil {
-				t.Fatal("stopped jobs with nil old deployments should never result in a new deployment")
+		// stopped jobs
+		if ar.jobState.Job.Stopped() {
+			if ar.jobState.DeploymentCurrent != nil {
+				if results.Deployment != nil {
+					t.Fatal("stopped jobs with current deployments should never result in a new deployment")
+				}
+				if results.Stop == nil {
+					t.Fatal("stopped jobs with current deployments should never have nil stopped allocs")
+				}
 			}
-			if results.Stop == nil {
-				t.Fatal("stopped jobs with nil old deployments should result in non-nil stopped allocs")
+			if results.DesiredTGUpdates == nil {
+				t.Fatal("stopped jobs should result in non-nil desired task group updates")
+			}
+		}
+
+		for _, tg := range ar.jobState.Job.TaskGroups {
+			if tg == nil && results.DesiredTGUpdates[tg.Name].Stop != 0 {
+				t.Fatal("nil task groups should never have non-empty sets of allocs to stop")
 			}
 		}
 
