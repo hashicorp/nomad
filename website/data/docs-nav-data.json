@@ -417,7 +417,7 @@
       },
       {
         "title": "Use Prometheus",
-        "href": "http://localhost:3000/nomad/tutorials/manage-clusters/prometheus-metrics"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/manage-clusters/prometheus-metrics"
       },
       {
         "title": "Monitor job service metrics",
