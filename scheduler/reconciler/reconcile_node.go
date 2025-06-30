@@ -339,9 +339,19 @@ type NodeReconcileResult struct {
 	Place, Update, Migrate, Stop, Ignore, Lost, Disconnecting, Reconnecting []AllocTuple
 }
 
-func (d *NodeReconcileResult) GoString() string {
-	return fmt.Sprintf("allocs: (place %d) (update %d) (migrate %d) (stop %d) (ignore %d) (lost %d) (disconnecting %d) (reconnecting %d)",
-		len(d.Place), len(d.Update), len(d.Migrate), len(d.Stop), len(d.Ignore), len(d.Lost), len(d.Disconnecting), len(d.Reconnecting))
+func (d *NodeReconcileResult) Fields() []any {
+	fields := []any{
+		"ignore", d.Ignore,
+		"place", d.Place,
+		"update", d.Update,
+		"stop", d.Stop,
+		"migrate", d.Migrate,
+		"lost", d.Lost,
+		"disconnecting", d.Disconnecting,
+		"reconnecting", d.Reconnecting,
+	}
+
+	return fields
 }
 
 func (d *NodeReconcileResult) Append(other *NodeReconcileResult) {
