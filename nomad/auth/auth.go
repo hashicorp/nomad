@@ -217,10 +217,11 @@ func (s *Authenticator) Authenticate(ctx RPCContext, args structs.RequestWithIde
 	return nil
 }
 
-// ResolveACL is an authentication wrapper which handles resolving ACL tokens,
+// ResolveACL is an authentication wrapper that handles resolving ACL tokens,
 // Workload Identities, or client secrets into acl.ACL objects. Exclusively
 // server-to-server or client-to-server requests should be using
-// AuthenticateServerOnly or AuthenticateClientOnly and never use this method.
+// AuthenticateServerOnly or AuthenticateClientOnly unless they use the
+// AuthenticateNodeIdentityGenerator function.
 func (s *Authenticator) ResolveACL(args structs.RequestWithIdentity) (*acl.ACL, error) {
 	identity := args.GetIdentity()
 	if identity == nil {
