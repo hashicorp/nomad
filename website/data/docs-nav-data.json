@@ -384,7 +384,7 @@
       },
       {
         "title": "Nomad variables",
-        "href": "https://nomad-git-ce870-nomadianav-hashicorp.vercel.app/nomad/tutorials/variables/variables-create"
+        "href": "https://developer.hashicorp.com/nomad/tutorials/variables/variables-create"
       },
       {
         "title": "Recovery",
