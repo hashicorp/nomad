@@ -149,6 +149,7 @@ func TestDrainer_Simple_ServiceOnly(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -220,6 +221,7 @@ func TestDrainer_Simple_ServiceOnly_Deadline(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -277,6 +279,7 @@ func TestDrainer_DrainEmptyNode(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create an empty node
@@ -312,6 +315,7 @@ func TestDrainer_AllTypes_Deadline(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -420,6 +424,7 @@ func TestDrainer_AllTypes_NoDeadline(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create two nodes, registering the second later
@@ -551,6 +556,7 @@ func TestDrainer_AllTypes_Deadline_GarbageCollectedNode(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -668,6 +674,7 @@ func TestDrainer_MultipleNSes_ServiceOnly(t *testing.T) {
 	defer cleanupSrv()
 	codec := rpcClient(t, srv)
 	testutil.WaitForLeader(t, srv.RPC)
+	testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 	store := srv.State()
 
 	// Create a node
@@ -762,6 +769,7 @@ func TestDrainer_Batch_TransitionToForce(t *testing.T) {
 			defer cleanupSrv()
 			codec := rpcClient(t, srv)
 			testutil.WaitForLeader(t, srv.RPC)
+			testutil.WaitForKeyring(t, srv.RPC, srv.Region())
 			store := srv.State()
 
 			// Create a node
