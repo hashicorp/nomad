@@ -20,59 +20,53 @@ import (
 
 const maxAllocs = 30
 
-var validDeploymentStates = []string{
-	structs.DeploymentStatusRunning,
-	structs.DeploymentStatusPending,
-}
-
 func TestAllocReconciler_PropTest(t *testing.T) {
-	idg := &idGenerator{}
-	now := time.Now()
-	t.Run("batch jobs, nil old deploy", rapid.MakeCheck(func(t *rapid.T) {
-		jobType := structs.JobTypeBatch
-		job := genJob(jobType, idg).Draw(t, "job")
-		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
-		taintedNodes := helper.SliceToMap[map[string]*structs.Node](nodes, func(n *structs.Node) string { return n.ID })
-		currentAllocs := rapid.SliceOfN(genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
-		currentDeployment := genDeployment(idg, job, currentAllocs).Draw(t, "current_deploy")
-
-		ar := genAllocReconciler(now, jobType, taintedNodes, nil, currentAllocs, nil, currentDeployment, idg).Draw(t, "reconciler")
+	t.Run("batch jobs", rapid.MakeCheck(func(t *rapid.T) {
+		ar := genAllocReconciler(structs.JobTypeBatch, &idGenerator{}).Draw(t, "reconciler")
 		results := ar.Compute()
+
 		if results == nil {
 			t.Fatal("results should never be nil")
 		}
 		// TODO(tgross): this where the properties under test go
 	}))
 
-	t.Run("service jobs, nil old deploy, current running deploy", rapid.MakeCheck(func(t *rapid.T) {
-		jobType := structs.JobTypeService
-		job := genJob(jobType, idg).Draw(t, "job")
-		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
-		taintedNodes := helper.SliceToMap[map[string]*structs.Node](nodes, func(n *structs.Node) string { return n.ID })
-		currentAllocs := rapid.SliceOfN(genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
-		currentDeployment := genDeployment(idg, job, currentAllocs).Draw(t, "current_deploy")
-
-		ar := genAllocReconciler(now, jobType, taintedNodes, nil, currentAllocs, nil, currentDeployment, idg).Draw(t, "reconciler")
+	t.Run("service jobs", rapid.MakeCheck(func(t *rapid.T) {
+		ar := genAllocReconciler(structs.JobTypeService, &idGenerator{}).Draw(t, "reconciler")
 		results := ar.Compute()
 
-		// SAFETY properties ("something bad never happens")
+		/*
+			SAFETY properties ("something bad never happens")
+		*/
 		if results == nil {
 			t.Fatal("results should never be nil")
 		}
-		if job.Stopped() && results.Deployment != nil {
-			t.Fatal("stopped jobs with nil old deployments should never result in a new deployment")
-		}
-		if job.Stopped() && results.Stop == nil {
-			t.Fatal("stopped jobs with nil old deployments should result in non-nil stopped allocs")
+
+		// stopped jobs with non-nil current deployment
+		if ar.jobState.Job.Stopped() && ar.jobState.DeploymentCurrent != nil {
+			if results.Deployment != nil {
+				t.Fatal("stopped jobs with nil old deployments should never result in a new deployment")
+			}
+			if results.Stop == nil {
+				t.Fatal("stopped jobs with nil old deployments should result in non-nil stopped allocs")
+			}
 		}
 
-		// LIVENESS properties ("something good eventually happens")
+		/*
+			LIVENESS properties ("something good eventually happens")
+		*/
 
 	}))
 }
 
-func genAllocReconciler(now time.Time, jobType string, taintedNodes map[string]*structs.Node, oldAllocs, currentAllocs []*structs.Allocation, oldDeploy, currentDeploy *structs.Deployment, idg *idGenerator) *rapid.Generator[*AllocReconciler] {
+func genAllocReconciler(jobType string, idg *idGenerator) *rapid.Generator[*AllocReconciler] {
 	return rapid.Custom(func(t *rapid.T) *AllocReconciler {
+		now := time.Now() // note: you can only use offsets from this
+
+		nodes := rapid.SliceOfN(genNode(idg), 0, 5).Draw(t, "nodes")
+		taintedNodes := helper.SliceToMap[map[string]*structs.Node](
+			nodes, func(n *structs.Node) string { return n.ID })
+
 		clusterState := ClusterState{
 			TaintedNodes:                taintedNodes,
 			SupportsDisconnectedClients: rapid.Bool().Draw(t, "supports_disconnected_clients"),
@@ -82,6 +76,11 @@ func genAllocReconciler(now time.Time, jobType string, taintedNodes map[string]*
 		oldJob := job.Copy()
 		oldJob.Version--
 		oldJob.CreateIndex = 100
+
+		currentAllocs := rapid.SliceOfN(
+			genExistingAllocMaybeTainted(idg, job, taintedNodes, now), 0, 15).Draw(t, "allocs")
+		oldAllocs := rapid.SliceOfN(
+			genExistingAllocMaybeTainted(idg, oldJob, taintedNodes, now), 0, 15).Draw(t, "old_allocs")
 
 		// tie together a subset of allocations so we can exercise reconnection
 		previousAllocID := ""
@@ -94,6 +93,10 @@ func genAllocReconciler(now time.Time, jobType string, taintedNodes map[string]*
 		}
 
 		allocs := append(currentAllocs, oldAllocs...)
+
+		// note: either of these might return nil
+		oldDeploy := genDeployment(idg, oldJob, oldAllocs).Draw(t, "old_deploy")
+		currentDeploy := genDeployment(idg, job, currentAllocs).Draw(t, "current_deploy")
 
 		reconcilerState := ReconcilerState{
 			Job:               job,
@@ -178,13 +181,20 @@ func genDeployment(idg *idGenerator, job *structs.Job, allocs []*structs.Allocat
 			JobCreateIndex:     job.CreateIndex,
 			IsMultiregion:      false,
 			TaskGroups:         dstates,
-			Status:             rapid.SampledFrom(validDeploymentStates).String(),
-			StatusDescription:  "",
-			EvalPriority:       0,
-			CreateIndex:        job.CreateIndex,
-			ModifyIndex:        0,
-			CreateTime:         0,
-			ModifyTime:         0,
+			Status: rapid.SampledFrom([]string{
+				structs.DeploymentStatusRunning,
+				structs.DeploymentStatusPending,
+				structs.DeploymentStatusInitializing,
+				structs.DeploymentStatusPaused,
+				structs.DeploymentStatusFailed,
+				structs.DeploymentStatusSuccessful,
+			}).Draw(t, "deployment_status"),
+			StatusDescription: "",
+			EvalPriority:      0,
+			CreateIndex:       job.CreateIndex,
+			ModifyIndex:       0,
+			CreateTime:        0,
+			ModifyTime:        0,
 		}
 	})
 }
