@@ -4048,7 +4048,7 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 
 	// Create 3 allocations from the old job
 	var allocs []*structs.Allocation
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		alloc := mock.Alloc()
 		alloc.Job = job
 		alloc.JobID = job.ID
@@ -4087,18 +4087,18 @@ func TestReconciler_NewCanaries_CountGreater(t *testing.T) {
 	assertResults(t, r, &resultExpectation{
 		createDeployment:  newD,
 		deploymentUpdates: nil,
-		place:             7,
+		place:             3,
 		inplace:           0,
 		stop:              0,
 		desiredTGUpdates: map[string]*structs.DesiredUpdates{
 			job.TaskGroups[0].Name: {
 				Canary: 7,
 				Ignore: 3,
+				Place:  3,
 			},
 		},
 	})
-
-	assertNamesHaveIndexes(t, intRange(0, 2, 3, 6), placeResultsToNames(r.Place))
+	assertNamesHaveIndexes(t, []int{0, 1, 2}, placeResultsToNames(r.Place))
 }
 
 // Tests the reconciler creates new canaries when the job changes for multiple
