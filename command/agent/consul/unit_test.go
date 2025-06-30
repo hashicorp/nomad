@@ -1050,6 +1050,45 @@ func TestConsul_ServiceName_Duplicates(t *testing.T) {
 	}
 }
 
+func TestConsul_ServiceKind(t *testing.T) {
+	ci.Parallel(t)
+	ctx := setupFake(t)
+
+	ctx.Workload.Services = []*structs.Service{
+		{
+			Name:      "best-service",
+			PortLabel: "x",
+			Kind:      "api-gateway",
+		},
+		{
+			Name:      "service",
+			PortLabel: "y",
+		},
+		{
+			Name:      "worst-service",
+			PortLabel: "y",
+			Kind:      "terminating-gateway",
+		},
+	}
+
+	must.NoError(t, ctx.ServiceClient.RegisterWorkload(ctx.Workload))
+	must.NoError(t, ctx.syncOnce(syncNewOps))
+	must.MapLen(t, 3, ctx.FakeConsul.services["default"])
+
+	for _, s := range ctx.FakeConsul.services["default"] {
+		switch {
+		case s.Name == "best-service":
+			must.Eq(t, "api-gateway", s.Kind)
+		case s.Name == "service" && s.Port == yPort:
+			must.Eq(t, "", s.Kind)
+		case s.Name == "worst-service":
+			must.Eq(t, "terminating-gateway", s.Kind)
+		default:
+			t.Fatalf("unexpected service: %s", s.Name)
+		}
+	}
+}
+
 // TestConsul_ServiceDeregistration_OutOfProbation asserts that during in steady
 // state we remove any services we don't reconize locally
 func TestConsul_ServiceDeregistration_OutProbation(t *testing.T) {

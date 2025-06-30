@@ -646,6 +646,10 @@ type Service struct {
 	// Its name will be `consul-service/${service_name}`, and its contents will
 	// match the server's `consul.service_identity` configuration block.
 	Identity *WorkloadIdentity
+
+	// Kind defines the Consul service kind, valid only when provider is consul
+	// and a Consul Connect Gateway isn't defined for the service.
+	Kind string
 }
 
 // Copy the block recursively. Returns nil if nil.
@@ -674,6 +678,8 @@ func (s *Service) Copy() *Service {
 
 	ns.Weights = s.Weights.Copy()
 	ns.Identity = s.Identity.Copy()
+
+	ns.Kind = s.Kind
 
 	return ns
 }
@@ -861,6 +867,17 @@ func (s *Service) validateConsulService(mErr *multierror.Error) {
 		}
 	}
 
+	// validate the consul service kind
+	switch api.ServiceKind(s.Kind) {
+	case api.ServiceKindTypical,
+		api.ServiceKindAPIGateway,
+		api.ServiceKindIngressGateway,
+		api.ServiceKindMeshGateway,
+		api.ServiceKindTerminatingGateway:
+	default:
+		mErr.Errors = append(mErr.Errors, fmt.Errorf("Service %s kind must be one of consul service kind or empty", s.Name))
+	}
+
 	// check connect
 	if s.Connect != nil {
 		if err := s.Connect.Validate(); err != nil {
@@ -957,6 +974,7 @@ func (s *Service) Hash(allocID, taskName string, canary bool) string {
 	hashString(h, s.Namespace)
 	hashIdentity(h, s.Identity)
 	hashWeights(h, s.Weights)
+	hashString(h, s.Kind)
 
 	// Don't hash the provider parameter, so we don't cause churn of all
 	// registered services when upgrading Nomad versions. The provider is not
@@ -1134,6 +1152,10 @@ func (s *Service) Equal(o *Service) bool {
 	}
 
 	if !s.Weights.Equal(o.Weights) {
+		return false
+	}
+
+	if s.Kind != o.Kind {
 		return false
 	}
 
