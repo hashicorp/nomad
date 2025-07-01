@@ -730,16 +730,21 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 	ar.preKillHooks()
 
 	// generate task event for given task runner
-	taskEventFn := func(tr *taskrunner.TaskRunner) (te *structs.TaskEvent) {
-		te = structs.NewTaskEvent(structs.TaskKilling).
+	taskEventFn := func(tr *taskrunner.TaskRunner) *structs.TaskEvent {
+		// if the task has already finished, do not
+		// generate an event
+		if !tr.TaskState().FinishedAt.IsZero() {
+			return nil
+		}
+
+		te := structs.NewTaskEvent(structs.TaskKilling).
 			SetKillTimeout(tr.Task().KillTimeout, ar.clientConfig.MaxKillTimeout)
 
-		// if the task is not set failed, the task has not finished,
-		// the job type is batch, and the allocation is being migrated
-		// then mark the task as failed. this ensures the task is recreated
-		// if no eligible nodes are immediately available.
+		// if the task is not set failed, the job type is batch, and the
+		// allocation is being migrated then mark the task as failed. this
+		// ensures the task is recreated if no eligible nodes are immediately
+		// available.
 		if !tr.TaskState().Failed &&
-			tr.TaskState().FinishedAt.IsZero() &&
 			ar.alloc.Job.Type == structs.JobTypeBatch &&
 			ar.alloc.DesiredTransition.Migrate != nil &&
 			*ar.alloc.DesiredTransition.Migrate {
@@ -747,7 +752,8 @@ func (ar *allocRunner) killTasks() map[string]*structs.TaskState {
 			ar.logger.Trace("marking migrating batch job task failed on kill", "task_name", tr.Task().Name)
 			te.SetFailsTask()
 		}
-		return
+
+		return te
 	}
 
 	// Kill leader first, synchronously
