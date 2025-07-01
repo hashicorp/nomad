@@ -239,6 +239,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 
 	// Decode arguments
 	var args cstructs.MonitorExternalRequest
+
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
@@ -259,8 +260,10 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	monitor := monitor.New(512, a.c.logger, &log.LoggerOptions{})
-
+	mon := monitor.New(512, a.c.logger, &log.LoggerOptions{})
+	if args.MockMonitor != nil {
+		mon = args.MockMonitor
+	}
 	frames := make(chan *sframer.StreamFrame, streamFramesBuffer)
 	errCh := make(chan error)
 	var buf bytes.Buffer
@@ -280,7 +283,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		<-ctx.Done()
 	}()
 
-	opts := cstructs.MonitorExternalRequest{
+	opts := monitor.MonitorExternalOpts{
 		LogSince:     args.LogSince,
 		ServiceName:  args.ServiceName,
 		NomadLogPath: args.NomadLogPath,
@@ -288,7 +291,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		Follow:       args.Follow,
 	}
 
-	logCh := monitor.MonitorExternal(&opts)
+	logCh := mon.MonitorExternal(opts)
 
 	initialOffset := int64(0)
 	var (

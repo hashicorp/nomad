@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/helper/uuid"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -1048,6 +1049,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 	defer os.Remove(inlineFilePath)
 	testutil.WaitForLeader(t, s.RPC)
 
+	mon := monitor.Mock()
 	cases := []struct {
 		name         string
 		expected     string
@@ -1067,14 +1069,6 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 		{
 			name:         "happy_path_golden_cli",
 			serviceName:  "nomad",
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFileContents),
-			token:        root,
-		},
-
-		{
-			name:         "happy_path_golden_file_ACL",
-			onDisk:       true,
 			nomadLogPath: goldenFilePath,
 			expected:     string(goldenFileContents),
 			token:        root,
@@ -1112,6 +1106,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 				LogSince:     "72",
 				NomadLogPath: tc.nomadLogPath,
 				ServiceName:  tc.serviceName,
+				MockMonitor:  &mon,
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					AuthToken: tc.token.SecretID,
@@ -1187,7 +1182,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 				}
 			}
 			if !tc.expectErr {
-				must.Eq(t, len(builder.String()), len(tc.expected))
+				must.Eq(t, strings.TrimSpace(builder.String()), strings.TrimSpace(tc.expected))
 			}
 
 		})

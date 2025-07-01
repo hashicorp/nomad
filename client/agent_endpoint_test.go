@@ -20,6 +20,7 @@ import (
 	"github.com/hashicorp/nomad/client/config"
 	sframer "github.com/hashicorp/nomad/client/lib/streamframer"
 	cstructs "github.com/hashicorp/nomad/client/structs"
+	"github.com/hashicorp/nomad/command/agent/monitor"
 	"github.com/hashicorp/nomad/command/agent/pprof"
 	"github.com/hashicorp/nomad/nomad"
 	"github.com/hashicorp/nomad/nomad/mock"
@@ -453,19 +454,10 @@ func TestAgentHost_ACL(t *testing.T) {
 func TestMonitor_MonitorExternal(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
-	const (
-		expectedText   = "log log log log log"
-		goldenFilePath = "../command/agent/testdata/monitor-external.golden"
-	)
+	const goldenFilePath = "../command/agent/testdata/monitor-external.golden"
+
 	goldenFileContents, err := os.ReadFile(goldenFilePath)
 	must.NoError(t, err)
-
-	testFile, err := os.CreateTemp("", "nomadtests-tshot-")
-	must.NoError(t, err)
-
-	_, err = testFile.Write([]byte(expectedText))
-	must.NoError(t, err)
-	inlineFilePath := testFile.Name()
 
 	// start server
 	s, root, cleanupS := nomad.TestACLServer(t, nil)
@@ -478,8 +470,11 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 		c.Servers = []string{s.GetConfig().RPCAddr.String()}
 	})
 
+	mon := monitor.Mock()
+
+	tokenBad := mock.CreatePolicyAndToken(t, s.State(), 1005, "invalid", mock.NodePolicy(acl.PolicyDeny))
 	defer cleanupC()
-	defer os.Remove(inlineFilePath)
+
 	testutil.WaitForLeader(t, s.RPC)
 
 	cases := []struct {
@@ -505,47 +500,39 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 			expected:     string(goldenFileContents),
 			token:        root.SecretID,
 		},
-
 		{
-			name:         "happy_path_golden_file_ACL",
+			name:         "token_error_golden_file",
 			onDisk:       true,
 			nomadLogPath: goldenFilePath,
 			expected:     string(goldenFileContents),
-			token:        root.SecretID,
-		},
-		{
-			name:         "token_error_golden_file_ACL",
-			onDisk:       true,
-			nomadLogPath: goldenFilePath,
-			expected:     string(goldenFileContents),
-			token:        "notatokentho",
+			token:        tokenBad.SecretID,
 			expectErr:    true,
 		},
 		{
-			name:         "token_error_golden_cli_ACL",
+			name:         "token_error_golden_cli",
 			serviceName:  "nomad",
-			nomadLogPath: inlineFilePath,
-			expected:     string(goldenFileContents),
-			token:        "notatokentho",
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFilePath),
+			token:        tokenBad.SecretID,
 			expectErr:    true,
 		},
 		{
-			name:         "invalid_service_name_golden_cli_ACL",
+			name:         "invalid_service_name_golden_cli",
 			serviceName:  "nomad$",
-			nomadLogPath: inlineFilePath,
-			expected:     string(goldenFileContents),
+			nomadLogPath: goldenFilePath,
+			expected:     string(goldenFilePath),
 			token:        root.SecretID,
 			expectErr:    true,
 		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-
 			req := cstructs.MonitorExternalRequest{
 				LogSince:     "72",
 				NodeID:       "doesn't_really_matter",
 				NomadLogPath: tc.nomadLogPath,
 				ServiceName:  tc.serviceName,
+				MockMonitor:  &mon,
 				QueryOptions: structs.QueryOptions{
 					Region:    "global",
 					AuthToken: tc.token,
@@ -585,11 +572,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 			copyLength := 0
 
 			var builder strings.Builder
-			//var completed bool
-			//var (
-			//	copyLength int
-			//)
-			//go func() {
+
 		OUTER:
 			for {
 				select {
@@ -605,9 +588,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 					}
 				case message := <-streamMsg:
 					var frame sframer.StreamFrame
-					//if len(message.Payload) == 0 {
-					//	break
-					//}
+
 					err = json.Unmarshal(message.Payload, &frame)
 					if err != nil && err != io.EOF {
 						if !strings.Contains(err.Error(), "unexpected end") {
@@ -626,7 +607,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 				}
 			}
 			if !tc.expectErr {
-				must.Eq(t, len(builder.String()), len(tc.expected))
+				must.Eq(t, strings.TrimSpace(builder.String()), strings.TrimSpace(tc.expected))
 			}
 
 		})

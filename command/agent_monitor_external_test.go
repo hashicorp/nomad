@@ -18,6 +18,7 @@ func TestMonitorExternalCommand_Implements(t *testing.T) {
 
 func TestMonitorExternalCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
+
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
@@ -45,17 +46,28 @@ func TestMonitorExternalCommand_Fails(t *testing.T) {
 
 	ui.ErrorWriter.Reset()
 
-	// Fails on passing a log-include-location flag which cannot be parsed.
+	// Fails on passing a non boolean value to -follow.
 	code = cmd.Run([]string{"-address=" + url, "-follow=maybe"})
 	must.One(t, code)
 
 	out = ui.ErrorWriter.String()
 	must.StrContains(t, out, `invalid boolean value "maybe" for -follow`)
 
-	// Fails on passing a log-include-location flag which cannot be parsed.
+	ui.ErrorWriter.Reset()
+
+	// Fails on passing non boolean value to -on-disk.
 	code = cmd.Run([]string{"-address=" + url, "-on-disk=maybe"})
 	must.One(t, code)
 
 	out = ui.ErrorWriter.String()
 	must.StrContains(t, out, `invalid boolean value "maybe" for -on-disk`)
+
+	ui.ErrorWriter.Reset()
+
+	// Fails on passing both on-disk and service-name
+	code = cmd.Run([]string{"-address=" + url, "-on-disk=true", "-service-name=nomad"})
+	must.One(t, code)
+
+	out = ui.ErrorWriter.String()
+	must.StrContains(t, out, `journalctl and nomad log file simultaneously`)
 }

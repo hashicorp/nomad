@@ -526,7 +526,8 @@ func TestHTTP_AgentMonitorExternal(t *testing.T) {
 					"&service_name=" + tc.serviceName +
 					"&follow=" + tc.follow +
 					"&node_id=" + tc.nodeID +
-					"&server_id=" + tc.serverID
+					"&server_id=" + tc.serverID +
+					"&mocked=" + "true"
 
 				req, err := http.NewRequest(http.MethodGet, urlString, nil)
 				must.NoError(t, err)
