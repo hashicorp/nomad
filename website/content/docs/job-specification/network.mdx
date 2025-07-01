@@ -39,7 +39,7 @@ job "docs" {
 
 When the `network` block is defined with `bridge` as the networking mode,
 all tasks in the task group share the same network namespace. This is a prerequisite for
-[Consul Connect](/nomad/docs/integrations/consul-connect). Tasks running within a
+[Consul Connect](/nomad/docs/networking/consul). Tasks running within a
 network namespace are not visible to applications outside the namespace on the same host.
 This allows [Connect][]-enabled applications to bind only to localhost within the shared network stack,
 and use the proxy for ingress and egress traffic.

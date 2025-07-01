@@ -34,7 +34,7 @@ but the general mechanisms for a secure Nomad deployment revolve around:
 - **[ACLs](/nomad/tutorials/access-control)** Enables authorization for
   authenticated connections by granting capabilities to ACL tokens.
 
-- **[Namespaces](/nomad/docs/manage/namespaces)** Access to read
+- **[Namespaces](/nomad/docs/govern/namespaces)** Access to read
   and write to a namespace can be controlled to allow for granular access to job
   information managed within a multi-tenant cluster.
 
@@ -142,7 +142,7 @@ recommendations accordingly.
   identity. This allows for access to capabilities within the cluster to be
   restricted to specific users.
 
-- [Namespaces](/nomad/docs/manage/namespaces) This feature
+- [Namespaces](/nomad/docs/govern/namespaces) This feature
     allows for a cluster to be shared by multiple teams within a company. Using
     this logical separation is important for multi-tenant clusters to prevent
     users without access to that namespace from conflicting with each other.

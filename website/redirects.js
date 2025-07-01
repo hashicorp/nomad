@@ -35,15 +35,9 @@ module.exports = [
    * change its destination in the future.
    */
   {
-    source: '/nomad/s/port-plan-failure',
-    destination:
-      'https://developer.hashicorp.com/nomad/docs/operations/monitoring-nomad#progress',
-    permanent: false,
-  },
-  {
     source: '/nomad/s/envoy-bootstrap-error',
     destination:
-      'https://developer.hashicorp.com/nomad/docs/integrations/consul/service-mesh#troubleshooting',
+      'https://developer.hashicorp.com/nomad/docs/networking/consul/service-mesh#troubleshooting',
     permanent: false,
   },
   {
@@ -75,12 +69,12 @@ module.exports = [
   },
   {
     source: '/nomad/docs/integrations/consul-integration',
-    destination: '/nomad/docs/integrations/consul',
+    destination: '/nomad/docs/networking/consul',
     permanent: true,
   },
   {
     source: '/nomad/docs/integrations/consul-connect',
-    destination: '/nomad/docs/integrations/consul/service-mesh',
+    destination: '/nomad/docs/networking/consul/service-mesh',
     permanent: true,
   },
   {
@@ -391,6 +385,26 @@ module.exports = [
   {
     source: '/nomad/who-uses-nomad',
     destination: '/nomad/use-cases',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/networking/service-mesh',
+    destination: '/nomad/docs/networking/consul/service-mesh',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/integrations/consul',
+    destination: '/nomad/docs/networking/consul',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/integrations/consul/acl',
+    destination: '/nomad/docs/secure/acl/consul',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/integrations/consul/service-mesh',
+    destination: '/nomad/docs/networking/consul/service-mesh',
     permanent: true,
   },
 ]

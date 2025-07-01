@@ -1,11 +1,11 @@
 ---
 layout: docs
-page_title: Integrate Consul access control list (ACL)
+page_title: Integrate Consul ACL
 description: |-
   Learn how to integrate Consul access control list (ACL) with Nomad workload identity. Learn how to migrate to using Nomad workload identity with Consul. Configure Consul so it can receive, validate, and trust workload identities from Nomad. Create binding and namespace rules. Review considerations for using the JSON Web Key Set (JWKS) URL.
 ---
 
-# Integrate Consul access control list (ACL)
+# Integrate Consul ACL
 
 The [Consul ACL][consul_acls] system protects the cluster from unauthorized
 access. When enabled, both Consul and Nomad must be properly configured in
@@ -14,6 +14,10 @@ order for their integrations to work.
 Nomad agents must be configured with their own Consul ACL token, and Consul
 must be configured to accept workload identities from tasks and services
 running in Nomad.
+
+Refer to the [Consul networking integration
+guide](/nomad/docs/networking/consul) for details on integrating Consul service
+discovery and service mesh.
 
 ## Nomad Agents
 

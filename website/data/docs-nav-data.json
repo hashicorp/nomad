@@ -290,6 +290,10 @@
         "path": "govern"
       },
       {
+        "title": "Namespaces",
+        "path": "govern/namespaces"
+      },
+      {
         "title": "Node pools",
         "path": "govern/use-node-pools"
       },
@@ -320,23 +324,7 @@
         "title": "Overview",
         "path": "integrations"
       },
-      {
-        "title": "Consul",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "integrations/consul"
-          },
-          {
-            "title": "ACL",
-            "path": "integrations/consul/acl"
-          },
-          {
-            "title": "Service mesh",
-            "path": "integrations/consul/service-mesh"
-          }
-        ]
-      },
+
       {
         "title": "Vault",
         "routes": [
@@ -378,10 +366,6 @@
       {
         "title": "Migrate workloads",
         "path": "manage/migrate-workloads"
-      },
-      {
-        "title": "Namespaces",
-        "path": "manage/namespaces"
       },
       {
         "title": "Nomad variables",
@@ -442,8 +426,17 @@
         "path": "networking/service-discovery"
       },
       {
-        "title": "Service mesh",
-        "path": "networking/service-mesh"
+        "title": "Consul",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "networking/consul"
+          },
+          {
+            "title": "Service mesh",
+            "path": "networking/consul/service-mesh"
+          }
+        ]
       },
       {
         "title": "IPv6 support",
@@ -485,6 +478,10 @@
           {
             "title": "Bootstrap the ACL system",
             "path": "secure/acl/bootstrap"
+          },
+          {
+            "title": "Integrate Consul ACL",
+            "path": "secure/acl/consul"
           },
           {
             "title": "Policies",
