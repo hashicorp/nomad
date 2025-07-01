@@ -355,7 +355,9 @@ func (s *GenericScheduler) computeJobAllocs() error {
 			Now:                         time.Now().UTC(),
 		})
 	result := r.Compute()
-	s.logger.Debug("reconciled current state with desired state", result.Fields()...)
+	if s.logger.IsDebug() {
+		s.logger.Debug("reconciled current state with desired state", result.Fields()...)
+	}
 
 	if s.eval.AnnotatePlan {
 		s.plan.Annotations = &structs.PlanAnnotations{
