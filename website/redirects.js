@@ -308,7 +308,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/drivers/:path*',
-    destination: '/nomad/docs/job-declare/task-driver/:path*',
+    destination: '/nomad/docs/deploy/task-driver/:path*',
     permanent: true,
   },
   {
