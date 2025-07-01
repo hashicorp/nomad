@@ -38,6 +38,7 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 		/*
 			SAFETY properties ("something bad never happens")
 		*/
+
 		if results == nil {
 			t.Fatal("results should never be nil")
 		}
@@ -49,7 +50,7 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 					t.Fatal("stopped jobs with current deployments should never result in a new deployment")
 				}
 				if results.Stop == nil {
-					t.Fatal("stopped jobs with current deployments should never have nil stopped allocs")
+					t.Fatal("stopped jobs with current deployments should always have stopped allocs")
 				}
 			}
 			if results.DesiredTGUpdates == nil {
@@ -57,23 +58,29 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 			}
 		}
 
-		// jobs with no active deployment
-		if ar.jobState.DeploymentCurrent == nil {
-
-		}
-
-		// jobs with failed deployment
-		if ar.jobState.DeploymentFailed {
-
+		if ar.jobState.DeploymentFailed && results.Deployment != nil {
+			t.Fatal("failed deployments should never result in new deployments")
 		}
 
 		if !ar.clusterState.SupportsDisconnectedClients && results.ReconnectUpdates != nil {
 			t.Fatal("task groups that don't support disconnected clients should never result in reconnect updates")
 		}
 
+		if ar.jobState.DeploymentCurrent == nil && ar.jobState.DeploymentOld == nil && len(ar.jobState.ExistingAllocs) == 0 {
+			count := 0
+			for _, tg := range ar.jobState.Job.TaskGroups {
+				count += tg.Count
+			}
+			if len(results.Place) > count {
+				t.Fatal("for new jobs, amount of allocs to place should never exceed total tg count")
+			}
+		}
+
 		/*
 			LIVENESS properties ("something good eventually happens")
 		*/
+
+		// TODO(pkazmierczak): implement
 
 	}))
 }
