@@ -1362,9 +1362,10 @@ func (c *ServiceClient) serviceRegs(
 	// This enables the consul UI to show that Nomad registered this service
 	meta["external-source"] = "nomad"
 
-	// Explicitly set the Consul service Kind in case this service represents
-	// one of the Connect gateway types.
-	kind := api.ServiceKindTypical
+	// Set the Consul service Kind from the service.Kind, to be overwritten if
+	// the service is connect gateway (empty string is api.ServiceKindTypical)
+	kind := api.ServiceKind(service.Kind)
+
 	switch {
 	case service.Connect.IsIngress():
 		kind = api.ServiceKindIngressGateway

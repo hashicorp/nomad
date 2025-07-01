@@ -72,7 +72,7 @@ scenario "upgrade" {
       nomad_local_binary_server = step.copy_initial_binary.binary_path[local.server_os]
       server_count              = var.server_count
       client_count_linux        = local.linux_count
-      client_count_windows_2016 = local.windows_count
+      client_count_windows_2022 = local.windows_count
       nomad_license             = var.nomad_license
       consul_license            = var.consul_license
       volumes                   = false

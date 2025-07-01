@@ -2890,6 +2890,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 								FailuresBeforeWarning:  2,
 							},
 						},
+						Kind: "api-gateway",
 						Connect: &api.ConsulConnect{
 							Native: false,
 							SidecarService: &api.ConsulSidecarService{
@@ -3302,6 +3303,7 @@ func TestJobs_ApiJobToStructsJob(t *testing.T) {
 							Passing: 5,
 							Warning: 1,
 						},
+						Kind:     "api-gateway",
 						OnUpdate: structs.OnUpdateRequireHealthy,
 						Checks: []*structs.ServiceCheck{
 							{

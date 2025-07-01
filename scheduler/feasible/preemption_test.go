@@ -273,7 +273,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "No preemption because existing allocs are not low priority",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      3200,
 					MemoryMB: 7256,
 					DiskMB:   4 * 1024,
@@ -305,7 +305,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "Preempting low priority allocs not enough to meet resource ask",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      3200,
 					MemoryMB: 7256,
 					DiskMB:   4 * 1024,
@@ -337,7 +337,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "preemption impossible - static port needed is used by higher priority alloc",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
@@ -349,7 +349,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], highPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -393,7 +393,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "preempt only from device that has allocation with unused reserved port",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
@@ -405,7 +405,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], highPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -423,7 +423,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -486,7 +486,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "Combination of high/low priority allocs, without static ports",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      2800,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
@@ -498,7 +498,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAllocWithTaskgroupNetwork(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithTaskgroupNetwork(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -514,7 +514,7 @@ func TestPreemption_Normal(t *testing.T) {
 					IP:     "192.168.0.201",
 					MBits:  300,
 				}),
-				createAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -526,7 +526,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[3], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[3], lowPrioJob, &structs.Resources{
 					CPU:      700,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -556,12 +556,12 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "preempt allocs with network devices",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      2800,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -596,12 +596,12 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "ignore allocs with close enough priority for network devices",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      2800,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -634,7 +634,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "Preemption needed for all resources except network",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      2800,
 					MemoryMB: 2256,
 					DiskMB:   40 * 1024,
@@ -646,7 +646,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -658,12 +658,12 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 512,
 					DiskMB:   25 * 1024,
 				}),
-				createAlloc(allocIDs[3], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[3], lowPrioJob, &structs.Resources{
 					CPU:      700,
 					MemoryMB: 276,
 					DiskMB:   20 * 1024,
@@ -693,7 +693,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "Only one low priority alloc needs to be preempted",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
@@ -705,7 +705,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -717,7 +717,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -752,7 +752,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "one alloc meets static port need, another meets remaining mbits needed",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
@@ -764,7 +764,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -782,7 +782,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -824,7 +824,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "alloc that meets static port need also meets other needs",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
@@ -836,7 +836,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -854,7 +854,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -895,7 +895,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "alloc from job that has existing evictions not chosen for preemption",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1200,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
@@ -907,7 +907,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -919,7 +919,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[2], lowPrioJob2, &structs.Resources{
+				tests.CreateAlloc(allocIDs[2], lowPrioJob2, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -948,7 +948,7 @@ func TestPreemption_Normal(t *testing.T) {
 				},
 			},
 			currentPreemptions: []*structs.Allocation{
-				createAlloc(allocIDs[4], lowPrioJob2, &structs.Resources{
+				tests.CreateAlloc(allocIDs[4], lowPrioJob2, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -969,7 +969,7 @@ func TestPreemption_Normal(t *testing.T) {
 			desc: "Preemption with one device instance per alloc",
 			// Add allocations that use two device instances
 			currentAllocations: []*structs.Allocation{
-				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      500,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -979,7 +979,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "1080ti",
 					DeviceIDs: []string{deviceIDs[0]},
 				}),
-				createAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1011,7 +1011,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "Preemption multiple devices used",
 			currentAllocations: []*structs.Allocation{
-				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      500,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1021,7 +1021,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "1080ti",
 					DeviceIDs: []string{deviceIDs[0], deviceIDs[1], deviceIDs[2], deviceIDs[3]},
 				}),
-				createAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1055,7 +1055,7 @@ func TestPreemption_Normal(t *testing.T) {
 			// same device should be chosen for preemption
 			desc: "Preemption with allocs across multiple devices that match",
 			currentAllocations: []*structs.Allocation{
-				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      500,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1065,7 +1065,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "1080ti",
 					DeviceIDs: []string{deviceIDs[0], deviceIDs[1]},
 				}),
-				createAllocWithDevice(allocIDs[1], highPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[1], highPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 100,
 					DiskMB:   4 * 1024,
@@ -1075,7 +1075,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "1080ti",
 					DeviceIDs: []string{deviceIDs[2]},
 				}),
-				createAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -1085,7 +1085,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "2080ti",
 					DeviceIDs: []string{deviceIDs[4], deviceIDs[5]},
 				}),
-				createAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
 					CPU:      100,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -1095,7 +1095,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "2080ti",
 					DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
 				}),
-				createAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1130,7 +1130,7 @@ func TestPreemption_Normal(t *testing.T) {
 			// priority are chosen
 			desc: "Preemption with lower/higher priority combinations",
 			currentAllocations: []*structs.Allocation{
-				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      500,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1140,7 +1140,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "1080ti",
 					DeviceIDs: []string{deviceIDs[0], deviceIDs[1]},
 				}),
-				createAllocWithDevice(allocIDs[1], lowPrioJob2, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob2, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 100,
 					DiskMB:   4 * 1024,
@@ -1150,7 +1150,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "1080ti",
 					DeviceIDs: []string{deviceIDs[2], deviceIDs[3]},
 				}),
-				createAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -1160,7 +1160,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "2080ti",
 					DeviceIDs: []string{deviceIDs[4], deviceIDs[5]},
 				}),
-				createAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[3], lowPrioJob, &structs.Resources{
 					CPU:      100,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -1170,7 +1170,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "2080ti",
 					DeviceIDs: []string{deviceIDs[6], deviceIDs[7]},
 				}),
-				createAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[4], lowPrioJob, &structs.Resources{
 					CPU:      100,
 					MemoryMB: 256,
 					DiskMB:   4 * 1024,
@@ -1180,7 +1180,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "2080ti",
 					DeviceIDs: []string{deviceIDs[8]},
 				}),
-				createAllocWithDevice(allocIDs[5], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[5], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1212,7 +1212,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "Device preemption not possible due to more instances needed than available",
 			currentAllocations: []*structs.Allocation{
-				createAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[0], lowPrioJob, &structs.Resources{
 					CPU:      500,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1222,7 +1222,7 @@ func TestPreemption_Normal(t *testing.T) {
 					Name:      "1080ti",
 					DeviceIDs: []string{deviceIDs[0], deviceIDs[1], deviceIDs[2], deviceIDs[3]},
 				}),
-				createAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAllocWithDevice(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      200,
 					MemoryMB: 512,
 					DiskMB:   4 * 1024,
@@ -1252,7 +1252,7 @@ func TestPreemption_Normal(t *testing.T) {
 		{
 			desc: "Filter out allocs whose resource usage superset is also in the preemption list",
 			currentAllocations: []*structs.Allocation{
-				createAlloc(allocIDs[0], highPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[0], highPrioJob, &structs.Resources{
 					CPU:      1800,
 					MemoryMB: 2256,
 					DiskMB:   4 * 1024,
@@ -1264,7 +1264,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[1], lowPrioJob, &structs.Resources{
 					CPU:      1500,
 					MemoryMB: 256,
 					DiskMB:   5 * 1024,
@@ -1276,7 +1276,7 @@ func TestPreemption_Normal(t *testing.T) {
 						},
 					},
 				}),
-				createAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
+				tests.CreateAlloc(allocIDs[2], lowPrioJob, &structs.Resources{
 					CPU:      600,
 					MemoryMB: 256,
 					DiskMB:   5 * 1024,
@@ -1365,58 +1365,4 @@ func TestPreemption_Normal(t *testing.T) {
 			}
 		})
 	}
-}
-
-// helper method to create allocations with given jobs and resources
-func createAlloc(id string, job *structs.Job, resource *structs.Resources) *structs.Allocation {
-	return createAllocInner(id, job, resource, nil, nil)
-}
-
-// helper method to create allocation with network at the task group level
-func createAllocWithTaskgroupNetwork(id string, job *structs.Job, resource *structs.Resources, tgNet *structs.NetworkResource) *structs.Allocation {
-	return createAllocInner(id, job, resource, nil, tgNet)
-}
-
-func createAllocWithDevice(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource) *structs.Allocation {
-	return createAllocInner(id, job, resource, allocatedDevices, nil)
-}
-
-func createAllocInner(id string, job *structs.Job, resource *structs.Resources, allocatedDevices *structs.AllocatedDeviceResource, tgNetwork *structs.NetworkResource) *structs.Allocation {
-	alloc := &structs.Allocation{
-		ID:    id,
-		Job:   job,
-		JobID: job.ID,
-		TaskResources: map[string]*structs.Resources{
-			"web": resource,
-		},
-		Namespace:     structs.DefaultNamespace,
-		EvalID:        uuid.Generate(),
-		DesiredStatus: structs.AllocDesiredStatusRun,
-		ClientStatus:  structs.AllocClientStatusRunning,
-		TaskGroup:     "web",
-		AllocatedResources: &structs.AllocatedResources{
-			Tasks: map[string]*structs.AllocatedTaskResources{
-				"web": {
-					Cpu: structs.AllocatedCpuResources{
-						CpuShares: int64(resource.CPU),
-					},
-					Memory: structs.AllocatedMemoryResources{
-						MemoryMB: int64(resource.MemoryMB),
-					},
-					Networks: resource.Networks,
-				},
-			},
-		},
-	}
-
-	if allocatedDevices != nil {
-		alloc.AllocatedResources.Tasks["web"].Devices = []*structs.AllocatedDeviceResource{allocatedDevices}
-	}
-
-	if tgNetwork != nil {
-		alloc.AllocatedResources.Shared = structs.AllocatedSharedResources{
-			Networks: []*structs.NetworkResource{tgNetwork},
-		}
-	}
-	return alloc
 }

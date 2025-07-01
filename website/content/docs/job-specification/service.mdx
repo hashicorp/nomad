@@ -108,6 +108,11 @@ Service Mesh][connect] integration.
 - `connect` - Configures the [Consul Connect][connect] integration. Only
   available on group services and where `provider = "consul"`.
 
+- `kind` `(string: <optional>)` - Configures the [Consul Service
+Kind][consul_kind] to pass to Consul during service registration. Only available
+when `provider = "consul"`, and is ignored if a Consul Connect Gateway is
+defined.
+
 - `identity` <code>([Identity][identity_block]: nil)</code> - Specifies a
   Workload Identity to use when obtaining Service Identity tokens from Consul to
   register the service. Only available where `provider = "consul"`. Typically
@@ -537,6 +542,7 @@ advertise and check directly since Nomad isn't managing any port assignments.
 [qemu]: /nomad/docs/job-declare/task-driver/qemu 'Nomad QEMU Driver'
 [restart_block]: /nomad/docs/job-specification/restart 'restart block'
 [connect]: /nomad/docs/job-specification/connect 'Nomad Consul Connect Integration'
+[kind]: /consul/api-docs/agent/service#kind
 [type]: /nomad/docs/job-specification/service#type
 [shutdowndelay]: /nomad/docs/job-specification/task#shutdown_delay
 [killsignal]: /nomad/docs/job-specification/task#kill_signal

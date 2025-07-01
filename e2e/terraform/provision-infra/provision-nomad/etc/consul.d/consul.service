@@ -4,7 +4,6 @@ Requires=network-online.target
 After=network-online.target
 
 [Service]
-Type=notify
 Restart=on-failure
 Environment=CONSUL_ALLOW_PRIVILEGED_PORTS=true
 WorkingDirectory=/etc/consul.d
