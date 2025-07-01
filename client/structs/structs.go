@@ -68,14 +68,14 @@ type MonitorRequest struct {
 	structs.QueryOptions
 }
 
-type MonitorExternalRequest struct {
+type MonitorExportRequest struct {
 	// NodeID is the node we want to track the logs of
 	NodeID string
 
 	// ServerID is the server we want to track the logs of
 	ServerID string
 
-	// LogsSince sets the lookback time for monitorExternal logs in hours
+	// LogsSince sets the lookback time for monitorExport logs in hours
 	LogSince string
 
 	// OnDisk indicates that nomad should export logs written to the configured nomad log path
@@ -94,7 +94,7 @@ type MonitorExternalRequest struct {
 	Follow bool
 
 	// This is an empty interface only used for testing
-	MockMonitor *monitor.ExternalMonitor
+	MockMonitor *monitor.ExportMonitor
 
 	structs.QueryOptions
 }

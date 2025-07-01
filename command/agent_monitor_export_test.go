@@ -11,19 +11,19 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestMonitorExternalCommand_Implements(t *testing.T) {
+func TestMonitorExportCommand_Implements(t *testing.T) {
 	ci.Parallel(t)
-	var _ cli.Command = &MonitorExternalCommand{}
+	var _ cli.Command = &MonitorExportCommand{}
 }
 
-func TestMonitorExternalCommand_Fails(t *testing.T) {
+func TestMonitorExportCommand_Fails(t *testing.T) {
 	ci.Parallel(t)
 
 	srv, _, url := testServer(t, false, nil)
 	defer srv.Shutdown()
 
 	ui := cli.NewMockUi()
-	cmd := &MonitorExternalCommand{Meta: Meta{Ui: ui}}
+	cmd := &MonitorExportCommand{Meta: Meta{Ui: ui}}
 
 	// Fails on misuse
 	code := cmd.Run([]string{"some", "bad", "args"})

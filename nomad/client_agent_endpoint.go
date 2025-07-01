@@ -34,7 +34,7 @@ func NewAgentEndpoint(srv *Server) *Agent {
 
 func (a *Agent) register() {
 	a.srv.streamingRpcs.Register("Agent.Monitor", a.monitor)
-	a.srv.streamingRpcs.Register("Agent.MonitorExternal", a.monitorExternal)
+	a.srv.streamingRpcs.Register("Agent.MonitorExport", a.monitorExport)
 }
 
 func (a *Agent) Profile(args *structs.AgentPprofRequest, reply *structs.AgentPprofResponse) error {
@@ -296,10 +296,10 @@ OUTER:
 	}
 }
 
-func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
+func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	defer conn.Close()
 	// Decode args
-	var args cstructs.MonitorExternalRequest
+	var args cstructs.MonitorExportRequest
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
 
@@ -325,7 +325,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 
 	// Targeting a node, forward request to node
 	if args.NodeID != "" {
-		a.forwardMonitorExternalClient(conn, args, encoder, decoder)
+		a.forwardMonitorExportClient(conn, args, encoder, decoder)
 		// forwarded request has ended, return
 		return
 	}
@@ -348,7 +348,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 			return
 		}
 		if serverToFwd != nil {
-			a.forwardMonitorExternalServer(conn, serverToFwd, args, encoder, decoder)
+			a.forwardMonitorExportServer(conn, serverToFwd, args, encoder, decoder)
 			return
 		}
 	}
@@ -379,7 +379,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		}
 		<-ctx.Done()
 	}()
-	opts := monitor.MonitorExternalOpts{
+	opts := monitor.MonitorExportOpts{
 		LogSince:     args.LogSince,
 		ServiceName:  args.ServiceName,
 		NomadLogPath: args.NomadLogPath,
@@ -387,7 +387,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		Follow:       args.Follow,
 	}
 
-	logCh := mon.MonitorExternal(opts)
+	logCh := mon.MonitorExport(opts)
 	defer mon.Stop()
 
 	initialOffset := int64(0)
@@ -546,11 +546,11 @@ func (a *Agent) forwardMonitorServer(conn io.ReadWriteCloser, server *serverPart
 
 	structs.Bridge(conn, serverConn)
 }
-func (a *Agent) forwardMonitorExternalServer(conn io.ReadWriteCloser, server *serverParts, args cstructs.MonitorExternalRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+func (a *Agent) forwardMonitorExportServer(conn io.ReadWriteCloser, server *serverParts, args cstructs.MonitorExportRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
 	// empty ServerID to prevent forwarding loop
 	args.ServerID = ""
 
-	serverConn, err := a.srv.streamingRpc(server, "Agent.MonitorExternal")
+	serverConn, err := a.srv.streamingRpc(server, "Agent.MonitorExport")
 	if err != nil {
 		handleStreamResultError(err, pointer.Of(int64(500)), encoder)
 		return
@@ -566,7 +566,7 @@ func (a *Agent) forwardMonitorExternalServer(conn io.ReadWriteCloser, server *se
 
 	structs.Bridge(conn, serverConn)
 }
-func (a *Agent) forwardMonitorExternalClient(conn io.ReadWriteCloser, args cstructs.MonitorExternalRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
+func (a *Agent) forwardMonitorExportClient(conn io.ReadWriteCloser, args cstructs.MonitorExportRequest, encoder *codec.Encoder, decoder *codec.Decoder) {
 	// Get the Connection to the client either by fowarding to another server
 	// or creating direct stream
 
@@ -579,7 +579,7 @@ func (a *Agent) forwardMonitorExternalClient(conn io.ReadWriteCloser, args cstru
 	var clientConn net.Conn
 
 	if state == nil {
-		conn, err := a.srv.streamingRpc(srv, "Agent.MonitorExternal")
+		conn, err := a.srv.streamingRpc(srv, "Agent.MonitorExport")
 		if err != nil {
 			handleStreamResultError(err, nil, encoder)
 			return
@@ -587,7 +587,7 @@ func (a *Agent) forwardMonitorExternalClient(conn io.ReadWriteCloser, args cstru
 
 		clientConn = conn
 	} else {
-		stream, err := NodeStreamingRpc(state.Session, "Agent.MonitorExternal")
+		stream, err := NodeStreamingRpc(state.Session, "Agent.MonitorExport")
 		if err != nil {
 			handleStreamResultError(err, nil, encoder)
 			return

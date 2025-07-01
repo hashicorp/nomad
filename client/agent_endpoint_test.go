@@ -451,10 +451,10 @@ func TestAgentHost_ACL(t *testing.T) {
 	}
 }
 
-func TestMonitor_MonitorExternal(t *testing.T) {
+func TestMonitor_MonitorExport(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
-	const goldenFilePath = "../command/agent/testdata/monitor-external.golden"
+	const goldenFilePath = "../command/agent/testdata/monitor-export.golden"
 
 	goldenFileContents, err := os.ReadFile(goldenFilePath)
 	must.NoError(t, err)
@@ -527,7 +527,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			req := cstructs.MonitorExternalRequest{
+			req := cstructs.MonitorExportRequest{
 				LogSince:     "72",
 				NodeID:       "doesn't_really_matter",
 				NomadLogPath: tc.nomadLogPath,
@@ -538,7 +538,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 					AuthToken: tc.token,
 				},
 			}
-			handler, err := c.StreamingRpcHandler("Agent.MonitorExternal")
+			handler, err := c.StreamingRpcHandler("Agent.MonitorExport")
 			require.Nil(err)
 
 			// create pipe
