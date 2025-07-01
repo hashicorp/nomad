@@ -522,6 +522,7 @@ func TestWorker_SubmitPlanNormalizedAllocations(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -574,6 +575,7 @@ func TestWorker_SubmitPlan_MissingNodeRefresh(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -648,6 +650,7 @@ func TestWorker_UpdateEval(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()
@@ -699,6 +702,7 @@ func TestWorker_CreateEval(t *testing.T) {
 	})
 	defer cleanupS1()
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	// Register node
 	node := mock.Node()

@@ -51,7 +51,17 @@ func (i *IdentityClaims) IsExpiring(now time.Time, ttl time.Duration) bool {
 	// relative to the current time.
 	threshold := now.Add(ttl / 3)
 
-	return i.Expiry.Time().Before(threshold)
+	return i.Expiry.Time().UTC().Before(threshold)
+}
+
+// IsExpiringInThreshold checks if the identity JWT is expired or close to
+// expiring. It uses a passed threshold to determine "close to expiring" which
+// is not manipulated, unlike TTL in the IsExpiring method.
+func (i *IdentityClaims) IsExpiringInThreshold(threshold time.Time) bool {
+	if i != nil && i.Expiry != nil {
+		return threshold.After(i.Expiry.Time())
+	}
+	return false
 }
 
 // setExpiry sets the "expiry" or "exp" claim for the identity JWT. It is the

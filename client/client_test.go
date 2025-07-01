@@ -703,6 +703,7 @@ func TestClient_SaveRestoreState(t *testing.T) {
 	s1, _, cleanupS1 := testServer(t, nil)
 	t.Cleanup(cleanupS1)
 	testutil.WaitForLeader(t, s1.RPC)
+	testutil.WaitForKeyring(t, s1.RPC, s1.Region())
 
 	c1, cleanupC1 := TestClient(t, func(c *config.Config) {
 		c.DevMode = false
