@@ -407,4 +407,9 @@ module.exports = [
     destination: '/nomad/docs/networking/consul/service-mesh',
     permanent: true,
   },
+  {
+    source: '/nomad/docs/integrations/vault/:path*',
+    destination: '/nomad/docs/secure/vault/:path*',
+    permanent: true,
+  },
 ]

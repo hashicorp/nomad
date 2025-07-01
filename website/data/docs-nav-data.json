@@ -318,29 +318,6 @@
     ]
   },
   {
-    "title": "Integrate Consul and Vault",
-    "routes": [
-      {
-        "title": "Overview",
-        "path": "integrations"
-      },
-
-      {
-        "title": "Vault",
-        "routes": [
-          {
-            "title": "Overview",
-            "path": "integrations/vault"
-          },
-          {
-            "title": "ACL",
-            "path": "integrations/vault/acl"
-          }
-        ]
-      }
-    ]
-  },
-  {
     "title": "Manage Nomad",
     "routes": [
       {
@@ -554,6 +531,19 @@
         ]
       },
       {
+        "title": "Vault",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "secure/vault"
+          },
+          {
+            "title": "ACL",
+            "path": "secure/vault/acl"
+          }
+        ]
+      },
+      {
         "title": "Workload identity",
         "routes": [
           {
@@ -570,7 +560,7 @@
           },
           {
             "title": "Use workload identities with Vault",
-            "path": "secure/workload-identity/vault-acl"
+            "path": "secure/workload-identity/vault"
           }
         ]
       }
