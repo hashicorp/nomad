@@ -103,6 +103,7 @@ func TestNode_Register_Identity(t *testing.T) {
 		node *structs.Node,
 		ttl time.Duration,
 	) {
+		t.Helper()
 
 		identityClaims, err := testServer.encrypter.VerifyClaim(token)
 		must.NoError(t, err)
@@ -1591,6 +1592,7 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 		node *structs.Node,
 		ttl time.Duration,
 	) {
+		t.Helper()
 
 		identityClaims, err := testServer.encrypter.VerifyClaim(token)
 		must.NoError(t, err)
@@ -1622,7 +1624,8 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 		testFn func(t *testing.T, srv *Server, codec rpc.ClientCodec)
 	}{
 		{
-			//
+			// Ensure that the Node.UpdateStatus RPC generates a new identity
+			// for a client authenticating using its secret ID.
 			name: "node secret ID authenticated default pool",
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
@@ -1646,7 +1649,9 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 			},
 		},
 		{
-			//
+			// Ensure that the Node.UpdateStatus RPC generates a new identity
+			// for a client authenticating using its secret ID which belongs to
+			// a non-default node pool.
 			name: "node secret ID authenticated non-default pool",
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 
@@ -1749,7 +1754,9 @@ func TestNode_UpdateStatus_Identity(t *testing.T) {
 			},
 		},
 		{
-			//
+			// Ensure a new identity is generated if the identity within the
+			// request is close to expiration and the new identity has a TTL set
+			// by its custom node pool configuration.
 			name: "identity close to expiration custom pool",
 			testFn: func(t *testing.T, srv *Server, codec rpc.ClientCodec) {
 

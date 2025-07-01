@@ -642,6 +642,42 @@ func (n *NodeUpdateStatusRequest) ShouldGenerateNodeIdentity(
 	return false
 }
 
+// IdentitySigningErrorIsTerminal determines if the RPC handler should return an
+// error because it failed to sign a newly generated node identity.
+//
+// This is because a client might be connected to a follower at the point the
+// root keyring is rotated. If the client heartbeats right at that moment and
+// before the follower decrypts the key (e.g., network latency to external KMS),
+// we will mark the node as down. This is despite identity being valid and the
+// likelihood it will get a new identity signed on the next heartbeat.
+func (n *NodeUpdateStatusRequest) IdentitySigningErrorIsTerminal(now time.Time) bool {
+
+	identity := n.GetIdentity()
+
+	// If the client has authenticated using a secret ID, we can continue to let
+	// it do that, until we successfully generate a new identity.
+	if identity.ClientID != "" {
+		return false
+	}
+
+	// If the identity is a node identity, we can check if it is expiring. This
+	// check is used to determine if the RPC handler should return an error, so
+	// we use a short threshold of 10 minutes. This is to ensure we don't return
+	// errors unless we absolutely have to.
+	//
+	// A threshold of 10 minutes more than covers another heartbeat on the
+	// largest Nomad clusters, which can reach ~5 minutes.
+	if identity.GetClaims().IsNode() {
+		return n.GetIdentity().GetClaims().IsExpiringInThreshold(now.Add(10 * time.Minute))
+	}
+
+	// No other condition should result in the RPC handler returning an error
+	// because we failed to sign the node identity. No caller should be able to
+	// reach this point, as identity generation should be gated by
+	// ShouldGenerateNodeIdentity.
+	return false
+}
+
 // NodeUpdateResponse is used to respond to a node update. The object is a
 // shared response used by the Node.Register, Node.Deregister,
 // Node.BatchDeregister, Node.UpdateStatus, and Node.Evaluate RPCs.

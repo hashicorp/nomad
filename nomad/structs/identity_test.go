@@ -174,6 +174,57 @@ func TestIdentityClaims_IsExpiring(t *testing.T) {
 	}
 }
 
+func TestIdentityClaims_IsExpiringWithTTL(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                string
+		inputIdentityClaims *IdentityClaims
+		inputThreshold      time.Time
+		expectedResult      bool
+	}{
+		{
+			name:                "nil identity",
+			inputIdentityClaims: nil,
+			inputThreshold:      time.Now(),
+			expectedResult:      false,
+		},
+		{
+			name:                "no expiry",
+			inputIdentityClaims: &IdentityClaims{},
+			inputThreshold:      time.Now(),
+			expectedResult:      false,
+		},
+		{
+			name: "not close to expiring",
+			inputIdentityClaims: &IdentityClaims{
+				Claims: jwt.Claims{
+					Expiry: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+				},
+			},
+			inputThreshold: time.Now(),
+			expectedResult: false,
+		},
+		{
+			name: "close to expiring",
+			inputIdentityClaims: &IdentityClaims{
+				Claims: jwt.Claims{
+					Expiry: jwt.NewNumericDate(time.Now()),
+				},
+			},
+			inputThreshold: time.Now().Add(1 * time.Minute),
+			expectedResult: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputIdentityClaims.IsExpiringInThreshold(tc.inputThreshold)
+			must.Eq(t, tc.expectedResult, actualOutput)
+		})
+	}
+}
+
 func TestIdentityClaimsNg_setExpiry(t *testing.T) {
 	ci.Parallel(t)
 

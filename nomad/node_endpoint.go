@@ -654,13 +654,27 @@ func (n *Node) UpdateStatus(args *structs.NodeUpdateStatusRequest, reply *struct
 
 		claims := structs.GenerateNodeIdentityClaims(node, n.srv.Region(), identityTTL)
 
+		// Sign the claims with the encrypter and conditionally handle the
+		// error. The IdentitySigningErrorTerminal method has a description of
+		// why we do this.
 		signedJWT, signingKeyID, err := n.srv.encrypter.SignClaims(claims)
 		if err != nil {
-			return fmt.Errorf("failed to sign node identity claims: %v", err)
+			if args.IdentitySigningErrorIsTerminal(timeNow) {
+				return fmt.Errorf("failed to sign node identity claims: %v", err)
+			} else {
+				n.logger.Warn(
+					"failed to sign node identity claims, will retry on next heartbeat",
+					"error", err, "node_id", node.ID)
+			}
 		}
 
 		reply.SignedIdentity = &signedJWT
 		args.IdentitySigningKeyID = signingKeyID
+	} else {
+		// Ensure the IdentitySigningKeyID is cleared if we are not generating a
+		// new identity. This is important to ensure that we do not cause Raft
+		// updates unless we need to.
+		args.IdentitySigningKeyID = ""
 	}
 
 	// Compute next status.

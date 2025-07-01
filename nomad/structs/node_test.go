@@ -573,3 +573,79 @@ func TestNodeUpdateStatusRequest_ShouldGenerateNodeIdentity(t *testing.T) {
 		})
 	}
 }
+func TestNodeUpdateStatusRequest_IdentitySigningErrorIsTerminal(t *testing.T) {
+	ci.Parallel(t)
+
+	testCases := []struct {
+		name                     string
+		inputNodeRegisterRequest *NodeUpdateStatusRequest
+		inputTime                time.Time
+		expectedOutput           bool
+	}{
+		{
+			name: "not close to expiring",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC().Add(24 * time.Hour).UTC()),
+							},
+						},
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			expectedOutput: false,
+		},
+		{
+			name: "very close to expiring",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						Claims: &IdentityClaims{
+							NodeIdentityClaims: &NodeIdentityClaims{},
+							Claims: jwt.Claims{
+								Expiry: jwt.NewNumericDate(time.Now().UTC()),
+							},
+						},
+					},
+				},
+			},
+			inputTime:      time.Now().Add(1 * time.Minute).UTC(),
+			expectedOutput: true,
+		},
+		{
+			name: "server authenticated request",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ACLToken: LeaderACLToken,
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			expectedOutput: false,
+		},
+		{
+			name: "client secret ID authenticated request",
+			inputNodeRegisterRequest: &NodeUpdateStatusRequest{
+				WriteRequest: WriteRequest{
+					identity: &AuthenticatedIdentity{
+						ClientID: "client-id",
+					},
+				},
+			},
+			inputTime:      time.Now().UTC(),
+			expectedOutput: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			actualOutput := tc.inputNodeRegisterRequest.IdentitySigningErrorIsTerminal(tc.inputTime)
+			must.Eq(t, tc.expectedOutput, actualOutput)
+		})
+	}
+}
