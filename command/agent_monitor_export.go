@@ -17,7 +17,7 @@ import (
 	"github.com/hashicorp/nomad/api"
 )
 
-type MonitorExternalCommand struct {
+type MonitorExportCommand struct {
 	Meta
 
 	// Below this point is where CLI flag options are stored.
@@ -29,9 +29,9 @@ type MonitorExternalCommand struct {
 	follow      bool
 }
 
-func (c *MonitorExternalCommand) Help() string {
+func (c *MonitorExportCommand) Help() string {
 	helpText := `
-Usage: nomad monitor external [options]
+Usage: nomad monitor export [options]
 
   Return logs written to disk by a nomad agent. The monitor export command
   lets you read nomad logs from either the agent's configured log path or
@@ -58,13 +58,13 @@ Monitor Specific Options:
 	return strings.TrimSpace(helpText)
 }
 
-func (c *MonitorExternalCommand) Synopsis() string {
+func (c *MonitorExportCommand) Synopsis() string {
 	return "Stream logs from a Nomad agent"
 }
 
-func (c *MonitorExternalCommand) Name() string { return "monitor" }
+func (c *MonitorExportCommand) Name() string { return "monitor" }
 
-func (c *MonitorExternalCommand) Run(args []string) int {
+func (c *MonitorExportCommand) Run(args []string) int {
 	c.Ui = &cli.PrefixedUi{
 		OutputPrefix: "    ",
 		InfoPrefix:   "    ",
@@ -122,7 +122,7 @@ func (c *MonitorExternalCommand) Run(args []string) int {
 	}
 
 	eventDoneCh := make(chan struct{})
-	frames, errCh := client.Agent().MonitorExternal(eventDoneCh, query)
+	frames, errCh := client.Agent().MonitorExport(eventDoneCh, query)
 	select {
 	case err := <-errCh:
 		c.Ui.Error(fmt.Sprintf("Error starting monitor: %s", err))

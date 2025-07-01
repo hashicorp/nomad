@@ -308,7 +308,7 @@ func (s *HTTPServer) AgentMonitor(resp http.ResponseWriter, req *http.Request) (
 	return nil, codedErr
 }
 
-func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
+func (s *HTTPServer) AgentMonitorExport(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
 	// Process and validate arguments
 	onDisk := false //default value
 	onDiskStr := req.URL.Query().Get("on_disk")
@@ -344,12 +344,12 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 	nodeID := req.URL.Query().Get("node_id")
 
 	nomadLogPath := s.agent.GetConfig().LogFile
-	var mockMonitor monitor.ExternalMonitor
+	var mockMonitor monitor.ExportMonitor
 	if mocked := req.URL.Query().Get("mocked"); mocked != "" {
 		mockMonitor = monitor.Mock()
 	}
 	// Build the request and parse the ACL token
-	args := cstructs.MonitorExternalRequest{
+	args := cstructs.MonitorExportRequest{
 		NodeID:       nodeID,
 		ServerID:     req.URL.Query().Get("server_id"),
 		LogSince:     logSince,
@@ -387,19 +387,19 @@ func (s *HTTPServer) AgentMonitorExternal(resp http.ResponseWriter, req *http.Re
 		// Determine the handler to use
 		useLocalClient, useClientRPC, useServerRPC := s.rpcHandlerForNode(nodeID)
 		if useLocalClient {
-			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExternal")
+			handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExport")
 		} else if useClientRPC {
-			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.MonitorExternal")
+			handler, handlerErr = s.agent.Client().RemoteStreamingRpcHandler("Agent.MonitorExport")
 		} else if useServerRPC {
-			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.MonitorExternal")
+			handler, handlerErr = s.agent.Server().StreamingRpcHandler("Agent.MonitorExport")
 		} else {
 			handlerErr = CodedError(400, "No local Node and node_id not provided")
 		}
 		// No node id monitor current server/client
 	} else if srv := s.agent.Server(); srv != nil {
-		handler, handlerErr = srv.StreamingRpcHandler("Agent.MonitorExternal")
+		handler, handlerErr = srv.StreamingRpcHandler("Agent.MonitorExport")
 	} else {
-		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExternal")
+		handler, handlerErr = s.agent.Client().StreamingRpcHandler("Agent.MonitorExport")
 	}
 
 	if handlerErr != nil {

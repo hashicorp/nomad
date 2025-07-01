@@ -579,8 +579,8 @@ func Commands(metaPtr *Meta, agentUi cli.Ui) map[string]cli.CommandFactory {
 				Meta: meta,
 			}, nil
 		},
-		"monitor external": func() (cli.Command, error) {
-			return &MonitorExternalCommand{
+		"monitor export": func() (cli.Command, error) {
+			return &MonitorExportCommand{
 				Meta: meta,
 			}, nil
 		},

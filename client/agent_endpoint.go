@@ -31,7 +31,7 @@ type Agent struct {
 func NewAgentEndpoint(c *Client) *Agent {
 	a := &Agent{c: c}
 	a.c.streamingRpcs.Register("Agent.Monitor", a.monitor)
-	a.c.streamingRpcs.Register("Agent.MonitorExternal", a.monitorExternal)
+	a.c.streamingRpcs.Register("Agent.MonitorExport", a.monitorExport)
 	return a
 }
 
@@ -233,12 +233,12 @@ func (a *Agent) Host(args *structs.HostDataRequest, reply *structs.HostDataRespo
 	reply.HostData = data
 	return nil
 }
-func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
+func (a *Agent) monitorExport(conn io.ReadWriteCloser) {
 	//defer metrics.MeasureSince([]string{"client", "agent", "monitor"}, time.Now())
 	defer conn.Close()
 
 	// Decode arguments
-	var args cstructs.MonitorExternalRequest
+	var args cstructs.MonitorExportRequest
 
 	decoder := codec.NewDecoder(conn, structs.MsgpackHandle)
 	encoder := codec.NewEncoder(conn, structs.MsgpackHandle)
@@ -283,7 +283,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		<-ctx.Done()
 	}()
 
-	opts := monitor.MonitorExternalOpts{
+	opts := monitor.MonitorExportOpts{
 		LogSince:     args.LogSince,
 		ServiceName:  args.ServiceName,
 		NomadLogPath: args.NomadLogPath,
@@ -291,7 +291,7 @@ func (a *Agent) monitorExternal(conn io.ReadWriteCloser) {
 		Follow:       args.Follow,
 	}
 
-	logCh := mon.MonitorExternal(opts)
+	logCh := mon.MonitorExport(opts)
 
 	initialOffset := int64(0)
 	var (

@@ -447,7 +447,7 @@ func TestHTTP_AgentMonitor(t *testing.T) {
 	})
 }
 
-func TestHTTP_AgentMonitorExternal(t *testing.T) {
+func TestHTTP_AgentMonitorExport(t *testing.T) {
 	ci.Parallel(t)
 	const expectedText = "log log log log log"
 
@@ -460,7 +460,7 @@ func TestHTTP_AgentMonitorExternal(t *testing.T) {
 	config := func(c *Config) {
 		c.LogFile = inlineFilePath
 	}
-	baseURL := "/v1/agent/monitor/external?"
+	baseURL := "/v1/agent/monitor/export?"
 	cases := []struct {
 		name        string
 		follow      string
@@ -544,7 +544,7 @@ func TestHTTP_AgentMonitorExternal(t *testing.T) {
 				go func(errCh chan error) {
 					defer wg.Done()
 
-					_, err = s.Server.AgentMonitorExternal(resp, req)
+					_, err = s.Server.AgentMonitorExport(resp, req)
 					if err != nil {
 						errCh <- err
 					}

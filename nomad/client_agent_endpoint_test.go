@@ -1026,12 +1026,12 @@ func TestAgentHost_ACLDebugRequired(t *testing.T) {
 	must.EqError(t, err, structs.ErrPermissionDenied.Error())
 }
 
-func TestMonitor_MonitorExternal(t *testing.T) {
+func TestMonitor_MonitorExport(t *testing.T) {
 	ci.Parallel(t)
 	require := require.New(t)
 	const (
 		expectedText   = "log log log log log"
-		goldenFilePath = "./testdata/monitor-external.golden"
+		goldenFilePath = "./testdata/monitor-export.golden"
 	)
 	goldenFileContents, err := os.ReadFile(goldenFilePath)
 	must.NoError(t, err)
@@ -1102,7 +1102,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 
 			// No node ID to monitor the remote server
-			req := cstructs.MonitorExternalRequest{
+			req := cstructs.MonitorExportRequest{
 				LogSince:     "72",
 				NomadLogPath: tc.nomadLogPath,
 				ServiceName:  tc.serviceName,
@@ -1112,7 +1112,7 @@ func TestMonitor_MonitorExternal(t *testing.T) {
 					AuthToken: tc.token.SecretID,
 				},
 			}
-			handler, err := s.StreamingRpcHandler("Agent.MonitorExternal")
+			handler, err := s.StreamingRpcHandler("Agent.MonitorExport")
 			require.Nil(err)
 
 			// create pipe

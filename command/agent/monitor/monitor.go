@@ -32,8 +32,8 @@ type Monitor interface {
 	// and closes the log channels
 	Stop()
 
-	// MonitorExternal returns a channel of monitor/exernal messages
-	MonitorExternal(opts MonitorExternalOpts) <-chan []byte
+	// MonitorExport returns a channel of monitor/exernal messages
+	MonitorExport(opts MonitorExportOpts) <-chan []byte
 }
 
 // monitor implements the Monitor interface
@@ -191,8 +191,8 @@ func (d *monitor) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
-type MonitorExternalOpts struct {
-	// LogsSince sets the lookback time for monitorExternal logs in hours
+type MonitorExportOpts struct {
+	// LogsSince sets the lookback time for monitorExport logs in hours
 	LogSince string
 
 	// OnDisk indicates that nomad should export logs written to the configured nomad log path
@@ -211,9 +211,9 @@ type MonitorExternalOpts struct {
 	Follow bool
 }
 
-// MonitorExternal reads a file or executes a CLI command and streams a single
+// MonitorExport reads a file or executes a CLI command and streams a single
 // log bundle over the monitor's channel
-func (d *monitor) MonitorExternal(opts MonitorExternalOpts) <-chan []byte {
+func (d *monitor) MonitorExport(opts MonitorExportOpts) <-chan []byte {
 	var (
 		multiReader io.Reader
 		cmd         *exec.Cmd
@@ -268,7 +268,7 @@ func (d *monitor) MonitorExternal(opts MonitorExternalOpts) <-chan []byte {
 	}()
 	return streamCh
 }
-func (d *monitor) cliReader(opts MonitorExternalOpts) (*exec.Cmd, io.Reader, error) {
+func (d *monitor) cliReader(opts MonitorExportOpts) (*exec.Cmd, io.Reader, error) {
 	const defaultDuration = "72"
 	var cmdString string
 
