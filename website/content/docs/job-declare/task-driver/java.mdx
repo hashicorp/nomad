@@ -89,7 +89,7 @@ config {
 ```
 
 - `work_dir` - (Optional) Sets a custom working directory for the task. This path must be
-  absolute and within the task's [chroot](#chroot) or in a [host volume][] mounted
+  absolute and within the task's [chroot](/nomad/docs/deploy/task-driver/java#chroot) or in a [host volume][] mounted
   with a [`volume_mount`][volume_mount] block. This will also change the working
   directory when using `nomad alloc exec`.
 

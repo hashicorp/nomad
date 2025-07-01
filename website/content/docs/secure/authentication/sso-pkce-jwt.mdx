@@ -17,7 +17,7 @@ Nomad's OIDC SSO login feature includes these capabilities:
   traditional client secrets and client assertions.
 - [Private Key JWT](https://oauth.net/private-key-jwt/), also known as client assertions, is a more secure alternative to client secrets.
 
-These options offer extra security during the OIDC login flow. For a summary, refer to the [Nomad OIDC concepts page](/nomad/docs/secure/authentication/oidc#client).
+These options offer extra security during the OIDC login flow. For a summary, refer to the [Nomad OIDC page](/nomad/docs/secure/authentication/oidc).
 
 To demonstrate how to use PKCE and Private Key JWT, this tutorial uses the open source [Keycloak identity provider application](https://www.keycloak.org/) running as a Nomad job. You will configure Nomad and Keycloak to automatically grant permissions in Nomad ACL, enable the Keycloak provider to require PKCE, and reconfigure the Keycloak provider to use client assertions.
 
