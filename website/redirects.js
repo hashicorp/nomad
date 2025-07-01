@@ -353,7 +353,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/operations/ipv6-support',
-    destination: '/nomad/docs/networking/ipv6-support',
+    destination: '/nomad/docs/networking/ipv6',
     permanent: true,
   },
   {
@@ -390,6 +390,11 @@ module.exports = [
   {
     source: '/nomad/docs/networking/service-mesh',
     destination: '/nomad/docs/networking/consul/service-mesh',
+    permanent: true,
+  },
+  {
+    source: '/nomad/docs/integrations',
+    destination: '/nomad/docs/networking/consul',
     permanent: true,
   },
   {

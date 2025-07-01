@@ -199,7 +199,7 @@
         "path": "deploy/nomad-agent"
       },
       {
-        "title": "Nomad clusters",
+        "title": "Build Nomad clusters",
         "routes": [
           {
             "title": "Overview",
@@ -284,7 +284,7 @@
     ]
   },
   {
-    "title": "Govern Nomad",
+    "title": "Govern Nomad's use",
     "routes": [
       {
         "title": "Overview",
@@ -418,7 +418,7 @@
       },
       {
         "title": "IPv6 support",
-        "path": "networking/ipv6-support"
+        "path": "networking/ipv6"
       }
     ]
   },
