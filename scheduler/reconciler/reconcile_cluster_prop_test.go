@@ -57,10 +57,18 @@ func TestAllocReconciler_PropTest(t *testing.T) {
 			}
 		}
 
-		for _, tg := range ar.jobState.Job.TaskGroups {
-			if tg == nil && results.DesiredTGUpdates[tg.Name].Stop != 0 {
-				t.Fatal("nil task groups should never have non-empty sets of allocs to stop")
-			}
+		// jobs with no active deployment
+		if ar.jobState.DeploymentCurrent == nil {
+
+		}
+
+		// jobs with failed deployment
+		if ar.jobState.DeploymentFailed {
+
+		}
+
+		if !ar.clusterState.SupportsDisconnectedClients && results.ReconnectUpdates != nil {
+			t.Fatal("task groups that don't support disconnected clients should never result in reconnect updates")
 		}
 
 		/*
