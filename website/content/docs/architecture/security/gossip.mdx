@@ -30,7 +30,7 @@ cross region requests. The integrated failure detection allows Nomad to
 gracefully handle an entire region losing connectivity, or just a single server
 in a remote region. Nomad also uses the gossip protocol to detect servers in the
 same region to perform automatic clustering via the [consensus
-protocol](/nomad/docs/architecture/consensus).
+protocol](/nomad/docs/architecture/cluster/consensus).
 
 To provide all these features, Nomad uses [Serf][serf] as an embedded
 library. From a user perspective, this is not important, since Nomad masks the

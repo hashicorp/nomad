@@ -11,7 +11,7 @@ description: |-
 
 This endpoint generates and returns an atomic, point-in-time snapshot of the
 Nomad server state for disaster recovery. Snapshots include all state managed by Nomad's
-Raft [consensus protocol](/nomad/docs/architecture/consensus).
+Raft [consensus protocol](/nomad/docs/architecture/cluster/consensus).
 
 Snapshots are exposed as gzipped tar archives which internally contain the Raft
 metadata required to restore, as well as a binary serialized version of the

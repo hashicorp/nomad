@@ -228,7 +228,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/concepts/architecture/federation',
-    destination: '/nomad/docs/architecture/federation',
+    destination: '/nomad/docs/architecture/cluster/federation',
     permanent: true,
   },
   {
@@ -243,7 +243,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/concepts/consensus',
-    destination: '/nomad/docs/architecture/consensus',
+    destination: '/nomad/docs/architecture/cluster/consensus',
     permanent: true,
   },
   {
@@ -253,12 +253,12 @@ module.exports = [
   },
   {
     source: '/nomad/docs/concepts/gossip',
-    destination: '/nomad/docs/architecture/gossip',
+    destination: '/nomad/docs/architecture/security/gossip',
     permanent: true,
   },
   {
     source: '/nomad/docs/concepts/node-pools',
-    destination: '/nomad/docs/architecture/node-pools',
+    destination: '/nomad/docs/architecture/cluster/node-pools',
     permanent: true,
   },
   {
@@ -268,7 +268,7 @@ module.exports = [
   },
   {
     source: '/nomad/docs/operations/stateful-workloads',
-    destination: '/nomad/docs/architecture/stateful-workloads',
+    destination: '/nomad/docs/architecture/storage/stateful-workloads',
     permanent: true,
   },
   {

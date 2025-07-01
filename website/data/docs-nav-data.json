@@ -22,32 +22,38 @@
         "path": "architecture"
       },
       {
-        "title": "Consensus protocol",
-        "path": "architecture/consensus"
+        "title": "Cluster",
+        "routes": [
+          {
+            "title": "Cluster Consensus",
+            "path": "architecture/cluster/consensus"
+          },
+          {
+            "title": "Multi-cluster federation",
+            "path": "architecture/cluster/federation"
+          },
+          {
+            "title": "Node pools",
+            "path": "architecture/cluster/node-pools"
+          }
+        ]
       },
       {
         "title": "CPU",
         "path": "architecture/cpu"
       },
       {
-        "title": "Gossip protocol",
-        "path": "architecture/gossip"
-      },
-      {
-        "title": "Multi-cluster federation",
-        "path": "architecture/federation"
-      },
-      {
-        "title": "Node pools",
-        "path": "architecture/node-pools"
-      },
-      {
-        "title": "Security model",
-        "path": "architecture/security"
-      },
-      {
-        "title": "Stateful workload considerations",
-        "path": "architecture/stateful-workloads"
+        "title": "Security",
+        "routes": [
+          {
+            "title": "Overview",
+            "path": "architecture/security"
+          },
+          {
+            "title": "Cluster Gossip",
+            "path": "architecture/security/gossip"
+          }
+        ]
       },
       {
         "title": "Storage",
@@ -63,6 +69,10 @@
           {
             "title": "Host volumes",
             "path": "architecture/storage/host-volumes"
+          },
+          {
+            "title": "Stateful workload considerations",
+            "path": "architecture/storage/stateful-workloads"
           }
         ]
       }
@@ -71,10 +81,6 @@
   {
     "title": "Concepts",
     "routes": [
-      {
-        "title": "Overview",
-        "path": "concepts"
-      },
       {
         "title": "Allocation filesystem",
         "path": "concepts/filesystem"
@@ -150,11 +156,6 @@
     ]
   },
   {
-    "title": "Glossary",
-    "path": "glossary"
-  },
-
-  {
     "divider": "true"
   },
   {
@@ -165,11 +166,11 @@
     "title": "Deploy and run Nomad",
     "routes": [
       {
-        "title": "Deploy Nomad",
+        "title": "Install Nomad",
         "path": "deploy"
       },
       {
-        "title": "Production deployment guides",
+        "title": "Production deployment",
         "routes": [
           {
             "title": "Overview",
@@ -181,11 +182,11 @@
           },
           {
             "title": "Reference architecture",
-            "href": "https://developer.hashicorp.com/nomad/tutorials/enterprise/production-reference-architecture-vm-with-consul"
+            "path": "deploy/production/reference-architecture"
           },
           {
             "title": "Deployment guide",
-            "href": "https://developer.hashicorp.com/tutorials/nomad/production-deployment-guide-vm-with-consul"
+            "href": "https://developer.hashicorp.com/nomad/tutorials/enterprise/production-deployment-guide-vm-with-consul"
           },
           {
             "title": "Windows service",
@@ -901,6 +902,10 @@
   },
   {
     "heading": "Reference docs"
+  },
+  {
+    "title": "Glossary",
+    "path": "glossary"
   },
   {
     "title": "Agent configuration",

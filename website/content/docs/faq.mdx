@@ -19,8 +19,8 @@ and [`disable_update_check`](/nomad/docs/configuration#disable_update_check).
 
 ## Q: Is Nomad eventually or strongly consistent?
 
-Nomad makes use of both a [consensus protocol](/nomad/docs/architecture/consensus) and
-a [gossip protocol](/nomad/docs/architecture/gossip). The consensus protocol is strongly
+Nomad makes use of both a [consensus protocol](/nomad/docs/architecture/cluster/consensus) and
+a [gossip protocol](/nomad/docs/architecture/security/gossip). The consensus protocol is strongly
 consistent, and is used for all state replication and scheduling. The gossip protocol
 is used to manage the addresses of servers for automatic clustering and multi-region
 federation. This means all data that is managed by Nomad is strongly consistent.
